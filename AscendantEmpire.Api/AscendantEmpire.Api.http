@@ -1,0 +1,6 @@
+@AscendantEmpire.Api_HostAddress = http://localhost:5213
+
+GET {{AscendantEmpire.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
