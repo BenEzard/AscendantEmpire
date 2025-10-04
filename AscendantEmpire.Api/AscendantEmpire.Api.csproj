@@ -5,10 +5,20 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+	<PropertyGroup>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<NoWarn>$(NoWarn);1591</NoWarn> <!-- Suppress missing XML comment warnings -->
+	</PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="MediatR" Version="13.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AscendantEmpire.Application\AscendantEmpire.Application.csproj" />
+    <ProjectReference Include="..\AscendantEmpire.BackendContracts\AscendantEmpire.BackendContracts.csproj" />
+    <ProjectReference Include="..\AscendantEmpire.FrontendContracts\AscendantEmpire.FrontendContracts.csproj" />
   </ItemGroup>
 
 </Project>

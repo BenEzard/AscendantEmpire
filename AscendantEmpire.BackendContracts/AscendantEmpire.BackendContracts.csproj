@@ -6,4 +6,13 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\AscendantEmpire.Domain\AscendantEmpire.Domain.csproj" />
+    <ProjectReference Include="..\AscendantEmpire.FrontendContracts\AscendantEmpire.FrontendContracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Biomes\AddCampaignMapBiome\" />
+  </ItemGroup>
+
 </Project>
