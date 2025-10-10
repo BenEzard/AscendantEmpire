@@ -44,36 +44,36 @@ internal class CampaignMapBiomeValidator : AbstractValidator<IAddOrUpdateCampaig
             .WithMessage(b => $"{nameof(b.RegenerationRate)} must be greater than 1.");
 
         RuleFor(b => b.BaseForageValue)
-            .Must(v => v == null || v >= 0)
-            .WithMessage(b => $"{nameof(b.BaseForageValue)} must be greater than or equal to 0, if specified.");
+            .Must(v => v == null || v == 0 || v >= 9)
+            .WithMessage(b => $"{nameof(b.BaseForageValue)} must be 0 or greater than 9, if specified.");
 
         RuleFor(b => b.BaseHuntValue)
-            .Must(v => v == null || v >= 0)
-            .WithMessage(b => $"{nameof(b.BaseHuntValue)} must be greater than or equal to 0, if specified.");
+            .Must(v => v == null || v == 0 || v >= 9)
+            .WithMessage(b => $"{nameof(b.BaseHuntValue)} must be 0 or greater than 9, if specified.");
 
         RuleFor(b => b.BaseFishValue)
-            .Must(v => v == null || v >= 0)
-            .WithMessage(b => $"{nameof(b.BaseFishValue)} must be greater than or equal to 0, if specified.");
+            .Must(v => v == null || v == 0 || v >= 9)
+            .WithMessage(b => $"{nameof(b.BaseFishValue)} must be 0 or greater than 9, if specified.");
 
         RuleFor(b => b.BaseFodderValue)
-            .Must(v => v == null || v >= 0)
-            .WithMessage(b => $"{nameof(b.BaseFodderValue)} must be greater than or equal to 0, if specified.");
+            .Must(v => v == null || v == 0 || v >= 9)
+            .WithMessage(b => $"{nameof(b.BaseFodderValue)} must be 0 or greater than 9, if specified.");
 
         RuleFor(b => b.BaseBoneValue)
-            .Must(v => v == null || v >= 0)
-            .WithMessage(b => $"{nameof(b.BaseBoneValue)} must be greater than or equal to 0, if specified.");
+            .Must(v => v == null || v == 0 || v >= 9)
+            .WithMessage(b => $"{nameof(b.BaseBoneValue)} must be 0 or greater than 9, if specified.");
 
         RuleFor(b => b.BaseWoodValue)
-            .Must(v => v == null || v >= 0)
-            .WithMessage(b => $"{nameof(b.BaseWoodValue)} must be greater than or equal to 0, if specified.");
+            .Must(v => v == null || v == 0 || v >= 9)
+            .WithMessage(b => $"{nameof(b.BaseWoodValue)} must be 0 or greater than 9, if specified.");
 
         RuleFor(b => b.BaseStoneValue)
-            .Must(v => v == null || v >= 0)
-            .WithMessage(b => $"{nameof(b.BaseStoneValue)} must be greater than or equal to 0, if specified.");
+            .Must(v => v == null || v == 0 || v >= 9)
+            .WithMessage(b => $"{nameof(b.BaseStoneValue)} must be 0 or greater than 9, if specified.");
 
         RuleFor(b => b.BaseSpecialValue)
-            .Must(v => v == null || v >= 0)
-            .WithMessage(b => $"{nameof(b.BaseSpecialValue)} must be greater than or equal to 0, if specified.");
+            .Must(v => v == null || v == 0 || v >= 9)
+            .WithMessage(b => $"{nameof(b.BaseSpecialValue)} must be 0 or greater than 9, if specified.");
 
         RuleFor(b => b)
             .Must(b =>
@@ -86,8 +86,13 @@ internal class CampaignMapBiomeValidator : AbstractValidator<IAddOrUpdateCampaig
             .WithMessage(b => $"{b.BiomeType}: Water biomes cannot have Hunt, Fodder, Wood, or Stone values.");
 
         RuleFor(b => b)
-            .Must(b => b.IsWater == false || !b.CanBeElevated == false)
+            .Must(b => b.IsWater == false || b.CanBeElevated == false)
             .WithMessage(b => $"{b.BiomeType}: Water biomes cannot be elevated.");
+
+        RuleFor(b => b)
+            .Must(b => b.IsWater == false || b.DoesBlockSight == false)
+            .WithMessage(b => $"{b.BiomeType}: Water biomes cannot Block Sight.");
+
 
         RuleFor(b => b.MapEditorHtmlColor)
             .Matches(@"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")

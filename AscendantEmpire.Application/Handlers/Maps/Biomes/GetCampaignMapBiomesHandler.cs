@@ -33,7 +33,7 @@ internal class GetCampaignMapBiomesHandler(
                     DoesBlockSight = b.DoesBlockSight,
                     IsWater = b.IsWater,
                     IsTraversable = b.IsTraversable,
-                    RegenerationRate = b.RegenerationRate ?? 1.1m,
+                    RegenerationRate = b.RegenerationRate,
                     MapEditorHtmlColor = b.MapEditorHtmlColor ?? "#ffffff",
                     CanBeElevated = b.CanBeElevated,
                     IsPaintableOnCampaignMap = b.IsPaintableOnCampaignMap,

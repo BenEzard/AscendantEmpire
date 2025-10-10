@@ -17,5 +17,5 @@ public enum BiomeType
     Jungle = 9,
     Woodland = 10,
 
-    Void = 99,
+    Void = 11
 }

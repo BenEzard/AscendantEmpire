@@ -18,7 +18,8 @@ public record UpdateCampaignMapBiomesRequest(IReadOnlyCollection<AddOrUpdateCamp
 
 internal class UpdateCampaignMapBiomesHandler(
     ILogger<UpdateCampaignMapBiomesHandler> logger,
-    AscendantEmpireContext context
+    AscendantEmpireContext context,
+    IMediator mediator
     ) : IRequestHandler<UpdateCampaignMapBiomesRequest, ServiceResultBase>
 {
     public async Task<ServiceResultBase> Handle(UpdateCampaignMapBiomesRequest request, CancellationToken cancellationToken)
@@ -34,9 +35,46 @@ internal class UpdateCampaignMapBiomesHandler(
                 return ServiceResult.Fail(validation.Errors);
             }
 
-            Dictionary<BiomeType, AddOrUpdateCampaignMapBiomeDto> requestedUpdates = request.Biomes.ToDictionary(b => b.BiomeType);
-
             CampaignBiome[] existingBiomes = [.. context.CampaignBiomes.Where(b => request.Biomes.Select(rb => rb.BiomeType).Contains((BiomeType)b.BiomeTypeId))];
+
+            int[] existingBiomeTypeIds = [.. existingBiomes.Select(b => (int)b.BiomeTypeId)];
+
+            // Get any Biomes that aren't in the database
+            AddOrUpdateCampaignMapBiomeDto[] missingBiomes = [.. request.Biomes
+                .Where(b => existingBiomeTypeIds.Contains((int)b.BiomeType) == false)
+                .Select(b => new AddOrUpdateCampaignMapBiomeDto
+                {
+                    BiomeType = b.BiomeType,
+                    Name = b.Name,
+                    MovementCost = b.MovementCost,
+                    DoesBlockSight = b.DoesBlockSight,
+                    IsWater = b.IsWater,
+                    IsTraversable = b.IsTraversable,
+                    RegenerationRate = b.RegenerationRate,
+                    BaseForageValue = b.BaseForageValue,
+                    BaseHuntValue = b.BaseHuntValue,
+                    BaseFishValue = b.BaseFishValue,
+                    BaseFodderValue = b.BaseFodderValue,
+                    BaseBoneValue = b.BaseBoneValue,
+                    BaseWoodValue = b.BaseWoodValue,
+                    BaseStoneValue = b.BaseStoneValue,
+                    BaseSpecialValue = b.BaseSpecialValue,
+                    MapEditorHtmlColor = b.MapEditorHtmlColor,
+                    CanBeElevated = b.CanBeElevated,
+                    IsPaintableOnCampaignMap = b.IsPaintableOnCampaignMap
+                })];
+
+            if (missingBiomes.Length != 0)
+            {
+                ServiceResultBase insertResult = await mediator.Send(new AddCampaignMapBiomesRequest(missingBiomes));
+                if (insertResult.HasSucceeded == false)
+                {
+                    logger.LogWarning("Failed to insert missing biomes during " + nameof(UpdateCampaignMapBiomesRequest) + ": {Errors}", string.Join(Environment.NewLine, insertResult.Errors));
+                    return insertResult;
+                }
+            }
+
+            Dictionary<BiomeType, AddOrUpdateCampaignMapBiomeDto> requestedUpdates = request.Biomes.ToDictionary(b => b.BiomeType);
 
             foreach (CampaignBiome existingBiome in existingBiomes)
             {
@@ -76,7 +114,6 @@ internal class UpdateCampaignMapBiomesHandler(
     /// <summary>
     /// Validates the request Biomes against the CampaignMapBiomeValidator.
     /// </summary>
-    /// <remarks>Checks there isn't already a record with the same BiomeTypeId in the table</remarks>
     private static ServiceResultBase ValidateRequestBiomes(AscendantEmpireContext context, IReadOnlyCollection<IAddOrUpdateCampaignMapBiomeDto> biomes)
     {
         var validator = new CampaignMapBiomeValidator();
@@ -86,36 +123,25 @@ internal class UpdateCampaignMapBiomesHandler(
             .Select(biome => (biome.BiomeType, validator.Validate(biome)))
             .ToArray();
 
+        Dictionary<BiomeType, string> biomeLookup = biomes.ToDictionary(b => b.BiomeType, b => b.Name);
+
         string[] groupedErrors = validationResults
             .Where(result => result.ValidationResults.Errors.Count != 0)
             .SelectMany(result =>
                 result.ValidationResults.Errors.Select(error =>
-                    $"Biome '{result.BiomeType}': {error.ErrorMessage}"))
-            .ToArray();
-
-        // Check the Biome Type Id IS already in the database
-        BiomeType[] biomeTypeIdsInRequest = [.. biomes.Select(b => b.BiomeType)];
-        string[] biomesMissingFromDb = biomeTypeIdsInRequest
-            .Where(requestedId => context.CampaignBiomes
-                .Any(db => db.BiomeTypeId == requestedId) == false)
-            .Select(id => $"{id} is not a Biome. Has it been created yet?")
+                    $"Biome '{biomeLookup[result.BiomeType]}': {error.ErrorMessage}"))
             .ToArray();
 
         // Check for any duplicate BiomeTypeIds in the request object
         string[] duplicateBiomesInRequest = biomes
             .GroupBy(b => b.BiomeType)
             .Where(g => g.Count() > 1)
-            .Select(g => $"{g.Key} is specified multiple times in the request.")
+            .Select(g => $"{biomeLookup[g.Key]} is specified multiple times in the request.")
             .ToArray();
 
         if (groupedErrors.Length != 0 || duplicateBiomesInRequest.Length != 0)
         {
             return ServiceResultBase.Fail(groupedErrors.Concat(duplicateBiomesInRequest));
-        }
-
-        else if (biomesMissingFromDb.Length != 0)
-        {
-            return ServiceResultBase.NotFound(biomesMissingFromDb);
         }
 
         return ServiceResultBase.Succeed();
