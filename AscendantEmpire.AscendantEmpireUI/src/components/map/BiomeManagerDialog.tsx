@@ -1,4 +1,4 @@
-import { Button, Modal, Toast, ToastContainer } from "react-bootstrap";
+import { Button, ButtonGroup, Modal, OverlayTrigger, Toast, ToastContainer, Tooltip } from "react-bootstrap";
 import Form from "react-bootstrap/Form";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
@@ -7,6 +7,10 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { isValidColor, pickTextColorOnBg } from "../../util/color";
+import { FaPlusCircle } from "react-icons/fa";
+import { CiExport, CiImport } from "react-icons/ci";
+import ExportDialog from "../ExportDialog";
+import { safeStringify } from "../../util/json";
 
 interface BiomeManagerProps {
   biomeList: Biome[];
@@ -18,6 +22,11 @@ interface BiomeManagerProps {
 function BiomeManagerDialog({ biomeList, show, onClose, onSaveSuccess }: BiomeManagerProps) {
   const [biomes, setBiomes] = useState<Biome[]>(biomeList); // local copy so we can modify
   const [selectedBiome, setSelectedBiome] = useState<Biome | null>(null);
+
+  // Text Editor Dialog
+  const [textEditorTitle, setTextEditorTitle] = useState("Text");
+  const [textEditorBody, setTextEditorBody] = useState<string>();
+  const [showTextEditor, setShowTextEditor] = useState(false);
 
   const [showErrorToast, setShowErrorToast] = useState(false);
   const [errorToastItems, setErrorToastItems] = useState<string[]>([]);
@@ -84,6 +93,12 @@ function BiomeManagerDialog({ biomeList, show, onClose, onSaveSuccess }: BiomeMa
     setBiomes((prevBiomes) => prevBiomes.map((b) => (b.biomeType === originalId ? updated : b)));
   };
 
+  const handleExportClick = () => {
+    setTextEditorTitle("Export Biomes");
+    setTextEditorBody(safeStringify(biomes));
+    setShowTextEditor(true);
+  };
+
   // -----------------------------------------------------------------------------------------------------------------
   // Load biomeList only once when dialog first opens
   // -----------------------------------------------------------------------------------------------------------------
@@ -143,7 +158,7 @@ function BiomeManagerDialog({ biomeList, show, onClose, onSaveSuccess }: BiomeMa
 
   return (
     <>
-      <Modal show={show} onHide={onClose} centered size="xl">
+      <Modal show={show} onHide={onClose} centered size="xl" contentClassName="thick-border-modal">
         <Modal.Header closeButton>
           <Modal.Title>Biome Manager</Modal.Title>
         </Modal.Header>
@@ -172,9 +187,18 @@ function BiomeManagerDialog({ biomeList, show, onClose, onSaveSuccess }: BiomeMa
                     ))}
                   </Form.Control>
 
-                  <Button variant="outline-primary" className="mt-2" onClick={handleAddNewBiome}>
-                    Add New
-                  </Button>
+                  <ButtonGroup className="mt-2 w-100">
+                    <OverlayTrigger placement="bottom" overlay={<Tooltip id="tip-add">Add New</Tooltip>}>
+                      <Button variant="primary" onClick={handleAddNewBiome}>
+                        <FaPlusCircle aria-hidden="true" />
+                      </Button>
+                    </OverlayTrigger>
+                    <OverlayTrigger placement="bottom" overlay={<Tooltip id="tip-add">Export</Tooltip>}>
+                      <Button variant="primary" onClick={handleExportClick}>
+                        <CiExport aria-hidden="true" strokeWidth={2} />
+                      </Button>
+                    </OverlayTrigger>
+                  </ButtonGroup>
                 </Form.Group>
               </Col>
 
@@ -453,9 +477,9 @@ function BiomeManagerDialog({ biomeList, show, onClose, onSaveSuccess }: BiomeMa
 
         <Modal.Footer>
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            Cancel / Close
           </Button>
-          <Button variant="primary" disabled={saveBiomesMutation.isPending} onClick={() => saveBiomesMutation.mutate(biomes)}>
+          <Button variant="success" disabled={saveBiomesMutation.isPending} onClick={() => saveBiomesMutation.mutate(biomes)}>
             {saveBiomesMutation.isPending ? "Saving..." : "Save"}
           </Button>
         </Modal.Footer>
@@ -475,6 +499,8 @@ function BiomeManagerDialog({ biomeList, show, onClose, onSaveSuccess }: BiomeMa
           </Toast.Body>
         </Toast>
       </ToastContainer>
+
+      <ExportDialog show={showTextEditor} title={textEditorTitle} textBody={textEditorBody} onClose={() => setShowTextEditor(false)} />
     </>
   );
 }
