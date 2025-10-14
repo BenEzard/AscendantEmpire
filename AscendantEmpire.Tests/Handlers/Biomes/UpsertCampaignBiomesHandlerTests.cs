@@ -13,10 +13,10 @@ using NSubstitute;
 
 namespace AscendantEmpire.Tests.Handlers.Biomes;
 
-internal class UpdateCampaignBiomesHandlerTests
+internal class UpsertCampaignBiomesHandlerTests
 {
     private AscendantEmpireContext _context = null!;
-    private UpdateCampaignMapBiomesHandler _handler = null!;
+    private UpsertCampaignMapBiomesHandler _handler = null!;
     private DbContextOptions<AscendantEmpireContext> _options;
     private IMediator _mediator = null!;
 
@@ -32,7 +32,7 @@ internal class UpdateCampaignBiomesHandlerTests
         await _context.Database.EnsureCreatedAsync();
 
         _mediator = Substitute.For<IMediator>();
-        _handler = new UpdateCampaignMapBiomesHandler(new NullLogger<UpdateCampaignMapBiomesHandler>(), _context, _mediator);
+        _handler = new UpsertCampaignMapBiomesHandler(new NullLogger<UpsertCampaignMapBiomesHandler>(), _context, _mediator);
     }
 
     [TearDown]
@@ -48,7 +48,7 @@ internal class UpdateCampaignBiomesHandlerTests
         _context.CampaignBiomes.Add(new CampaignBiome { BiomeTypeId = BiomeType.Ocean, Name = "Ocean", MapEditorHtmlColor = "#c0c0c1" });
         await _context.SaveChangesAsync();
 
-        var updateRequest = new UpdateCampaignMapBiomesRequest(
+        var updateRequest = new UpsertCampaignMapBiomesRequest(
         [
             new()
             {

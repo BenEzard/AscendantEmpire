@@ -86,6 +86,35 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.ToTable("CampaignBiomes", "map");
                 });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignGeography", b =>
+                {
+                    b.Property<int>("CampaignMapGeographyTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsPaintableOnCampaignMap")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("MapEditorIcon")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("MovementCost")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("RelativeElevation")
+                        .HasColumnType("int");
+
+                    b.HasKey("CampaignMapGeographyTypeId");
+
+                    b.ToTable("CampaignGeography", "map");
+                });
 #pragma warning restore 612, 618
         }
     }

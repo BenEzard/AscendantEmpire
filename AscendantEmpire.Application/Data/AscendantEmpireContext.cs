@@ -9,6 +9,7 @@ public class AscendantEmpireContext : DbContext
 {
     // Map Schema
     public DbSet<CampaignBiome> CampaignBiomes { get; set; }
+    public DbSet<CampaignGeography> CampaignGeographies { get; set; }
 
     public AscendantEmpireContext(DbContextOptions<AscendantEmpireContext> options) : base(options)
     {

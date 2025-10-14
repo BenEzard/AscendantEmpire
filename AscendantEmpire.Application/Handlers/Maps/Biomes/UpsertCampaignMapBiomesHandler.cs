@@ -14,15 +14,15 @@ using AscendantEmpire.Application.Handlers.Maps.Biomes.Validator;
 
 namespace AscendantEmpire.Application.Handlers.Maps.Biomes;
 
-public record UpdateCampaignMapBiomesRequest(IReadOnlyCollection<AddOrUpdateCampaignMapBiomeDto> Biomes) : IRequest<ServiceResultBase>;
+public record UpsertCampaignMapBiomesRequest(IReadOnlyCollection<AddOrUpdateCampaignMapBiomeDto> Biomes) : IRequest<ServiceResultBase>;
 
-internal class UpdateCampaignMapBiomesHandler(
-    ILogger<UpdateCampaignMapBiomesHandler> logger,
+internal class UpsertCampaignMapBiomesHandler(
+    ILogger<UpsertCampaignMapBiomesHandler> logger,
     AscendantEmpireContext context,
     IMediator mediator
-    ) : IRequestHandler<UpdateCampaignMapBiomesRequest, ServiceResultBase>
+    ) : IRequestHandler<UpsertCampaignMapBiomesRequest, ServiceResultBase>
 {
-    public async Task<ServiceResultBase> Handle(UpdateCampaignMapBiomesRequest request, CancellationToken cancellationToken)
+    public async Task<ServiceResultBase> Handle(UpsertCampaignMapBiomesRequest request, CancellationToken cancellationToken)
     {
         try
         {
@@ -31,7 +31,7 @@ internal class UpdateCampaignMapBiomesHandler(
 
             if (validation.HasSucceeded == false)
             {
-                logger.LogWarning("Validation failed for " + nameof(UpdateCampaignMapBiomesRequest) + ": {Errors}", string.Join(Environment.NewLine, validation.Errors));
+                logger.LogWarning("Validation failed for " + nameof(UpsertCampaignMapBiomesRequest) + ": {Errors}", string.Join(Environment.NewLine, validation.Errors));
                 return ServiceResult.Fail(validation.Errors);
             }
 
@@ -69,7 +69,7 @@ internal class UpdateCampaignMapBiomesHandler(
                 ServiceResultBase insertResult = await mediator.Send(new AddCampaignMapBiomesRequest(missingBiomes));
                 if (insertResult.HasSucceeded == false)
                 {
-                    logger.LogWarning("Failed to insert missing biomes during " + nameof(UpdateCampaignMapBiomesRequest) + ": {Errors}", string.Join(Environment.NewLine, insertResult.Errors));
+                    logger.LogWarning("Failed to insert missing biomes during " + nameof(UpsertCampaignMapBiomesRequest) + ": {Errors}", string.Join(Environment.NewLine, insertResult.Errors));
                     return insertResult;
                 }
             }

@@ -40,22 +40,21 @@ namespace AscendantEmpire.Api.Controllers
         }
 
         /// <summary>
-        /// Update existing Campaign Map Biomes
+        /// Upsert existing Campaign Map Biomes
         /// </summary>
-        /// <response code="201">Campaign Map Biomes successfully updated</response>
+        /// <response code="201">Campaign Map Biomes successfully upserted</response>
         /// <response code="400">Validation error</response>
-        /// <response code="404">Biome not found</response>
         /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
         [HttpPut("campaign-map")]
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
         [ProducesResponseType(typeof(IApiErrorResult), 500)]
-        public async Task<IActionResult> UpdateCampaignMapBiomesAsync(
+        public async Task<IActionResult> UpsertCampaignMapBiomesAsync(
             [FromServices] IMediator mediator,
             [FromBody] IReadOnlyCollection<AddOrUpdateCampaignMapBiomeDto> biomes)
         {
-            ServiceResultBase response = await mediator.Send(new UpdateCampaignMapBiomesRequest(biomes));
+            ServiceResultBase response = await mediator.Send(new UpsertCampaignMapBiomesRequest(biomes));
 
             return response.ToActionResult();
         }
