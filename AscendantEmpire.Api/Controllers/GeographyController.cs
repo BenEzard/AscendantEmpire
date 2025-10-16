@@ -75,7 +75,7 @@ public class GeographyController : ControllerBase
             {
                 Geographies = response.SuccessValue.Select(g => new DTCampaignMapGeography
                 {
-                    CampaignMapGeographyType = (CampaignMapGeographyType)g.CampaignMapGeographyType,
+                    CampaignMapGeographyType = g.CampaignMapGeographyType,
                     RelativeElevation = g.RelativeElevation,
                     Name = g.Name,
                     MovementCost = g.MovementCost,

@@ -1,4 +1,4 @@
-import { FaTree } from "react-icons/fa6";
+import { FaMountain, FaTree } from "react-icons/fa6";
 import ToolBar, { type ToolBarGroup } from "../ToolBar";
 import { useState } from "react";
 import BiomeManagerDialog from "./BiomeManagerDialog";
@@ -6,33 +6,40 @@ import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import type { Biome } from "../../types/map/Biome";
 import { Toast, ToastContainer } from "react-bootstrap";
+import GeographyManagerDialog from "./GeographyManagerDialog";
+import type { Geography } from "../../types/map/Geography";
 
 function MapGalleryEditor() {
   const [showBiomeManager, setShowBiomeManager] = useState(false);
+  const [showGeographyManager, setShowGeographyManager] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
   const fetchBiomes = () => axios.get<{ biomes: Biome[] }>("https://localhost:7242/biomes/campaign-map").then((res) => res.data.biomes);
+  const fetchGeographies = () =>
+    axios.get<{ geographies: Geography[] }>("https://localhost:7242/geography/campaign-map").then((res) => res.data.geographies);
 
-  const { data: biomes, error } = useQuery<Biome[], Error>({
+  const { data: biomes, error: biomeError } = useQuery<Biome[], Error>({
     queryKey: ["biomes"],
     queryFn: fetchBiomes,
   });
 
-  if (error) return <p>{error.message}</p>;
+  const { data: geographies, error: geographyError } = useQuery<Geography[], Error>({
+    queryKey: ["geographies"],
+    queryFn: fetchGeographies,
+  });
+
+  if (biomeError) return <p>{biomeError.message}</p>;
+  if (geographyError) return <p>{geographyError.message}</p>;
 
   // ToolBar
   const toolBarGroups: ToolBarGroup[] = [
     {
       caption: "Palette",
-      buttons: [{ key: "biomes", icon: <FaTree />, tooltip: "Biomes", onClick: () => setShowBiomeManager(true) }],
+      buttons: [
+        { key: "biomes", icon: <FaTree size="24" />, tooltip: "Biomes", onClick: () => setShowBiomeManager(true) },
+        { key: "geographies", icon: <FaMountain size="24" />, tooltip: "Geographies", onClick: () => setShowGeographyManager(true) },
+      ],
     },
-    // {
-    //   caption: "Demo",
-    //   buttons: [
-    //     { key: "center", icon: <FaBullseye />, tooltip: "Center Map" },
-    //     { key: "right", icon: <FaArrowsAltH />, tooltip: "Move Right" },
-    //   ],
-    // },
   ];
 
   return (
@@ -43,6 +50,13 @@ function MapGalleryEditor() {
         show={showBiomeManager}
         biomeList={biomes ?? []}
         onClose={() => setShowBiomeManager(false)}
+        onSaveSuccess={() => setShowToast(true)}
+      />
+
+      <GeographyManagerDialog
+        show={showGeographyManager}
+        geographyList={geographies ?? []}
+        onClose={() => setShowGeographyManager(false)}
         onSaveSuccess={() => setShowToast(true)}
       />
 

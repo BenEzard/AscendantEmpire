@@ -8,7 +8,7 @@ import axios from "axios";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { isValidColor, pickTextColorOnBg } from "../../util/color";
 import { FaPlusCircle } from "react-icons/fa";
-import { CiExport, CiImport } from "react-icons/ci";
+import { CiExport } from "react-icons/ci";
 import ExportDialog from "../ExportDialog";
 import { safeStringify } from "../../util/json";
 
