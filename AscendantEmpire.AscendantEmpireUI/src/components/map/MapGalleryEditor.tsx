@@ -12,9 +12,24 @@ import type { Geography } from "../../types/map/Geography";
 function MapGalleryEditor() {
   const [showBiomeManager, setShowBiomeManager] = useState(false);
   const [showGeographyManager, setShowGeographyManager] = useState(false);
-  const [showToast, setShowToast] = useState(false);
+
+  // Toast
+  const [toast, setToast] = useState<{
+    show: boolean;
+    message: string;
+    variant: "success" | "danger" | "warning" | "info";
+  }>({
+    show: false,
+    message: "",
+    variant: "success",
+  });
+
+  const openToast = (message: string, variant: "success" | "danger" | "warning" | "info" = "success") => setToast({ show: true, message, variant });
+
+  const closeToast = () => setToast((t) => ({ ...t, show: false }));
 
   const fetchBiomes = () => axios.get<{ biomes: Biome[] }>("https://localhost:7242/biomes/campaign-map").then((res) => res.data.biomes);
+
   const fetchGeographies = () =>
     axios.get<{ geographies: Geography[] }>("https://localhost:7242/geography/campaign-map").then((res) => res.data.geographies);
 
@@ -50,19 +65,19 @@ function MapGalleryEditor() {
         show={showBiomeManager}
         biomeList={biomes ?? []}
         onClose={() => setShowBiomeManager(false)}
-        onSaveSuccess={() => setShowToast(true)}
+        onSaveSuccess={(msg) => openToast(msg ?? "Saved!", "success")}
       />
 
       <GeographyManagerDialog
         show={showGeographyManager}
         geographyList={geographies ?? []}
         onClose={() => setShowGeographyManager(false)}
-        onSaveSuccess={() => setShowToast(true)}
+        onSaveSuccess={(msg) => openToast(msg ?? "Saved!", "success")}
       />
 
       <ToastContainer position="bottom-end" className="p-3">
-        <Toast show={showToast} onClose={() => setShowToast(false)} delay={3000} autohide className="me-auto bg-success-subtle border-0">
-          <Toast.Body className="bg-success-subtle border-0">Biomes saved successfully!</Toast.Body>
+        <Toast show={toast.show} onClose={closeToast} autohide delay={3000} className={`border-0 bg-${toast.variant}-subtle`}>
+          <Toast.Body className={`border-0 ${toast.variant === "warning" ? "" : `text-${toast.variant}`}`}>{toast.message}</Toast.Body>
         </Toast>
       </ToastContainer>
     </>

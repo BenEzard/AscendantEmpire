@@ -1,5 +1,5 @@
 export type Geography = {
-  geographyType: number; // Unique identifier for this Geography
+  campaignMapGeographyType: number; // Unique identifier for this Geography
   name: string; // User-friendly name of this Geography
   relativeElevation: number; // The relative elevation of this Geography
   movementCost: number; // The movement cost to traverse a Tile of this Geography

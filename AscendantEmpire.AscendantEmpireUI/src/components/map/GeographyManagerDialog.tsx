@@ -43,10 +43,10 @@ function GeographyManagerDialog({ geographyList, show, onClose, onSaveSuccess }:
   // Function that creates a new Geography
   // -----------------------------------------------------------------------------------------------------------------
   const handleAddNewGeography = () => {
-    const nextId = Math.max(0, ...geographies.map((b) => b.geographyType)) + 1;
+    const nextId = Math.max(0, ...geographies.map((b) => b.campaignMapGeographyType)) + 1;
 
     const newGeography: Geography = {
-      geographyType: nextId,
+      campaignMapGeographyType: nextId,
       name: "new",
       relativeElevation: DEFAULTS.relativeElevation,
       movementCost: DEFAULTS.movementCost,
@@ -67,12 +67,12 @@ function GeographyManagerDialog({ geographyList, show, onClose, onSaveSuccess }:
   const handleGeographyFieldChange = <K extends keyof Geography>(field: K, value: Geography[K]) => {
     if (!selectedGeography) return;
 
-    const originalId = selectedGeography.geographyType; // track before updating
+    const originalId = selectedGeography.campaignMapGeographyType; // track before updating
     const updated = { ...selectedGeography, [field]: value };
 
     setSelectedGeography(updated);
 
-    setGeographies((prevGeography) => prevGeography.map((b) => (b.geographyType === originalId ? updated : b)));
+    setGeographies((prevGeography) => prevGeography.map((b) => (b.campaignMapGeographyType === originalId ? updated : b)));
   };
 
   const handleExportClick = () => {
@@ -82,11 +82,11 @@ function GeographyManagerDialog({ geographyList, show, onClose, onSaveSuccess }:
   };
 
   // -----------------------------------------------------------------------------------------------------------------
-  // Load biomeList only once when dialog first opens
+  // Load geographyList only once when dialog first opens
   // -----------------------------------------------------------------------------------------------------------------
   useEffect(() => {
     if (show) {
-      console.table(geographyList.map((g) => ({ id: g.geographyType, type: typeof g.geographyType })));
+      console.table(geographyList.map((g) => ({ id: g.campaignMapGeographyType, type: typeof g.campaignMapGeographyType })));
 
       setGeographies(geographyList);
 
@@ -110,7 +110,7 @@ function GeographyManagerDialog({ geographyList, show, onClose, onSaveSuccess }:
       // make sure the error toast is hidden
       setShowErrorToast(false);
 
-      // Invalidate or update the cache if you have a biome query elsewhere
+      // Invalidate or update the cache if you have a geography query elsewhere
       queryClient.invalidateQueries({ queryKey: ["geographies"] });
 
       onClose();
@@ -157,15 +157,15 @@ function GeographyManagerDialog({ geographyList, show, onClose, onSaveSuccess }:
                     key={geographies.length} // forces refresh when list changes
                     as="select"
                     htmlSize={Math.min(geographies.length, 10)}
-                    value={selectedGeography?.geographyType ?? ""}
+                    value={selectedGeography?.campaignMapGeographyType ?? ""}
                     style={{ flexGrow: 1, minHeight: "200px", maxHeight: "400px", overflowY: "auto" }}
                     onChange={(e) => {
                       const selectedType = Number(e.target.value);
-                      const geography = geographies.find((b) => b.geographyType === selectedType) ?? null;
+                      const geography = geographies.find((b) => b.campaignMapGeographyType === selectedType) ?? null;
                       setSelectedGeography(geography);
                     }}>
                     {orderedGeographies.map((b) => (
-                      <option key={b.geographyType} value={b.geographyType}>
+                      <option key={b.campaignMapGeographyType} value={b.campaignMapGeographyType}>
                         {b.name}
                       </option>
                     ))}
@@ -195,7 +195,7 @@ function GeographyManagerDialog({ geographyList, show, onClose, onSaveSuccess }:
                     Id
                   </Form.Label>
                   <Col sm={5}>
-                    <Form.Control type="text" value={selectedGeography?.geographyType ?? ""} disabled readOnly />
+                    <Form.Control type="text" value={selectedGeography?.campaignMapGeographyType ?? ""} disabled readOnly />
                   </Col>
                 </Form.Group>
 
@@ -247,7 +247,7 @@ function GeographyManagerDialog({ geographyList, show, onClose, onSaveSuccess }:
                   </Form.Label>
                   <Col sm={5}>
                     <Form.Control
-                      type="number"
+                      type="text"
                       placeholder=""
                       value={selectedGeography?.mapEditorIcon ?? ""}
                       onChange={(e) => handleGeographyFieldChange("mapEditorIcon", e.target.value)}
@@ -260,7 +260,7 @@ function GeographyManagerDialog({ geographyList, show, onClose, onSaveSuccess }:
                     <Form.Check
                       type="checkbox"
                       id="IsPaintableOnCampaignMap"
-                      label="Is Paintable?"
+                      label="Is Paintable on Campaign Map?"
                       checked={selectedGeography?.isPaintableOnCampaignMap ?? false}
                       onChange={(e) => handleGeographyFieldChange("isPaintableOnCampaignMap", e.target.checked)}
                     />

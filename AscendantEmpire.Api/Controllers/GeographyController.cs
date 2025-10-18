@@ -81,7 +81,7 @@ public class GeographyController : ControllerBase
                     MovementCost = g.MovementCost,
                     MapEditorIcon = g.MapEditorIcon,
                     IsPaintableOnCampaignMap = g.IsPaintableOnCampaignMap
-                }).ToList()
+                }).ToList() ?? []
             };
         });
     }

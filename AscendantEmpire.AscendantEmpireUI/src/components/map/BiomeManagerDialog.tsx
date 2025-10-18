@@ -16,7 +16,7 @@ interface BiomeManagerProps {
   biomeList: Biome[];
   show: boolean;
   onClose: () => void;
-  onSaveSuccess: () => void;
+  onSaveSuccess: (message?: string) => void;
 }
 
 function BiomeManagerDialog({ biomeList, show, onClose, onSaveSuccess }: BiomeManagerProps) {
@@ -106,6 +106,8 @@ function BiomeManagerDialog({ biomeList, show, onClose, onSaveSuccess }: BiomeMa
     if (show) {
       setBiomes(biomeList);
 
+      console.table(biomeList.map((g) => ({ id: g.biomeType, type: typeof g.biomeType })));
+
       // Sort to ensure consistent order
       const first = biomeList.slice().sort((a, b) => a.name.localeCompare(b.name))[0] ?? null;
       setSelectedBiome(first);
@@ -130,7 +132,7 @@ function BiomeManagerDialog({ biomeList, show, onClose, onSaveSuccess }: BiomeMa
       queryClient.invalidateQueries({ queryKey: ["biomes"] });
 
       onClose();
-      onSaveSuccess(); // notify parent
+      onSaveSuccess("Biomes saved successfully."); // notify parent
     },
     onError: (error: any) => {
       let items: string[] = ["An unknown error occurred."];
