@@ -15,7 +15,7 @@ interface GeographyManagerProps {
   geographyList: Geography[];
   show: boolean;
   onClose: () => void;
-  onSaveSuccess: () => void;
+  onSaveSuccess: (message?: string) => void;
 }
 
 function GeographyManagerDialog({ geographyList, show, onClose, onSaveSuccess }: GeographyManagerProps) {
@@ -114,7 +114,7 @@ function GeographyManagerDialog({ geographyList, show, onClose, onSaveSuccess }:
       queryClient.invalidateQueries({ queryKey: ["geographies"] });
 
       onClose();
-      onSaveSuccess(); // notify parent
+      onSaveSuccess("Geographies saved successfully."); // notify parent
     },
     onError: (error: any) => {
       let items: string[] = ["An unknown error occurred."];

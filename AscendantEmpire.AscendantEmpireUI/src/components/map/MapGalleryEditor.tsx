@@ -51,8 +51,8 @@ function MapGalleryEditor() {
     {
       caption: "Palette",
       buttons: [
-        { key: "biomes", icon: <FaTree size="24" />, tooltip: "Biomes", onClick: () => setShowBiomeManager(true) },
-        { key: "geographies", icon: <FaMountain size="24" />, tooltip: "Geographies", onClick: () => setShowGeographyManager(true) },
+        { key: "biomes", icon: <FaTree />, tooltip: "Biomes", onClick: () => setShowBiomeManager(true) },
+        { key: "geographies", icon: <FaMountain />, tooltip: "Geographies", onClick: () => setShowGeographyManager(true) },
       ],
     },
   ];
