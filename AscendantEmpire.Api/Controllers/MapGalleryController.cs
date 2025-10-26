@@ -3,8 +3,11 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Handlers.Maps.MapGallery;
 using AscendantEmpire.Application.Handlers.Maps.MapGallery.Classes;
 using AscendantEmpire.BackendContracts.MapGallery.GenerateCampaignMap;
+using AscendantEmpire.BackendContracts.MapGallery.SearchCampaignMap;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.FrontendContracts;
+using AscendantEmpire.FrontendContracts.MapGallery.GetCampaignMapGalleryIndex;
+using AscendantEmpire.FrontendContracts.MapGallery.SearchCampaignMapIndex;
 
 using MediatR;
 
@@ -73,6 +76,36 @@ public class MapGalleryController
                 PropertiesJson = response.SuccessValue.PropertiesJson,
                 Status = response.SuccessValue.Status,
                 ErrorMessage = response.SuccessValue.ErrorMessage
+            };
+        });
+    }
+
+    /// <summary>
+    /// Search Campaign Map Gallery Index record
+    /// </summary>
+    /// <response code="200">Campaign Map Gallery Index</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpGet("search")]
+    [ProducesResponseType(typeof(ICampaignMapIndexCollection), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> SearchCampaignMapGalleryIndexAsync(
+        [FromServices] IMediator mediator,
+        CancellationToken cancelToken)
+    {
+        ServiceResult<IReadOnlyCollection<CampaignMapIndex>> response = await mediator.Send(new SearchCampaignMapGalleryIndexRequest(), cancelToken);
+
+        return response.ToActionResult(contract =>
+        {
+            return new DTCampaignMapIndexCollection
+            {
+                Indexes = [.. response.SuccessValue.Select(c => new DTCampaignMapIndex
+                {
+                    CampaignMapGalleryIndexId = c.CampaignMapGalleryIndexId,
+                    MapName = c.MapName,
+                    Description = c.Description,
+                    Width = c.Width,
+                    Height = c.Height
+                })]
             };
         });
     }

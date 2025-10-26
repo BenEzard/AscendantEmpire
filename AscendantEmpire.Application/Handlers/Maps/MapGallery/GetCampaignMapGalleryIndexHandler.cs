@@ -26,7 +26,7 @@ internal class GetCampaignMapGalleryIndexHandler(
             {
                 const string error = "Campaign Map Gallery Index not found.";
                 logger.LogWarning(error + " MapId: {MapId}", request.MapId);
-                return ServiceResult<CampaignMapGalleryIndex>.Fail(error);
+                return ServiceResult<CampaignMapGalleryIndex>.NotFound(error);
             }
 
             return ServiceResult<CampaignMapGalleryIndex>.Succeed(mapIndex);
@@ -35,7 +35,7 @@ internal class GetCampaignMapGalleryIndexHandler(
         {
             const string error = "An error occurred while retrieving the Campaign Map Gallery Index.";
             logger.LogError(ex, error + " MapId: {MapId}", request.MapId);
-            return ServiceResult<CampaignMapGalleryIndex>.Fail(error);
+            return ServiceResult<CampaignMapGalleryIndex>.InternalServerError(error);
         }
     }
 }
