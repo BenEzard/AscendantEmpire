@@ -1,6 +1,11 @@
 
+using AscendantEmpire.Api.Middleware.Validators;
 using AscendantEmpire.Application;
 using AscendantEmpire.Application.Data;
+
+using FluentValidation;
+
+using MediatR;
 
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.EntityFrameworkCore;
@@ -44,6 +49,11 @@ namespace AscendantEmpire.Api
 
             // Auto-register MediatR handlers 
             builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(MediatrStartup).Assembly));
+
+            // Auto-validate
+            builder.Services.AddValidatorsFromAssembly(typeof(MediatrStartup).Assembly, includeInternalTypes: true);
+
+            builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>));
 
             builder.Services.AddDbContext<AscendantEmpireContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("AscendantEmpireDatabase"))

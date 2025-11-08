@@ -106,8 +106,6 @@ function BiomeManagerDialog({ biomeList, show, onClose, onSaveSuccess }: BiomeMa
     if (show) {
       setBiomes(biomeList);
 
-      console.table(biomeList.map((g) => ({ id: g.biomeType, type: typeof g.biomeType })));
-
       // Sort to ensure consistent order
       const first = biomeList.slice().sort((a, b) => a.name.localeCompare(b.name))[0] ?? null;
       setSelectedBiome(first);

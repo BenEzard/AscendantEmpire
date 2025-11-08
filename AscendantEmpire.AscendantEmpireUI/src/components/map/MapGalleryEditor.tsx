@@ -8,10 +8,13 @@ import type { Biome } from "../../types/map/Biome";
 import { Toast, ToastContainer } from "react-bootstrap";
 import GeographyManagerDialog from "./GeographyManagerDialog";
 import type { Geography } from "../../types/map/Geography";
+import { VscNewFile } from "react-icons/vsc";
+import NewCampaignMapDialog from "./NewCampaignMapDialog";
 
 function MapGalleryEditor() {
   const [showBiomeManager, setShowBiomeManager] = useState(false);
   const [showGeographyManager, setShowGeographyManager] = useState(false);
+  const [showNewCampaignMapDialog, setShowNewCampaignMapDialog] = useState(false);
 
   // Toast
   const [toast, setToast] = useState<{
@@ -49,6 +52,10 @@ function MapGalleryEditor() {
   // ToolBar
   const toolBarGroups: ToolBarGroup[] = [
     {
+      caption: "File",
+      buttons: [{ key: "new", icon: <VscNewFile />, tooltip: "New Campaign Map", onClick: () => setShowNewCampaignMapDialog(true) }],
+    },
+    {
       caption: "Palette",
       buttons: [
         { key: "biomes", icon: <FaTree />, tooltip: "Biomes", onClick: () => setShowBiomeManager(true) },
@@ -75,6 +82,11 @@ function MapGalleryEditor() {
         onSaveSuccess={(msg) => openToast(msg ?? "Saved!", "success")}
       />
 
+      <NewCampaignMapDialog
+        show={showNewCampaignMapDialog}
+        onClose={() => setShowNewCampaignMapDialog(false)}
+        onSaveSuccess={(msg) => openToast(msg ?? "Saved!", "success")}
+      />
       <ToastContainer position="bottom-end" className="p-3">
         <Toast show={toast.show} onClose={closeToast} autohide delay={3000} className={`border-0 bg-${toast.variant}-subtle`}>
           <Toast.Body className={`border-0 ${toast.variant === "warning" ? "" : `text-${toast.variant}`}`}>{toast.message}</Toast.Body>

@@ -2,7 +2,7 @@
 
 namespace AscendantEmpire.FrontendContracts.MapGallery.GenerateCampaignMap;
 
-public interface IGenerateCampaignMapDto
+public interface IAddCampaignMapDto
 {
     /// <summary>
     /// Name of the Map

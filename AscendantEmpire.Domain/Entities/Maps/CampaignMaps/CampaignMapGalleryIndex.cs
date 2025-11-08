@@ -21,7 +21,7 @@ public class CampaignMapGalleryIndex
     public MapCreationStatus CreationStatus { get; set; }
     public MapCreationEngine CreationEngine { get; set; }
     public required string Status { get; set; }
-    public required string? ErrorMessage { get; set; }
+    public string? ErrorMessage { get; set; }
     public required string PropertiesJson { get; set; }
     public int CampaignMapOffsetId { get; set; }
 }

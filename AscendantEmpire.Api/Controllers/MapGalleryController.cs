@@ -2,8 +2,8 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Handlers.Maps.MapGallery;
 using AscendantEmpire.Application.Handlers.Maps.MapGallery.Classes;
-using AscendantEmpire.BackendContracts.MapGallery.GenerateCampaignMap;
 using AscendantEmpire.BackendContracts.MapGallery.SearchCampaignMap;
+using AscendantEmpire.BackendContracts.MapGallery.UpdateCampaignMapIndex;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.MapGallery.GetCampaignMapGalleryIndex;
@@ -22,26 +22,54 @@ namespace AscendantEmpire.Api.Controllers;
 public class MapGalleryController
 {
     /// <summary>
-    /// Generate a Campaign Map to the Map Gallery
+    /// Add Campaign Map to the Map Gallery
     /// </summary>
     /// <response code="201">Campaign Map successfully created</response>
     /// <response code="400">Validation error</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [HttpPost("generate-campaign-map")]
+    [HttpPost("add-campaign-map")]
     [ProducesResponseType(201)]
     [ProducesResponseType(400)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> GenerateCampaignMapAsync(
+    public async Task<IActionResult> AddCampaignMapAsync(
         [FromServices] IMediator mediator,
-        [FromBody] GenerateCampaignMapDto mapDetails)
+        [FromBody] AddCampaignMapRequest mapDetails)
     {
-        ServiceResultBase response = await mediator.Send(new GenerateCampaignMapRequest(
-            mapDetails.MapName,
-            mapDetails.Description,
-            mapDetails.Width,
-            mapDetails.Height,
-            mapDetails.CreationEngine,
-            mapDetails.Parameters
+        ServiceResultBase response = await mediator.Send(new AddCampaignMapRequest(
+            MapName: mapDetails.MapName,
+            Description: mapDetails.Description,
+            Width: mapDetails.Width,
+            Height: mapDetails.Height,
+            CreationEngine: mapDetails.CreationEngine,
+            Parameters: mapDetails.Parameters
+        ));
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Update the Campaign Map Index in the Map Gallery
+    /// </summary>
+    /// <response code="200">Campaign Map successfully updated</response>
+    /// <response code="400">Validation error</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpPost("{id}/update")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> UpdateCampaignMapIndexAsync(
+        [FromServices] IMediator mediator,
+        int id,
+        [FromBody] UpdateCampaignMapIndexRequestDto mapDetails)
+    {
+        ServiceResultBase response = await mediator.Send(new UpdateCampaignMapIndexRequest(
+            Id: id,
+            MapName: mapDetails.MapName,
+            Description: mapDetails.Description,
+            Width: mapDetails.Width,
+            Height: mapDetails.Height,
+            CreationEngine: mapDetails.CreationEngine,
+            Parameters: mapDetails.Parameters
         ));
 
         return response.ToActionResult();
