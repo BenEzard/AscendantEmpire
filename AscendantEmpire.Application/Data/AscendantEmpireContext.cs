@@ -11,6 +11,7 @@ public class AscendantEmpireContext : DbContext
     // Map Schema
     public DbSet<CampaignBiome> CampaignBiomes { get; set; }
     public DbSet<CampaignGeography> CampaignGeographies { get; set; }
+    public DbSet<CampaignMapGallery> CampaignMapGallery { get; set; }
     public DbSet<CampaignMapGalleryIndex> CampaignMapGalleryIndex { get; set; }
     public DbSet<Number> Numbers { get; set; }
 

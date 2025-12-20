@@ -48,6 +48,24 @@ public class MapGalleryController
     }
 
     /// <summary>
+    /// A temporary endpoint to cause the generation of the next Campaign Map.
+    /// </summary>
+    /// <response code="201">Campaign Map successfully created</response>
+    /// <response code="400">Validation error</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpPost("temporary-dev-only/prod-map-creation")]
+    [ProducesResponseType(201)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> ProdCampaignMapCreationAsync(
+        [FromServices] IMediator mediator)
+    {
+        ServiceResultBase response = await mediator.Send(new CreateCampaignMapRequest());
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
     /// Update the Campaign Map Index in the Map Gallery
     /// </summary>
     /// <response code="200">Campaign Map successfully updated</response>

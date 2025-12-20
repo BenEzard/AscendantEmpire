@@ -116,6 +116,37 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("CampaignGeography", "map");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignMapGallery", b =>
+                {
+                    b.Property<int>("CampaignMapGalleryId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BiomeTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CampaignMapGalleryIndexId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CampaignMapGeographyTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("XCoord")
+                        .HasColumnType("int");
+
+                    b.Property<int>("YCoord")
+                        .HasColumnType("int");
+
+                    b.HasKey("CampaignMapGalleryId");
+
+                    b.HasIndex("BiomeTypeId");
+
+                    b.HasIndex("CampaignMapGalleryIndexId");
+
+                    b.HasIndex("CampaignMapGeographyTypeId");
+
+                    b.ToTable("CampaignMapGallery", "mapgallery");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignMapGalleryIndex", b =>
                 {
                     b.Property<int>("Id")
@@ -173,6 +204,33 @@ namespace AscendantEmpire.Application.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Numbers", "util");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignMapGallery", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignBiome", "Biome")
+                        .WithMany()
+                        .HasForeignKey("BiomeTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignMapGalleryIndex", "Index")
+                        .WithMany()
+                        .HasForeignKey("CampaignMapGalleryIndexId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignGeography", "Geography")
+                        .WithMany()
+                        .HasForeignKey("CampaignMapGeographyTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Biome");
+
+                    b.Navigation("Geography");
+
+                    b.Navigation("Index");
                 });
 #pragma warning restore 612, 618
         }

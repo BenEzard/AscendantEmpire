@@ -1,5 +1,5 @@
-import { FaMountain, FaTree } from "react-icons/fa6";
-import ToolBar, { type ToolBarGroup } from "../ToolBar";
+import { FaMountain, FaRegFolderOpen, FaTree } from "react-icons/fa6";
+import ToolBar, { type ToolBarGroup } from "../Toolbar";
 import { useState } from "react";
 import BiomeManagerDialog from "./BiomeManagerDialog";
 import { useQuery } from "@tanstack/react-query";
@@ -10,11 +10,13 @@ import GeographyManagerDialog from "./GeographyManagerDialog";
 import type { Geography } from "../../types/map/Geography";
 import { VscNewFile } from "react-icons/vsc";
 import NewCampaignMapDialog from "./NewCampaignMapDialog";
+import OpenCampaignMapDialog from "./OpenCampaignMapDialog";
 
 function MapGalleryEditor() {
   const [showBiomeManager, setShowBiomeManager] = useState(false);
   const [showGeographyManager, setShowGeographyManager] = useState(false);
   const [showNewCampaignMapDialog, setShowNewCampaignMapDialog] = useState(false);
+  const [showOpenCampaignMapDialog, setShowOpenCampaignMapDialog] = useState(false);
 
   // Toast
   const [toast, setToast] = useState<{
@@ -53,7 +55,10 @@ function MapGalleryEditor() {
   const toolBarGroups: ToolBarGroup[] = [
     {
       caption: "File",
-      buttons: [{ key: "new", icon: <VscNewFile />, tooltip: "New Campaign Map", onClick: () => setShowNewCampaignMapDialog(true) }],
+      buttons: [
+        { key: "new", icon: <VscNewFile />, tooltip: "New Campaign Map", onClick: () => setShowNewCampaignMapDialog(true) },
+        { key: "open", icon: <FaRegFolderOpen />, tooltip: "Open Campaign Map", onClick: () => setShowOpenCampaignMapDialog(true) },
+      ],
     },
     {
       caption: "Palette",
@@ -87,6 +92,13 @@ function MapGalleryEditor() {
         onClose={() => setShowNewCampaignMapDialog(false)}
         onSaveSuccess={(msg) => openToast(msg ?? "Saved!", "success")}
       />
+
+      <OpenCampaignMapDialog
+        show={showOpenCampaignMapDialog}
+        onClose={() => setShowOpenCampaignMapDialog(false)}
+        onSaveSuccess={(msg) => openToast(msg ?? "Saved!", "success")}
+      />
+
       <ToastContainer position="bottom-end" className="p-3">
         <Toast show={toast.show} onClose={closeToast} autohide delay={3000} className={`border-0 bg-${toast.variant}-subtle`}>
           <Toast.Body className={`border-0 ${toast.variant === "warning" ? "" : `text-${toast.variant}`}`}>{toast.message}</Toast.Body>
