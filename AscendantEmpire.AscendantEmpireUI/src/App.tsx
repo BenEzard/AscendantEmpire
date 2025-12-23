@@ -2,7 +2,7 @@ import { useState } from "react";
 import Tab from "react-bootstrap/Tab";
 import Tabs from "react-bootstrap/Tabs";
 import "./App.css";
-import MapGalleryEditor from "./components/map/MapGalleryEditor";
+import { MapGalleryEditor } from "@/features/map";
 
 function App() {
   const [tabKey, setKey] = useState("home");

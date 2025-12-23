@@ -7,9 +7,9 @@ import axios from "axios";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FaPlusCircle } from "react-icons/fa";
 import { CiExport } from "react-icons/ci";
-import ExportDialog from "../ExportDialog";
-import { safeStringify } from "../../util/json";
-import type { Geography } from "../../types/map/Geography";
+import type { Geography } from "../../../types/map/Geography";
+import { safeStringify } from "../../../util/json";
+import ExportDialog from "../../../components/ExportDialog";
 
 interface GeographyManagerProps {
   geographyList: Geography[];

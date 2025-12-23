@@ -1,4 +1,3 @@
-import React from "react";
 import { Modal } from "react-bootstrap";
 
 export interface OpenCampaignMapDialogProps {
@@ -8,7 +7,7 @@ export interface OpenCampaignMapDialogProps {
   onSaveSuccess: (message?: string) => void;
 }
 
-export default function OpenCampaignMapDialog({ show, onClose, onSaveSuccess }: OpenCampaignMapDialogProps) {
+export default function OpenCampaignMapDialog({ show, onClose }: OpenCampaignMapDialogProps) {
   return (
     <Modal show={show} onHide={onClose} centered size="lg">
       <Modal.Header closeButton>

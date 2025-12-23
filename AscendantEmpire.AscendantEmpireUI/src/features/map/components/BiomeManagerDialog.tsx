@@ -1,27 +1,30 @@
-import { Button, ButtonGroup, Modal, OverlayTrigger, Toast, ToastContainer, Tooltip } from "react-bootstrap";
+import { Button, Modal, OverlayTrigger, Toast, ToastContainer, Tooltip } from "react-bootstrap";
 import Form from "react-bootstrap/Form";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
-import type { Biome } from "../../types/map/Biome";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import axios from "axios";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { isValidColor, pickTextColorOnBg } from "../../util/color";
-import { FaPlusCircle } from "react-icons/fa";
 import { CiExport } from "react-icons/ci";
-import ExportDialog from "../ExportDialog";
-import { safeStringify } from "../../util/json";
+import type { Biome } from "../../../types/map/Biome";
+import { safeStringify } from "../../../util/json";
+import { useSaveCampaignMapBiomesMutation } from "../hooks/useCampaignMapBiomes";
+import { isValidColor, pickTextColorOnBg } from "../../../util/color";
+import ExportDialog from "../../../components/ExportDialog";
 
 interface BiomeManagerProps {
-  biomeList: Biome[];
+  biomes: Biome[];
+  setBiomes: React.Dispatch<React.SetStateAction<Biome[]>>;
+
+  selectedBiomeType: number | null;
+  onSelectBiomeType: (biomeType: number | null) => void;
+
   show: boolean;
   onClose: () => void;
   onSaveSuccess: (message?: string) => void;
 }
 
-function BiomeManagerDialog({ biomeList, show, onClose, onSaveSuccess }: BiomeManagerProps) {
-  const [biomes, setBiomes] = useState<Biome[]>(biomeList); // local copy so we can modify
-  const [selectedBiome, setSelectedBiome] = useState<Biome | null>(null);
+function BiomeManagerDialog({ biomes, setBiomes, selectedBiomeType, onSelectBiomeType, show, onClose, onSaveSuccess }: BiomeManagerProps) {
+  const selectedBiome = biomes.find((b) => b.biomeType === selectedBiomeType) ?? null;
 
   // Text Editor Dialog
   const [textEditorTitle, setTextEditorTitle] = useState("Text");
@@ -32,65 +35,18 @@ function BiomeManagerDialog({ biomeList, show, onClose, onSaveSuccess }: BiomeMa
   const [errorToastItems, setErrorToastItems] = useState<string[]>([]);
   const toggleErrorToast = () => setShowErrorToast(!showErrorToast);
 
-  // Default values for Biomes, applied to new Biomes
-  const DEFAULTS = {
-    regenerationRate: 1.1,
-    movementCost: 1,
-    isTraversable: true,
-    isWater: false,
-    isPaintableOnCampaignMap: true,
-    doesBlockSight: false,
-  };
-
   const mustBeTraversablePaintable = selectedBiome?.isTraversable === false || selectedBiome?.isPaintableOnCampaignMap === false;
   const mustBeTraversablePaintableLand = mustBeTraversablePaintable || selectedBiome?.isWater;
 
-  // -----------------------------------------------------------------------------------------------------------------
-  // Function that creates a new Biome
-  // -----------------------------------------------------------------------------------------------------------------
-  const handleAddNewBiome = () => {
-    const nextId = Math.max(0, ...biomes.map((b) => b.biomeType)) + 1;
-
-    const newBiome: Biome = {
-      biomeType: nextId,
-      name: "new",
-      isTraversable: DEFAULTS.isTraversable,
-      movementCost: DEFAULTS.movementCost,
-      isWater: DEFAULTS.isWater,
-      doesBlockSight: DEFAULTS.doesBlockSight,
-      canBeElevated: false,
-      isPaintableOnCampaignMap: DEFAULTS.isPaintableOnCampaignMap,
-      mapEditorHtmlColor: "",
-      regenerationRate: DEFAULTS.regenerationRate,
-      baseForageValue: null,
-      baseHuntValue: null,
-      baseFishValue: null,
-      baseFodderValue: null,
-      baseBoneValue: null,
-      baseWoodValue: null,
-      baseStoneValue: null,
-      baseSpecialValue: null,
-    };
-
-    setBiomes((prev) => [...prev, newBiome]);
-    setSelectedBiome(newBiome);
-  };
-
-  // Get an order list of the Biomes for display in the list
   const orderedBiomes = biomes.slice().sort((a, b) => a.name.localeCompare(b.name));
 
-  // -----------------------------------------------------------------------------------------------------------------
-  // When a Biome field changes, update the selected Biome and also the master list
-  // -----------------------------------------------------------------------------------------------------------------
   const handleBiomeFieldChange = <K extends keyof Biome>(field: K, value: Biome[K]) => {
     if (!selectedBiome) return;
 
-    const originalId = selectedBiome.biomeType; // track before updating
+    const originalId = selectedBiome.biomeType;
     const updated = { ...selectedBiome, [field]: value };
 
-    setSelectedBiome(updated);
-
-    setBiomes((prevBiomes) => prevBiomes.map((b) => (b.biomeType === originalId ? updated : b)));
+    setBiomes((prev) => prev.map((b) => (b.biomeType === originalId ? updated : b)));
   };
 
   const handleExportClick = () => {
@@ -99,38 +55,12 @@ function BiomeManagerDialog({ biomeList, show, onClose, onSaveSuccess }: BiomeMa
     setShowTextEditor(true);
   };
 
-  // -----------------------------------------------------------------------------------------------------------------
-  // Load biomeList only once when dialog first opens
-  // -----------------------------------------------------------------------------------------------------------------
-  useEffect(() => {
-    if (show) {
-      setBiomes(biomeList);
-
-      // Sort to ensure consistent order
-      const first = biomeList.slice().sort((a, b) => a.name.localeCompare(b.name))[0] ?? null;
-      setSelectedBiome(first);
-    }
-  }, [show]); // only run when dialog is opened
-
-  const queryClient = useQueryClient();
-
-  const saveBiomesMutation = useMutation({
-    mutationFn: async (biomesToSave: Biome[]) => {
-      const response = await axios.put("https://localhost:7242/biomes/campaign-map", biomesToSave, {
-        headers: { "Content-Type": "application/json" },
-      });
-
-      return response.data; // response.data contains parsed JSON body
-    },
+  const saveBiomesMutation = useSaveCampaignMapBiomesMutation({
     onSuccess: () => {
-      // make sure the error toast is hidden
       setShowErrorToast(false);
 
-      // Invalidate or update the cache if you have a biome query elsewhere
-      queryClient.invalidateQueries({ queryKey: ["biomes"] });
-
       onClose();
-      onSaveSuccess("Biomes saved successfully."); // notify parent
+      onSaveSuccess("Biomes saved successfully.");
     },
     onError: (error: any) => {
       let items: string[] = ["An unknown error occurred."];
@@ -162,6 +92,7 @@ function BiomeManagerDialog({ biomeList, show, onClose, onSaveSuccess }: BiomeMa
         <Modal.Header closeButton>
           <Modal.Title>Biome Manager</Modal.Title>
         </Modal.Header>
+
         <Modal.Body>
           <Form>
             <Row>
@@ -169,16 +100,16 @@ function BiomeManagerDialog({ biomeList, show, onClose, onSaveSuccess }: BiomeMa
               <Col sm={3}>
                 <Form.Group controlId="biomeList" className="mb-3 h-100 d-flex flex-column">
                   <Form.Label className="fw-bold">Biome List</Form.Label>
+
                   <Form.Control
-                    key={biomes.length} // forces refresh when list changes
+                    key={biomes.length}
                     as="select"
                     htmlSize={Math.min(biomes.length, 10)}
                     value={selectedBiome?.biomeType ?? ""}
                     style={{ flexGrow: 1, minHeight: "200px", maxHeight: "400px", overflowY: "auto" }}
                     onChange={(e) => {
                       const selectedType = Number(e.target.value);
-                      const biome = biomes.find((b) => b.biomeType === selectedType) ?? null;
-                      setSelectedBiome(biome);
+                      onSelectBiomeType(Number.isFinite(selectedType) ? selectedType : null);
                     }}>
                     {orderedBiomes.map((b) => (
                       <option key={b.biomeType} value={b.biomeType}>
@@ -187,18 +118,13 @@ function BiomeManagerDialog({ biomeList, show, onClose, onSaveSuccess }: BiomeMa
                     ))}
                   </Form.Control>
 
-                  <ButtonGroup className="mt-2 w-100">
-                    <OverlayTrigger placement="bottom" overlay={<Tooltip id="tip-add">Add New</Tooltip>}>
-                      <Button variant="primary" onClick={handleAddNewBiome}>
-                        <FaPlusCircle aria-hidden="true" />
-                      </Button>
-                    </OverlayTrigger>
-                    <OverlayTrigger placement="bottom" overlay={<Tooltip id="tip-add">Export</Tooltip>}>
+                  <div className="mt-2 w-100 d-flex gap-2">
+                    <OverlayTrigger placement="bottom" overlay={<Tooltip id="tip-export">Export</Tooltip>}>
                       <Button variant="primary" onClick={handleExportClick}>
                         <CiExport aria-hidden="true" strokeWidth={2} />
                       </Button>
                     </OverlayTrigger>
-                  </ButtonGroup>
+                  </div>
                 </Form.Group>
               </Col>
 
@@ -220,12 +146,7 @@ function BiomeManagerDialog({ biomeList, show, onClose, onSaveSuccess }: BiomeMa
                     Name
                   </Form.Label>
                   <Col sm={5}>
-                    <Form.Control
-                      type="text"
-                      placeholder=""
-                      value={selectedBiome?.name ?? ""}
-                      onChange={(e) => handleBiomeFieldChange("name", e.target.value)}
-                    />
+                    <Form.Control type="text" value={selectedBiome?.name ?? ""} onChange={(e) => handleBiomeFieldChange("name", e.target.value)} />
                   </Col>
                 </Form.Group>
 
@@ -248,7 +169,6 @@ function BiomeManagerDialog({ biomeList, show, onClose, onSaveSuccess }: BiomeMa
                   <Col sm={5}>
                     <Form.Control
                       type="number"
-                      placeholder=""
                       value={selectedBiome?.movementCost ?? ""}
                       onChange={(e) => handleBiomeFieldChange("movementCost", Number(e.target.value))}
                     />
@@ -313,7 +233,6 @@ function BiomeManagerDialog({ biomeList, show, onClose, onSaveSuccess }: BiomeMa
                   <Col sm={5}>
                     <Form.Control
                       type="text"
-                      placeholder=""
                       value={selectedBiome?.mapEditorHtmlColor ?? ""}
                       onChange={(e) => handleBiomeFieldChange("mapEditorHtmlColor", e.target.value)}
                       style={{
@@ -325,7 +244,7 @@ function BiomeManagerDialog({ biomeList, show, onClose, onSaveSuccess }: BiomeMa
                 </Form.Group>
               </Col>
 
-              {/* Column 3: Regenerating Resources + Passive Material Resources */}
+              {/* Column 3 unchanged */}
               <Col sm={5} className="mt-4">
                 <Form.Label className="fst-italic">Regenerating Resources</Form.Label>
 
@@ -411,6 +330,7 @@ function BiomeManagerDialog({ biomeList, show, onClose, onSaveSuccess }: BiomeMa
                 </Form.Group>
 
                 <Form.Label className="fst-italic">Passive Material Resources</Form.Label>
+
                 <Form.Group as={Row} className="mb-1" controlId="Bone">
                   <Form.Label column sm={6}>
                     Base Bone
