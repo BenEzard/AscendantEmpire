@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -18,4 +20,19 @@ body {
   display: flex;
   min-width: 320px;
   min-height: 100vh;
+}
+
+.tile-icon-fill {
+  position: absolute;
+  inset: 0;                 /* top/right/bottom/left = 0 */
+  width: 100%;
+  height: 100%;
+  display: block;
+  color: white;
+  pointer-events: none;     /* clicks go to the tile */
+}
+
+.tile {
+  position: relative;
+  overflow: hidden; /* optional, keeps icon inside */
 }

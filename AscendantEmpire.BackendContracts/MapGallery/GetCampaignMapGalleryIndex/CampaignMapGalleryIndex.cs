@@ -1,8 +1,9 @@
 ﻿using AscendantEmpire.Domain.Enums.Maps;
+using AscendantEmpire.FrontendContracts.MapGallery.GetCampaignMapGalleryIndex;
 
 namespace AscendantEmpire.BackendContracts.MapGallery.GetCampaignMapGalleryIndex;
 
-public record CampaignMapGalleryIndex
+public record CampaignMapGalleryIndex : ICampaignMapGalleryIndex
 {
     public required int CampaignMapGalleryIndexId { get; init; }
     public required string MapName { get; init; }
@@ -13,4 +14,5 @@ public record CampaignMapGalleryIndex
     public required MapCreationEngine CreationEngine { get; init; }
     public required string Status { get; init; }
     public required string ErrorMessage { get; init; }
+    public string? PropertiesJson { get; init; }
 }

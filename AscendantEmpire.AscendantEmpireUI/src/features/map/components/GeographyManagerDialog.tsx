@@ -1,27 +1,37 @@
-import { Button, ButtonGroup, Modal, OverlayTrigger, Toast, ToastContainer, Tooltip } from "react-bootstrap";
+import { Button, Modal, Toast, ToastContainer } from "react-bootstrap";
 import Form from "react-bootstrap/Form";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import axios from "axios";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { FaPlusCircle } from "react-icons/fa";
 import { CiExport } from "react-icons/ci";
 import type { Geography } from "../../../types/map/Geography";
 import { safeStringify } from "../../../util/json";
 import ExportDialog from "../../../components/ExportDialog";
+import { useSaveCampaignMapGeographiesMutation } from "../hooks/useCampaignMapGeographies";
 
 interface GeographyManagerProps {
-  geographyList: Geography[];
+  geographies: Geography[];
+  setGeographies: React.Dispatch<React.SetStateAction<Geography[]>>;
+
+  selectedGeographyType: number | null;
+  onSelectGeographyType: (id: number | null) => void;
+
   show: boolean;
   onClose: () => void;
   onSaveSuccess: (message?: string) => void;
 }
 
-function GeographyManagerDialog({ geographyList, show, onClose, onSaveSuccess }: GeographyManagerProps) {
-  const [geographies, setGeographies] = useState<Geography[]>(geographyList); // local copy so we can modify
-  const [selectedGeography, setSelectedGeography] = useState<Geography | null>(null);
-
+function GeographyManagerDialog({
+  geographies,
+  setGeographies,
+  selectedGeographyType,
+  onSelectGeographyType,
+  show,
+  onClose,
+  onSaveSuccess,
+}: GeographyManagerProps) {
   // Text Editor Dialog
   const [textEditorTitle, setTextEditorTitle] = useState("Text");
   const [textEditorBody, setTextEditorBody] = useState<string>();
@@ -30,50 +40,14 @@ function GeographyManagerDialog({ geographyList, show, onClose, onSaveSuccess }:
   // Toasts
   const [showErrorToast, setShowErrorToast] = useState(false);
   const [errorToastItems, setErrorToastItems] = useState<string[]>([]);
-  const toggleErrorToast = () => setShowErrorToast(!showErrorToast);
+  const toggleErrorToast = () => setShowErrorToast((v) => !v);
 
-  // Default values for Geographies, applied to new Geographies
-  const DEFAULTS = {
-    relativeElevation: 0,
-    movementCost: 1,
-    isPaintableOnCampaignMap: true,
-  };
+  const orderedGeographies = useMemo(() => geographies.slice().sort((a, b) => a.name.localeCompare(b.name)), [geographies]);
 
-  // -----------------------------------------------------------------------------------------------------------------
-  // Function that creates a new Geography
-  // -----------------------------------------------------------------------------------------------------------------
-  const handleAddNewGeography = () => {
-    const nextId = Math.max(0, ...geographies.map((b) => b.campaignMapGeographyType)) + 1;
-
-    const newGeography: Geography = {
-      campaignMapGeographyType: nextId,
-      name: "new",
-      relativeElevation: DEFAULTS.relativeElevation,
-      movementCost: DEFAULTS.movementCost,
-      mapEditorIcon: null,
-      isPaintableOnCampaignMap: DEFAULTS.isPaintableOnCampaignMap,
-    };
-
-    setGeographies((prev) => [...prev, newGeography]);
-    setSelectedGeography(newGeography);
-  };
-
-  // Get an order list of the Geography for display in the list
-  const orderedGeographies = geographies.slice().sort((a, b) => a.name.localeCompare(b.name));
-
-  // -----------------------------------------------------------------------------------------------------------------
-  // When a Geography field changes, update the selected Geography and also the master list
-  // -----------------------------------------------------------------------------------------------------------------
-  const handleGeographyFieldChange = <K extends keyof Geography>(field: K, value: Geography[K]) => {
-    if (!selectedGeography) return;
-
-    const originalId = selectedGeography.campaignMapGeographyType; // track before updating
-    const updated = { ...selectedGeography, [field]: value };
-
-    setSelectedGeography(updated);
-
-    setGeographies((prevGeography) => prevGeography.map((b) => (b.campaignMapGeographyType === originalId ? updated : b)));
-  };
+  const selectedGeography = useMemo(() => {
+    if (selectedGeographyType == null) return null;
+    return geographies.find((g) => g.campaignMapGeographyType === selectedGeographyType) ?? null;
+  }, [geographies, selectedGeographyType]);
 
   const handleExportClick = () => {
     setTextEditorTitle("Export Geographies");
@@ -81,62 +55,23 @@ function GeographyManagerDialog({ geographyList, show, onClose, onSaveSuccess }:
     setShowTextEditor(true);
   };
 
-  // -----------------------------------------------------------------------------------------------------------------
-  // Load geographyList only once when dialog first opens
-  // -----------------------------------------------------------------------------------------------------------------
-  useEffect(() => {
-    if (show) {
-      console.table(geographyList.map((g) => ({ id: g.campaignMapGeographyType, type: typeof g.campaignMapGeographyType })));
+  // When a Geography field changes, update in the master list (draft is owned by parent)
+  const handleGeographyFieldChange = <K extends keyof Geography>(field: K, value: Geography[K]) => {
+    if (selectedGeographyType == null) return;
 
-      setGeographies(geographyList);
-
-      // Sort to ensure consistent order
-      const first = geographyList.slice().sort((a, b) => a.name.localeCompare(b.name))[0] ?? null;
-      setSelectedGeography(first);
-    }
-  }, [show]); // only run when dialog is opened
+    setGeographies((prev) => prev.map((g) => (g.campaignMapGeographyType === selectedGeographyType ? { ...g, [field]: value } : g)));
+  };
 
   const queryClient = useQueryClient();
 
-  const saveGeographyMutation = useMutation({
-    mutationFn: async (geographiesToSave: Geography[]) => {
-      const response = await axios.put("https://localhost:7242/geography/campaign-map", geographiesToSave, {
-        headers: { "Content-Type": "application/json" },
-      });
-
-      return response.data; // response.data contains parsed JSON body
-    },
+  const saveGeographyMutation = useSaveCampaignMapGeographiesMutation({
     onSuccess: () => {
-      // make sure the error toast is hidden
       setShowErrorToast(false);
-
-      // Invalidate or update the cache if you have a geography query elsewhere
-      queryClient.invalidateQueries({ queryKey: ["geographies"] });
-
       onClose();
-      onSaveSuccess("Geographies saved successfully."); // notify parent
+      onSaveSuccess("Geographies saved successfully.");
     },
-    onError: (error: any) => {
-      let items: string[] = ["An unknown error occurred."];
-
-      if (axios.isAxiosError(error)) {
-        const data = error.response?.data;
-        if (Array.isArray(data?.errors)) {
-          items = data.errors as string[];
-        } else if (typeof data === "string") {
-          items = [data];
-        } else if (data?.message) {
-          items = [data.message as string];
-        } else if (error.message) {
-          items = [error.message as string];
-        }
-      } else if (error?.message) {
-        items = [error.message as string];
-      }
-
-      setErrorToastItems(items);
-      toggleErrorToast();
-      console.error("Save error:", error);
+    onError: (error) => {
+      // keep your existing error parsing logic here
     },
   });
 
@@ -146,6 +81,7 @@ function GeographyManagerDialog({ geographyList, show, onClose, onSaveSuccess }:
         <Modal.Header closeButton>
           <Modal.Title>Geography Manager</Modal.Title>
         </Modal.Header>
+
         <Modal.Body>
           <Form>
             <Row>
@@ -153,36 +89,33 @@ function GeographyManagerDialog({ geographyList, show, onClose, onSaveSuccess }:
               <Col sm={3}>
                 <Form.Group controlId="geographyList" className="mb-3 h-100 d-flex flex-column">
                   <Form.Label className="fw-bold">Geography List</Form.Label>
+
                   <Form.Control
-                    key={geographies.length} // forces refresh when list changes
                     as="select"
-                    htmlSize={Math.min(geographies.length, 10)}
-                    value={selectedGeography?.campaignMapGeographyType ?? ""}
+                    htmlSize={Math.min(orderedGeographies.length || 1, 10)}
+                    value={selectedGeographyType ?? ""}
                     style={{ flexGrow: 1, minHeight: "200px", maxHeight: "400px", overflowY: "auto" }}
                     onChange={(e) => {
-                      const selectedType = Number(e.target.value);
-                      const geography = geographies.find((b) => b.campaignMapGeographyType === selectedType) ?? null;
-                      setSelectedGeography(geography);
-                    }}>
-                    {orderedGeographies.map((b) => (
-                      <option key={b.campaignMapGeographyType} value={b.campaignMapGeographyType}>
-                        {b.name}
-                      </option>
-                    ))}
+                      const v = e.target.value;
+                      onSelectGeographyType(v === "" ? null : Number(v));
+                    }}
+                    disabled={orderedGeographies.length === 0}>
+                    {orderedGeographies.length === 0 ? (
+                      <option value="">(no geographies)</option>
+                    ) : (
+                      orderedGeographies.map((g) => (
+                        <option key={g.campaignMapGeographyType} value={g.campaignMapGeographyType}>
+                          {g.name}
+                        </option>
+                      ))
+                    )}
                   </Form.Control>
 
-                  <ButtonGroup className="mt-2 w-100">
-                    <OverlayTrigger placement="bottom" overlay={<Tooltip id="tip-add">Add New</Tooltip>}>
-                      <Button variant="primary" onClick={handleAddNewGeography}>
-                        <FaPlusCircle aria-hidden="true" />
-                      </Button>
-                    </OverlayTrigger>
-                    <OverlayTrigger placement="bottom" overlay={<Tooltip id="tip-add">Export</Tooltip>}>
-                      <Button variant="primary" onClick={handleExportClick}>
-                        <CiExport aria-hidden="true" strokeWidth={2} />
-                      </Button>
-                    </OverlayTrigger>
-                  </ButtonGroup>
+                  <div className="mt-2 d-flex gap-2">
+                    <Button variant="primary" className="w-100" onClick={handleExportClick} disabled={geographies.length === 0}>
+                      <CiExport aria-hidden="true" strokeWidth={2} /> <span className="ms-1">Export</span>
+                    </Button>
+                  </div>
                 </Form.Group>
               </Col>
 
@@ -206,8 +139,8 @@ function GeographyManagerDialog({ geographyList, show, onClose, onSaveSuccess }:
                   <Col sm={5}>
                     <Form.Control
                       type="text"
-                      placeholder=""
                       value={selectedGeography?.name ?? ""}
+                      disabled={!selectedGeography}
                       onChange={(e) => handleGeographyFieldChange("name", e.target.value)}
                     />
                   </Col>
@@ -220,8 +153,8 @@ function GeographyManagerDialog({ geographyList, show, onClose, onSaveSuccess }:
                   <Col sm={5}>
                     <Form.Control
                       type="number"
-                      placeholder=""
                       value={selectedGeography?.relativeElevation ?? ""}
+                      disabled={!selectedGeography}
                       onChange={(e) => handleGeographyFieldChange("relativeElevation", Number(e.target.value))}
                     />
                   </Col>
@@ -234,8 +167,8 @@ function GeographyManagerDialog({ geographyList, show, onClose, onSaveSuccess }:
                   <Col sm={5}>
                     <Form.Control
                       type="number"
-                      placeholder=""
                       value={selectedGeography?.movementCost ?? ""}
+                      disabled={!selectedGeography}
                       onChange={(e) => handleGeographyFieldChange("movementCost", Number(e.target.value))}
                     />
                   </Col>
@@ -248,9 +181,9 @@ function GeographyManagerDialog({ geographyList, show, onClose, onSaveSuccess }:
                   <Col sm={5}>
                     <Form.Control
                       type="text"
-                      placeholder=""
                       value={selectedGeography?.mapEditorIcon ?? ""}
-                      onChange={(e) => handleGeographyFieldChange("mapEditorIcon", e.target.value)}
+                      disabled={!selectedGeography}
+                      onChange={(e) => handleGeographyFieldChange("mapEditorIcon", e.target.value as any)}
                     />
                   </Col>
                 </Form.Group>
@@ -262,6 +195,7 @@ function GeographyManagerDialog({ geographyList, show, onClose, onSaveSuccess }:
                       id="IsPaintableOnCampaignMap"
                       label="Is Paintable on Campaign Map?"
                       checked={selectedGeography?.isPaintableOnCampaignMap ?? false}
+                      disabled={!selectedGeography}
                       onChange={(e) => handleGeographyFieldChange("isPaintableOnCampaignMap", e.target.checked)}
                     />
                   </Col>

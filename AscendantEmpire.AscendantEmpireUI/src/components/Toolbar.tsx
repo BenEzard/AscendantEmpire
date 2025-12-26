@@ -7,6 +7,7 @@ export interface ToolBarButton {
   icon?: React.ReactNode;
   tooltip?: string;
   onClick?: () => void;
+  onMiddleClick?: () => void;
 }
 
 export interface ToolBarGroup {
@@ -19,19 +20,42 @@ interface ToolBarProps {
 }
 
 function ToolBar({ groups }: ToolBarProps) {
+  const handleMiddleClick = (btn: ToolBarButton) => (e: React.MouseEvent) => {
+    // Middle click is button === 1
+    if (e.button !== 1) return;
+    if (!btn.onMiddleClick) return;
+
+    // Stop browser autoscroll / other default behaviors
+    e.preventDefault();
+    e.stopPropagation();
+
+    btn.onMiddleClick();
+  };
+
   return (
     <div className="toolbar d-flex justify-content-center border-bottom bg-light">
       {groups.map((group) => (
         <div key={group.caption} className="toolbar-group">
           <ButtonGroup aria-label={group.caption}>
-            {group.buttons.map((btn) => (
-              <OverlayTrigger key={btn.key} placement="bottom" overlay={<Tooltip id={`tooltip-${btn.key}`}>{btn.tooltip}</Tooltip>}>
-                <Button variant="secondary" onClick={btn.onClick}>
-                  {btn.icon}
-                </Button>
-              </OverlayTrigger>
-            ))}
+            {group.buttons.map((btn) => {
+              const tooltip = btn.onMiddleClick && btn.tooltip ? `${btn.tooltip} (middle-click: add new)` : btn.tooltip;
+
+              return (
+                <OverlayTrigger key={btn.key} placement="bottom" overlay={<Tooltip id={`tooltip-${btn.key}`}>{tooltip}</Tooltip>}>
+                  <Button
+                    variant="secondary"
+                    onClick={btn.onClick}
+                    // Most reliable for wheel-click (fires before browser autoscroll kicks in)
+                    onMouseDown={handleMiddleClick(btn)}
+                    // Some browsers fire auxclick too; harmless redundancy
+                    onAuxClick={handleMiddleClick(btn)}>
+                    {btn.icon}
+                  </Button>
+                </OverlayTrigger>
+              );
+            })}
           </ButtonGroup>
+
           <div className="toolbar-caption">{group.caption}</div>
         </div>
       ))}

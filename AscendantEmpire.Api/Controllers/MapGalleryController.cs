@@ -2,11 +2,14 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Handlers.Maps.MapGallery;
 using AscendantEmpire.Application.Handlers.Maps.MapGallery.Classes;
+using AscendantEmpire.BackendContracts.MapGallery.GetCampaignMapTiles;
 using AscendantEmpire.BackendContracts.MapGallery.SearchCampaignMap;
 using AscendantEmpire.BackendContracts.MapGallery.UpdateCampaignMapIndex;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.FrontendContracts;
+using AscendantEmpire.FrontendContracts.MapGallery.GetCampaignMap;
 using AscendantEmpire.FrontendContracts.MapGallery.GetCampaignMapGalleryIndex;
+using AscendantEmpire.FrontendContracts.MapGallery.GetCampaignMapTiles;
 using AscendantEmpire.FrontendContracts.MapGallery.SearchCampaignMapIndex;
 
 using MediatR;
@@ -106,13 +109,13 @@ public class MapGalleryController
         int id,
         CancellationToken cancelToken)
     {
-        ServiceResult<CampaignMapGalleryIndex> response = await mediator.Send(new GetCampaignMapGalleryIndexRequest(id), cancelToken);
+        ServiceResult<DTCampaignMapGalleryIndex> response = await mediator.Send(new GetCampaignMapGalleryIndexRequest(id), cancelToken);
 
         return response.ToActionResult(contract =>
         {
-            return new DTCampaignMapGalleryIndex
+            return new BackendContracts.MapGallery.GetCampaignMapGalleryIndex.CampaignMapGalleryIndex
             {
-                CampaignMapGalleryIndexId = response.SuccessValue.CampaignMapOffsetId,
+                CampaignMapGalleryIndexId = response.SuccessValue.CampaignMapGalleryIndexId,
                 MapName = response.SuccessValue.MapName,
                 Description = response.SuccessValue.Description,
                 Width = response.SuccessValue.Width,
@@ -122,6 +125,43 @@ public class MapGalleryController
                 PropertiesJson = response.SuccessValue.PropertiesJson,
                 Status = response.SuccessValue.Status,
                 ErrorMessage = response.SuccessValue.ErrorMessage
+            };
+        });
+    }
+
+    /// <summary>
+    /// Load a Campaign Map 
+    /// </summary>
+    /// <response code="200">Campaign Map data</response>
+    /// <response code="404">Campaign Map not found</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpGet("{id}/tiles")]
+    [ProducesResponseType(typeof(ICampaignMapTileCollection), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetCampaignMapTilesAsync(
+        [FromServices] IMediator mediator,
+        int id,
+        CancellationToken cancelToken)
+    {
+        ServiceResult<IReadOnlyCollection<DTCampaignMapTile>> response = await mediator.Send(new GetCampaignMapTilesRequest(id), cancelToken);
+
+        return response.ToActionResult(tiles =>
+        {
+            // Map DTOs -> backend contract DTOs
+            var contractTiles = tiles.Select(t => new CampaignMapTile
+            {
+                CampaignMapGalleryIndexId = t.CampaignMapGalleryIndexId,
+                XCoord = t.XCoord,
+                YCoord = t.YCoord,
+                BiomeTypeId = t.BiomeTypeId,
+                CampaignMapGeographyTypeId = t.CampaignMapGeographyTypeId
+            }).ToList();
+
+            return new CampaignMapTileCollection
+            {
+                CampaignMapGalleryIndexId = id,
+                Tiles = contractTiles
             };
         });
     }
