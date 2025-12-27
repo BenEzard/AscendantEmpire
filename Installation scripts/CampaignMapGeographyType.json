@@ -1,0 +1,50 @@
+[
+  {
+    "campaignMapGeographyType": 0,
+    "relativeElevation": 0,
+    "name": "Unknown",
+    "movementCost": 1,
+    "mapEditorIcon": null,
+    "isPaintableOnCampaignMap": false
+  },
+  {
+    "campaignMapGeographyType": 1,
+    "relativeElevation": -2,
+    "name": "Deep Water",
+    "movementCost": 1,
+    "mapEditorIcon": null,
+    "isPaintableOnCampaignMap": true
+  },
+  {
+    "campaignMapGeographyType": 2,
+    "relativeElevation": -1,
+    "name": "Shallow Water",
+    "movementCost": 1,
+    "mapEditorIcon": null,
+    "isPaintableOnCampaignMap": true
+  },
+  {
+    "campaignMapGeographyType": 3,
+    "relativeElevation": 0,
+    "name": "Flat",
+    "movementCost": 1,
+    "mapEditorIcon": null,
+    "isPaintableOnCampaignMap": true
+  },
+  {
+    "campaignMapGeographyType": 4,
+    "relativeElevation": 1,
+    "name": "Hilly",
+    "movementCost": 2,
+    "mapEditorIcon": "Hill",
+    "isPaintableOnCampaignMap": true
+  },
+  {
+    "campaignMapGeographyType": 6,
+    "relativeElevation": 2,
+    "name": "Mountainous",
+    "movementCost": 999,
+    "mapEditorIcon": "Mountain",
+    "isPaintableOnCampaignMap": true
+  }
+]

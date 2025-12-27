@@ -381,5 +381,6 @@ public record ServiceResultBase
     {
         public static ServiceResult<Empty> Succeed() => ServiceResult<Empty>.SuccessNoContent();
         public static ServiceResult<Empty> Fail(IEnumerable<string> errors) => ServiceResult<Empty>.Fail(errors);
+        public static ServiceResult<Empty> Fail(string error) => ServiceResult<Empty>.Fail(error);
     }
 }

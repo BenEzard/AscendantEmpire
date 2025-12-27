@@ -1,6 +1,5 @@
 // src/features/map-gallery/components/TileGridView.tsx
 import type { Geography } from "@/types/map/Geography";
-import React from "react";
 
 export type TileCell = {
   x: number;
