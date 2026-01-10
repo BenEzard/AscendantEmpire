@@ -1,6 +1,6 @@
 import { FaMountain, FaRegFolderOpen, FaTree } from "react-icons/fa6";
 import ToolBar, { type ToolBarGroup } from "@/components/Toolbar";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { Biome } from "../../../types/map/Biome";
 import { Alert, Spinner, Toast, ToastContainer } from "react-bootstrap";
 import type { Geography } from "../../../types/map/Geography";
@@ -10,10 +10,10 @@ import OpenCampaignMapDialog, { type CampaignMapGalleryIndex } from "./OpenCampa
 import { useCampaignMapBiomesQuery } from "../hooks/useCampaignMapBiomes";
 import BiomeManagerDialog from "./BiomeManagerDialog";
 import GeographyManagerDialog from "./GeographyManagerDialog";
-import { useCampaignMapTilesQuery } from "@/features/map-gallery/hooks/useCampaignMapTiles";
-import type { TileCell } from "@/features/map-gallery/components/TileGridView";
-import TileGrid from "@/features/map-gallery/components/TileGrid";
+import { useCampaignMapTilesQuery } from "@/features/mapgallery/hooks/useCampaignMapTiles";
 import { useCampaignMapGeographiesQuery } from "../hooks/useCampaignMapGeographies";
+import type { TileCell } from "./TileTypes";
+import TileGrid from "./TileGrid";
 
 function buildTiles2d(
   width: number,
@@ -60,7 +60,9 @@ function MapGalleryEditor() {
   // "Open map" selection
   const [openMapIndex, setOpenMapIndex] = useState<CampaignMapGalleryIndex | null>(null);
 
+  // ---------------------------
   // Toast
+  // ---------------------------
   const [toast, setToast] = useState<{
     show: boolean;
     message: string;
@@ -71,7 +73,16 @@ function MapGalleryEditor() {
     variant: "success",
   });
 
-  const openToast = (message: string, variant: "success" | "danger" | "warning" | "info" = "success") => setToast({ show: true, message, variant });
+  const openToast = useCallback((message: string, variant: "success" | "danger" | "warning" | "info" = "success") => {
+    setToast({ show: true, message, variant });
+  }, []);
+
+  const onTileClick = useCallback(
+    (t: TileCell) => {
+      openToast(`Tile (${t.x},${t.y}) biome=${t.biomeTypeId ?? "null"} geo=${t.geographyTypeId ?? "null"}`, "info");
+    },
+    [openToast]
+  );
 
   const closeToast = () => setToast((t) => ({ ...t, show: false }));
 
@@ -82,8 +93,12 @@ function MapGalleryEditor() {
 
   const { data: geographies, error: geographyError, isLoading: geographiesLoading } = useCampaignMapGeographiesQuery();
 
-  if (biomeError) return <p>{biomeError.message}</p>;
-  if (geographyError) return <p>{geographyError.message}</p>;
+  {
+    biomeError && <Alert variant="danger">Biomes failed: {biomeError.message}</Alert>;
+  }
+  {
+    geographyError && <Alert variant="danger">Geographies failed: {geographyError.message}</Alert>;
+  }
 
   // ---------------------------
   // Lookups for tile view
@@ -132,12 +147,6 @@ function MapGalleryEditor() {
   // ---------------------------
   const getFirstBiomeType = (list: Biome[]) => list.slice().sort((a, b) => a.name.localeCompare(b.name))[0]?.biomeType ?? null;
 
-  const prepareBiomeDraft = () => {
-    const list = biomes ?? [];
-    setBiomeDraft(list);
-    setSelectedBiomeType(getFirstBiomeType(list));
-  };
-
   const BIOME_DEFAULTS = {
     regenerationRate: 1.1,
     movementCost: 1,
@@ -184,12 +193,6 @@ function MapGalleryEditor() {
   // ---------------------------
   const getFirstGeographyType = (list: Geography[]) => list.slice().sort((a, b) => a.name.localeCompare(b.name))[0]?.campaignMapGeographyType ?? null;
 
-  const prepareGeographyDraft = () => {
-    const list = geographies ?? [];
-    setGeographyDraft(list);
-    setSelectedGeographyType(getFirstGeographyType(list));
-  };
-
   const GEO_DEFAULTS = {
     relativeElevation: 0,
     movementCost: 1,
@@ -216,49 +219,88 @@ function MapGalleryEditor() {
     setActiveDialog("geographies");
   };
 
+  const getTileStyle = useCallback(
+    (t: TileCell): React.CSSProperties => {
+      const bg = t.biomeTypeId != null ? biomeColorByType.get(t.biomeTypeId) : undefined;
+
+      return {
+        background: bg ?? "rgba(0,0,0,0.03)",
+      };
+    },
+    [biomeColorByType]
+  );
+
+  const getTileTitle = useCallback(
+    (t: TileCell) => {
+      const biomeName = t.biomeTypeId != null ? biomeNameByType.get(t.biomeTypeId) ?? "(unknown biome)" : "(no biome)";
+
+      const geographyName = t.geographyTypeId != null ? geographyNameByType.get(t.geographyTypeId) ?? "(unknown geography)" : "(no geography)";
+
+      return `(${t.x}, ${t.y}); ${biomeName}, ${geographyName}`;
+    },
+    [biomeNameByType, geographyNameByType]
+  );
+
   // ---------------------------
   // ToolBar
   // ---------------------------
-  const toolBarGroups: ToolBarGroup[] = [
-    {
-      caption: "File",
-      buttons: [
-        { key: "new", icon: <VscNewFile />, tooltip: "New Campaign Map", onClick: () => setActiveDialog("newCampaignMap") },
-        { key: "open", icon: <FaRegFolderOpen />, tooltip: "Open Campaign Map", onClick: () => setActiveDialog("openCampaignMap") },
-      ],
-    },
-    {
-      caption: "Palette",
-      buttons: [
-        {
-          key: "biomes",
-          icon: <FaTree />,
-          tooltip: biomesLoading ? "Loading Biomes..." : "Biomes",
-          onClick: () => {
-            prepareBiomeDraft();
-            setActiveDialog("biomes");
+  const openBiomes = useCallback(() => {
+    if (biomesLoading) return;
+    const list = biomes ?? [];
+    setBiomeDraft(list);
+    setSelectedBiomeType(getFirstBiomeType(list));
+    setActiveDialog("biomes");
+  }, [biomesLoading, biomes]);
+
+  const openGeographies = useCallback(() => {
+    if (geographiesLoading) return;
+    const list = geographies ?? [];
+    setGeographyDraft(list);
+    setSelectedGeographyType(getFirstGeographyType(list));
+    setActiveDialog("geographies");
+  }, [geographiesLoading, geographies]);
+
+  const middleAddBiome = useCallback(() => {
+    if (biomesLoading) return;
+    addNewBiomeAndOpen();
+  }, [biomesLoading, addNewBiomeAndOpen]);
+
+  const middleAddGeography = useCallback(() => {
+    if (geographiesLoading) return;
+    addNewGeographyAndOpen();
+  }, [geographiesLoading, addNewGeographyAndOpen]);
+
+  const toolBarGroups = useMemo<ToolBarGroup[]>(
+    () => [
+      {
+        caption: "File",
+        buttons: [
+          { key: "new", icon: <VscNewFile />, tooltip: "New Campaign Map", onClick: () => setActiveDialog("newCampaignMap") },
+          { key: "open", icon: <FaRegFolderOpen />, tooltip: "Open Campaign Map", onClick: () => setActiveDialog("openCampaignMap") },
+        ],
+      },
+      {
+        caption: "Palette",
+        buttons: [
+          {
+            key: "biomes",
+            icon: <FaTree />,
+            tooltip: biomesLoading ? "Loading Biomes..." : "Biomes",
+            onClick: openBiomes,
+            onMiddleClick: middleAddBiome,
           },
-          onMiddleClick: () => {
-            if (biomesLoading) return;
-            addNewBiomeAndOpen();
+          {
+            key: "geographies",
+            icon: <FaMountain />,
+            tooltip: geographiesLoading ? "Loading Geographies..." : "Geographies",
+            onClick: openGeographies,
+            onMiddleClick: middleAddGeography,
           },
-        },
-        {
-          key: "geographies",
-          icon: <FaMountain />,
-          tooltip: geographiesLoading ? "Loading Geographies..." : "Geographies",
-          onClick: () => {
-            prepareGeographyDraft();
-            setActiveDialog("geographies");
-          },
-          onMiddleClick: () => {
-            if (geographiesLoading) return;
-            addNewGeographyAndOpen();
-          },
-        },
-      ],
-    },
-  ];
+        ],
+      },
+    ],
+    [biomesLoading, geographiesLoading, openBiomes, middleAddBiome, openGeographies, middleAddGeography]
+  );
 
   return (
     <>
@@ -299,19 +341,9 @@ function MapGalleryEditor() {
                 height={openMapIndex.height}
                 tiles2d={tiles2d}
                 geographies={geographies}
-                onTileClick={(t) => openToast(`Tile (${t.x},${t.y}) biome=${t.biomeTypeId ?? "null"} geo=${t.geographyTypeId ?? "null"}`, "info")}
-                getTileStyle={(t) => {
-                  const bg = t.biomeTypeId != null ? biomeColorByType.get(t.biomeTypeId) : undefined;
-                  return {
-                    background: bg ?? "rgba(0,0,0,0.03)",
-                  };
-                }}
-                getTileTitle={(t) => {
-                  const biomeName = t.biomeTypeId != null ? biomeNameByType.get(t.biomeTypeId) ?? "(unknown biome)" : "(no biome)";
-                  const geographyName =
-                    t.geographyTypeId != null ? geographyNameByType.get(t.geographyTypeId) ?? "(unknown geography)" : "(no geography)";
-                  return `(${t.x}, ${t.y}); ${biomeName}, ${geographyName}`;
-                }}
+                onTileClick={onTileClick}
+                getTileStyle={getTileStyle}
+                getTileTitle={getTileTitle}
               />
             )}
           </>

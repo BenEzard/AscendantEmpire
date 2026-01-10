@@ -21,8 +21,8 @@ public class PlayerCampaignMap
     public required BiomeType BiomeTypeId { get; set; }
     public required CampaignMapGeographyType CampaignMapGeographyTypeId { get; set; }
 
-    public int? FirstVisitedTurnId { get; set; }
-    public int? LastVisitedTurnId { get; set; }
+    public int? FirstSeenOnTurnId { get; set; }
+    public int? LastSeenOnTurnId { get; set; }
 
     [ForeignKey("CampaignMapId")]
     public required CampaignMap CampaignMap { get; set; }

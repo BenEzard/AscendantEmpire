@@ -24,4 +24,18 @@ public class CampaignMapGalleryIndex
     public string? ErrorMessage { get; set; }
     public required string PropertiesJson { get; set; }
     public int CampaignMapOffsetId { get; set; }
+
+    /// <summary>
+    /// Should the map wrap horizontally?
+    /// </summary>
+    /// <remarks>This is set by the map creator as a recommendation. 
+    /// When a game is created, the player who creates the game can override the recommendation.</remarks>
+    public bool HorizontalWrap { get; set; }
+
+    /// <summary>
+    /// Should the map wrap vertically?
+    /// </summary>
+    /// <remarks>This is set by the map creator as a recommendation. 
+    /// When a game is created, the player who creates the game can override the recommendation.</remarks>
+    public bool VerticalWrap { get; set; }
 }

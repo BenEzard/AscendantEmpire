@@ -15,14 +15,16 @@ public record GetCampaignMapGeographiesRequest() : IRequest<ServiceResult<IReadO
 
 public class GetCampaignMapGeographiesHandler(
     ILogger<GetCampaignMapGeographiesHandler> logger,
-    AscendantEmpireContext context
+    IDbContextFactory<AscendantEmpireContext> dbFactory
     ) : IRequestHandler<GetCampaignMapGeographiesRequest, ServiceResult<IReadOnlyCollection<CampaignMapGeography>>>
 {
     public async Task<ServiceResult<IReadOnlyCollection<CampaignMapGeography>>> Handle(GetCampaignMapGeographiesRequest request, CancellationToken cancellationToken)
     {
         try
         {
-            var geographies = await context.CampaignGeographies
+            await using var context = await dbFactory.CreateDbContextAsync(cancellationToken);
+
+            List<CampaignMapGeography> geographies = await context.CampaignGeographies
                 .AsNoTracking()
                 .Select(g => new CampaignMapGeography
                 {

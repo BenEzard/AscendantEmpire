@@ -36,10 +36,10 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("CampaignMapGeographyTypeId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("FirstVisitedPlayerId")
+                    b.Property<int?>("FirstSeenByPlayerId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("FirstVisitedTurnId")
+                    b.Property<int?>("FirstSeenOnTurnId")
                         .HasColumnType("int");
 
                     b.Property<int?>("FishAmount")
@@ -57,10 +57,10 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int?>("HuntAmount")
                         .HasColumnType("int");
 
-                    b.Property<int?>("LastVisitedPlayerId")
+                    b.Property<int?>("LastVisitedByPlayerId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("LastVisitedTurnId")
+                    b.Property<int?>("LastVisitedOnTurnId")
                         .HasColumnType("int");
 
                     b.Property<int>("XCoord")
@@ -75,22 +75,22 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.HasIndex("CampaignMapGeographyTypeId");
 
-                    b.HasIndex("FirstVisitedPlayerId");
+                    b.HasIndex("FirstSeenByPlayerId");
 
                     b.HasIndex("GameId");
 
-                    b.HasIndex("LastVisitedPlayerId");
+                    b.HasIndex("LastVisitedByPlayerId");
 
                     b.ToTable("CampaignMap", "game");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.GameIndex", b =>
                 {
-                    b.Property<int>("GameIndexId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("GameIndexId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("CampaignMapIndexId")
                         .HasColumnType("int");
@@ -109,24 +109,33 @@ namespace AscendantEmpire.Application.Migrations
                         .HasMaxLength(250)
                         .HasColumnType("nvarchar(250)");
 
+                    b.Property<bool>("HorizontalWrap")
+                        .HasColumnType("bit");
+
                     b.Property<int>("NumberOfPlayers")
                         .HasColumnType("int");
 
                     b.Property<int>("PlayStatus")
                         .HasColumnType("int");
 
-                    b.HasKey("GameIndexId");
+                    b.Property<bool>("VerticalWrap")
+                        .HasColumnType("bit");
 
-                    b.ToTable("Index", "game");
+                    b.HasKey("Id");
+
+                    b.ToTable("GameIndex", "game");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.Player", b =>
                 {
-                    b.Property<int>("PlayerId")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PlayerId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CampaignOffsetId")
+                        .HasColumnType("int");
 
                     b.Property<string>("FactionName")
                         .IsRequired()
@@ -135,6 +144,9 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.Property<int>("GameId")
                         .HasColumnType("int");
+
+                    b.Property<Guid>("Guid")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("RulerName")
                         .IsRequired()
@@ -152,9 +164,11 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int?>("UserId")
                         .HasColumnType("int");
 
-                    b.HasKey("PlayerId");
+                    b.HasKey("Id");
 
-                    b.ToTable("Player", "game");
+                    b.HasIndex("GameId");
+
+                    b.ToTable("Players", "game");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerCampaignMap", b =>
@@ -174,13 +188,13 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("CampaignMapId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("FirstVisitedTurnId")
+                    b.Property<int?>("FirstSeenOnTurnId")
                         .HasColumnType("int");
 
                     b.Property<int>("GameId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("LastVisitedTurnId")
+                    b.Property<int?>("LastSeenOnTurnId")
                         .HasColumnType("int");
 
                     b.Property<int>("PlayerId")
@@ -361,6 +375,9 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("Height")
                         .HasColumnType("int");
 
+                    b.Property<bool>("HorizontalWrap")
+                        .HasColumnType("bit");
+
                     b.Property<string>("MapName")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -373,6 +390,9 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("VerticalWrap")
+                        .HasColumnType("bit");
 
                     b.Property<int>("Width")
                         .HasColumnType("int");
@@ -408,7 +428,7 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "FirstVisitor")
                         .WithMany()
-                        .HasForeignKey("FirstVisitedPlayerId")
+                        .HasForeignKey("FirstSeenByPlayerId")
                         .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", "Game")
@@ -419,7 +439,7 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "LastVisitor")
                         .WithMany()
-                        .HasForeignKey("LastVisitedPlayerId")
+                        .HasForeignKey("LastVisitedByPlayerId")
                         .OnDelete(DeleteBehavior.NoAction);
 
                     b.Navigation("Biome");
@@ -431,6 +451,17 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Geography");
 
                     b.Navigation("LastVisitor");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.Player", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", "Game")
+                        .WithMany("Players")
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Game");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerCampaignMap", b =>
@@ -501,6 +532,11 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Geography");
 
                     b.Navigation("Index");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.GameIndex", b =>
+                {
+                    b.Navigation("Players");
                 });
 #pragma warning restore 612, 618
         }

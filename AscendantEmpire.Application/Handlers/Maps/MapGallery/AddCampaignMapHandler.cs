@@ -26,13 +26,15 @@ public record AddCampaignMapRequest(
 
 internal class AddCampaignMapHandler(
     ILogger<AddCampaignMapHandler> logger,
-    AscendantEmpireContext context
+    IDbContextFactory<AscendantEmpireContext> dbFactory
     ) : IRequestHandler<AddCampaignMapRequest, ServiceResult<int>>
 {
     public async Task<ServiceResult<int>> Handle(AddCampaignMapRequest request, CancellationToken cancellationToken)
     {
         try
         {
+            await using var context = await dbFactory.CreateDbContextAsync(cancellationToken);
+
             // Normalize inputs
             string mapName = request.MapName.Trim();
             string description = request.Description?.Trim() ?? string.Empty;
@@ -53,7 +55,13 @@ internal class AddCampaignMapHandler(
                     Status = $"Pending creation (#{pendingMapsCount + 1} in queue)",
                     ErrorMessage = string.Empty,
                     PropertiesJson = propsJson,
-                    CampaignMapOffsetId = -1 // default until creation completes
+                    CampaignMapOffsetId = -1, // default until creation completes
+                    HorizontalWrap = request.Parameters != null 
+                        && request.Parameters.TryGetValue("HorizontalWrap", out var hWrap) 
+                        && bool.TryParse(hWrap, out var hWrapBool) ? hWrapBool : false,
+                    VerticalWrap = request.Parameters != null 
+                        && request.Parameters.TryGetValue("VerticalWrap", out var vWrap) 
+                        && bool.TryParse(vWrap, out var vWrapBool) ? vWrapBool : false,
                 };
 
                 context.CampaignMapGalleryIndex.Add(newIndexRecord);

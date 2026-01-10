@@ -21,10 +21,14 @@ public class CampaignMap
     public int? FishAmount { get; set; }
     public int? FodderAmount { get; set; }
 
-    public int? FirstVisitedTurnId { get; set; }
-    public int? FirstVisitedPlayerId { get; set; }
-    public int? LastVisitedTurnId { get; set; }
-    public int? LastVisitedPlayerId { get; set; }
+    public int? FirstSeenOnTurnId { get; set; }
+    public int? FirstSeenByPlayerId { get; set; }
+    
+    public int? LastVisitedOnTurnId { get; set; }
+        /// <summary>
+    /// Records the last Player Id who's Unit last visited this Tile.
+    /// </summary>
+    public int? LastVisitedByPlayerId { get; set; }
 
     public required BiomeType BiomeTypeId { get; set; }
     public required CampaignMapGeographyType CampaignMapGeographyTypeId { get; set; }
@@ -38,9 +42,9 @@ public class CampaignMap
     [ForeignKey("GameId")]
     public required GameIndex Game { get; set; }
 
-    [ForeignKey("FirstVisitedPlayerId")]
+    [ForeignKey("FirstSeenByPlayerId")]
     public required Player? FirstVisitor { get; set; }
 
-    [ForeignKey("LastVisitedPlayerId")]
+    [ForeignKey("LastVisitedByPlayerId")]
     public required Player? LastVisitor { get; set; }
 }

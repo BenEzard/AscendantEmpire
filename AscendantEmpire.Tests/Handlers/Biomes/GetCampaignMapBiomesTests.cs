@@ -6,35 +6,54 @@ using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
-namespace MyEmpire.Tests.Handlers.Biomes;
+namespace AscendantEmpire.Tests.Handlers.Biomes;
 
 internal class GetCampaignMapBiomesTests
 {
-    private AscendantEmpireContext _context = null!;
+    private InMemoryDatabaseRoot _dbRoot = null!;
+    private DbContextOptions<AscendantEmpireContext> _options = null!;
+    private IDbContextFactory<AscendantEmpireContext> _dbFactory = null!;
     private GetCampaignMapBiomesHandler _handler = null!;
 
     [SetUp]
     public async Task Setup()
     {
-        var options = new DbContextOptionsBuilder<AscendantEmpireContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+        _dbRoot = new InMemoryDatabaseRoot();
+
+        _options = new DbContextOptionsBuilder<AscendantEmpireContext>()
+            // IMPORTANT: databaseRoot ensures ALL contexts created by the factory share the same InMemory store.
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString(), databaseRoot: _dbRoot)
             .Options;
 
-        _context = new AscendantEmpireContext(options);
-        await _context.Database.EnsureDeletedAsync();
-        await _context.Database.EnsureCreatedAsync();
+        _dbFactory = new TestDbContextFactory<AscendantEmpireContext>(_options);
 
-        _handler = new GetCampaignMapBiomesHandler(new NullLogger<GetCampaignMapBiomesHandler>(), _context);
+        // Ensure the store is clean + created (do it using a context from the factory).
+        await using (var setupContext = await _dbFactory.CreateDbContextAsync(CancellationToken.None))
+        {
+            await setupContext.Database.EnsureDeletedAsync();
+            await setupContext.Database.EnsureCreatedAsync();
+        }
+
+        // Handler now takes IDbContextFactory<AscendantEmpireContext>
+        _handler = new GetCampaignMapBiomesHandler(
+            new NullLogger<GetCampaignMapBiomesHandler>(),
+            _dbFactory
+        );
     }
 
     [TearDown]
     public void TearDown()
     {
-        _context?.Dispose();
+        // Nothing to dispose here; contexts are created per-use and disposed via await using.
+        _dbRoot = null!;
+        _options = null!;
+        _dbFactory = null!;
+        _handler = null!;
     }
 
     [Test, Description("Should return Campaign Map Biomes.")]
@@ -98,10 +117,16 @@ internal class GetCampaignMapBiomesTests
                 IsPaintableOnCampaignMap = false
             }
         ];
-        _context.CampaignBiomes.AddRange(loadedBiomes);
-        await _context.SaveChangesAsync();
 
-        ServiceResult<IReadOnlyCollection<CampaignMapBiome>> result = await _handler.Handle(new GetCampaignMapBiomesRequest(), CancellationToken.None);
+        // Seed using a context from the factory (NOT a field context), because the handler will read from a different newly-created context.
+        await using (var seedContext = await _dbFactory.CreateDbContextAsync(CancellationToken.None))
+        {
+            seedContext.CampaignBiomes.AddRange(loadedBiomes);
+            await seedContext.SaveChangesAsync();
+        }
+
+        ServiceResult<IReadOnlyCollection<CampaignMapBiome>> result =
+            await _handler.Handle(new GetCampaignMapBiomesRequest(), CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {

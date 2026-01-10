@@ -3,37 +3,45 @@ using AscendantEmpire.Application.Handlers.Maps.Geographies;
 using AscendantEmpire.BackendContracts.Geographies;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace AscendantEmpire.Tests.Handlers.Geographies;
 
 internal class GetCampaignMapGeographiesTests
 {
-    private AscendantEmpireContext _context = null!;
+    private InMemoryDatabaseRoot _dbRoot = null!;
+    private DbContextOptions<AscendantEmpireContext> _options = null!;
+    private IDbContextFactory<AscendantEmpireContext> _dbFactory = null!;
     private GetCampaignMapGeographiesHandler _handler = null!;
 
     [SetUp]
     public async Task Setup()
     {
-        var options = new DbContextOptionsBuilder<AscendantEmpireContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-
-        _context = new AscendantEmpireContext(options);
-        await _context.Database.EnsureDeletedAsync();
-        await _context.Database.EnsureCreatedAsync();
-
-        _handler = new GetCampaignMapGeographiesHandler(new NullLogger<GetCampaignMapGeographiesHandler>(), _context);
+        _dbRoot = new InMemoryDatabaseRoot();
+        
+        _options = new DbContextOptionsBuilder<AscendantEmpireContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString(), databaseRoot: _dbRoot)
+                .Options;
+        
+        _dbFactory = new TestDbContextFactory<AscendantEmpireContext>(_options);
+        
+        await using (var setupContext = await _dbFactory.CreateDbContextAsync(CancellationToken.None))
+        {
+            await setupContext.Database.EnsureDeletedAsync();
+            await setupContext.Database.EnsureCreatedAsync();
+        }
+        
+        _handler = new GetCampaignMapGeographiesHandler(new NullLogger<GetCampaignMapGeographiesHandler>(), _dbFactory);
     }
 
     [TearDown]
     public void TearDown()
     {
-        _context?.Dispose();
+        // contexts are created/disposed per test via the factory
     }
 
     [Test, Description("Should return Campaign Map Geographies.")]
@@ -61,9 +69,11 @@ internal class GetCampaignMapGeographiesTests
             },
         ];
 
-        _context.CampaignGeographies.AddRange(loadedGeographies);
-
-        await _context.SaveChangesAsync();
+        await using (var seedContext = await _dbFactory.CreateDbContextAsync(CancellationToken.None))
+        {
+            seedContext.CampaignGeographies.AddRange(loadedGeographies);
+            await seedContext.SaveChangesAsync();
+        }
 
         ServiceResult<IReadOnlyCollection<CampaignMapGeography>> result = await _handler.Handle(new GetCampaignMapGeographiesRequest(), CancellationToken.None);
 

@@ -7,6 +7,7 @@ using AscendantEmpire.Domain.Enums.Maps;
 using MediatR;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using NSubstitute;
@@ -15,30 +16,38 @@ namespace AscendantEmpire.Tests.Handlers.MapGallery;
 
 internal class AddCampaignMapGalleryTests
 {
-    private AscendantEmpireContext _context = null!;
+    private InMemoryDatabaseRoot _dbRoot = null!;
+    private DbContextOptions<AscendantEmpireContext> _options = null!;
+    private IDbContextFactory<AscendantEmpireContext> _dbFactory = null!;
     private AddCampaignMapHandler _handler = null!;
-    private DbContextOptions<AscendantEmpireContext> _options;
     private IMediator _mediator = null!;
 
     [SetUp]
     public async Task Setup()
     {
+        _mediator = Substitute.For<IMediator>();
+
+        _dbRoot = new InMemoryDatabaseRoot();
+
         _options = new DbContextOptionsBuilder<AscendantEmpireContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString(), databaseRoot: _dbRoot)
             .Options;
 
-        _context = new AscendantEmpireContext(_options);
-        await _context.Database.EnsureDeletedAsync();
-        await _context.Database.EnsureCreatedAsync();
+        _dbFactory = new TestDbContextFactory<AscendantEmpireContext>(_options);
 
-        _mediator = Substitute.For<IMediator>();
-        _handler = new AddCampaignMapHandler(new NullLogger<AddCampaignMapHandler>(), _context);
+        await using (var setupContext = await _dbFactory.CreateDbContextAsync(CancellationToken.None))
+        {
+           await setupContext.Database.EnsureDeletedAsync();
+           await setupContext.Database.EnsureCreatedAsync();
+        }
+
+        _handler = new AddCampaignMapHandler(new NullLogger<AddCampaignMapHandler>(), _dbFactory);
     }
 
     [TearDown]
     public void TearDown()
     {
-        _context?.Dispose();
+        // contexts are created/disposed per test via the factory
     }
 
     [Test, Description("Valid update should insert a record.")]
@@ -61,8 +70,8 @@ internal class AddCampaignMapGalleryTests
 
         ServiceResultBase result = await _handler.Handle(updateRequest, CancellationToken.None);
 
-        using var verifyContext = new AscendantEmpireContext(_options);
-        var created = verifyContext.CampaignMapGalleryIndex.Single(m => m.MapName == MAP_NAME);
+        await using var verifyContext = await _dbFactory.CreateDbContextAsync(CancellationToken.None);
+        var created = await verifyContext.CampaignMapGalleryIndex.SingleAsync(m => m.MapName == MAP_NAME);
 
         using (Assert.EnterMultipleScope())
         {
@@ -84,32 +93,36 @@ internal class AddCampaignMapGalleryTests
         const int ID = 1;
         const string EXISTING_NAME = "Existing Map";
 
-        _context.CampaignMapGalleryIndex.Add(new CampaignMapGalleryIndex
+        AddCampaignMapRequest updateRequest;
+        await using (var seedContext = await _dbFactory.CreateDbContextAsync(CancellationToken.None))
         {
-            Id = ID,
-            MapName = EXISTING_NAME,
-            Description = "Old Description",
-            Width = 50,
-            Height = 50,
-            CreationEngine = MapCreationEngine.BlankMap,
-            CreationStatus = MapCreationStatus.Pending,
-            Status = "Pending",
-            PropertiesJson = "{}"
-        });
-        await _context.SaveChangesAsync();
-
-        var updateRequest = new AddCampaignMapRequest(
-            EXISTING_NAME,
-            "A map for testing",
-            100,
-            100,
-            MapCreationEngine.BlankMap,
-            new Dictionary<string, string>
+            seedContext.CampaignMapGalleryIndex.Add(new CampaignMapGalleryIndex
             {
-                { "Key1", "Value1" },
-                { "Key2", "Value2" }
-            }
-        );
+                Id = ID,
+                MapName = EXISTING_NAME,
+                Description = "Old Description",
+                Width = 50,
+                Height = 50,
+                CreationEngine = MapCreationEngine.BlankMap,
+                CreationStatus = MapCreationStatus.Pending,
+                Status = "Pending",
+                PropertiesJson = "{}"
+            });
+            await seedContext.SaveChangesAsync();
+
+            updateRequest = new AddCampaignMapRequest(
+                EXISTING_NAME,
+                "A map for testing",
+                100,
+                100,
+                MapCreationEngine.BlankMap,
+                new Dictionary<string, string>
+                {
+                    { "Key1", "Value1" },
+                    { "Key2", "Value2" }
+                }
+            );
+        }
 
         ServiceResultBase result = await _handler.Handle(updateRequest, CancellationToken.None);
 
@@ -119,5 +132,4 @@ internal class AddCampaignMapGalleryTests
             Assert.That(result.Errors, Is.Not.Empty, "Should have errors, but none were found.");
         }
     }
-
 }

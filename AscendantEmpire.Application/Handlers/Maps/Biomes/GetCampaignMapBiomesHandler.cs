@@ -16,13 +16,15 @@ public record GetCampaignMapBiomesRequest() : IRequest<ServiceResult<IReadOnlyCo
 
 internal class GetCampaignMapBiomesHandler(
     ILogger<GetCampaignMapBiomesHandler> logger,
-    AscendantEmpireContext context
+    IDbContextFactory<AscendantEmpireContext> dbFactory
 ) : IRequestHandler<GetCampaignMapBiomesRequest, ServiceResult<IReadOnlyCollection<CampaignMapBiome>>>
 {
     public async Task<ServiceResult<IReadOnlyCollection<CampaignMapBiome>>> Handle(GetCampaignMapBiomesRequest request, CancellationToken cancellationToken)
     {
         try
         {
+            await using var context = await dbFactory.CreateDbContextAsync(cancellationToken);
+
             var biomes = await context.CampaignBiomes
                 .AsNoTracking()
                 .Select(b => new CampaignMapBiome
