@@ -4,6 +4,7 @@ import axios from "axios";
 type LoadPlayerCampaignMapRequest = {
   gameGuid: string;
   playerGuid: string;
+  loadWholeMap?: boolean;
 };
 
 export interface CampaignMapTileDto {
@@ -31,7 +32,7 @@ export function usePlayerCampaignMapTilesQuery(gameGuid: string | undefined, pla
       if (playerGuid == null) throw new Error("playerGuid is null");
       
       console.log("Fetching campaign map tiles for player", playerGuid, "in game", gameGuid);
-      const payload: LoadPlayerCampaignMapRequest = { gameGuid, playerGuid };
+      const payload: LoadPlayerCampaignMapRequest = { gameGuid, playerGuid, loadWholeMap: true };
       const res = await axios.post<CampaignMapTilesResponse>(`${API_BASE}/campaign-map/player`, payload, { headers: { "Content-Type": "application/json" } });
       
       return res.data;
