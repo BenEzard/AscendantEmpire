@@ -24,6 +24,11 @@ public class MapObserverOriginLocation
     /// </summary>
     public List<SightCoord>? SightChildren { get; set; }
 
+    /// <summary>
+    /// Retrieves a read-only collection of unique database IDs associated with the current node and its sight children.
+    /// </summary>
+    /// <returns>A read-only collection of integers containing the database IDs for the current node and all of its sight
+    /// children. The collection contains no duplicate values.</returns>
     public IReadOnlyCollection<int> GetDbIds()
     {
         int[] ids = [OccupiedCoord.DbId];
@@ -39,12 +44,14 @@ public class MapObserverOriginLocation
         return [.. ids.Distinct()];
     }
 
-    private static IEnumerable<SightCoord> Traverse(SightCoord node)
+    public static IEnumerable<SightCoord> Traverse(SightCoord node)
     {
         yield return node;
 
         if (node.Children == null)
+        {
             yield break;
+        }
 
         foreach (var child in node.Children)
         {

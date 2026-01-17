@@ -1,6 +1,4 @@
-﻿using AscendantEmpire.BackendContracts.CampaignMaps;
-
-namespace AscendantEmpire.BackendContracts.CampaignMap;
+﻿namespace AscendantEmpire.BackendContracts.CampaignMaps;
 
 public record class MapObserver
 {

@@ -1,6 +1,6 @@
 ﻿namespace AscendantEmpire.BackendContracts.CampaignMaps;
 
-public class Coord
+public class Coord : ICoord
 {
     public int X { get; set; }
     public int Y { get; set; }
@@ -19,6 +19,8 @@ public class Coord
     {
         return X + mapOffset + (Y * mapWidth);
     }
+
+    public bool IsValid() => X >= 0 && Y >= 0;
 
     public override string ToString() => $"({X}, {Y})";
 

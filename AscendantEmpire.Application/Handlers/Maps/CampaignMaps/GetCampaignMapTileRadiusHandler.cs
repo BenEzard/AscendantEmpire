@@ -1,5 +1,4 @@
 ﻿using AscendantEmpire.Application.Handlers.Game;
-using AscendantEmpire.BackendContracts.CampaignMap;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
 
@@ -12,7 +11,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Handlers.Maps.CampaignMaps;
 
 /// <summary>
-/// One or more requests to get the viewing radius which entities can see on the Campaign Map.
+/// One or more requests to get the viewing radiuses which entities can see on the Campaign Map.
 /// </summary>
 public record GetCampaignMapTileRadiusRequest(
     Guid GameGuid,

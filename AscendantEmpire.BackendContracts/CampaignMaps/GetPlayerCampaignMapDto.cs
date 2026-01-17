@@ -1,4 +1,6 @@
-﻿namespace AscendantEmpire.BackendContracts.CampaignMap;
+﻿using AscendantEmpire.BackendContracts.CampaignMaps;
+
+namespace AscendantEmpire.BackendContracts.CampaignMap;
 
 public record GetPlayerCampaignMapDto
 {
