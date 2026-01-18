@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Handlers.Game;
 using AscendantEmpire.Application.Handlers.Maps.CampaignMaps.Extensions;
 using AscendantEmpire.BackendContracts.CampaignMap;
 using AscendantEmpire.BackendContracts.CampaignMaps;
+using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
 using AscendantEmpire.Domain.Enums.Maps;
 
@@ -61,11 +62,11 @@ internal class PlayerCampaignMapRequestValidator : AbstractValidator<GetPlayerCa
     }
 }
 
-internal partial class GetPlayerCampaignMapHandler(
+internal class GetPlayerCampaignMapHandler(
     ILogger<GetPlayerCampaignMapHandler> logger,
     IMediator mediator,
     IDbContextFactory<AscendantEmpireContext> dbFactory,
-     IServiceScopeFactory scopeFactory
+    IServiceScopeFactory scopeFactory
     ) : IRequestHandler<GetPlayerCampaignMapRequest, ServiceResult<IReadOnlyCollection<ObservedCampaignTile>>>
 {
     public async Task<ServiceResult<IReadOnlyCollection<ObservedCampaignTile>>> Handle(GetPlayerCampaignMapRequest request, CancellationToken cancelToken)

@@ -1,4 +1,4 @@
-﻿namespace AscendantEmpire.BackendContracts.CampaignMaps;
+﻿namespace AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 
 public record class MapObserver
 {

@@ -2,6 +2,8 @@
 using AscendantEmpire.Application.Handlers.Maps.CampaignMaps;
 using AscendantEmpire.Application.Handlers.Maps.CampaignMaps.Classes;
 using AscendantEmpire.BackendContracts.CampaignMap;
+using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
+using AscendantEmpire.BackendContracts.CampaignMaps.HidePlayerCampaignMap;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.CampaignMaps;
 
@@ -38,6 +40,41 @@ public class CampaignMapController : ControllerBase
             request.PlayerGuid, 
             request.Observers,
             request.LoadWholeMap));
+
+        return response.ToActionResult(contract =>
+        {
+            return new DTObservedCampaignTileCollection
+            {
+                Tiles = contract.Select(tile => new DTObservedCampaignTile
+                {
+                    XCoord = tile.XCoord,
+                    YCoord = tile.YCoord,
+                    BiomeTypeId = tile.BiomeTypeId,
+                    CampaignMapGeographyTypeId = tile.CampaignMapGeographyTypeId
+                }).ToList()
+            };
+        });
+    }
+
+    /// <summary>
+    /// [DEVELOPER TOOL] Hide the Player's view of the Campaign Map for a given Game.
+    /// </summary>
+    /// <response code="200">Requested data returned for the Player</response>
+    /// <response code="400">Validation error</response>
+    /// <response code="404">Game or Player not found</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpPost("player/clear")]
+    [ProducesResponseType(typeof(IObservedCampaignTileCollection), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> HidePlayerCampaignMapAsync(
+        [FromServices] IMediator mediator,
+        [FromBody] HidePlayerCampaignMapDto request)
+    {
+        ServiceResult<IReadOnlyCollection<ObservedCampaignTile>> response = await mediator.Send(new HidePlayerCampaignMapRequest(
+            request.GameGuid,
+            request.PlayerGuid));
 
         return response.ToActionResult(contract =>
         {
