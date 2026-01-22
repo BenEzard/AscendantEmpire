@@ -3,8 +3,6 @@ import Form from "react-bootstrap/Form";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import { useMemo, useState } from "react";
-import axios from "axios";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CiExport } from "react-icons/ci";
 import type { Geography } from "../../../types/map/Geography";
 import { safeStringify } from "../../../util/json";
@@ -62,8 +60,6 @@ function GeographyManagerDialog({
     setGeographies((prev) => prev.map((g) => (g.campaignMapGeographyType === selectedGeographyType ? { ...g, [field]: value } : g)));
   };
 
-  const queryClient = useQueryClient();
-
   const saveGeographyMutation = useSaveCampaignMapGeographiesMutation({
     onSuccess: () => {
       setShowErrorToast(false);
@@ -71,7 +67,9 @@ function GeographyManagerDialog({
       onSaveSuccess("Geographies saved successfully.");
     },
     onError: (error) => {
-      // keep your existing error parsing logic here
+      const msg = error instanceof Error ? error.message : "Failed to save geographies.";
+      setErrorToastItems([msg]);
+      setShowErrorToast(true);
     },
   });
 

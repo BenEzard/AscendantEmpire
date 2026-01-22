@@ -31,3 +31,20 @@
   font-size: 1.5rem; /* controls icon scale */
   line-height: 1;
 }
+
+/* Wrapper used so tooltips still trigger even when the button is disabled */
+.toolbar-btn-wrapper {
+  display: inline-block;
+}
+
+.toolbar-btn-wrapper--disabled .btn {
+  pointer-events: none;
+}
+
+.toolbar .btn:disabled {
+  cursor: not-allowed;
+}
+
+.toolbar .btn.active {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.5);
+}

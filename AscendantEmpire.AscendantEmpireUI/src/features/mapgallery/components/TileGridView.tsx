@@ -20,6 +20,7 @@ export interface TileGridViewProps {
 }
 
 export default function TileGridView({ width, height, tiles2d, geographies, onTileClick, tileSizePx = 22 }: TileGridViewProps) {
+  void geographies;
   return (
     <div style={{ overflow: "auto", border: "1px solid rgba(0,0,0,0.125)", borderRadius: 6 }}>
       <div

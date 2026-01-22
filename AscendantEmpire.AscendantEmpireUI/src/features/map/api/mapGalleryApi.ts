@@ -1,5 +1,5 @@
 import { http } from "../../../api/http";
-import type { CampaignMapGalleryIndex } from "../components/OpenCampaignMapDialog"; // or move the type to /types
+import type { CampaignMapGalleryIndex } from "@/features/mapgallery/components/OpenCampaignMapDialog";
 
 export type SearchMapGalleryResponse = { indexes: CampaignMapGalleryIndex[] };
 

@@ -18,7 +18,7 @@ import TileGrid from "./TileGrid";
 function buildTiles2d(
   width: number,
   height: number,
-  tiles: { xCoord: number; yCoord: number; biomeTypeId: number; campaignMapGeographyTypeId: number }[]
+  tiles: { xCoord: number; yCoord: number; biomeTypeId: number; campaignMapGeographyTypeId: number }[],
 ): TileCell[][] {
   const grid: TileCell[][] = Array.from({ length: height }, (_, y) =>
     Array.from({ length: width }, (_, x) => ({
@@ -26,7 +26,7 @@ function buildTiles2d(
       y,
       biomeTypeId: null,
       geographyTypeId: null,
-    }))
+    })),
   );
 
   for (const t of tiles) {
@@ -81,7 +81,7 @@ function MapGalleryEditor() {
     (t: TileCell) => {
       openToast(`Tile (${t.x},${t.y}) biome=${t.biomeTypeId ?? "null"} geo=${t.geographyTypeId ?? "null"}`, "info");
     },
-    [openToast]
+    [openToast],
   );
 
   const closeToast = () => setToast((t) => ({ ...t, show: false }));
@@ -178,7 +178,7 @@ function MapGalleryEditor() {
   });
 
   const addNewBiomeAndOpen = () => {
-    const baseList = activeDialog === "biomes" ? biomeDraft : biomes ?? [];
+    const baseList = activeDialog === "biomes" ? biomeDraft : (biomes ?? []);
     const nextId = Math.max(0, ...baseList.map((b) => b.biomeType)) + 1;
 
     const newBiome = createNewBiome(nextId);
@@ -209,7 +209,7 @@ function MapGalleryEditor() {
   });
 
   const addNewGeographyAndOpen = () => {
-    const baseList = activeDialog === "geographies" ? geographyDraft : geographies ?? [];
+    const baseList = activeDialog === "geographies" ? geographyDraft : (geographies ?? []);
     const nextId = Math.max(0, ...baseList.map((g) => g.campaignMapGeographyType)) + 1;
 
     const newGeo = createNewGeography(nextId);
@@ -227,18 +227,18 @@ function MapGalleryEditor() {
         background: bg ?? "rgba(0,0,0,0.03)",
       };
     },
-    [biomeColorByType]
+    [biomeColorByType],
   );
 
   const getTileTitle = useCallback(
     (t: TileCell) => {
-      const biomeName = t.biomeTypeId != null ? biomeNameByType.get(t.biomeTypeId) ?? "(unknown biome)" : "(no biome)";
+      const biomeName = t.biomeTypeId != null ? (biomeNameByType.get(t.biomeTypeId) ?? "(unknown biome)") : "(no biome)";
 
-      const geographyName = t.geographyTypeId != null ? geographyNameByType.get(t.geographyTypeId) ?? "(unknown geography)" : "(no geography)";
+      const geographyName = t.geographyTypeId != null ? (geographyNameByType.get(t.geographyTypeId) ?? "(unknown geography)") : "(no geography)";
 
       return `(${t.x}, ${t.y}); ${biomeName}, ${geographyName}`;
     },
-    [biomeNameByType, geographyNameByType]
+    [biomeNameByType, geographyNameByType],
   );
 
   // ---------------------------
@@ -246,17 +246,25 @@ function MapGalleryEditor() {
   // ---------------------------
   const openBiomes = useCallback(() => {
     if (biomesLoading) return;
+
     const list = biomes ?? [];
+
     setBiomeDraft(list);
+
     setSelectedBiomeType(getFirstBiomeType(list));
+
     setActiveDialog("biomes");
   }, [biomesLoading, biomes]);
 
   const openGeographies = useCallback(() => {
     if (geographiesLoading) return;
+
     const list = geographies ?? [];
+
     setGeographyDraft(list);
+
     setSelectedGeographyType(getFirstGeographyType(list));
+
     setActiveDialog("geographies");
   }, [geographiesLoading, geographies]);
 
@@ -286,6 +294,7 @@ function MapGalleryEditor() {
             key: "biomes",
             icon: <FaTree />,
             tooltip: biomesLoading ? "Loading Biomes..." : "Biomes",
+            disabled: biomesLoading,
             onClick: openBiomes,
             onMiddleClick: middleAddBiome,
           },
@@ -293,13 +302,14 @@ function MapGalleryEditor() {
             key: "geographies",
             icon: <FaMountain />,
             tooltip: geographiesLoading ? "Loading Geographies..." : "Geographies",
+            disabled: geographiesLoading,
             onClick: openGeographies,
             onMiddleClick: middleAddGeography,
           },
         ],
       },
     ],
-    [biomesLoading, geographiesLoading, openBiomes, middleAddBiome, openGeographies, middleAddGeography]
+    [biomesLoading, geographiesLoading, openBiomes, middleAddBiome, openGeographies, middleAddGeography, openMapIndex],
   );
 
   return (
@@ -340,7 +350,7 @@ function MapGalleryEditor() {
                 width={openMapIndex.width}
                 height={openMapIndex.height}
                 tiles2d={tiles2d}
-                geographies={geographies}
+                geographies={geographies ?? []}
                 onTileClick={onTileClick}
                 getTileStyle={getTileStyle}
                 getTileTitle={getTileTitle}

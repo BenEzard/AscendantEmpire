@@ -1,6 +1,5 @@
 ﻿using AscendantEmpire.Application.Handlers.Game;
 using AscendantEmpire.Application.Handlers.Maps.CampaignMaps;
-using AscendantEmpire.BackendContracts.CampaignMap;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;

@@ -136,7 +136,7 @@ export default function NewCampaignMapDialog({ show, initialValues, onClose, onS
   });
 
   async function handleSave() {
-    // if (!validate()) return;
+    if (!validate()) return;
     setSaving(true);
     try {
       const request: AddCampaignMapRequest = {
@@ -145,7 +145,7 @@ export default function NewCampaignMapDialog({ show, initialValues, onClose, onS
         description: campaignMap.description,
         width: campaignMap.width,
         height: campaignMap.height,
-        creationEngine: 0, // hard-coded todo fix
+        creationEngine: campaignMap.creationEngine,
         // optional: if your API wants parameters from the JSON field
         // safely parse; you've already validated it's JSON
         parameters: JSON.parse(campaignMap.properties || "{}"),
@@ -229,10 +229,11 @@ export default function NewCampaignMapDialog({ show, initialValues, onClose, onS
                     Creation Engine
                   </Form.Label>
                   <Col sm={7}>
-                    <Form.Select value={campaignMap.creationEngine} onChange={(e) => set("creationEngine", 0)}>
-                      {/* e.currentTarget.value */}
-                      {engineOptions.map((o) => (
-                        <option key={o} value={o}>
+                    <Form.Select
+                      value={campaignMap.creationEngine}
+                      onChange={(e) => set("creationEngine", parseInt(e.currentTarget.value || "0", 10))}>
+                      {engineOptions.map((o, i) => (
+                        <option key={o} value={i}>
                           {o}
                         </option>
                       ))}

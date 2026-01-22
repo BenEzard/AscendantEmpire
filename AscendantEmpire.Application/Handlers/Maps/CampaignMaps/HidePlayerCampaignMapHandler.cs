@@ -1,6 +1,7 @@
-﻿using AscendantEmpire.Application.Data;
+﻿using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Handlers.Game;
-using AscendantEmpire.BackendContracts.CampaignMap;
+using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
 using AscendantEmpire.Domain.Enums.Maps;
 
@@ -16,7 +17,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Handlers.Maps.CampaignMaps;
 
 public record HidePlayerCampaignMapRequest(Guid GameGuid, Guid PlayerGuid)
-    : IRequest<ServiceResult<IReadOnlyCollection<ObservedCampaignTile>>>;
+    : IRequest<ServiceResultBase>;
 
 internal class HidePlayerCampaignMapRequestValidator : AbstractValidator<HidePlayerCampaignMapRequest>
 {
@@ -39,9 +40,9 @@ internal class HidePlayerCampaignMapHandler(
     ILogger<HidePlayerCampaignMapHandler> logger,
     IMediator mediator,
     AscendantEmpireContext context
-    ) : IRequestHandler<HidePlayerCampaignMapRequest, ServiceResult<IReadOnlyCollection<ObservedCampaignTile>>>
+    ) : IRequestHandler<HidePlayerCampaignMapRequest, ServiceResultBase>
 {
-    public async Task<ServiceResult<IReadOnlyCollection<ObservedCampaignTile>>> Handle(
+    public async Task<ServiceResultBase> Handle(
         HidePlayerCampaignMapRequest request,
         CancellationToken cancelToken)
     {
@@ -55,7 +56,7 @@ internal class HidePlayerCampaignMapHandler(
                 var errors = validator.Validate(request).Errors.Select(e => e.ErrorMessage);
                 const string error = "Validation failed for HidePlayerCampaignMapRequest.";
                 logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
-                return ServiceResult<IReadOnlyCollection<ObservedCampaignTile>>.Fail(errors.Prepend(error));
+                return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(errors.Prepend(error));
             }
 
             // Load the game info
@@ -65,7 +66,7 @@ internal class HidePlayerCampaignMapHandler(
             {
                 const string error = "Error getting game info while trying to get a Player's view of the Campaign Map";
                 logger.LogWarning(error);
-                return ServiceResult<IReadOnlyCollection<ObservedCampaignTile>>.Fail(gameInfoResult.Errors.Prepend(error));
+                return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(gameInfoResult.Errors.Prepend(error));
             }
 
             OpenGame? gameInfo = gameInfoResult.SuccessValue!.SingleOrDefault();
@@ -74,7 +75,7 @@ internal class HidePlayerCampaignMapHandler(
             {
                 const string error = "Game not found while trying to get a Player's view of the Campaign Map";
                 logger.LogWarning(error);
-                return ServiceResult<IReadOnlyCollection<ObservedCampaignTile>>.NotFound(error);
+                return ServiceResult<IReadOnlyCollection<ObserverSight>>.NotFound(error);
             }
 
             OpenGamePlayer thisPlayer = gameInfo.Players.Single();
@@ -117,7 +118,7 @@ internal class HidePlayerCampaignMapHandler(
         {
             const string error = "An error occurred while hiding the Player's Campaign Map.";
             logger.LogError(ex, error);
-            return ServiceResult<IReadOnlyCollection<ObservedCampaignTile>>.Fail(error);
+            return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(error);
         }
     }
 }

@@ -6,6 +6,8 @@ export interface ToolBarButton {
   key: string;
   icon?: React.ReactNode;
   tooltip?: string;
+  disabled?: boolean;
+  active?: boolean;
   onClick?: () => void;
   onMiddleClick?: () => void;
 }
@@ -23,6 +25,7 @@ function ToolBar({ groups }: ToolBarProps) {
   const handleMiddleClick = (btn: ToolBarButton) => (e: React.MouseEvent) => {
     // Middle click is button === 1
     if (e.button !== 1) return;
+    if (btn.disabled) return;
     if (!btn.onMiddleClick) return;
 
     // Stop browser autoscroll / other default behaviors
@@ -39,18 +42,29 @@ function ToolBar({ groups }: ToolBarProps) {
           <ButtonGroup aria-label={group.caption}>
             {group.buttons.map((btn) => {
               const tooltip = btn.onMiddleClick && btn.tooltip ? `${btn.tooltip} (middle-click: add new)` : btn.tooltip;
+              const disabled = !!btn.disabled;
+              const active = !!btn.active;
 
               return (
                 <OverlayTrigger key={btn.key} placement="bottom" overlay={<Tooltip id={`tooltip-${btn.key}`}>{tooltip}</Tooltip>}>
-                  <Button
-                    variant="secondary"
-                    onClick={btn.onClick}
-                    // Most reliable for wheel-click (fires before browser autoscroll kicks in)
-                    onMouseDown={handleMiddleClick(btn)}
-                    // Some browsers fire auxclick too; harmless redundancy
-                    onAuxClick={handleMiddleClick(btn)}>
-                    {btn.icon}
-                  </Button>
+                  {/*
+                    Bootstrap/React-Bootstrap: disabled buttons don't trigger mouse events, so tooltips won't show.
+                    Wrap in a span and disable pointer events on the button to keep tooltips working.
+                  */}
+                  <span className={disabled ? "toolbar-btn-wrapper toolbar-btn-wrapper--disabled" : "toolbar-btn-wrapper"}>
+                    <Button
+                      variant="secondary"
+                      disabled={disabled}
+                      active={active}
+                      aria-pressed={active}
+                      onClick={disabled ? undefined : btn.onClick}
+                      // Most reliable for wheel-click (fires before browser autoscroll kicks in)
+                      onMouseDown={disabled ? undefined : handleMiddleClick(btn)}
+                      // Some browsers fire auxclick too; harmless redundancy
+                      onAuxClick={disabled ? undefined : handleMiddleClick(btn)}>
+                      {btn.icon}
+                    </Button>
+                  </span>
                 </OverlayTrigger>
               );
             })}

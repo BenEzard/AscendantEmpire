@@ -1,6 +1,6 @@
 ﻿using AscendantEmpire.Domain.Enums.Maps;
 
-namespace AscendantEmpire.BackendContracts.CampaignMap;
+namespace AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 
 public record class ObservedCampaignTile
 {

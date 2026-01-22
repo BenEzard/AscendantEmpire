@@ -21,23 +21,9 @@ export interface TileGridProps {
 }
 
 export default function TileGrid({ width, height, tiles2d, geographies, onTileClick, getTileTitle, getTileStyle, tileClassName }: TileGridProps) {
+  void height;
   // Flatten row-major (y then x)
   const flat = React.useMemo(() => tiles2d.flat(), [tiles2d]);
-
-  // Log geographies whenever they change
-  React.useEffect(() => {
-    // Pick the fields you care about so the table is readable
-    console.table(
-      geographies.map((g) => ({
-        id: g.campaignMapGeographyType,
-        name: g.name,
-        relativeElevation: g.relativeElevation,
-        movementCost: g.movementCost,
-        mapEditorIcon: g.mapEditorIcon ?? null,
-        isPaintable: g.isPaintableOnCampaignMap,
-      }))
-    );
-  }, [geographies]);
 
   return (
     <div style={{ overflow: "auto", border: "1px solid rgba(0,0,0,0.125)" }}>

@@ -1,7 +1,6 @@
 ﻿using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Handlers.Maps.CampaignMaps;
 using AscendantEmpire.Application.Handlers.Maps.CampaignMaps.Classes;
-using AscendantEmpire.BackendContracts.CampaignMap;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.BackendContracts.CampaignMaps.HidePlayerCampaignMap;
 using AscendantEmpire.FrontendContracts;
@@ -27,7 +26,7 @@ public class CampaignMapController : ControllerBase
     /// <response code="404">Game or Player not found</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [HttpPost("player")]
-    [ProducesResponseType(typeof(IObservedCampaignTileCollection), 200)]
+    [ProducesResponseType(typeof(IMapObservers), 200)]
     [ProducesResponseType(typeof(IApiErrorResult), 400)]
     [ProducesResponseType(typeof(IApiErrorResult), 404)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
@@ -35,7 +34,7 @@ public class CampaignMapController : ControllerBase
         [FromServices] IMediator mediator,
         [FromBody] GetPlayerCampaignMapDto request)
     {
-        ServiceResult<IReadOnlyCollection<ObservedCampaignTile>> response = await mediator.Send(new GetPlayerCampaignMapRequest(
+        ServiceResult<IReadOnlyCollection<ObserverSight>> response = await mediator.Send(new GetPlayerCampaignMapRequest(
             request.GameGuid, 
             request.PlayerGuid, 
             request.Observers,
@@ -43,14 +42,20 @@ public class CampaignMapController : ControllerBase
 
         return response.ToActionResult(contract =>
         {
-            return new DTObservedCampaignTileCollection
+            return new DTObservers
             {
-                Tiles = contract.Select(tile => new DTObservedCampaignTile
+                Observers = contract.Select(o => new DTObserver
                 {
-                    XCoord = tile.XCoord,
-                    YCoord = tile.YCoord,
-                    BiomeTypeId = tile.BiomeTypeId,
-                    CampaignMapGeographyTypeId = tile.CampaignMapGeographyTypeId
+                    TemporaryObserverId = o.TemporaryObserverId,
+                    XCoord = o.Location.X,
+                    YCoord = o.Location.Y,
+                    SeenTiles = o.SeenTiles.Select(tile => new DTObservedCampaignTile
+                    {
+                        XCoord = tile.XCoord,
+                        YCoord = tile.YCoord,
+                        BiomeTypeId = tile.BiomeTypeId,
+                        CampaignMapGeographyTypeId = tile.CampaignMapGeographyTypeId
+                    }).ToList()
                 }).ToList()
             };
         });
@@ -64,30 +69,14 @@ public class CampaignMapController : ControllerBase
     /// <response code="404">Game or Player not found</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [HttpPost("player/clear")]
-    [ProducesResponseType(typeof(IObservedCampaignTileCollection), 200)]
+    [ProducesResponseType(200)]
     [ProducesResponseType(typeof(IApiErrorResult), 400)]
     [ProducesResponseType(typeof(IApiErrorResult), 404)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> HidePlayerCampaignMapAsync(
+    public async Task HidePlayerCampaignMapAsync(
         [FromServices] IMediator mediator,
         [FromBody] HidePlayerCampaignMapDto request)
     {
-        ServiceResult<IReadOnlyCollection<ObservedCampaignTile>> response = await mediator.Send(new HidePlayerCampaignMapRequest(
-            request.GameGuid,
-            request.PlayerGuid));
-
-        return response.ToActionResult(contract =>
-        {
-            return new DTObservedCampaignTileCollection
-            {
-                Tiles = contract.Select(tile => new DTObservedCampaignTile
-                {
-                    XCoord = tile.XCoord,
-                    YCoord = tile.YCoord,
-                    BiomeTypeId = tile.BiomeTypeId,
-                    CampaignMapGeographyTypeId = tile.CampaignMapGeographyTypeId
-                }).ToList()
-            };
-        });
+        await mediator.Send(new HidePlayerCampaignMapRequest(request.GameGuid, request.PlayerGuid));
     }
 }

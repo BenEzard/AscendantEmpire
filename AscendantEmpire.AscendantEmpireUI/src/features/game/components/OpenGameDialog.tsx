@@ -144,7 +144,6 @@ export default function OpenGameDialog({ show, onClose, onSaveSuccess, onOpenMap
                           campaignOffsetId: p.campaignOffsetId,
                         };
 
-                        console.log("Opening selection (dblclick):", selection);
                         onOpenMap?.(selection);
                         onSaveSuccess(`Opened "${selection.gameName}" as ${selection.rulerLabel}`);
                         onClose();

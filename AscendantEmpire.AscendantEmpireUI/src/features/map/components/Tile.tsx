@@ -9,6 +9,7 @@ export interface TileProps {
   sizePx: number;
   geography: Geography;
   onClick?: (tile: TileCell) => void;
+  className?: string;
   /**
    * Optional styling hooks.
    */
@@ -16,7 +17,7 @@ export interface TileProps {
   getStyle?: (tile: TileCell) => React.CSSProperties;
 }
 
-const Tile = React.memo(function Tile({ tile, sizePx, geography, onClick, getTitle, getStyle }: TileProps) {
+const Tile = React.memo(function Tile({ tile, sizePx, geography, onClick, className, getTitle, getStyle }: TileProps) {
   const clickable = !!onClick;
 
   const baseStyle: React.CSSProperties = {
@@ -38,9 +39,10 @@ const Tile = React.memo(function Tile({ tile, sizePx, geography, onClick, getTit
   const Icon = iconKey ? iconMap[iconKey] : undefined;
 
   const style = { ...baseStyle, ...(getStyle?.(tile) ?? {}) };
+  const combinedClassName = ["tile", className].filter(Boolean).join(" ");
 
   return (
-    <div className="tile" role={clickable ? "button" : undefined} title={getTitle?.(tile)} onClick={() => onClick?.(tile)} style={style}>
+    <div className={combinedClassName} role={clickable ? "button" : undefined} title={getTitle?.(tile)} onClick={() => onClick?.(tile)} style={style}>
       {Icon ? <Icon className="tile-icon-fill" aria-hidden /> : null}
     </div>
   );

@@ -1,7 +1,6 @@
 ﻿using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Handlers.Game;
 using AscendantEmpire.Application.Handlers.Maps.CampaignMaps.Extensions;
-using AscendantEmpire.BackendContracts.CampaignMap;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
@@ -24,7 +23,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Handlers.Maps.CampaignMaps;
 
 public record GetPlayerCampaignMapRequest(Guid GameGuid, Guid PlayerGuid, IReadOnlyCollection<MapObserver>? Observers, bool LoadWholeMap = false) 
-    : IRequest<ServiceResult<IReadOnlyCollection<ObservedCampaignTile>>>;
+    : IRequest<ServiceResult<IReadOnlyCollection<ObserverSight>>>;
 
 internal class PlayerCampaignMapRequestValidator : AbstractValidator<GetPlayerCampaignMapRequest>
 {
@@ -67,10 +66,13 @@ internal class GetPlayerCampaignMapHandler(
     IMediator mediator,
     IDbContextFactory<AscendantEmpireContext> dbFactory,
     IServiceScopeFactory scopeFactory
-    ) : IRequestHandler<GetPlayerCampaignMapRequest, ServiceResult<IReadOnlyCollection<ObservedCampaignTile>>>
+    ) : IRequestHandler<GetPlayerCampaignMapRequest, ServiceResult<IReadOnlyCollection<ObserverSight>>>
 {
-    public async Task<ServiceResult<IReadOnlyCollection<ObservedCampaignTile>>> Handle(GetPlayerCampaignMapRequest request, CancellationToken cancelToken)
+    public async Task<ServiceResult<IReadOnlyCollection<ObserverSight>>> Handle(GetPlayerCampaignMapRequest request, CancellationToken cancelToken)
     {
+        List<ObserverSight> observers = [];
+        Dictionary<int, MapObserverSight> mapSightByTemporaryId = [];
+
         try
         {
             // Validate the request object
@@ -81,7 +83,7 @@ internal class GetPlayerCampaignMapHandler(
                 var errors = validator.Validate(request).Errors.Select(e => e.ErrorMessage);
                 const string error = "Validation failed for GetPlayerCampaignMapRequest.";
                 logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
-                return ServiceResult<IReadOnlyCollection<ObservedCampaignTile>>.Fail(errors.Prepend(error));
+                return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(errors.Prepend(error));
             }
 
             // Load the game info
@@ -91,7 +93,7 @@ internal class GetPlayerCampaignMapHandler(
             {
                 const string error = "Error getting game info while trying to get a Player's view of the Campaign Map";
                 logger.LogWarning(error);
-                return ServiceResult<IReadOnlyCollection<ObservedCampaignTile>>.Fail(gameInfoResult.Errors.Prepend(error));
+                return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(gameInfoResult.Errors.Prepend(error));
             }
 
             OpenGame? gameInfo = gameInfoResult.SuccessValue!.SingleOrDefault();
@@ -100,11 +102,10 @@ internal class GetPlayerCampaignMapHandler(
             {
                 const string error = "Game not found while trying to get a Player's view of the Campaign Map";
                 logger.LogWarning(error);
-                return ServiceResult<IReadOnlyCollection<ObservedCampaignTile>>.NotFound(error);
+                return ServiceResult<IReadOnlyCollection<ObserverSight>>.NotFound(error);
             }
 
             OpenGamePlayer thisPlayer = gameInfo.Players.Single();
-            IEnumerable<ObservedCampaignTile> observedTiles = [];
 
             if (request.Observers is not null)
             {
@@ -130,6 +131,7 @@ internal class GetPlayerCampaignMapHandler(
 
                 // Filter down the Tiles based on those that can be seen; excluding those from the radius which are blocked by Geography or Biome features
                 List<MapObserverSight> mapSight = DetermineMapSight(radiusDetails.SuccessValue, tiles.ToDictionary(t => t.PlayerCampaignMapId));
+                mapSightByTemporaryId = mapSight.ToDictionary(ms => ms.TemporaryObserverId);
 
                 List<int> playerCampaignMapIds = mapSight.GetAllDbIds();
 
@@ -161,29 +163,47 @@ internal class GetPlayerCampaignMapHandler(
             {
                 List<InternalPlayerObservedTile> fetchPlayerView = await GetPlayerTilesInScopeAsync(gameInfo, thisPlayer.PlayerId, cancelToken);
 
-                observedTiles = from masterTile in fetchPlayerView
-                                select new ObservedCampaignTile
-                                {
-                                    XCoord = masterTile.XCoord,
-                                    YCoord = masterTile.YCoord,
-                                    BiomeTypeId = masterTile.BiomeTypeId,
-                                    CampaignMapGeographyTypeId = masterTile.GeographyTypeId,
-                                };
+                observers.Add(new ObserverSight()
+                {
+                    TemporaryObserverId = 0,
+                    Location = new Coord { X = 0, Y = 0 },
+                    SeenTiles = [.. from masterTile in fetchPlayerView
+                                    // TODO improve by excluding already discovered Tiles
+                                    //where playerCampaignMapIds.Contains(new Coord { X = masterTile.XCoord, Y = masterTile.YCoord }).GetDbId(thisPlayer.CampaignMapOffsetId, gameInfo.MapWidth)) == false
+                                 select new ObservedCampaignTile
+                                 {
+                                     XCoord = masterTile.XCoord,
+                                     YCoord = masterTile.YCoord,
+                                     BiomeTypeId = masterTile.BiomeTypeId,
+                                     CampaignMapGeographyTypeId = masterTile.GeographyTypeId,
+                                 }]
+                });
             }
-
-            if (request.Observers != null)
+            else
             {
-                ServiceResult<IDictionary<int, MapObserverOriginLocation>> results = await mediator.Send(new GetCampaignMapTileRadiusRequest(request.GameGuid, request.PlayerGuid, request.Observers), cancelToken);
+                observers.AddRange([.. request.Observers.Select( o => new ObserverSight
+                {
+                    TemporaryObserverId = o.TemporaryObserverId,
+                    Location = o.Location,
+                    SeenTiles = [.. mapSightByTemporaryId[o.TemporaryObserverId].SeenTiles
+                        .Select(st => new ObservedCampaignTile
+                        {
+                            XCoord = st.Coord.X,
+                            YCoord = st.Coord.Y,
+                            BiomeTypeId = st.BiomeType,
+                            CampaignMapGeographyTypeId = st.GeographyType
+                        })]
+                })]);
             }
-
-            return ServiceResult<IReadOnlyCollection<ObservedCampaignTile>>.Succeed([.. observedTiles]);
         }
         catch (Exception ex)
         {
             const string error = "An error occurred while retrieving the Player's Campaign Map.";
             logger.LogError(ex, error);
-            return ServiceResult<IReadOnlyCollection<ObservedCampaignTile>>.Fail(error);
+            return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(error);
         }
+
+        return ServiceResult<IReadOnlyCollection<ObserverSight>>.Succeed(observers);
     }
 
     /// <summary>
@@ -374,8 +394,8 @@ internal class GetPlayerCampaignMapHandler(
                 t.PlayerCampaignMapId,
                 // Get the Tiles where the Observers are. This must be from the WORLD map, not the Player map, because the Player may not have seen the Tile yet
                 // (e.g. at the start of the game).
-                DoesBlockSight = t.CampaignMap.Biome.DoesBlockSight,
-                RelativeElevation = t.CampaignMap.Geography.RelativeElevation
+                t.CampaignMap.Biome.DoesBlockSight,
+                t.CampaignMap.Geography.RelativeElevation
             })
             .ToListAsync(cancelToken);
 
@@ -503,11 +523,19 @@ internal class GetPlayerCampaignMapHandler(
 
         foreach (var origin in radiusDetails.Values)
         {
+            tiles.TryGetValue(origin.OccupiedCoord.DbId, out PlayerCampaignMapTileForSight? tile);
+
             var observer = new MapObserverSight
             {
                 TemporaryObserverId = origin.TemporaryObserverId,
                 OccupiedCoord = origin.OccupiedCoord,
-                SeenTiles = []
+                SeenTiles = [new SeenTile
+                {
+                    Id = tile.PlayerCampaignMapId,
+                    Coord = new Coord { X = tile.XCoord, Y = tile.YCoord },
+                    BiomeType = tile.BiomeType,
+                    GeographyType = tile.GeographyType
+                }]
             };
 
             allObservers.Add(observer);
@@ -629,6 +657,4 @@ internal class GetPlayerCampaignMapHandler(
         public required BiomeType BiomeType { get; set; }
         public required CampaignMapGeographyType GeographyType { get; set; }
     }
-
-   
 }
