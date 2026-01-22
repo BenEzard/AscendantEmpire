@@ -297,6 +297,7 @@ function MapGalleryEditor() {
             disabled: biomesLoading,
             onClick: openBiomes,
             onMiddleClick: middleAddBiome,
+            middleClickHint: "add new",
           },
           {
             key: "geographies",
@@ -305,6 +306,7 @@ function MapGalleryEditor() {
             disabled: geographiesLoading,
             onClick: openGeographies,
             onMiddleClick: middleAddGeography,
+            middleClickHint: "add new",
           },
         ],
       },

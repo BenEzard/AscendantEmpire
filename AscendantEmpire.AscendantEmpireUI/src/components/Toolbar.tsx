@@ -10,6 +10,8 @@ export interface ToolBarButton {
   active?: boolean;
   onClick?: () => void;
   onMiddleClick?: () => void;
+  middleClickHint?: string;
+  onRightClick?: () => void;
 }
 
 export interface ToolBarGroup {
@@ -35,13 +37,24 @@ function ToolBar({ groups }: ToolBarProps) {
     btn.onMiddleClick();
   };
 
+  const handleRightClick = (btn: ToolBarButton) => (e: React.MouseEvent) => {
+    if (!btn.onRightClick) return;
+
+    // Stop the browser context menu.
+    e.preventDefault();
+    e.stopPropagation();
+
+    btn.onRightClick();
+  };
+
   return (
     <div className="toolbar d-flex justify-content-center border-bottom bg-light">
       {groups.map((group) => (
         <div key={group.caption} className="toolbar-group">
           <ButtonGroup aria-label={group.caption}>
             {group.buttons.map((btn) => {
-              const tooltip = btn.onMiddleClick && btn.tooltip ? `${btn.tooltip} (middle-click: add new)` : btn.tooltip;
+              const middleHint = btn.middleClickHint ?? "add new";
+              const tooltip = btn.onMiddleClick && btn.tooltip ? `${btn.tooltip} (middle-click: ${middleHint})` : btn.tooltip;
               const disabled = !!btn.disabled;
               const active = !!btn.active;
 
@@ -51,7 +64,9 @@ function ToolBar({ groups }: ToolBarProps) {
                     Bootstrap/React-Bootstrap: disabled buttons don't trigger mouse events, so tooltips won't show.
                     Wrap in a span and disable pointer events on the button to keep tooltips working.
                   */}
-                  <span className={disabled ? "toolbar-btn-wrapper toolbar-btn-wrapper--disabled" : "toolbar-btn-wrapper"}>
+                  <span
+                    className={disabled ? "toolbar-btn-wrapper toolbar-btn-wrapper--disabled" : "toolbar-btn-wrapper"}
+                    onContextMenu={handleRightClick(btn)}>
                     <Button
                       variant="secondary"
                       disabled={disabled}

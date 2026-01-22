@@ -1,9 +1,5 @@
 import type { ToolBarGroup } from "@/components/Toolbar";
 import ToolBar from "@/components/Toolbar";
-import { useCallback, useMemo, useState, useEffect, useRef } from "react";
-import { Alert, Spinner, Toast, ToastContainer } from "react-bootstrap";
-import { FaRegFolderOpen } from "react-icons/fa6";
-import OpenGameDialog from "./OpenGameDialog";
 import {
   useClearPlayerCampaignMapMutation,
   useLoadPlayerCampaignMapMutation,
@@ -13,9 +9,14 @@ import TileGrid from "@/features/map/components/TileGrid";
 import type { TileCell } from "@/features/map/components/TileTypes";
 import { useCampaignMapBiomesQuery } from "@/features/map/hooks/useCampaignMapBiomes";
 import { useCampaignMapGeographiesQuery } from "@/features/map/hooks/useCampaignMapGeographies";
-import type { OpenGameSelection } from "../types/OpenGameSelection";
-import { GoEye, GoEyeClosed } from "react-icons/go";
 import type { LoadPlayerCampaignMapRequest, PlayerCampaignMapObserverResultDto } from "@/features/map/api/playerCampaignMapApi";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Alert, Spinner, Toast, ToastContainer } from "react-bootstrap";
+import { FaRegFolderOpen } from "react-icons/fa6";
+import { GoEye, GoEyeClosed } from "react-icons/go";
+import OpenGameDialog from "./OpenGameDialog";
+import VisionSettingsOffcanvas from "./VisionSettingsOffcanvas";
+import type { OpenGameSelection } from "../types/OpenGameSelection";
 
 function buildTiles2d(
   width: number,
@@ -49,27 +50,27 @@ function buildTiles2d(
 function GameUI() {
   type ActiveDialog = "openGame" | null;
   type ActiveTool = "vision" | null;
-
   type SelectedTile = { x: number; y: number };
 
   const [activeDialog, setActiveDialog] = useState<ActiveDialog>(null);
   const [activeTool, setActiveTool] = useState<ActiveTool>(null);
   const [selectedTile, setSelectedTile] = useState<SelectedTile | null>(null);
   const [visionObservers, setVisionObservers] = useState<PlayerCampaignMapObserverResultDto[]>([]);
+  const [showVisionSettings, setShowVisionSettings] = useState(false);
+  const [visionRadius, setVisionRadius] = useState<number>(2);
+  const [visionLoadWholeMap, setVisionLoadWholeMap] = useState<boolean>(false);
 
   const visionLastRequestKeyRef = useRef<string | null>(null);
   const visionInFlightRef = useRef(false);
   const visionMutateRef = useRef<null | ((payload: LoadPlayerCampaignMapRequest) => void)>(null);
   const prevActiveToolRef = useRef<ActiveTool>(null);
 
-  // "Open map" selection
   const [gameSelection, setGameSelection] = useState<OpenGameSelection | null>(null);
 
   const gameGuid = gameSelection?.gameGuid;
   const playerGuid = gameSelection?.playerGuid;
   const tilesEnabled = !!gameGuid && !!playerGuid;
 
-  // If the context needed for a tool goes away, clear the active tool.
   useEffect(() => {
     if (gameSelection == null) {
       setActiveTool(null);
@@ -77,6 +78,11 @@ function GameUI() {
       setVisionObservers([]);
     }
   }, [gameSelection]);
+
+  // Tile selection should ONLY exist while Vision is active.
+  useEffect(() => {
+    if (activeTool !== "vision") setSelectedTile(null);
+  }, [activeTool]);
 
   const observedTileKeys = useMemo(() => {
     const next = new Set<string>();
@@ -90,9 +96,10 @@ function GameUI() {
     setActiveTool((t) => (t === "vision" ? null : "vision"));
   }, []);
 
-  // ---------------------------
-  // Toast
-  // ---------------------------
+  const openVisionSettings = useCallback(() => {
+    setShowVisionSettings(true);
+  }, []);
+
   const [toast, setToast] = useState<{
     show: boolean;
     message: string;
@@ -120,17 +127,13 @@ function GameUI() {
   });
 
   const clearVision = useCallback(() => {
-    // Must always update active tool immediately.
     setActiveTool(null);
     setVisionObservers([]);
 
     if (!gameGuid || !playerGuid) return;
-
     clearPlayerCampaignMap.mutate({ gameGuid, playerGuid });
   }, [clearPlayerCampaignMap, gameGuid, playerGuid]);
-  // ---------------------------
-  // ToolBar
-  // ---------------------------
+
   const toolBarGroups: ToolBarGroup[] = [
     {
       caption: "Game",
@@ -146,6 +149,8 @@ function GameUI() {
           disabled: gameSelection == null,
           active: activeTool === "vision",
           onClick: toggleVisionTool,
+          onMiddleClick: openVisionSettings,
+          middleClickHint: "settings",
         },
         {
           key: "clear-vision",
@@ -158,57 +163,30 @@ function GameUI() {
     },
   ];
 
-  // ---------------------------
-  // Queries
-  // ---------------------------
-  const { data: biomes, error: biomeError } = useCampaignMapBiomesQuery();
+  const { data: biomes } = useCampaignMapBiomesQuery();
+  const { data: geographies } = useCampaignMapGeographiesQuery();
 
-  const { data: geographies, error: geographyError } = useCampaignMapGeographiesQuery();
-
-  {
-    biomeError && <Alert variant="danger">Biomes failed: {biomeError.message}</Alert>;
-  }
-  {
-    geographyError && <Alert variant="danger">Geographies failed: {geographyError.message}</Alert>;
-  }
-
-  // ---------------------------
-  // Lookups for tile view
-  // ---------------------------
   const biomeColorByType = useMemo(() => {
     const m = new Map<number, string>();
-
     for (const b of biomes ?? []) {
       const c = (b.mapEditorHtmlColor ?? "").trim();
-
       if (c) m.set(b.biomeType, c);
     }
-
     return m;
   }, [biomes]);
 
   const biomeNameByType = useMemo(() => {
     const m = new Map<number, string>();
-
     for (const b of biomes ?? []) m.set(b.biomeType, b.name);
-
     return m;
   }, [biomes]);
 
   const geographyNameByType = useMemo(() => {
     const m = new Map<number, string>();
-
-    for (const g of geographies ?? []) {
-      // assuming your Geography id is campaignMapGeographyType (as in your dialog)
-      m.set(g.campaignMapGeographyType, g.name);
-    }
-
+    for (const g of geographies ?? []) m.set(g.campaignMapGeographyType, g.name);
     return m;
   }, [geographies]);
 
-  // ---------------------------
-  // Open map / tiles
-  // ---------------------------
   const {
     data: tilesResponse,
     error: tilesError,
@@ -219,15 +197,7 @@ function GameUI() {
   const loadPlayerCampaignMap = useLoadPlayerCampaignMapMutation({
     onSuccess: (data) => {
       visionInFlightRef.current = false;
-
-      // Keep observer results separate from tile state/cache.
       setVisionObservers(data.observers ?? []);
-
-      console.log("[Vision] Response:", data);
-      console.log("[Vision] Counts:", {
-        observerCount: data.observers?.length ?? 0,
-        tileCount: data.tiles?.length ?? 0,
-      });
     },
     onError: (error) => {
       visionInFlightRef.current = false;
@@ -236,45 +206,30 @@ function GameUI() {
     },
   });
 
-  // Keep a stable reference to mutate() so effects/callbacks don't re-fire due to object identity churn.
   useEffect(() => {
     visionMutateRef.current = loadPlayerCampaignMap.mutate;
   }, [loadPlayerCampaignMap.mutate]);
 
   const sendVisionRequest = useCallback(
-    (x: number, y: number, source: "tile-click" | "vision-enabled") => {
-      if (activeTool !== "vision") {
-        console.log("[Vision] Skipped: activeTool is not vision", { source, activeTool, x, y });
-        return;
-      }
+    (x: number, y: number, _source: "tile-click" | "vision-enabled") => {
+      if (activeTool !== "vision") return;
+      if (!gameGuid || !playerGuid) return;
 
-      if (!gameGuid || !playerGuid) {
-        console.log("[Vision] Skipped: missing gameGuid/playerGuid", { source, gameGuid, playerGuid, x, y });
-        return;
-      }
+      const requestKeyWithRadius = `${gameGuid}:${playerGuid}:${x},${y}:r${visionRadius}`;
+      const requestKey = `${requestKeyWithRadius}:whole${visionLoadWholeMap ? 1 : 0}`;
 
-      const requestKey = `${gameGuid}:${playerGuid}:${x},${y}`;
+      if (visionInFlightRef.current && visionLastRequestKeyRef.current === requestKey) return;
+      if (visionLastRequestKeyRef.current === requestKey) return;
 
-      // Dedup repeated triggers while a request is in-flight (or identical immediate repeats).
-      if (visionInFlightRef.current && visionLastRequestKeyRef.current === requestKey) {
-        console.log("[Vision] Deduped: request already in-flight", { source, requestKey });
-        return;
-      }
-
-      if (visionLastRequestKeyRef.current === requestKey) {
-        console.log("[Vision] Deduped: identical request", { source, requestKey });
-        return;
-      }
-
-      const payload = {
+      const payload: LoadPlayerCampaignMapRequest = {
         gameGuid,
         playerGuid,
-        loadWholeMap: false,
+        loadWholeMap: visionLoadWholeMap,
         observers: [
           {
             temporaryObserverId: 1,
             location: { x, y },
-            sightRange: 2,
+            sightRange: visionRadius,
           },
         ],
       };
@@ -282,18 +237,15 @@ function GameUI() {
       visionLastRequestKeyRef.current = requestKey;
       visionInFlightRef.current = true;
 
-      console.log("[Vision] Request payload:", { source, requestKey, payload });
-
       const mutate = visionMutateRef.current;
       if (!mutate) {
-        console.log("[Vision] Skipped: mutate ref not ready", { source, requestKey });
         visionInFlightRef.current = false;
         return;
       }
 
       mutate(payload);
     },
-    [activeTool, gameGuid, playerGuid],
+    [activeTool, gameGuid, playerGuid, visionRadius, visionLoadWholeMap],
   );
 
   const tiles2d = useMemo(() => {
@@ -301,58 +253,42 @@ function GameUI() {
     return buildTiles2d(gameSelection.width, gameSelection.height, tilesResponse.tiles);
   }, [gameSelection, tilesResponse]);
 
-  // On tile click we want to show a toast with tile info: [x, y]: Biome, Geography
   const onTileClick = useCallback(
     (t: TileCell) => {
-      console.log("[TileClick]", {
-        activeTool,
-        gameGuid,
-        playerGuid,
-        tile: { x: t.x, y: t.y, biomeTypeId: t.biomeTypeId, geographyTypeId: t.geographyTypeId },
-      });
-
-      setSelectedTile({ x: t.x, y: t.y });
-
-      // If Vision is the active tool, selecting a tile triggers a targeted map load.
-      sendVisionRequest(t.x, t.y, "tile-click");
+      if (activeTool === "vision") {
+        setSelectedTile({ x: t.x, y: t.y });
+        sendVisionRequest(t.x, t.y, "tile-click");
+      }
 
       const biomeName = t.biomeTypeId == null ? "null" : (biomeNameByType.get(t.biomeTypeId) ?? `unknown(${t.biomeTypeId})`);
-
       const geoName = t.geographyTypeId == null ? "null" : (geographyNameByType.get(t.geographyTypeId) ?? `unknown(${t.geographyTypeId})`);
-
-      // If biomeName is "Unknown" and GeographyName is "Unknown" then just show "Unknown" once.
       const label = biomeName === "Unknown" && geoName === "Unknown" ? "Unknown" : `${biomeName}, ${geoName}`;
 
       openToast(`[${t.x}, ${t.y}]: ${label}`, "warning");
     },
-    [openToast, biomeNameByType, geographyNameByType, activeTool, gameGuid, playerGuid, sendVisionRequest],
+    [activeTool, biomeNameByType, geographyNameByType, openToast, sendVisionRequest],
   );
 
-  // If a tile is already selected and the user turns Vision on, run it once.
   useEffect(() => {
     const prev = prevActiveToolRef.current;
     prevActiveToolRef.current = activeTool;
 
     if (activeTool !== "vision") return;
-    if (prev === "vision") return; // only on transition to vision
+    if (prev === "vision") return;
     if (!selectedTile) return;
 
     sendVisionRequest(selectedTile.x, selectedTile.y, "vision-enabled");
   }, [activeTool, selectedTile, sendVisionRequest]);
 
   const getTileStyle = useCallback(
-    (t: TileCell): React.CSSProperties => {
+    (t: TileCell): CSSProperties => {
       const bg = t.biomeTypeId != null ? biomeColorByType.get(t.biomeTypeId) : undefined;
-
       const baseBg = bg ?? "rgba(0,0,0,0.03)";
-      const isSelected = selectedTile != null && selectedTile.x === t.x && selectedTile.y === t.y;
 
-      // Fog-of-war is always rendered (based on the latest observer results),
-      // but observers are only refreshed while the Vision tool is active.
+      const isSelected = selectedTile != null && selectedTile.x === t.x && selectedTile.y === t.y;
       const isObserved = observedTileKeys.has(`${t.x},${t.y}`);
 
       const selectionOverlay = isSelected ? "linear-gradient(rgba(255, 255, 0, 0.35), rgba(255, 255, 0, 0.35)), " : "";
-
       const fogOverlay = !isObserved ? "linear-gradient(rgba(80, 80, 80, 0.55), rgba(80, 80, 80, 0.55)), " : "";
 
       return {
@@ -361,18 +297,14 @@ function GameUI() {
         outlineOffset: "-2px",
       };
     },
-    [biomeColorByType, selectedTile, observedTileKeys],
+    [biomeColorByType, observedTileKeys, selectedTile],
   );
 
   const getTileTitle = useCallback(
     (t: TileCell) => {
       const biomeName = t.biomeTypeId != null ? (biomeNameByType.get(t.biomeTypeId) ?? "(unknown biome)") : "(no biome)";
-
       const geographyName = t.geographyTypeId != null ? (geographyNameByType.get(t.geographyTypeId) ?? "(unknown geography)") : "(no geography)";
-
-      // If biomeName is "Unknown" and GeographyName is "Unknown" then just show "Unknown" once.
       const label = biomeName === "Unknown" && geographyName === "Unknown" ? "Unknown" : `${biomeName}, ${geographyName}`;
-
       return `(${t.x}, ${t.y}); ${label}`;
     },
     [biomeNameByType, geographyNameByType],
@@ -381,6 +313,15 @@ function GameUI() {
   return (
     <>
       <ToolBar groups={toolBarGroups} />
+
+      <VisionSettingsOffcanvas
+        show={showVisionSettings}
+        onHide={() => setShowVisionSettings(false)}
+        visionRadius={visionRadius}
+        setVisionRadius={setVisionRadius}
+        visionLoadWholeMap={visionLoadWholeMap}
+        setVisionLoadWholeMap={setVisionLoadWholeMap}
+      />
 
       <OpenGameDialog
         show={activeDialog === "openGame"}
@@ -398,7 +339,6 @@ function GameUI() {
         </Toast>
       </ToastContainer>
 
-      {/* ====== Opened map display ====== */}
       <div className="mt-3">
         {gameSelection == null ? (
           <Alert variant="secondary" className="mb-0">
