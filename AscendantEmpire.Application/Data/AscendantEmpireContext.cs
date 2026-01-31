@@ -51,6 +51,11 @@ public class AscendantEmpireContext : DbContext
     /// Player-specific copy of Campaign Maps for specific games.
     /// </summary>
     public DbSet<PlayerCampaignMap> PlayerCampaignMaps { get; set; }
+
+    /// <summary>
+    /// The Roster/queue of Player Turns within a Game Round.
+    /// </summary>
+    public DbSet<TurnRoster> TurnRosters { get; set; }
     #endregion
 
     #region Util Schema
@@ -151,6 +156,21 @@ public class AscendantEmpireContext : DbContext
             .WithMany(g => g.Players)
             .HasForeignKey(p => p.GameId)
             .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<TurnRoster>(entity =>
+        {
+            // Campaign roster uniqueness (BattleId IS NULL)
+            entity.HasIndex(e => new { e.GameId, e.PlayerId, e.RoundNumber })
+                .HasDatabaseName("UX_TurnRoster_Campaign_Game_Player_Round")
+                .IsUnique()
+                .HasFilter("[BattleId] IS NULL");
+
+            // Battle roster uniqueness (BattleId IS NOT NULL)
+            entity.HasIndex(e => new { e.GameId, e.BattleId, e.PlayerId, e.RoundNumber })
+                .HasDatabaseName("UX_TurnRoster_Battle_Game_Battle_Player_Round")
+                .IsUnique()
+                .HasFilter("[BattleId] IS NOT NULL");
+        });
     }
 
 

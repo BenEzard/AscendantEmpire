@@ -2,7 +2,7 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Handlers.Game;
 using AscendantEmpire.Application.Handlers.Game.Classes;
-using AscendantEmpire.BackendContracts.Game.AddGame;
+using AscendantEmpire.BackendContracts.Games.AddGame;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Games.GetOpenGames;

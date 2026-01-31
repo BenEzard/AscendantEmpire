@@ -221,6 +221,68 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("PlayerCampaignMap", "game");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.TurnRoster", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("BattleId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PlayerBattleName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<bool?>("PlayerStillInBattle")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("RoundNumber")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("ScheduledTurnEndTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("TurnEndTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("TurnOrder")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("TurnStartTime")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerId");
+
+                    b.HasIndex("GameId", "PlayerId", "RoundNumber")
+                        .IsUnique()
+                        .HasDatabaseName("UX_TurnRoster_Campaign_Game_Player_Round")
+                        .HasFilter("[BattleId] IS NULL");
+
+                    b.HasIndex("GameId", "BattleId", "PlayerId", "RoundNumber")
+                        .IsUnique()
+                        .HasDatabaseName("UX_TurnRoster_Battle_Game_Battle_Player_Round")
+                        .HasFilter("[BattleId] IS NOT NULL");
+
+                    b.ToTable("TurnRoster", "game");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignBiome", b =>
                 {
                     b.Property<int>("BiomeTypeId")
@@ -503,6 +565,25 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Game");
 
                     b.Navigation("Geography");
+
+                    b.Navigation("Player");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.TurnRoster", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", "Game")
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Game");
 
                     b.Navigation("Player");
                 });

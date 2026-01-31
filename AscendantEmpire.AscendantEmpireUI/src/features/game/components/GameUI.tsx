@@ -57,7 +57,7 @@ function GameUI() {
   const [selectedTile, setSelectedTile] = useState<SelectedTile | null>(null);
   const [visionObservers, setVisionObservers] = useState<PlayerCampaignMapObserverResultDto[]>([]);
   const [showVisionSettings, setShowVisionSettings] = useState(false);
-  const [visionRadius, setVisionRadius] = useState<number>(2);
+  const [visionRadius, setVisionRadius] = useState<number>(0);
   const [visionLoadWholeMap, setVisionLoadWholeMap] = useState<boolean>(false);
 
   const visionLastRequestKeyRef = useRef<string | null>(null);

@@ -1,6 +1,6 @@
 ﻿using AscendantEmpire.FrontendContracts.Games;
 
-namespace AscendantEmpire.BackendContracts.Game.AddGame;
+namespace AscendantEmpire.BackendContracts.Games.AddGame;
 
 public record class SetupGameDto : ISetupGame
 {

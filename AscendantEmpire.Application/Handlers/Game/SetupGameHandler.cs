@@ -1,5 +1,6 @@
 ﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Handlers.Turns;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Enums.Games;
 
@@ -18,7 +19,8 @@ public record SetupGameRequest(int MapId, string GameName, int NumberOfPlayers) 
 
 internal class SetupGameHandler(
     ILogger<SetupGameHandler> logger,
-    AscendantEmpireContext context
+    AscendantEmpireContext context,
+    IMediator mediator
     ) : IRequestHandler<SetupGameRequest, ServiceResult<Guid>>
 {
     public async Task<ServiceResult<Guid>> Handle(SetupGameRequest request, CancellationToken cancellationToken)
@@ -46,6 +48,18 @@ internal class SetupGameHandler(
             // Generate the Player Campaign Maps for each player
             await GeneratePlayerCampaignMapsAsync(gameId, addedPlayers, CancellationToken.None);
 
+            // Create the Campaign Roster
+            ServiceResultBase rosterResult = await mediator.Send(new AddCampaignTurnsToRosterRequest(newGameIndex.GameGuid), CancellationToken.None);
+
+            if (rosterResult.HasSucceeded == false)
+            {
+                const string error = "An error occurred while creating the Campaign Roster during Game setup.";
+                logger.LogError("{Error} Errors: {Errors}", error, rosterResult.Errors);
+                return ServiceResult<Guid>.Fail(error);
+            }
+
+            await CompleteGameSetupAsync(gameId, context);
+
             return ServiceResult<Guid>.Succeed(newGameIndex.GameGuid);
         }
         catch (Exception ex)
@@ -54,6 +68,27 @@ internal class SetupGameHandler(
             logger.LogError(ex, error);
             return ServiceResult<Guid>.Fail(error);
         }
+    }
+
+    private static async Task CompleteGameSetupAsync(int gameId, AscendantEmpireContext context)
+    {
+        // Make the Turn Status for the first Player on the Roster to Active
+        await context.TurnRosters
+            .Where(r => r.GameId == gameId)
+            .OrderBy(r => r.TurnOrder)
+            .Take(1)
+            .ExecuteUpdateAsync(r => r
+                .SetProperty(r => r.Status, TurnStatus.TakingTurn)
+                .SetProperty(r => r.TurnStartTime, DateTimeOffset.Now)
+                .SetProperty(r => r.ScheduledTurnEndTime, DateTimeOffset.Now.AddHours(48)) // TODO: Make configurable
+            );
+
+        // Update the GameIndex to mark setup as Complete
+        await context.GameIndex
+            .Where(g => g.Id == gameId)
+            .ExecuteUpdateAsync(g => g
+                .SetProperty(g => g.CreationStatus, GameCreationStatus.SetupComplete)
+                .SetProperty(g => g.PlayStatus, GamePlayStatus.InProgress));
     }
 
     private async Task<GameIndex> AddGameIndexAsync(SetupGameRequest request, CancellationToken cancelToken)
@@ -152,9 +187,10 @@ internal class SetupGameHandler(
                 [HuntAmount],
                 [FishAmount],
                 [FodderAmount],
+                [FirstSeenOnTurnId],
                 [FirstSeenByPlayerId],
-                [LastSeenOnTurnId],
-                [LastSeenByPlayerId],
+                [LastVisitedOnTurnId],
+                [LastVisitedByPlayerId],
                 [BiomeTypeId],
                 [CampaignMapGeographyTypeId]
             )
@@ -166,9 +202,10 @@ internal class SetupGameHandler(
                 NULL                            AS [HuntAmount],
                 NULL                            AS [FishAmount],
                 NULL                            AS [FodderAmount],
+                NULL                            AS [FirstSeenOnTurnId],
                 NULL                            AS [FirstSeenByPlayerId],
-                NULL                            AS [LastSeenOnTurnId],
-                NULL                            AS [LastSeenByPlayerId],
+                NULL                            AS [LastVisitedOnTurnId],
+                NULL                            AS [LastVisitedByPlayerId],
                 g.BiomeTypeId                   AS [BiomeTypeId],
                 g.CampaignMapGeographyTypeId    AS [CampaignMapGeographyTypeId]
             FROM [mapgallery].[CampaignMapGallery] g
@@ -224,7 +261,7 @@ internal class SetupGameHandler(
             SELECT
                 cm.[GameId]             AS [GameId],
                 cm.[CampaignMapId]      AS [CampaignMapId],
-                p.[PlayerId]            AS [PlayerId],
+                p.[Id]                  AS [PlayerId],
                 cm.[XCoord]             AS [XCoord],
                 cm.[YCoord]             AS [YCoord],
                 CAST(0 AS INT)          AS [BiomeTypeId],
@@ -232,7 +269,7 @@ internal class SetupGameHandler(
                 NULL                    AS [FirstSeenOnTurnId],
                 NULL                    AS [LastSeenOnTurnId]
             FROM [game].[CampaignMap] cm
-            INNER JOIN [game].[Player] p
+            INNER JOIN [game].[Players] p
                 ON p.[GameId] = cm.[GameId]
             WHERE cm.[GameId] = {gameId};
             ", cancelToken);
@@ -345,7 +382,7 @@ internal class SetupGameHandler(
     /// <summary>
     /// Selects a random ruler title from the available list of titles.
     /// </summary>
-    private string GetRandomRulerTitle(Random? rng = null)
+    private static string GetRandomRulerTitle(Random? rng = null)
     {
         rng ??= Random.Shared; // .NET 6+
         var titles = GetRulerTitles();
