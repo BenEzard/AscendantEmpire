@@ -1,11 +1,9 @@
 ﻿using AscendantEmpire.Domain.Enums.Games;
 
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AscendantEmpire.Domain.Entities.Games;
 
-[Table("GameIndex", Schema = "game")]
 public class GameIndex
 {
     public const int GAME_NAME_MAX_LENGTH = 250;

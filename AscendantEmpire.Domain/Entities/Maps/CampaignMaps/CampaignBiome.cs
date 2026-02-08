@@ -5,9 +5,10 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 
-[Table("CampaignBiomes", Schema = "map")]
 public class CampaignBiome
 {
+    public const int NAME_MAX_LENGTH = 50;
+
     #region General Properties
     /// <summary>
     /// Unique identifier for this Biome
@@ -18,7 +19,7 @@ public class CampaignBiome
     /// <summary>
     /// User-friendly name of this Biome
     /// </summary>
-    [MaxLength(50)]
+    [MaxLength(NAME_MAX_LENGTH)]
     public string Name { get; set; } = null!;
 
     /// <summary>

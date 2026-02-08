@@ -10,9 +10,10 @@ namespace AscendantEmpire.Domain.Entities.Games;
 /// </summary>
 /// <remarks>Each instance of this class corresponds to a single player's turn in a specific game Round. 
 /// Covers both the Campaign Map Turns and Battle Map Turns (by virtue of if the BattleId is populated.</remarks>
-[Table("TurnRoster", Schema = "game")]
 public class TurnRoster
 {
+    public const int PLAYER_BATTLE_NAME_MAX_LENGTH = 100;
+
     /// <summary>
     /// Unique Identifier for the Turn Roster entry.
     /// </summary>
@@ -38,7 +39,7 @@ public class TurnRoster
     /// A Player-defined name for the Battle.
     /// </summary>
     /// <remarks>Only populated when </remarks>
-    [MaxLength(100)]
+    [MaxLength(PLAYER_BATTLE_NAME_MAX_LENGTH)]
     public string? PlayerBattleName { get; set; }
 
     public required TurnStatus Status { get; set; }
@@ -67,6 +68,7 @@ public class TurnRoster
 
     [ForeignKey("GameId")]
     public GameIndex Game { get; set; } = null!;
+    
     [ForeignKey("PlayerId")]
     public Player Player { get; set; } = null!;
 }

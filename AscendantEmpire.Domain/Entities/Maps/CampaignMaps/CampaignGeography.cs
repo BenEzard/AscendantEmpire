@@ -5,9 +5,11 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 
-[Table("CampaignGeography", Schema = "map")]
 public class CampaignGeography
 {
+    public const int NAME_MAX_LENGTH = 50;
+    public const int MAP_EDITOR_ICON_MAX_LENGTH = 50;
+
     /// <summary>
     /// Unique identifier for this Campaign Geography
     /// </summary>
@@ -17,7 +19,7 @@ public class CampaignGeography
     /// <summary>
     /// User-friendly name of this Biome
     /// </summary>
-    [MaxLength(50)]
+    [MaxLength(NAME_MAX_LENGTH)]
     public string Name { get; set; } = null!;
 
     /// <summary>
@@ -33,7 +35,7 @@ public class CampaignGeography
     /// <summary>
     /// Icon used in the MapEditor to show the Geography.
     /// </summary>
-    [MaxLength(50)]
+    [MaxLength(MAP_EDITOR_ICON_MAX_LENGTH)]
     public required string? MapEditorIcon { get; set; }
 
     /// <summary>

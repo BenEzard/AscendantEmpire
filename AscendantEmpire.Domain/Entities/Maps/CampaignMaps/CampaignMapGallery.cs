@@ -5,7 +5,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 
-[Table("CampaignMapGallery", Schema = "mapgallery")]
 public class CampaignMapGallery
 {
     [Key, DatabaseGenerated(DatabaseGeneratedOption.None)]

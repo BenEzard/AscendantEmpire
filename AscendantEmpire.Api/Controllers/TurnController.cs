@@ -4,7 +4,6 @@ using AscendantEmpire.Application.Handlers.Turns;
 using AscendantEmpire.Application.Handlers.Turns.Classes;
 using AscendantEmpire.BackendContracts.Turns.EndPlayerTurn;
 using AscendantEmpire.BackendContracts.Turns.GetPlayerTurn;
-using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Turns.GetTurns;
 

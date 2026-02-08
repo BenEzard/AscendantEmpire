@@ -6,7 +6,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AscendantEmpire.Domain.Entities.Games;
 
-[Table("PlayerCampaignMap", Schema = "game")]
 public class PlayerCampaignMap
 {
     [Key]

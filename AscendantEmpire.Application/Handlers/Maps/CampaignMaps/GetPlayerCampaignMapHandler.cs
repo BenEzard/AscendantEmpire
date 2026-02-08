@@ -55,8 +55,8 @@ internal class PlayerCampaignMapRequestValidator : AbstractValidator<GetPlayerCa
                 .WithMessage("Observer Location X and Y must be >= 0.");
 
             RuleForEach(r => r.Observers)
-                .Must(o => o.SightRange >= 0)
-                .WithMessage("Observer SightRange must be >= 0.");
+                .Must(o => o.SightRange >= -1)
+                .WithMessage("Observer SightRange must be >= -1.");
         });
     }
 }

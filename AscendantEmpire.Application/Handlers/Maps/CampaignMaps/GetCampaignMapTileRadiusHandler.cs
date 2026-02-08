@@ -2,6 +2,7 @@
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.Domain.Enums.Maps;
 
 using MediatR;
 
@@ -50,8 +51,16 @@ internal class GetCampaignMapTileRadiusHandler(
 
         var returnData = new Dictionary<int, MapObserverOriginLocation>();
 
+
         foreach (var viewer in request.MapObservers)
         {
+            var sightMode = viewer.SightMode;
+
+            if (viewer.SightRange < 0) // No sight, quick return
+            {
+                continue;
+            }
+
             // The origin Coord
             var originCoord = new SightCoord
             {
@@ -94,7 +103,28 @@ internal class GetCampaignMapTileRadiusHandler(
 
                     // Chebyshev distance from origin (without wrap)
                     int distance = Math.Max(Math.Abs(x - originX), Math.Abs(y - originY));
-                    if (distance > viewRadius) continue;
+                    if (distance > viewRadius)
+                    {
+                        continue;
+                    }
+
+                   /* // NEW: if not Normal, filter tiles by direction from origin (using wrapped deltas)
+                    if (sightMode != DetectionDirection.Normal && distance != 0)
+                    {
+                        int dx = hasHorizontalWrapping
+                            ? WrappedDelta(originX, wrappedX, mapWidth)
+                            : (wrappedX - originX);
+
+                        int dy = hasVerticalWrapping
+                            ? WrappedDelta(originY, wrappedY, mapHeight)
+                            : (wrappedY - originY);
+
+                        var dirFlags = GetDirectionFlags(dx, dy);
+
+                        // include tile if ANY of its direction components match the requested flags
+                        if ((sightMode & dirFlags) == 0)
+                            continue;
+                    }*/
 
                     // Create child tile
                     SightCoord childTile = new()
@@ -190,5 +220,30 @@ internal class GetCampaignMapTileRadiusHandler(
         }
 
         return diff;
+    }
+
+    static DetectionDirection GetDirectionFlags(int dx, int dy)
+    {
+        DetectionDirection flags = DetectionDirection.None;
+
+        if (dy < 0)
+        {
+            flags |= DetectionDirection.North;
+        }
+        else if (dy > 0)
+        {
+            flags |= DetectionDirection.South;
+        }
+
+        if (dx > 0)
+        {
+            flags |= DetectionDirection.East;
+        }
+        else if (dx < 0)
+        {
+            flags |= DetectionDirection.West;
+        }
+
+        return flags;
     }
 }

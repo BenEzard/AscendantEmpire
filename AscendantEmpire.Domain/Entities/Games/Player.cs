@@ -5,7 +5,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AscendantEmpire.Domain.Entities.Games;
 
-[Table("Players", Schema = "game")]
 public class Player
 {
     public const int RULER_TITLE_MAX_LENGTH = 50;

@@ -1,4 +1,6 @@
-﻿namespace AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
+﻿using AscendantEmpire.Domain.Enums.Maps;
+
+namespace AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 
 public record class MapObserver
 {
@@ -17,4 +19,9 @@ public record class MapObserver
     /// </summary>
     /// <remarks>Sight Range is used to see Tiles and Structures</remarks>
     public required int SightRange { get; init; }
+
+    /// <summary>
+    /// Optional directional mode. Defaults to FullRadius (existing behavior).
+    /// </summary>
+    public DetectionDirection SightMode { get; init; } = DetectionDirection.FullRadius;
 }

@@ -6,7 +6,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AscendantEmpire.Domain.Entities.Games;
 
-[Table("CampaignMap", Schema = "game")]
 public class CampaignMap
 {
     [Key]
@@ -30,6 +29,8 @@ public class CampaignMap
     /// </summary>
     public int? LastVisitedByPlayerId { get; set; }
 
+    public int? ControlledByPlayerId { get; set; }
+
     public required BiomeType BiomeTypeId { get; set; }
     public required CampaignMapGeographyType CampaignMapGeographyTypeId { get; set; }
 
@@ -47,4 +48,7 @@ public class CampaignMap
 
     [ForeignKey("LastVisitedByPlayerId")]
     public required Player? LastVisitor { get; set; }
+
+    [ForeignKey("ControlledByPlayerId")]
+    public required Player? ControlledBy { get; set; }
 }

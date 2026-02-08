@@ -225,13 +225,6 @@ function GameUI() {
         gameGuid,
         playerGuid,
         loadWholeMap: visionLoadWholeMap,
-        observers: [
-          {
-            temporaryObserverId: 1,
-            location: { x, y },
-            sightRange: visionRadius,
-          },
-        ],
       };
 
       visionLastRequestKeyRef.current = requestKey;

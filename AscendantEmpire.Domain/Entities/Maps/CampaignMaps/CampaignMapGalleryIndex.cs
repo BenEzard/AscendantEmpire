@@ -1,19 +1,20 @@
 ﻿using AscendantEmpire.Domain.Enums.Maps;
 
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 
-[Table("CampaignMapIndex", Schema = "mapgallery")]
 public class CampaignMapGalleryIndex
 {
+    public const int MAX_MAP_NAME_LENGTH = 100;
+    public const int MAX_DESCRIPTION_LENGTH = 500;
+
     public int Id { get; set; }
 
-    [MaxLength(100)]
+    [MaxLength(MAX_MAP_NAME_LENGTH)]
     public required string MapName { get; set; }
 
-    [MaxLength(500)]
+    [MaxLength(MAX_DESCRIPTION_LENGTH)]
     public string Description { get; set; } = string.Empty;
 
     public int Width { get; set; }
