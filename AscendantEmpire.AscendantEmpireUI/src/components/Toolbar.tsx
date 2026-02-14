@@ -8,6 +8,7 @@ export interface ToolBarButton {
   tooltip?: string;
   disabled?: boolean;
   active?: boolean;
+  domId?: string;
   onClick?: () => void;
   onMiddleClick?: () => void;
   middleClickHint?: string;
@@ -21,9 +22,17 @@ export interface ToolBarGroup {
 
 interface ToolBarProps {
   groups: ToolBarGroup[];
+  containerClassName?: string;
+  showCaptions?: boolean;
+  buttonVariant?: string;
 }
 
-function ToolBar({ groups }: ToolBarProps) {
+function ToolBar({
+  groups,
+  containerClassName = "toolbar d-flex justify-content-center border-bottom bg-light",
+  showCaptions = true,
+  buttonVariant = "secondary",
+}: ToolBarProps) {
   const handleMiddleClick = (btn: ToolBarButton) => (e: React.MouseEvent) => {
     // Middle click is button === 1
     if (e.button !== 1) return;
@@ -48,7 +57,7 @@ function ToolBar({ groups }: ToolBarProps) {
   };
 
   return (
-    <div className="toolbar d-flex justify-content-center border-bottom bg-light">
+    <div className={containerClassName}>
       {groups.map((group) => (
         <div key={group.caption} className="toolbar-group">
           <ButtonGroup aria-label={group.caption}>
@@ -68,7 +77,8 @@ function ToolBar({ groups }: ToolBarProps) {
                     className={disabled ? "toolbar-btn-wrapper toolbar-btn-wrapper--disabled" : "toolbar-btn-wrapper"}
                     onContextMenu={handleRightClick(btn)}>
                     <Button
-                      variant="secondary"
+                      id={btn.domId}
+                      variant={buttonVariant}
                       disabled={disabled}
                       active={active}
                       aria-pressed={active}
@@ -85,7 +95,7 @@ function ToolBar({ groups }: ToolBarProps) {
             })}
           </ButtonGroup>
 
-          <div className="toolbar-caption">{group.caption}</div>
+          {showCaptions && <div className="toolbar-caption">{group.caption}</div>}
         </div>
       ))}
     </div>

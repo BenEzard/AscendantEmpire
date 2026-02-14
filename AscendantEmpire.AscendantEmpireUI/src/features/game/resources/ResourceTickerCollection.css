@@ -1,0 +1,57 @@
+:root {
+  /* Shared sizing tokens for ResourceTickerCollection */
+  --rt-size: 40px;
+  --rt-gap: 0.2rem;
+  --rt-label-width: 72px;
+}
+
+.resource-ticker-collection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.resource-category {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.resource-category__header {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.65);
+  user-select: none;
+  text-align: left;
+}
+
+.resource-category__tickers {
+  display: grid;
+  gap: var(--rt-gap);
+  justify-content: start;
+}
+
+.resource-category__tickers--dragging {
+  user-select: none;
+}
+
+.resource-category__cell {
+  display: inline-block;
+}
+
+.resource-category__cell--draggable {
+  cursor: grab;
+}
+
+.resource-category__tickers--dragging .resource-category__cell--draggable {
+  cursor: grabbing;
+}
+
+.resource-category__cell--drop-target .resource-ticker {
+  box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+  background: rgba(13, 110, 253, 0.06);
+}
+
+.resource-category__cell--drag-source {
+  opacity: 0.85;
+}

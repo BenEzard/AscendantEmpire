@@ -1,0 +1,103 @@
+.resource-ticker-wrapper {
+  display: inline-block;
+}
+
+.resource-ticker-wrapper--disabled .resource-ticker {
+  pointer-events: none;
+}
+
+.resource-ticker {
+  width: var(--rt-size, 40px);
+  height: var(--rt-size, 40px);
+
+  appearance: none;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 6px;
+
+  position: relative;
+
+  display: block;
+  padding: 0;
+}
+
+.resource-ticker--luxury {
+  border-color: rgba(212, 175, 55, 0.95);
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.18);
+}
+
+.resource-ticker--button {
+  cursor: pointer;
+  transition: background-color 120ms ease, box-shadow 120ms ease, transform 80ms ease;
+}
+
+.resource-ticker--button:hover {
+  background: rgba(13, 110, 253, 0.08);
+  box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.15);
+}
+
+.resource-ticker--button:active {
+  transform: translateY(1px);
+}
+
+.resource-ticker--button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.35);
+}
+
+.resource-ticker:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.resource-ticker__icon {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 16px;
+  line-height: 1;
+}
+
+.resource-ticker__icon svg,
+.resource-ticker__icon img {
+  width: var(--rt-size, 40px);
+  height: var(--rt-size, 40px);
+  display: block;
+}
+
+.resource-ticker__amount {
+  position: absolute;
+  left: 50%;
+  bottom: 1px;
+  transform: translateX(-50%);
+  text-align: center;
+
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+  padding: 0 3px;
+  line-height: 12px;
+
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, 0.95);
+  pointer-events: none;
+}
+
+.resource-total__amount {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
