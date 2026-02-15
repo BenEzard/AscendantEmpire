@@ -1,7 +1,4 @@
-import { Button, Modal, Toast, ToastContainer } from "react-bootstrap";
-import Form from "react-bootstrap/Form";
-import Row from "react-bootstrap/Row";
-import Col from "react-bootstrap/Col";
+import { Button, Modal, Toast, ToastViewport } from "@/components/ui";
 import { useMemo, useState } from "react";
 import { CiExport } from "react-icons/ci";
 import type { Geography } from "../../../types/map/Geography";
@@ -13,8 +10,8 @@ interface GeographyManagerProps {
   geographies: Geography[];
   setGeographies: React.Dispatch<React.SetStateAction<Geography[]>>;
 
-  selectedGeographyType: number | null;
-  onSelectGeographyType: (id: number | null) => void;
+  geographyEditorSelection: number | null;
+  onSelectGeographyEditorSelection: (id: number | null) => void;
 
   show: boolean;
   onClose: () => void;
@@ -24,12 +21,16 @@ interface GeographyManagerProps {
 function GeographyManagerDialog({
   geographies,
   setGeographies,
-  selectedGeographyType,
-  onSelectGeographyType,
+  geographyEditorSelection,
+  onSelectGeographyEditorSelection,
   show,
   onClose,
   onSaveSuccess,
 }: GeographyManagerProps) {
+  type SectionKey = "general";
+
+  const [activeSection, setActiveSection] = useState<SectionKey>("general");
+
   // Text Editor Dialog
   const [textEditorTitle, setTextEditorTitle] = useState("Text");
   const [textEditorBody, setTextEditorBody] = useState<string>();
@@ -43,9 +44,9 @@ function GeographyManagerDialog({
   const orderedGeographies = useMemo(() => geographies.slice().sort((a, b) => a.name.localeCompare(b.name)), [geographies]);
 
   const selectedGeography = useMemo(() => {
-    if (selectedGeographyType == null) return null;
-    return geographies.find((g) => g.campaignMapGeographyType === selectedGeographyType) ?? null;
-  }, [geographies, selectedGeographyType]);
+    if (geographyEditorSelection == null) return null;
+    return geographies.find((g) => g.campaignMapGeographyType === geographyEditorSelection) ?? null;
+  }, [geographies, geographyEditorSelection]);
 
   const handleExportClick = () => {
     setTextEditorTitle("Export Geographies");
@@ -55,9 +56,9 @@ function GeographyManagerDialog({
 
   // When a Geography field changes, update in the master list (draft is owned by parent)
   const handleGeographyFieldChange = <K extends keyof Geography>(field: K, value: Geography[K]) => {
-    if (selectedGeographyType == null) return;
+    if (geographyEditorSelection == null) return;
 
-    setGeographies((prev) => prev.map((g) => (g.campaignMapGeographyType === selectedGeographyType ? { ...g, [field]: value } : g)));
+    setGeographies((prev) => prev.map((g) => (g.campaignMapGeographyType === geographyEditorSelection ? { ...g, [field]: value } : g)));
   };
 
   const saveGeographyMutation = useSaveCampaignMapGeographiesMutation({
@@ -75,158 +76,169 @@ function GeographyManagerDialog({
 
   return (
     <>
-      <Modal show={show} onHide={onClose} centered size="lg" contentClassName="thick-border-modal">
-        <Modal.Header closeButton>
-          <Modal.Title>Geography Manager</Modal.Title>
-        </Modal.Header>
+      <Modal
+        open={show}
+        onClose={onClose}
+        title="Geography Manager"
+        size="lg"
+        panelClassName="thick-border-modal"
+        footer={
+          <>
+            <Button variant="secondary" onClick={onClose}>
+              Cancel / Close
+            </Button>
+            <Button variant="success" disabled={saveGeographyMutation.isPending} onClick={() => saveGeographyMutation.mutate(geographies)}>
+              {saveGeographyMutation.isPending ? "Saving..." : "Save"}
+            </Button>
+          </>
+        }>
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <label className="text-sm font-semibold whitespace-nowrap">Select Geography</label>
+          <select
+            className="w-64 max-w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
+            value={selectedGeography?.campaignMapGeographyType ?? ""}
+            onChange={(e) => {
+              const selectedType = Number(e.target.value);
+              onSelectGeographyEditorSelection(Number.isFinite(selectedType) ? selectedType : null);
+            }}
+            disabled={orderedGeographies.length === 0}>
+            {orderedGeographies.length === 0 ? (
+              <option value="">(no geographies)</option>
+            ) : (
+              orderedGeographies.map((g) => (
+                <option key={g.campaignMapGeographyType} value={g.campaignMapGeographyType}>
+                  {g.name}
+                </option>
+              ))
+            )}
+          </select>
 
-        <Modal.Body>
-          <Form>
-            <Row>
-              {/* Column 1: Geography list */}
-              <Col sm={3}>
-                <Form.Group controlId="geographyList" className="mb-3 h-100 d-flex flex-column">
-                  <Form.Label className="fw-bold">Geography List</Form.Label>
+          <span className="grow" />
 
-                  <Form.Control
-                    as="select"
-                    htmlSize={Math.min(orderedGeographies.length || 1, 10)}
-                    value={selectedGeographyType ?? ""}
-                    style={{ flexGrow: 1, minHeight: "200px", maxHeight: "400px", overflowY: "auto" }}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      onSelectGeographyType(v === "" ? null : Number(v));
-                    }}
-                    disabled={orderedGeographies.length === 0}>
-                    {orderedGeographies.length === 0 ? (
-                      <option value="">(no geographies)</option>
-                    ) : (
-                      orderedGeographies.map((g) => (
-                        <option key={g.campaignMapGeographyType} value={g.campaignMapGeographyType}>
-                          {g.name}
-                        </option>
-                      ))
-                    )}
-                  </Form.Control>
+          <span title="Export">
+            <Button variant="primary" onClick={handleExportClick} disabled={geographies.length === 0}>
+              <CiExport aria-hidden="true" strokeWidth={2} />
+            </Button>
+          </span>
+        </div>
 
-                  <div className="mt-2 d-flex gap-2">
-                    <Button variant="primary" className="w-100" onClick={handleExportClick} disabled={geographies.length === 0}>
-                      <CiExport aria-hidden="true" strokeWidth={2} /> <span className="ms-1">Export</span>
-                    </Button>
+        <div className="grid grid-cols-12 gap-4">
+          {/* Left: section list */}
+          <div className="col-span-12 md:col-span-4">
+            <div className="rounded-md border border-slate-200 bg-white">
+              <button
+                type="button"
+                onClick={() => setActiveSection("general")}
+                className={[
+                  "block w-full px-3 py-2 text-left text-sm",
+                  activeSection === "general" ? "bg-slate-100 font-semibold" : "hover:bg-slate-50",
+                ].join(" ")}>
+                General Geography Properties
+              </button>
+            </div>
+          </div>
+
+          {/* Right: selected section (single column) */}
+          <div className="col-span-12 md:col-span-8">
+            <div className="relative w-full max-w-xl">
+              <div>
+                <div className="text-sm font-semibold mb-2">General Geography Properties</div>
+
+                <div className="grid grid-cols-12 items-center gap-2 mb-2">
+                  <label className="col-span-5 text-sm text-slate-700">Id</label>
+                  <div className="col-span-7">
+                    <input
+                      className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
+                      value={selectedGeography?.campaignMapGeographyType ?? ""}
+                      disabled
+                      readOnly
+                    />
                   </div>
-                </Form.Group>
-              </Col>
+                </div>
 
-              {/* Column 2: Basic properties */}
-              <Col sm={6}>
-                <Form.Label className="fw-bold">Selected Geography Properties</Form.Label>
-
-                <Form.Group as={Row} className="mb-1" controlId="Id">
-                  <Form.Label column sm={5}>
-                    Id
-                  </Form.Label>
-                  <Col sm={5}>
-                    <Form.Control type="text" value={selectedGeography?.campaignMapGeographyType ?? ""} disabled readOnly />
-                  </Col>
-                </Form.Group>
-
-                <Form.Group as={Row} className="mb-1" controlId="Name">
-                  <Form.Label column sm={5}>
-                    Name
-                  </Form.Label>
-                  <Col sm={5}>
-                    <Form.Control
-                      type="text"
+                <div className="grid grid-cols-12 items-center gap-2 mb-2">
+                  <label className="col-span-5 text-sm text-slate-700">Name</label>
+                  <div className="col-span-7">
+                    <input
+                      className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
                       value={selectedGeography?.name ?? ""}
                       disabled={!selectedGeography}
                       onChange={(e) => handleGeographyFieldChange("name", e.target.value)}
                     />
-                  </Col>
-                </Form.Group>
+                  </div>
+                </div>
 
-                <Form.Group as={Row} className="mb-1" controlId="RelativeElevation">
-                  <Form.Label column sm={5}>
-                    Relative Elevation
-                  </Form.Label>
-                  <Col sm={5}>
-                    <Form.Control
+                <div className="grid grid-cols-12 items-center gap-2 mb-2">
+                  <label className="col-span-5 text-sm text-slate-700">Relative Elevation</label>
+                  <div className="col-span-7">
+                    <input
+                      className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
                       type="number"
                       value={selectedGeography?.relativeElevation ?? ""}
                       disabled={!selectedGeography}
                       onChange={(e) => handleGeographyFieldChange("relativeElevation", Number(e.target.value))}
                     />
-                  </Col>
-                </Form.Group>
+                  </div>
+                </div>
 
-                <Form.Group as={Row} className="mb-1" controlId="MovementCost">
-                  <Form.Label column sm={5}>
-                    Movement Cost
-                  </Form.Label>
-                  <Col sm={5}>
-                    <Form.Control
+                <div className="grid grid-cols-12 items-center gap-2 mb-2">
+                  <label className="col-span-5 text-sm text-slate-700">Movement Cost</label>
+                  <div className="col-span-7">
+                    <input
+                      className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
                       type="number"
                       value={selectedGeography?.movementCost ?? ""}
                       disabled={!selectedGeography}
                       onChange={(e) => handleGeographyFieldChange("movementCost", Number(e.target.value))}
                     />
-                  </Col>
-                </Form.Group>
+                  </div>
+                </div>
 
-                <Form.Group as={Row} className="mb-1" controlId="MapEditorIcon">
-                  <Form.Label column sm={5}>
-                    Map Editor Icon
-                  </Form.Label>
-                  <Col sm={5}>
-                    <Form.Control
-                      type="text"
+                <div className="grid grid-cols-12 items-center gap-2 mb-2">
+                  <label className="col-span-5 text-sm text-slate-700">Map Editor Icon</label>
+                  <div className="col-span-7">
+                    <input
+                      className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
                       value={selectedGeography?.mapEditorIcon ?? ""}
                       disabled={!selectedGeography}
                       onChange={(e) => handleGeographyFieldChange("mapEditorIcon", e.target.value as any)}
                     />
-                  </Col>
-                </Form.Group>
+                  </div>
+                </div>
 
-                <Form.Group as={Row} className="mb-1">
-                  <Col sm={12}>
-                    <Form.Check
-                      type="checkbox"
-                      id="IsPaintableOnCampaignMap"
-                      label="Is Paintable on Campaign Map?"
-                      checked={selectedGeography?.isPaintableOnCampaignMap ?? false}
-                      disabled={!selectedGeography}
-                      onChange={(e) => handleGeographyFieldChange("isPaintableOnCampaignMap", e.target.checked)}
-                    />
-                  </Col>
-                </Form.Group>
-              </Col>
-            </Row>
-          </Form>
-        </Modal.Body>
-
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onClose}>
-            Cancel / Close
-          </Button>
-          <Button variant="success" disabled={saveGeographyMutation.isPending} onClick={() => saveGeographyMutation.mutate(geographies)}>
-            {saveGeographyMutation.isPending ? "Saving..." : "Save"}
-          </Button>
-        </Modal.Footer>
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={selectedGeography?.isPaintableOnCampaignMap ?? false}
+                    disabled={!selectedGeography}
+                    onChange={(e) => handleGeographyFieldChange("isPaintableOnCampaignMap", e.target.checked)}
+                  />
+                  Is Paintable on Campaign Map?
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
       </Modal>
 
-      <ToastContainer position="bottom-end" className="p-3" style={{ zIndex: 1080 }}>
-        <Toast show={showErrorToast} onClose={() => toggleErrorToast()} delay={5000} className="border-0">
-          <Toast.Header className="bg-danger text-white border-0 d-flex align-items-center">
-            <strong className="me-auto">Save Error</strong>
-          </Toast.Header>
-          <Toast.Body className="bg-danger-subtle text-danger border-0">
-            <ul className="mb-0 ps-3">
-              {errorToastItems.map((msg, i) => (
-                <li key={i}>{msg}</li>
-              ))}
-            </ul>
-          </Toast.Body>
-        </Toast>
-      </ToastContainer>
+      <ToastViewport>
+        <Toast
+          open={showErrorToast}
+          onClose={toggleErrorToast}
+          variant="danger"
+          autoHideMs={5000}
+          message={
+            <div>
+              <div className="font-semibold mb-1">Save Error</div>
+              <ul className="list-disc pl-5">
+                {errorToastItems.map((msg, i) => (
+                  <li key={i}>{msg}</li>
+                ))}
+              </ul>
+            </div>
+          }
+        />
+      </ToastViewport>
 
       <ExportDialog show={showTextEditor} title={textEditorTitle} textBody={textEditorBody} onClose={() => setShowTextEditor(false)} />
     </>

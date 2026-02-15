@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { Alert, Button, Form, Modal, Spinner, Table } from "react-bootstrap";
+import { Alert, Button, Modal, Spinner } from "@/components/ui";
 
 export interface CampaignMapGalleryIndex {
   campaignMapGalleryIndexId: number;
@@ -95,82 +95,89 @@ export default function OpenCampaignMapDialog({ show, onClose, onSaveSuccess, on
   };
 
   return (
-    <Modal show={show} onHide={onClose} centered size="lg">
-      <Modal.Header closeButton>
-        <Modal.Title>Open Map</Modal.Title>
-      </Modal.Header>
-
-      <Modal.Body>
-        <div className="d-flex align-items-center gap-2 mb-3">
-          <Form.Control placeholder="Filter maps by name/description..." value={filter} onChange={(e) => setFilter(e.target.value)} />
-          <Button variant="outline-secondary" onClick={() => refetch()} disabled={isLoading || isFetching}>
-            Refresh
+    <Modal
+      open={show}
+      onClose={onClose}
+      title="Open Map"
+      size="lg"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
           </Button>
+          <Button variant="primary" onClick={handleOpen} disabled={!selected}>
+            Open
+          </Button>
+        </>
+      }>
+      <div className="flex items-center gap-2 mb-3">
+        <input
+          className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
+          placeholder="Filter maps by name/description..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+        <Button variant="outline-secondary" onClick={() => refetch()} disabled={isLoading || isFetching}>
+          Refresh
+        </Button>
+      </div>
+
+      {error && (
+        <Alert variant="danger" className="mb-3">
+          Failed to load maps: {error.message}
+        </Alert>
+      )}
+
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-slate-600">
+          <Spinner size="sm" />
+          <span>Loading maps...</span>
         </div>
-
-        {error && (
-          <Alert variant="danger" className="mb-3">
-            Failed to load maps: {error.message}
-          </Alert>
-        )}
-
-        {isLoading ? (
-          <div className="d-flex align-items-center gap-2">
-            <Spinner animation="border" size="sm" />
-            <span>Loading maps...</span>
-          </div>
-        ) : (
-          <div style={{ maxHeight: 420, overflow: "auto" }}>
-            <Table hover responsive className="mb-0">
-              <thead>
+      ) : (
+        <div className="max-h-[420px] overflow-auto rounded-md border border-slate-200">
+          <table className="w-full text-left text-sm">
+            <thead className="sticky top-0 bg-slate-50 text-slate-700">
+              <tr>
+                <th className="px-3 py-2" style={{ width: "40%" }}>
+                  Name
+                </th>
+                <th className="px-3 py-2">Description</th>
+                <th className="px-3 py-2" style={{ width: 120 }}>
+                  Size
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
                 <tr>
-                  <th style={{ width: "40%" }}>Name</th>
-                  <th>Description</th>
-                  <th style={{ width: 120 }}>Size</th>
+                  <td colSpan={3} className="px-3 py-3 text-slate-500">
+                    No maps found.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="text-muted">
-                      No maps found.
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map((x) => {
-                    const isSelected = x.campaignMapGalleryIndexId === selectedId;
-                    return (
-                      <tr
-                        key={x.campaignMapGalleryIndexId}
-                        className={isSelected ? "table-active" : undefined}
-                        role="button"
-                        onClick={() => setSelectedId(x.campaignMapGalleryIndexId)}
-                        onDoubleClick={() => handleRowDoubleClick(x.campaignMapGalleryIndexId)}
-                        title="Double-click to open">
-                        <td>{x.mapName}</td>
-                        <td className="text-muted">{x.description}</td>
-                        <td>
-                          {x.width}×{x.height}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </Table>
-          </div>
-        )}
-      </Modal.Body>
-
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onClose}>
-          Cancel
-        </Button>
-
-        <Button variant="primary" onClick={handleOpen} disabled={!selected}>
-          Open
-        </Button>
-      </Modal.Footer>
+              ) : (
+                filtered.map((x) => {
+                  const isSelected = x.campaignMapGalleryIndexId === selectedId;
+                  return (
+                    <tr
+                      key={x.campaignMapGalleryIndexId}
+                      className={["border-t border-slate-100 cursor-pointer hover:bg-slate-50", isSelected ? "bg-slate-100" : ""].join(" ")}
+                      role="button"
+                      onClick={() => setSelectedId(x.campaignMapGalleryIndexId)}
+                      onDoubleClick={() => handleRowDoubleClick(x.campaignMapGalleryIndexId)}
+                      title="Double-click to open">
+                      <td className="px-3 py-2">{x.mapName}</td>
+                      <td className="px-3 py-2 text-slate-500">{x.description}</td>
+                      <td className="px-3 py-2">
+                        {x.width}×{x.height}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </Modal>
   );
 }

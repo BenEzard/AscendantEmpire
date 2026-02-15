@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Col, Form, Modal, OverlayTrigger, Row, Tooltip } from "react-bootstrap";
+import { Button, Modal } from "@/components/ui";
 
 interface TextEditorProps {
   show: boolean;
@@ -35,45 +35,38 @@ function ExportDialog({ show, title = "Text", textBody, onClose }: TextEditorPro
   }
 
   return (
-    <Modal show={show} onHide={onClose} centered size="lg" contentClassName="thick-border-modal">
-      <Modal.Header closeButton>
-        <Modal.Title>{title}</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <Form>
-          <Row>
-            <Col sm={12}>
-              <Form.Group controlId="biomeList" className="mb-3 h-100 d-flex flex-column">
-                <Form.Control
-                  as="textarea"
-                  value={textBody}
-                  readOnly
-                  style={{
-                    flexGrow: 1,
-                    minHeight: "200px",
-                    maxHeight: "400px",
-                    overflowY: "auto",
-                    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-                    fontSize: "9pt",
-                    whiteSpace: "pre", // keep JSON formatting
-                  }}
-                />
-              </Form.Group>
-            </Col>
-          </Row>
-        </Form>
-      </Modal.Body>
-
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onClose}>
-          Close
-        </Button>
-        <OverlayTrigger placement="bottom" overlay={<Tooltip id="copy-tt">Copy to clipboard</Tooltip>}>
-          <Button variant={copied ? "success" : "primary"} onClick={handleCopy}>
-            {copied ? "Copied!" : "Copy"}
+    <Modal
+      open={show}
+      onClose={onClose}
+      title={title}
+      size="lg"
+      panelClassName="thick-border-modal"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Close
           </Button>
-        </OverlayTrigger>
-      </Modal.Footer>
+          <span title="Copy to clipboard">
+            <Button variant={copied ? "success" : "primary"} onClick={handleCopy}>
+              {copied ? "Copied!" : "Copy"}
+            </Button>
+          </span>
+        </>
+      }>
+      <div className="flex flex-col">
+        <textarea
+          value={textBody ?? ""}
+          readOnly
+          className="w-full resize-none rounded-md border border-slate-300 p-2 text-xs"
+          style={{
+            minHeight: "200px",
+            maxHeight: "400px",
+            overflowY: "auto",
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+            whiteSpace: "pre",
+          }}
+        />
+      </div>
     </Modal>
   );
 }

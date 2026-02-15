@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Form, Modal, Spinner, Table } from "react-bootstrap";
+import { Alert, Button, Modal, Spinner } from "@/components/ui";
 import type { OpenGameSelection } from "../types/OpenGameSelection";
 import type { OpenGamesResponse } from "../types/OpenGamesResponse";
 import type { OpenGame } from "../types/OpenGame";
@@ -73,126 +73,136 @@ export default function OpenGameDialog({ show, onClose, onSaveSuccess, onOpenMap
   };
 
   return (
-    <Modal show={show} onHide={onClose} centered size="lg">
-      <Modal.Header closeButton>
-        <Modal.Title>Open Game</Modal.Title>
-      </Modal.Header>
-
-      <Modal.Body>
-        <div className="d-flex align-items-center gap-2 mb-3">
-          <Form.Control placeholder="Filter by game or player..." value={filter} onChange={(e) => setFilter(e.target.value)} />
-          <Button variant="outline-secondary" onClick={() => refetch()} disabled={isLoading || isFetching}>
-            Refresh
+    <Modal
+      open={show}
+      onClose={onClose}
+      title="Open Game"
+      size="lg"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
           </Button>
+          <Button variant="primary" onClick={handleOpen} disabled={!selectedSelection}>
+            Open
+          </Button>
+        </>
+      }>
+      <div className="flex items-center gap-2 mb-3">
+        <input
+          className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
+          placeholder="Filter by game or player..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+        <Button variant="outline-secondary" onClick={() => refetch()} disabled={isLoading || isFetching}>
+          Refresh
+        </Button>
+      </div>
+
+      {error && (
+        <Alert variant="danger" className="mb-3">
+          Failed to load games: {error.message}
+        </Alert>
+      )}
+
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-slate-600">
+          <Spinner size="sm" />
+          <span>Loading games...</span>
         </div>
+      ) : (
+        <div className="max-h-[420px] overflow-auto rounded-md border border-slate-200">
+          <table className="w-full text-left text-sm">
+            <thead className="sticky top-0 bg-slate-50 text-slate-700">
+              <tr>
+                <th className="px-3 py-2" style={{ width: "35%" }}>
+                  Game
+                </th>
+                <th className="px-3 py-2" style={{ width: 120 }}>
+                  Size
+                </th>
+                <th className="px-3 py-2">Player</th>
+              </tr>
+            </thead>
 
-        {error && (
-          <Alert variant="danger" className="mb-3">
-            Failed to load games: {error.message}
-          </Alert>
-        )}
-
-        {isLoading ? (
-          <div className="d-flex align-items-center gap-2">
-            <Spinner animation="border" size="sm" />
-            <span>Loading games...</span>
-          </div>
-        ) : (
-          <div style={{ maxHeight: 420, overflow: "auto" }}>
-            <Table hover responsive className="mb-0">
-              <thead>
+            <tbody>
+              {filteredGames.length === 0 ? (
                 <tr>
-                  <th style={{ width: "35%" }}>Game</th>
-                  <th style={{ width: 120 }}>Size</th>
-                  <th>Player</th>
+                  <td colSpan={3} className="px-3 py-3 text-slate-500">
+                    No games found.
+                  </td>
                 </tr>
-              </thead>
+              ) : (
+                filteredGames.flatMap((g) => {
+                  const players = g.players.length ? g.players : [{ playerGuid: "", rulerLabel: "(no players)", campaignOffsetId: 0 }];
 
-              <tbody>
-                {filteredGames.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="text-muted">
-                      No games found.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredGames.flatMap((g) => {
-                    const players = g.players.length ? g.players : [{ playerGuid: "", rulerLabel: "(no players)", campaignOffsetId: 0 }];
+                  return players.map((p, idx) => {
+                    const rowKey = `${g.gameId}-${p.playerGuid || "none"}-${idx}`;
+                    const isSelected = !!p.playerGuid && selected?.gameId === g.gameId && selected?.playerGuid === p.playerGuid;
 
-                    return players.map((p, idx) => {
-                      const rowKey = `${g.gameId}-${p.playerGuid || "none"}-${idx}`;
-                      const isSelected = !!p.playerGuid && selected?.gameId === g.gameId && selected?.playerGuid === p.playerGuid;
+                    const onClick = () => {
+                      if (!p.playerGuid) return;
+                      setSelected({ gameId: g.gameId, playerGuid: p.playerGuid });
+                    };
 
-                      const onClick = () => {
-                        if (!p.playerGuid) return;
-                        setSelected({ gameId: g.gameId, playerGuid: p.playerGuid });
+                    const onDoubleClick = () => {
+                      if (!p.playerGuid) return;
+
+                      setSelected({ gameId: g.gameId, playerGuid: p.playerGuid });
+                      const selection: OpenGameSelection = {
+                        gameId: g.gameId,
+                        gameGuid: g.gameGuid,
+                        gameName: g.gameName,
+                        width: g.mapWidth,
+                        height: g.mapHeight,
+                        playerGuid: p.playerGuid,
+                        rulerLabel: p.rulerLabel,
+                        campaignOffsetId: p.campaignOffsetId,
                       };
 
-                      const onDoubleClick = () => {
-                        if (!p.playerGuid) return;
+                      onOpenMap?.(selection);
+                      onSaveSuccess(`Opened "${selection.gameName}" as ${selection.rulerLabel}`);
+                      onClose();
+                    };
 
-                        setSelected({ gameId: g.gameId, playerGuid: p.playerGuid });
-                        // open immediately
-                        const selection: OpenGameSelection = {
-                          gameId: g.gameId,
-                          gameGuid: g.gameGuid,
-                          gameName: g.gameName,
-                          width: g.mapWidth,
-                          height: g.mapHeight,
-                          playerGuid: p.playerGuid,
-                          rulerLabel: p.rulerLabel,
-                          campaignOffsetId: p.campaignOffsetId,
-                        };
+                    return (
+                      <tr
+                        key={rowKey}
+                        className={[
+                          "border-t border-slate-100",
+                          p.playerGuid ? "cursor-pointer hover:bg-slate-50" : "",
+                          isSelected ? "bg-slate-100" : "",
+                        ].join(" ")}
+                        role={p.playerGuid ? "button" : undefined}
+                        onClick={onClick}
+                        onDoubleClick={onDoubleClick}
+                        title={p.playerGuid ? "Double-click to open" : undefined}>
+                        {idx === 0 && (
+                          <>
+                            <td rowSpan={players.length} className="px-3 py-2 align-top">
+                              <div className="font-semibold">{g.gameName}</div>
+                              <div className="text-slate-500" style={{ fontSize: "0.85rem" }}>
+                                Players: {g.numberOfPlayers} • {g.gameGuid}
+                              </div>
+                            </td>
 
-                        onOpenMap?.(selection);
-                        onSaveSuccess(`Opened "${selection.gameName}" as ${selection.rulerLabel}`);
-                        onClose();
-                      };
+                            <td rowSpan={players.length} className="px-3 py-2 align-top">
+                              {g.mapWidth ?? "?"}×{g.mapHeight ?? "?"}
+                            </td>
+                          </>
+                        )}
 
-                      return (
-                        <tr
-                          key={rowKey}
-                          className={isSelected ? "table-active" : undefined}
-                          role={p.playerGuid ? "button" : undefined}
-                          onClick={onClick}
-                          onDoubleClick={onDoubleClick}
-                          title={p.playerGuid ? "Double-click to open" : undefined}>
-                          {idx === 0 && (
-                            <>
-                              <td rowSpan={players.length}>
-                                <div className="fw-semibold">{g.gameName}</div>
-                                <div className="text-muted" style={{ fontSize: "0.85rem" }}>
-                                  Players: {g.numberOfPlayers} • {g.gameGuid}
-                                </div>
-                              </td>
-
-                              <td rowSpan={players.length}>
-                                {g.mapWidth ?? "?"}×{g.mapHeight ?? "?"}
-                              </td>
-                            </>
-                          )}
-
-                          <td>{p.rulerLabel}</td>
-                        </tr>
-                      );
-                    });
-                  })
-                )}
-              </tbody>
-            </Table>
-          </div>
-        )}
-      </Modal.Body>
-
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onClose}>
-          Cancel
-        </Button>
-
-        <Button variant="primary" onClick={handleOpen} disabled={!selectedSelection}>
-          Open
-        </Button>
-      </Modal.Footer>
+                        <td className="px-3 py-2">{p.rulerLabel}</td>
+                      </tr>
+                    );
+                  });
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </Modal>
   );
 }

@@ -12,11 +12,12 @@ import { useCampaignMapBiomesQuery } from "@/features/map/hooks/useCampaignMapBi
 import { useCampaignMapGeographiesQuery } from "@/features/map/hooks/useCampaignMapGeographies";
 import type { LoadPlayerCampaignMapRequest, PlayerCampaignMapObserverResultDto } from "@/features/map/api/playerCampaignMapApi";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { Alert, Spinner, Toast, ToastContainer } from "react-bootstrap";
-import { FaRegFolderOpen } from "react-icons/fa6";
+import { Alert, Spinner, Toast, ToastViewport } from "@/components/ui";
+import { FaChessKnight, FaRegFolderOpen } from "react-icons/fa6";
 import { GiClayBrick, GiStoneBlock, GiWoodStick } from "react-icons/gi";
 import { GoEye, GoEyeClosed } from "react-icons/go";
 import { getResourceIconByLabel } from "@/features/game/resources/resourceIcons";
+import UnitDesign from "@/features/unitdesign/UnitDesign";
 import OpenGameDialog from "./OpenGameDialog";
 import VisionSettingsOffcanvas from "./VisionSettingsOffcanvas";
 import type { OpenGameSelection } from "../types/OpenGameSelection";
@@ -54,6 +55,7 @@ function GameUI() {
   type ActiveDialog = "openGame" | null;
   type ActiveTool = "vision" | null;
   type SelectedTile = { x: number; y: number };
+  type ActivePanel = "unit-design" | null;
 
   const [activeDialog, setActiveDialog] = useState<ActiveDialog>(null);
   const [activeTool, setActiveTool] = useState<ActiveTool>(null);
@@ -63,8 +65,10 @@ function GameUI() {
   const [visionRadius, setVisionRadius] = useState<number>(0);
   const [visionLoadWholeMap, setVisionLoadWholeMap] = useState<boolean>(false);
   const [showConstructionPanel, setShowConstructionPanel] = useState(false);
+  const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [constructionOverlayTop, setConstructionOverlayTop] = useState<number>(0);
   const [constructionOverlayLeft, setConstructionOverlayLeft] = useState<number>(0);
+  const constructionOverlayRef = useRef<HTMLDivElement | null>(null);
 
   const constructionButtonDomId = "toolbar-btn-construction-material";
 
@@ -182,6 +186,13 @@ function GameUI() {
           domId: constructionButtonDomId,
           onClick: () => setShowConstructionPanel((v) => !v),
         },
+        {
+          key: "unit-design",
+          icon: <FaChessKnight />,
+          tooltip: "Unit Design",
+          active: activePanel === "unit-design",
+          onClick: () => setActivePanel((p) => (p === "unit-design" ? null : "unit-design")),
+        },
       ],
     },
   ];
@@ -283,6 +294,28 @@ function GameUI() {
       window.removeEventListener("resize", computePosition);
       window.removeEventListener("scroll", computePosition);
     };
+  }, [showConstructionPanel, constructionButtonDomId]);
+
+  // Close the construction popup when clicking outside of it.
+  useEffect(() => {
+    if (!showConstructionPanel) return;
+
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target;
+      if (!(target instanceof Node)) return;
+
+      const overlayEl = constructionOverlayRef.current;
+      if (overlayEl && overlayEl.contains(target)) return;
+
+      const buttonEl = document.getElementById(constructionButtonDomId);
+      if (buttonEl && buttonEl.contains(target)) return;
+
+      setShowConstructionPanel(false);
+    };
+
+    // Capture phase so we close even if inner elements stop propagation.
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
   }, [showConstructionPanel, constructionButtonDomId]);
 
   const { data: biomes } = useCampaignMapBiomesQuery();
@@ -426,17 +459,18 @@ function GameUI() {
   );
 
   return (
-    <>
+    <div className="flex flex-col" style={{ minHeight: "100vh" }}>
       <ToolBar groups={toolBarGroups} />
       <ToolBar
         groups={secondaryToolBarGroups}
-        containerClassName="toolbar d-flex justify-content-center border-bottom bg-primary"
+        containerClassName="toolbar flex justify-start border-b border-slate-200 bg-[var(--bs-primary)]"
         showCaptions={false}
         buttonVariant="light"
       />
 
       {showConstructionPanel && (
         <div
+          ref={constructionOverlayRef}
           style={{
             position: "fixed",
             top: constructionOverlayTop,
@@ -483,45 +517,49 @@ function GameUI() {
         }}
       />
 
-      <ToastContainer position="bottom-end" className="p-3">
-        <Toast show={toast.show} onClose={closeToast} autohide delay={3000} className={`border-0 bg-${toast.variant}-subtle`}>
-          <Toast.Body className={`border-0 ${toast.variant === "warning" ? "" : `text-${toast.variant}`}`}>{toast.message}</Toast.Body>
-        </Toast>
-      </ToastContainer>
+      <ToastViewport>
+        <Toast open={toast.show} onClose={closeToast} variant={toast.variant} message={toast.message} autoHideMs={3000} />
+      </ToastViewport>
 
-      <div className="mt-3">
-        {gameSelection == null ? (
-          <Alert variant="secondary" className="mb-0">
-            No game opened. Use <strong>Game → Open</strong>.
-          </Alert>
+      <div className="flex flex-col grow min-h-0">
+        {activePanel === "unit-design" ? (
+          <UnitDesign />
         ) : (
-          <>
-            <div className="d-flex align-items-center justify-content-between mb-2">
-              {(tilesLoading || tilesFetching) && (
-                <div className="d-flex align-items-center gap-2 text-muted">
-                  <Spinner animation="border" size="sm" />
-                  <span>Loading tiles...</span>
+          <div className="mt-3">
+            {gameSelection == null ? (
+              <Alert variant="secondary" className="mb-0">
+                No game opened. Use <strong>Game → Open</strong>.
+              </Alert>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  {(tilesLoading || tilesFetching) && (
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <Spinner size="sm" />
+                      <span>Loading tiles...</span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {tilesError && <Alert variant="danger">Failed to load tiles: {tilesError.message}</Alert>}
+                {tilesError && <Alert variant="danger">Failed to load tiles: {tilesError.message}</Alert>}
 
-            {tiles2d && (
-              <TileGrid
-                width={gameSelection.width}
-                height={gameSelection.height}
-                tiles2d={tiles2d}
-                geographies={geographies ?? []}
-                onTileClick={onTileClick}
-                getTileStyle={getTileStyle}
-                getTileTitle={getTileTitle}
-              />
+                {tiles2d && (
+                  <TileGrid
+                    width={gameSelection.width}
+                    height={gameSelection.height}
+                    tiles2d={tiles2d}
+                    geographies={geographies ?? []}
+                    onTileClick={onTileClick}
+                    getTileStyle={getTileStyle}
+                    getTileTitle={getTileTitle}
+                  />
+                )}
+              </>
             )}
-          </>
+          </div>
         )}
       </div>
-    </>
+    </div>
   );
 }
 

@@ -2,7 +2,7 @@ import { FaMountain, FaRegFolderOpen, FaTree } from "react-icons/fa6";
 import ToolBar, { type ToolBarGroup } from "@/components/Toolbar";
 import { useCallback, useMemo, useState } from "react";
 import type { Biome } from "../../../types/map/Biome";
-import { Alert, Spinner, Toast, ToastContainer } from "react-bootstrap";
+import { Alert, Spinner, Toast, ToastViewport } from "@/components/ui";
 import type { Geography } from "../../../types/map/Geography";
 import { VscNewFile } from "react-icons/vsc";
 import NewCampaignMapDialog from "./NewCampaignMapDialog";
@@ -14,6 +14,7 @@ import { useCampaignMapTilesQuery } from "@/features/mapgallery/hooks/useCampaig
 import { useCampaignMapGeographiesQuery } from "../hooks/useCampaignMapGeographies";
 import type { TileCell } from "./TileTypes";
 import TileGrid from "./TileGrid";
+import { DropButton } from "@/components/ui";
 
 function buildTiles2d(
   width: number,
@@ -51,11 +52,13 @@ function MapGalleryEditor() {
 
   // --- Biomes (draft owned by parent) ---
   const [biomeDraft, setBiomeDraft] = useState<Biome[]>([]);
-  const [selectedBiomeType, setSelectedBiomeType] = useState<number | null>(null);
+  const [biomeMapSelection, setBiomeMapSelection] = useState<number | null>(null);
+  const [biomeManagerSelection, setBiomeManagerSelection] = useState<number | null>(null);
 
   // --- Geographies (draft owned by parent) ---
   const [geographyDraft, setGeographyDraft] = useState<Geography[]>([]);
-  const [selectedGeographyType, setSelectedGeographyType] = useState<number | null>(null);
+  const [geographyMapSelection, setGeographyMapSelection] = useState<number | null>(null);
+  const [geographyEditorSelection, setGeographyEditorSelection] = useState<number | null>(null);
 
   // "Open map" selection
   const [openMapIndex, setOpenMapIndex] = useState<CampaignMapGalleryIndex | null>(null);
@@ -92,13 +95,6 @@ function MapGalleryEditor() {
   const { data: biomes, error: biomeError, isLoading: biomesLoading } = useCampaignMapBiomesQuery();
 
   const { data: geographies, error: geographyError, isLoading: geographiesLoading } = useCampaignMapGeographiesQuery();
-
-  {
-    biomeError && <Alert variant="danger">Biomes failed: {biomeError.message}</Alert>;
-  }
-  {
-    geographyError && <Alert variant="danger">Geographies failed: {geographyError.message}</Alert>;
-  }
 
   // ---------------------------
   // Lookups for tile view
@@ -184,7 +180,7 @@ function MapGalleryEditor() {
     const newBiome = createNewBiome(nextId);
 
     setBiomeDraft([...baseList, newBiome]);
-    setSelectedBiomeType(newBiome.biomeType);
+    setBiomeManagerSelection(newBiome.biomeType);
     setActiveDialog("biomes");
   };
 
@@ -215,7 +211,7 @@ function MapGalleryEditor() {
     const newGeo = createNewGeography(nextId);
 
     setGeographyDraft([...baseList, newGeo]);
-    setSelectedGeographyType(newGeo.campaignMapGeographyType);
+    setGeographyEditorSelection(newGeo.campaignMapGeographyType);
     setActiveDialog("geographies");
   };
 
@@ -251,7 +247,7 @@ function MapGalleryEditor() {
 
     setBiomeDraft(list);
 
-    setSelectedBiomeType(getFirstBiomeType(list));
+    setBiomeManagerSelection(getFirstBiomeType(list));
 
     setActiveDialog("biomes");
   }, [biomesLoading, biomes]);
@@ -263,7 +259,7 @@ function MapGalleryEditor() {
 
     setGeographyDraft(list);
 
-    setSelectedGeographyType(getFirstGeographyType(list));
+    setGeographyEditorSelection(getFirstGeographyType(list));
 
     setActiveDialog("geographies");
   }, [geographiesLoading, geographies]);
@@ -292,31 +288,79 @@ function MapGalleryEditor() {
         buttons: [
           {
             key: "biomes",
-            icon: <FaTree />,
             tooltip: biomesLoading ? "Loading Biomes..." : "Biomes",
             disabled: biomesLoading,
-            onClick: openBiomes,
+            render: ({ disabled }) => (
+              <DropButton
+                label="Biomes"
+                title={biomesLoading ? "Loading Biomes..." : "Biomes"}
+                icon={<FaTree />}
+                disabled={disabled}
+                onClick={openBiomes}
+                menuDisabled={biomesLoading}
+                items={(biomes ?? [])
+                  .slice()
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((b) => ({
+                    key: b.biomeType,
+                    label: b.name,
+                    active: biomeMapSelection === b.biomeType,
+                    onSelect: () => setBiomeMapSelection(b.biomeType),
+                  }))}
+              />
+            ),
             onMiddleClick: middleAddBiome,
             middleClickHint: "add new",
           },
           {
             key: "geographies",
-            icon: <FaMountain />,
             tooltip: geographiesLoading ? "Loading Geographies..." : "Geographies",
             disabled: geographiesLoading,
-            onClick: openGeographies,
+            render: ({ disabled }) => (
+              <DropButton
+                label="Geographies"
+                title={geographiesLoading ? "Loading Geographies..." : "Geographies"}
+                icon={<FaMountain />}
+                disabled={disabled}
+                onClick={openGeographies}
+                menuDisabled={geographiesLoading}
+                items={(geographies ?? [])
+                  .slice()
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((g) => ({
+                    key: g.campaignMapGeographyType,
+                    label: g.name,
+                    active: geographyMapSelection === g.campaignMapGeographyType,
+                    onSelect: () => setGeographyMapSelection(g.campaignMapGeographyType),
+                  }))}
+              />
+            ),
             onMiddleClick: middleAddGeography,
             middleClickHint: "add new",
           },
         ],
       },
     ],
-    [biomesLoading, geographiesLoading, openBiomes, middleAddBiome, openGeographies, middleAddGeography, openMapIndex],
+    [
+      biomesLoading,
+      biomes,
+      biomeMapSelection,
+      geographiesLoading,
+      geographies,
+      geographyMapSelection,
+      openBiomes,
+      middleAddBiome,
+      openGeographies,
+      middleAddGeography,
+    ],
   );
 
   return (
     <>
       <ToolBar groups={toolBarGroups} />
+
+      {biomeError && <Alert variant="danger">Biomes failed: {biomeError.message}</Alert>}
+      {geographyError && <Alert variant="danger">Geographies failed: {geographyError.message}</Alert>}
 
       {/* ====== Opened map display ====== */}
       <div className="mt-3">
@@ -326,20 +370,20 @@ function MapGalleryEditor() {
           </Alert>
         ) : (
           <>
-            <div className="d-flex align-items-center justify-content-between mb-2">
+            <div className="flex items-center justify-between mb-2">
               <div>
                 <strong>{openMapIndex.mapName}</strong>{" "}
-                <span className="text-muted">
+                <span className="text-slate-500">
                   ({openMapIndex.width}×{openMapIndex.height})
                 </span>
-                <div className="text-muted" style={{ fontSize: 12 }}>
+                <div className="text-slate-500" style={{ fontSize: 12 }}>
                   {openMapIndex.description}
                 </div>
               </div>
 
               {(tilesLoading || tilesFetching) && (
-                <div className="d-flex align-items-center gap-2 text-muted">
-                  <Spinner animation="border" size="sm" />
+                <div className="flex items-center gap-2 text-slate-500">
+                  <Spinner size="sm" />
                   <span>Loading tiles...</span>
                 </div>
               )}
@@ -365,8 +409,8 @@ function MapGalleryEditor() {
       <BiomeManagerDialog
         show={activeDialog === "biomes"}
         biomes={biomeDraft}
-        selectedBiomeType={selectedBiomeType}
-        onSelectBiomeType={setSelectedBiomeType}
+        biomeManagerSelection={biomeManagerSelection}
+        onSelectBiomeManagerSelection={setBiomeManagerSelection}
         setBiomes={setBiomeDraft}
         onClose={() => setActiveDialog(null)}
         onSaveSuccess={(msg) => openToast(msg ?? "Saved!", "success")}
@@ -375,8 +419,8 @@ function MapGalleryEditor() {
       <GeographyManagerDialog
         show={activeDialog === "geographies"}
         geographies={geographyDraft}
-        selectedGeographyType={selectedGeographyType}
-        onSelectGeographyType={setSelectedGeographyType}
+        geographyEditorSelection={geographyEditorSelection}
+        onSelectGeographyEditorSelection={setGeographyEditorSelection}
         setGeographies={setGeographyDraft}
         onClose={() => setActiveDialog(null)}
         onSaveSuccess={(msg) => openToast(msg ?? "Saved!", "success")}
@@ -398,11 +442,9 @@ function MapGalleryEditor() {
         }}
       />
 
-      <ToastContainer position="bottom-end" className="p-3">
-        <Toast show={toast.show} onClose={closeToast} autohide delay={3000} className={`border-0 bg-${toast.variant}-subtle`}>
-          <Toast.Body className={`border-0 ${toast.variant === "warning" ? "" : `text-${toast.variant}`}`}>{toast.message}</Toast.Body>
-        </Toast>
-      </ToastContainer>
+      <ToastViewport>
+        <Toast open={toast.show} onClose={closeToast} variant={toast.variant} message={toast.message} autoHideMs={3000} />
+      </ToastViewport>
     </>
   );
 }

@@ -1,5 +1,3 @@
-import { useId } from "react";
-import { OverlayTrigger, Tooltip } from "react-bootstrap";
 import "./ResourceTicker.css";
 import { formatNumberWithCommas } from "@/util/number";
 
@@ -31,7 +29,6 @@ function formatAmount(amount: number): string {
 export default function ResourceTotal({ amount, tooltip, onClick, disabled }: ResourceTotalProps) {
   const display = formatAmount(amount);
   const tip = tooltip ?? formatNumberWithCommas(amount);
-  const tooltipId = useId();
 
   const isDisabled = !!disabled;
   const isClickable = !isDisabled && !!onClick;
@@ -39,12 +36,10 @@ export default function ResourceTotal({ amount, tooltip, onClick, disabled }: Re
   const className = ["resource-ticker", "resource-ticker--total", isClickable ? "resource-ticker--button" : ""].filter(Boolean).join(" ");
 
   return (
-    <OverlayTrigger placement="bottom" overlay={<Tooltip id={tooltipId}>{tip}</Tooltip>}>
-      <span className={isDisabled ? "resource-ticker-wrapper resource-ticker-wrapper--disabled" : "resource-ticker-wrapper"}>
-        <button type="button" className={className} aria-label={`${display}`} onDoubleClick={isDisabled ? undefined : onClick} disabled={isDisabled}>
-          <span className="resource-total__amount">{display}</span>
-        </button>
-      </span>
-    </OverlayTrigger>
+    <span title={tip} className={isDisabled ? "resource-ticker-wrapper resource-ticker-wrapper--disabled" : "resource-ticker-wrapper"}>
+      <button type="button" className={className} aria-label={`${display}`} onDoubleClick={isDisabled ? undefined : onClick} disabled={isDisabled}>
+        <span className="resource-total__amount">{display}</span>
+      </button>
+    </span>
   );
 }

@@ -43,7 +43,7 @@ export default function ResourceTickerCollection({
           column={c.column}
           icon={c.icon}
           tickers={c.tickers}
-          showTotal={showTotals}
+          showTotal={showTotals && c.mixedItems !== true}
           onClickAmount={onClickAmount}
           draggableTickers={!!onReorderCategoryTickers && c.mixedItems !== true}
           onReorderTickers={(tickers) => onReorderCategoryTickers?.({ categoryKey: c.key, tickers })}

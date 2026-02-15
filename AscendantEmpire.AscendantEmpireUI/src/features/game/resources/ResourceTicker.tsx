@@ -1,5 +1,4 @@
-import { useId, type ReactNode } from "react";
-import { OverlayTrigger, Tooltip } from "react-bootstrap";
+import type { ReactNode } from "react";
 import "./ResourceTicker.css";
 import { formatNumberWithCommas } from "@/util/number";
 
@@ -35,7 +34,6 @@ function formatAmount(amount: number): string {
 export default function ResourceTicker({ icon, iconColor, amount, tooltip, onClick, disabled, IsLuxury }: ResourceTickerProps) {
   const display = formatAmount(amount);
   const tip = tooltip ?? formatNumberWithCommas(amount);
-  const tooltipId = useId();
 
   const isDisabled = !!disabled;
   const isClickable = !isDisabled && !!onClick;
@@ -46,20 +44,13 @@ export default function ResourceTicker({ icon, iconColor, amount, tooltip, onCli
     .join(" ");
 
   return (
-    <OverlayTrigger placement="bottom" overlay={<Tooltip id={tooltipId}>{tip}</Tooltip>}>
-      <span className={isDisabled ? "resource-ticker-wrapper resource-ticker-wrapper--disabled" : "resource-ticker-wrapper"}>
-        <button
-          type="button"
-          className={className}
-          aria-label={`${display}`}
-          onDoubleClick={isDisabled ? undefined : onClick}
-          disabled={isDisabled}>
-          <span className="resource-ticker__icon" style={iconColor ? { color: iconColor } : undefined}>
-            {icon}
-          </span>
-          <span className="resource-ticker__amount">{display}</span>
-        </button>
-      </span>
-    </OverlayTrigger>
+    <span title={tip} className={isDisabled ? "resource-ticker-wrapper resource-ticker-wrapper--disabled" : "resource-ticker-wrapper"}>
+      <button type="button" className={className} aria-label={`${display}`} onDoubleClick={isDisabled ? undefined : onClick} disabled={isDisabled}>
+        <span className="resource-ticker__icon" style={iconColor ? { color: iconColor } : undefined}>
+          {icon}
+        </span>
+        <span className="resource-ticker__amount">{display}</span>
+      </button>
+    </span>
   );
 }

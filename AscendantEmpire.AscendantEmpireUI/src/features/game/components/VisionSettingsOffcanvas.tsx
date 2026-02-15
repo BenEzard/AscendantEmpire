@@ -1,4 +1,4 @@
-import { Form, Offcanvas } from "react-bootstrap";
+import { Drawer } from "@/components/ui";
 
 interface VisionSettingsOffcanvasProps {
   show: boolean;
@@ -23,40 +23,30 @@ export default function VisionSettingsOffcanvas({
   setVisionLoadWholeMap,
 }: VisionSettingsOffcanvasProps) {
   return (
-    <Offcanvas show={show} onHide={onHide} placement="start">
-      <Offcanvas.Header closeButton>
-        <Offcanvas.Title>Check Vision Settings</Offcanvas.Title>
-      </Offcanvas.Header>
-      <Offcanvas.Body>
-        <Form.Group className="mb-3">
-          <div className="row align-items-center g-2">
-            <div className="col-5">
-              <Form.Label className="mb-0">Sight Range</Form.Label>
-            </div>
-            <div className="col-7">
-              <Form.Control
-                type="number"
-                inputMode="numeric"
-                min={0}
-                step={1}
-                value={visionRadius}
-                onChange={(e) => setVisionRadius(coerceNonNegativeInt(e.target.value))}
-              />
-            </div>
+    <Drawer open={show} onClose={onHide} side="left" title="Check Vision Settings">
+      <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-12 items-center gap-2">
+          <label className="col-span-5 text-sm font-medium text-slate-700">Sight Range</label>
+          <div className="col-span-7">
+            <input
+              className="w-full rounded-md border border-slate-300 px-2 py-1 text-sm"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              step={1}
+              value={visionRadius}
+              onChange={(e) => setVisionRadius(coerceNonNegativeInt(e.target.value))}
+            />
           </div>
-        </Form.Group>
+        </div>
 
-        <Form.Group className="mb-3">
-          <div className="row align-items-center g-2">
-            <div className="col-5">
-              <Form.Label className="mb-0">Load Whole Map</Form.Label>
-            </div>
-            <div className="col-7">
-              <Form.Check type="checkbox" checked={visionLoadWholeMap} onChange={(e) => setVisionLoadWholeMap(e.currentTarget.checked)} />
-            </div>
+        <div className="grid grid-cols-12 items-center gap-2">
+          <label className="col-span-5 text-sm font-medium text-slate-700">Load Whole Map</label>
+          <div className="col-span-7">
+            <input type="checkbox" checked={visionLoadWholeMap} onChange={(e) => setVisionLoadWholeMap(e.currentTarget.checked)} />
           </div>
-        </Form.Group>
-      </Offcanvas.Body>
-    </Offcanvas>
+        </div>
+      </div>
+    </Drawer>
   );
 }

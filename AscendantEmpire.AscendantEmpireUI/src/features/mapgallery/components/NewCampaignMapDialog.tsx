@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Modal, Button, Form, Row, Col, ToastContainer, Toast } from "react-bootstrap";
+import { Button, Modal, Toast, ToastViewport } from "@/components/ui";
 import axios from "axios";
 
 // --- String-based engine names ---
@@ -158,145 +158,124 @@ export default function NewCampaignMapDialog({ show, initialValues, onClose, onS
 
   return (
     <>
-      <Modal show={show} onHide={onClose} centered size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>New Campaign Map</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form>
-            <Row>
-              <Col sm={12}>
-                <Form.Group as={Row} className="mb-2" controlId="Id">
-                  <Form.Label column sm={3}>
-                    Id
-                  </Form.Label>
-                  <Col sm={7}>
-                    <Form.Control type="text" value={campaignMap.id ?? ""} placeholder="(auto)" disabled readOnly />
-                  </Col>
-                </Form.Group>
+      <Modal
+        open={show}
+        onClose={onClose}
+        title="New Campaign Map"
+        size="lg"
+        footer={
+          <>
+            <Button variant="secondary" onClick={onClose} disabled={saving}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleSave} disabled={saving}>
+              {saving ? "Saving..." : "Save"}
+            </Button>
+          </>
+        }>
+        <div className="grid grid-cols-12 gap-3">
+          <label className="col-span-3 text-sm font-medium text-slate-700">Id</label>
+          <div className="col-span-9">
+            <input
+              className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
+              value={campaignMap.id ?? ""}
+              placeholder="(auto)"
+              disabled
+              readOnly
+            />
+          </div>
 
-                <Form.Group as={Row} className="mb-2" controlId="MapName">
-                  <Form.Label column sm={3}>
-                    Map Name
-                  </Form.Label>
-                  <Col sm={7}>
-                    <Form.Control
-                      type="text"
-                      value={campaignMap.mapName}
-                      onChange={(e) => set("mapName", e.currentTarget.value)}
-                      isInvalid={!!errors.mapName}
-                    />
-                    <Form.Control.Feedback type="invalid">{errors.mapName}</Form.Control.Feedback>
-                  </Col>
-                </Form.Group>
+          <label className="col-span-3 text-sm font-medium text-slate-700">Map Name</label>
+          <div className="col-span-9">
+            <input
+              className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
+              value={campaignMap.mapName}
+              onChange={(e) => set("mapName", e.currentTarget.value)}
+            />
+            {errors.mapName && <div className="mt-1 text-xs text-[var(--bs-danger)]">{errors.mapName}</div>}
+          </div>
 
-                <Form.Group as={Row} className="mb-2" controlId="Width">
-                  <Form.Label column sm={3}>
-                    Width
-                  </Form.Label>
-                  <Col sm={7}>
-                    <Form.Control
-                      type="number"
-                      min={MIN_WIDTH}
-                      max={MAX_WIDTH}
-                      value={campaignMap.width}
-                      onChange={(e) => set("width", parseInt(e.currentTarget.value || "0", 10))}
-                      isInvalid={!!errors.width}
-                    />
-                    <Form.Control.Feedback type="invalid">{errors.width}</Form.Control.Feedback>
-                  </Col>
-                </Form.Group>
+          <label className="col-span-3 text-sm font-medium text-slate-700">Width</label>
+          <div className="col-span-9">
+            <input
+              className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
+              type="number"
+              min={MIN_WIDTH}
+              max={MAX_WIDTH}
+              value={campaignMap.width}
+              onChange={(e) => set("width", parseInt(e.currentTarget.value || "0", 10))}
+            />
+            {errors.width && <div className="mt-1 text-xs text-[var(--bs-danger)]">{errors.width}</div>}
+          </div>
 
-                <Form.Group as={Row} className="mb-2" controlId="Height">
-                  <Form.Label column sm={3}>
-                    Height
-                  </Form.Label>
-                  <Col sm={7}>
-                    <Form.Control
-                      type="number"
-                      min={MIN_HEIGHT}
-                      max={MAX_HEIGHT}
-                      value={campaignMap.height}
-                      onChange={(e) => set("height", parseInt(e.currentTarget.value || "0", 10))}
-                      isInvalid={!!errors.height}
-                    />
-                    <Form.Control.Feedback type="invalid">{errors.height}</Form.Control.Feedback>
-                  </Col>
-                </Form.Group>
+          <label className="col-span-3 text-sm font-medium text-slate-700">Height</label>
+          <div className="col-span-9">
+            <input
+              className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
+              type="number"
+              min={MIN_HEIGHT}
+              max={MAX_HEIGHT}
+              value={campaignMap.height}
+              onChange={(e) => set("height", parseInt(e.currentTarget.value || "0", 10))}
+            />
+            {errors.height && <div className="mt-1 text-xs text-[var(--bs-danger)]">{errors.height}</div>}
+          </div>
 
-                <Form.Group as={Row} className="mb-2" controlId="CreationEngine">
-                  <Form.Label column sm={3}>
-                    Creation Engine
-                  </Form.Label>
-                  <Col sm={7}>
-                    <Form.Select
-                      value={campaignMap.creationEngine}
-                      onChange={(e) => set("creationEngine", parseInt(e.currentTarget.value || "0", 10))}>
-                      {engineOptions.map((o, i) => (
-                        <option key={o} value={i}>
-                          {o}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  </Col>
-                </Form.Group>
+          <label className="col-span-3 text-sm font-medium text-slate-700">Creation Engine</label>
+          <div className="col-span-9">
+            <select
+              className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
+              value={campaignMap.creationEngine}
+              onChange={(e) => set("creationEngine", parseInt(e.currentTarget.value || "0", 10))}>
+              {engineOptions.map((o, i) => (
+                <option key={o} value={i}>
+                  {o}
+                </option>
+              ))}
+            </select>
+          </div>
 
-                <Form.Group as={Row} className="mb-2" controlId="Description">
-                  <Form.Label column sm={3}>
-                    Description
-                  </Form.Label>
-                  <Col sm={7}>
-                    <Form.Control
-                      as="textarea"
-                      rows={3}
-                      value={campaignMap.description}
-                      onChange={(e) => set("description", e.currentTarget.value)}
-                    />
-                  </Col>
-                </Form.Group>
-                <Form.Group as={Row} className="mb-2" controlId="Properties">
-                  <Form.Label column sm={3}>
-                    Properties (JSON)
-                  </Form.Label>
-                  <Col sm={7}>
-                    <Form.Control
-                      as="textarea"
-                      rows={12}
-                      value={campaignMap.properties}
-                      onChange={(e) => set("properties", e.currentTarget.value)}
-                      isInvalid={!!errors.properties}
-                    />
-                    <Form.Control.Feedback type="invalid">{errors.properties}</Form.Control.Feedback>
-                  </Col>
-                </Form.Group>
-              </Col>
-            </Row>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onClose} disabled={saving}>
-            Cancel
-          </Button>
-          <Button variant="primary" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save"}
-          </Button>
-        </Modal.Footer>
+          <label className="col-span-3 text-sm font-medium text-slate-700">Description</label>
+          <div className="col-span-9">
+            <textarea
+              className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
+              rows={3}
+              value={campaignMap.description}
+              onChange={(e) => set("description", e.currentTarget.value)}
+            />
+          </div>
+
+          <label className="col-span-3 text-sm font-medium text-slate-700">Properties (JSON)</label>
+          <div className="col-span-9">
+            <textarea
+              className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
+              rows={12}
+              value={campaignMap.properties}
+              onChange={(e) => set("properties", e.currentTarget.value)}
+            />
+            {errors.properties && <div className="mt-1 text-xs text-[var(--bs-danger)]">{errors.properties}</div>}
+          </div>
+        </div>
       </Modal>
 
-      <ToastContainer position="bottom-end" className="p-3" style={{ zIndex: 1080 }}>
-        <Toast show={showErrorToast} onClose={() => toggleErrorToast()} delay={5000} className="border-0">
-          <Toast.Header className="bg-danger text-white border-0 d-flex align-items-center">
-            <strong className="me-auto">Save Error</strong>
-          </Toast.Header>
-          <Toast.Body className="bg-danger-subtle text-danger border-0">
-            <ul className="mb-0 ps-3">
-              {errorToastItems.map((msg, i) => (
-                <li key={i}>{msg}</li>
-              ))}
-            </ul>
-          </Toast.Body>
-        </Toast>
-      </ToastContainer>
+      <ToastViewport>
+        <Toast
+          open={showErrorToast}
+          onClose={toggleErrorToast}
+          variant="danger"
+          autoHideMs={5000}
+          message={
+            <div>
+              <div className="font-semibold mb-1">Save Error</div>
+              <ul className="list-disc pl-5">
+                {errorToastItems.map((msg, i) => (
+                  <li key={i}>{msg}</li>
+                ))}
+              </ul>
+            </div>
+          }
+        />
+      </ToastViewport>
     </>
   );
 }
