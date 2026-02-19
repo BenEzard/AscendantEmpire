@@ -17,10 +17,12 @@ import { FaChessKnight, FaRegFolderOpen } from "react-icons/fa6";
 import { GiClayBrick, GiStoneBlock, GiWoodStick } from "react-icons/gi";
 import { GoEye, GoEyeClosed } from "react-icons/go";
 import { getResourceIconByLabel } from "@/features/game/resources/resourceIcons";
-import UnitDesign from "@/features/unitdesign/UnitDesign";
+import UnitDesigner from "@/features/unitdesign/UnitDesigner";
 import OpenGameDialog from "./OpenGameDialog";
 import VisionSettingsOffcanvas from "./VisionSettingsOffcanvas";
 import type { OpenGameSelection } from "../types/OpenGameSelection";
+import { GrCaretNext } from "react-icons/gr";
+import { http } from "@/api/http";
 
 function buildTiles2d(
   width: number,
@@ -192,6 +194,27 @@ function GameUI() {
           tooltip: "Unit Design",
           active: activePanel === "unit-design",
           onClick: () => setActivePanel((p) => (p === "unit-design" ? null : "unit-design")),
+        },
+        {
+          key: "end-turn",
+          icon: <GrCaretNext />,
+          tooltip: "End Turn",
+          onClick: async () => {
+            const payload = {
+              gameGuid: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+              playerGuid: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            };
+
+            try {
+              await http.post("/turn/end", payload);
+
+              // optional: only toggle after success
+              setActivePanel((p) => (p === "unit-design" ? null : "unit-design"));
+            } catch (err) {
+              console.error("POST /turn/end failed", err);
+              // optional toast/snackbar here
+            }
+          },
         },
       ],
     },
@@ -523,7 +546,7 @@ function GameUI() {
 
       <div className="flex flex-col grow min-h-0">
         {activePanel === "unit-design" ? (
-          <UnitDesign />
+          <UnitDesigner onClose={() => setActivePanel(null)} />
         ) : (
           <div className="mt-3">
             {gameSelection == null ? (

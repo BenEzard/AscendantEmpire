@@ -1,7 +1,9 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using AscendantEmpire.Domain.Entities.Games;
+
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace AscendantEmpire.Domain.Entities.Games;
+namespace AscendantEmpire.Domain.Entities.Units;
 
 [Table("PlayerTroopSummaries", Schema = "game")]
 public class PlayerTroopSummary

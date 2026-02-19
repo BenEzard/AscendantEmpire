@@ -56,7 +56,7 @@ public class TurnController : ControllerBase
     /// </summary>
     /// <response code="200">End Turn</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [HttpPost("/end")]
+    [HttpPost("end")]
     [ProducesResponseType(204)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
     public async Task<IActionResult> EndPlayerTurnAsync(

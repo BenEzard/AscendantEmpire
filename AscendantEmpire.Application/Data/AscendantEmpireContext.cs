@@ -1,6 +1,7 @@
 ﻿using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Structure;
+using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Entities.Util;
 
 using Microsoft.EntityFrameworkCore;
@@ -85,6 +86,8 @@ public class AscendantEmpireContext : DbContext
         ConfigureMapGallerySchema(modelBuilder);
 
         ConfigureStructureSchema(modelBuilder);
+
+        ConfigureUnitSchema(modelBuilder);
     }
 
     private static void ConfigureGameSchema(ModelBuilder modelBuilder)
@@ -222,30 +225,6 @@ public class AscendantEmpireContext : DbContext
                 .HasDatabaseName("IX_PlayerKnownStructures_Game_Player_LastSeen");
         });
 
-        // --- PlayerTroopSummary --------------------------------------------------------
-        modelBuilder.Entity<PlayerTroopSummary>(entity =>
-        {
-            entity.ToTable("PlayerTroopSummaries", schema);
-
-            entity.HasKey(e => e.Id);
-
-            entity.Property(e => e.BattleMapId).IsRequired(false);
-
-            // PlayerTroopSummary -> GameIndex (many summaries per game)
-            entity.HasOne(e => e.Game)
-                .WithMany()
-                .HasForeignKey(e => e.GameId)
-                .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_PlayerTroopSummaries_GameIndex_GameId");
-
-            // PlayerTroopSummary -> Player (many summaries per player)
-            entity.HasOne(e => e.Player)
-                .WithMany()
-                .HasForeignKey(e => e.PlayerId)
-                .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_PlayerTroopSummaries_Player_PlayerId");
-        });
-
         // --- StructureInstance ---------------------------------------------------------
         modelBuilder.Entity<StructureInstance>(entity =>
         {
@@ -374,6 +353,35 @@ public class AscendantEmpireContext : DbContext
         modelBuilder.Entity<Structure>(entity =>
         {
             entity.ToTable("Structures", schema);
+        });
+    }
+
+    private static void ConfigureUnitSchema(ModelBuilder modelBuilder)
+    {
+        const string schema = "units";
+
+        // --- PlayerTroopSummary --------------------------------------------------------
+        modelBuilder.Entity<PlayerTroopSummary>(entity =>
+        {
+            entity.ToTable("PlayerTroopSummaries", schema);
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.BattleMapId).IsRequired(false);
+
+            // PlayerTroopSummary -> GameIndex (many summaries per game)
+            entity.HasOne(e => e.Game)
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerTroopSummaries_GameIndex_GameId");
+
+            // PlayerTroopSummary -> Player (many summaries per player)
+            entity.HasOne(e => e.Player)
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerTroopSummaries_Player_PlayerId");
         });
     }
 

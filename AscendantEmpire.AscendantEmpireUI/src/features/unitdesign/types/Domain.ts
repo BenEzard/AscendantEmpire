@@ -1,0 +1,1 @@
+export type Domain = "Land" | "Water" | "Below Water" | "Air" | "Near Earth Orbit";
