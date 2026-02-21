@@ -133,7 +133,7 @@ function GeographyManagerDialog({
                   "block w-full px-3 py-2 text-left text-sm",
                   activeSection === "general" ? "bg-slate-100 font-semibold" : "hover:bg-slate-50",
                 ].join(" ")}>
-                General Geography Properties
+                General Properties
               </button>
             </div>
           </div>
@@ -142,8 +142,6 @@ function GeographyManagerDialog({
           <div className="col-span-12 md:col-span-8">
             <div className="relative w-full max-w-xl">
               <div>
-                <div className="text-sm font-semibold mb-2">General Geography Properties</div>
-
                 <div className="grid grid-cols-12 items-center gap-2 mb-2">
                   <label className="col-span-5 text-sm text-slate-700">Id</label>
                   <div className="col-span-7">

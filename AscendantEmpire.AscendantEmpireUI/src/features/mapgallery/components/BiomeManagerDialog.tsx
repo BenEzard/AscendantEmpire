@@ -7,6 +7,7 @@ import { safeStringify } from "../../../util/json";
 import { useSaveCampaignMapBiomesMutation } from "../hooks/useCampaignMapBiomes";
 import { isValidColor, pickTextColorOnBg } from "../../../util/color";
 import ExportDialog from "../../../components/ExportDialog";
+import BiomeResource from "./BiomeResource";
 
 interface BiomeManagerProps {
   biomes: Biome[];
@@ -36,7 +37,7 @@ function BiomeManagerDialog({
 
   // Text Editor Dialog
   const [textEditorTitle, setTextEditorTitle] = useState("Text");
-  const [textEditorBody, setTextEditorBody] = useState<string>();
+  const [textEditorBody, setTextEditorBody] = useState("");
   const [showTextEditor, setShowTextEditor] = useState(false);
 
   const [showErrorToast, setShowErrorToast] = useState(false);
@@ -45,6 +46,8 @@ function BiomeManagerDialog({
 
   const mustBeTraversablePaintable = selectedBiome?.isTraversable === false || selectedBiome?.isPaintableOnCampaignMap === false;
   const mustBeTraversablePaintableLand = mustBeTraversablePaintable || selectedBiome?.isWater;
+  const isFishDisabled =
+    !selectedBiome || selectedBiome.isTraversable === false || selectedBiome.isPaintableOnCampaignMap === false || selectedBiome.isWater === false;
 
   const orderedBiomes = useMemo(() => biomes.slice().sort((a, b) => a.name.localeCompare(b.name)), [biomes]);
 
@@ -67,7 +70,6 @@ function BiomeManagerDialog({
     onSuccess: () => {
       setShowErrorToast(false);
 
-      onClose();
       onSaveSuccess("Biomes saved successfully.");
     },
     onError: (error: any) => {
@@ -89,7 +91,7 @@ function BiomeManagerDialog({
       }
 
       setErrorToastItems(items);
-      toggleErrorToast();
+      setShowErrorToast(true);
       console.error("Save error:", error);
     },
   });
@@ -118,8 +120,8 @@ function BiomeManagerDialog({
             className="w-64 max-w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
             value={selectedBiome?.biomeType ?? ""}
             onChange={(e) => {
-              const selectedType = Number(e.target.value);
-              onSelectBiomeManagerSelection(Number.isFinite(selectedType) ? selectedType : null);
+              const raw = e.target.value;
+              onSelectBiomeManagerSelection(raw === "" ? null : Number(raw));
             }}>
             {orderedBiomes.map((b) => (
               <option key={b.biomeType} value={b.biomeType}>
@@ -148,7 +150,7 @@ function BiomeManagerDialog({
                   "block w-full px-3 py-2 text-left text-sm",
                   activeSection === "general" ? "bg-slate-100 font-semibold" : "hover:bg-slate-50",
                 ].join(" ")}>
-                General Biome Properties
+                General Properties
               </button>
               <button
                 type="button"
@@ -166,7 +168,7 @@ function BiomeManagerDialog({
                   "block w-full px-3 py-2 text-left text-sm border-t border-slate-200",
                   activeSection === "passive" ? "bg-slate-100 font-semibold" : "hover:bg-slate-50",
                 ].join(" ")}>
-                Passive Material Resources
+                Passive Resources
               </button>
             </div>
           </div>
@@ -281,142 +283,98 @@ function BiomeManagerDialog({
 
               {activeSection === "regen" && (
                 <div className="absolute inset-0 overflow-auto">
-                  <div className="grid grid-cols-12 items-center gap-2 mb-2">
-                    <label className="col-span-6 text-sm text-slate-700">Regeneration Rate</label>
-                    <div className="col-span-6">
-                      <input
-                        className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
-                        type="number"
-                        disabled={!selectedBiome || mustBeTraversablePaintable}
-                        value={selectedBiome?.regenerationRate ?? ""}
-                        onChange={(e) => {
-                          const newValue = e.target.value === "" ? null : Number(e.target.value);
-                          handleBiomeFieldChange("regenerationRate", newValue as number | null);
-                        }}
-                      />
-                    </div>
-                  </div>
+                  <BiomeResource
+                    label="Regeneration Rate"
+                    biome={selectedBiome}
+                    field="regenerationRate"
+                    disabled={!selectedBiome || mustBeTraversablePaintable}
+                    emptyToNull={true}
+                    onChange={handleBiomeFieldChange}
+                  />
 
-                  <div className="grid grid-cols-12 items-center gap-2 mb-2">
-                    <label className="col-span-6 text-sm text-slate-700">Base Forage</label>
-                    <div className="col-span-6">
-                      <input
-                        className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
-                        type="number"
-                        disabled={!selectedBiome || mustBeTraversablePaintableLand}
-                        placeholder="n/a"
-                        value={selectedBiome?.baseForageValue ?? ""}
-                        onChange={(e) => handleBiomeFieldChange("baseForageValue", Number(e.target.value))}
-                      />
-                    </div>
-                  </div>
+                  <BiomeResource
+                    label="Base Forage"
+                    biome={selectedBiome}
+                    field="baseForageValue"
+                    disabled={!selectedBiome || mustBeTraversablePaintableLand}
+                    placeholder="specify..."
+                    disabledPlaceholder="n/a"
+                    onChange={handleBiomeFieldChange}
+                  />
 
-                  <div className="grid grid-cols-12 items-center gap-2 mb-2">
-                    <label className="col-span-6 text-sm text-slate-700">Base Hunt</label>
-                    <div className="col-span-6">
-                      <input
-                        className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
-                        type="number"
-                        disabled={!selectedBiome || mustBeTraversablePaintableLand}
-                        placeholder="n/a"
-                        value={selectedBiome?.baseHuntValue ?? ""}
-                        onChange={(e) => handleBiomeFieldChange("baseHuntValue", Number(e.target.value))}
-                      />
-                    </div>
-                  </div>
+                  <BiomeResource
+                    label="Base Hunt"
+                    biome={selectedBiome}
+                    field="baseHuntValue"
+                    disabled={!selectedBiome || mustBeTraversablePaintableLand}
+                    placeholder="specify..."
+                    disabledPlaceholder="n/a"
+                    onChange={handleBiomeFieldChange}
+                  />
 
-                  <div className="grid grid-cols-12 items-center gap-2 mb-2">
-                    <label className="col-span-6 text-sm text-slate-700">Base Fish</label>
-                    <div className="col-span-6">
-                      <input
-                        className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
-                        type="number"
-                        disabled={
-                          !selectedBiome ||
-                          selectedBiome?.isTraversable === false ||
-                          selectedBiome?.isPaintableOnCampaignMap === false ||
-                          selectedBiome?.isWater === false
-                        }
-                        placeholder="n/a"
-                        value={selectedBiome?.baseFishValue ?? ""}
-                        onChange={(e) => handleBiomeFieldChange("baseFishValue", Number(e.target.value))}
-                      />
-                    </div>
-                  </div>
+                  <BiomeResource
+                    label="Base Fish"
+                    biome={selectedBiome}
+                    field="baseFishValue"
+                    disabled={isFishDisabled}
+                    placeholder="specify..."
+                    disabledPlaceholder="n/a"
+                    onChange={handleBiomeFieldChange}
+                  />
 
-                  <div className="grid grid-cols-12 items-center gap-2 mb-2">
-                    <label className="col-span-6 text-sm text-slate-700">Base Fodder</label>
-                    <div className="col-span-6">
-                      <input
-                        className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
-                        type="number"
-                        disabled={!selectedBiome || mustBeTraversablePaintableLand}
-                        placeholder="n/a"
-                        value={selectedBiome?.baseFodderValue ?? ""}
-                        onChange={(e) => handleBiomeFieldChange("baseFodderValue", Number(e.target.value))}
-                      />
-                    </div>
-                  </div>
+                  <BiomeResource
+                    label="Base Fodder"
+                    biome={selectedBiome}
+                    field="baseFodderValue"
+                    disabled={!selectedBiome || mustBeTraversablePaintableLand}
+                    placeholder="specify..."
+                    disabledPlaceholder="n/a"
+                    onChange={handleBiomeFieldChange}
+                  />
                 </div>
               )}
 
               {activeSection === "passive" && (
                 <div className="absolute inset-0 overflow-auto">
-                  <div className="grid grid-cols-12 items-center gap-2 mb-2">
-                    <label className="col-span-6 text-sm text-slate-700">Base Bone</label>
-                    <div className="col-span-6">
-                      <input
-                        className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
-                        type="number"
-                        disabled={!selectedBiome || mustBeTraversablePaintable}
-                        placeholder="n/a"
-                        value={selectedBiome?.baseBoneValue ?? ""}
-                        onChange={(e) => handleBiomeFieldChange("baseBoneValue", Number(e.target.value))}
-                      />
-                    </div>
-                  </div>
+                  <BiomeResource
+                    label="Base Bone"
+                    biome={selectedBiome}
+                    field="baseBoneValue"
+                    disabled={!selectedBiome || mustBeTraversablePaintable}
+                    placeholder="specify..."
+                    disabledPlaceholder="n/a"
+                    onChange={handleBiomeFieldChange}
+                  />
 
-                  <div className="grid grid-cols-12 items-center gap-2 mb-2">
-                    <label className="col-span-6 text-sm text-slate-700">Base Wood</label>
-                    <div className="col-span-6">
-                      <input
-                        className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
-                        type="number"
-                        disabled={!selectedBiome || mustBeTraversablePaintableLand}
-                        placeholder="n/a"
-                        value={selectedBiome?.baseWoodValue ?? ""}
-                        onChange={(e) => handleBiomeFieldChange("baseWoodValue", Number(e.target.value))}
-                      />
-                    </div>
-                  </div>
+                  <BiomeResource
+                    label="Base Wood"
+                    biome={selectedBiome}
+                    field="baseWoodValue"
+                    disabled={!selectedBiome || mustBeTraversablePaintableLand}
+                    placeholder="specify..."
+                    disabledPlaceholder="n/a"
+                    onChange={handleBiomeFieldChange}
+                  />
 
-                  <div className="grid grid-cols-12 items-center gap-2 mb-2">
-                    <label className="col-span-6 text-sm text-slate-700">Base Stone</label>
-                    <div className="col-span-6">
-                      <input
-                        className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
-                        type="number"
-                        disabled={!selectedBiome || mustBeTraversablePaintableLand}
-                        placeholder="n/a"
-                        value={selectedBiome?.baseStoneValue ?? ""}
-                        onChange={(e) => handleBiomeFieldChange("baseStoneValue", Number(e.target.value))}
-                      />
-                    </div>
-                  </div>
+                  <BiomeResource
+                    label="Base Stone"
+                    biome={selectedBiome}
+                    field="baseStoneValue"
+                    disabled={!selectedBiome || mustBeTraversablePaintableLand}
+                    placeholder="specify..."
+                    disabledPlaceholder="n/a"
+                    onChange={handleBiomeFieldChange}
+                  />
 
-                  <div className="grid grid-cols-12 items-center gap-2 mb-2">
-                    <label className="col-span-6 text-sm text-slate-700">Base Special</label>
-                    <div className="col-span-6">
-                      <input
-                        className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
-                        type="number"
-                        disabled={!selectedBiome || mustBeTraversablePaintable}
-                        placeholder="n/a"
-                        value={selectedBiome?.baseSpecialValue ?? ""}
-                        onChange={(e) => handleBiomeFieldChange("baseSpecialValue", Number(e.target.value))}
-                      />
-                    </div>
-                  </div>
+                  <BiomeResource
+                    label="Base Special"
+                    biome={selectedBiome}
+                    field="baseSpecialValue"
+                    disabled={!selectedBiome || mustBeTraversablePaintable}
+                    placeholder="specify..."
+                    disabledPlaceholder="n/a"
+                    onChange={handleBiomeFieldChange}
+                  />
                 </div>
               )}
             </div>

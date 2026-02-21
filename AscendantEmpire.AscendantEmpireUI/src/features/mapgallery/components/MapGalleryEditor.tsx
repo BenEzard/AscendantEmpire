@@ -300,6 +300,7 @@ function MapGalleryEditor() {
                 menuDisabled={biomesLoading}
                 items={(biomes ?? [])
                   .slice()
+                  .filter((b) => b.isPaintableOnCampaignMap)
                   .sort((a, b) => a.name.localeCompare(b.name))
                   .map((b) => ({
                     key: b.biomeType,
@@ -326,6 +327,7 @@ function MapGalleryEditor() {
                 menuDisabled={geographiesLoading}
                 items={(geographies ?? [])
                   .slice()
+                  .filter((b) => b.isPaintableOnCampaignMap)
                   .sort((a, b) => a.name.localeCompare(b.name))
                   .map((g) => ({
                     key: g.campaignMapGeographyType,
