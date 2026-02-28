@@ -1,9 +1,17 @@
 ﻿namespace AscendantEmpire.BackendContracts.CampaignMaps;
 
-public class Coord : ICoord
+public class Coord : FrontendContracts.Maps.ICoord
 {
     public int X { get; set; }
     public int Y { get; set; }
+
+    public Coord() { }
+
+    public Coord (int x, int y)
+    {
+        X = x;
+        Y = y;
+    }
 
     /// <summary>
     /// Converts the coordinates to an EnhancedCoord object, which include the database ID of the record.

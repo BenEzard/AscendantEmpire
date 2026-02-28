@@ -1,6 +1,6 @@
 ﻿using AscendantEmpire.Domain.Enums.Maps;
 
-namespace AcendantEmpire.BackendContracts.Biomes;
+namespace AscendantEmpire.BackendContracts.Biomes;
 
 public record CampaignMapBiome
 {

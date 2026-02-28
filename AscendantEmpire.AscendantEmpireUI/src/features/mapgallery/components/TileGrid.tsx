@@ -1,7 +1,7 @@
 // src/features/map-gallery/components/TileGrid.tsx
 import React from "react";
 import Tile from "./Tile";
-import type { TileCell } from "./TileTypes";
+import type { TileCell } from "../types/TileTypes";
 import type { Geography } from "@/types/map/Geography";
 
 export const TILE_SIZE_PX = 30;
@@ -12,6 +12,8 @@ export interface TileGridProps {
   tiles2d: TileCell[][];
   geographies: Geography[];
   onTileClick?: (tile: TileCell) => void;
+  onTileHover?: (tile: TileCell) => void;
+  onTileHoverEnd?: () => void;
 
   /**
    * Optional hooks you can use for tooltips / styling.
@@ -21,12 +23,23 @@ export interface TileGridProps {
   tileClassName?: string;
 }
 
-export default function TileGrid({ width, height, tiles2d, geographies, onTileClick, getTileTitle, getTileStyle, tileClassName }: TileGridProps) {
+export default function TileGrid({
+  width,
+  height,
+  tiles2d,
+  geographies,
+  onTileClick,
+  onTileHover,
+  onTileHoverEnd,
+  getTileTitle,
+  getTileStyle,
+  tileClassName,
+}: TileGridProps) {
   // Flatten row-major (y then x)
   const flat = React.useMemo(() => tiles2d.flat(), [tiles2d]);
 
   return (
-    <div style={{ overflow: "auto", border: "1px solid rgba(0,0,0,0.125)" }}>
+    <div style={{ overflow: "auto", border: "1px solid rgba(0,0,0,0.125)" }} onMouseLeave={onTileHoverEnd}>
       <div
         style={{
           display: "grid",
@@ -35,8 +48,8 @@ export default function TileGrid({ width, height, tiles2d, geographies, onTileCl
           gap: 0, // crisp grid (no spacing)
         }}>
         {flat.map((t) => {
-          const g = geographies.find((g) => g.campaignMapGeographyType === t.geographyTypeId);
-          if (!g) {
+          const g = t.geographyTypeId == null ? null : (geographies.find((g) => g.campaignMapGeographyType === t.geographyTypeId) ?? null);
+          if (t.geographyTypeId != null && !g) {
             throw new Error(`No Geography found for geographyTypeId=${t.geographyTypeId} at (${t.x},${t.y})`);
           }
 
@@ -47,6 +60,7 @@ export default function TileGrid({ width, height, tiles2d, geographies, onTileCl
               geography={g}
               sizePx={TILE_SIZE_PX}
               onClick={onTileClick}
+              onHover={onTileHover}
               getTitle={getTileTitle}
               getStyle={getTileStyle}
               className={tileClassName}

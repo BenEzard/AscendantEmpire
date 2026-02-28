@@ -9,6 +9,7 @@ public interface ICampaignMapGalleryIndex
     string Description { get; }
     int Width { get; }
     int Height { get; }
+    int CampaignMapOffsetId { get; }
     MapCreationStatus CreationStatus { get; }
     MapCreationEngine CreationEngine { get; }
     string? PropertiesJson { get; }

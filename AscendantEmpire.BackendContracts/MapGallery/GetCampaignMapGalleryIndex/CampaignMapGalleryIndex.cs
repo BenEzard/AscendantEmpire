@@ -10,6 +10,7 @@ public record CampaignMapGalleryIndex : ICampaignMapGalleryIndex
     public required string Description { get; init; }
     public required int Width { get; init; }
     public required int Height { get; init; }
+    public required int CampaignMapOffsetId { get; init; }
     public required MapCreationStatus CreationStatus { get; init; }
     public required MapCreationEngine CreationEngine { get; init; }
     public required string Status { get; init; }

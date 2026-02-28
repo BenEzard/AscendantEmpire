@@ -5,10 +5,14 @@ export type DropButtonItemKey = string | number;
 
 export interface DropButtonItem {
   key: DropButtonItemKey;
-  label: string;
+  label: ReactNode;
+  /** Optional hover tooltip for this menu item. */
+  title?: string;
   active?: boolean;
   disabled?: boolean;
   onSelect: () => void;
+  /** Optional mouse-wheel handler while hovering this item. */
+  onWheel?: (direction: "up" | "down") => void;
 }
 
 interface DropButtonProps {
@@ -16,14 +20,37 @@ interface DropButtonProps {
   icon?: ReactNode;
   title?: string;
 
+  /** Optional classes applied to the outermost wrapper. */
+  className?: string;
+
+  /** Optional classes applied to the button frame (the rounded border wrapper). */
+  frameClassName?: string;
+
   disabled?: boolean;
   onClick: () => void;
 
   items: DropButtonItem[];
   menuDisabled?: boolean;
+
+  /** Layout for the dropdown menu. */
+  menuLayout?: "list" | "grid";
+  /** Only used when menuLayout is "grid". */
+  menuGridColumns?: number;
 }
 
-export default function DropButton({ label, icon, title, disabled = false, onClick, items, menuDisabled = false }: DropButtonProps) {
+export default function DropButton({
+  label,
+  icon,
+  title,
+  className = "",
+  frameClassName = "",
+  disabled = false,
+  onClick,
+  items,
+  menuDisabled = false,
+  menuLayout = "list",
+  menuGridColumns = 3,
+}: DropButtonProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLSpanElement | null>(null);
 
@@ -55,15 +82,15 @@ export default function DropButton({ label, icon, title, disabled = false, onCli
   }, [open]);
 
   return (
-    <span ref={rootRef} className="relative inline-flex align-middle" title={effectiveTitle}>
-      <span className="inline-flex overflow-hidden rounded-md border border-black/20">
+    <span ref={rootRef} className={"relative inline-flex align-middle " + className} title={effectiveTitle}>
+      <span className={"inline-flex overflow-hidden rounded-md border border-black/20 " + frameClassName}>
         <button
           type="button"
           disabled={disabled}
           onClick={disabled ? undefined : onClick}
           className={
             "inline-flex items-center justify-center gap-2 bg-white/90 px-2 py-1.5 text-[1.5rem] leading-none text-black/80 " +
-            "hover:bg-white/95 disabled:cursor-not-allowed"
+            "hover:bg-white/95 disabled:cursor-not-allowed disabled:text-black/40"
           }
           aria-label={label}>
           {icon}
@@ -75,7 +102,7 @@ export default function DropButton({ label, icon, title, disabled = false, onCli
           onClick={arrowDisabled ? undefined : () => setOpen((v) => !v)}
           className={
             "inline-flex w-5 items-center justify-center border-l border-black/20 bg-white/90 px-0 py-1.5 text-black/70 " +
-            "hover:bg-white/95 disabled:cursor-not-allowed"
+            "hover:bg-white/95 disabled:cursor-not-allowed disabled:text-black/40"
           }
           aria-haspopup="menu"
           aria-expanded={open}
@@ -88,32 +115,83 @@ export default function DropButton({ label, icon, title, disabled = false, onCli
         <div
           role="menu"
           className="absolute left-0 top-full z-50 mt-1 min-w-48 overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
-          {items.map((item) => {
-            const itemDisabled = !!item.disabled;
-            const itemActive = !!item.active;
+          {menuLayout === "grid" ? (
+            <div
+              className="grid gap-1 p-1"
+              style={{
+                gridTemplateColumns: `repeat(${Math.max(1, menuGridColumns)}, minmax(0, 1fr))`,
+              }}>
+              {items.map((item) => {
+                const itemDisabled = !!item.disabled;
+                const itemActive = !!item.active;
 
-            return (
-              <button
-                key={String(item.key)}
-                type="button"
-                role="menuitem"
-                disabled={itemDisabled}
-                onClick={() => {
-                  if (itemDisabled) return;
-                  item.onSelect();
-                  setOpen(false);
-                }}
-                className={[
-                  "block w-full px-3 py-0.5 text-left text-sm",
-                  itemDisabled ? "cursor-not-allowed text-slate-400" : "text-slate-800 hover:bg-slate-100",
-                  itemActive ? "bg-slate-100 font-semibold" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}>
-                {item.label}
-              </button>
-            );
-          })}
+                return (
+                  <button
+                    key={String(item.key)}
+                    type="button"
+                    role="menuitem"
+                    disabled={itemDisabled}
+                    title={item.title}
+                    onWheel={(e) => {
+                      if (itemDisabled) return;
+                      if (!item.onWheel) return;
+                      e.preventDefault();
+                      e.stopPropagation();
+                      item.onWheel(e.deltaY < 0 ? "up" : "down");
+                    }}
+                    onClick={() => {
+                      if (itemDisabled) return;
+                      item.onSelect();
+                      setOpen(false);
+                    }}
+                    className={[
+                      "flex items-center justify-center overflow-hidden rounded px-2 py-2",
+                      itemDisabled ? "cursor-not-allowed text-slate-400" : "text-slate-800 hover:bg-slate-100",
+                      itemActive ? "bg-slate-100" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}>
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            items.map((item) => {
+              const itemDisabled = !!item.disabled;
+              const itemActive = !!item.active;
+
+              return (
+                <button
+                  key={String(item.key)}
+                  type="button"
+                  role="menuitem"
+                  disabled={itemDisabled}
+                  title={item.title}
+                  onWheel={(e) => {
+                    if (itemDisabled) return;
+                    if (!item.onWheel) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    item.onWheel(e.deltaY < 0 ? "up" : "down");
+                  }}
+                  onClick={() => {
+                    if (itemDisabled) return;
+                    item.onSelect();
+                    setOpen(false);
+                  }}
+                  className={[
+                    "block w-full px-3 py-0.5 text-left text-sm",
+                    itemDisabled ? "cursor-not-allowed text-slate-400" : "text-slate-800 hover:bg-slate-100",
+                    itemActive ? "bg-slate-100 font-semibold" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}>
+                  {item.label}
+                </button>
+              );
+            })
+          )}
         </div>
       )}
     </span>

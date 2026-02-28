@@ -653,7 +653,7 @@ internal class GetPlayerCampaignMapHandler(
     public class SeenTile
     {
         public required int Id { get; set; }
-        public required ICoord Coord { get; set; }
+        public required Coord Coord { get; set; }
         public required BiomeType BiomeType { get; set; }
         public required CampaignMapGeographyType GeographyType { get; set; }
     }

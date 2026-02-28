@@ -6,5 +6,5 @@ public class EnhancedCoord : Coord
 
     public EnhancedCoord() { }
 
-    public Coord ToCoord => new Coord { X = X, Y = Y };
+    public Coord ToCoord => new(X, Y);
 }

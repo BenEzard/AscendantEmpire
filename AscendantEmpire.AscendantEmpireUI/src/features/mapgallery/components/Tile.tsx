@@ -1,14 +1,16 @@
 // src/features/map-gallery/components/Tile.tsx
 import React from "react";
-import type { TileCell } from "./TileTypes";
+import type { TileCell } from "../types/TileTypes";
 import { iconMap } from "./mapEditorIcons";
 import type { Geography } from "@/types/map/Geography";
+import { cssColorToRgba, pickTextColorOnBg } from "@/util/color";
 
 export interface TileProps {
   tile: TileCell;
   sizePx: number;
-  geography: Geography;
+  geography: Geography | null;
   onClick?: (tile: TileCell) => void;
+  onHover?: (tile: TileCell) => void;
   className?: string;
   /**
    * Optional styling hooks.
@@ -17,7 +19,7 @@ export interface TileProps {
   getStyle?: (tile: TileCell) => React.CSSProperties;
 }
 
-const Tile = React.memo(function Tile({ tile, sizePx, geography, onClick, className, getTitle, getStyle }: TileProps) {
+const Tile = React.memo(function Tile({ tile, sizePx, geography, onClick, onHover, className, getTitle, getStyle }: TileProps) {
   const clickable = !!onClick;
 
   const baseStyle: React.CSSProperties = {
@@ -41,9 +43,22 @@ const Tile = React.memo(function Tile({ tile, sizePx, geography, onClick, classN
   const style = { ...baseStyle, ...(getStyle?.(tile) ?? {}) };
   const combinedClassName = ["tile", className].filter(Boolean).join(" ");
 
+  const bgCandidate =
+    (typeof style.background === "string" ? style.background : undefined) ??
+    (typeof style.backgroundColor === "string" ? style.backgroundColor : undefined);
+  const rgba = cssColorToRgba(bgCandidate);
+  const bgForContrast = rgba && rgba.a < 0.2 ? "#ffffff" : bgCandidate;
+  const iconColor = pickTextColorOnBg(bgForContrast);
+
   return (
-    <div className={combinedClassName} role={clickable ? "button" : undefined} title={getTitle?.(tile)} onClick={() => onClick?.(tile)} style={style}>
-      {Icon ? <Icon className="tile-icon-fill" aria-hidden /> : null}
+    <div
+      className={combinedClassName}
+      role={clickable ? "button" : undefined}
+      title={getTitle?.(tile)}
+      onClick={() => onClick?.(tile)}
+      onMouseEnter={() => onHover?.(tile)}
+      style={style}>
+      {Icon ? <Icon className="tile-icon-fill" aria-hidden style={{ color: iconColor }} /> : null}
     </div>
   );
 });

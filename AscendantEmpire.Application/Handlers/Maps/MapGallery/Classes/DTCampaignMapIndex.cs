@@ -1,5 +1,4 @@
-﻿using AscendantEmpire.BackendContracts.MapGallery.SearchCampaignMap;
-using AscendantEmpire.FrontendContracts.MapGallery.SearchCampaignMapIndex;
+﻿using AscendantEmpire.FrontendContracts.MapGallery.SearchCampaignMapIndex;
 
 namespace AscendantEmpire.Application.Handlers.Maps.MapGallery.Classes;
 

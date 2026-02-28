@@ -3,6 +3,7 @@ import React from "react";
 import type { Geography } from "@/types/map/Geography";
 import type { TileCell } from "./TileTypes";
 import { iconMap } from "./mapEditorIcons";
+import { cssColorToRgba, pickTextColorOnBg } from "@/util/color";
 
 export interface TileProps {
   tile: TileCell;
@@ -41,9 +42,16 @@ const Tile = React.memo(function Tile({ tile, sizePx, geography, onClick, classN
   const style = { ...baseStyle, ...(getStyle?.(tile) ?? {}) };
   const combinedClassName = ["tile", className].filter(Boolean).join(" ");
 
+  const bgCandidate =
+    (typeof style.background === "string" ? style.background : undefined) ??
+    (typeof style.backgroundColor === "string" ? style.backgroundColor : undefined);
+  const rgba = cssColorToRgba(bgCandidate);
+  const bgForContrast = rgba && rgba.a < 0.2 ? "#ffffff" : bgCandidate;
+  const iconColor = pickTextColorOnBg(bgForContrast);
+
   return (
     <div className={combinedClassName} role={clickable ? "button" : undefined} title={getTitle?.(tile)} onClick={() => onClick?.(tile)} style={style}>
-      {Icon ? <Icon className="tile-icon-fill" aria-hidden /> : null}
+      {Icon ? <Icon className="tile-icon-fill" aria-hidden style={{ color: iconColor }} /> : null}
     </div>
   );
 });

@@ -5,8 +5,8 @@ export interface CampaignMapTileDto {
   campaignMapGalleryIndexId: number;
   xCoord: number;
   yCoord: number;
-  biomeTypeId: number;
-  campaignMapGeographyTypeId: number;
+  biomeTypeId: number | null;
+  campaignMapGeographyTypeId: number | null;
 }
 
 export interface CampaignMapTilesResponse {
@@ -14,11 +14,13 @@ export interface CampaignMapTilesResponse {
   tiles: CampaignMapTileDto[];
 }
 
+export const mapGalleryTilesKey = (campaignMapGalleryIndexId: number | null) => ["mapGalleryTiles", campaignMapGalleryIndexId] as const;
+
 const API_BASE = "https://localhost:7242";
 
 export function useCampaignMapTilesQuery(campaignMapGalleryIndexId: number | null, enabled: boolean) {
   return useQuery<CampaignMapTilesResponse, Error>({
-    queryKey: ["mapGalleryTiles", campaignMapGalleryIndexId],
+    queryKey: mapGalleryTilesKey(campaignMapGalleryIndexId),
     enabled: enabled && campaignMapGalleryIndexId != null,
     refetchOnWindowFocus: false,
     queryFn: async () => {

@@ -32,6 +32,22 @@
   align-items: center;
 }
 
+/* When a group uses a single render() button that contains multiple controls */
+.toolbar-exclusive {
+  display: inline-flex;
+  align-items: center;
+}
+
+.toolbar-exclusive > .toolbar-btn-wrapper:not(:last-child) {
+  margin-right: 0.125rem;
+}
+
+/* Orange active border for mutually-exclusive tool selection */
+.toolbar-exclusive .toolbar-button--active {
+  outline: 3px solid var(--bs-warning);
+  outline-offset: -2px;
+}
+
 .toolbar-button {
   display: flex;
   align-items: center;
@@ -70,4 +86,5 @@
 
 .toolbar-button:disabled {
   cursor: not-allowed;
+  color: rgba(0, 0, 0, 0.4);
 }

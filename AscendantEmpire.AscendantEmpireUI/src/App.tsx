@@ -31,8 +31,13 @@ function App() {
       </div>
 
       <div className="flex-1 min-h-0">
-        {tabKey === "map-editor" ? <MapGalleryEditor /> : null}
-        {tabKey === "game" ? <GameUI /> : null}
+        <div className={tabKey === "map-editor" ? "block h-full" : "hidden"} aria-hidden={tabKey !== "map-editor"}>
+          <MapGalleryEditor />
+        </div>
+
+        <div className={tabKey === "game" ? "block h-full" : "hidden"} aria-hidden={tabKey !== "game"}>
+          <GameUI />
+        </div>
       </div>
     </div>
   );

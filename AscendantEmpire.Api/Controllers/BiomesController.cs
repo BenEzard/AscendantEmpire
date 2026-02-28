@@ -1,5 +1,3 @@
-using AcendantEmpire.BackendContracts.Biomes;
-
 using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Handlers.Maps.Biomes;

@@ -23,6 +23,9 @@ public static class ServiceResultExtensions
             case ServiceResultStatus.SuccessNoContent:
                 result = new StatusCodeResult((int)serviceResult.StatusCode);
                 break;
+            case ServiceResultStatus.PartialSuccess:
+                result = new StatusCodeResult((int)serviceResult.StatusCode);
+                break;
             case ServiceResultStatus.GenericError:
             case ServiceResultStatus.Forbidden:
             case ServiceResultStatus.NotFound:
@@ -59,6 +62,12 @@ public static class ServiceResultExtensions
             case ServiceResultStatus.Success:
             case ServiceResultStatus.Created:
             case ServiceResultStatus.SuccessNoContent:
+                result = new ObjectResult(contactMapping(serviceResult.SuccessValue))
+                {
+                    StatusCode = (int)serviceResult.StatusCode
+                };
+                break;
+            case ServiceResultStatus.PartialSuccess:
                 result = new ObjectResult(contactMapping(serviceResult.SuccessValue))
                 {
                     StatusCode = (int)serviceResult.StatusCode
