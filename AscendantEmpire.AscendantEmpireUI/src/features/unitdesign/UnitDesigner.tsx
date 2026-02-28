@@ -5,8 +5,24 @@ import SlotPlaceHolder from "./SlotPlaceHolder";
 import ComponentSelectionWindow from "./ComponentSelectionWindow";
 
 import { DUMMY_UNIT_COMPONENTS } from "./dummyUnitComponents";
-import type { BaseSlotType, UnitComponent } from "./types/UnitComponent";
+import { ALL_DAMAGE_TYPES } from "./types/UnitComponent";
+import type { BaseSlotType, ComponentCost, ComponentUpkeep, UnitComponent, WeaponStats } from "./types/UnitComponent";
 import type { UnitComponentType } from "./types/UnitComponentType";
+import type { DamageType } from "./types/DamageType";
+
+function makeInitialSlotPlaceholders() {
+  return [
+    {
+      componentId: 1,
+      type: "base" as const,
+      label: "Base",
+      offsetX: 0,
+      offsetY: 0,
+      selectedComponentId: null as number | null,
+      selectedName: null as string | null,
+    },
+  ];
+}
 
 export interface UnitDesignerProps {
   onClose?: () => void;
@@ -39,19 +55,14 @@ export default function UnitDesigner({ onClose }: UnitDesignerProps) {
     onClose?.();
   };
 
+  const resetToInitialView = () => {
+    setSelectionOpenFor(null);
+    setSlotPlaceholders(makeInitialSlotPlaceholders());
+  };
+
   useEffect(() => {
     if (slotPlaceholders.length > 0) return;
-    setSlotPlaceholders([
-      {
-        componentId: 1,
-        type: "base",
-        label: "Base",
-        offsetX: 0,
-        offsetY: 0,
-        selectedComponentId: null,
-        selectedName: null,
-      },
-    ]);
+    setSlotPlaceholders(makeInitialSlotPlaceholders());
   }, [slotPlaceholders.length]);
 
   useEffect(() => {
@@ -133,7 +144,84 @@ export default function UnitDesigner({ onClose }: UnitDesignerProps) {
     return m;
   }, []);
 
+  const totalDesignCost: ComponentCost = useMemo(() => {
+    const totals: ComponentCost = {};
+
+    for (const p of slotPlaceholders) {
+      if (p.selectedComponentId == null) continue;
+      const c = componentById.get(p.selectedComponentId);
+      if (!c) continue;
+
+      for (const [resource, amount] of Object.entries(c.common.cost)) {
+        if (!amount) continue;
+        totals[resource] = (totals[resource] ?? 0) + amount;
+      }
+    }
+
+    return totals;
+  }, [componentById, slotPlaceholders]);
+
+  const totalDesignUpkeep: ComponentUpkeep = useMemo(() => {
+    const totals: ComponentUpkeep = {};
+
+    for (const p of slotPlaceholders) {
+      if (p.selectedComponentId == null) continue;
+      const c = componentById.get(p.selectedComponentId);
+      if (!c) continue;
+
+      for (const [category, resources] of Object.entries(c.common.upkeep ?? {})) {
+        if (!resources) continue;
+        const categoryTotals = (totals[category as keyof ComponentUpkeep] ?? {}) as Record<string, number>;
+
+        for (const [resource, amount] of Object.entries(resources)) {
+          if (!amount) continue;
+          categoryTotals[resource] = (categoryTotals[resource] ?? 0) + amount;
+        }
+
+        totals[category as keyof ComponentUpkeep] = categoryTotals;
+      }
+    }
+
+    return totals;
+  }, [componentById, slotPlaceholders]);
+
+  const totalDesignBattleStats: WeaponStats = useMemo(() => {
+    const emptyProfile = () => {
+      const out = {} as Record<DamageType, number>;
+      for (const dt of ALL_DAMAGE_TYPES) out[dt] = 0;
+      return out;
+    };
+
+    const totals: WeaponStats = {
+      attack: emptyProfile(),
+      defense: emptyProfile(),
+    };
+
+    for (const p of slotPlaceholders) {
+      if (p.selectedComponentId == null) continue;
+      const c = componentById.get(p.selectedComponentId);
+      if (!c) continue;
+
+      if (!("weapon" in c)) continue;
+
+      for (const dt of ALL_DAMAGE_TYPES) {
+        const a = c.weapon.attack[dt];
+        const d = c.weapon.defense[dt];
+        if (Number.isFinite(a) && a) totals.attack[dt] += a;
+        if (Number.isFinite(d) && d) totals.defense[dt] += d;
+      }
+    }
+
+    return totals;
+  }, [componentById, slotPlaceholders]);
+
   const baseIconUrl = selectedBaseComponent?.iconUrl;
+
+  const baseIconNode = useMemo(() => {
+    if (selectedBaseComponent?.type !== "base") return null;
+    const Icon = selectedBaseComponent.icon;
+    return Icon ? <Icon className="h-[70%] w-auto opacity-80 text-white/80" aria-hidden /> : null;
+  }, [selectedBaseComponent]);
 
   const cx = surfaceSize.width / 2;
   const cy = surfaceSize.height / 2;
@@ -151,42 +239,49 @@ export default function UnitDesigner({ onClose }: UnitDesignerProps) {
         flex: 1,
         minHeight: 0,
       }}>
-      <UnitDesignHeader onClose={handleClose} />
+      <UnitDesignHeader onClose={handleClose} onReset={resetToInitialView} />
 
       <div className="flex flex-1 min-h-0">
         <div className="relative flex-1" style={{ minWidth: 0, minHeight: 0 }}>
           <div ref={surfaceRef} className="absolute inset-0" style={{ minWidth: 0, minHeight: 0 }}>
-            {baseIconUrl && (
+            {(baseIconUrl || baseIconNode) && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <img src={baseIconUrl} alt={selectedBaseComponent?.name ?? "Base"} className="h-[80%] w-auto opacity-80" draggable={false} />
+                {baseIconUrl ? (
+                  <img src={baseIconUrl} alt={selectedBaseComponent?.name ?? "Base"} className="h-[80%] w-auto opacity-80" draggable={false} />
+                ) : (
+                  baseIconNode
+                )}
               </div>
             )}
-            {slotPlaceholders.map((p) => (
+            {slotPlaceholders.map((p) =>
               (() => {
                 const selectedComponent = p.selectedComponentId != null ? componentById.get(p.selectedComponentId) : null;
                 const selectedIconUrl = selectedComponent?.iconUrl ?? null;
                 const selectedDisplayName = p.selectedName ?? selectedComponent?.name ?? null;
+                const SelectedIcon = selectedComponent?.icon;
+                const selectedIcon = SelectedIcon ? <SelectedIcon className="h-10 w-10 text-white/90" aria-hidden /> : null;
 
                 return (
-              <SlotPlaceHolder
-                key={p.componentId}
-                componentId={p.componentId}
-                type={p.type}
-                text={p.selectedName ? `${p.label}: ${p.selectedName}` : p.label}
-                iconUrl={selectedIconUrl}
-                name={selectedDisplayName}
-                x={cx + p.offsetX * dx}
-                y={cy + p.offsetY * dy}
-                onClick={(args) => setSelectionOpenFor(args)}
-              />
+                  <SlotPlaceHolder
+                    key={p.componentId}
+                    componentId={p.componentId}
+                    type={p.type}
+                    text={p.selectedName ? `${p.label}: ${p.selectedName}` : p.label}
+                    iconUrl={selectedIconUrl}
+                    icon={selectedIcon}
+                    name={selectedDisplayName}
+                    x={cx + p.offsetX * dx}
+                    y={cy + p.offsetY * dy}
+                    onClick={(args) => setSelectionOpenFor(args)}
+                  />
                 );
-              })()
-            ))}
+              })(),
+            )}
           </div>
         </div>
 
         <div className="basis-1/5 shrink-0" style={{ minHeight: 0 }}>
-          <DesignProperties />
+          <DesignProperties totalCost={totalDesignCost} totalUpkeep={totalDesignUpkeep} totalBattleStats={totalDesignBattleStats} />
         </div>
       </div>
 
@@ -200,6 +295,7 @@ export default function UnitDesigner({ onClose }: UnitDesignerProps) {
           components={selectionComponents}
           onConfirm={({ selectedComponentId: _selectedComponentId, selectedName }) => {
             if (selectionOpenFor.type === "base") {
+              if (_selectedComponentId == null) return;
               const base = DUMMY_UNIT_COMPONENTS.find((c) => c.type === "base" && c.id === _selectedComponentId) as
                 | Extract<UnitComponent, { type: "base" }>
                 | undefined;
@@ -207,7 +303,9 @@ export default function UnitDesigner({ onClose }: UnitDesignerProps) {
             } else {
               setSlotPlaceholders((prev) =>
                 prev.map((p) =>
-                  p.componentId === selectionOpenFor.componentId ? { ...p, selectedName, selectedComponentId: _selectedComponentId } : p,
+                  p.componentId === selectionOpenFor.componentId
+                    ? { ...p, selectedName: selectedName ?? null, selectedComponentId: _selectedComponentId }
+                    : p,
                 ),
               );
             }

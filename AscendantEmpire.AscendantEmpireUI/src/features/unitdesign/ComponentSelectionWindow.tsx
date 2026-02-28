@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import ComponentCard from "./ComponentCard";
 import ComponentProperty from "./ComponentProperty";
+import { SlClose } from "react-icons/sl";
 
-import type { UnitComponent, UnitComponentType } from "./types/UnitComponent";
+import type { UnitComponent } from "./types/UnitComponent";
 import { labelForUnitComponentType } from "./types/UnitComponent";
+import type { UnitComponentType } from "./types/UnitComponentType";
 import type { Domain } from "@/features/unitdesign/types/Domain";
 
 export interface ComponentSelectionWindowProps {
@@ -14,7 +16,7 @@ export interface ComponentSelectionWindowProps {
   selectedComponentId?: number | null;
   components: UnitComponent[];
   onClose: () => void;
-  onConfirm: (args: { selectedComponentId: number; selectedName: string }) => void;
+  onConfirm: (args: { selectedComponentId: number | null; selectedName: string | null }) => void;
 }
 
 export default function ComponentSelectionWindow({
@@ -44,10 +46,20 @@ export default function ComponentSelectionWindow({
     setActiveSelectedComponentId(selectedComponentId ?? null);
   }, [open, selectedComponentId]);
 
+  const currentSlotSelectionName = useMemo(() => {
+    if (selectedComponentId == null) return null;
+    return components.find((c) => c.id === selectedComponentId)?.name ?? null;
+  }, [components, selectedComponentId]);
+
   const selectedComponent = useMemo(() => {
     if (activeSelectedComponentId == null) return null;
     return components.find((c) => c.id === activeSelectedComponentId) ?? null;
   }, [activeSelectedComponentId, components]);
+
+  const existingSelectionComponent = useMemo(() => {
+    if (selectedComponentId == null) return null;
+    return components.find((c) => c.id === selectedComponentId) ?? null;
+  }, [components, selectedComponentId]);
 
   if (!open) return null;
 
@@ -81,6 +93,13 @@ export default function ComponentSelectionWindow({
             </select>
           </label>
 
+          {currentSlotSelectionName && (
+            <div className="shrink-0 text-xs text-white/70 leading-tight">
+              <div className="whitespace-nowrap">Current Selection:</div>
+              <div className="whitespace-nowrap font-semibold text-white/80">{currentSlotSelectionName}</div>
+            </div>
+          )}
+
           <button
             type="button"
             className="shrink-0 rounded-md px-2 py-1 hover:bg-white/15 text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
@@ -98,6 +117,10 @@ export default function ComponentSelectionWindow({
                   key={c.id}
                   name={c.name}
                   properties={c.properties}
+                  icon={(() => {
+                    const Icon = c.icon;
+                    return Icon ? <Icon className="h-10 w-10 text-slate-700" aria-hidden /> : undefined;
+                  })()}
                   imageUrl={c.iconUrl}
                   imageAlt={c.iconUrl ? c.name : undefined}
                   selected={activeSelectedComponentId === c.id}
@@ -108,11 +131,26 @@ export default function ComponentSelectionWindow({
                   }}
                 />
               ))}
+
+              {type !== "base" && (
+                <ComponentCard
+                  key="__none__"
+                  name="No Selection"
+                  properties={{}}
+                  icon={<SlClose className="h-8 w-8 text-slate-600" aria-hidden />}
+                  selected={activeSelectedComponentId == null}
+                  onClick={() => {
+                    setActiveSelectedComponentId(null);
+                    onConfirm({ selectedComponentId: null, selectedName: null });
+                    onClose();
+                  }}
+                />
+              )}
             </div>
           </div>
 
           <div className="basis-1/5 shrink-0">
-            <ComponentProperty selectedComponent={selectedComponent} />
+            <ComponentProperty selectedComponent={selectedComponent} existingSelection={existingSelectionComponent} />
           </div>
         </div>
       </div>

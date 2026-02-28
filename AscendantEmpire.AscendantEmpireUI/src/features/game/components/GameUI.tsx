@@ -5,6 +5,7 @@ import {
   useClearPlayerCampaignMapMutation,
   useLoadPlayerCampaignMapMutation,
   usePlayerCampaignMapTilesQuery,
+  playerCampaignTilesKey,
 } from "@/features/map/hooks/useCampaignMapTiles";
 import TileGrid from "@/features/map/components/TileGrid";
 import type { TileCell } from "@/features/map/components/TileTypes";
@@ -23,6 +24,8 @@ import VisionSettingsOffcanvas from "./VisionSettingsOffcanvas";
 import type { OpenGameSelection } from "../types/OpenGameSelection";
 import { GrCaretNext } from "react-icons/gr";
 import { http } from "@/api/http";
+import { SlClose } from "react-icons/sl";
+import { useQueryClient } from "@tanstack/react-query";
 
 function buildTiles2d(
   width: number,
@@ -80,6 +83,8 @@ function GameUI() {
   const prevActiveToolRef = useRef<ActiveTool>(null);
 
   const [gameSelection, setGameSelection] = useState<OpenGameSelection | null>(null);
+
+  const queryClient = useQueryClient();
 
   const gameGuid = gameSelection?.gameGuid;
   const playerGuid = gameSelection?.playerGuid;
@@ -148,10 +153,24 @@ function GameUI() {
     clearPlayerCampaignMap.mutate({ gameGuid, playerGuid });
   }, [clearPlayerCampaignMap, gameGuid, playerGuid]);
 
+  const closeGame = useCallback(() => {
+    if (gameGuid && playerGuid) {
+      const key = playerCampaignTilesKey(gameGuid, playerGuid);
+      queryClient.cancelQueries({ queryKey: key });
+      queryClient.removeQueries({ queryKey: key });
+    }
+
+    setGameSelection(null);
+    setActiveDialog(null);
+  }, [gameGuid, playerGuid, queryClient]);
+
   const toolBarGroups: ToolBarGroup[] = [
     {
       caption: "Game",
-      buttons: [{ key: "open", icon: <FaRegFolderOpen />, tooltip: "Open Game", onClick: () => setActiveDialog("openGame") }],
+      buttons: [
+        { key: "open", icon: <FaRegFolderOpen />, tooltip: "Open Game", onClick: () => setActiveDialog("openGame") },
+        { key: "close", icon: <SlClose />, tooltip: "Close Game", disabled: gameSelection == null, onClick: closeGame },
+      ],
     },
     {
       caption: "Dev Tools",

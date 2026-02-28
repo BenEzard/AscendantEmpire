@@ -3,12 +3,13 @@ export interface ComponentCardProps {
   properties: Record<string, number>;
   imageUrl?: string;
   imageAlt?: string;
+  icon?: React.ReactNode;
   selected?: boolean;
   onClick?: () => void;
   onDoubleClick?: () => void;
 }
 
-export default function ComponentCard({ name, imageUrl, imageAlt, selected = false, onClick, onDoubleClick }: ComponentCardProps) {
+export default function ComponentCard({ name, imageUrl, imageAlt, icon, selected = false, onClick, onDoubleClick }: ComponentCardProps) {
   return (
     <button
       type="button"
@@ -22,6 +23,7 @@ export default function ComponentCard({ name, imageUrl, imageAlt, selected = fal
       onDoubleClick={onDoubleClick}
       aria-label={name}>
       <div className="font-medium text-slate-900">{name}</div>
+      {icon && <div className="mt-1">{icon}</div>}
       {imageUrl && <img src={imageUrl} alt={imageAlt ?? name} className="h-16 w-auto object-contain" draggable={false} />}
     </button>
   );

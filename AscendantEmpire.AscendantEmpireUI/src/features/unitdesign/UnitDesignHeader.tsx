@@ -1,13 +1,24 @@
 import Button from "@/components/ui/Button";
+import { VscNewFile } from "react-icons/vsc";
 
 export interface UnitDesignHeaderProps {
   onClose: () => void;
+  onReset: () => void;
 }
 
-export default function UnitDesignHeader({ onClose }: UnitDesignHeaderProps) {
+export default function UnitDesignHeader({ onClose, onReset }: UnitDesignHeaderProps) {
   return (
     <div className="flex items-center justify-between border-b border-white/10 px-4 py-2">
-      <div className="text-lg font-semibold text-white">Unit Designer</div>
+      <div className="flex items-center gap-2">
+        <div className="text-lg font-semibold text-white">Unit Designer</div>
+        <button
+          type="button"
+          className="rounded-md p-2 text-white hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+          aria-label="Reset to initial view"
+          onClick={onReset}>
+          <VscNewFile className="h-4 w-4" aria-hidden />
+        </button>
+      </div>
       <Button variant="light" onClick={onClose}>
         Close
       </Button>

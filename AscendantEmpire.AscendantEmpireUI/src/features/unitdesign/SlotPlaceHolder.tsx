@@ -1,4 +1,5 @@
 import type { UnitComponentType } from "./types/UnitComponentType";
+import type { ReactNode } from "react";
 
 export interface SlotPlaceHolderProps {
   x: number;
@@ -6,6 +7,7 @@ export interface SlotPlaceHolderProps {
   type: UnitComponentType;
   text: string;
   iconUrl?: string | null;
+  icon?: ReactNode;
   name?: string | null;
   componentId: number;
   onClick?: (args: { componentId: number; type: UnitComponentType }) => void;
@@ -17,7 +19,7 @@ const typeTintClass: Partial<Record<UnitComponentType, string>> = {
   engine: "ring-2 ring-yellow-400/50 shadow-[0_0_0_4px_rgba(248,113,113,0.15)]",
 };
 
-export default function SlotPlaceHolder({ x, y, type, text, iconUrl, name, componentId, onClick }: SlotPlaceHolderProps) {
+export default function SlotPlaceHolder({ x, y, type, text, iconUrl, icon, name, componentId, onClick }: SlotPlaceHolderProps) {
   const isSelected = (name?.trim()?.length ?? 0) > 0;
   return (
     <button
@@ -37,7 +39,9 @@ export default function SlotPlaceHolder({ x, y, type, text, iconUrl, name, compo
       {isSelected ? (
         <>
           <div className="flex w-full flex-1 items-center justify-center">
-            {iconUrl ? (
+            {icon ? (
+              icon
+            ) : iconUrl ? (
               <img src={iconUrl} alt={name ?? ""} className="max-h-10 w-auto select-none object-contain" draggable={false} />
             ) : null}
           </div>

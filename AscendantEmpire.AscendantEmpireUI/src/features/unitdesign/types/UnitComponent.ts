@@ -1,10 +1,20 @@
 import type { Domain } from "@/features/unitdesign/types/Domain";
 import type { DamageType } from "./DamageType";
 import type { UnitComponentType } from "./UnitComponentType";
+import type { IconType } from "react-icons";
+
+export type ComponentCost = Record<string, number>;
+
+export type UpkeepCategory = "food" | "ammunition" | "fuel" | "repair";
+
+export type UpkeepResources = Record<string, number>;
+
+export type ComponentUpkeep = Partial<Record<UpkeepCategory, UpkeepResources>>;
 
 export interface CommonComponentStats {
   mass: number;
-  cost: number;
+  cost: ComponentCost;
+  upkeep?: ComponentUpkeep;
 }
 
 export type WeaponDamageProfile = Record<DamageType, number>;
@@ -35,6 +45,7 @@ export type UnitComponent =
       type: "base";
       domain: Domain;
       iconUrl?: string;
+      icon?: IconType;
       common: CommonComponentStats;
       properties: Record<string, number>;
       slots: BaseSlotDefinition[];
@@ -45,6 +56,7 @@ export type UnitComponent =
       type: "weapon";
       domain: Domain;
       iconUrl?: string;
+      icon?: IconType;
       /** Slot types this component can be installed into. Defaults to [type] when omitted. */
       slotTypes?: BaseSlotType[];
       /** If set, component is only valid for these base ids. */
@@ -59,6 +71,7 @@ export type UnitComponent =
       type: Exclude<UnitComponentType, "weapon" | "base">;
       domain: Domain;
       iconUrl?: string;
+      icon?: IconType;
       /** Slot types this component can be installed into. Defaults to [type] when omitted. */
       slotTypes?: BaseSlotType[];
       /** If set, component is only valid for these base ids. */
