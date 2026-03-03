@@ -37,16 +37,20 @@ export default function SlotPlaceHolder({ x, y, type, text, iconUrl, icon, name,
       }}
       onClick={() => onClick?.({ componentId, type })}>
       {isSelected ? (
-        <>
-          <div className="flex w-full flex-1 items-center justify-center">
-            {icon ? (
-              icon
-            ) : iconUrl ? (
-              <img src={iconUrl} alt={name ?? ""} className="max-h-10 w-auto select-none object-contain" draggable={false} />
-            ) : null}
-          </div>
-          <div className="w-full text-center text-xs font-semibold leading-tight text-white/90">{name}</div>
-        </>
+        type === "base" ? (
+          <div className="flex h-full w-full items-center justify-center text-center text-xs font-semibold leading-tight text-white/90">{name}</div>
+        ) : (
+          <>
+            <div className="flex w-full flex-1 items-center justify-center">
+              {icon ? (
+                icon
+              ) : iconUrl ? (
+                <img src={iconUrl} alt={name ?? ""} className="max-h-10 w-auto select-none object-contain" draggable={false} />
+              ) : null}
+            </div>
+            <div className="w-full text-center text-xs font-semibold leading-tight text-white/90">{name}</div>
+          </>
+        )
       ) : (
         <div className="text-center">{text}</div>
       )}

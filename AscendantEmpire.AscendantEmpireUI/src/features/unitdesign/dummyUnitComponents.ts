@@ -1,5 +1,4 @@
-import type { DamageType } from "./types/DamageType";
-import type { BaseSlotDefinition, ComponentCost, ComponentUpkeep, UnitComponent, WeaponDamageProfile } from "./types/UnitComponent";
+import type { BaseSlotDefinition, ComponentCost, ComponentUpkeep, UnitComponent } from "./types/UnitComponent";
 
 import humanSvgUrl from "@/assets/unit-design/human.svg";
 import gladiusUrl from "@/assets/unit-design/gladius.svg";
@@ -32,19 +31,6 @@ import woodClubUrl from "@/assets/unit-design/wood-club.svg";
 
 import { GiChariot, GiElephant } from "react-icons/gi";
 import { LiaHorseSolid } from "react-icons/lia";
-
-const DAMAGE_TYPES: readonly DamageType[] = ["crush", "pierce", "burn", "slash", "gas"] as const;
-
-function profile(seed: number, scale: number): WeaponDamageProfile {
-  const out = {} as WeaponDamageProfile;
-  for (const dt of DAMAGE_TYPES) {
-    let h = seed;
-    for (let i = 0; i < dt.length; i++) h = (h * 33 + dt.charCodeAt(i)) >>> 0;
-    const v = ((h % 1000) / 1000) * scale;
-    out[dt] = Math.round(v * 100) / 100;
-  }
-  return out;
-}
 
 function common(seed: number) {
   // Small, deterministic values so the UI looks stable.
@@ -310,8 +296,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     common: common(10),
     properties: props(10, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
     weapon: {
-      attack: profile(10, 12),
-      defense: profile(110, 5),
+      attack: { crush: 2.87, pierce: 4.54, burn: 3.85, slash: 6.88, gas: 10.24 },
+      defense: { crush: 1.21, pierce: 1.99, burn: 2.11, slash: 2.89, gas: 2.77 },
     },
   },
   {
@@ -324,8 +310,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     common: common(11),
     properties: props(11, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
     weapon: {
-      attack: profile(11, 14),
-      defense: profile(111, 6),
+      attack: { crush: 8.85, pierce: 4.86, burn: 3.39, slash: 13.52, gas: 11.06 },
+      defense: { crush: 3.82, pierce: 2.2, burn: 2.05, slash: 5.82, gas: 2.94 },
     },
   },
   {
@@ -336,8 +322,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     common: common(12),
     properties: props(12, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
     weapon: {
-      attack: profile(12, 10),
-      defense: profile(112, 4),
+      attack: { crush: 0.25, pierce: 3.16, burn: 1.63, slash: 3.59, gas: 7.27 },
+      defense: { crush: 0.12, pierce: 1.34, burn: 1.05, slash: 1.45, gas: 1.71 },
     },
   },
   {
@@ -349,8 +335,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     common: common(12),
     properties: props(12, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
     weapon: {
-      attack: profile(12, 10),
-      defense: profile(112, 4),
+      attack: { crush: 0.25, pierce: 3.16, burn: 1.63, slash: 3.59, gas: 7.27 },
+      defense: { crush: 0.12, pierce: 1.34, burn: 1.05, slash: 1.45, gas: 1.71 },
     },
   },
   {
@@ -362,8 +348,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     common: common(13),
     properties: props(13, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
     weapon: {
-      attack: profile(13, 6),
-      defense: profile(113, 2),
+      attack: { crush: 2.51, pierce: 1.71, burn: 0.5, slash: 4.51, gas: 3.98 },
+      defense: { crush: 0.84, pierce: 0.02, burn: 0.37, slash: 1.51, gas: 0.73 },
     },
   },
 
@@ -377,8 +363,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     common: common(100),
     properties: props(100, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
     weapon: {
-      attack: profile(100, 6),
-      defense: profile(200, 2),
+      attack: { crush: 3.65, pierce: 3.58, burn: 1.27, slash: 5.66, gas: 1.1 },
+      defense: { crush: 1.23, pierce: 1.23, burn: 0.62, slash: 1.89, gas: 1.77 },
     },
   },
   {
@@ -390,8 +376,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     common: common(101),
     properties: props(101, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
     weapon: {
-      attack: profile(101, 8),
-      defense: profile(201, 3),
+      attack: { crush: 0.02, pierce: 4.52, burn: 1.06, slash: 2.69, gas: 0.96 },
+      defense: { crush: 0.02, pierce: 1.76, burn: 0.7, slash: 1.02, gas: 2.46 },
     },
   },
   {
@@ -403,8 +389,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     common: common(102),
     properties: props(102, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
     weapon: {
-      attack: profile(102, 12),
-      defense: profile(202, 4),
+      attack: { crush: 4.74, pierce: 6.41, burn: 0.64, slash: 8.75, gas: 0.68 },
+      defense: { crush: 1.6, pierce: 2.22, burn: 0.61, slash: 2.93, gas: 3.03 },
     },
   },
   {
@@ -416,8 +402,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     common: common(103),
     properties: props(103, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
     weapon: {
-      attack: profile(103, 9),
-      defense: profile(203, 3),
+      attack: { crush: 7.09, pierce: 1.86, burn: 8.77, slash: 1.1, gas: 8.95 },
+      defense: { crush: 2.38, pierce: 0.68, burn: 0.22, slash: 0.38, gas: 2.08 },
     },
   },
   {
@@ -429,8 +415,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     common: common(104),
     properties: props(104, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
     weapon: {
-      attack: profile(104, 8),
-      defense: profile(204, 3),
+      attack: { crush: 1.45, pierce: 1.41, burn: 7.16, slash: 4.12, gas: 7.45 },
+      defense: { crush: 0.55, pierce: 0.59, burn: 2.99, slash: 1.56, gas: 1.89 },
     },
   },
   {
@@ -442,8 +428,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     common: common(105),
     properties: props(105, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
     weapon: {
-      attack: profile(105, 11),
-      defense: profile(205, 4),
+      attack: { crush: 6.31, pierce: 1.6, burn: 8.98, slash: 9.99, gas: 9.55 },
+      defense: { crush: 2.31, pierce: 0.66, burn: 3.66, slash: 3.65, gas: 2.27 },
     },
   },
   {
@@ -455,8 +441,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     common: common(106),
     properties: props(106, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
     weapon: {
-      attack: profile(106, 10),
-      defense: profile(206, 4),
+      attack: { crush: 9.67, pierce: 1.14, burn: 7.37, slash: 3.01, gas: 8.05 },
+      defense: { crush: 3.88, pierce: 0.54, burn: 3.35, slash: 1.22, gas: 2.02 },
     },
   },
   {
@@ -468,8 +454,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     common: common(107),
     properties: props(107, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
     weapon: {
-      attack: profile(107, 10),
-      defense: profile(207, 4),
+      attack: { crush: 0.64, pierce: 7.87, burn: 6.58, slash: 3.98, gas: 7.42 },
+      defense: { crush: 1.46, pierce: 3.23, burn: 3.03, slash: 2.79, gas: 1.77 },
     },
   },
   {
@@ -481,8 +467,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     common: common(108),
     properties: props(108, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
     weapon: {
-      attack: profile(108, 12),
-      defense: profile(208, 5),
+      attack: { crush: 5.48, pierce: 9.07, burn: 6.95, slash: 9.49, gas: 8.15 },
+      defense: { crush: 3.79, pierce: 3.88, burn: 3.4, slash: 0.45, gas: 1.9 },
     },
   },
   {
@@ -494,8 +480,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     common: common(109),
     properties: props(109, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
     weapon: {
-      attack: profile(109, 14),
-      defense: profile(209, 6),
+      attack: { crush: 11.9, pierce: 10.15, burn: 7, slash: 2.58, gas: 8.62 },
+      defense: { crush: 0.9, pierce: 4.47, burn: 3.6, slash: 2.9, gas: 1.9 },
     },
   },
   {
@@ -507,8 +493,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     common: common(110),
     properties: props(110, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
     weapon: {
-      attack: profile(110, 13),
-      defense: profile(210, 6),
+      attack: { crush: 3.16, pierce: 5.17, burn: 5.47, slash: 7.5, gas: 7.19 },
+      defense: { crush: 3.26, pierce: 2.51, burn: 3.13, slash: 5.26, gas: 1.52 },
     },
   },
   {
@@ -520,8 +506,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     common: common(111),
     properties: props(111, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
     weapon: {
-      attack: profile(111, 15),
-      defense: profile(211, 6),
+      attack: { crush: 9.54, pierce: 5.51, burn: 5.13, slash: 14.55, gas: 7.35 },
+      defense: { crush: 5.62, pierce: 2.32, burn: 2.65, slash: 1.62, gas: 1.14 },
     },
   },
 

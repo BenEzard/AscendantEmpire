@@ -1,11 +1,8 @@
-import { FaCheck, FaMountain, FaRegFolderOpen, FaTree } from "react-icons/fa6";
-import { SlClose } from "react-icons/sl";
-import ToolBar, { type ToolBarGroup } from "@/components/Toolbar";
+import ToolBar from "@/components/Toolbar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Biome } from "../../../types/map/Biome";
 import { Alert, Spinner, Toast, ToastViewport } from "@/components/ui";
 import type { Geography } from "../../../types/map/Geography";
-import { VscNewFile } from "react-icons/vsc";
 import NewCampaignMapDialog from "./NewCampaignMapDialog";
 import OpenCampaignMapDialog, { type CampaignMapGalleryIndex } from "./OpenCampaignMapDialog";
 import { useCampaignMapBiomesQuery } from "../hooks/useCampaignMapBiomes";
@@ -15,55 +12,21 @@ import { mapGalleryTilesKey, useCampaignMapTilesQuery } from "@/features/mapgall
 import { useCampaignMapGeographiesQuery } from "../hooks/useCampaignMapGeographies";
 import type { TileCell } from "../types/TileTypes";
 import TileGrid from "./TileGrid";
-import { DropButton } from "@/components/ui";
-import { FaPaintBrush } from "react-icons/fa";
-import { HiMagnifyingGlass } from "react-icons/hi2";
-import ToolbarExclusiveButtons from "@/components/ToolbarExclusiveButtons";
 import { onInspectTileClick } from "../tools/inspectTool";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUpdateCampaignMapTilesMutation } from "../hooks/useUpdateCampaignMapTiles";
-import { iconMap } from "./mapEditorIcons";
 import { pickTextColorOnBg } from "@/util/color";
-
-type BrushKind = "square" | "diamond" | "vline" | "hline" | "diagDown" | "diagUp";
-
-const MAX_BRUSH_RADIUS = 5;
-
-const BRUSH_CONSTRAINTS: Record<
-  BrushKind,
-  {
-    // radius 0 => size 1, radius 1 => size 3, etc.
-    minRadius: number;
-    maxRadiusByDims: (dims: { width: number; height: number }) => number;
-  }
-> = {
-  square: {
-    // Single-cell brush: minimum size is 1.
-    minRadius: 0,
-    maxRadiusByDims: ({ width, height }) => Math.floor((Math.min(width, height) - 1) / 2),
-  },
-  diamond: {
-    // All other brushes: minimum size is 3.
-    minRadius: 1,
-    maxRadiusByDims: ({ width, height }) => Math.floor((Math.min(width, height) - 1) / 2),
-  },
-  vline: {
-    minRadius: 1,
-    maxRadiusByDims: ({ height }) => Math.floor((height - 1) / 2),
-  },
-  hline: {
-    minRadius: 1,
-    maxRadiusByDims: ({ width }) => Math.floor((width - 1) / 2),
-  },
-  diagDown: {
-    minRadius: 1,
-    maxRadiusByDims: ({ width, height }) => Math.floor((Math.min(width, height) - 1) / 2),
-  },
-  diagUp: {
-    minRadius: 1,
-    maxRadiusByDims: ({ width, height }) => Math.floor((Math.min(width, height) - 1) / 2),
-  },
-};
+import { buildBrushCoordinates, clampBrushRadius, type BrushKind } from "@/features/mapgallery/tools/brush";
+import type { ActiveDialog, ActiveTool } from "@/features/mapgallery/types/MapGalleryEditorTypes";
+import { useMapGalleryEditorToolbar } from "@/features/mapgallery/hooks/useMapGalleryEditorToolbar";
+import {
+  createNewBiome,
+  createNewGeography,
+  getFirstBiomeType,
+  getFirstGeographyType,
+  getNextBiomeTypeId,
+  getNextGeographyTypeId,
+} from "@/features/mapgallery/tools/paletteDraft";
 
 function buildTiles2d(
   width: number,
@@ -95,9 +58,6 @@ function buildTiles2d(
 }
 
 function MapGalleryEditor() {
-  type ActiveDialog = "biomes" | "geographies" | "newCampaignMap" | "openCampaignMap" | null;
-  type ActiveTool = "paint" | "inspect" | null;
-
   const [activeDialog, setActiveDialog] = useState<ActiveDialog>(null);
   const [activeTool, setActiveTool] = useState<ActiveTool>(null);
   const [brushKind, setBrushKind] = useState<BrushKind>("square");
@@ -138,44 +98,29 @@ function MapGalleryEditor() {
     setActiveTool((t) => t ?? "inspect");
   }, [openMapIndex]);
 
-  const getMaxRadiusForBrush = useCallback(
-    (kind: BrushKind) => {
-      if (!openMapIndex) return MAX_BRUSH_RADIUS;
-
-      const dims = {
-        width: Math.max(0, openMapIndex.width),
-        height: Math.max(0, openMapIndex.height),
-      };
-
-      const maxByDims = BRUSH_CONSTRAINTS[kind].maxRadiusByDims(dims);
-
-      return Math.max(0, Math.min(MAX_BRUSH_RADIUS, maxByDims));
-    },
+  const mapDims = useMemo(
+    () =>
+      openMapIndex
+        ? {
+            width: Math.max(0, openMapIndex.width),
+            height: Math.max(0, openMapIndex.height),
+          }
+        : null,
     [openMapIndex],
   );
 
-  const clampBrushRadius = useCallback(
-    (kind: BrushKind, value: number) => {
-      const max = getMaxRadiusForBrush(kind);
-
-      const minRequested = BRUSH_CONSTRAINTS[kind].minRadius;
-      const min = Math.min(minRequested, max);
-
-      return Math.max(min, Math.min(max, value));
-    },
-    [getMaxRadiusForBrush],
-  );
+  const clampRadius = useCallback((kind: BrushKind, value: number) => clampBrushRadius(kind, value, mapDims), [mapDims]);
 
   useEffect(() => {
     // If the user opens a smaller map, ensure stored radii are still valid.
     setBrushRadii((prev) => {
       const next: Record<BrushKind, number> = { ...prev };
       (Object.keys(next) as BrushKind[]).forEach((k) => {
-        next[k] = clampBrushRadius(k, next[k] ?? 0);
+        next[k] = clampRadius(k, next[k] ?? 0);
       });
       return next;
     });
-  }, [clampBrushRadius]);
+  }, [clampRadius]);
 
   useEffect(() => {
     if (activeTool !== "paint") setHoveredTile(null);
@@ -248,46 +193,15 @@ function MapGalleryEditor() {
     return m;
   }, [geographies]);
 
-  const buildBrushCoordinates = useCallback(
-    (origin: TileCell) => {
-      if (!openMapIndex) return [] as { x: number; y: number }[];
-
-      const inBounds = (x: number, y: number) => x >= 0 && y >= 0 && x < openMapIndex.width && y < openMapIndex.height;
-
-      const addUnique = (set: Set<string>, coords: { x: number; y: number }[], x: number, y: number) => {
-        if (!inBounds(x, y)) return;
-        const k = `${x},${y}`;
-        if (set.has(k)) return;
-        set.add(k);
-        coords.push({ x, y });
-      };
-
-      const coordinates: { x: number; y: number }[] = [];
-      const seen = new Set<string>();
-
-      const r = clampBrushRadius(brushKind, brushRadii[brushKind] ?? 0);
-
-      if (brushKind === "square") {
-        for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) addUnique(seen, coordinates, origin.x + dx, origin.y + dy);
-      } else if (brushKind === "diamond") {
-        for (let dy = -r; dy <= r; dy++) {
-          for (let dx = -r; dx <= r; dx++) {
-            if (Math.abs(dx) + Math.abs(dy) <= r) addUnique(seen, coordinates, origin.x + dx, origin.y + dy);
-          }
-        }
-      } else if (brushKind === "vline") {
-        for (let dy = -r; dy <= r; dy++) addUnique(seen, coordinates, origin.x, origin.y + dy);
-      } else if (brushKind === "hline") {
-        for (let dx = -r; dx <= r; dx++) addUnique(seen, coordinates, origin.x + dx, origin.y);
-      } else if (brushKind === "diagDown") {
-        for (let d = -r; d <= r; d++) addUnique(seen, coordinates, origin.x + d, origin.y + d);
-      } else if (brushKind === "diagUp") {
-        for (let d = -r; d <= r; d++) addUnique(seen, coordinates, origin.x + d, origin.y - d);
-      }
-
-      return coordinates;
-    },
-    [brushKind, brushRadii, openMapIndex, clampBrushRadius],
+  const buildBrushCoords = useCallback(
+    (origin: TileCell) =>
+      buildBrushCoordinates({
+        origin,
+        kind: brushKind,
+        radius: brushRadii[brushKind] ?? 0,
+        dims: mapDims,
+      }),
+    [brushKind, brushRadii, mapDims],
   );
 
   const previewKeySet = useMemo(() => {
@@ -295,9 +209,9 @@ function MapGalleryEditor() {
     if (!openMapIndex) return null;
     if (!hoveredTile) return null;
 
-    const coords = buildBrushCoordinates(hoveredTile);
+    const coords = buildBrushCoords(hoveredTile);
     return new Set(coords.map((c) => `${c.x},${c.y}`));
-  }, [activeTool, openMapIndex, hoveredTile, buildBrushCoordinates]);
+  }, [activeTool, openMapIndex, hoveredTile, buildBrushCoords]);
 
   const onTileClick = useCallback(
     (t: TileCell) => {
@@ -318,7 +232,7 @@ function MapGalleryEditor() {
           return;
         }
 
-        const coordinates = buildBrushCoordinates(t);
+        const coordinates = buildBrushCoords(t);
 
         updateTilesMutation.mutate({
           campaignMapGalleryIndexId: openMapIndex.campaignMapGalleryIndexId,
@@ -345,76 +259,6 @@ function MapGalleryEditor() {
     ],
   );
 
-  const renderBrushPreview = useCallback(
-    (kind: BrushKind, radius: number) => {
-      const Square = ({ filled }: { filled: boolean }) => (
-        <span className={["inline-block h-1 w-1 border border-black/20", filled ? "bg-black/50" : "bg-transparent"].join(" ")} />
-      );
-
-      const r = clampBrushRadius(kind, radius);
-      const n = 1 + r * 2;
-
-      if (kind === "vline") {
-        return (
-          <span className="grid" style={{ gridTemplateColumns: "repeat(1, 1fr)", gap: 1 }}>
-            {Array.from({ length: n }).map((_, i) => (
-              <Square key={i} filled />
-            ))}
-          </span>
-        );
-      }
-
-      if (kind === "hline") {
-        return (
-          <span className="grid" style={{ gridTemplateColumns: `repeat(${n}, 1fr)`, gap: 1 }}>
-            {Array.from({ length: n }).map((_, i) => (
-              <Square key={i} filled />
-            ))}
-          </span>
-        );
-      }
-
-      if (kind === "diagDown" || kind === "diagUp") {
-        return (
-          <span className="grid" style={{ gridTemplateColumns: `repeat(${n}, 1fr)`, gap: 1 }}>
-            {Array.from({ length: n * n }).map((_, idx) => {
-              const x = (idx % n) - r;
-              const y = Math.floor(idx / n) - r;
-              const filled = kind === "diagDown" ? y === x : y === -x;
-              return <Square key={idx} filled={filled} />;
-            })}
-          </span>
-        );
-      }
-
-      if (kind === "square") {
-        return (
-          <span className="grid" style={{ gridTemplateColumns: `repeat(${n}, 1fr)`, gap: 1 }}>
-            {Array.from({ length: n * n }).map((_, i) => (
-              <Square key={i} filled />
-            ))}
-          </span>
-        );
-      }
-
-      if (kind === "diamond") {
-        return (
-          <span className="grid" style={{ gridTemplateColumns: `repeat(${n}, 1fr)`, gap: 1 }}>
-            {Array.from({ length: n * n }).map((_, idx) => {
-              const x = (idx % n) - r;
-              const y = Math.floor(idx / n) - r;
-              const filled = Math.abs(x) + Math.abs(y) <= r;
-              return <Square key={idx} filled={filled} />;
-            })}
-          </span>
-        );
-      }
-
-      return null;
-    },
-    [clampBrushRadius],
-  );
-
   // ---------------------------
   // Open map / tiles
   // ---------------------------
@@ -433,42 +277,9 @@ function MapGalleryEditor() {
   // ---------------------------
   // Biomes: draft helpers
   // ---------------------------
-  const getFirstBiomeType = (list: Biome[]) => list.slice().sort((a, b) => a.name.localeCompare(b.name))[0]?.biomeType ?? null;
-
-  const BIOME_DEFAULTS = {
-    regenerationRate: 1.1,
-    movementCost: 1,
-    isTraversable: true,
-    isWater: false,
-    isPaintableOnCampaignMap: true,
-    doesBlockSight: false,
-  };
-
-  const createNewBiome = (nextId: number): Biome => ({
-    biomeType: nextId,
-    name: "new",
-    isTraversable: BIOME_DEFAULTS.isTraversable,
-    movementCost: BIOME_DEFAULTS.movementCost,
-    isWater: BIOME_DEFAULTS.isWater,
-    doesBlockSight: BIOME_DEFAULTS.doesBlockSight,
-    canBeElevated: false,
-    isPaintableOnCampaignMap: BIOME_DEFAULTS.isPaintableOnCampaignMap,
-    mapEditorHtmlColor: "",
-    regenerationRate: BIOME_DEFAULTS.regenerationRate,
-    baseForageValue: null,
-    baseHuntValue: null,
-    baseFishValue: null,
-    baseFodderValue: null,
-    baseBoneValue: null,
-    baseWoodValue: null,
-    baseStoneValue: null,
-    baseSpecialValue: null,
-  });
-
   const addNewBiomeAndOpen = () => {
     const baseList = activeDialog === "biomes" ? biomeDraft : (biomes ?? []);
-    const nextId = Math.max(0, ...baseList.map((b) => b.biomeType)) + 1;
-
+    const nextId = getNextBiomeTypeId(baseList);
     const newBiome = createNewBiome(nextId);
 
     setBiomeDraft([...baseList, newBiome]);
@@ -479,27 +290,9 @@ function MapGalleryEditor() {
   // ---------------------------
   // Geographies: draft helpers (mirrors Biomes)
   // ---------------------------
-  const getFirstGeographyType = (list: Geography[]) => list.slice().sort((a, b) => a.name.localeCompare(b.name))[0]?.campaignMapGeographyType ?? null;
-
-  const GEO_DEFAULTS = {
-    relativeElevation: 0,
-    movementCost: 1,
-    isPaintableOnCampaignMap: true,
-  };
-
-  const createNewGeography = (nextId: number): Geography => ({
-    campaignMapGeographyType: nextId,
-    name: "new",
-    relativeElevation: GEO_DEFAULTS.relativeElevation,
-    movementCost: GEO_DEFAULTS.movementCost,
-    mapEditorIcon: null,
-    isPaintableOnCampaignMap: GEO_DEFAULTS.isPaintableOnCampaignMap,
-  });
-
   const addNewGeographyAndOpen = () => {
     const baseList = activeDialog === "geographies" ? geographyDraft : (geographies ?? []);
-    const nextId = Math.max(0, ...baseList.map((g) => g.campaignMapGeographyType)) + 1;
-
+    const nextId = getNextGeographyTypeId(baseList);
     const newGeo = createNewGeography(nextId);
 
     setGeographyDraft([...baseList, newGeo]);
@@ -569,342 +362,34 @@ function MapGalleryEditor() {
     addNewGeographyAndOpen();
   }, [geographiesLoading, addNewGeographyAndOpen]);
 
-  const toolBarGroups = useMemo<ToolBarGroup[]>(
-    () => [
-      {
-        caption: "File",
-        buttons: [
-          { key: "new", icon: <VscNewFile />, tooltip: "New Campaign Map", onClick: () => setActiveDialog("newCampaignMap") },
-          {
-            key: "open",
-            icon: <FaRegFolderOpen />,
-            tooltip: "Open Campaign Map",
-            onClick: () => setActiveDialog("openCampaignMap"),
-          },
-          {
-            key: "close",
-            icon: <SlClose />,
-            tooltip: "Close Campaign Map",
-            disabled: openMapIndex == null,
-            onClick: closeMap,
-          },
-        ],
-      },
-      {
-        caption: "Palette",
-        buttons: [
-          {
-            key: "biomes",
-            tooltip: biomesLoading ? "Loading Biomes..." : "Biomes",
-            disabled: biomesLoading,
-            render: ({ disabled }) => (
-              <DropButton
-                label="Biomes"
-                title={biomesLoading ? "Loading Biomes..." : "Biomes"}
-                icon={<FaTree />}
-                disabled={disabled}
-                onClick={openBiomes}
-                menuDisabled={biomesLoading}
-                items={[
-                  {
-                    key: "none",
-                    label: (
-                      <span className="inline-flex w-full items-center gap-2">
-                        <span className="inline-block h-3 w-3 border border-black/20" />
-                        <span className="inline-flex items-center">
-                          <span>{"<none>"}</span>
-                          {biomeMapSelection == null ? <FaCheck aria-hidden size={12} className="ml-1 text-slate-600" /> : null}
-                        </span>
-                      </span>
-                    ),
-                    active: biomeMapSelection == null,
-                    onSelect: () => setBiomeMapSelection(null),
-                  },
-                  ...(biomes ?? [])
-                    .slice()
-                    .filter((b) => b.isPaintableOnCampaignMap)
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((b) => {
-                      const active = biomeMapSelection === b.biomeType;
-                      const color = (b.mapEditorHtmlColor ?? "").trim();
+  const toolBarGroups = useMapGalleryEditorToolbar({
+    biomesLoading,
+    biomes,
+    biomeMapSelection,
+    setBiomeMapSelection,
+    openBiomes,
+    middleAddBiome,
 
-                      return {
-                        key: b.biomeType,
-                        label: (
-                          <span className="inline-flex w-full items-center gap-2">
-                            <span className="inline-block h-3 w-3 border border-black/20" style={{ background: color || "transparent" }} />
-                            <span className="inline-flex items-center">
-                              <span>{b.name}</span>
-                              {active ? <FaCheck aria-hidden size={12} className="ml-1 text-slate-600" /> : null}
-                            </span>
-                          </span>
-                        ),
-                        active,
-                        onSelect: () => setBiomeMapSelection(b.biomeType),
-                      };
-                    }),
-                ]}
-              />
-            ),
-            onMiddleClick: middleAddBiome,
-            middleClickHint: "add new",
-          },
-          {
-            key: "geographies",
-            tooltip: geographiesLoading ? "Loading Geographies..." : "Geographies",
-            disabled: geographiesLoading,
-            render: ({ disabled }) => (
-              <DropButton
-                label="Geographies"
-                title={geographiesLoading ? "Loading Geographies..." : "Geographies"}
-                icon={<FaMountain />}
-                disabled={disabled}
-                onClick={openGeographies}
-                menuDisabled={geographiesLoading}
-                items={[
-                  {
-                    key: "none",
-                    label: (
-                      <span className="inline-flex w-full items-center gap-2">
-                        <span className="inline-flex h-3 w-3 items-center justify-center" />
-                        <span className="inline-flex items-center">
-                          <span>{"<none>"}</span>
-                          {geographyMapSelection == null ? <FaCheck aria-hidden size={12} className="ml-1 text-slate-600" /> : null}
-                        </span>
-                      </span>
-                    ),
-                    active: geographyMapSelection == null,
-                    onSelect: () => setGeographyMapSelection(null),
-                  },
-                  ...(geographies ?? [])
-                    .slice()
-                    .filter((b) => b.isPaintableOnCampaignMap)
-                    .sort((a, b) => a.relativeElevation - b.relativeElevation)
-                    .map((g) => {
-                      const active = geographyMapSelection === g.campaignMapGeographyType;
-                      const iconKey = (g.mapEditorIcon ?? "").trim();
-                      const Icon = iconKey ? iconMap[iconKey] : undefined;
+    geographiesLoading,
+    geographies,
+    geographyMapSelection,
+    setGeographyMapSelection,
+    openGeographies,
+    middleAddGeography,
 
-                      return {
-                        key: g.campaignMapGeographyType,
-                        label: (
-                          <span className="inline-flex w-full items-center gap-2">
-                            <span className="inline-flex h-3 w-3 items-center justify-center">
-                              {Icon ? <Icon aria-hidden size={12} className="text-slate-700" /> : null}
-                            </span>
-                            <span className="inline-flex items-center">
-                              <span>{g.name}</span>
-                              {active ? <FaCheck aria-hidden size={12} className="ml-1 text-slate-600" /> : null}
-                            </span>
-                          </span>
-                        ),
-                        active,
-                        onSelect: () => setGeographyMapSelection(g.campaignMapGeographyType),
-                      };
-                    }),
-                ]}
-              />
-            ),
-            onMiddleClick: middleAddGeography,
-            middleClickHint: "add new",
-          },
-        ],
-      },
-      {
-        caption: "Tools",
-        buttons: [
-          {
-            key: "tools",
-            disabled: openMapIndex == null,
-            render: ({ disabled }) => (
-              <ToolbarExclusiveButtons
-                disabled={disabled}
-                value={activeTool}
-                onChange={(k) => setActiveTool(k as ActiveTool)}
-                items={[
-                  { type: "button", key: "inspect", icon: <HiMagnifyingGlass />, tooltip: "Inspection" },
-                  {
-                    type: "dropbutton",
-                    key: "paint",
-                    label: "Paint",
-                    icon: <FaPaintBrush />,
-                    tooltip: "Paint Biome & Geography",
-                    onClick: () => {
-                      // main click just selects the tool; brush is chosen from the dropdown.
-                    },
-                    items: [
-                      {
-                        key: "square",
-                        label: renderBrushPreview("square", clampBrushRadius("square", brushRadii.square)),
-                        title: (() => {
-                          const r = clampBrushRadius("square", brushRadii.square);
-                          const n = 1 + r * 2;
-                          return `Square ${n}×${n} (${n * n} tiles) — scroll to resize`;
-                        })(),
-                        active: brushKind === "square",
-                        onSelect: () => {
-                          setActiveTool("paint");
-                          setBrushKind("square");
-                        },
-                        onWheel: (dir) => {
-                          setActiveTool("paint");
-                          setBrushKind("square");
-                          setBrushRadii((prev) => {
-                            const current = prev.square ?? 0;
-                            const next = clampBrushRadius("square", current + (dir === "up" ? 1 : -1));
-                            return { ...prev, square: next };
-                          });
-                        },
-                      },
-                      {
-                        key: "diamond",
-                        label: renderBrushPreview("diamond", clampBrushRadius("diamond", brushRadii.diamond)),
-                        title: (() => {
-                          const r = clampBrushRadius("diamond", brushRadii.diamond);
-                          const n = 1 + r * 2;
-                          return `Diamond (radius ${r}, bounds ${n}×${n}) — scroll to resize`;
-                        })(),
-                        active: brushKind === "diamond",
-                        onSelect: () => {
-                          setActiveTool("paint");
-                          setBrushKind("diamond");
-                        },
-                        onWheel: (dir) => {
-                          setActiveTool("paint");
-                          setBrushKind("diamond");
-                          setBrushRadii((prev) => {
-                            const current = prev.diamond ?? 0;
-                            const next = clampBrushRadius("diamond", current + (dir === "up" ? 1 : -1));
-                            return { ...prev, diamond: next };
-                          });
-                        },
-                      },
-                      {
-                        key: "vline",
-                        label: renderBrushPreview("vline", clampBrushRadius("vline", brushRadii.vline)),
-                        title: (() => {
-                          const r = clampBrushRadius("vline", brushRadii.vline);
-                          const n = 1 + r * 2;
-                          return `Vertical line (${n} tiles) — scroll to resize`;
-                        })(),
-                        active: brushKind === "vline",
-                        onSelect: () => {
-                          setActiveTool("paint");
-                          setBrushKind("vline");
-                          setBrushRadii((prev) => ({ ...prev, vline: clampBrushRadius("vline", prev.vline ?? 0) }));
-                        },
-                        onWheel: (dir) => {
-                          setActiveTool("paint");
-                          setBrushKind("vline");
-                          setBrushRadii((prev) => {
-                            const current = prev.vline ?? 0;
-                            const next = clampBrushRadius("vline", current + (dir === "up" ? 1 : -1));
-                            return { ...prev, vline: next };
-                          });
-                        },
-                      },
-                      {
-                        key: "hline",
-                        label: renderBrushPreview("hline", clampBrushRadius("hline", brushRadii.hline)),
-                        title: (() => {
-                          const r = clampBrushRadius("hline", brushRadii.hline);
-                          const n = 1 + r * 2;
-                          return `Horizontal line (${n} tiles) — scroll to resize`;
-                        })(),
-                        active: brushKind === "hline",
-                        onSelect: () => {
-                          setActiveTool("paint");
-                          setBrushKind("hline");
-                          setBrushRadii((prev) => ({ ...prev, hline: clampBrushRadius("hline", prev.hline ?? 0) }));
-                        },
-                        onWheel: (dir) => {
-                          setActiveTool("paint");
-                          setBrushKind("hline");
-                          setBrushRadii((prev) => {
-                            const current = prev.hline ?? 0;
-                            const next = clampBrushRadius("hline", current + (dir === "up" ? 1 : -1));
-                            return { ...prev, hline: next };
-                          });
-                        },
-                      },
-                      {
-                        key: "diagDown",
-                        label: renderBrushPreview("diagDown", clampBrushRadius("diagDown", brushRadii.diagDown)),
-                        title: (() => {
-                          const r = clampBrushRadius("diagDown", brushRadii.diagDown);
-                          const n = 1 + r * 2;
-                          return `Diagonal \\ (${n} tiles) — scroll to resize`;
-                        })(),
-                        active: brushKind === "diagDown",
-                        onSelect: () => {
-                          setActiveTool("paint");
-                          setBrushKind("diagDown");
-                          setBrushRadii((prev) => ({ ...prev, diagDown: clampBrushRadius("diagDown", prev.diagDown ?? 0) }));
-                        },
-                        onWheel: (dir) => {
-                          setActiveTool("paint");
-                          setBrushKind("diagDown");
-                          setBrushRadii((prev) => {
-                            const current = prev.diagDown ?? 0;
-                            const next = clampBrushRadius("diagDown", current + (dir === "up" ? 1 : -1));
-                            return { ...prev, diagDown: next };
-                          });
-                        },
-                      },
-                      {
-                        key: "diagUp",
-                        label: renderBrushPreview("diagUp", clampBrushRadius("diagUp", brushRadii.diagUp)),
-                        title: (() => {
-                          const r = clampBrushRadius("diagUp", brushRadii.diagUp);
-                          const n = 1 + r * 2;
-                          return `Diagonal / (${n} tiles) — scroll to resize`;
-                        })(),
-                        active: brushKind === "diagUp",
-                        onSelect: () => {
-                          setActiveTool("paint");
-                          setBrushKind("diagUp");
-                          setBrushRadii((prev) => ({ ...prev, diagUp: clampBrushRadius("diagUp", prev.diagUp ?? 0) }));
-                        },
-                        onWheel: (dir) => {
-                          setActiveTool("paint");
-                          setBrushKind("diagUp");
-                          setBrushRadii((prev) => {
-                            const current = prev.diagUp ?? 0;
-                            const next = clampBrushRadius("diagUp", current + (dir === "up" ? 1 : -1));
-                            return { ...prev, diagUp: next };
-                          });
-                        },
-                      },
-                    ],
-                    menuDisabled: false,
-                    menuLayout: "grid",
-                    menuGridColumns: 3,
-                  },
-                ]}
-              />
-            ),
-          },
-        ],
-      },
-    ],
-    [
-      biomesLoading,
-      biomes,
-      biomeMapSelection,
-      geographiesLoading,
-      geographies,
-      geographyMapSelection,
-      openMapIndex,
-      activeTool,
-      openBiomes,
-      middleAddBiome,
-      openGeographies,
-      middleAddGeography,
-      brushKind,
-      brushRadii,
-      renderBrushPreview,
-    ],
-  );
+    openMapIndex,
+    closeMap,
+    setActiveDialog,
+
+    activeTool,
+    setActiveTool,
+
+    brushKind,
+    setBrushKind,
+    brushRadii,
+    setBrushRadii,
+    clampRadius,
+  });
 
   return (
     <>
