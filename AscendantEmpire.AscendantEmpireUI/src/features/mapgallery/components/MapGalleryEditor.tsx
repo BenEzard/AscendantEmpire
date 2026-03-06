@@ -1,7 +1,7 @@
 import ToolBar from "@/components/Toolbar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Biome } from "../../../types/map/Biome";
-import { Alert, Spinner, Toast, ToastViewport } from "@/components/ui";
+import { Alert, Button, Modal, Spinner, Toast, ToastViewport } from "@/components/ui";
 import type { Geography } from "../../../types/map/Geography";
 import NewCampaignMapDialog from "./NewCampaignMapDialog";
 import OpenCampaignMapDialog, { type CampaignMapGalleryIndex } from "./OpenCampaignMapDialog";
@@ -19,14 +19,8 @@ import { pickTextColorOnBg } from "@/util/color";
 import { buildBrushCoordinates, clampBrushRadius, type BrushKind } from "@/features/mapgallery/tools/brush";
 import type { ActiveDialog, ActiveTool } from "@/features/mapgallery/types/MapGalleryEditorTypes";
 import { useMapGalleryEditorToolbar } from "@/features/mapgallery/hooks/useMapGalleryEditorToolbar";
-import {
-  createNewBiome,
-  createNewGeography,
-  getFirstBiomeType,
-  getFirstGeographyType,
-  getNextBiomeTypeId,
-  getNextGeographyTypeId,
-} from "@/features/mapgallery/tools/paletteDraft";
+import { getFirstBiomeType, getFirstGeographyType } from "@/features/mapgallery/tools/paletteDraft";
+import { usePublishCampaignMapMutation } from "../hooks/usePublishCampaignMap";
 
 function buildTiles2d(
   width: number,
@@ -147,6 +141,11 @@ function MapGalleryEditor() {
 
   const updateTilesMutation = useUpdateCampaignMapTilesMutation({
     onFailureToast: (message) => openToast(message, "danger"),
+  });
+
+  const publishCampaignMapMutation = usePublishCampaignMapMutation({
+    onSuccessToast: (message: string) => openToast(message, "success"),
+    onFailureToast: (message: string) => openToast(message, "danger"),
   });
 
   const closeMap = useCallback(() => {
@@ -274,32 +273,6 @@ function MapGalleryEditor() {
     return buildTiles2d(openMapIndex.width, openMapIndex.height, tilesResponse.tiles);
   }, [openMapIndex, tilesResponse]);
 
-  // ---------------------------
-  // Biomes: draft helpers
-  // ---------------------------
-  const addNewBiomeAndOpen = () => {
-    const baseList = activeDialog === "biomes" ? biomeDraft : (biomes ?? []);
-    const nextId = getNextBiomeTypeId(baseList);
-    const newBiome = createNewBiome(nextId);
-
-    setBiomeDraft([...baseList, newBiome]);
-    setBiomeManagerSelection(newBiome.biomeType);
-    setActiveDialog("biomes");
-  };
-
-  // ---------------------------
-  // Geographies: draft helpers (mirrors Biomes)
-  // ---------------------------
-  const addNewGeographyAndOpen = () => {
-    const baseList = activeDialog === "geographies" ? geographyDraft : (geographies ?? []);
-    const nextId = getNextGeographyTypeId(baseList);
-    const newGeo = createNewGeography(nextId);
-
-    setGeographyDraft([...baseList, newGeo]);
-    setGeographyEditorSelection(newGeo.campaignMapGeographyType);
-    setActiveDialog("geographies");
-  };
-
   const getTileStyle = useCallback(
     (t: TileCell): React.CSSProperties => {
       const bg = t.biomeTypeId != null ? biomeColorByType.get(t.biomeTypeId) : undefined;
@@ -352,15 +325,26 @@ function MapGalleryEditor() {
     setActiveDialog("geographies");
   }, [geographiesLoading, geographies]);
 
-  const middleAddBiome = useCallback(() => {
-    if (biomesLoading) return;
-    addNewBiomeAndOpen();
-  }, [biomesLoading, addNewBiomeAndOpen]);
+  const openExportMap = useCallback(() => {
+    if (openMapIndex == null) return;
+    setActiveDialog("exportCampaignMap");
+  }, [openMapIndex]);
 
-  const middleAddGeography = useCallback(() => {
-    if (geographiesLoading) return;
-    addNewGeographyAndOpen();
-  }, [geographiesLoading, addNewGeographyAndOpen]);
+  const confirmExportMap = useCallback(() => {
+    if (openMapIndex == null || publishCampaignMapMutation.isPending) return;
+
+    publishCampaignMapMutation.mutate(
+      {
+        campaignMapGalleryIndexId: openMapIndex.campaignMapGalleryIndexId,
+        mapName: openMapIndex.mapName,
+      },
+      {
+        onSuccess: () => {
+          setActiveDialog(null);
+        },
+      },
+    );
+  }, [openMapIndex, publishCampaignMapMutation]);
 
   const toolBarGroups = useMapGalleryEditorToolbar({
     biomesLoading,
@@ -368,17 +352,17 @@ function MapGalleryEditor() {
     biomeMapSelection,
     setBiomeMapSelection,
     openBiomes,
-    middleAddBiome,
 
     geographiesLoading,
     geographies,
     geographyMapSelection,
     setGeographyMapSelection,
     openGeographies,
-    middleAddGeography,
 
     openMapIndex,
     closeMap,
+    openExportMap,
+    isExportingMap: publishCampaignMapMutation.isPending,
     setActiveDialog,
 
     activeTool,
@@ -481,6 +465,26 @@ function MapGalleryEditor() {
           setActiveDialog(null);
         }}
       />
+
+      <Modal
+        open={activeDialog === "exportCampaignMap"}
+        onClose={() => {
+          if (publishCampaignMapMutation.isPending) return;
+          setActiveDialog(null);
+        }}
+        title="Export Map"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setActiveDialog(null)} disabled={publishCampaignMapMutation.isPending}>
+              No
+            </Button>
+            <Button variant="danger" onClick={confirmExportMap} disabled={publishCampaignMapMutation.isPending || openMapIndex == null}>
+              {publishCampaignMapMutation.isPending ? "Exporting..." : "Yes"}
+            </Button>
+          </>
+        }>
+        <p>Exporting map updates can be destructive to ongoing games. Are you sure you want to do this?</p>
+      </Modal>
 
       <ToastViewport>
         <Toast open={toast.show} onClose={closeToast} variant={toast.variant} message={toast.message} autoHideMs={3000} />

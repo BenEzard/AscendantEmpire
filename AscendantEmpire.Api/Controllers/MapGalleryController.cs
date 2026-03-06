@@ -270,4 +270,23 @@ public class MapGalleryController
         return response.ToActionResult();
     }
 
+
+    /// <summary>
+    /// Publish changes to a Map Gallery to any existing Games and Player Maps.
+    /// </summary>
+    /// <response code="200">Campaign Maps successfully updated</response>
+    /// <response code="400">Validation error</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpPost("{id}/publish")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> PublishCampaignMapUpdatesAsync(
+        [FromServices] IMediator mediator,
+        int id)
+    {
+        ServiceResultBase response = await mediator.Send(new PublishCampaignMapUpdatesRequest(MapGalleryIndex: id));
+
+        return response.ToActionResult();
+    }
 }

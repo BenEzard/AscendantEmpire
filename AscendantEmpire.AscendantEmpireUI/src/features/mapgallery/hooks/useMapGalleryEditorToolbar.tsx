@@ -1,12 +1,13 @@
 import { useMemo } from "react";
 import { FaCheck, FaMountain, FaRegFolderOpen, FaTree } from "react-icons/fa6";
+import { BiExport } from "react-icons/bi";
 import { SlClose } from "react-icons/sl";
 import { VscNewFile } from "react-icons/vsc";
 import { FaPaintBrush } from "react-icons/fa";
 import { HiMagnifyingGlass } from "react-icons/hi2";
 
 import type { ToolBarGroup } from "@/components/Toolbar";
-import { DropButton } from "@/components/ui";
+import { DropButton, Spinner } from "@/components/ui";
 import ToolbarExclusiveButtons from "@/components/ToolbarExclusiveButtons";
 
 import type { Biome } from "@/types/map/Biome";
@@ -24,17 +25,17 @@ type Args = {
   biomeMapSelection: number | null;
   setBiomeMapSelection: (v: number | null) => void;
   openBiomes: () => void;
-  middleAddBiome: () => void;
 
   geographiesLoading: boolean;
   geographies: Geography[] | undefined;
   geographyMapSelection: number | null;
   setGeographyMapSelection: (v: number | null) => void;
   openGeographies: () => void;
-  middleAddGeography: () => void;
 
   openMapIndex: CampaignMapGalleryIndex | null;
   closeMap: () => void;
+  openExportMap: () => void;
+  isExportingMap: boolean;
   setActiveDialog: (d: ActiveDialog) => void;
 
   activeTool: ActiveTool;
@@ -54,17 +55,17 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
     biomeMapSelection,
     setBiomeMapSelection,
     openBiomes,
-    middleAddBiome,
 
     geographiesLoading,
     geographies,
     geographyMapSelection,
     setGeographyMapSelection,
     openGeographies,
-    middleAddGeography,
 
     openMapIndex,
     closeMap,
+    openExportMap,
+    isExportingMap,
     setActiveDialog,
 
     activeTool,
@@ -80,7 +81,7 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
   return useMemo<ToolBarGroup[]>(
     () => [
       {
-        caption: "File",
+        caption: "Map",
         buttons: [
           { key: "new", icon: <VscNewFile />, tooltip: "New Campaign Map", onClick: () => setActiveDialog("newCampaignMap") },
           {
@@ -88,6 +89,13 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
             icon: <FaRegFolderOpen />,
             tooltip: "Open Campaign Map",
             onClick: () => setActiveDialog("openCampaignMap"),
+          },
+          {
+            key: "export",
+            icon: isExportingMap ? <Spinner size="sm" /> : <BiExport />,
+            tooltip: isExportingMap ? "Exporting Map..." : "Export Map",
+            disabled: openMapIndex == null || isExportingMap,
+            onClick: openExportMap,
           },
           {
             key: "close",
@@ -154,8 +162,6 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
                 ]}
               />
             ),
-            onMiddleClick: middleAddBiome,
-            middleClickHint: "add new",
           },
           {
             key: "geographies",
@@ -213,8 +219,6 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
                 ]}
               />
             ),
-            onMiddleClick: middleAddGeography,
-            middleClickHint: "add new",
           },
         ],
       },
@@ -404,13 +408,13 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
       geographyMapSelection,
       openMapIndex,
       closeMap,
+      openExportMap,
+      isExportingMap,
       setActiveDialog,
       activeTool,
       setActiveTool,
       openBiomes,
-      middleAddBiome,
       openGeographies,
-      middleAddGeography,
       brushKind,
       setBrushKind,
       brushRadii,
