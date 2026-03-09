@@ -1,33 +1,33 @@
 import { useMemo, useRef, useState, type ReactNode } from "react";
-import ResourceTicker from "./ResourceTicker";
+import ResourceTickerGroup from "./ResourceTickerGroup";
 import ResourceTotal from "./ResourceTotal";
 import ResourceCategoryHeader from "./ResourceCategoryHeader";
 import "./ResourceTickerCollection.css";
-import type { ResourceTickerData } from "./ResourceTickerCollection";
+import type { ResourceTickerGroupData } from "./ResourceTickerCollection";
 import { formatNumberWithCommas } from "@/util/number";
 
 export interface ResourceCategoryProps {
   label: string;
   column: number;
   icon: ReactNode;
-  tickers: ResourceTickerData[];
+  tickerGroups: ResourceTickerGroupData[];
   showTotal?: boolean;
-  onClickAmount?: (args: { label: string; index: number; amount: number; isTotal: boolean }) => void;
-  draggableTickers?: boolean;
-  onReorderTickers?: (tickers: ResourceTickerData[]) => void;
+  onClickAmount?: (args: { name: string; index: number; amount: number; isTotal: boolean; rowIndex?: number }) => void;
+  draggableTickerGroups?: boolean;
+  onReorderTickerGroups?: (tickerGroups: ResourceTickerGroupData[]) => void;
 }
 
-function sortTickersByColumn(tickers: ResourceTickerData[]): ResourceTickerData[] {
-  return tickers.slice().sort((a, b) => {
+function sortTickerGroupsByColumn(tickerGroups: ResourceTickerGroupData[]): ResourceTickerGroupData[] {
+  return tickerGroups.slice().sort((a, b) => {
     const ac = Number.isFinite(a.column) ? a.column : Number.POSITIVE_INFINITY;
     const bc = Number.isFinite(b.column) ? b.column : Number.POSITIVE_INFINITY;
     return ac - bc;
   });
 }
 
-function reorderTickerByColumn(tickers: ResourceTickerData[], draggedId: string, targetColumn: number): ResourceTickerData[] {
-  const ordered = sortTickersByColumn(tickers);
-  const fromIndex = ordered.findIndex((t) => t.id === draggedId);
+function reorderTickerGroupByColumn(tickerGroups: ResourceTickerGroupData[], draggedId: string, targetColumn: number): ResourceTickerGroupData[] {
+  const ordered = sortTickerGroupsByColumn(tickerGroups);
+  const fromIndex = ordered.findIndex((group) => group.id === draggedId);
   if (fromIndex < 0) return ordered;
 
   const toIndex = Math.max(0, Math.min(ordered.length - 1, targetColumn - 1));
@@ -37,79 +37,118 @@ function reorderTickerByColumn(tickers: ResourceTickerData[], draggedId: string,
   const [moved] = next.splice(fromIndex, 1);
   next.splice(toIndex, 0, moved);
 
-  return next.map((t, idx) => ({ ...t, column: idx + 1 }));
+  return next.map((group, idx) => ({ ...group, column: idx + 1 }));
 }
 
 export default function ResourceCategory({
   label,
   column,
-  icon,
-  tickers,
+  icon: _icon,
+  tickerGroups,
   showTotal = true,
   onClickAmount,
-  draggableTickers = false,
-  onReorderTickers,
+  draggableTickerGroups = false,
+  onReorderTickerGroups,
 }: ResourceCategoryProps) {
-  const orderedTickers = useMemo(() => sortTickersByColumn(tickers), [tickers]);
-  const total = useMemo(() => orderedTickers.reduce((acc, t) => acc + t.amount, 0), [orderedTickers]);
-  const maxTickerColumn = useMemo(() => tickers.reduce((acc, t) => Math.max(acc, t.column), 0), [tickers]);
-  const cols = (showTotal ? 1 : 0) + maxTickerColumn;
+  const orderedTickerGroups = useMemo(() => sortTickerGroupsByColumn(tickerGroups), [tickerGroups]);
+  const maxTickerDepth = useMemo(
+    () => orderedTickerGroups.reduce((maxDepth, group) => Math.max(maxDepth, group.tickers.length), 0),
+    [orderedTickerGroups],
+  );
+  const rowTotals = useMemo(
+    () =>
+      Array.from({ length: maxTickerDepth }, (_, rowIndex) =>
+        orderedTickerGroups.reduce((rowTotal, group) => rowTotal + (group.tickers[rowIndex]?.amount ?? 0), 0),
+      ),
+    [maxTickerDepth, orderedTickerGroups],
+  );
+  const maxTickerGroupColumn = useMemo(() => tickerGroups.reduce((acc, group) => Math.max(acc, group.column), 0), [tickerGroups]);
+  const gridTemplateColumns = useMemo(() => {
+    if (showTotal && maxTickerGroupColumn > 0) return `max-content repeat(${maxTickerGroupColumn}, max-content)`;
+    if (showTotal) return "max-content";
+    if (maxTickerGroupColumn > 0) return `repeat(${maxTickerGroupColumn}, max-content)`;
+    return undefined;
+  }, [maxTickerGroupColumn, showTotal]);
 
   const tickersRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<{
     pointerId: number;
     startX: number;
-    tickerId: string;
+    pointerOffsetFromGroupCenter: number;
+    tickerGroupId: string;
     startColumn: number;
-    startTickers: ResourceTickerData[];
+    startTickerGroups: ResourceTickerGroupData[];
     targetColumn: number;
     active: boolean;
     captureEl: HTMLElement | null;
   } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragTargetColumn, setDragTargetColumn] = useState<number | null>(null);
-  const [dragTickerId, setDragTickerId] = useState<string | null>(null);
+  const [dragTickerGroupId, setDragTickerGroupId] = useState<string | null>(null);
 
-  const getStepSizePx = () => {
+  const getTargetColumnForClientX = (clientX: number) => {
     const el = tickersRef.current;
-    if (!el) return 40;
-    const firstCell = el.querySelector<HTMLElement>("[data-amount-cell='1']");
-    const cellWidth = firstCell?.getBoundingClientRect().width ?? 40;
-    const styles = window.getComputedStyle(el);
-    const gapRaw = styles.columnGap || styles.gap || "0";
-    const gapPx = Number.parseFloat(gapRaw) || 0;
-    return cellWidth + gapPx;
+    if (!el) return 1;
+
+    const cells = Array.from(el.querySelectorAll<HTMLElement>("[data-ticker-group-column]"))
+      .map((cell) => {
+        const columnValue = Number.parseInt(cell.dataset.tickerGroupColumn ?? "", 10);
+        if (!Number.isFinite(columnValue)) return null;
+
+        const rect = cell.getBoundingClientRect();
+        return {
+          column: columnValue,
+          centerX: rect.left + rect.width / 2,
+        };
+      })
+      .filter((cell): cell is { column: number; centerX: number } => cell != null)
+      .sort((a, b) => a.column - b.column);
+
+    if (cells.length === 0) return 1;
+
+    for (const cell of cells) {
+      if (clientX <= cell.centerX) return cell.column;
+    }
+
+    return cells[cells.length - 1]?.column ?? 1;
   };
 
-  const handlePointerDown = (index: number) => (e: React.PointerEvent) => {
-    if (!draggableTickers) return;
-    if (!onReorderTickers) return;
+  const handlePointerDown = (index: number) => (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!draggableTickerGroups) return;
+    if (!onReorderTickerGroups) return;
     if (e.button !== 0) return;
 
-    const ticker = orderedTickers[index];
-    if (!ticker) return;
+    const tickerGroup = orderedTickerGroups[index];
+    if (!tickerGroup) return;
+
+    const captureEl = e.currentTarget.closest<HTMLElement>("[data-ticker-group-column]");
+    if (!captureEl) return;
+
+    const currentTargetRect = captureEl.getBoundingClientRect();
+    const groupCenterX = currentTargetRect.left + currentTargetRect.width / 2;
 
     dragStateRef.current = {
       pointerId: e.pointerId,
       startX: e.clientX,
-      tickerId: ticker.id,
-      startColumn: ticker.column,
-      startTickers: orderedTickers,
-      targetColumn: ticker.column,
+      pointerOffsetFromGroupCenter: e.clientX - groupCenterX,
+      tickerGroupId: tickerGroup.id,
+      startColumn: tickerGroup.column,
+      startTickerGroups: orderedTickerGroups,
+      targetColumn: tickerGroup.column,
       active: false,
-      captureEl: e.currentTarget instanceof HTMLElement ? e.currentTarget : null,
+      captureEl,
     };
 
     setIsDragging(false);
-    setDragTargetColumn(ticker.column);
-    setDragTickerId(ticker.id);
+    setDragTargetColumn(tickerGroup.column);
+    setDragTickerGroupId(tickerGroup.id);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
     const state = dragStateRef.current;
     if (!state) return;
     if (e.pointerId !== state.pointerId) return;
-    if (!draggableTickers || !onReorderTickers) return;
+    if (!draggableTickerGroups || !onReorderTickerGroups) return;
 
     const dx = e.clientX - state.startX;
     if (!state.active && Math.abs(dx) < 6) return;
@@ -124,9 +163,8 @@ export default function ResourceCategory({
       }
     }
 
-    const step = getStepSizePx();
-    const deltaCols = Math.round(dx / step);
-    const nextColumn = Math.max(1, Math.min(state.startTickers.length, state.startColumn + deltaCols));
+    const adjustedClientX = e.clientX - state.pointerOffsetFromGroupCenter;
+    const nextColumn = getTargetColumnForClientX(adjustedClientX);
     state.targetColumn = nextColumn;
     setDragTargetColumn(nextColumn);
   };
@@ -136,15 +174,15 @@ export default function ResourceCategory({
     if (!state) return;
     if (e.pointerId !== state.pointerId) return;
 
-    if (state.active && onReorderTickers) {
-      const nextTickers = reorderTickerByColumn(state.startTickers, state.tickerId, state.targetColumn);
-      onReorderTickers(nextTickers);
+    if (state.active && onReorderTickerGroups) {
+      const nextTickerGroups = reorderTickerGroupByColumn(state.startTickerGroups, state.tickerGroupId, state.targetColumn);
+      onReorderTickerGroups(nextTickerGroups);
     }
 
     dragStateRef.current = null;
     setIsDragging(false);
     setDragTargetColumn(null);
-    setDragTickerId(null);
+    setDragTickerGroupId(null);
   };
 
   return (
@@ -153,56 +191,72 @@ export default function ResourceCategory({
       <div
         ref={tickersRef}
         className={isDragging ? "resource-category__tickers resource-category__tickers--dragging" : "resource-category__tickers"}
-        style={{ gridTemplateColumns: `repeat(${cols}, var(--rt-size))` }}
+        style={gridTemplateColumns ? { gridTemplateColumns } : undefined}
         onPointerMove={handlePointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         onLostPointerCapture={endDrag}>
         {showTotal && (
-          <ResourceTotal
-            amount={total}
-            tooltip={`${label} total: ${formatNumberWithCommas(total)}`}
-            onClick={
-              onClickAmount
-                ? () =>
-                    onClickAmount({
-                      label,
-                      index: -1,
-                      amount: total,
-                      isTotal: true,
-                    })
-                : undefined
-            }
-          />
+          <div
+            className={draggableTickerGroups ? "resource-category__totals resource-category__totals--with-drag-handle" : "resource-category__totals"}
+            aria-label={`${label} totals`}>
+            {rowTotals.map((total, rowIndex) => (
+              <div key={`${label}-total-${rowIndex}`} className="resource-category__totals-row">
+                <div className="resource-ticker-group__ticker-slot">
+                  <ResourceTotal
+                    amount={total}
+                    tooltip={`${label} total ${rowIndex + 1}: ${formatNumberWithCommas(total)}`}
+                    onClick={
+                      onClickAmount
+                        ? () =>
+                            onClickAmount({
+                              name: `${label} total ${rowIndex + 1}`,
+                              index: -1,
+                              amount: total,
+                              isTotal: true,
+                              rowIndex,
+                            })
+                        : undefined
+                    }
+                  />
+                </div>
+                {rowIndex < rowTotals.length - 1 && (
+                  <div className="resource-ticker-group__arrow-slot" aria-hidden="true">
+                    <span className="resource-ticker-group__arrow" />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         )}
 
-        {orderedTickers.map((t, idx) => (
+        {orderedTickerGroups.map((group, idx) => (
           <div
-            key={t.id}
-            data-amount-cell="1"
+            key={group.id}
+            data-ticker-group-column={group.column}
             className={[
               "resource-category__cell",
-              draggableTickers ? "resource-category__cell--draggable" : "",
-              isDragging && dragTargetColumn === t.column ? "resource-category__cell--drop-target" : "",
-              isDragging && dragTickerId === t.id ? "resource-category__cell--drag-source" : "",
+              draggableTickerGroups ? "resource-category__cell--draggable" : "",
+              isDragging && dragTargetColumn === group.column ? "resource-category__cell--drop-target" : "",
+              isDragging && dragTickerGroupId === group.id ? "resource-category__cell--drag-source" : "",
             ]
               .filter(Boolean)
               .join(" ")}
-            style={{ gridColumnStart: (showTotal ? 1 : 0) + t.column }}
-            onPointerDown={handlePointerDown(idx)}>
-            <ResourceTicker
-              icon={t.icon ?? icon}
-              iconColor={t.iconColor}
-              amount={t.amount}
-              tooltip={`${t.label ?? label}: ${formatNumberWithCommas(t.amount)}`}
-              IsLuxury={t.isLuxury === true}
-              onClick={
+            style={{ gridColumnStart: (showTotal ? 1 : 0) + group.column }}>
+            <ResourceTickerGroup
+              label={group.label ?? label}
+              tickers={group.tickers}
+              rowCount={maxTickerDepth}
+              tooltip={group.tickers.map((ticker) => `${ticker.name}: ${formatNumberWithCommas(ticker.amount)}`).join(" -> ")}
+              draggable={draggableTickerGroups}
+              onDragHandlePointerDown={handlePointerDown(idx)}
+              onClickTicker={
                 onClickAmount
-                  ? () =>
+                  ? (ticker) =>
                       onClickAmount({
-                        label,
-                        index: t.column,
-                        amount: t.amount,
+                        name: ticker.name,
+                        index: group.column,
+                        amount: ticker.amount,
                         isTotal: false,
                       })
                   : undefined

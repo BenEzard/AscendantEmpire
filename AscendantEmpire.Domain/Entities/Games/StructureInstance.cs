@@ -1,4 +1,5 @@
-﻿using AscendantEmpire.Domain.Enums.Structures;
+﻿using AscendantEmpire.Domain.Entities.Structures;
+using AscendantEmpire.Domain.Enums.Structures;
 
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -46,7 +47,7 @@ public class StructureInstance
     public GameIndex Game { get; set; } = null!;
 
     [ForeignKey("StructureId")]
-    public Structure.Structure Structure { get; set; } = null!;
+    public Structure Structure { get; set; } = null!;
 
     [ForeignKey("CampaignMapTileId")]
     public CampaignMap CampaignMap { get; set; } = null!;

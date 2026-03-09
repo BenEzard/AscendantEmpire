@@ -2,7 +2,7 @@
 
 using System.ComponentModel.DataAnnotations;
 
-namespace AscendantEmpire.Domain.Entities.Structure;
+namespace AscendantEmpire.Domain.Entities.Structures;
 
 public class Structure
 {

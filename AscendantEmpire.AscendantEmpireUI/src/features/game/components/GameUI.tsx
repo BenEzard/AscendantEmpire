@@ -1,6 +1,7 @@
 import type { ToolBarGroup } from "@/components/Toolbar";
 import ToolBar from "@/components/Toolbar";
 import ResourceTickerCollection, { type ResourceCategoryData } from "@/features/game/resources/ResourceTickerCollection";
+import { resourceDummyData } from "../resources/ResourceDummyData";
 import {
   useClearPlayerCampaignMapMutation,
   useLoadPlayerCampaignMapMutation,
@@ -15,9 +16,8 @@ import type { LoadPlayerCampaignMapRequest, PlayerCampaignMapObserverResultDto }
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Alert, Spinner, Toast, ToastViewport } from "@/components/ui";
 import { FaChessKnight, FaRegFolderOpen } from "react-icons/fa6";
-import { GiClayBrick, GiStoneBlock, GiWoodStick } from "react-icons/gi";
+import { GiWoodStick } from "react-icons/gi";
 import { GoEye, GoEyeClosed } from "react-icons/go";
-import { getResourceIconByLabel } from "@/features/game/resources/resourceIcons";
 import UnitDesigner from "@/features/unitdesign/UnitDesigner";
 import OpenGameDialog from "./OpenGameDialog";
 import VisionSettingsOffcanvas from "./VisionSettingsOffcanvas";
@@ -194,9 +194,6 @@ function GameUI() {
         },
       ],
     },
-  ];
-
-  const secondaryToolBarGroups: ToolBarGroup[] = [
     {
       caption: "Structures",
       buttons: [
@@ -239,82 +236,7 @@ function GameUI() {
     },
   ];
 
-  const [constructionCategories, setConstructionCategories] = useState<ResourceCategoryData[]>(() => {
-    // Dummy data: Totals are computed as the left-most ticker.
-    const woodByType: { label: string; amount: number; isLuxury?: boolean }[] = [
-      { label: "Oak", amount: 1200 },
-      { label: "Generic Wood", amount: 2400 },
-      { label: "Cedar", amount: 999 },
-      { label: "Ash", amount: 250 },
-      { label: "Elm", amount: 99 },
-      { label: "Ebony", amount: 12, isLuxury: true },
-    ];
-    const stoneByType: { label: string; amount: number; isLuxury?: boolean }[] = [
-      { label: "Limestone", amount: 10_000 },
-      { label: "Sandstone", amount: 15_500 },
-      { label: "Granite", amount: 20_000 },
-      { label: "Basalt", amount: 45_000 },
-      { label: "Generic Rock", amount: 75_000 },
-      { label: "Marble", amount: 3_500, isLuxury: true },
-      { label: "Flint", amount: 1_200 },
-      { label: "Obsidian", amount: 420, isLuxury: true },
-      { label: "Slate", amount: 8_000 },
-    ];
-    const otherByType: { label: string; amount: number }[] = [
-      { label: "Bone", amount: 500 },
-      { label: "Fodder", amount: 42 },
-      { label: "Ochre", amount: 650 },
-      { label: "Chalk", amount: 2_250 },
-    ];
-
-    const iconColorPalette = ["var(--bs-primary)", "var(--bs-success)", "var(--bs-warning)", "var(--bs-danger)", "var(--bs-info)"];
-
-    const randomIconColor = () => {
-      const idx = Math.floor(Math.random() * iconColorPalette.length);
-      return iconColorPalette[idx] ?? "var(--bs-primary)";
-    };
-
-    const otherTickers = otherByType.map((t, idx) => ({
-      id: `other-${t.label.toLowerCase().replaceAll(" ", "-")}`,
-      label: t.label,
-      column: idx + 1,
-      amount: t.amount,
-      iconColor: randomIconColor(),
-      icon: getResourceIconByLabel(t.label),
-    }));
-
-    const woodTickers = woodByType.map((t, idx) => ({
-      id: `wood-${t.label.toLowerCase().replaceAll(" ", "-")}`,
-      label: t.label,
-      column: idx + 1,
-      amount: t.amount,
-      isLuxury: t.isLuxury === true,
-      iconColor: randomIconColor(),
-      icon: getResourceIconByLabel(t.label),
-    }));
-
-    const stoneTickers = stoneByType.map((t, idx) => ({
-      id: `stone-${t.label.toLowerCase().replaceAll(" ", "-")}`,
-      label: t.label,
-      column: idx + 1,
-      amount: t.amount,
-      isLuxury: t.isLuxury === true,
-      iconColor: randomIconColor(),
-      icon: getResourceIconByLabel(t.label),
-    }));
-
-    return [
-      { key: "wood", label: "Wood", column: 1, icon: <GiWoodStick />, tickers: woodTickers },
-      {
-        key: "stone",
-        label: "Stone",
-        column: 2,
-        icon: <GiStoneBlock />,
-        tickers: stoneTickers,
-      },
-      { key: "other", label: "Other", column: 3, icon: <GiClayBrick />, tickers: otherTickers, mixedItems: true },
-    ];
-  });
+  const [constructionCategories, setConstructionCategories] = useState<ResourceCategoryData[]>(() => resourceDummyData);
 
   useEffect(() => {
     if (!showConstructionPanel) return;
@@ -503,12 +425,6 @@ function GameUI() {
   return (
     <div className="flex flex-col" style={{ minHeight: "100vh" }}>
       <ToolBar groups={toolBarGroups} />
-      <ToolBar
-        groups={secondaryToolBarGroups}
-        containerClassName="toolbar flex justify-start border-b border-slate-200 bg-[var(--bs-primary)]"
-        showCaptions={false}
-        buttonVariant="light"
-      />
 
       {showConstructionPanel && (
         <div
@@ -529,12 +445,11 @@ function GameUI() {
           }}>
           <ResourceTickerCollection
             categories={constructionCategories}
-            onReorderCategoryTickers={({ categoryKey, tickers }) => {
-              setConstructionCategories((prev) => prev.map((c) => (c.key === categoryKey ? { ...c, tickers } : c)));
+            onReorderCategoryTickerGroups={({ categoryKey, tickerGroups }) => {
+              setConstructionCategories((prev) => prev.map((c) => (c.key === categoryKey ? { ...c, tickerGroups } : c)));
             }}
-            onClickAmount={({ label, amount, isTotal }) => {
-              const prefix = isTotal ? "Total" : "Slot";
-              openToast(`${prefix} ${label}: ${amount}`, "info");
+            onClickAmount={({ name, amount }) => {
+              openToast(`${name}: ${amount}`, "info");
             }}
           />
         </div>
