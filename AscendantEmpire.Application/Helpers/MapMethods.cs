@@ -1,6 +1,6 @@
 ﻿using AscendantEmpire.BackendContracts.CampaignMaps;
 
-namespace AscendantEmpire.Application.Handlers.Maps.CampaignMaps;
+namespace AscendantEmpire.Application.Helpers;
 
 internal static class MapMethods
 {
