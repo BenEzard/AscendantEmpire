@@ -1,6 +1,7 @@
 ﻿using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
-using AscendantEmpire.Domain.Entities.Structure;
+using AscendantEmpire.Domain.Entities.Structures;
+using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Entities.Util;
 
@@ -59,11 +60,22 @@ public class AscendantEmpireContext : DbContext
     /// </summary>
     public DbSet<TurnRoster> TurnRosters { get; set; }
 
-    public DbSet<PlayerTroopSummary> PlayerTroops { get; set; }
-
     public DbSet<PlayerKnownStructure> PlayerStructures { get; set; }
     public DbSet<StructureInstance> StructureInstances { get; set; }
     #endregion
+
+    #region Units
+
+    public DbSet<TroopInstance> TroopInstances { get; set; }
+
+    #endregion
+
+    #region Unit Designs
+
+    public DbSet<CompiledDesignStats> DesignStats { get; set; }
+
+    #endregion
+
 
     #region Util Schema
     public DbSet<Number> Numbers { get; set; }
@@ -88,6 +100,8 @@ public class AscendantEmpireContext : DbContext
         ConfigureStructureSchema(modelBuilder);
 
         ConfigureUnitSchema(modelBuilder);
+
+        ConfigureUnitDesignSchema(modelBuilder);
     }
 
     private static void ConfigureGameSchema(ModelBuilder modelBuilder)
@@ -360,30 +374,57 @@ public class AscendantEmpireContext : DbContext
     {
         const string schema = "units";
 
-        // --- PlayerTroopSummary --------------------------------------------------------
-        modelBuilder.Entity<PlayerTroopSummary>(entity =>
+        // --- TroopInstances --------------------------------------------------------
+        modelBuilder.Entity<TroopInstance>(entity =>
         {
-            entity.ToTable("PlayerTroopSummaries", schema);
+            entity.ToTable("TroopInstances", schema);
 
             entity.HasKey(e => e.Id);
 
-            entity.Property(e => e.BattleMapId).IsRequired(false);
+            entity.Property(e => e.BattleMapTileId).IsRequired(false);
 
             // PlayerTroopSummary -> GameIndex (many summaries per game)
             entity.HasOne(e => e.Game)
                 .WithMany()
                 .HasForeignKey(e => e.GameId)
                 .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_PlayerTroopSummaries_GameIndex_GameId");
+                .HasConstraintName("FK_TroopInstances_GameIndex_GameId");
 
             // PlayerTroopSummary -> Player (many summaries per player)
             entity.HasOne(e => e.Player)
                 .WithMany()
                 .HasForeignKey(e => e.PlayerId)
                 .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_PlayerTroopSummaries_Player_PlayerId");
+                .HasConstraintName("FK_TroopInstances_Player_PlayerId");
         });
     }
+
+    private static void ConfigureUnitDesignSchema(ModelBuilder modelBuilder)
+    {
+        const string schema = "unitdesigns";
+
+        // --- TroopInstances --------------------------------------------------------
+        modelBuilder.Entity<CompiledDesignStats>(entity =>
+        {
+            entity.ToTable("CompiledDesignStats", schema);
+
+            entity.HasKey(e => e.UnitDesignId);
+
+            modelBuilder.Entity<CompiledDesignStats>(entity =>
+            {
+                entity.HasKey(x => x.UnitDesignId);
+            });
+
+            modelBuilder.Entity<TroopInstance>(entity =>
+            {
+                entity.HasOne(x => x.Stats)
+                    .WithMany()
+                    .HasForeignKey(x => x.UnitDesignId)
+                    .OnDelete(DeleteBehavior.NoAction);
+            });
+        });
+    }
+
 
     /// <summary>
     /// Sets the precision and scale for all decimal properties in the model.

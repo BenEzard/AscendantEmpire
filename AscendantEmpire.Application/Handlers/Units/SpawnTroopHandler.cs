@@ -1,0 +1,121 @@
+﻿using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Handlers.Game;
+using AscendantEmpire.Application.Helpers;
+using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.Domain.Entities.Units;
+
+using FluentValidation;
+
+using MediatR;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+
+using static AscendantEmpire.Application.Common.ServiceResultBase;
+
+namespace AscendantEmpire.Application.Handlers.Units;
+
+public record SpawnTroopRequest(
+    Guid GameGuid,
+    Guid PlayerGuid,
+    int XCoord,
+    int YCoord,
+    int UnitDesignId
+) : IRequest<ServiceResultBase>;
+
+internal class SpawnTroopRequestValidator : AbstractValidator<SpawnTroopRequest>
+{
+    public SpawnTroopRequestValidator()
+    {
+        RuleFor(x => x.GameGuid)
+            .NotEmpty().WithMessage("GameGuid is required.");
+        RuleFor(r => r.GameGuid)
+         .Must(guid => guid != Guid.Empty)
+         .WithMessage("GameGuid must be a valid non-empty GUID.");
+
+        RuleFor(x => x.PlayerGuid)
+            .NotEmpty().WithMessage("PlayerGuid is required.");
+        RuleFor(r => r.PlayerGuid)
+         .Must(guid => guid != Guid.Empty)
+         .WithMessage("PlayerGuid must be a valid non-empty GUID.");
+
+        RuleFor(x => x.XCoord)
+            .GreaterThanOrEqualTo(0).WithMessage("XCoord must be greater than or equal to 0.");
+
+        RuleFor(x => x.YCoord)
+            .GreaterThanOrEqualTo(0).WithMessage("YCoord must be greater than or equal to 0.");
+
+        RuleFor(x => x.UnitDesignId)
+            .GreaterThan(0).WithMessage("Unit Design Id must be greater than 0.");
+    }
+}
+
+internal class SpawnTroopHandler(
+    ILogger<SpawnTroopHandler> logger,
+    IMediator mediator,
+    IDbContextFactory<AscendantEmpireContext> dbFactory
+) : IRequestHandler<SpawnTroopRequest, ServiceResultBase>
+{
+    public async Task<ServiceResultBase> Handle(SpawnTroopRequest request, CancellationToken cancelToken)
+    {
+        try
+        {
+            // Validate the request object
+            var validator = new SpawnTroopRequestValidator();
+            if (validator.Validate(request) is not { IsValid: true })
+            {
+                var errors = validator.Validate(request).Errors.Select(e => e.ErrorMessage);
+                string error = $"Validation failed for {nameof(SpawnTroopRequest)}.";
+                logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
+                return ServiceResultBase.Fail(errors.Prepend(error));
+            }
+
+            // Load the game info
+            ServiceResult<IReadOnlyCollection<OpenGame>> gameInfoResult = await mediator.Send(new GetOpenGamesRequest(request.GameGuid, request.PlayerGuid), cancelToken);
+
+            if (gameInfoResult.HasSucceeded == false)
+            {
+                const string error = "Error getting game info while trying to Spawn a Unit.";
+                logger.LogWarning(error);
+                return ServiceResultBase.Fail(gameInfoResult.Errors.Prepend(error));
+            }
+
+            OpenGame? gameInfo = gameInfoResult.SuccessValue!.SingleOrDefault();
+
+            if (gameInfo == null)
+            {
+                const string error = "Game not found while trying to Spawn a Unit.";
+                logger.LogWarning(error);
+                return ServiceResultBase.NotFound(error);
+            }
+
+            OpenGamePlayer thisPlayer = gameInfo.Players.Single();
+
+            cancelToken.ThrowIfCancellationRequested();
+
+            // Convert XCoord and YCoord to a single index based on the map size
+            int campaignMapTileId = MapMethods.GetDbId(thisPlayer.CampaignMapOffsetId, gameInfo.MapWidth, request.XCoord, request.YCoord);
+
+            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+
+            context.TroopInstances.Add(new TroopInstance
+            {
+                GameId = gameInfo.GameId,
+                PlayerId = thisPlayer.PlayerId,
+                CampaignMapTileId = campaignMapTileId,
+                UnitDesignId = request.UnitDesignId,
+            });
+
+            await context.SaveChangesAsync(cancelToken);
+    
+            return ServiceResultBase.Created();
+        }
+        catch (Exception ex)
+        {
+            const string error = "An exception occurred while processing " + nameof(SpawnTroopHandler) + ".";
+            logger.LogError(ex, error);
+            return ServiceResultBase.Fail(error);
+        }
+    }
+}
