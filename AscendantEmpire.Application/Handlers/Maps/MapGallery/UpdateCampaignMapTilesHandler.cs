@@ -1,9 +1,9 @@
 ﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Handlers.Maps.Biomes;
-using AscendantEmpire.Application.Handlers.Maps.CampaignMaps;
 using AscendantEmpire.Application.Handlers.Maps.Geographies;
 using AscendantEmpire.Application.Handlers.Maps.MapGallery.Classes;
+using AscendantEmpire.Application.Helpers;
 using AscendantEmpire.BackendContracts.Biomes;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.BackendContracts.Geographies;
