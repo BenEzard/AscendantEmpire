@@ -4,7 +4,7 @@ import Tile from "./Tile";
 import type { TileCell } from "../types/TileTypes";
 import type { Geography } from "@/types/map/Geography";
 
-export const TILE_SIZE_PX = 30;
+export const TILE_SIZE_PX = 50;
 
 export interface TileGridProps {
   width: number;

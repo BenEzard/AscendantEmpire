@@ -22,6 +22,315 @@ namespace AscendantEmpire.Application.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.FactionResourcePriority", b =>
+                {
+                    b.Property<int>("FactionId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ResourceCategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ResourceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PriorityOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ResourceGroupId")
+                        .HasColumnType("int");
+
+                    b.HasKey("FactionId", "ResourceCategoryId", "ResourceId");
+
+                    b.HasIndex("ResourceCategoryId");
+
+                    b.HasIndex("ResourceGroupId");
+
+                    b.HasIndex("ResourceId");
+
+                    b.HasIndex("FactionId", "ResourceCategoryId", "PriorityOrder")
+                        .IsUnique();
+
+                    b.ToTable("FactionResourcePriority", "assets");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.FactionResourceState", b =>
+                {
+                    b.Property<int>("FactionId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ResourceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AvailabilityState")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsCurrentlyLuxury")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsObsolete")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("ObsolescenceCountdownStartedOnTurnNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UnlockedOnTurnNumber")
+                        .HasColumnType("int");
+
+                    b.HasKey("FactionId", "ResourceId");
+
+                    b.HasIndex("ResourceId");
+
+                    b.HasIndex("FactionId", "AvailabilityState");
+
+                    b.HasIndex("FactionId", "IsCurrentlyLuxury");
+
+                    b.ToTable("FactionResourceState", "assets");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.Resource", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("DevNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("IconPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("NeverLuxury")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Properties")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ResourceGroupId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ResourceMetaCategoryId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("Name");
+
+                    b.HasIndex("ResourceGroupId");
+
+                    b.HasIndex("ResourceMetaCategoryId");
+
+                    b.ToTable("Resource", "assets");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.ResourceBank", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("FactionId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("NetworkKey")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NetworkKey");
+
+                    b.HasIndex("FactionId", "Kind");
+
+                    b.ToTable("ResourceBank", "assets");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.ResourceBankBalance", b =>
+                {
+                    b.Property<int>("ResourceBankId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ResourceDefinitionId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("Quantity")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("ResourceBankId", "ResourceDefinitionId");
+
+                    b.HasIndex("ResourceDefinitionId");
+
+                    b.ToTable("ResourceBankBalance", "assets");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.ResourceBankSettlementMembership", b =>
+                {
+                    b.Property<int>("SettlementId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SettlementId"));
+
+                    b.Property<int>("ResourceBankId")
+                        .HasColumnType("int");
+
+                    b.HasKey("SettlementId");
+
+                    b.HasIndex("ResourceBankId");
+
+                    b.ToTable("ResourceBankSettlementMembership", "assets");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.ResourceCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("ResourceMetaCategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResourceMetaCategoryId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("ResourceCategory", "assets");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.ResourceGroup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("DevNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int>("GroupOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("ResourceCategoryId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResourceCategoryId", "GroupOrder")
+                        .IsUnique();
+
+                    b.HasIndex("ResourceCategoryId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("ResourceGroup", "assets");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.ResourceMetaCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("IconPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("ResourceMetaCategory", "assets");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.WorldResourceSnapshot", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("RelativeValue")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<int>("ResourceDefinitionId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("TotalWorldSupply")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("TurnNumber")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResourceDefinitionId");
+
+                    b.HasIndex("TurnNumber", "ResourceDefinitionId")
+                        .IsUnique();
+
+                    b.ToTable("WorldResourceSnapshot", "assets");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.CampaignMap", b =>
                 {
                     b.Property<int>("CampaignMapId")
@@ -633,6 +942,53 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("Structures", "structure");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.PlayerTroopSummary", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("BattleMapId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CreatedOnTurnId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ForceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("InactiveOnTurnId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SightRange")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UnitId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("XCoord")
+                        .HasColumnType("int");
+
+                    b.Property<int>("YCoord")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameId");
+
+                    b.HasIndex("PlayerId");
+
+                    b.ToTable("PlayerTroopSummaries", "game");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.CompiledDesignStats", b =>
                 {
                     b.Property<int>("UnitDesignId")
@@ -696,6 +1052,122 @@ namespace AscendantEmpire.Application.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Numbers", "util");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.FactionResourcePriority", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.ResourceCategory", "Category")
+                        .WithMany("FactionPriorities")
+                        .HasForeignKey("ResourceCategoryId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.ResourceGroup", null)
+                        .WithMany("FactionPriorities")
+                        .HasForeignKey("ResourceGroupId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.Resource", "Resource")
+                        .WithMany("FactionPriorities")
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+
+                    b.Navigation("Resource");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.FactionResourceState", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.Resource", "Resource")
+                        .WithMany("FactionStates")
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Resource");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.Resource", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.ResourceGroup", "Group")
+                        .WithMany("Resources")
+                        .HasForeignKey("ResourceGroupId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.ResourceMetaCategory", "MetaCategory")
+                        .WithMany()
+                        .HasForeignKey("ResourceMetaCategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Group");
+
+                    b.Navigation("MetaCategory");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.ResourceBankBalance", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.ResourceBank", "Bank")
+                        .WithMany("Balances")
+                        .HasForeignKey("ResourceBankId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.Resource", "Resource")
+                        .WithMany("BankBalances")
+                        .HasForeignKey("ResourceDefinitionId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Bank");
+
+                    b.Navigation("Resource");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.ResourceBankSettlementMembership", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.ResourceBank", "Bank")
+                        .WithMany("SettlementMemberships")
+                        .HasForeignKey("ResourceBankId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Bank");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.ResourceCategory", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.ResourceMetaCategory", "MetaCategory")
+                        .WithMany("Categories")
+                        .HasForeignKey("ResourceMetaCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("MetaCategory");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.ResourceGroup", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.ResourceCategory", "Category")
+                        .WithMany("ResourceGroups")
+                        .HasForeignKey("ResourceCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.WorldResourceSnapshot", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.Resource", "Resource")
+                        .WithMany("WorldSnapshots")
+                        .HasForeignKey("ResourceDefinitionId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Resource");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.CampaignMap", b =>

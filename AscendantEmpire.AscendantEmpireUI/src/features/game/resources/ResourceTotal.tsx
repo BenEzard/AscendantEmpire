@@ -37,7 +37,7 @@ export default function ResourceTotal({ amount, tooltip, onClick, disabled }: Re
 
   return (
     <span title={tip} className={isDisabled ? "resource-ticker-wrapper resource-ticker-wrapper--disabled" : "resource-ticker-wrapper"}>
-      <button type="button" className={className} aria-label={`${display}`} onDoubleClick={isDisabled ? undefined : onClick} disabled={isDisabled}>
+      <button type="button" className={className} aria-label={`${display}`} onClick={isDisabled ? undefined : onClick} disabled={isDisabled}>
         <span className="resource-total__amount">{display}</span>
       </button>
     </span>

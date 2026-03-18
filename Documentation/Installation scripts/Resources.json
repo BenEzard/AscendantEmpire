@@ -1,0 +1,171 @@
+Pine: good fuel because it lights easily, but not ideal for long-term heavy construction or ship frames.
+
+Oak: one of the best all-round structural woods; excellent for strong buildings, weapons, and traditional shipbuilding.
+
+Cedar: valued more for rot resistance and lightness than brute strength; solid for buildings and some ship uses.
+
+Ash: excellent for shafts, handles, bows, and impact-tolerant weapon parts; less famous than oak for major structural work.
+
+Ebony: very dense and valuable, but usually too rare, heavy, and difficult to work for large-scale practical construction.
+
+Bamboo: very useful in the right culture/tech context, especially for light construction, spears, bows, scaffolding, and fast-growing utility.
+
+
+{
+  "metaCategories": [
+	{
+      "code": "food",
+      "name": "Food",
+      "sortOrder": 1,
+      "iconPath": "icons/resources/meta/food.png",
+      "categories": [
+        {
+          "code": "meat",
+          "name": "Meat",
+          "sortOrder": 1,
+          "groups": [
+            {
+              "name": "Game Meat",
+              "groupOrder": 1,
+              "resources": [
+                {
+                  "code": "small_game_meat",
+                  "name": "Small Game Meat",
+                  "iconPath": "icons/resources/small-game-meat.png",
+                  "neverLuxury": true,
+                  "devNote": "Basic hunted protein source.",
+                  "properties": {
+                    "spoilageTurns": "4",
+                    "rarityTier": "common"
+                  }
+                },
+                {
+                  "code": "big_game_meat",
+                  "name": "Big Game Meat",
+                  "iconPath": "icons/resources/big-game-meat.png",
+                  "neverLuxury": false,
+                  "devNote": "Large hunted meat source.",
+                  "properties": {
+                    "spoilageTurns": "5",
+                    "rarityTier": "uncommon"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "construction_materials",
+      "name": "Construction Materials",
+      "sortOrder": 2,
+      "iconPath": "/assets/wood/ash-plank_40px.png",
+      "categories": [
+        {
+          "code": "wood",
+          "name": "Wood",
+          "sortOrder": 1,
+		  "devNote": null,
+          "groups": [
+            {
+              "name": "Generic Wood",
+              "groupOrder": 1,
+              "resources": [
+                {
+                  "code": "generic-log",
+                  "name": "Generic Log",
+                  "iconPath": "/assets/wood/pine-log_40px.png",
+                  "neverLuxury": true,
+                  "devNote": null,
+                  "properties": {
+                    "density": "medium-high",
+                    "burnValue": "high",
+                    "rarityTier": "common"
+                  }
+                },
+                {
+                  "code": "generic-plank",
+                  "name": "Generic Plank",
+                  "iconPath": "/assets/wood/pine-plank_40px.png",
+                  "neverLuxury": true,
+                  "devNote": null,
+                  "properties": {
+                    "density": "medium",
+                    "burnValue": "medium",
+                    "rarityTier": "common"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Oak",
+              "groupOrder": 2,
+              "resources": [
+                {
+                  "code": "oak-log",
+                  "name": "Oak Log",
+                  "iconPath": "/assets/wood/oak-log_40px.png",
+                  "neverLuxury": false,
+                  "devNote": null,
+                  "properties": {
+                    "density": "medium",
+                    "burnValue": "medium",
+                    "rarityTier": "uncommon"
+                  }
+                },
+                {
+                  "code": "oak-plank",
+                  "name": "Oak Plank",
+                  "iconPath": "/assets/wood/oak-plank_40px.png",
+                  "neverLuxury": false,
+                  "devNote": "Abundant light timber.",
+                  "properties": {
+                    "density": "low",
+                    "burnValue": "medium",
+                    "rarityTier": "common"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "code": "stone",
+          "name": "Stone",
+          "sortOrder": 2,
+          "groups": [
+            {
+              "name": "Building Stone",
+              "groupOrder": 1,
+              "resources": [
+                {
+                  "code": "granite",
+                  "name": "Granite",
+                  "iconPath": "icons/resources/granite.png",
+                  "neverLuxury": false,
+                  "devNote": "Durable heavy construction stone.",
+                  "properties": {
+                    "density": "high",
+                    "rarityTier": "common"
+                  }
+                },
+                {
+                  "code": "marble",
+                  "name": "Marble",
+                  "iconPath": "icons/resources/marble.png",
+                  "neverLuxury": false,
+                  "devNote": "Valuable decorative stone.",
+                  "properties": {
+                    "density": "high",
+                    "rarityTier": "uncommon"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }   
+  ]
+}

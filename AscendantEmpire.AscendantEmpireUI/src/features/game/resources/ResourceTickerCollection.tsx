@@ -4,12 +4,19 @@ import "./ResourceTickerCollection.css";
 
 export type ResourceTickerData = {
   id: string;
+  name: string;
+  column?: number;
+  amount: number;
+  tooltip?: string;
+  isLuxury?: boolean;
+  icon?: ReactNode;
+};
+
+export type ResourceTickerGroupData = {
+  id: string;
   label?: string;
   column: number;
-  amount: number;
-  isLuxury?: boolean;
-  iconColor?: string;
-  icon?: ReactNode;
+  tickers: ResourceTickerData[];
 };
 
 export type ResourceCategoryData = {
@@ -17,22 +24,23 @@ export type ResourceCategoryData = {
   label: string;
   column: number;
   icon: ReactNode;
-  tickers: ResourceTickerData[];
+  tickerGroups: ResourceTickerGroupData[];
   mixedItems?: boolean;
+  showTotal?: boolean;
 };
 
 export interface ResourceTickerCollectionProps {
   categories: ResourceCategoryData[];
   showTotals?: boolean;
-  onClickAmount?: (args: { label: string; index: number; amount: number; isTotal: boolean }) => void;
-  onReorderCategoryTickers?: (args: { categoryKey: string; tickers: ResourceTickerData[] }) => void;
+  onClickAmount?: (args: { name: string; index: number; amount: number; isTotal: boolean; rowIndex?: number }) => void;
+  onReorderCategoryTickerGroups?: (args: { categoryKey: string; tickerGroups: ResourceTickerGroupData[] }) => void;
 }
 
 export default function ResourceTickerCollection({
   categories,
   showTotals = true,
   onClickAmount,
-  onReorderCategoryTickers,
+  onReorderCategoryTickerGroups,
 }: ResourceTickerCollectionProps) {
   return (
     <div className="resource-ticker-collection">
@@ -42,11 +50,11 @@ export default function ResourceTickerCollection({
           label={c.label}
           column={c.column}
           icon={c.icon}
-          tickers={c.tickers}
-          showTotal={showTotals && c.mixedItems !== true}
+          tickerGroups={c.tickerGroups}
+          showTotal={showTotals && (c.showTotal ?? c.mixedItems !== true)}
           onClickAmount={onClickAmount}
-          draggableTickers={!!onReorderCategoryTickers && c.mixedItems !== true}
-          onReorderTickers={(tickers) => onReorderCategoryTickers?.({ categoryKey: c.key, tickers })}
+          draggableTickerGroups={!!onReorderCategoryTickerGroups && c.mixedItems !== true}
+          onReorderTickerGroups={(tickerGroups) => onReorderCategoryTickerGroups?.({ categoryKey: c.key, tickerGroups })}
         />
       ))}
     </div>

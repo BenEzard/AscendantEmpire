@@ -3,8 +3,8 @@ import "./ResourceTicker.css";
 import { formatNumberWithCommas } from "@/util/number";
 
 export interface ResourceTickerProps {
+  name: string;
   icon: ReactNode;
-  iconColor?: string;
   amount: number;
   tooltip?: string;
   onClick?: () => void;
@@ -31,7 +31,7 @@ function formatAmount(amount: number): string {
   return `${k}K`;
 }
 
-export default function ResourceTicker({ icon, iconColor, amount, tooltip, onClick, disabled, IsLuxury }: ResourceTickerProps) {
+export default function ResourceTicker({ name, icon, amount, tooltip, onClick, disabled, IsLuxury }: ResourceTickerProps) {
   const display = formatAmount(amount);
   const tip = tooltip ?? formatNumberWithCommas(amount);
 
@@ -45,10 +45,8 @@ export default function ResourceTicker({ icon, iconColor, amount, tooltip, onCli
 
   return (
     <span title={tip} className={isDisabled ? "resource-ticker-wrapper resource-ticker-wrapper--disabled" : "resource-ticker-wrapper"}>
-      <button type="button" className={className} aria-label={`${display}`} onDoubleClick={isDisabled ? undefined : onClick} disabled={isDisabled}>
-        <span className="resource-ticker__icon" style={iconColor ? { color: iconColor } : undefined}>
-          {icon}
-        </span>
+      <button type="button" className={className} aria-label={`${name}: ${display}`} onClick={isDisabled ? undefined : onClick} disabled={isDisabled}>
+        <span className="resource-ticker__icon">{icon}</span>
         <span className="resource-ticker__amount">{display}</span>
       </button>
     </span>
