@@ -84,6 +84,12 @@ function GeographyManagerDialog({
         panelClassName="thick-border-modal"
         footer={
           <>
+            <div className="mr-auto">
+              <Button variant="primary" onClick={handleExportClick}>
+                <CiExport aria-hidden="true" strokeWidth={2} />
+                Export
+              </Button>
+            </div>
             <Button variant="secondary" onClick={onClose}>
               Cancel / Close
             </Button>
@@ -112,14 +118,6 @@ function GeographyManagerDialog({
               ))
             )}
           </select>
-
-          <span className="grow" />
-
-          <span title="Export">
-            <Button variant="primary" onClick={handleExportClick} disabled={geographies.length === 0}>
-              <CiExport aria-hidden="true" strokeWidth={2} />
-            </Button>
-          </span>
         </div>
 
         <div className="grid grid-cols-12 gap-4">
@@ -146,7 +144,7 @@ function GeographyManagerDialog({
                   <label className="col-span-5 text-sm text-slate-700">Id</label>
                   <div className="col-span-7">
                     <input
-                      className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
+                      className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm bg-gray-100"
                       value={selectedGeography?.campaignMapGeographyType ?? ""}
                       disabled
                       readOnly
