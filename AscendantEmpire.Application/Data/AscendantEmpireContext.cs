@@ -590,6 +590,12 @@ public class AscendantEmpireContext : DbContext
                 .HasForeignKey(e => e.PlayerId)
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_TroopInstances_Player_PlayerId");
+
+            entity.HasOne(e => e.CampaignMap)
+                .WithMany()
+                .HasForeignKey(e => e.CampaignMapTileId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_TroopInstances_CampaignMap_CampaignMapTileId");
         });
     }
 

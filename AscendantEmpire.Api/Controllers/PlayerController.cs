@@ -2,8 +2,10 @@
 using AscendantEmpire.Application.Handlers.Players;
 using AscendantEmpire.Application.Handlers.Players.Classes;
 using AscendantEmpire.BackendContracts.Players.GetPlayerStructures;
+using AscendantEmpire.BackendContracts.Units.GetPlayerTroops;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Player;
+using AscendantEmpire.FrontendContracts.Units;
 
 using MediatR;
 
@@ -23,7 +25,7 @@ public class PlayerController : ControllerBase
     /// <response code="200">Player information for Campaign and Battle Maps</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [HttpGet("structures")]
-    [ProducesResponseType(typeof(IPlayerStructuresCollection), 200)]
+    [ProducesResponseType(typeof(IPlayerStructureCollection), 200)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
     public async Task<IActionResult> GetPlayerStructuresAsync(
         [FromServices] IMediator mediator,
@@ -52,5 +54,32 @@ public class PlayerController : ControllerBase
                 }).ToList() ?? []
             };
         });
+    }
+
+    /// <summary>
+    /// Get a Player's current Troops
+    /// </summary>
+    /// <response code="200">Player information for Campaign and Battle Maps</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpGet("troops")]
+    [ProducesResponseType(typeof(IPlayerTroopCollection), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetPlayerTroopsAsync(
+        [FromServices] IMediator mediator,
+        [FromQuery] Guid gameGuid,
+        [FromQuery] Guid playerGuid,
+        CancellationToken cancelToken)
+    {
+        ServiceResult<IReadOnlyCollection<PlayerTroop>> response = await mediator.Send(new GetPlayerTroopsRequest(gameGuid, playerGuid), cancelToken);
+
+        return response.ToActionResult(contract => response.SuccessValue?.Select(s => new DTPlayerTroop
+        {
+            CampaignMapTileId = s.CampaignMapTileId,
+            BattleMapTileId = s.BattleMapTileId,
+            CampaignXCoord = s.CampaignXCoord,
+            CampaignYCoord = s.CampaignYCoord,
+            SightRange = s.SightRange,
+            MapImagePath = s.MapImagePath
+        }).ToList() ?? []);
     }
 }
