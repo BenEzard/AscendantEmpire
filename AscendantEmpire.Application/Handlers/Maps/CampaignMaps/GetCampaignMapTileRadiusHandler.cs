@@ -55,7 +55,7 @@ internal class GetCampaignMapTileRadiusHandler(
 
         foreach (var viewer in request.MapObservers)
         {
-            var sightMode = viewer.SightMode;
+            var sightMode = viewer.SightDirection;
 
             if (viewer.SightRange < 0) // No sight, quick return
             {

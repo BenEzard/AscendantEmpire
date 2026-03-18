@@ -22,4 +22,5 @@ public class TroopInstance
     public GameIndex Game { get; set; } = null!;
     public Player Player { get; set; } = null!;
     public CompiledDesignStats Stats { get; set; } = null!;
+    public CampaignMap CampaignMap { get; set; } = null!;
 }

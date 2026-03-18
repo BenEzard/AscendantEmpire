@@ -95,7 +95,8 @@ internal class SpawnTroopHandler(
             cancelToken.ThrowIfCancellationRequested();
 
             // Convert XCoord and YCoord to a single index based on the map size
-            int campaignMapTileId = MapMethods.GetDbId(thisPlayer.CampaignMapOffsetId, gameInfo.MapWidth, request.XCoord, request.YCoord);
+            // Set with a mapOffset of 1, so that it is the WORLD coordinates, not the Player's coordinates
+            int campaignMapTileId = MapMethods.GetDbId(1, gameInfo.MapWidth, request.XCoord, request.YCoord);
 
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 

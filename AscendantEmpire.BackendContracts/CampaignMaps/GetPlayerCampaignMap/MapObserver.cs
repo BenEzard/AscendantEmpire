@@ -23,5 +23,5 @@ public record class MapObserver
     /// <summary>
     /// Optional directional mode. Defaults to FullRadius (existing behavior).
     /// </summary>
-    public DetectionDirection SightMode { get; init; } = DetectionDirection.FullRadius;
+    public DetectionDirection SightDirection { get; init; } = DetectionDirection.FullRadius;
 }
