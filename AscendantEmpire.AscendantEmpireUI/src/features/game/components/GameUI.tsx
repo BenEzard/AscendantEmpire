@@ -330,7 +330,7 @@ function GameUI() {
   }, [loadPlayerCampaignMap.mutate]);
 
   const sendVisionRequest = useCallback(
-    (x: number, y: number, _source: "tile-click" | "vision-enabled") => {
+    (x: number, y: number) => {
       if (activeTool !== "vision") return;
       if (!gameGuid || !playerGuid) return;
 
@@ -369,7 +369,7 @@ function GameUI() {
     (t: TileCell) => {
       if (activeTool === "vision") {
         setSelectedTile({ x: t.x, y: t.y });
-        sendVisionRequest(t.x, t.y, "tile-click");
+        sendVisionRequest(t.x, t.y);
       }
 
       const biomeName = t.biomeTypeId == null ? "null" : (biomeNameByType.get(t.biomeTypeId) ?? `unknown(${t.biomeTypeId})`);
@@ -389,7 +389,7 @@ function GameUI() {
     if (prev === "vision") return;
     if (!selectedTile) return;
 
-    sendVisionRequest(selectedTile.x, selectedTile.y, "vision-enabled");
+    sendVisionRequest(selectedTile.x, selectedTile.y);
   }, [activeTool, selectedTile, sendVisionRequest]);
 
   const getTileStyle = useCallback(
@@ -445,11 +445,18 @@ function GameUI() {
           }}>
           <ResourceTickerCollection
             categories={constructionCategories}
+            maximumColumns={4}
             onReorderCategoryTickerGroups={({ categoryKey, tickerGroups }) => {
-              setConstructionCategories((prev) => prev.map((c) => (c.key === categoryKey ? { ...c, tickerGroups } : c)));
+              setConstructionCategories((prev) =>
+                prev.map((category) =>
+                  category.key === categoryKey && category.type === "processed-resources" ? { ...category, tickerGroups } : category,
+                ),
+              );
             }}
-            onClickAmount={({ name, amount }) => {
-              openToast(`${name}: ${amount}`, "info");
+            onClickAmount={({ name, amount, categoryType, grade, isTotal }) => {
+              const gradeText = grade ? ` [${grade}]` : "";
+              const sourceText = isTotal ? "total" : "resource";
+              openToast(`${name}${gradeText}: ${amount} (${categoryType}, ${sourceText})`, "info");
             }}
           />
         </div>

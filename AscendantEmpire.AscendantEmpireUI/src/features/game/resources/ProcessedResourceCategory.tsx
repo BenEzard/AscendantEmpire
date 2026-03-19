@@ -1,18 +1,20 @@
-import { useMemo, useRef, useState, type ReactNode } from "react";
-import ResourceTickerGroup from "./ResourceTickerGroup";
+import { useMemo, useRef, useState } from "react";
+import ProcessedResourceTickerGroup from "./ProcessedResourceTickerGroup";
 import ResourceTotal from "./ResourceTotal";
 import ResourceCategoryHeader from "./ResourceCategoryHeader";
 import "./ResourceTickerCollection.css";
-import type { ResourceTickerGroupData } from "./ResourceTickerCollection";
+import type { ResourceClickArgs, ResourceTickerGroupData } from "./ResourceTickerCollection";
 import { formatNumberWithCommas } from "@/util/number";
 
-export interface ResourceCategoryProps {
+export interface ProcessedResourceCategoryProps {
+  categoryKey: string;
+  categoryType: "processed-resources";
   label: string;
   column: number;
-  icon: ReactNode;
   tickerGroups: ResourceTickerGroupData[];
+  maxColumns: number;
   showTotal?: boolean;
-  onClickAmount?: (args: { name: string; index: number; amount: number; isTotal: boolean; rowIndex?: number }) => void;
+  onClickAmount?: (args: ResourceClickArgs) => void;
   draggableTickerGroups?: boolean;
   onReorderTickerGroups?: (tickerGroups: ResourceTickerGroupData[]) => void;
 }
@@ -40,16 +42,18 @@ function reorderTickerGroupByColumn(tickerGroups: ResourceTickerGroupData[], dra
   return next.map((group, idx) => ({ ...group, column: idx + 1 }));
 }
 
-export default function ResourceCategory({
+export default function ProcessedResourceCategory({
+  categoryKey,
+  categoryType,
   label,
   column,
-  icon: _icon,
   tickerGroups,
+  maxColumns,
   showTotal = true,
   onClickAmount,
   draggableTickerGroups = false,
   onReorderTickerGroups,
-}: ResourceCategoryProps) {
+}: ProcessedResourceCategoryProps) {
   const orderedTickerGroups = useMemo(() => sortTickerGroupsByColumn(tickerGroups), [tickerGroups]);
   const maxTickerDepth = useMemo(
     () => orderedTickerGroups.reduce((maxDepth, group) => Math.max(maxDepth, group.tickers.length), 0),
@@ -63,12 +67,13 @@ export default function ResourceCategory({
     [maxTickerDepth, orderedTickerGroups],
   );
   const maxTickerGroupColumn = useMemo(() => tickerGroups.reduce((acc, group) => Math.max(acc, group.column), 0), [tickerGroups]);
+  const resolvedMaxColumns = Math.max(maxColumns, maxTickerGroupColumn);
   const gridTemplateColumns = useMemo(() => {
-    if (showTotal && maxTickerGroupColumn > 0) return `max-content repeat(${maxTickerGroupColumn}, max-content)`;
+    if (showTotal && resolvedMaxColumns > 0) return `max-content repeat(${resolvedMaxColumns}, max-content)`;
     if (showTotal) return "max-content";
-    if (maxTickerGroupColumn > 0) return `repeat(${maxTickerGroupColumn}, max-content)`;
+    if (resolvedMaxColumns > 0) return `repeat(${resolvedMaxColumns}, max-content)`;
     return undefined;
-  }, [maxTickerGroupColumn, showTotal]);
+  }, [resolvedMaxColumns, showTotal]);
 
   const tickersRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<{
@@ -157,7 +162,6 @@ export default function ResourceCategory({
       state.active = true;
       setIsDragging(true);
 
-      // Capture only once a drag is confirmed, so normal clicks/double-clicks still work.
       if (state.captureEl && !state.captureEl.hasPointerCapture(e.pointerId)) {
         state.captureEl.setPointerCapture(e.pointerId);
       }
@@ -210,6 +214,8 @@ export default function ResourceCategory({
                       onClickAmount
                         ? () =>
                             onClickAmount({
+                              categoryKey,
+                              categoryType,
                               name: `${label} total ${rowIndex + 1}`,
                               index: -1,
                               amount: total,
@@ -243,7 +249,7 @@ export default function ResourceCategory({
               .filter(Boolean)
               .join(" ")}
             style={{ gridColumnStart: (showTotal ? 1 : 0) + group.column }}>
-            <ResourceTickerGroup
+            <ProcessedResourceTickerGroup
               label={group.label ?? label}
               tickers={group.tickers}
               rowCount={maxTickerDepth}
@@ -254,10 +260,15 @@ export default function ResourceCategory({
                 onClickAmount
                   ? (ticker) =>
                       onClickAmount({
+                        categoryKey,
+                        categoryType,
                         name: ticker.name,
                         index: group.column,
                         amount: ticker.amount,
                         isTotal: false,
+                        rowIndex: group.tickers.findIndex((item) => item.id === ticker.id),
+                        groupId: group.id,
+                        resourceId: ticker.id,
                       })
                   : undefined
               }
