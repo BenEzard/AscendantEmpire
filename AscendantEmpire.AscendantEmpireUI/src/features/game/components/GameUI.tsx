@@ -12,7 +12,7 @@ import TileGrid from "@/features/map/components/TileGrid";
 import type { TileCell } from "@/features/map/components/TileTypes";
 import { useCampaignMapBiomesQuery } from "@/features/map/hooks/useCampaignMapBiomes";
 import { useCampaignMapGeographiesQuery } from "@/features/map/hooks/useCampaignMapGeographies";
-import type { LoadPlayerCampaignMapRequest, PlayerCampaignMapObserverResultDto } from "@/features/map/api/playerCampaignMapApi";
+import type { CampaignMapTileDto, LoadPlayerCampaignMapRequest, PlayerCampaignMapObserverResultDto } from "@/features/map/api/playerCampaignMapApi";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Alert, Spinner, Toast, ToastViewport } from "@/components/ui";
 import { FaChessKnight, FaRegFolderOpen } from "react-icons/fa6";
@@ -27,17 +27,14 @@ import { http } from "@/api/http";
 import { SlClose } from "react-icons/sl";
 import { useQueryClient } from "@tanstack/react-query";
 
-function buildTiles2d(
-  width: number,
-  height: number,
-  tiles: { xCoord: number; yCoord: number; biomeTypeId: number; campaignMapGeographyTypeId: number }[],
-): TileCell[][] {
+function buildTiles2d(width: number, height: number, tiles: CampaignMapTileDto[]): TileCell[][] {
   const grid: TileCell[][] = Array.from({ length: height }, (_, y) =>
     Array.from({ length: width }, (_, x) => ({
       x,
       y,
       biomeTypeId: null,
       geographyTypeId: null,
+      structures: undefined,
     })),
   );
 
@@ -50,6 +47,7 @@ function buildTiles2d(
       y: t.yCoord,
       biomeTypeId: t.biomeTypeId,
       geographyTypeId: t.campaignMapGeographyTypeId,
+      structures: t.structures,
     };
   }
 
@@ -344,6 +342,7 @@ function GameUI() {
         gameGuid,
         playerGuid,
         loadWholeMap: visionLoadWholeMap,
+        observers: null,
       };
 
       visionLastRequestKeyRef.current = requestKey;

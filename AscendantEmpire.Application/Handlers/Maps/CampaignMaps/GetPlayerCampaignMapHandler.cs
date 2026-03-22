@@ -1,9 +1,14 @@
 ﻿using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Handlers.Game;
+using AscendantEmpire.Application.Handlers.Maps.CampaignMaps.Classes;
 using AscendantEmpire.Application.Handlers.Maps.CampaignMaps.Extensions;
+using AscendantEmpire.Application.Handlers.Players;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.BackendContracts.Players.GetPlayerStructures;
+using AscendantEmpire.BackendContracts.Units.GetPlayerTroops;
+using AscendantEmpire.Domain.Enums;
 using AscendantEmpire.Domain.Enums.Maps;
 
 using FluentValidation;
@@ -43,11 +48,11 @@ internal class PlayerCampaignMapRequestValidator : AbstractValidator<GetPlayerCa
         When(r => r.Observers is not null, () =>
         {
             RuleFor(r => r.Observers)
-                .Must(observers => observers.Select(o => o.TemporaryObserverId).All(id => id > 0))
+                .Must(observers => observers.Select(o => o.Id).All(id => id > 0))
                 .WithMessage("All Observers must have TemporaryObserverId > 0.");
 
             RuleFor(r => r.Observers)
-                .Must(observers => observers.Select(o => o.TemporaryObserverId).Distinct().Count() == observers.Count)
+                .Must(observers => observers.Select(o => o.Id).Distinct().Count() == observers.Count)
                 .WithMessage("All Observers must have unique TemporaryObserverId values.");
 
             RuleForEach(r => r.Observers)
@@ -71,7 +76,7 @@ internal class GetPlayerCampaignMapHandler(
     public async Task<ServiceResult<IReadOnlyCollection<ObserverSight>>> Handle(GetPlayerCampaignMapRequest request, CancellationToken cancelToken)
     {
         List<ObserverSight> observers = [];
-        Dictionary<int, MapObserverSight> mapSightByTemporaryId = [];
+        Dictionary<(int, RecordType), MapObserverSight> mapSightByObserverId = [];
 
         try
         {
@@ -106,11 +111,44 @@ internal class GetPlayerCampaignMapHandler(
             }
 
             OpenGamePlayer thisPlayer = gameInfo.Players.Single();
+            int mapWidth = gameInfo.MapWidth;
 
-            if (request.Observers is not null)
+            // TODO: Need to move the Observers out of the request. The Observers should be calculated in the backend.
+
+            // This is a little odd. On the one hand, I have to load ALL Structures and Troops for the Player as they could all be observers,
+            // but on the other hand I only want to load those that are relevant to my current viewport. TODO Viewport?
+            Task<ServiceResult<IReadOnlyCollection<PlayerStructure>>> fetchStructures = mediator.Send(new GetPlayerStructuresRequest(request.GameGuid, request.PlayerGuid), cancelToken);
+            Task<ServiceResult<IReadOnlyCollection<PlayerTroop>>> fetchPlayerTroops = mediator.Send(new GetPlayerTroopsRequest(request.GameGuid, request.PlayerGuid), cancelToken);
+
+            await Task.WhenAll(fetchStructures, fetchPlayerTroops);
+
+            ServiceResult<IReadOnlyCollection<PlayerStructure>> structuresResult = fetchStructures.Result;
+
+            if (structuresResult.HasSucceeded == false)
+            {
+                const string error = "Error getting player structures while trying to get a Player's view of the Campaign Map";
+                logger.LogWarning(error);
+                return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(structuresResult.Errors.Prepend(error));
+            }
+
+            Dictionary<int, List<PlayerStructure>> structuresByTileId = structuresResult.SuccessValue!
+                .GroupBy(s => s.CampaignMapTileId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            List<MapObserver> mapObservers = [];
+            mapObservers.AddRange(structuresResult.SuccessValue!.Select(s => new MapObserver
+            {
+                Id = s.StructureInstanceId,
+                RecordType = s.RecordTypeId,
+                Location = new Coord { X = s.XCoord, Y = s.YCoord },
+                SightRange = s.SightRange,
+                SightDirection = DetectionDirection.FullRadius
+            }));
+
+            if (mapObservers.Count > 0)
             {
                 // Add the DbIds to the Observers
-                List<EnhancedMapObserver> enhancedObservers = EnhanceObserverCoordinates(mapOffset: thisPlayer.CampaignMapOffsetId, gameInfo.MapWidth, request.Observers);
+                List<EnhancedMapObserver> enhancedObservers = EnhanceObserverCoordinates(mapOffset: thisPlayer.CampaignMapOffsetId, gameInfo.MapWidth, mapObservers);
 
                 // Load the Occupied Tiles first, to see if there are any Bonuses/Penalties on the Occupied Tile that will affect the Sight Radius
                 enhancedObservers = await UpdateObserverSightValuesAsync(enhancedObservers, cancelToken);
@@ -129,9 +167,9 @@ internal class GetPlayerCampaignMapHandler(
 
                 cancelToken.ThrowIfCancellationRequested();
 
-                // Filter down the Tiles based on those that can be seen; excluding those from the radius which are blocked by Geography or Biome features
+                // Filter down the Tiles based on those that CAN be seen; excluding those from the radius which are blocked by Geography or Biome features
                 List<MapObserverSight> mapSight = DetermineMapSight(radiusDetails.SuccessValue, tiles.ToDictionary(t => t.PlayerCampaignMapId));
-                mapSightByTemporaryId = mapSight.ToDictionary(ms => ms.TemporaryObserverId);
+                mapSightByObserverId = mapSight.ToDictionary(ms => (ms.Id, ms.RecordType));
 
                 List<int> playerCampaignMapIds = mapSight.GetAllDbIds();
 
@@ -165,35 +203,71 @@ internal class GetPlayerCampaignMapHandler(
 
                 observers.Add(new ObserverSight()
                 {
-                    TemporaryObserverId = 0,
+                    Id = 0,
+                    RecordType = RecordType.None,
                     Location = new Coord { X = 0, Y = 0 },
-                    SeenTiles = [.. from masterTile in fetchPlayerView
-                                    // TODO improve by excluding already discovered Tiles
-                                    //where playerCampaignMapIds.Contains(new Coord { X = masterTile.XCoord, Y = masterTile.YCoord }).GetDbId(thisPlayer.CampaignMapOffsetId, gameInfo.MapWidth)) == false
-                                 select new ObservedCampaignTile
-                                 {
-                                     XCoord = masterTile.XCoord,
-                                     YCoord = masterTile.YCoord,
-                                     BiomeTypeId = masterTile.BiomeTypeId,
-                                     CampaignMapGeographyTypeId = masterTile.GeographyTypeId,
-                                 }]
+                    // TODO improve by excluding already discovered Tiles where playerCampaignMapIds.Contains(new Coord { X= masterTile.XCoord, Y = masterTile.YCoord }).}).GetDbId(thisPlayer.CampaignMapOffsetId, gameInfo.MapWidth)) == false
+                    SeenTiles =
+                    [
+                        .. fetchPlayerView.Select(masterTile =>
+                        {
+                            int dbId = new Coord
+                            {
+                                X = masterTile.XCoord,
+                                Y = masterTile.YCoord
+                            }.GetDbId(thisPlayer.CampaignMapOffsetId, gameInfo.MapWidth);
+
+                            structuresByTileId.TryGetValue(dbId, out List<PlayerStructure>? structuresAtTile);
+
+                            return new ObservedCampaignTile
+                            {
+                                XCoord = masterTile.XCoord,
+                                YCoord = masterTile.YCoord,
+                                BiomeTypeId = masterTile.BiomeTypeId,
+                                CampaignMapGeographyTypeId = masterTile.GeographyTypeId,
+                                Structures = structuresAtTile?.Select(s => new ObservedStructure
+                                {
+                                    Id = s.StructureInstanceId,
+                                    StructureId = s.StructureId,
+                                    CompletionPercent = s.CompletionPercent,
+                                    PositionOnTile = s.Position
+                                }).ToList() ?? []
+                            };
+                        })
+                    ]
                 });
             }
             else
             {
-                observers.AddRange([.. request.Observers.Select( o => new ObserverSight
+                observers.AddRange([.. mapObservers
+        .Where(mo => mo.SightRange >= 0)
+        .Select(o => new ObserverSight
+        {
+            Id = o.Id,
+            RecordType = o.RecordType,
+            Location = o.Location,
+            SeenTiles = [.. mapSightByObserverId[(o.Id, o.RecordType)].SeenTiles
+                .Select(st =>
                 {
-                    TemporaryObserverId = o.TemporaryObserverId,
-                    Location = o.Location,
-                    SeenTiles = [.. mapSightByTemporaryId[o.TemporaryObserverId].SeenTiles
-                        .Select(st => new ObservedCampaignTile
+                    int dbId = st.Coord.GetDbId(1, mapWidth);
+                    structuresByTileId.TryGetValue(dbId, out List<PlayerStructure>? structuresAtTile);
+
+                    return new ObservedCampaignTile
+                    {
+                        XCoord = st.Coord.X,
+                        YCoord = st.Coord.Y,
+                        BiomeTypeId = st.BiomeType,
+                        CampaignMapGeographyTypeId = st.GeographyType,
+                        Structures = structuresAtTile?.Select(s => new ObservedStructure
                         {
-                            XCoord = st.Coord.X,
-                            YCoord = st.Coord.Y,
-                            BiomeTypeId = st.BiomeType,
-                            CampaignMapGeographyTypeId = st.GeographyType
-                        })]
-                })]);
+                            Id = s.StructureInstanceId,
+                            StructureId = s.StructureId,
+                            CompletionPercent = s.CompletionPercent,
+                            PositionOnTile = s.Position
+                        }).ToList() ?? []
+                    };
+                })]
+        })]);
             }
         }
         catch (Exception ex)
@@ -362,7 +436,8 @@ internal class GetPlayerCampaignMapHandler(
         return [.. (from mx in observers
                      select new EnhancedMapObserver()
                      {
-                         TemporaryObserverId = mx.TemporaryObserverId,
+                         Id = mx.Id,
+                         RecordType = mx.RecordType,
                          Location = mx.Location,
                          DbId = mx.Location.GetDbId(mapOffset, mapWidth),
                          SightRange = mx.SightRange
@@ -400,18 +475,19 @@ internal class GetPlayerCampaignMapHandler(
             .ToListAsync(cancelToken);
 
         // Regenerate the MapViewer request information with updated Sight values
-        List<EnhancedMapObserver> data = [.. (from o in enhancedObservers
-                   join t in occupiedTiles on o.DbId equals t.PlayerCampaignMapId
+        List<EnhancedMapObserver> data = [.. (from eo in enhancedObservers
+                   join t in occupiedTiles on eo.DbId equals t.PlayerCampaignMapId
                    select new EnhancedMapObserver()
                    {
-                        TemporaryObserverId = o.TemporaryObserverId,
-                        DbId = o.DbId,
-                        Location = o.Location,
+                        Id = eo.Id,
+                        RecordType = eo.RecordType,
+                        DbId = eo.DbId,
+                        Location = eo.Location,
                         SightRange = t.DoesBlockSight 
                             ? 0 // if DoesBlockSight, apply the penalty (SightRange reduced to 0)
                             : t.RelativeElevation <= 0
-                                ? o.SightRange // if RelativeElevation <= 0, no change
-                                : o.SightRange + t.RelativeElevation // otherwise add the bonus
+                                ? eo.SightRange // if RelativeElevation <= 0, no change
+                                : eo.SightRange + t.RelativeElevation // otherwise add the bonus
                    })];
 
         return data;
@@ -513,7 +589,7 @@ internal class GetPlayerCampaignMapHandler(
     }
 
     /// <summary>
-    /// Determines which tiles are visible to each Observer based on their Sight Radius and the Tiles' properties.
+    /// Determines which Tiles are visible to each Observer based on their Sight Radius and the Tiles' properties.
     /// </summary>
     private static List<MapObserverSight> DetermineMapSight(
         IDictionary<int, MapObserverOriginLocation> radiusDetails,
@@ -527,7 +603,8 @@ internal class GetPlayerCampaignMapHandler(
 
             var observer = new MapObserverSight
             {
-                TemporaryObserverId = origin.TemporaryObserverId,
+                Id = origin.Id,
+                RecordType = origin.RecordTypeId,
                 OccupiedCoord = origin.OccupiedCoord,
                 SeenTiles = [new SeenTile
                 {
@@ -645,7 +722,8 @@ internal class GetPlayerCampaignMapHandler(
 
     public class MapObserverSight
     {
-        public required int TemporaryObserverId { get; set; }
+        public required int Id { get; set; }
+        public required RecordType RecordType { get; set; } 
         public required EnhancedCoord OccupiedCoord { get; set; }
         public required List<SeenTile> SeenTiles { get; set; }
     }

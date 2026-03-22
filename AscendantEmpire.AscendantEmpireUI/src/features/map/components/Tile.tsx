@@ -4,6 +4,7 @@ import type { Geography } from "@/types/map/Geography";
 import type { TileCell } from "./TileTypes";
 import { iconMap } from "./mapEditorIcons";
 import { cssColorToRgba, pickTextColorOnBg } from "@/util/color";
+import ObservedStructure from "./ObservedStructure";
 
 export interface TileProps {
   tile: TileCell;
@@ -38,6 +39,7 @@ const Tile = React.memo(function Tile({ tile, sizePx, geography, onClick, classN
 
   const iconKey = geography?.mapEditorIcon ?? null;
   const Icon = iconKey ? iconMap[iconKey] : undefined;
+  const visibleStructure = tile.structures?.find((structure) => structure.structureId === 1) ?? null;
 
   const style = { ...baseStyle, ...(getStyle?.(tile) ?? {}) };
   const combinedClassName = ["tile", className].filter(Boolean).join(" ");
@@ -52,6 +54,7 @@ const Tile = React.memo(function Tile({ tile, sizePx, geography, onClick, classN
   return (
     <div className={combinedClassName} role={clickable ? "button" : undefined} title={getTitle?.(tile)} onClick={() => onClick?.(tile)} style={style}>
       {Icon ? <Icon className="tile-icon-fill" aria-hidden style={{ color: iconColor }} /> : null}
+      {visibleStructure ? <ObservedStructure structure={visibleStructure} /> : null}
     </div>
   );
 });

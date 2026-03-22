@@ -4,10 +4,10 @@
 public enum DetectionDirection
 {
     None = 0,
-    FullRadius = 1 << 0, // current behavior: full radius in all directions
+    FullRadius = 1 << 0, // 1 current behavior: full radius in all directions
 
-    North = 1 << 1,
-    East = 1 << 2,
-    South = 1 << 3,
-    West = 1 << 4,
+    North = 1 << 1,     // 2
+    East = 1 << 2,      // 4
+    South = 1 << 3,     // 8
+    West = 1 << 4,      // 16
 }

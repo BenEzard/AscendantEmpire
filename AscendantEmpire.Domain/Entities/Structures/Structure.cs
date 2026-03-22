@@ -1,4 +1,5 @@
-﻿using AscendantEmpire.Domain.Enums.Structures;
+﻿using AscendantEmpire.Domain.Enums.Maps;
+using AscendantEmpire.Domain.Enums.Structures;
 
 using System.ComponentModel.DataAnnotations;
 
@@ -10,6 +11,7 @@ public class Structure
     public const int NAME_MAX_LENGTH = 100;
 
     public int Id { get; set; }
+    public int RecordTypeId { get; set; }
 
     [MaxLength(CODE_MAX_LENGTH)]
     public required string Code { get; set; }
@@ -36,4 +38,7 @@ public class Structure
     public required bool DualMapBuildTrigger { get; set; }
 
     public required int SightRange { get; set; }
+    public required DetectionDirection SightDirection { get; set; }
+    public required string MapImagePath { get; set; }
+    public required string FullImagePath { get; set; }
 }

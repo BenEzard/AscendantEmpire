@@ -1,13 +1,15 @@
-﻿using AscendantEmpire.Domain.Enums.Maps;
+﻿using AscendantEmpire.Domain.Enums;
+using AscendantEmpire.Domain.Enums.Maps;
 
 namespace AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 
 public record class MapObserver
 {
     /// <summary>
-    /// A temporary identifier for this observer instance. This ID is only valid for the duration of the request/response cycle.
+    /// Id of the observer.
     /// </summary>
-    public required int TemporaryObserverId { get; init; }
+    public required int Id { get; init; }
+    public required RecordType RecordType { get; init; }
 
     /// <summary>
     /// The location of the observer on the campaign map.

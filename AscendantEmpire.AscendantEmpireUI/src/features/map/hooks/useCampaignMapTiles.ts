@@ -19,7 +19,7 @@ export function usePlayerCampaignMapTilesQuery(gameGuid: string | undefined, pla
       if (gameGuid == null) throw new Error("gameGuid is null");
       if (playerGuid == null) throw new Error("playerGuid is null");
       
-      const payload: LoadPlayerCampaignMapRequest = { gameGuid, playerGuid, loadWholeMap: true };
+      const payload: LoadPlayerCampaignMapRequest = { gameGuid, playerGuid, loadWholeMap: true, observers: null };
 
       return await postPlayerCampaignMap(payload);
     },
@@ -33,8 +33,18 @@ function mergeTiles(prev: CampaignMapTilesResponse | undefined, next: CampaignMa
 
   for (const t of next.tiles) {
     const idx = merged.findIndex((x) => x.xCoord === t.xCoord && x.yCoord === t.yCoord);
-    if (idx >= 0) merged[idx] = t;
-    else merged.push(t);
+    if (idx >= 0) {
+      const existing = merged[idx];
+
+      merged[idx] = {
+        ...existing,
+        ...t,
+        structures: t.structures && t.structures.length > 0 ? t.structures : existing.structures,
+        troops: t.troops && t.troops.length > 0 ? t.troops : existing.troops,
+      };
+    } else {
+      merged.push(t);
+    }
   }
 
   return {

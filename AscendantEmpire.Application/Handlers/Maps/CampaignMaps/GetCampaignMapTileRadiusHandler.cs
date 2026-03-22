@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Helpers;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.Domain.Enums;
 using AscendantEmpire.Domain.Enums.Maps;
 
 using MediatR;
@@ -73,7 +74,8 @@ internal class GetCampaignMapTileRadiusHandler(
 
             var viewerLocation = new MapObserverOriginLocation
             {
-                TemporaryObserverId = viewer.TemporaryObserverId,
+                Id = viewer.Id,
+                RecordTypeId = viewer.RecordType,
                 OccupiedCoord = originCoord,
                 SightRange = viewer.SightRange,
                 SightChildren = []
@@ -203,7 +205,7 @@ internal class GetCampaignMapTileRadiusHandler(
                 .Where(d => d.Parent.X == viewerLocation.OccupiedCoord.X && d.Parent.Y == viewerLocation.OccupiedCoord.Y)
                 .SelectMany(x => x.Children)];
 
-            returnData[viewer.TemporaryObserverId] = viewerLocation;
+            returnData[viewer.Id] = viewerLocation;
         }
 
         return ServiceResult<IDictionary<int, MapObserverOriginLocation>>.Succeed(returnData);

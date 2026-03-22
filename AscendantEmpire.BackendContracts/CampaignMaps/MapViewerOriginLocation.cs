@@ -1,4 +1,6 @@
-﻿using System.Data;
+﻿using AscendantEmpire.Domain.Enums;
+
+using System.Data;
 
 namespace AscendantEmpire.BackendContracts.CampaignMaps;
 
@@ -7,7 +9,8 @@ public class MapObserverOriginLocation
     /// <summary>
     /// Unique id which provides traceability back to the viewing entity
     /// </summary>
-    public required int TemporaryObserverId { get; set; }
+    public required int Id { get; set; }
+    public required RecordType RecordTypeId { get; set; }
 
     /// <summary>
     /// The coordinates which the viewing entity is located at

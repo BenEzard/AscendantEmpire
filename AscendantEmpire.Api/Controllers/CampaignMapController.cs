@@ -46,7 +46,8 @@ public class CampaignMapController : ControllerBase
             {
                 Observers = contract.Select(o => new DTObserver
                 {
-                    TemporaryObserverId = o.TemporaryObserverId,
+                    Id = o.Id,
+
                     XCoord = o.Location.X,
                     YCoord = o.Location.Y,
                     SeenTiles = o.SeenTiles.Select(tile => new DTObservedCampaignTile
@@ -54,7 +55,14 @@ public class CampaignMapController : ControllerBase
                         XCoord = tile.XCoord,
                         YCoord = tile.YCoord,
                         BiomeTypeId = tile.BiomeTypeId,
-                        CampaignMapGeographyTypeId = tile.CampaignMapGeographyTypeId
+                        CampaignMapGeographyTypeId = tile.CampaignMapGeographyTypeId,
+                        Structures = [.. tile.Structures?.Select(s => new DTStructureStub
+                        {
+                            Id = s.Id,
+                            StructureId = s.StructureId,
+                            PositionOnTile = s.PositionOnTile,
+                            CompletionPercent = s.CompletionPercent
+                        }) ?? []],
                     }).ToList()
                 }).ToList()
             };

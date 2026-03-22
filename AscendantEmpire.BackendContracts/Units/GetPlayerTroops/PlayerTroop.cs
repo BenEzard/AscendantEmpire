@@ -9,5 +9,5 @@ public class PlayerTroop
     public int CampaignXCoord { get; set; }
     public int CampaignYCoord { get; set; }
     public int SightRange { get; set; }
-    public string MapImagePath { get; set; }
+    public required string MapImagePath { get; set; }
 }

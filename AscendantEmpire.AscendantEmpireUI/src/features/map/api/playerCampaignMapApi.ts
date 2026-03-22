@@ -1,19 +1,10 @@
 import { http } from "@/api/http";
 
-export type PlayerCampaignMapObserverDto = {
-  temporaryObserverId: number;
-  location: {
-    x: number;
-    y: number;
-  };
-  sightRange: number;
-};
-
 export type LoadPlayerCampaignMapRequest = {
   gameGuid: string;
   playerGuid: string;
   loadWholeMap?: boolean;
-  observers?: PlayerCampaignMapObserverDto[];
+  observers?: null;
 };
 
 export type ClearPlayerCampaignMapRequest = {
@@ -21,65 +12,85 @@ export type ClearPlayerCampaignMapRequest = {
   playerGuid: string;
 };
 
-export type PlayerStructureDto = {
-  campaignMapTileId: number | null;
-  battleMapTileId: number | null;
-  xCoord: number;
-  yCoord: number;
-  structureId: number;
-  name: string;
-  code: string;
-  completionPercent: number;
-  ownerPlayerId: number;
-  sightRange: number;
-};
-
-export type PlayerStructuresResponseDto = {
-  structures: PlayerStructureDto[];
-};
-
-// Be tolerant of backend JSON casing (camelCase vs PascalCase).
-type PlayerStructureWireDto = Partial<{
-  campaignMapTileId: number | null;
-  CampaignMapTileId: number | null;
-  battleMapTileId: number | null;
-  BattleMapTileId: number | null;
-  xCoord: number;
-  XCoord: number;
-  yCoord: number;
-  YCoord: number;
-  structureId: number;
-  StructureId: number;
-  name: string;
-  Name: string;
-  code: string;
-  Code: string;
-  completionPercent: number;
-  CompletionPercent: number;
-  ownerPlayerId: number;
-  OwnerPlayerId: number;
-  sightRange: number;
-  SightRange: number;
-}>;
-
-type PlayerStructuresResponseWireDto = Partial<{
-  structures: PlayerStructureWireDto[];
-  Structures: PlayerStructureWireDto[];
-}>;
-
 export interface CampaignMapTileDto {
   xCoord: number;
   yCoord: number;
   biomeTypeId: number;
   campaignMapGeographyTypeId: number;
+  structures?: ObservedStructureDto[];
+  troops?: ObservedTroopDto[];
 }
 
 export type PlayerCampaignMapObserverResultDto = {
-  temporaryObserverId: number;
+  id: number;
+  observerRecordType: number;
   xCoord: number;
   yCoord: number;
   seenTiles: CampaignMapTileDto[];
 };
+
+export type ObservedStructureDto = {
+  id: number;
+  structureId: number;
+  positionOnTile: number;
+  completionPercent: number;
+};
+
+export type ObservedTroopDto = {
+  id: number;
+  recordType: number;
+  unitDesignId: number;
+};
+
+type ObservedStructureWireDto = Partial<{
+  id: number;
+  Id: number;
+  structureId: number;
+  StructureId: number;
+  positionOnTile: number;
+  PositionOnTile: number;
+  completionPercent: number;
+  CompletionPercent: number;
+}>;
+
+type ObservedTroopWireDto = Partial<{
+  id: number;
+  Id: number;
+  recordType: number;
+  RecordType: number;
+  unitDesignId: number;
+  UnitDesignId: number;
+}>;
+
+type CampaignMapTileWireDto = Partial<{
+  xCoord: number;
+  XCoord: number;
+  yCoord: number;
+  YCoord: number;
+  biomeTypeId: number;
+  BiomeTypeId: number;
+  campaignMapGeographyTypeId: number;
+  CampaignMapGeographyTypeId: number;
+  structures: ObservedStructureWireDto[];
+  Structures: ObservedStructureWireDto[];
+  troops: ObservedTroopWireDto[];
+  Troops: ObservedTroopWireDto[];
+}>;
+
+type PlayerCampaignMapObserverResultWireDto = Partial<{
+  id: number;
+  Id: number;
+  observerRecordType: number;
+  ObserverRecordType: number;
+  xCoord: number;
+  XCoord: number;
+  yCoord: number;
+  YCoord: number;
+  seenTiles: CampaignMapTileWireDto[];
+  SeenTiles: CampaignMapTileWireDto[];
+  temporaryObserverId: number;
+  TemporaryObserverId: number;
+}>;
 
 // The API currently returns observers with their seen tiles.
 // Keep this separate from the normalized UI-facing shape below.
@@ -89,6 +100,13 @@ export type PlayerCampaignMapResponseDto = {
   tiles?: CampaignMapTileDto[];
 };
 
+type PlayerCampaignMapResponseWireDto = Partial<{
+  observers: PlayerCampaignMapObserverResultWireDto[];
+  Observers: PlayerCampaignMapObserverResultWireDto[];
+  tiles: CampaignMapTileWireDto[];
+  Tiles: CampaignMapTileWireDto[];
+}>;
+
 export interface CampaignMapTilesResponse {
   tiles: CampaignMapTileDto[];
   // Some endpoints also return this; keep optional so partial loads work.
@@ -97,75 +115,95 @@ export interface CampaignMapTilesResponse {
   observers?: PlayerCampaignMapObserverResultDto[];
 }
 
-async function getPlayerStructures(gameGuid: string, playerGuid: string): Promise<PlayerStructureDto[]> {
-  const baseUrl = http.defaults.baseURL ?? "";
-  console.log("[API] GET /player/structures", { baseUrl, gameGuid, playerGuid });
-
-  const { data } = await http.get<PlayerStructuresResponseWireDto>("/player/structures", {
-    params: { gameGuid, playerGuid },
-  });
-
-  const structures = data.structures ?? data.Structures ?? [];
-
-  return structures.map((s): PlayerStructureDto => {
-    const campaignMapTileId = (s.campaignMapTileId ?? s.CampaignMapTileId ?? null) as number | null;
-    const battleMapTileId = (s.battleMapTileId ?? s.BattleMapTileId ?? null) as number | null;
-
-    return {
-      campaignMapTileId,
-      battleMapTileId,
-      xCoord: (s.xCoord ?? s.XCoord ?? 0) as number,
-      yCoord: (s.yCoord ?? s.YCoord ?? 0) as number,
-      structureId: (s.structureId ?? s.StructureId ?? 0) as number,
-      name: (s.name ?? s.Name ?? "") as string,
-      code: (s.code ?? s.Code ?? "") as string,
-      completionPercent: (s.completionPercent ?? s.CompletionPercent ?? 0) as number,
-      ownerPlayerId: (s.ownerPlayerId ?? s.OwnerPlayerId ?? 0) as number,
-      sightRange: (s.sightRange ?? s.SightRange ?? 0) as number,
-    };
-  });
+function normalizeObservedStructure(structure: ObservedStructureWireDto): ObservedStructureDto {
+  return {
+    id: structure.id ?? structure.Id ?? 0,
+    structureId: structure.structureId ?? structure.StructureId ?? 0,
+    positionOnTile: structure.positionOnTile ?? structure.PositionOnTile ?? 0,
+    completionPercent: structure.completionPercent ?? structure.CompletionPercent ?? 0,
+  };
 }
 
-function structuresToObservers(structures: PlayerStructureDto[]): PlayerCampaignMapObserverDto[] {
-  return structures.map((s, i) => {
-    const temporaryObserverId = s.campaignMapTileId ?? s.battleMapTileId ?? s.structureId ?? i + 1;
-    return {
-      temporaryObserverId,
-      location: { x: s.xCoord, y: s.yCoord },
-      sightRange: s.sightRange ?? 0,
-    };
-  });
+function normalizeObservedTroop(troop: ObservedTroopWireDto): ObservedTroopDto {
+  return {
+    id: troop.id ?? troop.Id ?? 0,
+    recordType: troop.recordType ?? troop.RecordType ?? 0,
+    unitDesignId: troop.unitDesignId ?? troop.UnitDesignId ?? 0,
+  };
+}
+
+function normalizeCampaignMapTile(tile: CampaignMapTileWireDto): CampaignMapTileDto {
+  const structures = (tile.structures ?? tile.Structures ?? []).map(normalizeObservedStructure);
+  const troops = (tile.troops ?? tile.Troops ?? []).map(normalizeObservedTroop);
+
+  return {
+    xCoord: tile.xCoord ?? tile.XCoord ?? 0,
+    yCoord: tile.yCoord ?? tile.YCoord ?? 0,
+    biomeTypeId: tile.biomeTypeId ?? tile.BiomeTypeId ?? 0,
+    campaignMapGeographyTypeId: tile.campaignMapGeographyTypeId ?? tile.CampaignMapGeographyTypeId ?? 0,
+    ...(structures.length > 0 ? { structures } : {}),
+    ...(troops.length > 0 ? { troops } : {}),
+  };
+}
+
+function normalizeObserver(observer: PlayerCampaignMapObserverResultWireDto): PlayerCampaignMapObserverResultDto {
+  return {
+    id: observer.id ?? observer.Id ?? observer.temporaryObserverId ?? observer.TemporaryObserverId ?? 0,
+    observerRecordType: observer.observerRecordType ?? observer.ObserverRecordType ?? 0,
+    xCoord: observer.xCoord ?? observer.XCoord ?? 0,
+    yCoord: observer.yCoord ?? observer.YCoord ?? 0,
+    seenTiles: (observer.seenTiles ?? observer.SeenTiles ?? []).map(normalizeCampaignMapTile),
+  };
+}
+
+function normalizeResponse(data: PlayerCampaignMapResponseWireDto): PlayerCampaignMapResponseDto {
+  return {
+    observers: (data.observers ?? data.Observers ?? []).map(normalizeObserver),
+    tiles: (data.tiles ?? data.Tiles ?? []).map(normalizeCampaignMapTile),
+  };
+}
+
+function mergeTiles(tiles: CampaignMapTileDto[]): CampaignMapTileDto[] {
+  const mergedByCoord = new Map<string, CampaignMapTileDto>();
+
+  for (const tile of tiles) {
+    const key = `${tile.xCoord},${tile.yCoord}`;
+    const existing = mergedByCoord.get(key);
+
+    if (!existing) {
+      mergedByCoord.set(key, tile);
+      continue;
+    }
+
+    mergedByCoord.set(key, {
+      ...existing,
+      ...tile,
+      structures: tile.structures && tile.structures.length > 0 ? tile.structures : existing.structures,
+      troops: tile.troops && tile.troops.length > 0 ? tile.troops : existing.troops,
+    });
+  }
+
+  return [...mergedByCoord.values()];
 }
 
 export async function postPlayerCampaignMap(req: LoadPlayerCampaignMapRequest): Promise<CampaignMapTilesResponse> {
   const baseUrl = http.defaults.baseURL ?? "";
-  let normalizedReq: LoadPlayerCampaignMapRequest = req;
 
-  // Observers now come from the server-side player structures endpoint.
-  // If it fails (e.g. endpoint not available yet), fall back to whatever the caller provided.
-  try {
-    const structures = await getPlayerStructures(req.gameGuid, req.playerGuid);
-    normalizedReq = {
-      ...req,
-      observers: structuresToObservers(structures),
-    };
-  } catch (e) {
-    console.warn("[API] GET /player/structures failed; falling back to provided observers", e);
-  }
+  console.log("[API] POST /campaign-map/player", { baseUrl, req });
 
-  console.log("[API] POST /campaign-map/player", { baseUrl, req: normalizedReq });
-
-  const { data } = await http.post<PlayerCampaignMapResponseDto>("/campaign-map/player", normalizedReq, {
+  const { data } = await http.post<PlayerCampaignMapResponseWireDto>("/campaign-map/player", req, {
     headers: { "Content-Type": "application/json" },
   });
 
+  const normalizedResponse = normalizeResponse(data);
+
   // Normalize to the flat tile list the rest of the UI expects.
-  const tilesFromObservers = (data.observers ?? []).flatMap((o) => o.seenTiles ?? []);
-  const tiles = (data.tiles ?? tilesFromObservers) ?? [];
+  const tilesFromObservers = normalizedResponse.observers.flatMap((observer) => observer.seenTiles ?? []);
+  const tiles = mergeTiles([...(normalizedResponse.tiles ?? []), ...tilesFromObservers]);
 
   return {
     tiles,
-    observers: data.observers,
+    observers: normalizedResponse.observers,
   };
 }
 

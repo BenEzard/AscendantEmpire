@@ -1,5 +1,5 @@
 export const RESOURCE_INDICATOR_COLORS = {
-  inactive: "#9ca3af",
+  inactive: "#c7d0e0",
   imported: "#60a5fa",
   exported: "#4ade80",
   strategicStockpile: "#111827",

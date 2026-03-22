@@ -1,0 +1,14 @@
+﻿using AscendantEmpire.Domain.Enums.Structures;
+using AscendantEmpire.FrontendContracts.CampaignMaps;
+
+namespace AscendantEmpire.Application.Handlers.Maps.CampaignMaps.Classes;
+
+public class DTStructureStub : IStructureStub
+{
+    public int Id { get; set; }
+
+    public int StructureId { get; set; }
+
+    public PositionOnTile PositionOnTile { get; set; }
+    public double CompletionPercent { get; set; }
+}

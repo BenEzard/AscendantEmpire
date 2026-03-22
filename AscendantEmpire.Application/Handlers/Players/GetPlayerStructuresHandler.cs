@@ -73,26 +73,31 @@ internal class GetPlayerStructuresHandler(
 
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            List<PlayerStructure> structures = await (from si in context.StructureInstances.AsNoTracking()
-                              join tile in context.CampaignMaps.AsNoTracking()
-                                on si.CampaignMapTileId equals tile.CampaignMapId
-                              where si.GameId == gameId
-                                && si.OwnedByPlayerId == playerId
-                                && si.BattleMapTileId == null // campaign only
-                                && si.RemovedOnTurnId == null // active only
-                              select new PlayerStructure
-                              {
-                                  CampaignMapTileId = si.CampaignMapTileId,
-                                  BattleMapTileId = si.BattleMapTileId,
-                                  XCoord = tile.XCoord,
-                                  YCoord = tile.YCoord,
-                                  StructureId = si.StructureId,
-                                  Name = si.Structure.Name,
-                                  Code = si.Structure.Code,
-                                  CompletionPercent = si.CompletionPercent,
-                                  OwnerPlayerId = si.OwnedByPlayerId,
-                                  SightRange = si.Structure.SightRange
-                              }).ToListAsync(cancelToken);
+            List<PlayerStructure> structures = await (from si in context.StructureInstances.Include(si => si.Structure)
+                                                      join tile in context.CampaignMaps
+                                                        on si.CampaignMapTileId equals tile.CampaignMapId
+                                                      where si.GameId == gameId
+                                                        && si.OwnedByPlayerId == playerId
+                                                        && si.BattleMapTileId == null // campaign only
+                                                        && si.RemovedOnTurnId == null // active only
+                                                      select new PlayerStructure
+                                                      {
+                                                          StructureInstanceId = si.Id,
+                                                          CampaignMapTileId = si.CampaignMapTileId,
+                                                          BattleMapTileId = si.BattleMapTileId,
+                                                          XCoord = tile.XCoord,
+                                                          YCoord = tile.YCoord,
+                                                          StructureId = si.StructureId,
+                                                          SlotType = si.SlotType,
+                                                          Position = si.Position,
+                                                          Name = si.Structure.Name,
+                                                          Code = si.Structure.Code,
+                                                          CompletionPercent = si.CompletionPercent,
+                                                          OwnerPlayerId = si.OwnedByPlayerId,
+                                                          SightRange = si.Structure.SightRange,
+                                                          DetectionDirection = si.Structure.SightDirection,
+                                                          MapImagePath = si.Structure.MapImagePath
+                                                      }).ToListAsync(cancelToken);
 
             return ServiceResult<IReadOnlyCollection<PlayerStructure>>.Succeed(structures);
         }

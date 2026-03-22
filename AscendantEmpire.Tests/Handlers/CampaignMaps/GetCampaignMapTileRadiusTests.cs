@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Handlers.Maps.CampaignMaps;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.Domain.Enums;
 
 using MediatR;
 
@@ -61,7 +62,8 @@ internal class GetCampaignMapTileRadiusTests
             [
                 new MapObserver
                 {
-                    TemporaryObserverId = 1,
+                    Id = 1,
+                    RecordType = RecordType.None,
                     Location = occupied,
                     SightRange = radius
                 }
@@ -86,7 +88,7 @@ internal class GetCampaignMapTileRadiusTests
         var view = result.SuccessValue[1];
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(view.TemporaryObserverId, Is.EqualTo(1));
+            Assert.That(view.Id, Is.EqualTo(1));
             Assert.That(view.SightRange, Is.EqualTo(radius));
             Assert.That(view.OccupiedCoord.X, Is.EqualTo(originX));
             Assert.That(view.OccupiedCoord.Y, Is.EqualTo(originY));
@@ -135,7 +137,8 @@ internal class GetCampaignMapTileRadiusTests
             [
                 new MapObserver
                 {
-                    TemporaryObserverId = 1,
+                    Id = 1,
+                    RecordType = RecordType.None,
                     Location = occupied,
                     SightRange = radius
                 }
@@ -193,7 +196,8 @@ internal class GetCampaignMapTileRadiusTests
             [
                 new MapObserver
                 {
-                    TemporaryObserverId = 1,
+                    Id = 1,
+                    RecordType = RecordType.None,
                     Location = occupied,
                     SightRange = radius
                 }
@@ -250,7 +254,8 @@ internal class GetCampaignMapTileRadiusTests
             [
                 new MapObserver
                 {
-                    TemporaryObserverId = 1,
+                    Id = 1,
+                    RecordType = RecordType.None,
                     Location = occupied,
                     SightRange = radius
                 }
@@ -307,7 +312,8 @@ internal class GetCampaignMapTileRadiusTests
             [
                 new MapObserver
                 {
-                    TemporaryObserverId = 1,
+                    Id = 1,
+                    RecordType = RecordType.None,
                     Location = occupied,
                     SightRange = radius
                 }
@@ -364,7 +370,8 @@ internal class GetCampaignMapTileRadiusTests
             [
                 new MapObserver
                 {
-                    TemporaryObserverId = 1,
+                    Id = 1,
+                    RecordType = RecordType.None,
                     Location = occupied,
                     SightRange = radius
                 }
@@ -417,7 +424,8 @@ internal class GetCampaignMapTileRadiusTests
             [
                 new MapObserver
                 {
-                    TemporaryObserverId = 1,
+                    Id = 1,
+                    RecordType = RecordType.None,
                     Location = occupied,
                     SightRange = radius
                 }

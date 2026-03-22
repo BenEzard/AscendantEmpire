@@ -926,12 +926,26 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<bool>("DualMapBuildTrigger")
                         .HasColumnType("bit");
 
+                    b.Property<string>("FullImagePath")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("MapImagePath")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int>("RecordTypeId")
+                        .HasColumnType("int");
+
                     b.Property<int>("RequiresSlotType")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SightDirection")
                         .HasColumnType("int");
 
                     b.Property<int>("SightRange")
@@ -940,53 +954,6 @@ namespace AscendantEmpire.Application.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Structures", "structure");
-                });
-
-            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.PlayerTroopSummary", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int?>("BattleMapId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("CreatedOnTurnId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ForceId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("GameId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("InactiveOnTurnId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("PlayerId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SightRange")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("UnitId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("XCoord")
-                        .HasColumnType("int");
-
-                    b.Property<int>("YCoord")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("GameId");
-
-                    b.HasIndex("PlayerId");
-
-                    b.ToTable("PlayerTroopSummaries", "game");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.CompiledDesignStats", b =>
@@ -1034,6 +1001,8 @@ namespace AscendantEmpire.Application.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CampaignMapTileId");
 
                     b.HasIndex("GameId");
 
@@ -1392,6 +1361,13 @@ namespace AscendantEmpire.Application.Migrations
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopInstance", b =>
                 {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.CampaignMap", "CampaignMap")
+                        .WithMany()
+                        .HasForeignKey("CampaignMapTileId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_TroopInstances_CampaignMap_CampaignMapTileId");
+
                     b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", "Game")
                         .WithMany()
                         .HasForeignKey("GameId")
@@ -1412,11 +1388,50 @@ namespace AscendantEmpire.Application.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
+                    b.Navigation("CampaignMap");
+
                     b.Navigation("Game");
 
                     b.Navigation("Player");
 
                     b.Navigation("Stats");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.Resource", b =>
+                {
+                    b.Navigation("BankBalances");
+
+                    b.Navigation("FactionPriorities");
+
+                    b.Navigation("FactionStates");
+
+                    b.Navigation("WorldSnapshots");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.ResourceBank", b =>
+                {
+                    b.Navigation("Balances");
+
+                    b.Navigation("SettlementMemberships");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.ResourceCategory", b =>
+                {
+                    b.Navigation("FactionPriorities");
+
+                    b.Navigation("ResourceGroups");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.ResourceGroup", b =>
+                {
+                    b.Navigation("FactionPriorities");
+
+                    b.Navigation("Resources");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.ResourceMetaCategory", b =>
+                {
+                    b.Navigation("Categories");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.GameIndex", b =>

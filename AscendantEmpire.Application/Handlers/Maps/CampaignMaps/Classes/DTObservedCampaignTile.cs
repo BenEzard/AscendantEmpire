@@ -9,4 +9,12 @@ public class DTObservedCampaignTile : IObservedCampaignTile
     public int YCoord { get; set; }
     public BiomeType BiomeTypeId { get; set; }
     public CampaignMapGeographyType CampaignMapGeographyTypeId { get; set; }
+
+    public IReadOnlyCollection<DTStructureStub>? Structures { get; set; }
+
+    public IReadOnlyCollection<DTTroopStub>? Troops { get; set; }
+
+    IReadOnlyCollection<IStructureStub>? IObservedCampaignTile.Structures => Structures;
+
+    IReadOnlyCollection<ITroopStub>? IObservedCampaignTile.Troops => Troops;
 }

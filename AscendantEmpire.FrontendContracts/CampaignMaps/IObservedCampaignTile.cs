@@ -8,4 +8,6 @@ public interface IObservedCampaignTile
     int YCoord { get; }
     BiomeType BiomeTypeId { get; }
     CampaignMapGeographyType CampaignMapGeographyTypeId { get; }
+    IReadOnlyCollection<IStructureStub>? Structures { get; }
+    IReadOnlyCollection<ITroopStub>? Troops { get; }
 }

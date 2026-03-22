@@ -38,6 +38,50 @@ body {
   pointer-events: none;     /* clicks go to the tile */
 }
 
+.tile-structure-image {
+  position: absolute;
+  inset: 8%;
+  width: 84%;
+  height: 84%;
+  object-fit: contain;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.observed-structure {
+  position: absolute;
+  inset: 8%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.observed-structure__image {
+  display: block;
+  width: calc(100% - 6px);
+  height: 100%;
+  object-fit: contain;
+}
+
+.observed-structure__completion-bar {
+  position: relative;
+  width: 4px;
+  height: 80%;
+  align-self: center;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.observed-structure__completion-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #facc15;
+}
+
 .tile {
   position: relative;
   overflow: hidden; /* optional, keeps icon inside */
