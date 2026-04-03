@@ -21,14 +21,14 @@ public record GetCampaignMapTileRadiusRequest(
     Guid GameGuid,
     Guid PlayerGuid,
     IReadOnlyCollection<MapObserver> MapObservers
-) : IRequest<ServiceResult<IDictionary<int, MapObserverOriginLocation>>>;
+) : IRequest<ServiceResult<IDictionary<(int, RecordType), MapObserverOriginLocation>>>;
 
 internal class GetCampaignMapTileRadiusHandler(
     ILogger<GetCampaignMapTileRadiusHandler> logger,
     IMediator mediator
-) : IRequestHandler<GetCampaignMapTileRadiusRequest, ServiceResult<IDictionary<int, MapObserverOriginLocation>>>
+) : IRequestHandler<GetCampaignMapTileRadiusRequest, ServiceResult<IDictionary<(int, RecordType), MapObserverOriginLocation>>>
 {
-    public async Task<ServiceResult<IDictionary<int, MapObserverOriginLocation>>> Handle(
+    public async Task<ServiceResult<IDictionary<(int, RecordType), MapObserverOriginLocation>>> Handle(
         GetCampaignMapTileRadiusRequest request,
         CancellationToken cancelToken)
     {
@@ -38,7 +38,7 @@ internal class GetCampaignMapTileRadiusHandler(
         {
             const string error = "Error getting game info while trying to get a Player's view of the Campaign Map";
             logger.LogWarning(error);
-            return ServiceResult<IDictionary<int, MapObserverOriginLocation>>.Fail(gameInfoResult.Errors.Prepend(error));
+            return ServiceResult<IDictionary<(int, RecordType), MapObserverOriginLocation>>.Fail(gameInfoResult.Errors.Prepend(error));
         }
 
         OpenGame? gameInfo = gameInfoResult.SuccessValue!.SingleOrDefault();
@@ -51,7 +51,7 @@ internal class GetCampaignMapTileRadiusHandler(
         bool hasHorizontalWrapping = gameInfo.HasHorizontalWrapping;
         bool hasVerticalWrapping = gameInfo.HasVerticalWrapping;
 
-        var returnData = new Dictionary<int, MapObserverOriginLocation>();
+        var returnData = new Dictionary<(int id, RecordType RecordType), MapObserverOriginLocation>();
 
 
         foreach (var viewer in request.MapObservers)
@@ -86,8 +86,8 @@ internal class GetCampaignMapTileRadiusHandler(
             int viewRadius = viewer.SightRange;
 
             List<((int X, int Y) Child, (int X, int Y) Parent)> coordPairs = new();
-            HashSet<(int X, int Y)> coordSet = new();
-            List<SightCoord> allCoordinateList = new();
+            HashSet<(int X, int Y)> coordSet = [];
+            List<SightCoord> allCoordinateList = [];
 
             for (int y = originY - viewRadius; y <= originY + viewRadius; y++)
             {
@@ -205,10 +205,10 @@ internal class GetCampaignMapTileRadiusHandler(
                 .Where(d => d.Parent.X == viewerLocation.OccupiedCoord.X && d.Parent.Y == viewerLocation.OccupiedCoord.Y)
                 .SelectMany(x => x.Children)];
 
-            returnData[viewer.Id] = viewerLocation;
+            returnData[(viewer.Id, viewer.RecordType)] = viewerLocation;
         }
 
-        return ServiceResult<IDictionary<int, MapObserverOriginLocation>>.Succeed(returnData);
+        return ServiceResult<IDictionary<(int, RecordType), MapObserverOriginLocation>>.Succeed(returnData);
     }
 
     static int Wrap(int value, int size) => ((value % size) + size) % size;

@@ -186,6 +186,25 @@ function mergeTiles(tiles: CampaignMapTileDto[]): CampaignMapTileDto[] {
   return [...mergedByCoord.values()];
 }
 
+function logTroopTable(response: PlayerCampaignMapResponseDto): void {
+  const troopRows = response.observers.flatMap((observer) =>
+    observer.seenTiles.flatMap((tile) =>
+      (tile.troops ?? []).map((troop) => ({
+        observerId: observer.id,
+        observerRecordType: observer.observerRecordType,
+        xCoord: tile.xCoord,
+        yCoord: tile.yCoord,
+        troopId: troop.id,
+        troopRecordType: troop.recordType,
+        unitDesignId: troop.unitDesignId,
+      })),
+    ),
+  );
+
+  console.log("[API] /campaign-map/player troop rows", troopRows.length);
+  console.table(troopRows);
+}
+
 export async function postPlayerCampaignMap(req: LoadPlayerCampaignMapRequest): Promise<CampaignMapTilesResponse> {
   const baseUrl = http.defaults.baseURL ?? "";
 
@@ -196,6 +215,7 @@ export async function postPlayerCampaignMap(req: LoadPlayerCampaignMapRequest): 
   });
 
   const normalizedResponse = normalizeResponse(data);
+  logTroopTable(normalizedResponse);
 
   // Normalize to the flat tile list the rest of the UI expects.
   const tilesFromObservers = normalizedResponse.observers.flatMap((observer) => observer.seenTiles ?? []);

@@ -2,6 +2,7 @@
 using AscendantEmpire.Application.Handlers.Game;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
 using AscendantEmpire.BackendContracts.Units.GetPlayerTroops;
+using AscendantEmpire.Domain.Enums;
 
 using FluentValidation;
 
@@ -62,7 +63,7 @@ internal class GetPlayerTroopsHandler(
             if (openGameResult.SuccessValue is not { Count: > 0 } openGames)
             {
                 string error = $"No open game found for GameGuid: {request.GameGuid} and PlayerGuid: {request.PlayerGuid}.";
-                logger.LogWarning(error);
+                logger.LogWarning("No open game found for GameGuid: {gameGuid} and PlayerGuid: {playerGuid}.", request.GameGuid, request.PlayerGuid);
                 return ServiceResult<IReadOnlyCollection<PlayerTroop>>.NotFound(error);
             }
 
@@ -71,19 +72,22 @@ internal class GetPlayerTroopsHandler(
 
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            var playerUnits = await context.TroopInstances
+            List<PlayerTroop> playerUnits = await context.TroopInstances
                 .Include(ti => ti.Stats)
                 .Where(pu => pu.GameId == gameId && pu.PlayerId == playerId)
                 .Select(pu => new PlayerTroop
                 {
-                    Id = pu.Id,
+                    TroopInstanceId = pu.Id,
+                    RecordType = RecordType.Unit,
                     PlayerId = pu.PlayerId,
                     CampaignMapTileId = pu.CampaignMapTileId,
                     BattleMapTileId = pu.BattleMapTileId,
                     CampaignXCoord = pu.CampaignMap.XCoord,
                     CampaignYCoord = pu.CampaignMap.YCoord,
                     SightRange = pu.Stats.SightRange,
-                    MapImagePath = pu.Stats.MapImagePath    
+                    MapImagePath = pu.Stats.MapImagePath,
+                    // Health 
+                    UnitDesignId = pu.UnitDesignId,
 
                 })
                 .ToListAsync(cancelToken);

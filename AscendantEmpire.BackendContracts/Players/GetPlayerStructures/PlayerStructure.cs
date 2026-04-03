@@ -7,7 +7,7 @@ namespace AscendantEmpire.BackendContracts.Players.GetPlayerStructures;
 public record PlayerStructure
 {
     public int StructureInstanceId { get; init; }
-    public RecordType RecordTypeId { get; init; } = RecordType.Structure;
+    public RecordType RecordType { get; init; } = RecordType.Structure;
     public int CampaignMapTileId { get; init; }
     public int? BattleMapTileId { get; init; }
     public int XCoord { get; init; }

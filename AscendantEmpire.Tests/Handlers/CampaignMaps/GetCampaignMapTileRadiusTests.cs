@@ -82,10 +82,10 @@ internal class GetCampaignMapTileRadiusTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.SuccessValue!, Has.Count.EqualTo(1));
-            Assert.That(result.SuccessValue.ContainsKey(1), Is.True);
+            Assert.That(result.SuccessValue.ContainsKey((1, RecordType.None)), Is.True);
         }
 
-        var view = result.SuccessValue[1];
+        var view = result.SuccessValue[(1, RecordType.None)];
         using (Assert.EnterMultipleScope())
         {
             Assert.That(view.Id, Is.EqualTo(1));
@@ -152,7 +152,7 @@ internal class GetCampaignMapTileRadiusTests
             Assert.That(result.Errors, Is.Empty);
         }
 
-        var view = result.SuccessValue![1];
+        var view = result.SuccessValue![(1, RecordType.None)];
         var actual = ExtractAllCoordsExceptOccupied(view);
 
         // Expected: square, X in-bounds, Y wrapped, excluding occupied
@@ -211,7 +211,7 @@ internal class GetCampaignMapTileRadiusTests
             Assert.That(result.Errors, Is.Empty);
         }
 
-        var view = result.SuccessValue![1];
+        var view = result.SuccessValue![(1, RecordType.None)];
         var actual = ExtractAllCoordsExceptOccupied(view);
 
         var expected = new List<Coord>();
@@ -269,7 +269,7 @@ internal class GetCampaignMapTileRadiusTests
             Assert.That(result.Errors, Is.Empty);
         }
 
-        var view = result.SuccessValue![1];
+        var view = result.SuccessValue![(1, RecordType.None)];
         var actual = ExtractAllCoordsExceptOccupied(view);
 
         var expected = new List<Coord>();
@@ -327,7 +327,7 @@ internal class GetCampaignMapTileRadiusTests
             Assert.That(result.Errors, Is.Empty);
         }
 
-        var view = result.SuccessValue![1];
+        var view = result.SuccessValue![(1, RecordType.None)];
         var actual = ExtractAllCoordsExceptOccupied(view);
 
         var expected = new List<Coord>();
@@ -385,7 +385,7 @@ internal class GetCampaignMapTileRadiusTests
             Assert.That(result.Errors, Is.Empty);
         }
 
-        var view = result.SuccessValue![1];
+        var view = result.SuccessValue![(1, RecordType.None)];
         var actual = ExtractAllCoordsExceptOccupied(view);
 
         var expected = new List<Coord>();
@@ -439,7 +439,7 @@ internal class GetCampaignMapTileRadiusTests
             Assert.That(result.Errors, Is.Empty);
         }
 
-        var view = result.SuccessValue![1];
+        var view = result.SuccessValue![(1, RecordType.None)];
         var actual = ExtractAllCoordsExceptOccupied(view);
 
         // For origin (0,0) radius=1 no wrap => possible coords are (0,0)(1,0)(0,1)(1,1) excluding occupied -> (1,0)(0,1)(1,1)

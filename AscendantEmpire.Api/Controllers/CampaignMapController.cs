@@ -59,10 +59,18 @@ public class CampaignMapController : ControllerBase
                         Structures = [.. tile.Structures?.Select(s => new DTStructureStub
                         {
                             Id = s.Id,
+                            RecordType = s.RecordType,
                             StructureId = s.StructureId,
                             PositionOnTile = s.PositionOnTile,
                             CompletionPercent = s.CompletionPercent
                         }) ?? []],
+                        Troops = [.. tile.Troops?.Select(t => new DTTroopStub
+                        {
+                            Id = t.Id,
+                            RecordType = t.RecordType,
+                            UnitDesignId = t.UnitDesignId,
+                            Health = t.Health
+                        }) ?? []]
                     }).ToList()
                 }).ToList()
             };

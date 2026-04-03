@@ -18,6 +18,9 @@ public class TroopInstance
     public int? BattleMapTileId { get; set; }
 
     public int UnitDesignId { get; set; }
+    public int TotalManpower { get; set; }
+    public int Injured { get; set; }
+    public int Healthy { get; set; }
 
     public GameIndex Game { get; set; } = null!;
     public Player Player { get; set; } = null!;

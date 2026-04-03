@@ -10,4 +10,5 @@ public class DTTroopStub : ITroopStub
     public RecordType RecordType { get; set; }
 
     public int UnitDesignId { get; set; }
+    public int Health { get; set; }
 }
