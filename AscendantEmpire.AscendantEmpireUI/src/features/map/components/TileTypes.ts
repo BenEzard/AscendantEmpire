@@ -9,6 +9,9 @@ export type ObservedTroopTile = {
   id: number;
   recordType: number;
   unitDesignId: number;
+  healthyTroops: number;
+  injuredTroops: number;
+  initialStrength: number;
 };
 
 export type TileCell = {

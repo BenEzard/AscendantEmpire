@@ -39,57 +39,44 @@ export type ObservedStructureDto = {
 export type ObservedTroopDto = {
   id: number;
   recordType: number;
+  healthyTroops: number;
+  injuredTroops: number;
+  initialStrength: number;
   unitDesignId: number;
 };
 
 type ObservedStructureWireDto = Partial<{
   id: number;
-  Id: number;
   structureId: number;
-  StructureId: number;
   positionOnTile: number;
-  PositionOnTile: number;
   completionPercent: number;
-  CompletionPercent: number;
 }>;
 
 type ObservedTroopWireDto = Partial<{
   id: number;
-  Id: number;
   recordType: number;
-  RecordType: number;
   unitDesignId: number;
-  UnitDesignId: number;
+  healthyTroops: number;
+  injuredTroops: number;
+  initialStrength: number;
 }>;
 
 type CampaignMapTileWireDto = Partial<{
   xCoord: number;
-  XCoord: number;
   yCoord: number;
-  YCoord: number;
   biomeTypeId: number;
-  BiomeTypeId: number;
   campaignMapGeographyTypeId: number;
-  CampaignMapGeographyTypeId: number;
   structures: ObservedStructureWireDto[];
-  Structures: ObservedStructureWireDto[];
   troops: ObservedTroopWireDto[];
-  Troops: ObservedTroopWireDto[];
 }>;
 
 type PlayerCampaignMapObserverResultWireDto = Partial<{
   id: number;
-  Id: number;
   observerRecordType: number;
-  ObserverRecordType: number;
   xCoord: number;
-  XCoord: number;
   yCoord: number;
-  YCoord: number;
   seenTiles: CampaignMapTileWireDto[];
-  SeenTiles: CampaignMapTileWireDto[];
   temporaryObserverId: number;
-  TemporaryObserverId: number;
 }>;
 
 // The API currently returns observers with their seen tiles.
@@ -102,9 +89,7 @@ export type PlayerCampaignMapResponseDto = {
 
 type PlayerCampaignMapResponseWireDto = Partial<{
   observers: PlayerCampaignMapObserverResultWireDto[];
-  Observers: PlayerCampaignMapObserverResultWireDto[];
   tiles: CampaignMapTileWireDto[];
-  Tiles: CampaignMapTileWireDto[];
 }>;
 
 export interface CampaignMapTilesResponse {
@@ -117,30 +102,33 @@ export interface CampaignMapTilesResponse {
 
 function normalizeObservedStructure(structure: ObservedStructureWireDto): ObservedStructureDto {
   return {
-    id: structure.id ?? structure.Id ?? 0,
-    structureId: structure.structureId ?? structure.StructureId ?? 0,
-    positionOnTile: structure.positionOnTile ?? structure.PositionOnTile ?? 0,
-    completionPercent: structure.completionPercent ?? structure.CompletionPercent ?? 0,
+    id: structure.id ?? 0,
+    structureId: structure.structureId ?? 0,
+    positionOnTile: structure.positionOnTile ?? 0,
+    completionPercent: structure.completionPercent ?? 0,
   };
 }
 
 function normalizeObservedTroop(troop: ObservedTroopWireDto): ObservedTroopDto {
   return {
-    id: troop.id ?? troop.Id ?? 0,
-    recordType: troop.recordType ?? troop.RecordType ?? 0,
-    unitDesignId: troop.unitDesignId ?? troop.UnitDesignId ?? 0,
+    id: troop.id ?? 0,
+    recordType: troop.recordType ?? 0,
+    unitDesignId: troop.unitDesignId ?? 0,
+    healthyTroops: troop.healthyTroops ?? 0,
+    injuredTroops: troop.injuredTroops ?? 0,
+    initialStrength: troop.initialStrength ?? 0,
   };
 }
 
 function normalizeCampaignMapTile(tile: CampaignMapTileWireDto): CampaignMapTileDto {
-  const structures = (tile.structures ?? tile.Structures ?? []).map(normalizeObservedStructure);
-  const troops = (tile.troops ?? tile.Troops ?? []).map(normalizeObservedTroop);
+  const structures = (tile.structures ?? []).map(normalizeObservedStructure);
+  const troops = (tile.troops ?? []).map(normalizeObservedTroop);
 
   return {
-    xCoord: tile.xCoord ?? tile.XCoord ?? 0,
-    yCoord: tile.yCoord ?? tile.YCoord ?? 0,
-    biomeTypeId: tile.biomeTypeId ?? tile.BiomeTypeId ?? 0,
-    campaignMapGeographyTypeId: tile.campaignMapGeographyTypeId ?? tile.CampaignMapGeographyTypeId ?? 0,
+    xCoord: tile.xCoord ?? 0,
+    yCoord: tile.yCoord ?? 0,
+    biomeTypeId: tile.biomeTypeId ?? 0,
+    campaignMapGeographyTypeId: tile.campaignMapGeographyTypeId ?? 0,
     ...(structures.length > 0 ? { structures } : {}),
     ...(troops.length > 0 ? { troops } : {}),
   };
@@ -148,18 +136,18 @@ function normalizeCampaignMapTile(tile: CampaignMapTileWireDto): CampaignMapTile
 
 function normalizeObserver(observer: PlayerCampaignMapObserverResultWireDto): PlayerCampaignMapObserverResultDto {
   return {
-    id: observer.id ?? observer.Id ?? observer.temporaryObserverId ?? observer.TemporaryObserverId ?? 0,
-    observerRecordType: observer.observerRecordType ?? observer.ObserverRecordType ?? 0,
-    xCoord: observer.xCoord ?? observer.XCoord ?? 0,
-    yCoord: observer.yCoord ?? observer.YCoord ?? 0,
-    seenTiles: (observer.seenTiles ?? observer.SeenTiles ?? []).map(normalizeCampaignMapTile),
+    id: observer.id ?? observer.temporaryObserverId ?? 0,
+    observerRecordType: observer.observerRecordType ?? 0,
+    xCoord: observer.xCoord ?? 0,
+    yCoord: observer.yCoord ?? 0,
+    seenTiles: (observer.seenTiles ?? []).map(normalizeCampaignMapTile),
   };
 }
 
 function normalizeResponse(data: PlayerCampaignMapResponseWireDto): PlayerCampaignMapResponseDto {
   return {
-    observers: (data.observers ?? data.Observers ?? []).map(normalizeObserver),
-    tiles: (data.tiles ?? data.Tiles ?? []).map(normalizeCampaignMapTile),
+    observers: (data.observers ?? []).map(normalizeObserver),
+    tiles: (data.tiles ?? []).map(normalizeCampaignMapTile),
   };
 }
 
@@ -197,6 +185,9 @@ function logTroopTable(response: PlayerCampaignMapResponseDto): void {
         troopId: troop.id,
         troopRecordType: troop.recordType,
         unitDesignId: troop.unitDesignId,
+        healthyTroops: troop.healthyTroops,
+        injuredTroops: troop.injuredTroops,
+        initialStrength: troop.initialStrength,
       })),
     ),
   );

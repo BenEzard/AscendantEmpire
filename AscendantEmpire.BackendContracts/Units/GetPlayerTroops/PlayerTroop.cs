@@ -13,6 +13,8 @@ public class PlayerTroop
     public int CampaignYCoord { get; set; }
     public int UnitDesignId { get; set; }
     public int SightRange { get; set; }
-    public int Health { get; set; }
+    public int HealthyTroops { get; set; }
+    public int InjuredTroops { get; set; }
+    public int InitialStrength { get; set; }
     public required string MapImagePath { get; set; }
 }

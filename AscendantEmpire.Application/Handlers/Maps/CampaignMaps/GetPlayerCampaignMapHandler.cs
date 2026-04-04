@@ -232,7 +232,9 @@ internal class GetPlayerCampaignMapHandler(
                                     Id = t.TroopInstanceId,
                                     RecordType = RecordType.Unit,
                                     UnitDesignId = t.UnitDesignId,
-                                    Health = t.Health
+                                    HealthyTroops = t.HealthyTroops,
+                                    InjuredTroops = t.InjuredTroops,
+                                    InitialStrength = t.InitialStrength,
                                 }).ToList() ?? []
                             };
                         })
@@ -273,7 +275,9 @@ internal class GetPlayerCampaignMapHandler(
                                     Id = t.TroopInstanceId,
                                     RecordType = t.RecordType,
                                     UnitDesignId = t.UnitDesignId,
-                                    Health = t.Health
+                                    HealthyTroops = t.HealthyTroops,
+                                    InjuredTroops = t.InjuredTroops,
+                                    InitialStrength = t.InitialStrength,
                                 }).ToList() ?? []
                             };
                         })]

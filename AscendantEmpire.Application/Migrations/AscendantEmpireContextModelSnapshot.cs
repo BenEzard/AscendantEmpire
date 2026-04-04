@@ -994,6 +994,15 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("GameId")
                         .HasColumnType("int");
 
+                    b.Property<int>("HealthyCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("InitialStrength")
+                        .HasColumnType("int");
+
+                    b.Property<int>("InjuredCount")
+                        .HasColumnType("int");
+
                     b.Property<int>("PlayerId")
                         .HasColumnType("int");
 

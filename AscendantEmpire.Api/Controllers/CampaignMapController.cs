@@ -69,7 +69,9 @@ public class CampaignMapController : ControllerBase
                             Id = t.Id,
                             RecordType = t.RecordType,
                             UnitDesignId = t.UnitDesignId,
-                            Health = t.Health
+                            HealthyTroops = t.HealthyTroops,
+                            InjuredTroops = t.InjuredTroops,
+                            InitialStrength = t.InitialStrength
                         }) ?? []]
                     }).ToList()
                 }).ToList()

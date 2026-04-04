@@ -18,9 +18,21 @@ public class TroopInstance
     public int? BattleMapTileId { get; set; }
 
     public int UnitDesignId { get; set; }
-    public int TotalManpower { get; set; }
-    public int Injured { get; set; }
-    public int Healthy { get; set; }
+
+    /// <summary>
+    /// The total number of troops in this troop at creation.
+    /// </summary>
+    public int InitialStrength { get; set; }
+
+    /// <summary>
+    /// The number of troops currently injured in this troop.
+    /// </summary>
+    public int InjuredCount { get; set; }
+
+    /// <summary>
+    /// The number of troops currently healthy in this troop.
+    /// </summary>
+    public int HealthyCount { get; set; }
 
     public GameIndex Game { get; set; } = null!;
     public Player Player { get; set; } = null!;

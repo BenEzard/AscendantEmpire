@@ -82,16 +82,77 @@ body {
   background: #facc15;
 }
 
-.observed-troop__image {
+.observed-troop {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 80%;
-  height: 80%;
-  object-fit: contain;
-  transform: translate(-50%, -50%);
+  inset: 8%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
   pointer-events: none;
   z-index: 2;
+}
+
+.observed-troop__health-bar {
+  display: flex;
+  width: 72%;
+  height: 5px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.18);
+  flex: 0 0 auto;
+}
+
+.observed-troop__health-fill {
+  height: 100%;
+  flex: 0 0 auto;
+}
+
+.observed-troop__health-fill--healthy {
+  background: #22c55e;
+}
+
+.observed-troop__health-fill--injured {
+  background: #facc15;
+}
+
+.observed-troop__health-fill--dead {
+  background: #9ca3af;
+}
+
+.observed-troop__body {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  height: calc(100% - 7px);
+  min-height: 0;
+}
+
+.observed-troop__marker-column {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 1px;
+  height: 100%;
+  flex: 0 0 auto;
+}
+
+.observed-troop__marker {
+  width: 4px;
+  height: 4px;
+  background: #facc15;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+}
+
+.observed-troop__image {
+  display: block;
+  width: 80%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .tile {

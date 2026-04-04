@@ -86,7 +86,9 @@ internal class GetPlayerTroopsHandler(
                     CampaignYCoord = pu.CampaignMap.YCoord,
                     SightRange = pu.Stats.SightRange,
                     MapImagePath = pu.Stats.MapImagePath,
-                    // Health 
+                    HealthyTroops = pu.HealthyCount,
+                    InjuredTroops = pu.InjuredCount,
+                    InitialStrength = pu.InitialStrength,
                     UnitDesignId = pu.UnitDesignId,
 
                 })
