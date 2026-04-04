@@ -1,5 +1,4 @@
-﻿using AscendantEmpire.Application.Common;
-using AscendantEmpire.Application.Data;
+﻿using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Handlers.Game;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
 using AscendantEmpire.BackendContracts.Players.GetPlayerStructures;
@@ -16,25 +15,19 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Handlers.Players;
 
 public record GetPlayerStructuresRequest(
-    Guid GameGuid,
-    Guid PlayerGuid
+    int GameId,
+    int PlayerId
 ) : IRequest<ServiceResult<IReadOnlyCollection<PlayerStructure>>>;
 
 internal class GetPlayerStructuresRequestValidator : AbstractValidator<GetPlayerStructuresRequest>
 {
     public GetPlayerStructuresRequestValidator()
     {
-        RuleFor(x => x.GameGuid)
-            .NotEmpty().WithMessage("GameGuid is required.");
-        RuleFor(r => r.GameGuid)
-         .Must(guid => guid != Guid.Empty)
-         .WithMessage("GameGuid must be a valid non-empty GUID.");
+        RuleFor(x => x.GameId)
+            .GreaterThan(0).WithMessage("Game Id is required.");
 
-        RuleFor(x => x.PlayerGuid)
-            .NotEmpty().WithMessage("PlayerGuid is required.");
-        RuleFor(r => r.PlayerGuid)
-         .Must(guid => guid != Guid.Empty)
-         .WithMessage("PlayerGuid must be a valid non-empty GUID.");
+        RuleFor(x => x.PlayerId)
+            .GreaterThan(0).WithMessage("Player Id is required.");
     }
 }
 
@@ -59,11 +52,11 @@ internal class GetPlayerStructuresHandler(
                 return ServiceResult<IReadOnlyCollection<PlayerStructure>>.Fail(errors.Prepend(error));
             }
 
-            ServiceResult<IReadOnlyCollection<OpenGame>> openGameResult = await mediator.Send(new GetOpenGamesRequest(request.GameGuid, request.PlayerGuid), cancelToken);
+            ServiceResult<IReadOnlyCollection<OpenGame>> openGameResult = await mediator.Send(new GetOpenGamesRequest(request.GameId, request.PlayerId), cancelToken);
 
             if (openGameResult.SuccessValue is not { Count: > 0 } openGames)
             {
-                string error = $"No open game found for GameGuid: {request.GameGuid} and PlayerGuid: {request.PlayerGuid}.";
+                string error = $"No open game found for GameGuid: {request.GameId} and PlayerGuid: {request.PlayerId}.";
                 logger.LogWarning(error);
                 return ServiceResult<IReadOnlyCollection<PlayerStructure>>.NotFound(error);
             }

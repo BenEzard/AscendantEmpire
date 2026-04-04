@@ -80,33 +80,28 @@ internal class AddCampaignMapBiomesHandler(
         var validator = new CampaignMapBiomeValidator();
 
         // Validate individual Biomes
-        (BiomeType BiomeType, ValidationResult ValidationResults)[] validationResults = biomes
-            .Select(biome => (biome.BiomeType, validator.Validate(biome)))
-            .ToArray();
+        (BiomeType BiomeType, ValidationResult ValidationResults)[] validationResults = [.. biomes.Select(biome => (biome.BiomeType, validator.Validate(biome)))];
 
-        string[] groupedErrors = validationResults
+        string[] groupedErrors = [.. validationResults
             .Where(result => result.ValidationResults.Errors.Count != 0)
             .SelectMany(result =>
                 result.ValidationResults.Errors.Select(error =>
-                    $"Biome '{result.BiomeType}': {error.ErrorMessage}"))
-            .ToArray();
+                    $"Biome '{result.BiomeType}': {error.ErrorMessage}"))];
 
         // Check the Biome Type Id isn't already in the database
-        BiomeType[] biomeTypeIdsInRequest = biomes.Select(b => b.BiomeType).ToArray();
-        string[] duplicateBiomesInDatabase = context.CampaignBiomes
+        BiomeType[] biomeTypeIdsInRequest = [.. biomes.Select(b => b.BiomeType)];
+        string[] duplicateBiomesInDatabase = [.. context.CampaignBiomes
             .Select(b => b.BiomeTypeId)
             .Where(id => biomeTypeIdsInRequest.Contains(id))
-            .Select(id => $"{(BiomeType)id} is already a Biome. Either delete the existing Biome or edit it.")
-            .ToArray();
+            .Select(id => $"{(BiomeType)id} is already a Biome. Either delete the existing Biome or edit it.")];
 
         // Check for any duplicate BiomeTypeIds in the request object
-        string[] duplicateBiomesInRequest = biomes
+        string[] duplicateBiomesInRequest = [.. biomes
             .GroupBy(b => b.BiomeType)
             .Where(g => g.Count() > 1)
-            .Select(g => $"{g.Key} is specified multiple times in the request.")
-            .ToArray();
+            .Select(g => $"{g.Key} is specified multiple times in the request.")];
 
-        string[] duplicateErrors = duplicateBiomesInDatabase.Concat(duplicateBiomesInRequest).ToArray();
+        string[] duplicateErrors = [.. duplicateBiomesInDatabase, .. duplicateBiomesInRequest];
 
         if (groupedErrors.Length != 0 || duplicateErrors.Length != 0)
         {

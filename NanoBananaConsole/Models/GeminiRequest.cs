@@ -5,7 +5,7 @@ namespace NanoBananaConsole.Models;
 public sealed class GeminiRequest
 {
     [JsonPropertyName("contents")]
-    public List<Content> Contents { get; set; } = new();
+    public List<Content> Contents { get; set; } = [];
 
     [JsonPropertyName("generationConfig")]
     public GenerationConfig? GenerationConfig { get; set; }
@@ -14,7 +14,7 @@ public sealed class GeminiRequest
 public sealed class Content
 {
     [JsonPropertyName("parts")]
-    public List<Part> Parts { get; set; } = new();
+    public List<Part> Parts { get; set; } = [];
 }
 
 public sealed class Part
@@ -40,7 +40,7 @@ public sealed class InlineData
 public sealed class GenerationConfig
 {
     [JsonPropertyName("responseModalities")]
-    public List<string> ResponseModalities { get; set; } = new();
+    public List<string> ResponseModalities { get; set; } = [];
 
     [JsonPropertyName("imageConfig")]
     public ImageConfig? ImageConfig { get; set; }

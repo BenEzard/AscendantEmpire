@@ -2,8 +2,8 @@
 
 public interface ISpawnUnitDto
 {
-    Guid GameGuid { get; }
-    Guid PlayerGuid { get; }
+    int GameId { get; }
+    int PlayerId { get; }
     int XCoord { get; }
     int YCoord { get; }
     int UnitDesignId { get; }

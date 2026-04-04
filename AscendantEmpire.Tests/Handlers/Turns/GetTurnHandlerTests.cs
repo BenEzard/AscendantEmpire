@@ -59,15 +59,14 @@ internal class GetTurnHandlerInMemoryTests
     public async Task ShouldReturnCampaignLaneEntryAsync()
     {
         int gameId = 1;
-        Guid gameGuid = Guid.NewGuid();
 
-        var players = new List<(int PlayerId, Guid PlayerGuid)>
-        {
-            (11, Guid.NewGuid()), // taking turn
-            (12, Guid.NewGuid()), // requester
-        };
+        List<int> players =
+        [
+            11, // taking turn
+            12, // requester
+        ];
 
-        await SeedGameAndPlayersAsync(gameId, gameGuid, players);
+        await SeedGameAndPlayersAsync(gameId, players);
 
         await SeedLaneRosterAsync(
             gameId,
@@ -80,7 +79,7 @@ internal class GetTurnHandlerInMemoryTests
             ],
             scheduledTurnEndTimeUtc: DateTimeOffset.UtcNow.AddSeconds(30));
 
-        var request = new GetTurnRequest(gameGuid, players.Single(p => p.PlayerId == 12).PlayerGuid);
+        var request = new GetTurnRequest(gameId, PlayerId: 12);
 
         var result = await _handler.Handle(request, CancellationToken.None);
 
@@ -102,16 +101,15 @@ internal class GetTurnHandlerInMemoryTests
     public async Task ShouldReturnBattleLaneEntryAsync()
     {
         int gameId = 1;
-        Guid gameGuid = Guid.NewGuid();
         int battleId = 9001;
 
-        var players = new List<(int PlayerId, Guid PlayerGuid)>
+        var players = new List<int>
         {
-            (21, Guid.NewGuid()), // taking turn
-            (22, Guid.NewGuid()), // requester
+            21, // taking turn
+            22, // requester
         };
 
-        await SeedGameAndPlayersAsync(gameId, gameGuid, players);
+        await SeedGameAndPlayersAsync(gameId, players);
 
         await SeedLaneRosterAsync(
             gameId,
@@ -124,7 +122,7 @@ internal class GetTurnHandlerInMemoryTests
             ],
             scheduledTurnEndTimeUtc: DateTimeOffset.UtcNow.AddSeconds(20));
 
-        var request = new GetTurnRequest(gameGuid, players.Single(p => p.PlayerId == 22).PlayerGuid);
+        var request = new GetTurnRequest(gameId, PlayerId: 22);
 
         var result = await _handler.Handle(request, CancellationToken.None);
 
@@ -147,14 +145,14 @@ internal class GetTurnHandlerInMemoryTests
         Guid gameGuid = Guid.NewGuid();
         int battleId = 123;
 
-        var players = new List<(int PlayerId, Guid PlayerGuid)>
+        var players = new List<int>
         {
-            (31, Guid.NewGuid()), // campaign taking turn
-            (32, Guid.NewGuid()), // requester (on both lanes)
-            (33, Guid.NewGuid()), // battle taking turn
+            31, // campaign taking turn
+            32, // requester (on both lanes)
+            33, // battle taking turn
         };
 
-        await SeedGameAndPlayersAsync(gameId, gameGuid, players);
+        await SeedGameAndPlayersAsync(gameId, players);
 
         // Campaign lane (BattleId null), Round 1
         await SeedLaneRosterAsync(
@@ -180,7 +178,7 @@ internal class GetTurnHandlerInMemoryTests
             ],
             scheduledTurnEndTimeUtc: DateTimeOffset.UtcNow.AddSeconds(60));
 
-        var request = new GetTurnRequest(gameGuid, players.Single(p => p.PlayerId == 32).PlayerGuid);
+        var request = new GetTurnRequest(gameId, PlayerId: 32);
 
         var result = await _handler.Handle(request, CancellationToken.None);
 
@@ -212,15 +210,14 @@ internal class GetTurnHandlerInMemoryTests
     public async Task ShouldReturnZeroWhenRequesterIsCurrentTurnPlayerAsync()
     {
         int gameId = 1;
-        Guid gameGuid = Guid.NewGuid();
 
-        var players = new List<(int PlayerId, Guid PlayerGuid)>
+        var players = new List<int>
         {
-            (41, Guid.NewGuid()), // taking + requester
-            (42, Guid.NewGuid()),
+            41, // taking + requester
+            42,
         };
 
-        await SeedGameAndPlayersAsync(gameId, gameGuid, players);
+        await SeedGameAndPlayersAsync(gameId, players);
 
         await SeedLaneRosterAsync(
             gameId,
@@ -233,33 +230,31 @@ internal class GetTurnHandlerInMemoryTests
             ],
             scheduledTurnEndTimeUtc: DateTimeOffset.UtcNow.AddSeconds(30));
 
-        var request = new GetTurnRequest(gameGuid, players.Single(p => p.PlayerId == 41).PlayerGuid);
+        var request = new GetTurnRequest(gameId, PlayerId: 41);
 
         var result = await _handler.Handle(request, CancellationToken.None);
 
         Assert.That(result.HasSucceeded, Is.True);
         var entry = result.SuccessValue!.Single();
 
-        Assert.That(entry.NumberOfPlayersUntilMyTurn, Is.EqualTo(0));
+        Assert.That(entry.NumberOfPlayersUntilMyTurn, Is.Zero);
     }
 
     [Test, Description("NumberOfPlayersUntilMyTurn: non-wrap case counts current + players between. Example r=2, my=5, between {3,4} => 3.")]
     public async Task ShouldComputeNumberOfPlayersUntilMyTurnWithBetweenPlayersAsync()
     {
         int gameId = 1;
-        Guid gameGuid = Guid.NewGuid();
 
-        var players = new List<(int PlayerId, Guid PlayerGuid)>
+        var players = new List<int>
         {
-            (51, Guid.NewGuid()), // order 1
-            (52, Guid.NewGuid()), // order 2 (taking)
-            (53, Guid.NewGuid()), // order 3
-            (54, Guid.NewGuid()), // order 4
-            (55, Guid.NewGuid()), // order 5 (requester)
+            51, // order 1
+            52, // order 2 (taking)
+            53, // order 3
+            54, // order 4
+            55, // order 5 (requester)
         };
 
-        await SeedGameAndPlayersAsync(gameId, gameGuid, players);
-
+        await SeedGameAndPlayersAsync(gameId, players);
         await SeedLaneRosterAsync(
             gameId,
             roundNumber: 1,
@@ -274,7 +269,7 @@ internal class GetTurnHandlerInMemoryTests
             ],
             scheduledTurnEndTimeUtc: DateTimeOffset.UtcNow.AddSeconds(30));
 
-        var request = new GetTurnRequest(gameGuid, players.Single(p => p.PlayerId == 55).PlayerGuid);
+        var request = new GetTurnRequest(gameId, PlayerId: 55);
 
         var result = await _handler.Handle(request, CancellationToken.None);
 
@@ -288,16 +283,15 @@ internal class GetTurnHandlerInMemoryTests
     public async Task ShouldComputeNumberOfPlayersUntilMyTurnImmediateNextAsync()
     {
         int gameId = 1;
-        Guid gameGuid = Guid.NewGuid();
 
-        var players = new List<(int PlayerId, Guid PlayerGuid)>
+        var players = new List<int>
         {
-            (61, Guid.NewGuid()), // order 1
-            (62, Guid.NewGuid()), // order 2 (taking)
-            (63, Guid.NewGuid()), // order 3 (requester)
+            61, // order 1
+            62, // order 2 (taking)
+            63, // order 3 (requester)
         };
 
-        await SeedGameAndPlayersAsync(gameId, gameGuid, players);
+        await SeedGameAndPlayersAsync(gameId, players);
 
         await SeedLaneRosterAsync(
             gameId,
@@ -311,7 +305,7 @@ internal class GetTurnHandlerInMemoryTests
             ],
             scheduledTurnEndTimeUtc: DateTimeOffset.UtcNow.AddSeconds(30));
 
-        var request = new GetTurnRequest(gameGuid, players.Single(p => p.PlayerId == 63).PlayerGuid);
+        var request = new GetTurnRequest(gameId, PlayerId: 63);
 
         var result = await _handler.Handle(request, CancellationToken.None);
 
@@ -327,18 +321,17 @@ internal class GetTurnHandlerInMemoryTests
         // Orders 1..5. Current is 2. Requester is 5.
         // Between are 3 and 4, but player at 4 is inactive => between count=1 => result=1+1=2.
         int gameId = 1;
-        Guid gameGuid = Guid.NewGuid();
 
-        var players = new List<(int PlayerId, Guid PlayerGuid)>
+        var players = new List<int>
         {
-            (91, Guid.NewGuid()), // order 1
-            (92, Guid.NewGuid()), // order 2 (taking)
-            (93, Guid.NewGuid()), // order 3
-            (94, Guid.NewGuid()), // order 4 (Eliminated)
-            (95, Guid.NewGuid()), // order 5 (requester)
+            91, // order 1
+            92, // order 2 (taking)
+            93, // order 3
+            94, // order 4 (Eliminated)
+            95, // order 5 (requester)
         };
 
-        await SeedGameAndPlayersAsync(gameId, gameGuid, players);
+        await SeedGameAndPlayersAsync(gameId, players);
         await SetPlayerStatusAsync(gameId, playerId: 94, PlayerStatus.Eliminated);
 
         await SeedLaneRosterAsync(
@@ -355,7 +348,7 @@ internal class GetTurnHandlerInMemoryTests
             ],
             scheduledTurnEndTimeUtc: DateTimeOffset.UtcNow.AddSeconds(30));
 
-        var request = new GetTurnRequest(gameGuid, players.Single(p => p.PlayerId == 95).PlayerGuid);
+        var request = new GetTurnRequest(gameId, PlayerId: 95);
 
         var result = await _handler.Handle(request, CancellationToken.None);
 
@@ -369,15 +362,14 @@ internal class GetTurnHandlerInMemoryTests
     public async Task ShouldReturnNotFoundWhenRequesterNotActiveAsync()
     {
         int gameId = 1;
-        Guid gameGuid = Guid.NewGuid();
 
-        var players = new List<(int PlayerId, Guid PlayerGuid)>
+        var players = new List<int>
         {
-            (101, Guid.NewGuid()), // taking
-            (102, Guid.NewGuid()), // requester (inactive)
+            101, // taking
+            102, // requester (inactive)
         };
 
-        await SeedGameAndPlayersAsync(gameId, gameGuid, players);
+        await SeedGameAndPlayersAsync(gameId, players);
         await SetPlayerStatusAsync(gameId, playerId: 102, PlayerStatus.Eliminated);
 
         // Lane has both, but handler filters my.Player.Status == Active
@@ -392,7 +384,7 @@ internal class GetTurnHandlerInMemoryTests
             ],
             scheduledTurnEndTimeUtc: DateTimeOffset.UtcNow.AddSeconds(30));
 
-        var request = new GetTurnRequest(gameGuid, players.Single(p => p.PlayerId == 102).PlayerGuid);
+        var request = new GetTurnRequest(gameId, PlayerId: 102);
 
         var result = await _handler.Handle(request, CancellationToken.None);
 
@@ -403,10 +395,7 @@ internal class GetTurnHandlerInMemoryTests
         }
     }
 
-    private async Task SeedGameAndPlayersAsync(
-        int gameId,
-        Guid gameGuid,
-        IReadOnlyCollection<(int PlayerId, Guid PlayerGuid)> players)
+    private async Task SeedGameAndPlayersAsync(int gameId, IReadOnlyCollection<int> players)
     {
         await using var context = new AscendantEmpireContext(_options);
 
@@ -417,19 +406,17 @@ internal class GetTurnHandlerInMemoryTests
             NumberOfPlayers = players.Count,
             CreatedAt = DateTimeOffset.UtcNow,
             CreationStatus = GameCreationStatus.SetupComplete,
-            GameGuid = gameGuid,
             PlayStatus = GamePlayStatus.InProgress
         };
 
         context.GameIndex.Add(game);
 
-        foreach (var p in players)
+        foreach (var pId in players)
         {
             context.Players.Add(new Player
             {
-                Id = p.PlayerId,
+                Id = pId,
                 GameId = gameId,
-                Guid = p.PlayerGuid,
                 Status = PlayerStatus.Active,
                 RulerName = "Ruler",
                 RulerTitle = "Title",
@@ -510,15 +497,15 @@ internal class GetTurnHandlerInMemoryTests
         // Players:
         // - requester is on campaign + both battles
         // - each lane has its own current-turn player (can overlap, but keep distinct for clarity)
-        var players = new List<(int PlayerId, Guid PlayerGuid)>
+        var players = new List<int>
         {
-            (10, Guid.NewGuid()), // requester
-            (11, Guid.NewGuid()), // campaign current turn
-            (12, Guid.NewGuid()), // battle1 current turn
-            (13, Guid.NewGuid()), // battle2 current turn
+            10, // requester
+            11, // campaign current turn
+            12, // battle1 current turn
+            13, // battle2 current turn
         };
 
-        await SeedGameAndPlayersAsync(gameId, gameGuid, players);
+        await SeedGameAndPlayersAsync(gameId, players);
 
         DateTimeOffset endUtc = DateTimeOffset.UtcNow.AddSeconds(60);
 
@@ -558,12 +545,15 @@ internal class GetTurnHandlerInMemoryTests
             ],
             scheduledTurnEndTimeUtc: endUtc);
 
-        var request = new GetTurnRequest(gameGuid, players.Single(p => p.PlayerId == 10).PlayerGuid);
+        var request = new GetTurnRequest(gameId, PlayerId: 10);
 
         var result = await _handler.Handle(request, CancellationToken.None);
 
-        Assert.That(result.HasSucceeded, Is.True);
-        Assert.That(result.SuccessValue, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True);
+            Assert.That(result.SuccessValue, Is.Not.Null);
+        }
 
         var entries = result.SuccessValue!.ToArray();
 

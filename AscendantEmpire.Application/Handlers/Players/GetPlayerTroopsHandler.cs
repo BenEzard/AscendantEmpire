@@ -16,25 +16,19 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Handlers.Players;
 
 public record GetPlayerTroopsRequest(
-    Guid GameGuid,
-    Guid PlayerGuid
+    int GameId,
+    int PlayerId
 ) : IRequest<ServiceResult<IReadOnlyCollection<PlayerTroop>>>;
 
 internal class GetPlayerTroopsRequestValidator : AbstractValidator<GetPlayerTroopsRequest>
 {
     public GetPlayerTroopsRequestValidator()
     {
-        RuleFor(x => x.GameGuid)
-            .NotEmpty().WithMessage("GameGuid is required.");
-        RuleFor(r => r.GameGuid)
-         .Must(guid => guid != Guid.Empty)
-         .WithMessage("GameGuid must be a valid non-empty GUID.");
+        RuleFor(x => x.GameId)
+            .GreaterThan(0).WithMessage("Game Id is required.");
 
-        RuleFor(x => x.PlayerGuid)
-            .NotEmpty().WithMessage("PlayerGuid is required.");
-        RuleFor(r => r.PlayerGuid)
-         .Must(guid => guid != Guid.Empty)
-         .WithMessage("PlayerGuid must be a valid non-empty GUID.");
+        RuleFor(x => x.PlayerId)
+            .GreaterThan(0).WithMessage("Player Id is required.");
     }
 }
 
@@ -58,12 +52,12 @@ internal class GetPlayerTroopsHandler(
                 return ServiceResult<IReadOnlyCollection<PlayerTroop>>.Fail(errors.Prepend(error));
             }
 
-            ServiceResult<IReadOnlyCollection<OpenGame>> openGameResult = await mediator.Send(new GetOpenGamesRequest(request.GameGuid, request.PlayerGuid), cancelToken);
+            ServiceResult<IReadOnlyCollection<OpenGame>> openGameResult = await mediator.Send(new GetOpenGamesRequest(request.GameId, request.PlayerId), cancelToken);
 
             if (openGameResult.SuccessValue is not { Count: > 0 } openGames)
             {
-                string error = $"No open game found for GameGuid: {request.GameGuid} and PlayerGuid: {request.PlayerGuid}.";
-                logger.LogWarning("No open game found for GameGuid: {gameGuid} and PlayerGuid: {playerGuid}.", request.GameGuid, request.PlayerGuid);
+                string error = $"No open game found for Game Id: {request.GameId} and Player Id: {request.PlayerId}.";
+                logger.LogWarning("No open game found for Game Id: {gameId} and Player Id: {playerId}.", request.GameId, request.PlayerId);
                 return ServiceResult<IReadOnlyCollection<PlayerTroop>>.NotFound(error);
             }
 

@@ -15,25 +15,19 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Handlers.Turns;
 
 public record EndPlayerTurnRequest(
-    Guid GameGuid,
-    Guid PlayerGuid
+    int GameId,
+    int PlayerId
 ) : IRequest<ServiceResultBase>;
 
 internal class EndPlayerTurnRequestValidator : AbstractValidator<EndPlayerTurnRequest>
 {
     public EndPlayerTurnRequestValidator()
     {
-        RuleFor(x => x.GameGuid)
-            .NotEmpty().WithMessage("GameGuid is required.");
-        RuleFor(r => r.GameGuid)
-         .Must(guid => guid != Guid.Empty)
-         .WithMessage("GameGuid must be a valid non-empty GUID.");
+        RuleFor(x => x.GameId)
+            .GreaterThan(0).WithMessage("Game Id is required.");
 
-        RuleFor(x => x.PlayerGuid)
-            .NotEmpty().WithMessage("PlayerGuid is required.");
-        RuleFor(r => r.PlayerGuid)
-         .Must(guid => guid != Guid.Empty)
-         .WithMessage("PlayerGuid must be a valid non-empty GUID.");
+        RuleFor(x => x.PlayerId)
+            .GreaterThan(0).WithMessage("Player Id is required.");
     }
 }
 
@@ -78,7 +72,6 @@ internal class EndPlayerTurnHandler(
             // End the Player's Turn on the Roster
             ServiceResultBase endPlayerResult = await mediator.Send(new EndTurnOnRosterRequest(
                 GameId: currentTurnInfo.GameId,
-                GameGuid: currentTurnInfo.GameGuid,
                 RoundNumber: currentTurnInfo.RoundNumber,
                 CurrentTurnPlayerId: currentTurnInfo.CurrentTurnPlayerId,
                 BattleId: null
@@ -86,7 +79,7 @@ internal class EndPlayerTurnHandler(
 
             if (endPlayerResult.HasSucceeded == false)
             {
-                string error = $"Failed to end turn for player {request.PlayerGuid} in game {request.GameGuid}.";
+                string error = $"Failed to end turn for player {request.PlayerId} in game {request.GameId}.";
                 logger.LogWarning("{Error} Details: {Details}", error, string.Join("; ", endPlayerResult.Errors));
                 return Fail(endPlayerResult.Errors.Prepend(error));
             }
@@ -118,7 +111,7 @@ internal class EndPlayerTurnHandler(
         await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
         // Get the current Turn information to verify it's the Player's turn
-        ServiceResult<IReadOnlyCollection<RosterEntry>> turnResult = await mediator.Send(new GetTurnRequest(GameGuid: request.GameGuid, PlayerGuid: request.PlayerGuid), cancelToken);
+        ServiceResult<IReadOnlyCollection<RosterEntry>> turnResult = await mediator.Send(new GetTurnRequest(GameId: request.GameId, PlayerId: request.PlayerId), cancelToken);
 
         if (turnResult.HasSucceeded == false)
         {
@@ -152,19 +145,18 @@ internal class EndPlayerTurnHandler(
         }
 
         // Get the Game Id
-        GameIndex? game = await context.GameIndex.Where(g => g.GameGuid == request.GameGuid).SingleOrDefaultAsync(CancellationToken.None);
+        GameIndex? game = await context.GameIndex.Where(g => g.Id == request.GameId).SingleOrDefaultAsync(CancellationToken.None);
 
         if (game == null)
         {
-            string error = $"Game not found for the specified GameGuid.";
-            logger.LogWarning("{method} {err}: ", nameof(EndTurnOnRosterRequest), error);
+            string error = $"Game not found for the specified Game Id.";
+            logger.LogWarning("{method} {err}: ", nameof(EndPlayerTurnHandler), error);
             return ServiceResult<CurrentTurnRosterInfo>.Fail(error);
         }
 
         return ServiceResult<CurrentTurnRosterInfo>.Succeed(new CurrentTurnRosterInfo
         (
             GameId: game.Id,
-            GameGuid: request.GameGuid,
             RoundNumber: currentTurnInfo!.RoundNumber,
             CurrentTurnPlayerId: currentTurnInfo.CurrentTurnPlayerId
         ));
@@ -173,7 +165,6 @@ internal class EndPlayerTurnHandler(
     public record CurrentTurnRosterInfo 
     (
         int GameId,
-        Guid GameGuid,
         int RoundNumber,
         int CurrentTurnPlayerId
     );

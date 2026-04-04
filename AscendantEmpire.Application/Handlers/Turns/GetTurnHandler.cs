@@ -14,25 +14,19 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Handlers.Turns;
 
 public record GetTurnRequest(
-    Guid GameGuid,
-    Guid PlayerGuid
+    int GameId,
+    int PlayerId
 ) : IRequest<ServiceResult<IReadOnlyCollection<RosterEntry>>>;
 
 internal class GetTurnRequestValidator : AbstractValidator<GetTurnRequest>
 {
     public GetTurnRequestValidator()
     {
-        RuleFor(x => x.GameGuid)
-            .NotEmpty().WithMessage("GameGuid is required.");
-        RuleFor(r => r.GameGuid)
-         .Must(guid => guid != Guid.Empty)
-         .WithMessage("GameGuid must be a valid non-empty GUID.");
+        RuleFor(x => x.GameId)
+            .GreaterThan(0).WithMessage("Game Id is required.");
 
-        RuleFor(x => x.PlayerGuid)
-            .NotEmpty().WithMessage("PlayerGuid is required.");
-        RuleFor(r => r.PlayerGuid)
-         .Must(guid => guid != Guid.Empty)
-         .WithMessage("PlayerGuid must be a valid non-empty GUID.");
+        RuleFor(x => x.PlayerId)
+            .GreaterThan(0).WithMessage("Player Id is required.");
     }
 }
 
@@ -61,14 +55,14 @@ internal class GetTurnHandler(
             var q =
                 from r in context.TurnRosters.AsNoTracking()
                 where r.Status == TurnStatus.TakingTurn
-                   && r.Game.GameGuid == request.GameGuid
+                   && r.Game.Id == request.GameId
                    && r.Player.Status == PlayerStatus.Active
 
                 // Ensures we only return lanes (campaign/battle) where THIS player is on that roster.
                 join my in context.TurnRosters.AsNoTracking()
                     on new { r.GameId, r.RoundNumber, r.BattleId }
                     equals new { my.GameId, my.RoundNumber, my.BattleId }
-                where my.Player.Guid == request.PlayerGuid
+                where my.Player.Id == request.PlayerId
                    && my.Player.Status == PlayerStatus.Active
 
                 let scheduledEnd = r.ScheduledTurnEndTime
@@ -108,7 +102,7 @@ internal class GetTurnHandler(
             if (rows.Length == 0)
             {
                 const string error = "No records found for the specified Game and Player values.";
-                logger.LogWarning(error + " Game Guid: {g1}, Player Guid: {g2}", request.GameGuid, request.PlayerGuid);
+                logger.LogWarning(error + " Game Id: {g1}, Player Id: {g2}", request.GameId, request.PlayerId);
                 return ServiceResult<IReadOnlyCollection<RosterEntry>>.NotFound(error);
             }
 

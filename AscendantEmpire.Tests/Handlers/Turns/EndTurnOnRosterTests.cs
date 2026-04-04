@@ -66,7 +66,6 @@ internal class EndTurnOnRosterTests
     {
         var request = new EndTurnOnRosterRequest(
             GameId: 0,
-            GameGuid: Guid.Empty,
             RoundNumber: 0,
             CurrentTurnPlayerId: 0,
             BattleId: null);
@@ -88,22 +87,19 @@ internal class EndTurnOnRosterTests
     public async Task ShouldFail_WhenNoRosterRowsForRoundAsync()
     {
         int gameId = 1;
-        Guid gameGuid = Guid.NewGuid();
         int roundNumber = 1;
 
         int currentPlayerId = 11;
-        Guid currentPlayerGuid = Guid.NewGuid();
 
-        await SeedGameAndPlayersAsync(gameId, gameGuid, new[]
-        {
-            (PlayerId: currentPlayerId, PlayerGuid: currentPlayerGuid),
-        });
+        await SeedGameAndPlayersAsync(gameId,
+        [
+            currentPlayerId,
+        ]);
 
         // No TurnRosters for that round
 
         var request = new EndTurnOnRosterRequest(
             GameId: gameId,
-            GameGuid: gameGuid,
             RoundNumber: roundNumber,
             CurrentTurnPlayerId: currentPlayerId,
             BattleId: null);
@@ -124,20 +120,17 @@ internal class EndTurnOnRosterTests
     public async Task ShouldFail_WhenNoTakingTurnRosterEntryForPlayerAsync()
     {
         int gameId = 1;
-        Guid gameGuid = Guid.NewGuid();
         int roundNumber = 1;
 
         int currentPlayerId = 11;
-        Guid currentPlayerGuid = Guid.NewGuid();
 
         int otherPlayerId = 12;
-        Guid otherPlayerGuid = Guid.NewGuid();
 
-        await SeedGameAndPlayersAsync(gameId, gameGuid, new[]
-        {
-            (PlayerId: currentPlayerId, PlayerGuid: currentPlayerGuid),
-            (PlayerId: otherPlayerId, PlayerGuid: otherPlayerGuid),
-        });
+        await SeedGameAndPlayersAsync(gameId,
+        [
+            currentPlayerId,
+            otherPlayerId,
+        ]);
 
         // Current player is Pending, other player is TakingTurn
         _ = await SeedRosterAsync(gameId, roundNumber, currentPlayerId, turnOrder: 1, status: TurnStatus.Pending, battleId: null);
@@ -145,7 +138,6 @@ internal class EndTurnOnRosterTests
 
         var request = new EndTurnOnRosterRequest(
             GameId: gameId,
-            GameGuid: gameGuid,
             RoundNumber: roundNumber,
             CurrentTurnPlayerId: currentPlayerId,
             BattleId: null);
@@ -166,24 +158,20 @@ internal class EndTurnOnRosterTests
     public async Task ShouldCompleteCurrentTurn_AndStartNextPlayer_WhenNextPendingExistsAsync()
     {
         int gameId = 1;
-        Guid gameGuid = Guid.NewGuid();
         int roundNumber = 1;
 
         int currentPlayerId = 11;
-        Guid currentPlayerGuid = Guid.NewGuid();
 
         int nextPlayerId = 12;
-        Guid nextPlayerGuid = Guid.NewGuid();
 
         int eliminatedPlayerId = 13;
-        Guid eliminatedPlayerGuid = Guid.NewGuid();
 
-        await SeedGameAndPlayersAsync(gameId, gameGuid, new[]
-        {
-            (PlayerId: currentPlayerId, PlayerGuid: currentPlayerGuid),
-            (PlayerId: nextPlayerId, PlayerGuid: nextPlayerGuid),
-            (PlayerId: eliminatedPlayerId, PlayerGuid: eliminatedPlayerGuid),
-        });
+        await SeedGameAndPlayersAsync(gameId,
+        [
+            currentPlayerId,
+            nextPlayerId,
+            eliminatedPlayerId,
+        ]);
 
         // Current TakingTurn at TurnOrder=2
         int currentRosterId = await SeedRosterAsync(gameId, roundNumber, currentPlayerId, turnOrder: 2, status: TurnStatus.TakingTurn, battleId: null);
@@ -196,7 +184,6 @@ internal class EndTurnOnRosterTests
 
         var request = new EndTurnOnRosterRequest(
             GameId: gameId,
-            GameGuid: gameGuid,
             RoundNumber: roundNumber,
             CurrentTurnPlayerId: currentPlayerId,
             BattleId: null);
@@ -220,8 +207,8 @@ internal class EndTurnOnRosterTests
 
         await _mediator.Received(1).Send(
             Arg.Is<StartTurnOnRosterRequest>(r =>
-                r.GameGuid == gameGuid
-                && r.PlayerGuid == nextPlayerGuid
+                r.GameId == gameId
+                && r.PlayerId == nextPlayerId
                 && r.RoundNumber == roundNumber),
             Arg.Any<CancellationToken>());
 
@@ -234,20 +221,17 @@ internal class EndTurnOnRosterTests
     public async Task ShouldCompleteCurrentTurn_AndEndRound_WhenNoNextPendingAsync()
     {
         int gameId = 1;
-        Guid gameGuid = Guid.NewGuid();
         int roundNumber = 1;
 
         int currentPlayerId = 11;
-        Guid currentPlayerGuid = Guid.NewGuid();
 
         int earlierPendingPlayerId = 12;
-        Guid earlierPendingPlayerGuid = Guid.NewGuid();
 
-        await SeedGameAndPlayersAsync(gameId, gameGuid, new[]
-        {
-            (PlayerId: currentPlayerId, PlayerGuid: currentPlayerGuid),
-            (PlayerId: earlierPendingPlayerId, PlayerGuid: earlierPendingPlayerGuid),
-        });
+        await SeedGameAndPlayersAsync(gameId,
+        [
+            currentPlayerId,
+            earlierPendingPlayerId,
+        ]);
 
         // Pending exists only BEFORE current player's TurnOrder => no wraparound expected
         _ = await SeedRosterAsync(gameId, roundNumber, earlierPendingPlayerId, turnOrder: 1, status: TurnStatus.Pending, battleId: null);
@@ -257,7 +241,6 @@ internal class EndTurnOnRosterTests
 
         var request = new EndTurnOnRosterRequest(
             GameId: gameId,
-            GameGuid: gameGuid,
             RoundNumber: roundNumber,
             CurrentTurnPlayerId: currentPlayerId,
             BattleId: null);
@@ -280,7 +263,7 @@ internal class EndTurnOnRosterTests
         }
 
         await _mediator.Received(1).Send(
-            Arg.Is<EndRoundRequest>(r => r.GameGuid == gameGuid),
+            Arg.Is<EndRoundRequest>(r => r.GameId == gameId),
             Arg.Any<CancellationToken>());
 
         await _mediator.DidNotReceive().Send(
@@ -292,25 +275,22 @@ internal class EndTurnOnRosterTests
     public async Task ShouldFail_WhenEndRoundFailsAsync_ButStillCompletesTurnAsync()
     {
         int gameId = 1;
-        Guid gameGuid = Guid.NewGuid();
         int roundNumber = 1;
 
         int currentPlayerId = 11;
-        Guid currentPlayerGuid = Guid.NewGuid();
 
-        await SeedGameAndPlayersAsync(gameId, gameGuid, new[]
-        {
-            (PlayerId: currentPlayerId, PlayerGuid: currentPlayerGuid),
-        });
+        await SeedGameAndPlayersAsync(gameId,
+        [
+            currentPlayerId,
+        ]);
 
         int currentRosterId = await SeedRosterAsync(gameId, roundNumber, currentPlayerId, turnOrder: 1, status: TurnStatus.TakingTurn, battleId: null);
 
         _mediator.Send(Arg.Any<EndRoundRequest>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult(ServiceResultBase.Fail(new[] { "could not end round" })));
+            .Returns(Task.FromResult(ServiceResultBase.Fail(["could not end round"])));
 
         var request = new EndTurnOnRosterRequest(
             GameId: gameId,
-            GameGuid: gameGuid,
             RoundNumber: roundNumber,
             CurrentTurnPlayerId: currentPlayerId,
             BattleId: null);
@@ -337,7 +317,7 @@ internal class EndTurnOnRosterTests
         }
 
         await _mediator.Received(1).Send(
-            Arg.Is<EndRoundRequest>(r => r.GameGuid == gameGuid),
+            Arg.Is<EndRoundRequest>(r => r.GameId == gameId),
             Arg.Any<CancellationToken>());
 
         await _mediator.DidNotReceive().Send(
@@ -349,22 +329,21 @@ internal class EndTurnOnRosterTests
     public async Task ShouldEndBattleTurn_WithoutAffectingCampaignOrOtherBattles_WhenMultipleBattlesExistAsync()
     {
         int gameId = 1;
-        Guid gameGuid = Guid.NewGuid();
         int roundNumber = 1;
 
-        int p1Id = 11; Guid p1Guid = Guid.NewGuid(); // Campaign active player (TakingTurn)
-        int p2Id = 12; Guid p2Guid = Guid.NewGuid(); // Battle 100 current (TakingTurn)
-        int p3Id = 13; Guid p3Guid = Guid.NewGuid(); // Battle 100 next pending
+        int p1Id = 11; // Campaign active player (TakingTurn)
+        int p2Id = 12; // Battle 100 current (TakingTurn)
+        int p3Id = 13; // Battle 100 next pending
 
         const int battleToEnd = 100;
         const int otherBattle = 101;
 
-        await SeedGameAndPlayersAsync(gameId, gameGuid, new[]
-        {
-            (PlayerId: p1Id, PlayerGuid: p1Guid),
-            (PlayerId: p2Id, PlayerGuid: p2Guid),
-            (PlayerId: p3Id, PlayerGuid: p3Guid),
-        });
+        await SeedGameAndPlayersAsync(gameId,
+        [
+            p1Id,
+            p2Id,
+            p3Id,
+        ]);
 
         // --- Campaign roster exists and is active (but we are NOT ending campaign here) ---
         int campaignTakingTurnId = await SeedRosterAsync(gameId, roundNumber, p1Id, turnOrder: 1, status: TurnStatus.TakingTurn, battleId: null);
@@ -384,7 +363,6 @@ internal class EndTurnOnRosterTests
 
         var request = new EndTurnOnRosterRequest(
             GameId: gameId,
-            GameGuid: gameGuid,
             RoundNumber: roundNumber,
             CurrentTurnPlayerId: p2Id,
             BattleId: battleToEnd);
@@ -429,8 +407,8 @@ internal class EndTurnOnRosterTests
         // Should start next player ONLY for battle 100
         await _mediator.Received(1).Send(
             Arg.Is<StartTurnOnRosterRequest>(r =>
-                r.GameGuid == gameGuid
-                && r.PlayerGuid == p3Guid
+                r.GameId == gameId
+                && r.PlayerId == p3Id
                 && r.RoundNumber == roundNumber),
             Arg.Any<CancellationToken>());
 
@@ -445,20 +423,17 @@ internal class EndTurnOnRosterTests
     public async Task ShouldRespectBattleId_FilteringAsync()
     {
         int gameId = 1;
-        Guid gameGuid = Guid.NewGuid();
         int roundNumber = 1;
 
         int currentPlayerId = 11;
-        Guid currentPlayerGuid = Guid.NewGuid();
 
         int nextBattlePlayerId = 12;
-        Guid nextBattlePlayerGuid = Guid.NewGuid();
 
-        await SeedGameAndPlayersAsync(gameId, gameGuid, new[]
-        {
-            (PlayerId: currentPlayerId, PlayerGuid: currentPlayerGuid),
-            (PlayerId: nextBattlePlayerId, PlayerGuid: nextBattlePlayerGuid),
-        });
+        await SeedGameAndPlayersAsync(gameId,
+        [
+            currentPlayerId,
+            nextBattlePlayerId,
+        ]);
 
         // Seed BOTH campaign and battle rosters; handler should only act on the requested BattleId
         _ = await SeedRosterAsync(gameId, roundNumber, currentPlayerId, turnOrder: 1, status: TurnStatus.TakingTurn, battleId: null);
@@ -467,7 +442,6 @@ internal class EndTurnOnRosterTests
         // Act on battleId=99 should fail (no taking turn for current player in that battle)
         var request = new EndTurnOnRosterRequest(
             GameId: gameId,
-            GameGuid: gameGuid,
             RoundNumber: roundNumber,
             CurrentTurnPlayerId: currentPlayerId,
             BattleId: 99);
@@ -483,8 +457,7 @@ internal class EndTurnOnRosterTests
 
     private async Task SeedGameAndPlayersAsync(
         int gameId,
-        Guid gameGuid,
-        IReadOnlyCollection<(int PlayerId, Guid PlayerGuid)> players)
+        IReadOnlyCollection<int> players)
     {
         await using var context = new AscendantEmpireContext(_options);
 
@@ -495,17 +468,15 @@ internal class EndTurnOnRosterTests
             NumberOfPlayers = players.Count,
             CreatedAt = DateTimeOffset.UtcNow,
             CreationStatus = GameCreationStatus.SetupComplete,
-            GameGuid = gameGuid,
             PlayStatus = GamePlayStatus.InProgress
         });
 
-        foreach (var p in players)
+        foreach (var id in players)
         {
             context.Players.Add(new Player
             {
-                Id = p.PlayerId,
+                Id = id,
                 GameId = gameId,
-                Guid = p.PlayerGuid,
                 Status = PlayerStatus.Active,
                 RulerName = "Ruler",
                 RulerTitle = "Title",

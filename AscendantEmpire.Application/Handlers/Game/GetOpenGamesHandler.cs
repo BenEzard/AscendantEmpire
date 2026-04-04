@@ -14,7 +14,7 @@ namespace AscendantEmpire.Application.Handlers.Game;
 /// <summary>
 /// Retrieve open games, optionally filtered by game or player identifiers.
 /// </summary>
-public record GetOpenGamesRequest(Guid? GameGuid, Guid? PlayerGuid) : IRequest<ServiceResult<IReadOnlyCollection<OpenGame>>>;
+public record GetOpenGamesRequest(int? GameId, int? PlayerId) : IRequest<ServiceResult<IReadOnlyCollection<OpenGame>>>;
 
 internal sealed class GetOpenGamesHandler(
     ILogger<GetOpenGamesHandler> logger,
@@ -25,13 +25,13 @@ internal sealed class GetOpenGamesHandler(
     {
         try
         {
-            if (request.GameGuid.HasValue && request.GameGuid is not Guid)
+            if (request.GameId.HasValue && request.GameId <= 0)
             {
-                return ServiceResult<IReadOnlyCollection<OpenGame>>.Fail("The specified Game parameter was not of the required type.");
+                return ServiceResult<IReadOnlyCollection<OpenGame>>.Fail("The specified Game Id is not valid.");
             }
-            if (request.PlayerGuid.HasValue && request.PlayerGuid is not Guid)
+            if (request.PlayerId.HasValue && request.PlayerId <= 0)
             {
-                return ServiceResult<IReadOnlyCollection<OpenGame>>.Fail("The specified Player parameter was not of the required type.");
+                return ServiceResult<IReadOnlyCollection<OpenGame>>.Fail("The specified Player Id is not valid.");
             }
 
             var rows = await (
@@ -43,22 +43,20 @@ internal sealed class GetOpenGamesHandler(
                 from cmi in cmiGroup.DefaultIfEmpty()
                 join p in context.Players.AsNoTracking()
                     on gi.Id equals p.GameId
-                where (request.GameGuid.HasValue == false || gi.GameGuid == request.GameGuid)
+                where (request.GameId.HasValue == false || gi.Id == request.GameId)
                 where p.Status == PlayerStatus.Active
-                where (request.PlayerGuid.HasValue == false || p.Guid == request.PlayerGuid)
+                where (request.PlayerId.HasValue == false || p.Id == request.PlayerId)
                 select new
                 {
                     GameId = gi.Id,
                     gi.GameName,
-                    gi.GameGuid,
                     gi.NumberOfPlayers,
-                    Width = cmi.Width,
-                    Height = cmi.Height,
+                    cmi.Width,
+                    cmi.Height,
                     gi.HorizontalWrap,
                     gi.VerticalWrap,
 
                     PlayerId = p.Id,
-                    PlayerGuid = p.Guid,
                     p.RulerTitle,
                     p.RulerName,
                     p.FactionName,
@@ -67,12 +65,11 @@ internal sealed class GetOpenGamesHandler(
             ).ToListAsync(cancelToken);
 
             // Group into "game -> players"
-            List<OpenGame> openGames = rows
+            List<OpenGame> openGames = [.. rows
                 .GroupBy(r => new
                 {
                     r.GameId,
                     r.GameName,
-                    r.GameGuid,
                     r.NumberOfPlayers,
                     r.Width,
                     r.Height,
@@ -83,28 +80,24 @@ internal sealed class GetOpenGamesHandler(
                 {
                     GameId = g.Key.GameId,
                     GameName = g.Key.GameName,
-                    GameGuid = g.Key.GameGuid,
                     NumberOfPlayers = g.Key.NumberOfPlayers,
                     MapWidth = g.Key.Width,
                     MapHeight = g.Key.Height,
                     HasHorizontalWrapping = g.Key.HorizontalWrap,
                     HasVerticalWrapping = g.Key.VerticalWrap,
-                    Players = g
+                    Players = [.. g
                         .Select(p => new OpenGamePlayer
                         {
                             PlayerId = p.PlayerId,
-                            PlayerGuid = p.PlayerGuid,
                             RulerTitle = p.RulerTitle,
                             RulerName = p.RulerName,
                             FactionName = p.FactionName,
                             RulerLabel = $"{p.RulerTitle} {p.RulerName} ({p.FactionName})",
                             CampaignMapOffsetId = p.CampaignOffsetId
                         })
-                        .OrderBy(p => p.RulerLabel)
-                        .ToList()
+                        .OrderBy(p => p.RulerLabel)]
                 })
-                .OrderBy(g => g.GameName)
-                .ToList();
+                .OrderBy(g => g.GameName)];
 
             return ServiceResult<IReadOnlyCollection<OpenGame>>.Succeed(openGames);
         }

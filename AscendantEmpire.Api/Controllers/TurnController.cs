@@ -29,11 +29,11 @@ public class TurnController : ControllerBase
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
     public async Task<IActionResult> GetPlayerTurnAsync(
         [FromServices] IMediator mediator,
-        [FromQuery] Guid gameGuid,
-        [FromQuery] Guid playerGuid,
+        [FromQuery] int gameId,
+        [FromQuery] int playerId,
         CancellationToken cancelToken)
     {
-        ServiceResult<IReadOnlyCollection<RosterEntry>> response = await mediator.Send(new GetTurnRequest(gameGuid, playerGuid), cancelToken);
+        ServiceResult<IReadOnlyCollection<RosterEntry>> response = await mediator.Send(new GetTurnRequest(gameId, playerId), cancelToken);
 
         return response.ToActionResult(contract =>
         {
@@ -64,7 +64,7 @@ public class TurnController : ControllerBase
         [FromBody] EndPlayerTurnDto request,
         CancellationToken cancelToken)
     {
-        ServiceResultBase response = await mediator.Send(new EndPlayerTurnRequest(request.GameGuid, request.PlayerGuid), cancelToken);
+        ServiceResultBase response = await mediator.Send(new EndPlayerTurnRequest(request.GameId, request.PlayerId), cancelToken);
 
         return response.ToActionResult();
     }

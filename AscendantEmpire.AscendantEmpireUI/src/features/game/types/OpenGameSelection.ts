@@ -1,11 +1,10 @@
 export type OpenGameSelection = {
   gameId: number;
-  gameGuid: string;
   gameName: string;
   width: number;
   height: number;
 
-  playerGuid: string;
+  playerId: number;
   rulerLabel: string;
   campaignOffsetId: number;
 };

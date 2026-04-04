@@ -29,7 +29,7 @@ public sealed class ValidationBehaviour<TRequest, TResponse>(IEnumerable<IValida
         if (failures.Count != 0)
         {
             // Gather error messages
-            string[] messages = failures.Select(f => f.ErrorMessage).Where(m => !string.IsNullOrWhiteSpace(m)).ToArray();
+            string[] messages = [.. failures.Select(f => f.ErrorMessage).Where(m => !string.IsNullOrWhiteSpace(m))];
 
             // If the expected response type is a ServiceResult<T> (or ServiceResultBase), build a failure response
             // ServiceResult<T> is a nested type inside ServiceResultBase, so use reflection to call its static Fail(...) method.
@@ -42,10 +42,10 @@ public sealed class ValidationBehaviour<TRequest, TResponse>(IEnumerable<IValida
                     Type genericArg = typeof(TResponse).GetGenericArguments()[0];
                     Type concreteServiceResult = nested.MakeGenericType(genericArg);
 
-                    MethodInfo? failMethod = concreteServiceResult.GetMethod("Fail", new Type[] { typeof(IEnumerable<string>) });
+                    MethodInfo? failMethod = concreteServiceResult.GetMethod("Fail", [typeof(IEnumerable<string>)]);
                     if (failMethod != null && failMethod.IsStatic)
                     {
-                        object? failResult = failMethod.Invoke(null, new object[] { messages });
+                        object? failResult = failMethod.Invoke(null, [messages]);
                         if (failResult is TResponse typedFail)
                         {
                             return typedFail;

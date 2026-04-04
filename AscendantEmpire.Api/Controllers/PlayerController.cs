@@ -29,12 +29,11 @@ public class PlayerController : ControllerBase
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
     public async Task<IActionResult> GetPlayerStructuresAsync(
         [FromServices] IMediator mediator,
-        [FromQuery] Guid gameGuid,
-        [FromQuery] Guid playerGuid,
+        [FromQuery] int gameId,
+        [FromQuery] int playerId,
         CancellationToken cancelToken)
     {
-        ServiceResult<IReadOnlyCollection<PlayerStructure>> response = await mediator.Send(new GetPlayerStructuresRequest(gameGuid, playerGuid), cancelToken);
-
+        ServiceResult<IReadOnlyCollection<PlayerStructure>> response = await mediator.Send(new GetPlayerStructuresRequest(gameId, playerId), cancelToken);
         return response.ToActionResult(contract =>
         {
             return new DTPlayerStructureCollection
@@ -66,11 +65,11 @@ public class PlayerController : ControllerBase
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
     public async Task<IActionResult> GetPlayerTroopsAsync(
         [FromServices] IMediator mediator,
-        [FromQuery] Guid gameGuid,
-        [FromQuery] Guid playerGuid,
+        [FromQuery] int gameId,
+        [FromQuery] int playerId,
         CancellationToken cancelToken)
     {
-        ServiceResult<IReadOnlyCollection<PlayerTroop>> response = await mediator.Send(new GetPlayerTroopsRequest(gameGuid, playerGuid), cancelToken);
+        ServiceResult<IReadOnlyCollection<PlayerTroop>> response = await mediator.Send(new GetPlayerTroopsRequest(gameId, playerId), cancelToken);
 
         return response.ToActionResult(contract => response.SuccessValue?.Select(s => new DTPlayerTroop
         {

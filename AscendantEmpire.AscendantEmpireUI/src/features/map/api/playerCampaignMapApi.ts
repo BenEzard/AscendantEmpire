@@ -1,15 +1,15 @@
 import { http } from "@/api/http";
 
 export type LoadPlayerCampaignMapRequest = {
-  gameGuid: string;
-  playerGuid: string;
+  gameId: number;
+  playerId: number;
   loadWholeMap?: boolean;
   observers?: null;
 };
 
 export type ClearPlayerCampaignMapRequest = {
-  gameGuid: string;
-  playerGuid: string;
+  gameId: number;
+  playerId: number;
 };
 
 export interface CampaignMapTileDto {

@@ -86,9 +86,9 @@ function GameUI() {
 
   const queryClient = useQueryClient();
 
-  const gameGuid = gameSelection?.gameGuid;
-  const playerGuid = gameSelection?.playerGuid;
-  const tilesEnabled = !!gameGuid && !!playerGuid;
+  const gameId = gameSelection?.gameId;
+  const playerId = gameSelection?.playerId;
+  const tilesEnabled = gameId != null && playerId != null;
 
   useEffect(() => {
     if (gameSelection == null) {
@@ -149,20 +149,20 @@ function GameUI() {
     setActiveTool(null);
     setVisionObservers([]);
 
-    if (!gameGuid || !playerGuid) return;
-    clearPlayerCampaignMap.mutate({ gameGuid, playerGuid });
-  }, [clearPlayerCampaignMap, gameGuid, playerGuid]);
+    if (gameId == null || playerId == null) return;
+    clearPlayerCampaignMap.mutate({ gameId, playerId });
+  }, [clearPlayerCampaignMap, gameId, playerId]);
 
   const closeGame = useCallback(() => {
-    if (gameGuid && playerGuid) {
-      const key = playerCampaignTilesKey(gameGuid, playerGuid);
+    if (gameId != null && playerId != null) {
+      const key = playerCampaignTilesKey(gameId, playerId);
       queryClient.cancelQueries({ queryKey: key });
       queryClient.removeQueries({ queryKey: key });
     }
 
     setGameSelection(null);
     setActiveDialog(null);
-  }, [gameGuid, playerGuid, queryClient]);
+  }, [gameId, playerId, queryClient]);
 
   const toolBarGroups: ToolBarGroup[] = [
     {
@@ -216,9 +216,11 @@ function GameUI() {
           icon: <GrCaretNext />,
           tooltip: "End Turn",
           onClick: async () => {
+            if (gameId == null || playerId == null) return;
+
             const payload = {
-              gameGuid: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-              playerGuid: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+              gameId,
+              playerId,
             };
 
             try {
@@ -311,7 +313,7 @@ function GameUI() {
     error: tilesError,
     isLoading: tilesLoading,
     isFetching: tilesFetching,
-  } = usePlayerCampaignMapTilesQuery(gameGuid, playerGuid, tilesEnabled);
+  } = usePlayerCampaignMapTilesQuery(gameId, playerId, tilesEnabled);
 
   const loadPlayerCampaignMap = useLoadPlayerCampaignMapMutation({
     onSuccess: (data) => {
@@ -332,17 +334,17 @@ function GameUI() {
   const sendVisionRequest = useCallback(
     (x: number, y: number) => {
       if (activeTool !== "vision") return;
-      if (!gameGuid || !playerGuid) return;
+      if (gameId == null || playerId == null) return;
 
-      const requestKeyWithRadius = `${gameGuid}:${playerGuid}:${x},${y}:r${visionRadius}`;
+      const requestKeyWithRadius = `${gameId}:${playerId}:${x},${y}:r${visionRadius}`;
       const requestKey = `${requestKeyWithRadius}:whole${visionLoadWholeMap ? 1 : 0}`;
 
       if (visionInFlightRef.current && visionLastRequestKeyRef.current === requestKey) return;
       if (visionLastRequestKeyRef.current === requestKey) return;
 
       const payload: LoadPlayerCampaignMapRequest = {
-        gameGuid,
-        playerGuid,
+        gameId,
+        playerId,
         loadWholeMap: visionLoadWholeMap,
         observers: null,
       };
@@ -358,7 +360,7 @@ function GameUI() {
 
       mutate(payload);
     },
-    [activeTool, gameGuid, playerGuid, visionRadius, visionLoadWholeMap],
+    [activeTool, gameId, playerId, visionRadius, visionLoadWholeMap],
   );
 
   const tiles2d = useMemo(() => {

@@ -14,7 +14,6 @@ namespace AscendantEmpire.Application.Handlers.Turns;
 
 public record EndTurnOnRosterRequest(
     int GameId,
-    Guid GameGuid,
     int RoundNumber,
     int CurrentTurnPlayerId,
     int? BattleId
@@ -26,12 +25,6 @@ internal class EndTurnOnRosterRequestValidator : AbstractValidator<EndTurnOnRost
     {
         RuleFor(x => x.GameId)
             .GreaterThan(0).WithMessage("GameId must be greater than 0.");
-
-        RuleFor(x => x.GameGuid)
-            .NotEmpty().WithMessage("GameGuid is required.");
-        RuleFor(r => r.GameGuid)
-         .Must(guid => guid != Guid.Empty)
-         .WithMessage("GameGuid must be a valid non-empty GUID.");
 
         RuleFor(x => x.RoundNumber)
             .GreaterThan(0).WithMessage("RoundNumber must be greater than 0.");
@@ -87,7 +80,7 @@ internal class EndTurnOnRosterHandler(
                              .Select(x => (int?)x.TurnOrder)
                              .SingleOrDefault())
                          .OrderBy(r => r.TurnOrder)
-                         .Select(r => (Guid?)r.Player.Guid)
+                         .Select(r => (int?)r.PlayerId)
                          .FirstOrDefault()
                 })
                 .SingleOrDefaultAsync(CancellationToken.None);
@@ -119,15 +112,15 @@ internal class EndTurnOnRosterHandler(
                 {
                     // Start the next Player's turn
                     await mediator.Send(new StartTurnOnRosterRequest(
-                        GameGuid: request.GameGuid,
-                        PlayerGuid: currentRoster.NextPendingPlayerGuid.Value,
+                        GameId: request.GameId,
+                        PlayerId: currentRoster.NextPendingPlayerGuid.Value,
                         RoundNumber: currentRosterEntry.RoundNumber),
                         CancellationToken.None);
                 }
                 else
                 {
                     // End the Round
-                    ServiceResultBase endRoundResult = await mediator.Send(new EndRoundRequest(GameGuid: request.GameGuid), CancellationToken.None);
+                    ServiceResultBase endRoundResult = await mediator.Send(new EndRoundRequest(GameId: request.GameId), CancellationToken.None);
 
                     if (endRoundResult.HasSucceeded == false)
                     {

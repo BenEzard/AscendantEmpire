@@ -420,9 +420,6 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("CreationStatus")
                         .HasColumnType("int");
 
-                    b.Property<Guid>("GameGuid")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("GameName")
                         .IsRequired()
                         .HasMaxLength(250)
@@ -463,9 +460,6 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.Property<int>("GameId")
                         .HasColumnType("int");
-
-                    b.Property<Guid>("Guid")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("RulerName")
                         .IsRequired()

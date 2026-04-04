@@ -15,7 +15,7 @@ export interface OpenGameDialogProps {
 
 export default function OpenGameDialog({ show, onClose, onSaveSuccess, onOpenMap }: OpenGameDialogProps) {
   const [filter, setFilter] = useState("");
-  const [selected, setSelected] = useState<{ gameId: number; playerGuid: string } | null>(null);
+  const [selected, setSelected] = useState<{ gameId: number; playerId: number } | null>(null);
 
   const { data, isLoading, isFetching, error, refetch } = useQuery<OpenGamesResponse, Error>({
     queryKey: ["games", "open"],
@@ -48,16 +48,15 @@ export default function OpenGameDialog({ show, onClose, onSaveSuccess, onOpenMap
     const g = games.find((x) => x.gameId === selected.gameId);
     if (!g) return null;
 
-    const p = g.players.find((x) => x.playerGuid === selected.playerGuid);
+    const p = g.players.find((x) => x.playerId === selected.playerId);
     if (!p) return null;
 
     return {
       gameId: g.gameId,
-      gameGuid: g.gameGuid,
       gameName: g.gameName,
       width: g.mapWidth,
       height: g.mapHeight,
-      playerGuid: p.playerGuid,
+      playerId: p.playerId,
       rulerLabel: p.rulerLabel,
       campaignOffsetId: p.campaignOffsetId,
     };
@@ -135,28 +134,27 @@ export default function OpenGameDialog({ show, onClose, onSaveSuccess, onOpenMap
                 </tr>
               ) : (
                 filteredGames.flatMap((g) => {
-                  const players = g.players.length ? g.players : [{ playerGuid: "", rulerLabel: "(no players)", campaignOffsetId: 0 }];
+                  const players = g.players.length ? g.players : [{ playerId: 0, rulerLabel: "(no players)", campaignOffsetId: 0 }];
 
                   return players.map((p, idx) => {
-                    const rowKey = `${g.gameId}-${p.playerGuid || "none"}-${idx}`;
-                    const isSelected = !!p.playerGuid && selected?.gameId === g.gameId && selected?.playerGuid === p.playerGuid;
+                    const rowKey = `${g.gameId}-${p.playerId || "none"}-${idx}`;
+                    const isSelected = p.playerId > 0 && selected?.gameId === g.gameId && selected?.playerId === p.playerId;
 
                     const onClick = () => {
-                      if (!p.playerGuid) return;
-                      setSelected({ gameId: g.gameId, playerGuid: p.playerGuid });
+                      if (p.playerId <= 0) return;
+                      setSelected({ gameId: g.gameId, playerId: p.playerId });
                     };
 
                     const onDoubleClick = () => {
-                      if (!p.playerGuid) return;
+                      if (p.playerId <= 0) return;
 
-                      setSelected({ gameId: g.gameId, playerGuid: p.playerGuid });
+                      setSelected({ gameId: g.gameId, playerId: p.playerId });
                       const selection: OpenGameSelection = {
                         gameId: g.gameId,
-                        gameGuid: g.gameGuid,
                         gameName: g.gameName,
                         width: g.mapWidth,
                         height: g.mapHeight,
-                        playerGuid: p.playerGuid,
+                        playerId: p.playerId,
                         rulerLabel: p.rulerLabel,
                         campaignOffsetId: p.campaignOffsetId,
                       };
@@ -171,19 +169,19 @@ export default function OpenGameDialog({ show, onClose, onSaveSuccess, onOpenMap
                         key={rowKey}
                         className={[
                           "border-t border-slate-100",
-                          p.playerGuid ? "cursor-pointer hover:bg-slate-50" : "",
+                          p.playerId > 0 ? "cursor-pointer hover:bg-slate-50" : "",
                           isSelected ? "bg-slate-100" : "",
                         ].join(" ")}
-                        role={p.playerGuid ? "button" : undefined}
+                        role={p.playerId > 0 ? "button" : undefined}
                         onClick={onClick}
                         onDoubleClick={onDoubleClick}
-                        title={p.playerGuid ? "Double-click to open" : undefined}>
+                        title={p.playerId > 0 ? "Double-click to open" : undefined}>
                         {idx === 0 && (
                           <>
                             <td rowSpan={players.length} className="px-3 py-2 align-top">
                               <div className="font-semibold">{g.gameName}</div>
                               <div className="text-slate-500" style={{ fontSize: "0.85rem" }}>
-                                Players: {g.numberOfPlayers} • {g.gameGuid}
+                                Players: {g.numberOfPlayers} • ID {g.gameId}
                               </div>
                             </td>
 

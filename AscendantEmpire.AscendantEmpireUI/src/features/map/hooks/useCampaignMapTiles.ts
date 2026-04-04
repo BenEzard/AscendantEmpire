@@ -7,19 +7,18 @@ import {
   type LoadPlayerCampaignMapRequest,
 } from "@/features/map/api/playerCampaignMapApi";
 
-export const playerCampaignTilesKey = (gameGuid: string | undefined, playerGuid: string | undefined) =>
-  ["playerCampaignTiles", gameGuid, playerGuid] as const;
+export const playerCampaignTilesKey = (gameId: number | undefined, playerId: number | undefined) => ["playerCampaignTiles", gameId, playerId] as const;
 
-export function usePlayerCampaignMapTilesQuery(gameGuid: string | undefined, playerGuid: string | undefined, enabled: boolean) {
+export function usePlayerCampaignMapTilesQuery(gameId: number | undefined, playerId: number | undefined, enabled: boolean) {
   return useQuery<CampaignMapTilesResponse, Error>({
-    queryKey: playerCampaignTilesKey(gameGuid, playerGuid),
-    enabled: enabled && !!gameGuid && !!playerGuid,
+    queryKey: playerCampaignTilesKey(gameId, playerId),
+    enabled: enabled && gameId != null && playerId != null,
     refetchOnWindowFocus: false,
     queryFn: async () => {
-      if (gameGuid == null) throw new Error("gameGuid is null");
-      if (playerGuid == null) throw new Error("playerGuid is null");
+      if (gameId == null) throw new Error("gameId is null");
+      if (playerId == null) throw new Error("playerId is null");
       
-      const payload: LoadPlayerCampaignMapRequest = { gameGuid, playerGuid, loadWholeMap: true, observers: null };
+      const payload: LoadPlayerCampaignMapRequest = { gameId, playerId, loadWholeMap: true, observers: null };
 
       return await postPlayerCampaignMap(payload);
     },
@@ -69,7 +68,7 @@ export function useLoadPlayerCampaignMapMutation(opts?: {
     mutationFn: (req: LoadPlayerCampaignMapRequest) => postPlayerCampaignMap(req),
     onSuccess: (data, variables) => {
       queryClient.setQueryData(
-        playerCampaignTilesKey(variables.gameGuid, variables.playerGuid),
+        playerCampaignTilesKey(variables.gameId, variables.playerId),
         (prev: CampaignMapTilesResponse | undefined) => mergeTiles(prev, data),
       );
 
@@ -89,7 +88,7 @@ export function useClearPlayerCampaignMapMutation(opts?: {
     mutationFn: (req) => postClearPlayerCampaignMap(req),
     onSuccess: (_data, variables) => {
       // Server-side clear may affect any subsequent reads; refresh cached tiles.
-      queryClient.invalidateQueries({ queryKey: playerCampaignTilesKey(variables.gameGuid, variables.playerGuid) });
+      queryClient.invalidateQueries({ queryKey: playerCampaignTilesKey(variables.gameId, variables.playerId) });
       opts?.onSuccess?.();
     },
     onError: (error) => opts?.onError?.(error),

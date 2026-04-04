@@ -25,18 +25,18 @@ public class ResourceConfiguration : IEntityTypeConfiguration<Resource>
 
     private static string SerializeProperties(Dictionary<string, string>? value)
     {
-        return JsonSerializer.Serialize(value ?? new Dictionary<string, string>(), new JsonSerializerOptions());
+        return JsonSerializer.Serialize(value ?? [], new JsonSerializerOptions());
     }
 
     private static Dictionary<string, string> DeserializeProperties(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            return new Dictionary<string, string>();
+            return [];
         }
 
         return JsonSerializer.Deserialize<Dictionary<string, string>>(value, new JsonSerializerOptions())
-            ?? new Dictionary<string, string>();
+            ?? [];
     }
 
     private static bool DictionaryEquals(
@@ -85,7 +85,7 @@ public class ResourceConfiguration : IEntityTypeConfiguration<Resource>
     private static Dictionary<string, string> DictionaryCopy(Dictionary<string, string>? value)
     {
         return value is null
-            ? new Dictionary<string, string>()
+            ? []
             : value.ToDictionary(x => x.Key, x => x.Value);
     }
 }

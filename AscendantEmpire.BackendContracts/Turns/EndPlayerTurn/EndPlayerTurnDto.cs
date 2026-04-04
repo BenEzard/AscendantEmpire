@@ -4,6 +4,6 @@ namespace AscendantEmpire.BackendContracts.Turns.EndPlayerTurn;
 
 public record class EndPlayerTurnDto : IEndPlayerTurnDto
 {
-    public required Guid GameGuid { get; init; }
-    public required Guid PlayerGuid { get; init; }
+    public required int GameId { get; init; }
+    public required int PlayerId { get; init; }
 }

@@ -4,9 +4,9 @@ namespace AscendantEmpire.BackendContracts.Units.Spawn;
 
 public record class SpawnUnitDto : ISpawnUnitDto
 {
-    public Guid GameGuid { get; init; }
+    public int GameId { get; init; }
 
-    public Guid PlayerGuid { get; init; }
+    public int PlayerId { get; init; }
 
     public int XCoord { get; init; }
     public int YCoord { get; init; }

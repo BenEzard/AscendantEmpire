@@ -6,7 +6,7 @@ public class DTApiErrorResult : IApiErrorResult
 {
     public IEnumerable<string> Errors { get; set; }
 
-    public DTApiErrorResult(string error) : this(new string[] { error })
+    public DTApiErrorResult(string error) : this([error])
     {
 
     }

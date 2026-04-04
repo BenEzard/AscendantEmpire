@@ -15,15 +15,15 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 namespace AscendantEmpire.Application.Handlers.Game;
 
-public record SetupGameRequest(int MapId, string GameName, int NumberOfPlayers) : IRequest<ServiceResult<Guid>>;
+public record SetupGameRequest(int MapId, string GameName, int NumberOfPlayers) : IRequest<ServiceResult<int>>;
 
 internal class SetupGameHandler(
     ILogger<SetupGameHandler> logger,
     AscendantEmpireContext context,
     IMediator mediator
-    ) : IRequestHandler<SetupGameRequest, ServiceResult<Guid>>
+    ) : IRequestHandler<SetupGameRequest, ServiceResult<int>>
 {
-    public async Task<ServiceResult<Guid>> Handle(SetupGameRequest request, CancellationToken cancellationToken)
+    public async Task<ServiceResult<int>> Handle(SetupGameRequest request, CancellationToken cancellationToken)
     {
         try
         {
@@ -32,7 +32,7 @@ internal class SetupGameHandler(
 
             if (validation.HasSucceeded == false)
             {
-                return ServiceResult<Guid>.Fail(validation.Errors);
+                return ServiceResult<int>.Fail(validation.Errors);
             }
 
             // Add a new record to the GameIndex table
@@ -49,24 +49,24 @@ internal class SetupGameHandler(
             await GeneratePlayerCampaignMapsAsync(gameId, addedPlayers, CancellationToken.None);
 
             // Create the Campaign Roster
-            ServiceResultBase rosterResult = await mediator.Send(new AddCampaignTurnsToRosterRequest(newGameIndex.GameGuid), CancellationToken.None);
+            ServiceResultBase rosterResult = await mediator.Send(new AddCampaignTurnsToRosterRequest(newGameIndex.Id), CancellationToken.None);
 
             if (rosterResult.HasSucceeded == false)
             {
                 const string error = "An error occurred while creating the Campaign Roster during Game setup.";
                 logger.LogError("{Error} Errors: {Errors}", error, rosterResult.Errors);
-                return ServiceResult<Guid>.Fail(error);
+                return ServiceResult<int>.Fail(error);
             }
 
             await CompleteGameSetupAsync(gameId, context);
 
-            return ServiceResult<Guid>.Succeed(newGameIndex.GameGuid);
+            return ServiceResult<int>.Succeed(newGameIndex.Id);
         }
         catch (Exception ex)
         {
             const string error = "An error occurred while setting up a new game.";
             logger.LogError(ex, error);
-            return ServiceResult<Guid>.Fail(error);
+            return ServiceResult<int>.Fail(error);
         }
     }
 
@@ -93,23 +93,12 @@ internal class SetupGameHandler(
 
     private async Task<GameIndex> AddGameIndexAsync(SetupGameRequest request, CancellationToken cancelToken)
     {
-        // Get all Guids
-        HashSet<Guid> existingGuids = [.. context.GameIndex.Select(g => g.GameGuid)];
-
-        Guid gameGuid;
-
-        do
-        {
-            gameGuid = Guid.NewGuid();
-        } while (existingGuids.Contains(gameGuid));
-
         // Insert a record into the GameIndex table
         var newGame = new GameIndex
         {
             GameName = request.GameName,
             CampaignMapIndexId = request.MapId,
             NumberOfPlayers = request.NumberOfPlayers,
-            GameGuid = gameGuid,
             CreationStatus = GameCreationStatus.SetupInProgress,
             PlayStatus = GamePlayStatus.SetupInProgress,
             CreatedAt = DateTimeOffset.UtcNow,
@@ -129,19 +118,9 @@ internal class SetupGameHandler(
     /// <returns>The collection of added Player entities.</returns>
     private async Task<IReadOnlyCollection<Player>> AddPlayersAsync(int gameId, int numberOfPlayers, CancellationToken cancelToken = default)
     {
-        // Get a list of the current Guids
-        HashSet<Guid> existingGuids = await context.Players.Select(p => p.Guid).ToHashSetAsync(cancelToken);
-
         List<Player> playersToAdd = [];
         for (int i = 1; i <= numberOfPlayers; i++)
         {
-            Guid playerGuid = Guid.NewGuid();
-
-            while (existingGuids.Contains(playerGuid))
-            {
-                playerGuid = Guid.NewGuid();
-            }
-
             playersToAdd.Add(new Player
             {
                 GameId = gameId,
@@ -150,7 +129,6 @@ internal class SetupGameHandler(
                 RulerName = $"Player {i}",
                 FactionName = $"Faction {i}",
                 Status = PlayerStatus.Active,
-                Guid = playerGuid
             });
         }
 
@@ -325,8 +303,8 @@ internal class SetupGameHandler(
     /// <summary>
     /// Temporary method to provide a list of potential ruler titles.
     /// </summary>
-    private static string[] GetRulerTitles() => new[]
-    {
+    private static string[] GetRulerTitles() =>
+    [
         "King",
         "Queen",
         "Emperor",
@@ -377,7 +355,7 @@ internal class SetupGameHandler(
         "Raja",
         "Maharaja",
         "Regent"
-    };
+    ];
 
     /// <summary>
     /// Selects a random ruler title from the available list of titles.

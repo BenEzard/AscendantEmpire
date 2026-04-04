@@ -36,14 +36,14 @@ internal class GetCampaignMapTilesHandler(
 
             // Assuming we found some tiles, we would map them to DTCampaignMapTile DTOs.
             // Here we just return a dummy tile for demonstration.
-            List<DTCampaignMapTile> data = entities.Select(tile => new DTCampaignMapTile
+            List<DTCampaignMapTile> data = [.. entities.Select(tile => new DTCampaignMapTile
             {
                 CampaignMapGalleryIndexId = tile.CampaignMapGalleryIndexId,
                 XCoord = tile.XCoord,
                 YCoord = tile.YCoord,
                 BiomeTypeId = tile.BiomeTypeId,
                 CampaignMapGeographyTypeId = tile.CampaignMapGeographyTypeId
-            }).ToList();
+            })];
 
             return ServiceResult<IReadOnlyCollection<DTCampaignMapTile>>.Succeed(data);
         }

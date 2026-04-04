@@ -270,7 +270,7 @@ namespace AscendantEmpire.Application.Migrations
                 name: "IX_FactionResourcePriority_FactionId_ResourceCategoryId_PriorityOrder",
                 schema: "assets",
                 table: "FactionResourcePriority",
-                columns: new[] { "FactionId", "ResourceCategoryId", "PriorityOrder" },
+                columns: ["FactionId", "ResourceCategoryId", "PriorityOrder"],
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -295,13 +295,13 @@ namespace AscendantEmpire.Application.Migrations
                 name: "IX_FactionResourceState_FactionId_AvailabilityState",
                 schema: "assets",
                 table: "FactionResourceState",
-                columns: new[] { "FactionId", "AvailabilityState" });
+                columns: ["FactionId", "AvailabilityState"]);
 
             migrationBuilder.CreateIndex(
                 name: "IX_FactionResourceState_FactionId_IsCurrentlyLuxury",
                 schema: "assets",
                 table: "FactionResourceState",
-                columns: new[] { "FactionId", "IsCurrentlyLuxury" });
+                columns: ["FactionId", "IsCurrentlyLuxury"]);
 
             migrationBuilder.CreateIndex(
                 name: "IX_FactionResourceState_ResourceId",
@@ -338,7 +338,7 @@ namespace AscendantEmpire.Application.Migrations
                 name: "IX_ResourceBank_FactionId_Kind",
                 schema: "assets",
                 table: "ResourceBank",
-                columns: new[] { "FactionId", "Kind" });
+                columns: ["FactionId", "Kind"]);
 
             migrationBuilder.CreateIndex(
                 name: "IX_ResourceBank_NetworkKey",
@@ -362,21 +362,21 @@ namespace AscendantEmpire.Application.Migrations
                 name: "IX_ResourceCategory_ResourceMetaCategoryId_Name",
                 schema: "assets",
                 table: "ResourceCategory",
-                columns: new[] { "ResourceMetaCategoryId", "Name" },
+                columns: ["ResourceMetaCategoryId", "Name"],
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_ResourceGroup_ResourceCategoryId_GroupOrder",
                 schema: "assets",
                 table: "ResourceGroup",
-                columns: new[] { "ResourceCategoryId", "GroupOrder" },
+                columns: ["ResourceCategoryId", "GroupOrder"],
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_ResourceGroup_ResourceCategoryId_Name",
                 schema: "assets",
                 table: "ResourceGroup",
-                columns: new[] { "ResourceCategoryId", "Name" },
+                columns: ["ResourceCategoryId", "Name"],
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -396,7 +396,7 @@ namespace AscendantEmpire.Application.Migrations
                 name: "IX_WorldResourceSnapshot_TurnNumber_ResourceDefinitionId",
                 schema: "assets",
                 table: "WorldResourceSnapshot",
-                columns: new[] { "TurnNumber", "ResourceDefinitionId" },
+                columns: ["TurnNumber", "ResourceDefinitionId"],
                 unique: true);
 
             migrationBuilder.AddForeignKey(

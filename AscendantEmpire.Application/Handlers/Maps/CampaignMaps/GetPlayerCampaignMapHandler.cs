@@ -27,42 +27,17 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 namespace AscendantEmpire.Application.Handlers.Maps.CampaignMaps;
 
-public record GetPlayerCampaignMapRequest(Guid GameGuid, Guid PlayerGuid, IReadOnlyCollection<MapObserver>? Observers, bool LoadWholeMap = false)
+public record GetPlayerCampaignMapRequest(int GameId, int PlayerId, bool LoadWholeMap = false)
     : IRequest<ServiceResult<IReadOnlyCollection<ObserverSight>>>;
 
 internal class PlayerCampaignMapRequestValidator : AbstractValidator<GetPlayerCampaignMapRequest>
 {
     public PlayerCampaignMapRequestValidator()
     {
-        RuleFor(r => r.GameGuid)
-            .NotEmpty().WithMessage("GameGuid is required.");
-        RuleFor(r => r.PlayerGuid)
-            .NotEmpty().WithMessage("PlayerGuid is required.");
-        RuleFor(r => r.GameGuid)
-            .Must(guid => guid != Guid.Empty)
-            .WithMessage("GameGuid must be a valid non-empty GUID.");
-        RuleFor(r => r.PlayerGuid)
-            .Must(guid => guid != Guid.Empty)
-            .WithMessage("PlayerGuid must be a valid non-empty GUID.");
-
-        When(r => r.Observers is not null, () =>
-        {
-            RuleFor(r => r.Observers)
-                .Must(observers => observers.Select(o => o.Id).All(id => id > 0))
-                .WithMessage("All Observers must have TemporaryObserverId > 0.");
-
-            RuleFor(r => r.Observers)
-                .Must(observers => observers.Select(o => o.Id).Distinct().Count() == observers.Count)
-                .WithMessage("All Observers must have unique TemporaryObserverId values.");
-
-            RuleForEach(r => r.Observers)
-                .Must(o => o.Location.IsValid())
-                .WithMessage("Observer Location X and Y must be >= 0.");
-
-            RuleForEach(r => r.Observers)
-                .Must(o => o.SightRange >= -1)
-                .WithMessage("Observer SightRange must be >= -1.");
-        });
+        RuleFor(r => r.GameId)
+            .GreaterThan(0).WithMessage("GameId is required.");
+        RuleFor(r => r.PlayerId)
+            .GreaterThan(0).WithMessage("PlayerId is required.");
     }
 }
 
@@ -92,7 +67,7 @@ internal class GetPlayerCampaignMapHandler(
             }
 
             // Load the game info
-            ServiceResult<IReadOnlyCollection<OpenGame>> gameInfoResult = await mediator.Send(new GetOpenGamesRequest(request.GameGuid, request.PlayerGuid), cancelToken);
+            ServiceResult<IReadOnlyCollection<OpenGame>> gameInfoResult = await mediator.Send(new GetOpenGamesRequest(request.GameId, request.PlayerId), cancelToken);
 
             if (gameInfoResult.HasSucceeded == false)
             {
@@ -114,8 +89,8 @@ internal class GetPlayerCampaignMapHandler(
             int mapWidth = gameInfo.MapWidth;
 
             // Load observers
-            Task<ServiceResult<MapObserverCollection<PlayerStructure>>> fetchStructureObservers = GetStructureObserversAsync(request.GameGuid, request.PlayerGuid, cancelToken);
-            Task<ServiceResult<MapObserverCollection<PlayerTroop>>> fetchTroopObservers = GetTroopObserversAsync(request.GameGuid, request.PlayerGuid, cancelToken);
+            Task<ServiceResult<MapObserverCollection<PlayerStructure>>> fetchStructureObservers = GetStructureObserversAsync(request.GameId, request.PlayerId, cancelToken);
+            Task<ServiceResult<MapObserverCollection<PlayerTroop>>> fetchTroopObservers = GetTroopObserversAsync(request.GameId, request.PlayerId, cancelToken);
 
             await Task.WhenAll(fetchStructureObservers, fetchTroopObservers);
 
@@ -148,8 +123,8 @@ internal class GetPlayerCampaignMapHandler(
 
                 // Calculate the MAXIMUM Sight Radius for each Observer
                 ServiceResult<IDictionary<(int, RecordType), MapObserverOriginLocation>> radiusDetails = await mediator.Send(new GetCampaignMapTileRadiusRequest(
-                    request.GameGuid,
-                    request.PlayerGuid,
+                    request.GameId,
+                    request.PlayerId,
                     MapObservers: enhancedObservers), cancelToken);
 
                 cancelToken.ThrowIfCancellationRequested();
@@ -299,11 +274,11 @@ internal class GetPlayerCampaignMapHandler(
         public List<MapObserver> MapObservers { get; set; } = [];
     }
 
-    private async Task<ServiceResult<MapObserverCollection<PlayerStructure>>> GetStructureObserversAsync(Guid gameGuid, Guid playerGuid, CancellationToken cancelToken)
+    private async Task<ServiceResult<MapObserverCollection<PlayerStructure>>> GetStructureObserversAsync(int gameId, int playerId, CancellationToken cancelToken)
     {
         // This is a little odd. On the one hand, I have to load ALL Structures and Troops for the Player as they could all be observers,
         // but on the other hand I only want to load those that are relevant to my current viewport. TODO Viewport?
-        Task<ServiceResult<IReadOnlyCollection<PlayerStructure>>> fetchStructures = mediator.Send(new GetPlayerStructuresRequest(gameGuid, playerGuid), cancelToken);
+        Task<ServiceResult<IReadOnlyCollection<PlayerStructure>>> fetchStructures = mediator.Send(new GetPlayerStructuresRequest(gameId, playerId), cancelToken);
 
         ServiceResult<IReadOnlyCollection<PlayerStructure>> structuresResult = fetchStructures.Result;
 
@@ -336,9 +311,9 @@ internal class GetPlayerCampaignMapHandler(
         });
     }
 
-    private async Task<ServiceResult<MapObserverCollection<PlayerTroop>>> GetTroopObserversAsync(Guid gameGuid, Guid playerGuid, CancellationToken cancelToken)
+    private async Task<ServiceResult<MapObserverCollection<PlayerTroop>>> GetTroopObserversAsync(int gameId, int playerId, CancellationToken cancelToken)
     {
-        Task<ServiceResult<IReadOnlyCollection<PlayerTroop>>> fetchPlayerTroops = mediator.Send(new GetPlayerTroopsRequest(gameGuid, playerGuid), cancelToken);
+        Task<ServiceResult<IReadOnlyCollection<PlayerTroop>>> fetchPlayerTroops = mediator.Send(new GetPlayerTroopsRequest(gameId, playerId), cancelToken);
 
         ServiceResult<IReadOnlyCollection<PlayerTroop>> troopResult = fetchPlayerTroops.Result;
 

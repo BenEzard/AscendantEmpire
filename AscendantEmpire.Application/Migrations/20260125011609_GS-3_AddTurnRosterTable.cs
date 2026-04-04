@@ -60,7 +60,7 @@ namespace AscendantEmpire.Application.Migrations
                 name: "UX_TurnRoster_Battle_Game_Battle_Player_Round",
                 schema: "game",
                 table: "TurnRoster",
-                columns: new[] { "GameId", "BattleId", "PlayerId", "RoundNumber" },
+                columns: ["GameId", "BattleId", "PlayerId", "RoundNumber"],
                 unique: true,
                 filter: "[BattleId] IS NOT NULL");
 
@@ -68,7 +68,7 @@ namespace AscendantEmpire.Application.Migrations
                 name: "UX_TurnRoster_Campaign_Game_Player_Round",
                 schema: "game",
                 table: "TurnRoster",
-                columns: new[] { "GameId", "PlayerId", "RoundNumber" },
+                columns: ["GameId", "PlayerId", "RoundNumber"],
                 unique: true,
                 filter: "[BattleId] IS NULL");
         }

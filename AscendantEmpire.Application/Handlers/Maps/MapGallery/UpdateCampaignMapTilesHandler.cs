@@ -36,7 +36,7 @@ internal class UpdateCampaignMapTilesHandler(
     /// <summary>
     /// When false, it uses ExecuteUpdate; when true, it falls back to loading entities, modifying them, and saving changes for testing purposes.
     /// </summary>
-    private bool _TEST_MODE = false;
+    private readonly bool _TEST_MODE = false;
 
     public async Task<ServiceResult<int, IReadOnlyCollection<TileUpdateFail>?>> Handle(UpdateCampaignMapTilesRequest request, CancellationToken cancellationToken)
     {

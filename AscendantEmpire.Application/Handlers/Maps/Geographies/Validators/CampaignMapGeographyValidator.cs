@@ -28,16 +28,13 @@ internal class CampaignMapGeographyValidator : AbstractValidator<AddOrUpdateCamp
         var validator = new CampaignMapGeographyValidator();
 
         // Validate individual geographies
-        (string GeographyName, ValidationResult ValidationResults)[] validationResults = geographies
-            .Select(g => (g.Name, validator.Validate(g)))
-            .ToArray();
+        (string GeographyName, ValidationResult ValidationResults)[] validationResults = [.. geographies.Select(g => (g.Name, validator.Validate(g)))];
 
         // Check for any duplicate CampaignMapGeographyTypeIds in the request
-        string[] duplicateGeographiesInRequest = geographies
+        string[] duplicateGeographiesInRequest = [.. geographies
             .GroupBy(b => b.CampaignMapGeographyType)
             .Where(g => g.Count() > 1)
-            .Select(g => $"{g.Key} is specified multiple times in the request.")
-            .ToArray();
+            .Select(g => $"{g.Key} is specified multiple times in the request.")];
 
         string[] groupedErrors = [.. validationResults
             .Where(result => result.ValidationResults.Errors.Any())

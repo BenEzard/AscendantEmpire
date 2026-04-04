@@ -18,8 +18,8 @@ namespace AscendantEmpire.Application.Handlers.Maps.CampaignMaps;
 /// One or more requests to get the viewing radiuses which entities can see on the Campaign Map.
 /// </summary>
 public record GetCampaignMapTileRadiusRequest(
-    Guid GameGuid,
-    Guid PlayerGuid,
+    int GameId,
+    int PlayerId,
     IReadOnlyCollection<MapObserver> MapObservers
 ) : IRequest<ServiceResult<IDictionary<(int, RecordType), MapObserverOriginLocation>>>;
 
@@ -32,7 +32,7 @@ internal class GetCampaignMapTileRadiusHandler(
         GetCampaignMapTileRadiusRequest request,
         CancellationToken cancelToken)
     {
-        ServiceResult<IReadOnlyCollection<OpenGame>> gameInfoResult = await mediator.Send(new GetOpenGamesRequest(request.GameGuid, request.PlayerGuid), cancelToken);
+        ServiceResult<IReadOnlyCollection<OpenGame>> gameInfoResult = await mediator.Send(new GetOpenGamesRequest(request.GameId, request.PlayerId), cancelToken);
 
         if (gameInfoResult.HasSucceeded == false)
         {
@@ -85,7 +85,7 @@ internal class GetCampaignMapTileRadiusHandler(
             int originY = originCoord.Y;
             int viewRadius = viewer.SightRange;
 
-            List<((int X, int Y) Child, (int X, int Y) Parent)> coordPairs = new();
+            List<((int X, int Y) Child, (int X, int Y) Parent)> coordPairs = [];
             HashSet<(int X, int Y)> coordSet = [];
             List<SightCoord> allCoordinateList = [];
 

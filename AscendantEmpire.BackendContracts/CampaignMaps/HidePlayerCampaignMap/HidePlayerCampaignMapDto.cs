@@ -2,6 +2,6 @@
 
 public record HidePlayerCampaignMapDto
 {
-    public Guid GameGuid { get; init; }
-    public Guid PlayerGuid { get; init; }
+    public int GameId { get; init; }
+    public int PlayerId { get; init; }
 }

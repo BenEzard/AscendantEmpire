@@ -33,8 +33,6 @@ internal class GetCampaignMapTileRadiusTests
 
         // Handler doesn't actually use scopeFactory, but it requires one in ctor.
         // Provide a minimal substitute.
-        var scopeFactory = Substitute.For<IServiceScopeFactory>();
-
         _handler = new GetCampaignMapTileRadiusHandler(
             logger: new NullLogger<GetCampaignMapTileRadiusHandler>(),
             mediator: _mediator
@@ -56,8 +54,8 @@ internal class GetCampaignMapTileRadiusTests
         var occupied = new Coord { X = originX, Y = originY };
 
         var request = new GetCampaignMapTileRadiusRequest(
-            GameGuid: Guid.NewGuid(),
-            PlayerGuid: Guid.NewGuid(),
+            GameId: 1,
+            PlayerId: 1,
             MapObservers:
             [
                 new MapObserver
@@ -131,8 +129,8 @@ internal class GetCampaignMapTileRadiusTests
         var occupied = new Coord { X = originX, Y = originY };
 
         var request = new GetCampaignMapTileRadiusRequest(
-            GameGuid: Guid.NewGuid(),
-            PlayerGuid: Guid.NewGuid(),
+            GameId: 1,
+            PlayerId: 1,
             MapObservers:
             [
                 new MapObserver
@@ -190,8 +188,8 @@ internal class GetCampaignMapTileRadiusTests
         var occupied = new Coord { X = originX, Y = originY };
 
         var request = new GetCampaignMapTileRadiusRequest(
-            GameGuid: Guid.NewGuid(),
-            PlayerGuid: Guid.NewGuid(),
+            GameId: 1,
+            PlayerId: 1,
             MapObservers:
             [
                 new MapObserver
@@ -248,8 +246,8 @@ internal class GetCampaignMapTileRadiusTests
         var occupied = new Coord { X = originX, Y = originY };
 
         var request = new GetCampaignMapTileRadiusRequest(
-            GameGuid: Guid.NewGuid(),
-            PlayerGuid: Guid.NewGuid(),
+            GameId: 1,
+            PlayerId: 1,
             MapObservers:
             [
                 new MapObserver
@@ -306,8 +304,8 @@ internal class GetCampaignMapTileRadiusTests
         var occupied = new Coord { X = originX, Y = originY };
 
         var request = new GetCampaignMapTileRadiusRequest(
-            GameGuid: Guid.NewGuid(),
-            PlayerGuid: Guid.NewGuid(),
+            GameId: 1,
+            PlayerId: 1,
             MapObservers:
             [
                 new MapObserver
@@ -364,8 +362,8 @@ internal class GetCampaignMapTileRadiusTests
         var occupied = new Coord { X = originX, Y = originY };
 
         var request = new GetCampaignMapTileRadiusRequest(
-            GameGuid: Guid.NewGuid(),
-            PlayerGuid: Guid.NewGuid(),
+            GameId: 1,
+            PlayerId: 1,
             MapObservers:
             [
                 new MapObserver
@@ -418,8 +416,8 @@ internal class GetCampaignMapTileRadiusTests
         var occupied = new Coord { X = originX, Y = originY };
 
         var request = new GetCampaignMapTileRadiusRequest(
-            GameGuid: Guid.NewGuid(),
-            PlayerGuid: Guid.NewGuid(),
+            GameId: 1,
+            PlayerId: 1,
             MapObservers:
             [
                 new MapObserver
@@ -462,7 +460,6 @@ internal class GetCampaignMapTileRadiusTests
         {
             GameId = 1,
             GameName = "Test Game",
-            GameGuid = Guid.NewGuid(),
             NumberOfPlayers = 1,
             MapWidth = MapWidth,
             MapHeight = MapHeight,
@@ -473,7 +470,6 @@ internal class GetCampaignMapTileRadiusTests
                 new OpenGamePlayer
                 {
                     PlayerId = 1,
-                    PlayerGuid = Guid.NewGuid(),
                     RulerTitle = "King",
                     RulerName = "Test",
                     FactionName = "Faction",

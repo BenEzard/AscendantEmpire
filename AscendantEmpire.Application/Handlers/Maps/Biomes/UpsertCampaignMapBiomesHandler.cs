@@ -119,25 +119,21 @@ internal class UpsertCampaignMapBiomesHandler(
         var validator = new CampaignMapBiomeValidator();
 
         // Validate individual Biomes
-        (BiomeType BiomeType, ValidationResult ValidationResults)[] validationResults = biomes
-            .Select(biome => (biome.BiomeType, validator.Validate(biome)))
-            .ToArray();
+        (BiomeType BiomeType, ValidationResult ValidationResults)[] validationResults = [.. biomes.Select(biome => (biome.BiomeType, validator.Validate(biome)))];
 
         Dictionary<BiomeType, string> biomeLookup = biomes.ToDictionary(b => b.BiomeType, b => b.Name);
 
-        string[] groupedErrors = validationResults
+        string[] groupedErrors = [.. validationResults
             .Where(result => result.ValidationResults.Errors.Count != 0)
             .SelectMany(result =>
                 result.ValidationResults.Errors.Select(error =>
-                    $"Biome '{biomeLookup[result.BiomeType]}': {error.ErrorMessage}"))
-            .ToArray();
+                    $"Biome '{biomeLookup[result.BiomeType]}': {error.ErrorMessage}"))];
 
         // Check for any duplicate BiomeTypeIds in the request object
-        string[] duplicateBiomesInRequest = biomes
+        string[] duplicateBiomesInRequest = [.. biomes
             .GroupBy(b => b.BiomeType)
             .Where(g => g.Count() > 1)
-            .Select(g => $"{biomeLookup[g.Key]} is specified multiple times in the request.")
-            .ToArray();
+            .Select(g => $"{biomeLookup[g.Key]} is specified multiple times in the request.")];
 
         if (groupedErrors.Length != 0 || duplicateBiomesInRequest.Length != 0)
         {

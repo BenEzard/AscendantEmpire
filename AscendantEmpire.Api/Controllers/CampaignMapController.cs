@@ -35,9 +35,8 @@ public class CampaignMapController : ControllerBase
         [FromBody] GetPlayerCampaignMapDto request)
     {
         ServiceResult<IReadOnlyCollection<ObserverSight>> response = await mediator.Send(new GetPlayerCampaignMapRequest(
-            request.GameGuid, 
-            request.PlayerGuid, 
-            request.Observers,
+            request.GameId, 
+            request.PlayerId, 
             request.LoadWholeMap));
 
         return response.ToActionResult(contract =>
@@ -95,6 +94,6 @@ public class CampaignMapController : ControllerBase
         [FromServices] IMediator mediator,
         [FromBody] HidePlayerCampaignMapDto request)
     {
-        await mediator.Send(new HidePlayerCampaignMapRequest(request.GameGuid, request.PlayerGuid));
+        await mediator.Send(new HidePlayerCampaignMapRequest(request.GameId, request.PlayerId));
     }
 }

@@ -251,13 +251,13 @@ namespace AscendantEmpire.Application.Migrations
                 name: "IX_CampaignMap_Game_ControlledByPlayer",
                 schema: "game",
                 table: "CampaignMap",
-                columns: new[] { "GameId", "ControlledByPlayerId" });
+                columns: ["GameId", "ControlledByPlayerId"]);
 
             migrationBuilder.CreateIndex(
                 name: "UX_CampaignMap_Game_X_Y",
                 schema: "game",
                 table: "CampaignMap",
-                columns: new[] { "GameId", "XCoord", "YCoord" },
+                columns: ["GameId", "XCoord", "YCoord"],
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -270,13 +270,13 @@ namespace AscendantEmpire.Application.Migrations
                 name: "IX_PlayerKnownStructures_Game_Player_LastSeen",
                 schema: "game",
                 table: "PlayerKnownStructures",
-                columns: new[] { "GameId", "PlayerId", "LastSeenOnTurnId" });
+                columns: ["GameId", "PlayerId", "LastSeenOnTurnId"]);
 
             migrationBuilder.CreateIndex(
                 name: "IX_PlayerKnownStructures_Game_Player_Tile",
                 schema: "game",
                 table: "PlayerKnownStructures",
-                columns: new[] { "GameId", "PlayerId", "CampaignMapId" });
+                columns: ["GameId", "PlayerId", "CampaignMapId"]);
 
             migrationBuilder.CreateIndex(
                 name: "IX_PlayerKnownStructures_PlayerId",
@@ -294,7 +294,7 @@ namespace AscendantEmpire.Application.Migrations
                 name: "UX_PlayerKnownStructures_Game_Player_Instance",
                 schema: "game",
                 table: "PlayerKnownStructures",
-                columns: new[] { "GameId", "PlayerId", "StructureInstanceId" },
+                columns: ["GameId", "PlayerId", "StructureInstanceId"],
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -313,31 +313,31 @@ namespace AscendantEmpire.Application.Migrations
                 name: "IX_CampaignStructureInstances_Game_Owner_BattleMap",
                 schema: "game",
                 table: "StructureInstances",
-                columns: new[] { "GameId", "OwnedByPlayerId", "BattleMapTileId" });
+                columns: ["GameId", "OwnedByPlayerId", "BattleMapTileId"]);
 
             migrationBuilder.CreateIndex(
                 name: "IX_CampaignStructureInstances_Game_Owner_RemovedOn",
                 schema: "game",
                 table: "StructureInstances",
-                columns: new[] { "GameId", "OwnedByPlayerId", "RemovedOnTurnId" });
+                columns: ["GameId", "OwnedByPlayerId", "RemovedOnTurnId"]);
 
             migrationBuilder.CreateIndex(
                 name: "IX_CampaignStructureInstances_Game_RemovedOn",
                 schema: "game",
                 table: "StructureInstances",
-                columns: new[] { "GameId", "RemovedOnTurnId" });
+                columns: ["GameId", "RemovedOnTurnId"]);
 
             migrationBuilder.CreateIndex(
                 name: "IX_CampaignStructureInstances_Game_Tile",
                 schema: "game",
                 table: "StructureInstances",
-                columns: new[] { "GameId", "CampaignMapTileId" });
+                columns: ["GameId", "CampaignMapTileId"]);
 
             migrationBuilder.CreateIndex(
                 name: "IX_StructureInstances_CampaignMapTileId_SlotType",
                 schema: "game",
                 table: "StructureInstances",
-                columns: new[] { "CampaignMapTileId", "SlotType" },
+                columns: ["CampaignMapTileId", "SlotType"],
                 unique: true,
                 filter: "[RemovedOnTurnId] IS NULL AND [BattleMapTileId] IS NULL");
 

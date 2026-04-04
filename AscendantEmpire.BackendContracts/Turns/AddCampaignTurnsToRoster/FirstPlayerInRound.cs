@@ -2,6 +2,6 @@
 
 public record FirstPlayerInRound
 {
-    public Guid PlayerGuid { get; init; }
+    public int PlayerId { get; init; }
     public int RoundNumber { get; init; }
 }

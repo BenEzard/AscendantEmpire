@@ -15,18 +15,15 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Handlers.Turns;
 
 public record AddCampaignTurnsToRosterRequest(
-    Guid GameGuid
+    int GameId
 ) : IRequest<ServiceResult<FirstPlayerInRound>>;
 
 internal class AddCampaignTurnsToRosterRequestValidator : AbstractValidator<AddCampaignTurnsToRosterRequest>
 {
     public AddCampaignTurnsToRosterRequestValidator()
     {
-        RuleFor(x => x.GameGuid)
-            .NotEmpty().WithMessage("GameGuid is required.");
-        RuleFor(r => r.GameGuid)
-         .Must(guid => guid != Guid.Empty)
-         .WithMessage("GameGuid must be a valid non-empty GUID.");
+        RuleFor(x => x.GameId)
+            .GreaterThan(0).WithMessage("Game Id is required.");
     }
 }
 
@@ -58,19 +55,18 @@ internal class AddCampaignTurnsToRosterHandler(
                  where (gi.PlayStatus == GamePlayStatus.InProgress || gi.PlayStatus == GamePlayStatus.SetupInProgress)
                  join p in context.Players.AsNoTracking()
                      on gi.Id equals p.GameId
-                 where gi.GameGuid == request.GameGuid
+                 where gi.Id == request.GameId
                  where p.Status == PlayerStatus.Active
                  select new DTActivePlayer
                  {
                      GameId = gi.Id,
                      PlayerId = p.Id,
-                     PlayerGuid = p.Guid
                  }).ToListAsync(cancelToken);
 
             if (activePlayers.Count == 0)
             {
                 const string error = "No active Players or Game found while trying to Add Campaign Turns to Roster.";
-                logger.LogWarning(error + "Game Guid: {guid}", request.GameGuid);
+                logger.LogWarning(error + "Game Guid: {guid}", request.GameId);
                 return ServiceResult<FirstPlayerInRound>.NotFound(error);
             }
 
@@ -150,7 +146,7 @@ internal class AddCampaignTurnsToRosterHandler(
 
             return ServiceResult<FirstPlayerInRound>.Succeed(new FirstPlayerInRound
             {
-                PlayerGuid = activePlayers.Single(p => p.PlayerId == firstPlayerInRound.PlayerId).PlayerGuid,
+                PlayerId = firstPlayerInRound.PlayerId,
                 RoundNumber = firstPlayerInRound.RoundNumber
             });
         }
@@ -167,6 +163,5 @@ internal class AddCampaignTurnsToRosterHandler(
     {
         public int GameId { get; set; }
         public int PlayerId { get; set; }
-        public Guid PlayerGuid { get; set; }
     }
 }

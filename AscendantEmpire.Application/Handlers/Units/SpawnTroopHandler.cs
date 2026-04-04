@@ -17,8 +17,8 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Handlers.Units;
 
 public record SpawnTroopRequest(
-    Guid GameGuid,
-    Guid PlayerGuid,
+    int GameId,
+    int PlayerId,
     int XCoord,
     int YCoord,
     int UnitDesignId
@@ -28,17 +28,10 @@ internal class SpawnTroopRequestValidator : AbstractValidator<SpawnTroopRequest>
 {
     public SpawnTroopRequestValidator()
     {
-        RuleFor(x => x.GameGuid)
-            .NotEmpty().WithMessage("GameGuid is required.");
-        RuleFor(r => r.GameGuid)
-         .Must(guid => guid != Guid.Empty)
-         .WithMessage("GameGuid must be a valid non-empty GUID.");
-
-        RuleFor(x => x.PlayerGuid)
-            .NotEmpty().WithMessage("PlayerGuid is required.");
-        RuleFor(r => r.PlayerGuid)
-         .Must(guid => guid != Guid.Empty)
-         .WithMessage("PlayerGuid must be a valid non-empty GUID.");
+        RuleFor(x => x.GameId)
+            .GreaterThan(0).WithMessage("Game Id is required.");
+        RuleFor(x => x.PlayerId)
+            .GreaterThan(0).WithMessage("Player Id is required.");
 
         RuleFor(x => x.XCoord)
             .GreaterThanOrEqualTo(0).WithMessage("XCoord must be greater than or equal to 0.");
@@ -72,7 +65,7 @@ internal class SpawnTroopHandler(
             }
 
             // Load the game info
-            ServiceResult<IReadOnlyCollection<OpenGame>> gameInfoResult = await mediator.Send(new GetOpenGamesRequest(request.GameGuid, request.PlayerGuid), cancelToken);
+            ServiceResult<IReadOnlyCollection<OpenGame>> gameInfoResult = await mediator.Send(new GetOpenGamesRequest(request.GameId, request.PlayerId), cancelToken);
 
             if (gameInfoResult.HasSucceeded == false)
             {

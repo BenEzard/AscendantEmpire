@@ -58,88 +58,80 @@ internal class StartTurnOnRosterTests
     public async Task ShouldFail_WhenRequestInvalidAsync()
     {
         var request = new StartTurnOnRosterRequest(
-            GameGuid: Guid.Empty,
-            PlayerGuid: Guid.Empty,
+            GameId: 0,
+            PlayerId: 0,
             RoundNumber: 1);
 
         ServiceResultBase result = await _handler.Handle(request, CancellationToken.None);
 
-        Assert.That(result.HasSucceeded, Is.False, "Expected validation to fail.");
-        Assert.That(result.Errors, Is.Not.Null);
-        Assert.That(result.Errors.Count, Is.GreaterThanOrEqualTo(1));
-        Assert.That(result.Errors.Any(e => e.Contains("Validation failed", StringComparison.OrdinalIgnoreCase)), Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False, "Expected validation to fail.");
+            Assert.That(result.Errors, Is.Not.Null);
+            Assert.That(result.Errors, Is.Not.Empty);
+            Assert.That(result.Errors.Any(e => e.Contains("Validation failed", StringComparison.OrdinalIgnoreCase)), Is.True);
+        }
     }
 
     [Test, Description("When player is not found in the specified game (or not active), handler should return Fail.")]
     public async Task ShouldFail_WhenPlayerNotFoundOrNotActiveAsync()
     {
-        Guid gameGuid = Guid.NewGuid();
         int gameId = 1;
 
         // Seed game, but no matching active player for request
-        await SeedGameAsync(gameId, gameGuid);
+        await SeedGameAsync(gameId);
 
         var request = new StartTurnOnRosterRequest(
-            GameGuid: gameGuid,
-            PlayerGuid: Guid.NewGuid(), // doesn't exist
+            GameId: gameId,
+            PlayerId: 404, // doesn't exist
             RoundNumber: 1);
 
         ServiceResultBase result = await _handler.Handle(request, CancellationToken.None);
 
-        Assert.That(result.HasSucceeded, Is.False);
-        Assert.That(result.Errors, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Is.Not.Null);
+        }
         Assert.That(result.Errors.Any(e => e.Contains("Player not found", StringComparison.OrdinalIgnoreCase)), Is.True);
     }
 
     [Test, Description("When player exists/active but no TurnRoster row exists for that player+round, handler should return Fail.")]
     public async Task ShouldFail_WhenTurnRosterNotFoundForPlayerAndRoundAsync()
     {
-        Guid gameGuid = Guid.NewGuid();
         int gameId = 1;
 
-        Guid playerGuid = Guid.NewGuid();
         int playerId = 11;
 
-        await SeedGameAndActivePlayersAsync(
-            gameId,
-            gameGuid,
-            new List<(int PlayerId, Guid PlayerGuid)>
-            {
-                (playerId, playerGuid),
-            });
+        await SeedGameAndActivePlayersAsync(gameId, [playerId]);
 
         // NOTE: no roster seeded
 
         var request = new StartTurnOnRosterRequest(
-            GameGuid: gameGuid,
-            PlayerGuid: playerGuid,
+            GameId: gameId,
+            PlayerId: playerId,
             RoundNumber: 1);
 
         ServiceResultBase result = await _handler.Handle(request, CancellationToken.None);
 
-        Assert.That(result.HasSucceeded, Is.False);
-        Assert.That(result.Errors, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Is.Not.Null);
+        }
         Assert.That(result.Errors.Any(e => e.Contains("Turn Roster entry not found", StringComparison.OrdinalIgnoreCase)), Is.True);
     }
 
     [Test, Description("When player exists/active and TurnRoster row exists, handler should set TakingTurn and set start/scheduled end times.")]
     public async Task ShouldSucceed_AndUpdateRosterAsync()
     {
-        Guid gameGuid = Guid.NewGuid();
         int gameId = 1;
 
-        Guid playerGuid = Guid.NewGuid();
         int playerId = 21;
 
         int roundNumber = 3;
 
-        await SeedGameAndActivePlayersAsync(
-            gameId,
-            gameGuid,
-            new List<(int PlayerId, Guid PlayerGuid)>
-            {
-                (playerId, playerGuid),
-            });
+        await SeedGameAndActivePlayersAsync(gameId, [playerId]);
 
         int rosterId = await SeedRosterAsync(
             gameId: gameId,
@@ -149,8 +141,8 @@ internal class StartTurnOnRosterTests
             status: TurnStatus.Pending);
 
         var request = new StartTurnOnRosterRequest(
-            GameGuid: gameGuid,
-            PlayerGuid: playerGuid,
+            GameId: gameId,
+            PlayerId: playerId,
             RoundNumber: roundNumber);
 
         ServiceResultBase result = await _handler.Handle(request, CancellationToken.None);
@@ -182,16 +174,15 @@ internal class StartTurnOnRosterTests
     [Test, Description("Only the matching TurnRoster row for the requested round should be updated; other rounds/players should remain unchanged.")]
     public async Task ShouldOnlyUpdateMatchingRosterRowAsync()
     {
-        Guid gameGuid = Guid.NewGuid();
         int gameId = 1;
 
-        var players = new List<(int PlayerId, Guid PlayerGuid)>
+        var players = new List<int>
         {
-            (31, Guid.NewGuid()),
-            (32, Guid.NewGuid()),
+            31,
+            32,
         };
 
-        await SeedGameAndActivePlayersAsync(gameId, gameGuid, players);
+        await SeedGameAndActivePlayersAsync(gameId, players);
 
         int targetRound = 2;
 
@@ -199,13 +190,13 @@ internal class StartTurnOnRosterTests
         // - Target player in target round: Pending (should update)
         // - Same player in different round: Pending (should not update)
         // - Other player in target round: Pending (should not update)
-        int targetRosterId = await SeedRosterAsync(gameId, targetRound, players[0].PlayerId, turnOrder: 1, status: TurnStatus.Pending);
-        int otherRoundSamePlayerId = await SeedRosterAsync(gameId, roundNumber: 1, players[0].PlayerId, turnOrder: 1, status: TurnStatus.Pending);
-        int otherPlayerSameRoundId = await SeedRosterAsync(gameId, targetRound, players[1].PlayerId, turnOrder: 2, status: TurnStatus.Pending);
+        int targetRosterId = await SeedRosterAsync(gameId, targetRound, players[0], turnOrder: 1, status: TurnStatus.Pending);
+        int otherRoundSamePlayerId = await SeedRosterAsync(gameId, roundNumber: 1, players[0], turnOrder: 1, status: TurnStatus.Pending);
+        int otherPlayerSameRoundId = await SeedRosterAsync(gameId, targetRound, players[1], turnOrder: 2, status: TurnStatus.Pending);
 
         var request = new StartTurnOnRosterRequest(
-            GameGuid: gameGuid,
-            PlayerGuid: players[0].PlayerGuid,
+            GameId: gameId,
+            PlayerId: players[0],
             RoundNumber: targetRound);
 
         ServiceResultBase result = await _handler.Handle(request, CancellationToken.None);
@@ -234,7 +225,7 @@ internal class StartTurnOnRosterTests
         }
     }
 
-    private async Task SeedGameAsync(int gameId, Guid gameGuid)
+    private async Task SeedGameAsync(int gameId)
     {
         await using var context = new AscendantEmpireContext(_options);
 
@@ -245,17 +236,13 @@ internal class StartTurnOnRosterTests
             NumberOfPlayers = 1,
             CreatedAt = DateTimeOffset.UtcNow,
             CreationStatus = GameCreationStatus.SetupComplete,
-            GameGuid = gameGuid,
             PlayStatus = GamePlayStatus.InProgress
         });
 
         await context.SaveChangesAsync();
     }
 
-    private async Task SeedGameAndActivePlayersAsync(
-        int gameId,
-        Guid gameGuid,
-        IReadOnlyCollection<(int PlayerId, Guid PlayerGuid)> players)
+    private async Task SeedGameAndActivePlayersAsync(int gameId, IReadOnlyCollection<int> players)
     {
         await using var context = new AscendantEmpireContext(_options);
 
@@ -266,20 +253,18 @@ internal class StartTurnOnRosterTests
             NumberOfPlayers = players.Count,
             CreatedAt = DateTimeOffset.UtcNow,
             CreationStatus = GameCreationStatus.SetupComplete,
-            GameGuid = gameGuid,
             PlayStatus = GamePlayStatus.InProgress
         };
 
         context.GameIndex.Add(game);
 
-        foreach (var p in players)
+        foreach (var playerId in players)
         {
             context.Players.Add(new Player
             {
-                Id = p.PlayerId,
+                Id = playerId,
                 GameId = gameId,
                 Game = game,
-                Guid = p.PlayerGuid,
                 Status = PlayerStatus.Active,
                 RulerName = "Ruler",
                 RulerTitle = "Title",

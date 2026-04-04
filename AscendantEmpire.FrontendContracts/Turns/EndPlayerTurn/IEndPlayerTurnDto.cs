@@ -2,6 +2,6 @@
 
 public interface IEndPlayerTurnDto
 {
-    Guid GameGuid { get; }
-    Guid PlayerGuid { get; }
+    int GameId { get; }
+    int PlayerId { get; }
 }

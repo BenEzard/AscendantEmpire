@@ -54,7 +54,7 @@ public class GamesController : ControllerBase
         [FromServices] IMediator mediator,
         [FromBody] GetOpenGamesDto request)
     {
-        ServiceResult<IReadOnlyCollection<OpenGame>> response = await mediator.Send(new GetOpenGamesRequest(request.GameGuid, request.PlayerGuid));
+        ServiceResult<IReadOnlyCollection<OpenGame>> response = await mediator.Send(new GetOpenGamesRequest(request.GameId, request.PlayerId));
 
         return response.ToActionResult(contract =>
         {
@@ -64,13 +64,11 @@ public class GamesController : ControllerBase
                 {
                     GameId = g.GameId,
                     GameName = g.GameName,
-                    GameGuid = g.GameGuid,
                     MapWidth = g.MapWidth,
                     MapHeight = g.MapHeight,
                     Players = g.Players.Select(p => new DTOpenGamePlayer
                     {
                         PlayerId = p.PlayerId,
-                        PlayerGuid = p.PlayerGuid,
                         RulerTitle = p.RulerTitle,
                         RulerName = p.RulerName,
                         FactionName = p.FactionName,

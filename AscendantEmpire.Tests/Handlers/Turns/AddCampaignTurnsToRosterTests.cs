@@ -20,7 +20,7 @@ internal class AddCampaignTurnsToRosterTests
     private DbContextOptions<AscendantEmpireContext> _options = null!;
 
     private IDbContextFactory<AscendantEmpireContext> _dbFactory = null!;
-    private ILogger<AddCampaignTurnsToRosterHandler> _logger = null!;
+    private readonly ILogger<AddCampaignTurnsToRosterHandler> _logger = null!;
     private AddCampaignTurnsToRosterHandler _handler = null!;
 
     [SetUp]
@@ -58,16 +58,11 @@ internal class AddCampaignTurnsToRosterTests
         Guid gameGuid = Guid.NewGuid();
         int gameId = 1;
 
-        var players = new List<(int PlayerId, Guid PlayerGuid)>
-        {
-            (11, Guid.NewGuid()),
-            (12, Guid.NewGuid()),
-            (13, Guid.NewGuid()),
-        };
+        List<int> players = [11, 12, 13];
 
-        await SeedGameAndActivePlayersAsync(gameId, gameGuid, players);
+        await SeedGameAndActivePlayersAsync(gameId, players);
 
-        var request = new AddCampaignTurnsToRosterRequest(gameGuid);
+        var request = new AddCampaignTurnsToRosterRequest(gameId);
 
         ServiceResultBase result = await _handler.Handle(request, CancellationToken.None);
 
@@ -91,24 +86,18 @@ internal class AddCampaignTurnsToRosterTests
             Assert.That(rosters.Select(r => r.TurnOrder), Is.EquivalentTo(Enumerable.Range(1, players.Count)), "TurnOrder should be 1..N.");
 
             // Each seeded player should appear exactly once (order is randomized in handler, so don't assert ordering).
-            Assert.That(rosters.Select(r => r.PlayerId), Is.EquivalentTo(players.Select(p => p.PlayerId)));
+            Assert.That(rosters.Select(r => r.PlayerId), Is.EquivalentTo(players));
         }
     }
 
     [Test, Description("When a roster already exists, handler should duplicate the last campaign round roster into the next round, keeping TurnOrder the same.")]
     public async Task ShouldDuplicateRosterToNextRoundWhenExistingAsync()
     {
-        Guid gameGuid = Guid.NewGuid();
         int gameId = 1;
 
-        var players = new List<(int PlayerId, Guid PlayerGuid)>
-        {
-            (21, Guid.NewGuid()),
-            (22, Guid.NewGuid()),
-            (23, Guid.NewGuid()),
-        };
+        List<int> players = [21, 22, 23];
 
-        await SeedGameAndActivePlayersAsync(gameId, gameGuid, players);
+        await SeedGameAndActivePlayersAsync(gameId, players);
 
         // Seed an existing campaign roster (BattleId NULL) for Round 1 in a known order
         await SeedExistingRosterAsync(
@@ -116,7 +105,7 @@ internal class AddCampaignTurnsToRosterTests
             roundNumber: 1,
             playerIdsInOrder: [21, 22, 23]);
 
-        var request = new AddCampaignTurnsToRosterRequest(gameGuid);
+        var request = new AddCampaignTurnsToRosterRequest(gameId);
 
         ServiceResultBase result = await _handler.Handle(request, CancellationToken.None);
 
@@ -153,8 +142,7 @@ internal class AddCampaignTurnsToRosterTests
 
     private async Task SeedGameAndActivePlayersAsync(
         int gameId,
-        Guid gameGuid,
-        IReadOnlyCollection<(int PlayerId, Guid PlayerGuid)> players)
+        IReadOnlyCollection<int> players)
     {
         await using var context = new AscendantEmpireContext(_options);
 
@@ -165,17 +153,15 @@ internal class AddCampaignTurnsToRosterTests
             NumberOfPlayers = players.Count,
             CreatedAt = DateTimeOffset.UtcNow,
             CreationStatus = GameCreationStatus.SetupComplete,
-            GameGuid = gameGuid,
             PlayStatus = GamePlayStatus.InProgress
         });
 
-        foreach (var p in players)
+        foreach (int playerId in players)
         {
             context.Players.Add(new Player
             {
-                Id = p.PlayerId,
+                Id = playerId,
                 GameId = gameId,
-                Guid = p.PlayerGuid,
                 Status = PlayerStatus.Active,
                 RulerName = "Ruler",
                 RulerTitle = "Title",

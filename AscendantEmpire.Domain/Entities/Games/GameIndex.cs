@@ -14,7 +14,6 @@ public class GameIndex
     [MaxLength(GAME_NAME_MAX_LENGTH)]
     public required string GameName { get; set; }
     public required int NumberOfPlayers { get; set; }
-    public Guid GameGuid { get; set; }
     public required GameCreationStatus CreationStatus { get; set; }
     public required GamePlayStatus PlayStatus { get; set; }
     public required DateTimeOffset CreatedAt { get; set; }

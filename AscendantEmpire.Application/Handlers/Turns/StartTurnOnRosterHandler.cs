@@ -13,8 +13,8 @@ using Microsoft.Extensions.Logging;
 namespace AscendantEmpire.Application.Handlers.Turns;
 
 public record StartTurnOnRosterRequest(
-    Guid GameGuid,
-    Guid PlayerGuid,
+    int GameId,
+    int PlayerId,
     int RoundNumber
 ) : IRequest<ServiceResultBase>;
 
@@ -22,17 +22,11 @@ internal class StartTurnOnRosterRequestValidator : AbstractValidator<StartTurnOn
 {
     public StartTurnOnRosterRequestValidator()
     {
-        RuleFor(x => x.GameGuid)
-            .NotEmpty().WithMessage("GameGuid is required.");
-        RuleFor(r => r.GameGuid)
-         .Must(guid => guid != Guid.Empty)
-         .WithMessage("GameGuid must be a valid non-empty GUID.");
+        RuleFor(x => x.GameId)
+            .GreaterThan(0).WithMessage("Game Id is required.");
 
-        RuleFor(x => x.PlayerGuid)
-            .NotEmpty().WithMessage("PlayerGuid is required.");
-        RuleFor(r => r.PlayerGuid)
-         .Must(guid => guid != Guid.Empty)
-         .WithMessage("PlayerGuid must be a valid non-empty GUID.");
+        RuleFor(x => x.PlayerId)
+            .GreaterThan(0).WithMessage("Player Id is required.");
     }
 }
 
@@ -61,8 +55,8 @@ internal class StartTurnOnRosterHandler(
             // Get the PlayerId
             DTIds? ids = await context.Players
                 .AsNoTracking()
-                .Where(p => p.Guid == request.PlayerGuid)
-                .Where(p => p.Game.GameGuid == request.GameGuid)
+                .Where(p => p.Id == request.PlayerId)
+                .Where(p => p.Game.Id == request.GameId)
                 .Where(p => p.Status == PlayerStatus.Active)
                 .Select(p => new DTIds()
                 {
@@ -73,7 +67,7 @@ internal class StartTurnOnRosterHandler(
 
             if (ids == null)
             {
-                logger.LogWarning("Player with Guid {PlayerGuid} in Game {GameGuid} not found or not active.", request.PlayerGuid, request.GameGuid);
+                logger.LogWarning("Player with Id {PlayerId} in Game {GameId} not found or not active.", request.PlayerId, request.GameId);
                 return ServiceResultBase.Fail("Player not found or not active in the specified game.");
             }
 

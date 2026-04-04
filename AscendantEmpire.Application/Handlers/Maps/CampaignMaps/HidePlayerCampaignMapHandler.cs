@@ -16,23 +16,17 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 namespace AscendantEmpire.Application.Handlers.Maps.CampaignMaps;
 
-public record HidePlayerCampaignMapRequest(Guid GameGuid, Guid PlayerGuid)
+public record HidePlayerCampaignMapRequest(int GameId, int PlayerId)
     : IRequest<ServiceResultBase>;
 
 internal class HidePlayerCampaignMapRequestValidator : AbstractValidator<HidePlayerCampaignMapRequest>
 {
     public HidePlayerCampaignMapRequestValidator()
     {
-        RuleFor(r => r.GameGuid)
-             .NotEmpty().WithMessage("GameGuid is required.");
-        RuleFor(r => r.PlayerGuid)
-            .NotEmpty().WithMessage("PlayerGuid is required.");
-        RuleFor(r => r.GameGuid)
-            .Must(guid => guid != Guid.Empty)
-            .WithMessage("GameGuid must be a valid non-empty GUID.");
-        RuleFor(r => r.PlayerGuid)
-            .Must(guid => guid != Guid.Empty)
-            .WithMessage("PlayerGuid must be a valid non-empty GUID.");
+        RuleFor(r => r.GameId)
+             .GreaterThan(0).WithMessage("Game Id is required.");
+        RuleFor(r => r.PlayerId)
+            .GreaterThan(0).WithMessage("Player Id is required.");
     }
 }
 
@@ -60,7 +54,7 @@ internal class HidePlayerCampaignMapHandler(
             }
 
             // Load the game info
-            ServiceResult<IReadOnlyCollection<OpenGame>> gameInfoResult = await mediator.Send(new GetOpenGamesRequest(request.GameGuid, request.PlayerGuid), cancelToken);
+            ServiceResult<IReadOnlyCollection<OpenGame>> gameInfoResult = await mediator.Send(new GetOpenGamesRequest(request.GameId, request.PlayerId), cancelToken);
 
             if (gameInfoResult.HasSucceeded == false)
             {
@@ -111,7 +105,7 @@ internal class HidePlayerCampaignMapHandler(
                        .SetProperty(pcm => pcm.LastVisitedByPlayerId, (int?)null),
                    cancelToken);
 
-            return await mediator.Send(new GetPlayerCampaignMapRequest(request.GameGuid, request.PlayerGuid, Observers: null, LoadWholeMap: true), cancelToken);
+            return await mediator.Send(new GetPlayerCampaignMapRequest(request.GameId, request.PlayerId, LoadWholeMap: true), cancelToken);
 
         }
         catch (Exception ex)

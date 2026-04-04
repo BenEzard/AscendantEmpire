@@ -18,6 +18,6 @@ public sealed class ResourceBank
     /// </summary>
     public Guid NetworkKey { get; set; } = Guid.NewGuid();
 
-    public ICollection<ResourceBankBalance> Balances { get; set; } = new List<ResourceBankBalance>();
-    public ICollection<ResourceBankSettlementMembership> SettlementMemberships { get; set; } = new List<ResourceBankSettlementMembership>();
+    public ICollection<ResourceBankBalance> Balances { get; set; } = [];
+    public ICollection<ResourceBankSettlementMembership> SettlementMemberships { get; set; } = [];
 }

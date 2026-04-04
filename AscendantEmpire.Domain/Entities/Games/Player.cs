@@ -1,7 +1,6 @@
 ﻿using AscendantEmpire.Domain.Enums.Games;
 
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace AscendantEmpire.Domain.Entities.Games;
 
@@ -28,7 +27,6 @@ public class Player
     public required string FactionName { get; set; }
     public PlayerStatus Status { get; set; }
     public int CampaignOffsetId { get; set; }
-    public Guid Guid { get; set; }
 
     public GameIndex Game { get; set; } = null!;
 }

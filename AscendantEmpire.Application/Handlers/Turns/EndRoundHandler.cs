@@ -12,18 +12,15 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Handlers.Turns;
 
 public record EndRoundRequest(
-    Guid GameGuid
+    int GameId
 ) : IRequest<ServiceResultBase>;
 
 internal class EndRoundRequestValidator : AbstractValidator<EndRoundRequest>
 {
     public EndRoundRequestValidator()
     {
-        RuleFor(x => x.GameGuid)
-            .NotEmpty().WithMessage("GameGuid is required.");
-        RuleFor(r => r.GameGuid)
-         .Must(guid => guid != Guid.Empty)
-         .WithMessage("GameGuid must be a valid non-empty GUID.");
+        RuleFor(x => x.GameId)
+            .GreaterThan(0).WithMessage("Game Id is required.");
     }
 }
 
@@ -48,7 +45,7 @@ internal class EndRoundHandler(
             }
 
             // Create the next Round's Turn Roster
-            ServiceResult<FirstPlayerInRound> createRosterResult = await mediator.Send(new AddCampaignTurnsToRosterRequest(GameGuid: request.GameGuid), CancellationToken.None);
+            ServiceResult<FirstPlayerInRound> createRosterResult = await mediator.Send(new AddCampaignTurnsToRosterRequest(GameId: request.GameId), CancellationToken.None);
 
             if (createRosterResult.HasSucceeded == false)
             {
@@ -61,8 +58,8 @@ internal class EndRoundHandler(
 
             // Start the next Player's turn
             ServiceResultBase startNextTurnResult = await mediator.Send(new StartTurnOnRosterRequest(
-                request.GameGuid,
-                firstPlayerInRound.PlayerGuid,
+                request.GameId,
+                firstPlayerInRound.PlayerId,
                 firstPlayerInRound.RoundNumber
             ), CancellationToken.None);
 

@@ -4,7 +4,6 @@ public record OpenGame
 {
     public int GameId { get; init; }
     public required string GameName { get; init; }
-    public Guid GameGuid { get; init; }
     public int NumberOfPlayers { get; init; }
     public int MapWidth { get; init; }
     public int MapHeight { get; init; }

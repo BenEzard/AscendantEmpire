@@ -152,7 +152,7 @@ public sealed class NanoBananaService : INanoBananaService
     {
         return new GenerationConfig
         {
-            ResponseModalities = new List<string> { "IMAGE" },
+            ResponseModalities = ["IMAGE"],
             ImageConfig = new ImageConfig
             {
                 AspectRatio = string.IsNullOrWhiteSpace(aspectRatio) ? _settings.DefaultAspectRatio : aspectRatio,

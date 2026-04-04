@@ -27,8 +27,8 @@ public class UnitsController : ControllerBase
         [FromBody] SpawnUnitDto request,
         CancellationToken cancelToken)
     {
-        ServiceResultBase response = await mediator.Send(new SpawnTroopRequest(request.GameGuid, 
-            request.PlayerGuid, 
+        ServiceResultBase response = await mediator.Send(new SpawnTroopRequest(request.GameId, 
+            request.PlayerId, 
             request.XCoord, 
             request.YCoord, 
             request.UnitDesignId), 

@@ -64,7 +64,7 @@ internal class EndPlayerTurnHandlerTests
     [Test]
     public async Task ShouldFail_WhenValidationFailsAsync()
     {
-        var request = new EndPlayerTurnRequest(GameGuid: Guid.Empty, PlayerGuid: Guid.Empty);
+        var request = new EndPlayerTurnRequest(GameId: 0, PlayerId: 0);
 
         ServiceResultBase result = await _handler.Handle(request, CancellationToken.None);
 
@@ -82,16 +82,15 @@ internal class EndPlayerTurnHandlerTests
     [Test]
     public async Task ShouldFail_WhenGetTurnFailsAsync()
     {
-        Guid gameGuid = Guid.NewGuid();
-        Guid playerGuid = Guid.NewGuid();
+        int gameId = 404;
+        int playerId = 404;
 
         _mediator.Send(
-                Arg.Is<GetTurnRequest>(r => r.GameGuid == gameGuid && r.PlayerGuid == playerGuid),
+                Arg.Is<GetTurnRequest>(r => r.GameId == gameId  && r.PlayerId == playerId),
                 Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult(ServiceResult<IReadOnlyCollection<RosterEntry>>.Fail(new[] { "turn lookup failed" })));
+            .Returns(Task.FromResult(ServiceResult<IReadOnlyCollection<RosterEntry>>.Fail(["turn lookup failed"])));
 
-        var request = new EndPlayerTurnRequest(GameGuid: gameGuid, PlayerGuid: playerGuid);
-
+        var request = new EndPlayerTurnRequest(gameId, playerId);
         ServiceResultBase result = await _handler.Handle(request, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
@@ -106,16 +105,15 @@ internal class EndPlayerTurnHandlerTests
     [Test]
     public async Task ShouldFail_WhenTurnResultEmptyAsync()
     {
-        Guid gameGuid = Guid.NewGuid();
-        Guid playerGuid = Guid.NewGuid();
+        int gameId = 404;
+        int playerId = 404;
 
         _mediator.Send(
-                Arg.Is<GetTurnRequest>(r => r.GameGuid == gameGuid && r.PlayerGuid == playerGuid),
+                Arg.Is<GetTurnRequest>(r => r.GameId == gameId && r.PlayerId == playerId),
                 Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult(ServiceResult<IReadOnlyCollection<RosterEntry>>.Succeed(Array.Empty<RosterEntry>())));
+            .Returns(Task.FromResult(ServiceResult<IReadOnlyCollection<RosterEntry>>.Succeed([])));
 
-        var request = new EndPlayerTurnRequest(GameGuid: gameGuid, PlayerGuid: playerGuid);
-
+        var request = new EndPlayerTurnRequest(gameId, playerId);
         ServiceResultBase result = await _handler.Handle(request, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
@@ -130,13 +128,12 @@ internal class EndPlayerTurnHandlerTests
     [Test]
     public async Task ShouldFail_WhenNoCampaignTurnEntryAsync()
     {
-        Guid gameGuid = Guid.NewGuid();
-        Guid playerGuid = Guid.NewGuid();
+        int gameId = 404;
+        int playerId = 404;
 
         var entries = new List<RosterEntry>
         {
-            new RosterEntry
-            {
+            new() {
                 IsCampaign = false,
                 RoundNumber = 1,
                 CurrentTurnPlayerId = 123,
@@ -145,12 +142,11 @@ internal class EndPlayerTurnHandlerTests
         };
 
         _mediator.Send(
-                Arg.Is<GetTurnRequest>(r => r.GameGuid == gameGuid && r.PlayerGuid == playerGuid),
+                Arg.Is<GetTurnRequest>(r => r.GameId == gameId && r.PlayerId == playerId),
                 Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(ServiceResult<IReadOnlyCollection<RosterEntry>>.Succeed(entries)));
 
-        var request = new EndPlayerTurnRequest(GameGuid: gameGuid, PlayerGuid: playerGuid);
-
+        var request = new EndPlayerTurnRequest(gameId, playerId);
         ServiceResultBase result = await _handler.Handle(request, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
@@ -165,13 +161,12 @@ internal class EndPlayerTurnHandlerTests
     [Test]
     public async Task ShouldFail_WhenNotPlayersTurnAsync()
     {
-        Guid gameGuid = Guid.NewGuid();
-        Guid playerGuid = Guid.NewGuid();
+        int gameId = 404;
+        int playerId = 404;
 
         var entries = new List<RosterEntry>
         {
-            new RosterEntry
-            {
+            new() {
                 IsCampaign = true,
                 RoundNumber = 1,
                 CurrentTurnPlayerId = 11,
@@ -180,12 +175,11 @@ internal class EndPlayerTurnHandlerTests
         };
 
         _mediator.Send(
-                Arg.Is<GetTurnRequest>(r => r.GameGuid == gameGuid && r.PlayerGuid == playerGuid),
+                Arg.Is<GetTurnRequest>(r => r.GameId == gameId && r.PlayerId == playerId),
                 Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(ServiceResult<IReadOnlyCollection<RosterEntry>>.Succeed(entries)));
 
-        var request = new EndPlayerTurnRequest(GameGuid: gameGuid, PlayerGuid: playerGuid);
-
+        var request = new EndPlayerTurnRequest(gameId, playerId);
         ServiceResultBase result = await _handler.Handle(request, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
@@ -200,13 +194,12 @@ internal class EndPlayerTurnHandlerTests
     [Test]
     public async Task ShouldFail_WhenGameNotFoundAsync()
     {
-        Guid gameGuid = Guid.NewGuid();
-        Guid playerGuid = Guid.NewGuid();
+        int gameId = 404;
+        int playerId = 404;
 
         var entries = new List<RosterEntry>
         {
-            new RosterEntry
-            {
+            new() {
                 IsCampaign = true,
                 RoundNumber = 1,
                 CurrentTurnPlayerId = 11,
@@ -215,13 +208,13 @@ internal class EndPlayerTurnHandlerTests
         };
 
         _mediator.Send(
-                Arg.Is<GetTurnRequest>(r => r.GameGuid == gameGuid && r.PlayerGuid == playerGuid),
+                Arg.Is<GetTurnRequest>(r => r.GameId == gameId && r.PlayerId == playerId),
                 Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(ServiceResult<IReadOnlyCollection<RosterEntry>>.Succeed(entries)));
 
         // Intentionally do NOT seed GameIndex
 
-        var request = new EndPlayerTurnRequest(GameGuid: gameGuid, PlayerGuid: playerGuid);
+        var request = new EndPlayerTurnRequest(gameId, playerId);
 
         ServiceResultBase result = await _handler.Handle(request, CancellationToken.None);
 
@@ -237,19 +230,16 @@ internal class EndPlayerTurnHandlerTests
     [Test]
     public async Task ShouldSucceed_AndSendEndTurnOnRosterRequestAsync()
     {
-        Guid gameGuid = Guid.NewGuid();
-        Guid playerGuid = Guid.NewGuid();
-
         int gameId = 1;
+        int playerId = 42;
         int roundNumber = 7;
         int currentTurnPlayerId = 42;
 
-        await SeedGameAsync(gameId, gameGuid, numberOfPlayers: 2);
+        await SeedGameAsync(gameId, numberOfPlayers: 2);
 
         var entries = new List<RosterEntry>
         {
-            new RosterEntry
-            {
+            new() {
                 IsCampaign = true,
                 RoundNumber = roundNumber,
                 CurrentTurnPlayerId = currentTurnPlayerId,
@@ -258,21 +248,20 @@ internal class EndPlayerTurnHandlerTests
         };
 
         _mediator.Send(
-                Arg.Is<GetTurnRequest>(r => r.GameGuid == gameGuid && r.PlayerGuid == playerGuid),
+                Arg.Is<GetTurnRequest>(r => r.GameId == gameId && r.PlayerId == playerId),
                 Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(ServiceResult<IReadOnlyCollection<RosterEntry>>.Succeed(entries)));
 
         _mediator.Send(
                 Arg.Is<EndTurnOnRosterRequest>(r =>
                     r.GameId == gameId
-                    && r.GameGuid == gameGuid
                     && r.RoundNumber == roundNumber
                     && r.CurrentTurnPlayerId == currentTurnPlayerId
                     && r.BattleId == null),
                 Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(ServiceResultBase.Succeed()));
 
-        var request = new EndPlayerTurnRequest(GameGuid: gameGuid, PlayerGuid: playerGuid);
+        var request = new EndPlayerTurnRequest(gameId, playerId);
 
         ServiceResultBase result = await _handler.Handle(request, CancellationToken.None);
 
@@ -281,7 +270,6 @@ internal class EndPlayerTurnHandlerTests
         await _mediator.Received(1).Send(
             Arg.Is<EndTurnOnRosterRequest>(r =>
                 r.GameId == gameId
-                && r.GameGuid == gameGuid
                 && r.RoundNumber == roundNumber
                 && r.CurrentTurnPlayerId == currentTurnPlayerId
                 && r.BattleId == null),
@@ -291,19 +279,17 @@ internal class EndPlayerTurnHandlerTests
     [Test]
     public async Task ShouldFail_WhenEndTurnOnRosterFailsAsync()
     {
-        Guid gameGuid = Guid.NewGuid();
-        Guid playerGuid = Guid.NewGuid();
 
         int gameId = 1;
+        int playerId = 404;
         int roundNumber = 3;
         int currentTurnPlayerId = 11;
 
-        await SeedGameAsync(gameId, gameGuid, numberOfPlayers: 2);
+        await SeedGameAsync(gameId, numberOfPlayers: 2);
 
         var entries = new List<RosterEntry>
         {
-            new RosterEntry
-            {
+            new() {
                 IsCampaign = true,
                 RoundNumber = roundNumber,
                 CurrentTurnPlayerId = currentTurnPlayerId,
@@ -312,16 +298,16 @@ internal class EndPlayerTurnHandlerTests
         };
 
         _mediator.Send(
-                Arg.Is<GetTurnRequest>(r => r.GameGuid == gameGuid && r.PlayerGuid == playerGuid),
+                Arg.Is<GetTurnRequest>(r => r.GameId == gameId && r.PlayerId == playerId),
                 Arg.Any<CancellationToken>())
             .Returns(Task.FromResult(ServiceResult<IReadOnlyCollection<RosterEntry>>.Succeed(entries)));
 
         _mediator.Send(
                 Arg.Any<EndTurnOnRosterRequest>(),
                 Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult(ServiceResultBase.Fail(new[] { "db update failed" })));
+            .Returns(Task.FromResult(ServiceResultBase.Fail(["db update failed"])));
 
-        var request = new EndPlayerTurnRequest(GameGuid: gameGuid, PlayerGuid: playerGuid);
+        var request = new EndPlayerTurnRequest(gameId, playerId);
 
         ServiceResultBase result = await _handler.Handle(request, CancellationToken.None);
 
@@ -335,14 +321,13 @@ internal class EndPlayerTurnHandlerTests
         await _mediator.Received(1).Send(
             Arg.Is<EndTurnOnRosterRequest>(r =>
                 r.GameId == gameId
-                && r.GameGuid == gameGuid
                 && r.RoundNumber == roundNumber
                 && r.CurrentTurnPlayerId == currentTurnPlayerId
                 && r.BattleId == null),
             Arg.Any<CancellationToken>());
     }
 
-    private async Task SeedGameAsync(int gameId, Guid gameGuid, int numberOfPlayers)
+    private async Task SeedGameAsync(int gameId, int numberOfPlayers)
     {
         await using var context = new AscendantEmpireContext(_options);
 
@@ -353,7 +338,6 @@ internal class EndPlayerTurnHandlerTests
             NumberOfPlayers = numberOfPlayers,
             CreatedAt = DateTimeOffset.UtcNow,
             CreationStatus = GameCreationStatus.SetupComplete,
-            GameGuid = gameGuid,
             PlayStatus = GamePlayStatus.InProgress
         });
 
