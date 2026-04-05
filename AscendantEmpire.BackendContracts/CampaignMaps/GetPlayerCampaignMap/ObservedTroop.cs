@@ -6,6 +6,7 @@ public record ObservedTroop
 {
     public int Id { get; init; }
     public RecordType RecordType { get; init; }
+    public int CommanderId { get; init; }
     public int UnitDesignId { get; init; }
     public int HealthyTroops { get; init; }
     public int InjuredTroops { get; init; }

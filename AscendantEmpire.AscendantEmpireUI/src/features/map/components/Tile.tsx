@@ -11,7 +11,10 @@ export interface TileProps {
   tile: TileCell;
   sizePx: number;
   geography: Geography;
+  selectedTroopId?: number;
+  visibleTroopId?: number;
   onClick?: (tile: TileCell) => void;
+  onHold?: (tile: TileCell) => void;
   className?: string;
   /**
    * Optional styling hooks.
@@ -20,8 +23,32 @@ export interface TileProps {
   getStyle?: (tile: TileCell) => React.CSSProperties;
 }
 
-const Tile = React.memo(function Tile({ tile, sizePx, geography, onClick, className, getTitle, getStyle }: TileProps) {
+const HOLD_DELAY_MS = 350;
+
+const Tile = React.memo(function Tile({
+  tile,
+  sizePx,
+  geography,
+  selectedTroopId,
+  visibleTroopId,
+  onClick,
+  onHold,
+  className,
+  getTitle,
+  getStyle,
+}: TileProps) {
   const clickable = !!onClick;
+  const holdTimerRef = React.useRef<number | null>(null);
+  const holdTriggeredRef = React.useRef(false);
+
+  const clearHoldTimer = React.useCallback(() => {
+    if (holdTimerRef.current != null) {
+      window.clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+  }, []);
+
+  React.useEffect(() => () => clearHoldTimer(), [clearHoldTimer]);
 
   const baseStyle: React.CSSProperties = {
     width: sizePx,
@@ -41,7 +68,7 @@ const Tile = React.memo(function Tile({ tile, sizePx, geography, onClick, classN
   const iconKey = geography?.mapEditorIcon ?? null;
   const Icon = iconKey ? iconMap[iconKey] : undefined;
   const visibleStructure = tile.structures?.find((structure) => structure.structureId === 1) ?? null;
-  const visibleTroop = tile.troops?.[0] ?? null;
+  const visibleTroop = tile.troops?.find((troop) => troop.id === visibleTroopId) ?? tile.troops?.[0] ?? null;
   const visibleTroopCount = tile.troops?.length ?? 0;
 
   const style = { ...baseStyle, ...(getStyle?.(tile) ?? {}) };
@@ -55,10 +82,45 @@ const Tile = React.memo(function Tile({ tile, sizePx, geography, onClick, classN
   const iconColor = pickTextColorOnBg(bgForContrast);
 
   return (
-    <div className={combinedClassName} role={clickable ? "button" : undefined} title={getTitle?.(tile)} onClick={() => onClick?.(tile)} style={style}>
+    <div
+      className={combinedClassName}
+      role={clickable ? "button" : undefined}
+      title={getTitle?.(tile)}
+      onPointerDown={() => {
+        holdTriggeredRef.current = false;
+        clearHoldTimer();
+
+        if (!onHold) return;
+
+        holdTimerRef.current = window.setTimeout(() => {
+          holdTriggeredRef.current = true;
+          holdTimerRef.current = null;
+          onHold(tile);
+        }, HOLD_DELAY_MS);
+      }}
+      onPointerUp={() => {
+        clearHoldTimer();
+      }}
+      onPointerLeave={() => {
+        clearHoldTimer();
+      }}
+      onPointerCancel={() => {
+        clearHoldTimer();
+      }}
+      onClick={() => {
+        if (holdTriggeredRef.current) {
+          holdTriggeredRef.current = false;
+          return;
+        }
+
+        onClick?.(tile);
+      }}
+      style={style}>
       {Icon ? <Icon className="tile-icon-fill" aria-hidden style={{ color: iconColor }} /> : null}
       {visibleStructure ? <ObservedStructure structure={visibleStructure} /> : null}
-      {visibleTroop ? <ObservedTroop troop={visibleTroop} troopInstanceCount={visibleTroopCount} /> : null}
+      {visibleTroop ? (
+        <ObservedTroop troop={visibleTroop} troopInstanceCount={visibleTroopCount} isSelected={visibleTroop.id === selectedTroopId} />
+      ) : null}
     </div>
   );
 });

@@ -194,22 +194,24 @@ internal class GetPlayerCampaignMapHandler(
                                 YCoord = masterTile.YCoord,
                                 BiomeTypeId = masterTile.BiomeTypeId,
                                 CampaignMapGeographyTypeId = masterTile.GeographyTypeId,
-                                Structures = structuresAtTile?.Select(s => new ObservedStructure
+                                Structures = structuresAtTile?.Select(os => new ObservedStructure
                                 {
-                                    Id = s.StructureInstanceId,
+                                    Id = os.StructureInstanceId,
                                     RecordType = RecordType.Structure,
-                                    StructureId = s.StructureId,
-                                    CompletionPercent = s.CompletionPercent,
-                                    PositionOnTile = s.Position
+                                    OwnerId = os.OwnerId,
+                                    StructureId = os.StructureId,
+                                    CompletionPercent = os.CompletionPercent,
+                                    PositionOnTile = os.Position
                                 }).ToList() ?? [],
-                                Troops = troopsAtTile?.Select(t => new ObservedTroop
+                                Troops = troopsAtTile?.Select(ot => new ObservedTroop
                                 {
-                                    Id = t.TroopInstanceId,
+                                    Id = ot.TroopInstanceId,
                                     RecordType = RecordType.Unit,
-                                    UnitDesignId = t.UnitDesignId,
-                                    HealthyTroops = t.HealthyTroops,
-                                    InjuredTroops = t.InjuredTroops,
-                                    InitialStrength = t.InitialStrength,
+                                    CommanderId = ot.PlayerId,
+                                    UnitDesignId = ot.UnitDesignId,
+                                    HealthyTroops = ot.HealthyTroops,
+                                    InjuredTroops = ot.InjuredTroops,
+                                    InitialStrength = ot.InitialStrength,
                                 }).ToList() ?? []
                             };
                         })
@@ -237,22 +239,24 @@ internal class GetPlayerCampaignMapHandler(
                                 YCoord = st.Coord.Y,
                                 BiomeTypeId = st.BiomeType,
                                 CampaignMapGeographyTypeId = st.GeographyType,
-                                Structures = structuresAtTile?.Select(s => new ObservedStructure
+                                Structures = structuresAtTile?.Select(os => new ObservedStructure
                                 {
-                                    Id = s.StructureInstanceId,
-                                    RecordType = s.RecordType,
-                                    StructureId = s.StructureId,
-                                    CompletionPercent = s.CompletionPercent,
-                                    PositionOnTile = s.Position
+                                    Id = os.StructureInstanceId,
+                                    RecordType = os.RecordType,
+                                    OwnerId = os.OwnerId,
+                                    StructureId = os.StructureId,
+                                    CompletionPercent = os.CompletionPercent,
+                                    PositionOnTile = os.Position
                                 }).ToList() ?? [],
-                                Troops = troopsAtTile?.Select(t => new ObservedTroop
+                                Troops = troopsAtTile?.Select(ot => new ObservedTroop
                                 {
-                                    Id = t.TroopInstanceId,
-                                    RecordType = t.RecordType,
-                                    UnitDesignId = t.UnitDesignId,
-                                    HealthyTroops = t.HealthyTroops,
-                                    InjuredTroops = t.InjuredTroops,
-                                    InitialStrength = t.InitialStrength,
+                                    Id = ot.TroopInstanceId,
+                                    RecordType = ot.RecordType,
+                                    CommanderId = ot.PlayerId,
+                                    UnitDesignId = ot.UnitDesignId,
+                                    HealthyTroops = ot.HealthyTroops,
+                                    InjuredTroops = ot.InjuredTroops,
+                                    InitialStrength = ot.InitialStrength,
                                 }).ToList() ?? []
                             };
                         })]
@@ -299,6 +303,7 @@ internal class GetPlayerCampaignMapHandler(
         {
             Id = s.StructureInstanceId,
             RecordType = s.RecordType,
+            PlayerId = s.OwnerId,
             Location = new Coord { X = s.XCoord, Y = s.YCoord },
             SightRange = s.SightRange,
             SightDirection = DetectionDirection.FullRadius
@@ -331,12 +336,13 @@ internal class GetPlayerCampaignMapHandler(
 
 
         List<MapObserver> mapObservers = [];
-        mapObservers.AddRange(troopResult.SuccessValue!.Select(s => new MapObserver
+        mapObservers.AddRange(troopResult.SuccessValue!.Select(t => new MapObserver
         {
-            Id = s.TroopInstanceId,
-            RecordType = s.RecordType,
-            Location = new Coord { X = s.CampaignXCoord, Y = s.CampaignYCoord },
-            SightRange = s.SightRange,
+            Id = t.TroopInstanceId,
+            RecordType = t.RecordType,
+            PlayerId = t.PlayerId,
+            Location = new Coord { X = t.CampaignXCoord, Y = t.CampaignYCoord },
+            SightRange = t.SightRange,
             SightDirection = DetectionDirection.FullRadius,
         }));
 
@@ -505,6 +511,7 @@ internal class GetPlayerCampaignMapHandler(
                      {
                          Id = mx.Id,
                          RecordType = mx.RecordType,
+                         PlayerId = mx.PlayerId,
                          Location = mx.Location,
                          DbId = mx.Location.GetDbId(mapOffset, mapWidth),
                          SightRange = mx.SightRange
@@ -548,6 +555,7 @@ internal class GetPlayerCampaignMapHandler(
                    {
                         Id = eo.Id,
                         RecordType = eo.RecordType,
+                        PlayerId = eo.PlayerId,
                         DbId = eo.DbId,
                         Location = eo.Location,
                         SightRange = t.DoesBlockSight

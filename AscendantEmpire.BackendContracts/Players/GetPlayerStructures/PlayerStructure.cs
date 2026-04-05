@@ -18,7 +18,7 @@ public record PlayerStructure
     public string Name { get; init; } = null!;
     public string Code { get; init; } = null!;
     public double CompletionPercent { get; init; }
-    public int OwnerPlayerId { get; init; }
+    public int OwnerId { get; init; }
     public int SightRange { get; init; }
     public DetectionDirection DetectionDirection { get; init; }
     public string MapImagePath { get; init; } = null!;

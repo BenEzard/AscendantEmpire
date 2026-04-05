@@ -11,6 +11,7 @@ const troopIconByUnitDesignId: Record<number, string> = {
 export interface ObservedTroopProps {
   troop: ObservedTroopTile;
   troopInstanceCount: number;
+  isSelected?: boolean;
 }
 
 function clampPercent(value: number): number {
@@ -19,14 +20,13 @@ function clampPercent(value: number): number {
 
 function getUnitMarkerCount(unitCount: number): number {
   if (unitCount <= 1) return 0;
-  if (unitCount === 2) return 1;
-  if (unitCount <= 5) return 2;
-  if (unitCount <= 10) return 3;
-  if (unitCount <= 15) return 4;
-  return 5;
+  if (unitCount <= 5) return 1;
+  if (unitCount <= 10) return 2;
+  if (unitCount <= 15) return 3;
+  return 4;
 }
 
-export default function ObservedTroop({ troop, troopInstanceCount }: ObservedTroopProps) {
+export default function ObservedTroop({ troop, troopInstanceCount, isSelected = false }: ObservedTroopProps) {
   const troopImageSrc = troopIconByUnitDesignId[troop.unitDesignId];
 
   if (!troopImageSrc) return null;
@@ -45,7 +45,7 @@ export default function ObservedTroop({ troop, troopInstanceCount }: ObservedTro
   const unitMarkerCount = getUnitMarkerCount(troopInstanceCount);
 
   return (
-    <div className="observed-troop" aria-hidden>
+    <div className={["observed-troop", isSelected ? "observed-troop--selected" : ""].filter(Boolean).join(" ")} aria-hidden>
       <div className="observed-troop__health-bar">
         {showHealthySegment ? (
           <div

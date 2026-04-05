@@ -86,7 +86,7 @@ internal class GetPlayerStructuresHandler(
                                                           Name = si.Structure.Name,
                                                           Code = si.Structure.Code,
                                                           CompletionPercent = si.CompletionPercent,
-                                                          OwnerPlayerId = si.OwnedByPlayerId,
+                                                          OwnerId = si.OwnedByPlayerId,
                                                           SightRange = si.Structure.SightRange,
                                                           DetectionDirection = si.Structure.SightDirection,
                                                           MapImagePath = si.Structure.MapImagePath

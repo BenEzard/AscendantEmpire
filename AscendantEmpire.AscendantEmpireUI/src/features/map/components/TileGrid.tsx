@@ -10,7 +10,10 @@ export interface TileGridProps {
   height: number;
   tiles2d: TileCell[][];
   geographies: Geography[];
+  selectedTroopId?: number;
+  getVisibleTroopId?: (tile: TileCell) => number | undefined;
   onTileClick?: (tile: TileCell) => void;
+  onTileHold?: (tile: TileCell) => void;
 
   /**
    * Optional hooks you can use for tooltips / styling.
@@ -20,7 +23,19 @@ export interface TileGridProps {
   tileClassName?: string;
 }
 
-export default function TileGrid({ width, height, tiles2d, geographies, onTileClick, getTileTitle, getTileStyle, tileClassName }: TileGridProps) {
+export default function TileGrid({
+  width,
+  height,
+  tiles2d,
+  geographies,
+  selectedTroopId,
+  getVisibleTroopId,
+  onTileClick,
+  onTileHold,
+  getTileTitle,
+  getTileStyle,
+  tileClassName,
+}: TileGridProps) {
   void height;
   // Flatten row-major (y then x)
   const flat = React.useMemo(() => tiles2d.flat(), [tiles2d]);
@@ -46,7 +61,10 @@ export default function TileGrid({ width, height, tiles2d, geographies, onTileCl
               tile={t}
               geography={g}
               sizePx={TILE_SIZE_PX}
+              selectedTroopId={selectedTroopId}
+              visibleTroopId={getVisibleTroopId?.(t)}
               onClick={onTileClick}
+              onHold={onTileHold}
               getTitle={getTileTitle}
               getStyle={getTileStyle}
               className={tileClassName}

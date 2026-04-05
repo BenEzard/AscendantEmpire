@@ -9,14 +9,14 @@ import {
   playerCampaignTilesKey,
 } from "@/features/map/hooks/useCampaignMapTiles";
 import TileGrid from "@/features/map/components/TileGrid";
-import type { TileCell } from "@/features/map/components/TileTypes";
+import type { ObservedTroopTile, TileCell } from "@/features/map/components/TileTypes";
 import { useCampaignMapBiomesQuery } from "@/features/map/hooks/useCampaignMapBiomes";
 import { useCampaignMapGeographiesQuery } from "@/features/map/hooks/useCampaignMapGeographies";
 import type { CampaignMapTileDto, LoadPlayerCampaignMapRequest, PlayerCampaignMapObserverResultDto } from "@/features/map/api/playerCampaignMapApi";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Alert, Spinner, Toast, ToastViewport } from "@/components/ui";
 import { FaChessKnight, FaRegFolderOpen } from "react-icons/fa6";
-import { GiWoodStick } from "react-icons/gi";
+import { GiHuntingHorn, GiWoodStick } from "react-icons/gi";
 import { GoEye, GoEyeClosed } from "react-icons/go";
 import UnitDesigner from "@/features/unitdesign/UnitDesigner";
 import OpenGameDialog from "./OpenGameDialog";
@@ -26,6 +26,8 @@ import { GrCaretNext } from "react-icons/gr";
 import { http } from "@/api/http";
 import { SlClose } from "react-icons/sl";
 import { useQueryClient } from "@tanstack/react-query";
+import ContextActionToolbar, { type ContextActionToolbarAction } from "./ContextActionToolbar";
+import ForceSelectionDialog, { type ForceSelectionDialogTile } from "./ForceSelectionDialog";
 
 function buildTiles2d(width: number, height: number, tiles: CampaignMapTileDto[]): TileCell[][] {
   const grid: TileCell[][] = Array.from({ length: height }, (_, y) =>
@@ -56,6 +58,26 @@ function buildTiles2d(width: number, height: number, tiles: CampaignMapTileDto[]
   return grid;
 }
 
+function getTileKey(x: number, y: number): string {
+  return `${x},${y}`;
+}
+
+/// Returns the troop with the highest number of healthy troops. Returns null if the input array is empty.
+/// (they will be the default display-on-tile)
+function getTroopWithMaxHealthy(troops: ObservedTroopTile[]): ObservedTroopTile | null {
+  if (troops.length === 0) return null;
+
+  let strongestTroop = troops[0];
+
+  for (const troop of troops.slice(1)) {
+    if (troop.healthyTroops > strongestTroop.healthyTroops) {
+      strongestTroop = troop;
+    }
+  }
+
+  return strongestTroop;
+}
+
 function GameUI() {
   type ActiveDialog = "openGame" | null;
   type ActiveTool = "vision" | null;
@@ -65,6 +87,10 @@ function GameUI() {
   const [activeDialog, setActiveDialog] = useState<ActiveDialog>(null);
   const [activeTool, setActiveTool] = useState<ActiveTool>(null);
   const [selectedTile, setSelectedTile] = useState<SelectedTile | null>(null);
+  const [selectedForce, setSelectedForce] = useState<ObservedTroopTile | null>(null);
+  const [visibleTroopIdsByTile, setVisibleTroopIdsByTile] = useState<Record<string, number>>({});
+  const [pendingForceSelectionTile, setPendingForceSelectionTile] = useState<ForceSelectionDialogTile | null>(null);
+  const [forceSelectionTile, setForceSelectionTile] = useState<ForceSelectionDialogTile | null>(null);
   const [visionObservers, setVisionObservers] = useState<PlayerCampaignMapObserverResultDto[]>([]);
   const [showVisionSettings, setShowVisionSettings] = useState(false);
   const [visionRadius, setVisionRadius] = useState<number>(0);
@@ -94,6 +120,10 @@ function GameUI() {
     if (gameSelection == null) {
       setActiveTool(null);
       setSelectedTile(null);
+      setSelectedForce(null);
+      setVisibleTroopIdsByTile({});
+      setPendingForceSelectionTile(null);
+      setForceSelectionTile(null);
       setVisionObservers([]);
     }
   }, [gameSelection]);
@@ -162,6 +192,10 @@ function GameUI() {
 
     setGameSelection(null);
     setActiveDialog(null);
+    setSelectedForce(null);
+    setVisibleTroopIdsByTile({});
+    setPendingForceSelectionTile(null);
+    setForceSelectionTile(null);
   }, [gameId, playerId, queryClient]);
 
   const toolBarGroups: ToolBarGroup[] = [
@@ -346,7 +380,6 @@ function GameUI() {
         gameId,
         playerId,
         loadWholeMap: visionLoadWholeMap,
-        observers: null,
       };
 
       visionLastRequestKeyRef.current = requestKey;
@@ -368,11 +401,115 @@ function GameUI() {
     return buildTiles2d(gameSelection.width, gameSelection.height, tilesResponse.tiles);
   }, [gameSelection, tilesResponse]);
 
+  const getVisibleTroopForTile = useCallback(
+    (tile: TileCell, options?: { troops?: ObservedTroopTile[] }) => {
+      const troops = options?.troops ?? tile.troops ?? [];
+      if (troops.length === 0) return null;
+
+      const visibleTroopId = visibleTroopIdsByTile[getTileKey(tile.x, tile.y)];
+      if (visibleTroopId != null) {
+        const visibleTroop = troops.find((troop) => troop.id === visibleTroopId);
+        if (visibleTroop) return visibleTroop;
+      }
+
+      return getTroopWithMaxHealthy(troops);
+    },
+    [visibleTroopIdsByTile],
+  );
+
+  const getVisibleTroopId = useCallback((tile: TileCell) => getVisibleTroopForTile(tile)?.id, [getVisibleTroopForTile]);
+
+  const closeForceSelectionDialog = useCallback(() => {
+    setForceSelectionTile(null);
+  }, []);
+
+  const openForceSelectionDialog = useCallback(() => {
+    if (pendingForceSelectionTile == null) return;
+    setForceSelectionTile(pendingForceSelectionTile);
+  }, [pendingForceSelectionTile]);
+
+  const chooseForce = useCallback(
+    (troop: ObservedTroopTile) => {
+      setSelectedForce(troop);
+      if (forceSelectionTile) {
+        setVisibleTroopIdsByTile((current) => ({
+          ...current,
+          [getTileKey(forceSelectionTile.x, forceSelectionTile.y)]: troop.id,
+        }));
+        setPendingForceSelectionTile(forceSelectionTile);
+      }
+      setForceSelectionTile(null);
+    },
+    [forceSelectionTile],
+  );
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== "t") return;
+      if (pendingForceSelectionTile == null) return;
+
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        const tagName = target.tagName;
+        const isEditable = target.isContentEditable || tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT";
+        if (isEditable) return;
+      }
+
+      setForceSelectionTile(pendingForceSelectionTile);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [pendingForceSelectionTile]);
+
+  const moveTo = useCallback(
+    (tile: TileCell) => {
+      if (!selectedForce) return;
+
+      openToast(`Move troop #${selectedForce.id} to [${tile.x}, ${tile.y}]`, "info");
+    },
+    [openToast, selectedForce],
+  );
+
+  const hunt = useCallback(() => {
+    if (!selectedForce) return;
+
+    openToast(`Hunt with troop #${selectedForce.id}`, "info");
+  }, [openToast, selectedForce]);
+
   const onTileClick = useCallback(
     (t: TileCell) => {
       if (activeTool === "vision") {
         setSelectedTile({ x: t.x, y: t.y });
         sendVisionRequest(t.x, t.y);
+      }
+
+      if (playerId != null) {
+        const ownedTroops = (t.troops ?? []).filter((troop) => troop.commanderId === playerId);
+
+        if (ownedTroops.length === 1) {
+          setSelectedForce(ownedTroops[0]);
+          setVisibleTroopIdsByTile((current) => ({
+            ...current,
+            [getTileKey(t.x, t.y)]: ownedTroops[0].id,
+          }));
+          setPendingForceSelectionTile(null);
+          setForceSelectionTile(null);
+        } else if (ownedTroops.length > 1) {
+          const displayedOwnedTroop = getVisibleTroopForTile(t, { troops: ownedTroops }) ?? ownedTroops[0];
+
+          setSelectedForce(displayedOwnedTroop);
+          setVisibleTroopIdsByTile((current) => ({
+            ...current,
+            [getTileKey(t.x, t.y)]: displayedOwnedTroop.id,
+          }));
+          setPendingForceSelectionTile({ x: t.x, y: t.y, troops: ownedTroops });
+          setForceSelectionTile(null);
+        } else {
+          setSelectedForce(null);
+          setPendingForceSelectionTile(null);
+          setForceSelectionTile(null);
+        }
       }
 
       const biomeName = t.biomeTypeId == null ? "null" : (biomeNameByType.get(t.biomeTypeId) ?? `unknown(${t.biomeTypeId})`);
@@ -381,7 +518,17 @@ function GameUI() {
 
       openToast(`[${t.x}, ${t.y}]: ${label}`, "warning");
     },
-    [activeTool, biomeNameByType, geographyNameByType, openToast, sendVisionRequest],
+    [activeTool, biomeNameByType, geographyNameByType, getVisibleTroopForTile, openToast, playerId, sendVisionRequest],
+  );
+
+  const onTileHold = useCallback(
+    (tile: TileCell) => {
+      if (!selectedForce) return;
+      if ((tile.troops ?? []).some((troop) => troop.id === selectedForce.id)) return;
+
+      moveTo(tile);
+    },
+    [moveTo, selectedForce],
   );
 
   useEffect(() => {
@@ -424,6 +571,33 @@ function GameUI() {
     },
     [biomeNameByType, geographyNameByType],
   );
+
+  const contextActionToolbarActions = useMemo<ContextActionToolbarAction[]>(() => {
+    if (!selectedForce) return [];
+
+    const actions: ContextActionToolbarAction[] = [];
+    const hasPendingMultiTroopSelection = pendingForceSelectionTile != null;
+
+    if (hasPendingMultiTroopSelection) {
+      actions.push({
+        key: "select-troop",
+        label: "Select Troop",
+        icon: <FaChessKnight />,
+        onClick: openForceSelectionDialog,
+      });
+    }
+
+    if (!hasPendingMultiTroopSelection && selectedForce.unitDesignId === 2) {
+      actions.push({
+        key: "hunt",
+        label: "Hunt",
+        icon: <GiHuntingHorn />,
+        onClick: hunt,
+      });
+    }
+
+    return actions;
+  }, [hunt, openForceSelectionDialog, pendingForceSelectionTile, selectedForce]);
 
   return (
     <div className="flex flex-col" style={{ minHeight: "100vh" }}>
@@ -484,6 +658,16 @@ function GameUI() {
         }}
       />
 
+      <ForceSelectionDialog
+        open={forceSelectionTile != null}
+        tile={forceSelectionTile}
+        selectedTroopId={selectedForce?.id}
+        onClose={closeForceSelectionDialog}
+        onSelect={chooseForce}
+      />
+
+      <ContextActionToolbar visible={selectedForce != null && contextActionToolbarActions.length > 0} actions={contextActionToolbarActions} />
+
       <ToastViewport>
         <Toast open={toast.show} onClose={closeToast} variant={toast.variant} message={toast.message} autoHideMs={3000} />
       </ToastViewport>
@@ -516,7 +700,10 @@ function GameUI() {
                     height={gameSelection.height}
                     tiles2d={tiles2d}
                     geographies={geographies ?? []}
+                    selectedTroopId={selectedForce?.id}
+                    getVisibleTroopId={getVisibleTroopId}
                     onTileClick={onTileClick}
+                    onTileHold={onTileHold}
                     getTileStyle={getTileStyle}
                     getTileTitle={getTileTitle}
                   />

@@ -7,6 +7,7 @@ public record ObservedStructure
 {
     public int Id { get; init; }
     public RecordType RecordType { get; init; }
+    public int OwnerId { get; init; }
     public int StructureId { get; init; }
     public PositionOnTile PositionOnTile { get; init; }
     public double CompletionPercent { get; init; }

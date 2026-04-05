@@ -48,7 +48,7 @@ public class PlayerController : ControllerBase
                     Name = s.Name,
                     Code = s.Code,
                     CompletionPercent = s.CompletionPercent,
-                    OwnerPlayerId = s.OwnerPlayerId,
+                    OwnerId = s.OwnerId,
                     SightRange = s.SightRange,
                 }).ToList() ?? []
             };

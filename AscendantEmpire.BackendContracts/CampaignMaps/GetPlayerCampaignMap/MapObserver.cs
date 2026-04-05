@@ -10,6 +10,7 @@ public record class MapObserver
     /// </summary>
     public required int Id { get; init; }
     public required RecordType RecordType { get; init; }
+    public required int PlayerId { get; init; }
 
     /// <summary>
     /// The location of the observer on the campaign map.

@@ -4,7 +4,6 @@ export type LoadPlayerCampaignMapRequest = {
   gameId: number;
   playerId: number;
   loadWholeMap?: boolean;
-  observers?: null;
 };
 
 export type ClearPlayerCampaignMapRequest = {
@@ -31,6 +30,7 @@ export type PlayerCampaignMapObserverResultDto = {
 
 export type ObservedStructureDto = {
   id: number;
+  ownerId: number;
   structureId: number;
   positionOnTile: number;
   completionPercent: number;
@@ -39,6 +39,7 @@ export type ObservedStructureDto = {
 export type ObservedTroopDto = {
   id: number;
   recordType: number;
+  commanderId: number;
   healthyTroops: number;
   injuredTroops: number;
   initialStrength: number;
@@ -47,6 +48,8 @@ export type ObservedTroopDto = {
 
 type ObservedStructureWireDto = Partial<{
   id: number;
+  recordType: number;
+  ownerId: number;
   structureId: number;
   positionOnTile: number;
   completionPercent: number;
@@ -55,6 +58,7 @@ type ObservedStructureWireDto = Partial<{
 type ObservedTroopWireDto = Partial<{
   id: number;
   recordType: number;
+  commanderId: number;
   unitDesignId: number;
   healthyTroops: number;
   injuredTroops: number;
@@ -103,6 +107,7 @@ export interface CampaignMapTilesResponse {
 function normalizeObservedStructure(structure: ObservedStructureWireDto): ObservedStructureDto {
   return {
     id: structure.id ?? 0,
+    ownerId: structure.ownerId ?? 0,
     structureId: structure.structureId ?? 0,
     positionOnTile: structure.positionOnTile ?? 0,
     completionPercent: structure.completionPercent ?? 0,
@@ -113,6 +118,7 @@ function normalizeObservedTroop(troop: ObservedTroopWireDto): ObservedTroopDto {
   return {
     id: troop.id ?? 0,
     recordType: troop.recordType ?? 0,
+    commanderId: troop.commanderId ?? 0,
     unitDesignId: troop.unitDesignId ?? 0,
     healthyTroops: troop.healthyTroops ?? 0,
     injuredTroops: troop.injuredTroops ?? 0,

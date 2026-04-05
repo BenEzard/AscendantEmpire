@@ -94,6 +94,15 @@ body {
   z-index: 2;
 }
 
+.observed-troop--selected {
+  filter: drop-shadow(0 0 2px rgba(250, 204, 21, 0.95));
+}
+
+.observed-troop--selected .observed-troop__body {
+  outline: 1px solid rgba(250, 204, 21, 0.95);
+  outline-offset: 1px;
+}
+
 .observed-troop__health-bar {
   display: flex;
   width: 72%;
@@ -158,4 +167,57 @@ body {
 .tile {
   position: relative;
   overflow: hidden; /* optional, keeps icon inside */
+}
+
+.command-toolbox {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 1060;
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(8px);
+}
+
+.command-toolbox__action {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 88px;
+  padding: 8px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(226, 232, 240, 0.92));
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.command-toolbox__action:hover {
+  background: linear-gradient(180deg, rgba(254, 249, 195, 0.98), rgba(253, 224, 71, 0.22));
+  border-color: rgba(234, 179, 8, 0.65);
+}
+
+.command-toolbox__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.command-toolbox__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
