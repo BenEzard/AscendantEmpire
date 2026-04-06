@@ -1,8 +1,8 @@
 ﻿using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
-using AscendantEmpire.Application.Handlers.Maps;
-using AscendantEmpire.Application.Handlers.Maps.MapGallery;
-using AscendantEmpire.Application.Handlers.Maps.MapGallery.Classes;
+using AscendantEmpire.Application.Features.Maps;
+using AscendantEmpire.Application.Features.Maps.MapGallery.Classes;
+using AscendantEmpire.Application.Features.Maps.MapGallery.Handlers;
 using AscendantEmpire.BackendContracts.MapGallery.GetCampaignMapTiles;
 using AscendantEmpire.BackendContracts.MapGallery.SearchCampaignMap;
 using AscendantEmpire.BackendContracts.MapGallery.UpdateCampaignMapIndex;

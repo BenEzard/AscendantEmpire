@@ -1,6 +1,5 @@
 ﻿using AscendantEmpire.Application.Data;
-using AscendantEmpire.Application.Handlers.Turns;
-
+using AscendantEmpire.Application.Features.Turns.Handlers;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Enums.Games;
 

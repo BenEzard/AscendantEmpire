@@ -1,7 +1,7 @@
 ﻿using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
-using AscendantEmpire.Application.Handlers.Game;
-using AscendantEmpire.Application.Handlers.Game.Classes;
+using AscendantEmpire.Application.Features.Game.Classes;
+using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.BackendContracts.Games.AddGame;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
 using AscendantEmpire.FrontendContracts;

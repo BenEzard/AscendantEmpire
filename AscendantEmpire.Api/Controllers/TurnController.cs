@@ -1,7 +1,7 @@
 ﻿using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
-using AscendantEmpire.Application.Handlers.Turns;
-using AscendantEmpire.Application.Handlers.Turns.Classes;
+using AscendantEmpire.Application.Features.Turns.Classes;
+using AscendantEmpire.Application.Features.Turns.Handlers;
 using AscendantEmpire.BackendContracts.Turns.EndPlayerTurn;
 using AscendantEmpire.BackendContracts.Turns.GetPlayerTurn;
 using AscendantEmpire.FrontendContracts;

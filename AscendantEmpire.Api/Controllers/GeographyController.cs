@@ -1,10 +1,9 @@
 ﻿using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
-using AscendantEmpire.Application.Handlers.Maps.Geographies;
-using AscendantEmpire.Application.Handlers.Maps.Geographies.Classes;
+using AscendantEmpire.Application.Features.Maps.Geographies.Classes;
+using AscendantEmpire.Application.Features.Maps.Geographies.Handlers;
 using AscendantEmpire.BackendContracts.Geographies;
 using AscendantEmpire.BackendContracts.Geographies.AddCampaignMapGeography;
-using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Geographies.GetCampaignMapGeographies;
 

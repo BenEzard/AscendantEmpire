@@ -1,6 +1,6 @@
 ﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
-using AscendantEmpire.Application.Handlers.Maps.Biomes;
+using AscendantEmpire.Application.Features.Maps.Biomes.Handlers;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
 

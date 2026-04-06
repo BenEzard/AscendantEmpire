@@ -12,4 +12,7 @@ public record class SpawnUnitDto : ISpawnUnitDto
     public int YCoord { get; init; }
 
     public int UnitDesignId { get; init; }
+    public int InitialStrength { get; init; }
+    public int HealthyCount { get; init; }
+    public int InjuredCount { get; init; }
 }

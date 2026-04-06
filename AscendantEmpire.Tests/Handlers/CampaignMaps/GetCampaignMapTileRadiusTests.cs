@@ -1,5 +1,5 @@
-﻿using AscendantEmpire.Application.Handlers.Game;
-using AscendantEmpire.Application.Handlers.Maps.CampaignMaps;
+﻿using AscendantEmpire.Application.Features.Game.Handlers;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Handlers;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
@@ -7,7 +7,6 @@ using AscendantEmpire.Domain.Enums;
 
 using MediatR;
 
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using NSubstitute;
@@ -62,6 +61,7 @@ internal class GetCampaignMapTileRadiusTests
                 {
                     Id = 1,
                     RecordType = RecordType.None,
+                    PlayerId = 1,
                     Location = occupied,
                     SightRange = radius
                 }
@@ -137,6 +137,7 @@ internal class GetCampaignMapTileRadiusTests
                 {
                     Id = 1,
                     RecordType = RecordType.None,
+                    PlayerId = 1,
                     Location = occupied,
                     SightRange = radius
                 }
@@ -196,6 +197,7 @@ internal class GetCampaignMapTileRadiusTests
                 {
                     Id = 1,
                     RecordType = RecordType.None,
+                    PlayerId = 1,
                     Location = occupied,
                     SightRange = radius
                 }
@@ -254,6 +256,7 @@ internal class GetCampaignMapTileRadiusTests
                 {
                     Id = 1,
                     RecordType = RecordType.None,
+                    PlayerId = 1,
                     Location = occupied,
                     SightRange = radius
                 }
@@ -312,6 +315,7 @@ internal class GetCampaignMapTileRadiusTests
                 {
                     Id = 1,
                     RecordType = RecordType.None,
+                    PlayerId = 1,
                     Location = occupied,
                     SightRange = radius
                 }
@@ -370,6 +374,7 @@ internal class GetCampaignMapTileRadiusTests
                 {
                     Id = 1,
                     RecordType = RecordType.None,
+                    PlayerId = 1,
                     Location = occupied,
                     SightRange = radius
                 }
@@ -424,6 +429,7 @@ internal class GetCampaignMapTileRadiusTests
                 {
                     Id = 1,
                     RecordType = RecordType.None,
+                    PlayerId = 1,
                     Location = occupied,
                     SightRange = radius
                 }

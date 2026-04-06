@@ -1,6 +1,4 @@
-﻿using AscendantEmpire.BackendContracts.CampaignMaps;
-
-namespace AscendantEmpire.BackendContracts.MapGallery.UpdateCampaignMapTiles;
+﻿namespace AscendantEmpire.BackendContracts.MapGallery.UpdateCampaignMapTiles;
 
 public record class TileUpdateFail
 {

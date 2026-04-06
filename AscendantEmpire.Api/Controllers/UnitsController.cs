@@ -1,6 +1,6 @@
 ﻿using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
-using AscendantEmpire.Application.Handlers.Units;
+using AscendantEmpire.Application.Features.Units.Handlers;
 using AscendantEmpire.BackendContracts.Units.Spawn;
 using AscendantEmpire.FrontendContracts;
 
@@ -31,7 +31,10 @@ public class UnitsController : ControllerBase
             request.PlayerId, 
             request.XCoord, 
             request.YCoord, 
-            request.UnitDesignId), 
+            request.UnitDesignId,
+            request.InitialStrength,
+            request.HealthyCount,
+            request.InjuredCount),
             cancelToken);
 
         return response.ToActionResult();

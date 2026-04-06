@@ -1,6 +1,6 @@
 ﻿using AscendantEmpire.Api.Utilities;
-using AscendantEmpire.Application.Handlers.Players;
-using AscendantEmpire.Application.Handlers.Players.Classes;
+using AscendantEmpire.Application.Features.Players.Classes;
+using AscendantEmpire.Application.Features.Players.Handlers;
 using AscendantEmpire.BackendContracts.Players.GetPlayerStructures;
 using AscendantEmpire.BackendContracts.Units.GetPlayerTroops;
 using AscendantEmpire.FrontendContracts;

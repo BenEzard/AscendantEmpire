@@ -1,7 +1,7 @@
 using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
-using AscendantEmpire.Application.Handlers.Maps.Biomes;
-using AscendantEmpire.Application.Handlers.Maps.Biomes.Classes;
+using AscendantEmpire.Application.Features.Maps.Biomes.Classes;
+using AscendantEmpire.Application.Features.Maps.Biomes.Handlers;
 using AscendantEmpire.BackendContracts.Biomes;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Biomes.GetCampaignMapBiomes;

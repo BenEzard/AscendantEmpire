@@ -6,10 +6,10 @@ using Microsoft.EntityFrameworkCore.Storage;
 using AscendantEmpire.Application.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using AscendantEmpire.Application.Handlers.Turns;
 using AscendantEmpire.Application.Common;
 using DescriptionAttribute = NUnit.Framework.DescriptionAttribute;
 using Microsoft.Extensions.Logging.Abstractions;
+using AscendantEmpire.Application.Features.Turns.Handlers;
 
 namespace AscendantEmpire.Tests.Handlers.Turns;
 

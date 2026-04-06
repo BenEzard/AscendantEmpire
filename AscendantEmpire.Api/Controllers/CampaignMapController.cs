@@ -1,6 +1,6 @@
 ﻿using AscendantEmpire.Api.Utilities;
-using AscendantEmpire.Application.Handlers.Maps.CampaignMaps;
-using AscendantEmpire.Application.Handlers.Maps.CampaignMaps.Classes;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Handlers;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.BackendContracts.CampaignMaps.HidePlayerCampaignMap;
 using AscendantEmpire.FrontendContracts;

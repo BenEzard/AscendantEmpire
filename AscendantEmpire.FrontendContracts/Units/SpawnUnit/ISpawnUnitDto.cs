@@ -7,4 +7,10 @@ public interface ISpawnUnitDto
     int XCoord { get; }
     int YCoord { get; }
     int UnitDesignId { get; }
+    /// <summary>
+    /// Initial number of troops
+    /// </summary>
+    int InitialStrength { get; }
+    int HealthyCount { get; }
+    int InjuredCount { get; }
 }

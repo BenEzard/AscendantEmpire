@@ -1,5 +1,4 @@
 ﻿using AscendantEmpire.Application.Data;
-using AscendantEmpire.Application.Handlers.Maps.Geographies;
 using AscendantEmpire.BackendContracts.Geographies;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
@@ -8,6 +7,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 using Microsoft.EntityFrameworkCore.Storage;
+using AscendantEmpire.Application.Features.Maps.Geographies.Handlers;
 
 namespace AscendantEmpire.Tests.Handlers.Geographies;
 
