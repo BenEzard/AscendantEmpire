@@ -1,6 +1,6 @@
 import type { BaseSlotDefinition, ComponentCost, ComponentUpkeep, UnitComponent } from "./types/UnitComponent";
 
-import humanSvgUrl from "@/assets/unit-design/human.svg";
+import humanPrimitiveFullSizeUrl from "@/assets/unit-design/base/human-primitive_full-size.png";
 import gladiusUrl from "@/assets/unit-design/gladius.svg";
 import knifeUrl from "@/assets/unit-design/knife.svg";
 import parachuteUrl from "@/assets/unit-design/parachute.svg";
@@ -15,6 +15,7 @@ import fighterJetUrl from "@/assets/unit-design/fighter-jet.svg";
 import fullHelmetUrl from "@/assets/unit-design/full-helmet.svg";
 import gasMaskUrl from "@/assets/unit-design/gas-mask.svg";
 import grenadeUrl from "@/assets/unit-design/grenade.svg";
+import horseFullSizeUrl from "@/assets/unit-design/base/horse_full-size.png";
 import launcherBazookaUrl from "@/assets/unit-design/launcher-bazooka.svg";
 import machineGunUrl from "@/assets/unit-design/machine-gun.svg";
 import molotovUrl from "@/assets/unit-design/molotov.svg";
@@ -30,7 +31,6 @@ import tank2Url from "@/assets/unit-design/tank2.svg";
 import woodClubUrl from "@/assets/unit-design/wood-club.svg";
 
 import { GiChariot, GiElephant } from "react-icons/gi";
-import { LiaHorseSolid } from "react-icons/lia";
 
 function common(seed: number) {
   // Small, deterministic values so the UI looks stable.
@@ -88,7 +88,7 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     name: "Human",
     type: "base",
     domain: "Land",
-    iconUrl: humanSvgUrl,
+    iconUrl: humanPrimitiveFullSizeUrl,
     common: { mass: common(2).mass, cost: { Human: 1, Gold: 50 }, upkeep: { food: { "Human Food": 1 } } },
     properties: props(2, ["Durability", "Cargo", "Crew", "Signature"]),
     slots: [
@@ -130,7 +130,7 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     name: "Horse",
     type: "base",
     domain: "Land",
-    icon: LiaHorseSolid,
+    iconUrl: horseFullSizeUrl,
     common: {
       ...common(5),
       upkeep: {

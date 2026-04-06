@@ -11,6 +11,7 @@ export interface TileGridProps {
   tiles2d: TileCell[][];
   geographies: Geography[];
   selectedTroopId?: number;
+  troopImageSrcByUnitDesignId?: ReadonlyMap<number, string>;
   getVisibleTroopId?: (tile: TileCell) => number | undefined;
   onTileClick?: (tile: TileCell) => void;
   onTileHold?: (tile: TileCell) => void;
@@ -29,6 +30,7 @@ export default function TileGrid({
   tiles2d,
   geographies,
   selectedTroopId,
+  troopImageSrcByUnitDesignId,
   getVisibleTroopId,
   onTileClick,
   onTileHold,
@@ -62,6 +64,7 @@ export default function TileGrid({
               geography={g}
               sizePx={TILE_SIZE_PX}
               selectedTroopId={selectedTroopId}
+              troopImageSrcByUnitDesignId={troopImageSrcByUnitDesignId}
               visibleTroopId={getVisibleTroopId?.(t)}
               onClick={onTileClick}
               onHold={onTileHold}

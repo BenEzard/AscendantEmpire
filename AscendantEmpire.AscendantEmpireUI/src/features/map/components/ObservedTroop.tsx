@@ -1,17 +1,10 @@
 import type { ObservedTroopTile } from "./TileTypes";
 
-import primitiveManWithClubImage from "@/assets/units/primitive-man-with-club_40px.png";
-import hunterWithDogImage from "@/assets/units/hunter-with-dog_40px.png";
-
-const troopIconByUnitDesignId: Record<number, string> = {
-  1: primitiveManWithClubImage,
-  2: hunterWithDogImage,
-};
-
 export interface ObservedTroopProps {
   troop: ObservedTroopTile;
   troopInstanceCount: number;
   isSelected?: boolean;
+  troopImageSrcByUnitDesignId?: ReadonlyMap<number, string>;
 }
 
 function clampPercent(value: number): number {
@@ -26,8 +19,8 @@ function getUnitMarkerCount(unitCount: number): number {
   return 4;
 }
 
-export default function ObservedTroop({ troop, troopInstanceCount, isSelected = false }: ObservedTroopProps) {
-  const troopImageSrc = troopIconByUnitDesignId[troop.unitDesignId];
+export default function ObservedTroop({ troop, troopInstanceCount, isSelected = false, troopImageSrcByUnitDesignId }: ObservedTroopProps) {
+  const troopImageSrc = troopImageSrcByUnitDesignId?.get(troop.unitDesignId);
 
   if (!troopImageSrc) return null;
 
@@ -61,6 +54,14 @@ export default function ObservedTroop({ troop, troopInstanceCount, isSelected = 
         ) : null}
       </div>
       <div className="observed-troop__body">
+        {isSelected ? (
+          <>
+            <span className="observed-troop__selection-corner observed-troop__selection-corner--top-left" />
+            <span className="observed-troop__selection-corner observed-troop__selection-corner--top-right" />
+            <span className="observed-troop__selection-corner observed-troop__selection-corner--bottom-left" />
+            <span className="observed-troop__selection-corner observed-troop__selection-corner--bottom-right" />
+          </>
+        ) : null}
         {unitMarkerCount > 0 ? (
           <div className="observed-troop__marker-column">
             {Array.from({ length: unitMarkerCount }, (_, index) => (

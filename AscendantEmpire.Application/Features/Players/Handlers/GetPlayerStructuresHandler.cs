@@ -56,7 +56,7 @@ internal class GetPlayerStructuresHandler(
 
             if (openGameResult.SuccessValue is not { Count: > 0 } openGames)
             {
-                string error = $"No open game found for GameGuid: {request.GameId} and PlayerGuid: {request.PlayerId}.";
+                string error = $"No open game found for Game Id: {request.GameId} and Player Id: {request.PlayerId}.";
                 logger.LogWarning(error);
                 return ServiceResult<IReadOnlyCollection<PlayerStructure>>.NotFound(error);
             }
@@ -76,6 +76,7 @@ internal class GetPlayerStructuresHandler(
                                                       select new PlayerStructure
                                                       {
                                                           StructureInstanceId = si.Id,
+                                                          RecordType = Domain.Enums.RecordType.Structure,
                                                           CampaignMapTileId = si.CampaignMapTileId,
                                                           BattleMapTileId = si.BattleMapTileId,
                                                           XCoord = tile.XCoord,

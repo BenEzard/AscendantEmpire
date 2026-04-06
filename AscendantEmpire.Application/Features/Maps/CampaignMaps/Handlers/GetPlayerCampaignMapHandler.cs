@@ -2,6 +2,8 @@
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Extensions;
 using AscendantEmpire.Application.Features.Players.Handlers;
+using AscendantEmpire.Application.Features.Structures.Handlers;
+using AscendantEmpire.Application.Features.Troops.Handlers;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
@@ -110,13 +112,13 @@ internal class GetPlayerCampaignMapHandler(
                 return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(troopObserversResult.Errors);
             }
 
-            Dictionary<int, List<PlayerStructure>> structuresByTileId = structureObserversResult.SuccessValue!.ObserversByTileId;
-            Dictionary<int, List<PlayerTroop>> troopsByTileId = troopObserversResult.SuccessValue!.ObserversByTileId;
-
             // Collate the observers
             List<MapObserver> mapObservers = [];
             mapObservers.AddRange(structureObserversResult.SuccessValue.MapObservers);
             mapObservers.AddRange(troopObserversResult.SuccessValue.MapObservers);
+
+            Dictionary<int, List<PlayerStructure>> structuresByTileId = [];
+            Dictionary<int, List<PlayerTroop>> troopsByTileId = [];
 
             if (mapObservers.Count > 0)
             {
@@ -144,25 +146,53 @@ internal class GetPlayerCampaignMapHandler(
                 List<MapObserverSight> mapSight = DetermineMapSight(radiusDetails.SuccessValue, tiles.ToDictionary(t => t.PlayerCampaignMapId));
                 mapSightByObserverId = mapSight.ToDictionary(ms => (ms.Id, ms.RecordType));
 
-                List<int> playerCampaignMapIds = mapSight.GetAllDbIds();
+                List<int> playerCampaignMapTileIds = mapSight.GetAllDbIds();
 
-                if (playerCampaignMapIds.Count > 0)
+                // Use the PlayerCampaignMapTileIds to calculate what the CampaignMapTileIds would be
+                List<int> campaignMapTileIds = [.. playerCampaignMapTileIds.Select(id => id - thisPlayer.CampaignMapOffsetId + _NO_MAP_OFFSET)];
+
+                // Get *ALL* Structures and Troops on the observed map (for any Player)
+                Task<ServiceResult<IReadOnlyCollection<PlayerStructure>>> fetchAllStructuresTask = mediator.Send(new GetStructuresByLocationRequest(request.GameId, campaignMapTileIds, IncludeBattleMapStructures: false), cancelToken);
+                Task<ServiceResult<IReadOnlyCollection<PlayerTroop>>> fetchAllTroopsTask = mediator.Send(new GetTroopsByLocationRequest(request.GameId, campaignMapTileIds, IncludeBattleMapTroops: false), cancelToken);
+
+                await Task.WhenAll(fetchAllStructuresTask, fetchAllTroopsTask);
+
+                ServiceResult<IReadOnlyCollection<PlayerStructure>> structureResult = await fetchAllStructuresTask;
+                ServiceResult<IReadOnlyCollection<PlayerTroop>> troopResult = await fetchAllTroopsTask;
+
+                if (structureResult.HasSucceeded == false)
+                {
+                    const string error = "Error getting all Structures by location while trying to get a Player's view of the Campaign Map";
+                    logger.LogWarning(error);
+                    return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(structureResult.Errors.Prepend(error));
+                }
+                else if (troopResult.HasSucceeded == false)
+                {
+                    const string error = "Error getting all Troops by location while trying to get a Player's view of the Campaign Map";
+                    logger.LogWarning(error);
+                    return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(troopResult.Errors.Prepend(error));
+                }
+
+                structuresByTileId = structureResult.SuccessValue!.GroupBy(s => s.CampaignMapTileId).ToDictionary(g => g.Key, g => g.ToList());
+                troopsByTileId = troopResult.SuccessValue!.GroupBy(s => s.CampaignMapTileId).ToDictionary(g => g.Key, g => g.ToList());
+
+                if (playerCampaignMapTileIds.Count > 0)
                 {
                     // Note that these operations must occur in SEQUENCE.
                     await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
                     // Get a summary of the number of Tiles which are newly discovered *FOR THE PLAYER* by Biome
                     // TODO: Use this data to add Biome expertise points to the Player's Faction
-                    IReadOnlyCollection<PlayerDiscoveredTileSummary> newlyDiscoveredTilesForPlayer = await CountNewlyDiscoveredTilesByBiomeAsync(context, playerCampaignMapIds, cancelToken);
+                    IReadOnlyCollection<PlayerDiscoveredTileSummary> newlyDiscoveredTilesForPlayer = await CountNewlyDiscoveredTilesByBiomeAsync(context, playerCampaignMapTileIds, cancelToken);
 
                     int turnId = 1; // TODO replace/update when turn system is in place
 
                     // Update the PlayerCampaignMap with Biome/Geography info, and FirstSeen/LastSeen turn info
-                    Task updatePlayerMapTask = UpdatePlayerCampaignMapFromCampaignMapAsync(playerCampaignMapIds, turnId, cancelToken);
+                    Task updatePlayerMapTask = UpdatePlayerCampaignMapFromCampaignMapAsync(playerCampaignMapTileIds, turnId, cancelToken);
 
                     // Update the CampaignMap with FirstSeenByPlayer/FirstSeenOnTurn info
                     // TODO: Use this data to add to Exploration achievements for the Player
-                    Task<int> updateCampaignMap = UpdateCampaignMapFirstSeenAsync(playerCampaignMapIds, thisPlayer.PlayerId, turnId, cancelToken);
+                    Task<int> updateCampaignMap = UpdateCampaignMapFirstSeenAsync(playerCampaignMapTileIds, thisPlayer.PlayerId, turnId, cancelToken);
 
                     await Task.WhenAll(updatePlayerMapTask, updateCampaignMap);
 
@@ -235,9 +265,6 @@ internal class GetPlayerCampaignMapHandler(
                                 X = masterTile.XCoord,
                                 Y = masterTile.YCoord
                             }.GetDbId(thisPlayer.CampaignMapOffsetId, gameInfo.MapWidth);
-
-                            structuresByTileId.TryGetValue(dbId, out List<PlayerStructure>? structuresAtTile);
-                            troopsByTileId.TryGetValue(dbId, out List<PlayerTroop>? troopsAtTile);
 
                             return new ObservedCampaignTile
                             {

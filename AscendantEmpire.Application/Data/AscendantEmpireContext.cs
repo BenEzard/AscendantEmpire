@@ -89,8 +89,9 @@ public class AscendantEmpireContext : DbContext
     #endregion
 
     #region Unit Designs
-
-    public DbSet<CompiledDesignStats> DesignStats { get; set; }
+    public DbSet<UnitDesign> UnitDesigns { get; set; }
+    public DbSet<CompiledDesignStats> UnitDesignStats { get; set; }
+    public DbSet<PlayerUnitDesignState> PlayerUnitDesignStates { get; set; }
 
     #endregion
 
@@ -595,6 +596,12 @@ public class AscendantEmpireContext : DbContext
                 .HasForeignKey(e => e.CampaignMapTileId)
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_TroopInstances_CampaignMap_CampaignMapTileId");
+
+            entity.HasOne(e => e.UnitDesign)
+                 .WithMany()
+                 .HasForeignKey(e => e.UnitDesignId)
+                 .OnDelete(DeleteBehavior.NoAction)
+                 .HasConstraintName("FK_TroopInstances_UnitDesigns_UnitDesignId");
         });
     }
 
@@ -602,25 +609,75 @@ public class AscendantEmpireContext : DbContext
     {
         const string schema = "unitdesigns";
 
-        // --- TroopInstances --------------------------------------------------------
+        modelBuilder.Entity<UnitDesign>(entity =>
+        {
+            entity.ToTable("UnitDesigns", schema);
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.DesignName)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.Property(e => e.MapImagePath)
+                .HasMaxLength(500)
+                .IsRequired();
+
+            entity.Property(e => e.IsTemplate)
+                .IsRequired();
+
+            entity.HasOne(e => e.Game)
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitDesigns_GameIndex_GameId");
+
+            entity.HasOne(e => e.Player)
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitDesigns_Player_PlayerId");
+
+            entity.HasOne(e => e.CompiledStats)
+                .WithOne(e => e.UnitDesign)
+                .HasForeignKey<CompiledDesignStats>(e => e.UnitDesignId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_CompiledDesignStats_UnitDesigns_UnitDesignId");
+
+            entity.HasMany(e => e.PlayerStates)
+                .WithOne(e => e.UnitDesign)
+                .HasForeignKey(e => e.UnitDesignId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerUnitDesignStates_UnitDesigns_UnitDesignId");
+        });
+
         modelBuilder.Entity<CompiledDesignStats>(entity =>
         {
             entity.ToTable("CompiledDesignStats", schema);
 
             entity.HasKey(e => e.UnitDesignId);
 
-            modelBuilder.Entity<CompiledDesignStats>(entity =>
-            {
-                entity.HasKey(x => x.UnitDesignId);
-            });
+            entity.Property(e => e.SightRange)
+                .IsRequired();
+        });
 
-            modelBuilder.Entity<TroopInstance>(entity =>
-            {
-                entity.HasOne(x => x.Stats)
-                    .WithMany()
-                    .HasForeignKey(x => x.UnitDesignId)
-                    .OnDelete(DeleteBehavior.NoAction);
-            });
+        modelBuilder.Entity<PlayerUnitDesignState>(entity =>
+        {
+            entity.ToTable("PlayerUnitDesignStates", schema);
+
+            entity.HasKey(e => new { e.PlayerId, e.UnitDesignId });
+
+            entity.Property(e => e.IsUnlocked)
+                .IsRequired();
+
+            entity.Property(e => e.IsObsolete)
+                .IsRequired();
+
+            entity.HasOne(e => e.Player)
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerUnitDesignStates_Player_PlayerId");
         });
     }
 

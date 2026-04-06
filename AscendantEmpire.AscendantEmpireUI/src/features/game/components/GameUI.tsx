@@ -12,6 +12,7 @@ import TileGrid from "@/features/map/components/TileGrid";
 import type { ObservedTroopTile, TileCell } from "@/features/map/components/TileTypes";
 import { useCampaignMapBiomesQuery } from "@/features/map/hooks/useCampaignMapBiomes";
 import { useCampaignMapGeographiesQuery } from "@/features/map/hooks/useCampaignMapGeographies";
+import { useTroopDisplayInfoQuery } from "@/features/map/hooks/useTroopDisplayInfo";
 import type { CampaignMapTileDto, LoadPlayerCampaignMapRequest, PlayerCampaignMapObserverResultDto } from "@/features/map/api/playerCampaignMapApi";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Alert, Spinner, Toast, ToastViewport } from "@/components/ui";
@@ -348,6 +349,7 @@ function GameUI() {
     isLoading: tilesLoading,
     isFetching: tilesFetching,
   } = usePlayerCampaignMapTilesQuery(gameId, playerId, tilesEnabled);
+  const { data: troopImageSrcByUnitDesignId } = useTroopDisplayInfoQuery(gameId, gameId != null);
 
   const loadPlayerCampaignMap = useLoadPlayerCampaignMapMutation({
     onSuccess: (data) => {
@@ -662,6 +664,7 @@ function GameUI() {
         open={forceSelectionTile != null}
         tile={forceSelectionTile}
         selectedTroopId={selectedForce?.id}
+        troopImageSrcByUnitDesignId={troopImageSrcByUnitDesignId}
         onClose={closeForceSelectionDialog}
         onSelect={chooseForce}
       />
@@ -701,6 +704,7 @@ function GameUI() {
                     tiles2d={tiles2d}
                     geographies={geographies ?? []}
                     selectedTroopId={selectedForce?.id}
+                    troopImageSrcByUnitDesignId={troopImageSrcByUnitDesignId}
                     getVisibleTroopId={getVisibleTroopId}
                     onTileClick={onTileClick}
                     onTileHold={onTileHold}

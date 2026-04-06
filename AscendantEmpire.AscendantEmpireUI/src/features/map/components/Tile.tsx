@@ -13,6 +13,7 @@ export interface TileProps {
   geography: Geography;
   selectedTroopId?: number;
   visibleTroopId?: number;
+  troopImageSrcByUnitDesignId?: ReadonlyMap<number, string>;
   onClick?: (tile: TileCell) => void;
   onHold?: (tile: TileCell) => void;
   className?: string;
@@ -31,6 +32,7 @@ const Tile = React.memo(function Tile({
   geography,
   selectedTroopId,
   visibleTroopId,
+  troopImageSrcByUnitDesignId,
   onClick,
   onHold,
   className,
@@ -119,7 +121,12 @@ const Tile = React.memo(function Tile({
       {Icon ? <Icon className="tile-icon-fill" aria-hidden style={{ color: iconColor }} /> : null}
       {visibleStructure ? <ObservedStructure structure={visibleStructure} /> : null}
       {visibleTroop ? (
-        <ObservedTroop troop={visibleTroop} troopInstanceCount={visibleTroopCount} isSelected={visibleTroop.id === selectedTroopId} />
+        <ObservedTroop
+          troop={visibleTroop}
+          troopInstanceCount={visibleTroopCount}
+          isSelected={visibleTroop.id === selectedTroopId}
+          troopImageSrcByUnitDesignId={troopImageSrcByUnitDesignId}
+        />
       ) : null}
     </div>
   );

@@ -953,15 +953,7 @@ namespace AscendantEmpire.Application.Migrations
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.CompiledDesignStats", b =>
                 {
                     b.Property<int>("UnitDesignId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("UnitDesignId"));
-
-                    b.Property<string>("MapImagePath")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int>("SightRange")
                         .HasColumnType("int");
@@ -969,6 +961,66 @@ namespace AscendantEmpire.Application.Migrations
                     b.HasKey("UnitDesignId");
 
                     b.ToTable("CompiledDesignStats", "unitdesigns");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.PlayerUnitDesignState", b =>
+                {
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UnitDesignId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("HasBeenPrototyped")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsObsolete")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsUnlocked")
+                        .HasColumnType("bit");
+
+                    b.HasKey("PlayerId", "UnitDesignId");
+
+                    b.HasIndex("UnitDesignId");
+
+                    b.ToTable("PlayerUnitDesignStates", "unitdesigns");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitDesign", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("DesignName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int?>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsTemplate")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("MapImagePath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameId");
+
+                    b.HasIndex("PlayerId");
+
+                    b.ToTable("UnitDesigns", "unitdesigns");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopInstance", b =>
@@ -1362,6 +1414,58 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Index");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.CompiledDesignStats", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitDesign", "UnitDesign")
+                        .WithOne("CompiledStats")
+                        .HasForeignKey("AscendantEmpire.Domain.Entities.UnitDesigns.CompiledDesignStats", "UnitDesignId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_CompiledDesignStats_UnitDesigns_UnitDesignId");
+
+                    b.Navigation("UnitDesign");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.PlayerUnitDesignState", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerUnitDesignStates_Player_PlayerId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitDesign", "UnitDesign")
+                        .WithMany("PlayerStates")
+                        .HasForeignKey("UnitDesignId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerUnitDesignStates_UnitDesigns_UnitDesignId");
+
+                    b.Navigation("Player");
+
+                    b.Navigation("UnitDesign");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitDesign", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", "Game")
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_UnitDesigns_GameIndex_GameId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_UnitDesigns_Player_PlayerId");
+
+                    b.Navigation("Game");
+
+                    b.Navigation("Player");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopInstance", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.Games.CampaignMap", "CampaignMap")
@@ -1385,11 +1489,12 @@ namespace AscendantEmpire.Application.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_TroopInstances_Player_PlayerId");
 
-                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.CompiledDesignStats", "Stats")
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitDesign", "UnitDesign")
                         .WithMany()
                         .HasForeignKey("UnitDesignId")
                         .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_TroopInstances_UnitDesigns_UnitDesignId");
 
                     b.Navigation("CampaignMap");
 
@@ -1397,7 +1502,7 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.Navigation("Player");
 
-                    b.Navigation("Stats");
+                    b.Navigation("UnitDesign");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.Resource", b =>
@@ -1440,6 +1545,14 @@ namespace AscendantEmpire.Application.Migrations
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.GameIndex", b =>
                 {
                     b.Navigation("Players");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitDesign", b =>
+                {
+                    b.Navigation("CompiledStats")
+                        .IsRequired();
+
+                    b.Navigation("PlayerStates");
                 });
 #pragma warning restore 612, 618
         }

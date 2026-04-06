@@ -1,12 +1,17 @@
 ﻿using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Features.Units.Classes;
 using AscendantEmpire.Application.Features.Units.Handlers;
+using AscendantEmpire.BackendContracts.Units.GetTroopDisplayInfo;
 using AscendantEmpire.BackendContracts.Units.Spawn;
 using AscendantEmpire.FrontendContracts;
+using AscendantEmpire.FrontendContracts.Units.GetTroopDisplayInfo;
 
 using MediatR;
 
 using Microsoft.AspNetCore.Mvc;
+
+using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 namespace AscendantEmpire.Api.Controllers;
 
@@ -38,5 +43,33 @@ public class UnitsController : ControllerBase
             cancelToken);
 
         return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Get the UnitDesign display information which maps the UnitDesignId to the image which should be shown on the map.
+    /// </summary>
+    /// <response code="201">End Turn</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpGet("{gameId}/display")]
+    [ProducesResponseType(typeof(ITroopDisplayInfoCollection), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetUnitsAsync(
+        [FromServices] IMediator mediator,
+        [FromRoute] int gameId,
+        CancellationToken cancelToken)
+    {
+        ServiceResult<IReadOnlyCollection<TroopDisplayInfo>> response = await mediator.Send(new GetTroopDisplayInfoRequest(gameId), cancelToken);
+
+        return response.ToActionResult(contract =>
+        {
+            return new DTTroopDisplayInfoCollection
+            {
+                TroopDisplayInfo = contract.Select(t => new DTTroopDisplayInfo
+                {
+                    UnitDesignId = t.UnitDesignId,
+                    MapImagePath = t.MapImagePath
+                }).ToList() ?? []
+            };
+        });
     }
 }

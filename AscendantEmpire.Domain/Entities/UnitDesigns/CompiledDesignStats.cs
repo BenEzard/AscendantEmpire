@@ -1,13 +1,13 @@
-﻿using System.ComponentModel.DataAnnotations;
-
-namespace AscendantEmpire.Domain.Entities.UnitDesigns;
+﻿namespace AscendantEmpire.Domain.Entities.UnitDesigns;
 
 public class CompiledDesignStats
 {
+    /// <summary>
+    /// One-to-one with UnitDesign.
+    /// </summary>
     public int UnitDesignId { get; set; }
     public int SightRange { get; set; }
 
-    [MaxLength(500)]
-    public required string MapImagePath { get; set; }
+    public UnitDesign UnitDesign { get; set; } = null!;
 }
 

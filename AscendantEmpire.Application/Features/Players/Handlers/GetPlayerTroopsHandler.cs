@@ -67,7 +67,7 @@ internal class GetPlayerTroopsHandler(
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
             List<PlayerTroop> playerUnits = await context.TroopInstances
-                .Include(ti => ti.Stats)
+                .Include(ti => ti.UnitDesign.CompiledStats)
                 .Where(pu => pu.GameId == gameId && pu.PlayerId == playerId)
                 .Select(pu => new PlayerTroop
                 {
@@ -78,8 +78,8 @@ internal class GetPlayerTroopsHandler(
                     BattleMapTileId = pu.BattleMapTileId,
                     CampaignXCoord = pu.CampaignMap.XCoord,
                     CampaignYCoord = pu.CampaignMap.YCoord,
-                    SightRange = pu.Stats.SightRange,
-                    MapImagePath = pu.Stats.MapImagePath,
+                    SightRange = pu.UnitDesign.CompiledStats.SightRange,
+                    MapImagePath = pu.UnitDesign.MapImagePath,
                     HealthyTroops = pu.HealthyCount,
                     InjuredTroops = pu.InjuredCount,
                     InitialStrength = pu.InitialStrength,

@@ -12,11 +12,19 @@ export interface ForceSelectionDialogProps {
   open: boolean;
   tile: ForceSelectionDialogTile | null;
   selectedTroopId?: number;
+  troopImageSrcByUnitDesignId?: ReadonlyMap<number, string>;
   onClose: () => void;
   onSelect: (troop: ObservedTroopTile) => void;
 }
 
-export default function ForceSelectionDialog({ open, tile, selectedTroopId, onClose, onSelect }: ForceSelectionDialogProps) {
+export default function ForceSelectionDialog({
+  open,
+  tile,
+  selectedTroopId,
+  troopImageSrcByUnitDesignId,
+  onClose,
+  onSelect,
+}: ForceSelectionDialogProps) {
   return (
     <Modal
       open={open && tile != null}
@@ -40,7 +48,12 @@ export default function ForceSelectionDialog({ open, tile, selectedTroopId, onCl
               ].join(" ")}
               onClick={() => onSelect(troop)}>
               <div className="relative mx-auto mb-2 h-20 w-20">
-                <ObservedTroop troop={troop} troopInstanceCount={1} isSelected={selectedTroopId === troop.id} />
+                <ObservedTroop
+                  troop={troop}
+                  troopInstanceCount={1}
+                  isSelected={selectedTroopId === troop.id}
+                  troopImageSrcByUnitDesignId={troopImageSrcByUnitDesignId}
+                />
               </div>
               <div className="text-xs text-slate-600">Troop #{troop.id}</div>
             </button>

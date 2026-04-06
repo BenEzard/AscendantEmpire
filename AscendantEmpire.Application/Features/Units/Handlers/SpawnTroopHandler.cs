@@ -53,6 +53,10 @@ internal class SpawnTroopRequestValidator : AbstractValidator<SpawnTroopRequest>
 
         RuleFor(x => x.InjuredCount)
             .GreaterThanOrEqualTo(0).WithMessage("Injured Count must be greater than or equal to 0.");
+
+        RuleFor(x => x)
+            .Must(x => x.HealthyCount + x.InjuredCount <= x.InitialStrength)
+            .WithMessage("The sum of Healthy Count and Injured Count must be less than or equal to Initial Strength.");
     }
 }
 

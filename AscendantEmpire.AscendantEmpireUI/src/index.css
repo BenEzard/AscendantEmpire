@@ -98,11 +98,6 @@ body {
   filter: drop-shadow(0 0 2px rgba(250, 204, 21, 0.95));
 }
 
-.observed-troop--selected .observed-troop__body {
-  outline: 1px solid rgba(250, 204, 21, 0.95);
-  outline-offset: 1px;
-}
-
 .observed-troop__health-bar {
   display: flex;
   width: 72%;
@@ -131,6 +126,7 @@ body {
 }
 
 .observed-troop__body {
+  position: relative;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -138,6 +134,41 @@ body {
   width: 100%;
   height: calc(100% - 7px);
   min-height: 0;
+}
+
+.observed-troop__selection-corner {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  pointer-events: none;
+}
+
+.observed-troop__selection-corner--top-left {
+  top: -1px;
+  left: -1px;
+  border-top: 1px solid rgba(250, 204, 21, 0.95);
+  border-left: 1px solid rgba(250, 204, 21, 0.95);
+}
+
+.observed-troop__selection-corner--top-right {
+  top: -1px;
+  right: -1px;
+  border-top: 1px solid rgba(250, 204, 21, 0.95);
+  border-right: 1px solid rgba(250, 204, 21, 0.95);
+}
+
+.observed-troop__selection-corner--bottom-left {
+  bottom: -1px;
+  left: -1px;
+  border-bottom: 1px solid rgba(250, 204, 21, 0.95);
+  border-left: 1px solid rgba(250, 204, 21, 0.95);
+}
+
+.observed-troop__selection-corner--bottom-right {
+  right: -1px;
+  bottom: -1px;
+  border-right: 1px solid rgba(250, 204, 21, 0.95);
+  border-bottom: 1px solid rgba(250, 204, 21, 0.95);
 }
 
 .observed-troop__marker-column {
