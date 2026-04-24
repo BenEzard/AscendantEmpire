@@ -955,6 +955,13 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("UnitDesignId")
                         .HasColumnType("int");
 
+                    b.Property<string>("ModifiersJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("MovementPoints")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
                     b.Property<int>("SightRange")
                         .HasColumnType("int");
 
@@ -1049,6 +1056,10 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("InjuredCount")
                         .HasColumnType("int");
 
+                    b.Property<decimal>("MovementPointsRemaining")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
                     b.Property<int>("PlayerId")
                         .HasColumnType("int");
 
@@ -1066,6 +1077,186 @@ namespace AscendantEmpire.Application.Migrations
                     b.HasIndex("UnitDesignId");
 
                     b.ToTable("TroopInstances", "units");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopOrder", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("CompletedTurnNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CreatedTurnNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CurrentMovementStepIndex")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DefendTargetStructureInstanceId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DefendTargetTroopInstanceId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("EffectiveFromTurnNumber")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("LastProcessedTurnNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OrderStatus")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OrderType")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ResourceDefinitionId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("StructureInstanceId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TargetCampaignMapTileId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TradeSourceStructureInstanceId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TradeTargetStructureInstanceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TroopInstanceId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("WorkCompleted")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal?>("WorkRequired")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DefendTargetStructureInstanceId");
+
+                    b.HasIndex("DefendTargetTroopInstanceId");
+
+                    b.HasIndex("GameId");
+
+                    b.HasIndex("ResourceDefinitionId");
+
+                    b.HasIndex("StructureInstanceId");
+
+                    b.HasIndex("TargetCampaignMapTileId");
+
+                    b.HasIndex("TradeSourceStructureInstanceId");
+
+                    b.HasIndex("TradeTargetStructureInstanceId");
+
+                    b.HasIndex("TroopInstanceId");
+
+                    b.HasIndex("GameId", "OrderStatus");
+
+                    b.HasIndex("TroopInstanceId", "OrderStatus");
+
+                    b.HasIndex("GameId", "OrderType", "OrderStatus");
+
+                    b.HasIndex("GameId", "TroopInstanceId", "OrderStatus");
+
+                    b.ToTable("TroopOrders", "troops");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopOrderMovementStep", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CampaignMapTileId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CompletedTurnNumber")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsCompleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<decimal>("MovementCost")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int>("StepIndex")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TroopOrderId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TroopOrderId");
+
+                    b.HasIndex("CampaignMapTileId", "IsCompleted");
+
+                    b.HasIndex("TroopOrderId", "StepIndex")
+                        .IsUnique();
+
+                    b.ToTable("TroopOrderMovementSteps", "troops");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopOrderParticipant", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Role")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TroopInstanceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TroopOrderId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TroopOrderId1")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TroopInstanceId");
+
+                    b.HasIndex("TroopOrderId");
+
+                    b.HasIndex("TroopOrderId1");
+
+                    b.HasIndex("TroopOrderId", "TroopInstanceId")
+                        .IsUnique();
+
+                    b.ToTable("TroopOrderParticipants", "troops");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Util.Number", b =>
@@ -1505,6 +1696,51 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("UnitDesign");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopOrder", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Units.TroopInstance", "TroopInstance")
+                        .WithMany("Orders")
+                        .HasForeignKey("TroopInstanceId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("TroopInstance");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopOrderMovementStep", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Units.TroopOrder", "TroopOrder")
+                        .WithMany("MovementSteps")
+                        .HasForeignKey("TroopOrderId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("TroopOrder");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopOrderParticipant", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Units.TroopInstance", "TroopInstance")
+                        .WithMany()
+                        .HasForeignKey("TroopInstanceId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Units.TroopOrder", "TroopOrder")
+                        .WithMany()
+                        .HasForeignKey("TroopOrderId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Units.TroopOrder", null)
+                        .WithMany("Participants")
+                        .HasForeignKey("TroopOrderId1");
+
+                    b.Navigation("TroopInstance");
+
+                    b.Navigation("TroopOrder");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.Resource", b =>
                 {
                     b.Navigation("BankBalances");
@@ -1553,6 +1789,18 @@ namespace AscendantEmpire.Application.Migrations
                         .IsRequired();
 
                     b.Navigation("PlayerStates");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopInstance", b =>
+                {
+                    b.Navigation("Orders");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopOrder", b =>
+                {
+                    b.Navigation("MovementSteps");
+
+                    b.Navigation("Participants");
                 });
 #pragma warning restore 612, 618
         }

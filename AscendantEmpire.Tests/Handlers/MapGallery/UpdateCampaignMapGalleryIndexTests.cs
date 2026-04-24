@@ -5,24 +5,24 @@ using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AscendantEmpire.Tests.Handlers.MapGallery;
 
 internal class UpdateCampaignMapGalleryIndexTests
 {
+    private static readonly DbContextOptions<AscendantEmpireContext> DbOptions = new DbContextOptionsBuilder<AscendantEmpireContext>()
+        .UseInMemoryDatabase(nameof(UpdateCampaignMapGalleryIndexTests), new InMemoryDatabaseRoot())
+        .Options;
+
     private AscendantEmpireContext _context = null!;
     private UpdateCampaignMapIndexHandler _updateHandler = null!;
-    private DbContextOptions<AscendantEmpireContext> _options;
 
     [SetUp]
     public async Task Setup()
     {
-        _options = new DbContextOptionsBuilder<AscendantEmpireContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-
-        _context = new AscendantEmpireContext(_options);
+        _context = new AscendantEmpireContext(DbOptions);
         await _context.Database.EnsureDeletedAsync();
         await _context.Database.EnsureCreatedAsync();
 
@@ -70,7 +70,7 @@ internal class UpdateCampaignMapGalleryIndexTests
 
         ServiceResultBase result = await _updateHandler.Handle(updateRequest, CancellationToken.None);
 
-        using var verifyContext = new AscendantEmpireContext(_options);
+        using var verifyContext = new AscendantEmpireContext(DbOptions);
         var created = verifyContext.CampaignMapGalleryIndex.Single(m => m.Id == ID);
 
         using (Assert.EnterMultipleScope())
@@ -122,7 +122,7 @@ internal class UpdateCampaignMapGalleryIndexTests
 
         ServiceResultBase result = await _updateHandler.Handle(updateRequest, CancellationToken.None);
 
-        using var verifyContext = new AscendantEmpireContext(_options);
+        using var verifyContext = new AscendantEmpireContext(DbOptions);
         var created = verifyContext.CampaignMapGalleryIndex.Single(m => m.Id == ID);
 
         using (Assert.EnterMultipleScope())

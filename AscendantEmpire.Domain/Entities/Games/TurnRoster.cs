@@ -31,14 +31,14 @@ public class TurnRoster
     /// <summary>
     /// Is this Player still in the Battle?
     /// </summary>
-    /// <remarks>A Player can still be active in the Campaign Map, but once they lose all their Units in a *this* Battle, then they are no longer active in the Battle
+    /// <remarks>A Player can still be active in the Campaign Map, but once they lose all their Units in *this* Battle, then they are no longer active in the Battle
     /// (unless they bring in reinforcements).</remarks>
     public bool? PlayerStillInBattle { get; set; }
 
     /// <summary>
     /// A Player-defined name for the Battle.
     /// </summary>
-    /// <remarks>Only populated when </remarks>
+    /// <remarks>Only populated when its a Battle Map Roster Entry</remarks>
     [MaxLength(PLAYER_BATTLE_NAME_MAX_LENGTH)]
     public string? PlayerBattleName { get; set; }
 

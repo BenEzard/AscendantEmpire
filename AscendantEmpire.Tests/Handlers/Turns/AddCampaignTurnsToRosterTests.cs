@@ -15,9 +15,10 @@ namespace AscendantEmpire.Tests.Handlers.Turns;
 
 internal class AddCampaignTurnsToRosterTests
 {
-    private InMemoryDatabaseRoot _dbRoot = null!;
-    private string _dbName = null!;
-    private DbContextOptions<AscendantEmpireContext> _options = null!;
+    private static readonly InMemoryDatabaseRoot DbRoot = new();
+    private static readonly DbContextOptions<AscendantEmpireContext> DbOptions = new DbContextOptionsBuilder<AscendantEmpireContext>()
+        .UseInMemoryDatabase(nameof(AddCampaignTurnsToRosterTests), DbRoot)
+        .Options;
 
     private IDbContextFactory<AscendantEmpireContext> _dbFactory = null!;
     private readonly ILogger<AddCampaignTurnsToRosterHandler> _logger = null!;
@@ -26,15 +27,8 @@ internal class AddCampaignTurnsToRosterTests
     [SetUp]
     public async Task Setup()
     {
-        _dbRoot = new InMemoryDatabaseRoot();
-        _dbName = Guid.NewGuid().ToString();
-
-        _options = new DbContextOptionsBuilder<AscendantEmpireContext>()
-            .UseInMemoryDatabase(_dbName, _dbRoot)
-            .Options;
-
         // Create database fresh for each test
-        await using (var setupContext = new AscendantEmpireContext(_options))
+        await using (var setupContext = new AscendantEmpireContext(DbOptions))
         {
             await setupContext.Database.EnsureDeletedAsync();
             await setupContext.Database.EnsureCreatedAsync();
@@ -47,7 +41,7 @@ internal class AddCampaignTurnsToRosterTests
         _dbFactory = Substitute.For<IDbContextFactory<AscendantEmpireContext>>();
         _dbFactory
             .CreateDbContextAsync(Arg.Any<CancellationToken>())
-            .Returns(ci => Task.FromResult(new AscendantEmpireContext(_options)));
+            .Returns(ci => Task.FromResult(new AscendantEmpireContext(DbOptions)));
 
         _handler = new AddCampaignTurnsToRosterHandler(_logger, _dbFactory);
     }
@@ -68,7 +62,7 @@ internal class AddCampaignTurnsToRosterTests
 
         Assert.That(result.HasSucceeded, Is.True, "Handler should have succeeded creating initial roster.");
 
-        await using var assertContext = new AscendantEmpireContext(_options);
+        await using var assertContext = new AscendantEmpireContext(DbOptions);
 
         List<TurnRoster> rosters = await assertContext.TurnRosters
             .AsNoTracking()
@@ -111,7 +105,7 @@ internal class AddCampaignTurnsToRosterTests
 
         Assert.That(result.HasSucceeded, Is.True, "Handler should have succeeded duplicating roster.");
 
-        await using var assertContext = new AscendantEmpireContext(_options);
+        await using var assertContext = new AscendantEmpireContext(DbOptions);
 
         List<TurnRoster> allRosters = await assertContext.TurnRosters
             .AsNoTracking()
@@ -144,7 +138,7 @@ internal class AddCampaignTurnsToRosterTests
         int gameId,
         IReadOnlyCollection<int> players)
     {
-        await using var context = new AscendantEmpireContext(_options);
+        await using var context = new AscendantEmpireContext(DbOptions);
 
         context.GameIndex.Add(new GameIndex
         {
@@ -174,7 +168,7 @@ internal class AddCampaignTurnsToRosterTests
 
     private async Task SeedExistingRosterAsync(int gameId, int roundNumber, IReadOnlyList<int> playerIdsInOrder)
     {
-        await using var context = new AscendantEmpireContext(_options);
+        await using var context = new AscendantEmpireContext(DbOptions);
 
         for (int i = 0; i < playerIdsInOrder.Count; i++)
         {

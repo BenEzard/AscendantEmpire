@@ -85,6 +85,9 @@ public class AscendantEmpireContext : DbContext
     #region Units
 
     public DbSet<TroopInstance> TroopInstances { get; set; }
+    public DbSet<TroopOrder> TroopOrders { get; set; }
+    public DbSet<TroopOrderMovementStep> TroopOrderMovementSteps { get; set; }
+    public DbSet<TroopOrderParticipant> TroopOrderParticipants { get; set; }
 
     #endregion
 
@@ -119,6 +122,10 @@ public class AscendantEmpireContext : DbContext
         ConfigureMapGallerySchema(modelBuilder);
 
         ConfigureStructureSchema(modelBuilder);
+
+        ConfigureUnitSchema(modelBuilder);
+
+        ConfigureUnitDesignSchema(modelBuilder);
     }
 
     private static void ConfigureAssetsSchema(ModelBuilder modelBuilder)
@@ -602,6 +609,106 @@ public class AscendantEmpireContext : DbContext
                  .HasForeignKey(e => e.UnitDesignId)
                  .OnDelete(DeleteBehavior.NoAction)
                  .HasConstraintName("FK_TroopInstances_UnitDesigns_UnitDesignId");
+        });
+
+        modelBuilder.Entity<TroopOrder>(entity =>
+        {
+            entity.ToTable("TroopOrders", "troops");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.OrderType)
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.Property(e => e.OrderStatus)
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.Property(e => e.WorkCompleted)
+                .HasDefaultValue(0m);
+
+            entity.Property(e => e.FailureReason)
+                .HasMaxLength(500);
+
+            entity.Property(t => t.CancellationReason)
+                .HasMaxLength(500);
+
+            entity.HasOne(e => e.TroopInstance)
+                .WithMany(t => t.Orders)
+                .HasForeignKey(e => e.TroopInstanceId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasMany(e => e.MovementSteps)
+                .WithOne(e => e.TroopOrder)
+                .HasForeignKey(e => e.TroopOrderId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasIndex(e => e.GameId);
+            entity.HasIndex(e => e.TroopInstanceId);
+            entity.HasIndex(e => new { e.GameId, e.TroopInstanceId, e.OrderStatus });
+            entity.HasIndex(e => new { e.GameId, e.OrderStatus });
+            entity.HasIndex(e => new { e.GameId, e.OrderType, e.OrderStatus });
+            entity.HasIndex(e => e.TargetCampaignMapTileId);
+            entity.HasIndex(e => e.TargetCampaignMapTileId);
+
+            entity.HasIndex(e => e.StructureInstanceId);
+            entity.HasIndex(e => e.ResourceDefinitionId);
+
+            entity.HasIndex(e => e.TradeSourceStructureInstanceId);
+            entity.HasIndex(e => e.TradeTargetStructureInstanceId);
+
+            entity.HasIndex(e => e.DefendTargetTroopInstanceId);
+            entity.HasIndex(e => e.DefendTargetStructureInstanceId);
+            entity.HasIndex(x => new { x.TroopInstanceId, x.OrderStatus });
+        });
+
+        modelBuilder.Entity<TroopOrderMovementStep>(entity =>
+        {
+            entity.ToTable("TroopOrderMovementSteps", "troops");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.IsCompleted)
+                .HasDefaultValue(false);
+
+            entity.HasOne(e => e.TroopOrder)
+                .WithMany(e => e.MovementSteps)
+                .HasForeignKey(e => e.TroopOrderId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasIndex(e => e.TroopOrderId);
+
+            entity.HasIndex(e => new { e.TroopOrderId, e.StepIndex })
+                .IsUnique();
+
+            entity.HasIndex(e => new { e.CampaignMapTileId, e.IsCompleted });
+        });
+
+        modelBuilder.Entity<TroopOrderParticipant>(entity =>
+        {
+            entity.ToTable("TroopOrderParticipants", "troops");
+
+            entity.Property(x => x.Role)
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.HasOne(e => e.TroopOrder)
+                .WithMany()
+                .HasForeignKey(e => e.TroopOrderId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasIndex(x => x.TroopOrderId);
+
+            entity.HasIndex(x => x.TroopInstanceId);
+
+            entity.HasIndex(x => new { x.TroopOrderId, x.TroopInstanceId })
+                .IsUnique();
+
+            entity.HasOne(x => x.TroopInstance)
+                .WithMany()
+                .HasForeignKey(x => x.TroopInstanceId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
     }
 

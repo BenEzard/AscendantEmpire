@@ -5,23 +5,23 @@ using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AscendantEmpire.Tests.Handlers.Biomes;
 internal class DeleteCampaignBiomesHandlerTests
 {
+    private static readonly DbContextOptions<AscendantEmpireContext> DbOptions = new DbContextOptionsBuilder<AscendantEmpireContext>()
+        .UseInMemoryDatabase(nameof(DeleteCampaignBiomesHandlerTests), new InMemoryDatabaseRoot())
+        .Options;
+
     private AscendantEmpireContext _context = null!;
     private DeleteCampaignMapBiomeHandler _deleteHandler = null!;
 
     [SetUp]
     public async Task Setup()
     {
-        string guid = Guid.NewGuid().ToString();
-        var options = new DbContextOptionsBuilder<AscendantEmpireContext>()
-            .UseInMemoryDatabase(databaseName: guid)
-            .Options;
-
-        _context = new AscendantEmpireContext(options);
+        _context = new AscendantEmpireContext(DbOptions);
         await _context.Database.EnsureDeletedAsync();
         await _context.Database.EnsureCreatedAsync();
 

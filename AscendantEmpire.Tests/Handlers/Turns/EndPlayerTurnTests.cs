@@ -20,9 +20,10 @@ namespace AscendantEmpire.Tests.Handlers.Turns;
 
 internal class EndPlayerTurnHandlerTests
 {
-    private InMemoryDatabaseRoot _dbRoot = null!;
-    private string _dbName = null!;
-    private DbContextOptions<AscendantEmpireContext> _options = null!;
+    private static readonly InMemoryDatabaseRoot DbRoot = new();
+    private static readonly DbContextOptions<AscendantEmpireContext> DbOptions = new DbContextOptionsBuilder<AscendantEmpireContext>()
+        .UseInMemoryDatabase(nameof(EndPlayerTurnHandlerTests), DbRoot)
+        .Options;
 
     private IDbContextFactory<AscendantEmpireContext> _dbFactory = null!;
     private IMediator _mediator = null!;
@@ -32,14 +33,7 @@ internal class EndPlayerTurnHandlerTests
     [SetUp]
     public async Task Setup()
     {
-        _dbRoot = new InMemoryDatabaseRoot();
-        _dbName = Guid.NewGuid().ToString();
-
-        _options = new DbContextOptionsBuilder<AscendantEmpireContext>()
-            .UseInMemoryDatabase(_dbName, _dbRoot)
-            .Options;
-
-        await using (var setupContext = new AscendantEmpireContext(_options))
+        await using (var setupContext = new AscendantEmpireContext(DbOptions))
         {
             await setupContext.Database.EnsureDeletedAsync();
             await setupContext.Database.EnsureCreatedAsync();
@@ -50,7 +44,7 @@ internal class EndPlayerTurnHandlerTests
         _dbFactory = Substitute.For<IDbContextFactory<AscendantEmpireContext>>();
         _dbFactory
             .CreateDbContextAsync(Arg.Any<CancellationToken>())
-            .Returns(_ => Task.FromResult(new AscendantEmpireContext(_options)));
+            .Returns(_ => Task.FromResult(new AscendantEmpireContext(DbOptions)));
 
         _mediator = Substitute.For<IMediator>();
 
@@ -329,7 +323,7 @@ internal class EndPlayerTurnHandlerTests
 
     private async Task SeedGameAsync(int gameId, int numberOfPlayers)
     {
-        await using var context = new AscendantEmpireContext(_options);
+        await using var context = new AscendantEmpireContext(DbOptions);
 
         context.GameIndex.Add(new GameIndex
         {

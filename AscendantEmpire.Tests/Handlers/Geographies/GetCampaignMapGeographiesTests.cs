@@ -13,21 +13,18 @@ namespace AscendantEmpire.Tests.Handlers.Geographies;
 
 internal class GetCampaignMapGeographiesTests
 {
-    private InMemoryDatabaseRoot _dbRoot = null!;
-    private DbContextOptions<AscendantEmpireContext> _options = null!;
+    private static readonly InMemoryDatabaseRoot DbRoot = new();
+    private static readonly DbContextOptions<AscendantEmpireContext> DbOptions = new DbContextOptionsBuilder<AscendantEmpireContext>()
+        .UseInMemoryDatabase(nameof(GetCampaignMapGeographiesTests), DbRoot)
+        .Options;
+
     private IDbContextFactory<AscendantEmpireContext> _dbFactory = null!;
     private GetCampaignMapGeographiesHandler _handler = null!;
 
     [SetUp]
     public async Task Setup()
     {
-        _dbRoot = new InMemoryDatabaseRoot();
-        
-        _options = new DbContextOptionsBuilder<AscendantEmpireContext>()
-                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString(), databaseRoot: _dbRoot)
-                .Options;
-        
-        _dbFactory = new TestDbContextFactory<AscendantEmpireContext>(_options);
+        _dbFactory = new TestDbContextFactory<AscendantEmpireContext>(DbOptions);
         
         await using (var setupContext = await _dbFactory.CreateDbContextAsync(CancellationToken.None))
         {

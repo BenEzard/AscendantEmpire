@@ -38,5 +38,5 @@ public class UnitDesign
     public GameIndex? Game { get; set; } = null!;
     public Player? Player { get; set; } = null!;
 
-    public ICollection<PlayerUnitDesignState> PlayerStates { get; set; } = new List<PlayerUnitDesignState>();
+    public ICollection<PlayerUnitDesignState> PlayerStates { get; set; } = [];
 }

@@ -34,8 +34,14 @@ public class TroopInstance
     /// </summary>
     public int HealthyCount { get; set; }
 
+    /// <summary>
+    /// How many Movement Points (MP) this troop has remaining for the current turn. 
+    /// </summary>
+    public decimal MovementPointsRemaining { get; set; }
+
     public GameIndex Game { get; set; } = null!;
     public Player Player { get; set; } = null!;
     public UnitDesign UnitDesign { get; set; } = null!;
     public CampaignMap CampaignMap { get; set; } = null!;
+    public virtual ICollection<TroopOrder> Orders { get; set; } = [];
 }

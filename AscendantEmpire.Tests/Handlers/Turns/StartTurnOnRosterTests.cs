@@ -6,6 +6,7 @@ using AscendantEmpire.Domain.Enums.Games;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -17,9 +18,15 @@ namespace AscendantEmpire.Tests.Handlers.Turns;
 
 internal class StartTurnOnRosterTests
 {
-    private InMemoryDatabaseRoot _dbRoot = null!;
-    private string _dbName = null!;
-    private DbContextOptions<AscendantEmpireContext> _options = null!;
+    private static readonly ServiceProvider EfServiceProvider = new ServiceCollection()
+        .AddEntityFrameworkInMemoryDatabase()
+        .BuildServiceProvider();
+
+    private static readonly InMemoryDatabaseRoot DbRoot = new();
+    private static readonly DbContextOptions<AscendantEmpireContext> DbOptions = new DbContextOptionsBuilder<AscendantEmpireContext>()
+        .UseInMemoryDatabase(nameof(StartTurnOnRosterTests), DbRoot)
+        .UseInternalServiceProvider(EfServiceProvider)
+        .Options;
 
     private IDbContextFactory<AscendantEmpireContext> _dbFactory = null!;
     private ILogger<StartTurnOnRosterHandler> _logger = null!;
@@ -28,15 +35,8 @@ internal class StartTurnOnRosterTests
     [SetUp]
     public async Task Setup()
     {
-        _dbRoot = new InMemoryDatabaseRoot();
-        _dbName = Guid.NewGuid().ToString();
-
-        _options = new DbContextOptionsBuilder<AscendantEmpireContext>()
-            .UseInMemoryDatabase(_dbName, _dbRoot)
-            .Options;
-
         // Create database fresh for each test
-        await using (var setupContext = new AscendantEmpireContext(_options))
+        await using (var setupContext = new AscendantEmpireContext(DbOptions))
         {
             await setupContext.Database.EnsureDeletedAsync();
             await setupContext.Database.EnsureCreatedAsync();
@@ -49,7 +49,7 @@ internal class StartTurnOnRosterTests
         _dbFactory = Substitute.For<IDbContextFactory<AscendantEmpireContext>>();
         _dbFactory
             .CreateDbContextAsync(Arg.Any<CancellationToken>())
-            .Returns(_ => Task.FromResult(new AscendantEmpireContext(_options)));
+            .Returns(_ => Task.FromResult(new AscendantEmpireContext(DbOptions)));
 
         _handler = new StartTurnOnRosterHandler(_logger, _dbFactory);
     }
@@ -149,7 +149,7 @@ internal class StartTurnOnRosterTests
 
         Assert.That(result.HasSucceeded, Is.True, "Expected handler to succeed.");
 
-        await using var assertContext = new AscendantEmpireContext(_options);
+        await using var assertContext = new AscendantEmpireContext(DbOptions);
 
         TurnRoster updated = await assertContext.TurnRosters
             .AsNoTracking()
@@ -203,7 +203,7 @@ internal class StartTurnOnRosterTests
 
         Assert.That(result.HasSucceeded, Is.True);
 
-        await using var assertContext = new AscendantEmpireContext(_options);
+        await using var assertContext = new AscendantEmpireContext(DbOptions);
 
         TurnRoster target = await assertContext.TurnRosters.AsNoTracking().SingleAsync(r => r.Id == targetRosterId);
         TurnRoster samePlayerOtherRound = await assertContext.TurnRosters.AsNoTracking().SingleAsync(r => r.Id == otherRoundSamePlayerId);
@@ -227,7 +227,7 @@ internal class StartTurnOnRosterTests
 
     private async Task SeedGameAsync(int gameId)
     {
-        await using var context = new AscendantEmpireContext(_options);
+        await using var context = new AscendantEmpireContext(DbOptions);
 
         context.GameIndex.Add(new GameIndex
         {
@@ -244,7 +244,7 @@ internal class StartTurnOnRosterTests
 
     private async Task SeedGameAndActivePlayersAsync(int gameId, IReadOnlyCollection<int> players)
     {
-        await using var context = new AscendantEmpireContext(_options);
+        await using var context = new AscendantEmpireContext(DbOptions);
 
         var game = new GameIndex
         {
@@ -282,7 +282,7 @@ internal class StartTurnOnRosterTests
         int turnOrder,
         TurnStatus status)
     {
-        await using var context = new AscendantEmpireContext(_options);
+        await using var context = new AscendantEmpireContext(DbOptions);
 
         var roster = new TurnRoster
         {
@@ -304,5 +304,11 @@ internal class StartTurnOnRosterTests
         await context.SaveChangesAsync();
 
         return roster.Id;
+    }
+
+    [OneTimeTearDown]
+    public void OneTimeTearDown()
+    {
+        EfServiceProvider.Dispose();
     }
 }

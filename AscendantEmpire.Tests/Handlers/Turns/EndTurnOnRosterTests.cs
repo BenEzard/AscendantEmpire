@@ -17,9 +17,10 @@ namespace AscendantEmpire.Tests.Handlers.Turns;
 
 internal class EndTurnOnRosterTests
 {
-    private InMemoryDatabaseRoot _dbRoot = null!;
-    private string _dbName = null!;
-    private DbContextOptions<AscendantEmpireContext> _options = null!;
+    private static readonly InMemoryDatabaseRoot DbRoot = new();
+    private static readonly DbContextOptions<AscendantEmpireContext> DbOptions = new DbContextOptionsBuilder<AscendantEmpireContext>()
+        .UseInMemoryDatabase(nameof(EndTurnOnRosterTests), DbRoot)
+        .Options;
 
     private IDbContextFactory<AscendantEmpireContext> _dbFactory = null!;
     private IMediator _mediator = null!;
@@ -29,14 +30,7 @@ internal class EndTurnOnRosterTests
     [SetUp]
     public async Task Setup()
     {
-        _dbRoot = new InMemoryDatabaseRoot();
-        _dbName = Guid.NewGuid().ToString();
-
-        _options = new DbContextOptionsBuilder<AscendantEmpireContext>()
-            .UseInMemoryDatabase(_dbName, _dbRoot)
-            .Options;
-
-        await using (var setupContext = new AscendantEmpireContext(_options))
+        await using (var setupContext = new AscendantEmpireContext(DbOptions))
         {
             await setupContext.Database.EnsureDeletedAsync();
             await setupContext.Database.EnsureCreatedAsync();
@@ -47,7 +41,7 @@ internal class EndTurnOnRosterTests
         _dbFactory = Substitute.For<IDbContextFactory<AscendantEmpireContext>>();
         _dbFactory
             .CreateDbContextAsync(Arg.Any<CancellationToken>())
-            .Returns(_ => Task.FromResult(new AscendantEmpireContext(_options)));
+            .Returns(_ => Task.FromResult(new AscendantEmpireContext(DbOptions)));
 
         _mediator = Substitute.For<IMediator>();
 
@@ -192,7 +186,7 @@ internal class EndTurnOnRosterTests
 
         Assert.That(result.HasSucceeded, Is.True);
 
-        await using (var assertContext = new AscendantEmpireContext(_options))
+        await using (var assertContext = new AscendantEmpireContext(DbOptions))
         {
             TurnRoster updated = await assertContext.TurnRosters
                 .AsNoTracking()
@@ -249,7 +243,7 @@ internal class EndTurnOnRosterTests
 
         Assert.That(result.HasSucceeded, Is.True);
 
-        await using (var assertContext = new AscendantEmpireContext(_options))
+        await using (var assertContext = new AscendantEmpireContext(DbOptions))
         {
             TurnRoster updated = await assertContext.TurnRosters
                 .AsNoTracking()
@@ -303,7 +297,7 @@ internal class EndTurnOnRosterTests
             Assert.That(result.Errors.Any(e => e.Contains("Failed to End the Round", StringComparison.OrdinalIgnoreCase)), Is.True);
         }
 
-        await using (var assertContext = new AscendantEmpireContext(_options))
+        await using (var assertContext = new AscendantEmpireContext(DbOptions))
         {
             TurnRoster updated = await assertContext.TurnRosters
                 .AsNoTracking()
@@ -374,7 +368,7 @@ internal class EndTurnOnRosterTests
         Assert.That(result.HasSucceeded, Is.True);
 
         // Assert only Battle 100 current entry was completed
-        await using (var assertContext = new AscendantEmpireContext(_options))
+        await using (var assertContext = new AscendantEmpireContext(DbOptions))
         {
             TurnRoster battle100Updated = await assertContext.TurnRosters
                 .AsNoTracking()
@@ -459,7 +453,7 @@ internal class EndTurnOnRosterTests
         int gameId,
         IReadOnlyCollection<int> players)
     {
-        await using var context = new AscendantEmpireContext(_options);
+        await using var context = new AscendantEmpireContext(DbOptions);
 
         context.GameIndex.Add(new GameIndex
         {
@@ -495,7 +489,7 @@ internal class EndTurnOnRosterTests
         TurnStatus status,
         int? battleId)
     {
-        await using var context = new AscendantEmpireContext(_options);
+        await using var context = new AscendantEmpireContext(DbOptions);
 
         Player player = await context.Players.SingleAsync(p => p.Id == playerId);
 

@@ -496,7 +496,6 @@ internal class GetCampaignMapTileRadiusTests
         // The handler returns origin's *children* (distance >= 1) in SightChildren.
         // Flatten the whole tree to coords and compare against expected, excluding occupied.
         Coord occupied = view.OccupiedCoord.ToCoord;
-
         var all = new List<Coord>();
 
         foreach (var child in view.SightChildren ?? Enumerable.Empty<SightCoord>())

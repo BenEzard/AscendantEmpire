@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.3.11527.330 d18.3
+VisualStudioVersion = 18.3.11527.330
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AscendantEmpire.Api", "AscendantEmpire.Api\AscendantEmpire.Api.csproj", "{0660C368-EF27-4A25-BE9A-E7B1507E5781}"
 EndProject

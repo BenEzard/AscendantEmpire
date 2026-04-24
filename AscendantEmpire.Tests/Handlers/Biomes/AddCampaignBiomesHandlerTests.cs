@@ -5,22 +5,23 @@ using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AscendantEmpire.Tests.Handlers.Biomes;
 internal class AddCampaignBiomesHandlerTests
 {
+    private static readonly DbContextOptions<AscendantEmpireContext> DbOptions = new DbContextOptionsBuilder<AscendantEmpireContext>()
+        .UseInMemoryDatabase(nameof(AddCampaignBiomesHandlerTests), new InMemoryDatabaseRoot())
+        .Options;
+
     private AscendantEmpireContext _context = null!;
     private AddCampaignMapBiomesHandler _handler = null!;
 
     [SetUp]
     public async Task Setup()
     {
-        var options = new DbContextOptionsBuilder<AscendantEmpireContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-
-        _context = new AscendantEmpireContext(options);
+        _context = new AscendantEmpireContext(DbOptions);
         await _context.Database.EnsureDeletedAsync();
         await _context.Database.EnsureCreatedAsync();
 

@@ -14,22 +14,18 @@ namespace AscendantEmpire.Tests.Handlers.Biomes;
 
 internal class GetCampaignMapBiomesTests
 {
-    private InMemoryDatabaseRoot _dbRoot = null!;
-    private DbContextOptions<AscendantEmpireContext> _options = null!;
+    private static readonly InMemoryDatabaseRoot DbRoot = new();
+    private static readonly DbContextOptions<AscendantEmpireContext> DbOptions = new DbContextOptionsBuilder<AscendantEmpireContext>()
+        .UseInMemoryDatabase(nameof(GetCampaignMapBiomesTests), DbRoot)
+        .Options;
+
     private IDbContextFactory<AscendantEmpireContext> _dbFactory = null!;
     private GetCampaignMapBiomesHandler _handler = null!;
 
     [SetUp]
     public async Task Setup()
     {
-        _dbRoot = new InMemoryDatabaseRoot();
-
-        _options = new DbContextOptionsBuilder<AscendantEmpireContext>()
-            // IMPORTANT: databaseRoot ensures ALL contexts created by the factory share the same InMemory store.
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString(), databaseRoot: _dbRoot)
-            .Options;
-
-        _dbFactory = new TestDbContextFactory<AscendantEmpireContext>(_options);
+        _dbFactory = new TestDbContextFactory<AscendantEmpireContext>(DbOptions);
 
         // Ensure the store is clean + created (do it using a context from the factory).
         await using (var setupContext = await _dbFactory.CreateDbContextAsync(CancellationToken.None))
@@ -48,9 +44,6 @@ internal class GetCampaignMapBiomesTests
     [TearDown]
     public void TearDown()
     {
-        // Nothing to dispose here; contexts are created per-use and disposed via await using.
-        _dbRoot = null!;
-        _options = null!;
         _dbFactory = null!;
         _handler = null!;
     }

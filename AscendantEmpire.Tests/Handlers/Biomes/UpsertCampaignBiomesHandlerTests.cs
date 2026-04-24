@@ -7,6 +7,7 @@ using AscendantEmpire.Domain.Enums.Maps;
 using MediatR;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using NSubstitute;
@@ -15,19 +16,18 @@ namespace AscendantEmpire.Tests.Handlers.Biomes;
 
 internal class UpsertCampaignBiomesHandlerTests
 {
+    private static readonly DbContextOptions<AscendantEmpireContext> DbOptions = new DbContextOptionsBuilder<AscendantEmpireContext>()
+        .UseInMemoryDatabase(nameof(UpsertCampaignBiomesHandlerTests), new InMemoryDatabaseRoot())
+        .Options;
+
     private AscendantEmpireContext _context = null!;
     private UpsertCampaignMapBiomesHandler _handler = null!;
-    private DbContextOptions<AscendantEmpireContext> _options;
     private IMediator _mediator = null!;
 
     [SetUp]
     public async Task Setup()
     {
-        _options = new DbContextOptionsBuilder<AscendantEmpireContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
-            .Options;
-
-        _context = new AscendantEmpireContext(_options);
+        _context = new AscendantEmpireContext(DbOptions);
         await _context.Database.EnsureDeletedAsync();
         await _context.Database.EnsureCreatedAsync();
 
@@ -75,7 +75,7 @@ internal class UpsertCampaignBiomesHandlerTests
 
         ServiceResultBase result = await _handler.Handle(updateRequest, CancellationToken.None);
 
-        using (var verifyContext = new AscendantEmpireContext(_options))
+        using (var verifyContext = new AscendantEmpireContext(DbOptions))
         {
             var updated = verifyContext.CampaignBiomes.Single(b => b.BiomeTypeId == BiomeType.Arid);
 

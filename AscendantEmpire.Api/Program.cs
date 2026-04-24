@@ -55,6 +55,8 @@ namespace AscendantEmpire.Api
 
             builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>));
 
+            builder.Services.AddApplicationServices();
+
             builder.Services.AddDbContextFactory<AscendantEmpireContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("AscendantEmpireDatabase"))
             );
