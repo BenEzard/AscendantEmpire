@@ -15,8 +15,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AscendantEmpire.FrontendCon
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AscendantEmpire.Tests", "AscendantEmpire.Tests\AscendantEmpire.Tests.csproj", "{153337F5-4266-49C9-A159-E9AF58041613}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NanoBananaConsole", "NanoBananaConsole\NanoBananaConsole.csproj", "{1CB6C9E9-2F57-4507-BF56-9C738442191C}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -47,10 +45,6 @@ Global
 		{153337F5-4266-49C9-A159-E9AF58041613}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{153337F5-4266-49C9-A159-E9AF58041613}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{153337F5-4266-49C9-A159-E9AF58041613}.Release|Any CPU.Build.0 = Release|Any CPU
-		{1CB6C9E9-2F57-4507-BF56-9C738442191C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{1CB6C9E9-2F57-4507-BF56-9C738442191C}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{1CB6C9E9-2F57-4507-BF56-9C738442191C}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{1CB6C9E9-2F57-4507-BF56-9C738442191C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
