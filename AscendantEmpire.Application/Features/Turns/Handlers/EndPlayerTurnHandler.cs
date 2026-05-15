@@ -14,6 +14,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 namespace AscendantEmpire.Application.Features.Turns.Handlers;
 
+[Obsolete("To be replaced by new Queue system")]
 public record EndPlayerTurnRequest(
     int GameId,
     int PlayerId
@@ -38,6 +39,7 @@ internal class EndPlayerTurnRequestValidator : AbstractValidator<EndPlayerTurnRe
 /// This handler ensures that the request is valid, verifies that it is the specified player's turn, and
 /// updates the game state accordingly.
 /// </remarks>
+[Obsolete("To be replaced by new Queue system")]
 internal class EndPlayerTurnHandler(
     ILogger<EndPlayerTurnHandler> logger,
     IMediator mediator,
@@ -70,19 +72,19 @@ internal class EndPlayerTurnHandler(
             CurrentTurnRosterInfo currentTurnInfo = currentTurnResult.SuccessValue!;
 
             // End the Player's Turn on the Roster
-            ServiceResultBase endPlayerResult = await mediator.Send(new EndTurnOnRosterRequest(
-                GameId: currentTurnInfo.GameId,
-                RoundNumber: currentTurnInfo.RoundNumber,
-                CurrentTurnPlayerId: currentTurnInfo.CurrentTurnPlayerId,
-                BattleId: null
-            ), cancelToken);
+            //ServiceResultBase endPlayerResult = await mediator.Send(new EndTurnOnRosterRequest(
+            //    GameId: currentTurnInfo.GameId,
+            //    RoundNumber: currentTurnInfo.RoundNumber,
+            //    CurrentTurnPlayerId: currentTurnInfo.CurrentTurnPlayerId,
+            //    BattleId: null
+            //), cancelToken);
 
-            if (endPlayerResult.HasSucceeded == false)
-            {
-                string error = $"Failed to end turn for player {request.PlayerId} in game {request.GameId}.";
-                logger.LogWarning("{Error} Details: {Details}", error, string.Join("; ", endPlayerResult.Errors));
-                return Fail(endPlayerResult.Errors.Prepend(error));
-            }
+            //if (endPlayerResult.HasSucceeded == false)
+            //{
+            //    string error = $"Failed to end turn for player {request.PlayerId} in game {request.GameId}.";
+            //    logger.LogWarning("{Error} Details: {Details}", error, string.Join("; ", endPlayerResult.Errors));
+            //    return Fail(endPlayerResult.Errors.Prepend(error));
+            //}
 
             return SuccessNoContent();
         }

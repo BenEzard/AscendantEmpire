@@ -21,8 +21,10 @@ public class Player
 
     [MaxLength(RULER_TITLE_MAX_LENGTH)]
     public required string RulerTitle { get; set; }
+    
     [MaxLength(RULER_NAME_MAX_LENGTH)]
     public required string RulerName { get; set; }
+    
     [MaxLength(FACTION_NAME_MAX_LENGTH)]
     public required string FactionName { get; set; }
     public PlayerStatus Status { get; set; }

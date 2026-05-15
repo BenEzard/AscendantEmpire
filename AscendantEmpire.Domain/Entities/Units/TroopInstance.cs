@@ -12,6 +12,8 @@ public class TroopInstance
 
     public int CampaignMapTileId { get; set; }
 
+    public string? TroopName { get; set; }
+
     /// <summary>
     /// Only populated for Battle Maps.
     /// </summary>

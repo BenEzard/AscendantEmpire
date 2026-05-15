@@ -13,6 +13,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 namespace AscendantEmpire.Application.Features.Turns.Handlers;
 
+[Obsolete("To be replaced by new Queue system")]
 public record GetTurnRequest(
     int GameId,
     int PlayerId
@@ -30,6 +31,7 @@ internal class GetTurnRequestValidator : AbstractValidator<GetTurnRequest>
     }
 }
 
+[Obsolete("To be replaced by new Queue system")]
 internal class GetTurnHandler(
     ILogger<GetTurnHandler> logger,
     IDbContextFactory<AscendantEmpireContext> dbFactory

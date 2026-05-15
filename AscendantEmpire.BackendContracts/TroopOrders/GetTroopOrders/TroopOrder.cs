@@ -10,6 +10,8 @@ public record TroopOrder
 
     public int TroopInstanceId { get; init; }
 
+    public int OrderSequence { get; init; }
+
     public TroopOrderType OrderType { get; init; }
 
     public TroopOrderStatus OrderStatus { get; init; }

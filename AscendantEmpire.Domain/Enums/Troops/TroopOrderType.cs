@@ -10,73 +10,73 @@ public enum TroopOrderType
     /// <remarks>TargetCampaignMapTileId is the destination tile. 
     /// For movement orders, CurrentMovementStepIndex tracks progress along the path to the destination.
     /// </remarks>
-    Move = 1,
+    Move = 100,
 
     /// <summary>
-    /// Troop is building a structure on a specific tile.
+    /// Troop is building a Structure on a specific tile.
     /// </summary>
-    Build = 2,
+    Build = 200,
 
     /// <summary>
     /// Troop is healing/repairing on a specific tile.
     /// </summary>
-    Heal = 3,
+    Heal = 300,
 
     /// <summary>
     /// Troop is setting up an ambush on a specific tile, waiting for an enemy to enter.
     /// </summary>
-    Ambush = 4,
+    Ambush = 400,
 
     /// <summary>
     /// Troop is building fortifications on a specific tile, improving its defensive capabilities.
     /// </summary>
-    Fortify = 5,
+    Fortify = 500,
 
     /// <summary>
     /// Troop is awaiting vision of an enemy unit, and will then "wake".
     /// </summary>
-    Sentry = 6,
+    Sentry = 600,
 
     /// <summary>
     /// Troop is gathering resources on a specific tile.
     /// </summary>
-    Gather = 7,
+    Gather = 700,
 
     /// <summary>
     /// Skip turn.
     /// </summary>
-    SkipTurn = 8,
+    SkipTurn = 800,
 
     /// <summary>
     /// Troop is auto-exploring.
     /// </summary>
-    AutoExplore = 9,
+    AutoExplore = 900,
 
     /// <summary>
     /// Troops are spending movement points to combine forces.
     /// </summary>
-    CombineTroops = 10,
+    CombineTroops = 1000,
 
     /// <summary>
     /// Troops are spending movement points to split into separate forces.
     /// </summary>
-    SplitTroops = 11,
+    SplitTroops = 1100,
 
     /// <summary>
     /// Troop is conducting a trade mission.
     /// </summary>
-    Trade = 12,
+    Trade = 1200,
 
     /// <summary>
     /// Troop is taking part in a supply operation.
     /// </summary>
-    Supply = 13,
+    Supply = 1300,
 
     /// <summary>
     /// Troop is defending a specific target (troop or structure) against an attack.
     /// </summary>
-    Defend = 14,
+    Defend = 1400,
 
 
-    Pillage = 15,
+    Pillage = 1500,
 }

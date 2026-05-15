@@ -1,0 +1,118 @@
+﻿using AscendantEmpire.Application.Data;
+using AscendantEmpire.BackendContracts.Turns.GetCampaignRoundInfo;
+using AscendantEmpire.Domain.Enums.Turns;
+
+using FluentValidation;
+
+using MediatR;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+
+using static AscendantEmpire.Application.Common.ServiceResultBase;
+
+namespace AscendantEmpire.Application.Features.Turns.Handlers;
+
+public record GetCampaignRoundRequest(
+    int GameId
+) : IRequest<ServiceResult<CampaignRound>>;
+
+internal class GetCampaignRoundInfoRequestValidator : AbstractValidator<GetCampaignRoundRequest>
+{
+    public GetCampaignRoundInfoRequestValidator()
+    {
+        RuleFor(x => x.GameId)
+            .GreaterThan(0)
+            .WithMessage("Game Id is required.");
+    }
+}
+
+internal class GetCampaignRoundHandler(
+    ILogger<GetCampaignRoundHandler> logger,
+    IDbContextFactory<AscendantEmpireContext> dbFactory
+) : IRequestHandler<GetCampaignRoundRequest, ServiceResult<CampaignRound>>
+{
+    public async Task<ServiceResult<CampaignRound>> Handle(
+        GetCampaignRoundRequest request,
+        CancellationToken cancelToken)
+    {
+        try
+        {
+            var validator = new GetCampaignRoundInfoRequestValidator();
+            var validationResult = validator.Validate(request);
+
+            if (validationResult.IsValid == false)
+            {
+                IEnumerable<string> errors = validationResult.Errors.Select(e => e.ErrorMessage);
+                string error = $"Validation failed for {nameof(GetCampaignRoundRequest)}.";
+
+                logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
+
+                return ServiceResult<CampaignRound>.Fail(errors.Prepend(error));
+            }
+
+            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+
+            CampaignRound? round = await context.TurnQueues
+                .Where(x => x.GameId == request.GameId)
+                .Where(x => x.QueueType == TurnQueueType.Campaign)
+                .Where(x => x.BattleId == null)
+                .Where(x => x.IsCompleted == false)
+                .Select(x => new CampaignRound
+                {
+                    GameId = x.GameId,
+                    TurnQueueId = x.Id,
+
+                    CurrentRoundNumber = x.CurrentRoundNumber,
+
+                    CurrentPlayerId = x.TurnQueueParticipants
+                        .Where(p => p.IsActiveInLane)
+                        .Where(p => p.Status == TurnQueueParticipantStatus.Pending)
+                        .OrderBy(p => p.TurnOrder)
+                        .Select(p => (int?)p.PlayerId)
+                        .FirstOrDefault(),
+
+                    CurrentPlayerTurnOrder = x.TurnQueueParticipants
+                        .Where(p => p.IsActiveInLane)
+                        .Where(p => p.Status == TurnQueueParticipantStatus.Pending)
+                        .OrderBy(p => p.TurnOrder)
+                        .Select(p => (int?)p.TurnOrder)
+                        .FirstOrDefault(),
+
+                    TurnStartTime = x.CurrentTurnStartAt,
+                    ScheduledTurnEndTime = x.CurrentScheduledTurnEndAt,
+                    ActualTurnEndTime = x.CurrentActualTurnEndAt,
+
+                    IsCompleted = x.IsCompleted
+                })
+                .SingleOrDefaultAsync(cancelToken);
+
+            if (round == null)
+            {
+                const string error = "No active Campaign Turn Queue found for Game.";
+
+                logger.LogWarning("{Error} Game Id: {GameId}", error, request.GameId);
+
+                return ServiceResult<CampaignRound>.NotFound(error);
+            }
+
+            return ServiceResult<CampaignRound>.Succeed(round);
+        }
+        catch (InvalidOperationException ex)
+        {
+            const string error = "Multiple active Campaign Turn Queues were found for Game.";
+
+            logger.LogError(ex, "{Error} Game Id: {GameId}", error, request.GameId);
+
+            return ServiceResult<CampaignRound>.Fail(error);
+        }
+        catch (Exception ex)
+        {
+            const string error = "Unhandled exception getting Campaign Round Info.";
+
+            logger.LogError(ex, error);
+
+            return ServiceResult<CampaignRound>.Fail([error, ex.Message]);
+        }
+    }
+}

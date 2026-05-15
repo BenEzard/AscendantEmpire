@@ -1,7 +1,9 @@
 ﻿using AscendantEmpire.Domain.Entities.Assets;
+using AscendantEmpire.Domain.Entities.Battles;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Structures;
+using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Entities.Util;
@@ -28,6 +30,11 @@ public class AscendantEmpireContext : DbContext
     public DbSet<ResourceBankBalance> ResourceBankBalances { get; set; }
     public DbSet<ResourceBankSettlementMembership> ResourceBankSettlementMemberships { get; set; }
     public DbSet<WorldResourceSnapshot> WorldResourceSnapshots { get; set; }
+    #endregion
+
+    #region Battle Schema
+    public DbSet<Battle> Battles { get; set; }
+    public DbSet<BattleParticipant> BattleParticipants { get; set; }
     #endregion
 
     #region Map Schema
@@ -95,9 +102,12 @@ public class AscendantEmpireContext : DbContext
     public DbSet<UnitDesign> UnitDesigns { get; set; }
     public DbSet<CompiledDesignStats> UnitDesignStats { get; set; }
     public DbSet<PlayerUnitDesignState> PlayerUnitDesignStates { get; set; }
-
     #endregion
 
+    #region Turn Schema
+    public DbSet<TurnQueue> TurnQueues { get; set; }
+    public DbSet<TurnQueueParticipant> TurnQueueParticipants { get; set; }
+    #endregion
 
     #region Util Schema
     public DbSet<Number> Numbers { get; set; }
@@ -115,6 +125,8 @@ public class AscendantEmpireContext : DbContext
 
         ConfigureAssetsSchema(modelBuilder);
 
+        ConfigureBattleSchema(modelBuilder);
+
         ConfigureGameSchema(modelBuilder);
 
         ConfigureMapSchema(modelBuilder);
@@ -122,6 +134,8 @@ public class AscendantEmpireContext : DbContext
         ConfigureMapGallerySchema(modelBuilder);
 
         ConfigureStructureSchema(modelBuilder);
+
+        ConfigureTurnSchema(modelBuilder);
 
         ConfigureUnitSchema(modelBuilder);
 
@@ -299,10 +313,78 @@ public class AscendantEmpireContext : DbContext
                 .HasForeignKey(x => x.ResourceDefinitionId)
                 .OnDelete(DeleteBehavior.NoAction);
         });
+    }
 
-        ConfigureUnitSchema(modelBuilder);
+    private static void ConfigureBattleSchema(ModelBuilder modelBuilder)
+    {
+        const string schema = "battle";
 
-        ConfigureUnitDesignSchema(modelBuilder);
+        modelBuilder.Entity<Battle>(entity =>
+        {
+            entity.ToTable("Battle", schema);
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.GlobalBattleName)
+                .HasMaxLength(Battle.BATTLE_NAME_LENGTH);
+
+            entity.Property(x => x.RowVersion)
+                .IsRowVersion();
+
+            entity.HasOne(x => x.Game)
+                .WithMany()
+                .HasForeignKey(x => x.GameId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(x => x.OriginalTileOwnerId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(x => x.VictorId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasMany(x => x.BattleParticipants)
+                .WithOne(x => x.Battle)
+                .HasForeignKey(x => x.BattleId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasIndex(x => new { x.GameId, x.CampaignMapTileId })
+                .HasDatabaseName("UX_Battle_Game_Tile_Open")
+                .IsUnique()
+                .HasFilter("[ConcludedAtRoundNumber] IS NULL");
+
+            entity.HasIndex(x => x.GameId);
+            entity.HasIndex(x => new { x.GameId, x.CampaignMapTileId });
+        });
+
+        modelBuilder.Entity<BattleParticipant>(entity =>
+        {
+            entity.ToTable("BattleParticipant", schema);
+
+            entity.HasKey(x => new { x.BattleId, x.PlayerId });
+
+            entity.Property(x => x.PlayerBattleName)
+                .HasMaxLength(BattleParticipant.BATTLE_NAME_LENGTH);
+
+            entity.Property(x => x.RowVersion)
+                .IsRowVersion();
+
+            entity.HasOne(x => x.Battle)
+                .WithMany(x => x.BattleParticipants)
+                .HasForeignKey(x => x.BattleId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(x => x.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasIndex(x => new { x.BattleId, x.IsStillInBattle });
+            entity.HasIndex(x => new { x.PlayerId, x.IsStillInBattle });
+        });
     }
 
     private static void ConfigureGameSchema(ModelBuilder modelBuilder)
@@ -571,6 +653,76 @@ public class AscendantEmpireContext : DbContext
         });
     }
 
+    private static void ConfigureTurnSchema(ModelBuilder modelBuilder)
+    {
+        const string schema = "turns";
+
+        modelBuilder.Entity<TurnQueue>(entity =>
+        {
+            entity.ToTable("TurnQueue", schema);
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.RowVersion)
+                .IsRowVersion();
+
+            entity.HasOne(x => x.Game)
+                .WithMany()
+                .HasForeignKey(x => x.GameId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasOne(x => x.Battle)
+                .WithMany()
+                .HasForeignKey(x => x.BattleId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasMany(x => x.TurnQueueParticipants)
+                .WithOne(x => x.TurnQueue)
+                .HasForeignKey(x => x.TurnQueueId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasIndex(x => x.GameId);
+            entity.HasIndex(x => new { x.GameId, x.QueueType, x.IsCompleted });
+
+            entity.HasIndex(x => x.BattleId)
+                .HasDatabaseName("UX_TurnQueue_Battle")
+                .IsUnique()
+                .HasFilter("[BattleId] IS NOT NULL");
+
+            // Optional: enforce one active campaign lane per game.
+            entity.HasIndex(x => new { x.GameId, x.QueueType })
+                .HasDatabaseName("UX_TurnQueue_Campaign_Game_Active")
+                .IsUnique()
+                .HasFilter("[QueueType] = 0 AND [BattleId] IS NULL AND [IsCompleted] = 0");
+        });
+
+        modelBuilder.Entity<TurnQueueParticipant>(entity =>
+        {
+            entity.ToTable("TurnQueueParticipant", schema);
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.RowVersion)
+                .IsRowVersion();
+
+            entity.HasOne(x => x.TurnQueue)
+                .WithMany(x => x.TurnQueueParticipants)
+                .HasForeignKey(x => x.TurnQueueId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasOne(x => x.Player)
+                .WithMany()
+                .HasForeignKey(x => x.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasIndex(x => new { x.TurnQueueId, x.PlayerId }).IsUnique();
+            entity.HasIndex(x => new { x.TurnQueueId, x.TurnOrder }).IsUnique();
+            entity.HasIndex(x => new { x.TurnQueueId, x.Status });
+            entity.HasIndex(x => new { x.TurnQueueId, x.IsActiveInLane, x.TurnOrder });
+            entity.HasIndex(x => x.PlayerId);
+        });
+    }
+
     private static void ConfigureUnitSchema(ModelBuilder modelBuilder)
     {
         const string schema = "units";
@@ -649,7 +801,6 @@ public class AscendantEmpireContext : DbContext
             entity.HasIndex(e => new { e.GameId, e.TroopInstanceId, e.OrderStatus });
             entity.HasIndex(e => new { e.GameId, e.OrderStatus });
             entity.HasIndex(e => new { e.GameId, e.OrderType, e.OrderStatus });
-            entity.HasIndex(e => e.TargetCampaignMapTileId);
             entity.HasIndex(e => e.TargetCampaignMapTileId);
 
             entity.HasIndex(e => e.StructureInstanceId);

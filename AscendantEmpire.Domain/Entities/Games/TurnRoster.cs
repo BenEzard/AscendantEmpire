@@ -10,6 +10,7 @@ namespace AscendantEmpire.Domain.Entities.Games;
 /// </summary>
 /// <remarks>Each instance of this class corresponds to a single player's turn in a specific game Round. 
 /// Covers both the Campaign Map Turns and Battle Map Turns (by virtue of if the BattleId is populated.</remarks>
+[Obsolete("To be replaced by new Queue system")]
 public class TurnRoster
 {
     public const int PLAYER_BATTLE_NAME_MAX_LENGTH = 100;

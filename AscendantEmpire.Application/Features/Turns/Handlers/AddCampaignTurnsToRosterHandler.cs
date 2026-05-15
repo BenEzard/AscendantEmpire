@@ -14,6 +14,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 namespace AscendantEmpire.Application.Features.Turns.Handlers;
 
+[Obsolete("To be replaced by new Queue system")]
 public record AddCampaignTurnsToRosterRequest(
     int GameId
 ) : IRequest<ServiceResult<FirstPlayerInRound>>;
@@ -27,6 +28,7 @@ internal class AddCampaignTurnsToRosterRequestValidator : AbstractValidator<AddC
     }
 }
 
+[Obsolete("To be replaced by new Queue system")]
 internal class AddCampaignTurnsToRosterHandler(
     ILogger<AddCampaignTurnsToRosterHandler> logger,
     IDbContextFactory<AscendantEmpireContext> dbFactory

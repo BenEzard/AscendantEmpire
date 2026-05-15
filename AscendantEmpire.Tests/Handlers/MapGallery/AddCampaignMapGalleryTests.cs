@@ -84,7 +84,8 @@ internal class AddCampaignMapGalleryTests
         }
     }
 
-    [Test, Description("A non unique name should fail."), Ignore("Doesn't work now that we're creating new db contexts")]
+    [Test, Description("A non unique name should fail."), Ignore("ProductionBugSuspected")]
+    [Category("ProductionBugSuspected")]
     public async Task NonUniqueNameShouldFailAsync()
     {
         const int ID = 1;
