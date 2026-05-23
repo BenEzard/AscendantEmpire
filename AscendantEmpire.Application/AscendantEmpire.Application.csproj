@@ -28,4 +28,8 @@
     <ProjectReference Include="..\AscendantEmpire.Domain\AscendantEmpire.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Features\Turns\Classes\" />
+  </ItemGroup>
+
 </Project>

@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <Folder Include="TroopOrders\GetTroopOrders\" />
+    <Folder Include="Turns\GetCampaignTurn\" />
   </ItemGroup>
 
 </Project>

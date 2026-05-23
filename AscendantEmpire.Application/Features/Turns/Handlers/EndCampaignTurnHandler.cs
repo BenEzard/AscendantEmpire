@@ -20,8 +20,6 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-using System.Runtime.CompilerServices;
-
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 namespace AscendantEmpire.Application.Features.Turns.Handlers;
@@ -42,7 +40,7 @@ public record EndCampaignTurnOutcome
     /// List of Pending Actions which the Player might want to do before the end of turn.
     /// e.g. Move units, select research.
     /// </summary>
-    public List<string> PossibleActions = [];
+    public List<PossibleAction> PossibleActions = [];
 }
 
 internal class EndCampaignTurnRequestValidator : AbstractValidator<EndCampaignTurnRequest>
@@ -122,14 +120,14 @@ internal class EndCampaignTurnHandler(
                 var possibleActionContext = new PossibleActionContext(request.GameId, request.PlayerId, currentTurn.CurrentRoundNumber);
                 IReadOnlyList<PossibleAction> possibleActions = await possibleActionService.GetPossibleActionsAsync(possibleActionContext, cancelToken);
 
-                if (!possibleActions.Any())
+                if (possibleActions.Any())
                 {
                     // Inform the player of outstanding actions without ending the turn.
                     return ServiceResult<EndCampaignTurnOutcome>.Succeed(new EndCampaignTurnOutcome
                     {
                         TurnEnded = false,
                         RoundEnded = false,
-                        PossibleActions = [.. possibleActions.Select(a => a.Description)] // TODO BEN NOt sure if description is the right thing here, can't remember what I was going for...
+                        PossibleActions = [.. possibleActions]
                     });
                 }
             }
@@ -140,7 +138,7 @@ internal class EndCampaignTurnHandler(
             //
             //      At the start of the turn you have a list of units to move. Then after the auto-actions, you might have more to move.
             
-            if (request.EndTurnMode == EndTurnMode.ForceEnd)
+            else if (request.EndTurnMode == EndTurnMode.ForceEnd)
             {
                 // Start the End Turn pipeline processing
                 ServiceResultBase endTurnResult = await EndTurnAsync(context, currentTurn);
@@ -168,8 +166,17 @@ internal class EndCampaignTurnHandler(
 
                     if (startNextTurnResult.HasSucceeded == false)
                     {
+                        const string error = "An error occurred while starting the next Campaign turn.";
+                        logger.LogError(error + " Errors: {Error}", string.Join(Environment.NewLine, startNextTurnResult.Errors));
                         return ServiceResult<EndCampaignTurnOutcome>.Fail(startNextTurnResult.Errors);
                     }
+
+                    return ServiceResult<EndCampaignTurnOutcome>.Succeed(new EndCampaignTurnOutcome
+                    {
+                        TurnEnded = true,
+                        RoundEnded = false,
+                        PossibleActions = []
+                    });
                 }
                 else // is the last turn in Round
                 {
@@ -193,7 +200,7 @@ internal class EndCampaignTurnHandler(
 
                     currentTurn = currentTurnResult.SuccessValue!;
 
-                    // Increment the Round Number (because it only happens
+                    // Increment the Round Number (because it only happens at the start of the round.
                     currentTurn = currentTurnResult.SuccessValue! with
                     {
                         CurrentRoundNumber = currentTurnResult.SuccessValue!.CurrentRoundNumber + 1
@@ -201,48 +208,45 @@ internal class EndCampaignTurnHandler(
 
                     ServiceResultBase startRoundResult = await StartRoundAsync(context, currentTurnResult.SuccessValue!);
 
+                    if (startRoundResult.HasSucceeded == false)
+                    {
+                        const string error = "An error occurred while starting the next Round.";
+                        logger.LogError(error + " Errors: {Error}", string.Join(Environment.NewLine, startRoundResult.Errors));
+                        return ServiceResult<EndCampaignTurnOutcome>.Fail(error);
+                    }
+
+                    // Start the first turn of the next round
+                    ServiceResult<CurrentCampaignTurn> nextTurnResult = await campaignTurnService.GetNextCampaignTurnAsync(request.GameId,
+                       turnOrderOfLastPlayer: queueInfo.CurrentParticipant.TurnOrder,
+                       cancelToken);
+
+                    if (nextTurnResult.HasSucceeded == false)
+                    {
+                        const string error = "An error occurred while retrieving the next Campaign turn.";
+                        logger.LogError(error + " Errors: {Error}", string.Join(Environment.NewLine, nextTurnResult.Errors));
+                        return ServiceResult<EndCampaignTurnOutcome>.Fail(error);
+                    }
+
+                    ServiceResultBase startNextTurnResult = await StartNextTurnAsync(context, nextTurnResult.SuccessValue!);
+
+                    if (startNextTurnResult.HasSucceeded == false)
+                    {
+                        const string error = "An error occurred while starting the next Campaign turn.";
+                        logger.LogError(error + " Errors: {Error}", string.Join(Environment.NewLine, startNextTurnResult.Errors));
+                        return ServiceResult<EndCampaignTurnOutcome>.Fail(startNextTurnResult.Errors);
+                    }
+
+                    return ServiceResult<EndCampaignTurnOutcome>.Succeed(new EndCampaignTurnOutcome
+                    {
+                        TurnEnded = true,
+                        RoundEnded = true,
+                        PossibleActions = [] // Return no items here because it's a different Players turn.
+                    });
 
                 }
-
-                // Start the next Round
-
-
-                // Start the nest Turn
             }
 
-
-
-
-
-
-
-
-
-            // TODO: Do pipeline processing for End Of Turn here.
-
-
-            // If this is the last turn of the round, then do pipeline processing for End of Round.
-
-
-            //int nextRoundNumber = currentTurn.CurrentRoundNumber + (currentTurn.IsLastTurnInRound ? 1 : 0);
-            //DateTimeOffset now = DateTimeOffset.UtcNow;
-
-            //models.TurnQueue.CurrentRoundNumber = nextRoundNumber;
-
-            //models.CurrentParticipant.LastCompletedRoundNumber = currentTurn.CurrentRoundNumber;
-            //models.CurrentParticipant.LastTurnEndTime = now;
-
-            //// Determine if the current Player's turn is the last turn of the Round
-            //if (currentTurn.IsLastTurnInRound)
-            //{
-            //    await mediator.Send(new EndCampaignRoundRequest(currentTurn.GameId, currentTurn.TurnQueueId), cancelToken);
-            //}
-            //else
-            //{
-            //    await mediator.Send(new StartNextTurnRequest(currentTurn.GameId, currentTurn.TurnQueueId), cancelToken);
-            //}
-
-            return null;
+            return ServiceResult<EndCampaignTurnOutcome>.Fail("Invalid EndTurnMode.");
         }
         catch (Exception ex)
         {
@@ -377,7 +381,7 @@ internal class EndCampaignTurnHandler(
 
             // Then process the Start Round pipeline
             var startRoundContext = new TurnPipelineContextData(TurnPipelineType.StartCampaignRound, currentTurn.GameId, currentTurn.CurrentRoundNumber);
-            ServiceResultBase startRoundResult = await startCampaignTurnPipeline.ProcessPipelineAsync(startRoundContext);
+            ServiceResultBase startRoundResult = await startCampaignRoundPipeline.ProcessPipelineAsync(startRoundContext);
         }
         catch (Exception e) 
         {
@@ -413,7 +417,7 @@ internal class EndCampaignTurnHandler(
 
             // Then process the End Round pipeline
             var endRoundContext = new TurnPipelineContextData(TurnPipelineType.EndCampaignRound, currentTurn.GameId, currentTurn.CurrentRoundNumber);
-            ServiceResultBase endRoundResult = await startCampaignTurnPipeline.ProcessPipelineAsync(endRoundContext);
+            ServiceResultBase endRoundResult = await endCampaignRoundPipeline.ProcessPipelineAsync(endRoundContext);
         }
         catch (Exception e)
         {
@@ -549,7 +553,7 @@ internal class EndCampaignTurnHandler(
         return ServiceResultBase.Succeed();
     }
 
-    private async Task<ServiceResult<int?>> IsVictoryAchievedAsync(CancellationToken cancelToken)
+    private async Task<ServiceResult<int?>> IsVictoryAchievedAsync()
     {
         // TODO: Implement victory condition checks here.
         return await Task.FromResult(ServiceResult<int?>.Succeed(null));

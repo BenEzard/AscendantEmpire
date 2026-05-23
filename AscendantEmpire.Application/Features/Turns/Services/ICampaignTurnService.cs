@@ -4,7 +4,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 namespace AscendantEmpire.Application.Features.Turns.Services;
 
-internal interface ICampaignTurnService
+public interface ICampaignTurnService
 {
     /// <summary>
     /// Returns information about the Current Turn in the Campaign for a specific Game.

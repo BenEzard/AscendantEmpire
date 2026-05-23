@@ -80,11 +80,6 @@ public class AscendantEmpireContext : DbContext
     /// </summary>
     public DbSet<PlayerCampaignMap> PlayerCampaignMaps { get; set; }
 
-    /// <summary>
-    /// The Roster/queue of Player Turns within a Game Round.
-    /// </summary>
-    public DbSet<TurnRoster> TurnRosters { get; set; }
-
     public DbSet<PlayerKnownStructure> PlayerStructures { get; set; }
     public DbSet<StructureInstance> StructureInstances { get; set; }
     #endregion
@@ -377,7 +372,7 @@ public class AscendantEmpireContext : DbContext
                 .HasForeignKey(x => x.BattleId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            entity.HasOne<Player>()
+            entity.HasOne(x => x.Player)
                 .WithMany()
                 .HasForeignKey(x => x.PlayerId)
                 .OnDelete(DeleteBehavior.NoAction);
@@ -572,24 +567,6 @@ public class AscendantEmpireContext : DbContext
                 .IsUnique()
                 .HasDatabaseName("UX_CampaignStructureInstances_Active_BattleTile")
                 .HasFilter("[RemovedOnTurnId] IS NULL AND [BattleMapTileId] IS NOT NULL");
-        });
-
-        // --- TurnRoster ----------------------------------------------------------------
-        modelBuilder.Entity<TurnRoster>(entity =>
-        {
-            entity.ToTable("TurnRoster", schema);
-
-            // Campaign roster uniqueness (BattleId IS NULL)
-            entity.HasIndex(e => new { e.GameId, e.PlayerId, e.RoundNumber })
-                .HasDatabaseName("UX_TurnRoster_Campaign_Game_Player_Round")
-                .IsUnique()
-                .HasFilter("[BattleId] IS NULL");
-
-            // Battle roster uniqueness (BattleId IS NOT NULL)
-            entity.HasIndex(e => new { e.GameId, e.BattleId, e.PlayerId, e.RoundNumber })
-                .HasDatabaseName("UX_TurnRoster_Battle_Game_Battle_Player_Round")
-                .IsUnique()
-                .HasFilter("[BattleId] IS NOT NULL");
         });
     }
 

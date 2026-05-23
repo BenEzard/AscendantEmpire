@@ -179,6 +179,8 @@ internal class GameSetupService(
 
             context.TurnQueues.Add(turnQueue);
 
+            await context.SaveChangesAsync(cancellationToken);
+
             TurnQueueParticipant firstParticipant = turnQueue.TurnQueueParticipants
                 .OrderBy(p => p.TurnOrder)
                 .First();
@@ -378,7 +380,7 @@ internal class GameSetupService(
                 NULL                    AS [FirstSeenOnTurnId],
                 NULL                    AS [LastSeenOnTurnId]
             FROM [game].[CampaignMap] cm
-            INNER JOIN [game].[Players] p
+            INNER JOIN [game].[Player] p
                 ON p.[GameId] = cm.[GameId]
             WHERE cm.[GameId] = {gameId};
             ", cancellationToken);

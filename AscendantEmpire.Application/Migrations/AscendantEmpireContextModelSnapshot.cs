@@ -331,6 +331,112 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("WorldResourceSnapshot", "assets");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Battles.Battle", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CampaignMapTileId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CommencedAtRoundNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ConcludedAtRoundNumber")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("GlobalBattleName")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<int?>("OriginalTileOwnerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OriginalTileStatus")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int?>("VictorId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameId");
+
+                    b.HasIndex("OriginalTileOwnerId");
+
+                    b.HasIndex("VictorId");
+
+                    b.HasIndex("GameId", "CampaignMapTileId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Battle_Game_Tile_Open")
+                        .HasFilter("[ConcludedAtRoundNumber] IS NULL");
+
+                    b.ToTable("Battle", "battle");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Battles.BattleParticipant", b =>
+                {
+                    b.Property<int>("BattleId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ExitReason")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsStillInBattle")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsSupplied")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("JoinedAtRoundNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("LeftAtRoundNumber")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PlayerBattleName")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<bool>("WasSupplied")
+                        .HasColumnType("bit");
+
+                    b.HasKey("BattleId", "PlayerId");
+
+                    b.HasIndex("BattleId", "IsStillInBattle");
+
+                    b.HasIndex("PlayerId", "IsStillInBattle");
+
+                    b.ToTable("BattleParticipant", "battle");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.CampaignMap", b =>
                 {
                     b.Property<int>("CampaignMapId")
@@ -950,6 +1056,124 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("Structures", "structure");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Turns.TurnQueue", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("BattleId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("CurrentActualTurnEndAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("CurrentRoundNumber")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("CurrentScheduledTurnEndAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("CurrentTurnStartAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("QueueType")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BattleId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_TurnQueue_Battle")
+                        .HasFilter("[BattleId] IS NOT NULL");
+
+                    b.HasIndex("GameId");
+
+                    b.HasIndex("GameId", "QueueType")
+                        .IsUnique()
+                        .HasDatabaseName("UX_TurnQueue_Campaign_Game_Active")
+                        .HasFilter("[QueueType] = 0 AND [BattleId] IS NULL AND [IsCompleted] = 0");
+
+                    b.HasIndex("GameId", "QueueType", "IsCompleted");
+
+                    b.ToTable("TurnQueue", "turns");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Turns.TurnQueueParticipant", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsActiveInLane")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("LastCompletedRoundNumber")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("LastTurnEndedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("LastTurnStartedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TurnOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TurnQueueId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerId");
+
+                    b.HasIndex("TurnQueueId", "PlayerId")
+                        .IsUnique();
+
+                    b.HasIndex("TurnQueueId", "Status");
+
+                    b.HasIndex("TurnQueueId", "TurnOrder")
+                        .IsUnique();
+
+                    b.HasIndex("TurnQueueId", "IsActiveInLane", "TurnOrder");
+
+                    b.ToTable("TurnQueueParticipant", "turns");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.CompiledDesignStats", b =>
                 {
                     b.Property<int>("UnitDesignId")
@@ -1062,6 +1286,9 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.Property<int>("PlayerId")
                         .HasColumnType("int");
+
+                    b.Property<string>("TroopName")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("UnitDesignId")
                         .HasColumnType("int");
@@ -1385,6 +1612,46 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Resource");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Battles.Battle", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", "Game")
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", null)
+                        .WithMany()
+                        .HasForeignKey("OriginalTileOwnerId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", null)
+                        .WithMany()
+                        .HasForeignKey("VictorId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Game");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Battles.BattleParticipant", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Battles.Battle", "Battle")
+                        .WithMany("BattleParticipants")
+                        .HasForeignKey("BattleId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Battle");
+
+                    b.Navigation("Player");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.CampaignMap", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignBiome", "Biome")
@@ -1605,6 +1872,43 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Index");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Turns.TurnQueue", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Battles.Battle", "Battle")
+                        .WithMany()
+                        .HasForeignKey("BattleId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", "Game")
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Battle");
+
+                    b.Navigation("Game");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Turns.TurnQueueParticipant", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Turns.TurnQueue", "TurnQueue")
+                        .WithMany("TurnQueueParticipants")
+                        .HasForeignKey("TurnQueueId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Player");
+
+                    b.Navigation("TurnQueue");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.CompiledDesignStats", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitDesign", "UnitDesign")
@@ -1778,9 +2082,19 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Categories");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Battles.Battle", b =>
+                {
+                    b.Navigation("BattleParticipants");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.GameIndex", b =>
                 {
                     b.Navigation("Players");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Turns.TurnQueue", b =>
+                {
+                    b.Navigation("TurnQueueParticipants");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitDesign", b =>

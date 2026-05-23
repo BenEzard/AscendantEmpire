@@ -4,7 +4,6 @@ using AscendantEmpire.Application.Features.Players.Handlers;
 using AscendantEmpire.BackendContracts.Turns.CreateCampaignTurnQueue;
 using AscendantEmpire.BackendContracts.Turns.GetCampaignRoundInfo;
 using AscendantEmpire.Domain.Entities.Battles;
-using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Enums.Battle;
 using AscendantEmpire.Domain.Enums.Games;
@@ -234,9 +233,20 @@ internal class CreateBattleTurnQueueHandler(
         {
             const string error = "Unhandled exception creating Battle Turn Queue.";
 
-            logger.LogError(ex, error);
+            // Walk the full inner exception chain so FK/SQL constraint details are not swallowed.
+            IEnumerable<string> messages = UnwrapMessages(ex);
 
-            return ServiceResult<FirstPlayerInRound>.Fail([error, ex.Message]);
+            logger.LogError(error + " {Error}", string.Join(Environment.NewLine, messages));
+
+            return ServiceResult<FirstPlayerInRound>.Fail(error);
+        }
+    }
+
+    private static IEnumerable<string> UnwrapMessages(Exception ex)
+    {
+        for (Exception? current = ex; current is not null; current = current.InnerException)
+        {
+            yield return current.Message;
         }
     }
 

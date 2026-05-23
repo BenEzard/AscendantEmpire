@@ -1,0 +1,577 @@
+using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Game.Services;
+using AscendantEmpire.Application.Features.Turns.Handlers;
+using AscendantEmpire.Application.Features.Turns.Services;
+using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions;
+using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline;
+using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndRound;
+using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndTurn;
+using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.StartRound;
+using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.StartTurn;
+using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.BackendContracts.Turns.GetCurrentCampaignTurn;
+using AscendantEmpire.Domain.Entities.Turns;
+using AscendantEmpire.Domain.Enums.Turns;
+
+using FluentValidation.Results;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+
+using NSubstitute;
+
+using static AscendantEmpire.Application.Common.ServiceResultBase;
+
+namespace AscendantEmpire.Tests.Features.Turns.Handlers;
+
+/// <summary>
+/// Tests for <see cref="EndCampaignTurnHandler"/>.
+/// </summary>
+[TestFixture]
+public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
+{
+    private EndCampaignTurnRequestValidator _validator = null!;
+
+    // ── mocked services ──────────────────────────────────────────────────────
+    private IOpenGameService _openGameService = null!;
+    private ICampaignTurnService _campaignTurnService = null!;
+    private IEndCampaignTurnPossibleActionService _possibleActionService = null!;
+    private ITurnServicePipeline<IEndCampaignTurnProcess> _endCampaignTurnPipeline = null!;
+    private ITurnServicePipeline<IEndCampaignRoundProcess> _endCampaignRoundPipeline = null!;
+    private ITurnServicePipeline<IStartCampaignRoundProcess> _startCampaignRoundPipeline = null!;
+    private ITurnServicePipeline<IStartCampaignTurnProcess> _startCampaignTurnPipeline = null!;
+
+    private EndCampaignTurnHandler _handler = null!;
+
+    // ── seeded IDs populated by SetUp ────────────────────────────────────────
+    private int _gameId;
+    private int _player1Id;
+    private int _player2Id;
+    private int _queueId;
+    private int _participant1Id; // TurnOrder 1
+    private int _participant2Id; // TurnOrder 2
+
+    /// <summary>
+    /// Builds a valid request so individual test cases can selectively break one field at a time.
+    /// </summary>
+    private static EndCampaignTurnRequest ValidRequest() => new(GameId: 1, PlayerId: 1, EndTurnMode: EndTurnMode.CheckForActions);
+
+    [SetUp]
+    public async Task SetUp()
+    {
+        _validator = new EndCampaignTurnRequestValidator();
+
+        // Seed a 2×2 map and 2 players so we have real FK-valid rows.
+        await SeedGameAsync(2, 2, 2);
+        _gameId = await SeedGameWithPlayersAsync(2);
+
+        // Resolve the two seeded player IDs (ordered by Id ascending).
+        await using AscendantEmpireContext seedCtx = await DbFactory.CreateDbContextAsync();
+        List<int> playerIds = [.. seedCtx.Players
+            .Where(p => p.GameId == _gameId)
+            .OrderBy(p => p.Id)
+            .Select(p => p.Id)
+            .Take(2)];
+        _player1Id = playerIds[0];
+        _player2Id = playerIds[1];
+
+        // Seed a Campaign TurnQueue with participant 1 currently taking their turn.
+        (_queueId, _participant1Id, _participant2Id) =
+            await SeedTurnQueueAsync(_gameId, _player1Id, _player2Id);
+
+        // ── mock services ────────────────────────────────────────────────────
+        _openGameService              = Substitute.For<IOpenGameService>();
+        _campaignTurnService          = Substitute.For<ICampaignTurnService>();
+        _possibleActionService        = Substitute.For<IEndCampaignTurnPossibleActionService>();
+        _endCampaignTurnPipeline      = Substitute.For<ITurnServicePipeline<IEndCampaignTurnProcess>>();
+        _endCampaignRoundPipeline     = Substitute.For<ITurnServicePipeline<IEndCampaignRoundProcess>>();
+        _startCampaignRoundPipeline   = Substitute.For<ITurnServicePipeline<IStartCampaignRoundProcess>>();
+        _startCampaignTurnPipeline    = Substitute.For<ITurnServicePipeline<IStartCampaignTurnProcess>>();
+
+        // Pipelines succeed by default — individual tests can override.
+        _endCampaignTurnPipeline.ProcessPipelineAsync(Arg.Any<TurnPipelineContextData>()).Returns(ServiceResultBase.Succeed());
+        _endCampaignRoundPipeline.ProcessPipelineAsync(Arg.Any<TurnPipelineContextData>()).Returns(ServiceResultBase.Succeed());
+        _startCampaignRoundPipeline.ProcessPipelineAsync(Arg.Any<TurnPipelineContextData>()).Returns(ServiceResultBase.Succeed());
+        _startCampaignTurnPipeline.ProcessPipelineAsync(Arg.Any<TurnPipelineContextData>()).Returns(ServiceResultBase.Succeed());
+
+        // No possible actions by default.
+        _possibleActionService
+            .GetPossibleActionsAsync(Arg.Any<PossibleActionContext>(), Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        _handler = new EndCampaignTurnHandler(
+            new NullLogger<EndCampaignTurnHandler>(),
+            DbFactory,
+            _possibleActionService,
+            _endCampaignTurnPipeline,
+            _endCampaignRoundPipeline,
+            _startCampaignRoundPipeline,
+            _startCampaignTurnPipeline,
+            _campaignTurnService,
+            _openGameService);
+    }
+
+    // ── seed helper ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Inserts a Campaign TurnQueue for the given game with two participants.
+    /// Player 1 is in <see cref="TurnQueueParticipantStatus.TakingTurn"/> (TurnOrder 1),
+    /// Player 2 is <see cref="TurnQueueParticipantStatus.Pending"/> (TurnOrder 2).
+    /// Returns (queueId, participant1Id, participant2Id).
+    /// </summary>
+    private async Task<(int queueId, int p1Id, int p2Id)> SeedTurnQueueAsync(
+        int gameId, int player1Id, int player2Id,
+        TurnQueueParticipantStatus p1Status = TurnQueueParticipantStatus.TakingTurn,
+        TurnQueueParticipantStatus p2Status = TurnQueueParticipantStatus.Pending)
+    {
+        await using AscendantEmpireContext ctx = await DbFactory.CreateDbContextAsync();
+
+        TurnQueue queue = new TurnQueue
+        {
+            GameId = gameId,
+            QueueType = TurnQueueType.Campaign,
+            BattleId = null,
+            CurrentRoundNumber = 1,
+            CurrentTurnStartAt = DateTimeOffset.UtcNow.AddMinutes(-30),
+            CurrentScheduledTurnEndAt = DateTimeOffset.UtcNow.AddHours(47),
+            IsCompleted = false,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        ctx.TurnQueues.Add(queue);
+        await ctx.SaveChangesAsync();
+
+        TurnQueueParticipant p1 = new TurnQueueParticipant
+        {
+            TurnQueueId = queue.Id,
+            PlayerId = player1Id,
+            TurnOrder = 1,
+            Status = p1Status,
+            IsActiveInLane = true
+        };
+        TurnQueueParticipant p2 = new TurnQueueParticipant
+        {
+            TurnQueueId = queue.Id,
+            PlayerId = player2Id,
+            TurnOrder = 2,
+            Status = p2Status,
+            IsActiveInLane = true
+        };
+        ctx.TurnQueueParticipants.AddRange(p1, p2);
+        await ctx.SaveChangesAsync();
+
+        return (queue.Id, p1.Id, p2.Id);
+    }
+
+    // ── shared arrange helpers ────────────────────────────────────────────────
+
+    /// <summary>Returns a CurrentCampaignTurn representing player 1's turn (TurnOrder 1, not last in round).</summary>
+    private CurrentCampaignTurn Player1Turn() => new()
+    {
+        GameId = _gameId,
+        TurnQueueId = _queueId,
+        TurnQueueParticipantId = _participant1Id,
+        PlayerId = _player1Id,
+        TurnOrder = 1,
+        CurrentRoundNumber = 1
+    };
+
+    /// <summary>Returns a CurrentCampaignTurn representing player 2's turn (TurnOrder 2, last in round).</summary>
+    private CurrentCampaignTurn Player2Turn() => new()
+    {
+        GameId = _gameId,
+        TurnQueueId = _queueId,
+        TurnQueueParticipantId = _participant2Id,
+        PlayerId = _player2Id,
+        TurnOrder = 2,
+        CurrentRoundNumber = 1
+    };
+
+    /// <summary>Configures the two services that ValidateGameAndPlayerAsync calls so they succeed for the given player.</summary>
+    private void ArrangeValidPlayer(CurrentCampaignTurn currentTurn)
+    {
+        _openGameService
+            .GetOpenGames(_gameId, currentTurn.PlayerId, Arg.Any<CancellationToken>())
+            .Returns(ServiceResult<IReadOnlyCollection<OpenGame>>.Succeed(
+                [new OpenGame { GameId = _gameId, GameName = "Test", NumberOfPlayers = 2, MapWidth = 2, MapHeight = 2, Players = [] }]));
+
+        _campaignTurnService
+            .GetCurrentCampaignTurnAsync(_gameId, Arg.Any<CancellationToken>())
+            .Returns(ServiceResult<CurrentCampaignTurn>.Succeed(currentTurn));
+    }
+
+    // =========================================================================
+    // Validator tests
+    // =========================================================================
+
+    // ── GameId ────────────────────────────────────────────────────────────────
+
+    [TestCase(0, Description = "GameId of zero fails the GreaterThan(0) rule.")]
+    [TestCase(-1, Description = "Negative GameId fails the GreaterThan(0) rule.")]
+    public void ShouldFailWhenGameIdIsNotGreaterThanZero(int invalidGameId)
+    {
+        EndCampaignTurnRequest request = ValidRequest() with { GameId = invalidGameId };
+
+        ValidationResult result = _validator.Validate(request);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.IsValid, Is.False, "Validation should fail when GameId is not greater than zero.");
+            Assert.That(result.Errors.Select(e => e.ErrorMessage), Has.Some.EqualTo("Game Id is required."));
+        }
+    }
+
+    // ── PlayerId ──────────────────────────────────────────────────────────────
+
+    [TestCase(0, Description = "PlayerId of zero fails the GreaterThan(0) rule.")]
+    [TestCase(-1, Description = "Negative PlayerId fails the GreaterThan(0) rule.")]
+    public void ShouldFailWhenPlayerIdIsNotGreaterThanZero(int invalidPlayerId)
+    {
+        EndCampaignTurnRequest request = ValidRequest() with { PlayerId = invalidPlayerId };
+
+        ValidationResult result = _validator.Validate(request);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.IsValid, Is.False, "Validation should fail when PlayerId is not greater than zero.");
+            Assert.That(result.Errors.Select(e => e.ErrorMessage), Has.Some.EqualTo("Player Id is required."));
+        }
+    }
+
+    // ── EndTurnMode ───────────────────────────────────────────────────────────
+
+    [TestCase(-1, Description = "Value -1 is not a defined EndTurnMode member.")]
+    [TestCase(99, Description = "Value 99 is not a defined EndTurnMode member.")]
+    public void ShouldFailWhenEndTurnModeIsNotAValidEnumValue(int invalidMode)
+    {
+        EndCampaignTurnRequest request = ValidRequest() with { EndTurnMode = (EndTurnMode)invalidMode };
+
+        ValidationResult result = _validator.Validate(request);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.IsValid, Is.False, "Validation should fail when EndTurnMode is not a valid enum value.");
+            Assert.That(result.Errors.Select(e => e.ErrorMessage), Has.Some.EqualTo("End Turn Mode is not valid."));
+        }
+    }
+
+    // ── Valid request ─────────────────────────────────────────────────────────
+
+    [TestCase(EndTurnMode.CheckForActions, Description = "CheckForActions is a valid EndTurnMode.")]
+    [TestCase(EndTurnMode.ForceEnd, Description = "ForceEnd is a valid EndTurnMode.")]
+    [TestCase(EndTurnMode.Developer_AllAboutMe, Description = "Developer_AllAboutMe is a valid EndTurnMode.")]
+    public void ShouldSucceedWhenRequestIsValid(EndTurnMode validMode)
+    {
+        EndCampaignTurnRequest request = ValidRequest() with { EndTurnMode = validMode };
+
+        ValidationResult result = _validator.Validate(request);
+
+        Assert.That(result.IsValid, Is.True,
+            $"Validation should pass for EndTurnMode.{validMode}. Errors: {string.Join(", ", result.Errors.Select(e => e.ErrorMessage))}");
+    }
+
+    // =========================================================================
+    // Handle — ValidateGameAndPlayerAsync
+    // =========================================================================
+
+    [Test]
+    public async Task ShouldFailWhenOpenGameServiceReturnsNoGame()
+    {
+        _openGameService
+            .GetOpenGames(Arg.Any<int?>(), Arg.Any<int?>(), Arg.Any<CancellationToken>())
+            .Returns(ServiceResult<IReadOnlyCollection<OpenGame>>.Succeed([]));
+
+        EndCampaignTurnRequest request = new EndCampaignTurnRequest(_gameId, _player1Id, EndTurnMode.ForceEnd);
+
+        ServiceResult<EndCampaignTurnOutcome> result = await _handler.Handle(request, CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.False, "Should fail when the game is not found for the player.");
+    }
+
+    [Test]
+    public async Task ShouldFailWhenItIsNotThePlayersTurn()
+    {
+        // The game exists but the current turn belongs to player 2, not player 1.
+        _openGameService
+            .GetOpenGames(_gameId, _player1Id, Arg.Any<CancellationToken>())
+            .Returns(ServiceResult<IReadOnlyCollection<OpenGame>>.Succeed(
+                [new OpenGame { GameId = _gameId, GameName = "Test", NumberOfPlayers = 2, MapWidth = 2, MapHeight = 2, Players = [] }]));
+
+        _campaignTurnService
+            .GetCurrentCampaignTurnAsync(_gameId, Arg.Any<CancellationToken>())
+            .Returns(ServiceResult<CurrentCampaignTurn>.Succeed(Player2Turn())); // player 2's turn
+
+        EndCampaignTurnRequest request = new EndCampaignTurnRequest(_gameId, _player1Id, EndTurnMode.ForceEnd);
+
+        ServiceResult<EndCampaignTurnOutcome> result = await _handler.Handle(request, CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.False, "Should fail when it is not the requesting player's turn.");
+    }
+
+    // =========================================================================
+    // Handle — CheckForActions
+    // =========================================================================
+
+    [Test]
+    public async Task ShouldReturnPossibleActionsWithoutEndingTurnWhenActionsExist()
+    {
+        CurrentCampaignTurn currentTurn = Player1Turn();
+        ArrangeValidPlayer(currentTurn);
+
+        PossibleAction action = new() { Description = "Move unit", Id = 1, RecordTypeId = 1 };
+        _possibleActionService
+            .GetPossibleActionsAsync(Arg.Any<PossibleActionContext>(), Arg.Any<CancellationToken>())
+            .Returns([action]);
+
+        EndCampaignTurnRequest request = new EndCampaignTurnRequest(_gameId, _player1Id, EndTurnMode.CheckForActions);
+
+        ServiceResult<EndCampaignTurnOutcome> result = await _handler.Handle(request, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True);
+            Assert.That(result.SuccessValue!.TurnEnded, Is.False, "Turn should not be ended.");
+            Assert.That(result.SuccessValue.RoundEnded, Is.False, "Round should not be ended.");
+            Assert.That(result.SuccessValue.PossibleActions, Has.Count.EqualTo(1), "Should return the possible actions.");
+        }
+    }
+
+    [Test]
+    public async Task ShouldNotEndTurnWhenCheckForActionsAndNoPossibleActionsExist()
+    {
+        // When there are no possible actions, CheckForActions falls through the if-block and hits the final Fail("Invalid EndTurnMode.") — documenting current behaviour.
+        CurrentCampaignTurn currentTurn = Player1Turn();
+        ArrangeValidPlayer(currentTurn);
+
+        _possibleActionService
+            .GetPossibleActionsAsync(Arg.Any<PossibleActionContext>(), Arg.Any<CancellationToken>())
+            .Returns([]);
+
+        EndCampaignTurnRequest request = new EndCampaignTurnRequest(_gameId, _player1Id, EndTurnMode.CheckForActions);
+
+        ServiceResult<EndCampaignTurnOutcome> result = await _handler.Handle(request, CancellationToken.None);
+
+        // The turn queue should be unchanged — no end-turn DB writes were made.
+        await using AscendantEmpireContext verifyCtx = await DbFactory.CreateDbContextAsync();
+        TurnQueueParticipant participant = verifyCtx.TurnQueueParticipants.First(p => p.Id == _participant1Id);
+
+        Assert.That(participant.Status, Is.EqualTo(TurnQueueParticipantStatus.TakingTurn),
+            "Participant status must remain TakingTurn when no turn-ending action occurred.");
+    }
+
+    // =========================================================================
+    // Handle — ForceEnd, not last turn in round (player 1 of 2)
+    // =========================================================================
+
+    [Test]
+    public async Task ShouldSucceedWithTurnEndedAndRoundNotEndedWhenForceEndNotLastTurn()
+    {
+        CurrentCampaignTurn currentTurn = Player1Turn();
+        ArrangeValidPlayer(currentTurn);
+
+        // Next turn is player 2's.
+        _campaignTurnService
+            .GetNextCampaignTurnAsync(_gameId, 1, Arg.Any<CancellationToken>())
+            .Returns(ServiceResult<CurrentCampaignTurn>.Succeed(Player2Turn()));
+
+        EndCampaignTurnRequest request = new EndCampaignTurnRequest(_gameId, _player1Id, EndTurnMode.ForceEnd);
+
+        ServiceResult<EndCampaignTurnOutcome> result = await _handler.Handle(request, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True);
+            Assert.That(result.SuccessValue!.TurnEnded, Is.True);
+            Assert.That(result.SuccessValue.RoundEnded, Is.False);
+            Assert.That(result.SuccessValue.PossibleActions, Is.Empty);
+        }
+    }
+
+    [Test]
+    public async Task ShouldMarkParticipantTurnCompletedInDbWhenForceEndNotLastTurn()
+    {
+        CurrentCampaignTurn currentTurn = Player1Turn();
+        ArrangeValidPlayer(currentTurn);
+
+        _campaignTurnService
+            .GetNextCampaignTurnAsync(_gameId, 1, Arg.Any<CancellationToken>())
+            .Returns(ServiceResult<CurrentCampaignTurn>.Succeed(Player2Turn()));
+
+        EndCampaignTurnRequest request = new EndCampaignTurnRequest(_gameId, _player1Id, EndTurnMode.ForceEnd);
+        await _handler.Handle(request, CancellationToken.None);
+
+        await using AscendantEmpireContext verifyCtx = await DbFactory.CreateDbContextAsync();
+        TurnQueueParticipant p1 = verifyCtx.TurnQueueParticipants.First(p => p.Id == _participant1Id);
+        TurnQueueParticipant p2 = verifyCtx.TurnQueueParticipants.First(p => p.Id == _participant2Id);
+        TurnQueue queue = verifyCtx.TurnQueues.First(q => q.Id == _queueId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            // Ended player's participant
+            Assert.That(p1.Status, Is.EqualTo(TurnQueueParticipantStatus.TurnCompleted_Manual), "Player 1 participant should be marked TurnCompleted_Manual.");
+            Assert.That(p1.LastCompletedRoundNumber, Is.EqualTo(1), "LastCompletedRoundNumber should be set to the current round.");
+            Assert.That(p1.LastTurnEndedAt, Is.Not.Null, "LastTurnEndedAt should be stamped.");
+
+            // Next player's participant
+            Assert.That(p2.Status, Is.EqualTo(TurnQueueParticipantStatus.TakingTurn), "Player 2 participant should now be TakingTurn.");
+            Assert.That(p2.LastTurnStartedAt, Is.Not.Null,
+                "Player 2 LastTurnStartedAt should be stamped.");
+
+            // Queue
+            Assert.That(queue.CurrentTurnStartAt, Is.Not.Null, "Queue CurrentTurnStartAt should be set for the new turn.");
+            Assert.That(queue.CurrentScheduledTurnEndAt, Is.Not.Null, "Queue CurrentScheduledTurnEndAt should be set for the new turn.");
+            Assert.That(queue.CurrentActualTurnEndAt, Is.Null, "Queue CurrentActualTurnEndAt should be null (turn not yet finished).");
+        }
+    }
+
+    [Test]
+    public async Task ShouldFailWhenGetNextCampaignTurnFailsDuringForceEnd()
+    {
+        CurrentCampaignTurn currentTurn = Player1Turn();
+        ArrangeValidPlayer(currentTurn);
+
+        _campaignTurnService
+            .GetNextCampaignTurnAsync(_gameId, 1, Arg.Any<CancellationToken>())
+            .Returns(ServiceResult<CurrentCampaignTurn>.Fail("next turn lookup failed"));
+
+        EndCampaignTurnRequest request = new EndCampaignTurnRequest(_gameId, _player1Id, EndTurnMode.ForceEnd);
+
+        ServiceResult<EndCampaignTurnOutcome> result = await _handler.Handle(request, CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.False, "Should fail when GetNextCampaignTurnAsync fails.");
+    }
+
+    // =========================================================================
+    // Handle — ForceEnd, last turn in round (player 2 of 2)
+    // =========================================================================
+
+    /// <summary>
+    /// Sets up the DB so player 2 is the one currently taking their turn (last in round),
+    /// and player 1 is Pending (will be first in the next round).
+    /// </summary>
+    private async Task ArrangePlayer2TakingTurnAsync()
+    {
+        // Re-seed the queue with player 2 taking their turn.
+        await using AscendantEmpireContext ctx = await DbFactory.CreateDbContextAsync();
+        await ctx.TurnQueueParticipants
+            .Where(p => p.Id == _participant1Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.Status, TurnQueueParticipantStatus.TurnCompleted_Manual));
+        await ctx.TurnQueueParticipants
+            .Where(p => p.Id == _participant2Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.Status, TurnQueueParticipantStatus.TakingTurn));
+    }
+
+    [Test]
+    public async Task ShouldSucceedWithRoundEndedWhenForceEndLastTurnInRound()
+    {
+        await ArrangePlayer2TakingTurnAsync();
+
+        CurrentCampaignTurn currentTurn = Player2Turn();
+        ArrangeValidPlayer(currentTurn);
+
+        // After round ends, player 1 is first in the new round.
+        CurrentCampaignTurn nextRoundFirstTurn = Player1Turn() with { CurrentRoundNumber = 2 };
+        _campaignTurnService
+            .GetFirstCampaignTurnAsync(_gameId)
+            .Returns(ServiceResult<CurrentCampaignTurn>.Succeed(Player1Turn()));
+        _campaignTurnService
+            .GetNextCampaignTurnAsync(_gameId, 2, Arg.Any<CancellationToken>())
+            .Returns(ServiceResult<CurrentCampaignTurn>.Succeed(nextRoundFirstTurn));
+
+        EndCampaignTurnRequest request = new EndCampaignTurnRequest(_gameId, _player2Id, EndTurnMode.ForceEnd);
+
+        ServiceResult<EndCampaignTurnOutcome> result = await _handler.Handle(request, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True);
+            Assert.That(result.SuccessValue!.TurnEnded, Is.True);
+            Assert.That(result.SuccessValue.RoundEnded, Is.True);
+            Assert.That(result.SuccessValue.PossibleActions, Is.Empty);
+        }
+    }
+
+    [Test]
+    public async Task ShouldUpdateDbCorrectlyWhenForceEndLastTurnInRound()
+    {
+        await ArrangePlayer2TakingTurnAsync();
+
+        CurrentCampaignTurn currentTurn = Player2Turn();
+        ArrangeValidPlayer(currentTurn);
+
+        CurrentCampaignTurn nextRoundFirstTurn = Player1Turn() with { CurrentRoundNumber = 2 };
+        _campaignTurnService
+            .GetFirstCampaignTurnAsync(_gameId)
+            .Returns(ServiceResult<CurrentCampaignTurn>.Succeed(Player1Turn()));
+        _campaignTurnService
+            .GetNextCampaignTurnAsync(_gameId, 2, Arg.Any<CancellationToken>())
+            .Returns(ServiceResult<CurrentCampaignTurn>.Succeed(nextRoundFirstTurn));
+
+        EndCampaignTurnRequest request = new EndCampaignTurnRequest(_gameId, _player2Id, EndTurnMode.ForceEnd);
+        await _handler.Handle(request, CancellationToken.None);
+
+        await using AscendantEmpireContext verifyCtx = await DbFactory.CreateDbContextAsync();
+        TurnQueueParticipant p1 = verifyCtx.TurnQueueParticipants.First(p => p.Id == _participant1Id);
+        TurnQueueParticipant p2 = verifyCtx.TurnQueueParticipants.First(p => p.Id == _participant2Id);
+        TurnQueue queue = verifyCtx.TurnQueues.First(q => q.Id == _queueId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            // Player 2 ended their turn.
+            Assert.That(p2.Status, Is.EqualTo(TurnQueueParticipantStatus.TurnCompleted_Manual),
+                "Player 2 participant should be TurnCompleted_Manual after ending the last turn in the round.");
+            Assert.That(p2.LastTurnEndedAt, Is.Not.Null, "Player 2 LastTurnEndedAt should be stamped.");
+
+            // Player 1 starts the new round's turn.
+            Assert.That(p1.Status, Is.EqualTo(TurnQueueParticipantStatus.TakingTurn), "Player 1 should be TakingTurn at the start of the new round.");
+            Assert.That(p1.LastTurnStartedAt, Is.Not.Null, "Player 1 LastTurnStartedAt should be stamped for the new round.");
+
+            // Queue reflects the start-of-turn for the next round.
+            Assert.That(queue.CurrentTurnStartAt, Is.Not.Null, "Queue CurrentTurnStartAt should be set for the first turn of the new round.");
+            Assert.That(queue.CurrentScheduledTurnEndAt, Is.Not.Null, "Queue CurrentScheduledTurnEndAt should be set.");
+            Assert.That(queue.CurrentActualTurnEndAt, Is.Null, "Queue CurrentActualTurnEndAt should be null at the start of a new turn.");
+        }
+    }
+
+    [Test]
+    public async Task ShouldFailWhenGetFirstCampaignTurnFailsDuringForceEndLastTurn()
+    {
+        await ArrangePlayer2TakingTurnAsync();
+
+        CurrentCampaignTurn currentTurn = Player2Turn();
+        ArrangeValidPlayer(currentTurn);
+
+        _campaignTurnService
+            .GetFirstCampaignTurnAsync(_gameId)
+            .Returns(ServiceResult<CurrentCampaignTurn>.Fail("first turn lookup failed"));
+
+        EndCampaignTurnRequest request = new EndCampaignTurnRequest(_gameId, _player2Id, EndTurnMode.ForceEnd);
+
+        ServiceResult<EndCampaignTurnOutcome> result = await _handler.Handle(request, CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.False, "Should fail when GetFirstCampaignTurnAsync fails.");
+    }
+
+    [Test]
+    public async Task ShouldFailWhenGetNextCampaignTurnForNewRoundFailsDuringForceEndLastTurn()
+    {
+        await ArrangePlayer2TakingTurnAsync();
+
+        CurrentCampaignTurn currentTurn = Player2Turn();
+        ArrangeValidPlayer(currentTurn);
+
+        _campaignTurnService
+            .GetFirstCampaignTurnAsync(_gameId)
+            .Returns(ServiceResult<CurrentCampaignTurn>.Succeed(Player1Turn()));
+        _campaignTurnService
+            .GetNextCampaignTurnAsync(_gameId, 2, Arg.Any<CancellationToken>())
+            .Returns(ServiceResult<CurrentCampaignTurn>.Fail("next turn of new round failed"));
+
+        EndCampaignTurnRequest request = new EndCampaignTurnRequest(_gameId, _player2Id, EndTurnMode.ForceEnd);
+
+        ServiceResult<EndCampaignTurnOutcome> result = await _handler.Handle(request, CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.False, "Should fail when GetNextCampaignTurnAsync for the new round fails.");
+    }
+}

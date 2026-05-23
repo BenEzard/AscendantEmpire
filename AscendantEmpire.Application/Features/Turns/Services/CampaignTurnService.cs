@@ -9,7 +9,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 namespace AscendantEmpire.Application.Features.Turns.Services;
 
-internal class CampaignTurnService(
+public class CampaignTurnService(
     ILogger<CampaignTurnService> logger,
     IDbContextFactory<AscendantEmpireContext> dbFactory)
 {

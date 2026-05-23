@@ -2,9 +2,11 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Turns.Handlers;
+using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Helpers;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
 using AscendantEmpire.BackendContracts.TroopOrders.MoveTroops;
+using AscendantEmpire.BackendContracts.Turns.GetCurrentCampaignTurn;
 using AscendantEmpire.BackendContracts.Turns.GetPlayerTurn;
 using AscendantEmpire.Domain.Entities.Units;
 
@@ -56,7 +58,8 @@ internal class MoveTroopRequestValidator : AbstractValidator<MoveTroopRequest>
 internal class MoveTroopHandler(
     ILogger<MoveTroopHandler> logger,
     IDbContextFactory<AscendantEmpireContext> dbFactory,
-    IMediator mediator//,
+    IMediator mediator,
+    ICampaignTurnService campaignTurnService//,
     //IPathFinder pathFinder
 ) : IRequestHandler<MoveTroopRequest, ServiceResult<MoveTroopResult>>
 {
@@ -98,7 +101,8 @@ internal class MoveTroopHandler(
                 y: request.YCoord);
 
             // TODO Check who's turn it is
-            ServiceResult<IReadOnlyCollection<RosterEntry>> turnResult = await mediator.Send(new GetTurnRequest(request.GameId, request.PlayerId), cancelToken); 
+            ServiceResult<CurrentCampaignTurn> turnResult = await campaignTurnService.GetCurrentCampaignTurnAsync(request.GameId, cancelToken);
+
             if (turnResult.HasSucceeded == false || turnResult.SuccessValue is null)
             {
                 const string error = "Error getting turn info while trying to move Troops";
@@ -106,15 +110,15 @@ internal class MoveTroopHandler(
                 return ServiceResult<MoveTroopResult>.Fail(turnResult.Errors.Prepend(error));
             }
 
-            List<RosterEntry> rosterEntriesForPlayer = [.. turnResult.SuccessValue.Where(re => re.CurrentTurnPlayerId == request.PlayerId)];
+            //List<RosterEntry> rosterEntriesForPlayer = [.. turnResult.SuccessValue.Where(re => re.CurrentTurnPlayerId == request.PlayerId)];
 
 
-            ServiceResultBase secondaryValidationResult = ValidateObjects(request, troop, targetCampaignMapTileId, rosterEntriesForPlayer);
-            if (!secondaryValidationResult.HasSucceeded || troop is null)
-            {
-                logger.LogWarning("Secondary validation failed for {Request}. Errors: {Errors}", request, string.Join("; ", secondaryValidationResult.Errors));
-                return ServiceResult<MoveTroopResult>.Fail(secondaryValidationResult.Errors);
-            }
+            //ServiceResultBase secondaryValidationResult = ValidateObjects(request, troop, targetCampaignMapTileId, rosterEntriesForPlayer);
+            //if (!secondaryValidationResult.HasSucceeded || troop is null)
+            //{
+            //    logger.LogWarning("Secondary validation failed for {Request}. Errors: {Errors}", request, string.Join("; ", secondaryValidationResult.Errors));
+            //    return ServiceResult<MoveTroopResult>.Fail(secondaryValidationResult.Errors);
+            //}
 
             // TODO: Get active orders, and if there are any, cancel them.
 
