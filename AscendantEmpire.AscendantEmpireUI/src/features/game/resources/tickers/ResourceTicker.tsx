@@ -3,7 +3,7 @@ import "./ResourceTicker.css";
 import ResourceIndicatorPanel from "./ResourceIndicatorPanel";
 import ResourceAmountLabel from "./ResourceAmountLabel";
 import { getResourceTickerBackground } from "./ResourceConstants";
-import { formatResourceAmount } from "./ResourceAmountFormat";
+import { formatResourceAmount } from "@/util/number";
 import { buildResourceTooltip } from "./ResourceTooltip";
 
 export interface ResourceTickerProps {

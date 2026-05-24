@@ -11,7 +11,7 @@ namespace AscendantEmpire.Application.Features.Turns.Services;
 
 public class CampaignTurnService(
     ILogger<CampaignTurnService> logger,
-    IDbContextFactory<AscendantEmpireContext> dbFactory)
+    IDbContextFactory<AscendantEmpireContext> dbFactory) : ICampaignTurnService
 {
     /// <inheritdoc />
     public async Task<ServiceResult<CurrentCampaignTurn>> GetCurrentCampaignTurnAsync(int gameId, CancellationToken cancellationToken = default)

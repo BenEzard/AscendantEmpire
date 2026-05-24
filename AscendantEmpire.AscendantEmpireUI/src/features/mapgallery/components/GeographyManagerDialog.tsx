@@ -129,7 +129,7 @@ function GeographyManagerDialog({
                 onClick={() => setActiveSection("general")}
                 className={[
                   "block w-full px-3 py-2 text-left text-sm",
-                  activeSection === "general" ? "bg-slate-100 font-semibold" : "hover:bg-slate-50",
+                  activeSection === "general" ? "nav-item-selected font-semibold" : "hover:bg-slate-50",
                 ].join(" ")}>
                 General Properties
               </button>

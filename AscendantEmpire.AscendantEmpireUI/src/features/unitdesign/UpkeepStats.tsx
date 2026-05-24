@@ -5,7 +5,7 @@ import { FaFish } from "react-icons/fa";
 import { GiHeavyBullets, GiJerrycan, GiSpanner } from "react-icons/gi";
 
 import type { ComponentUpkeep, UpkeepCategory } from "./types/UnitComponent";
-import { getResourceIconByLabel } from "@/features/game/resources/resourceIcons";
+import { getResourceIconByLabel } from "@/features/game/resources/tickers/resourceIcons";
 
 const CATEGORY_META: Record<UpkeepCategory, { title: string; Icon: IconType }> = {
   food: { title: "Food", Icon: FaFish },

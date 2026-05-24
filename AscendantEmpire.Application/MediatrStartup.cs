@@ -1,6 +1,7 @@
 ﻿using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
 using AscendantEmpire.Application.Features.TroopOrders.Movement;
+using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions.Checks;
 
@@ -14,6 +15,7 @@ public static class MediatrStartup
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        services.AddScoped<ICampaignTurnService, CampaignTurnService>();
         services.AddScoped<ICampaignMapGalleryService, CampaignMapGalleryService>();
         services.AddScoped<IGameSetupService, GameSetupService>();
         services.AddScoped<IMovementProfileFactory, MovementProfileFactory>();

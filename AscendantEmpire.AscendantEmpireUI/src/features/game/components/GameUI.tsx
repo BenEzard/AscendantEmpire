@@ -1,21 +1,25 @@
 import type { ToolBarGroup } from "@/components/Toolbar";
 import ToolBar from "@/components/Toolbar";
-import ResourceTickerCollection, { type ResourceCategoryData } from "@/features/game/resources/ResourceTickerCollection";
-import { resourceDummyData } from "../resources/ResourceDummyData";
+import ResourceTickerCollection, {
+  type ResourceCategoryData,
+  type ResourceTickerData,
+} from "@/features/game/resources/tickers/ResourceTickerCollection";
+import ResourceManagerDialog from "@/features/game/resources/manager/ResourceManagerDialog";
+import { resourceDummyData } from "../resources/tickers/ResourceDummyData";
 import {
   useClearPlayerCampaignMapMutation,
   useLoadPlayerCampaignMapMutation,
   usePlayerCampaignMapTilesQuery,
   playerCampaignTilesKey,
 } from "@/features/map/hooks/useCampaignMapTiles";
-import TileGrid from "@/features/map/components/TileGrid";
+import TileGrid, { TILE_SIZE_PX } from "@/features/map/components/TileGrid";
 import type { ObservedTroopTile, TileCell } from "@/features/map/components/TileTypes";
 import { useCampaignMapBiomesQuery } from "@/features/map/hooks/useCampaignMapBiomes";
 import { useCampaignMapGeographiesQuery } from "@/features/map/hooks/useCampaignMapGeographies";
 import { useTroopDisplayInfoQuery } from "@/features/map/hooks/useTroopDisplayInfo";
 import type { CampaignMapTileDto, LoadPlayerCampaignMapRequest, PlayerCampaignMapObserverResultDto } from "@/features/map/api/playerCampaignMapApi";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { Alert, Spinner, Toast, ToastViewport } from "@/components/ui";
+import { Alert, HamburgerMenu, Spinner, Toast, ToastViewport } from "@/components/ui";
 import { FaChessKnight, FaRegFolderOpen } from "react-icons/fa6";
 import { GiHuntingHorn, GiWoodStick } from "react-icons/gi";
 import { GoEye, GoEyeClosed } from "react-icons/go";
@@ -24,11 +28,14 @@ import OpenGameDialog from "./OpenGameDialog";
 import VisionSettingsOffcanvas from "./VisionSettingsOffcanvas";
 import type { OpenGameSelection } from "../types/OpenGameSelection";
 import { GrCaretNext } from "react-icons/gr";
-import { http } from "@/api/http";
 import { SlClose } from "react-icons/sl";
+import { http } from "@/api/http";
 import { useQueryClient } from "@tanstack/react-query";
 import ContextActionToolbar, { type ContextActionToolbarAction } from "./ContextActionToolbar";
 import ForceSelectionDialog, { type ForceSelectionDialogTile } from "./ForceSelectionDialog";
+import { VscNewFile } from "react-icons/vsc";
+import NotificationsHost from "@/features/notifications/NotificationsHost";
+import { NotificationsProvider } from "@/features/notifications/useNotifications";
 
 function buildTiles2d(width: number, height: number, tiles: CampaignMapTileDto[]): TileCell[][] {
   const grid: TileCell[][] = Array.from({ length: height }, (_, y) =>
@@ -79,7 +86,7 @@ function getTroopWithMaxHealthy(troops: ObservedTroopTile[]): ObservedTroopTile 
   return strongestTroop;
 }
 
-function GameUI() {
+function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   type ActiveDialog = "openGame" | null;
   type ActiveTool = "vision" | null;
   type SelectedTile = { x: number; y: number };
@@ -101,6 +108,9 @@ function GameUI() {
   const [constructionOverlayTop, setConstructionOverlayTop] = useState<number>(0);
   const [constructionOverlayLeft, setConstructionOverlayLeft] = useState<number>(0);
   const constructionOverlayRef = useRef<HTMLDivElement | null>(null);
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const [toolbarBottomPx, setToolbarBottomPx] = useState<number>(0);
+  const tileGridContainerRef = useRef<HTMLDivElement | null>(null);
 
   const constructionButtonDomId = "toolbar-btn-construction-material";
 
@@ -164,7 +174,76 @@ function GameUI() {
     setToast({ show: true, message, variant });
   }, []);
 
+  useEffect(() => {
+    const compute = () => {
+      const el = toolbarRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      setToolbarBottomPx(Math.round(rect.bottom));
+    };
+
+    compute();
+    window.addEventListener("resize", compute);
+    window.addEventListener("scroll", compute, { passive: true });
+
+    const el = toolbarRef.current;
+    if (!el || !("ResizeObserver" in window)) {
+      return () => {
+        window.removeEventListener("resize", compute);
+        window.removeEventListener("scroll", compute);
+      };
+    }
+
+    const ro = new ResizeObserver(compute);
+    ro.observe(el);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", compute);
+      window.removeEventListener("scroll", compute);
+    };
+  }, []);
+
   const closeToast = () => setToast((t) => ({ ...t, show: false }));
+
+  const panMapTo = useCallback((x: number, y: number) => {
+    const el = tileGridContainerRef.current;
+    if (!el) return;
+
+    const tileCenterX = x * TILE_SIZE_PX + TILE_SIZE_PX / 2;
+    const tileCenterY = y * TILE_SIZE_PX + TILE_SIZE_PX / 2;
+
+    const hasInternalHScroll = el.scrollWidth > el.clientWidth;
+    const hasInternalVScroll = el.scrollHeight > el.clientHeight;
+
+    if (hasInternalHScroll || hasInternalVScroll) {
+      // Container is height/width-constrained and scrolls internally.
+      const maxLeft = Math.max(0, el.scrollWidth - el.clientWidth);
+      const maxTop = Math.max(0, el.scrollHeight - el.clientHeight);
+      el.scrollTo({
+        left: Math.max(0, Math.min(maxLeft, tileCenterX - el.clientWidth / 2)),
+        top: Math.max(0, Math.min(maxTop, tileCenterY - el.clientHeight / 2)),
+        behavior: "smooth",
+      });
+    } else {
+      // Container expands to its content (no internal scroll) — the window scrolls instead.
+      const rect = el.getBoundingClientRect();
+      const absLeft = rect.left + window.scrollX + tileCenterX;
+      const absTop = rect.top + window.scrollY + tileCenterY;
+      window.scrollTo({
+        left: Math.max(0, absLeft - window.innerWidth / 2),
+        top: Math.max(0, absTop - window.innerHeight / 2),
+        behavior: "smooth",
+      });
+    }
+  }, []);
+
+  const openNotificationDialog = useCallback(
+    (dialog: "unit-orders" | "trade" | "city", _payload?: unknown) => {
+      openToast(`Open dialog: ${dialog}`, "info");
+    },
+    [openToast],
+  );
 
   const clearPlayerCampaignMap = useClearPlayerCampaignMapMutation({
     onSuccess: () => {
@@ -203,8 +282,57 @@ function GameUI() {
     {
       caption: "Game",
       buttons: [
-        { key: "open", icon: <FaRegFolderOpen />, tooltip: "Open Game", onClick: () => setActiveDialog("openGame") },
-        { key: "close", icon: <SlClose />, tooltip: "Close Game", disabled: gameSelection == null, onClick: closeGame },
+        {
+          key: "game-menu",
+          render: () => (
+            <HamburgerMenu
+              title="Game menu"
+              tooltip="Game"
+              groups={[
+                {
+                  label: "Game",
+                  items: [
+                    {
+                      key: "new",
+                      icon: <VscNewFile />,
+                      label: "New",
+                      tooltip: "New Game",
+                      onClick: () => {},
+                    },
+                    {
+                      key: "open",
+                      icon: <FaRegFolderOpen />,
+                      label: "Open",
+                      tooltip: "Open Game",
+                      onClick: () => setActiveDialog("openGame"),
+                    },
+                    {
+                      key: "close",
+                      icon: <SlClose />,
+                      label: "Close",
+                      tooltip: "Close Game",
+                      disabled: gameSelection == null,
+                      onClick: closeGame,
+                    },
+                  ],
+                },
+                {
+                  label: "Dev Tools",
+                  items: [
+                    {
+                      key: "clear-vision",
+                      icon: <GoEyeClosed />,
+                      label: "Clear Vision",
+                      tooltip: "Clear Vision",
+                      disabled: gameSelection == null,
+                      onClick: clearVision,
+                    },
+                  ],
+                },
+              ]}
+            />
+          ),
+        },
       ],
     },
     {
@@ -219,13 +347,6 @@ function GameUI() {
           onClick: toggleVisionTool,
           onMiddleClick: openVisionSettings,
           middleClickHint: "settings",
-        },
-        {
-          key: "clear-vision",
-          icon: <GoEyeClosed />,
-          tooltip: "Clear Vision",
-          disabled: gameSelection == null,
-          onClick: clearVision,
         },
       ],
     },
@@ -274,6 +395,27 @@ function GameUI() {
   ];
 
   const [constructionCategories, setConstructionCategories] = useState<ResourceCategoryData[]>(() => resourceDummyData);
+
+  const [showResourceManager, setShowResourceManager] = useState(false);
+  const [resourceManagerSelectedId, setResourceManagerSelectedId] = useState<string | null>(null);
+
+  const allConstructionTickers = useMemo<ResourceTickerData[]>(() => {
+    const result: ResourceTickerData[] = [];
+    for (const category of constructionCategories) {
+      if (category.type === "processed-resources") {
+        for (const group of category.tickerGroups) {
+          result.push(...group.tickers);
+        }
+      } else if (category.type === "standalone-resources") {
+        result.push(...category.resources);
+      } else if (category.type === "manufactured-grades") {
+        for (const collection of category.collections) {
+          result.push(...Object.values(collection.resourcesByGrade));
+        }
+      }
+    }
+    return result;
+  }, [constructionCategories]);
 
   useEffect(() => {
     if (!showConstructionPanel) return;
@@ -602,122 +744,139 @@ function GameUI() {
   }, [hunt, openForceSelectionDialog, pendingForceSelectionTile, selectedForce]);
 
   return (
-    <div className="flex flex-col" style={{ minHeight: "100vh" }}>
-      <ToolBar groups={toolBarGroups} />
-
-      {showConstructionPanel && (
-        <div
-          ref={constructionOverlayRef}
-          style={{
-            position: "fixed",
-            top: constructionOverlayTop,
-            left: constructionOverlayLeft,
-            transform: undefined,
-            zIndex: 1050,
-            background: "rgba(255, 255, 255, 0.96)",
-            border: "1px solid rgba(0, 0, 0, 0.12)",
-            borderRadius: "8px",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-            padding: "0.5rem",
-            width: "fit-content",
-            maxWidth: "calc(100vw - 2rem)",
-          }}>
-          <ResourceTickerCollection
-            categories={constructionCategories}
-            maximumColumns={4}
-            onReorderCategoryTickerGroups={({ categoryKey, tickerGroups }) => {
-              setConstructionCategories((prev) =>
-                prev.map((category) =>
-                  category.key === categoryKey && category.type === "processed-resources" ? { ...category, tickerGroups } : category,
-                ),
-              );
-            }}
-            onClickAmount={({ name, amount, categoryType, grade, isTotal }) => {
-              const gradeText = grade ? ` [${grade}]` : "";
-              const sourceText = isTotal ? "total" : "resource";
-              openToast(`${name}${gradeText}: ${amount} (${categoryType}, ${sourceText})`, "info");
-            }}
-          />
+    <NotificationsProvider>
+      <div className="flex flex-col" style={{ minHeight: "100vh" }}>
+        <div ref={toolbarRef} className="fixed left-0 right-0 z-[1070]" style={{ top: topOffset }}>
+          <ToolBar groups={toolBarGroups} />
         </div>
-      )}
+        {/* Spacer so content doesn't slide under the fixed toolbar (toolbar height only, tab strip is handled by App) */}
+        <div style={{ height: Math.max(0, toolbarBottomPx - topOffset) }} />
 
-      <VisionSettingsOffcanvas
-        show={showVisionSettings}
-        onHide={() => setShowVisionSettings(false)}
-        visionRadius={visionRadius}
-        setVisionRadius={setVisionRadius}
-        visionLoadWholeMap={visionLoadWholeMap}
-        setVisionLoadWholeMap={setVisionLoadWholeMap}
-      />
+        <NotificationsHost toolbarBottomPx={toolbarBottomPx} onPanTo={panMapTo} onOpenDialog={openNotificationDialog} />
 
-      <OpenGameDialog
-        show={activeDialog === "openGame"}
-        onClose={() => setActiveDialog(null)}
-        onSaveSuccess={(msg) => openToast(msg ?? "Undefined", "success")}
-        onOpenMap={(selection) => {
-          setGameSelection(selection);
-          setActiveDialog(null);
-        }}
-      />
-
-      <ForceSelectionDialog
-        open={forceSelectionTile != null}
-        tile={forceSelectionTile}
-        selectedTroopId={selectedForce?.id}
-        troopImageSrcByUnitDesignId={troopImageSrcByUnitDesignId}
-        onClose={closeForceSelectionDialog}
-        onSelect={chooseForce}
-      />
-
-      <ContextActionToolbar visible={selectedForce != null && contextActionToolbarActions.length > 0} actions={contextActionToolbarActions} />
-
-      <ToastViewport>
-        <Toast open={toast.show} onClose={closeToast} variant={toast.variant} message={toast.message} autoHideMs={3000} />
-      </ToastViewport>
-
-      <div className="flex flex-col grow min-h-0">
-        {activePanel === "unit-design" ? (
-          <UnitDesigner onClose={() => setActivePanel(null)} />
-        ) : (
-          <div className="mt-3">
-            {gameSelection == null ? (
-              <Alert variant="secondary" className="mb-0">
-                No game opened. Use <strong>Game → Open</strong>.
-              </Alert>
-            ) : (
-              <>
-                <div className="flex items-center justify-between mb-2">
-                  {(tilesLoading || tilesFetching) && (
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <Spinner size="sm" />
-                      <span>Loading tiles...</span>
-                    </div>
-                  )}
-                </div>
-
-                {tilesError && <Alert variant="danger">Failed to load tiles: {tilesError.message}</Alert>}
-
-                {tiles2d && (
-                  <TileGrid
-                    width={gameSelection.width}
-                    height={gameSelection.height}
-                    tiles2d={tiles2d}
-                    geographies={geographies ?? []}
-                    selectedTroopId={selectedForce?.id}
-                    troopImageSrcByUnitDesignId={troopImageSrcByUnitDesignId}
-                    getVisibleTroopId={getVisibleTroopId}
-                    onTileClick={onTileClick}
-                    onTileHold={onTileHold}
-                    getTileStyle={getTileStyle}
-                    getTileTitle={getTileTitle}
-                  />
-                )}
-              </>
-            )}
+        {showConstructionPanel && (
+          <div
+            ref={constructionOverlayRef}
+            style={{
+              position: "fixed",
+              top: constructionOverlayTop,
+              left: constructionOverlayLeft,
+              transform: undefined,
+              zIndex: 1050,
+              background: "rgba(255, 255, 255, 0.96)",
+              border: "1px solid rgba(0, 0, 0, 0.12)",
+              borderRadius: "8px",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+              padding: "0.5rem",
+              width: "fit-content",
+              maxWidth: "calc(100vw - 2rem)",
+            }}>
+            <ResourceTickerCollection
+              categories={constructionCategories}
+              maximumColumns={4}
+              onReorderCategoryTickerGroups={({ categoryKey, tickerGroups }) => {
+                setConstructionCategories((prev) =>
+                  prev.map((category) =>
+                    category.key === categoryKey && category.type === "processed-resources" ? { ...category, tickerGroups } : category,
+                  ),
+                );
+              }}
+              onClickAmount={({ resourceId, isTotal }) => {
+                if (isTotal) return;
+                setResourceManagerSelectedId(resourceId ?? null);
+                setShowResourceManager(true);
+              }}
+            />
           </div>
         )}
+
+        <VisionSettingsOffcanvas
+          show={showVisionSettings}
+          onHide={() => setShowVisionSettings(false)}
+          visionRadius={visionRadius}
+          setVisionRadius={setVisionRadius}
+          visionLoadWholeMap={visionLoadWholeMap}
+          setVisionLoadWholeMap={setVisionLoadWholeMap}
+        />
+
+        <OpenGameDialog
+          show={activeDialog === "openGame"}
+          onClose={() => setActiveDialog(null)}
+          onSaveSuccess={(msg) => openToast(msg ?? "Undefined", "success")}
+          onOpenMap={(selection) => {
+            setGameSelection(selection);
+            setActiveDialog(null);
+          }}
+        />
+
+        <ForceSelectionDialog
+          open={forceSelectionTile != null}
+          tile={forceSelectionTile}
+          selectedTroopId={selectedForce?.id}
+          troopImageSrcByUnitDesignId={troopImageSrcByUnitDesignId}
+          onClose={closeForceSelectionDialog}
+          onSelect={chooseForce}
+        />
+
+        <ResourceManagerDialog
+          show={showResourceManager}
+          onClose={() => setShowResourceManager(false)}
+          tickers={allConstructionTickers}
+          selectedResourceId={resourceManagerSelectedId}
+          onSelectResource={setResourceManagerSelectedId}
+        />
+
+        <ContextActionToolbar visible={selectedForce != null && contextActionToolbarActions.length > 0} actions={contextActionToolbarActions} />
+
+        <ToastViewport>
+          <Toast open={toast.show} onClose={closeToast} variant={toast.variant} message={toast.message} autoHideMs={3000} />
+        </ToastViewport>
+
+        <div className="flex flex-col grow min-h-0">
+          {activePanel === "unit-design" ? (
+            <UnitDesigner onClose={() => setActivePanel(null)} />
+          ) : (
+            <div className="mt-3">
+              {gameSelection == null ? (
+                <Alert variant="secondary" className="mb-0">
+                  No game opened. Use <strong>Game → Open</strong>.
+                </Alert>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between mb-2">
+                    {(tilesLoading || tilesFetching) && (
+                      <div className="flex items-center gap-2 text-slate-500">
+                        <Spinner size="sm" />
+                        <span>Loading tiles...</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {tilesError && <Alert variant="danger">Failed to load tiles: {tilesError.message}</Alert>}
+
+                  {tiles2d && (
+                    <TileGrid
+                      width={gameSelection.width}
+                      height={gameSelection.height}
+                      tiles2d={tiles2d}
+                      geographies={geographies ?? []}
+                      containerRef={tileGridContainerRef}
+                      selectedTroopId={selectedForce?.id}
+                      troopImageSrcByUnitDesignId={troopImageSrcByUnitDesignId}
+                      getVisibleTroopId={getVisibleTroopId}
+                      onTileClick={onTileClick}
+                      onTileHold={onTileHold}
+                      getTileStyle={getTileStyle}
+                      getTileTitle={getTileTitle}
+                    />
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </NotificationsProvider>
   );
 }
 

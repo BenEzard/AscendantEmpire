@@ -5,4 +5,6 @@
   --bs-info: #0dcaf0;
   --bs-warning: #ffc107;
   --bs-danger: #dc3545;
+
+  --nav-selected-bg: #fed7aa; /* orange-200 */
 }

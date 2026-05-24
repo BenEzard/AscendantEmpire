@@ -10,6 +10,7 @@ export interface TileGridProps {
   height: number;
   tiles2d: TileCell[][];
   geographies: Geography[];
+  containerRef?: React.Ref<HTMLDivElement>;
   selectedTroopId?: number;
   troopImageSrcByUnitDesignId?: ReadonlyMap<number, string>;
   getVisibleTroopId?: (tile: TileCell) => number | undefined;
@@ -29,6 +30,7 @@ export default function TileGrid({
   height,
   tiles2d,
   geographies,
+  containerRef,
   selectedTroopId,
   troopImageSrcByUnitDesignId,
   getVisibleTroopId,
@@ -43,7 +45,7 @@ export default function TileGrid({
   const flat = React.useMemo(() => tiles2d.flat(), [tiles2d]);
 
   return (
-    <div style={{ overflow: "auto", border: "1px solid rgba(0,0,0,0.125)" }}>
+    <div ref={containerRef} style={{ overflow: "auto", border: "1px solid rgba(0,0,0,0.125)" }}>
       <div
         style={{
           display: "grid",

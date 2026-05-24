@@ -1,7 +1,7 @@
 import "./ResourceTicker.css";
 import { formatNumberWithCommas } from "@/util/number";
 import ResourceAmountLabel from "./ResourceAmountLabel";
-import { formatResourceAmount } from "./ResourceAmountFormat";
+import { formatResourceAmount } from "@/util/number";
 
 export interface ResourceTotalProps {
   amount: number;

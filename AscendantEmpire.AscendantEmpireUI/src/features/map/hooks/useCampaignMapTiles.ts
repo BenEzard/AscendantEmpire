@@ -18,7 +18,7 @@ export function usePlayerCampaignMapTilesQuery(gameId: number | undefined, playe
       if (gameId == null) throw new Error("gameId is null");
       if (playerId == null) throw new Error("playerId is null");
       
-      const payload: LoadPlayerCampaignMapRequest = { gameId, playerId, loadWholeMap: true, observers: null };
+      const payload: LoadPlayerCampaignMapRequest = { gameId, playerId, loadWholeMap: true };
 
       return await postPlayerCampaignMap(payload);
     },

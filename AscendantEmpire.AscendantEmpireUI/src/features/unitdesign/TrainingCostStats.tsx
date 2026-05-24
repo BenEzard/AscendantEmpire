@@ -1,6 +1,6 @@
 import type { ComponentCost } from "./types/UnitComponent";
 
-import { getResourceIconByLabel } from "@/features/game/resources/resourceIcons";
+import { getResourceIconByLabel } from "@/features/game/resources/tickers/resourceIcons";
 
 function fmt(n: number) {
   if (!Number.isFinite(n)) return String(n);

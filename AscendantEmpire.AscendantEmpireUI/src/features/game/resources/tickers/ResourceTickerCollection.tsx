@@ -10,6 +10,8 @@ export type ResourceTickerData = {
   name: string;
   column?: number;
   amount: number;
+  resourcesAddedPerTurn?: number;
+  description?: string;
   tooltip?: string;
   isLuxury?: boolean;
   icon?: ReactNode;

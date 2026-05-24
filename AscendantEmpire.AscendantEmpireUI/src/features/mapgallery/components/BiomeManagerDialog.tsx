@@ -146,7 +146,7 @@ function BiomeManagerDialog({
                 onClick={() => setActiveSection("general")}
                 className={[
                   "block w-full px-3 py-2 text-left text-sm",
-                  activeSection === "general" ? "bg-slate-100 font-semibold" : "hover:bg-slate-50",
+                  activeSection === "general" ? "nav-item-selected font-semibold" : "hover:bg-slate-50",
                 ].join(" ")}>
                 General Properties
               </button>
@@ -155,7 +155,7 @@ function BiomeManagerDialog({
                 onClick={() => setActiveSection("regen")}
                 className={[
                   "block w-full px-3 py-2 text-left text-sm border-t border-slate-200",
-                  activeSection === "regen" ? "bg-slate-100 font-semibold" : "hover:bg-slate-50",
+                  activeSection === "regen" ? "nav-item-selected font-semibold" : "hover:bg-slate-50",
                 ].join(" ")}>
                 Regenerating Resources
               </button>
@@ -164,7 +164,7 @@ function BiomeManagerDialog({
                 onClick={() => setActiveSection("passive")}
                 className={[
                   "block w-full px-3 py-2 text-left text-sm border-t border-slate-200",
-                  activeSection === "passive" ? "bg-slate-100 font-semibold" : "hover:bg-slate-50",
+                  activeSection === "passive" ? "nav-item-selected font-semibold" : "hover:bg-slate-50",
                 ].join(" ")}>
                 Passive Resources
               </button>
