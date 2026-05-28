@@ -426,7 +426,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
       const rect = buttonEl.getBoundingClientRect();
 
       // fixed overlay; rect is viewport-relative
-      setConstructionOverlayTop(Math.round(rect.bottom + 6));
+      setConstructionOverlayTop(Math.round(rect.bottom + 20));
       setConstructionOverlayLeft(Math.round(rect.left));
     };
 

@@ -9,6 +9,8 @@ const TOOLTIP_LABELS: Record<LockedState, string> = {
   unlocked: "Unlocked",
   locked: "Locked",
   systemlocked: "Permanently Locked",
+  unlockable: "",
+  systemlockedinvisible: "",
 };
 
 function LockIcon({ state }: { state: LockedState }) {

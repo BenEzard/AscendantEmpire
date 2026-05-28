@@ -12,5 +12,5 @@ export { default as HamburgerMenu } from "./HamburgerMenu";
 export type { HamburgerMenuItem, HamburgerMenuGroup } from "./HamburgerMenu";
 export { default as NumberValueField } from "./NumberValueField";
 export type { NumberValueFieldProps } from "./NumberValueField";
-export { Slider, SliderButton, SliderGroup, SliderCollection } from "./slider";
-export type { SliderProps, SliderGroupProps, SliderCollectionProps } from "./slider";
+export { Slider, SliderButton, SliderGroup } from "./slider";
+export type { SliderProps, SliderGroupProps } from "./slider";

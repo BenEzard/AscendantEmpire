@@ -2,6 +2,15 @@ import { createContext, useContext } from "react";
 import type { LockedState } from "./Slider";
 
 export interface SliderEntry {
+  numericId: number;
+  code: string;
+  value: number;
+  lockState: LockedState;
+}
+
+export interface SliderSnapshot {
+  id: number;
+  code: string;
   value: number;
   lockState: LockedState;
 }
@@ -13,7 +22,7 @@ export interface CollectionState {
 }
 
 export interface SliderCollectionContextValue {
-  register: (id: string, initialValue: number, initialLockState: LockedState) => void;
+  register: (id: string, numericId: number, code: string, initialValue: number, initialLockState: LockedState) => void;
   unregister: (id: string) => void;
   getEntry: (id: string) => SliderEntry | undefined;
   requestValueUpdate: (id: string, requestedValue: number) => void;

@@ -1,13 +1,13 @@
 import type { MouseEventHandler } from "react";
 
 interface SliderButtonProps {
-  value: number; // 0–100, displayed as label
+  label: string; // formatted value displayed on the button
   leftPx: number; // computed pixel offset from groove left edge
   onMouseDown: MouseEventHandler<HTMLDivElement>;
   locked?: boolean;
 }
 
-export default function SliderButton({ value, leftPx, onMouseDown, locked = false }: SliderButtonProps) {
+export default function SliderButton({ label, leftPx, onMouseDown, locked = false }: SliderButtonProps) {
   return (
     <div
       className={`absolute top-1/2 z-10 w-10 -translate-x-1/2 -translate-y-1/2 select-none rounded py-0.5 text-center text-xs font-semibold whitespace-nowrap text-white ${
@@ -15,7 +15,7 @@ export default function SliderButton({ value, leftPx, onMouseDown, locked = fals
       }`}
       style={{ left: leftPx }}
       onMouseDown={locked ? undefined : onMouseDown}>
-      {value}%
+      {label}
     </div>
   );
 }

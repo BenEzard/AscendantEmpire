@@ -4,5 +4,3 @@ export { default as SliderButton } from "./SliderButton";
 export { default as SliderLockButton } from "./SliderLockButton";
 export { default as SliderGroup } from "./SliderGroup";
 export type { SliderGroupProps } from "./SliderGroup";
-export { default as SliderCollection } from "./SliderCollection";
-export type { SliderCollectionProps } from "./SliderCollection";

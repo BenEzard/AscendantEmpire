@@ -1,4 +1,6 @@
-import { Slider, SliderGroup, SliderCollection } from "../../../../components/ui/slider";
+import { SliderGroup } from "../../../../components/ui/slider";
+import { ResourceSlider, ResourceSliderCollection } from "../slider";
+import type { SliderSnapshot } from "../slider";
 import { NumberValueField } from "../../../../components/ui";
 import type { ResourceTickerData } from "../tickers/ResourceTickerCollection";
 import tradeIcon from "../../../../assets/icons/trade_40px.png";
@@ -10,6 +12,8 @@ interface ResourceManagerDistributionPageProps {
   currentConsumption: number;
   maxConsumption: number;
   resourceSliderMaxConsumption?: number;
+  onSliderChange?: (sliders: SliderSnapshot[]) => void;
+  onRemainderChange?: (sliderId: number | null) => void;
 }
 
 function TradeIcon() {
@@ -49,6 +53,8 @@ export default function ResourceManagerDistributionPage({
   currentConsumption,
   maxConsumption,
   resourceSliderMaxConsumption = 0,
+  onSliderChange,
+  onRemainderChange,
 }: ResourceManagerDistributionPageProps) {
   return (
     <div>
@@ -63,9 +69,9 @@ export default function ResourceManagerDistributionPage({
           <NumberValueField actualNumber={maxConsumption} tooltip="Maximum Consumption" />
         </div>
       </div>
-      <SliderCollection resourcesAddedPerTurn={resourcesPerTurn}>
+      <ResourceSliderCollection key={selectedTicker?.id ?? "none"} resourcesAddedPerTurn={resourcesPerTurn} onChange={onSliderChange} onRemainderChange={onRemainderChange}>
         <SliderGroup>
-          <Slider
+          <ResourceSlider
             id={1}
             code="trade"
             icon={<TradeIcon />}
@@ -74,10 +80,11 @@ export default function ResourceManagerDistributionPage({
             resourcesAddedPerTurn={resourcesPerTurn}
             maxConsumptionLimit={resourceSliderMaxConsumption}
             lockedState="systemlocked"
+            canConsumeRemainder={false}
           />
         </SliderGroup>
         <SliderGroup>
-          <Slider
+          <ResourceSlider
             id={2}
             code="planks"
             icon={<PlanksIcon />}
@@ -85,8 +92,9 @@ export default function ResourceManagerDistributionPage({
             initialValue={10}
             resourcesAddedPerTurn={resourcesPerTurn}
             maxConsumptionLimit={resourceSliderMaxConsumption}
+            canConsumeRemainder={true}
           />
-          <Slider
+          <ResourceSlider
             id={3}
             code="charcoal"
             icon={<CharcoalIcon />}
@@ -94,8 +102,9 @@ export default function ResourceManagerDistributionPage({
             initialValue={10}
             resourcesAddedPerTurn={resourcesPerTurn}
             maxConsumptionLimit={resourceSliderMaxConsumption}
+            canConsumeRemainder={true}
           />
-          <Slider
+          <ResourceSlider
             id={4}
             code="strategic-store"
             icon={<StrategicStoreIcon />}
@@ -103,9 +112,10 @@ export default function ResourceManagerDistributionPage({
             initialValue={10}
             resourcesAddedPerTurn={resourcesPerTurn}
             maxConsumptionLimit={resourceSliderMaxConsumption}
+            canConsumeRemainder={true}
           />
         </SliderGroup>
-      </SliderCollection>
+      </ResourceSliderCollection>
     </div>
   );
 }

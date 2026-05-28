@@ -1,6 +1,7 @@
 import { Button, Modal } from "@/components/ui";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ResourceTickerData } from "../tickers/ResourceTickerCollection";
+import type { SliderSnapshot } from "../slider";
 import ResourceManagerGeneralPage from "./ResourceManagerGeneralPage";
 import ResourceManagerProductionPage from "./ResourceManagerProductionPage";
 import ResourceManagerDistributionPage from "./ResourceManagerDistributionPage";
@@ -12,6 +13,7 @@ interface ResourceManagerDialogProps {
   onSelectResource: (id: string | null) => void;
   show: boolean;
   onClose: () => void;
+  onCommit?: (changes: Record<string, SliderSnapshot[]>) => void;
 }
 
 type SectionKey = "general" | "production" | "distribution" | "trade";
@@ -23,8 +25,73 @@ const sections: { key: SectionKey; label: string }[] = [
   { key: "trade", label: "Trade" },
 ];
 
-export default function ResourceManagerDialog({ tickers, selectedResourceId, onSelectResource, show, onClose }: ResourceManagerDialogProps) {
+export default function ResourceManagerDialog({
+  tickers,
+  selectedResourceId,
+  onSelectResource,
+  show,
+  onClose,
+  onCommit,
+}: ResourceManagerDialogProps) {
   const [activeSection, setActiveSection] = useState<SectionKey>("general");
+
+  // Accumulates slider snapshots per resource ID across the lifetime of one dialog session.
+  // Stored in a ref so slider drags don't trigger re-renders.
+  const sliderChangesRef = useRef<Record<string, SliderSnapshot[]>>({});
+  const remainderChangesRef = useRef<Record<string, number | null>>({});
+
+  // Reset accumulated changes whenever the dialog opens.
+  useEffect(() => {
+    if (show) {
+      sliderChangesRef.current = {};
+      remainderChangesRef.current = {};
+    }
+  }, [show]);
+
+  const handleSliderChange = useCallback(
+    (sliders: SliderSnapshot[]) => {
+      if (!selectedResourceId) return;
+      sliderChangesRef.current = { ...sliderChangesRef.current, [selectedResourceId]: sliders };
+    },
+    [selectedResourceId],
+  );
+
+  const handleRemainderChange = useCallback(
+    (sliderId: number | null) => {
+      if (!selectedResourceId) return;
+      remainderChangesRef.current = { ...remainderChangesRef.current, [selectedResourceId]: sliderId };
+    },
+    [selectedResourceId],
+  );
+
+  const logChanges = useCallback(() => {
+    const changedIds = Object.keys(sliderChangesRef.current);
+    if (changedIds.length === 0) {
+      console.log("[ResourceManager] No changes recorded.");
+      return;
+    }
+    console.group("[ResourceManager] Changes on close:");
+    for (const resourceId of changedIds) {
+      const ticker = tickers.find((t) => t.id === resourceId);
+      console.group(ticker?.name ?? resourceId);
+      console.log("Sliders:", sliderChangesRef.current[resourceId]);
+      const remainder = remainderChangesRef.current[resourceId];
+      if (remainder !== undefined) console.log("Remainder slider ID:", remainder);
+      console.groupEnd();
+    }
+    console.groupEnd();
+  }, [tickers]);
+
+  const handleClose = useCallback(() => {
+    logChanges();
+    onClose();
+  }, [logChanges, onClose]);
+
+  const handleApply = useCallback(() => {
+    logChanges();
+    onCommit?.(sliderChangesRef.current);
+    onClose();
+  }, [logChanges, onCommit, onClose]);
 
   const orderedTickers = useMemo(() => tickers.slice().sort((a, b) => a.name.localeCompare(b.name)), [tickers]);
 
@@ -58,9 +125,16 @@ export default function ResourceManagerDialog({ tickers, selectedResourceId, onS
       size="lg"
       panelClassName="thick-border-modal"
       footer={
-        <Button variant="secondary" onClick={onClose}>
-          Close
-        </Button>
+        <>
+          {onCommit && (
+            <Button variant="primary" onClick={handleApply}>
+              Apply
+            </Button>
+          )}
+          <Button variant="secondary" onClick={handleClose}>
+            Close
+          </Button>
+        </>
       }>
       <div className="grid grid-cols-12 gap-4">
         {/* Left: section tabs */}
@@ -105,6 +179,8 @@ export default function ResourceManagerDialog({ tickers, selectedResourceId, onS
                 amountLastTurn={0}
                 currentConsumption={0}
                 maxConsumption={0}
+                onSliderChange={handleSliderChange}
+                onRemainderChange={handleRemainderChange}
               />
             </div>
             <div style={{ gridArea: "1/1" }} className={activeSection !== "trade" ? "invisible" : ""}>
