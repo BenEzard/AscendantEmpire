@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Modal, Spinner } from "@/components/ui";
+import { Alert, Button, Modal, Spinner, Tooltip } from "@/components/ui";
 import type { OpenGameSelection } from "../types/OpenGameSelection";
 import type { OpenGamesResponse } from "../types/OpenGamesResponse";
 import type { OpenGame } from "../types/OpenGame";
@@ -174,8 +174,7 @@ export default function OpenGameDialog({ show, onClose, onSaveSuccess, onOpenMap
                         ].join(" ")}
                         role={p.playerId > 0 ? "button" : undefined}
                         onClick={onClick}
-                        onDoubleClick={onDoubleClick}
-                        title={p.playerId > 0 ? "Double-click to open" : undefined}>
+                        onDoubleClick={onDoubleClick}>
                         {idx === 0 && (
                           <>
                             <td rowSpan={players.length} className="px-3 py-2 align-top">
@@ -191,7 +190,11 @@ export default function OpenGameDialog({ show, onClose, onSaveSuccess, onOpenMap
                           </>
                         )}
 
-                        <td className="px-3 py-2">{p.rulerLabel}</td>
+                        <td className="px-3 py-2">
+                          <Tooltip content={p.playerId > 0 ? "Double-click to open" : undefined}>
+                            <span>{p.rulerLabel}</span>
+                          </Tooltip>
+                        </td>
                       </tr>
                     );
                   });

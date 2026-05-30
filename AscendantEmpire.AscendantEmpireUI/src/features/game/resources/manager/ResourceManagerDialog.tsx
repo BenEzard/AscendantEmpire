@@ -72,7 +72,7 @@ export default function ResourceManagerDialog({
     }
     console.group("[ResourceManager] Changes on close:");
     for (const resourceId of changedIds) {
-      const ticker = tickers.find((t) => t.id === resourceId);
+      const ticker = tickers.find((t) => t.code === resourceId);
       console.group(ticker?.name ?? resourceId);
       console.log("Sliders:", sliderChangesRef.current[resourceId]);
       const remainder = remainderChangesRef.current[resourceId];
@@ -95,21 +95,21 @@ export default function ResourceManagerDialog({
 
   const orderedTickers = useMemo(() => tickers.slice().sort((a, b) => a.name.localeCompare(b.name)), [tickers]);
 
-  const selectedTicker = tickers.find((t) => t.id === selectedResourceId) ?? null;
+  const selectedTicker = tickers.find((t) => t.code === selectedResourceId) ?? null;
 
   const titleNode = (
     <div className="flex items-center gap-3">
       <span>Resource Manager</span>
       <select
         className="w-56 rounded-md border border-slate-300 px-2 py-1 text-sm font-normal"
-        value={selectedTicker?.id ?? ""}
+        value={selectedTicker?.code ?? ""}
         onChange={(e) => {
           const raw = e.target.value;
           onSelectResource(raw === "" ? null : raw);
         }}>
         <option value="">— Select —</option>
         {orderedTickers.map((t) => (
-          <option key={t.id} value={t.id}>
+          <option key={t.code} value={t.code}>
             {t.name}
           </option>
         ))}

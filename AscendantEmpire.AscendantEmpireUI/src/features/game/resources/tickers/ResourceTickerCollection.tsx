@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
-import ProcessedResourceCategory from "./ProcessedResourceCategory";
+import OrderedResourceCategory from "./OrderedResourceCategory";
 import StandaloneResourceCategory from "./StandaloneResourceCategory";
-import ManufacturedGradesCategory from "./ManufacturedGradesCategory";
 import "./ResourceTickerCollection.css";
-import type { ManufacturedResourceGrade } from "./ResourceConstants";
+import type { ResourceGrade } from "./ResourceConstants";
 
 export type ResourceTickerData = {
-  id: string;
+  id: number;
+  code: string;
   name: string;
   column?: number;
   amount: number;
@@ -20,45 +20,49 @@ export type ResourceTickerData = {
   hasStrategicStockpile?: boolean;
   soonToBeObsolete?: boolean;
   demandNotMet?: boolean;
-  grade?: ManufacturedResourceGrade;
+  quality?: ResourceGrade;
 };
 
 export type ResourceTickerGroupData = {
-  id: string;
+  id: number;
+  code: string;
   label?: string;
   column: number;
   tickers: ResourceTickerData[];
 };
 
-export type ResourceCategoryType = "processed-resources" | "standalone-resources" | "manufactured-grades";
+export type ResourceCategoryType = "processed-resources" | "standalone-resources";
 
 export type ResourceClickArgs = {
-  categoryKey: string;
+  categoryCode: string;
+  categoryId?: number;
   categoryType: ResourceCategoryType;
   name: string;
   amount: number;
   isTotal: boolean;
   index?: number;
   rowIndex?: number;
-  groupId?: string;
-  resourceId?: string;
+  groupCode?: string;
+  groupId?: number;
+  resourceCode?: string;
+  resourceId?: number;
   collectionId?: string;
-  grade?: ManufacturedResourceGrade;
 };
 
 export type ProcessedResourceCategoryData = {
-  key: string;
+  id: number;
+  code: string;
   type: "processed-resources";
   label: string;
   column: number;
   icon: ReactNode;
   tickerGroups: ResourceTickerGroupData[];
-  showTotal?: boolean;
   maxColumns?: number;
 };
 
 export type StandaloneResourceCategoryData = {
-  key: string;
+  id: number;
+  code: string;
   type: "standalone-resources";
   label: string;
   column: number;
@@ -66,30 +70,14 @@ export type StandaloneResourceCategoryData = {
   resources: ResourceTickerData[];
 };
 
-export type ManufacturedResourceCollectionData = {
-  id: string;
-  label: string;
-  icon: ReactNode;
-  resourcesByGrade: Record<ManufacturedResourceGrade, ResourceTickerData>;
-};
-
-export type ManufacturedGradesCategoryData = {
-  key: string;
-  type: "manufactured-grades";
-  label: string;
-  column: number;
-  icon: ReactNode;
-  collections: ManufacturedResourceCollectionData[];
-};
-
-export type ResourceCategoryData = ProcessedResourceCategoryData | StandaloneResourceCategoryData | ManufacturedGradesCategoryData;
+export type ResourceCategoryData = ProcessedResourceCategoryData | StandaloneResourceCategoryData;
 
 export interface ResourceTickerCollectionProps {
   categories: ResourceCategoryData[];
   showTotals?: boolean;
-  maximumColumns?: number;
+  maxColumns?: number;
   onClickAmount?: (args: ResourceClickArgs) => void;
-  onReorderCategoryTickerGroups?: (args: { categoryKey: string; tickerGroups: ResourceTickerGroupData[] }) => void;
+  onReorderGroupTickers?: (args: { categoryCode: string; groupCode: string; tickers: ResourceTickerData[] }) => void;
 }
 
 function getProcessedCategoryColumnCount(category: ProcessedResourceCategoryData): number {
@@ -100,15 +88,27 @@ function getProcessedCategoryColumnCount(category: ProcessedResourceCategoryData
 export default function ResourceTickerCollection({
   categories,
   showTotals = true,
-  maximumColumns = 0,
+  maxColumns = 0,
   onClickAmount,
-  onReorderCategoryTickerGroups,
+  onReorderGroupTickers,
 }: ResourceTickerCollectionProps) {
   const processedCategoryColumnCount = categories.reduce(
     (max, category) => (category.type === "processed-resources" ? Math.max(max, getProcessedCategoryColumnCount(category)) : max),
     0,
   );
-  const resolvedMaxColumns = Math.max(maximumColumns, processedCategoryColumnCount);
+  const resolvedProcessedColumns = Math.max(maxColumns, processedCategoryColumnCount);
+
+  const maxTickersInAnyGroup = categories.reduce(
+    (max, category) =>
+      category.type === "processed-resources"
+        ? Math.max(
+            max,
+            category.tickerGroups.reduce((m, g) => Math.max(m, g.tickers.filter((t) => t.amount !== 0).length), 0),
+          )
+        : max,
+    0,
+  );
+  const resolvedStandaloneColumns = Math.max(maxColumns, maxTickersInAnyGroup);
 
   return (
     <div className="resource-ticker-collection">
@@ -116,37 +116,39 @@ export default function ResourceTickerCollection({
         switch (category.type) {
           case "processed-resources":
             return (
-              <ProcessedResourceCategory
-                key={category.key}
-                categoryKey={category.key}
+              <OrderedResourceCategory
+                key={category.code}
+                categoryKey={category.code}
+                categoryId={category.id}
                 categoryType={category.type}
                 label={category.label}
                 column={category.column}
                 tickerGroups={category.tickerGroups}
-                maxColumns={resolvedMaxColumns}
-                showTotal={showTotals && (category.showTotal ?? true)}
+                maxColumns={resolvedProcessedColumns}
                 onClickAmount={onClickAmount}
-                draggableTickerGroups={!!onReorderCategoryTickerGroups}
-                onReorderTickerGroups={(tickerGroups) => onReorderCategoryTickerGroups?.({ categoryKey: category.key, tickerGroups })}
+                draggableTickers={!!onReorderGroupTickers}
+                onReorderGroupTickers={
+                  onReorderGroupTickers
+                    ? (groupCode, tickers) => onReorderGroupTickers({ categoryCode: category.code, groupCode, tickers })
+                    : undefined
+                }
               />
             );
 
           case "standalone-resources":
             return (
               <StandaloneResourceCategory
-                key={category.key}
-                categoryKey={category.key}
+                key={category.code}
+                categoryKey={category.code}
+                categoryId={category.id}
                 categoryType={category.type}
                 label={category.label}
                 column={category.column}
                 resources={category.resources}
-                maxColumns={resolvedMaxColumns}
+                maxColumns={resolvedStandaloneColumns}
                 onClickAmount={onClickAmount}
               />
             );
-
-          case "manufactured-grades":
-            return <ManufacturedGradesCategory key={category.key} category={category} onClickAmount={onClickAmount} />;
 
           default:
             return null;

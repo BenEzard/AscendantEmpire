@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { DamageType } from "./types/DamageType";
 import type { IconType } from "react-icons";
 import type { WeaponStats } from "./types/UnitComponent";
+import Tooltip from "@/components/ui/Tooltip";
 
 import { ALL_DAMAGE_TYPES } from "./types/UnitComponent";
 import { GiFlatHammer, GiFlame, GiPoisonBottle, GiQuickSlash, GiSunSpear } from "react-icons/gi";
@@ -70,9 +71,11 @@ function DamageRow({
 
 export function BattleStats({ stats, existingStats, className }: { stats: WeaponStats; existingStats?: WeaponStats; className?: string }) {
   const iconBadge = (title: string, icon: ReactNode) => (
-    <span title={title} className="inline-flex w-full justify-center">
-      <span className="inline-flex items-center justify-center rounded bg-black p-1 text-white">{icon}</span>
-    </span>
+    <Tooltip content={title}>
+      <span className="inline-flex w-full justify-center">
+        <span className="inline-flex items-center justify-center rounded bg-black p-1 text-white">{icon}</span>
+      </span>
+    </Tooltip>
   );
 
   const damageTypeBadge = (dt: DamageType) => {

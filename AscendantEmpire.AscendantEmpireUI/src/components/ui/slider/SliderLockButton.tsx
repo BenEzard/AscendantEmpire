@@ -1,4 +1,5 @@
 import type { LockedState } from "./Slider";
+import Tooltip from "../Tooltip";
 
 interface SliderLockButtonProps {
   state: LockedState;
@@ -39,14 +40,15 @@ export default function SliderLockButton({ state, onClick }: SliderLockButtonPro
 
   return (
     <div className="flex items-center justify-center">
-      <button
-        type="button"
-        onClick={onClick}
-        title={TOOLTIP_LABELS[state]}
-        className={`flex items-center justify-center ${isSystemLocked ? "cursor-default" : "cursor-pointer hover:opacity-75"}`}
-        aria-label={isLocked ? "Unlock slider" : "Lock slider"}>
-        <LockIcon state={state} />
-      </button>
+      <Tooltip content={TOOLTIP_LABELS[state]}>
+        <button
+          type="button"
+          onClick={onClick}
+          className={`flex items-center justify-center ${isSystemLocked ? "cursor-default" : "cursor-pointer hover:opacity-75"}`}
+          aria-label={isLocked ? "Unlock slider" : "Lock slider"}>
+          <LockIcon state={state} />
+        </button>
+      </Tooltip>
     </div>
   );
 }

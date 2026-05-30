@@ -6,6 +6,7 @@ import "./ResourceTickerCollection.css";
 
 export interface StandaloneResourceCategoryProps {
   categoryKey: string;
+  categoryId?: number;
   categoryType: ResourceCategoryType;
   label: string;
   column: number;
@@ -16,6 +17,7 @@ export interface StandaloneResourceCategoryProps {
 
 export default function StandaloneResourceCategory({
   categoryKey,
+  categoryId,
   categoryType,
   label,
   column,
@@ -28,7 +30,9 @@ export default function StandaloneResourceCategory({
       <ResourceCategoryHeader label={label} />
       <div className="resource-standalone-category__grid" style={{ gridTemplateColumns: `repeat(${Math.max(1, maxColumns)}, max-content)` }}>
         {resources.map((resource, index) => (
-          <div key={resource.id} className="resource-standalone-category__cell">
+          <div
+            key={resource.code}
+            className={`resource-standalone-category__cell${resource.amount === 0 ? " resource-standalone-category__cell--zero" : ""}`}>
             <ResourceTicker
               name={resource.name}
               icon={resource.icon}
@@ -40,16 +44,19 @@ export default function StandaloneResourceCategory({
               hasStrategicStockpile={resource.hasStrategicStockpile}
               soonToBeObsolete={resource.soonToBeObsolete}
               demandNotMet={resource.demandNotMet}
+              grade={resource.quality}
               onClick={
                 onClickAmount
                   ? () =>
                       onClickAmount({
-                        categoryKey,
+                        categoryCode: categoryKey,
+                        categoryId,
                         categoryType,
                         name: resource.name,
                         amount: resource.amount,
                         isTotal: false,
                         index,
+                        resourceCode: resource.code,
                         resourceId: resource.id,
                       })
                   : undefined

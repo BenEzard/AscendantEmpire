@@ -5,12 +5,15 @@ export interface ResourceIndicatorProps {
   activeColor: string;
   inactiveColor: string;
   label: string;
+  shape?: "circle" | "triangle-up" | "triangle-down";
 }
 
-export default function ResourceIndicator({ active, activeColor, inactiveColor, label }: ResourceIndicatorProps) {
+export default function ResourceIndicator({ active, activeColor, inactiveColor, label, shape = "circle" }: ResourceIndicatorProps) {
   const style = {
     backgroundColor: active ? activeColor : inactiveColor,
   } satisfies CSSProperties;
 
-  return <span className="resource-indicator" aria-label={label} title={label} style={style} />;
+  const className = ["resource-indicator", shape !== "circle" ? `resource-indicator--${shape}` : ""].filter(Boolean).join(" ");
+
+  return <span className={className} aria-label={label} title={label} style={style} />;
 }

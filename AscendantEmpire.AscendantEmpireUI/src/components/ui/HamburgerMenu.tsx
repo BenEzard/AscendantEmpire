@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { FaBars } from "react-icons/fa6";
+import Tooltip from "./Tooltip";
 
 export interface HamburgerMenuItem {
   key: string;
@@ -51,16 +52,17 @@ export default function HamburgerMenu({ groups, title = "Menu", tooltip }: Hambu
 
   return (
     <span ref={rootRef} className="relative inline-flex align-middle">
-      <button
-        type="button"
-        title={tooltip ?? title}
-        onClick={() => setOpen((v) => !v)}
-        className={["toolbar-button toolbar-button--secondary", open ? "toolbar-button--active" : ""].filter(Boolean).join(" ")}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={title}>
-        <FaBars />
-      </button>
+      <Tooltip content={tooltip ?? title}>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className={["toolbar-button toolbar-button--secondary", open ? "toolbar-button--active" : ""].filter(Boolean).join(" ")}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label={title}>
+          <FaBars />
+        </button>
+      </Tooltip>
 
       {open && (
         <div
@@ -72,26 +74,26 @@ export default function HamburgerMenu({ groups, title = "Menu", tooltip }: Hambu
               {group.items.map((item) => {
                 const disabled = !!item.disabled;
                 return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    role="menuitem"
-                    disabled={disabled}
-                    title={item.tooltip}
-                    onClick={() => {
-                      if (disabled) return;
-                      item.onClick();
-                      setOpen(false);
-                    }}
-                    className={[
-                      "flex w-full items-center gap-2 pl-6 pr-3 py-1.5 text-left text-sm",
-                      disabled ? "cursor-not-allowed text-slate-400" : "text-slate-800 hover:bg-slate-100",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}>
-                    {item.icon && <span className="text-base leading-none">{item.icon}</span>}
-                    {item.label}
-                  </button>
+                  <Tooltip key={item.key} content={item.tooltip}>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={disabled}
+                      onClick={() => {
+                        if (disabled) return;
+                        item.onClick();
+                        setOpen(false);
+                      }}
+                      className={[
+                        "flex w-full items-center gap-2 pl-6 pr-3 py-1.5 text-left text-sm",
+                        disabled ? "cursor-not-allowed text-slate-400" : "text-slate-800 hover:bg-slate-100",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}>
+                      {item.icon && <span className="text-base leading-none">{item.icon}</span>}
+                      {item.label}
+                    </button>
+                  </Tooltip>
                 );
               })}
             </div>

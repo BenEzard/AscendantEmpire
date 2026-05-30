@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Tooltip from "@/components/ui/Tooltip";
 
 export interface ContextActionToolbarAction {
   key: string;
@@ -18,12 +19,14 @@ export default function ContextActionToolbar({ visible, actions }: ContextAction
   return (
     <div className="command-toolbox" aria-label="Context action toolbar">
       {actions.map((action) => (
-        <button key={action.key} type="button" className="command-toolbox__action" onClick={action.onClick} title={action.label}>
-          <span className="command-toolbox__icon" aria-hidden>
-            {action.icon}
-          </span>
-          <span className="command-toolbox__label">{action.label}</span>
-        </button>
+        <Tooltip key={action.key} content={action.label}>
+          <button type="button" className="command-toolbox__action" onClick={action.onClick}>
+            <span className="command-toolbox__icon" aria-hidden>
+              {action.icon}
+            </span>
+            <span className="command-toolbox__label">{action.label}</span>
+          </button>
+        </Tooltip>
       ))}
     </div>
   );

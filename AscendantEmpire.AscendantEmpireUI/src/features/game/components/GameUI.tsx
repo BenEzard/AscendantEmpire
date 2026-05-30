@@ -773,17 +773,22 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
             }}>
             <ResourceTickerCollection
               categories={constructionCategories}
-              maximumColumns={4}
-              onReorderCategoryTickerGroups={({ categoryKey, tickerGroups }) => {
+              maxColumns={4}
+              onReorderGroupTickers={({ categoryCode, groupCode, tickers }) => {
+                console.log("[GameUI] Ticker reorder:", { categoryCode, groupCode, order: tickers.map((t) => t.name) });
                 setConstructionCategories((prev) =>
-                  prev.map((category) =>
-                    category.key === categoryKey && category.type === "processed-resources" ? { ...category, tickerGroups } : category,
-                  ),
+                  prev.map((category) => {
+                    if (category.code !== categoryCode || category.type !== "processed-resources") return category;
+                    return {
+                      ...category,
+                      tickerGroups: category.tickerGroups.map((group) => (group.code === groupCode ? { ...group, tickers } : group)),
+                    };
+                  }),
                 );
               }}
-              onClickAmount={({ resourceId, isTotal }) => {
+              onClickAmount={({ resourceCode, isTotal }) => {
                 if (isTotal) return;
-                setResourceManagerSelectedId(resourceId ?? null);
+                setResourceManagerSelectedId(resourceCode ?? null);
                 setShowResourceManager(true);
               }}
             />
@@ -824,6 +829,9 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
           tickers={allConstructionTickers}
           selectedResourceId={resourceManagerSelectedId}
           onSelectResource={setResourceManagerSelectedId}
+          onCommit={(changes) => {
+            console.log("[GameUI] ResourceManager changes committed:", changes);
+          }}
         />
 
         <ContextActionToolbar visible={selectedForce != null && contextActionToolbarActions.length > 0} actions={contextActionToolbarActions} />

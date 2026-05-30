@@ -6,7 +6,8 @@ import ResourceManagerDialog from "../manager/ResourceManagerDialog";
 import type { ResourceTickerData } from "../tickers/ResourceTickerCollection";
 
 const testTicker: ResourceTickerData = {
-  id: "wood",
+  id: 1,
+  code: "wood",
   name: "Wood",
   amount: 100,
 };

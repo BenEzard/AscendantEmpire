@@ -1,5 +1,6 @@
 import React from "react";
 import "./Toolbar.css";
+import Tooltip from "@/components/ui/Tooltip";
 
 export interface ToolBarButton {
   key: string;
@@ -69,9 +70,11 @@ function ToolBar({
 
               if (btn.render) {
                 return (
-                  <span key={btn.key} title={tooltip} className={"toolbar-btn-wrapper"} onContextMenu={handleRightClick(btn)}>
-                    {btn.render({ disabled, active, tooltip })}
-                  </span>
+                  <Tooltip key={btn.key} content={tooltip}>
+                    <span className={"toolbar-btn-wrapper"} onContextMenu={handleRightClick(btn)}>
+                      {btn.render({ disabled, active, tooltip })}
+                    </span>
+                  </Tooltip>
                 );
               }
 
@@ -85,25 +88,25 @@ function ToolBar({
                 .join(" ");
 
               return (
-                <span
-                  key={btn.key}
-                  title={tooltip}
-                  className={disabled ? "toolbar-btn-wrapper toolbar-btn-wrapper--disabled" : "toolbar-btn-wrapper"}
-                  onContextMenu={handleRightClick(btn)}>
-                  <button
-                    id={btn.domId}
-                    type="button"
-                    className={buttonClassName}
-                    disabled={disabled}
-                    aria-pressed={active}
-                    onClick={disabled ? undefined : btn.onClick}
-                    // Most reliable for wheel-click (fires before browser autoscroll kicks in)
-                    onMouseDown={disabled ? undefined : handleMiddleClick(btn)}
-                    // Some browsers fire auxclick too; harmless redundancy
-                    onAuxClick={disabled ? undefined : handleMiddleClick(btn)}>
-                    {btn.icon}
-                  </button>
-                </span>
+                <Tooltip key={btn.key} content={tooltip}>
+                  <span
+                    className={disabled ? "toolbar-btn-wrapper toolbar-btn-wrapper--disabled" : "toolbar-btn-wrapper"}
+                    onContextMenu={handleRightClick(btn)}>
+                    <button
+                      id={btn.domId}
+                      type="button"
+                      className={buttonClassName}
+                      disabled={disabled}
+                      aria-pressed={active}
+                      onClick={disabled ? undefined : btn.onClick}
+                      // Most reliable for wheel-click (fires before browser autoscroll kicks in)
+                      onMouseDown={disabled ? undefined : handleMiddleClick(btn)}
+                      // Some browsers fire auxclick too; harmless redundancy
+                      onAuxClick={disabled ? undefined : handleMiddleClick(btn)}>
+                      {btn.icon}
+                    </button>
+                  </span>
+                </Tooltip>
               );
             })}
           </div>

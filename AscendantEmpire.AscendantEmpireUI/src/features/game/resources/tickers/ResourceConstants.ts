@@ -11,9 +11,7 @@ export const RESOURCE_TICKER_BACKGROUNDS = {
   demandNotMet: "#fee2e2",
 } as const;
 
-export const MANUFACTURED_RESOURCE_GRADES = ["bronze", "silver", "gold"] as const;
-
-export type ManufacturedResourceGrade = (typeof MANUFACTURED_RESOURCE_GRADES)[number];
+export type ResourceGrade = "none" | "bronze" | "silver" | "gold";
 
 export function getResourceTickerBackground(args: { soonToBeObsolete?: boolean; demandNotMet?: boolean }): string {
   if (args.demandNotMet) return RESOURCE_TICKER_BACKGROUNDS.demandNotMet;

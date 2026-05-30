@@ -1,6 +1,7 @@
 import type { ComponentCost } from "./types/UnitComponent";
 
 import { getResourceIconByLabel } from "@/features/game/resources/tickers/resourceIcons";
+import Tooltip from "@/components/ui/Tooltip";
 
 function fmt(n: number) {
   if (!Number.isFinite(n)) return String(n);
@@ -14,9 +15,9 @@ function resourceIcon(label: string) {
   );
 
   return (
-    <div title={label} className="mx-auto h-6 w-6 [&>img]:h-full [&>img]:w-full [&>img]:object-contain">
-      {icon ?? fallback}
-    </div>
+    <Tooltip content={label}>
+      <div className="mx-auto h-6 w-6 [&>img]:h-full [&>img]:w-full [&>img]:object-contain">{icon ?? fallback}</div>
+    </Tooltip>
   );
 }
 

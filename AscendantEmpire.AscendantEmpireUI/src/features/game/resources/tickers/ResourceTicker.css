@@ -17,8 +17,10 @@
 
 .resource-ticker-shell {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   gap: 2px;
+  vertical-align: top;
 }
 
 .resource-ticker {
@@ -80,16 +82,32 @@
   width: var(--rt-size, 40px);
   height: var(--rt-size, 40px);
   display: block;
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+.resource-ticker__icon img {
+  height: auto;
 }
 
 .resource-ticker__icon svg {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
 }
 
 .resource-ticker--vertical-amount .resource-ticker__icon {
   justify-content: flex-start;
   padding-right: 10px;
+}
+
+.resource-ticker__quality-shield {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 15px;
+  height: 15px;
+  display: block;
+  pointer-events: none;
 }
 
 .resource-amount-label {
@@ -105,7 +123,7 @@
   padding: 0 3px;
   line-height: 12px;
 
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.03em;
   color: rgba(255, 255, 255, 0.95);
@@ -133,33 +151,10 @@
   justify-content: center;
 }
 
-.resource-total__amount {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: rgba(0, 0, 0, 0.7);
-  pointer-events: none;
-}
-
-.resource-ticker--compact-total {
-  width: var(--rt-compact-total-width, 36px);
-  min-width: var(--rt-compact-total-width, 36px);
-  height: var(--rt-compact-total-height, 22px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .resource-indicator-panel {
-  min-height: calc(var(--rt-size, 40px) / 2);
+  min-width: calc(var(--rt-size, 40px) / 2);
   display: inline-flex;
-  flex-direction: column;
+  flex-direction: row;
   justify-content: center;
   gap: 2px;
 }
@@ -170,4 +165,18 @@
   display: block;
   border-radius: 999px;
   border: 1px solid rgba(0, 0, 0, 0.18);
+}
+
+.resource-indicator--triangle-up {
+  border-radius: 0;
+  border: none;
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.18));
+}
+
+.resource-indicator--triangle-down {
+  border-radius: 0;
+  border: none;
+  clip-path: polygon(0% 0%, 100% 0%, 50% 100%);
+  filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.18));
 }

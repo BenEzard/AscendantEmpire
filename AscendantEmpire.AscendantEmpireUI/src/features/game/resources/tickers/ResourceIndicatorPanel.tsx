@@ -19,12 +19,14 @@ export default function ResourceIndicatorPanel({
         activeColor={RESOURCE_INDICATOR_COLORS.imported}
         inactiveColor={RESOURCE_INDICATOR_COLORS.inactive}
         label={isImported ? "Imported" : "Not imported"}
+        shape="triangle-down"
       />
       <ResourceIndicator
         active={isExported}
         activeColor={RESOURCE_INDICATOR_COLORS.exported}
         inactiveColor={RESOURCE_INDICATOR_COLORS.inactive}
         label={isExported ? "Exported" : "Not exported"}
+        shape="triangle-up"
       />
       <ResourceIndicator
         active={hasStrategicStockpile}

@@ -6,6 +6,7 @@ import { GiHeavyBullets, GiJerrycan, GiSpanner } from "react-icons/gi";
 
 import type { ComponentUpkeep, UpkeepCategory } from "./types/UnitComponent";
 import { getResourceIconByLabel } from "@/features/game/resources/tickers/resourceIcons";
+import Tooltip from "@/components/ui/Tooltip";
 
 const CATEGORY_META: Record<UpkeepCategory, { title: string; Icon: IconType }> = {
   food: { title: "Food", Icon: FaFish },
@@ -18,9 +19,9 @@ const CATEGORY_ORDER: UpkeepCategory[] = ["food", "fuel", "repair", "ammunition"
 
 function iconBadge(title: string, icon: ReactNode) {
   return (
-    <span title={title} className="inline-flex h-6 w-6 items-center justify-center rounded bg-black leading-none text-white">
-      {icon}
-    </span>
+    <Tooltip content={title}>
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-black leading-none text-white">{icon}</span>
+    </Tooltip>
   );
 }
 
@@ -31,9 +32,9 @@ function resourceIcon(label: string) {
   );
 
   return (
-    <div title={label} className="mx-auto h-6 w-6 [&>img]:h-full [&>img]:w-full [&>img]:object-contain">
-      {icon ?? fallback}
-    </div>
+    <Tooltip content={label}>
+      <div className="mx-auto h-6 w-6 [&>img]:h-full [&>img]:w-full [&>img]:object-contain">{icon ?? fallback}</div>
+    </Tooltip>
   );
 }
 

@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui";
 import { BsEraserFill } from "react-icons/bs";
 import type { Biome } from "../../../types/map/Biome";
+import Tooltip from "@/components/ui/Tooltip";
 
 export interface BiomeResourceProps<K extends keyof Biome = keyof Biome> {
   label: string; /** Label shown on the left (e.g. "Base Fodder") */
@@ -118,7 +119,7 @@ export default function BiomeResource<K extends keyof Biome>({
           onChange={(e) => handleInputChange(e.target.value)}
         />
 
-        <span title="Clear">
+        <Tooltip content="Clear">
           <Button
             variant="outline-secondary"
             className="px-2 py-2 shrink-0"
@@ -127,7 +128,7 @@ export default function BiomeResource<K extends keyof Biome>({
             onClick={handleClear}>
             <BsEraserFill aria-hidden="true" />
           </Button>
-        </span>
+        </Tooltip>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import DropButton, { type DropButtonItem } from "@/components/ui/DropButton";
+import Tooltip from "@/components/ui/Tooltip";
 
 export type ExclusiveToolKey = string;
 
@@ -47,24 +48,25 @@ export default function ToolbarExclusiveButtons({
 
         if (item.type === "dropbutton") {
           return (
-            <span key={item.key} title={item.tooltip} className={"toolbar-btn-wrapper"}>
-              <DropButton
-                label={item.label}
-                title={item.tooltip}
-                icon={item.icon}
-                disabled={effectiveDisabled}
-                onClick={() => {
-                  if (effectiveDisabled) return;
-                  onChange(item.key);
-                  item.onClick();
-                }}
-                items={item.items}
-                menuDisabled={item.menuDisabled}
-                menuLayout={item.menuLayout}
-                menuGridColumns={item.menuGridColumns}
-                frameClassName={active ? "toolbar-button--active" : undefined}
-              />
-            </span>
+            <Tooltip key={item.key} content={item.tooltip}>
+              <span className={"toolbar-btn-wrapper"}>
+                <DropButton
+                  label={item.label}
+                  icon={item.icon}
+                  disabled={effectiveDisabled}
+                  onClick={() => {
+                    if (effectiveDisabled) return;
+                    onChange(item.key);
+                    item.onClick();
+                  }}
+                  items={item.items}
+                  menuDisabled={item.menuDisabled}
+                  menuLayout={item.menuLayout}
+                  menuGridColumns={item.menuGridColumns}
+                  frameClassName={active ? "toolbar-button--active" : undefined}
+                />
+              </span>
+            </Tooltip>
           );
         }
 
@@ -78,25 +80,24 @@ export default function ToolbarExclusiveButtons({
           .join(" ");
 
         return (
-          <span
-            key={item.key}
-            title={item.tooltip}
-            className={effectiveDisabled ? "toolbar-btn-wrapper toolbar-btn-wrapper--disabled" : "toolbar-btn-wrapper"}>
-            <button
-              type="button"
-              className={className}
-              disabled={effectiveDisabled}
-              aria-pressed={active}
-              role="radio"
-              aria-checked={active}
-              onClick={() => {
-                if (effectiveDisabled) return;
-                onChange(item.key);
-                item.onSelect?.();
-              }}>
-              {item.icon}
-            </button>
-          </span>
+          <Tooltip key={item.key} content={item.tooltip}>
+            <span className={effectiveDisabled ? "toolbar-btn-wrapper toolbar-btn-wrapper--disabled" : "toolbar-btn-wrapper"}>
+              <button
+                type="button"
+                className={className}
+                disabled={effectiveDisabled}
+                aria-pressed={active}
+                role="radio"
+                aria-checked={active}
+                onClick={() => {
+                  if (effectiveDisabled) return;
+                  onChange(item.key);
+                  item.onSelect?.();
+                }}>
+                {item.icon}
+              </button>
+            </span>
+          </Tooltip>
         );
       })}
     </span>

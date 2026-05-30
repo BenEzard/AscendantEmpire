@@ -3,6 +3,7 @@ import Slider from "../../../../components/ui/slider/Slider";
 import type { SliderProps } from "../../../../components/ui/slider/Slider";
 import NumberValueField from "../../../../components/ui/NumberValueField";
 import { useResourceRemainder } from "./ResourceSliderCollection";
+import Tooltip from "@/components/ui/Tooltip";
 
 const VALUE_WIDTH = 56;
 const TICK_WIDTH = 24;
@@ -22,26 +23,27 @@ export interface ResourceSliderProps extends Omit<SliderProps, "trailing"> {
 function RemainderTickButton({ isActive, onClick }: { isActive: boolean; onClick: () => void }) {
   return (
     <div className="flex items-center justify-center" style={{ width: TICK_WIDTH }}>
-      <button
-        type="button"
-        onClick={onClick}
-        title={isActive ? "Consume remainder" : ""}
-        className="flex h-4 w-4 cursor-pointer items-center justify-center"
-        aria-label={isActive ? "Remove consume remainder" : "Set as consume remainder"}>
-        {isActive && (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-4 w-4 shrink-0 text-emerald-400">
-            <path d="M5 12l5 5L20 7" />
-          </svg>
-        )}
-      </button>
+      <Tooltip content={isActive ? "Consume remainder" : undefined}>
+        <button
+          type="button"
+          onClick={onClick}
+          className="flex h-4 w-4 cursor-pointer items-center justify-center"
+          aria-label={isActive ? "Remove consume remainder" : "Set as consume remainder"}>
+          {isActive && (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4 shrink-0 text-emerald-400">
+              <path d="M5 12l5 5L20 7" />
+            </svg>
+          )}
+        </button>
+      </Tooltip>
     </div>
   );
 }
