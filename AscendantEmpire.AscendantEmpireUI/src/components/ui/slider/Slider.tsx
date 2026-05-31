@@ -120,7 +120,7 @@ export default function Slider({
         {icon}
       </span>
 
-      <span className="shrink-0 text-sm" style={{ width: LABEL_WIDTH }}>
+      <span className="shrink-0 text-sm text-slate-600" style={{ width: LABEL_WIDTH }}>
         {label}
       </span>
 

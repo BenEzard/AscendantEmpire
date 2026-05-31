@@ -53,15 +53,23 @@ export default function DropButton({
   menuGridColumns = 3,
 }: DropButtonProps) {
   const [open, setOpen] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState<number>(-1);
   const rootRef = useRef<HTMLSpanElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const arrowButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const effectiveTitle = title ?? label;
 
   const hasEnabledItems = useMemo(() => items.some((i) => !i.disabled), [items]);
   const arrowDisabled = disabled || menuDisabled || !hasEnabledItems;
 
+  const navigableItems = useMemo(() => items.filter((i) => !i.disabled), [items]);
+
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setFocusedIndex(-1);
+      return;
+    }
 
     const onPointerDown = (e: PointerEvent) => {
       const el = rootRef.current;
@@ -71,7 +79,38 @@ export default function DropButton({
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setOpen(false);
+        arrowButtonRef.current?.focus();
+        return;
+      }
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setFocusedIndex((prev) => (prev + 1) % navigableItems.length);
+        return;
+      }
+
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setFocusedIndex((prev) => (prev <= 0 ? navigableItems.length - 1 : prev - 1));
+        return;
+      }
+
+      if (e.key === "Enter" || e.key === " ") {
+        if (focusedIndex >= 0 && focusedIndex < navigableItems.length) {
+          e.preventDefault();
+          navigableItems[focusedIndex].onSelect();
+          setOpen(false);
+          arrowButtonRef.current?.focus();
+        }
+        return;
+      }
+
+      if (e.key === "Tab") {
+        setOpen(false);
+      }
     };
 
     document.addEventListener("pointerdown", onPointerDown, { capture: true });
@@ -80,7 +119,16 @@ export default function DropButton({
       document.removeEventListener("pointerdown", onPointerDown, { capture: true } as AddEventListenerOptions);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open]);
+  }, [open, focusedIndex, navigableItems]);
+
+  // Sync DOM focus to the focused item button.
+  useEffect(() => {
+    if (!open || focusedIndex < 0) return;
+    const menu = menuRef.current;
+    if (!menu) return;
+    const buttons = menu.querySelectorAll<HTMLButtonElement>("button[role='menuitem']:not([disabled])");
+    buttons[focusedIndex]?.focus();
+  }, [open, focusedIndex]);
 
   return (
     <Tooltip content={effectiveTitle}>
@@ -99,6 +147,7 @@ export default function DropButton({
           </button>
 
           <button
+            ref={arrowButtonRef}
             type="button"
             disabled={arrowDisabled}
             onClick={arrowDisabled ? undefined : () => setOpen((v) => !v)}
@@ -115,6 +164,7 @@ export default function DropButton({
 
         {open && (
           <div
+            ref={menuRef}
             role="menu"
             className="absolute left-0 top-full z-50 mt-1 min-w-48 overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
             {menuLayout === "grid" ? (
@@ -126,6 +176,8 @@ export default function DropButton({
                 {items.map((item) => {
                   const itemDisabled = !!item.disabled;
                   const itemActive = !!item.active;
+                  const navIdx = navigableItems.findIndex((i) => i.key === item.key);
+                  const isFocused = navIdx !== -1 && navIdx === focusedIndex;
 
                   return (
                     <Tooltip key={String(item.key)} content={item.title}>
@@ -133,6 +185,10 @@ export default function DropButton({
                         type="button"
                         role="menuitem"
                         disabled={itemDisabled}
+                        tabIndex={isFocused ? 0 : -1}
+                        onMouseEnter={() => {
+                          if (!itemDisabled) setFocusedIndex(navIdx);
+                        }}
                         onWheel={(e) => {
                           if (itemDisabled) return;
                           if (!item.onWheel) return;
@@ -162,6 +218,8 @@ export default function DropButton({
               items.map((item) => {
                 const itemDisabled = !!item.disabled;
                 const itemActive = !!item.active;
+                const navIdx = navigableItems.findIndex((i) => i.key === item.key);
+                const isFocused = navIdx !== -1 && navIdx === focusedIndex;
 
                 return (
                   <Tooltip key={String(item.key)} content={item.title}>
@@ -169,6 +227,10 @@ export default function DropButton({
                       type="button"
                       role="menuitem"
                       disabled={itemDisabled}
+                      tabIndex={isFocused ? 0 : -1}
+                      onMouseEnter={() => {
+                        if (!itemDisabled) setFocusedIndex(navIdx);
+                      }}
                       onWheel={(e) => {
                         if (itemDisabled) return;
                         if (!item.onWheel) return;

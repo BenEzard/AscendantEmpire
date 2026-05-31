@@ -2,13 +2,13 @@ import { useEffect } from "react";
 import Slider from "../../../../components/ui/slider/Slider";
 import type { SliderProps } from "../../../../components/ui/slider/Slider";
 import NumberValueField from "../../../../components/ui/NumberValueField";
+import ProgressBar from "../../../../components/ui/ProgressBar";
 import { useResourceRemainder } from "./ResourceSliderCollection";
 import Tooltip from "@/components/ui/Tooltip";
 
 const VALUE_WIDTH = 56;
 const TICK_WIDTH = 24;
 const ALLOCATED_TOOLTIP = "Allocated per turn";
-const MAX_CONSUMPTION_TOOLTIP = "Max consumption";
 
 export interface ResourceSliderProps extends Omit<SliderProps, "trailing"> {
   /** Total resources added per turn; used to compute the allocated amount displayed beside the groove. */
@@ -89,9 +89,19 @@ export default function ResourceSlider({
                     width={VALUE_WIDTH}
                   />
                 )}
-                {maxConsumptionLimit != null && (
-                  <NumberValueField actualNumber={maxConsumptionLimit} tooltip={MAX_CONSUMPTION_TOOLTIP} width={VALUE_WIDTH} />
-                )}
+                {maxConsumptionLimit != null &&
+                  resourcesAddedPerTurn != null &&
+                  (() => {
+                    const allocated = Math.round((value / 100) * resourcesAddedPerTurn);
+                    return (
+                      <ProgressBar
+                        totalDisplayWidth={VALUE_WIDTH}
+                        completedAmount={allocated}
+                        totalAmount={maxConsumptionLimit}
+                        tooltip={`Allocated vs Max Consumption (${allocated} / ${maxConsumptionLimit}) — ${maxConsumptionLimit > 0 ? Math.round((allocated / maxConsumptionLimit) * 100) : 0}%`}
+                      />
+                    );
+                  })()}
               </>
             )
           : undefined

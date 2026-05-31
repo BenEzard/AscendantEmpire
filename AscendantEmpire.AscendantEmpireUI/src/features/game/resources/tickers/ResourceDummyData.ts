@@ -25,7 +25,10 @@ import medievalSwordIconUrl from "@/assets/unit-design/weapons/melee/medieval-sw
 import stoneAxeIconUrl from "@/assets/unit-design/weapons/melee/stone-axe_40px.png";
 import woodClubIconUrl from "@/assets/unit-design/weapons/melee/wood-club_40px.png";
 import woodSpearIconUrl from "@/assets/unit-design/weapons/melee/two-piece-wood-spear_40px.png";
+import tradeIconUrl from "@/assets/icons/trade_40px.png";
 import type {
+  DistributionConfig,
+  ProductionConfig,
   ProcessedResourceCategoryData,
   ResourceCategoryData,
   ResourceTickerData,
@@ -40,10 +43,45 @@ type ResourceDefinition = Omit<ResourceTickerData, "id" | "code" | "name"> & {
 type ResourceGroupDefinition = {
   label?: string;
   tickers: ResourceDefinition[];
+  distributionConfig?: DistributionConfig;
 };
 
 function imageIcon(src: string): ReactNode {
   return createElement("img", { src, alt: "" });
+}
+
+function planksDistIcon(): ReactNode {
+  return createElement(
+    "svg",
+    { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: "currentColor" },
+    createElement("rect", { key: "1", x: "2", y: "5", width: "20", height: "4", rx: "1" }),
+    createElement("rect", { key: "2", x: "2", y: "11", width: "20", height: "4", rx: "1" }),
+    createElement("rect", { key: "3", x: "2", y: "17", width: "20", height: "4", rx: "1" }),
+  );
+}
+
+function charcoalDistIcon(): ReactNode {
+  return createElement(
+    "svg",
+    { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: "currentColor" },
+    createElement("path", { d: "M12 2C8 7 6 10 6 14a6 6 0 0 0 12 0c0-4-2-7-6-12zm0 18a4 4 0 0 1-4-4c0-2.5 1.2-4.8 4-8.5 2.8 3.7 4 6 4 8.5a4 4 0 0 1-4 4z" }),
+  );
+}
+
+function strategicStoreDistIcon(): ReactNode {
+  return createElement(
+    "svg",
+    { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: "currentColor" },
+    createElement("path", { d: "M12 2L3 7v10l9 5 9-5V7l-9-5zm0 2.18L19 8.5v7L12 19.82 5 15.5v-7l7-4.32z" }),
+  );
+}
+
+function clothingDistIcon(): ReactNode {
+  return createElement(
+    "svg",
+    { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: "currentColor" },
+    createElement("path", { d: "M16 2l4 4-4 2v12H8V8L4 6l4-4 4 2 4-2z" }),
+  );
 }
 
 function resource(label: string, amount: number, options?: Omit<ResourceDefinition, "label" | "amount">): ResourceDefinition {
@@ -61,6 +99,8 @@ function resource(label: string, amount: number, options?: Omit<ResourceDefiniti
     soonToBeObsolete: options?.soonToBeObsolete,
     demandNotMet: options?.demandNotMet,
     quality: options?.quality,
+    distributionConfig: options?.distributionConfig,
+    productionConfig: options?.productionConfig,
   };
 }
 
@@ -89,11 +129,15 @@ function createTicker(categoryKey: string, resourceDef: ResourceDefinition, colu
     soonToBeObsolete: resourceDef.soonToBeObsolete,
     demandNotMet: resourceDef.demandNotMet,
     quality: resourceDef.quality,
+    distributionConfig: resourceDef.distributionConfig,
+    productionConfig: resourceDef.productionConfig,
   };
 }
 
 function createTickerGroup(categoryKey: string, group: ResourceGroupDefinition, column: number): ResourceTickerGroupData {
-  const tickers = group.tickers.map((ticker, rowIndex) => createTicker(categoryKey, ticker, rowIndex + 1));
+  const tickers = group.tickers.map((ticker, rowIndex) =>
+    createTicker(categoryKey, { ...ticker, distributionConfig: ticker.distributionConfig ?? group.distributionConfig }, rowIndex + 1),
+  );
 
   return {
     id: nextId(),
@@ -101,6 +145,7 @@ function createTickerGroup(categoryKey: string, group: ResourceGroupDefinition, 
     label: group.label ?? group.tickers[0]?.label ?? `Group ${column}`,
     column,
     tickers,
+    distributionConfig: group.distributionConfig,
   };
 }
 
@@ -140,8 +185,86 @@ function createStandaloneCategory(definition: {
   };
 }
 
+// -- Production configs --
+
+const oakLogProductionConfig: ProductionConfig = {
+  topRegions: [
+    { name: "Ironholm Vale", thisTurn: 1240, lastTurn: 1180 },
+    { name: "Ashwood Basin", thisTurn: 1105, lastTurn: 1090 },
+    { name: "Duskmarsh Plains", thisTurn: 980, lastTurn: 1020 },
+    { name: "Sunken Reach", thisTurn: 875, lastTurn: 860 },
+    { name: "Graywood Highlands", thisTurn: 810, lastTurn: 795 },
+  ],
+  history: [
+    { turn: 1, production: 4200, demand: 5100 },
+    { turn: 2, production: 4380, demand: 5080 },
+    { turn: 3, production: 4150, demand: 5200 },
+    { turn: 4, production: 4520, demand: 5150 },
+    { turn: 5, production: 4700, demand: 5300 },
+    { turn: 6, production: 4890, demand: 5250 },
+    { turn: 7, production: 4670, demand: 5400 },
+    { turn: 8, production: 5010, demand: 5380 },
+    { turn: 9, production: 5230, demand: 5420 },
+    { turn: 10, production: 5140, demand: 5500 },
+    { turn: 11, production: 5400, demand: 5480 },
+    { turn: 12, production: 5610, demand: 5600 },
+    { turn: 13, production: 5480, demand: 5700 },
+    { turn: 14, production: 5820, demand: 5650 },
+    { turn: 15, production: 6040, demand: 5800 },
+  ],
+};
+
+// -- Distribution configs --
+
+const logsDistributionConfig: DistributionConfig = {
+  sliderGroups: [
+    {
+      sliders: [
+        { id: 1, code: "trade", label: "Trade", icon: imageIcon(tradeIconUrl), initialValue: 30, lockedState: "systemlocked", canConsumeRemainder: false, maxConsumptionLimit: 300 },
+      ],
+    },
+    {
+      sliders: [
+        { id: 2, code: "planks", label: "Planks", icon: planksDistIcon(), initialValue: 10, canConsumeRemainder: false, maxConsumptionLimit: 100 },
+        { id: 3, code: "charcoal", label: "Charcoal", icon: charcoalDistIcon(), initialValue: 10, canConsumeRemainder: false, maxConsumptionLimit: 100 },
+        { id: 4, code: "strategic-store", label: "Strategic Store", icon: strategicStoreDistIcon(), initialValue: 10, canConsumeRemainder: false, willConsumeRemainder: true, maxConsumptionLimit: 100 },
+      ],
+    },
+  ],
+};
+
+const hidesDistributionConfig: DistributionConfig = {
+  sliderGroups: [
+    {
+      sliders: [
+        { id: 1, code: "trade", label: "Trade", icon: imageIcon(tradeIconUrl), initialValue: 0, lockedState: "systemlocked", canConsumeRemainder: false, maxConsumptionLimit: 50 },
+      ],
+    },
+    {
+      sliders: [
+        { id: 2, code: "clothing", label: "Clothing", icon: clothingDistIcon(), initialValue: 80, canConsumeRemainder: true, willConsumeRemainder: true, maxConsumptionLimit: 200 },
+      ],
+    },
+  ],
+};
+
 const processedCategories: ProcessedResourceCategoryData[] = [
   createProcessedCategory({
+    key: "test",
+    label: "Test",
+    column: 1,
+    icon: createElement(GiWoodStick),
+    groups: [
+      {
+        label: "",
+        distributionConfig: logsDistributionConfig,
+        tickers: [
+          resource("Sample", 0, { description: "A fast-regenerating grass used as a versatile construction material. Bamboo is lightweight, surprisingly strong, and grows abundantly in tropical regions.", tooltip: "Bamboo", icon: imageIcon(bambooIconUrl), isExported: true })
+        ],
+      },
+    ],
+  }),
+createProcessedCategory({
     key: "wood",
     label: "Wood",
     column: 1,
@@ -149,8 +272,9 @@ const processedCategories: ProcessedResourceCategoryData[] = [
     groups: [
       {
         label: "Logs",
+        distributionConfig: logsDistributionConfig,
         tickers: [
-          resource("Oak Log", 2400, { description: "A dense, slow-grown hardwood felled from ancient oak forests. Renowned for its strength and resistance to rot, oak logs are a cornerstone of construction and military engineering alike.", tooltip: "Oak Log", icon: imageIcon(oakLogIconUrl), hasStrategicStockpile: true, quality: "gold" }),
+          resource("Oak Log", 2400, { description: "A dense, slow-grown hardwood felled from ancient oak forests. Renowned for its strength and resistance to rot, oak logs are a cornerstone of construction and military engineering alike.", tooltip: "Oak Log", icon: imageIcon(oakLogIconUrl), hasStrategicStockpile: true, quality: "gold", productionConfig: oakLogProductionConfig }),
           resource("Generic Log", 2400, { description: "Logs of mixed or unspecified timber, sourced from managed woodland reserves. Serviceable for fuel, basic construction, and rough carpentry.", tooltip: "Generic Log", icon: imageIcon(pineLogIconUrl), isImported: true, quality: "bronze" }),
           resource("Cedar Log", 999, { description: "A fragrant, lightweight softwood prized for its natural resistance to insects and moisture. Cedar logs are favored for interior fittings and storage chests.", tooltip: "Cedar Log", icon: imageIcon(cedarLogIconUrl) }),
           resource("Ash Log", 9900, { resourcesAddedPerTurn: 10000, description: "A flexible, tough hardwood cut from ash groves. Ash logs are particularly valued by weaponsmiths and wheelwrights for their shock-absorbing properties.", tooltip: "Ash Log", icon: imageIcon(ashLogIconUrl) }),
@@ -190,7 +314,7 @@ const processedCategories: ProcessedResourceCategoryData[] = [
           resource("Flint", 1_200, { description: "A fine-grained sedimentary rock that fractures with a sharp edge. Flint is used in early toolmaking, fire-starting, and as a cheap cutting material." }),
           resource("Obsidian", 420, { description: "Volcanic glass formed from rapidly cooled lava. Obsidian is razor-sharp when fractured and is prized for specialist blades and ritual objects.", isLuxury: true, icon: imageIcon(obsidianPileIconUrl) }),
           resource("Slate", 8_000, { description: "A fine-grained metamorphic rock that cleaves into thin sheets. Slate is the material of choice for roofing tiles and writing tablets." }),
-          resource("Marble", 3_500, { description: "Raw marble extracted from prized quarries. Highly sought after for prestige architecture, sculptures, and civic monuments.", isLuxury: true, isExported: true, icon: imageIcon(marblePileIconUrl) }),
+          resource("Marble", 3_500, { description: "Raw marble extracted from prized quarries. Highly sought after for prestige architecture, sculptures, and civic monuments.", isLuxury: true, isExported: true, demandNotMet: true, icon: imageIcon(marblePileIconUrl) }),
           resource("Basalt", 45_000, { description: "A dense volcanic rock with superior hardness. Basalt is prized for road paving, millstones, and heavy defensive structures.", demandNotMet: true, isImported: true }),
           resource("Generic Rock", 75_000, { description: "Rough, unprocessed stone quarried from surface deposits. Used as bulk fill, rubble, and a basic ingredient in early-stage construction.", icon: imageIcon(genericRockPileIconUrl) })
         ] 
@@ -224,7 +348,7 @@ const standaloneCategory = createStandaloneCategory({
     resource("Resin", 375, { description: "Sticky sap harvested from conifer trees. Resin is used in varnishes, adhesives, medicines, and as a flux in metalworking." }),
     resource("Tar", 810, { description: "A dense, viscous liquid derived from the destructive distillation of wood or coal. Tar preserves timber, waterproofs hulls, and serves as a base for road surfaces." }),
     resource("Leather", 1_180, { description: "Cured animal hides processed into a durable and flexible material. Leather is indispensable for armour, harnesses, footwear, and bookbinding." }),
-    resource("Hides", 640, { description: "Raw, uncured animal skins awaiting processing. Hides are the primary input for the leather-working industry." }),
+    resource("Hides", 640, { description: "Raw, uncured animal skins awaiting processing. Hides are the primary input for the leather-working industry.", distributionConfig: hidesDistributionConfig }),
     resource("Tallow", 260, { description: "Animal fat rendered from slaughtered livestock. Tallow is used in candle-making, soap production, and as a lubricant for machinery and weapons." }),
   ],
 });

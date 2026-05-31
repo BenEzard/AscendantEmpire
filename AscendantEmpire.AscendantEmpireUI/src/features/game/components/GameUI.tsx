@@ -36,6 +36,7 @@ import ForceSelectionDialog, { type ForceSelectionDialogTile } from "./ForceSele
 import { VscNewFile } from "react-icons/vsc";
 import NotificationsHost from "@/features/notifications/NotificationsHost";
 import { NotificationsProvider } from "@/features/notifications/useNotifications";
+import NewGameDialog from "./NewGameDialog";
 
 function buildTiles2d(width: number, height: number, tiles: CampaignMapTileDto[]): TileCell[][] {
   const grid: TileCell[][] = Array.from({ length: height }, (_, y) =>
@@ -87,7 +88,7 @@ function getTroopWithMaxHealthy(troops: ObservedTroopTile[]): ObservedTroopTile 
 }
 
 function GameUI({ topOffset = 0 }: { topOffset?: number }) {
-  type ActiveDialog = "openGame" | null;
+  type ActiveDialog = "openGame" | "newGame" | null;
   type ActiveTool = "vision" | null;
   type SelectedTile = { x: number; y: number };
   type ActivePanel = "unit-design" | null;
@@ -120,6 +121,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const prevActiveToolRef = useRef<ActiveTool>(null);
 
   const [gameSelection, setGameSelection] = useState<OpenGameSelection | null>(null);
+  const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -136,6 +138,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
       setPendingForceSelectionTile(null);
       setForceSelectionTile(null);
       setVisionObservers([]);
+      setNotificationPanelOpen(false);
     }
   }, [gameSelection]);
 
@@ -297,7 +300,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
                       icon: <VscNewFile />,
                       label: "New",
                       tooltip: "New Game",
-                      onClick: () => {},
+                      onClick: () => setActiveDialog("newGame"),
                     },
                     {
                       key: "open",
@@ -408,10 +411,6 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
         }
       } else if (category.type === "standalone-resources") {
         result.push(...category.resources);
-      } else if (category.type === "manufactured-grades") {
-        for (const collection of category.collections) {
-          result.push(...Object.values(collection.resourcesByGrade));
-        }
       }
     }
     return result;
@@ -745,14 +744,21 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
 
   return (
     <NotificationsProvider>
-      <div className="flex flex-col" style={{ minHeight: "100vh" }}>
+      <div className="flex flex-col" style={{ minHeight: "100vh", paddingRight: notificationPanelOpen ? "20vw" : undefined }}>
         <div ref={toolbarRef} className="fixed left-0 right-0 z-[1070]" style={{ top: topOffset }}>
           <ToolBar groups={toolBarGroups} />
         </div>
         {/* Spacer so content doesn't slide under the fixed toolbar (toolbar height only, tab strip is handled by App) */}
         <div style={{ height: Math.max(0, toolbarBottomPx - topOffset) }} />
 
-        <NotificationsHost toolbarBottomPx={toolbarBottomPx} onPanTo={panMapTo} onOpenDialog={openNotificationDialog} />
+        {gameSelection != null && (
+          <NotificationsHost
+            toolbarBottomPx={toolbarBottomPx}
+            onPanTo={panMapTo}
+            onOpenDialog={openNotificationDialog}
+            onPanelOpenChange={setNotificationPanelOpen}
+          />
+        )}
 
         {showConstructionPanel && (
           <div
@@ -804,6 +810,12 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
           setVisionLoadWholeMap={setVisionLoadWholeMap}
         />
 
+        <NewGameDialog
+          show={activeDialog === "newGame"}
+          onClose={() => setActiveDialog(null)}
+          onCreateSuccess={(msg) => openToast(msg ?? "Game created", "success")}
+        />
+
         <OpenGameDialog
           show={activeDialog === "openGame"}
           onClose={() => setActiveDialog(null)}
@@ -829,8 +841,9 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
           tickers={allConstructionTickers}
           selectedResourceId={resourceManagerSelectedId}
           onSelectResource={setResourceManagerSelectedId}
-          onCommit={(changes) => {
+          onCommit={(changes, tradePartners) => {
             console.log("[GameUI] ResourceManager changes committed:", changes);
+            console.log("[GameUI] ResourceManager trade partners committed:", tradePartners);
           }}
         />
 

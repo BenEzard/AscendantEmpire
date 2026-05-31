@@ -68,7 +68,7 @@ export const dummyNotificationGroups: NotificationGroup[] = [
         label: "Royal Guard",
         iconSrc: unitIconSrc,
         iconAlt: "Unit",
-        location: { x: 14, y: 22 },
+        location: { x: 32, y: 0 },
         action: { kind: "open-dialog", dialog: "unit-orders" },
         isHandled: false,
       },

@@ -3,15 +3,19 @@ import { useState, type ReactNode } from "react";
 interface TooltipProps {
   content: string | undefined;
   children: ReactNode;
+  className?: string;
 }
 
-export default function Tooltip({ content, children }: TooltipProps) {
+export default function Tooltip({ content, children, className }: TooltipProps) {
   const [visible, setVisible] = useState(false);
 
   if (!content) return <>{children}</>;
 
   return (
-    <span className="relative inline-flex" onMouseEnter={() => setVisible(true)} onMouseLeave={() => setVisible(false)}>
+    <span
+      className={["relative inline-flex", className].filter(Boolean).join(" ")}
+      onMouseEnter={() => setVisible(true)}
+      onMouseLeave={() => setVisible(false)}>
       {children}
       {visible && (
         <span

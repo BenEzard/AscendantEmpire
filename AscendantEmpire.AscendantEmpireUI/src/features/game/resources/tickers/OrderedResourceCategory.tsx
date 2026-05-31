@@ -45,6 +45,8 @@ export default function OrderedResourceCategory({
     return undefined;
   }, [resolvedMaxColumns]);
 
+  if (tickerGroups.every((g) => g.tickers.every((t) => t.amount === 0))) return null;
+
   return (
     <div className="resource-category" data-column={column}>
       <ResourceCategoryHeader label={label} />

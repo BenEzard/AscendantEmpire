@@ -8,9 +8,10 @@ export interface NotificationsHostProps {
   toolbarBottomPx: number;
   onPanTo: (x: number, y: number) => void;
   onOpenDialog: (dialog: "unit-orders" | "trade" | "city", payload?: unknown) => void;
+  onPanelOpenChange?: (open: boolean) => void;
 }
 
-export default function NotificationsHost({ toolbarBottomPx, onPanTo, onOpenDialog }: NotificationsHostProps) {
+export default function NotificationsHost({ toolbarBottomPx, onPanTo, onOpenDialog, onPanelOpenChange }: NotificationsHostProps) {
   const { groups, totalCount } = useNotifications();
   const [panelOpen, setPanelOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<NotificationGroupType>>(() => new Set());
@@ -30,6 +31,10 @@ export default function NotificationsHost({ toolbarBottomPx, onPanTo, onOpenDial
       return new Set(groups.map((g) => g.type));
     });
   }, [groups, panelOpen]);
+
+  useEffect(() => {
+    onPanelOpenChange?.(panelOpen);
+  }, [panelOpen, onPanelOpenChange]);
 
   const togglePanel = useCallback(() => setPanelOpen((v) => !v), []);
   const closePanel = useCallback(() => setPanelOpen(false), []);

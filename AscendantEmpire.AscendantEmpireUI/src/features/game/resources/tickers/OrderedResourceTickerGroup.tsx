@@ -125,6 +125,8 @@ export default function OrderedResourceTickerGroup({
     setDragTargetIndex(null);
   };
 
+  if (tickers.every((t) => t.amount === 0)) return null;
+
   return (
     <div
       ref={containerRef}

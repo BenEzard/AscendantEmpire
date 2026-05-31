@@ -38,7 +38,7 @@ export default function Modal({ open, title, onClose, children, footer, size = "
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[1050] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[1080] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onMouseDown={onClose} />
 
       <div

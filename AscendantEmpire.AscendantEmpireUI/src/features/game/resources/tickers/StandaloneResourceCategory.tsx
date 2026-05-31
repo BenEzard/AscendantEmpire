@@ -25,6 +25,8 @@ export default function StandaloneResourceCategory({
   maxColumns,
   onClickAmount,
 }: StandaloneResourceCategoryProps) {
+  if (resources.every((r) => r.amount === 0)) return null;
+
   return (
     <div className="resource-category" data-column={column}>
       <ResourceCategoryHeader label={label} />

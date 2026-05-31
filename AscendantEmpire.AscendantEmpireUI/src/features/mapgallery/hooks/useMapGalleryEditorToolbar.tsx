@@ -7,7 +7,7 @@ import { FaPaintBrush } from "react-icons/fa";
 import { HiMagnifyingGlass } from "react-icons/hi2";
 
 import type { ToolBarGroup } from "@/components/Toolbar";
-import { DropButton, Spinner } from "@/components/ui";
+import { DropButton, HamburgerMenu, Spinner } from "@/components/ui";
 import ToolbarExclusiveButtons from "@/components/ToolbarExclusiveButtons";
 
 import type { Biome } from "@/types/map/Biome";
@@ -83,26 +83,51 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
       {
         caption: "Map",
         buttons: [
-          { key: "new", icon: <VscNewFile />, tooltip: "New Campaign Map", onClick: () => setActiveDialog("newCampaignMap") },
           {
-            key: "open",
-            icon: <FaRegFolderOpen />,
-            tooltip: "Open Campaign Map",
-            onClick: () => setActiveDialog("openCampaignMap"),
-          },
-          {
-            key: "export",
-            icon: isExportingMap ? <Spinner size="sm" /> : <BiExport />,
-            tooltip: isExportingMap ? "Exporting Map..." : "Export Map",
-            disabled: openMapIndex == null || isExportingMap,
-            onClick: openExportMap,
-          },
-          {
-            key: "close",
-            icon: <SlClose />,
-            tooltip: "Close Campaign Map",
-            disabled: openMapIndex == null,
-            onClick: closeMap,
+            key: "map-menu",
+            render: () => (
+              <HamburgerMenu
+                title="Map menu"
+                tooltip="Map"
+                groups={[
+                  {
+                    label: "Map",
+                    items: [
+                      {
+                        key: "new",
+                        icon: <VscNewFile />,
+                        label: "New",
+                        tooltip: "New Campaign Map",
+                        onClick: () => setActiveDialog("newCampaignMap"),
+                      },
+                      {
+                        key: "open",
+                        icon: <FaRegFolderOpen />,
+                        label: "Open",
+                        tooltip: "Open Campaign Map",
+                        onClick: () => setActiveDialog("openCampaignMap"),
+                      },
+                      {
+                        key: "export",
+                        icon: isExportingMap ? <Spinner size="sm" /> : <BiExport />,
+                        label: isExportingMap ? "Exporting..." : "Export",
+                        tooltip: isExportingMap ? "Exporting Map..." : "Export Map",
+                        disabled: openMapIndex == null || isExportingMap,
+                        onClick: openExportMap,
+                      },
+                      {
+                        key: "close",
+                        icon: <SlClose />,
+                        label: "Close",
+                        tooltip: "Close Campaign Map",
+                        disabled: openMapIndex == null,
+                        onClick: closeMap,
+                      },
+                    ],
+                  },
+                ]}
+              />
+            ),
           },
         ],
       },
@@ -120,7 +145,7 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
                 icon={<FaTree />}
                 disabled={disabled}
                 onClick={openBiomes}
-                menuDisabled={biomesLoading}
+                menuDisabled={biomesLoading || openMapIndex == null}
                 items={[
                   {
                     key: "none",
@@ -174,7 +199,7 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
                 icon={<FaMountain />}
                 disabled={disabled}
                 onClick={openGeographies}
-                menuDisabled={geographiesLoading}
+                menuDisabled={geographiesLoading || openMapIndex == null}
                 items={[
                   {
                     key: "none",

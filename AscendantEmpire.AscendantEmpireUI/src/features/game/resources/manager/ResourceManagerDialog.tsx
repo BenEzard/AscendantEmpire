@@ -1,4 +1,5 @@
 import { Button, Modal } from "@/components/ui";
+import type { SelectionOption } from "@/components/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ResourceTickerData } from "../tickers/ResourceTickerCollection";
 import type { SliderSnapshot } from "../slider";
@@ -13,7 +14,7 @@ interface ResourceManagerDialogProps {
   onSelectResource: (id: string | null) => void;
   show: boolean;
   onClose: () => void;
-  onCommit?: (changes: Record<string, SliderSnapshot[]>) => void;
+  onCommit?: (changes: Record<string, SliderSnapshot[]>, tradePartners: Record<string, SelectionOption[]>) => void;
 }
 
 type SectionKey = "general" | "production" | "distribution" | "trade";
@@ -39,15 +40,18 @@ export default function ResourceManagerDialog({
   // Stored in a ref so slider drags don't trigger re-renders.
   const sliderChangesRef = useRef<Record<string, SliderSnapshot[]>>({});
   const remainderChangesRef = useRef<Record<string, number | null>>({});
+  const tradePartnersRef = useRef<Record<string, SelectionOption[]>>({});
 
   // Reset accumulated changes whenever the dialog opens.
   useEffect(() => {
     if (show) {
       sliderChangesRef.current = {};
       remainderChangesRef.current = {};
+      tradePartnersRef.current = {};
     }
   }, [show]);
 
+  // Keyboard shortcuts: press 1–4 to jump directly to a section.
   const handleSliderChange = useCallback(
     (sliders: SliderSnapshot[]) => {
       if (!selectedResourceId) return;
@@ -64,9 +68,18 @@ export default function ResourceManagerDialog({
     [selectedResourceId],
   );
 
+  const handleTradePartnersChange = useCallback(
+    (partners: SelectionOption[]) => {
+      if (!selectedResourceId) return;
+      tradePartnersRef.current = { ...tradePartnersRef.current, [selectedResourceId]: partners };
+    },
+    [selectedResourceId],
+  );
+
   const logChanges = useCallback(() => {
     const changedIds = Object.keys(sliderChangesRef.current);
-    if (changedIds.length === 0) {
+    const tradeChangedIds = Object.keys(tradePartnersRef.current);
+    if (changedIds.length === 0 && tradeChangedIds.length === 0) {
       console.log("[ResourceManager] No changes recorded.");
       return;
     }
@@ -79,6 +92,16 @@ export default function ResourceManagerDialog({
       if (remainder !== undefined) console.log("Remainder slider ID:", remainder);
       console.groupEnd();
     }
+    for (const resourceId of tradeChangedIds) {
+      if (changedIds.includes(resourceId)) continue; // already logged above
+      const ticker = tickers.find((t) => t.code === resourceId);
+      console.group(ticker?.name ?? resourceId);
+      console.log("Trade partners:", tradePartnersRef.current[resourceId]);
+      console.groupEnd();
+    }
+    if (tradeChangedIds.length > 0) {
+      console.log("Trade partners (all):", tradePartnersRef.current);
+    }
     console.groupEnd();
   }, [tickers]);
 
@@ -89,9 +112,30 @@ export default function ResourceManagerDialog({
 
   const handleApply = useCallback(() => {
     logChanges();
-    onCommit?.(sliderChangesRef.current);
+    onCommit?.(sliderChangesRef.current, tradePartnersRef.current);
     onClose();
   }, [logChanges, onCommit, onClose]);
+
+  useEffect(() => {
+    if (!show) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+      if (e.key === "Escape") {
+        handleClose();
+        return;
+      }
+      if (e.key === "Enter") {
+        handleApply();
+        return;
+      }
+      const index = parseInt(e.key, 10) - 1;
+      if (index >= 0 && index < sections.length) {
+        setActiveSection(sections[index].key);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [show, handleClose, handleApply]);
 
   const orderedTickers = useMemo(() => tickers.slice().sort((a, b) => a.name.localeCompare(b.name)), [tickers]);
 
@@ -152,6 +196,7 @@ export default function ResourceManagerDialog({
                 ]
                   .filter(Boolean)
                   .join(" ")}>
+                <span className="mr-2 text-xs text-slate-300">{index + 1}</span>
                 {label}
               </button>
             ))}
@@ -168,8 +213,10 @@ export default function ResourceManagerDialog({
             <div style={{ gridArea: "1/1" }} className={activeSection !== "production" ? "invisible" : ""}>
               <ResourceManagerProductionPage
                 selectedTicker={selectedTicker}
-                totalThisTurn={selectedTicker?.resourcesAddedPerTurn ?? 0}
+                totalThisTurn={selectedTicker?.resourcesAddedPerTurn || 800}
                 totalLastTurn={0}
+                currentConsumption={0}
+                maxConsumption={0}
               />
             </div>
             <div style={{ gridArea: "1/1" }} className={activeSection !== "distribution" ? "invisible" : ""}>
@@ -184,7 +231,14 @@ export default function ResourceManagerDialog({
               />
             </div>
             <div style={{ gridArea: "1/1" }} className={activeSection !== "trade" ? "invisible" : ""}>
-              <ResourceManagerTradePage selectedTicker={selectedTicker} />
+              <ResourceManagerTradePage
+                selectedTicker={selectedTicker}
+                resourcesPerTurn={selectedTicker?.resourcesAddedPerTurn || 800}
+                amountLastTurn={0}
+                currentConsumption={0}
+                maxConsumption={0}
+                onTradePartnersChange={handleTradePartnersChange}
+              />
             </div>
           </div>
         </div>

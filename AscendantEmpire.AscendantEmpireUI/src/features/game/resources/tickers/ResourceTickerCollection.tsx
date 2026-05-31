@@ -3,6 +3,46 @@ import OrderedResourceCategory from "./OrderedResourceCategory";
 import StandaloneResourceCategory from "./StandaloneResourceCategory";
 import "./ResourceTickerCollection.css";
 import type { ResourceGrade } from "./ResourceConstants";
+import type { LockedState } from "../../../../components/ui/slider/Slider";
+
+// -- Distribution configuration types --
+
+export type DistributionSliderDef = {
+  id: number;
+  code: string;
+  label: string;
+  icon?: ReactNode;
+  initialValue: number;
+  lockedState?: LockedState;
+  canConsumeRemainder?: boolean;
+  willConsumeRemainder?: boolean;
+  maxConsumptionLimit?: number;
+};
+
+export type DistributionSliderGroupDef = {
+  sliders: DistributionSliderDef[];
+};
+
+export type DistributionConfig = {
+  sliderGroups: DistributionSliderGroupDef[];
+};
+
+export type RegionProductionData = {
+  name: string;
+  thisTurn: number;
+  lastTurn: number;
+};
+
+export type ProductionHistoryEntry = {
+  turn: number;
+  production: number;
+  demand: number;
+};
+
+export type ProductionConfig = {
+  topRegions: RegionProductionData[];
+  history: ProductionHistoryEntry[];
+};
 
 export type ResourceTickerData = {
   id: number;
@@ -21,6 +61,8 @@ export type ResourceTickerData = {
   soonToBeObsolete?: boolean;
   demandNotMet?: boolean;
   quality?: ResourceGrade;
+  distributionConfig?: DistributionConfig;
+  productionConfig?: ProductionConfig;
 };
 
 export type ResourceTickerGroupData = {
@@ -29,6 +71,7 @@ export type ResourceTickerGroupData = {
   label?: string;
   column: number;
   tickers: ResourceTickerData[];
+  distributionConfig?: DistributionConfig;
 };
 
 export type ResourceCategoryType = "processed-resources" | "standalone-resources";
