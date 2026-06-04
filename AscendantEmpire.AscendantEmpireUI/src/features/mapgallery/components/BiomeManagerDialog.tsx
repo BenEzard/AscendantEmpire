@@ -1,5 +1,5 @@
-import { Button, Modal, Toast, ToastViewport } from "@/components/ui";
-import { useMemo, useState } from "react";
+import { Button, PagedDialog, Toast, ToastViewport } from "@/components/ui";
+import { useCallback, useMemo, useState } from "react";
 import axios from "axios";
 import { CiExport } from "react-icons/ci";
 import type { Biome } from "../../../types/map/Biome";
@@ -30,12 +30,8 @@ function BiomeManagerDialog({
   onClose,
   onSaveSuccess,
 }: BiomeManagerProps) {
-  type SectionKey = "general" | "regen" | "passive";
-
   const selectedBiome = biomes.find((b) => b.biomeType === biomeManagerSelection) ?? null;
-  const [activeSection, setActiveSection] = useState<SectionKey>("general");
 
-  // Text Editor Dialog
   const [textEditorTitle, setTextEditorTitle] = useState("Text");
   const [textEditorBody, setTextEditorBody] = useState("");
   const [showTextEditor, setShowTextEditor] = useState(false);
@@ -96,14 +92,35 @@ function BiomeManagerDialog({
     },
   });
 
+  const handleSave = useCallback(() => saveBiomesMutation.mutate(biomes), [saveBiomesMutation, biomes]);
+
   return (
     <>
-      <Modal
+      <PagedDialog
         open={show}
-        onClose={onClose}
         title="Biome Manager"
         size="lg"
         panelClassName="thick-border-modal"
+        onCancel={onClose}
+        onCommit={handleSave}
+        header={
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <label className="text-sm font-semibold whitespace-nowrap">Select Biome</label>
+            <select
+              className="w-64 max-w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
+              value={selectedBiome?.biomeType ?? ""}
+              onChange={(e) => {
+                const raw = e.target.value;
+                onSelectBiomeManagerSelection(raw === "" ? null : Number(raw));
+              }}>
+              {orderedBiomes.map((b) => (
+                <option key={b.biomeType} value={b.biomeType}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        }
         footer={
           <>
             <div className="mr-auto">
@@ -115,66 +132,17 @@ function BiomeManagerDialog({
             <Button variant="secondary" onClick={onClose}>
               Cancel / Close
             </Button>
-            <Button variant="success" disabled={saveBiomesMutation.isPending} onClick={() => saveBiomesMutation.mutate(biomes)}>
+            <Button variant="success" disabled={saveBiomesMutation.isPending} onClick={handleSave}>
               {saveBiomesMutation.isPending ? "Saving..." : "Save"}
             </Button>
           </>
-        }>
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <label className="text-sm font-semibold whitespace-nowrap">Select Biome</label>
-          <select
-            className="w-64 max-w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
-            value={selectedBiome?.biomeType ?? ""}
-            onChange={(e) => {
-              const raw = e.target.value;
-              onSelectBiomeManagerSelection(raw === "" ? null : Number(raw));
-            }}>
-            {orderedBiomes.map((b) => (
-              <option key={b.biomeType} value={b.biomeType}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="grid grid-cols-12 gap-4">
-          {/* Left: section list */}
-          <div className="col-span-12 md:col-span-4">
-            <div className="rounded-md border border-slate-200 bg-white">
-              <button
-                type="button"
-                onClick={() => setActiveSection("general")}
-                className={[
-                  "block w-full px-3 py-2 text-left text-sm",
-                  activeSection === "general" ? "nav-item-selected font-semibold" : "hover:bg-slate-50",
-                ].join(" ")}>
-                General Properties
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveSection("regen")}
-                className={[
-                  "block w-full px-3 py-2 text-left text-sm border-t border-slate-200",
-                  activeSection === "regen" ? "nav-item-selected font-semibold" : "hover:bg-slate-50",
-                ].join(" ")}>
-                Regenerating Resources
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveSection("passive")}
-                className={[
-                  "block w-full px-3 py-2 text-left text-sm border-t border-slate-200",
-                  activeSection === "passive" ? "nav-item-selected font-semibold" : "hover:bg-slate-50",
-                ].join(" ")}>
-                Passive Resources
-              </button>
-            </div>
-          </div>
-
-          {/* Right: selected section (single column) */}
-          <div className="col-span-12 md:col-span-8">
-            <div className="relative w-full max-w-xl">
-              <div className={activeSection === "general" ? "" : "invisible pointer-events-none"}>
+        }
+        sections={[
+          {
+            key: "general",
+            label: "General Properties",
+            content: (
+              <div className="w-full max-w-xl">
                 <div className="grid grid-cols-12 items-center gap-2 mb-2">
                   <label className="col-span-5 text-sm text-slate-700">Id</label>
                   <div className="col-span-7">
@@ -278,107 +246,113 @@ function BiomeManagerDialog({
                   </div>
                 </div>
               </div>
+            ),
+          },
+          {
+            key: "regen",
+            label: "Regenerating Resources",
+            content: (
+              <div className="w-full max-w-xl">
+                <BiomeResource
+                  label="Regeneration Rate"
+                  biome={selectedBiome}
+                  field="regenerationRate"
+                  disabled={!selectedBiome || mustBeTraversablePaintable}
+                  emptyToNull={true}
+                  onChange={handleBiomeFieldChange}
+                />
 
-              {activeSection === "regen" && (
-                <div className="absolute inset-0 overflow-auto">
-                  <BiomeResource
-                    label="Regeneration Rate"
-                    biome={selectedBiome}
-                    field="regenerationRate"
-                    disabled={!selectedBiome || mustBeTraversablePaintable}
-                    emptyToNull={true}
-                    onChange={handleBiomeFieldChange}
-                  />
+                <BiomeResource
+                  label="Base Forage"
+                  biome={selectedBiome}
+                  field="baseForageValue"
+                  disabled={!selectedBiome || mustBeTraversablePaintableLand}
+                  placeholder="specify..."
+                  disabledPlaceholder="n/a"
+                  onChange={handleBiomeFieldChange}
+                />
 
-                  <BiomeResource
-                    label="Base Forage"
-                    biome={selectedBiome}
-                    field="baseForageValue"
-                    disabled={!selectedBiome || mustBeTraversablePaintableLand}
-                    placeholder="specify..."
-                    disabledPlaceholder="n/a"
-                    onChange={handleBiomeFieldChange}
-                  />
+                <BiomeResource
+                  label="Base Hunt"
+                  biome={selectedBiome}
+                  field="baseHuntValue"
+                  disabled={!selectedBiome || mustBeTraversablePaintableLand}
+                  placeholder="specify..."
+                  disabledPlaceholder="n/a"
+                  onChange={handleBiomeFieldChange}
+                />
 
-                  <BiomeResource
-                    label="Base Hunt"
-                    biome={selectedBiome}
-                    field="baseHuntValue"
-                    disabled={!selectedBiome || mustBeTraversablePaintableLand}
-                    placeholder="specify..."
-                    disabledPlaceholder="n/a"
-                    onChange={handleBiomeFieldChange}
-                  />
+                <BiomeResource
+                  label="Base Fish"
+                  biome={selectedBiome}
+                  field="baseFishValue"
+                  disabled={isFishDisabled}
+                  placeholder="specify..."
+                  disabledPlaceholder="n/a"
+                  onChange={handleBiomeFieldChange}
+                />
 
-                  <BiomeResource
-                    label="Base Fish"
-                    biome={selectedBiome}
-                    field="baseFishValue"
-                    disabled={isFishDisabled}
-                    placeholder="specify..."
-                    disabledPlaceholder="n/a"
-                    onChange={handleBiomeFieldChange}
-                  />
+                <BiomeResource
+                  label="Base Fodder"
+                  biome={selectedBiome}
+                  field="baseFodderValue"
+                  disabled={!selectedBiome || mustBeTraversablePaintableLand}
+                  placeholder="specify..."
+                  disabledPlaceholder="n/a"
+                  onChange={handleBiomeFieldChange}
+                />
+              </div>
+            ),
+          },
+          {
+            key: "passive",
+            label: "Passive Resources",
+            content: (
+              <div className="w-full max-w-xl">
+                <BiomeResource
+                  label="Base Bone"
+                  biome={selectedBiome}
+                  field="baseBoneValue"
+                  disabled={!selectedBiome || mustBeTraversablePaintable}
+                  placeholder="specify..."
+                  disabledPlaceholder="n/a"
+                  onChange={handleBiomeFieldChange}
+                />
 
-                  <BiomeResource
-                    label="Base Fodder"
-                    biome={selectedBiome}
-                    field="baseFodderValue"
-                    disabled={!selectedBiome || mustBeTraversablePaintableLand}
-                    placeholder="specify..."
-                    disabledPlaceholder="n/a"
-                    onChange={handleBiomeFieldChange}
-                  />
-                </div>
-              )}
+                <BiomeResource
+                  label="Base Wood"
+                  biome={selectedBiome}
+                  field="baseWoodValue"
+                  disabled={!selectedBiome || mustBeTraversablePaintableLand}
+                  placeholder="specify..."
+                  disabledPlaceholder="n/a"
+                  onChange={handleBiomeFieldChange}
+                />
 
-              {activeSection === "passive" && (
-                <div className="absolute inset-0 overflow-auto">
-                  <BiomeResource
-                    label="Base Bone"
-                    biome={selectedBiome}
-                    field="baseBoneValue"
-                    disabled={!selectedBiome || mustBeTraversablePaintable}
-                    placeholder="specify..."
-                    disabledPlaceholder="n/a"
-                    onChange={handleBiomeFieldChange}
-                  />
+                <BiomeResource
+                  label="Base Stone"
+                  biome={selectedBiome}
+                  field="baseStoneValue"
+                  disabled={!selectedBiome || mustBeTraversablePaintableLand}
+                  placeholder="specify..."
+                  disabledPlaceholder="n/a"
+                  onChange={handleBiomeFieldChange}
+                />
 
-                  <BiomeResource
-                    label="Base Wood"
-                    biome={selectedBiome}
-                    field="baseWoodValue"
-                    disabled={!selectedBiome || mustBeTraversablePaintableLand}
-                    placeholder="specify..."
-                    disabledPlaceholder="n/a"
-                    onChange={handleBiomeFieldChange}
-                  />
-
-                  <BiomeResource
-                    label="Base Stone"
-                    biome={selectedBiome}
-                    field="baseStoneValue"
-                    disabled={!selectedBiome || mustBeTraversablePaintableLand}
-                    placeholder="specify..."
-                    disabledPlaceholder="n/a"
-                    onChange={handleBiomeFieldChange}
-                  />
-
-                  <BiomeResource
-                    label="Base Special"
-                    biome={selectedBiome}
-                    field="baseSpecialValue"
-                    disabled={!selectedBiome || mustBeTraversablePaintable}
-                    placeholder="specify..."
-                    disabledPlaceholder="n/a"
-                    onChange={handleBiomeFieldChange}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </Modal>
+                <BiomeResource
+                  label="Base Special"
+                  biome={selectedBiome}
+                  field="baseSpecialValue"
+                  disabled={!selectedBiome || mustBeTraversablePaintable}
+                  placeholder="specify..."
+                  disabledPlaceholder="n/a"
+                  onChange={handleBiomeFieldChange}
+                />
+              </div>
+            ),
+          },
+        ]}
+      />
 
       <ToastViewport>
         <Toast

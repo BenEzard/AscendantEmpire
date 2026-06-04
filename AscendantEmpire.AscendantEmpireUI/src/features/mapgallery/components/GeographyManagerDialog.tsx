@@ -1,5 +1,5 @@
-import { Button, Modal, Toast, ToastViewport } from "@/components/ui";
-import { useMemo, useState } from "react";
+import { Button, PagedDialog, Toast, ToastViewport } from "@/components/ui";
+import { useCallback, useMemo, useState } from "react";
 import { CiExport } from "react-icons/ci";
 import type { Geography } from "../../../types/map/Geography";
 import { safeStringify } from "../../../util/json";
@@ -27,16 +27,10 @@ function GeographyManagerDialog({
   onClose,
   onSaveSuccess,
 }: GeographyManagerProps) {
-  type SectionKey = "general";
-
-  const [activeSection, setActiveSection] = useState<SectionKey>("general");
-
-  // Text Editor Dialog
   const [textEditorTitle, setTextEditorTitle] = useState("Text");
   const [textEditorBody, setTextEditorBody] = useState<string>();
   const [showTextEditor, setShowTextEditor] = useState(false);
 
-  // Toasts
   const [showErrorToast, setShowErrorToast] = useState(false);
   const [errorToastItems, setErrorToastItems] = useState<string[]>([]);
   const toggleErrorToast = () => setShowErrorToast((v) => !v);
@@ -54,7 +48,6 @@ function GeographyManagerDialog({
     setShowTextEditor(true);
   };
 
-  // When a Geography field changes, update in the master list (draft is owned by parent)
   const handleGeographyFieldChange = <K extends keyof Geography>(field: K, value: Geography[K]) => {
     if (geographyEditorSelection == null) return;
 
@@ -74,14 +67,40 @@ function GeographyManagerDialog({
     },
   });
 
+  const handleSave = useCallback(() => saveGeographyMutation.mutate(geographies), [saveGeographyMutation, geographies]);
+
   return (
     <>
-      <Modal
+      <PagedDialog
         open={show}
-        onClose={onClose}
         title="Geography Manager"
         size="lg"
         panelClassName="thick-border-modal"
+        onCancel={onClose}
+        onCommit={handleSave}
+        header={
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <label className="text-sm font-semibold whitespace-nowrap">Select Geography</label>
+            <select
+              className="w-64 max-w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
+              value={selectedGeography?.campaignMapGeographyType ?? ""}
+              onChange={(e) => {
+                const selectedType = Number(e.target.value);
+                onSelectGeographyEditorSelection(Number.isFinite(selectedType) ? selectedType : null);
+              }}
+              disabled={orderedGeographies.length === 0}>
+              {orderedGeographies.length === 0 ? (
+                <option value="">(no geographies)</option>
+              ) : (
+                orderedGeographies.map((g) => (
+                  <option key={g.campaignMapGeographyType} value={g.campaignMapGeographyType}>
+                    {g.name}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+        }
         footer={
           <>
             <div className="mr-auto">
@@ -93,53 +112,17 @@ function GeographyManagerDialog({
             <Button variant="secondary" onClick={onClose}>
               Cancel / Close
             </Button>
-            <Button variant="success" disabled={saveGeographyMutation.isPending} onClick={() => saveGeographyMutation.mutate(geographies)}>
+            <Button variant="success" disabled={saveGeographyMutation.isPending} onClick={handleSave}>
               {saveGeographyMutation.isPending ? "Saving..." : "Save"}
             </Button>
           </>
-        }>
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <label className="text-sm font-semibold whitespace-nowrap">Select Geography</label>
-          <select
-            className="w-64 max-w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
-            value={selectedGeography?.campaignMapGeographyType ?? ""}
-            onChange={(e) => {
-              const selectedType = Number(e.target.value);
-              onSelectGeographyEditorSelection(Number.isFinite(selectedType) ? selectedType : null);
-            }}
-            disabled={orderedGeographies.length === 0}>
-            {orderedGeographies.length === 0 ? (
-              <option value="">(no geographies)</option>
-            ) : (
-              orderedGeographies.map((g) => (
-                <option key={g.campaignMapGeographyType} value={g.campaignMapGeographyType}>
-                  {g.name}
-                </option>
-              ))
-            )}
-          </select>
-        </div>
-
-        <div className="grid grid-cols-12 gap-4">
-          {/* Left: section list */}
-          <div className="col-span-12 md:col-span-4">
-            <div className="rounded-md border border-slate-200 bg-white">
-              <button
-                type="button"
-                onClick={() => setActiveSection("general")}
-                className={[
-                  "block w-full px-3 py-2 text-left text-sm",
-                  activeSection === "general" ? "nav-item-selected font-semibold" : "hover:bg-slate-50",
-                ].join(" ")}>
-                General Properties
-              </button>
-            </div>
-          </div>
-
-          {/* Right: selected section (single column) */}
-          <div className="col-span-12 md:col-span-8">
-            <div className="relative w-full max-w-xl">
-              <div>
+        }
+        sections={[
+          {
+            key: "general",
+            label: "General Properties",
+            content: (
+              <div className="w-full max-w-xl">
                 <div className="grid grid-cols-12 items-center gap-2 mb-2">
                   <label className="col-span-5 text-sm text-slate-700">Id</label>
                   <div className="col-span-7">
@@ -212,10 +195,10 @@ function GeographyManagerDialog({
                   Is Paintable on Campaign Map?
                 </label>
               </div>
-            </div>
-          </div>
-        </div>
-      </Modal>
+            ),
+          },
+        ]}
+      />
 
       <ToastViewport>
         <Toast

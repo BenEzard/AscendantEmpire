@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 export interface ModalProps {
@@ -10,6 +10,15 @@ export interface ModalProps {
   size?: "md" | "lg" | "xl";
   panelClassName?: string;
 }
+
+const FOCUSABLE = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
 
 function sizeClass(size: NonNullable<ModalProps["size"]>): string {
   switch (size) {
@@ -24,6 +33,8 @@ function sizeClass(size: NonNullable<ModalProps["size"]>): string {
 }
 
 export default function Modal({ open, title, onClose, children, footer, size = "md", panelClassName }: ModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!open) return;
 
@@ -35,6 +46,13 @@ export default function Modal({ open, title, onClose, children, footer, size = "
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [open, onClose]);
 
+  // Move focus into the dialog when it opens.
+  useEffect(() => {
+    if (!open || !panelRef.current) return;
+    const first = panelRef.current.querySelector<HTMLElement>(FOCUSABLE);
+    (first ?? panelRef.current).focus();
+  }, [open]);
+
   if (!open) return null;
 
   return createPortal(
@@ -42,7 +60,9 @@ export default function Modal({ open, title, onClose, children, footer, size = "
       <div className="absolute inset-0 bg-black/40" onMouseDown={onClose} />
 
       <div
-        className={["relative w-full", sizeClass(size), "rounded-lg bg-white text-black shadow-xl", panelClassName ?? ""].filter(Boolean).join(" ")}
+        ref={panelRef}
+        tabIndex={-1}
+        className={["relative w-full", sizeClass(size), "rounded-lg bg-white text-black shadow-xl outline-none", panelClassName ?? ""].filter(Boolean).join(" ")}
         onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
           <div className="text-base font-semibold">{title}</div>

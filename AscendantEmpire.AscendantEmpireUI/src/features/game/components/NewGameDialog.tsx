@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Alert, Button, Modal, Spinner } from "@/components/ui";
+import { Alert, Button, PagedDialog, Spinner } from "@/components/ui";
 import { http } from "@/api/http";
 import { searchMapGalleryIndexes } from "@/features/mapgallery/api/mapGalleryApi";
 import type { CampaignMapGalleryIndex } from "@/features/mapgallery/components/OpenCampaignMapDialog";
@@ -87,11 +87,21 @@ export default function NewGameDialog({ show, onClose, onCreateSuccess }: NewGam
   };
 
   return (
-    <Modal
+    <PagedDialog
       open={show}
-      onClose={onClose}
       title="New Game"
       size="lg"
+      onCancel={onClose}
+      onCommit={canCreate ? handleCreate : undefined}
+      activeSection={activeSection}
+      onSectionChange={setActiveSection}
+      header={
+        errorMessage ? (
+          <Alert variant="danger" className="mb-3">
+            {errorMessage}
+          </Alert>
+        ) : null
+      }
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
@@ -101,42 +111,12 @@ export default function NewGameDialog({ show, onClose, onCreateSuccess }: NewGam
             {createMutation.isPending ? "Creating..." : "Create"}
           </Button>
         </>
-      }>
-      {errorMessage && (
-        <Alert variant="danger" className="mb-3">
-          {errorMessage}
-        </Alert>
-      )}
-
-      <div className="grid grid-cols-12 gap-4">
-        {/* Left: section nav */}
-        <div className="col-span-12 md:col-span-4">
-          <div className="rounded-md border border-slate-200 bg-white">
-            <button
-              type="button"
-              onClick={() => setActiveSection("general")}
-              className={[
-                "block w-full px-3 py-2 text-left text-sm",
-                activeSection === "general" ? "nav-item-selected font-semibold" : "hover:bg-slate-50",
-              ].join(" ")}>
-              General
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSection("map")}
-              className={[
-                "block w-full px-3 py-2 text-left text-sm border-t border-slate-200",
-                activeSection === "map" ? "nav-item-selected font-semibold" : "hover:bg-slate-50",
-              ].join(" ")}>
-              Map
-              {selectedMap != null && <span className="ml-2 text-slate-500 font-normal text-xs">— {selectedMap.mapName}</span>}
-            </button>
-          </div>
-        </div>
-
-        {/* Right: section content */}
-        <div className="col-span-12 md:col-span-8">
-          {activeSection === "general" && (
+      }
+      sections={[
+        {
+          key: "general",
+          label: "General",
+          content: (
             <div className="flex flex-col gap-4">
               <div className="grid grid-cols-12 items-center gap-2">
                 <label className="col-span-4 text-sm text-slate-700">Game Name</label>
@@ -177,9 +157,17 @@ export default function NewGameDialog({ show, onClose, onCreateSuccess }: NewGam
                 </div>
               </div>
             </div>
-          )}
-
-          {activeSection === "map" && (
+          ),
+        },
+        {
+          key: "map",
+          label: (
+            <>
+              Map
+              {selectedMap != null && <span className="ml-2 text-slate-500 font-normal text-xs">— {selectedMap.mapName}</span>}
+            </>
+          ),
+          content: (
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
                 <input
@@ -249,9 +237,9 @@ export default function NewGameDialog({ show, onClose, onCreateSuccess }: NewGam
                 </div>
               )}
             </div>
-          )}
-        </div>
-      </div>
-    </Modal>
+          ),
+        },
+      ]}
+    />
   );
 }

@@ -1,6 +1,6 @@
-import { Button, Modal } from "@/components/ui";
+import { Button, PagedDialog } from "@/components/ui";
 import type { SelectionOption } from "@/components/ui";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { ResourceTickerData } from "../tickers/ResourceTickerCollection";
 import type { SliderSnapshot } from "../slider";
 import ResourceManagerGeneralPage from "./ResourceManagerGeneralPage";
@@ -17,15 +17,6 @@ interface ResourceManagerDialogProps {
   onCommit?: (changes: Record<string, SliderSnapshot[]>, tradePartners: Record<string, SelectionOption[]>) => void;
 }
 
-type SectionKey = "general" | "production" | "distribution" | "trade";
-
-const sections: { key: SectionKey; label: string }[] = [
-  { key: "general", label: "General" },
-  { key: "production", label: "Production" },
-  { key: "distribution", label: "Distribution" },
-  { key: "trade", label: "Trade" },
-];
-
 export default function ResourceManagerDialog({
   tickers,
   selectedResourceId,
@@ -34,8 +25,6 @@ export default function ResourceManagerDialog({
   onClose,
   onCommit,
 }: ResourceManagerDialogProps) {
-  const [activeSection, setActiveSection] = useState<SectionKey>("general");
-
   // Accumulates slider snapshots per resource ID across the lifetime of one dialog session.
   // Stored in a ref so slider drags don't trigger re-renders.
   const sliderChangesRef = useRef<Record<string, SliderSnapshot[]>>({});
@@ -51,7 +40,6 @@ export default function ResourceManagerDialog({
     }
   }, [show]);
 
-  // Keyboard shortcuts: press 1–4 to jump directly to a section.
   const handleSliderChange = useCallback(
     (sliders: SliderSnapshot[]) => {
       if (!selectedResourceId) return;
@@ -116,27 +104,6 @@ export default function ResourceManagerDialog({
     onClose();
   }, [logChanges, onCommit, onClose]);
 
-  useEffect(() => {
-    if (!show) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
-      if (e.key === "Escape") {
-        handleClose();
-        return;
-      }
-      if (e.key === "Enter") {
-        handleApply();
-        return;
-      }
-      const index = parseInt(e.key, 10) - 1;
-      if (index >= 0 && index < sections.length) {
-        setActiveSection(sections[index].key);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [show, handleClose, handleApply]);
-
   const orderedTickers = useMemo(() => tickers.slice().sort((a, b) => a.name.localeCompare(b.name)), [tickers]);
 
   const selectedTicker = tickers.find((t) => t.code === selectedResourceId) ?? null;
@@ -162,12 +129,13 @@ export default function ResourceManagerDialog({
   );
 
   return (
-    <Modal
+    <PagedDialog
       open={show}
-      onClose={onClose}
       title={titleNode}
       size="lg"
       panelClassName="thick-border-modal"
+      onCancel={handleClose}
+      onCommit={onCommit ? handleApply : undefined}
       footer={
         <>
           {onCommit && (
@@ -179,70 +147,56 @@ export default function ResourceManagerDialog({
             Close
           </Button>
         </>
-      }>
-      <div className="grid grid-cols-12 gap-4">
-        {/* Left: section tabs */}
-        <div className="col-span-12 md:col-span-4">
-          <div className="rounded-md border border-slate-200 bg-white">
-            {sections.map(({ key, label }, index) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setActiveSection(key)}
-                className={[
-                  "block w-full px-3 py-2 text-left text-sm",
-                  index > 0 ? "border-t border-slate-200" : "",
-                  activeSection === key ? "nav-item-selected font-semibold" : "hover:bg-slate-50",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}>
-                <span className="mr-2 text-xs text-slate-300">{index + 1}</span>
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Right: section content — all sections rendered in the same grid cell so the
-            container always matches the tallest section and never changes size. */}
-        <div className="col-span-12 md:col-span-8">
-          <div className="grid">
-            <div style={{ gridArea: "1/1" }} className={activeSection !== "general" ? "invisible" : ""}>
-              <ResourceManagerGeneralPage selectedTicker={selectedTicker} />
-            </div>
-            <div style={{ gridArea: "1/1" }} className={activeSection !== "production" ? "invisible" : ""}>
-              <ResourceManagerProductionPage
-                selectedTicker={selectedTicker}
-                totalThisTurn={selectedTicker?.resourcesAddedPerTurn || 800}
-                totalLastTurn={0}
-                currentConsumption={0}
-                maxConsumption={0}
-              />
-            </div>
-            <div style={{ gridArea: "1/1" }} className={activeSection !== "distribution" ? "invisible" : ""}>
-              <ResourceManagerDistributionPage
-                selectedTicker={selectedTicker}
-                resourcesPerTurn={selectedTicker?.resourcesAddedPerTurn || 800}
-                amountLastTurn={0}
-                currentConsumption={0}
-                maxConsumption={0}
-                onSliderChange={handleSliderChange}
-                onRemainderChange={handleRemainderChange}
-              />
-            </div>
-            <div style={{ gridArea: "1/1" }} className={activeSection !== "trade" ? "invisible" : ""}>
-              <ResourceManagerTradePage
-                selectedTicker={selectedTicker}
-                resourcesPerTurn={selectedTicker?.resourcesAddedPerTurn || 800}
-                amountLastTurn={0}
-                currentConsumption={0}
-                maxConsumption={0}
-                onTradePartnersChange={handleTradePartnersChange}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    </Modal>
+      }
+      sections={[
+        {
+          key: "general",
+          label: "General",
+          content: <ResourceManagerGeneralPage selectedTicker={selectedTicker} />,
+        },
+        {
+          key: "production",
+          label: "Production",
+          content: (
+            <ResourceManagerProductionPage
+              selectedTicker={selectedTicker}
+              totalThisTurn={selectedTicker?.resourcesAddedPerTurn || 800}
+              totalLastTurn={0}
+              currentConsumption={0}
+              maxConsumption={0}
+            />
+          ),
+        },
+        {
+          key: "distribution",
+          label: "Distribution",
+          content: (
+            <ResourceManagerDistributionPage
+              selectedTicker={selectedTicker}
+              resourcesPerTurn={selectedTicker?.resourcesAddedPerTurn || 800}
+              amountLastTurn={0}
+              currentConsumption={0}
+              maxConsumption={0}
+              onSliderChange={handleSliderChange}
+              onRemainderChange={handleRemainderChange}
+            />
+          ),
+        },
+        {
+          key: "trade",
+          label: "Trade",
+          content: (
+            <ResourceManagerTradePage
+              selectedTicker={selectedTicker}
+              resourcesPerTurn={selectedTicker?.resourcesAddedPerTurn || 800}
+              amountLastTurn={0}
+              currentConsumption={0}
+              maxConsumption={0}
+              onTradePartnersChange={handleTradePartnersChange}
+            />
+          ),
+        },
+      ]}
+    />
   );
 }
