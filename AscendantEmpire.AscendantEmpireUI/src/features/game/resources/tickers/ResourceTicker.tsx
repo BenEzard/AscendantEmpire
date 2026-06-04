@@ -28,7 +28,8 @@ export interface ResourceTickerProps {
   isImported?: boolean;
   isExported?: boolean;
   hasStrategicStockpile?: boolean;
-  soonToBeObsolete?: boolean;
+  // Number of turns until this resource becomes obsolete; omit or 0 means not obsoleting
+  obsoleteIn?: number;
   demandNotMet?: boolean;
   amountOrientation?: "horizontal" | "vertical";
   buttonHeight?: string;
@@ -47,7 +48,7 @@ export default function ResourceTicker({
   isImported,
   isExported,
   hasStrategicStockpile,
-  soonToBeObsolete,
+  obsoleteIn,
   demandNotMet,
   amountOrientation = "horizontal",
   buttonHeight,
@@ -61,7 +62,7 @@ export default function ResourceTicker({
     isImported,
     isExported,
     hasStrategicStockpile,
-    soonToBeObsolete,
+    obsoleteIn,
     demandNotMet,
   });
 
@@ -71,7 +72,7 @@ export default function ResourceTicker({
   const isClickable = !isDisabled && !!onClick;
   const isLuxury = IsLuxury === true;
   const isVerticalAmount = amountOrientation === "vertical";
-  const backgroundColor = getResourceTickerBackground({ soonToBeObsolete, demandNotMet });
+  const backgroundColor = getResourceTickerBackground({ obsoleteIn, demandNotMet });
 
   const className = [
     "resource-ticker",

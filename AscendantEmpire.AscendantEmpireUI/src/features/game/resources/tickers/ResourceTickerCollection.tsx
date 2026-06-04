@@ -58,7 +58,8 @@ export type ResourceTickerData = {
   isImported?: boolean;
   isExported?: boolean;
   hasStrategicStockpile?: boolean;
-  soonToBeObsolete?: boolean;
+  // Number of turns until this resource becomes obsolete; omit or 0 means not obsoleting
+  obsoleteIn?: number;
   demandNotMet?: boolean;
   quality?: ResourceGrade;
   distributionConfig?: DistributionConfig;

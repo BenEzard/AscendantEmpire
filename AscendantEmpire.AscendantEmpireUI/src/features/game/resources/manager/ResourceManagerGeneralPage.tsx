@@ -29,22 +29,23 @@ export default function ResourceManagerGeneralPage({ selectedTicker }: ResourceM
   const description = selectedTicker.description ?? DEFAULT_DESCRIPTION;
 
   const badges = [
+    // obsoleteIn takes priority — listed first so it appears before demandNotMet
+    selectedTicker.obsoleteIn != null && selectedTicker.obsoleteIn > 0 && (
+      <Badge
+        key="obsolete"
+        label={`Obsolete In: ${selectedTicker.obsoleteIn} turns`}
+        textColor="#991b1b"
+        backgroundColor="#fee2e2"
+        tooltipText="This resource is being phased out and will soon become obsolete."
+      />
+    ),
     selectedTicker.demandNotMet && (
       <Badge
         key="demand"
         label="Demand Not Met"
-        textColor="#991b1b"
-        backgroundColor="#fee2e2"
+        textColor="#9a3412"
+        backgroundColor="#ffedd5"
         tooltipText="Current demand exceeds available supply."
-      />
-    ),
-    selectedTicker.soonToBeObsolete && (
-      <Badge
-        key="obsolete"
-        label="Obsolete"
-        textColor="#713f12"
-        backgroundColor="#fef9c3"
-        tooltipText="This resource is being phased out and will soon become obsolete."
       />
     ),
     selectedTicker.isLuxury && (

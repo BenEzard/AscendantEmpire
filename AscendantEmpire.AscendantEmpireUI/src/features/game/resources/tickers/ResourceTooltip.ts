@@ -7,7 +7,8 @@ export interface BuildResourceTooltipArgs {
   isImported?: boolean;
   isExported?: boolean;
   hasStrategicStockpile?: boolean;
-  soonToBeObsolete?: boolean;
+  // Number of turns until this resource becomes obsolete; omit or 0 means not obsoleting
+  obsoleteIn?: number;
   demandNotMet?: boolean;
 }
 
@@ -29,14 +30,14 @@ export function buildResourceTooltip({
   isImported,
   isExported,
   hasStrategicStockpile,
-  soonToBeObsolete,
+  obsoleteIn,
   demandNotMet,
 }: BuildResourceTooltipArgs): string {
   const states = [
     isImported ? "Imported" : null,
     isExported ? "Exported" : null,
     hasStrategicStockpile ? "Stockpiled" : null,
-    soonToBeObsolete ? "Obsoleting" : null,
+    obsoleteIn != null && obsoleteIn > 0 ? `Obsolete In: ${obsoleteIn} turns` : null,
     demandNotMet ? "Demand Not Met" : null,
   ].filter((value): value is string => value != null);
 

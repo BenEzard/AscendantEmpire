@@ -7,14 +7,17 @@ export const RESOURCE_INDICATOR_COLORS = {
 
 export const RESOURCE_TICKER_BACKGROUNDS = {
   default: "rgba(255, 255, 255, 0.85)",
-  soonToBeObsolete: "#f4f4f5",
-  demandNotMet: "#fee2e2",
+  // Red tint — resource is on its way out
+  obsoleteIn: "#fee2e2",
+  // Orange tint — current demand exceeds supply
+  demandNotMet: "#ffedd5",
 } as const;
 
 export type ResourceGrade = "none" | "bronze" | "silver" | "gold";
 
-export function getResourceTickerBackground(args: { soonToBeObsolete?: boolean; demandNotMet?: boolean }): string {
+export function getResourceTickerBackground(args: { obsoleteIn?: number; demandNotMet?: boolean }): string {
+  // obsoleteIn takes priority over demandNotMet
+  if (args.obsoleteIn != null && args.obsoleteIn > 0) return RESOURCE_TICKER_BACKGROUNDS.obsoleteIn;
   if (args.demandNotMet) return RESOURCE_TICKER_BACKGROUNDS.demandNotMet;
-  if (args.soonToBeObsolete) return RESOURCE_TICKER_BACKGROUNDS.soonToBeObsolete;
   return RESOURCE_TICKER_BACKGROUNDS.default;
 }

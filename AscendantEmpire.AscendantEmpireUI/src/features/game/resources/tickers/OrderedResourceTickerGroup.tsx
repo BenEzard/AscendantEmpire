@@ -164,7 +164,7 @@ export default function OrderedResourceTickerGroup({
                   isImported={ticker.isImported}
                   isExported={ticker.isExported}
                   hasStrategicStockpile={ticker.hasStrategicStockpile}
-                  soonToBeObsolete={ticker.soonToBeObsolete}
+                  obsoleteIn={ticker.obsoleteIn}
                   demandNotMet={ticker.demandNotMet}
                   grade={ticker.quality}
                   draggable={draggableTickers}

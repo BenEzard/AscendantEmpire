@@ -44,7 +44,7 @@ export default function StandaloneResourceCategory({
               isImported={resource.isImported}
               isExported={resource.isExported}
               hasStrategicStockpile={resource.hasStrategicStockpile}
-              soonToBeObsolete={resource.soonToBeObsolete}
+              obsoleteIn={resource.obsoleteIn}
               demandNotMet={resource.demandNotMet}
               grade={resource.quality}
               onClick={
