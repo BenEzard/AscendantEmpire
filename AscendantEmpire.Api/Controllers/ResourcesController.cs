@@ -1,7 +1,7 @@
 using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
-using AscendantEmpire.Application.Features.Assets.Handlers;
-using AscendantEmpire.BackendContracts.Assets;
+using AscendantEmpire.Application.Features.Resources.Handlers;
+using AscendantEmpire.BackendContracts.Resources;
 using AscendantEmpire.FrontendContracts;
 
 using MediatR;
@@ -29,7 +29,7 @@ public class ResourcesController : ControllerBase
         [FromServices] IMediator mediator,
         [FromBody] IReadOnlyCollection<UpsertResourceMetaCategoryDto> metaCategories)
     {
-        ServiceResultBase response = await mediator.Send(new UpsertResourceCategoriesRequest(metaCategories));
+        ServiceResultBase response = await mediator.Send(new UpsertResourcesRequest(metaCategories));
 
         return response.ToActionResult();
     }

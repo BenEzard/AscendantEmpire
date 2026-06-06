@@ -2,6 +2,7 @@
 using AscendantEmpire.Domain.Entities.Battles;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
+using AscendantEmpire.Domain.Entities.Resources;
 using AscendantEmpire.Domain.Entities.Structures;
 using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
@@ -9,29 +10,12 @@ using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Entities.Util;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-
-using System.Text.Json;
 
 namespace AscendantEmpire.Application.Data;
 
 public class AscendantEmpireContext : DbContext
 {
-    #region Assets Schema
-    public DbSet<ResourceMetaCategory> ResourceMetaCategories { get; set; }
-    public DbSet<ResourceCategory> ResourceCategories { get; set; }
-    public DbSet<ResourceGroup> ResourceGroups { get; set; }
-    public DbSet<Resource> Resources { get; set; }
-    public DbSet<FactionResourceState> FactionResourceStates { get; set; }
-    public DbSet<FactionResourcePriority> FactionResourcePriorities { get; set; }
-    public DbSet<ResourceBank> ResourceBanks { get; set; }
-    public DbSet<ResourceBankBalance> ResourceBankBalances { get; set; }
-    public DbSet<ResourceBankSettlementMembership> ResourceBankSettlementMemberships { get; set; }
-    public DbSet<WorldResourceSnapshot> WorldResourceSnapshots { get; set; }
-    #endregion
-
     #region Battle Schema
     public DbSet<Battle> Battles { get; set; }
     public DbSet<BattleParticipant> BattleParticipants { get; set; }
@@ -84,6 +68,18 @@ public class AscendantEmpireContext : DbContext
     public DbSet<StructureInstance> StructureInstances { get; set; }
     #endregion
 
+    #region Resources Schema
+    public DbSet<ResourceMetaCategory> ResourceMetaCategories { get; set; }
+    public DbSet<ResourceCategory> ResourceCategories { get; set; }
+    public DbSet<ResourceGroup> ResourceGroups { get; set; }
+    public DbSet<Resource> Resources { get; set; }
+    #endregion
+
+    #region Turn Schema
+    public DbSet<TurnQueue> TurnQueues { get; set; }
+    public DbSet<TurnQueueParticipant> TurnQueueParticipants { get; set; }
+    #endregion
+
     #region Units
 
     public DbSet<TroopInstance> TroopInstances { get; set; }
@@ -99,10 +95,6 @@ public class AscendantEmpireContext : DbContext
     public DbSet<PlayerUnitDesignState> PlayerUnitDesignStates { get; set; }
     #endregion
 
-    #region Turn Schema
-    public DbSet<TurnQueue> TurnQueues { get; set; }
-    public DbSet<TurnQueueParticipant> TurnQueueParticipants { get; set; }
-    #endregion
 
     #region Util Schema
     public DbSet<Number> Numbers { get; set; }
@@ -118,7 +110,7 @@ public class AscendantEmpireContext : DbContext
 
         SetDecimalPrecision(modelBuilder, 18, 3);
 
-        ConfigureAssetsSchema(modelBuilder);
+        ConfigureResourcesSchema(modelBuilder);
 
         ConfigureBattleSchema(modelBuilder);
 
@@ -137,40 +129,27 @@ public class AscendantEmpireContext : DbContext
         ConfigureUnitDesignSchema(modelBuilder);
     }
 
-    private static void ConfigureAssetsSchema(ModelBuilder modelBuilder)
+    private static void ConfigureResourcesSchema(ModelBuilder modelBuilder)
     {
-        const string schema = "assets";
+        const string schema = "resources";
 
-        var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.General);
-
-        var dictionaryConverter = new ValueConverter<Dictionary<string, string>, string>(
-            v => JsonSerializer.Serialize(v, jsonOptions),
-            v => string.IsNullOrWhiteSpace(v)
-                ? new Dictionary<string, string>()
-                : JsonSerializer.Deserialize<Dictionary<string, string>>(v, jsonOptions) ?? new Dictionary<string, string>());
-
-        var dictionaryComparer = new ValueComparer<Dictionary<string, string>>(
-            (a, b) => JsonSerializer.Serialize(a ?? new Dictionary<string, string>(), jsonOptions) ==
-                      JsonSerializer.Serialize(b ?? new Dictionary<string, string>(), jsonOptions),
-            v => JsonSerializer.Serialize(v ?? new Dictionary<string, string>(), jsonOptions).GetHashCode(),
-            v => v == null ? new Dictionary<string, string>() : v.ToDictionary(k => k.Key, k => k.Value));
 
         modelBuilder.Entity<ResourceMetaCategory>(entity =>
         {
             entity.ToTable("ResourceMetaCategory", schema);
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.DisplayName).HasMaxLength(ResourceMetaCategory.MAX_DISPLAY_NAME_LENGTH).IsRequired();
 
-            entity.HasIndex(x => x.Name).IsUnique();
+            entity.HasIndex(x => x.DisplayName).IsUnique();
         });
 
         modelBuilder.Entity<ResourceCategory>(entity =>
         {
             entity.ToTable("ResourceCategory", schema);
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.DisplayName).HasMaxLength(ResourceCategory.MAX_DISPLAY_NAME_LENGTH).IsRequired();
 
-            entity.HasIndex(x => new { x.ResourceMetaCategoryId, x.Name }).IsUnique();
+            entity.HasIndex(x => new { x.ResourceMetaCategoryId, x.DisplayName }).IsUnique();
 
             entity.HasOne(x => x.MetaCategory)
                 .WithMany(x => x.Categories)
@@ -189,11 +168,11 @@ public class AscendantEmpireContext : DbContext
             entity.ToTable("ResourceGroup", schema);
             entity.HasKey(x => x.Id);
 
-            entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
-            entity.HasIndex(x => new { x.ResourceCategoryId, x.Name }).IsUnique();
+            entity.Property(x => x.DisplayName).HasMaxLength(ResourceGroup.MAX_DISPLAY_NAME_LENGTH).IsRequired();
+            entity.HasIndex(x => new { x.ResourceCategoryId, x.DisplayName }).IsUnique();
 
             // GroupOrder is per-category
-            entity.HasIndex(x => new { x.ResourceCategoryId, x.GroupOrder }).IsUnique();
+            entity.HasIndex(x => new { x.ResourceCategoryId, x.SortOrder }).IsUnique();
 
             entity.HasOne(x => x.Category)
                 .WithMany(x => x.ResourceGroups)
@@ -203,109 +182,29 @@ public class AscendantEmpireContext : DbContext
 
         modelBuilder.Entity<Resource>(entity =>
         {
-            entity.ToTable("Resource", schema);
+            // Enforce that exactly one of ResourceGroupId / ResourceCategoryId is non-null.
+            entity.ToTable("Resource", schema, t => t.HasCheckConstraint(
+                "CK_Resource_GroupOrCategoryXor",
+                "([ResourceGroupId] IS NOT NULL AND [ResourceCategoryId] IS NULL) OR ([ResourceGroupId] IS NULL AND [ResourceCategoryId] IS NOT NULL)"));
+
             entity.HasKey(x => x.Id);
 
-            entity.Property(x => x.Code).HasMaxLength(50).IsRequired();
-            entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Code).HasMaxLength(Resource.MAX_CODE_LENGTH).IsRequired();
+            entity.Property(x => x.DisplayName).HasMaxLength(Resource.MAX_DISPLAY_NAME_LENGTH).IsRequired();
 
             entity.HasIndex(x => x.Code).IsUnique();
-            entity.HasIndex(x => x.Name);
+            entity.HasIndex(x => x.DisplayName);
 
-            entity.Property(x => x.Properties)
-                .HasConversion(dictionaryConverter)
-                .Metadata.SetValueComparer(dictionaryComparer);
-
+            // Grouped path: resource belongs to a ResourceGroup.
             entity.HasOne(x => x.Group)
                 .WithMany(x => x.Resources)
                 .HasForeignKey(x => x.ResourceGroupId)
                 .OnDelete(DeleteBehavior.NoAction);
-        });
 
-        modelBuilder.Entity<FactionResourceState>(entity =>
-        {
-            entity.ToTable("FactionResourceState", schema);
-            entity.HasKey(x => new { x.FactionId, x.ResourceId });
-
-            entity.HasIndex(x => new { x.FactionId, x.AvailabilityState });
-            entity.HasIndex(x => new { x.FactionId, x.IsCurrentlyLuxury });
-
-            entity.HasOne(x => x.Resource)
-                .WithMany(x => x.FactionStates)
-                .HasForeignKey(x => x.ResourceId)
-                .OnDelete(DeleteBehavior.NoAction);
-        });
-
-        modelBuilder.Entity<FactionResourcePriority>(entity =>
-        {
-            entity.ToTable("FactionResourcePriority", schema);
-            entity.HasKey(x => new { x.FactionId, x.ResourceCategoryId, x.ResourceId });
-
-            entity.HasIndex(x => new { x.FactionId, x.ResourceCategoryId, x.PriorityOrder }).IsUnique();
-
+            // Standalone path: resource belongs directly to a ResourceCategory.
             entity.HasOne(x => x.Category)
-                .WithMany(x => x.FactionPriorities)
+                .WithMany(x => x.Resources)
                 .HasForeignKey(x => x.ResourceCategoryId)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            entity.HasOne(x => x.Resource)
-                .WithMany(x => x.FactionPriorities)
-                .HasForeignKey(x => x.ResourceId)
-                .OnDelete(DeleteBehavior.NoAction);
-        });
-
-        modelBuilder.Entity<ResourceBank>(entity =>
-        {
-            entity.ToTable("ResourceBank", schema);
-            entity.HasKey(x => x.Id);
-
-            entity.HasIndex(x => new { x.FactionId, x.Kind });
-            entity.HasIndex(x => x.NetworkKey);
-        });
-
-        modelBuilder.Entity<ResourceBankBalance>(entity =>
-        {
-            entity.ToTable("ResourceBankBalance", schema);
-            entity.HasKey(x => new { x.ResourceBankId, x.ResourceDefinitionId });
-
-            entity.Property(x => x.Quantity).IsRequired();
-
-            entity.HasOne(x => x.Bank)
-                .WithMany(x => x.Balances)
-                .HasForeignKey(x => x.ResourceBankId)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            entity.HasOne(x => x.Resource)
-                .WithMany(x => x.BankBalances)
-                .HasForeignKey(x => x.ResourceDefinitionId)
-                .OnDelete(DeleteBehavior.NoAction);
-        });
-
-        modelBuilder.Entity<ResourceBankSettlementMembership>(entity =>
-        {
-            entity.ToTable("ResourceBankSettlementMembership", schema);
-            entity.HasKey(x => x.SettlementId);
-
-            entity.HasIndex(x => x.ResourceBankId);
-
-            entity.HasOne(x => x.Bank)
-                .WithMany(x => x.SettlementMemberships)
-                .HasForeignKey(x => x.ResourceBankId)
-                .OnDelete(DeleteBehavior.NoAction);
-        });
-
-        modelBuilder.Entity<WorldResourceSnapshot>(entity =>
-        {
-            entity.ToTable("WorldResourceSnapshot", schema);
-            entity.HasKey(x => x.Id);
-
-            entity.Property(x => x.RelativeValue).HasPrecision(18, 6);
-
-            entity.HasIndex(x => new { x.TurnNumber, x.ResourceDefinitionId }).IsUnique();
-
-            entity.HasOne(x => x.Resource)
-                .WithMany(x => x.WorldSnapshots)
-                .HasForeignKey(x => x.ResourceDefinitionId)
                 .OnDelete(DeleteBehavior.NoAction);
         });
     }
