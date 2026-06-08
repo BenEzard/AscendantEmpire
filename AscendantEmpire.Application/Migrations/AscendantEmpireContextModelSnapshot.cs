@@ -846,6 +846,46 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("Structures", "structure");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.System.Processing", b =>
+                {
+                    b.Property<int>("ProcessingId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProcessingId"));
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("MetadataJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ProcessType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ResultReference")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("ProcessingId");
+
+                    b.HasIndex("ProcessType")
+                        .HasDatabaseName("IX_Processing_ProcessType");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_Processing_Status");
+
+                    b.ToTable("Processing", "system");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Turns.TurnQueue", b =>
                 {
                     b.Property<int>("Id")

@@ -61,6 +61,10 @@ namespace AscendantEmpire.Api
 
             builder.Services.AddApplicationServices();
 
+            // Strongly-typed options for the Application layer.
+            builder.Services.Configure<AscendantEmpire.Application.Options.ExportSettings>(
+                builder.Configuration.GetSection("ExportSettings"));
+
             builder.Services.AddDbContextFactory<AscendantEmpireContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("AscendantEmpireDatabase"))
             );

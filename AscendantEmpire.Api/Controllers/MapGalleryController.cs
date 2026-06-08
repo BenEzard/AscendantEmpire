@@ -1,5 +1,6 @@
 ﻿using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Classes;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Handlers;
@@ -7,6 +8,7 @@ using AscendantEmpire.BackendContracts.MapGallery.GetCampaignMapTiles;
 using AscendantEmpire.BackendContracts.MapGallery.SearchCampaignMap;
 using AscendantEmpire.BackendContracts.MapGallery.UpdateCampaignMapIndex;
 using AscendantEmpire.BackendContracts.MapGallery.UpdateCampaignMapTiles;
+using AscendantEmpire.Domain.Enums.Processing;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.MapGallery.GetCampaignMapGalleryIndex;
 using AscendantEmpire.FrontendContracts.MapGallery.GetCampaignMapTiles;
@@ -16,6 +18,7 @@ using AscendantEmpire.FrontendContracts.MapGallery.UpdateCampaignMapTiles;
 using MediatR;
 
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
@@ -270,6 +273,95 @@ public class MapGalleryController
         return response.ToActionResult();
     }
 
+
+    /// <summary>
+    /// Initiate an export of the specified Campaign Map Gallery entry.
+    /// The export runs asynchronously. Poll <c>GET /system/status?processId=X</c> for progress.
+    /// Once complete, download via <c>GET /map-gallery/{id}/export/download?processId=X</c>.
+    /// </summary>
+    /// <response code="201">Export job accepted. Returns the processId.</response>
+    /// <response code="404">Map Gallery entry not found.</response>
+    /// <response code="500">Server error.</response>
+    [HttpPost("{id}/export")]
+    [ProducesResponseType(typeof(int), 201)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> InitiateMapExportAsync(
+        [FromServices] IMediator mediator,
+        int id,
+        CancellationToken cancellationToken)
+    {
+        ServiceResult<int> response = await mediator.Send(
+            new InitiateMapExportRequest(MapGalleryIndexId: id), cancellationToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Download the completed export zip for the specified Campaign Map Gallery entry.
+    /// Returns 404 if the export has not yet completed or the processId is not found.
+    /// </summary>
+    /// <response code="200">Returns the export zip file.</response>
+    /// <response code="404">Export not ready or processId not found.</response>
+    /// <response code="500">Server error.</response>
+    [HttpGet("{id}/export/download")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> DownloadMapExportAsync(
+        [FromServices] IDbContextFactory<AscendantEmpireContext> contextFactory,
+        int id,
+        [FromQuery] int processId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using AscendantEmpireContext context = await contextFactory.CreateDbContextAsync(cancellationToken);
+
+            var processing = await context.Processing
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    p => p.ProcessingId == processId && p.ProcessType == ProcessType.ExportGalleryMap,
+                    cancellationToken);
+
+            if (processing is null || processing.Status != ProcessingStatus.Complete || string.IsNullOrEmpty(processing.ResultReference))
+            {
+                return new ObjectResult(new DTApiErrorResult(["Export not ready or processId not found."]))
+                {
+                    StatusCode = StatusCodes.Status404NotFound
+                };
+            }
+
+            if (!System.IO.File.Exists(processing.ResultReference))
+            {
+                return new ObjectResult(new DTApiErrorResult(["Export file no longer available on the server."]))
+                {
+                    StatusCode = StatusCodes.Status404NotFound
+                };
+            }
+
+            string fileName = Path.GetFileName(processing.ResultReference);
+            Stream stream = new FileStream(
+                processing.ResultReference,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize: 65536,
+                useAsync: true);
+
+            return new FileStreamResult(stream, "application/zip")
+            {
+                FileDownloadName = fileName
+            };
+        }
+        catch (Exception)
+        {
+            return new ObjectResult(new DTApiErrorResult(["An error occurred while retrieving the export file."]))
+            {
+                StatusCode = StatusCodes.Status500InternalServerError
+            };
+        }
+    }
 
     /// <summary>
     /// Publish changes to a Map Gallery to any existing Games and Player Maps.

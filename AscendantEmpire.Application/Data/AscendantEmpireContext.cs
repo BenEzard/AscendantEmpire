@@ -4,6 +4,7 @@ using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Resources;
 using AscendantEmpire.Domain.Entities.Structures;
+using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
@@ -96,6 +97,13 @@ public class AscendantEmpireContext : DbContext
     #endregion
 
 
+    #region System Schema
+    /// <summary>
+    /// Background process tracking records (exports, imports, etc.).
+    /// </summary>
+    public DbSet<Processing> Processing { get; set; }
+    #endregion
+
     #region Util Schema
     public DbSet<Number> Numbers { get; set; }
     #endregion
@@ -121,6 +129,8 @@ public class AscendantEmpireContext : DbContext
         ConfigureMapGallerySchema(modelBuilder);
 
         ConfigureStructureSchema(modelBuilder);
+
+        ConfigureSystemSchema(modelBuilder);
 
         ConfigureTurnSchema(modelBuilder);
 
@@ -526,6 +536,45 @@ public class AscendantEmpireContext : DbContext
         modelBuilder.Entity<Structure>(entity =>
         {
             entity.ToTable("Structures", schema);
+        });
+    }
+
+    private static void ConfigureSystemSchema(ModelBuilder modelBuilder)
+    {
+        const string schema = "system";
+
+        modelBuilder.Entity<Processing>(entity =>
+        {
+            entity.ToTable("Processing", schema);
+
+            entity.HasKey(x => x.ProcessingId);
+
+            entity.Property(x => x.ProcessType)
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.Property(x => x.Status)
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.Property(x => x.StartedAt)
+                .IsRequired();
+
+            // No FK constraints — MetadataJson carries process-type-specific context loosely
+            entity.Property(x => x.MetadataJson)
+                .HasColumnType("nvarchar(max)");
+
+            entity.Property(x => x.ResultReference)
+                .HasColumnType("nvarchar(max)");
+
+            entity.Property(x => x.ErrorMessage)
+                .HasColumnType("nvarchar(max)");
+
+            entity.HasIndex(x => x.Status)
+                .HasDatabaseName("IX_Processing_Status");
+
+            entity.HasIndex(x => x.ProcessType)
+                .HasDatabaseName("IX_Processing_ProcessType");
         });
     }
 

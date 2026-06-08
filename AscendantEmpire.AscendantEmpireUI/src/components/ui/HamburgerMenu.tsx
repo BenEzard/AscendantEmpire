@@ -123,7 +123,7 @@ export default function HamburgerMenu({ groups, title = "Menu", tooltip }: Hambu
         <div
           ref={menuRef}
           role="menu"
-          className="absolute left-0 top-full z-50 mt-1 min-w-48 overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+          className="absolute left-0 top-full z-50 mt-1 min-w-48 overflow-visible rounded-md border border-slate-200 bg-white shadow-sm">
           {groups.map((group) => (
             <div key={group.label} role="group" aria-label={group.label}>
               <div className="border-b border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500">{group.label}</div>

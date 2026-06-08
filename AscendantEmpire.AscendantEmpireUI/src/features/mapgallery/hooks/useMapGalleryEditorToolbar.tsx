@@ -108,20 +108,25 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
                         onClick: () => setActiveDialog("openCampaignMap"),
                       },
                       {
-                        key: "export",
-                        icon: isExportingMap ? <Spinner size="sm" /> : <BiExport />,
-                        label: isExportingMap ? "Exporting..." : "Export",
-                        tooltip: isExportingMap ? "Exporting Map..." : "Export Map",
-                        disabled: openMapIndex == null || isExportingMap,
-                        onClick: openExportMap,
-                      },
-                      {
                         key: "close",
                         icon: <SlClose />,
                         label: "Close",
                         tooltip: "Close Campaign Map",
                         disabled: openMapIndex == null,
                         onClick: closeMap,
+                      },
+                    ],
+                  },
+                  {
+                    label: "Dev Tools",
+                    items: [
+                      {
+                        key: "push-out",
+                        icon: isExportingMap ? <Spinner size="sm" /> : <BiExport />,
+                        label: isExportingMap ? "Pushing Out..." : "Push Out",
+                        tooltip: "Push out map changes to currently played games",
+                        disabled: openMapIndex == null || isExportingMap,
+                        onClick: openExportMap,
                       },
                     ],
                   },

@@ -1,4 +1,5 @@
-﻿using AscendantEmpire.Application.Features.Game.Services;
+﻿using AscendantEmpire.Application.BackgroundServices;
+using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
 using AscendantEmpire.Application.Features.TroopOrders.Movement;
 using AscendantEmpire.Application.Features.Turns.Services;
@@ -26,6 +27,12 @@ public static class MediatrStartup
         services.AddScoped<IPossibleActionCheck, BattleRemainingMovementCheck>();
         services.AddScoped<IPossibleActionCheck, ResearchSelectionCheck>();
         services.AddScoped<IPossibleActionCheck, TradeExpiryCheck>();
+
+        // Map export background service and its in-process channel.
+        // The channel is singleton so the same instance is shared between
+        // the handler that writes to it and the BackgroundService that reads from it.
+        services.AddSingleton<IMapExportChannel, MapExportChannel>();
+        services.AddHostedService<MapExportBackgroundService>();
 
         return services;
     }
