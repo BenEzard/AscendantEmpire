@@ -82,6 +82,46 @@ namespace AscendantEmpire.Application.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.BackgroundProcessing.Processing", b =>
+                {
+                    b.Property<int>("ProcessingId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProcessingId"));
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("MetadataJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ProcessType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ResultReference")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("ProcessingId");
+
+                    b.HasIndex("ProcessType")
+                        .HasDatabaseName("IX_Processing_ProcessType");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_Processing_Status");
+
+                    b.ToTable("Processing", "system");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Battles.Battle", b =>
                 {
                     b.Property<int>("Id")
@@ -509,6 +549,85 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("StructureInstances", "game");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.BattleMaps.BattleMapGallery", b =>
+                {
+                    b.Property<int>("BattleMapGalleryId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AltitudeLevel")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BattleMapGalleryIndexId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BiomeTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("XCoord")
+                        .HasColumnType("int");
+
+                    b.Property<int>("YCoord")
+                        .HasColumnType("int");
+
+                    b.HasKey("BattleMapGalleryId");
+
+                    b.HasIndex("BiomeTypeId");
+
+                    b.HasIndex("BattleMapGalleryIndexId", "XCoord", "YCoord")
+                        .IsUnique();
+
+                    b.ToTable("BattleMapGallery", "mapgallery");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.BattleMaps.BattleMapGalleryIndex", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BattleMapOffsetId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CampaignMapGalleryIndexId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CampaignTileX")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CampaignTileY")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<long>("GenerationSeed")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("GenerationStatus")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("Width")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampaignMapGalleryIndexId", "CampaignTileX", "CampaignTileY")
+                        .IsUnique();
+
+                    b.ToTable("BattleMapGalleryIndex", "mapgallery");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignBiome", b =>
                 {
                     b.Property<int>("BiomeTypeId")
@@ -844,46 +963,6 @@ namespace AscendantEmpire.Application.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Structures", "structure");
-                });
-
-            modelBuilder.Entity("AscendantEmpire.Domain.Entities.System.Processing", b =>
-                {
-                    b.Property<int>("ProcessingId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProcessingId"));
-
-                    b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("MetadataJson")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("ProcessType")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ResultReference")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("StartedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.HasKey("ProcessingId");
-
-                    b.HasIndex("ProcessType")
-                        .HasDatabaseName("IX_Processing_ProcessType");
-
-                    b.HasIndex("Status")
-                        .HasDatabaseName("IX_Processing_Status");
-
-                    b.ToTable("Processing", "system");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Turns.TurnQueue", b =>
@@ -1563,6 +1642,25 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("OwnedBy");
 
                     b.Navigation("Structure");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.BattleMaps.BattleMapGallery", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.BattleMaps.BattleMapGalleryIndex", "Index")
+                        .WithMany()
+                        .HasForeignKey("BattleMapGalleryIndexId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignBiome", "Biome")
+                        .WithMany()
+                        .HasForeignKey("BiomeTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Biome");
+
+                    b.Navigation("Index");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignMapGallery", b =>

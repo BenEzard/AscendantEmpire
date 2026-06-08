@@ -82,6 +82,36 @@ internal class CreateCampaignMapHandler(
                 }
                 else if (nextMapToCreate.CreationEngine == MapCreationEngine.PerlinNoiseV1)
                 {
+                    GeneratePerlinNoiseCampaignMap generator = new(scopeFactory);
+                    var validationResult = generator.ValidateRequestProperties(nextMapToCreate);
+
+                    if (validationResult.HasSucceeded == false)
+                    {
+                        nextMapToCreate.CreationStatus = MapCreationStatus.InError;
+                        nextMapToCreate.Status         = "Error during validation";
+                        nextMapToCreate.ErrorMessage   = string.Join(Environment.NewLine, validationResult.Errors);
+                        await context.SaveChangesAsync(cancellationToken);
+                        return ServiceResultBase.Fail("Validation failed for map creation.");
+                    }
+
+                    ServiceResult<int> createResult = await generator.GenerateCampaignMapAsync(nextMapToCreate);
+
+                    if (createResult.HasSucceeded == false)
+                    {
+                        nextMapToCreate.CreationStatus = MapCreationStatus.InError;
+                        nextMapToCreate.Status         = "Error during creation";
+                        nextMapToCreate.ErrorMessage   = string.Join(Environment.NewLine, createResult.Errors);
+                        await context.SaveChangesAsync(cancellationToken);
+                        return ServiceResultBase.Fail("Map creation failed.");
+                    }
+                    else
+                    {
+                        nextMapToCreate.CreationStatus    = MapCreationStatus.Complete;
+                        nextMapToCreate.Status            = "Creation complete";
+                        nextMapToCreate.ErrorMessage      = null;
+                        nextMapToCreate.CampaignMapOffsetId = createResult.SuccessValue;
+                        await context.SaveChangesAsync(cancellationToken);
+                    }
                 }
             }
             else

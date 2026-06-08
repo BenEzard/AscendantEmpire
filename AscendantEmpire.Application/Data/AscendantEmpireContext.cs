@@ -1,6 +1,7 @@
 ﻿using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.Battles;
 using AscendantEmpire.Domain.Entities.Games;
+using AscendantEmpire.Domain.Entities.Maps.BattleMaps;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Resources;
 using AscendantEmpire.Domain.Entities.Structures;
@@ -20,6 +21,18 @@ public class AscendantEmpireContext : DbContext
     #region Battle Schema
     public DbSet<Battle> Battles { get; set; }
     public DbSet<BattleParticipant> BattleParticipants { get; set; }
+    #endregion
+
+    #region BattleMap Gallery Schema
+    /// <summary>
+    /// Index of generated BattleMaps in the gallery (one per campaign tile that has been fought over).
+    /// </summary>
+    public DbSet<BattleMapGalleryIndex> BattleMapGalleryIndex { get; set; }
+
+    /// <summary>
+    /// Tile data for BattleMaps in the gallery (50×50 tiles per battle map).
+    /// </summary>
+    public DbSet<BattleMapGallery> BattleMapGallery { get; set; }
     #endregion
 
     #region Map Schema
@@ -127,6 +140,8 @@ public class AscendantEmpireContext : DbContext
         ConfigureMapSchema(modelBuilder);
 
         ConfigureMapGallerySchema(modelBuilder);
+
+        ConfigureBattleMapGallerySchema(modelBuilder);
 
         ConfigureStructureSchema(modelBuilder);
 
@@ -525,6 +540,51 @@ public class AscendantEmpireContext : DbContext
         modelBuilder.Entity<CampaignMapGalleryIndex>(entity =>
         {
             entity.ToTable("CampaignMapGalleryIndex", schema);
+        });
+    }
+
+    private static void ConfigureBattleMapGallerySchema(ModelBuilder modelBuilder)
+    {
+        const string schema = "mapgallery";
+
+        // --- BattleMapGalleryIndex --------------------------------------------------------
+        modelBuilder.Entity<BattleMapGalleryIndex>(entity =>
+        {
+            entity.ToTable("BattleMapGalleryIndex", schema);
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Status).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.ErrorMessage).HasMaxLength(2000);
+
+            // Unique per campaign map + tile coordinate — only one battle map per campaign tile.
+            entity.HasIndex(x => new { x.CampaignMapGalleryIndexId, x.CampaignTileX, x.CampaignTileY })
+                  .IsUnique();
+        });
+
+        // --- BattleMapGallery ------------------------------------------------------------
+        modelBuilder.Entity<BattleMapGallery>(entity =>
+        {
+            entity.ToTable("BattleMapGallery", schema);
+
+            entity.HasKey(x => x.BattleMapGalleryId);
+
+            entity.Property(x => x.BattleMapGalleryId)
+                  .ValueGeneratedNever();   // manually assigned at generation time
+
+            entity.HasOne(x => x.Index)
+                  .WithMany()
+                  .HasForeignKey(x => x.BattleMapGalleryIndexId)
+                  .IsRequired();
+
+            entity.HasOne(x => x.Biome)
+                  .WithMany()
+                  .HasForeignKey(x => x.BiomeTypeId)
+                  .IsRequired();
+
+            // Unique tile within each battle map.
+            entity.HasIndex(x => new { x.BattleMapGalleryIndexId, x.XCoord, x.YCoord })
+                  .IsUnique();
         });
     }
 
