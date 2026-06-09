@@ -65,6 +65,9 @@ namespace AscendantEmpire.Api
             builder.Services.Configure<AscendantEmpire.Application.Options.ExportSettings>(
                 builder.Configuration.GetSection("ExportSettings"));
 
+            builder.Services.Configure<AscendantEmpire.Application.Options.MapGenerationSettings>(
+                builder.Configuration.GetSection("MapGenerationSettings"));
+
             builder.Services.AddDbContextFactory<AscendantEmpireContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("AscendantEmpireDatabase"))
             );

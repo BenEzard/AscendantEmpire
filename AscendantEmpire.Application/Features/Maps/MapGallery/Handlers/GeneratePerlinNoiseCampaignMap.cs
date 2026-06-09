@@ -1,13 +1,17 @@
 using System.Data;
 using System.Text.Json;
+
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.MapGeneration;
 using AscendantEmpire.Application.MapGeneration.Noise;
+using AscendantEmpire.Application.Options;
 using AscendantEmpire.Domain.Enums.Maps;
+
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
@@ -22,10 +26,12 @@ namespace AscendantEmpire.Application.Features.Maps.MapGallery.Handlers;
 ///   3. Classify each tile's geography (Flat / Hilly / Mountainous / ShallowWater / DeepWater).
 ///   4. Assign a biome to each tile using temperature + moisture noise (Whittaker model).
 ///   5. Bulk-insert all tiles into mapgallery.CampaignMapGallery via SqlBulkCopy.
-///   6. Write the resolved seed back to PropertiesJson so the map can be reproduced.
+///   6. Render geography and biome preview PNGs; store their paths on the index record.
+///   7. Write the resolved seed back to PropertiesJson so the map can be reproduced.
 /// </summary>
 internal sealed class GeneratePerlinNoiseCampaignMap(
-    IServiceScopeFactory scopeFactory
+    IServiceScopeFactory              scopeFactory,
+    IOptions<MapGenerationSettings>   mapGenOptions
 ) : ICampaignMapGenerator
 {
     // Parsed parameter fields — populated by ValidateRequestProperties before Generate is called.
@@ -168,7 +174,7 @@ internal sealed class GeneratePerlinNoiseCampaignMap(
             geography, width, height, tempNoise, moistureNoise, geoOut: geography);
 
         // ── Bulk insert ─────────────────────────────────────────────────────
-        using IServiceScope scope     = scopeFactory.CreateScope();
+        using IServiceScope scope = scopeFactory.CreateScope();
         using var context = scope.ServiceProvider.GetRequiredService<AscendantEmpireContext>();
 
         // Determine the start ID using the same pattern as GenerateBlankCampaignMap.
@@ -176,12 +182,21 @@ internal sealed class GeneratePerlinNoiseCampaignMap(
 
         await BulkInsertTilesAsync(context, index.Id, startId, width, height, geography, biomes);
 
-        // Write the resolved seed back to PropertiesJson so this map can be reproduced.
+        // ── Render preview PNGs ─────────────────────────────────────────────
+        // Best-effort — if rendering fails the paths stay null, generation still succeeds.
+        (index.GeographyMapPath, index.BiomeMapPath) = MapPreviewRenderer.Render(
+            geography, biomes, width, height,
+            mapGenOptions.Value.OutputDirectory,
+            index.Id);
+
+        // ── Write resolved seed back to PropertiesJson ──────────────────────
         var props = JsonSerializer.Deserialize<Dictionary<string, string>>(index.PropertiesJson)
                     ?? new Dictionary<string, string>();
         props["seed"] = _seed.ToString();
         index.PropertiesJson = JsonSerializer.Serialize(props);
-        await context.SaveChangesAsync();
+
+        // index is tracked by the outer CreateCampaignMapHandler context, so
+        // GeographyMapPath, BiomeMapPath, and PropertiesJson are all saved there.
 
         return ServiceResult<int>.Succeed(startId);
     }

@@ -762,6 +762,10 @@ namespace AscendantEmpire.Application.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("BiomeMapPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<int>("CampaignMapOffsetId")
                         .HasColumnType("int");
 
@@ -778,6 +782,10 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.Property<string>("ErrorMessage")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("GeographyMapPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int>("Height")
                         .HasColumnType("int");

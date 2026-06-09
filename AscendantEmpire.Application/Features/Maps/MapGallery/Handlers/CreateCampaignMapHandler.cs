@@ -1,5 +1,6 @@
 ﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Options;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
 
@@ -7,6 +8,7 @@ using MediatR;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
@@ -17,7 +19,8 @@ public record CreateCampaignMapRequest() : IRequest<ServiceResultBase>;
 internal class CreateCampaignMapHandler(
     ILogger<CreateCampaignMapHandler> logger,
     AscendantEmpireContext context,
-    IServiceScopeFactory scopeFactory
+    IServiceScopeFactory scopeFactory,
+    IOptions<MapGenerationSettings> mapGenOptions
 ) : IRequestHandler<CreateCampaignMapRequest, ServiceResultBase>
 {
     public async Task<ServiceResultBase> Handle(CreateCampaignMapRequest request, CancellationToken cancellationToken)
@@ -82,7 +85,7 @@ internal class CreateCampaignMapHandler(
                 }
                 else if (nextMapToCreate.CreationEngine == MapCreationEngine.PerlinNoiseV1)
                 {
-                    GeneratePerlinNoiseCampaignMap generator = new(scopeFactory);
+                    GeneratePerlinNoiseCampaignMap generator = new(scopeFactory, mapGenOptions);
                     var validationResult = generator.ValidateRequestProperties(nextMapToCreate);
 
                     if (validationResult.HasSucceeded == false)
