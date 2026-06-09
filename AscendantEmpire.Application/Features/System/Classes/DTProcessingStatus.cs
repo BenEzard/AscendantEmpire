@@ -11,6 +11,8 @@ public class DTProcessingStatus
     public int ProcessingId { get; init; }
     public ProcessType ProcessType { get; init; }
     public ProcessingStatus Status { get; init; }
+    /// <summary>0–100. Updated by the background service at key processing steps.</summary>
+    public byte ProgressPercent { get; init; }
     public DateTime StartedAt { get; init; }
     public DateTime? CompletedAt { get; init; }
     public string? ErrorMessage { get; init; }

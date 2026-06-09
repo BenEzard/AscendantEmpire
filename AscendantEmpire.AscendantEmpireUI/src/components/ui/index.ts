@@ -26,3 +26,5 @@ export { default as CircularProgress } from "./CircularProgress";
 export type { CircularProgressProps } from "./CircularProgress";
 export { default as DescriptiveSettingDropDown } from "./DescriptiveSettingDropDown";
 export type { SelectionOption, DescriptiveSettingDropDownProps } from "./DescriptiveSettingDropDown";
+export { default as ProgressOperationDialog } from "./ProgressOperationDialog";
+export type { ProgressOperationDialogProps } from "./ProgressOperationDialog";

@@ -63,6 +63,7 @@ public sealed class MapExportBackgroundService(
         // Mark as in-progress so the UI can see it has started.
         processing.Status = ProcessingStatus.InProgress;
         processing.StartedAt = DateTime.UtcNow;
+        processing.ProgressPercent = 5;
         await context.SaveChangesAsync(stoppingToken);
 
         try
@@ -79,11 +80,15 @@ public sealed class MapExportBackgroundService(
                 throw new InvalidOperationException($"CampaignMapGalleryIndex {mapGalleryIndexId} not found.");
             }
 
+            await UpdateProgressAsync(context, processing, 20, stoppingToken);
+
             // Load all tiles for this map.
             List<CampaignMapGallery> tiles = await context.CampaignMapGallery
                 .AsNoTracking()
                 .Where(t => t.CampaignMapGalleryIndexId == mapGalleryIndexId)
                 .ToListAsync(stoppingToken);
+
+            await UpdateProgressAsync(context, processing, 40, stoppingToken);
 
             // Determine the distinct biome and geography types referenced by the tiles.
             HashSet<BiomeType> usedBiomeIds = [.. tiles.Select(t => t.BiomeTypeId)];
@@ -99,15 +104,22 @@ public sealed class MapExportBackgroundService(
                 .Where(g => usedGeoIds.Contains(g.CampaignMapGeographyTypeId))
                 .ToListAsync(stoppingToken);
 
+            await UpdateProgressAsync(context, processing, 60, stoppingToken);
+
             // Build the export document.
             MapExportDocument document = BuildDocument(index, tiles, biomes, geographies);
+
+            await UpdateProgressAsync(context, processing, 80, stoppingToken);
 
             // Serialise and zip.
             string zipPath = BuildZipPath(index.MapName, processingId);
             await WriteZipAsync(document, zipPath, stoppingToken);
 
+            await UpdateProgressAsync(context, processing, 95, stoppingToken);
+
             // Mark complete.
             processing.Status = ProcessingStatus.Complete;
+            processing.ProgressPercent = 100;
             processing.CompletedAt = DateTime.UtcNow;
             processing.ResultReference = zipPath;
             await context.SaveChangesAsync(stoppingToken);
@@ -236,6 +248,20 @@ public sealed class MapExportBackgroundService(
         string safeName = string.Concat(mapName.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-'));
         string fileName = $"export_{safeName}_{processingId}.zip";
         return Path.Combine(exportOptions.Value.TempDirectory, fileName);
+    }
+
+    /// <summary>
+    /// Persists a progress percentage update to the Processing record.
+    /// Uses a detached context write to avoid state conflicts with the outer tracking context.
+    /// </summary>
+    private static async Task UpdateProgressAsync(
+        AscendantEmpireContext context,
+        Processing processing,
+        byte percent,
+        CancellationToken cancellationToken)
+    {
+        processing.ProgressPercent = percent;
+        await context.SaveChangesAsync(cancellationToken);
     }
 
     /// <summary>

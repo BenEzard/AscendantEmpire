@@ -44,6 +44,7 @@ internal class GetProcessingStatusHandler(
                 ProcessingId = processing.ProcessingId,
                 ProcessType = processing.ProcessType,
                 Status = processing.Status,
+                ProgressPercent = processing.ProgressPercent,
                 StartedAt = processing.StartedAt,
                 CompletedAt = processing.CompletedAt,
                 ErrorMessage = processing.ErrorMessage

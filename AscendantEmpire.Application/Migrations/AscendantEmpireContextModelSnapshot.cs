@@ -102,6 +102,9 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("ProcessType")
                         .HasColumnType("int");
 
+                    b.Property<byte>("ProgressPercent")
+                        .HasColumnType("tinyint");
+
                     b.Property<string>("ResultReference")
                         .HasColumnType("nvarchar(max)");
 

@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { Alert, Button, Modal, Spinner } from "@/components/ui";
+import { CiExport } from "react-icons/ci";
+import ExportProgressDialog from "./ExportProgressDialog";
+import { useExportCampaignMap } from "../hooks/useExportCampaignMap";
 
 export interface CampaignMapGalleryIndex {
   campaignMapGalleryIndexId: number;
@@ -34,6 +37,8 @@ export default function OpenCampaignMapDialog({ show, onClose, onSaveSuccess, on
   const [filter, setFilter] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
+  const { exportPhase, progressPercent, startExport, resetExport, isActive } = useExportCampaignMap();
+
   const fetchIndexes = async () => {
     const res = await axios.get<SearchResponse>("https://localhost:7242/map-gallery/search");
     return res.data.indexes;
@@ -52,9 +57,12 @@ export default function OpenCampaignMapDialog({ show, onClose, onSaveSuccess, on
     refetchOnWindowFocus: false,
   });
 
-  // Reset selection/filter each time the dialog opens
+  // Reset selection/filter each time the dialog opens; cancel any in-flight export when it closes.
   useEffect(() => {
-    if (!show) return;
+    if (!show) {
+      resetExport();
+      return;
+    }
     setFilter("");
     setSelectedId(null);
   }, [show]);
@@ -83,6 +91,11 @@ export default function OpenCampaignMapDialog({ show, onClose, onSaveSuccess, on
     onClose();
   };
 
+  const handleExport = () => {
+    if (!selected) return;
+    startExport(selected.campaignMapGalleryIndexId);
+  };
+
   const handleRowDoubleClick = (id: number) => {
     setSelectedId(id);
     // defer open until selected is updated? just open from the found item:
@@ -95,6 +108,7 @@ export default function OpenCampaignMapDialog({ show, onClose, onSaveSuccess, on
   };
 
   return (
+    <>
     <Modal
       open={show}
       onClose={onClose}
@@ -102,6 +116,13 @@ export default function OpenCampaignMapDialog({ show, onClose, onSaveSuccess, on
       size="lg"
       footer={
         <>
+          {/* Export sits on the left, matching the BiomeManagerDialog pattern. */}
+          <div className="mr-auto">
+            <Button variant="primary" onClick={handleExport} disabled={!selected || isActive}>
+              <CiExport aria-hidden="true" strokeWidth={2} />
+              Export
+            </Button>
+          </div>
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
@@ -179,5 +200,14 @@ export default function OpenCampaignMapDialog({ show, onClose, onSaveSuccess, on
         </div>
       )}
     </Modal>
+
+    <ExportProgressDialog
+      open={isActive}
+      mapName={selected?.mapName ?? ""}
+      exportPhase={exportPhase}
+      progressPercent={progressPercent}
+      onClose={resetExport}
+    />
+    </>
   );
 }

@@ -29,6 +29,11 @@ public class Processing
     public string? ResultReference { get; set; }
 
     /// <summary>
+    /// Export progress as a value between 0 and 100. Updated by the background service at key steps.
+    /// </summary>
+    public byte ProgressPercent { get; set; }
+
+    /// <summary>
     /// JSON bag of context specific to the process type (e.g. <c>{ "mapGalleryIndexId": 5 }</c>).
     /// </summary>
     public string? MetadataJson { get; set; }
