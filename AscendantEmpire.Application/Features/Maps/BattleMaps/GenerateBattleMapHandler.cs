@@ -4,6 +4,7 @@ using System.Text.Json;
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.MapGeneration;
+using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.BattleMaps;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
@@ -19,24 +20,24 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Features.Maps.BattleMaps;
 
 /// <summary>
-/// Lazily generates a BattleMap for a specific campaign tile.
+/// Lazily generates a BattleMap for a specific campaign tile within a specific game.
 ///
 /// Called the first time a battle is triggered on a given campaign tile.  If the
 /// BattleMap already exists in the database, the handler returns its index Id
 /// immediately without regenerating.
 ///
 /// The generated tiles are stored in:
-///   mapgallery.BattleMapGalleryIndex — one row describing this BattleMap
-///   mapgallery.BattleMapGallery     — one row per battle tile (Width × Height)
+///   battle.BattleMapIndex — one row describing this BattleMap (FK to game.CampaignMap)
+///   battle.BattleMap      — one row per battle tile (BattleMapSize × BattleMapSize)
 ///
-/// The local seed is derived deterministically:
-///   localSeed = masterSeed XOR (tileX * 2654435761) XOR (tileY * 2246822519)
-/// so the same BattleMap is always produced for a given campaign map + tile.
+/// Terrain altitude is derived from the shared campaign Perlin field (using the campaign
+/// master seed) so adjacent tiles have continuous terrain edges.  Biome diversity uses
+/// GameIndex.GenerationSeed so two games on the same campaign map produce different
+/// biome distributions.
 /// </summary>
 public record GenerateBattleMapRequest(
-    int CampaignMapGalleryIndexId,
-    int TileX,
-    int TileY
+    int GameId,
+    int CampaignMapId
 ) : IRequest<ServiceResult<int>>;
 
 internal sealed class GenerateBattleMapHandler(
@@ -51,12 +52,10 @@ internal sealed class GenerateBattleMapHandler(
         try
         {
             // ── Guard: already generated? ─────────────────────────────────────
-            BattleMapGalleryIndex? existing = await context.BattleMapGalleryIndex
+            BattleMapIndex? existing = await context.BattleMapIndex
                 .AsNoTracking()
                 .FirstOrDefaultAsync(
-                    bmi => bmi.CampaignMapGalleryIndexId == request.CampaignMapGalleryIndexId
-                        && bmi.CampaignTileX == request.TileX
-                        && bmi.CampaignTileY == request.TileY,
+                    bmi => bmi.CampaignMapId == request.CampaignMapId,
                     cancellationToken);
 
             if (existing is not null && existing.GenerationStatus == MapCreationStatus.Complete)
@@ -64,18 +63,45 @@ internal sealed class GenerateBattleMapHandler(
                 return ServiceResult<int>.Succeed(existing.Id);
             }
 
-            // ── Load the parent campaign map index ────────────────────────────
+            // ── Load the game index ───────────────────────────────────────────
+            GameIndex? gameIndex = await context.GameIndex
+                .AsNoTracking()
+                .FirstOrDefaultAsync(g => g.Id == request.GameId, cancellationToken);
+
+            if (gameIndex is null)
+            {
+                return ServiceResult<int>.Fail($"GameIndex {request.GameId} not found.");
+            }
+
+            // ── Load the campaign tile from the game's map ────────────────────
+            CampaignMap? tile = await context.CampaignMaps
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    cm => cm.CampaignMapId == request.CampaignMapId && cm.GameId == request.GameId,
+                    cancellationToken);
+
+            if (tile is null)
+            {
+                return ServiceResult<int>.Fail($"CampaignMap {request.CampaignMapId} not found for game {request.GameId}.");
+            }
+
+            int tileX = tile.XCoord;
+            int tileY = tile.YCoord;
+
+            // ── Load the parent campaign map gallery index ────────────────────
+            // Required for the master seed (terrain continuity) and map dimensions
+            // (neighbour bounds check).
             CampaignMapGalleryIndex? campaignIndex = await context.CampaignMapGalleryIndex
                 .AsNoTracking()
-                .FirstOrDefaultAsync(cmi => cmi.Id == request.CampaignMapGalleryIndexId, cancellationToken);
+                .FirstOrDefaultAsync(cmi => cmi.Id == gameIndex.CampaignMapIndexId, cancellationToken);
 
             if (campaignIndex is null)
             {
-                return ServiceResult<int>.Fail($"CampaignMapGalleryIndex {request.CampaignMapGalleryIndexId} not found.");
+                return ServiceResult<int>.Fail($"CampaignMapGalleryIndex {gameIndex.CampaignMapIndexId} not found.");
             }
 
-            // ── Parse parameters from PropertiesJson ──────────────────────────
-            Dictionary<string, string>? props =JsonSerializer.Deserialize<Dictionary<string, string>>(campaignIndex.PropertiesJson);
+            // ── Parse the master seed from PropertiesJson ─────────────────────
+            Dictionary<string, string>? props = JsonSerializer.Deserialize<Dictionary<string, string>>(campaignIndex.PropertiesJson);
 
             if (props is null)
             {
@@ -87,29 +113,7 @@ internal sealed class GenerateBattleMapHandler(
                 return ServiceResult<int>.Fail("Master seed not found in PropertiesJson. Was the campaign map generated with PerlinNoiseV1?");
             }
 
-            int battleMapSize = props.TryGetValue("battleMapSize", out var bmsStr) && int.TryParse(bmsStr, out int bms)
-                ? Math.Max(10, bms)
-                : 50;
-
-            // ── Load the specific campaign tile ───────────────────────────────
-            // CampaignMapGallery rows are ordered Y-then-X from CampaignMapOffsetId.
-            // We look up by IndexId + coords rather than deriving the PK, as the offset convention may change in the future.
-            CampaignMapGallery? tile = await context.CampaignMapGallery
-                .AsNoTracking()
-                .FirstOrDefaultAsync(t => t.CampaignMapGalleryIndexId == request.CampaignMapGalleryIndexId
-                      && t.XCoord == request.TileX
-                      && t.YCoord == request.TileY,
-                    cancellationToken);
-
-            if (tile is null)
-            {
-                return ServiceResult<int>.Fail($"Campaign tile ({request.TileX},{request.TileY}) not found in CampaignMapGallery.");
-            }
-
-            CampaignMapGeographyType tileGeo   = tile.CampaignMapGeographyTypeId;
-            BiomeType                tileBiome = tile.BiomeTypeId;
-
-            // ── Load orthogonal neighbours' geography types ───────────────────
+            // ── Load orthogonal neighbours' geography from game.CampaignMap ───
             // Required so the edge-blending pass can bias altitude near shared edges.
             // Null means no neighbour exists (edge of the campaign map).
             // Order: [Left, Right, Up, Down]
@@ -119,8 +123,8 @@ internal sealed class GenerateBattleMapHandler(
             var neighbourGeos = new CampaignMapGeographyType?[4];
             for (int i = 0; i < 4; i++)
             {
-                int nx = request.TileX + neighbourDx[i];
-                int ny = request.TileY + neighbourDy[i];
+                int nx = tileX + neighbourDx[i];
+                int ny = tileY + neighbourDy[i];
 
                 if (nx < 0 || nx >= campaignIndex.Width || ny < 0 || ny >= campaignIndex.Height)
                 {
@@ -128,12 +132,10 @@ internal sealed class GenerateBattleMapHandler(
                     continue;
                 }
 
-                CampaignMapGallery? neighbour = await context.CampaignMapGallery
+                CampaignMap? neighbour = await context.CampaignMaps
                     .AsNoTracking()
                     .FirstOrDefaultAsync(
-                        t => t.CampaignMapGalleryIndexId == request.CampaignMapGalleryIndexId
-                          && t.XCoord == nx
-                          && t.YCoord == ny,
+                        cm => cm.GameId == request.GameId && cm.XCoord == nx && cm.YCoord == ny,
                         cancellationToken);
 
                 neighbourGeos[i] = neighbour?.CampaignMapGeographyTypeId;
@@ -141,26 +143,27 @@ internal sealed class GenerateBattleMapHandler(
 
             // ── Run the generator ─────────────────────────────────────────────
             BattleMapGenerator.BattleMapData data = _generator.Generate(
-                masterSeed:      masterSeed,
-                camX:            request.TileX,
-                camY:            request.TileY,
-                battleSize:      battleMapSize,
-                campaignWidth:   campaignIndex.Width,
-                campaignHeight:  campaignIndex.Height,
-                tileGeo:         tileGeo,
-                tileBiome:       tileBiome,
-                neighbourGeo:    neighbourGeos);
+                masterSeed:     masterSeed,
+                gameSeed:       gameIndex.GenerationSeed,
+                camX:           tileX,
+                camY:           tileY,
+                battleSize:     gameIndex.BattleMapSize,
+                campaignWidth:  campaignIndex.Width,
+                campaignHeight: campaignIndex.Height,
+                tileGeo:        tile.CampaignMapGeographyTypeId,
+                tileBiome:      tile.BiomeTypeId,
+                neighbourGeo:   neighbourGeos);
 
-            // ── Persist the BattleMapGalleryIndex row ─────────────────────────
-            int battleMapIndexId = await InsertBattleMapGalleryIndexAsync(request, battleMapSize, data.LocalSeed, cancellationToken);
+            // ── Persist the BattleMapIndex row ────────────────────────────────
+            int battleMapIndexId = await InsertBattleMapIndexAsync(request.CampaignMapId, cancellationToken);
 
-            // ── Bulk-insert all BattleMapGallery tiles ────────────────────────
+            // ── Bulk-insert all BattleMap tiles ───────────────────────────────
             int tileStartId = await GetNextBattleMapTileStartIdAsync();
 
-            await BulkInsertBattleTilesAsync(battleMapIndexId, tileStartId, battleMapSize, data.Altitudes, data.Biomes);
+            await BulkInsertBattleTilesAsync(battleMapIndexId, tileStartId, gameIndex.BattleMapSize, data.Altitudes, data.Biomes);
 
             // ── Mark the index row as Complete ────────────────────────────────
-            await context.BattleMapGalleryIndex
+            await context.BattleMapIndex
                 .Where(bmi => bmi.Id == battleMapIndexId)
                 .ExecuteUpdateAsync(set => set
                     .SetProperty(bmi => bmi.GenerationStatus, MapCreationStatus.Complete)
@@ -172,8 +175,8 @@ internal sealed class GenerateBattleMapHandler(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error generating BattleMap for campaign tile ({TileX},{TileY}) in campaign map {IndexId}.",
-                request.TileX, request.TileY, request.CampaignMapGalleryIndexId);
+            logger.LogError(ex, "Error generating BattleMap for CampaignMapId {CampaignMapId} in game {GameId}.",
+                request.CampaignMapId, request.GameId);
 
             return ServiceResult<int>.Fail($"BattleMap generation failed: {ex.Message}");
         }
@@ -184,44 +187,37 @@ internal sealed class GenerateBattleMapHandler(
     // ──────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Inserts a BattleMapGalleryIndex row with status Creating and returns its Id.
-    /// Uses an explicit transaction so the row exists before tiles are bulk-inserted.
+    /// Inserts a BattleMapIndex row with status Creating and returns its Id.
+    /// Uses an explicit save so the row exists before tiles are bulk-inserted.
     /// </summary>
-    private async Task<int> InsertBattleMapGalleryIndexAsync(
-        GenerateBattleMapRequest request,
-        int                      battleMapSize,
-        long                     localSeed,
-        CancellationToken        cancellationToken)
+    private async Task<int> InsertBattleMapIndexAsync(
+        int               campaignMapId,
+        CancellationToken cancellationToken)
     {
-        var indexRow = new BattleMapGalleryIndex
+        var indexRow = new BattleMapIndex
         {
-            CampaignMapGalleryIndexId = request.CampaignMapGalleryIndexId,
-            CampaignTileX             = request.TileX,
-            CampaignTileY             = request.TileY,
-            Width                     = battleMapSize,
-            Height                    = battleMapSize,
-            GenerationSeed            = localSeed,
-            GenerationStatus          = MapCreationStatus.Creating,
-            Status                    = "Generation in progress",
-            BattleMapOffsetId         = 0,  // updated after tiles are inserted
+            CampaignMapId    = campaignMapId,
+            GenerationStatus = MapCreationStatus.Creating,
+            Status           = "Generation in progress",
+            BattleMapOffsetId = 0,  // updated after tiles are inserted
         };
 
-        context.BattleMapGalleryIndex.Add(indexRow);
+        context.BattleMapIndex.Add(indexRow);
         await context.SaveChangesAsync(cancellationToken);
 
         return indexRow.Id;
     }
 
     /// <summary>
-    /// Determines the next sequential BattleMapGalleryId using a table-level lock
+    /// Determines the next sequential BattleMap Id using a table-level lock
     /// to prevent ID collisions when two BattleMaps are generated concurrently.
     /// </summary>
     private async Task<int> GetNextBattleMapTileStartIdAsync()
     {
         const string sql = """
             SELECT ISNULL(
-                (SELECT MAX(BattleMapGalleryId)
-                 FROM [mapgallery].[BattleMapGallery] WITH (HOLDLOCK, TABLOCKX)),
+                (SELECT MAX(Id)
+                 FROM [battle].[BattleMap] WITH (HOLDLOCK, TABLOCKX)),
                 0) + 1
             """;
 
@@ -233,7 +229,7 @@ internal sealed class GenerateBattleMapHandler(
     }
 
     /// <summary>
-    /// Bulk-inserts all BattleMapGallery tiles using SqlBulkCopy.
+    /// Bulk-inserts all BattleMap tiles using SqlBulkCopy.
     /// Tiles are stored in (Y, X) order — matching the BattleMapOffsetId convention.
     /// </summary>
     private async Task BulkInsertBattleTilesAsync(
@@ -244,12 +240,12 @@ internal sealed class GenerateBattleMapHandler(
         BiomeType[]          biomes)
     {
         var table = new DataTable();
-        table.Columns.Add("BattleMapGalleryId",      typeof(int));
-        table.Columns.Add("BattleMapGalleryIndexId",  typeof(int));
-        table.Columns.Add("XCoord",                   typeof(int));
-        table.Columns.Add("YCoord",                   typeof(int));
-        table.Columns.Add("AltitudeLevel",            typeof(int));
-        table.Columns.Add("BiomeTypeId",              typeof(int));
+        table.Columns.Add("Id",               typeof(int));
+        table.Columns.Add("BattleMapIndexId", typeof(int));
+        table.Columns.Add("XCoord",           typeof(int));
+        table.Columns.Add("YCoord",           typeof(int));
+        table.Columns.Add("AltitudeLevel",    typeof(int));
+        table.Columns.Add("BiomeTypeId",      typeof(int));
 
         int id = startId;
         for (int y = 0; y < size; y++)
@@ -274,16 +270,16 @@ internal sealed class GenerateBattleMapHandler(
 
         using var bulkCopy = new SqlBulkCopy(conn, SqlBulkCopyOptions.TableLock, null)
         {
-            DestinationTableName = "[mapgallery].[BattleMapGallery]",
+            DestinationTableName = "[battle].[BattleMap]",
             BatchSize            = 10_000,
         };
 
-        bulkCopy.ColumnMappings.Add("BattleMapGalleryId",      "BattleMapGalleryId");
-        bulkCopy.ColumnMappings.Add("BattleMapGalleryIndexId",  "BattleMapGalleryIndexId");
-        bulkCopy.ColumnMappings.Add("XCoord",                   "XCoord");
-        bulkCopy.ColumnMappings.Add("YCoord",                   "YCoord");
-        bulkCopy.ColumnMappings.Add("AltitudeLevel",            "AltitudeLevel");
-        bulkCopy.ColumnMappings.Add("BiomeTypeId",              "BiomeTypeId");
+        bulkCopy.ColumnMappings.Add("Id",               "Id");
+        bulkCopy.ColumnMappings.Add("BattleMapIndexId", "BattleMapIndexId");
+        bulkCopy.ColumnMappings.Add("XCoord",           "XCoord");
+        bulkCopy.ColumnMappings.Add("YCoord",           "YCoord");
+        bulkCopy.ColumnMappings.Add("AltitudeLevel",    "AltitudeLevel");
+        bulkCopy.ColumnMappings.Add("BiomeTypeId",      "BiomeTypeId");
 
         await bulkCopy.WriteToServerAsync(table);
     }

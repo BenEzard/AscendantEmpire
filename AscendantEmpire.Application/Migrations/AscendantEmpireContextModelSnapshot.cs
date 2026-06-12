@@ -311,6 +311,9 @@ namespace AscendantEmpire.Application.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("BattleMapSize")
+                        .HasColumnType("int");
+
                     b.Property<int>("CampaignMapIndexId")
                         .HasColumnType("int");
 
@@ -324,6 +327,9 @@ namespace AscendantEmpire.Application.Migrations
                         .IsRequired()
                         .HasMaxLength(250)
                         .HasColumnType("nvarchar(250)");
+
+                    b.Property<long>("GenerationSeed")
+                        .HasColumnType("bigint");
 
                     b.Property<bool>("HorizontalWrap")
                         .HasColumnType("bit");
@@ -552,15 +558,15 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("StructureInstances", "game");
                 });
 
-            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.BattleMaps.BattleMapGallery", b =>
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.BattleMaps.BattleMap", b =>
                 {
-                    b.Property<int>("BattleMapGalleryId")
+                    b.Property<int>("Id")
                         .HasColumnType("int");
 
                     b.Property<int>("AltitudeLevel")
                         .HasColumnType("int");
 
-                    b.Property<int>("BattleMapGalleryIndexId")
+                    b.Property<int>("BattleMapIndexId")
                         .HasColumnType("int");
 
                     b.Property<int>("BiomeTypeId")
@@ -572,17 +578,19 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("YCoord")
                         .HasColumnType("int");
 
-                    b.HasKey("BattleMapGalleryId");
+                    b.HasKey("Id");
+
+                    b.HasIndex("BattleMapIndexId");
 
                     b.HasIndex("BiomeTypeId");
 
-                    b.HasIndex("BattleMapGalleryIndexId", "XCoord", "YCoord")
+                    b.HasIndex("BattleMapIndexId", "XCoord", "YCoord")
                         .IsUnique();
 
-                    b.ToTable("BattleMapGallery", "mapgallery");
+                    b.ToTable("BattleMap", "battle");
                 });
 
-            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.BattleMaps.BattleMapGalleryIndex", b =>
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.BattleMaps.BattleMapIndex", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -593,26 +601,14 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("BattleMapOffsetId")
                         .HasColumnType("int");
 
-                    b.Property<int>("CampaignMapGalleryIndexId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("CampaignTileX")
-                        .HasColumnType("int");
-
-                    b.Property<int>("CampaignTileY")
+                    b.Property<int>("CampaignMapId")
                         .HasColumnType("int");
 
                     b.Property<string>("ErrorMessage")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
-                    b.Property<long>("GenerationSeed")
-                        .HasColumnType("bigint");
-
                     b.Property<int>("GenerationStatus")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Height")
                         .HasColumnType("int");
 
                     b.Property<string>("Status")
@@ -620,15 +616,12 @@ namespace AscendantEmpire.Application.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<int>("Width")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("CampaignMapGalleryIndexId", "CampaignTileX", "CampaignTileY")
+                    b.HasIndex("CampaignMapId")
                         .IsUnique();
 
-                    b.ToTable("BattleMapGalleryIndex", "mapgallery");
+                    b.ToTable("BattleMapIndex", "battle");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignBiome", b =>
@@ -1655,11 +1648,11 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Structure");
                 });
 
-            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.BattleMaps.BattleMapGallery", b =>
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.BattleMaps.BattleMap", b =>
                 {
-                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.BattleMaps.BattleMapGalleryIndex", "Index")
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.BattleMaps.BattleMapIndex", "Index")
                         .WithMany()
-                        .HasForeignKey("BattleMapGalleryIndexId")
+                        .HasForeignKey("BattleMapIndexId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -1672,6 +1665,17 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Biome");
 
                     b.Navigation("Index");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.BattleMaps.BattleMapIndex", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.CampaignMap", "CampaignMap")
+                        .WithMany()
+                        .HasForeignKey("CampaignMapId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CampaignMap");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignMapGallery", b =>

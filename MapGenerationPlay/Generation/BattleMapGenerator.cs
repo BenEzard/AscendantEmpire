@@ -53,6 +53,7 @@ public sealed class BattleMapGenerator
     /// </param>
     public BattleMapResult Generate(
         long          masterSeed,
+        long          gameSeed,
         int           camX,
         int           camY,
         int           battleSize,
@@ -62,10 +63,11 @@ public sealed class BattleMapGenerator
         GeographyType?[] neighbourGeo)   // [Left, Right, Up, Down]
     {
         // ── Build the shared noise field ──────────────────────────────────────
-        // Use the same terrain noise as the campaign map so BattleMap edges are
-        // continuous with their neighbours.
-        var terrainNoise = new PerlinNoise(masterSeed);
-        var warpNoise    = new PerlinNoise(masterSeed ^ unchecked((long)0x9E3779B97F4A7C15UL));
+        // Mix gameSeed into masterSeed so each game produces unique altitude topology
+        // while adjacent tiles within the same game remain continuous at their edges.
+        long combinedSeed = masterSeed ^ gameSeed;
+        var terrainNoise = new PerlinNoise(combinedSeed);
+        var warpNoise    = new PerlinNoise(combinedSeed ^ unchecked((long)0x9E3779B97F4A7C15UL));
 
         var terrainFbm = new FractalBrownianMotion(terrainNoise)
         {
@@ -121,7 +123,7 @@ public sealed class BattleMapGenerator
         // neighbouring-compatible biomes within the tile. The BiomeType returned here is
         // just for visualisation in the prototype; the Application layer uses the
         // actual Domain BiomeType when inserting into the database.
-        long localSeed = masterSeed ^ (camX * _primeX) ^ (camY * _primeY);
+        long localSeed = gameSeed ^ (camX * _primeX) ^ (camY * _primeY);
         BiomeType[] biomes = AssignBiomes(localSeed, heightmap, altitudes, battleSize);
 
         return new BattleMapResult(altitudes, biomes, localSeed);

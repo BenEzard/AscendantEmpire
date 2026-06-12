@@ -44,7 +44,7 @@ public partial class GameSetupServiceTests
     [Test]
     public async Task SetupGameAsync_MapGalleryServiceFails_ReturnsFailureResult()
     {
-        SetupGameRequest request = new SetupGameRequest(GalleryMapId: 1, GameName: "Test Game", NumberOfPlayers: 4);
+        SetupGameRequest request = new SetupGameRequest(GalleryMapId: 1, GameName: "Test Game", NumberOfPlayers: 4, BattleMapSize: 50, GenerationSeed: null);
         var expectedErrors = new[] { "Map not found", "Service unavailable" };
         ServiceResultBase.ServiceResult<CampaignMapGalleryProperties> mapPropertiesResult = ServiceResultBase.ServiceResult<CampaignMapGalleryProperties>.Fail(expectedErrors);
 
@@ -71,7 +71,7 @@ public partial class GameSetupServiceTests
     public async Task SetupGameAsync_UnexpectedExceptionThrown_ReturnsFailureResult()
     {
         // Arrange
-        SetupGameRequest request = new SetupGameRequest(GalleryMapId: 1, GameName: "Test Game", NumberOfPlayers: 4);
+        SetupGameRequest request = new SetupGameRequest(GalleryMapId: 1, GameName: "Test Game", NumberOfPlayers: 4, BattleMapSize: 50, GenerationSeed: null);
         InvalidOperationException expectedException = new InvalidOperationException("Database connection failed");
 
         _campaignMapGalleryService
@@ -98,7 +98,7 @@ public partial class GameSetupServiceTests
     [Test]
     public async Task SetupGameAsync_MinimumNumberOfPlayers_ProcessesRequest()
     {
-        SetupGameRequest request = new SetupGameRequest(GalleryMapId: 1, GameName: "Min Players Game", NumberOfPlayers: GameSetupService.MIN_NUMBER_OF_PLAYERS);
+        SetupGameRequest request = new SetupGameRequest(GalleryMapId: 1, GameName: "Min Players Game", NumberOfPlayers: GameSetupService.MIN_NUMBER_OF_PLAYERS, BattleMapSize: 50, GenerationSeed: null);
         CampaignMapGalleryProperties mapProperties = new CampaignMapGalleryProperties
         {
             Id = 1,
@@ -130,7 +130,7 @@ public partial class GameSetupServiceTests
     [Test]
     public async Task SetupGameAsync_MaximumNumberOfPlayers_ProcessesRequest()
     {
-        SetupGameRequest request = new SetupGameRequest(GalleryMapId: 1, GameName: "Max Players Game", NumberOfPlayers: GameSetupService.MAX_NUMBER_OF_PLAYERS);
+        SetupGameRequest request = new SetupGameRequest(GalleryMapId: 1, GameName: "Max Players Game", NumberOfPlayers: GameSetupService.MAX_NUMBER_OF_PLAYERS, BattleMapSize: 50, GenerationSeed: null);
         CampaignMapGalleryProperties mapProperties = new CampaignMapGalleryProperties
         {
             Id = 1,
@@ -163,7 +163,7 @@ public partial class GameSetupServiceTests
     [Test]
     public async Task SetupGameAsync_ZeroGalleryMapId_ProcessesRequest()
     {
-        SetupGameRequest request = new SetupGameRequest(GalleryMapId: 0, GameName: "Test Game", NumberOfPlayers: 4);
+        SetupGameRequest request = new SetupGameRequest(GalleryMapId: 0, GameName: "Test Game", NumberOfPlayers: 4, BattleMapSize: 50, GenerationSeed: null);
         ServiceResultBase.ServiceResult<CampaignMapGalleryProperties> mapPropertiesResult = ServiceResultBase.ServiceResult<CampaignMapGalleryProperties>.Fail("Map not found");
 
         _campaignMapGalleryService
@@ -184,7 +184,7 @@ public partial class GameSetupServiceTests
     [Test]
     public async Task SetupGameAsync_NegativeGalleryMapId_ProcessesRequest()
     {
-        SetupGameRequest request = new SetupGameRequest(GalleryMapId: -1, GameName: "Test Game", NumberOfPlayers: 4);
+        SetupGameRequest request = new SetupGameRequest(GalleryMapId: -1, GameName: "Test Game", NumberOfPlayers: 4, BattleMapSize: 50, GenerationSeed: null);
         ServiceResultBase.ServiceResult<CampaignMapGalleryProperties> mapPropertiesResult = ServiceResultBase.ServiceResult<CampaignMapGalleryProperties>.Fail("Invalid map ID");
 
         _campaignMapGalleryService
@@ -206,7 +206,7 @@ public partial class GameSetupServiceTests
     public async Task SetupGameAsync_VeryLongGameName_ProcessesRequest()
     {
         string longGameName = new string('A', 1000);
-        SetupGameRequest request = new SetupGameRequest(GalleryMapId: 1, GameName: longGameName, NumberOfPlayers: 4);
+        SetupGameRequest request = new SetupGameRequest(GalleryMapId: 1, GameName: longGameName, NumberOfPlayers: 4, BattleMapSize: 50, GenerationSeed: null);
         CampaignMapGalleryProperties mapProperties = new CampaignMapGalleryProperties
         {
             Id = 1,

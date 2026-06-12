@@ -9,23 +9,24 @@ namespace AscendantEmpire.Domain.Entities.Maps.BattleMaps;
 /// <summary>
 /// A single tile within a BattleMap.
 ///
-/// The BattleMap grid is 50×50 (or the configured size).  Each tile has:
+/// The BattleMap grid is BattleMapSize × BattleMapSize (configured per game on GameIndex).
+/// Each tile has:
 ///   - AltitudeLevel: terrain height in the battle (-1 = below water, 0–4 = above water)
 ///   - BiomeTypeId:   the local biome (may differ from the parent CampaignMap tile's biome
 ///                    to create fine-grained variety within the battle area)
 ///
 /// The primary key is NOT auto-generated.  IDs are assigned sequentially starting from
-/// BattleMapGalleryIndex.BattleMapOffsetId, ordered by (YCoord, XCoord).
+/// BattleMapIndex.BattleMapOffsetId, ordered by (YCoord, XCoord).
 /// This mirrors the pattern used by CampaignMapGallery.
 /// </summary>
-public class BattleMapGallery
+public class BattleMap
 {
     /// <summary>Primary key — assigned manually at generation time.</summary>
     [Key, DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public int BattleMapGalleryId { get; set; }
+    public int Id { get; set; }
 
-    /// <summary>FK to BattleMapGalleryIndex.</summary>
-    public int BattleMapGalleryIndexId { get; set; }
+    /// <summary>FK to battle.BattleMapIndex.</summary>
+    public int BattleMapIndexId { get; set; }
 
     /// <summary>X position within the battle map (0-based).</summary>
     public int XCoord { get; set; }
@@ -45,8 +46,8 @@ public class BattleMapGallery
 
     // ── Navigation properties ────────────────────────────────────────────────
 
-    [ForeignKey(nameof(BattleMapGalleryIndexId))]
-    public BattleMapGalleryIndex? Index { get; set; }
+    [ForeignKey(nameof(BattleMapIndexId))]
+    public BattleMapIndex? Index { get; set; }
 
     [ForeignKey(nameof(BiomeTypeId))]
     public CampaignBiome? Biome { get; set; }

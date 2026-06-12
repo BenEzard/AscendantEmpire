@@ -33,7 +33,7 @@ public class GamesController : ControllerBase
         [FromServices] IMediator mediator,
         [FromBody] SetupGameDto request)
     {
-        ServiceResultBase response = await mediator.Send(new SetupGameRequest(request.MapId, request.GameName, request.NumberOfPlayers));
+        ServiceResultBase response = await mediator.Send(new SetupGameRequest(request.MapId, request.GameName, request.NumberOfPlayers, request.BattleMapSize, request.GenerationSeed));
 
         return response.ToActionResult();
     }

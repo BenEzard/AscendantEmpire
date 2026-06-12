@@ -237,14 +237,18 @@ internal class GameSetupService(
     {
         var newGame = new GameIndex
         {
-            GameName = request.GameName,
+            GameName           = request.GameName,
             CampaignMapIndexId = request.GalleryMapId,
-            NumberOfPlayers = request.NumberOfPlayers,
-            CreationStatus = GameCreationStatus.SetupInProgress,
-            PlayStatus = GamePlayStatus.SetupInProgress,
-            CreatedAt = DateTimeOffset.UtcNow,
-            HorizontalWrap = mapProperties.HorizontalWrap,
-            VerticalWrap = mapProperties.VerticalWrap
+            NumberOfPlayers    = request.NumberOfPlayers,
+            CreationStatus     = GameCreationStatus.SetupInProgress,
+            PlayStatus         = GamePlayStatus.SetupInProgress,
+            CreatedAt          = DateTimeOffset.UtcNow,
+            HorizontalWrap     = mapProperties.HorizontalWrap,
+            VerticalWrap       = mapProperties.VerticalWrap,
+            // Use the caller-supplied seed if provided; otherwise generate a random one
+            // so the player can reproduce the same biome distribution later if desired.
+            GenerationSeed     = request.GenerationSeed ?? Random.Shared.NextInt64(),
+            BattleMapSize      = request.BattleMapSize,
         };
 
         context.GameIndex.Add(newGame);

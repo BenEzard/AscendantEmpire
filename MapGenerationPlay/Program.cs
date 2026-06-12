@@ -321,8 +321,9 @@ static void GenerateAndSaveBattleMaps(
         GetGeo(camX + 1, camY + 1),
     };
 
-    BattleMapResult bm0 = gen.Generate(masterSeed, camX,     camY, battleSize, campaignWidth, campaignHeight, tileGeo0, neighbours0);
-    BattleMapResult bm1 = gen.Generate(masterSeed, camX + 1, camY, battleSize, campaignWidth, campaignHeight, tileGeo1, neighbours1);
+    // Use masterSeed as the gameSeed placeholder in the play project (no GameIndex here).
+    BattleMapResult bm0 = gen.Generate(masterSeed, masterSeed, camX,     camY, battleSize, campaignWidth, campaignHeight, tileGeo0, neighbours0);
+    BattleMapResult bm1 = gen.Generate(masterSeed, masterSeed, camX + 1, camY, battleSize, campaignWidth, campaignHeight, tileGeo1, neighbours1);
 
     SaveAltitudePng(bm0.Altitudes, battleSize, battleSize,
                     Path.Combine(outDir, baseName + $"_battle_{camX}_{camY}_altitude.png"));

@@ -132,7 +132,7 @@ public class CreateBattleTurnQueueHandlerTests : GameSqlServerTestBase
         // Setup the Game
         await SetupGameVariablesAsync(mapWidth: 2, mapHeight: 2);
 
-        SetupGameRequest request = new(GalleryMapId: _galleryIndexId, GameName: "Queue Test Game", NumberOfPlayers: 2);
+        SetupGameRequest request = new(GalleryMapId: _galleryIndexId, GameName: "Queue Test Game", NumberOfPlayers: 2, BattleMapSize: 50, GenerationSeed: null);
 
         ServiceResultBase.ServiceResult<int> result = await _service.SetupGameAsync(request, CancellationToken.None);
 
@@ -156,7 +156,7 @@ public class CreateBattleTurnQueueHandlerTests : GameSqlServerTestBase
     {
         await SetupGameVariablesAsync(mapWidth: 2, mapHeight: 2);
 
-        SetupGameRequest setupRequest = new(GalleryMapId: _galleryIndexId, GameName: "Queue Test Game", NumberOfPlayers: 2);
+        SetupGameRequest setupRequest = new(GalleryMapId: _galleryIndexId, GameName: "Queue Test Game", NumberOfPlayers: 2, BattleMapSize: 50, GenerationSeed: null);
 
         ServiceResultBase.ServiceResult<int> setupResult = await _service.SetupGameAsync(setupRequest, CancellationToken.None);
 
@@ -246,7 +246,7 @@ public class CreateBattleTurnQueueHandlerTests : GameSqlServerTestBase
         // Setup the Game
         await SetupGameVariablesAsync(mapWidth: 2, mapHeight: 2);
 
-        SetupGameRequest request = new(GalleryMapId: _galleryIndexId, GameName: "Queue Test Game", NumberOfPlayers: 2);
+        SetupGameRequest request = new(GalleryMapId: _galleryIndexId, GameName: "Queue Test Game", NumberOfPlayers: 2, BattleMapSize: 50, GenerationSeed: null);
 
         ServiceResultBase.ServiceResult<int> result = await _service.SetupGameAsync(request, CancellationToken.None);
 

@@ -191,7 +191,9 @@ public class GameSqlServerTestBase : SqlServerTestBase
             PlayStatus = GamePlayStatus.SetupInProgress,
             CreatedAt = DateTimeOffset.UtcNow,
             HorizontalWrap = false,
-            VerticalWrap = false
+            VerticalWrap = false,
+            GenerationSeed = 0,
+            BattleMapSize = 50,
         };
         ctx.GameIndex.Add(game);
         await ctx.SaveChangesAsync();

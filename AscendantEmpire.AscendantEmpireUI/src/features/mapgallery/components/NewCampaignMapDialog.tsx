@@ -41,8 +41,6 @@ interface PerlinSettings {
   waterRatio: number;
   /** 0–60. Controls what percentage of land tiles become hills or mountains. */
   hillAndMountainRatio: number;
-  /** Width = Height of each battle map generated for this campaign map. Minimum 10. */
-  battleMapSize: number;
   /** Leave blank to have the generator pick a random seed. */
   seed: string;
   /** Adds polar ice/tundra at the top and bottom rows. */
@@ -79,7 +77,6 @@ const defaultForm: FormState = {
   perlin: {
     waterRatio: 55,
     hillAndMountainRatio: 25,
-    battleMapSize: 50,
     seed: "",
     poles: true,
     equator: false,
@@ -119,7 +116,6 @@ function buildParameters(form: FormState): Record<string, string> {
   const params: Record<string, string> = {
     waterRatio: String(p.waterRatio),
     hillAndMountainRatio: String(p.hillAndMountainRatio),
-    battleMapSize: String(p.battleMapSize),
     poles: String(p.poles),
     equator: String(p.equator),
     // Keys must match what AddCampaignMapHandler reads (HorizontalWrap / VerticalWrap).
@@ -258,7 +254,6 @@ export default function NewCampaignMapDialog({ show, onClose, onSaveSuccess }: N
     if (form.engine === 1) {
       if (form.perlin.waterRatio < 0 || form.perlin.waterRatio > 90) e.waterRatio = "Water ratio must be 0–90.";
       if (form.perlin.hillAndMountainRatio < 0 || form.perlin.hillAndMountainRatio > 60) e.hillRatio = "Hill & mountain ratio must be 0–60.";
-      if (form.perlin.battleMapSize < 10) e.battleMapSize = "Battle map size must be at least 10.";
       if (form.perlin.seed.trim() !== "" && isNaN(Number(form.perlin.seed.trim()))) {
         e.seed = "Seed must be a number, or leave blank for a random seed.";
       }
@@ -376,13 +371,6 @@ export default function NewCampaignMapDialog({ show, onClose, onSaveSuccess }: N
         <div className="flex items-center gap-3">
           <NumberInput value={form.perlin.hillAndMountainRatio} onChange={(v) => setPerlin("hillAndMountainRatio", v)} min={0} max={60} suffix="%" />
           <span className="text-xs text-slate-500">Percentage of land tiles that become hilly or mountainous (0–60)</span>
-        </div>
-      </FieldRow>
-
-      <FieldRow label="Battle Map Size" error={errors.battleMapSize}>
-        <div className="flex items-center gap-3">
-          <NumberInput value={form.perlin.battleMapSize} onChange={(v) => setPerlin("battleMapSize", v)} min={10} suffix="tiles" />
-          <span className="text-xs text-slate-500">Width &amp; height of battle maps generated on demand (min 10)</span>
         </div>
       </FieldRow>
 

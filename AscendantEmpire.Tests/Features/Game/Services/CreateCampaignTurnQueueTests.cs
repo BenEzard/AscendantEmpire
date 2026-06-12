@@ -37,7 +37,7 @@ public class CreateCampaignTurnQueueTests : GameSqlServerTestBase
     [Test]
     public async Task ShouldCreateCampaignTurnQueueSuccesfullyAsync()
     {
-        SetupGameRequest request = new(GalleryMapId: _galleryIndexId, GameName: "Queue Test Game", NumberOfPlayers: _numberOfPlayers);
+        SetupGameRequest request = new(GalleryMapId: _galleryIndexId, GameName: "Queue Test Game", NumberOfPlayers: _numberOfPlayers, BattleMapSize: 50, GenerationSeed: null);
 
         ServiceResultBase.ServiceResult<int> result = await _service.SetupGameAsync(request, CancellationToken.None);
 
@@ -83,7 +83,7 @@ public class CreateCampaignTurnQueueTests : GameSqlServerTestBase
     [Test]
     public async Task SuccessfulGameSetupShouldStartTheTurnAsync()
     {
-        SetupGameRequest request = new(GalleryMapId: _galleryIndexId, GameName: "Queue Times Test", NumberOfPlayers: _numberOfPlayers);
+        SetupGameRequest request = new(GalleryMapId: _galleryIndexId, GameName: "Queue Times Test", NumberOfPlayers: _numberOfPlayers, BattleMapSize: 50, GenerationSeed: null);
 
         ServiceResultBase.ServiceResult<int> result = await _service.SetupGameAsync(request, CancellationToken.None);
 
@@ -111,7 +111,7 @@ public class CreateCampaignTurnQueueTests : GameSqlServerTestBase
     [Test]
     public async Task ShouldWireFirstParticipantToPlayerCorrectlyAsync()
     {
-        SetupGameRequest request = new(GalleryMapId: _galleryIndexId, GameName: "First Player Test", NumberOfPlayers: _numberOfPlayers);
+        SetupGameRequest request = new(GalleryMapId: _galleryIndexId, GameName: "First Player Test", NumberOfPlayers: _numberOfPlayers, BattleMapSize: 50, GenerationSeed: null);
 
         ServiceResultBase.ServiceResult<int> result = await _service.SetupGameAsync(request, CancellationToken.None);
 

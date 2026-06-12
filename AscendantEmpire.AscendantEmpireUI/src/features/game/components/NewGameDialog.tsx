@@ -17,24 +17,32 @@ interface SetupGameRequest {
   mapId: number;
   gameName: string;
   numberOfPlayers: number;
+  battleMapSize: number;
+  generationSeed?: number;
 }
 
 export default function NewGameDialog({ show, onClose, onCreateSuccess }: NewGameDialogProps) {
   const [activeSection, setActiveSection] = useState<SectionKey>("general");
   const [gameName, setGameName] = useState("");
   const [numberOfPlayers, setNumberOfPlayers] = useState(2);
+  const [battleMapSize, setBattleMapSize] = useState(50);
+  const [generationSeed, setGenerationSeed] = useState("");
   const [mapFilter, setMapFilter] = useState("");
   const [selectedMapId, setSelectedMapId] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [seedError, setSeedError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!show) return;
     setActiveSection("general");
     setGameName("");
     setNumberOfPlayers(2);
+    setBattleMapSize(50);
+    setGenerationSeed("");
     setMapFilter("");
     setSelectedMapId(null);
     setErrorMessage(null);
+    setSeedError(null);
   }, [show]);
 
   const {
@@ -62,7 +70,9 @@ export default function NewGameDialog({ show, onClose, onCreateSuccess }: NewGam
     [indexes, selectedMapId],
   );
 
-  const canCreate = gameName.trim().length > 0 && selectedMapId != null;
+  const isSeedValid = generationSeed.trim() === "" || !isNaN(Number(generationSeed.trim()));
+  const isBattleMapSizeValid = battleMapSize >= 30 && battleMapSize <= 60;
+  const canCreate = gameName.trim().length > 0 && selectedMapId != null && isBattleMapSizeValid && isSeedValid;
 
   const createMutation = useMutation({
     mutationFn: (payload: SetupGameRequest) => http.post("/games/setup", payload),
@@ -70,9 +80,16 @@ export default function NewGameDialog({ show, onClose, onCreateSuccess }: NewGam
 
   const handleCreate = () => {
     if (!canCreate || selectedMapId == null) return;
+    // Validate seed before submitting.
+    if (!isSeedValid) {
+      setSeedError("Seed must be a number, or leave blank for a random seed.");
+      return;
+    }
+    setSeedError(null);
     setErrorMessage(null);
+    const parsedSeed = generationSeed.trim() !== "" ? Number(generationSeed.trim()) : undefined;
     createMutation.mutate(
-      { mapId: selectedMapId, gameName: gameName.trim(), numberOfPlayers },
+      { mapId: selectedMapId, gameName: gameName.trim(), numberOfPlayers, battleMapSize, generationSeed: parsedSeed },
       {
         onSuccess: () => {
           onCreateSuccess(`Game "${gameName.trim()}" created successfully.`);
@@ -154,6 +171,49 @@ export default function NewGameDialog({ show, onClose, onCreateSuccess }: NewGam
                     <span>7</span>
                     <span>8</span>
                   </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-12 items-center gap-2">
+                <label className="col-span-4 text-sm text-slate-700">Battle Map Size</label>
+                <div className="col-span-8">
+                  <div className="flex items-center gap-3">
+                    <input
+                      className="w-24 rounded-md border border-slate-300 px-2 py-2 text-sm"
+                      type="number"
+                      min={30}
+                      max={60}
+                      step={1}
+                      value={battleMapSize}
+                      onChange={(e) => {
+                        const parsed = parseInt(e.target.value, 10);
+                        if (!isNaN(parsed)) setBattleMapSize(parsed);
+                      }}
+                    />
+                    <span className="text-xs text-slate-500">tiles — width &amp; height of battle maps for this game (30–60)</span>
+                  </div>
+                  {!isBattleMapSizeValid && (
+                    <div className="mt-1 text-xs text-[var(--bs-danger)]">Battle map size must be between 30 and 60.</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-12 items-center gap-2">
+                <label className="col-span-4 text-sm text-slate-700">Seed</label>
+                <div className="col-span-8">
+                  <div className="flex items-center gap-3">
+                    <input
+                      className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
+                      value={generationSeed}
+                      onChange={(e) => {
+                        setGenerationSeed(e.target.value);
+                        setSeedError(null);
+                      }}
+                      placeholder="(random)"
+                    />
+                    <span className="text-xs text-slate-500 whitespace-nowrap">Leave blank for a random seed</span>
+                  </div>
+                  {seedError && <div className="mt-1 text-xs text-[var(--bs-danger)]">{seedError}</div>}
                 </div>
               </div>
             </div>

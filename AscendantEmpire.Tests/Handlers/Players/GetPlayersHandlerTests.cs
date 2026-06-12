@@ -217,7 +217,9 @@ internal class GetPlayersHandlerTests
                 NumberOfPlayers = players.Count(p => p.GameId == gameId),
                 CreatedAt = DateTimeOffset.UtcNow,
                 CreationStatus = GameCreationStatus.SetupComplete,
-                PlayStatus = GamePlayStatus.InProgress
+                PlayStatus = GamePlayStatus.InProgress,
+                GenerationSeed = 0,
+                BattleMapSize = 50,
             });
         }
 
