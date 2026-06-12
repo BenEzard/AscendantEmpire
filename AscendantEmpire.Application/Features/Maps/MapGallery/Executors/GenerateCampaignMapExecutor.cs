@@ -4,7 +4,6 @@ using AscendantEmpire.Application.BackgroundServices;
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Handlers;
-using AscendantEmpire.Application.Options;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
@@ -13,7 +12,6 @@ using AscendantEmpire.Domain.Enums.Processing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
@@ -29,7 +27,6 @@ namespace AscendantEmpire.Application.Features.Maps.MapGallery.Executors;
 internal sealed class GenerateCampaignMapExecutor(
     AscendantEmpireContext context,
     IServiceScopeFactory scopeFactory,
-    IOptions<MapGenerationSettings> mapGenOptions,
     ILogger<GenerateCampaignMapExecutor> logger
 ) : IProcessExecutor
 {
@@ -68,7 +65,7 @@ internal sealed class GenerateCampaignMapExecutor(
             ICampaignMapGenerator generator = index.CreationEngine switch
             {
                 MapCreationEngine.BlankMap => new GenerateBlankCampaignMap(scopeFactory),
-                MapCreationEngine.PerlinNoiseV1 => new GeneratePerlinNoiseCampaignMap(scopeFactory, mapGenOptions),
+                MapCreationEngine.PerlinNoiseV1 => new GeneratePerlinNoiseCampaignMap(scopeFactory),
                 _ => throw new InvalidOperationException($"Unsupported creation engine '{index.CreationEngine}'.")
             };
 

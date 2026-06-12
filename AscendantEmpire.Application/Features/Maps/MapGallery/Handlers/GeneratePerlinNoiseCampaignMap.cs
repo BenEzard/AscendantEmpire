@@ -5,13 +5,13 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.MapGeneration;
 using AscendantEmpire.Application.MapGeneration.Noise;
-using AscendantEmpire.Application.Options;
 using AscendantEmpire.Domain.Enums.Maps;
+
+using MediatR;
 
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
@@ -19,38 +19,36 @@ namespace AscendantEmpire.Application.Features.Maps.MapGallery.Handlers;
 
 /// <summary>
 /// Generates a campaign map using multi-octave Perlin noise with domain warping.
-///
-/// The full pipeline:
-///   1. Parse generation parameters from PropertiesJson on the CampaignMapGalleryIndex.
-///   2. Build a heightmap using domain-warped fBm Perlin noise.
-///   3. Classify each tile's geography (Flat / Hilly / Mountainous / ShallowWater / DeepWater).
-///   4. Assign a biome to each tile using temperature + moisture noise (Whittaker model).
-///   5. Bulk-insert all tiles into mapgallery.CampaignMapGallery via SqlBulkCopy.
-///   6. Render geography and biome preview PNGs; store their paths on the index record.
-///   7. Write the resolved seed back to PropertiesJson so the map can be reproduced.
 /// </summary>
-internal sealed class GeneratePerlinNoiseCampaignMap(
-    IServiceScopeFactory              scopeFactory,
-    IOptions<MapGenerationSettings>   mapGenOptions
-) : ICampaignMapGenerator
+/// <remarks>
+/// The full pipeline:
+/// <list type="number">
+/// <item>Parse generation parameters from PropertiesJson on the CampaignMapGalleryIndex.</item>
+/// <item>Build a heightmap using domain-warped fBm Perlin noise.</item>
+/// <item>Classify each tile's geography (Flat / Hilly / Mountainous / ShallowWater / DeepWater).</item>
+/// <item>Assign a biome to each tile using temperature + moisture noise (Whittaker model).</item>
+/// <item>Bulk-insert all tiles into mapgallery.CampaignMapGallery via SqlBulkCopy.</item>
+/// <item>Enqueue a background job to render the geography/biome preview PNGs.</item>
+/// <item>Write the resolved seed back to PropertiesJson so the map can be reproduced.</item>
+/// </list>
+/// </remarks>
+internal sealed class GeneratePerlinNoiseCampaignMap(IServiceScopeFactory scopeFactory) : ICampaignMapGenerator
 {
     // Parsed parameter fields — populated by ValidateRequestProperties before Generate is called.
-    private long   _seed;
-    private int    _waterRatio;
-    private int    _hillAndMountainRatio;
-    private bool   _poles;
-    private bool   _equator;
-    private int    _battleMapSize;
+    private long _seed;
+    private int _waterRatio;
+    private int _hillAndMountainRatio;
+    private bool _poles;
+    private bool _equator;
+    private int _battleMapSize;
 
     // ──────────────────────────────────────────────────────────────────────────
     // Validation
     // ──────────────────────────────────────────────────────────────────────────
 
-    public ServiceResultBase ValidateRequestProperties(
-        Domain.Entities.Maps.CampaignMaps.CampaignMapGalleryIndex index)
+    public ServiceResultBase ValidateRequestProperties(Domain.Entities.Maps.CampaignMaps.CampaignMapGalleryIndex index)
     {
-        Dictionary<string, string>? props =
-            JsonSerializer.Deserialize<Dictionary<string, string>>(index.PropertiesJson);
+        Dictionary<string, string>? props = JsonSerializer.Deserialize<Dictionary<string, string>>(index.PropertiesJson);
 
         if (props is null)
         {
@@ -98,18 +96,18 @@ internal sealed class GeneratePerlinNoiseCampaignMap(
 
         // ── Build the heightmap ─────────────────────────────────────────────
         // Each noise instance uses a distinct seed to ensure uncorrelated fields.
-        var terrainNoise  = new PerlinNoise(_seed);
-        var warpNoise     = new PerlinNoise(_seed ^ unchecked((long)0x9E3779B97F4A7C15UL));
-        var ridgeNoise    = new PerlinNoise(_seed ^ unchecked((long)0x6C62272E07BB0142UL));
-        var tempNoise     = new PerlinNoise(_seed ^ unchecked((long)0xD2A98B26625EEE7BUL));
+        var terrainNoise = new PerlinNoise(_seed);
+        var warpNoise = new PerlinNoise(_seed ^ unchecked((long)0x9E3779B97F4A7C15UL));
+        var ridgeNoise = new PerlinNoise(_seed ^ unchecked((long)0x6C62272E07BB0142UL));
+        var tempNoise = new PerlinNoise(_seed ^ unchecked((long)0xD2A98B26625EEE7BUL));
         var moistureNoise = new PerlinNoise(_seed ^ unchecked((long)0xA3B195354A3937F2UL));
 
         var terrainFbm = new FractalBrownianMotion(terrainNoise)
         {
-            Octaves     = 7,
+            Octaves = 7,
             Persistence = 0.5,
-            Lacunarity  = 2.0,
-            Scale       = 3.0 / Math.Max(width, height),
+            Lacunarity = 2.0,
+            Scale = 3.0 / Math.Max(width, height),
         };
 
         var domainWarped = new DomainWarpedNoise(terrainFbm, warpNoise, doubleWarp: true)
@@ -119,10 +117,10 @@ internal sealed class GeneratePerlinNoiseCampaignMap(
 
         var ridgeFbm = new RidgedNoise(ridgeNoise)
         {
-            Octaves    = 5,
+            Octaves = 5,
             Lacunarity = 2.0,
-            Gain       = 2.0,
-            Scale      = 1.5 / Math.Max(width, height),
+            Gain = 2.0,
+            Scale = 1.5 / Math.Max(width, height),
         };
 
         double[] heightmap = new double[width * height];
@@ -140,21 +138,28 @@ internal sealed class GeneratePerlinNoiseCampaignMap(
 
         // Normalise to [0, 1].
         double range = max - min;
-        if (range < 1e-10) { range = 1; }
-        for (int i = 0; i < heightmap.Length; i++) { heightmap[i] = (heightmap[i] - min) / range; }
+        if (range < 1e-10) 
+        { 
+            range = 1; 
+        }
+        
+        for (int i = 0; i < heightmap.Length; i++) 
+        { 
+            heightmap[i] = (heightmap[i] - min) / range; 
+        }
 
         // ── Geography classification ────────────────────────────────────────
         var geoSettings = new GeographySettings
         {
-            WaterRatio              = _waterRatio,
-            HillAndMountainRatio    = _hillAndMountainRatio,
-            Poles                   = _poles,
-            ShallowDepth            = 3,
-            PolarReach              = 0.30,
-            PolarDepth              = 0.60,
+            WaterRatio = _waterRatio,
+            HillAndMountainRatio = _hillAndMountainRatio,
+            Poles = _poles,
+            ShallowDepth = 3,
+            PolarReach = 0.30,
+            PolarDepth = 0.60,
             RidgeInfluenceThreshold = 0.55,
-            RidgeStrength           = 0.60,
-            HarbourChance           = 0.08,
+            RidgeStrength = 0.60,
+            HarbourChance = 0.08,
         };
 
         var geoGenerator = new GeographyGenerator(geoSettings);
@@ -163,15 +168,14 @@ internal sealed class GeneratePerlinNoiseCampaignMap(
         // ── Biome assignment ────────────────────────────────────────────────
         var biomeSettings = new BiomeSettings
         {
-            Equator                = _equator,
+            Equator = _equator,
             TemperatureNoiseWeight = 0.35,
-            ClusteringPasses       = 2,
-            ClusteringThreshold    = 0.60,
+            ClusteringPasses = 2,
+            ClusteringThreshold = 0.60,
         };
 
         var biomeGenerator = new BiomeGenerator(biomeSettings);
-        BiomeType[] biomes = biomeGenerator.Generate(
-            geography, width, height, tempNoise, moistureNoise, geoOut: geography);
+        BiomeType[] biomes = biomeGenerator.Generate(geography, width, height, tempNoise, moistureNoise, geoOut: geography);
 
         // ── Bulk insert ─────────────────────────────────────────────────────
         using IServiceScope scope = scopeFactory.CreateScope();
@@ -182,21 +186,19 @@ internal sealed class GeneratePerlinNoiseCampaignMap(
 
         await BulkInsertTilesAsync(context, index.Id, startId, width, height, geography, biomes);
 
-        // ── Render preview PNGs ─────────────────────────────────────────────
-        // Best-effort — if rendering fails the paths stay null, generation still succeeds.
-        (index.GeographyMapPath, index.BiomeMapPath) = MapPreviewRenderer.Render(
-            geography, biomes, width, height,
-            mapGenOptions.Value.OutputDirectory,
-            index.Id);
+        // ── Enqueue preview render ──────────────────────────────────────────
+        // Rendering is now a separate background job so the same path can be reused when a map is
+        // edited. The job reloads the tiles we just inserted and writes GeographyMapPath/BiomeMapPath
+        // back onto the index once it completes; until then those paths stay null.
+        IMediator mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        await mediator.Send(new InitiateMapPreviewRenderRequest(index.Id));
 
         // ── Write resolved seed back to PropertiesJson ──────────────────────
-        var props = JsonSerializer.Deserialize<Dictionary<string, string>>(index.PropertiesJson)
-                    ?? new Dictionary<string, string>();
+        var props = JsonSerializer.Deserialize<Dictionary<string, string>>(index.PropertiesJson) ?? new Dictionary<string, string>();
         props["seed"] = _seed.ToString();
         index.PropertiesJson = JsonSerializer.Serialize(props);
 
-        // index is tracked by the outer GenerateCampaignMapExecutor context, so
-        // GeographyMapPath, BiomeMapPath, and PropertiesJson are all saved there.
+        // index is tracked by the outer GenerateCampaignMapExecutor context, so PropertiesJson is saved there.
 
         return ServiceResult<int>.Succeed(startId);
     }
@@ -230,21 +232,21 @@ internal sealed class GeneratePerlinNoiseCampaignMap(
     /// Tiles are ordered by (Y, X) to match the row-number convention used elsewhere.
     /// </summary>
     private static async Task BulkInsertTilesAsync(
-        AscendantEmpireContext      context,
-        int                         indexId,
-        int                         startId,
-        int                         width,
-        int                         height,
-        CampaignMapGeographyType[]  geography,
-        BiomeType[]                 biomes)
+        AscendantEmpireContext context,
+        int indexId,
+        int startId,
+        int width,
+        int height,
+        CampaignMapGeographyType[] geography,
+        BiomeType[] biomes)
     {
         // Build an in-memory DataTable matching the CampaignMapGallery schema.
         var table = new DataTable();
-        table.Columns.Add("CampaignMapGalleryId",       typeof(int));
-        table.Columns.Add("CampaignMapGalleryIndexId",  typeof(int));
-        table.Columns.Add("XCoord",                     typeof(int));
-        table.Columns.Add("YCoord",                     typeof(int));
-        table.Columns.Add("BiomeTypeId",                typeof(int));
+        table.Columns.Add("CampaignMapGalleryId", typeof(int));
+        table.Columns.Add("CampaignMapGalleryIndexId", typeof(int));
+        table.Columns.Add("XCoord", typeof(int));
+        table.Columns.Add("YCoord", typeof(int));
+        table.Columns.Add("BiomeTypeId", typeof(int));
         table.Columns.Add("CampaignMapGeographyTypeId", typeof(int));
 
         int id = startId;
@@ -272,16 +274,16 @@ internal sealed class GeneratePerlinNoiseCampaignMap(
         using var bulkCopy = new SqlBulkCopy(conn, SqlBulkCopyOptions.TableLock, null)
         {
             DestinationTableName = "[mapgallery].[CampaignMapGallery]",
-            BatchSize            = 10_000,
+            BatchSize = 10_000,
         };
 
         // Map DataTable column names to destination table column names.
-        bulkCopy.ColumnMappings.Add("CampaignMapGalleryId",       "CampaignMapGalleryId");
-        bulkCopy.ColumnMappings.Add("CampaignMapGalleryIndexId",  "CampaignMapGalleryIndexId");
-        bulkCopy.ColumnMappings.Add("XCoord",                     "XCoord");
-        bulkCopy.ColumnMappings.Add("YCoord",                     "YCoord");
-        bulkCopy.ColumnMappings.Add("BiomeTypeId",                "BiomeTypeId");
-        bulkCopy.ColumnMappings.Add("CampaignMapGeographyTypeId", "CampaignMapGeographyTypeId");
+        bulkCopy.ColumnMappings.Add(sourceColumn: "CampaignMapGalleryId", destinationColumn: "CampaignMapGalleryId");
+        bulkCopy.ColumnMappings.Add(sourceColumn: "CampaignMapGalleryIndexId", destinationColumn: "CampaignMapGalleryIndexId");
+        bulkCopy.ColumnMappings.Add(sourceColumn: "XCoord", destinationColumn: "XCoord");
+        bulkCopy.ColumnMappings.Add(sourceColumn: "YCoord", destinationColumn: "YCoord");
+        bulkCopy.ColumnMappings.Add(sourceColumn: "BiomeTypeId", destinationColumn: "BiomeTypeId");
+        bulkCopy.ColumnMappings.Add(sourceColumn: "CampaignMapGeographyTypeId", destinationColumn: "CampaignMapGeographyTypeId");
 
         await bulkCopy.WriteToServerAsync(table);
     }

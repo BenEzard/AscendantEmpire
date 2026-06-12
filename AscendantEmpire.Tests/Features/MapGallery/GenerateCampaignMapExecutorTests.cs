@@ -1,6 +1,5 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Executors;
-using AscendantEmpire.Application.Options;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
@@ -9,7 +8,6 @@ using AscendantEmpire.Domain.Enums.Processing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 
 namespace AscendantEmpire.Tests.Features.MapGallery;
 
@@ -117,7 +115,6 @@ internal sealed class GenerateCampaignMapExecutorTests : SqlServerTestBase
         return new GenerateCampaignMapExecutor(
             context,
             _provider.GetRequiredService<IServiceScopeFactory>(),
-            Options.Create(new MapGenerationSettings()),
             new NullLogger<GenerateCampaignMapExecutor>());
     }
 
