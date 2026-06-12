@@ -21,6 +21,15 @@ public class CampaignMapGalleryIndex
     public int Width { get; set; }
     public int Height { get; set; }
     public MapCreationStatus CreationStatus { get; set; }
+
+    /// <summary>
+    /// Generation progress as a percentage (0–100), updated by the background processing pipeline while the map is being created.
+    /// </summary>
+    /// <remarks>
+    /// Drives the progress dialog the UI shows after queueing a new map.
+    /// </remarks>
+    public byte ProgressPercent { get; set; }
+
     public MapCreationEngine CreationEngine { get; set; }
     public required string Status { get; set; }
     public string? ErrorMessage { get; set; }

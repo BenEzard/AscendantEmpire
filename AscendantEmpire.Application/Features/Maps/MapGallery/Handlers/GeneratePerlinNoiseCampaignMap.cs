@@ -195,7 +195,7 @@ internal sealed class GeneratePerlinNoiseCampaignMap(
         props["seed"] = _seed.ToString();
         index.PropertiesJson = JsonSerializer.Serialize(props);
 
-        // index is tracked by the outer CreateCampaignMapHandler context, so
+        // index is tracked by the outer GenerateCampaignMapExecutor context, so
         // GeographyMapPath, BiomeMapPath, and PropertiesJson are all saved there.
 
         return ServiceResult<int>.Succeed(startId);

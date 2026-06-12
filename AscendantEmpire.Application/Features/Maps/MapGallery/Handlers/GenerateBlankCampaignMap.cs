@@ -36,7 +36,7 @@ DECLARE @StartId int =
 
 ;WITH dims AS (
     SELECT Id, Width, Height
-    FROM [mapgallery].[CampaignMapIndex]
+    FROM [mapgallery].[CampaignMapGalleryIndex]
     WHERE Id = @IndexId
 ),
 x AS (SELECT n.Id AS X FROM util.Numbers n JOIN dims d ON n.Id < d.Width),

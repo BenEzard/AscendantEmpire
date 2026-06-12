@@ -1,5 +1,6 @@
 ﻿using AscendantEmpire.Application.BackgroundServices;
 using AscendantEmpire.Application.Features.Game.Services;
+using AscendantEmpire.Application.Features.Maps.MapGallery.Executors;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
 using AscendantEmpire.Application.Features.TroopOrders.Movement;
 using AscendantEmpire.Application.Features.Turns.Services;
@@ -28,11 +29,14 @@ public static class MediatrStartup
         services.AddScoped<IPossibleActionCheck, ResearchSelectionCheck>();
         services.AddScoped<IPossibleActionCheck, TradeExpiryCheck>();
 
-        // Map export background service and its in-process channel.
-        // The channel is singleton so the same instance is shared between
-        // the handler that writes to it and the BackgroundService that reads from it.
-        services.AddSingleton<IMapExportChannel, MapExportChannel>();
-        services.AddHostedService<MapExportBackgroundService>();
+        // Generic background processing pipeline.
+        // The channel is singleton so the same instance is shared between the handlers
+        // that enqueue jobs and the dispatcher BackgroundService that drains them.
+        // Each ProcessType is handled by an IProcessExecutor resolved per-job from a fresh scope.
+        services.AddSingleton<IBackgroundProcessingChannel, BackgroundProcessingChannel>();
+        services.AddHostedService<BackgroundProcessingService>();
+        services.AddScoped<IProcessExecutor, MapExportExecutor>();
+        services.AddScoped<IProcessExecutor, GenerateCampaignMapExecutor>();
 
         return services;
     }

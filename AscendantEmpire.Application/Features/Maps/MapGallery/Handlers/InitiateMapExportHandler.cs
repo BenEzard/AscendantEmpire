@@ -1,5 +1,5 @@
+using AscendantEmpire.Application.BackgroundServices;
 using AscendantEmpire.Application.Data;
-using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Enums.Processing;
 
@@ -16,14 +16,16 @@ namespace AscendantEmpire.Application.Features.Maps.MapGallery.Handlers;
 
 /// <summary>
 /// Creates a <see cref="Processing"/> record and enqueues the job for background processing.
-/// Returns the new <c>ProcessingId</c> so the caller can poll for status.
 /// </summary>
+/// <remarks>
+/// Returns the new <c>ProcessingId</c> so the caller can poll for status.
+/// </remarks>
 public record InitiateMapExportRequest(int MapGalleryIndexId) : IRequest<ServiceResult<int>>;
 
 internal class InitiateMapExportHandler(
     ILogger<InitiateMapExportHandler> logger,
     AscendantEmpireContext context,
-    IMapExportChannel exportChannel
+    IBackgroundProcessingChannel processingChannel
 ) : IRequestHandler<InitiateMapExportRequest, ServiceResult<int>>
 {
     public async Task<ServiceResult<int>> Handle(
@@ -59,7 +61,7 @@ internal class InitiateMapExportHandler(
             await context.SaveChangesAsync(cancellationToken);
 
             // Enqueue the job. The background service will update the record to InProgress.
-            await exportChannel.Writer.WriteAsync(processing.ProcessingId, cancellationToken);
+            await processingChannel.Writer.WriteAsync(processing.ProcessingId, cancellationToken);
 
             logger.LogInformation("Map export job enqueued. ProcessingId: {ProcessingId}, MapGalleryIndexId: {MapId}", processing.ProcessingId, request.MapGalleryIndexId);
 

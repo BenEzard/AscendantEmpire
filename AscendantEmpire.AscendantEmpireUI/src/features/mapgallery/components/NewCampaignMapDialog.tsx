@@ -101,7 +101,11 @@ interface AddCampaignMapRequest {
 export interface NewCampaignMapDialogProps {
   show: boolean;
   onClose: () => void;
-  onSaveSuccess: (message?: string) => void;
+  /**
+   * Fired after the map is queued. Carries the processId so the parent can open a
+   * progress dialog and poll generation status, plus the map name for the dialog title.
+   */
+  onSaveSuccess: (result: { processingId: number; mapName: string }) => void;
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -267,15 +271,21 @@ export default function NewCampaignMapDialog({ show, onClose, onSaveSuccess }: N
 
   const saveMutation = useMutation({
     mutationFn: async (request: AddCampaignMapRequest) => {
-      const response = await axios.post("https://localhost:7242/map-gallery/add-campaign-map", request, {
-        headers: { "Content-Type": "application/json" },
-      });
+      // Backend returns 201 with { galleryIndexId, processingId }.
+      const response = await axios.post<{ galleryIndexId: number; processingId: number }>(
+        "https://localhost:7242/map-gallery/add-campaign-map",
+        request,
+        {
+          headers: { "Content-Type": "application/json" },
+        },
+      );
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       setShowErrorToast(false);
       onClose();
-      onSaveSuccess("Campaign map queued for generation.");
+      // Hand the processId up so the parent can open the generation progress dialog.
+      onSaveSuccess({ processingId: data.processingId, mapName: form.mapName.trim() });
     },
     onError: (error: unknown) => {
       let items: string[] = ["An unknown error occurred."];

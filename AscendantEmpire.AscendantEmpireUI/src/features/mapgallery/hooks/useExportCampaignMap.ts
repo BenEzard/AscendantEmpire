@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import {
-  getMapExportDownload,
-  getProcessingStatus,
-  postInitiateMapExport,
-  type ProcessingStatusDto,
-} from "../api/exportCampaignMapApi";
+import { useMutation } from "@tanstack/react-query";
+import { getMapExportDownload, postInitiateMapExport } from "../api/exportCampaignMapApi";
+import { useProcessStatus } from "@/features/processing/hooks/useProcessStatus";
 
 export type ExportPhase =
   | { phase: "idle" }
@@ -28,13 +24,10 @@ export interface UseExportCampaignMapResult {
 }
 
 const IDLE: ExportPhase = { phase: "idle" };
-const PROCESSING_STATUS = {
-  COMPLETE: 2,
-  FAILED: 3,
-} as const;
 
 export function useExportCampaignMap(): UseExportCampaignMapResult {
   const [exportPhase, setExportPhase] = useState<ExportPhase>(IDLE);
+  // Held in local state so it persists through the download phase (when polling has stopped).
   const [progressPercent, setProgressPercent] = useState(0);
 
   // Keep the map gallery ID stable across async callbacks without causing re-renders.
@@ -52,20 +45,16 @@ export function useExportCampaignMap(): UseExportCampaignMapResult {
     },
   });
 
-  // --- GET /system/status?processId={n} polling ---
+  // --- Generic status polling (only while in the polling phase) ---
   const pollingProcessId = exportPhase.phase === "polling" ? exportPhase.processId : null;
+  const poll = useProcessStatus(pollingProcessId);
 
-  const statusQuery = useQuery<ProcessingStatusDto>({
-    queryKey: ["system/status", pollingProcessId],
-    queryFn: ({ signal }) => getProcessingStatus(pollingProcessId!, signal),
-    enabled: pollingProcessId !== null,
-    // Stop polling automatically once the job has reached a terminal state.
-    refetchInterval: (query) => {
-      const status = query.state.data?.status ?? 0;
-      return status >= PROCESSING_STATUS.COMPLETE ? false : 2000;
-    },
-    refetchIntervalInBackground: true,
-  });
+  // Mirror polling progress into local state so it survives the download phase.
+  useEffect(() => {
+    if (exportPhase.phase === "polling") {
+      setProgressPercent(poll.progressPercent);
+    }
+  }, [poll.progressPercent, exportPhase.phase]);
 
   // --- Trigger file download ---
   const triggerDownload = useCallback(async (mapId: number, processId: number) => {
@@ -86,39 +75,26 @@ export function useExportCampaignMap(): UseExportCampaignMapResult {
     }
   }, []);
 
-  // --- React to polling data (TanStack Query v5 — no onSuccess on useQuery) ---
+  // --- React to the generic poll reaching a terminal state ---
   useEffect(() => {
-    const data = statusQuery.data;
-    if (!data || exportPhase.phase !== "polling") {
+    if (exportPhase.phase !== "polling") {
       return;
     }
 
-    setProgressPercent(data.progressPercent);
-
-    if (data.status === PROCESSING_STATUS.COMPLETE) {
+    if (poll.phase === "done") {
       const mapId = mapGalleryIdRef.current;
       if (mapId === null) {
         return;
       }
-      setExportPhase({ phase: "downloading", processId: data.processingId });
-      void triggerDownload(mapId, data.processingId);
-    } else if (data.status === PROCESSING_STATUS.FAILED) {
+      setExportPhase({ phase: "downloading", processId: exportPhase.processId });
+      void triggerDownload(mapId, exportPhase.processId);
+    } else if (poll.phase === "error") {
       setExportPhase({
         phase: "error",
-        message: data.errorMessage ?? "Export failed on the server.",
+        message: poll.errorMessage ?? "Export failed on the server.",
       });
     }
-  }, [statusQuery.data]);
-
-  // React to polling errors.
-  useEffect(() => {
-    if (!statusQuery.error || exportPhase.phase !== "polling") {
-      return;
-    }
-    const message =
-      statusQuery.error instanceof Error ? statusQuery.error.message : "Failed to check export status.";
-    setExportPhase({ phase: "error", message });
-  }, [statusQuery.error]);
+  }, [poll.phase, poll.errorMessage, exportPhase, triggerDownload]);
 
   const startExport = useCallback((mapGalleryId: number) => {
     mapGalleryIdRef.current = mapGalleryId;

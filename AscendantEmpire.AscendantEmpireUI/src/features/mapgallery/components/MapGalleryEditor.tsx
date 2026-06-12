@@ -5,6 +5,7 @@ import { Alert, Button, Modal, Spinner, Toast, ToastViewport } from "@/component
 import type { Geography } from "../../../types/map/Geography";
 import NewCampaignMapDialog from "./NewCampaignMapDialog";
 import OpenCampaignMapDialog, { type CampaignMapGalleryIndex } from "./OpenCampaignMapDialog";
+import ProcessProgressDialog from "@/features/processing/components/ProcessProgressDialog";
 import { useCampaignMapBiomesQuery } from "../hooks/useCampaignMapBiomes";
 import BiomeManagerDialog from "./BiomeManagerDialog";
 import GeographyManagerDialog from "./GeographyManagerDialog";
@@ -79,6 +80,9 @@ function MapGalleryEditor() {
 
   // "Open map" selection
   const [openMapIndex, setOpenMapIndex] = useState<CampaignMapGalleryIndex | null>(null);
+
+  // Generation progress: set after a new map is queued so we can poll + show a progress dialog.
+  const [generation, setGeneration] = useState<{ processingId: number; mapName: string } | null>(null);
 
   // Tools are only available when a map is open.
   useEffect(() => {
@@ -451,7 +455,23 @@ function MapGalleryEditor() {
       <NewCampaignMapDialog
         show={activeDialog === "newCampaignMap"}
         onClose={() => setActiveDialog(null)}
-        onSaveSuccess={(msg) => openToast(msg ?? "Saved!", "success")}
+        onSaveSuccess={({ processingId, mapName }) => {
+          // Open the progress dialog and start polling generation status.
+          setGeneration({ processingId, mapName });
+        }}
+      />
+
+      <ProcessProgressDialog
+        open={generation !== null}
+        title={generation ? `Generating Campaign Map "${generation.mapName}"` : "Generating map"}
+        activeLabel="Generating map…"
+        successMessage="Map generated successfully."
+        processId={generation?.processingId ?? null}
+        onComplete={() => {
+          // Refresh the gallery list so the newly generated map appears.
+          queryClient.invalidateQueries({ queryKey: ["mapGalleryIndexes"] });
+        }}
+        onClose={() => setGeneration(null)}
       />
 
       <OpenCampaignMapDialog
@@ -472,7 +492,7 @@ function MapGalleryEditor() {
           if (publishCampaignMapMutation.isPending) return;
           setActiveDialog(null);
         }}
-        title="Export Map"
+        title="Exporting Campaign Map"
         footer={
           <>
             <Button variant="secondary" onClick={() => setActiveDialog(null)} disabled={publishCampaignMapMutation.isPending}>

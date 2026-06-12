@@ -122,7 +122,7 @@ namespace AscendantEmpire.Application.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("IX_Processing_Status");
 
-                    b.ToTable("Processing", "system");
+                    b.ToTable("BackgroundProcessing", "system");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Battles.Battle", b =>
@@ -793,6 +793,9 @@ namespace AscendantEmpire.Application.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<byte>("ProgressPercent")
+                        .HasColumnType("tinyint");
 
                     b.Property<string>("PropertiesJson")
                         .IsRequired()

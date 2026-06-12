@@ -1,16 +1,18 @@
-﻿using AscendantEmpire.Application.Common;
+﻿using AscendantEmpire.Application.BackgroundServices;
+using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Handlers;
+using AscendantEmpire.Application.Options;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
-
-using MediatR;
+using AscendantEmpire.Domain.Enums.Processing;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
-using NSubstitute;
+using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 namespace AscendantEmpire.Tests.Handlers.MapGallery;
 
@@ -23,13 +25,13 @@ internal class AddCampaignMapGalleryTests
 
     private IDbContextFactory<AscendantEmpireContext> _dbFactory = null!;
     private AddCampaignMapHandler _handler = null!;
-    private IMediator _mediator = null!;
+
+    // A real channel so we can assert the generation job was actually enqueued.
+    private BackgroundProcessingChannel _channel = null!;
 
     [SetUp]
     public async Task Setup()
     {
-        _mediator = Substitute.For<IMediator>();
-
         _dbFactory = new TestDbContextFactory<AscendantEmpireContext>(DbOptions);
 
         await using (var setupContext = await _dbFactory.CreateDbContextAsync(CancellationToken.None))
@@ -38,7 +40,9 @@ internal class AddCampaignMapGalleryTests
            await setupContext.Database.EnsureCreatedAsync();
         }
 
-        _handler = new AddCampaignMapHandler(new NullLogger<AddCampaignMapHandler>(), _dbFactory);
+        _channel = new BackgroundProcessingChannel(Options.Create(new BackgroundProcessingSettings()));
+
+        _handler = new AddCampaignMapHandler(new NullLogger<AddCampaignMapHandler>(), _dbFactory, _channel);
     }
 
     [TearDown]
@@ -65,13 +69,20 @@ internal class AddCampaignMapGalleryTests
             }
         );
 
-        ServiceResultBase result = await _handler.Handle(updateRequest, CancellationToken.None);
+        ServiceResult<AddCampaignMapResponse> result = await _handler.Handle(updateRequest, CancellationToken.None);
 
         await using var verifyContext = await _dbFactory.CreateDbContextAsync(CancellationToken.None);
         var created = await verifyContext.CampaignMapGalleryIndex.SingleAsync(m => m.MapName == MAP_NAME);
 
+        // The handler should have created a Pending GenerateCampaignMap processing record...
+        var processing = await verifyContext.Processing.SingleAsync();
+
+        // ...and enqueued that processing id on the channel for the background service to pick up.
+        bool dequeued = _channel.Reader.TryRead(out int enqueuedProcessingId);
+
         using (Assert.EnterMultipleScope())
         {
+            // --- The gallery index record ---
             Assert.That(created.Id, Is.GreaterThan(0), $"{nameof(created.Id)} value is not what's expected.");
             Assert.That(created.MapName, Is.EqualTo("Test Map"), $"{nameof(created.MapName)} value is not what's expected.");
             Assert.That(created.Description, Is.EqualTo("A map for testing"), $"{nameof(created.Description)} value is not what's expected.");
@@ -81,6 +92,21 @@ internal class AddCampaignMapGalleryTests
             Assert.That(created.CreationEngine, Is.EqualTo(MapCreationEngine.BlankMap), $"{nameof(created.CreationEngine)} value is not what's expected.");
             Assert.That(created.Status, Is.EqualTo("Pending creation (#1 in queue)"), $"{nameof(created.Status)} value is not what's expected.");
             Assert.That(created.PropertiesJson, Is.EqualTo("{\"Key1\":\"Value1\",\"Key2\":\"Value2\"}"), $"{nameof(created.PropertiesJson)} value is not what's expected.");
+
+            // --- The returned response carries both ids ---
+            Assert.That(result.HasSucceeded, Is.True, "Handler should have succeeded.");
+            Assert.That(result.SuccessValue, Is.Not.Null, "Response value should be populated.");
+            Assert.That(result.SuccessValue!.GalleryIndexId, Is.EqualTo(created.Id), "Response GalleryIndexId should match the created index.");
+            Assert.That(result.SuccessValue.ProcessingId, Is.EqualTo(processing.ProcessingId), "Response ProcessingId should match the created processing record.");
+
+            // --- The processing record ---
+            Assert.That(processing.ProcessType, Is.EqualTo(ProcessType.GenerateCampaignMap), "Processing record should be a GenerateCampaignMap job.");
+            Assert.That(processing.Status, Is.EqualTo(ProcessingStatus.Pending), "Processing record should start Pending.");
+            Assert.That(processing.MetadataJson, Does.Contain($"\"campaignMapGalleryIndexId\":{created.Id}"), "Metadata should reference the created gallery index id.");
+
+            // --- The channel enqueue ---
+            Assert.That(dequeued, Is.True, "A job should have been enqueued on the processing channel.");
+            Assert.That(enqueuedProcessingId, Is.EqualTo(processing.ProcessingId), "The enqueued id should be the processing id.");
         }
     }
 

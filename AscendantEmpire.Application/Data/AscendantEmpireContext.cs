@@ -609,7 +609,7 @@ public class AscendantEmpireContext : DbContext
 
         modelBuilder.Entity<Processing>(entity =>
         {
-            entity.ToTable("Processing", schema);
+            entity.ToTable("BackgroundProcessing", schema);
 
             entity.HasKey(x => x.ProcessingId);
 

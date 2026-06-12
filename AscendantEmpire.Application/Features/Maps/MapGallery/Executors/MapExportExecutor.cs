@@ -1,70 +1,51 @@
 using System.IO.Compression;
 using System.Text.Json;
 
+using AscendantEmpire.Application.BackgroundServices;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Classes.Export;
-using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
 using AscendantEmpire.Application.Options;
-using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
+using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Processing;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace AscendantEmpire.Application.BackgroundServices;
+namespace AscendantEmpire.Application.Features.Maps.MapGallery.Executors;
 
 /// <summary>
-/// Reads ProcessingIds from <see cref="IMapExportChannel"/>, builds a zipped JSON export,
-/// writes it to the configured temp directory, and updates the <see cref="Processing"/> record.
+/// Executes <see cref="ProcessType.ExportGalleryMap"/> jobs.
 /// </summary>
-public sealed class MapExportBackgroundService(
-    IMapExportChannel channel,
-    IDbContextFactory<AscendantEmpireContext> contextFactory,
+/// <remarks>
+/// Builds a zipped JSON export of a campaign map, writes it to the configured temp directory, and records the file path on the <see cref="Processing"/> record 
+/// so the API can stream it back to the caller.
+/// </remarks>
+internal sealed class MapExportExecutor(
+    AscendantEmpireContext context,
     IOptions<ExportSettings> exportOptions,
-    ILogger<MapExportBackgroundService> logger
-) : BackgroundService
+    ILogger<MapExportExecutor> logger
+) : IProcessExecutor
 {
     private static readonly JsonSerializerOptions _jsonOptions = new()
     {
         WriteIndented = true
     };
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    public ProcessType ProcessType => ProcessType.ExportGalleryMap;
+
+    public async Task ExecuteAsync(Processing processing, CancellationToken cancellationToken)
     {
-        logger.LogInformation("MapExportBackgroundService started.");
-
-        await foreach (int processingId in channel.Reader.ReadAllAsync(stoppingToken))
-        {
-            await ProcessExportAsync(processingId, stoppingToken);
-        }
-
-        logger.LogInformation("MapExportBackgroundService stopped.");
-    }
-
-    private async Task ProcessExportAsync(int processingId, CancellationToken stoppingToken)
-    {
+        int processingId = processing.ProcessingId;
         logger.LogInformation("Starting map export for ProcessingId {ProcessingId}.", processingId);
-
-        await using AscendantEmpireContext context = await contextFactory.CreateDbContextAsync(stoppingToken);
-
-        Processing? processing = await context.Processing.FindAsync([processingId], stoppingToken);
-
-        if (processing is null)
-        {
-            logger.LogError("Processing record {ProcessingId} not found; skipping export.", processingId);
-            return;
-        }
 
         // Mark as in-progress so the UI can see it has started.
         processing.Status = ProcessingStatus.InProgress;
         processing.StartedAt = DateTime.UtcNow;
         processing.ProgressPercent = 5;
-        await context.SaveChangesAsync(stoppingToken);
+        await context.SaveChangesAsync(cancellationToken);
 
         try
         {
@@ -73,22 +54,22 @@ public sealed class MapExportBackgroundService(
             // Load the map index record.
             CampaignMapGalleryIndex? index = await context.CampaignMapGalleryIndex
                 .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == mapGalleryIndexId, stoppingToken);
+                .FirstOrDefaultAsync(x => x.Id == mapGalleryIndexId, cancellationToken);
 
             if (index is null)
             {
                 throw new InvalidOperationException($"CampaignMapGalleryIndex {mapGalleryIndexId} not found.");
             }
 
-            await UpdateProgressAsync(context, processing, 20, stoppingToken);
+            await UpdateProgressAsync(processing, 20, cancellationToken);
 
             // Load all tiles for this map.
             List<CampaignMapGallery> tiles = await context.CampaignMapGallery
                 .AsNoTracking()
                 .Where(t => t.CampaignMapGalleryIndexId == mapGalleryIndexId)
-                .ToListAsync(stoppingToken);
+                .ToListAsync(cancellationToken);
 
-            await UpdateProgressAsync(context, processing, 40, stoppingToken);
+            await UpdateProgressAsync(processing, 40, cancellationToken);
 
             // Determine the distinct biome and geography types referenced by the tiles.
             HashSet<BiomeType> usedBiomeIds = [.. tiles.Select(t => t.BiomeTypeId)];
@@ -97,32 +78,32 @@ public sealed class MapExportBackgroundService(
             List<CampaignBiome> biomes = await context.CampaignBiomes
                 .AsNoTracking()
                 .Where(b => usedBiomeIds.Contains(b.BiomeTypeId))
-                .ToListAsync(stoppingToken);
+                .ToListAsync(cancellationToken);
 
             List<CampaignGeography> geographies = await context.CampaignGeographies
                 .AsNoTracking()
                 .Where(g => usedGeoIds.Contains(g.CampaignMapGeographyTypeId))
-                .ToListAsync(stoppingToken);
+                .ToListAsync(cancellationToken);
 
-            await UpdateProgressAsync(context, processing, 60, stoppingToken);
+            await UpdateProgressAsync(processing, 60, cancellationToken);
 
             // Build the export document.
             MapExportDocument document = BuildDocument(index, tiles, biomes, geographies);
 
-            await UpdateProgressAsync(context, processing, 80, stoppingToken);
+            await UpdateProgressAsync(processing, 80, cancellationToken);
 
             // Serialise and zip.
             string zipPath = BuildZipPath(index.MapName, processingId);
-            await WriteZipAsync(document, zipPath, stoppingToken);
+            await WriteZipAsync(document, zipPath, cancellationToken);
 
-            await UpdateProgressAsync(context, processing, 95, stoppingToken);
+            await UpdateProgressAsync(processing, 95, cancellationToken);
 
             // Mark complete.
             processing.Status = ProcessingStatus.Complete;
             processing.ProgressPercent = 100;
             processing.CompletedAt = DateTime.UtcNow;
             processing.ResultReference = zipPath;
-            await context.SaveChangesAsync(stoppingToken);
+            await context.SaveChangesAsync(cancellationToken);
 
             logger.LogInformation("Map export complete for ProcessingId {ProcessingId}. File: {ZipPath}", processingId, zipPath);
         }
@@ -134,15 +115,8 @@ public sealed class MapExportBackgroundService(
             processing.CompletedAt = DateTime.UtcNow;
             processing.ErrorMessage = ex.Message;
 
-            try
-            {
-                await context.SaveChangesAsync(CancellationToken.None);
-            }
-            catch (Exception saveEx)
-            {
-                logger.LogError(saveEx,
-                    "Failed to persist Failed status for ProcessingId {ProcessingId}.", processingId);
-            }
+            // Use a non-cancellable token so the failure is persisted even during shutdown.
+            await context.SaveChangesAsync(CancellationToken.None);
         }
     }
 
@@ -252,10 +226,8 @@ public sealed class MapExportBackgroundService(
 
     /// <summary>
     /// Persists a progress percentage update to the Processing record.
-    /// Uses a detached context write to avoid state conflicts with the outer tracking context.
     /// </summary>
-    private static async Task UpdateProgressAsync(
-        AscendantEmpireContext context,
+    private async Task UpdateProgressAsync(
         Processing processing,
         byte percent,
         CancellationToken cancellationToken)

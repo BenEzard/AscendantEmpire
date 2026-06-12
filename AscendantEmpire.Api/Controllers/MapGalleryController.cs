@@ -35,14 +35,14 @@ public class MapGalleryController
     /// <response code="400">Validation error</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [HttpPost("add-campaign-map")]
-    [ProducesResponseType(201)]
+    [ProducesResponseType(typeof(AddCampaignMapResponse), 201)]
     [ProducesResponseType(400)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
     public async Task<IActionResult> AddCampaignMapAsync(
         [FromServices] IMediator mediator,
         [FromBody] AddCampaignMapRequest mapDetails)
     {
-        ServiceResultBase response = await mediator.Send(new AddCampaignMapRequest(
+        ServiceResult<AddCampaignMapResponse> response = await mediator.Send(new AddCampaignMapRequest(
             MapName: mapDetails.MapName,
             Description: mapDetails.Description,
             Width: mapDetails.Width,
@@ -51,24 +51,7 @@ public class MapGalleryController
             Parameters: mapDetails.Parameters
         ));
 
-        return response.ToActionResult();
-    }
-
-    /// <summary>
-    /// A temporary endpoint to cause the generation of the next Campaign Map.
-    /// </summary>
-    /// <response code="201">Campaign Map successfully created</response>
-    /// <response code="400">Validation error</response>
-    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [HttpPost("temporary-dev-only/prod-map-creation")]
-    [ProducesResponseType(201)]
-    [ProducesResponseType(400)]
-    [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> ProdCampaignMapCreationAsync(
-        [FromServices] IMediator mediator)
-    {
-        ServiceResultBase response = await mediator.Send(new CreateCampaignMapRequest());
-
+        // Returns 201 with { galleryIndexId, processingId } so the UI can poll generation progress.
         return response.ToActionResult();
     }
 
