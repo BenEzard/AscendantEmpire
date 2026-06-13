@@ -216,11 +216,11 @@ function MapGalleryEditor() {
   }, [openMapIndex, tilesResponse]);
 
   // ---------------------------
-  // Export ("push out")
+  // Push Out
   // ---------------------------
-  const openExportMap = useCallback(() => {
+  const openPushOutMap = useCallback(() => {
     if (openMapIndex == null) return;
-    setActiveDialog("exportCampaignMap");
+    setActiveDialog("pushOutCampaignMap");
   }, [openMapIndex]);
 
   // ---------------------------
@@ -231,7 +231,7 @@ function MapGalleryEditor() {
     setActiveDialog("mapProperties");
   }, [openMapIndex]);
 
-  const confirmExportMap = useCallback(() => {
+  const confirmPushOutMap = useCallback(() => {
     if (openMapIndex == null || publishCampaignMapMutation.isPending) return;
 
     publishCampaignMapMutation.mutate(
@@ -265,8 +265,8 @@ function MapGalleryEditor() {
 
     openMapIndex,
     closeMap,
-    openExportMap,
-    isExportingMap: publishCampaignMapMutation.isPending,
+    openPushOutMap,
+    isPushingOutMap: publishCampaignMapMutation.isPending,
     setActiveDialog,
     openMapProperties,
 
@@ -386,23 +386,23 @@ function MapGalleryEditor() {
       />
 
       <Modal
-        open={activeDialog === "exportCampaignMap"}
+        open={activeDialog === "pushOutCampaignMap"}
         onClose={() => {
           if (publishCampaignMapMutation.isPending) return;
           setActiveDialog(null);
         }}
-        title="Exporting Campaign Map"
+        title="Pushing Out Campaign Map"
         footer={
           <>
             <Button variant="secondary" onClick={() => setActiveDialog(null)} disabled={publishCampaignMapMutation.isPending}>
               No
             </Button>
-            <Button variant="danger" onClick={confirmExportMap} disabled={publishCampaignMapMutation.isPending || openMapIndex == null}>
-              {publishCampaignMapMutation.isPending ? "Exporting..." : "Yes"}
+            <Button variant="danger" onClick={confirmPushOutMap} disabled={publishCampaignMapMutation.isPending || openMapIndex == null}>
+              {publishCampaignMapMutation.isPending ? "Pushing Out..." : "Yes"}
             </Button>
           </>
         }>
-        <p>Exporting map updates can be destructive to ongoing games. Are you sure you want to do this?</p>
+        <p>Pushing out map updates can be destructive to ongoing games. Are you sure you want to do this?</p>
       </Modal>
 
       {(tilesLoading || tilesFetching) && (

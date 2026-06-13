@@ -36,8 +36,8 @@ type Args = {
 
   openMapIndex: CampaignMapGalleryIndex | null;
   closeMap: () => void;
-  openExportMap: () => void;
-  isExportingMap: boolean;
+  openPushOutMap: () => void;
+  isPushingOutMap: boolean;
   setActiveDialog: (d: ActiveDialog) => void;
   openMapProperties: () => void;
 
@@ -233,8 +233,8 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
 
     openMapIndex,
     closeMap,
-    openExportMap,
-    isExportingMap,
+    openPushOutMap,
+    isPushingOutMap,
     setActiveDialog,
     openMapProperties,
 
@@ -293,11 +293,11 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
                   items: [
                     {
                       key: "push-out",
-                      icon: isExportingMap ? <Spinner size="sm" /> : <BiExport />,
-                      label: isExportingMap ? "Pushing Out..." : "Push Out",
+                      icon: isPushingOutMap ? <Spinner size="sm" /> : <BiExport />,
+                      label: isPushingOutMap ? "Pushing Out..." : "Push Out",
                       tooltip: "Push out map changes to currently played games",
-                      disabled: openMapIndex == null || isExportingMap,
-                      onClick: openExportMap,
+                      disabled: openMapIndex == null || isPushingOutMap,
+                      onClick: openPushOutMap,
                     },
                   ],
                 },
@@ -307,7 +307,7 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
         },
       ],
     }),
-    [openMapIndex, closeMap, openExportMap, isExportingMap, setActiveDialog],
+    [openMapIndex, closeMap, openPushOutMap, isPushingOutMap, setActiveDialog],
   );
 
   const paletteGroup = useMemo<ToolBarGroup>(
