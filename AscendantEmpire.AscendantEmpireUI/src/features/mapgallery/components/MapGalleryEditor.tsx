@@ -22,6 +22,7 @@ import { useMapEditorSession } from "../hooks/useMapEditorSession";
 import { usePaletteDrafts } from "../hooks/usePaletteDrafts";
 import { useBrushTool } from "../hooks/useBrushTool";
 import { useTileRendering } from "../hooks/useTileRendering";
+import { useCampaignMapStartPositionsQuery, usePutCampaignMapStartPositionsMutation } from "../hooks/useCampaignMapStartPositions";
 
 function buildTiles2d(
   width: number,
@@ -113,9 +114,26 @@ function MapGalleryEditor() {
   const { biomeNameByType, geographyNameByType, getTileStyle, getTileTitle } = useTileRendering({ biomes, geographies, previewKeySet });
 
   // ---------------------------
+  // Start positions (must be above onTileClick so the const is initialised first)
+  // ---------------------------
+  const { data: startPositionsResponse, error: startPositionsError } = useCampaignMapStartPositionsQuery(
+    openMapIndex?.campaignMapGalleryIndexId ?? null,
+    openMapIndex != null,
+  );
+
+  const startPositionKeys = useMemo<ReadonlySet<string>>(() => {
+    const positions = startPositionsResponse?.startPositions ?? [];
+    return new Set(positions.map((sp) => `${sp.xCoord},${sp.yCoord}`));
+  }, [startPositionsResponse]);
+
+  // ---------------------------
   // Mutations
   // ---------------------------
   const updateTilesMutation = useUpdateCampaignMapTilesMutation({
+    onFailureToast: (message) => openToast(message, "danger"),
+  });
+
+  const putStartPositionsMutation = usePutCampaignMapStartPositionsMutation({
     onFailureToast: (message) => openToast(message, "danger"),
   });
 
@@ -152,8 +170,33 @@ function MapGalleryEditor() {
           geographyType: geographyMapSelection,
         });
       }
+
+      if (activeTool === "startPosition") {
+        if (!openMapIndex) {
+          openToast("No map opened.", "warning");
+          return;
+        }
+
+        const existing = startPositionsResponse?.startPositions ?? [];
+        const alreadySet = existing.some((sp) => sp.xCoord === t.x && sp.yCoord === t.y);
+
+        // Toggle: remove if already present, add if not.
+        const next = alreadySet
+          ? existing
+              .filter((sp) => !(sp.xCoord === t.x && sp.yCoord === t.y))
+              .map((sp) => ({ xCoord: sp.xCoord, yCoord: sp.yCoord, displayName: sp.displayName, locationScore: sp.locationScore }))
+          : [
+              ...existing.map((sp) => ({ xCoord: sp.xCoord, yCoord: sp.yCoord, displayName: sp.displayName, locationScore: sp.locationScore })),
+              { xCoord: t.x, yCoord: t.y, displayName: null, locationScore: null },
+            ];
+
+        putStartPositionsMutation.mutate({
+          campaignMapGalleryIndexId: openMapIndex.campaignMapGalleryIndexId,
+          startPositions: next,
+        });
+      }
     },
-    [activeTool, openToast, biomeNameByType, geographyNameByType, openMapIndex, biomeMapSelection, geographyMapSelection, updateTilesMutation, buildBrushCoords],
+    [activeTool, openToast, biomeNameByType, geographyNameByType, openMapIndex, biomeMapSelection, geographyMapSelection, updateTilesMutation, buildBrushCoords, startPositionsResponse, putStartPositionsMutation],
   );
 
   // ---------------------------
@@ -233,6 +276,7 @@ function MapGalleryEditor() {
 
       {biomeError && <Alert variant="danger">Biomes failed: {biomeError.message}</Alert>}
       {geographyError && <Alert variant="danger">Geographies failed: {geographyError.message}</Alert>}
+      {startPositionsError && <Alert variant="danger">Start positions failed: {startPositionsError.message}</Alert>}
 
       {/* ====== Opened map display ====== */}
       <div className="mt-3">
@@ -274,6 +318,7 @@ function MapGalleryEditor() {
                 onTileHoverEnd={activeTool === "paint" ? handleTileHoverEnd : undefined}
                 getTileStyle={getTileStyle}
                 getTileTitle={getTileTitle}
+                startPositionKeys={startPositionKeys}
               />
             )}
           </>

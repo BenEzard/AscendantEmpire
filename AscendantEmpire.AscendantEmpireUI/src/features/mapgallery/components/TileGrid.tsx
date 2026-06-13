@@ -25,6 +25,9 @@ export interface TileGridProps {
   getTileTitle?: (tile: TileCell) => string;
   getTileStyle?: (tile: TileCell) => React.CSSProperties;
   tileClassName?: string;
+
+  /** Set of "x,y" keys for tiles that should display a start-position marker. */
+  startPositionKeys?: ReadonlySet<string>;
 }
 
 const TileGrid = React.memo(function TileGrid({
@@ -38,6 +41,7 @@ const TileGrid = React.memo(function TileGrid({
   getTileTitle,
   getTileStyle,
   tileClassName,
+  startPositionKeys,
 }: TileGridProps) {
   // Flatten row-major (y then x)
   const flat = React.useMemo(() => tiles2d.flat(), [tiles2d]);
@@ -85,6 +89,7 @@ const TileGrid = React.memo(function TileGrid({
               getTitle={getTileTitle}
               getStyle={getTileStyle}
               className={tileClassName}
+              showStartPosition={startPositionKeys?.has(`${t.x},${t.y}`) ?? false}
             />
           );
         })}

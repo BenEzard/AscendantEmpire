@@ -1,5 +1,6 @@
 // src/features/map-gallery/components/Tile.tsx
 import React from "react";
+import { BiLocationPlus } from "react-icons/bi";
 import type { TileCell } from "../types/TileTypes";
 import { iconMap } from "./mapEditorIcons";
 import type { Geography } from "@/types/map/Geography";
@@ -12,6 +13,8 @@ export interface TileProps {
   onClick?: (tile: TileCell) => void;
   onHover?: (tile: TileCell) => void;
   className?: string;
+  /** When true, renders a start-position marker icon above the geography icon. */
+  showStartPosition?: boolean;
   /**
    * Optional styling hooks.
    */
@@ -19,7 +22,7 @@ export interface TileProps {
   getStyle?: (tile: TileCell) => React.CSSProperties;
 }
 
-const Tile = React.memo(function Tile({ tile, sizePx, geography, onClick, onHover, className, getTitle, getStyle }: TileProps) {
+const Tile = React.memo(function Tile({ tile, sizePx, geography, onClick, onHover, className, showStartPosition, getTitle, getStyle }: TileProps) {
   const clickable = !!onClick;
 
   const baseStyle: React.CSSProperties = {
@@ -59,6 +62,7 @@ const Tile = React.memo(function Tile({ tile, sizePx, geography, onClick, onHove
       onMouseEnter={() => onHover?.(tile)}
       style={style}>
       {Icon ? <Icon className="tile-icon-fill" aria-hidden style={{ color: iconColor }} /> : null}
+      {showStartPosition ? <BiLocationPlus className="tile-start-position-icon" aria-hidden /> : null}
     </div>
   );
 });

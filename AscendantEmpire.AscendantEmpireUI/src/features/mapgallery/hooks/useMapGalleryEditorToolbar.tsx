@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { FaCheck, FaMountain, FaRegFolderOpen, FaTree } from "react-icons/fa6";
-import { BiExport } from "react-icons/bi";
+import { BiExport, BiLocationPlus } from "react-icons/bi";
 import { SlClose } from "react-icons/sl";
 import { VscNewFile } from "react-icons/vsc";
 import { FaPaintBrush } from "react-icons/fa";
@@ -376,6 +376,7 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
               onChange={(k) => setActiveTool(k as ActiveTool)}
               items={[
                 { type: "button", key: "inspect", icon: <HiMagnifyingGlass />, tooltip: "Inspection" },
+                { type: "button", key: "startPosition", icon: <BiLocationPlus />, tooltip: "Start Positions" },
                 {
                   type: "dropbutton",
                   key: "paint",
