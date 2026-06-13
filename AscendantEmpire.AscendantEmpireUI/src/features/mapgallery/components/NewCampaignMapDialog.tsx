@@ -246,7 +246,6 @@ export default function NewCampaignMapDialog({ show, onClose, onSaveSuccess }: N
     const e: Record<string, string> = {};
 
     if (!form.mapName.trim()) e.mapName = "Map name is required.";
-    if (!form.description.trim()) e.description = "Description is required.";
 
     if (form.width < MIN_WIDTH || form.width > MAX_WIDTH) {
       e.width = `Width must be between ${MIN_WIDTH} and ${MAX_WIDTH}.`;

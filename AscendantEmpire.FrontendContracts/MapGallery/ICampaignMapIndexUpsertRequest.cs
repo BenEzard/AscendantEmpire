@@ -10,7 +10,7 @@ public interface ICampaignMapIndexUpsertRequest
     /// <remarks>Null for Add, value for Update</remarks>
     int? Id { get; }
     string MapName { get; }
-    string Description { get; }
+    string? Description { get; }
     int Width { get; }
     int Height { get; }
     MapCreationEngine CreationEngine { get; }

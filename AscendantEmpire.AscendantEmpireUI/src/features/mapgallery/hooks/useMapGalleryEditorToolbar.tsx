@@ -19,6 +19,7 @@ import BrushPreview from "@/features/mapgallery/components/BrushPreview";
 import type { BrushKind } from "@/features/mapgallery/tools/brush";
 import { iconMap } from "@/features/mapgallery/components/mapEditorIcons";
 import type { ActiveDialog, ActiveTool } from "@/features/mapgallery/types/MapGalleryEditorTypes";
+import { IoInformationCircle } from "react-icons/io5";
 
 type Args = {
   biomesLoading: boolean;
@@ -38,6 +39,7 @@ type Args = {
   openExportMap: () => void;
   isExportingMap: boolean;
   setActiveDialog: (d: ActiveDialog) => void;
+  openMapProperties: () => void;
 
   activeTool: ActiveTool;
   setActiveTool: (t: ActiveTool) => void;
@@ -119,11 +121,7 @@ function makeBrushItem(descriptor: BrushDescriptor, ctx: BrushItemContext): Drop
 // ---------------------------------------------------------------------------
 
 /** Builds the Biomes dropdown items: a "<none>" entry followed by paintable biomes. */
-function buildBiomePaletteItems(
-  biomes: Biome[] | undefined,
-  selection: number | null,
-  setSelection: (v: number | null) => void,
-): DropButtonItem[] {
+function buildBiomePaletteItems(biomes: Biome[] | undefined, selection: number | null, setSelection: (v: number | null) => void): DropButtonItem[] {
   return [
     {
       key: "none",
@@ -199,7 +197,9 @@ function buildGeographyPaletteItems(
           key: g.campaignMapGeographyType,
           label: (
             <span className="inline-flex w-full items-center gap-2">
-              <span className="inline-flex h-3 w-3 items-center justify-center">{Icon ? <Icon aria-hidden size={12} className="text-slate-700" /> : null}</span>
+              <span className="inline-flex h-3 w-3 items-center justify-center">
+                {Icon ? <Icon aria-hidden size={12} className="text-slate-700" /> : null}
+              </span>
               <span className="inline-flex items-center">
                 <span>{g.name}</span>
                 {active ? <FaCheck aria-hidden size={12} className="ml-1 text-slate-600" /> : null}
@@ -236,6 +236,7 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
     openExportMap,
     isExportingMap,
     setActiveDialog,
+    openMapProperties,
 
     activeTool,
     setActiveTool,
@@ -397,9 +398,16 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
             />
           ),
         },
+        {
+          key: "properties",
+          icon: <IoInformationCircle />,
+          tooltip: "Map Properties",
+          disabled: openMapIndex == null,
+          onClick: openMapProperties,
+        },
       ],
     }),
-    [openMapIndex, activeTool, setActiveTool, brushKind, brushRadii, clampRadius, setBrushKind, setBrushRadii],
+    [openMapIndex, activeTool, setActiveTool, brushKind, brushRadii, clampRadius, setBrushKind, setBrushRadii, openMapProperties],
   );
 
   return useMemo(() => [mapMenuGroup, paletteGroup, editorToolsGroup], [mapMenuGroup, paletteGroup, editorToolsGroup]);

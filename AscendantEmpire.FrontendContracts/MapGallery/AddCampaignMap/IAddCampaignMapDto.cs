@@ -12,7 +12,7 @@ public interface IAddCampaignMapDto
     /// <summary>
     /// Description of the Map
     /// </summary>
-    public string Description { get; }
+    public string? Description { get; }
 
     /// <summary>
     /// Width of the Map in Tiles

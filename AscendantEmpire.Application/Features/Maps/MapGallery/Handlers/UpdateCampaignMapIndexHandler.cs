@@ -1,8 +1,6 @@
-﻿using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
-using AscendantEmpire.Domain.Enums.Maps;
-using AscendantEmpire.FrontendContracts.MapGallery;
 
 using MediatR;
 
@@ -16,12 +14,8 @@ namespace AscendantEmpire.Application.Features.Maps.MapGallery.Handlers;
 public record UpdateCampaignMapIndexRequest(
     int? Id,
     string MapName,
-    string Description,
-    int Width,
-    int Height,
-    MapCreationEngine CreationEngine,
-    Dictionary<string, string>? Parameters
-) : IRequest<ServiceResultBase>, ICampaignMapIndexUpsertRequest;
+    string? Description
+) : IRequest<ServiceResultBase>;
 
 internal class UpdateCampaignMapIndexHandler(
     ILogger<UpdateCampaignMapIndexHandler> logger,
@@ -32,31 +26,20 @@ internal class UpdateCampaignMapIndexHandler(
     {
         try
         {
-            // Normalize inputs
+            // Normalize inputs — description stored as empty string when null/blank
             string mapName = request.MapName.Trim();
             string description = request.Description?.Trim() ?? string.Empty;
-            string propsJson = request.Parameters != null
-                ? System.Text.Json.JsonSerializer.Serialize(request.Parameters)
-                : string.Empty;
 
-            CampaignMapGalleryIndex? existing = await context.CampaignMapGalleryIndex.FirstOrDefaultAsync(x => x.Id == request.Id.Value, cancellationToken);
+            CampaignMapGalleryIndex? existing = await context.CampaignMapGalleryIndex.FirstOrDefaultAsync(x => x.Id == request.Id!.Value, cancellationToken);
 
             if (existing is null)
             {
-                return NotFound($"Campaign Map with Id {request.Id.Value} was not found.");
-            }
-            else if (existing.CreationStatus != MapCreationStatus.Pending)
-            {
-                return Fail("Only maps with 'Pending' status can be updated.");
+                return NotFound($"Campaign Map with Id {request.Id!.Value} was not found.");
             }
 
-            // Only update mutable fields; preserve status-related fields
+            // Only update name/description; all other fields (dimensions, engine, etc.) are immutable here.
             existing.MapName = mapName;
             existing.Description = description;
-            existing.Width = request.Width;
-            existing.Height = request.Height;
-            existing.CreationEngine = request.CreationEngine;
-            existing.PropertiesJson = propsJson;
 
             await context.SaveChangesAsync(cancellationToken);
 

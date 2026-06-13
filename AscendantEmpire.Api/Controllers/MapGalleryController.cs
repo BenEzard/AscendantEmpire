@@ -77,11 +77,7 @@ public class MapGalleryController
         ServiceResultBase response = await mediator.Send(new UpdateCampaignMapIndexRequest(
             Id: id,
             MapName: mapDetails.MapName,
-            Description: mapDetails.Description,
-            Width: mapDetails.Width,
-            Height: mapDetails.Height,
-            CreationEngine: mapDetails.CreationEngine,
-            Parameters: mapDetails.Parameters
+            Description: mapDetails.Description
         ));
 
         return response.ToActionResult();

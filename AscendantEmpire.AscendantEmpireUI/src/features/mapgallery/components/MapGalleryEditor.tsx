@@ -23,6 +23,7 @@ import { usePaletteDrafts } from "../hooks/usePaletteDrafts";
 import { useBrushTool } from "../hooks/useBrushTool";
 import { useTileRendering } from "../hooks/useTileRendering";
 import { useCampaignMapStartPositionsQuery, usePutCampaignMapStartPositionsMutation } from "../hooks/useCampaignMapStartPositions";
+import MapPropertiesDialog from "./MapPropertiesDialog";
 
 function buildTiles2d(
   width: number,
@@ -61,7 +62,7 @@ function MapGalleryEditor() {
   const { openToast, toastElement } = useToast();
 
   // Which map is open + the in-flight generation, with tile-cache lifecycle.
-  const { openMapIndex, generation, setGeneration, openMap, closeMap } = useMapEditorSession();
+  const { openMapIndex, setOpenMapIndex, generation, setGeneration, openMap, closeMap } = useMapEditorSession();
 
   // Tools are only available when a map is open.
   useEffect(() => {
@@ -222,6 +223,14 @@ function MapGalleryEditor() {
     setActiveDialog("exportCampaignMap");
   }, [openMapIndex]);
 
+  // ---------------------------
+  // Properties dialog
+  // ---------------------------
+  const openMapProperties = useCallback(() => {
+    if (openMapIndex == null) return;
+    setActiveDialog("mapProperties");
+  }, [openMapIndex]);
+
   const confirmExportMap = useCallback(() => {
     if (openMapIndex == null || publishCampaignMapMutation.isPending) return;
 
@@ -259,6 +268,7 @@ function MapGalleryEditor() {
     openExportMap,
     isExportingMap: publishCampaignMapMutation.isPending,
     setActiveDialog,
+    openMapProperties,
 
     activeTool,
     setActiveTool,
@@ -359,6 +369,20 @@ function MapGalleryEditor() {
           openMap(index);
           setActiveDialog(null);
         }}
+      />
+
+      <MapPropertiesDialog
+        show={activeDialog === "mapProperties"}
+        mapIndex={openMapIndex}
+        onClose={() => setActiveDialog(null)}
+        onSaveSuccess={(updatedName, updatedDescription) => {
+          // Keep the in-memory openMapIndex in sync so the editor reflects the new name immediately.
+          if (openMapIndex != null) {
+            setOpenMapIndex({ ...openMapIndex, mapName: updatedName, description: updatedDescription ?? "" });
+          }
+          openToast("Map properties saved.", "success");
+        }}
+        onFailureToast={(message) => openToast(message, "danger")}
       />
 
       <Modal

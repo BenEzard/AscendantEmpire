@@ -19,7 +19,7 @@ namespace AscendantEmpire.Application.Features.Maps.MapGallery.Handlers;
 
 public record AddCampaignMapRequest(
     string MapName,
-    string Description,
+    string? Description,
     int Width,
     int Height,
     MapCreationEngine CreationEngine,

@@ -7,3 +7,12 @@ export async function searchMapGalleryIndexes(signal?: AbortSignal): Promise<Cam
   const { data } = await http.get<SearchMapGalleryResponse>("/map-gallery/search", { signal });
   return data.indexes;
 }
+
+export async function updateMapProperties(
+  id: number,
+  mapName: string,
+  description: string | null,
+  signal?: AbortSignal,
+): Promise<void> {
+  await http.post(`/map-gallery/${id}/update`, { mapName, description }, { signal });
+}
