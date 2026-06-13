@@ -272,7 +272,10 @@ function MapGalleryEditor() {
 
   return (
     <>
-      <ToolBar groups={toolBarGroups} />
+      <ToolBar
+        groups={toolBarGroups}
+        containerClassName="toolbar flex justify-start border-b border-slate-200 bg-stone-100 sticky top-0 z-10"
+      />
 
       {biomeError && <Alert variant="danger">Biomes failed: {biomeError.message}</Alert>}
       {geographyError && <Alert variant="danger">Geographies failed: {geographyError.message}</Alert>}
@@ -286,25 +289,6 @@ function MapGalleryEditor() {
           </Alert>
         ) : (
           <>
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <strong>{openMapIndex.mapName}</strong>{" "}
-                <span className="text-slate-500">
-                  ({openMapIndex.width}×{openMapIndex.height})
-                </span>
-                <div className="text-slate-500" style={{ fontSize: 12 }}>
-                  {openMapIndex.description}
-                </div>
-              </div>
-
-              {(tilesLoading || tilesFetching) && (
-                <div className="flex items-center gap-2 text-slate-500">
-                  <Spinner size="sm" />
-                  <span>Loading tiles...</span>
-                </div>
-              )}
-            </div>
-
             {tilesError && <Alert variant="danger">Failed to load tiles: {tilesError.message}</Alert>}
 
             {tiles2d && (
@@ -396,6 +380,15 @@ function MapGalleryEditor() {
         }>
         <p>Exporting map updates can be destructive to ongoing games. Are you sure you want to do this?</p>
       </Modal>
+
+      {(tilesLoading || tilesFetching) && (
+        <div style={{ position: "fixed", bottom: "1rem", right: "1rem", zIndex: 50 }}>
+          <Alert variant="secondary" className="flex items-center gap-2 mb-0 py-2 px-3">
+            <Spinner size="sm" />
+            <span>Loading tiles…</span>
+          </Alert>
+        </div>
+      )}
 
       {toastElement}
     </>

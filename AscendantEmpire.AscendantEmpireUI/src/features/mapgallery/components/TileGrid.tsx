@@ -8,7 +8,6 @@ export const TILE_SIZE_PX = 50;
 
 // Static styles hoisted to module scope so they aren't re-allocated on every render.
 const CONTAINER_STYLE: React.CSSProperties = { overflow: "auto", border: "1px solid rgba(0,0,0,0.125)" };
-const FOOTER_STYLE: React.CSSProperties = { padding: "6px 10px", fontSize: 12, opacity: 0.8 };
 
 export interface TileGridProps {
   width: number;
@@ -95,9 +94,6 @@ const TileGrid = React.memo(function TileGrid({
         })}
       </div>
 
-      <div style={FOOTER_STYLE}>
-        {width} × {height}
-      </div>
     </div>
   );
 });
