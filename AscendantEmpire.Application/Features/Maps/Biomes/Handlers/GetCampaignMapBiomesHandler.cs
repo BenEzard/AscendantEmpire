@@ -1,4 +1,5 @@
 ﻿using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.Biomes;
 using AscendantEmpire.Domain.Enums.Maps;
 
@@ -24,8 +25,11 @@ internal class GetCampaignMapBiomesHandler(
         {
             await using var context = await dbFactory.CreateDbContextAsync(cancellationToken);
 
-            var biomes = await context.CampaignBiomes
+            // Materialize first: the base values are stored scaled, and the scaled -> whole conversion
+            // below cannot be translated to SQL, so it must run in memory after the query.
+            var biomes = (await context.CampaignBiomes
                 .AsNoTracking()
+                .ToListAsync(cancellationToken))
                 .Select(b => new CampaignMapBiome
                 {
                     BiomeType = (BiomeType)b.BiomeTypeId,
@@ -38,16 +42,17 @@ internal class GetCampaignMapBiomesHandler(
                     MapEditorHtmlColor = b.MapEditorHtmlColor ?? "#ffffff",
                     CanBeElevated = b.CanBeElevated,
                     IsPaintableOnCampaignMap = b.IsPaintableOnCampaignMap,
-                    BaseForageValue = b.BaseForageValue,
-                    BaseHuntValue = b.BaseHuntValue,
-                    BaseFishValue = b.BaseFishValue,
-                    BaseFodderValue = b.BaseFodderValue,
-                    BaseBoneValue = b.BaseBoneValue,
-                    BaseWoodValue = b.BaseWoodValue,
-                    BaseStoneValue = b.BaseStoneValue,
-                    BaseSpecialValue = b.BaseSpecialValue
+                    // Convert the scaled storage values back to the whole numbers the UI expects.
+                    BaseForageValue = ScaledResourceValue.ToWhole(b.BaseForageValue),
+                    BaseHuntValue = ScaledResourceValue.ToWhole(b.BaseHuntValue),
+                    BaseFishValue = ScaledResourceValue.ToWhole(b.BaseFishValue),
+                    BaseFodderValue = ScaledResourceValue.ToWhole(b.BaseFodderValue),
+                    BaseBoneValue = ScaledResourceValue.ToWhole(b.BaseBoneValue),
+                    BaseWoodValue = ScaledResourceValue.ToWhole(b.BaseWoodValue),
+                    BaseStoneValue = ScaledResourceValue.ToWhole(b.BaseStoneValue),
+                    BaseSpecialValue = ScaledResourceValue.ToWhole(b.BaseSpecialValue)
                 })
-                .ToListAsync(cancellationToken);
+                .ToList();
 
             return ServiceResult<IReadOnlyCollection<CampaignMapBiome>>.Succeed(biomes.AsReadOnly());
         }

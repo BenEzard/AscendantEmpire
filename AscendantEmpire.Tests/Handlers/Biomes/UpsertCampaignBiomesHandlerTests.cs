@@ -1,6 +1,7 @@
 ﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.Biomes.Handlers;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
 
@@ -90,14 +91,15 @@ internal class UpsertCampaignBiomesHandlerTests
                 Assert.That(updated.IsPaintableOnCampaignMap, Is.True, $"{nameof(updated.IsPaintableOnCampaignMap)} value is not what's expected.");
                 Assert.That(updated.MapEditorHtmlColor, Is.EqualTo("#fcfda4"), $"{nameof(updated.MapEditorHtmlColor)} value is not what's expected.");
                 Assert.That(updated.CanBeElevated, Is.True, $"{nameof(updated.CanBeElevated)} value is not what's expected.");
-                Assert.That(updated.BaseForageValue, Is.EqualTo(0), $"{nameof(updated.BaseForageValue)} value is not what's expected.");
-                Assert.That(updated.BaseHuntValue, Is.EqualTo(20), $"{nameof(updated.BaseHuntValue)} value is not what's expected.");
-                Assert.That(updated.BaseFishValue, Is.EqualTo(30), $"{nameof(updated.BaseFishValue)} value is not what's expected.");
-                Assert.That(updated.BaseFodderValue, Is.EqualTo(40), $"{nameof(updated.BaseFodderValue)} value is not what's expected.");
-                Assert.That(updated.BaseBoneValue, Is.EqualTo(50), $"{nameof(updated.BaseBoneValue)} value is not what's expected.");
-                Assert.That(updated.BaseWoodValue, Is.EqualTo(60), $"{nameof(updated.BaseWoodValue)} value is not what's expected.");
-                Assert.That(updated.BaseStoneValue, Is.EqualTo(70), $"{nameof(updated.BaseStoneValue)} value is not what's expected.");
-                Assert.That(updated.BaseSpecialValue, Is.EqualTo(80), $"{nameof(updated.BaseSpecialValue)} value is not what's expected.");
+                // The handler stores base values SCALED, so the persisted entity holds whole * ScaledAmount.Scale.
+                Assert.That(updated.BaseForageValue, Is.EqualTo(ScaledAmount.FromWhole(0).RawValue), $"{nameof(updated.BaseForageValue)} value is not what's expected.");
+                Assert.That(updated.BaseHuntValue, Is.EqualTo(ScaledAmount.FromWhole(20).RawValue), $"{nameof(updated.BaseHuntValue)} value is not what's expected.");
+                Assert.That(updated.BaseFishValue, Is.EqualTo(ScaledAmount.FromWhole(30).RawValue), $"{nameof(updated.BaseFishValue)} value is not what's expected.");
+                Assert.That(updated.BaseFodderValue, Is.EqualTo(ScaledAmount.FromWhole(40).RawValue), $"{nameof(updated.BaseFodderValue)} value is not what's expected.");
+                Assert.That(updated.BaseBoneValue, Is.EqualTo(ScaledAmount.FromWhole(50).RawValue), $"{nameof(updated.BaseBoneValue)} value is not what's expected.");
+                Assert.That(updated.BaseWoodValue, Is.EqualTo(ScaledAmount.FromWhole(60).RawValue), $"{nameof(updated.BaseWoodValue)} value is not what's expected.");
+                Assert.That(updated.BaseStoneValue, Is.EqualTo(ScaledAmount.FromWhole(70).RawValue), $"{nameof(updated.BaseStoneValue)} value is not what's expected.");
+                Assert.That(updated.BaseSpecialValue, Is.EqualTo(ScaledAmount.FromWhole(80).RawValue), $"{nameof(updated.BaseSpecialValue)} value is not what's expected.");
             }
         }
     }

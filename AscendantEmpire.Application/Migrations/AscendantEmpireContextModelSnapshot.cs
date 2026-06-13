@@ -629,29 +629,29 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("BiomeTypeId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("BaseBoneValue")
-                        .HasColumnType("int");
+                    b.Property<long?>("BaseBoneValue")
+                        .HasColumnType("bigint");
 
-                    b.Property<int?>("BaseFishValue")
-                        .HasColumnType("int");
+                    b.Property<long?>("BaseFishValue")
+                        .HasColumnType("bigint");
 
-                    b.Property<int?>("BaseFodderValue")
-                        .HasColumnType("int");
+                    b.Property<long?>("BaseFodderValue")
+                        .HasColumnType("bigint");
 
-                    b.Property<int?>("BaseForageValue")
-                        .HasColumnType("int");
+                    b.Property<long?>("BaseForageValue")
+                        .HasColumnType("bigint");
 
-                    b.Property<int?>("BaseHuntValue")
-                        .HasColumnType("int");
+                    b.Property<long?>("BaseHuntValue")
+                        .HasColumnType("bigint");
 
-                    b.Property<int?>("BaseSpecialValue")
-                        .HasColumnType("int");
+                    b.Property<long?>("BaseSpecialValue")
+                        .HasColumnType("bigint");
 
-                    b.Property<int?>("BaseStoneValue")
-                        .HasColumnType("int");
+                    b.Property<long?>("BaseStoneValue")
+                        .HasColumnType("bigint");
 
-                    b.Property<int?>("BaseWoodValue")
-                        .HasColumnType("int");
+                    b.Property<long?>("BaseWoodValue")
+                        .HasColumnType("bigint");
 
                     b.Property<bool>("CanBeElevated")
                         .HasColumnType("bit");

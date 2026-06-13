@@ -1,6 +1,7 @@
 ﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.Biomes.Validators;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.Biomes;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
@@ -89,14 +90,15 @@ internal class UpsertCampaignMapBiomesHandler(
                 existingBiome.IsWater = updatedValues.IsWater;
                 existingBiome.IsTraversable = updatedValues.IsTraversable;
                 existingBiome.RegenerationRate = updatedValues.RegenerationRate;
-                existingBiome.BaseForageValue = updatedValues.BaseForageValue;
-                existingBiome.BaseHuntValue = updatedValues.BaseHuntValue;
-                existingBiome.BaseFishValue = updatedValues.BaseFishValue;
-                existingBiome.BaseFodderValue = updatedValues.BaseFodderValue;
-                existingBiome.BaseBoneValue = updatedValues.BaseBoneValue;
-                existingBiome.BaseWoodValue = updatedValues.BaseWoodValue;
-                existingBiome.BaseStoneValue = updatedValues.BaseStoneValue;
-                existingBiome.BaseSpecialValue = updatedValues.BaseSpecialValue;
+                // The DTO carries whole numbers from the UI; store them scaled so bonus math keeps precision.
+                existingBiome.BaseForageValue = ScaledResourceValue.ToRaw(updatedValues.BaseForageValue);
+                existingBiome.BaseHuntValue = ScaledResourceValue.ToRaw(updatedValues.BaseHuntValue);
+                existingBiome.BaseFishValue = ScaledResourceValue.ToRaw(updatedValues.BaseFishValue);
+                existingBiome.BaseFodderValue = ScaledResourceValue.ToRaw(updatedValues.BaseFodderValue);
+                existingBiome.BaseBoneValue = ScaledResourceValue.ToRaw(updatedValues.BaseBoneValue);
+                existingBiome.BaseWoodValue = ScaledResourceValue.ToRaw(updatedValues.BaseWoodValue);
+                existingBiome.BaseStoneValue = ScaledResourceValue.ToRaw(updatedValues.BaseStoneValue);
+                existingBiome.BaseSpecialValue = ScaledResourceValue.ToRaw(updatedValues.BaseSpecialValue);
                 existingBiome.MapEditorHtmlColor = updatedValues.MapEditorHtmlColor;
                 existingBiome.CanBeElevated = updatedValues.CanBeElevated;
                 existingBiome.IsPaintableOnCampaignMap = updatedValues.IsPaintableOnCampaignMap;

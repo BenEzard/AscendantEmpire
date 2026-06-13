@@ -1,6 +1,7 @@
 ﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.Biomes.Validators;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.Biomes;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
@@ -47,14 +48,15 @@ internal class AddCampaignMapBiomesHandler(
                 IsWater = biome.IsWater,
                 IsTraversable = biome.IsTraversable,
                 RegenerationRate = biome.RegenerationRate,
-                BaseForageValue = biome.BaseForageValue,
-                BaseHuntValue = biome.BaseHuntValue,
-                BaseFishValue = biome.BaseFishValue,
-                BaseFodderValue = biome.BaseFodderValue,
-                BaseBoneValue = biome.BaseBoneValue,
-                BaseWoodValue = biome.BaseWoodValue,
-                BaseStoneValue = biome.BaseStoneValue,
-                BaseSpecialValue = biome.BaseSpecialValue,
+                // The DTO carries whole numbers from the UI; store them scaled so bonus math keeps precision.
+                BaseForageValue = ScaledResourceValue.ToRaw(biome.BaseForageValue),
+                BaseHuntValue = ScaledResourceValue.ToRaw(biome.BaseHuntValue),
+                BaseFishValue = ScaledResourceValue.ToRaw(biome.BaseFishValue),
+                BaseFodderValue = ScaledResourceValue.ToRaw(biome.BaseFodderValue),
+                BaseBoneValue = ScaledResourceValue.ToRaw(biome.BaseBoneValue),
+                BaseWoodValue = ScaledResourceValue.ToRaw(biome.BaseWoodValue),
+                BaseStoneValue = ScaledResourceValue.ToRaw(biome.BaseStoneValue),
+                BaseSpecialValue = ScaledResourceValue.ToRaw(biome.BaseSpecialValue),
                 MapEditorHtmlColor = biome.MapEditorHtmlColor,
                 CanBeElevated = biome.CanBeElevated,
                 IsPaintableOnCampaignMap = biome.IsPaintableOnCampaignMap

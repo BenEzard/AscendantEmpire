@@ -4,6 +4,7 @@ using System.Text.Json;
 using AscendantEmpire.Application.BackgroundServices;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Classes.Export;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.Application.Options;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
@@ -159,14 +160,15 @@ internal sealed class MapExportExecutor(
                 IsPaintableOnCampaignMap = b.IsPaintableOnCampaignMap,
                 MapEditorHtmlColor = b.MapEditorHtmlColor,
                 CanBeElevated = b.CanBeElevated,
-                BaseForageValue = b.BaseForageValue,
-                BaseHuntValue = b.BaseHuntValue,
-                BaseFishValue = b.BaseFishValue,
-                BaseFodderValue = b.BaseFodderValue,
-                BaseBoneValue = b.BaseBoneValue,
-                BaseWoodValue = b.BaseWoodValue,
-                BaseStoneValue = b.BaseStoneValue,
-                BaseSpecialValue = b.BaseSpecialValue
+                // Base values are stored scaled; export them as the whole numbers seen in the UI.
+                BaseForageValue = ScaledResourceValue.ToWhole(b.BaseForageValue),
+                BaseHuntValue = ScaledResourceValue.ToWhole(b.BaseHuntValue),
+                BaseFishValue = ScaledResourceValue.ToWhole(b.BaseFishValue),
+                BaseFodderValue = ScaledResourceValue.ToWhole(b.BaseFodderValue),
+                BaseBoneValue = ScaledResourceValue.ToWhole(b.BaseBoneValue),
+                BaseWoodValue = ScaledResourceValue.ToWhole(b.BaseWoodValue),
+                BaseStoneValue = ScaledResourceValue.ToWhole(b.BaseStoneValue),
+                BaseSpecialValue = ScaledResourceValue.ToWhole(b.BaseSpecialValue)
             })];
 
         List<MapExportGeography> exportGeographies = [.. geographies

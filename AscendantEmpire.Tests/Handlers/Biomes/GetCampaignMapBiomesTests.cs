@@ -1,5 +1,6 @@
 ﻿using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.Biomes.Handlers;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.Biomes;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
@@ -62,14 +63,15 @@ internal class GetCampaignMapBiomesTests
                 IsWater = false,
                 IsTraversable = true,
                 RegenerationRate = 1.1m,
-                BaseForageValue = 2,
-                BaseHuntValue = 3,
-                BaseFishValue = 4,
-                BaseFodderValue = 5,
-                BaseBoneValue = 6,
-                BaseWoodValue = 7,
-                BaseStoneValue = 8,
-                BaseSpecialValue = 9,
+                // Base values are stored SCALED in the DB; the handler converts them back to whole numbers.
+                BaseForageValue = ScaledAmount.FromWhole(2).RawValue,
+                BaseHuntValue = ScaledAmount.FromWhole(3).RawValue,
+                BaseFishValue = ScaledAmount.FromWhole(4).RawValue,
+                BaseFodderValue = ScaledAmount.FromWhole(5).RawValue,
+                BaseBoneValue = ScaledAmount.FromWhole(6).RawValue,
+                BaseWoodValue = ScaledAmount.FromWhole(7).RawValue,
+                BaseStoneValue = ScaledAmount.FromWhole(8).RawValue,
+                BaseSpecialValue = ScaledAmount.FromWhole(9).RawValue,
                 MapEditorHtmlColor = "not-a-color", // Invalid color
                 CanBeElevated = false,
                 IsPaintableOnCampaignMap = true
@@ -83,14 +85,15 @@ internal class GetCampaignMapBiomesTests
                 IsWater = false,
                 IsTraversable = false,
                 RegenerationRate = 1.1m,
-                BaseForageValue = 2,
-                BaseHuntValue = 3,
-                BaseFishValue = 4,
-                BaseFodderValue = 5,
-                BaseBoneValue = 6,
-                BaseWoodValue = 7,
-                BaseStoneValue = 8,
-                BaseSpecialValue = 9,
+                // Base values are stored SCALED in the DB; the handler converts them back to whole numbers.
+                BaseForageValue = ScaledAmount.FromWhole(2).RawValue,
+                BaseHuntValue = ScaledAmount.FromWhole(3).RawValue,
+                BaseFishValue = ScaledAmount.FromWhole(4).RawValue,
+                BaseFodderValue = ScaledAmount.FromWhole(5).RawValue,
+                BaseBoneValue = ScaledAmount.FromWhole(6).RawValue,
+                BaseWoodValue = ScaledAmount.FromWhole(7).RawValue,
+                BaseStoneValue = ScaledAmount.FromWhole(8).RawValue,
+                BaseSpecialValue = ScaledAmount.FromWhole(9).RawValue,
                 MapEditorHtmlColor = "#ffffff", // Invalid color
                 CanBeElevated = true,
                 IsPaintableOnCampaignMap = false
@@ -140,18 +143,27 @@ internal class GetCampaignMapBiomesTests
                 Assert.That(biome.IsWater, Is.EqualTo(loadedBiome.IsWater), $"Biome {biome.BiomeType} water status does not match.");
                 Assert.That(biome.IsTraversable, Is.EqualTo(loadedBiome.IsTraversable), $"Biome {biome.BiomeType} traversability does not match.");
                 Assert.That(biome.RegenerationRate, Is.EqualTo(loadedBiome.RegenerationRate), $"Biome {biome.BiomeType} regeneration rate does not match.");
-                Assert.That(biome.BaseForageValue, Is.EqualTo(loadedBiome.BaseForageValue), $"Biome {biome.BiomeType} forage value does not match.");
-                Assert.That(biome.BaseHuntValue, Is.EqualTo(loadedBiome.BaseHuntValue), $"Biome {biome.BiomeType} hunt value does not match.");
-                Assert.That(biome.BaseFishValue, Is.EqualTo(loadedBiome.BaseFishValue), $"Biome {biome.BiomeType} fish value does not match.");
-                Assert.That(biome.BaseFodderValue, Is.EqualTo(loadedBiome.BaseFodderValue), $"Biome {biome.BiomeType} fodder value does not match.");
-                Assert.That(biome.BaseBoneValue, Is.EqualTo(loadedBiome.BaseBoneValue), $"Biome {biome.BiomeType} bone value does not match.");
-                Assert.That(biome.BaseWoodValue, Is.EqualTo(loadedBiome.BaseWoodValue), $"Biome {biome.BiomeType} wood value does not match.");
-                Assert.That(biome.BaseStoneValue, Is.EqualTo(loadedBiome.BaseStoneValue), $"Biome {biome.BiomeType} stone value does not match.");
-                Assert.That(biome.BaseSpecialValue, Is.EqualTo(loadedBiome.BaseSpecialValue), $"Biome {biome.BiomeType} special value does not match.");
+                // The handler returns whole numbers, so compare against the whole equivalent of the scaled seed.
+                Assert.That(biome.BaseForageValue, Is.EqualTo(ExpectedWhole(loadedBiome.BaseForageValue)), $"Biome {biome.BiomeType} forage value does not match.");
+                Assert.That(biome.BaseHuntValue, Is.EqualTo(ExpectedWhole(loadedBiome.BaseHuntValue)), $"Biome {biome.BiomeType} hunt value does not match.");
+                Assert.That(biome.BaseFishValue, Is.EqualTo(ExpectedWhole(loadedBiome.BaseFishValue)), $"Biome {biome.BiomeType} fish value does not match.");
+                Assert.That(biome.BaseFodderValue, Is.EqualTo(ExpectedWhole(loadedBiome.BaseFodderValue)), $"Biome {biome.BiomeType} fodder value does not match.");
+                Assert.That(biome.BaseBoneValue, Is.EqualTo(ExpectedWhole(loadedBiome.BaseBoneValue)), $"Biome {biome.BiomeType} bone value does not match.");
+                Assert.That(biome.BaseWoodValue, Is.EqualTo(ExpectedWhole(loadedBiome.BaseWoodValue)), $"Biome {biome.BiomeType} wood value does not match.");
+                Assert.That(biome.BaseStoneValue, Is.EqualTo(ExpectedWhole(loadedBiome.BaseStoneValue)), $"Biome {biome.BiomeType} stone value does not match.");
+                Assert.That(biome.BaseSpecialValue, Is.EqualTo(ExpectedWhole(loadedBiome.BaseSpecialValue)), $"Biome {biome.BiomeType} special value does not match.");
                 Assert.That(biome.MapEditorHtmlColor, Is.EqualTo(loadedBiome.MapEditorHtmlColor), $"Biome {biome.Name} MapEditorHtmlColor does not match the loaded value.");
                 Assert.That(biome.CanBeElevated, Is.EqualTo(loadedBiome.CanBeElevated), $"Biome {biome.Name} CanBeElevated does not match the loaded value.");
                 Assert.That(biome.IsPaintableOnCampaignMap, Is.EqualTo(loadedBiome.IsPaintableOnCampaignMap), $"Biome {biome.Name} IsPaintableOnCampaignMap does not match the loaded value.");
             }
         }
+    }
+
+    /// <summary>
+    /// Converts a scaled raw storage value to the whole number the Get handler is expected to return.
+    /// </summary>
+    private static int? ExpectedWhole(long? scaledRaw)
+    {
+        return scaledRaw is null ? null : (int)ScaledAmount.FromRaw(scaledRaw.Value).ToWholeRoundedDown();
     }
 }
