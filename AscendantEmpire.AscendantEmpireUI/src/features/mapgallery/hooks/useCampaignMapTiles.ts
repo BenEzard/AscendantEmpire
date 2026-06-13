@@ -23,9 +23,11 @@ export function useCampaignMapTilesQuery(campaignMapGalleryIndexId: number | nul
     queryKey: mapGalleryTilesKey(campaignMapGalleryIndexId),
     enabled: enabled && campaignMapGalleryIndexId != null,
     refetchOnWindowFocus: false,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (campaignMapGalleryIndexId == null) throw new Error("campaignMapGalleryIndexId is null");
-      const res = await axios.get<CampaignMapTilesResponse>(`${API_BASE}/map-gallery/${campaignMapGalleryIndexId}/tiles`);
+      // Pass react-query's AbortSignal so switching maps cancels the in-flight request
+      // and a late response can't overwrite the newer map's tiles in the cache.
+      const res = await axios.get<CampaignMapTilesResponse>(`${API_BASE}/map-gallery/${campaignMapGalleryIndexId}/tiles`, { signal });
       return res.data;
     },
   });

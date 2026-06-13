@@ -61,14 +61,19 @@ export function useExportCampaignMap(): UseExportCampaignMapResult {
     try {
       const { blob, fileName } = await getMapExportDownload(mapId, processId);
       const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = fileName;
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      URL.revokeObjectURL(url);
-      setExportPhase({ phase: "done" });
+      try {
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = fileName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        setExportPhase({ phase: "done" });
+      } finally {
+        // Always release the object URL, even if appending/clicking the anchor throws,
+        // so the blob isn't retained in memory.
+        URL.revokeObjectURL(url);
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to download export.";
       setExportPhase({ phase: "error", message });

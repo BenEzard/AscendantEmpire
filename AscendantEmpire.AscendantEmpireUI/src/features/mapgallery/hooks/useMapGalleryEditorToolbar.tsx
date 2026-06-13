@@ -8,6 +8,7 @@ import { HiMagnifyingGlass } from "react-icons/hi2";
 
 import type { ToolBarGroup } from "@/components/Toolbar";
 import { DropButton, HamburgerMenu, Spinner } from "@/components/ui";
+import type { DropButtonItem } from "@/components/ui/DropButton";
 import ToolbarExclusiveButtons from "@/components/ToolbarExclusiveButtons";
 
 import type { Biome } from "@/types/map/Biome";
@@ -48,6 +49,174 @@ type Args = {
   clampRadius: (kind: BrushKind, value: number) => number;
 };
 
+// ---------------------------------------------------------------------------
+// Brush palette descriptors
+// ---------------------------------------------------------------------------
+
+/**
+ * Describes one paint-brush shape. The six brushes only differ by their kind and
+ * the tooltip wording; all share the same select/scroll-to-resize behavior, so we
+ * drive them from this list instead of repeating ~20 lines of JSX per brush.
+ *
+ * `titleFor` receives the (clamped) radius and the resulting span (1 + radius * 2).
+ */
+type BrushDescriptor = {
+  kind: BrushKind;
+  titleFor: (radius: number, span: number) => string;
+};
+
+const BRUSH_KINDS: BrushDescriptor[] = [
+  { kind: "square", titleFor: (_r, n) => `Square ${n}×${n} (${n * n} tiles) — scroll to resize` },
+  { kind: "diamond", titleFor: (r, n) => `Diamond (radius ${r}, bounds ${n}×${n}) — scroll to resize` },
+  { kind: "vline", titleFor: (_r, n) => `Vertical line (${n} tiles) — scroll to resize` },
+  { kind: "hline", titleFor: (_r, n) => `Horizontal line (${n} tiles) — scroll to resize` },
+  { kind: "diagDown", titleFor: (_r, n) => `Diagonal \\ (${n} tiles) — scroll to resize` },
+  { kind: "diagUp", titleFor: (_r, n) => `Diagonal / (${n} tiles) — scroll to resize` },
+];
+
+type BrushItemContext = {
+  brushKind: BrushKind;
+  brushRadii: Record<BrushKind, number>;
+  clampRadius: (kind: BrushKind, value: number) => number;
+  setActiveTool: (t: ActiveTool) => void;
+  setBrushKind: (k: BrushKind) => void;
+  setBrushRadii: (updater: (prev: Record<BrushKind, number>) => Record<BrushKind, number>) => void;
+};
+
+/** Builds the dropdown menu item for a single brush descriptor. */
+function makeBrushItem(descriptor: BrushDescriptor, ctx: BrushItemContext): DropButtonItem {
+  const { kind, titleFor } = descriptor;
+  const { brushKind, brushRadii, clampRadius, setActiveTool, setBrushKind, setBrushRadii } = ctx;
+
+  // Radii are kept clamped by MapGalleryEditor's clamp-on-resize effect, so the
+  // displayed radius is the clamped stored value.
+  const radius = clampRadius(kind, brushRadii[kind]);
+  const span = 1 + radius * 2;
+
+  return {
+    key: kind,
+    label: <BrushPreview kind={kind} radius={radius} />,
+    title: titleFor(radius, span),
+    active: brushKind === kind,
+    onSelect: () => {
+      setActiveTool("paint");
+      setBrushKind(kind);
+    },
+    onWheel: (dir) => {
+      setActiveTool("paint");
+      setBrushKind(kind);
+      setBrushRadii((prev) => {
+        const current = prev[kind] ?? 0;
+        const next = clampRadius(kind, current + (dir === "up" ? 1 : -1));
+        return { ...prev, [kind]: next };
+      });
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Palette menu item builders (biomes / geographies)
+// ---------------------------------------------------------------------------
+
+/** Builds the Biomes dropdown items: a "<none>" entry followed by paintable biomes. */
+function buildBiomePaletteItems(
+  biomes: Biome[] | undefined,
+  selection: number | null,
+  setSelection: (v: number | null) => void,
+): DropButtonItem[] {
+  return [
+    {
+      key: "none",
+      label: (
+        <span className="inline-flex w-full items-center gap-2">
+          <span className="inline-block h-3 w-3 border border-black/20" />
+          <span className="inline-flex items-center">
+            <span>{"<none>"}</span>
+            {selection == null ? <FaCheck aria-hidden size={12} className="ml-1 text-slate-600" /> : null}
+          </span>
+        </span>
+      ),
+      active: selection == null,
+      onSelect: () => setSelection(null),
+    },
+    ...(biomes ?? [])
+      .slice()
+      .filter((b) => b.isPaintableOnCampaignMap)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((b) => {
+        const active = selection === b.biomeType;
+        const color = (b.mapEditorHtmlColor ?? "").trim();
+
+        return {
+          key: b.biomeType,
+          label: (
+            <span className="inline-flex w-full items-center gap-2">
+              <span className="inline-block h-3 w-3 border border-black/20" style={{ background: color || "transparent" }} />
+              <span className="inline-flex items-center">
+                <span>{b.name}</span>
+                {active ? <FaCheck aria-hidden size={12} className="ml-1 text-slate-600" /> : null}
+              </span>
+            </span>
+          ),
+          active,
+          onSelect: () => setSelection(b.biomeType),
+        };
+      }),
+  ];
+}
+
+/** Builds the Geographies dropdown items: a "<none>" entry followed by paintable geographies. */
+function buildGeographyPaletteItems(
+  geographies: Geography[] | undefined,
+  selection: number | null,
+  setSelection: (v: number | null) => void,
+): DropButtonItem[] {
+  return [
+    {
+      key: "none",
+      label: (
+        <span className="inline-flex w-full items-center gap-2">
+          <span className="inline-flex h-3 w-3 items-center justify-center" />
+          <span className="inline-flex items-center">
+            <span>{"<none>"}</span>
+            {selection == null ? <FaCheck aria-hidden size={12} className="ml-1 text-slate-600" /> : null}
+          </span>
+        </span>
+      ),
+      active: selection == null,
+      onSelect: () => setSelection(null),
+    },
+    ...(geographies ?? [])
+      .slice()
+      .filter((g) => g.isPaintableOnCampaignMap)
+      .sort((a, b) => a.relativeElevation - b.relativeElevation)
+      .map((g) => {
+        const active = selection === g.campaignMapGeographyType;
+        const iconKey = (g.mapEditorIcon ?? "").trim();
+        const Icon = iconKey ? iconMap[iconKey] : undefined;
+
+        return {
+          key: g.campaignMapGeographyType,
+          label: (
+            <span className="inline-flex w-full items-center gap-2">
+              <span className="inline-flex h-3 w-3 items-center justify-center">{Icon ? <Icon aria-hidden size={12} className="text-slate-700" /> : null}</span>
+              <span className="inline-flex items-center">
+                <span>{g.name}</span>
+                {active ? <FaCheck aria-hidden size={12} className="ml-1 text-slate-600" /> : null}
+              </span>
+            </span>
+          ),
+          active,
+          onSelect: () => setSelection(g.campaignMapGeographyType),
+        };
+      }),
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Hook
+// ---------------------------------------------------------------------------
+
 export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
   const {
     biomesLoading,
@@ -78,380 +247,159 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
     clampRadius,
   } = args;
 
-  return useMemo<ToolBarGroup[]>(
-    () => [
-      {
-        caption: "Map",
-        buttons: [
-          {
-            key: "map-menu",
-            render: () => (
-              <HamburgerMenu
-                title="Map menu"
-                tooltip="Map"
-                groups={[
-                  {
-                    label: "Map",
-                    items: [
-                      {
-                        key: "new",
-                        icon: <VscNewFile />,
-                        label: "New",
-                        tooltip: "New Campaign Map",
-                        onClick: () => setActiveDialog("newCampaignMap"),
-                      },
-                      {
-                        key: "open",
-                        icon: <FaRegFolderOpen />,
-                        label: "Open",
-                        tooltip: "Open Campaign Map",
-                        onClick: () => setActiveDialog("openCampaignMap"),
-                      },
-                      {
-                        key: "close",
-                        icon: <SlClose />,
-                        label: "Close",
-                        tooltip: "Close Campaign Map",
-                        disabled: openMapIndex == null,
-                        onClick: closeMap,
-                      },
-                    ],
-                  },
-                  {
-                    label: "Dev Tools",
-                    items: [
-                      {
-                        key: "push-out",
-                        icon: isExportingMap ? <Spinner size="sm" /> : <BiExport />,
-                        label: isExportingMap ? "Pushing Out..." : "Push Out",
-                        tooltip: "Push out map changes to currently played games",
-                        disabled: openMapIndex == null || isExportingMap,
-                        onClick: openExportMap,
-                      },
-                    ],
-                  },
-                ]}
-              />
-            ),
-          },
-        ],
-      },
-      {
-        caption: "Palette",
-        buttons: [
-          {
-            key: "biomes",
-            tooltip: biomesLoading ? "Loading Biomes..." : "Biomes",
-            disabled: biomesLoading,
-            render: ({ disabled }) => (
-              <DropButton
-                label="Biomes"
-                title={biomesLoading ? "Loading Biomes..." : "Biomes"}
-                icon={<FaTree />}
-                disabled={disabled}
-                onClick={openBiomes}
-                menuDisabled={biomesLoading || openMapIndex == null}
-                items={[
-                  {
-                    key: "none",
-                    label: (
-                      <span className="inline-flex w-full items-center gap-2">
-                        <span className="inline-block h-3 w-3 border border-black/20" />
-                        <span className="inline-flex items-center">
-                          <span>{"<none>"}</span>
-                          {biomeMapSelection == null ? <FaCheck aria-hidden size={12} className="ml-1 text-slate-600" /> : null}
-                        </span>
-                      </span>
-                    ),
-                    active: biomeMapSelection == null,
-                    onSelect: () => setBiomeMapSelection(null),
-                  },
-                  ...(biomes ?? [])
-                    .slice()
-                    .filter((b) => b.isPaintableOnCampaignMap)
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((b) => {
-                      const active = biomeMapSelection === b.biomeType;
-                      const color = (b.mapEditorHtmlColor ?? "").trim();
-
-                      return {
-                        key: b.biomeType,
-                        label: (
-                          <span className="inline-flex w-full items-center gap-2">
-                            <span className="inline-block h-3 w-3 border border-black/20" style={{ background: color || "transparent" }} />
-                            <span className="inline-flex items-center">
-                              <span>{b.name}</span>
-                              {active ? <FaCheck aria-hidden size={12} className="ml-1 text-slate-600" /> : null}
-                            </span>
-                          </span>
-                        ),
-                        active,
-                        onSelect: () => setBiomeMapSelection(b.biomeType),
-                      };
-                    }),
-                ]}
-              />
-            ),
-          },
-          {
-            key: "geographies",
-            tooltip: geographiesLoading ? "Loading Geographies..." : "Geographies",
-            disabled: geographiesLoading,
-            render: ({ disabled }) => (
-              <DropButton
-                label="Geographies"
-                title={geographiesLoading ? "Loading Geographies..." : "Geographies"}
-                icon={<FaMountain />}
-                disabled={disabled}
-                onClick={openGeographies}
-                menuDisabled={geographiesLoading || openMapIndex == null}
-                items={[
-                  {
-                    key: "none",
-                    label: (
-                      <span className="inline-flex w-full items-center gap-2">
-                        <span className="inline-flex h-3 w-3 items-center justify-center" />
-                        <span className="inline-flex items-center">
-                          <span>{"<none>"}</span>
-                          {geographyMapSelection == null ? <FaCheck aria-hidden size={12} className="ml-1 text-slate-600" /> : null}
-                        </span>
-                      </span>
-                    ),
-                    active: geographyMapSelection == null,
-                    onSelect: () => setGeographyMapSelection(null),
-                  },
-                  ...(geographies ?? [])
-                    .slice()
-                    .filter((b) => b.isPaintableOnCampaignMap)
-                    .sort((a, b) => a.relativeElevation - b.relativeElevation)
-                    .map((g) => {
-                      const active = geographyMapSelection === g.campaignMapGeographyType;
-                      const iconKey = (g.mapEditorIcon ?? "").trim();
-                      const Icon = iconKey ? iconMap[iconKey] : undefined;
-
-                      return {
-                        key: g.campaignMapGeographyType,
-                        label: (
-                          <span className="inline-flex w-full items-center gap-2">
-                            <span className="inline-flex h-3 w-3 items-center justify-center">
-                              {Icon ? <Icon aria-hidden size={12} className="text-slate-700" /> : null}
-                            </span>
-                            <span className="inline-flex items-center">
-                              <span>{g.name}</span>
-                              {active ? <FaCheck aria-hidden size={12} className="ml-1 text-slate-600" /> : null}
-                            </span>
-                          </span>
-                        ),
-                        active,
-                        onSelect: () => setGeographyMapSelection(g.campaignMapGeographyType),
-                      };
-                    }),
-                ]}
-              />
-            ),
-          },
-        ],
-      },
-      {
-        caption: "Editor Tools",
-        buttons: [
-          {
-            key: "tools",
-            disabled: openMapIndex == null,
-            render: ({ disabled }) => (
-              <ToolbarExclusiveButtons
-                disabled={disabled}
-                value={activeTool}
-                onChange={(k) => setActiveTool(k as ActiveTool)}
-                items={[
-                  { type: "button", key: "inspect", icon: <HiMagnifyingGlass />, tooltip: "Inspection" },
-                  {
-                    type: "dropbutton",
-                    key: "paint",
-                    label: "Paint",
-                    icon: <FaPaintBrush />,
-                    tooltip: "Paint Biome & Geography",
-                    onClick: () => {
-                      // main click just selects the tool; brush is chosen from the dropdown.
+  // Each toolbar group is memoized independently with narrow deps so an unrelated
+  // change (e.g. a brush resize) doesn't rebuild the whole toolbar object graph.
+  const mapMenuGroup = useMemo<ToolBarGroup>(
+    () => ({
+      caption: "Map",
+      buttons: [
+        {
+          key: "map-menu",
+          render: () => (
+            <HamburgerMenu
+              title="Map menu"
+              tooltip="Map"
+              groups={[
+                {
+                  label: "Map",
+                  items: [
+                    {
+                      key: "new",
+                      icon: <VscNewFile />,
+                      label: "New",
+                      tooltip: "New Campaign Map",
+                      onClick: () => setActiveDialog("newCampaignMap"),
                     },
-                    items: [
-                      {
-                        key: "square",
-                        label: <BrushPreview kind="square" radius={clampRadius("square", brushRadii.square)} />,
-                        title: (() => {
-                          const r = clampRadius("square", brushRadii.square);
-                          const n = 1 + r * 2;
-                          return `Square ${n}×${n} (${n * n} tiles) — scroll to resize`;
-                        })(),
-                        active: brushKind === "square",
-                        onSelect: () => {
-                          setActiveTool("paint");
-                          setBrushKind("square");
-                        },
-                        onWheel: (dir) => {
-                          setActiveTool("paint");
-                          setBrushKind("square");
-                          setBrushRadii((prev) => {
-                            const current = prev.square ?? 0;
-                            const next = clampRadius("square", current + (dir === "up" ? 1 : -1));
-                            return { ...prev, square: next };
-                          });
-                        },
-                      },
-                      {
-                        key: "diamond",
-                        label: <BrushPreview kind="diamond" radius={clampRadius("diamond", brushRadii.diamond)} />,
-                        title: (() => {
-                          const r = clampRadius("diamond", brushRadii.diamond);
-                          const n = 1 + r * 2;
-                          return `Diamond (radius ${r}, bounds ${n}×${n}) — scroll to resize`;
-                        })(),
-                        active: brushKind === "diamond",
-                        onSelect: () => {
-                          setActiveTool("paint");
-                          setBrushKind("diamond");
-                        },
-                        onWheel: (dir) => {
-                          setActiveTool("paint");
-                          setBrushKind("diamond");
-                          setBrushRadii((prev) => {
-                            const current = prev.diamond ?? 0;
-                            const next = clampRadius("diamond", current + (dir === "up" ? 1 : -1));
-                            return { ...prev, diamond: next };
-                          });
-                        },
-                      },
-                      {
-                        key: "vline",
-                        label: <BrushPreview kind="vline" radius={clampRadius("vline", brushRadii.vline)} />,
-                        title: (() => {
-                          const r = clampRadius("vline", brushRadii.vline);
-                          const n = 1 + r * 2;
-                          return `Vertical line (${n} tiles) — scroll to resize`;
-                        })(),
-                        active: brushKind === "vline",
-                        onSelect: () => {
-                          setActiveTool("paint");
-                          setBrushKind("vline");
-                          setBrushRadii((prev) => ({ ...prev, vline: clampRadius("vline", prev.vline ?? 0) }));
-                        },
-                        onWheel: (dir) => {
-                          setActiveTool("paint");
-                          setBrushKind("vline");
-                          setBrushRadii((prev) => {
-                            const current = prev.vline ?? 0;
-                            const next = clampRadius("vline", current + (dir === "up" ? 1 : -1));
-                            return { ...prev, vline: next };
-                          });
-                        },
-                      },
-                      {
-                        key: "hline",
-                        label: <BrushPreview kind="hline" radius={clampRadius("hline", brushRadii.hline)} />,
-                        title: (() => {
-                          const r = clampRadius("hline", brushRadii.hline);
-                          const n = 1 + r * 2;
-                          return `Horizontal line (${n} tiles) — scroll to resize`;
-                        })(),
-                        active: brushKind === "hline",
-                        onSelect: () => {
-                          setActiveTool("paint");
-                          setBrushKind("hline");
-                          setBrushRadii((prev) => ({ ...prev, hline: clampRadius("hline", prev.hline ?? 0) }));
-                        },
-                        onWheel: (dir) => {
-                          setActiveTool("paint");
-                          setBrushKind("hline");
-                          setBrushRadii((prev) => {
-                            const current = prev.hline ?? 0;
-                            const next = clampRadius("hline", current + (dir === "up" ? 1 : -1));
-                            return { ...prev, hline: next };
-                          });
-                        },
-                      },
-                      {
-                        key: "diagDown",
-                        label: <BrushPreview kind="diagDown" radius={clampRadius("diagDown", brushRadii.diagDown)} />,
-                        title: (() => {
-                          const r = clampRadius("diagDown", brushRadii.diagDown);
-                          const n = 1 + r * 2;
-                          return `Diagonal \\ (${n} tiles) — scroll to resize`;
-                        })(),
-                        active: brushKind === "diagDown",
-                        onSelect: () => {
-                          setActiveTool("paint");
-                          setBrushKind("diagDown");
-                          setBrushRadii((prev) => ({ ...prev, diagDown: clampRadius("diagDown", prev.diagDown ?? 0) }));
-                        },
-                        onWheel: (dir) => {
-                          setActiveTool("paint");
-                          setBrushKind("diagDown");
-                          setBrushRadii((prev) => {
-                            const current = prev.diagDown ?? 0;
-                            const next = clampRadius("diagDown", current + (dir === "up" ? 1 : -1));
-                            return { ...prev, diagDown: next };
-                          });
-                        },
-                      },
-                      {
-                        key: "diagUp",
-                        label: <BrushPreview kind="diagUp" radius={clampRadius("diagUp", brushRadii.diagUp)} />,
-                        title: (() => {
-                          const r = clampRadius("diagUp", brushRadii.diagUp);
-                          const n = 1 + r * 2;
-                          return `Diagonal / (${n} tiles) — scroll to resize`;
-                        })(),
-                        active: brushKind === "diagUp",
-                        onSelect: () => {
-                          setActiveTool("paint");
-                          setBrushKind("diagUp");
-                          setBrushRadii((prev) => ({ ...prev, diagUp: clampRadius("diagUp", prev.diagUp ?? 0) }));
-                        },
-                        onWheel: (dir) => {
-                          setActiveTool("paint");
-                          setBrushKind("diagUp");
-                          setBrushRadii((prev) => {
-                            const current = prev.diagUp ?? 0;
-                            const next = clampRadius("diagUp", current + (dir === "up" ? 1 : -1));
-                            return { ...prev, diagUp: next };
-                          });
-                        },
-                      },
-                    ],
-                    menuDisabled: false,
-                    menuLayout: "grid",
-                    menuGridColumns: 3,
-                  },
-                ]}
-              />
-            ),
-          },
-        ],
-      },
-    ],
+                    {
+                      key: "open",
+                      icon: <FaRegFolderOpen />,
+                      label: "Open",
+                      tooltip: "Open Campaign Map",
+                      onClick: () => setActiveDialog("openCampaignMap"),
+                    },
+                    {
+                      key: "close",
+                      icon: <SlClose />,
+                      label: "Close",
+                      tooltip: "Close Campaign Map",
+                      disabled: openMapIndex == null,
+                      onClick: closeMap,
+                    },
+                  ],
+                },
+                {
+                  label: "Dev Tools",
+                  items: [
+                    {
+                      key: "push-out",
+                      icon: isExportingMap ? <Spinner size="sm" /> : <BiExport />,
+                      label: isExportingMap ? "Pushing Out..." : "Push Out",
+                      tooltip: "Push out map changes to currently played games",
+                      disabled: openMapIndex == null || isExportingMap,
+                      onClick: openExportMap,
+                    },
+                  ],
+                },
+              ]}
+            />
+          ),
+        },
+      ],
+    }),
+    [openMapIndex, closeMap, openExportMap, isExportingMap, setActiveDialog],
+  );
+
+  const paletteGroup = useMemo<ToolBarGroup>(
+    () => ({
+      caption: "Palette",
+      buttons: [
+        {
+          key: "biomes",
+          tooltip: biomesLoading ? "Loading Biomes..." : "Biomes",
+          disabled: biomesLoading,
+          render: ({ disabled }) => (
+            <DropButton
+              label="Biomes"
+              title={biomesLoading ? "Loading Biomes..." : "Biomes"}
+              icon={<FaTree />}
+              disabled={disabled}
+              onClick={openBiomes}
+              menuDisabled={biomesLoading || openMapIndex == null}
+              items={buildBiomePaletteItems(biomes, biomeMapSelection, setBiomeMapSelection)}
+            />
+          ),
+        },
+        {
+          key: "geographies",
+          tooltip: geographiesLoading ? "Loading Geographies..." : "Geographies",
+          disabled: geographiesLoading,
+          render: ({ disabled }) => (
+            <DropButton
+              label="Geographies"
+              title={geographiesLoading ? "Loading Geographies..." : "Geographies"}
+              icon={<FaMountain />}
+              disabled={disabled}
+              onClick={openGeographies}
+              menuDisabled={geographiesLoading || openMapIndex == null}
+              items={buildGeographyPaletteItems(geographies, geographyMapSelection, setGeographyMapSelection)}
+            />
+          ),
+        },
+      ],
+    }),
     [
       biomesLoading,
       biomes,
       biomeMapSelection,
+      setBiomeMapSelection,
+      openBiomes,
       geographiesLoading,
       geographies,
       geographyMapSelection,
-      openMapIndex,
-      closeMap,
-      openExportMap,
-      isExportingMap,
-      setActiveDialog,
-      activeTool,
-      setActiveTool,
-      openBiomes,
-      openGeographies,
-      brushKind,
-      setBrushKind,
-      brushRadii,
-      setBrushRadii,
-      clampRadius,
-      setBiomeMapSelection,
       setGeographyMapSelection,
+      openGeographies,
+      openMapIndex,
     ],
   );
+
+  const editorToolsGroup = useMemo<ToolBarGroup>(
+    () => ({
+      caption: "Editor Tools",
+      buttons: [
+        {
+          key: "tools",
+          disabled: openMapIndex == null,
+          render: ({ disabled }) => (
+            <ToolbarExclusiveButtons
+              disabled={disabled}
+              value={activeTool}
+              onChange={(k) => setActiveTool(k as ActiveTool)}
+              items={[
+                { type: "button", key: "inspect", icon: <HiMagnifyingGlass />, tooltip: "Inspection" },
+                {
+                  type: "dropbutton",
+                  key: "paint",
+                  label: "Paint",
+                  icon: <FaPaintBrush />,
+                  tooltip: "Paint Biome & Geography",
+                  onClick: () => {
+                    // main click just selects the tool; brush is chosen from the dropdown.
+                  },
+                  items: BRUSH_KINDS.map((descriptor) =>
+                    makeBrushItem(descriptor, { brushKind, brushRadii, clampRadius, setActiveTool, setBrushKind, setBrushRadii }),
+                  ),
+                  menuDisabled: false,
+                  menuLayout: "grid",
+                  menuGridColumns: 3,
+                },
+              ]}
+            />
+          ),
+        },
+      ],
+    }),
+    [openMapIndex, activeTool, setActiveTool, brushKind, brushRadii, clampRadius, setBrushKind, setBrushRadii],
+  );
+
+  return useMemo(() => [mapMenuGroup, paletteGroup, editorToolsGroup], [mapMenuGroup, paletteGroup, editorToolsGroup]);
 }

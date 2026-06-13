@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Modal } from "@/components/ui";
 
 interface TextEditorProps {
@@ -10,6 +10,14 @@ interface TextEditorProps {
 
 function ExportDialog({ show, title = "Text", textBody, onClose }: TextEditorProps) {
   const [copied, setCopied] = useState(false);
+
+  // Reset the "Copied!" label after a short delay, clearing the timer on unmount or
+  // re-trigger so we never call setState on an unmounted dialog.
+  useEffect(() => {
+    if (!copied) return;
+    const timer = window.setTimeout(() => setCopied(false), 1200);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
 
   async function handleCopy() {
     const text = textBody ?? "";
@@ -28,7 +36,7 @@ function ExportDialog({ show, title = "Text", textBody, onClose }: TextEditorPro
         document.body.removeChild(ta);
       }
       setCopied(true);
-      setTimeout(() => setCopied(false), 1200);
+      // The reset timer is handled by the effect keyed on `copied`.
     } catch {
       // Optional: handle error or show a toast
     }

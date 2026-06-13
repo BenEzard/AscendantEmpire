@@ -1,27 +1,27 @@
 import ToolBar from "@/components/Toolbar";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Biome } from "../../../types/map/Biome";
-import { Alert, Button, Modal, Spinner, Toast, ToastViewport } from "@/components/ui";
-import type { Geography } from "../../../types/map/Geography";
+import { Alert, Button, Modal, Spinner } from "@/components/ui";
 import NewCampaignMapDialog from "./NewCampaignMapDialog";
-import OpenCampaignMapDialog, { type CampaignMapGalleryIndex } from "./OpenCampaignMapDialog";
+import OpenCampaignMapDialog from "./OpenCampaignMapDialog";
 import ProcessProgressDialog from "@/features/processing/components/ProcessProgressDialog";
 import { useCampaignMapBiomesQuery } from "../hooks/useCampaignMapBiomes";
 import BiomeManagerDialog from "./BiomeManagerDialog";
 import GeographyManagerDialog from "./GeographyManagerDialog";
-import { mapGalleryTilesKey, useCampaignMapTilesQuery } from "@/features/mapgallery/hooks/useCampaignMapTiles";
+import { useCampaignMapTilesQuery } from "@/features/mapgallery/hooks/useCampaignMapTiles";
 import { useCampaignMapGeographiesQuery } from "../hooks/useCampaignMapGeographies";
 import type { TileCell } from "../types/TileTypes";
 import TileGrid from "./TileGrid";
 import { onInspectTileClick } from "../tools/inspectTool";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUpdateCampaignMapTilesMutation } from "../hooks/useUpdateCampaignMapTiles";
-import { pickTextColorOnBg } from "@/util/color";
-import { buildBrushCoordinates, clampBrushRadius, type BrushKind } from "@/features/mapgallery/tools/brush";
 import type { ActiveDialog, ActiveTool } from "@/features/mapgallery/types/MapGalleryEditorTypes";
 import { useMapGalleryEditorToolbar } from "@/features/mapgallery/hooks/useMapGalleryEditorToolbar";
-import { getFirstBiomeType, getFirstGeographyType } from "@/features/mapgallery/tools/paletteDraft";
 import { usePublishCampaignMapMutation } from "../hooks/usePublishCampaignMap";
+import { useToast } from "@/hooks/useToast";
+import { useMapEditorSession } from "../hooks/useMapEditorSession";
+import { usePaletteDrafts } from "../hooks/usePaletteDrafts";
+import { useBrushTool } from "../hooks/useBrushTool";
+import { useTileRendering } from "../hooks/useTileRendering";
 
 function buildTiles2d(
   width: number,
@@ -55,40 +55,17 @@ function buildTiles2d(
 function MapGalleryEditor() {
   const [activeDialog, setActiveDialog] = useState<ActiveDialog>(null);
   const [activeTool, setActiveTool] = useState<ActiveTool>(null);
-  const [brushKind, setBrushKind] = useState<BrushKind>("square");
-  const [brushRadii, setBrushRadii] = useState<Record<BrushKind, number>>({
-    square: 0,
-    diamond: 1,
-    vline: 1,
-    hline: 1,
-    diagDown: 1,
-    diagUp: 1,
-  });
-  const [hoveredTile, setHoveredTile] = useState<TileCell | null>(null);
 
   const queryClient = useQueryClient();
+  const { openToast, toastElement } = useToast();
 
-  // --- Biomes (draft owned by parent) ---
-  const [biomeDraft, setBiomeDraft] = useState<Biome[]>([]);
-  const [biomeMapSelection, setBiomeMapSelection] = useState<number | null>(null);
-  const [biomeManagerSelection, setBiomeManagerSelection] = useState<number | null>(null);
-
-  // --- Geographies (draft owned by parent) ---
-  const [geographyDraft, setGeographyDraft] = useState<Geography[]>([]);
-  const [geographyMapSelection, setGeographyMapSelection] = useState<number | null>(null);
-  const [geographyEditorSelection, setGeographyEditorSelection] = useState<number | null>(null);
-
-  // "Open map" selection
-  const [openMapIndex, setOpenMapIndex] = useState<CampaignMapGalleryIndex | null>(null);
-
-  // Generation progress: set after a new map is queued so we can poll + show a progress dialog.
-  const [generation, setGeneration] = useState<{ processingId: number; mapName: string } | null>(null);
+  // Which map is open + the in-flight generation, with tile-cache lifecycle.
+  const { openMapIndex, generation, setGeneration, openMap, closeMap } = useMapEditorSession();
 
   // Tools are only available when a map is open.
   useEffect(() => {
     if (openMapIndex == null) {
       setActiveTool(null);
-      setHoveredTile(null);
       return;
     }
 
@@ -97,52 +74,47 @@ function MapGalleryEditor() {
   }, [openMapIndex]);
 
   const mapDims = useMemo(
-    () =>
-      openMapIndex
-        ? {
-            width: Math.max(0, openMapIndex.width),
-            height: Math.max(0, openMapIndex.height),
-          }
-        : null,
+    () => (openMapIndex ? { width: Math.max(0, openMapIndex.width), height: Math.max(0, openMapIndex.height) } : null),
     [openMapIndex],
   );
 
-  const clampRadius = useCallback((kind: BrushKind, value: number) => clampBrushRadius(kind, value, mapDims), [mapDims]);
+  // ---------------------------
+  // Queries
+  // ---------------------------
+  const { data: biomes, error: biomeError, isLoading: biomesLoading } = useCampaignMapBiomesQuery();
+  const { data: geographies, error: geographyError, isLoading: geographiesLoading } = useCampaignMapGeographiesQuery();
 
-  useEffect(() => {
-    // If the user opens a smaller map, ensure stored radii are still valid.
-    setBrushRadii((prev) => {
-      const next: Record<BrushKind, number> = { ...prev };
-      (Object.keys(next) as BrushKind[]).forEach((k) => {
-        next[k] = clampRadius(k, next[k] ?? 0);
-      });
-      return next;
-    });
-  }, [clampRadius]);
-
-  useEffect(() => {
-    if (activeTool !== "paint") setHoveredTile(null);
-  }, [activeTool]);
+  // Stable array reference for TileGrid so its React.memo isn't defeated each render.
+  const geographiesList = useMemo(() => geographies ?? [], [geographies]);
 
   // ---------------------------
-  // Toast
+  // Editor tools (palette / brush / tile rendering)
   // ---------------------------
-  const [toast, setToast] = useState<{
-    show: boolean;
-    message: string;
-    variant: "success" | "danger" | "warning" | "info";
-  }>({
-    show: false,
-    message: "",
-    variant: "success",
-  });
+  const {
+    biomeDraft,
+    setBiomeDraft,
+    biomeMapSelection,
+    setBiomeMapSelection,
+    biomeManagerSelection,
+    setBiomeManagerSelection,
+    geographyDraft,
+    setGeographyDraft,
+    geographyMapSelection,
+    setGeographyMapSelection,
+    geographyEditorSelection,
+    setGeographyEditorSelection,
+    openBiomes,
+    openGeographies,
+  } = usePaletteDrafts({ biomes, biomesLoading, geographies, geographiesLoading, setActiveDialog });
 
-  const openToast = useCallback((message: string, variant: "success" | "danger" | "warning" | "info" = "success") => {
-    setToast({ show: true, message, variant });
-  }, []);
+  const { brushKind, setBrushKind, brushRadii, setBrushRadii, clampRadius, buildBrushCoords, previewKeySet, handleTileHover, handleTileHoverEnd } =
+    useBrushTool({ mapDims, activeTool, hasOpenMap: openMapIndex != null });
 
-  const closeToast = () => setToast((t) => ({ ...t, show: false }));
+  const { biomeNameByType, geographyNameByType, getTileStyle, getTileTitle } = useTileRendering({ biomes, geographies, previewKeySet });
 
+  // ---------------------------
+  // Mutations
+  // ---------------------------
   const updateTilesMutation = useUpdateCampaignMapTilesMutation({
     onFailureToast: (message) => openToast(message, "danger"),
   });
@@ -151,70 +123,6 @@ function MapGalleryEditor() {
     onSuccessToast: (message: string) => openToast(message, "success"),
     onFailureToast: (message: string) => openToast(message, "danger"),
   });
-
-  const closeMap = useCallback(() => {
-    if (openMapIndex) {
-      const key = mapGalleryTilesKey(openMapIndex.campaignMapGalleryIndexId);
-      queryClient.cancelQueries({ queryKey: key });
-      queryClient.removeQueries({ queryKey: key });
-    }
-
-    setOpenMapIndex(null);
-  }, [openMapIndex, queryClient]);
-
-  // ---------------------------
-  // Queries
-  // ---------------------------
-  const { data: biomes, error: biomeError, isLoading: biomesLoading } = useCampaignMapBiomesQuery();
-
-  const { data: geographies, error: geographyError, isLoading: geographiesLoading } = useCampaignMapGeographiesQuery();
-
-  // ---------------------------
-  // Lookups for tile view
-  // ---------------------------
-  const biomeColorByType = useMemo(() => {
-    const m = new Map<number, string>();
-    for (const b of biomes ?? []) {
-      const c = (b.mapEditorHtmlColor ?? "").trim();
-      if (c) m.set(b.biomeType, c);
-    }
-    return m;
-  }, [biomes]);
-
-  const biomeNameByType = useMemo(() => {
-    const m = new Map<number, string>();
-    for (const b of biomes ?? []) m.set(b.biomeType, b.name);
-    return m;
-  }, [biomes]);
-
-  const geographyNameByType = useMemo(() => {
-    const m = new Map<number, string>();
-    for (const g of geographies ?? []) {
-      // assuming your Geography id is campaignMapGeographyType (as in your dialog)
-      m.set(g.campaignMapGeographyType, g.name);
-    }
-    return m;
-  }, [geographies]);
-
-  const buildBrushCoords = useCallback(
-    (origin: TileCell) =>
-      buildBrushCoordinates({
-        origin,
-        kind: brushKind,
-        radius: brushRadii[brushKind] ?? 0,
-        dims: mapDims,
-      }),
-    [brushKind, brushRadii, mapDims],
-  );
-
-  const previewKeySet = useMemo(() => {
-    if (activeTool !== "paint") return null;
-    if (!openMapIndex) return null;
-    if (!hoveredTile) return null;
-
-    const coords = buildBrushCoords(hoveredTile);
-    return new Set(coords.map((c) => `${c.x},${c.y}`));
-  }, [activeTool, openMapIndex, hoveredTile, buildBrushCoords]);
 
   const onTileClick = useCallback(
     (t: TileCell) => {
@@ -243,23 +151,9 @@ function MapGalleryEditor() {
           biomeType: biomeMapSelection,
           geographyType: geographyMapSelection,
         });
-
-        return;
       }
-
-      // Other tools (e.g. paint) can implement their own click behavior.
     },
-    [
-      activeTool,
-      openToast,
-      biomeNameByType,
-      geographyNameByType,
-      openMapIndex,
-      biomeMapSelection,
-      geographyMapSelection,
-      updateTilesMutation,
-      buildBrushCoordinates,
-    ],
+    [activeTool, openToast, biomeNameByType, geographyNameByType, openMapIndex, biomeMapSelection, geographyMapSelection, updateTilesMutation, buildBrushCoords],
   );
 
   // ---------------------------
@@ -277,58 +171,9 @@ function MapGalleryEditor() {
     return buildTiles2d(openMapIndex.width, openMapIndex.height, tilesResponse.tiles);
   }, [openMapIndex, tilesResponse]);
 
-  const getTileStyle = useCallback(
-    (t: TileCell): React.CSSProperties => {
-      const bg = t.biomeTypeId != null ? biomeColorByType.get(t.biomeTypeId) : undefined;
-      const preview = previewKeySet?.has(`${t.x},${t.y}`) ?? false;
-      const previewStroke = bg ? pickTextColorOnBg(bg) : "#000000";
-
-      return {
-        background: bg ?? "rgba(0,0,0,0.03)",
-        boxShadow: preview ? `inset 0 0 0 2px ${previewStroke}` : undefined,
-      };
-    },
-    [biomeColorByType, previewKeySet],
-  );
-
-  const getTileTitle = useCallback(
-    (t: TileCell) => {
-      const biomeName = t.biomeTypeId != null ? (biomeNameByType.get(t.biomeTypeId) ?? "(unknown biome)") : "(no biome)";
-
-      const geographyName = t.geographyTypeId != null ? (geographyNameByType.get(t.geographyTypeId) ?? "(unknown geography)") : "(no geography)";
-
-      return `(${t.x}, ${t.y}); ${biomeName}, ${geographyName}`;
-    },
-    [biomeNameByType, geographyNameByType],
-  );
-
   // ---------------------------
-  // ToolBar
+  // Export ("push out")
   // ---------------------------
-  const openBiomes = useCallback(() => {
-    if (biomesLoading) return;
-
-    const list = biomes ?? [];
-
-    setBiomeDraft(list);
-
-    setBiomeManagerSelection(getFirstBiomeType(list));
-
-    setActiveDialog("biomes");
-  }, [biomesLoading, biomes]);
-
-  const openGeographies = useCallback(() => {
-    if (geographiesLoading) return;
-
-    const list = geographies ?? [];
-
-    setGeographyDraft(list);
-
-    setGeographyEditorSelection(getFirstGeographyType(list));
-
-    setActiveDialog("geographies");
-  }, [geographiesLoading, geographies]);
-
   const openExportMap = useCallback(() => {
     if (openMapIndex == null) return;
     setActiveDialog("exportCampaignMap");
@@ -350,6 +195,9 @@ function MapGalleryEditor() {
     );
   }, [openMapIndex, publishCampaignMapMutation]);
 
+  // ---------------------------
+  // ToolBar
+  // ---------------------------
   const toolBarGroups = useMapGalleryEditorToolbar({
     biomesLoading,
     biomes,
@@ -420,10 +268,10 @@ function MapGalleryEditor() {
                 width={openMapIndex.width}
                 height={openMapIndex.height}
                 tiles2d={tiles2d}
-                geographies={geographies ?? []}
+                geographies={geographiesList}
                 onTileClick={onTileClick}
-                onTileHover={activeTool === "paint" ? (t) => setHoveredTile(t) : undefined}
-                onTileHoverEnd={activeTool === "paint" ? () => setHoveredTile(null) : undefined}
+                onTileHover={activeTool === "paint" ? handleTileHover : undefined}
+                onTileHoverEnd={activeTool === "paint" ? handleTileHoverEnd : undefined}
                 getTileStyle={getTileStyle}
                 getTileTitle={getTileTitle}
               />
@@ -479,9 +327,7 @@ function MapGalleryEditor() {
         onClose={() => setActiveDialog(null)}
         onSaveSuccess={(msg) => openToast(msg ?? "Saved!", "success")}
         onOpenMap={(index) => {
-          // User made a selection; ensure tiles reload fresh even if re-opening the same map.
-          queryClient.invalidateQueries({ queryKey: mapGalleryTilesKey(index.campaignMapGalleryIndexId) });
-          setOpenMapIndex(index);
+          openMap(index);
           setActiveDialog(null);
         }}
       />
@@ -506,9 +352,7 @@ function MapGalleryEditor() {
         <p>Exporting map updates can be destructive to ongoing games. Are you sure you want to do this?</p>
       </Modal>
 
-      <ToastViewport>
-        <Toast open={toast.show} onClose={closeToast} variant={toast.variant} message={toast.message} autoHideMs={3000} />
-      </ToastViewport>
+      {toastElement}
     </>
   );
 }

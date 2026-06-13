@@ -5,6 +5,9 @@ import Tile from "./Tile";
 
 export const TILE_SIZE_PX = 50;
 
+// Static container style hoisted to module scope so it isn't re-allocated each render.
+const CONTAINER_STYLE: React.CSSProperties = { overflow: "auto", border: "1px solid rgba(0,0,0,0.125)" };
+
 export interface TileGridProps {
   width: number;
   height: number;
@@ -25,7 +28,7 @@ export interface TileGridProps {
   tileClassName?: string;
 }
 
-export default function TileGrid({
+const TileGrid = React.memo(function TileGrid({
   width,
   height,
   tiles2d,
@@ -44,17 +47,33 @@ export default function TileGrid({
   // Flatten row-major (y then x)
   const flat = React.useMemo(() => tiles2d.flat(), [tiles2d]);
 
+  // Index geographies by their type id once per geographies change, so the per-tile
+  // lookup is an O(1) Map.get() instead of an O(geographies) Array.find() running for
+  // every tile on every render (O(tiles × geographies)).
+  const geographyByType = React.useMemo(() => {
+    const m = new Map<number, Geography>();
+    for (const g of geographies) {
+      m.set(g.campaignMapGeographyType, g);
+    }
+    return m;
+  }, [geographies]);
+
+  // Grid template depends on width; memoize so the style object identity stays stable.
+  const gridStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      display: "grid",
+      gridTemplateColumns: `repeat(${width}, ${TILE_SIZE_PX}px)`,
+      gridAutoRows: `${TILE_SIZE_PX}px`,
+      gap: 0, // crisp grid (no spacing)
+    }),
+    [width],
+  );
+
   return (
-    <div ref={containerRef} style={{ overflow: "auto", border: "1px solid rgba(0,0,0,0.125)" }}>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${width}, ${TILE_SIZE_PX}px)`,
-          gridAutoRows: `${TILE_SIZE_PX}px`,
-          gap: 0, // crisp grid (no spacing)
-        }}>
+    <div ref={containerRef} style={CONTAINER_STYLE}>
+      <div style={gridStyle}>
         {flat.map((t) => {
-          const g = geographies.find((g) => g.campaignMapGeographyType === t.geographyTypeId);
+          const g = t.geographyTypeId == null ? undefined : geographyByType.get(t.geographyTypeId);
           if (!g) {
             throw new Error(`No Geography found for geographyTypeId=${t.geographyTypeId} at (${t.x},${t.y})`);
           }
@@ -79,4 +98,6 @@ export default function TileGrid({
       </div>
     </div>
   );
-}
+});
+
+export default TileGrid;

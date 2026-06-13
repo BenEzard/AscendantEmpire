@@ -53,6 +53,18 @@ export default function Slider({
 
   const grooveRef = useRef<HTMLDivElement>(null);
 
+  // Holds a teardown function for the document-level drag listeners while a drag is in
+  // progress, so they can be detached if the slider unmounts mid-drag (otherwise the
+  // listeners — and the component closures they capture — would leak).
+  const dragTeardownRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      dragTeardownRef.current?.();
+      dragTeardownRef.current = null;
+    };
+  }, []);
+
   // Internal state used when the slider is standalone (outside a SliderCollection).
   const [internalValue, setInternalValue] = useState(initialValue ?? minimumValue);
   const [internalLockState, setInternalLockState] = useState<LockedState>(lockedState);
@@ -93,15 +105,22 @@ export default function Slider({
         }
       };
 
-      const handleMouseUp = () => {
+      const detach = () => {
         document.removeEventListener("mousemove", handleMouseMove);
         document.removeEventListener("mouseup", handleMouseUp);
+        dragTeardownRef.current = null;
+      };
+
+      const handleMouseUp = () => {
+        detach();
       };
 
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
+      // Remember how to tear these down if we unmount before mouseup fires.
+      dragTeardownRef.current = detach;
     },
-    [requestValueUpdate, id, onChange, trackWidth],
+    [requestValueUpdate, id, onChange, trackWidth, minimumValue, maximumValue, valueRange],
   );
 
   const handleLockClick = useCallback(() => {

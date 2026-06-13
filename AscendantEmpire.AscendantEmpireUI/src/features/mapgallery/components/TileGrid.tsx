@@ -6,6 +6,10 @@ import type { Geography } from "@/types/map/Geography";
 
 export const TILE_SIZE_PX = 50;
 
+// Static styles hoisted to module scope so they aren't re-allocated on every render.
+const CONTAINER_STYLE: React.CSSProperties = { overflow: "auto", border: "1px solid rgba(0,0,0,0.125)" };
+const FOOTER_STYLE: React.CSSProperties = { padding: "6px 10px", fontSize: 12, opacity: 0.8 };
+
 export interface TileGridProps {
   width: number;
   height: number;
@@ -23,7 +27,7 @@ export interface TileGridProps {
   tileClassName?: string;
 }
 
-export default function TileGrid({
+const TileGrid = React.memo(function TileGrid({
   width,
   height,
   tiles2d,
@@ -38,17 +42,34 @@ export default function TileGrid({
   // Flatten row-major (y then x)
   const flat = React.useMemo(() => tiles2d.flat(), [tiles2d]);
 
+  // Index geographies by their type id once per geographies change, so the per-tile
+  // lookup below is an O(1) Map.get() instead of an O(geographies) Array.find() that
+  // would otherwise run for every tile on every render (O(tiles × geographies)).
+  const geographyByType = React.useMemo(() => {
+    const m = new Map<number, Geography>();
+    for (const g of geographies) {
+      m.set(g.campaignMapGeographyType, g);
+    }
+    return m;
+  }, [geographies]);
+
+  // Grid template depends on width; memoize so the style object identity is stable
+  // across renders where width hasn't changed.
+  const gridStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      display: "grid",
+      gridTemplateColumns: `repeat(${width}, ${TILE_SIZE_PX}px)`,
+      gridAutoRows: `${TILE_SIZE_PX}px`,
+      gap: 0, // crisp grid (no spacing)
+    }),
+    [width],
+  );
+
   return (
-    <div style={{ overflow: "auto", border: "1px solid rgba(0,0,0,0.125)" }} onMouseLeave={onTileHoverEnd}>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${width}, ${TILE_SIZE_PX}px)`,
-          gridAutoRows: `${TILE_SIZE_PX}px`,
-          gap: 0, // crisp grid (no spacing)
-        }}>
+    <div style={CONTAINER_STYLE} onMouseLeave={onTileHoverEnd}>
+      <div style={gridStyle}>
         {flat.map((t) => {
-          const g = t.geographyTypeId == null ? null : (geographies.find((g) => g.campaignMapGeographyType === t.geographyTypeId) ?? null);
+          const g = t.geographyTypeId == null ? null : (geographyByType.get(t.geographyTypeId) ?? null);
           if (t.geographyTypeId != null && !g) {
             throw new Error(`No Geography found for geographyTypeId=${t.geographyTypeId} at (${t.x},${t.y})`);
           }
@@ -69,9 +90,11 @@ export default function TileGrid({
         })}
       </div>
 
-      <div style={{ padding: "6px 10px", fontSize: 12, opacity: 0.8 }}>
+      <div style={FOOTER_STYLE}>
         {width} × {height}
       </div>
     </div>
   );
-}
+});
+
+export default TileGrid;
