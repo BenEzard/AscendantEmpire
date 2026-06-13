@@ -31,4 +31,7 @@ public class MapExportDocument
 
     /// <summary>Geographies used by at least one tile in <see cref="Tiles"/>.</summary>
     public IReadOnlyList<MapExportGeography> Geographies { get; init; } = [];
+
+    /// <summary>Authored player start positions for the exported map.</summary>
+    public IReadOnlyList<MapExportStartPosition> StartPositions { get; init; } = [];
 }

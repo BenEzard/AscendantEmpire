@@ -4,14 +4,18 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Classes;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Handlers;
+using AscendantEmpire.BackendContracts.MapGallery.GetCampaignMapStartPositions;
 using AscendantEmpire.BackendContracts.MapGallery.GetCampaignMapTiles;
+using AscendantEmpire.BackendContracts.MapGallery.PutCampaignMapStartPositions;
 using AscendantEmpire.BackendContracts.MapGallery.SearchCampaignMap;
 using AscendantEmpire.BackendContracts.MapGallery.UpdateCampaignMapIndex;
 using AscendantEmpire.BackendContracts.MapGallery.UpdateCampaignMapTiles;
 using AscendantEmpire.Domain.Enums.Processing;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.MapGallery.GetCampaignMapGalleryIndex;
+using AscendantEmpire.FrontendContracts.MapGallery.GetCampaignMapStartPositions;
 using AscendantEmpire.FrontendContracts.MapGallery.GetCampaignMapTiles;
+using AscendantEmpire.FrontendContracts.MapGallery.PutCampaignMapStartPositions;
 using AscendantEmpire.FrontendContracts.MapGallery.SearchCampaignMapIndex;
 using AscendantEmpire.FrontendContracts.MapGallery.UpdateCampaignMapTiles;
 
@@ -150,6 +154,89 @@ public class MapGalleryController
             {
                 CampaignMapGalleryIndexId = id,
                 Tiles = contractTiles
+            };
+        });
+    }
+
+    /// <summary>
+    /// Load authored start positions for a Campaign Map in the gallery.
+    /// </summary>
+    /// <response code="200">Campaign Map start positions returned</response>
+    /// <response code="404">Campaign Map not found</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpGet("{id}/start-positions")]
+    [ProducesResponseType(typeof(ICampaignMapStartPositionCollection), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetCampaignMapStartPositionsAsync(
+        [FromServices] IMediator mediator,
+        int id,
+        CancellationToken cancelToken)
+    {
+        ServiceResult<IReadOnlyCollection<DTCampaignMapStartPosition>> response = await mediator.Send(new GetCampaignMapStartPositionsRequest(id), cancelToken);
+
+        return response.ToActionResult(startPositions =>
+        {
+            var contractPositions = startPositions.Select(t => new CampaignMapStartPosition
+            {
+                Id = t.Id,
+                CampaignMapGalleryIndexId = t.CampaignMapGalleryIndexId,
+                XCoord = t.XCoord,
+                YCoord = t.YCoord,
+                DisplayName = t.DisplayName,
+                LocationScore = t.LocationScore
+            }).ToList();
+
+            return new CampaignMapStartPositionCollection
+            {
+                CampaignMapGalleryIndexId = id,
+                StartPositions = contractPositions
+            };
+        });
+    }
+
+    /// <summary>
+    /// Replace authored start positions for a Campaign Map in the gallery.
+    /// </summary>
+    /// <response code="200">Campaign Map start positions updated</response>
+    /// <response code="400">Validation error</response>
+    /// <response code="404">Campaign Map not found</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpPut("{id:int}/start-positions")]
+    [ProducesResponseType(typeof(ICampaignMapStartPositionCollection), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> PutCampaignMapStartPositionsAsync(
+        [FromServices] IMediator mediator,
+        [FromRoute] int id,
+        [FromBody] PutCampaignMapStartPositionsDto request,
+        CancellationToken cancellationToken)
+    {
+        ServiceResult<IReadOnlyCollection<DTCampaignMapStartPosition>> response = await mediator.Send(new PutCampaignMapStartPositionsRequest(
+            CampaignMapGalleryIndexId: id,
+            StartPositions: [.. request.StartPositions.Select(x => new PutCampaignMapStartPositionItem(
+                XCoord: x.XCoord,
+                YCoord: x.YCoord,
+                DisplayName: x.DisplayName,
+                LocationScore: x.LocationScore))]), cancellationToken);
+
+        return response.ToActionResult(startPositions =>
+        {
+            var contractPositions = startPositions.Select(t => new CampaignMapStartPosition
+            {
+                Id = t.Id,
+                CampaignMapGalleryIndexId = t.CampaignMapGalleryIndexId,
+                XCoord = t.XCoord,
+                YCoord = t.YCoord,
+                DisplayName = t.DisplayName,
+                LocationScore = t.LocationScore
+            }).ToList();
+
+            return new CampaignMapStartPositionCollection
+            {
+                CampaignMapGalleryIndexId = id,
+                StartPositions = contractPositions
             };
         });
     }

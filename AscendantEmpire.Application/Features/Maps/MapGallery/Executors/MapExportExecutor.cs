@@ -71,6 +71,14 @@ internal sealed class MapExportExecutor(
 
             await UpdateProgressAsync(processing, 40, cancellationToken);
 
+            List<CampaignMapStartPosition> startPositions = await context.CampaignMapStartPositions
+                .AsNoTracking()
+                .Where(x => x.CampaignMapGalleryIndexId == mapGalleryIndexId)
+                .OrderBy(x => x.YCoord)
+                .ThenBy(x => x.XCoord)
+                .ThenBy(x => x.Id)
+                .ToListAsync(cancellationToken);
+
             // Determine the distinct biome and geography types referenced by the tiles.
             HashSet<BiomeType> usedBiomeIds = [.. tiles.Select(t => t.BiomeTypeId)];
             HashSet<CampaignMapGeographyType> usedGeoIds = [.. tiles.Select(t => t.CampaignMapGeographyTypeId)];
@@ -88,7 +96,7 @@ internal sealed class MapExportExecutor(
             await UpdateProgressAsync(processing, 60, cancellationToken);
 
             // Build the export document.
-            MapExportDocument document = BuildDocument(index, tiles, biomes, geographies);
+            MapExportDocument document = BuildDocument(index, tiles, biomes, geographies, startPositions);
 
             await UpdateProgressAsync(processing, 80, cancellationToken);
 
@@ -124,7 +132,8 @@ internal sealed class MapExportExecutor(
         CampaignMapGalleryIndex index,
         IEnumerable<CampaignMapGallery> tiles,
         IEnumerable<CampaignBiome> biomes,
-        IEnumerable<CampaignGeography> geographies)
+        IEnumerable<CampaignGeography> geographies,
+        IEnumerable<CampaignMapStartPosition> startPositions)
     {
         // Build tile list ordered by relativeId = Y * Width + X
         List<MapExportTile> exportTiles = [.. tiles
@@ -172,6 +181,18 @@ internal sealed class MapExportExecutor(
                 IsPaintableOnCampaignMap = g.IsPaintableOnCampaignMap
             })];
 
+        List<MapExportStartPosition> exportStartPositions = [.. startPositions
+            .OrderBy(x => x.YCoord)
+            .ThenBy(x => x.XCoord)
+            .ThenBy(x => x.Id)
+            .Select(x => new MapExportStartPosition
+            {
+                XCoord = x.XCoord,
+                YCoord = x.YCoord,
+                DisplayName = x.DisplayName,
+                LocationScore = x.LocationScore
+            })];
+
         return new MapExportDocument
         {
             ExportedAt = DateTime.UtcNow,
@@ -189,7 +210,8 @@ internal sealed class MapExportExecutor(
             },
             Tiles = exportTiles,
             Biomes = exportBiomes,
-            Geographies = exportGeographies
+            Geographies = exportGeographies,
+            StartPositions = exportStartPositions
         };
     }
 

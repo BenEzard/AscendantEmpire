@@ -55,6 +55,11 @@ public class AscendantEmpireContext : DbContext
     /// Index of available Campaign Maps in the Gallery.
     /// </summary>
     public DbSet<CampaignMapGalleryIndex> CampaignMapGalleryIndex { get; set; }
+
+    /// <summary>
+    /// Authored player start positions for maps in the gallery.
+    /// </summary>
+    public DbSet<CampaignMapStartPosition> CampaignMapStartPositions { get; set; }
     #endregion
 
     #region Game Schema
@@ -589,6 +594,27 @@ public class AscendantEmpireContext : DbContext
         modelBuilder.Entity<CampaignMapGalleryIndex>(entity =>
         {
             entity.ToTable("CampaignMapGalleryIndex", schema);
+        });
+
+        // --- CampaignMapStartPosition -----------------------------------------------
+        modelBuilder.Entity<CampaignMapStartPosition>(entity =>
+        {
+            entity.ToTable("CampaignMapStartPosition", schema);
+
+            entity.Property(x => x.DisplayName)
+                .HasMaxLength(CampaignMapStartPosition.DISPLAY_NAME_MAX_LENGTH);
+
+            entity.HasOne(x => x.CampaignMapGalleryIndex)
+                .WithMany(x => x.StartPositions)
+                .HasForeignKey(x => x.CampaignMapGalleryIndexId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasIndex(x => x.CampaignMapGalleryIndexId)
+                .HasDatabaseName("IX_CampaignMapStartPosition_Map");
+
+            entity.HasIndex(x => new { x.CampaignMapGalleryIndexId, x.XCoord, x.YCoord })
+                .IsUnique()
+                .HasDatabaseName("UX_CampaignMapStartPosition_Map_X_Y");
         });
     }
 

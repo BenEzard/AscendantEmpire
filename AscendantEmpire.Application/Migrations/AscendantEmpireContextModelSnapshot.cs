@@ -816,6 +816,42 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("CampaignMapGalleryIndex", "mapgallery");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignMapStartPosition", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CampaignMapGalleryIndexId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("LocationScore")
+                        .HasColumnType("int");
+
+                    b.Property<int>("XCoord")
+                        .HasColumnType("int");
+
+                    b.Property<int>("YCoord")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampaignMapGalleryIndexId")
+                        .HasDatabaseName("IX_CampaignMapStartPosition_Map");
+
+                    b.HasIndex("CampaignMapGalleryIndexId", "XCoord", "YCoord")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CampaignMapStartPosition_Map_X_Y");
+
+                    b.ToTable("CampaignMapStartPosition", "mapgallery");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Resources.ResourceCategory", b =>
                 {
                     b.Property<int>("Id")
@@ -1708,6 +1744,17 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Index");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignMapStartPosition", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignMapGalleryIndex", "CampaignMapGalleryIndex")
+                        .WithMany("StartPositions")
+                        .HasForeignKey("CampaignMapGalleryIndexId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("CampaignMapGalleryIndex");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Resources.ResourceCategory", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.Resources.ResourceMetaCategory", "MetaCategory")
@@ -1911,6 +1958,11 @@ namespace AscendantEmpire.Application.Migrations
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.GameIndex", b =>
                 {
                     b.Navigation("Players");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignMapGalleryIndex", b =>
+                {
+                    b.Navigation("StartPositions");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Resources.ResourceCategory", b =>
