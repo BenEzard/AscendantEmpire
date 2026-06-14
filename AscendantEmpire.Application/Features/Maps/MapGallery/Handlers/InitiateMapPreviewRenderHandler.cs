@@ -2,6 +2,7 @@ using AscendantEmpire.Application.BackgroundServices;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Enums.Processing;
+using AscendantEmpire.Domain.Enums.System;
 
 using MediatR;
 
@@ -15,7 +16,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Features.Maps.MapGallery.Handlers;
 
 /// <summary>
-/// Creates a <see cref="Processing"/> record and enqueues a preview-render job for background processing.
+/// Creates a <see cref="BackgroundProcessing"/> record and enqueues a preview-render job for background processing.
 /// </summary>
 /// <remarks>
 /// Returns the new <c>ProcessingId</c> so the caller can poll for status. This is the single, reusable entry
@@ -50,7 +51,7 @@ internal class InitiateMapPreviewRenderHandler(
             // The metadata key matches the convention read by the campaign-map executors.
             string metadataJson = JsonSerializer.Serialize(new { campaignMapGalleryIndexId = request.CampaignMapGalleryIndexId });
 
-            var processing = new Processing
+            var processing = new BackgroundProcessing
             {
                 ProcessType = ProcessType.RenderCampaignMapPreview,
                 Status = ProcessingStatus.Pending,

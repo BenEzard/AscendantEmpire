@@ -28,7 +28,7 @@ internal class GetProcessingStatusHandler(
     {
         try
         {
-            Processing? processing = await context.Processing
+            BackgroundProcessing? processing = await context.Processing
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.ProcessingId == request.ProcessingId, cancellationToken);
 

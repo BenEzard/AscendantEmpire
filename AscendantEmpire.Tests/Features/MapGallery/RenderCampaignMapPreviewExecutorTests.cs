@@ -5,6 +5,7 @@ using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Processing;
+using AscendantEmpire.Domain.Enums.System;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -52,14 +53,14 @@ internal sealed class RenderCampaignMapPreviewExecutorTests : SqlServerTestBase
         // Act — run the executor with a tracked context (mirrors how the dispatcher calls it).
         await using (AscendantEmpireContext runCtx = await DbFactory.CreateDbContextAsync())
         {
-            Processing processing = await runCtx.Processing.SingleAsync(p => p.ProcessingId == processingId);
+            BackgroundProcessing processing = await runCtx.Processing.SingleAsync(p => p.ProcessingId == processingId);
             RenderCampaignMapPreviewExecutor executor = BuildExecutor(runCtx);
             await executor.ExecuteAsync(processing, CancellationToken.None);
         }
 
         // Assert — read fresh state.
         await using AscendantEmpireContext verifyCtx = await DbFactory.CreateDbContextAsync();
-        Processing persistedProcessing = await verifyCtx.Processing.AsNoTracking().SingleAsync(p => p.ProcessingId == processingId);
+        BackgroundProcessing persistedProcessing = await verifyCtx.Processing.AsNoTracking().SingleAsync(p => p.ProcessingId == processingId);
         CampaignMapGalleryIndex persistedIndex = await verifyCtx.CampaignMapGalleryIndex.AsNoTracking().SingleAsync(i => i.Id == indexId);
 
         using (Assert.EnterMultipleScope())
@@ -84,13 +85,13 @@ internal sealed class RenderCampaignMapPreviewExecutorTests : SqlServerTestBase
 
         await using (AscendantEmpireContext runCtx = await DbFactory.CreateDbContextAsync())
         {
-            Processing processing = await runCtx.Processing.SingleAsync(p => p.ProcessingId == processingId);
+            BackgroundProcessing processing = await runCtx.Processing.SingleAsync(p => p.ProcessingId == processingId);
             RenderCampaignMapPreviewExecutor executor = BuildExecutor(runCtx);
             await executor.ExecuteAsync(processing, CancellationToken.None);
         }
 
         await using AscendantEmpireContext verifyCtx = await DbFactory.CreateDbContextAsync();
-        Processing persistedProcessing = await verifyCtx.Processing.AsNoTracking().SingleAsync(p => p.ProcessingId == processingId);
+        BackgroundProcessing persistedProcessing = await verifyCtx.Processing.AsNoTracking().SingleAsync(p => p.ProcessingId == processingId);
 
         using (Assert.EnterMultipleScope())
         {
@@ -194,7 +195,7 @@ internal sealed class RenderCampaignMapPreviewExecutorTests : SqlServerTestBase
     {
         await using AscendantEmpireContext ctx = await DbFactory.CreateDbContextAsync();
 
-        var processing = new Processing
+        var processing = new Domain.Entities.BackgroundProcessing.BackgroundProcessing
         {
             ProcessType = ProcessType.RenderCampaignMapPreview,
             Status = ProcessingStatus.Pending,

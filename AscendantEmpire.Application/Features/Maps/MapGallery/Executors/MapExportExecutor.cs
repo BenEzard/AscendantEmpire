@@ -8,8 +8,8 @@ using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.Application.Options;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
-using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Processing;
+using AscendantEmpire.Domain.Enums.System;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -21,7 +21,7 @@ namespace AscendantEmpire.Application.Features.Maps.MapGallery.Executors;
 /// Executes <see cref="ProcessType.ExportGalleryMap"/> jobs.
 /// </summary>
 /// <remarks>
-/// Builds a zipped JSON export of a campaign map, writes it to the configured temp directory, and records the file path on the <see cref="Processing"/> record 
+/// Builds a zipped JSON export of a campaign map, writes it to the configured temp directory, and records the file path on the <see cref="BackgroundProcessing"/> record 
 /// so the API can stream it back to the caller.
 /// </remarks>
 internal sealed class MapExportExecutor(
@@ -37,7 +37,7 @@ internal sealed class MapExportExecutor(
 
     public ProcessType ProcessType => ProcessType.ExportGalleryMap;
 
-    public async Task ExecuteAsync(Processing processing, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(BackgroundProcessing processing, CancellationToken cancellationToken)
     {
         int processingId = processing.ProcessingId;
         logger.LogInformation("Starting map export for ProcessingId {ProcessingId}.", processingId);
@@ -80,18 +80,12 @@ internal sealed class MapExportExecutor(
                 .ThenBy(x => x.Id)
                 .ToListAsync(cancellationToken);
 
-            // Determine the distinct biome and geography types referenced by the tiles.
-            HashSet<BiomeType> usedBiomeIds = [.. tiles.Select(t => t.BiomeTypeId)];
-            HashSet<CampaignMapGeographyType> usedGeoIds = [.. tiles.Select(t => t.CampaignMapGeographyTypeId)];
-
             List<CampaignBiome> biomes = await context.CampaignBiomes
                 .AsNoTracking()
-                .Where(b => usedBiomeIds.Contains(b.BiomeTypeId))
                 .ToListAsync(cancellationToken);
 
             List<CampaignGeography> geographies = await context.CampaignGeographies
                 .AsNoTracking()
-                .Where(g => usedGeoIds.Contains(g.CampaignMapGeographyTypeId))
                 .ToListAsync(cancellationToken);
 
             await UpdateProgressAsync(processing, 60, cancellationToken);
@@ -101,9 +95,9 @@ internal sealed class MapExportExecutor(
 
             await UpdateProgressAsync(processing, 80, cancellationToken);
 
-            // Serialise and zip.
+            // Serialise and zip. Any rendered preview PNGs stored on the index are bundled alongside the JSON.
             string zipPath = BuildZipPath(index.MapName, processingId);
-            await WriteZipAsync(document, zipPath, cancellationToken);
+            await WriteZipAsync(document, index, zipPath, cancellationToken);
 
             await UpdateProgressAsync(processing, 95, cancellationToken);
 
@@ -217,8 +211,9 @@ internal sealed class MapExportExecutor(
         };
     }
 
-    private static async Task WriteZipAsync(
+    private async Task WriteZipAsync(
         MapExportDocument document,
+        CampaignMapGalleryIndex index,
         string zipPath,
         CancellationToken cancellationToken)
     {
@@ -234,10 +229,45 @@ internal sealed class MapExportExecutor(
         await using FileStream fileStream = new(zipPath, FileMode.Create, FileAccess.Write, FileShare.None);
         using ZipArchive archive = new(fileStream, ZipArchiveMode.Create, leaveOpen: false);
 
+        // Write the JSON document.
         ZipArchiveEntry entry = archive.CreateEntry("export.json", CompressionLevel.Optimal);
+        await using (Stream entryStream = entry.Open())
+        {
+            await using StreamWriter writer = new(entryStream);
+            await writer.WriteAsync(json.AsMemory(), cancellationToken);
+        }
+
+        // Bundle any rendered preview images that exist on disk. These are best-effort: a map that
+        // predates preview rendering (or whose render failed) simply has no path / no file, and we skip it.
+        await AddPreviewImageAsync(archive, index.GeographyMapPath, "geography.png", cancellationToken);
+        await AddPreviewImageAsync(archive, index.BiomeMapPath, "biomes.png", cancellationToken);
+    }
+
+    /// <summary>
+    /// Adds a single preview PNG to the archive under <paramref name="entryName"/> if its source path is set and the file exists on disk.
+    /// </summary>
+    /// <remarks>Missing previews are logged and skipped rather than failing the export.</remarks>
+    private async Task AddPreviewImageAsync(
+        ZipArchive archive,
+        string? sourcePath,
+        string entryName,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(sourcePath))
+        {
+            return;
+        }
+
+        if (!File.Exists(sourcePath))
+        {
+            logger.LogWarning("Preview image {SourcePath} referenced by the map index was not found on disk; skipping.", sourcePath);
+            return;
+        }
+
+        ZipArchiveEntry entry = archive.CreateEntry(entryName, CompressionLevel.Optimal);
         await using Stream entryStream = entry.Open();
-        await using StreamWriter writer = new(entryStream);
-        await writer.WriteAsync(json.AsMemory(), cancellationToken);
+        await using FileStream sourceStream = new(sourcePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        await sourceStream.CopyToAsync(entryStream, cancellationToken);
     }
 
     private string BuildZipPath(string mapName, int processingId)
@@ -252,7 +282,7 @@ internal sealed class MapExportExecutor(
     /// Persists a progress percentage update to the Processing record.
     /// </summary>
     private async Task UpdateProgressAsync(
-        Processing processing,
+        BackgroundProcessing processing,
         byte percent,
         CancellationToken cancellationToken)
     {

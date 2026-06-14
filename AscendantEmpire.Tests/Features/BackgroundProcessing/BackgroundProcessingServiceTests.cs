@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Options;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Enums.Processing;
+using AscendantEmpire.Domain.Enums.System;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -95,7 +96,7 @@ internal class BackgroundProcessingServiceTests
         await service.StartAsync(CancellationToken.None);
         await channel.Writer.WriteAsync(processingId);
 
-        Processing? persisted = await WaitForStatusAsync(processingId, ProcessingStatus.Failed, TimeSpan.FromSeconds(10));
+        Domain.Entities.BackgroundProcessing.BackgroundProcessing? persisted = await WaitForStatusAsync(processingId, ProcessingStatus.Failed, TimeSpan.FromSeconds(10));
 
         await service.StopAsync(CancellationToken.None);
 
@@ -133,7 +134,7 @@ internal class BackgroundProcessingServiceTests
     private async Task<int> SeedProcessingAsync(ProcessType processType)
     {
         await using var ctx = new AscendantEmpireContext(_dbOptions);
-        var processing = new Processing
+        var processing = new Domain.Entities.BackgroundProcessing.BackgroundProcessing
         {
             ProcessType = processType,
             Status = ProcessingStatus.Pending,
@@ -145,13 +146,13 @@ internal class BackgroundProcessingServiceTests
         return processing.ProcessingId;
     }
 
-    private async Task<Processing?> WaitForStatusAsync(int processingId, ProcessingStatus status, TimeSpan timeout)
+    private async Task<Domain.Entities.BackgroundProcessing.BackgroundProcessing?> WaitForStatusAsync(int processingId, ProcessingStatus status, TimeSpan timeout)
     {
         DateTime deadline = DateTime.UtcNow + timeout;
         while (DateTime.UtcNow < deadline)
         {
             await using var ctx = new AscendantEmpireContext(_dbOptions);
-            Processing? processing = await ctx.Processing.AsNoTracking().FirstOrDefaultAsync(p => p.ProcessingId == processingId);
+            BackgroundProcessing? processing = await ctx.Processing.AsNoTracking().FirstOrDefaultAsync(p => p.ProcessingId == processingId);
             if (processing is not null && processing.Status == status)
             {
                 return processing;
@@ -180,7 +181,7 @@ internal class BackgroundProcessingServiceTests
         /// <summary>Completes when ExecuteAsync is first called.</summary>
         public Task InvokedTask => _invoked.Task;
 
-        public Task ExecuteAsync(Processing processing, CancellationToken cancellationToken)
+        public Task ExecuteAsync(Domain.Entities.BackgroundProcessing.BackgroundProcessing processing, CancellationToken cancellationToken)
         {
             WasInvoked = true;
             ReceivedProcessingId = processing.ProcessingId;

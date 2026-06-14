@@ -1,4 +1,5 @@
 using AscendantEmpire.Domain.Enums.Processing;
+using AscendantEmpire.Domain.Enums.System;
 
 namespace AscendantEmpire.Domain.Entities.BackgroundProcessing;
 
@@ -6,7 +7,7 @@ namespace AscendantEmpire.Domain.Entities.BackgroundProcessing;
 /// Tracks the lifecycle of a background process (e.g. map export).
 /// Process-type-specific context is stored in <see cref="MetadataJson"/>.
 /// </summary>
-public class Processing
+public class BackgroundProcessing
 {
     public int ProcessingId { get; set; }
 

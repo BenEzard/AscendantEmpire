@@ -8,6 +8,7 @@ using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Processing;
+using AscendantEmpire.Domain.Enums.System;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,7 +23,7 @@ namespace AscendantEmpire.Application.Features.Maps.MapGallery.Executors;
 /// </summary>
 /// <remarks>
 /// Generates the tiles for a single queued <see cref="CampaignMapGalleryIndex"/> (the one referenced by the job's <c>MetadataJson</c>) using the engine recorded on the index, 
-/// and reports progress on both the <see cref="Processing"/> record and the index itself.
+/// and reports progress on both the <see cref="BackgroundProcessing"/> record and the index itself.
 /// </remarks>
 internal sealed class GenerateCampaignMapExecutor(
     AscendantEmpireContext context,
@@ -32,7 +33,7 @@ internal sealed class GenerateCampaignMapExecutor(
 {
     public ProcessType ProcessType => ProcessType.GenerateCampaignMap;
 
-    public async Task ExecuteAsync(Processing processing, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(BackgroundProcessing processing, CancellationToken cancellationToken)
     {
         int processingId = processing.ProcessingId;
         int indexId = ExtractCampaignMapGalleryIndexId(processing.MetadataJson);
@@ -124,7 +125,7 @@ internal sealed class GenerateCampaignMapExecutor(
     /// Uses a non-cancellable token so the failure is persisted even during shutdown.
     /// </remarks>
     private async Task FailAsync(
-        Processing processing,
+        BackgroundProcessing processing,
         CampaignMapGalleryIndex index,
         string statusMessage,
         IReadOnlyCollection<string> errors,
@@ -149,7 +150,7 @@ internal sealed class GenerateCampaignMapExecutor(
     /// Sets the same progress percentage on both the Processing record and the index, then saves.
     /// </summary>
     private async Task SetProgressAsync(
-        Processing processing,
+        BackgroundProcessing processing,
         CampaignMapGalleryIndex index,
         byte percent,
         CancellationToken cancellationToken)

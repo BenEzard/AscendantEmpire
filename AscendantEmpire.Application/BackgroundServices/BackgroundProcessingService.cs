@@ -1,6 +1,7 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Enums.Processing;
+using AscendantEmpire.Domain.Enums.System;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -12,7 +13,7 @@ namespace AscendantEmpire.Application.BackgroundServices;
 /// Single dispatcher for all background jobs.
 /// </summary>
 /// <remarks>
-/// Reads <c>ProcessingId</c>s from the <see cref="IBackgroundProcessingChannel"/>, loads the persisted <see cref="Processing"/> record, 
+/// Reads <c>ProcessingId</c>s from the <see cref="IBackgroundProcessingChannel"/>, loads the persisted <see cref="BackgroundProcessing"/> record, 
 /// and routes it to the <see cref="IProcessExecutor"/> registered for its <see cref="ProcessType"/>. 
 /// Each job runs in its own DI scope so executors get a fresh scoped <see cref="AscendantEmpireContext"/>.
 /// </remarks>
@@ -39,7 +40,7 @@ public sealed class BackgroundProcessingService(IBackgroundProcessingChannel cha
 
         AscendantEmpireContext context = scope.ServiceProvider.GetRequiredService<AscendantEmpireContext>();
 
-        Processing? processing = await context.Processing.FindAsync([processingId], stoppingToken);
+        BackgroundProcessing? processing = await context.Processing.FindAsync([processingId], stoppingToken);
 
         if (processing is null)
         {

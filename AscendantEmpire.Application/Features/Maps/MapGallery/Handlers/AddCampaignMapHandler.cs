@@ -4,6 +4,7 @@ using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Processing;
+using AscendantEmpire.Domain.Enums.System;
 using AscendantEmpire.FrontendContracts.MapGallery;
 
 using MediatR;
@@ -85,7 +86,7 @@ internal class AddCampaignMapHandler(
             // and writing its id to the channel hands the job to the BackgroundProcessingService.
             string metadataJson = JsonSerializer.Serialize(new { campaignMapGalleryIndexId = newIndexRecord.Id });
 
-            var processing = new Processing
+            var processing = new BackgroundProcessing
             {
                 ProcessType = ProcessType.GenerateCampaignMap,
                 Status = ProcessingStatus.Pending,

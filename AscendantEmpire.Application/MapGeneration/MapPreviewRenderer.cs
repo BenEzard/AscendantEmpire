@@ -64,11 +64,11 @@ public static class MapPreviewRenderer
     /// <param name="indexId">Used to build unique, stable filenames.</param>
     public static (string? GeographyPath, string? BiomePath) Render(
         CampaignMapGeographyType[] geography,
-        BiomeType[]                biomes,
-        int                        width,
-        int                        height,
-        string                     outputDirectory,
-        int                        indexId)
+        BiomeType[] biomes,
+        int width,
+        int height,
+        string outputDirectory,
+        int indexId)
     {
         try
         {
@@ -78,14 +78,16 @@ public static class MapPreviewRenderer
             string biomePath = Path.Combine(outputDirectory, $"{indexId}_biomes.png");
 
             RenderImage(
-                width, height, geoPath,
-                (x, y) => _geoColours.GetValueOrDefault(
-                    geography[y * width + x], _geoColours[CampaignMapGeographyType.Unknown]));
+                width, 
+                height, 
+                geoPath,
+                (x, y) => _geoColours.GetValueOrDefault(geography[y * width + x], _geoColours[CampaignMapGeographyType.Unknown]));
 
             RenderImage(
-                width, height, biomePath,
-                (x, y) => _biomeColours.GetValueOrDefault(
-                    biomes[y * width + x], _biomeColours[BiomeType.Unknown]));
+                width, 
+                height, 
+                biomePath,
+                (x, y) => _biomeColours.GetValueOrDefault(biomes[y * width + x], _biomeColours[BiomeType.Unknown]));
 
             return (geoPath, biomePath);
         }

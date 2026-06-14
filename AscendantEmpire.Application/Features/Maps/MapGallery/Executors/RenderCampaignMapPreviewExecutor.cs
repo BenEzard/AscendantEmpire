@@ -8,6 +8,7 @@ using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Processing;
+using AscendantEmpire.Domain.Enums.System;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -31,7 +32,7 @@ internal sealed class RenderCampaignMapPreviewExecutor(
 {
     public ProcessType ProcessType => ProcessType.RenderCampaignMapPreview;
 
-    public async Task ExecuteAsync(Processing processing, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(BackgroundProcessing processing, CancellationToken cancellationToken)
     {
         int processingId = processing.ProcessingId;
         logger.LogInformation("Starting map preview render for ProcessingId {ProcessingId}.", processingId);
@@ -47,8 +48,7 @@ internal sealed class RenderCampaignMapPreviewExecutor(
             int indexId = ExtractCampaignMapGalleryIndexId(processing.MetadataJson);
 
             // Load the index tracked — we write the rendered paths back onto it below.
-            CampaignMapGalleryIndex? index = await context.CampaignMapGalleryIndex
-                .FirstOrDefaultAsync(x => x.Id == indexId, cancellationToken);
+            CampaignMapGalleryIndex? index = await context.CampaignMapGalleryIndex.FirstOrDefaultAsync(x => x.Id == indexId, cancellationToken);
 
             if (index is null)
             {
@@ -80,8 +80,7 @@ internal sealed class RenderCampaignMapPreviewExecutor(
 
             // Render the previews. MapPreviewRenderer is best-effort: on failure it returns (null, null),
             // which simply clears the stored paths rather than failing the job.
-            (index.GeographyMapPath, index.BiomeMapPath) = MapPreviewRenderer.Render(
-                geography, biomes, width, height, mapGenOptions.Value.OutputDirectory, index.Id);
+            (index.GeographyMapPath, index.BiomeMapPath) = MapPreviewRenderer.Render(geography, biomes, width, height, mapGenOptions.Value.OutputDirectory, index.Id);
 
             // Mark complete.
             processing.Status = ProcessingStatus.Complete;
@@ -89,9 +88,7 @@ internal sealed class RenderCampaignMapPreviewExecutor(
             processing.CompletedAt = DateTime.UtcNow;
             await context.SaveChangesAsync(cancellationToken);
 
-            logger.LogInformation(
-                "Map preview render complete for CampaignMapGalleryIndex {IndexId} (ProcessingId {ProcessingId}).",
-                indexId, processingId);
+            logger.LogInformation("Map preview render complete for CampaignMapGalleryIndex {IndexId} (ProcessingId {ProcessingId}).", indexId, processingId);
         }
         catch (Exception ex)
         {

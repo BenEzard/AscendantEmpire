@@ -11,6 +11,7 @@ using AscendantEmpire.BackendContracts.MapGallery.SearchCampaignMap;
 using AscendantEmpire.BackendContracts.MapGallery.UpdateCampaignMapIndex;
 using AscendantEmpire.BackendContracts.MapGallery.UpdateCampaignMapTiles;
 using AscendantEmpire.Domain.Enums.Processing;
+using AscendantEmpire.Domain.Enums.System;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.MapGallery.GetCampaignMapGalleryIndex;
 using AscendantEmpire.FrontendContracts.MapGallery.GetCampaignMapStartPositions;

@@ -9,6 +9,7 @@ using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Processing;
+using AscendantEmpire.Domain.Enums.System;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -44,7 +45,7 @@ internal sealed class MapExportExecutorTests : SqlServerTestBase
 
         await using (AscendantEmpireContext runContext = await DbFactory.CreateDbContextAsync())
         {
-            Processing processing = await runContext.Processing.SingleAsync(x => x.ProcessingId == processingId);
+            BackgroundProcessing processing = await runContext.Processing.SingleAsync(x => x.ProcessingId == processingId);
             MapExportExecutor executor = new(
                 runContext,
                 Options.Create(new ExportSettings { TempDirectory = _tempDirectory }),
@@ -54,7 +55,7 @@ internal sealed class MapExportExecutorTests : SqlServerTestBase
         }
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
-        Processing persisted = await verifyContext.Processing.AsNoTracking().SingleAsync(x => x.ProcessingId == processingId);
+        BackgroundProcessing persisted = await verifyContext.Processing.AsNoTracking().SingleAsync(x => x.ProcessingId == processingId);
 
         Assert.That(persisted.Status, Is.EqualTo(ProcessingStatus.Complete));
         Assert.That(persisted.ResultReference, Is.Not.Null.And.Not.Empty);
@@ -75,6 +76,95 @@ internal sealed class MapExportExecutorTests : SqlServerTestBase
                 (0, 0, "North", 30 as int?),
                 (1, 1, "South", 10 as int?)
             }));
+    }
+
+    [Test]
+    public async Task ExecuteAsync_ShouldBundlePreviewImagesWhenPresentAsync()
+    {
+        int indexId = await SeedMapAsync();
+
+        // Write two fake preview PNGs to disk and point the index at them, mimicking a completed preview render.
+        string geographyPath = Path.Combine(_tempDirectory, $"{indexId}_geography.png");
+        string biomePath = Path.Combine(_tempDirectory, $"{indexId}_biomes.png");
+        byte[] geographyBytes = [1, 2, 3, 4];
+        byte[] biomeBytes = [5, 6, 7, 8];
+        await File.WriteAllBytesAsync(geographyPath, geographyBytes);
+        await File.WriteAllBytesAsync(biomePath, biomeBytes);
+
+        await using (AscendantEmpireContext seedContext = await DbFactory.CreateDbContextAsync())
+        {
+            CampaignMapGalleryIndex index = await seedContext.CampaignMapGalleryIndex.SingleAsync(x => x.Id == indexId);
+            index.GeographyMapPath = geographyPath;
+            index.BiomeMapPath = biomePath;
+            await seedContext.SaveChangesAsync();
+        }
+
+        int processingId = await SeedProcessingAsync(indexId);
+
+        await using (AscendantEmpireContext runContext = await DbFactory.CreateDbContextAsync())
+        {
+            BackgroundProcessing processing = await runContext.Processing.SingleAsync(x => x.ProcessingId == processingId);
+            MapExportExecutor executor = new(
+                runContext,
+                Options.Create(new ExportSettings { TempDirectory = _tempDirectory }),
+                new NullLogger<MapExportExecutor>());
+
+            await executor.ExecuteAsync(processing, CancellationToken.None);
+        }
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+        BackgroundProcessing persisted = await verifyContext.Processing.AsNoTracking().SingleAsync(x => x.ProcessingId == processingId);
+
+        Assert.That(persisted.Status, Is.EqualTo(ProcessingStatus.Complete));
+
+        using ZipArchive archive = ZipFile.OpenRead(persisted.ResultReference!);
+
+        ZipArchiveEntry? geographyEntry = archive.GetEntry("geography.png");
+        ZipArchiveEntry? biomeEntry = archive.GetEntry("biomes.png");
+
+        Assert.That(geographyEntry, Is.Not.Null);
+        Assert.That(biomeEntry, Is.Not.Null);
+
+        Assert.That(await ReadEntryBytesAsync(geographyEntry!), Is.EqualTo(geographyBytes));
+        Assert.That(await ReadEntryBytesAsync(biomeEntry!), Is.EqualTo(biomeBytes));
+    }
+
+    [Test]
+    public async Task ExecuteAsync_ShouldSucceedWithoutPreviewEntriesWhenNoneRenderedAsync()
+    {
+        int indexId = await SeedMapAsync();
+        int processingId = await SeedProcessingAsync(indexId);
+
+        await using (AscendantEmpireContext runContext = await DbFactory.CreateDbContextAsync())
+        {
+            BackgroundProcessing processing = await runContext.Processing.SingleAsync(x => x.ProcessingId == processingId);
+            MapExportExecutor executor = new(
+                runContext,
+                Options.Create(new ExportSettings { TempDirectory = _tempDirectory }),
+                new NullLogger<MapExportExecutor>());
+
+            await executor.ExecuteAsync(processing, CancellationToken.None);
+        }
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+        BackgroundProcessing persisted = await verifyContext.Processing.AsNoTracking().SingleAsync(x => x.ProcessingId == processingId);
+
+        Assert.That(persisted.Status, Is.EqualTo(ProcessingStatus.Complete));
+
+        using ZipArchive archive = ZipFile.OpenRead(persisted.ResultReference!);
+
+        // No preview paths on the index → the zip carries just the JSON, no preview entries.
+        Assert.That(archive.GetEntry("export.json"), Is.Not.Null);
+        Assert.That(archive.GetEntry("geography.png"), Is.Null);
+        Assert.That(archive.GetEntry("biomes.png"), Is.Null);
+    }
+
+    private static async Task<byte[]> ReadEntryBytesAsync(ZipArchiveEntry entry)
+    {
+        await using Stream entryStream = entry.Open();
+        using MemoryStream buffer = new();
+        await entryStream.CopyToAsync(buffer);
+        return buffer.ToArray();
     }
 
     private async Task<int> SeedMapAsync()
@@ -175,7 +265,7 @@ internal sealed class MapExportExecutorTests : SqlServerTestBase
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        Processing processing = new()
+        Domain.Entities.BackgroundProcessing.BackgroundProcessing processing = new()
         {
             ProcessType = ProcessType.ExportGalleryMap,
             Status = ProcessingStatus.Pending,
