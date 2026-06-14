@@ -21,7 +21,7 @@ namespace AscendantEmpire.Application.Features.Maps.MapGallery.Executors;
 /// Executes <see cref="ProcessType.ExportGalleryMap"/> jobs.
 /// </summary>
 /// <remarks>
-/// Builds a zipped JSON export of a campaign map, writes it to the configured temp directory, and records the file path on the <see cref="BackgroundProcessing"/> record 
+/// Builds a zipped JSON export of a campaign map, writes it to the configured temp directory, and records the file path on the <see cref="Processing"/> record 
 /// so the API can stream it back to the caller.
 /// </remarks>
 internal sealed class MapExportExecutor(
@@ -37,7 +37,7 @@ internal sealed class MapExportExecutor(
 
     public ProcessType ProcessType => ProcessType.ExportGalleryMap;
 
-    public async Task ExecuteAsync(BackgroundProcessing processing, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(Processing processing, CancellationToken cancellationToken)
     {
         int processingId = processing.ProcessingId;
         logger.LogInformation("Starting map export for ProcessingId {ProcessingId}.", processingId);
@@ -282,7 +282,7 @@ internal sealed class MapExportExecutor(
     /// Persists a progress percentage update to the Processing record.
     /// </summary>
     private async Task UpdateProgressAsync(
-        BackgroundProcessing processing,
+        Processing processing,
         byte percent,
         CancellationToken cancellationToken)
     {

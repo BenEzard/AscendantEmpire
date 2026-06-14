@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 import { Alert, Button, Modal, Spinner } from "@/components/ui";
-import { CiExport } from "react-icons/ci";
+import { CiExport, CiImport } from "react-icons/ci";
 import ExportProgressDialog from "./ExportProgressDialog";
+import ImportProgressDialog from "./ImportProgressDialog";
 import { useExportCampaignMap } from "../hooks/useExportCampaignMap";
+import { useImportCampaignMap } from "../hooks/useImportCampaignMap";
 
 export interface CampaignMapGalleryIndex {
   campaignMapGalleryIndexId: number;
@@ -37,7 +39,19 @@ export default function OpenCampaignMapDialog({ show, onClose, onSaveSuccess, on
   const [filter, setFilter] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
+  // Hidden file input used to pick the zip for import.
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Name of the file currently being imported, shown in the import progress dialog.
+  const [importFileName, setImportFileName] = useState("");
+
   const { exportPhase, progressPercent, startExport, resetExport, isActive } = useExportCampaignMap();
+  const {
+    importPhase,
+    progressPercent: importProgressPercent,
+    startImport,
+    resetImport,
+    isActive: isImportActive,
+  } = useImportCampaignMap();
 
   const fetchIndexes = async () => {
     const res = await axios.get<SearchResponse>("https://localhost:7242/map-gallery/search");
@@ -57,15 +71,23 @@ export default function OpenCampaignMapDialog({ show, onClose, onSaveSuccess, on
     refetchOnWindowFocus: false,
   });
 
-  // Reset selection/filter each time the dialog opens; cancel any in-flight export when it closes.
+  // Reset selection/filter each time the dialog opens; cancel any in-flight export/import when it closes.
   useEffect(() => {
     if (!show) {
       resetExport();
+      resetImport();
       return;
     }
     setFilter("");
     setSelectedId(null);
   }, [show]);
+
+  // Once an import finishes, refresh the list so the new map appears, then return to idle.
+  useEffect(() => {
+    if (importPhase.phase === "done") {
+      refetch();
+    }
+  }, [importPhase.phase]);
 
   const filtered = useMemo(() => {
     const list = indexes ?? [];
@@ -96,6 +118,21 @@ export default function OpenCampaignMapDialog({ show, onClose, onSaveSuccess, on
     startExport(selected.campaignMapGalleryIndexId);
   };
 
+  // Import opens the hidden file picker; selecting a zip kicks off the import.
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Clear the input value so picking the same file again still fires a change event.
+    e.target.value = "";
+    if (!file) return;
+
+    setImportFileName(file.name);
+    startImport(file);
+  };
+
   const handleRowDoubleClick = (id: number) => {
     setSelectedId(id);
     // defer open until selected is updated? just open from the found item:
@@ -116,11 +153,15 @@ export default function OpenCampaignMapDialog({ show, onClose, onSaveSuccess, on
       size="lg"
       footer={
         <>
-          {/* Export sits on the left, matching the BiomeManagerDialog pattern. */}
-          <div className="mr-auto">
-            <Button variant="primary" onClick={handleExport} disabled={!selected || isActive}>
+          {/* Export/Import sit on the left, matching the BiomeManagerDialog pattern. */}
+          <div className="mr-auto flex items-center gap-2">
+            <Button variant="primary" onClick={handleExport} disabled={!selected || isActive || isImportActive}>
               <CiExport aria-hidden="true" strokeWidth={2} />
               Export
+            </Button>
+            <Button variant="secondary" onClick={handleImportClick} disabled={isActive || isImportActive}>
+              <CiImport aria-hidden="true" strokeWidth={2} />
+              Import
             </Button>
           </div>
           <Button variant="secondary" onClick={onClose}>
@@ -207,6 +248,23 @@ export default function OpenCampaignMapDialog({ show, onClose, onSaveSuccess, on
       exportPhase={exportPhase}
       progressPercent={progressPercent}
       onClose={resetExport}
+    />
+
+    {/* Hidden input that backs the Import button. */}
+    <input
+      ref={fileInputRef}
+      type="file"
+      accept=".zip"
+      className="hidden"
+      onChange={handleFileSelected}
+    />
+
+    <ImportProgressDialog
+      open={isImportActive}
+      fileName={importFileName}
+      importPhase={importPhase}
+      progressPercent={importProgressPercent}
+      onClose={resetImport}
     />
     </>
   );

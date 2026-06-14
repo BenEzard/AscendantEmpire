@@ -119,7 +119,7 @@ public class AscendantEmpireContext : DbContext
     /// <summary>
     /// Background process tracking records (exports, imports, etc.).
     /// </summary>
-    public DbSet<BackgroundProcessing> Processing { get; set; }
+    public DbSet<Processing> Processing { get; set; }
     #endregion
 
     #region Util Schema
@@ -633,7 +633,7 @@ public class AscendantEmpireContext : DbContext
     {
         const string schema = "system";
 
-        modelBuilder.Entity<BackgroundProcessing>(entity =>
+        modelBuilder.Entity<Processing>(entity =>
         {
             entity.ToTable("BackgroundProcessing", schema);
 

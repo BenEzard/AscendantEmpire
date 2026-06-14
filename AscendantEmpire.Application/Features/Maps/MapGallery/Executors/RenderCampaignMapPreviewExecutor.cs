@@ -32,7 +32,7 @@ internal sealed class RenderCampaignMapPreviewExecutor(
 {
     public ProcessType ProcessType => ProcessType.RenderCampaignMapPreview;
 
-    public async Task ExecuteAsync(BackgroundProcessing processing, CancellationToken cancellationToken)
+    public async Task ExecuteAsync(Processing processing, CancellationToken cancellationToken)
     {
         int processingId = processing.ProcessingId;
         logger.LogInformation("Starting map preview render for ProcessingId {ProcessingId}.", processingId);

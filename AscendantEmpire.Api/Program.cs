@@ -65,6 +65,9 @@ namespace AscendantEmpire.Api
             builder.Services.Configure<AscendantEmpire.Application.Options.ExportSettings>(
                 builder.Configuration.GetSection("ExportSettings"));
 
+            builder.Services.Configure<AscendantEmpire.Application.Options.ImportSettings>(
+                builder.Configuration.GetSection("ImportSettings"));
+
             builder.Services.Configure<AscendantEmpire.Application.Options.MapGenerationSettings>(
                 builder.Configuration.GetSection("MapGenerationSettings"));
 

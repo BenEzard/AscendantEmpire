@@ -16,7 +16,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Features.Maps.MapGallery.Handlers;
 
 /// <summary>
-/// Creates a <see cref="BackgroundProcessing"/> record and enqueues the job for background processing.
+/// Creates a <see cref="Processing"/> record and enqueues the job for background processing.
 /// </summary>
 /// <remarks>
 /// Returns the new <c>ProcessingId</c> so the caller can poll for status.
@@ -49,7 +49,7 @@ internal class InitiateMapExportHandler(
             // Persist a Pending record so the caller immediately has a processId to poll.
             string metadataJson = JsonSerializer.Serialize(new { mapGalleryIndexId = request.MapGalleryIndexId });
 
-            var processing = new BackgroundProcessing
+            var processing = new Processing
             {
                 ProcessType = ProcessType.ExportGalleryMap,
                 Status = ProcessingStatus.Pending,

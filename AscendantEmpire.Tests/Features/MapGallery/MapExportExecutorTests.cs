@@ -45,7 +45,7 @@ internal sealed class MapExportExecutorTests : SqlServerTestBase
 
         await using (AscendantEmpireContext runContext = await DbFactory.CreateDbContextAsync())
         {
-            BackgroundProcessing processing = await runContext.Processing.SingleAsync(x => x.ProcessingId == processingId);
+            Processing processing = await runContext.Processing.SingleAsync(x => x.ProcessingId == processingId);
             MapExportExecutor executor = new(
                 runContext,
                 Options.Create(new ExportSettings { TempDirectory = _tempDirectory }),
@@ -55,7 +55,7 @@ internal sealed class MapExportExecutorTests : SqlServerTestBase
         }
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
-        BackgroundProcessing persisted = await verifyContext.Processing.AsNoTracking().SingleAsync(x => x.ProcessingId == processingId);
+        Processing persisted = await verifyContext.Processing.AsNoTracking().SingleAsync(x => x.ProcessingId == processingId);
 
         Assert.That(persisted.Status, Is.EqualTo(ProcessingStatus.Complete));
         Assert.That(persisted.ResultReference, Is.Not.Null.And.Not.Empty);
@@ -103,7 +103,7 @@ internal sealed class MapExportExecutorTests : SqlServerTestBase
 
         await using (AscendantEmpireContext runContext = await DbFactory.CreateDbContextAsync())
         {
-            BackgroundProcessing processing = await runContext.Processing.SingleAsync(x => x.ProcessingId == processingId);
+            Processing processing = await runContext.Processing.SingleAsync(x => x.ProcessingId == processingId);
             MapExportExecutor executor = new(
                 runContext,
                 Options.Create(new ExportSettings { TempDirectory = _tempDirectory }),
@@ -113,7 +113,7 @@ internal sealed class MapExportExecutorTests : SqlServerTestBase
         }
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
-        BackgroundProcessing persisted = await verifyContext.Processing.AsNoTracking().SingleAsync(x => x.ProcessingId == processingId);
+        Processing persisted = await verifyContext.Processing.AsNoTracking().SingleAsync(x => x.ProcessingId == processingId);
 
         Assert.That(persisted.Status, Is.EqualTo(ProcessingStatus.Complete));
 
@@ -137,7 +137,7 @@ internal sealed class MapExportExecutorTests : SqlServerTestBase
 
         await using (AscendantEmpireContext runContext = await DbFactory.CreateDbContextAsync())
         {
-            BackgroundProcessing processing = await runContext.Processing.SingleAsync(x => x.ProcessingId == processingId);
+            Processing processing = await runContext.Processing.SingleAsync(x => x.ProcessingId == processingId);
             MapExportExecutor executor = new(
                 runContext,
                 Options.Create(new ExportSettings { TempDirectory = _tempDirectory }),
@@ -147,7 +147,7 @@ internal sealed class MapExportExecutorTests : SqlServerTestBase
         }
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
-        BackgroundProcessing persisted = await verifyContext.Processing.AsNoTracking().SingleAsync(x => x.ProcessingId == processingId);
+        Processing persisted = await verifyContext.Processing.AsNoTracking().SingleAsync(x => x.ProcessingId == processingId);
 
         Assert.That(persisted.Status, Is.EqualTo(ProcessingStatus.Complete));
 
@@ -265,7 +265,7 @@ internal sealed class MapExportExecutorTests : SqlServerTestBase
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        Domain.Entities.BackgroundProcessing.BackgroundProcessing processing = new()
+        Domain.Entities.BackgroundProcessing.Processing processing = new()
         {
             ProcessType = ProcessType.ExportGalleryMap,
             Status = ProcessingStatus.Pending,

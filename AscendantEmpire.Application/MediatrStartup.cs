@@ -36,6 +36,7 @@ public static class MediatrStartup
         services.AddSingleton<IBackgroundProcessingChannel, BackgroundProcessingChannel>();
         services.AddHostedService<BackgroundProcessingService>();
         services.AddScoped<IProcessExecutor, MapExportExecutor>();
+        services.AddScoped<IProcessExecutor, MapImportExecutor>();
         services.AddScoped<IProcessExecutor, GenerateCampaignMapExecutor>();
         services.AddScoped<IProcessExecutor, RenderCampaignMapPreviewExecutor>();
 

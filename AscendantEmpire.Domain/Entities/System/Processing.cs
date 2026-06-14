@@ -7,7 +7,7 @@ namespace AscendantEmpire.Domain.Entities.BackgroundProcessing;
 /// Tracks the lifecycle of a background process (e.g. map export).
 /// Process-type-specific context is stored in <see cref="MetadataJson"/>.
 /// </summary>
-public class BackgroundProcessing
+public class Processing
 {
     public int ProcessingId { get; set; }
 

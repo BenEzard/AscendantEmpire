@@ -86,7 +86,7 @@ internal class AddCampaignMapHandler(
             // and writing its id to the channel hands the job to the BackgroundProcessingService.
             string metadataJson = JsonSerializer.Serialize(new { campaignMapGalleryIndexId = newIndexRecord.Id });
 
-            var processing = new BackgroundProcessing
+            var processing = new Processing
             {
                 ProcessType = ProcessType.GenerateCampaignMap,
                 Status = ProcessingStatus.Pending,

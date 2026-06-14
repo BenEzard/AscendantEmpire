@@ -15,5 +15,10 @@ public enum ProcessType
     /// <summary>
     /// Render the Campaign Map into a png file for Biome and Geography previews.
     /// </summary>
-    RenderCampaignMapPreview = 3
+    RenderCampaignMapPreview = 3,
+
+    /// <summary>
+    /// Import a gallery map from a previously exported zip file.
+    /// </summary>
+    ImportGalleryMap = 4
 }
