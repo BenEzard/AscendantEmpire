@@ -26,6 +26,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Microsoft.Net.Http.Headers;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
@@ -473,6 +474,116 @@ public class MapGalleryController
             new InitiateMapImportRequest(ZipPath: stagedPath), cancellationToken);
 
         return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Stream a rendered preview PNG (geography or biome) for the specified Campaign Map Gallery entry.
+    /// The image is served inline so the UI can display it directly.
+    /// </summary>
+    /// <param name="id">Campaign Map Gallery index id.</param>
+    /// <param name="mode">Which preview to stream: <c>biome</c> or <c>geography</c>.</param>
+    /// <response code="200">Returns the preview PNG.</response>
+    /// <response code="400">The <c>mode</c> query value was missing or not one of biome|geography.</response>
+    /// <response code="404">Map Gallery entry not found, the preview has not been rendered, or the file is missing on disk.</response>
+    /// <response code="500">Server error.</response>
+    [HttpGet("{id:int}/preview")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetCampaignMapPreviewAsync(
+        [FromServices] IDbContextFactory<AscendantEmpireContext> contextFactory,
+        int id,
+        [FromQuery] string? mode,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Resolve the requested preview mode up front so an invalid value fails fast with a 400.
+            bool isGeography;
+            if (string.Equals(mode, "geography", StringComparison.OrdinalIgnoreCase))
+            {
+                isGeography = true;
+            }
+            else if (string.Equals(mode, "biome", StringComparison.OrdinalIgnoreCase))
+            {
+                isGeography = false;
+            }
+            else
+            {
+                return new ObjectResult(new DTApiErrorResult(["Query parameter 'mode' must be either 'biome' or 'geography'."]))
+                {
+                    StatusCode = StatusCodes.Status400BadRequest
+                };
+            }
+
+            await using AscendantEmpireContext context = await contextFactory.CreateDbContextAsync(cancellationToken);
+
+            // Only the two preview paths are needed — project them to avoid loading the whole index.
+            var paths = await context.CampaignMapGalleryIndex
+                .AsNoTracking()
+                .Where(x => x.Id == id)
+                .Select(x => new { x.GeographyMapPath, x.BiomeMapPath })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (paths is null)
+            {
+                return new ObjectResult(new DTApiErrorResult(["Map Gallery entry not found."]))
+                {
+                    StatusCode = StatusCodes.Status404NotFound
+                };
+            }
+
+            string? previewPath = isGeography ? paths.GeographyMapPath : paths.BiomeMapPath;
+
+            // A null/empty path means the preview was never rendered (e.g. non-Perlin map or a failed render).
+            if (string.IsNullOrEmpty(previewPath))
+            {
+                return new ObjectResult(new DTApiErrorResult(["The requested preview has not been rendered for this map."]))
+                {
+                    StatusCode = StatusCodes.Status404NotFound
+                };
+            }
+
+            if (!System.IO.File.Exists(previewPath))
+            {
+                return new ObjectResult(new DTApiErrorResult(["Preview image is no longer available on the server."]))
+                {
+                    StatusCode = StatusCodes.Status404NotFound
+                };
+            }
+
+            // Derive caching validators from the file itself. A re-render reuses the same URL,
+            // so we deliberately avoid a fixed max-age (which could serve a stale image) and instead
+            // let the browser revalidate: it sends If-None-Match / If-Modified-Since and receives a
+            // 304 Not Modified when the preview is unchanged, but always picks up a fresh render.
+            var fileInfo = new FileInfo(previewPath);
+            DateTimeOffset lastModified = fileInfo.LastWriteTimeUtc;
+            var entityTag = new EntityTagHeaderValue($"\"{fileInfo.Length:x}-{fileInfo.LastWriteTimeUtc.Ticks:x}\"");
+
+            Stream stream = new FileStream(
+                previewPath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize: 65536,
+                useAsync: true);
+
+            // Served inline (no FileDownloadName) so the browser renders it as an image.
+            // LastModified/EntityTag let the framework honour conditional requests with a 304.
+            return new FileStreamResult(stream, "image/png")
+            {
+                LastModified = lastModified,
+                EntityTag = entityTag
+            };
+        }
+        catch (Exception)
+        {
+            return new ObjectResult(new DTApiErrorResult(["An error occurred while retrieving the preview image."]))
+            {
+                StatusCode = StatusCodes.Status500InternalServerError
+            };
+        }
     }
 
     /// <summary>

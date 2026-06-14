@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Alert, Button, Modal } from "@/components/ui";
 import { useCampaignMapStartPositionsQuery } from "@/features/mapgallery/hooks/useCampaignMapStartPositions";
 import { useUpdateMapPropertiesMutation } from "@/features/mapgallery/hooks/useUpdateMapPropertiesMutation";
-import type { CampaignMapGalleryIndex } from "@/features/mapgallery/components/OpenCampaignMapDialog";
+import type { CampaignMapGalleryIndex } from "@/features/mapgallery/api/mapGalleryApi";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -21,7 +21,7 @@ type Props = {
 // Component
 // ---------------------------------------------------------------------------
 
-export default function MapPropertiesDialog({ show, mapIndex, onClose, onSaveSuccess, onFailureToast }: Props) {
+export default function MapPropertiesDialog({ show, mapIndex, onClose, onSaveSuccess }: Props) {
   const [mapName, setMapName] = useState("");
   const [description, setDescription] = useState("");
   const [nameError, setNameError] = useState("");
@@ -38,10 +38,7 @@ export default function MapPropertiesDialog({ show, mapIndex, onClose, onSaveSuc
   }, [show, mapIndex]);
 
   // Load the start positions count for the info label.
-  const { data: startPositionsResponse } = useCampaignMapStartPositionsQuery(
-    mapIndex?.campaignMapGalleryIndexId ?? null,
-    show && mapIndex != null,
-  );
+  const { data: startPositionsResponse } = useCampaignMapStartPositionsQuery(mapIndex?.campaignMapGalleryIndexId ?? null, show && mapIndex != null);
 
   const startLocationCount = startPositionsResponse?.startPositions.length ?? 0;
 

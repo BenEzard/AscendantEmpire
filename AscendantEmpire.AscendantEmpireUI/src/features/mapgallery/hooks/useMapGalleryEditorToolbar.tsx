@@ -13,7 +13,7 @@ import ToolbarExclusiveButtons from "@/components/ToolbarExclusiveButtons";
 
 import type { Biome } from "@/types/map/Biome";
 import type { Geography } from "@/types/map/Geography";
-import type { CampaignMapGalleryIndex } from "@/features/mapgallery/components/OpenCampaignMapDialog";
+import type { CampaignMapGalleryIndex } from "@/features/mapgallery/api/mapGalleryApi";
 
 import BrushPreview from "@/features/mapgallery/components/BrushPreview";
 import type { BrushKind } from "@/features/mapgallery/tools/brush";

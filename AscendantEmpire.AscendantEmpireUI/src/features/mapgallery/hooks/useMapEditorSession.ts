@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { CampaignMapGalleryIndex } from "@/features/mapgallery/components/OpenCampaignMapDialog";
+import type { CampaignMapGalleryIndex } from "@/features/mapgallery/api/mapGalleryApi";
 import { mapGalleryTilesKey } from "@/features/mapgallery/hooks/useCampaignMapTiles";
 
 /** Progress info for a queued map generation, surfaced by the progress dialog. */

@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Alert, Button, PagedDialog, Spinner } from "@/components/ui";
+import { useEffect, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { Alert, Button, PagedDialog } from "@/components/ui";
 import { http } from "@/api/http";
-import { searchMapGalleryIndexes } from "@/features/mapgallery/api/mapGalleryApi";
-import type { CampaignMapGalleryIndex } from "@/features/mapgallery/components/OpenCampaignMapDialog";
+import SelectCampaignMap from "@/features/mapgallery/components/SelectCampaignMap";
 
 export interface NewGameDialogProps {
   show: boolean;
@@ -44,31 +43,6 @@ export default function NewGameDialog({ show, onClose, onCreateSuccess }: NewGam
     setErrorMessage(null);
     setSeedError(null);
   }, [show]);
-
-  const {
-    data: indexes,
-    isLoading: mapsLoading,
-    isFetching: mapsFetching,
-    error: mapsError,
-    refetch,
-  } = useQuery<CampaignMapGalleryIndex[], Error>({
-    queryKey: ["mapGalleryIndexes"],
-    queryFn: ({ signal }) => searchMapGalleryIndexes(signal),
-    enabled: show,
-    refetchOnWindowFocus: false,
-  });
-
-  const filteredMaps = useMemo(() => {
-    const list = indexes ?? [];
-    const f = mapFilter.trim().toLowerCase();
-    if (!f) return list;
-    return list.filter((x) => `${x.mapName} ${x.description} ${x.width}x${x.height}`.toLowerCase().includes(f));
-  }, [indexes, mapFilter]);
-
-  const selectedMap = useMemo(
-    () => (selectedMapId == null ? null : ((indexes ?? []).find((x) => x.campaignMapGalleryIndexId === selectedMapId) ?? null)),
-    [indexes, selectedMapId],
-  );
 
   const isSeedValid = generationSeed.trim() === "" || !isNaN(Number(generationSeed.trim()));
   const isBattleMapSizeValid = battleMapSize >= 30 && battleMapSize <= 60;
@@ -192,9 +166,7 @@ export default function NewGameDialog({ show, onClose, onCreateSuccess }: NewGam
                     />
                     <span className="text-xs text-slate-500">tiles — width &amp; height of battle maps for this game (30–60)</span>
                   </div>
-                  {!isBattleMapSizeValid && (
-                    <div className="mt-1 text-xs text-[var(--bs-danger)]">Battle map size must be between 30 and 60.</div>
-                  )}
+                  {!isBattleMapSizeValid && <div className="mt-1 text-xs text-[var(--bs-danger)]">Battle map size must be between 30 and 60.</div>}
                 </div>
               </div>
 
@@ -221,82 +193,16 @@ export default function NewGameDialog({ show, onClose, onCreateSuccess }: NewGam
         },
         {
           key: "map",
-          label: (
-            <>
-              Map
-              {selectedMap != null && <span className="ml-2 text-slate-500 font-normal text-xs">— {selectedMap.mapName}</span>}
-            </>
-          ),
+          label: "Map & Features",
           content: (
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2">
-                <input
-                  className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
-                  placeholder="Filter maps by name or description..."
-                  value={mapFilter}
-                  onChange={(e) => setMapFilter(e.target.value)}
-                />
-                <Button variant="outline-secondary" onClick={() => refetch()} disabled={mapsLoading || mapsFetching}>
-                  Refresh
-                </Button>
-              </div>
-
-              {mapsError && <Alert variant="danger">Failed to load maps: {mapsError.message}</Alert>}
-
-              {mapsLoading ? (
-                <div className="flex items-center gap-2 text-slate-600">
-                  <Spinner size="sm" />
-                  <span>Loading maps...</span>
-                </div>
-              ) : (
-                <div className="max-h-[320px] overflow-auto rounded-md border border-slate-200">
-                  <table className="w-full text-left text-sm">
-                    <thead className="sticky top-0 bg-slate-50 text-slate-700">
-                      <tr>
-                        <th className="px-3 py-2" style={{ width: "45%" }}>
-                          Name
-                        </th>
-                        <th className="px-3 py-2">Description</th>
-                        <th className="px-3 py-2" style={{ width: 90 }}>
-                          Size
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredMaps.length === 0 ? (
-                        <tr>
-                          <td colSpan={3} className="px-3 py-3 text-slate-500">
-                            No maps found.
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredMaps.map((x) => {
-                          const isSelected = x.campaignMapGalleryIndexId === selectedMapId;
-                          return (
-                            <tr
-                              key={x.campaignMapGalleryIndexId}
-                              className={["border-t border-slate-100 cursor-pointer hover:bg-slate-50", isSelected ? "bg-slate-100" : ""].join(" ")}
-                              role="button"
-                              onClick={() => setSelectedMapId(x.campaignMapGalleryIndexId)}
-                              onDoubleClick={() => {
-                                setSelectedMapId(x.campaignMapGalleryIndexId);
-                                setActiveSection("general");
-                              }}
-                              title="Double-click to select and return to General">
-                              <td className="px-3 py-2 font-medium">{x.mapName}</td>
-                              <td className="px-3 py-2 text-slate-500">{x.description}</td>
-                              <td className="px-3 py-2">
-                                {x.width}×{x.height}
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+            <SelectCampaignMap
+              enabled={show}
+              filter={mapFilter}
+              onFilterChange={setMapFilter}
+              selectedMapId={selectedMapId}
+              onSelectedMapIdChange={setSelectedMapId}
+              onConfirmSelection={() => setActiveSection("general")}
+            />
           ),
         },
       ]}
