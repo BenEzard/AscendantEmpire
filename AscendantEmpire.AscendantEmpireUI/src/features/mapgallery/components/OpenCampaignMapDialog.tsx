@@ -159,7 +159,7 @@ export default function OpenCampaignMapDialog({ show, onClose, onSaveSuccess, on
               <CiExport aria-hidden="true" strokeWidth={2} />
               Export
             </Button>
-            <Button variant="secondary" onClick={handleImportClick} disabled={isActive || isImportActive}>
+            <Button variant="primary" onClick={handleImportClick} disabled={isActive || isImportActive}>
               <CiImport aria-hidden="true" strokeWidth={2} />
               Import
             </Button>
@@ -167,7 +167,7 @@ export default function OpenCampaignMapDialog({ show, onClose, onSaveSuccess, on
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleOpen} disabled={!selected}>
+          <Button variant="success" onClick={handleOpen} disabled={!selected}>
             Open
           </Button>
         </>
