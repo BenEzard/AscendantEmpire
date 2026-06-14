@@ -27,6 +27,11 @@ public sealed class MsSqlContainerFixture
     {
         await EnsureDockerDesktopRunningAsync();
 
+        // Docker.DotNet (used by Testcontainers) advertises a newer client API version than some
+        // engines support, producing "client version X is too new" errors. Pin the client to the
+        // engine's reported API version so negotiation succeeds regardless of engine age.
+        await PinDockerApiVersionAsync();
+
         _container = new MsSqlBuilder()
             .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
             .WithPortBinding(14330, MsSqlBuilder.MsSqlPort)
@@ -72,6 +77,61 @@ public sealed class MsSqlContainerFixture
                 throw new TimeoutException("Docker Desktop was launched but the Docker engine did not become ready within 60 seconds.");
 
             await Task.Delay(TimeSpan.FromSeconds(2), cts.Token);
+        }
+    }
+
+    /// <summary>
+    /// Pins the Docker.DotNet client to the running engine's API version via the <c>DOCKER_API_VERSION</c>
+    /// environment variable, avoiding "client version is too new" failures against older engines.
+    /// </summary>
+    /// <remarks>
+    /// Respects an existing <c>DOCKER_API_VERSION</c> if the caller has already set one (e.g. in CI).
+    /// Falls back silently if the engine version cannot be read — the container build will surface any real error.
+    /// </remarks>
+    private static async Task PinDockerApiVersionAsync()
+    {
+        // Don't override an explicit choice from the environment.
+        if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DOCKER_API_VERSION")))
+        {
+            return;
+        }
+
+        string? serverApiVersion = await GetDockerServerApiVersionAsync();
+        if (!string.IsNullOrWhiteSpace(serverApiVersion))
+        {
+            Environment.SetEnvironmentVariable("DOCKER_API_VERSION", serverApiVersion);
+        }
+    }
+
+    /// <summary>
+    /// Reads the Docker engine's supported API version via the CLI (e.g. "1.41"), or <see langword="null"/> if it cannot be determined.
+    /// </summary>
+    private static async Task<string?> GetDockerServerApiVersionAsync()
+    {
+        try
+        {
+            ProcessStartInfo psi = new("docker", "version --format {{.Server.APIVersion}}")
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using Process? process = Process.Start(psi);
+            if (process is null)
+            {
+                return null;
+            }
+
+            string output = await process.StandardOutput.ReadToEndAsync();
+            await process.WaitForExitAsync();
+
+            return process.ExitCode == 0 ? output.Trim() : null;
+        }
+        catch
+        {
+            return null;
         }
     }
 

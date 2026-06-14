@@ -1,7 +1,6 @@
 using AscendantEmpire.Domain.Enums.Maps;
 
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using SkiaSharp;
 
 namespace AscendantEmpire.Application.MapGeneration;
 
@@ -21,32 +20,32 @@ public static class MapPreviewRenderer
 
     // ── Geography colour palette ──────────────────────────────────────────────
 
-    private static readonly Dictionary<CampaignMapGeographyType, Rgb24> _geoColours = new()
+    private static readonly Dictionary<CampaignMapGeographyType, SKColor> _geoColours = new()
     {
-        [CampaignMapGeographyType.DeepWater]    = new Rgb24(20,  80,  140),
-        [CampaignMapGeographyType.ShallowWater] = new Rgb24(60,  150, 210),
-        [CampaignMapGeographyType.Flat]         = new Rgb24(100, 170, 80),
-        [CampaignMapGeographyType.Hilly]        = new Rgb24(170, 145, 80),
-        [CampaignMapGeographyType.Mountainous]  = new Rgb24(160, 150, 145),
-        [CampaignMapGeographyType.Unknown]      = new Rgb24(20,  20,  20),
+        [CampaignMapGeographyType.DeepWater]    = new SKColor(20,  80,  140),
+        [CampaignMapGeographyType.ShallowWater] = new SKColor(60,  150, 210),
+        [CampaignMapGeographyType.Flat]         = new SKColor(100, 170, 80),
+        [CampaignMapGeographyType.Hilly]        = new SKColor(170, 145, 80),
+        [CampaignMapGeographyType.Mountainous]  = new SKColor(160, 150, 145),
+        [CampaignMapGeographyType.Unknown]      = new SKColor(20,  20,  20),
     };
 
     // ── Biome colour palette ──────────────────────────────────────────────────
 
-    private static readonly Dictionary<BiomeType, Rgb24> _biomeColours = new()
+    private static readonly Dictionary<BiomeType, SKColor> _biomeColours = new()
     {
-        [BiomeType.Ocean]     = new Rgb24(20,  80,  150),
-        [BiomeType.Coastal]   = new Rgb24(90,  175, 200),
-        [BiomeType.Grassland] = new Rgb24(105, 185, 80),
-        [BiomeType.Woodland]  = new Rgb24(80,  140, 65),
-        [BiomeType.Forest]    = new Rgb24(45,  110, 50),
-        [BiomeType.Jungle]    = new Rgb24(25,  135, 55),
-        [BiomeType.Arid]      = new Rgb24(195, 175, 90),
-        [BiomeType.Desert]    = new Rgb24(225, 205, 120),
-        [BiomeType.Tundra]    = new Rgb24(165, 185, 170),
-        [BiomeType.Ice]       = new Rgb24(225, 238, 248),
-        [BiomeType.Unknown]   = new Rgb24(20,  20,  20),
-        [BiomeType.Void]      = new Rgb24(20,  20,  20),
+        [BiomeType.Ocean]     = new SKColor(20,  80,  150),
+        [BiomeType.Coastal]   = new SKColor(90,  175, 200),
+        [BiomeType.Grassland] = new SKColor(105, 185, 80),
+        [BiomeType.Woodland]  = new SKColor(80,  140, 65),
+        [BiomeType.Forest]    = new SKColor(45,  110, 50),
+        [BiomeType.Jungle]    = new SKColor(25,  135, 55),
+        [BiomeType.Arid]      = new SKColor(195, 175, 90),
+        [BiomeType.Desert]    = new SKColor(225, 205, 120),
+        [BiomeType.Tundra]    = new SKColor(165, 185, 170),
+        [BiomeType.Ice]       = new SKColor(225, 238, 248),
+        [BiomeType.Unknown]   = new SKColor(20,  20,  20),
+        [BiomeType.Void]      = new SKColor(20,  20,  20),
     };
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -78,14 +77,14 @@ public static class MapPreviewRenderer
             string biomePath = Path.Combine(outputDirectory, $"{indexId}_biomes.png");
 
             RenderImage(
-                width, 
-                height, 
+                width,
+                height,
                 geoPath,
                 (x, y) => _geoColours.GetValueOrDefault(geography[y * width + x], _geoColours[CampaignMapGeographyType.Unknown]));
 
             RenderImage(
-                width, 
-                height, 
+                width,
+                height,
                 biomePath,
                 (x, y) => _biomeColours.GetValueOrDefault(biomes[y * width + x], _biomeColours[BiomeType.Unknown]));
 
@@ -103,30 +102,37 @@ public static class MapPreviewRenderer
     /// <summary>
     /// Writes a single PNG where each tile is a <see cref="TilePixelSize"/>-pixel square.
     /// </summary>
-    private static void RenderImage(int width, int height, string path, Func<int, int, Rgb24> colourSelector)
+    private static void RenderImage(int width, int height, string path, Func<int, int, SKColor> colourSelector)
     {
         int imgWidth  = width  * TilePixelSize;
         int imgHeight = height * TilePixelSize;
 
-        using var image = new Image<Rgb24>(imgWidth, imgHeight);
+        // Opaque RGB surface — no alpha channel needed for solid map previews.
+        using var surface = SKSurface.Create(new SKImageInfo(imgWidth, imgHeight, SKColorType.Rgba8888, SKAlphaType.Opaque));
+        SKCanvas canvas = surface.Canvas;
 
-        // ImageSharp ProcessPixelRows is the preferred high-performance path.
-        image.ProcessPixelRows(accessor =>
+        // Draw one filled square per tile rather than setting individual pixels —
+        // far fewer draw calls, and it matches the "block per tile" intent directly.
+        using var paint = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = false };
+
+        for (int tileY = 0; tileY < height; tileY++)
         {
-            for (int py = 0; py < imgHeight; py++)
+            for (int tileX = 0; tileX < width; tileX++)
             {
-                // Map pixel row → tile row.
-                int tileY = py / TilePixelSize;
-                Span<Rgb24> row = accessor.GetRowSpan(py);
+                paint.Color = colourSelector(tileX, tileY);
 
-                for (int px = 0; px < imgWidth; px++)
-                {
-                    int tileX = px / TilePixelSize;
-                    row[px] = colourSelector(tileX, tileY);
-                }
+                float left = tileX * TilePixelSize;
+                float top  = tileY * TilePixelSize;
+                canvas.DrawRect(left, top, TilePixelSize, TilePixelSize, paint);
             }
-        });
+        }
 
-        image.SaveAsPng(path);
+        canvas.Flush();
+
+        // Snapshot the surface and encode to PNG, writing straight to disk.
+        using SKImage image = surface.Snapshot();
+        using SKData data = image.Encode(SKEncodedImageFormat.Png, 100);
+        using FileStream stream = File.OpenWrite(path);
+        data.SaveTo(stream);
     }
 }
