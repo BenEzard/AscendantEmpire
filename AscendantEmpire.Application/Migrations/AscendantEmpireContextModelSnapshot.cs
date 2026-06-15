@@ -17,7 +17,7 @@ namespace AscendantEmpire.Application.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.9")
+                .HasAnnotation("ProductVersion", "10.0.9")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -385,7 +385,12 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("GameId");
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("GameId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Player_Game_User")
+                        .HasFilter("[UserId] IS NOT NULL");
 
                     b.ToTable("Player", "game");
                 });
@@ -556,6 +561,39 @@ namespace AscendantEmpire.Application.Migrations
                         .HasDatabaseName("IX_CampaignStructureInstances_Game_Owner_RemovedOn");
 
                     b.ToTable("StructureInstances", "game");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Identity.User", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Username")
+                        .IsUnique();
+
+                    b.ToTable("Users", "auth");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.BattleMaps.BattleMap", b =>
@@ -1568,7 +1606,14 @@ namespace AscendantEmpire.Application.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
+                    b.HasOne("AscendantEmpire.Domain.Entities.Identity.User", "User")
+                        .WithMany("Players")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Game");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerCampaignMap", b =>
@@ -1956,6 +2001,11 @@ namespace AscendantEmpire.Application.Migrations
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.GameIndex", b =>
+                {
+                    b.Navigation("Players");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Identity.User", b =>
                 {
                     b.Navigation("Players");
                 });

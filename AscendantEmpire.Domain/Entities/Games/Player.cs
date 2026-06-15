@@ -1,4 +1,5 @@
-﻿using AscendantEmpire.Domain.Enums.Games;
+﻿using AscendantEmpire.Domain.Entities.Identity;
+using AscendantEmpire.Domain.Enums.Games;
 
 using System.ComponentModel.DataAnnotations;
 
@@ -18,6 +19,11 @@ public class Player
     /// A User can be null when the Player slot is unassigned.
     /// </summary>
     public int? UserId { get; set; }
+
+    /// <summary>
+    /// The account that controls this Player. Null when the slot is unassigned.
+    /// </summary>
+    public User? User { get; set; }
 
     [MaxLength(RULER_TITLE_MAX_LENGTH)]
     public required string RulerTitle { get; set; }

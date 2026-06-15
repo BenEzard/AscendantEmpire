@@ -13,6 +13,7 @@ import UnitDesigner from "@/features/unitdesign/UnitDesigner";
 import OpenGameDialog from "./OpenGameDialog";
 import VisionSettingsOffcanvas from "./VisionSettingsOffcanvas";
 import { http } from "@/api/http";
+import { enterGame } from "@/features/auth/api/authApi";
 import ContextActionToolbar from "./ContextActionToolbar";
 import ForceSelectionDialog from "./ForceSelectionDialog";
 import NotificationsHost from "@/features/notifications/NotificationsHost";
@@ -261,9 +262,16 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
           show={activeDialog === "openGame"}
           onClose={() => setActiveDialog(null)}
           onSaveSuccess={(msg) => openToast(msg ?? "Undefined", "success")}
-          onOpenMap={(selection) => {
-            setGameSelection(selection);
+          onOpenMap={async (selection) => {
             setActiveDialog(null);
+            try {
+              // Swap the user token for a game token before loading the game, so protected
+              // endpoints read this game + player straight from the token.
+              await enterGame(selection.gameId);
+              setGameSelection(selection);
+            } catch (err) {
+              openToast(err instanceof Error ? err.message : "Could not enter that game.", "danger");
+            }
           }}
         />
 

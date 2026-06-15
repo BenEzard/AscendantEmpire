@@ -1,6 +1,7 @@
 ﻿using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.Battles;
 using AscendantEmpire.Domain.Entities.Games;
+using AscendantEmpire.Domain.Entities.Identity;
 using AscendantEmpire.Domain.Entities.Maps.BattleMaps;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Resources;
@@ -87,6 +88,13 @@ public class AscendantEmpireContext : DbContext
     public DbSet<StructureInstance> StructureInstances { get; set; }
     #endregion
 
+    #region Auth Schema
+    /// <summary>
+    /// User accounts that people log in with. Each User owns one or more Players.
+    /// </summary>
+    public DbSet<User> Users { get; set; }
+    #endregion
+
     #region Resources Schema
     public DbSet<ResourceMetaCategory> ResourceMetaCategories { get; set; }
     public DbSet<ResourceCategory> ResourceCategories { get; set; }
@@ -141,6 +149,8 @@ public class AscendantEmpireContext : DbContext
         ConfigureBattleSchema(modelBuilder);
 
         ConfigureGameSchema(modelBuilder);
+
+        ConfigureAuthSchema(modelBuilder);
 
         ConfigureMapSchema(modelBuilder);
 
@@ -545,6 +555,44 @@ public class AscendantEmpireContext : DbContext
                 .IsUnique()
                 .HasDatabaseName("UX_CampaignStructureInstances_Active_BattleTile")
                 .HasFilter("[RemovedOnTurnId] IS NULL AND [BattleMapTileId] IS NOT NULL");
+        });
+    }
+
+    private static void ConfigureAuthSchema(ModelBuilder modelBuilder)
+    {
+        const string schema = "auth";
+
+        // --- User ----------------------------------------------------------------------
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.ToTable("Users", schema);
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Username).HasMaxLength(User.USERNAME_MAX_LENGTH).IsRequired();
+            entity.Property(x => x.Email).HasMaxLength(User.EMAIL_MAX_LENGTH);
+            entity.Property(x => x.PasswordHash).HasMaxLength(User.PASSWORD_HASH_MAX_LENGTH).IsRequired();
+
+            // Usernames are the login key, so they must be unique.
+            entity.HasIndex(x => x.Username).IsUnique();
+
+            // A User owns many Players (one per game). Deleting a user is restricted while
+            // they still control players — don't silently orphan game state.
+            entity.HasMany(x => x.Players)
+                .WithOne(p => p.User)
+                .HasForeignKey(p => p.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // A user can hold at most one Player slot per game. The filter lets the many
+        // unassigned slots (UserId IS NULL) coexist while still enforcing uniqueness
+        // for assigned ones.
+        modelBuilder.Entity<Player>(entity =>
+        {
+            entity.HasIndex(p => new { p.GameId, p.UserId })
+                .IsUnique()
+                .HasFilter("[UserId] IS NOT NULL")
+                .HasDatabaseName("UX_Player_Game_User");
         });
     }
 

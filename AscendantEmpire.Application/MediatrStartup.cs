@@ -7,6 +7,9 @@ using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions.Checks;
 
+using AscendantEmpire.Domain.Entities.Identity;
+
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AscendantEmpire.Application;
@@ -16,6 +19,9 @@ public static class MediatrStartup
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
+
+        // Hashes and verifies user passwords. Stateless, so a singleton is fine.
+        services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 
         services.AddScoped<ICampaignTurnService, CampaignTurnService>();
         services.AddScoped<ICampaignMapGalleryService, CampaignMapGalleryService>();
