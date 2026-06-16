@@ -47,7 +47,9 @@ export default function LoginForm({ onAuthenticated }: LoginFormProps) {
     setError(null);
   };
 
-  const inputClass = "w-full rounded-md border border-slate-300 px-2 py-2 text-sm";
+  // Explicit bg/text colours: the global :root default text colour is white, so without these
+  // the typed value would be white-on-white and invisible in the input.
+  const inputClass = "w-full rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-900";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">

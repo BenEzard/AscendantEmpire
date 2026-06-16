@@ -34,6 +34,7 @@ export default defineConfig({
         landing: path.resolve(__dirname, "index.html"),
         game: path.resolve(__dirname, "game/index.html"),
         mapeditor: path.resolve(__dirname, "mapeditor/index.html"),
+        matchmaker: path.resolve(__dirname, "matchmaker/index.html"),
       },
     },
   },
