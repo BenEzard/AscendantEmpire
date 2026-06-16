@@ -31,7 +31,8 @@ export interface TileGridProps {
 
 const TileGrid = React.memo(function TileGrid({
   width,
-  height,
+  // `height` is part of the public props (callers pass width/height as a pair) but the grid
+  // derives its row count from `gridAutoRows` + the flattened tile list, so it isn't read here.
   tiles2d,
   geographies,
   onTileClick,

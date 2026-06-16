@@ -1,5 +1,6 @@
-/// <reference types="vitest" />
-import { defineConfig } from 'vite'
+/// <reference types="vitest/config" />
+// Import defineConfig from 'vitest/config' (not 'vite') so the `test` block below is typed.
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'path';

@@ -118,7 +118,6 @@ export type ResourceCategoryData = ProcessedResourceCategoryData | StandaloneRes
 
 export interface ResourceTickerCollectionProps {
   categories: ResourceCategoryData[];
-  showTotals?: boolean;
   maxColumns?: number;
   onClickAmount?: (args: ResourceClickArgs) => void;
   onReorderGroupTickers?: (args: { categoryCode: string; groupCode: string; tickers: ResourceTickerData[] }) => void;
@@ -131,7 +130,6 @@ function getProcessedCategoryColumnCount(category: ProcessedResourceCategoryData
 
 export default function ResourceTickerCollection({
   categories,
-  showTotals = true,
   maxColumns = 0,
   onClickAmount,
   onReorderGroupTickers,
