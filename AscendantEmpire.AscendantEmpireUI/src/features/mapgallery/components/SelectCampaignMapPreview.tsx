@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FaMountain, FaTree } from "react-icons/fa6";
+import { FaLocationDot, FaMountain, FaTree } from "react-icons/fa6";
 import { Spinner } from "@/components/ui";
 import { getCampaignMapPreviewUrl, type CampaignMapPreviewMode } from "@/features/mapgallery/api/mapGalleryApi";
 
@@ -73,6 +73,14 @@ export default function SelectCampaignMapPreview({ selectedMapId, selectedMapNam
           aria-pressed={mode === "geography"}
           className={buttonClassName(mode === "geography")}>
           <FaMountain aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("startpositions")}
+          title="Show start positions"
+          aria-pressed={mode === "startpositions"}
+          className={buttonClassName(mode === "startpositions")}>
+          <FaLocationDot aria-hidden="true" />
         </button>
       </div>
     </div>

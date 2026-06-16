@@ -8,7 +8,7 @@ export interface CampaignMapGalleryIndex {
   height: number;
 }
 
-export type CampaignMapPreviewMode = "biome" | "geography";
+export type CampaignMapPreviewMode = "biome" | "geography" | "startpositions";
 
 export type SearchMapGalleryResponse = { indexes: CampaignMapGalleryIndex[] };
 

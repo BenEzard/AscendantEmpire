@@ -5,6 +5,7 @@ using AscendantEmpire.Application.Options;
 using AscendantEmpire.Application.Features.Maps;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Classes;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Handlers;
+using AscendantEmpire.Application.MapGeneration;
 using AscendantEmpire.BackendContracts.MapGallery.GetCampaignMapStartPositions;
 using AscendantEmpire.BackendContracts.MapGallery.GetCampaignMapTiles;
 using AscendantEmpire.BackendContracts.MapGallery.PutCampaignMapStartPositions;
@@ -500,18 +501,27 @@ public class MapGalleryController
         try
         {
             // Resolve the requested preview mode up front so an invalid value fails fast with a 400.
+            // "startpositions" overlays red circles on the biome preview, so it also resolves to the biome path.
             bool isGeography;
+            bool isStartPositions;
             if (string.Equals(mode, "geography", StringComparison.OrdinalIgnoreCase))
             {
                 isGeography = true;
+                isStartPositions = false;
             }
             else if (string.Equals(mode, "biome", StringComparison.OrdinalIgnoreCase))
             {
                 isGeography = false;
+                isStartPositions = false;
+            }
+            else if (string.Equals(mode, "startpositions", StringComparison.OrdinalIgnoreCase))
+            {
+                isGeography = false;
+                isStartPositions = true;
             }
             else
             {
-                return new ObjectResult(new DTApiErrorResult(["Query parameter 'mode' must be either 'biome' or 'geography'."]))
+                return new ObjectResult(new DTApiErrorResult(["Query parameter 'mode' must be one of 'biome', 'geography' or 'startpositions'."]))
                 {
                     StatusCode = StatusCodes.Status400BadRequest
                 };
@@ -534,6 +544,7 @@ public class MapGalleryController
                 };
             }
 
+            // The start-positions overlay is drawn on top of the biome preview.
             string? previewPath = isGeography ? paths.GeographyMapPath : paths.BiomeMapPath;
 
             // A null/empty path means the preview was never rendered (e.g. non-Perlin map or a failed render).
@@ -550,6 +561,47 @@ public class MapGalleryController
                 return new ObjectResult(new DTApiErrorResult(["Preview image is no longer available on the server."]))
                 {
                     StatusCode = StatusCodes.Status404NotFound
+                };
+            }
+
+            // Start-positions mode is composited on demand from the current authored positions, so it always
+            // reflects edits made after the one-time map render. The other two modes stream the stored file.
+            if (isStartPositions)
+            {
+                // Load the current start positions for this map (just the coordinates needed to place circles).
+                List<(int X, int Y)> startPositions = await context.CampaignMapStartPositions
+                    .AsNoTracking()
+                    .Where(x => x.CampaignMapGalleryIndexId == id)
+                    .Select(x => new ValueTuple<int, int>(x.XCoord, x.YCoord))
+                    .ToListAsync(cancellationToken);
+
+                byte[]? overlay = MapPreviewRenderer.RenderStartPositionOverlay(previewPath, startPositions);
+
+                if (overlay is null)
+                {
+                    return new ObjectResult(new DTApiErrorResult(["The start-positions preview could not be rendered."]))
+                    {
+                        StatusCode = StatusCodes.Status404NotFound
+                    };
+                }
+
+                // The composited image depends on both the base file and the current positions, so fold a hash of
+                // the coordinates into the ETag — editing positions then invalidates any cached overlay.
+                var overlayFileInfo = new FileInfo(previewPath);
+                int positionsHash = 17;
+                foreach ((int x, int y) in startPositions)
+                {
+                    positionsHash = positionsHash * 31 + x;
+                    positionsHash = positionsHash * 31 + y;
+                }
+
+                var overlayEntityTag = new EntityTagHeaderValue(
+                    $"\"{overlayFileInfo.Length:x}-{overlayFileInfo.LastWriteTimeUtc.Ticks:x}-{positionsHash:x}\"");
+
+                return new FileContentResult(overlay, "image/png")
+                {
+                    LastModified = overlayFileInfo.LastWriteTimeUtc,
+                    EntityTag = overlayEntityTag
                 };
             }
 

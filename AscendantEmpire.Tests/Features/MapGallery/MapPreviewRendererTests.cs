@@ -96,4 +96,68 @@ internal sealed class MapPreviewRendererTests
         Assert.That((oceanPixel.Red, oceanPixel.Green, oceanPixel.Blue), Is.EqualTo(((byte)20, (byte)80, (byte)150)),
             "Tile (0,0) should be the Ocean colour.");
     }
+
+    [Test, Description("RenderStartPositionOverlay draws a red dot on the base biome PNG at the given tile, preserving dimensions.")]
+    public void RenderStartPositionOverlay_DrawsRedDot_AtStartPosition()
+    {
+        const int width = 4;
+        const int height = 4;
+        const int tilePixelSize = 4;
+
+        // Build an all-grassland map so the base image is a single, known colour everywhere — any red pixel in the
+        // overlay must therefore come from the drawn circle, not the base.
+        var geography = new CampaignMapGeographyType[width * height];
+        Array.Fill(geography, CampaignMapGeographyType.Flat);
+
+        var biomes = new BiomeType[width * height];
+        Array.Fill(biomes, BiomeType.Grassland);
+
+        // Render the base previews first; the overlay is drawn on top of the biome PNG.
+        (string? _, string? biomePath) = MapPreviewRenderer.Render(
+            geography, biomes, width, height, _outputDirectory, indexId: 7);
+
+        Assert.That(biomePath, Is.Not.Null.And.Not.Empty, "Biome base path should be returned.");
+
+        // Place a single start position at tile (2, 2).
+        const int startX = 2;
+        const int startY = 2;
+        byte[]? overlay = MapPreviewRenderer.RenderStartPositionOverlay(biomePath!, [(startX, startY)]);
+
+        Assert.That(overlay, Is.Not.Null.And.Not.Empty, "Overlay PNG bytes should be returned.");
+
+        using SKBitmap overlayBitmap = SKBitmap.Decode(overlay!);
+
+        using (Assert.EnterMultipleScope())
+        {
+            // The overlay keeps the base image's pixel dimensions.
+            Assert.That(overlayBitmap.Width, Is.EqualTo(width * tilePixelSize), "Overlay width should match the base image.");
+            Assert.That(overlayBitmap.Height, Is.EqualTo(height * tilePixelSize), "Overlay height should match the base image.");
+        }
+
+        // Scan the pixel block around the start tile for a clearly red pixel (the dot). Anti-aliasing softens
+        // edge pixels, so we look for any pixel that is strongly red and not the grassland base colour.
+        int circleCentreX = startX * tilePixelSize + tilePixelSize / 2;
+        int circleCentreY = startY * tilePixelSize + tilePixelSize / 2;
+        int searchRadius = tilePixelSize * 2;
+
+        bool foundRed = false;
+        for (int py = circleCentreY - searchRadius; py <= circleCentreY + searchRadius && !foundRed; py++)
+        {
+            for (int px = circleCentreX - searchRadius; px <= circleCentreX + searchRadius && !foundRed; px++)
+            {
+                if (px < 0 || py < 0 || px >= overlayBitmap.Width || py >= overlayBitmap.Height)
+                {
+                    continue;
+                }
+
+                SKColor pixel = overlayBitmap.GetPixel(px, py);
+                if (pixel.Red > 180 && pixel.Green < 80 && pixel.Blue < 80)
+                {
+                    foundRed = true;
+                }
+            }
+        }
+
+        Assert.That(foundRed, Is.True, "A red dot should have been drawn near the start position.");
+    }
 }
