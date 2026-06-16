@@ -16,25 +16,27 @@ public class JwtTokenService(IOptions<JwtSettings> settings) : ITokenService
 {
     private readonly JwtSettings _settings = settings.Value;
 
-    public string CreateUserToken(AuthenticatedUser user)
+    public string CreateUserToken(AuthenticatedUser user, int sessionId)
     {
         // Base identity claims, present in every token.
         List<Claim> claims =
         [
             new Claim(AuthClaimTypes.UserId, user.UserId.ToString()),
             new Claim(AuthClaimTypes.Username, user.Username),
+            new Claim(AuthClaimTypes.SessionId, sessionId.ToString()),
         ];
 
         return BuildToken(claims);
     }
 
-    public string CreateGameToken(GameContext context)
+    public string CreateGameToken(GameContext context, int sessionId)
     {
         // User identity plus the entered game and the controlled player.
         List<Claim> claims =
         [
             new Claim(AuthClaimTypes.UserId, context.UserId.ToString()),
             new Claim(AuthClaimTypes.Username, context.Username),
+            new Claim(AuthClaimTypes.SessionId, sessionId.ToString()),
             new Claim(AuthClaimTypes.GameId, context.GameId.ToString()),
             new Claim(AuthClaimTypes.PlayerId, context.PlayerId.ToString()),
         ];

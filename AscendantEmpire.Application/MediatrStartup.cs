@@ -1,4 +1,5 @@
 ﻿using AscendantEmpire.Application.BackgroundServices;
+using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Executors;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
@@ -22,6 +23,9 @@ public static class MediatrStartup
 
         // Hashes and verifies user passwords. Stateless, so a singleton is fine.
         services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+
+        // Manages revocable login sessions behind refresh tokens.
+        services.AddScoped<IRefreshSessionService, RefreshSessionService>();
 
         services.AddScoped<ICampaignTurnService, CampaignTurnService>();
         services.AddScoped<ICampaignMapGalleryService, CampaignMapGalleryService>();

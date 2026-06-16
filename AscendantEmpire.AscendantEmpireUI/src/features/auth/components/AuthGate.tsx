@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { clearAuth, getAuth, type AuthState } from "@/api/authToken";
 import { Button } from "@/components/ui";
+import { logout as logoutApi } from "../api/authApi";
 import LoginForm from "./LoginForm";
 
 export interface AuthGateProps {
@@ -20,7 +21,15 @@ export default function AuthGate({ children }: AuthGateProps) {
     return <LoginForm onAuthenticated={() => setAuth(getAuth())} />;
   }
 
-  const logout = () => {
+  const logout = async () => {
+    // Best-effort server-side revoke so the refresh token can't be reused; ignore failures
+    // (e.g. the access token already expired) — we clear local state regardless.
+    try {
+      await logoutApi();
+    } catch {
+      // Intentionally ignored: logout must always clear the client.
+    }
+
     clearAuth();
     // Full reload gives a clean slate: clears the per-page query cache and any in-flight
     // requests that would otherwise fire without a token.

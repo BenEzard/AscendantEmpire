@@ -10,6 +10,14 @@ public interface IAuthTokenResult
 {
     string Token { get; }
     string Username { get; }
+
+    /// <summary>
+    /// The refresh token used to obtain a new access token when the short-lived <see cref="Token"/>
+    /// expires. Set by login/register/refresh; null on enter-game (the session, and therefore its
+    /// refresh token, is unchanged — the client keeps the one it already holds).
+    /// </summary>
+    string? RefreshToken { get; }
+
     int? GameId { get; }
     int? PlayerId { get; }
 }

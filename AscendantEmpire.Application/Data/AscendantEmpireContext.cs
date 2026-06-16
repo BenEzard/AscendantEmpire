@@ -93,6 +93,11 @@ public class AscendantEmpireContext : DbContext
     /// User accounts that people log in with. Each User owns one or more Players.
     /// </summary>
     public DbSet<User> Users { get; set; }
+
+    /// <summary>
+    /// Server-side login sessions backing refresh tokens. Revocable, unlike the access token.
+    /// </summary>
+    public DbSet<RefreshSession> RefreshSessions { get; set; }
     #endregion
 
     #region Resources Schema
@@ -593,6 +598,32 @@ public class AscendantEmpireContext : DbContext
                 .IsUnique()
                 .HasFilter("[UserId] IS NOT NULL")
                 .HasDatabaseName("UX_Player_Game_User");
+        });
+
+        // --- RefreshSession ------------------------------------------------------------
+        modelBuilder.Entity<RefreshSession>(entity =>
+        {
+            entity.ToTable("RefreshSessions", schema);
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.TokenHash).HasMaxLength(RefreshSession.TOKEN_HASH_MAX_LENGTH).IsRequired();
+
+            // Lookups happen by token hash, so it must be unique and indexed.
+            entity.HasIndex(x => x.TokenHash)
+                .IsUnique()
+                .HasDatabaseName("UX_RefreshSession_TokenHash");
+
+            // Revocation queries hit these columns: by game (delete game / kick all) and by user.
+            entity.HasIndex(x => x.GameId).HasDatabaseName("IX_RefreshSession_Game");
+            entity.HasIndex(x => x.UserId).HasDatabaseName("IX_RefreshSession_User");
+
+            // Deleting a user takes their sessions with them (unlike Players, sessions are
+            // disposable and carry no game state worth preserving).
+            entity.HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 

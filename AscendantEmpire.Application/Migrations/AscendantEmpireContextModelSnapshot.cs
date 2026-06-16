@@ -563,6 +563,52 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("StructureInstances", "game");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Identity.RefreshSession", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int?>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameId")
+                        .HasDatabaseName("IX_RefreshSession_Game");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("UX_RefreshSession_TokenHash");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_RefreshSession_User");
+
+                    b.ToTable("RefreshSessions", "auth");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Identity.User", b =>
                 {
                     b.Property<int>("Id")
@@ -1730,6 +1776,17 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("OwnedBy");
 
                     b.Navigation("Structure");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Identity.RefreshSession", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Identity.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.BattleMaps.BattleMap", b =>
