@@ -1,5 +1,5 @@
-// Mirrors the API's IMatchmakingSlot (camelCased by ASP.NET's JSON serializer).
-export type MatchmakingSlot = {
+// Mirrors the API's IMatchMakingSlot (camelCased by ASP.NET's JSON serializer).
+export type MatchMakingSlot = {
   playerId: number;
   rulerTitle: string;
   rulerName: string;

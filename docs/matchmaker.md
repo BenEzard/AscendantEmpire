@@ -28,7 +28,7 @@ SQL; now the Match Maker does it.
 ```
  register / log in        claim a slot                 enter the game
  (user token)             (Player.UserId = you)        (game token)         play
-   AuthGate     ─────▶    POST /matchmaking/claim ─────▶ POST /auth/enter-game ─────▶ /game/
+   AuthGate     ─────▶    POST /MatchMaking/claim ─────▶ POST /auth/enter-game ─────▶ /game/
 ```
 
 ---
@@ -36,11 +36,11 @@ SQL; now the Match Maker does it.
 ## API endpoints
 
 All live on
-[`MatchmakingController`](../AscendantEmpire.Api/Controllers/MatchmakingController.cs). The whole
+[`MatchMakingController`](../AscendantEmpire.Api/Controllers/MatchMakingController.cs). The whole
 controller is `[Authorize]`, so a **user token is required**. The account is always read from the
 token (`User.GetUserId()`), never from the request body.
 
-### `GET /matchmaking/games`
+### `GET /MatchMaking/games`
 
 Lists the joinable games and every **active** slot in each, flagged as claimed or free.
 
@@ -75,7 +75,7 @@ are returned so the UI can show taken vs free seats.
   **not** revealed.
 - `isClaimedByCurrentUser` — the requesting account holds this slot (UI shows it as "your slot").
 
-### `POST /matchmaking/claim`
+### `POST /MatchMaking/claim`
 
 Claims one unassigned slot for the logged-in user.
 
@@ -100,12 +100,12 @@ Claims one unassigned slot for the logged-in user.
 
 | Piece | Location | Role |
 |---|---|---|
-| `MatchmakingController` | `AscendantEmpire.Api/Controllers/MatchmakingController.cs` | `[Authorize]` endpoints; reads the account from the token. |
-| `GetMatchmakingGamesHandler` | `AscendantEmpire.Application/Features/MatchMaking/Handlers/` | Lists joinable games + slots, deriving the claim flags per slot. |
+| `MatchMakingController` | `AscendantEmpire.Api/Controllers/MatchMakingController.cs` | `[Authorize]` endpoints; reads the account from the token. |
+| `GetMatchMakingGamesHandler` | `AscendantEmpire.Application/Features/MatchMaking/Handlers/` | Lists joinable games + slots, deriving the claim flags per slot. |
 | `ClaimPlayerSlotHandler` | `AscendantEmpire.Application/Features/MatchMaking/Handlers/` | Assigns `Player.UserId`; guards "already taken" / "already in this game". |
-| Backend contracts | `AscendantEmpire.BackendContracts/MatchMaking/` | `MatchmakingGame`, `MatchmakingSlot` (handler output), `ClaimPlayerSlotDto` (request body). |
-| Frontend contracts | `AscendantEmpire.FrontendContracts/MatchMaking/` | `IMatchmakingGameCollection`, `IMatchmakingGame`, `IMatchmakingSlot`. |
-| DTOs | `AscendantEmpire.Application/Features/MatchMaking/Classes/` | `DTMatchmakingGameCollection` etc. — the serialized shapes. |
+| Backend contracts | `AscendantEmpire.BackendContracts/MatchMaking/` | `MatchMakingGame`, `MatchMakingSlot` (handler output), `ClaimPlayerSlotDto` (request body). |
+| Frontend contracts | `AscendantEmpire.FrontendContracts/MatchMaking/` | `IMatchMakingGameCollection`, `IMatchMakingGame`, `IMatchMakingSlot`. |
+| DTOs | `AscendantEmpire.Application/Features/MatchMaking/Classes/` | `DTMatchMakingGameCollection` etc. — the serialized shapes. |
 
 Handlers are auto-registered by MediatR's assembly scan, and their FluentValidation validators by
 the existing validation pipeline — no DI wiring was added.
@@ -128,7 +128,7 @@ HTML document so a tab only ever mounts one feature.
 | Vite input | `vite.config.ts` (`rollupOptions.input.matchmaker`) | Registers the page for the build. |
 | React entry | `src/entries/matchmaker.tsx` | Mounts `MatchMaker` inside `AuthGate` + `AppProviders`. |
 | Main component | `src/features/matchmaker/components/MatchMaker.tsx` | Lists games/slots, claims a free slot, "Play now" on a held slot. |
-| API calls | `src/features/matchmaker/api/matchmakingApi.ts` | `getMatchmakingGames()`, `claimPlayerSlot(gameId, playerId)`. |
+| API calls | `src/features/matchmaker/api/matchMakingApi.ts` | `getMatchMakingGames()`, `claimPlayerSlot(gameId, playerId)`. |
 | Types | `src/features/matchmaker/types/` | Camel-cased mirrors of the frontend contracts. |
 | Landing link | `index.html` | Adds a "Match Maker" link next to Game / Map Editor. |
 
@@ -139,7 +139,7 @@ HTML document so a tab only ever mounts one feature.
    - **Your slot** — badge + a **Play now** button.
    - **Taken** — a muted badge (no name shown).
    - **Free** — a **Claim** button (disabled if you already hold a slot in that game).
-3. **Claim** calls `POST /matchmaking/claim`, then refetches the list so the seat flips to "your
+3. **Claim** calls `POST /MatchMaking/claim`, then refetches the list so the seat flips to "your
    slot".
 4. **Play now** calls `enterGame(gameId)` (from the shared auth API) to swap the user token for a
    game token, then redirects to `/game/`.

@@ -5,16 +5,16 @@ namespace AscendantEmpire.BackendContracts.MatchMaking;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Unlike the anonymous open-games listing, this view includes every active slot — claimed or
-/// not — so the matchmaker can show which seats are taken and which are still free.
+/// Unlike the anonymous open-games listing, this view includes every active slot â€” claimed or
+/// not â€” so the matchmaker can show which seats are taken and which are still free.
 /// </para>
 /// </remarks>
-public record MatchmakingGame
+public record MatchMakingGame
 {
     public int GameId { get; init; }
     public required string GameName { get; init; }
     public int NumberOfPlayers { get; init; }
     public int MapWidth { get; init; }
     public int MapHeight { get; init; }
-    public required IReadOnlyCollection<MatchmakingSlot> Slots { get; init; }
+    public required IReadOnlyCollection<MatchMakingSlot> Slots { get; init; }
 }

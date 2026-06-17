@@ -3,7 +3,7 @@ namespace AscendantEmpire.FrontendContracts.MatchMaking;
 /// <summary>
 /// A joinable game and its player slots, as presented to the matchmaker UI.
 /// </summary>
-public interface IMatchmakingGame
+public interface IMatchMakingGame
 {
     /// <summary>Database Id of the Game.</summary>
     int GameId { get; }
@@ -21,5 +21,5 @@ public interface IMatchmakingGame
     int MapHeight { get; }
 
     /// <summary>All active slots in the game, claimed and unclaimed alike.</summary>
-    IReadOnlyCollection<IMatchmakingSlot> Slots { get; }
+    IReadOnlyCollection<IMatchMakingSlot> Slots { get; }
 }

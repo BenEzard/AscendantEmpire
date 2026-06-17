@@ -2,7 +2,7 @@ using AscendantEmpire.FrontendContracts.MatchMaking;
 
 namespace AscendantEmpire.Application.Features.MatchMaking.Classes;
 
-public class DTMatchmakingGame : IMatchmakingGame
+public class DTMatchMakingGame : IMatchMakingGame
 {
     /// <inheritdoc />
     public int GameId { get; set; }
@@ -20,7 +20,7 @@ public class DTMatchmakingGame : IMatchmakingGame
     public int MapHeight { get; set; }
 
     /// <inheritdoc />
-    public required IReadOnlyCollection<DTMatchmakingSlot> Slots { get; set; }
+    public required IReadOnlyCollection<DTMatchMakingSlot> Slots { get; set; }
 
-    IReadOnlyCollection<IMatchmakingSlot> IMatchmakingGame.Slots => Slots;
+    IReadOnlyCollection<IMatchMakingSlot> IMatchMakingGame.Slots => Slots;
 }

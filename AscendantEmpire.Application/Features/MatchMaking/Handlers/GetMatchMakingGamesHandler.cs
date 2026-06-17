@@ -22,23 +22,23 @@ namespace AscendantEmpire.Application.Features.MatchMaking.Handlers;
 /// only used to mark which slots the caller already controls; it does not filter the results.
 /// </para>
 /// </remarks>
-public record GetMatchmakingGamesRequest(int UserId) : IRequest<ServiceResult<IReadOnlyCollection<MatchmakingGame>>>;
+public record GetMatchMakingGamesRequest(int UserId) : IRequest<ServiceResult<IReadOnlyCollection<MatchMakingGame>>>;
 
-internal class GetMatchmakingGamesRequestValidator : AbstractValidator<GetMatchmakingGamesRequest>
+internal class GetMatchMakingGamesRequestValidator : AbstractValidator<GetMatchMakingGamesRequest>
 {
-    public GetMatchmakingGamesRequestValidator()
+    public GetMatchMakingGamesRequestValidator()
     {
         RuleFor(x => x.UserId)
             .GreaterThan(0).WithMessage("User Id is required.");
     }
 }
 
-internal sealed class GetMatchmakingGamesHandler(
-    ILogger<GetMatchmakingGamesHandler> logger,
+internal sealed class GetMatchMakingGamesHandler(
+    ILogger<GetMatchMakingGamesHandler> logger,
     IDbContextFactory<AscendantEmpireContext> dbFactory
-) : IRequestHandler<GetMatchmakingGamesRequest, ServiceResult<IReadOnlyCollection<MatchmakingGame>>>
+) : IRequestHandler<GetMatchMakingGamesRequest, ServiceResult<IReadOnlyCollection<MatchMakingGame>>>
 {
-    public async Task<ServiceResult<IReadOnlyCollection<MatchmakingGame>>> Handle(GetMatchmakingGamesRequest request, CancellationToken cancelToken)
+    public async Task<ServiceResult<IReadOnlyCollection<MatchMakingGame>>> Handle(GetMatchMakingGamesRequest request, CancellationToken cancelToken)
     {
         try
         {
@@ -73,7 +73,7 @@ internal sealed class GetMatchmakingGamesHandler(
             ).ToListAsync(cancelToken);
 
             // Group the flat rows into "game -> slots", deriving the claim flags per slot.
-            List<MatchmakingGame> games = [.. rows
+            List<MatchMakingGame> games = [.. rows
                 .GroupBy(r => new
                 {
                     r.GameId,
@@ -82,7 +82,7 @@ internal sealed class GetMatchmakingGamesHandler(
                     r.Width,
                     r.Height
                 })
-                .Select(g => new MatchmakingGame
+                .Select(g => new MatchMakingGame
                 {
                     GameId = g.Key.GameId,
                     GameName = g.Key.GameName,
@@ -90,7 +90,7 @@ internal sealed class GetMatchmakingGamesHandler(
                     MapWidth = g.Key.Width,
                     MapHeight = g.Key.Height,
                     Slots = [.. g
-                        .Select(s => new MatchmakingSlot
+                        .Select(s => new MatchMakingSlot
                         {
                             PlayerId = s.PlayerId,
                             RulerTitle = s.RulerTitle,
@@ -105,13 +105,13 @@ internal sealed class GetMatchmakingGamesHandler(
                 })
                 .OrderBy(g => g.GameName)];
 
-            return ServiceResult<IReadOnlyCollection<MatchmakingGame>>.Succeed(games);
+            return ServiceResult<IReadOnlyCollection<MatchMakingGame>>.Succeed(games);
         }
         catch (Exception ex)
         {
             const string error = "An error occurred while fetching joinable games.";
             logger.LogError(ex, error);
-            return ServiceResult<IReadOnlyCollection<MatchmakingGame>>.InternalServerError(error);
+            return ServiceResult<IReadOnlyCollection<MatchMakingGame>>.InternalServerError(error);
         }
     }
 }

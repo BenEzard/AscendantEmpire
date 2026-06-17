@@ -9,7 +9,7 @@ namespace AscendantEmpire.BackendContracts.MatchMaking;
 /// claiming it sets that <c>UserId</c> to the requesting account.
 /// </para>
 /// </remarks>
-public record MatchmakingSlot
+public record MatchMakingSlot
 {
     public int PlayerId { get; init; }
     public required string RulerTitle { get; init; }

@@ -22,7 +22,7 @@ namespace AscendantEmpire.Api.Controllers;
 [ApiController]
 [Route("[controller]")]
 [Authorize]
-public class MatchmakingController : ControllerBase
+public class MatchMakingController : ControllerBase
 {
     /// <summary>
     /// List the games that can be joined, with each active slot flagged as claimed or free.
@@ -31,7 +31,7 @@ public class MatchmakingController : ControllerBase
     /// <response code="401">Missing or invalid token</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [HttpGet("games")]
-    [ProducesResponseType(typeof(IMatchmakingGameCollection), 200)]
+    [ProducesResponseType(typeof(IMatchMakingGameCollection), 200)]
     [ProducesResponseType(401)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
     public async Task<IActionResult> GetGamesAsync(
@@ -45,19 +45,19 @@ public class MatchmakingController : ControllerBase
             return Unauthorized();
         }
 
-        ServiceResult<IReadOnlyCollection<MatchmakingGame>> response =
-            await mediator.Send(new GetMatchmakingGamesRequest(userId.Value), cancelToken);
+        ServiceResult<IReadOnlyCollection<MatchMakingGame>> response =
+            await mediator.Send(new GetMatchMakingGamesRequest(userId.Value), cancelToken);
 
-        return response.ToActionResult(games => new DTMatchmakingGameCollection
+        return response.ToActionResult(games => new DTMatchMakingGameCollection
         {
-            Games = response.SuccessValue?.Select(g => new DTMatchmakingGame
+            Games = response.SuccessValue?.Select(g => new DTMatchMakingGame
             {
                 GameId = g.GameId,
                 GameName = g.GameName,
                 NumberOfPlayers = g.NumberOfPlayers,
                 MapWidth = g.MapWidth,
                 MapHeight = g.MapHeight,
-                Slots = [.. g.Slots.Select(s => new DTMatchmakingSlot
+                Slots = [.. g.Slots.Select(s => new DTMatchMakingSlot
                 {
                     PlayerId = s.PlayerId,
                     RulerTitle = s.RulerTitle,

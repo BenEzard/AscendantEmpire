@@ -2,14 +2,14 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, Spinner, Toast, ToastViewport, Tooltip } from "@/components/ui";
 import { enterGame } from "@/features/auth/api/authApi";
-import { getMatchmakingGames } from "../api/matchmakingApi";
-import { claimPlayerSlot } from "../api/matchmakingApi";
-import type { MatchmakingGamesResponse } from "../types/MatchmakingGamesResponse";
-import type { MatchmakingGame } from "../types/MatchmakingGame";
-import type { MatchmakingSlot } from "../types/MatchmakingSlot";
+import { getMatchMakingGames } from "../api/matchMakingApi";
+import { claimPlayerSlot } from "../api/matchMakingApi";
+import type { MatchMakingGamesResponse } from "../types/MatchMakingGamesResponse";
+import type { MatchMakingGame } from "../types/MatchMakingGame";
+import type { MatchMakingSlot } from "../types/MatchMakingSlot";
 
 // react-query key for the joinable-games list, shared by the fetch and the claim invalidation.
-const GAMES_QUERY_KEY = ["matchmaking", "games"];
+const GAMES_QUERY_KEY = ["matchMaking", "games"];
 
 type ToastState = {
   message: string;
@@ -28,13 +28,13 @@ export default function MatchMaker() {
   // Tracks which slot is mid-claim / mid-enter so we can show a per-row spinner and disable it.
   const [busyPlayerId, setBusyPlayerId] = useState<number | null>(null);
 
-  const { data, isLoading, isFetching, error, refetch } = useQuery<MatchmakingGamesResponse, Error>({
+  const { data, isLoading, isFetching, error, refetch } = useQuery<MatchMakingGamesResponse, Error>({
     queryKey: GAMES_QUERY_KEY,
-    queryFn: getMatchmakingGames,
+    queryFn: getMatchMakingGames,
     refetchOnWindowFocus: false,
   });
 
-  const games = useMemo<MatchmakingGame[]>(() => data?.games ?? [], [data]);
+  const games = useMemo<MatchMakingGame[]>(() => data?.games ?? [], [data]);
 
   // Filter on game name or any slot's ruler label, mirroring the open-game dialog's behaviour.
   const filteredGames = useMemo(() => {
@@ -145,7 +145,7 @@ export default function MatchMaker() {
 }
 
 interface GameCardProps {
-  game: MatchmakingGame;
+  game: MatchMakingGame;
   busyPlayerId: number | null;
   onClaim: (playerId: number) => void;
   onPlay: (playerId: number) => void;
@@ -183,7 +183,7 @@ function GameCard({ game, busyPlayerId, onClaim, onPlay }: GameCardProps) {
 }
 
 interface SlotRowProps {
-  slot: MatchmakingSlot;
+  slot: MatchMakingSlot;
   userHasSlotHere: boolean;
   isBusy: boolean;
   onClaim: () => void;

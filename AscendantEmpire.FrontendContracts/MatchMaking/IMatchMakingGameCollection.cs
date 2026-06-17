@@ -3,7 +3,7 @@ namespace AscendantEmpire.FrontendContracts.MatchMaking;
 /// <summary>
 /// The set of joinable games returned to the matchmaker UI.
 /// </summary>
-public interface IMatchmakingGameCollection
+public interface IMatchMakingGameCollection
 {
-    IReadOnlyCollection<IMatchmakingGame> Games { get; }
+    IReadOnlyCollection<IMatchMakingGame> Games { get; }
 }

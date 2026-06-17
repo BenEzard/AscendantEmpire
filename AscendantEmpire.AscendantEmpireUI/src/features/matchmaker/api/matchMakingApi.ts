@@ -1,12 +1,12 @@
 import { http } from "@/api/http";
-import type { MatchmakingGamesResponse } from "../types/MatchmakingGamesResponse";
+import type { MatchMakingGamesResponse } from "../types/MatchMakingGamesResponse";
 
 /**
  * Fetch the games that can be joined, with each active slot flagged as claimed or free.
  * Requires a user token (the http interceptor attaches it); the account is read server-side.
  */
-export async function getMatchmakingGames(): Promise<MatchmakingGamesResponse> {
-  const { data } = await http.get<MatchmakingGamesResponse>("/matchmaking/games");
+export async function getMatchMakingGames(): Promise<MatchMakingGamesResponse> {
+  const { data } = await http.get<MatchMakingGamesResponse>("/match-making/games");
   return data;
 }
 
@@ -16,5 +16,5 @@ export async function getMatchmakingGames(): Promise<MatchmakingGamesResponse> {
  * a slot in that game).
  */
 export async function claimPlayerSlot(gameId: number, playerId: number): Promise<void> {
-  await http.post("/matchmaking/claim", { gameId, playerId });
+  await http.post("/match-making/claim", { gameId, playerId });
 }

@@ -3,7 +3,7 @@ namespace AscendantEmpire.FrontendContracts.MatchMaking;
 /// <summary>
 /// A single player slot within a game, plus whether it has already been claimed.
 /// </summary>
-public interface IMatchmakingSlot
+public interface IMatchMakingSlot
 {
     /// <summary>Database Id of the player slot.</summary>
     int PlayerId { get; }

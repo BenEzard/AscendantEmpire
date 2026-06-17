@@ -2,7 +2,7 @@ using AscendantEmpire.FrontendContracts.MatchMaking;
 
 namespace AscendantEmpire.Application.Features.MatchMaking.Classes;
 
-public class DTMatchmakingSlot : IMatchmakingSlot
+public class DTMatchMakingSlot : IMatchMakingSlot
 {
     /// <inheritdoc />
     public int PlayerId { get; set; }
