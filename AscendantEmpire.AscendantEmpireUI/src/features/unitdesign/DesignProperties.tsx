@@ -1,4 +1,5 @@
-import type { ComponentCost, ComponentUpkeep, WeaponStats } from "./types/UnitComponent";
+import type { ComponentCost, ComponentUpkeep } from "./types/UnitComponent";
+import type { BattleStatsData } from "./BattleStats";
 import { BattleStats } from "./BattleStats";
 import { UpkeepStats } from "./UpkeepStats";
 import { TrainingCostStats } from "./TrainingCostStats";
@@ -6,13 +7,13 @@ import { TrainingCostStats } from "./TrainingCostStats";
 export interface DesignPropertiesProps {
   totalCost: ComponentCost;
   totalUpkeep: ComponentUpkeep;
-  totalBattleStats: WeaponStats;
+  totalBattleStats: BattleStatsData;
 }
 
 export default function DesignProperties({ totalCost, totalUpkeep, totalBattleStats }: DesignPropertiesProps) {
   const showBattleStats =
-    Object.values(totalBattleStats.attack).some((n) => Number.isFinite(n) && n > 0) ||
-    Object.values(totalBattleStats.defense).some((n) => Number.isFinite(n) && n > 0);
+    Object.values(totalBattleStats.attack ?? {}).some((n) => Number.isFinite(n) && n > 0) ||
+    Object.values(totalBattleStats.resistance ?? {}).some((n) => Number.isFinite(n) && n > 0);
 
   return (
     <div className="flex h-full w-full flex-col border-l border-white/10 bg-sky-900/20" style={{ minHeight: 0 }}>

@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
+import type { Domain } from "./types/Domain";
 import type { DamageType } from "./types/DamageType";
 import type { IconType } from "react-icons";
-import type { WeaponStats } from "./types/UnitComponent";
+import type { WeaponDamageProfile } from "./types/UnitComponent";
 import Tooltip from "@/components/ui/Tooltip";
 
 import { ALL_DAMAGE_TYPES } from "./types/UnitComponent";
@@ -16,13 +17,25 @@ const DAMAGE_BADGES: Partial<Record<DamageType, IconBadgeMeta>> = {
   pierce: { title: "Pierce", Icon: GiSunSpear },
   burn: { title: "Burn", Icon: GiFlame },
   crush: { title: "Crush", Icon: GiFlatHammer },
-  gas: { title: "Poison", Icon: GiPoisonBottle },
+  poison: { title: "Poison", Icon: GiPoisonBottle },
 };
 
 const ROW_BADGES = {
   attack: { title: "Attack", Icon: PiSword },
-  defense: { title: "Defence", Icon: BsShield },
-} satisfies Record<"attack" | "defense", IconBadgeMeta>;
+  resistance: { title: "Resistance", Icon: BsShield },
+} satisfies Record<"attack" | "resistance", IconBadgeMeta>;
+
+/**
+ * The battle data shown for a component. Weapons supply `attack` (plus range/domain modifiers);
+ * armour supplies `resistance`. Whichever fields are present get a row.
+ */
+export interface BattleStatsData {
+  attack?: WeaponDamageProfile;
+  resistance?: WeaponDamageProfile;
+  minimumRange?: number;
+  maximumRange?: number;
+  domainModifiers?: Partial<Record<Domain, number>>;
+}
 
 function fmt(n: number) {
   if (!Number.isFinite(n)) return String(n);
@@ -52,8 +65,8 @@ function DamageRow({
   existingValues,
 }: {
   label: ReactNode;
-  values: Record<DamageType, number>;
-  existingValues?: Record<DamageType, number>;
+  values: WeaponDamageProfile;
+  existingValues?: WeaponDamageProfile;
 }) {
   return (
     <div className="flex items-center justify-between gap-3 text-xs">
@@ -69,7 +82,7 @@ function DamageRow({
   );
 }
 
-export function BattleStats({ stats, existingStats, className }: { stats: WeaponStats; existingStats?: WeaponStats; className?: string }) {
+export function BattleStats({ stats, existingStats, className }: { stats: BattleStatsData; existingStats?: BattleStatsData; className?: string }) {
   const iconBadge = (title: string, icon: ReactNode) => (
     <Tooltip content={title}>
       <span className="inline-flex w-full justify-center">
@@ -86,6 +99,9 @@ export function BattleStats({ stats, existingStats, className }: { stats: Weapon
     return iconBadge(meta.title, <Icon className="h-4 w-4" aria-label={meta.title} />);
   };
 
+  // Domain modifiers are rendered as a compact "Land ×1, Air ×0.5" list.
+  const domainModifierEntries = Object.entries(stats.domainModifiers ?? {}) as [Domain, number][];
+
   return (
     <div className={className ?? "-mx-2 rounded-md border border-white/10 bg-sky-900/30 px-3 py-2"}>
       <div className="border-b border-white/10 pb-0.5 text-sm font-semibold text-white">Battle Stats</div>
@@ -99,16 +115,38 @@ export function BattleStats({ stats, existingStats, className }: { stats: Weapon
           ))}
         </div>
 
-        <DamageRow
-          label={iconBadge(ROW_BADGES.attack.title, <ROW_BADGES.attack.Icon className="h-4 w-4" aria-label={ROW_BADGES.attack.title} />)}
-          values={stats.attack}
-          existingValues={existingStats?.attack}
-        />
-        <DamageRow
-          label={iconBadge(ROW_BADGES.defense.title, <ROW_BADGES.defense.Icon className="h-4 w-4" aria-label={ROW_BADGES.defense.title} />)}
-          values={stats.defense}
-          existingValues={existingStats?.defense}
-        />
+        {stats.attack && (
+          <DamageRow
+            label={iconBadge(ROW_BADGES.attack.title, <ROW_BADGES.attack.Icon className="h-4 w-4" aria-label={ROW_BADGES.attack.title} />)}
+            values={stats.attack}
+            existingValues={existingStats?.attack}
+          />
+        )}
+
+        {stats.resistance && (
+          <DamageRow
+            label={iconBadge(ROW_BADGES.resistance.title, <ROW_BADGES.resistance.Icon className="h-4 w-4" aria-label={ROW_BADGES.resistance.title} />)}
+            values={stats.resistance}
+            existingValues={existingStats?.resistance}
+          />
+        )}
+
+        {stats.maximumRange != null && (
+          <div className="flex items-center justify-between gap-3 text-xs text-white/80">
+            <div>Range</div>
+            <div className="tabular-nums text-white">
+              {/* Melee shows a single word; ranged shows the engageable band (min–max). */}
+              {stats.maximumRange <= 1 ? "Melee" : `${stats.minimumRange ?? 0}–${stats.maximumRange}`}
+            </div>
+          </div>
+        )}
+
+        {domainModifierEntries.length > 0 && (
+          <div className="flex items-center justify-between gap-3 text-xs text-white/80">
+            <div>Targets</div>
+            <div className="text-white">{domainModifierEntries.map(([d, m]) => `${d} ×${m}`).join(", ")}</div>
+          </div>
+        )}
       </div>
     </div>
   );

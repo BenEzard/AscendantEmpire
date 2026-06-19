@@ -1,4 +1,5 @@
-import type { BaseSlotDefinition, ComponentCost, ComponentUpkeep, UnitComponent } from "./types/UnitComponent";
+import type { ArmourStats, BaseSlotDefinition, ComponentCost, ComponentUpkeep, UnitComponent, WeaponDamageProfile, WeaponStats } from "./types/UnitComponent";
+import type { Domain } from "./types/Domain";
 
 import humanPrimitiveFullSizeUrl from "@/assets/unit-design/base/human-primitive_full-size.png";
 import gladiusUrl from "@/assets/unit-design/gladius.svg";
@@ -62,6 +63,38 @@ function props(seed: number, keys: string[]): Record<string, number> {
     out[k] = Math.round((((h % 10_000) / 100) as number) * 100) / 100;
   }
   return out;
+}
+
+// Deterministic dummy damage values (0..~12) so weapons/armour show stable numbers in the UI.
+function damageProfile(seed: number): WeaponDamageProfile {
+  const value = (salt: string) => {
+    let h = seed;
+    for (let i = 0; i < salt.length; i++) h = (h * 31 + salt.charCodeAt(i)) >>> 0;
+    return Math.round(((h % 1200) / 100) * 100) / 100;
+  };
+
+  return {
+    slash: value("slash"),
+    pierce: value("pierce"),
+    crush: value("crush"),
+    burn: value("burn"),
+    poison: value("poison"),
+  };
+}
+
+// Builds a weapon's battle stats: an attack profile, a range band, and the target domains it can hit.
+function weaponStats(
+  seed: number,
+  minimumRange: number,
+  maximumRange: number,
+  domainModifiers: Partial<Record<Domain, number>>,
+): WeaponStats {
+  return { attack: damageProfile(seed), minimumRange, maximumRange, domainModifiers };
+}
+
+// Builds an armour's battle stats: flat resistance per damage type.
+function armourStats(seed: number): ArmourStats {
+  return { resistance: damageProfile(seed) };
 }
 
 export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
@@ -294,11 +327,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     type: "weapon",
     domain: "Land",
     common: common(10),
-    properties: props(10, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
-    weapon: {
-      attack: { crush: 2.87, pierce: 4.54, burn: 3.85, slash: 6.88, gas: 10.24 },
-      defense: { crush: 1.21, pierce: 1.99, burn: 2.11, slash: 2.89, gas: 2.77 },
-    },
+    properties: props(10, ["Rate of Fire", "Accuracy", "Heat"]),
+    weapon: weaponStats(10, 1, 4, { Land: 1 }),
   },
   {
     id: 11,
@@ -308,11 +338,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     // Can also fit into some equipment-style slots.
     slotTypes: ["weapon", "equipment"],
     common: common(11),
-    properties: props(11, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
-    weapon: {
-      attack: { crush: 8.85, pierce: 4.86, burn: 3.39, slash: 13.52, gas: 11.06 },
-      defense: { crush: 3.82, pierce: 2.2, burn: 2.05, slash: 5.82, gas: 2.94 },
-    },
+    properties: props(11, ["Rate of Fire", "Accuracy", "Heat"]),
+    weapon: weaponStats(11, 1, 5, { Land: 1, Air: 0.5 }),
   },
   {
     id: 12,
@@ -320,11 +347,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     type: "weapon",
     domain: "Air",
     common: common(12),
-    properties: props(12, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
-    weapon: {
-      attack: { crush: 0.25, pierce: 3.16, burn: 1.63, slash: 3.59, gas: 7.27 },
-      defense: { crush: 0.12, pierce: 1.34, burn: 1.05, slash: 1.45, gas: 1.71 },
-    },
+    properties: props(12, ["Rate of Fire", "Accuracy", "Heat"]),
+    weapon: weaponStats(12, 1, 3, { Air: 1, Land: 0.75 }),
   },
   {
     id: 121,
@@ -333,11 +357,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     domain: "Land",
     iconUrl: gladiusUrl,
     common: common(12),
-    properties: props(12, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
-    weapon: {
-      attack: { crush: 0.25, pierce: 3.16, burn: 1.63, slash: 3.59, gas: 7.27 },
-      defense: { crush: 0.12, pierce: 1.34, burn: 1.05, slash: 1.45, gas: 1.71 },
-    },
+    properties: props(12, ["Rate of Fire", "Accuracy", "Heat"]),
+    weapon: weaponStats(121, 1, 1, { Land: 1 }),
   },
   {
     id: 13,
@@ -346,11 +367,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     domain: "Land",
     iconUrl: knifeUrl,
     common: common(13),
-    properties: props(13, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
-    weapon: {
-      attack: { crush: 2.51, pierce: 1.71, burn: 0.5, slash: 4.51, gas: 3.98 },
-      defense: { crush: 0.84, pierce: 0.02, burn: 0.37, slash: 1.51, gas: 0.73 },
-    },
+    properties: props(13, ["Rate of Fire", "Accuracy", "Heat"]),
+    weapon: weaponStats(13, 1, 1, { Land: 1 }),
   },
 
   // weapons (asset-backed)
@@ -361,11 +379,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     domain: "Land",
     iconUrl: woodClubUrl,
     common: common(100),
-    properties: props(100, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
-    weapon: {
-      attack: { crush: 3.65, pierce: 3.58, burn: 1.27, slash: 5.66, gas: 1.1 },
-      defense: { crush: 1.23, pierce: 1.23, burn: 0.62, slash: 1.89, gas: 1.77 },
-    },
+    properties: props(100, ["Rate of Fire", "Accuracy", "Heat"]),
+    weapon: weaponStats(100, 1, 1, { Land: 1 }),
   },
   {
     id: 101,
@@ -374,11 +389,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     domain: "Land",
     iconUrl: spearUrl,
     common: common(101),
-    properties: props(101, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
-    weapon: {
-      attack: { crush: 0.02, pierce: 4.52, burn: 1.06, slash: 2.69, gas: 0.96 },
-      defense: { crush: 0.02, pierce: 1.76, burn: 0.7, slash: 1.02, gas: 2.46 },
-    },
+    properties: props(101, ["Rate of Fire", "Accuracy", "Heat"]),
+    weapon: weaponStats(101, 1, 2, { Land: 1 }),
   },
   {
     id: 102,
@@ -387,11 +399,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     domain: "Land",
     iconUrl: ballistaUrl,
     common: common(102),
-    properties: props(102, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
-    weapon: {
-      attack: { crush: 4.74, pierce: 6.41, burn: 0.64, slash: 8.75, gas: 0.68 },
-      defense: { crush: 1.6, pierce: 2.22, burn: 0.61, slash: 2.93, gas: 3.03 },
-    },
+    properties: props(102, ["Rate of Fire", "Accuracy", "Heat"]),
+    weapon: weaponStats(102, 3, 6, { Land: 1 }),
   },
   {
     id: 103,
@@ -400,11 +409,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     domain: "Land",
     iconUrl: grenadeUrl,
     common: common(103),
-    properties: props(103, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
-    weapon: {
-      attack: { crush: 7.09, pierce: 1.86, burn: 8.77, slash: 1.1, gas: 8.95 },
-      defense: { crush: 2.38, pierce: 0.68, burn: 0.22, slash: 0.38, gas: 2.08 },
-    },
+    properties: props(103, ["Rate of Fire", "Accuracy", "Heat"]),
+    weapon: weaponStats(103, 1, 3, { Land: 1 }),
   },
   {
     id: 104,
@@ -413,11 +419,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     domain: "Land",
     iconUrl: molotovUrl,
     common: common(104),
-    properties: props(104, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
-    weapon: {
-      attack: { crush: 1.45, pierce: 1.41, burn: 7.16, slash: 4.12, gas: 7.45 },
-      defense: { crush: 0.55, pierce: 0.59, burn: 2.99, slash: 1.56, gas: 1.89 },
-    },
+    properties: props(104, ["Rate of Fire", "Accuracy", "Heat"]),
+    weapon: weaponStats(104, 1, 2, { Land: 1 }),
   },
   {
     id: 105,
@@ -426,11 +429,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     domain: "Land",
     iconUrl: ak47Url,
     common: common(105),
-    properties: props(105, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
-    weapon: {
-      attack: { crush: 6.31, pierce: 1.6, burn: 8.98, slash: 9.99, gas: 9.55 },
-      defense: { crush: 2.31, pierce: 0.66, burn: 3.66, slash: 3.65, gas: 2.27 },
-    },
+    properties: props(105, ["Rate of Fire", "Accuracy", "Heat"]),
+    weapon: weaponStats(105, 1, 6, { Land: 1, Air: 0.4 }),
   },
   {
     id: 106,
@@ -439,11 +439,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     domain: "Land",
     iconUrl: rifleGunUrl,
     common: common(106),
-    properties: props(106, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
-    weapon: {
-      attack: { crush: 9.67, pierce: 1.14, burn: 7.37, slash: 3.01, gas: 8.05 },
-      defense: { crush: 3.88, pierce: 0.54, burn: 3.35, slash: 1.22, gas: 2.02 },
-    },
+    properties: props(106, ["Rate of Fire", "Accuracy", "Heat"]),
+    weapon: weaponStats(106, 1, 7, { Land: 1, Air: 0.3 }),
   },
   {
     id: 107,
@@ -452,11 +449,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     domain: "Land",
     iconUrl: submachineUrl,
     common: common(107),
-    properties: props(107, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
-    weapon: {
-      attack: { crush: 0.64, pierce: 7.87, burn: 6.58, slash: 3.98, gas: 7.42 },
-      defense: { crush: 1.46, pierce: 3.23, burn: 3.03, slash: 2.79, gas: 1.77 },
-    },
+    properties: props(107, ["Rate of Fire", "Accuracy", "Heat"]),
+    weapon: weaponStats(107, 1, 4, { Land: 1 }),
   },
   {
     id: 108,
@@ -465,11 +459,9 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     domain: "Land",
     iconUrl: machineGunUrl,
     common: common(108),
-    properties: props(108, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
-    weapon: {
-      attack: { crush: 5.48, pierce: 9.07, burn: 6.95, slash: 9.49, gas: 8.15 },
-      defense: { crush: 3.79, pierce: 3.88, burn: 3.4, slash: 0.45, gas: 1.9 },
-    },
+    properties: props(108, ["Rate of Fire", "Accuracy", "Heat"]),
+    // The cited example: hits land at full effect and air at reduced effect, but not water.
+    weapon: weaponStats(108, 1, 6, { Land: 1, Air: 0.5 }),
   },
   {
     id: 109,
@@ -478,11 +470,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     domain: "Land",
     iconUrl: cannonUrl,
     common: common(109),
-    properties: props(109, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
-    weapon: {
-      attack: { crush: 11.9, pierce: 10.15, burn: 7, slash: 2.58, gas: 8.62 },
-      defense: { crush: 0.9, pierce: 4.47, burn: 3.6, slash: 2.9, gas: 1.9 },
-    },
+    properties: props(109, ["Rate of Fire", "Accuracy", "Heat"]),
+    weapon: weaponStats(109, 3, 8, { Land: 1, Air: 0.5 }),
   },
   {
     id: 110,
@@ -491,11 +480,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     domain: "Land",
     iconUrl: fieldGunUrl,
     common: common(110),
-    properties: props(110, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
-    weapon: {
-      attack: { crush: 3.16, pierce: 5.17, burn: 5.47, slash: 7.5, gas: 7.19 },
-      defense: { crush: 3.26, pierce: 2.51, burn: 3.13, slash: 5.26, gas: 1.52 },
-    },
+    properties: props(110, ["Rate of Fire", "Accuracy", "Heat"]),
+    weapon: weaponStats(110, 2, 8, { Land: 1, Air: 0.4 }),
   },
   {
     id: 111,
@@ -504,11 +490,8 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     domain: "Land",
     iconUrl: launcherBazookaUrl,
     common: common(111),
-    properties: props(111, ["Range", "Rate of Fire", "Accuracy", "Heat"]),
-    weapon: {
-      attack: { crush: 9.54, pierce: 5.51, burn: 5.13, slash: 14.55, gas: 7.35 },
-      defense: { crush: 5.62, pierce: 2.32, burn: 2.65, slash: 1.62, gas: 1.14 },
-    },
+    properties: props(111, ["Rate of Fire", "Accuracy", "Heat"]),
+    weapon: weaponStats(111, 2, 7, { Land: 1, Air: 0.6 }),
   },
 
   // armour
@@ -519,6 +502,7 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     domain: "Land",
     common: common(20),
     properties: props(20, ["Armor", "Mobility", "Maintenance"]),
+    armour: armourStats(20),
   },
   {
     id: 21,
@@ -529,6 +513,7 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     allowedBaseIds: [1, 3],
     common: common(21),
     properties: props(21, ["Armor", "Mobility", "Maintenance"]),
+    armour: armourStats(21),
   },
 
   {
@@ -540,6 +525,7 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     iconUrl: fullHelmetUrl,
     common: common(22),
     properties: props(22, ["Armor", "Mobility", "Maintenance"]),
+    armour: armourStats(22),
   },
 
   {
@@ -550,6 +536,7 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     iconUrl: bulletproofUrl,
     common: common(23),
     properties: props(23, ["Armor", "Mobility", "Maintenance"]),
+    armour: armourStats(23),
   },
   {
     id: 24,
@@ -559,6 +546,7 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     iconUrl: plateMailUrl,
     common: common(24),
     properties: props(24, ["Armor", "Mobility", "Maintenance"]),
+    armour: armourStats(24),
   },
   {
     id: 25,
@@ -568,6 +556,7 @@ export const DUMMY_UNIT_COMPONENTS: UnitComponent[] = [
     iconUrl: gasMaskUrl,
     common: common(25),
     properties: props(25, ["Armor", "Mobility", "Maintenance"]),
+    armour: armourStats(25),
   },
 
   // engine

@@ -139,6 +139,21 @@ public class AscendantEmpireContext : DbContext
     public DbSet<UnitComponentBody> UnitComponentBodies { get; set; }
 
     /// <summary>
+    /// Weapon-only properties, one-to-one with weapon-type <see cref="UnitComponent"/> rows.
+    /// </summary>
+    public DbSet<UnitComponentWeapon> UnitComponentWeapons { get; set; }
+
+    /// <summary>
+    /// Per-Domain damage multipliers declaring which Domains a weapon can attack.
+    /// </summary>
+    public DbSet<UnitComponentWeaponDomainModifier> UnitComponentWeaponDomainModifiers { get; set; }
+
+    /// <summary>
+    /// Armour-only properties, one-to-one with armour-type <see cref="UnitComponent"/> rows.
+    /// </summary>
+    public DbSet<UnitComponentArmour> UnitComponentArmours { get; set; }
+
+    /// <summary>
     /// Template Slots exposed by body components.
     /// </summary>
     public DbSet<UnitComponentSlot> UnitComponentSlots { get; set; }
@@ -1137,6 +1152,81 @@ public class AscendantEmpireContext : DbContext
                 .HasForeignKey<UnitComponentBody>(e => e.UnitComponentId)
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_UnitComponentBody_UnitComponent_UnitComponentId");
+        });
+
+        // --- UnitComponentWeapon (1:1 with UnitComponent) --------------------------
+        modelBuilder.Entity<UnitComponentWeapon>(entity =>
+        {
+            entity.ToTable("UnitComponentWeapon", schema);
+
+            // Shares the primary key of the owning UnitComponent.
+            entity.HasKey(e => e.UnitComponentId);
+
+            // The attack DamageProfile is a complex type: its five values live as flat columns on
+            // this table. Map explicit column names to avoid the default "Attack_Slash" naming.
+            entity.ComplexProperty(e => e.Attack, attack =>
+            {
+                attack.Property(p => p.Slash).HasColumnName("Slash");
+                attack.Property(p => p.Pierce).HasColumnName("Pierce");
+                attack.Property(p => p.Crush).HasColumnName("Crush");
+                attack.Property(p => p.Burn).HasColumnName("Burn");
+                attack.Property(p => p.Poison).HasColumnName("Poison");
+            });
+
+            entity.HasOne(e => e.UnitComponent)
+                .WithOne(e => e.Weapon)
+                .HasForeignKey<UnitComponentWeapon>(e => e.UnitComponentId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitComponentWeapon_UnitComponent_UnitComponentId");
+        });
+
+        // --- UnitComponentWeaponDomainModifier -------------------------------------
+        modelBuilder.Entity<UnitComponentWeaponDomainModifier>(entity =>
+        {
+            entity.ToTable("UnitComponentWeaponDomainModifier", schema);
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Domain)
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.HasOne(e => e.Weapon)
+                .WithMany(e => e.DomainModifiers)
+                .HasForeignKey(e => e.UnitComponentWeaponId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitComponentWeaponDomainModifier_UnitComponentWeapon_UnitComponentWeaponId");
+
+            // A weapon lists each target Domain at most once.
+            entity.HasIndex(e => new { e.UnitComponentWeaponId, e.Domain })
+                .IsUnique()
+                .HasDatabaseName("UX_UnitComponentWeaponDomainModifier_Weapon_Domain");
+        });
+
+        // --- UnitComponentArmour (1:1 with UnitComponent) --------------------------
+        modelBuilder.Entity<UnitComponentArmour>(entity =>
+        {
+            entity.ToTable("UnitComponentArmour", schema);
+
+            // Shares the primary key of the owning UnitComponent.
+            entity.HasKey(e => e.UnitComponentId);
+
+            // The resistance DamageProfile is a complex type: its five values live as flat columns
+            // on this table. A distinct "Resist" prefix keeps the intent clear at the column level.
+            entity.ComplexProperty(e => e.Resistance, resistance =>
+            {
+                resistance.Property(p => p.Slash).HasColumnName("ResistSlash");
+                resistance.Property(p => p.Pierce).HasColumnName("ResistPierce");
+                resistance.Property(p => p.Crush).HasColumnName("ResistCrush");
+                resistance.Property(p => p.Burn).HasColumnName("ResistBurn");
+                resistance.Property(p => p.Poison).HasColumnName("ResistPoison");
+            });
+
+            entity.HasOne(e => e.UnitComponent)
+                .WithOne(e => e.Armour)
+                .HasForeignKey<UnitComponentArmour>(e => e.UnitComponentId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitComponentArmour_UnitComponent_UnitComponentId");
         });
 
         // --- UnitComponentSlot -----------------------------------------------------

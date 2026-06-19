@@ -1,4 +1,5 @@
 import type { UnitComponent } from "./types/UnitComponent";
+import type { BattleStatsData } from "./BattleStats";
 import { BattleStats } from "./BattleStats";
 import { ALL_DAMAGE_TYPES } from "./types/UnitComponent";
 import { UpkeepStats } from "./UpkeepStats";
@@ -9,22 +10,40 @@ export interface ComponentPropertyProps {
   existingSelection?: UnitComponent | null;
 }
 
+// Build the BattleStats data from whichever combat-bearing branch a component is on:
+// weapons contribute attack (+ range/domain modifiers), armour contributes resistance.
+function toBattleStats(component?: UnitComponent | null): BattleStatsData | undefined {
+  if (component && "weapon" in component) {
+    return {
+      attack: component.weapon.attack,
+      minimumRange: component.weapon.minimumRange,
+      maximumRange: component.weapon.maximumRange,
+      domainModifiers: component.weapon.domainModifiers,
+    };
+  }
+
+  if (component && "armour" in component) {
+    return { resistance: component.armour.resistance };
+  }
+
+  return undefined;
+}
+
 export default function ComponentProperty({ selectedComponent, existingSelection }: ComponentPropertyProps) {
-  const battleStats = selectedComponent && "weapon" in selectedComponent ? selectedComponent.weapon : undefined;
-  const existingBattleStats = existingSelection && "weapon" in existingSelection ? existingSelection.weapon : undefined;
+  const battleStats = toBattleStats(selectedComponent);
+  const existingBattleStats = toBattleStats(existingSelection);
+
+  // Only show the panel when there is some non-zero damage value to display (current or existing).
   const shouldShowBattleStats =
     battleStats != null &&
     ALL_DAMAGE_TYPES.some((dt) => {
-      const attack = battleStats.attack[dt];
-      const defense = battleStats.defense[dt];
-      const existingAttack = existingBattleStats?.attack[dt] ?? 0;
-      const existingDefense = existingBattleStats?.defense[dt] ?? 0;
-      return (
-        (Number.isFinite(attack) && attack > 0) ||
-        (Number.isFinite(defense) && defense > 0) ||
-        (Number.isFinite(existingAttack) && existingAttack > 0) ||
-        (Number.isFinite(existingDefense) && existingDefense > 0)
-      );
+      const values = [
+        battleStats.attack?.[dt],
+        battleStats.resistance?.[dt],
+        existingBattleStats?.attack?.[dt],
+        existingBattleStats?.resistance?.[dt],
+      ];
+      return values.some((v) => v != null && Number.isFinite(v) && v > 0);
     });
 
   return (

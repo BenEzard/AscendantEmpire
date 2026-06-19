@@ -45,6 +45,16 @@ public class UnitComponent
     public UnitComponentBody? Body { get; set; }
 
     /// <summary>
+    /// Weapon-only extension; populated only when <see cref="ComponentType"/> is <c>Weapon</c>.
+    /// </summary>
+    public UnitComponentWeapon? Weapon { get; set; }
+
+    /// <summary>
+    /// Armour-only extension; populated only when <see cref="ComponentType"/> is <c>Armour</c>.
+    /// </summary>
+    public UnitComponentArmour? Armour { get; set; }
+
+    /// <summary>
     /// The buff/bonus tags attached to this component (0 or more).
     /// </summary>
     public ICollection<UnitComponentTag> Tags { get; set; } = [];

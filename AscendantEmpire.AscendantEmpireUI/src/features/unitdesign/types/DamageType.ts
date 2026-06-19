@@ -1,1 +1,1 @@
-export type DamageType = "crush" | "pierce" | "burn" | "slash" | "gas";
+export type DamageType = "crush" | "pierce" | "burn" | "slash" | "poison";

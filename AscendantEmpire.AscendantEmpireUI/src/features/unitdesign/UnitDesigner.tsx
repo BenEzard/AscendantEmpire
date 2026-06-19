@@ -6,7 +6,8 @@ import ComponentSelectionWindow from "./ComponentSelectionWindow";
 
 import { DUMMY_UNIT_COMPONENTS } from "./dummyUnitComponents";
 import { ALL_DAMAGE_TYPES } from "./types/UnitComponent";
-import type { BaseSlotType, ComponentCost, ComponentUpkeep, UnitComponent, WeaponStats } from "./types/UnitComponent";
+import type { BattleStatsData } from "./BattleStats";
+import type { BaseSlotType, ComponentCost, ComponentUpkeep, UnitComponent } from "./types/UnitComponent";
 import type { UnitComponentType } from "./types/UnitComponentType";
 import type { DamageType } from "./types/DamageType";
 
@@ -185,34 +186,36 @@ export default function UnitDesigner({ onClose }: UnitDesignerProps) {
     return totals;
   }, [componentById, slotPlaceholders]);
 
-  const totalDesignBattleStats: WeaponStats = useMemo(() => {
+  const totalDesignBattleStats: BattleStatsData = useMemo(() => {
     const emptyProfile = () => {
       const out = {} as Record<DamageType, number>;
       for (const dt of ALL_DAMAGE_TYPES) out[dt] = 0;
       return out;
     };
 
-    const totals: WeaponStats = {
-      attack: emptyProfile(),
-      defense: emptyProfile(),
-    };
+    // Sum offensive output from every fitted weapon and defensive resistance from every fitted armour.
+    const attack = emptyProfile();
+    const resistance = emptyProfile();
 
     for (const p of slotPlaceholders) {
       if (p.selectedComponentId == null) continue;
       const c = componentById.get(p.selectedComponentId);
       if (!c) continue;
 
-      if (!("weapon" in c)) continue;
-
-      for (const dt of ALL_DAMAGE_TYPES) {
-        const a = c.weapon.attack[dt];
-        const d = c.weapon.defense[dt];
-        if (Number.isFinite(a) && a) totals.attack[dt] += a;
-        if (Number.isFinite(d) && d) totals.defense[dt] += d;
+      if ("weapon" in c) {
+        for (const dt of ALL_DAMAGE_TYPES) {
+          const a = c.weapon.attack[dt];
+          if (Number.isFinite(a) && a) attack[dt] += a;
+        }
+      } else if ("armour" in c) {
+        for (const dt of ALL_DAMAGE_TYPES) {
+          const r = c.armour.resistance[dt];
+          if (Number.isFinite(r) && r) resistance[dt] += r;
+        }
       }
     }
 
-    return totals;
+    return { attack, resistance };
   }, [componentById, slotPlaceholders]);
 
   const baseIconUrl = selectedBaseComponent?.iconUrl;

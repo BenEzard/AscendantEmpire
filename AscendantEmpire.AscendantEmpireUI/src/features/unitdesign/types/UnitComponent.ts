@@ -20,8 +20,22 @@ export interface CommonComponentStats {
 export type WeaponDamageProfile = Record<DamageType, number>;
 
 export interface WeaponStats {
+  /** Damage this weapon deals, per damage type. */
   attack: WeaponDamageProfile;
-  defense: WeaponDamageProfile;
+  /** Closest distance (tiles) the weapon can engage. >1 creates an artillery-style close-up dead zone. */
+  minimumRange: number;
+  /** Furthest distance (tiles) the weapon can engage. Max 1 (with min 0/1) = melee; greater = ranged. */
+  maximumRange: number;
+  /**
+   * Target domains this weapon can engage, each with a damage multiplier (1 = full effect).
+   * A domain absent from this map cannot be attacked.
+   */
+  domainModifiers: Partial<Record<Domain, number>>;
+}
+
+export interface ArmourStats {
+  /** Flat damage reduction applied to incoming damage, per damage type. */
+  resistance: WeaponDamageProfile;
 }
 
 export type BaseSlotType = Exclude<UnitComponentType, "base">;
@@ -68,7 +82,22 @@ export type UnitComponent =
   | {
       id: number;
       name: string;
-      type: Exclude<UnitComponentType, "weapon" | "base">;
+      type: "armour";
+      domain: Domain;
+      iconUrl?: string;
+      icon?: IconType;
+      /** Slot types this component can be installed into. Defaults to [type] when omitted. */
+      slotTypes?: BaseSlotType[];
+      /** If set, component is only valid for these base ids. */
+      allowedBaseIds?: number[];
+      common: CommonComponentStats;
+      properties: Record<string, number>;
+      armour: ArmourStats;
+    }
+  | {
+      id: number;
+      name: string;
+      type: Exclude<UnitComponentType, "weapon" | "armour" | "base">;
       domain: Domain;
       iconUrl?: string;
       icon?: IconType;
@@ -80,7 +109,7 @@ export type UnitComponent =
       properties: Record<string, number>;
     };
 
-export const ALL_DAMAGE_TYPES: readonly DamageType[] = ["crush", "pierce", "burn", "slash", "gas"] as const;
+export const ALL_DAMAGE_TYPES: readonly DamageType[] = ["crush", "pierce", "burn", "slash", "poison"] as const;
 
 export function labelForUnitComponentType(type: UnitComponentType): string {
   switch (type) {
