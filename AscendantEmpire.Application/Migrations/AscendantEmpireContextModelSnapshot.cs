@@ -1254,6 +1254,233 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("PlayerUnitDesignStates", "unitdesigns");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.PlayerUnlockedComponent", b =>
+                {
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UnitComponentId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ObsoleteOnTurn")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UnlockedOnTurn")
+                        .HasColumnType("int");
+
+                    b.HasKey("PlayerId", "UnitComponentId");
+
+                    b.HasIndex("UnitComponentId")
+                        .HasDatabaseName("IX_PlayerUnlockedComponent_UnitComponent");
+
+                    b.ToTable("PlayerUnlockedComponent", "unitdesigns");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.PlayerUnlockedTemplate", b =>
+                {
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UnitTemplateId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("HasBeenPrototyped")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("ObsoleteOnTurn")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UnlockedOnTurn")
+                        .HasColumnType("int");
+
+                    b.HasKey("PlayerId", "UnitTemplateId");
+
+                    b.HasIndex("UnitTemplateId")
+                        .HasDatabaseName("IX_PlayerUnlockedTemplate_UnitTemplate");
+
+                    b.ToTable("PlayerUnlockedTemplate", "unitdesigns");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.Tag", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Tag_Code");
+
+                    b.ToTable("Tag", "unitdesigns");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("ComponentType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long>("Weight")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("UX_UnitComponent_Code");
+
+                    b.HasIndex("ComponentType")
+                        .HasDatabaseName("IX_UnitComponent_ComponentType");
+
+                    b.ToTable("UnitComponent", "unitdesigns");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentBody", b =>
+                {
+                    b.Property<int>("UnitComponentId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("BattlefieldMovementPoints")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("CampaignMovementPoints")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int>("IncrementStrength")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MaxStrength")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MinStrength")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MovementDomain")
+                        .HasColumnType("int");
+
+                    b.HasKey("UnitComponentId");
+
+                    b.ToTable("UnitComponentBody", "unitdesigns");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentSlot", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsLocked")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsVisible")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("UIXPosition")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UIYPosition")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UnitComponentBodyId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UnitComponentBodyId")
+                        .HasDatabaseName("IX_UnitComponentSlot_Body");
+
+                    b.ToTable("UnitComponentSlot", "unitdesigns");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentSlotRule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Operator")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RuleType")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UnitComponentSlotId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UnitComponentSlotId")
+                        .HasDatabaseName("IX_UnitComponentSlotRule_Slot");
+
+                    b.ToTable("UnitComponentSlotRule", "unitdesigns");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentTag", b =>
+                {
+                    b.Property<int>("UnitComponentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TagId")
+                        .HasColumnType("int");
+
+                    b.HasKey("UnitComponentId", "TagId");
+
+                    b.HasIndex("TagId")
+                        .HasDatabaseName("IX_UnitComponentTag_Tag");
+
+                    b.ToTable("UnitComponentTag", "unitdesigns");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitDesign", b =>
                 {
                     b.Property<int>("Id")
@@ -1288,6 +1515,89 @@ namespace AscendantEmpire.Application.Migrations
                     b.HasIndex("PlayerId");
 
                     b.ToTable("UnitDesigns", "unitdesigns");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitTemplate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BodyComponentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MapImagePath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BodyComponentId")
+                        .HasDatabaseName("IX_UnitTemplate_BodyComponent");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("UX_UnitTemplate_Code")
+                        .HasFilter("[Code] IS NOT NULL");
+
+                    b.HasIndex("GameId");
+
+                    b.HasIndex("PlayerId");
+
+                    b.ToTable("UnitTemplate", "unitdesigns");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitTemplateComponent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("UnitComponentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UnitComponentSlotId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UnitTemplateId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UnitComponentId")
+                        .HasDatabaseName("IX_UnitTemplateComponent_Component");
+
+                    b.HasIndex("UnitComponentSlotId")
+                        .HasDatabaseName("IX_UnitTemplateComponent_Slot");
+
+                    b.HasIndex("UnitTemplateId", "UnitComponentSlotId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_UnitTemplateComponent_Template_Slot");
+
+                    b.ToTable("UnitTemplateComponent", "unitdesigns");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopInstance", b =>
@@ -1949,6 +2259,105 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("UnitDesign");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.PlayerUnlockedComponent", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerUnlockedComponent_Player_PlayerId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponent", "UnitComponent")
+                        .WithMany()
+                        .HasForeignKey("UnitComponentId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerUnlockedComponent_UnitComponent_UnitComponentId");
+
+                    b.Navigation("Player");
+
+                    b.Navigation("UnitComponent");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.PlayerUnlockedTemplate", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerUnlockedTemplate_Player_PlayerId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitTemplate", "UnitTemplate")
+                        .WithMany("PlayerStates")
+                        .HasForeignKey("UnitTemplateId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerUnlockedTemplate_UnitTemplate_UnitTemplateId");
+
+                    b.Navigation("Player");
+
+                    b.Navigation("UnitTemplate");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentBody", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponent", "UnitComponent")
+                        .WithOne("Body")
+                        .HasForeignKey("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentBody", "UnitComponentId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_UnitComponentBody_UnitComponent_UnitComponentId");
+
+                    b.Navigation("UnitComponent");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentSlot", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentBody", "Body")
+                        .WithMany("Slots")
+                        .HasForeignKey("UnitComponentBodyId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_UnitComponentSlot_UnitComponentBody_UnitComponentBodyId");
+
+                    b.Navigation("Body");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentSlotRule", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentSlot", "Slot")
+                        .WithMany("Rules")
+                        .HasForeignKey("UnitComponentSlotId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_UnitComponentSlotRule_UnitComponentSlot_UnitComponentSlotId");
+
+                    b.Navigation("Slot");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentTag", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.Tag", "Tag")
+                        .WithMany("ComponentTags")
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_UnitComponentTag_Tag_TagId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponent", "UnitComponent")
+                        .WithMany("Tags")
+                        .HasForeignKey("UnitComponentId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_UnitComponentTag_UnitComponent_UnitComponentId");
+
+                    b.Navigation("Tag");
+
+                    b.Navigation("UnitComponent");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitDesign", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", "Game")
@@ -1966,6 +2375,64 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Game");
 
                     b.Navigation("Player");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitTemplate", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponent", "BodyComponent")
+                        .WithMany()
+                        .HasForeignKey("BodyComponentId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_UnitTemplate_UnitComponent_BodyComponentId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", "Game")
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_UnitTemplate_GameIndex_GameId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_UnitTemplate_Player_PlayerId");
+
+                    b.Navigation("BodyComponent");
+
+                    b.Navigation("Game");
+
+                    b.Navigation("Player");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitTemplateComponent", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponent", "UnitComponent")
+                        .WithMany()
+                        .HasForeignKey("UnitComponentId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_UnitTemplateComponent_UnitComponent_UnitComponentId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentSlot", "UnitComponentSlot")
+                        .WithMany()
+                        .HasForeignKey("UnitComponentSlotId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_UnitTemplateComponent_UnitComponentSlot_UnitComponentSlotId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitTemplate", "UnitTemplate")
+                        .WithMany("Components")
+                        .HasForeignKey("UnitTemplateId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_UnitTemplateComponent_UnitTemplate_UnitTemplateId");
+
+                    b.Navigation("UnitComponent");
+
+                    b.Navigation("UnitComponentSlot");
+
+                    b.Navigation("UnitTemplate");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopInstance", b =>
@@ -2094,10 +2561,39 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("TurnQueueParticipants");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.Tag", b =>
+                {
+                    b.Navigation("ComponentTags");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponent", b =>
+                {
+                    b.Navigation("Body");
+
+                    b.Navigation("Tags");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentBody", b =>
+                {
+                    b.Navigation("Slots");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentSlot", b =>
+                {
+                    b.Navigation("Rules");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitDesign", b =>
                 {
                     b.Navigation("CompiledStats")
                         .IsRequired();
+
+                    b.Navigation("PlayerStates");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitTemplate", b =>
+                {
+                    b.Navigation("Components");
 
                     b.Navigation("PlayerStates");
                 });

@@ -125,6 +125,58 @@ public class AscendantEmpireContext : DbContext
     public DbSet<UnitDesign> UnitDesigns { get; set; }
     public DbSet<CompiledDesignStats> UnitDesignStats { get; set; }
     public DbSet<PlayerUnitDesignState> PlayerUnitDesignStates { get; set; }
+
+    // --- Component-based unit design system (global catalog, unlocks, templates) ---
+
+    /// <summary>
+    /// Global reference catalog of buildable unit components (body, weapon, engine, etc.).
+    /// </summary>
+    public DbSet<UnitComponent> UnitComponents { get; set; }
+
+    /// <summary>
+    /// Body-only properties, one-to-one with body-type <see cref="UnitComponent"/> rows.
+    /// </summary>
+    public DbSet<UnitComponentBody> UnitComponentBodies { get; set; }
+
+    /// <summary>
+    /// Template Slots exposed by body components.
+    /// </summary>
+    public DbSet<UnitComponentSlot> UnitComponentSlots { get; set; }
+
+    /// <summary>
+    /// Acceptance rules constraining which components may be fitted into a slot.
+    /// </summary>
+    public DbSet<UnitComponentSlotRule> UnitComponentSlotRules { get; set; }
+
+    /// <summary>
+    /// Global, reusable bonus/buff tag catalog.
+    /// </summary>
+    public DbSet<Tag> Tags { get; set; }
+
+    /// <summary>
+    /// Join between components and their tags.
+    /// </summary>
+    public DbSet<UnitComponentTag> UnitComponentTags { get; set; }
+
+    /// <summary>
+    /// Per-player record of which components have been unlocked.
+    /// </summary>
+    public DbSet<PlayerUnlockedComponent> PlayerUnlockedComponents { get; set; }
+
+    /// <summary>
+    /// Per-player unlock/obsolescence state for global (common) unit templates.
+    /// </summary>
+    public DbSet<PlayerUnlockedTemplate> PlayerUnlockedTemplates { get; set; }
+
+    /// <summary>
+    /// Assembled unit templates (global/common and custom player-owned).
+    /// </summary>
+    public DbSet<UnitTemplate> UnitTemplates { get; set; }
+
+    /// <summary>
+    /// Components fitted into a template's body slots.
+    /// </summary>
+    public DbSet<UnitTemplateComponent> UnitTemplateComponents { get; set; }
     #endregion
 
 
@@ -1030,6 +1082,288 @@ public class AscendantEmpireContext : DbContext
                 .HasForeignKey(e => e.PlayerId)
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_PlayerUnitDesignStates_Player_PlayerId");
+        });
+
+        ConfigureUnitComponentCatalog(modelBuilder, schema);
+        ConfigureUnitTemplates(modelBuilder, schema);
+    }
+
+    /// <summary>
+    /// Configures the global component catalog: components, body extension, slots, slot rules and buff tags.
+    /// </summary>
+    private static void ConfigureUnitComponentCatalog(ModelBuilder modelBuilder, string schema)
+    {
+        // --- UnitComponent ---------------------------------------------------------
+        modelBuilder.Entity<UnitComponent>(entity =>
+        {
+            entity.ToTable("UnitComponent", schema);
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Code)
+                .HasMaxLength(UnitComponent.CODE_MAX_LENGTH)
+                .IsRequired();
+
+            entity.Property(e => e.DisplayName)
+                .HasMaxLength(UnitComponent.DISPLAY_NAME_MAX_LENGTH)
+                .IsRequired();
+
+            entity.Property(e => e.ComponentType)
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.HasIndex(e => e.Code)
+                .IsUnique()
+                .HasDatabaseName("UX_UnitComponent_Code");
+
+            entity.HasIndex(e => e.ComponentType)
+                .HasDatabaseName("IX_UnitComponent_ComponentType");
+        });
+
+        // --- UnitComponentBody (1:1 with UnitComponent) ----------------------------
+        modelBuilder.Entity<UnitComponentBody>(entity =>
+        {
+            entity.ToTable("UnitComponentBody", schema);
+
+            // Shares the primary key of the owning UnitComponent.
+            entity.HasKey(e => e.UnitComponentId);
+
+            entity.Property(e => e.MovementDomain)
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.HasOne(e => e.UnitComponent)
+                .WithOne(e => e.Body)
+                .HasForeignKey<UnitComponentBody>(e => e.UnitComponentId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitComponentBody_UnitComponent_UnitComponentId");
+        });
+
+        // --- UnitComponentSlot -----------------------------------------------------
+        modelBuilder.Entity<UnitComponentSlot>(entity =>
+        {
+            entity.ToTable("UnitComponentSlot", schema);
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.DisplayName)
+                .HasMaxLength(UnitComponentSlot.DISPLAY_NAME_MAX_LENGTH);
+
+            entity.HasOne(e => e.Body)
+                .WithMany(e => e.Slots)
+                .HasForeignKey(e => e.UnitComponentBodyId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitComponentSlot_UnitComponentBody_UnitComponentBodyId");
+
+            entity.HasIndex(e => e.UnitComponentBodyId)
+                .HasDatabaseName("IX_UnitComponentSlot_Body");
+        });
+
+        // --- UnitComponentSlotRule -------------------------------------------------
+        modelBuilder.Entity<UnitComponentSlotRule>(entity =>
+        {
+            entity.ToTable("UnitComponentSlotRule", schema);
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.RuleType)
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.Property(e => e.Operator)
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.Property(e => e.Value)
+                .HasMaxLength(UnitComponentSlotRule.VALUE_MAX_LENGTH)
+                .IsRequired();
+
+            entity.HasOne(e => e.Slot)
+                .WithMany(e => e.Rules)
+                .HasForeignKey(e => e.UnitComponentSlotId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitComponentSlotRule_UnitComponentSlot_UnitComponentSlotId");
+
+            entity.HasIndex(e => e.UnitComponentSlotId)
+                .HasDatabaseName("IX_UnitComponentSlotRule_Slot");
+        });
+
+        // --- Tag -------------------------------------------------------------------
+        modelBuilder.Entity<Tag>(entity =>
+        {
+            entity.ToTable("Tag", schema);
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Code)
+                .HasMaxLength(Tag.CODE_MAX_LENGTH)
+                .IsRequired();
+
+            entity.Property(e => e.DisplayName)
+                .HasMaxLength(Tag.DISPLAY_NAME_MAX_LENGTH)
+                .IsRequired();
+
+            entity.HasIndex(e => e.Code)
+                .IsUnique()
+                .HasDatabaseName("UX_Tag_Code");
+        });
+
+        // --- UnitComponentTag (join) -----------------------------------------------
+        modelBuilder.Entity<UnitComponentTag>(entity =>
+        {
+            entity.ToTable("UnitComponentTag", schema);
+
+            entity.HasKey(e => new { e.UnitComponentId, e.TagId });
+
+            entity.HasOne(e => e.UnitComponent)
+                .WithMany(e => e.Tags)
+                .HasForeignKey(e => e.UnitComponentId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitComponentTag_UnitComponent_UnitComponentId");
+
+            entity.HasOne(e => e.Tag)
+                .WithMany(e => e.ComponentTags)
+                .HasForeignKey(e => e.TagId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitComponentTag_Tag_TagId");
+
+            entity.HasIndex(e => e.TagId)
+                .HasDatabaseName("IX_UnitComponentTag_Tag");
+        });
+
+        // --- PlayerUnlockedComponent -----------------------------------------------
+        modelBuilder.Entity<PlayerUnlockedComponent>(entity =>
+        {
+            entity.ToTable("PlayerUnlockedComponent", schema);
+
+            entity.HasKey(e => new { e.PlayerId, e.UnitComponentId });
+
+            entity.HasOne(e => e.Player)
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerUnlockedComponent_Player_PlayerId");
+
+            entity.HasOne(e => e.UnitComponent)
+                .WithMany()
+                .HasForeignKey(e => e.UnitComponentId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerUnlockedComponent_UnitComponent_UnitComponentId");
+
+            entity.HasIndex(e => e.UnitComponentId)
+                .HasDatabaseName("IX_PlayerUnlockedComponent_UnitComponent");
+        });
+    }
+
+    /// <summary>
+    /// Configures assembled unit templates, their fitted components, and per-player unlock state.
+    /// </summary>
+    private static void ConfigureUnitTemplates(ModelBuilder modelBuilder, string schema)
+    {
+        // --- UnitTemplate ----------------------------------------------------------
+        modelBuilder.Entity<UnitTemplate>(entity =>
+        {
+            entity.ToTable("UnitTemplate", schema);
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Code)
+                .HasMaxLength(UnitTemplate.CODE_MAX_LENGTH);
+
+            entity.Property(e => e.DisplayName)
+                .HasMaxLength(UnitTemplate.DISPLAY_NAME_MAX_LENGTH)
+                .IsRequired();
+
+            entity.Property(e => e.MapImagePath)
+                .HasMaxLength(UnitTemplate.MAP_IMAGE_PATH_MAX_LENGTH)
+                .IsRequired();
+
+            entity.HasOne(e => e.Game)
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitTemplate_GameIndex_GameId");
+
+            entity.HasOne(e => e.Player)
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitTemplate_Player_PlayerId");
+
+            entity.HasOne(e => e.BodyComponent)
+                .WithMany()
+                .HasForeignKey(e => e.BodyComponentId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitTemplate_UnitComponent_BodyComponentId");
+
+            // Codes only need to be unique among the global/common templates that have one.
+            entity.HasIndex(e => e.Code)
+                .IsUnique()
+                .HasFilter("[Code] IS NOT NULL")
+                .HasDatabaseName("UX_UnitTemplate_Code");
+
+            entity.HasIndex(e => e.BodyComponentId)
+                .HasDatabaseName("IX_UnitTemplate_BodyComponent");
+        });
+
+        // --- UnitTemplateComponent -------------------------------------------------
+        modelBuilder.Entity<UnitTemplateComponent>(entity =>
+        {
+            entity.ToTable("UnitTemplateComponent", schema);
+
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne(e => e.UnitTemplate)
+                .WithMany(e => e.Components)
+                .HasForeignKey(e => e.UnitTemplateId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitTemplateComponent_UnitTemplate_UnitTemplateId");
+
+            entity.HasOne(e => e.UnitComponentSlot)
+                .WithMany()
+                .HasForeignKey(e => e.UnitComponentSlotId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitTemplateComponent_UnitComponentSlot_UnitComponentSlotId");
+
+            entity.HasOne(e => e.UnitComponent)
+                .WithMany()
+                .HasForeignKey(e => e.UnitComponentId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitTemplateComponent_UnitComponent_UnitComponentId");
+
+            // One component per slot within a template.
+            entity.HasIndex(e => new { e.UnitTemplateId, e.UnitComponentSlotId })
+                .IsUnique()
+                .HasDatabaseName("UX_UnitTemplateComponent_Template_Slot");
+
+            entity.HasIndex(e => e.UnitComponentSlotId)
+                .HasDatabaseName("IX_UnitTemplateComponent_Slot");
+
+            entity.HasIndex(e => e.UnitComponentId)
+                .HasDatabaseName("IX_UnitTemplateComponent_Component");
+        });
+
+        // --- PlayerUnlockedTemplate ------------------------------------------------
+        modelBuilder.Entity<PlayerUnlockedTemplate>(entity =>
+        {
+            entity.ToTable("PlayerUnlockedTemplate", schema);
+
+            entity.HasKey(e => new { e.PlayerId, e.UnitTemplateId });
+
+            entity.HasOne(e => e.Player)
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerUnlockedTemplate_Player_PlayerId");
+
+            entity.HasOne(e => e.UnitTemplate)
+                .WithMany(e => e.PlayerStates)
+                .HasForeignKey(e => e.UnitTemplateId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerUnlockedTemplate_UnitTemplate_UnitTemplateId");
+
+            entity.HasIndex(e => e.UnitTemplateId)
+                .HasDatabaseName("IX_PlayerUnlockedTemplate_UnitTemplate");
         });
     }
 
