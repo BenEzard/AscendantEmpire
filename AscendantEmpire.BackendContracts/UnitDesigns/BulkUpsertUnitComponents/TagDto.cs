@@ -1,7 +1,9 @@
+using AscendantEmpire.Domain.Enums.UnitDesigns;
+
 namespace AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 
 /// <summary>
-/// A global, reusable bonus/buff tag definition that components can reference by <see cref="Code"/>.
+/// A global, reusable tag definition that components can reference by <see cref="Code"/>.
 /// </summary>
 public record TagDto
 {
@@ -16,4 +18,9 @@ public record TagDto
     /// Optional free-text description.
     /// </summary>
     public string? Description { get; init; }
+
+    /// <summary>
+    /// Whether this tag is a structural classification or a bonus (buff/perk).
+    /// </summary>
+    public required TagType TagType { get; init; }
 }

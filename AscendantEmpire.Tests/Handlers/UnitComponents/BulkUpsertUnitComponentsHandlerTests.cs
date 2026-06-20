@@ -314,6 +314,231 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
         }
     }
 
+    [Test, Description("A valid supersession pair creates a directed link with its IsRecommended flag.")]
+    public async Task SupersessionPairCreatesLinkAsync()
+    {
+        var catalog = new BulkUpsertUnitComponentsDto
+        {
+            Components = [BuildWeapon("sword_basic"), BuildWeapon("sword_advanced")],
+            ComponentSupersessions =
+            [
+                new ComponentSupersessionDto { PredecessorCode = "sword_basic", SuccessorCode = "sword_advanced", IsRecommended = true },
+            ],
+        };
+
+        BulkUpsertUnitComponentsHandler handler = await CreateHandlerAsync();
+        ServiceResult<BulkUpsertUnitComponentsResult> result =
+            await handler.Handle(new BulkUpsertUnitComponentsRequest(catalog), CancellationToken.None);
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+        int predecessorId = await verifyContext.UnitComponents.Where(c => c.Code == "sword_basic").Select(c => c.Id).SingleAsync();
+        int successorId = await verifyContext.UnitComponents.Where(c => c.Code == "sword_advanced").Select(c => c.Id).SingleAsync();
+        ComponentSupersession? link = await verifyContext.ComponentSupersessions.SingleOrDefaultAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True);
+            Assert.That(link, Is.Not.Null, "The supersession link should be persisted.");
+            Assert.That(link!.PredecessorComponentId, Is.EqualTo(predecessorId));
+            Assert.That(link.SuccessorComponentId, Is.EqualTo(successorId));
+            Assert.That(link.IsRecommended, Is.True, "IsRecommended should round-trip.");
+        }
+    }
+
+    [Test, Description("Re-importing a predecessor replaces its links with exactly those submitted — surplus removed, kept ones updated.")]
+    public async Task ReimportReplacesPredecessorLinksAsync()
+    {
+        // First import: basic is superseded by two successors, with adv2 recommended.
+        var firstCatalog = new BulkUpsertUnitComponentsDto
+        {
+            Components = [BuildWeapon("sword_basic"), BuildWeapon("sword_adv1"), BuildWeapon("sword_adv2")],
+            ComponentSupersessions =
+            [
+                new ComponentSupersessionDto { PredecessorCode = "sword_basic", SuccessorCode = "sword_adv1" },
+                new ComponentSupersessionDto { PredecessorCode = "sword_basic", SuccessorCode = "sword_adv2", IsRecommended = true },
+            ],
+        };
+
+        BulkUpsertUnitComponentsHandler firstHandler = await CreateHandlerAsync();
+        await firstHandler.Handle(new BulkUpsertUnitComponentsRequest(firstCatalog), CancellationToken.None);
+
+        // Second import re-submits only the predecessor and a single link to adv1 (now recommended).
+        // adv1 resolves from the database even though it isn't in this payload's Components list.
+        var secondCatalog = new BulkUpsertUnitComponentsDto
+        {
+            Components = [BuildWeapon("sword_basic")],
+            ComponentSupersessions =
+            [
+                new ComponentSupersessionDto { PredecessorCode = "sword_basic", SuccessorCode = "sword_adv1", IsRecommended = true },
+            ],
+        };
+
+        BulkUpsertUnitComponentsHandler secondHandler = await CreateHandlerAsync();
+        await secondHandler.Handle(new BulkUpsertUnitComponentsRequest(secondCatalog), CancellationToken.None);
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+        int predecessorId = await verifyContext.UnitComponents.Where(c => c.Code == "sword_basic").Select(c => c.Id).SingleAsync();
+        int adv1Id = await verifyContext.UnitComponents.Where(c => c.Code == "sword_adv1").Select(c => c.Id).SingleAsync();
+
+        List<ComponentSupersession> links = await verifyContext.ComponentSupersessions
+            .Where(s => s.PredecessorComponentId == predecessorId)
+            .ToListAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(links, Has.Count.EqualTo(1), "The surplus link (to adv2) should be removed.");
+            Assert.That(links.Single().SuccessorComponentId, Is.EqualTo(adv1Id), "Only the adv1 link should remain.");
+            Assert.That(links.Single().IsRecommended, Is.True, "The kept link's flag should be updated from the payload.");
+        }
+    }
+
+    [Test, Description("A component that supersedes itself is rejected and writes nothing.")]
+    public async Task SelfSupersessionFailsAsync()
+    {
+        var catalog = new BulkUpsertUnitComponentsDto
+        {
+            Components = [BuildWeapon("sword")],
+            ComponentSupersessions =
+            [
+                new ComponentSupersessionDto { PredecessorCode = "sword", SuccessorCode = "sword" },
+            ],
+        };
+
+        BulkUpsertUnitComponentsHandler handler = await CreateHandlerAsync();
+        ServiceResult<BulkUpsertUnitComponentsResult> result =
+            await handler.Handle(new BulkUpsertUnitComponentsRequest(catalog), CancellationToken.None);
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors.Any(e => e.Contains("cannot supersede itself")), Is.True);
+            Assert.That(await verifyContext.UnitComponents.AnyAsync(), Is.False, "Nothing should be written.");
+            Assert.That(await verifyContext.ComponentSupersessions.AnyAsync(), Is.False, "No links should be written.");
+        }
+    }
+
+    [Test, Description("A supersession referencing a code absent from the payload and the DB is rejected and writes nothing.")]
+    public async Task UnknownSupersessionCodeFailsAsync()
+    {
+        var catalog = new BulkUpsertUnitComponentsDto
+        {
+            Components = [BuildWeapon("sword")],
+            ComponentSupersessions =
+            [
+                new ComponentSupersessionDto { PredecessorCode = "sword", SuccessorCode = "ghost" },
+            ],
+        };
+
+        BulkUpsertUnitComponentsHandler handler = await CreateHandlerAsync();
+        ServiceResult<BulkUpsertUnitComponentsResult> result =
+            await handler.Handle(new BulkUpsertUnitComponentsRequest(catalog), CancellationToken.None);
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors.Any(e => e.Contains("unknown successor code")), Is.True);
+            Assert.That(await verifyContext.UnitComponents.AnyAsync(), Is.False, "Nothing should be written.");
+        }
+    }
+
+    [Test, Description("Two identical supersession pairs are rejected and write nothing.")]
+    public async Task DuplicateSupersessionPairFailsAsync()
+    {
+        var catalog = new BulkUpsertUnitComponentsDto
+        {
+            Components = [BuildWeapon("a"), BuildWeapon("b")],
+            ComponentSupersessions =
+            [
+                new ComponentSupersessionDto { PredecessorCode = "a", SuccessorCode = "b" },
+                new ComponentSupersessionDto { PredecessorCode = "a", SuccessorCode = "b" },
+            ],
+        };
+
+        BulkUpsertUnitComponentsHandler handler = await CreateHandlerAsync();
+        ServiceResult<BulkUpsertUnitComponentsResult> result =
+            await handler.Handle(new BulkUpsertUnitComponentsRequest(catalog), CancellationToken.None);
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors.Any(e => e.Contains("Duplicate component supersession pair")), Is.True);
+            Assert.That(await verifyContext.UnitComponents.AnyAsync(), Is.False, "Nothing should be written.");
+        }
+    }
+
+    [Test, Description("Flagging more than one recommended successor for a predecessor is rejected and writes nothing.")]
+    public async Task MultipleRecommendedSuccessorsFailAsync()
+    {
+        var catalog = new BulkUpsertUnitComponentsDto
+        {
+            Components = [BuildWeapon("a"), BuildWeapon("b"), BuildWeapon("c")],
+            ComponentSupersessions =
+            [
+                new ComponentSupersessionDto { PredecessorCode = "a", SuccessorCode = "b", IsRecommended = true },
+                new ComponentSupersessionDto { PredecessorCode = "a", SuccessorCode = "c", IsRecommended = true },
+            ],
+        };
+
+        BulkUpsertUnitComponentsHandler handler = await CreateHandlerAsync();
+        ServiceResult<BulkUpsertUnitComponentsResult> result =
+            await handler.Handle(new BulkUpsertUnitComponentsRequest(catalog), CancellationToken.None);
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors.Any(e => e.Contains("More than one recommended successor")), Is.True);
+            Assert.That(await verifyContext.ComponentSupersessions.AnyAsync(), Is.False, "No links should be written.");
+        }
+    }
+
+    [Test, Description("A tag's TagType is set on creation and overwritten when the same code is re-imported.")]
+    public async Task TagTypeIsSetOnCreateAndUpdatedOnReimportAsync()
+    {
+        // First import classifies "sword" as a Classification tag.
+        var firstCatalog = new BulkUpsertUnitComponentsDto
+        {
+            Tags = [new TagDto { Code = "sword", DisplayName = "Sword", TagType = TagType.Classification }],
+            Components = [BuildWeapon(WEAPON_CODE)],
+        };
+
+        BulkUpsertUnitComponentsHandler firstHandler = await CreateHandlerAsync();
+        await firstHandler.Handle(new BulkUpsertUnitComponentsRequest(firstCatalog), CancellationToken.None);
+
+        await using (AscendantEmpireContext afterCreate = await DbFactory.CreateDbContextAsync())
+        {
+            TagType created = await afterCreate.Tags.Where(t => t.Code == "sword").Select(t => t.TagType).SingleAsync();
+            Assert.That(created, Is.EqualTo(TagType.Classification), "TagType should be set on creation.");
+        }
+
+        // Re-import the same tag code re-classified as a Buff.
+        var secondCatalog = new BulkUpsertUnitComponentsDto
+        {
+            Tags = [new TagDto { Code = "sword", DisplayName = "Sword", TagType = TagType.Buff }],
+            Components = [BuildWeapon(WEAPON_CODE)],
+        };
+
+        BulkUpsertUnitComponentsHandler secondHandler = await CreateHandlerAsync();
+        await secondHandler.Handle(new BulkUpsertUnitComponentsRequest(secondCatalog), CancellationToken.None);
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+        int tagCount = await verifyContext.Tags.CountAsync(t => t.Code == "sword");
+        TagType updated = await verifyContext.Tags.Where(t => t.Code == "sword").Select(t => t.TagType).SingleAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(tagCount, Is.EqualTo(1), "No duplicate tag should be created on re-import.");
+            Assert.That(updated, Is.EqualTo(TagType.Buff), "TagType should be overwritten on re-import.");
+        }
+    }
+
     // --- Payload builders -------------------------------------------------------------------
 
     /// <summary>
@@ -323,7 +548,7 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
     {
         return new BulkUpsertUnitComponentsDto
         {
-            Tags = [new TagDto { Code = TAG_CODE, DisplayName = "Amphibious" }],
+            Tags = [new TagDto { Code = TAG_CODE, DisplayName = "Amphibious", TagType = TagType.Buff }],
             Components =
             [
                 new UnitComponentDto

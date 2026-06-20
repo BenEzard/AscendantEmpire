@@ -64,4 +64,16 @@ public class UnitTemplate
     public ICollection<UnitTemplateComponent> Components { get; set; } = [];
 
     public ICollection<PlayerUnlockedTemplate> PlayerStates { get; set; } = [];
+
+    /// <summary>
+    /// Supersession links where this template is the predecessor — i.e. the newer templates that
+    /// supersede this one (what supersedes me).
+    /// </summary>
+    public ICollection<TemplateSupersession> SupersededBy { get; set; } = [];
+
+    /// <summary>
+    /// Supersession links where this template is the successor — i.e. the older templates this one
+    /// supersedes (what I supersede).
+    /// </summary>
+    public ICollection<TemplateSupersession> Supersedes { get; set; } = [];
 }

@@ -80,16 +80,22 @@ internal class BulkUpsertUnitComponentsHandler(
                 return ServiceResult<BulkUpsertUnitComponentsResult>.Fail(tagErrors);
             }
 
-            // Create any tags defined in the payload that don't already exist.
+            // Create any tags defined in the payload that don't already exist; for those that do, let
+            // the payload re-classify them (TagType is authoritative on re-import).
             foreach (TagDto tagDto in catalog.Tags)
             {
-                if (!tagsByCode.ContainsKey(tagDto.Code))
+                if (tagsByCode.TryGetValue(tagDto.Code, out Tag? existingTag))
+                {
+                    existingTag.TagType = tagDto.TagType;
+                }
+                else
                 {
                     var tag = new Tag
                     {
                         Code = tagDto.Code,
                         DisplayName = tagDto.DisplayName,
                         Description = tagDto.Description,
+                        TagType = tagDto.TagType,
                     };
                     context.Tags.Add(tag);
                     tagsByCode[tagDto.Code] = tag;
@@ -107,9 +113,12 @@ internal class BulkUpsertUnitComponentsHandler(
             }
 
             // Split the payload into inserts (new code) and updates (existing code). New components are
-            // built fresh; existing ones are mutated in place with their children fully replaced.
+            // built fresh; existing ones are mutated in place with their children fully replaced. A
+            // code -> entity map (existing + newly built) lets the supersession step wire links by
+            // navigation, so EF assigns the foreign keys for brand-new components on save.
             List<string> addedCodes = [];
             List<string> updatedCodes = [];
+            Dictionary<string, UnitComponent> componentsByCode = new(existingByCode);
 
             foreach (UnitComponentDto componentDto in catalog.Components)
             {
@@ -120,12 +129,31 @@ internal class BulkUpsertUnitComponentsHandler(
                 }
                 else
                 {
-                    context.UnitComponents.Add(BuildComponent(componentDto, tagsByCode));
+                    UnitComponent built = BuildComponent(componentDto, tagsByCode);
+                    context.UnitComponents.Add(built);
+                    componentsByCode[componentDto.Code] = built;
                     addedCodes.Add(componentDto.Code);
                 }
             }
 
-            // Single SaveChanges => the whole graph (components, extensions, slots, rules, modifiers, tags and joins) is written in one transaction.
+            // Reconcile the component supersession (upgrade) links from the payload. Validation runs
+            // before any links are staged, so a rejected request still writes nothing.
+            if (catalog.ComponentSupersessions.Count > 0)
+            {
+                await LoadComponentsReferencedBySupersessionsAsync(catalog, componentsByCode, cancelToken);
+
+                List<string> supersessionErrors = ValidateComponentSupersessions(catalog, componentsByCode);
+
+                if (supersessionErrors.Count > 0)
+                {
+                    logger.LogWarning("Component-supersession validation failed for {Request}. Errors: {Errors}", nameof(BulkUpsertUnitComponentsRequest), string.Join("; ", supersessionErrors));
+                    return ServiceResult<BulkUpsertUnitComponentsResult>.Fail(supersessionErrors);
+                }
+
+                await ReconcileComponentSupersessionsAsync(catalog, componentsByCode, cancelToken);
+            }
+
+            // Single SaveChanges => the whole graph (components, extensions, slots, rules, modifiers, tags, joins and supersession links) is written in one transaction.
             await context.SaveChangesAsync(cancelToken);
 
             logger.LogInformation("Bulk upserted unit components: {AddedCount} added, {UpdatedCount} updated.",
@@ -210,6 +238,11 @@ internal class BulkUpsertUnitComponentsHandler(
             else if (tag.DisplayName.Length > Tag.DISPLAY_NAME_MAX_LENGTH)
             {
                 errors.Add($"Tag '{tag.Code}' DisplayName exceeds {Tag.DISPLAY_NAME_MAX_LENGTH} characters.");
+            }
+
+            if (!Enum.IsDefined(tag.TagType))
+            {
+                errors.Add($"Tag '{tag.Code}' has an undefined TagType value.");
             }
         }
 
@@ -351,6 +384,148 @@ internal class BulkUpsertUnitComponentsHandler(
         }
 
         return errors;
+    }
+
+    /// <summary>
+    /// Loads any component referenced by a supersession link that isn't already tracked, because links
+    /// may point at components that already exist in the database but aren't part of this payload.
+    /// </summary>
+    private async Task LoadComponentsReferencedBySupersessionsAsync(
+        BulkUpsertUnitComponentsDto catalog,
+        Dictionary<string, UnitComponent> componentsByCode,
+        CancellationToken cancelToken)
+    {
+        string[] missingCodes = [.. catalog.ComponentSupersessions
+            .SelectMany(s => new[] { s.PredecessorCode, s.SuccessorCode })
+            .Where(code => !string.IsNullOrWhiteSpace(code) && !componentsByCode.ContainsKey(code))
+            .Distinct()];
+
+        if (missingCodes.Length == 0)
+        {
+            return;
+        }
+
+        List<UnitComponent> loaded = await context.UnitComponents
+            .Where(c => missingCodes.Contains(c.Code))
+            .ToListAsync(cancelToken);
+
+        foreach (UnitComponent component in loaded)
+        {
+            componentsByCode[component.Code] = component;
+        }
+    }
+
+    /// <summary>
+    /// Validates the component supersession links: codes resolve, no self-supersession, no duplicate
+    /// pairs and at most one recommended successor per predecessor. Returns an empty list when valid.
+    /// </summary>
+    private static List<string> ValidateComponentSupersessions(
+        BulkUpsertUnitComponentsDto catalog,
+        IReadOnlyDictionary<string, UnitComponent> componentsByCode)
+    {
+        List<string> errors = [];
+
+        // Duplicate (predecessor, successor) pairs in the payload.
+        string[] duplicatePairs = [.. catalog.ComponentSupersessions
+            .GroupBy(s => (s.PredecessorCode, s.SuccessorCode))
+            .Where(g => g.Count() > 1)
+            .Select(g => $"{g.Key.PredecessorCode} -> {g.Key.SuccessorCode}")];
+
+        if (duplicatePairs.Length > 0)
+        {
+            errors.Add($"Duplicate component supersession pair(s): {string.Join(", ", duplicatePairs)}");
+        }
+
+        foreach (ComponentSupersessionDto link in catalog.ComponentSupersessions)
+        {
+            if (string.IsNullOrWhiteSpace(link.PredecessorCode) || string.IsNullOrWhiteSpace(link.SuccessorCode))
+            {
+                errors.Add("A component supersession is missing its PredecessorCode or SuccessorCode.");
+                continue;
+            }
+
+            if (link.PredecessorCode == link.SuccessorCode)
+            {
+                errors.Add($"Component '{link.PredecessorCode}' cannot supersede itself.");
+            }
+
+            if (!componentsByCode.ContainsKey(link.PredecessorCode))
+            {
+                errors.Add($"Component supersession references unknown predecessor code '{link.PredecessorCode}'.");
+            }
+
+            if (!componentsByCode.ContainsKey(link.SuccessorCode))
+            {
+                errors.Add($"Component supersession references unknown successor code '{link.SuccessorCode}'.");
+            }
+        }
+
+        // A predecessor may flag at most one of its successors as the recommended upgrade.
+        string[] predecessorsWithMultipleRecommended = [.. catalog.ComponentSupersessions
+            .Where(s => s.IsRecommended)
+            .GroupBy(s => s.PredecessorCode)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)];
+
+        if (predecessorsWithMultipleRecommended.Length > 0)
+        {
+            errors.Add($"More than one recommended successor for predecessor(s): {string.Join(", ", predecessorsWithMultipleRecommended)}");
+        }
+
+        return errors;
+    }
+
+    /// <summary>
+    /// Reconciles each mentioned predecessor's outgoing supersession links to exactly those in the
+    /// payload — updating <c>IsRecommended</c> on kept links, adding new ones and deleting the surplus.
+    /// Predecessors absent from the payload are left untouched.
+    /// </summary>
+    private async Task ReconcileComponentSupersessionsAsync(
+        BulkUpsertUnitComponentsDto catalog,
+        IReadOnlyDictionary<string, UnitComponent> componentsByCode,
+        CancellationToken cancelToken)
+    {
+        foreach (IGrouping<string, ComponentSupersessionDto> desiredForPredecessor in catalog.ComponentSupersessions.GroupBy(s => s.PredecessorCode))
+        {
+            UnitComponent predecessor = componentsByCode[desiredForPredecessor.Key];
+
+            // Existing links only exist for an already-persisted predecessor (a brand-new component has none).
+            List<ComponentSupersession> existingLinks = predecessor.Id == 0
+                ? []
+                : await context.ComponentSupersessions
+                    .Where(s => s.PredecessorComponentId == predecessor.Id)
+                    .ToListAsync(cancelToken);
+
+            Dictionary<int, ComponentSupersession> existingBySuccessorId = existingLinks.ToDictionary(s => s.SuccessorComponentId);
+            HashSet<int> keptSuccessorIds = [];
+
+            foreach (ComponentSupersessionDto desired in desiredForPredecessor)
+            {
+                UnitComponent successor = componentsByCode[desired.SuccessorCode];
+
+                // A persisted successor with an existing link is updated in place; everything else
+                // (new successor, or a successor not yet linked) is added, wired by navigation so EF
+                // resolves the foreign keys even when either end is a brand-new component.
+                if (successor.Id != 0 && existingBySuccessorId.TryGetValue(successor.Id, out ComponentSupersession? existingLink))
+                {
+                    existingLink.IsRecommended = desired.IsRecommended;
+                    keptSuccessorIds.Add(successor.Id);
+                }
+                else
+                {
+                    context.ComponentSupersessions.Add(new ComponentSupersession
+                    {
+                        Predecessor = predecessor,
+                        Successor = successor,
+                        IsRecommended = desired.IsRecommended,
+                    });
+                }
+            }
+
+            // Drop links whose successor is no longer requested (NoAction FK => delete explicitly).
+            List<ComponentSupersession> removedLinks = [.. existingLinks.Where(s => !keptSuccessorIds.Contains(s.SuccessorComponentId))];
+            context.ComponentSupersessions.RemoveRange(removedLinks);
+        }
     }
 
     /// <summary>
