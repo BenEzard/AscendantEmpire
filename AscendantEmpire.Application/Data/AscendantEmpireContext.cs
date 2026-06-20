@@ -192,6 +192,21 @@ public class AscendantEmpireContext : DbContext
     /// Components fitted into a template's body slots.
     /// </summary>
     public DbSet<UnitTemplateComponent> UnitTemplateComponents { get; set; }
+
+    /// <summary>
+    /// Denormalized snapshots of finalized templates, read without the unlock filter (e.g. for enemy designs).
+    /// </summary>
+    public DbSet<CompiledUnitTemplate> CompiledUnitTemplates { get; set; }
+
+    /// <summary>
+    /// Resolved component rows (body + fitted) belonging to a compiled template snapshot.
+    /// </summary>
+    public DbSet<CompiledUnitTemplateComponent> CompiledUnitTemplateComponents { get; set; }
+
+    /// <summary>
+    /// Capability tag rows belonging to a compiled template snapshot.
+    /// </summary>
+    public DbSet<CompiledUnitTemplateCapability> CompiledUnitTemplateCapabilities { get; set; }
     #endregion
 
 
@@ -1454,6 +1469,108 @@ public class AscendantEmpireContext : DbContext
 
             entity.HasIndex(e => e.UnitTemplateId)
                 .HasDatabaseName("IX_PlayerUnlockedTemplate_UnitTemplate");
+        });
+
+        // --- CompiledUnitTemplate (1:1 snapshot of a finalized UnitTemplate) -------
+        modelBuilder.Entity<CompiledUnitTemplate>(entity =>
+        {
+            entity.ToTable("CompiledUnitTemplate", schema);
+
+            // Shares the primary key of the owning UnitTemplate.
+            entity.HasKey(e => e.UnitTemplateId);
+
+            entity.Property(e => e.DisplayName)
+                .HasMaxLength(UnitTemplate.DISPLAY_NAME_MAX_LENGTH)
+                .IsRequired();
+
+            entity.Property(e => e.MapImagePath)
+                .HasMaxLength(UnitTemplate.MAP_IMAGE_PATH_MAX_LENGTH)
+                .IsRequired();
+
+            entity.Property(e => e.MovementDomain)
+                .HasConversion<int>()
+                .IsRequired();
+
+            // Two DamageProfile complex types share this table, so give each its own column prefix.
+            entity.ComplexProperty(e => e.Attack, attack =>
+            {
+                attack.Property(p => p.Slash).HasColumnName("AttackSlash");
+                attack.Property(p => p.Pierce).HasColumnName("AttackPierce");
+                attack.Property(p => p.Crush).HasColumnName("AttackCrush");
+                attack.Property(p => p.Burn).HasColumnName("AttackBurn");
+                attack.Property(p => p.Poison).HasColumnName("AttackPoison");
+            });
+
+            entity.ComplexProperty(e => e.Resistance, resistance =>
+            {
+                resistance.Property(p => p.Slash).HasColumnName("ResistSlash");
+                resistance.Property(p => p.Pierce).HasColumnName("ResistPierce");
+                resistance.Property(p => p.Crush).HasColumnName("ResistCrush");
+                resistance.Property(p => p.Burn).HasColumnName("ResistBurn");
+                resistance.Property(p => p.Poison).HasColumnName("ResistPoison");
+            });
+
+            entity.HasOne(e => e.UnitTemplate)
+                .WithOne()
+                .HasForeignKey<CompiledUnitTemplate>(e => e.UnitTemplateId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_CompiledUnitTemplate_UnitTemplate_UnitTemplateId");
+        });
+
+        // --- CompiledUnitTemplateComponent -----------------------------------------
+        modelBuilder.Entity<CompiledUnitTemplateComponent>(entity =>
+        {
+            entity.ToTable("CompiledUnitTemplateComponent", schema);
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Code)
+                .HasMaxLength(UnitComponent.CODE_MAX_LENGTH)
+                .IsRequired();
+
+            entity.Property(e => e.DisplayName)
+                .HasMaxLength(UnitComponent.DISPLAY_NAME_MAX_LENGTH)
+                .IsRequired();
+
+            entity.Property(e => e.ComponentType)
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.HasOne(e => e.CompiledUnitTemplate)
+                .WithMany(e => e.Components)
+                .HasForeignKey(e => e.CompiledUnitTemplateId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_CompiledUnitTemplateComponent_CompiledUnitTemplate_CompiledUnitTemplateId");
+
+            entity.HasIndex(e => e.CompiledUnitTemplateId)
+                .HasDatabaseName("IX_CompiledUnitTemplateComponent_Template");
+        });
+
+        // --- CompiledUnitTemplateCapability ----------------------------------------
+        modelBuilder.Entity<CompiledUnitTemplateCapability>(entity =>
+        {
+            entity.ToTable("CompiledUnitTemplateCapability", schema);
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.TagCode)
+                .HasMaxLength(Tag.CODE_MAX_LENGTH)
+                .IsRequired();
+
+            entity.Property(e => e.DisplayName)
+                .HasMaxLength(Tag.DISPLAY_NAME_MAX_LENGTH)
+                .IsRequired();
+
+            entity.HasOne(e => e.CompiledUnitTemplate)
+                .WithMany(e => e.Capabilities)
+                .HasForeignKey(e => e.CompiledUnitTemplateId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_CompiledUnitTemplateCapability_CompiledUnitTemplate_CompiledUnitTemplateId");
+
+            // A capability appears at most once per compiled template.
+            entity.HasIndex(e => new { e.CompiledUnitTemplateId, e.TagCode })
+                .IsUnique()
+                .HasDatabaseName("UX_CompiledUnitTemplateCapability_Template_Tag");
         });
     }
 

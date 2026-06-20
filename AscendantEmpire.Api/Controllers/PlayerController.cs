@@ -24,32 +24,6 @@ namespace AscendantEmpire.Api.Controllers;
 public class PlayerController : ControllerBase
 {
     /// <summary>
-    /// Pulls the entered game id and player id out of the caller's game token. Returns null and
-    /// an error result when the token has no game context (i.e. the user hasn't entered a game).
-    /// </summary>
-    private bool TryGetGameContext(out int gameId, out int playerId, out IActionResult? error)
-    {
-        int? tokenGameId = User.GetGameId();
-        int? tokenPlayerId = User.GetPlayerId();
-
-        if (tokenGameId is null || tokenPlayerId is null)
-        {
-            gameId = 0;
-            playerId = 0;
-            error = new ObjectResult(new DTApiErrorResult("No game entered. Call /auth/enter-game first."))
-            {
-                StatusCode = 403
-            };
-            return false;
-        }
-
-        gameId = tokenGameId.Value;
-        playerId = tokenPlayerId.Value;
-        error = null;
-        return true;
-    }
-
-    /// <summary>
     /// Get a Player's current Structures
     /// </summary>
     /// <response code="200">Player information for Campaign and Battle Maps</response>
@@ -63,7 +37,7 @@ public class PlayerController : ControllerBase
         CancellationToken cancelToken)
     {
         // Game and player come from the token, so the caller can't ask for someone else's data.
-        if (!TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
+        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
         {
             return contextError!;
         }
@@ -104,7 +78,7 @@ public class PlayerController : ControllerBase
         CancellationToken cancelToken)
     {
         // Game and player come from the token, so the caller can't ask for someone else's data.
-        if (!TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
+        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
         {
             return contextError!;
         }

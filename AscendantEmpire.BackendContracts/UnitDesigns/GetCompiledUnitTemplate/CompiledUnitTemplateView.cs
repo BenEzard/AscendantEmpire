@@ -1,0 +1,32 @@
+using AscendantEmpire.Domain.Enums.Maps;
+
+namespace AscendantEmpire.BackendContracts.UnitDesigns.GetCompiledUnitTemplate;
+
+/// <summary>
+/// A compiled (finalized) design's aggregated stats, resolved components and capabilities. Read without
+/// the unlock filter, so it serves both the player's own finalized designs and enemy designs.
+/// </summary>
+public record CompiledUnitTemplateView
+{
+    public required int UnitTemplateId { get; init; }
+    public required string DisplayName { get; init; }
+    public required string MapImagePath { get; init; }
+    public required int BodyComponentId { get; init; }
+    public required DomainType MovementDomain { get; init; }
+
+    public required long TotalWeight { get; init; }
+    public required long TotalDetection { get; init; }
+    public required long TotalVisibility { get; init; }
+    public required decimal CampaignMovementPoints { get; init; }
+    public required decimal BattlefieldMovementPoints { get; init; }
+    public required int MinStrength { get; init; }
+    public required int MaxStrength { get; init; }
+
+    public required CompiledDamageProfile Attack { get; init; }
+    public required CompiledDamageProfile Resistance { get; init; }
+
+    public required int CompiledOnTurn { get; init; }
+
+    public required IReadOnlyCollection<CompiledComponentView> Components { get; init; }
+    public required IReadOnlyCollection<CompiledCapabilityView> Capabilities { get; init; }
+}

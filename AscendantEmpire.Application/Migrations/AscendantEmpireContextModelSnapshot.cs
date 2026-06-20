@@ -1231,6 +1231,176 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("CompiledDesignStats", "unitdesigns");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.CompiledUnitTemplate", b =>
+                {
+                    b.Property<int>("UnitTemplateId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("BattlefieldMovementPoints")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int>("BodyComponentId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("CampaignMovementPoints")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int>("CompiledOnTurn")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("MapImagePath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("MaxStrength")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MinStrength")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MovementDomain")
+                        .HasColumnType("int");
+
+                    b.Property<long>("TotalDetection")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TotalVisibility")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TotalWeight")
+                        .HasColumnType("bigint");
+
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Attack", "AscendantEmpire.Domain.Entities.UnitDesigns.CompiledUnitTemplate.Attack#DamageProfile", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<long>("Burn")
+                                .HasColumnType("bigint")
+                                .HasColumnName("AttackBurn");
+
+                            b1.Property<long>("Crush")
+                                .HasColumnType("bigint")
+                                .HasColumnName("AttackCrush");
+
+                            b1.Property<long>("Pierce")
+                                .HasColumnType("bigint")
+                                .HasColumnName("AttackPierce");
+
+                            b1.Property<long>("Poison")
+                                .HasColumnType("bigint")
+                                .HasColumnName("AttackPoison");
+
+                            b1.Property<long>("Slash")
+                                .HasColumnType("bigint")
+                                .HasColumnName("AttackSlash");
+                        });
+
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "Resistance", "AscendantEmpire.Domain.Entities.UnitDesigns.CompiledUnitTemplate.Resistance#DamageProfile", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<long>("Burn")
+                                .HasColumnType("bigint")
+                                .HasColumnName("ResistBurn");
+
+                            b1.Property<long>("Crush")
+                                .HasColumnType("bigint")
+                                .HasColumnName("ResistCrush");
+
+                            b1.Property<long>("Pierce")
+                                .HasColumnType("bigint")
+                                .HasColumnName("ResistPierce");
+
+                            b1.Property<long>("Poison")
+                                .HasColumnType("bigint")
+                                .HasColumnName("ResistPoison");
+
+                            b1.Property<long>("Slash")
+                                .HasColumnType("bigint")
+                                .HasColumnName("ResistSlash");
+                        });
+
+                    b.HasKey("UnitTemplateId");
+
+                    b.ToTable("CompiledUnitTemplate", "unitdesigns");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.CompiledUnitTemplateCapability", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompiledUnitTemplateId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("TagCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompiledUnitTemplateId", "TagCode")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CompiledUnitTemplateCapability_Template_Tag");
+
+                    b.ToTable("CompiledUnitTemplateCapability", "unitdesigns");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.CompiledUnitTemplateComponent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("CompiledUnitTemplateId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ComponentType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("UnitComponentId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UnitComponentSlotId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompiledUnitTemplateId")
+                        .HasDatabaseName("IX_CompiledUnitTemplateComponent_Template");
+
+                    b.ToTable("CompiledUnitTemplateComponent", "unitdesigns");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.PlayerUnitDesignState", b =>
                 {
                     b.Property<int>("PlayerId")
@@ -2350,6 +2520,42 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("UnitDesign");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.CompiledUnitTemplate", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitTemplate", "UnitTemplate")
+                        .WithOne()
+                        .HasForeignKey("AscendantEmpire.Domain.Entities.UnitDesigns.CompiledUnitTemplate", "UnitTemplateId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_CompiledUnitTemplate_UnitTemplate_UnitTemplateId");
+
+                    b.Navigation("UnitTemplate");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.CompiledUnitTemplateCapability", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.CompiledUnitTemplate", "CompiledUnitTemplate")
+                        .WithMany("Capabilities")
+                        .HasForeignKey("CompiledUnitTemplateId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_CompiledUnitTemplateCapability_CompiledUnitTemplate_CompiledUnitTemplateId");
+
+                    b.Navigation("CompiledUnitTemplate");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.CompiledUnitTemplateComponent", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.CompiledUnitTemplate", "CompiledUnitTemplate")
+                        .WithMany("Components")
+                        .HasForeignKey("CompiledUnitTemplateId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_CompiledUnitTemplateComponent_CompiledUnitTemplate_CompiledUnitTemplateId");
+
+                    b.Navigation("CompiledUnitTemplate");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.PlayerUnitDesignState", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
@@ -2707,6 +2913,13 @@ namespace AscendantEmpire.Application.Migrations
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Turns.TurnQueue", b =>
                 {
                     b.Navigation("TurnQueueParticipants");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.CompiledUnitTemplate", b =>
+                {
+                    b.Navigation("Capabilities");
+
+                    b.Navigation("Components");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.Tag", b =>
