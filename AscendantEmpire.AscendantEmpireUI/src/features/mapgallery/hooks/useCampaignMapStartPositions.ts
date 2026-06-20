@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRef } from "react";
 import {
   getCampaignMapStartPositions,
   putCampaignMapStartPositions,
@@ -43,7 +44,7 @@ export type PutStartPositionsVariables = {
 };
 
 type MutationContext = {
-  previous?: StartPositionsResponse;
+  campaignMapGalleryIndexId: number;
   key: ReturnType<typeof mapGalleryStartPositionsKey>;
 };
 
@@ -51,6 +52,7 @@ export function usePutCampaignMapStartPositionsMutation(opts?: {
   onFailureToast?: (message: string) => void;
 }) {
   const queryClient = useQueryClient();
+  const rollbackStateRef = useRef<Map<number, { pendingCount: number; base?: StartPositionsResponse }>>(new Map());
 
   return useMutation<StartPositionsResponse, Error, PutStartPositionsVariables, MutationContext>({
     mutationFn: async (vars) =>
@@ -63,7 +65,18 @@ export function usePutCampaignMapStartPositionsMutation(opts?: {
 
       await queryClient.cancelQueries({ queryKey: key });
 
-      const previous = queryClient.getQueryData<StartPositionsResponse>(key);
+      const existingRollbackState = rollbackStateRef.current.get(vars.campaignMapGalleryIndexId);
+      if (existingRollbackState == null) {
+        rollbackStateRef.current.set(vars.campaignMapGalleryIndexId, {
+          pendingCount: 1,
+          base: queryClient.getQueryData<StartPositionsResponse>(key),
+        });
+      } else {
+        rollbackStateRef.current.set(vars.campaignMapGalleryIndexId, {
+          ...existingRollbackState,
+          pendingCount: existingRollbackState.pendingCount + 1,
+        });
+      }
 
       // Optimistically apply the new collection (assign temporary id = 0 since the
       // real IDs come back from the server on success).
@@ -82,22 +95,52 @@ export function usePutCampaignMapStartPositionsMutation(opts?: {
         };
       });
 
-      return { previous, key };
+      return { campaignMapGalleryIndexId: vars.campaignMapGalleryIndexId, key };
     },
 
     onSuccess: (data, _vars, ctx) => {
       // Replace the optimistic data with the authoritative server response so IDs
       // are correct for any future operations.
       queryClient.setQueryData<StartPositionsResponse>(ctx.key, data);
+
+      const rollbackState = rollbackStateRef.current.get(ctx.campaignMapGalleryIndexId);
+      if (rollbackState != null) {
+        rollbackStateRef.current.set(ctx.campaignMapGalleryIndexId, {
+          ...rollbackState,
+          base: data,
+        });
+      }
     },
 
     onError: (err, _vars, ctx) => {
-      if (ctx?.previous != null) {
-        queryClient.setQueryData(ctx.key, ctx.previous);
+      const rollbackState = rollbackStateRef.current.get(ctx.campaignMapGalleryIndexId);
+      if (rollbackState?.base != null) {
+        queryClient.setQueryData(ctx.key, rollbackState.base);
+      } else {
+        queryClient.setQueryData<StartPositionsResponse>(ctx.key, {
+          campaignMapGalleryIndexId: ctx.campaignMapGalleryIndexId,
+          startPositions: [],
+        });
       }
 
       const msg = err instanceof Error ? err.message : "Failed to update start positions.";
       opts?.onFailureToast?.(msg);
+    },
+
+    onSettled: (_data, _error, vars) => {
+      const rollbackState = rollbackStateRef.current.get(vars.campaignMapGalleryIndexId);
+      if (rollbackState == null) return;
+
+      const pendingCount = rollbackState.pendingCount - 1;
+      if (pendingCount <= 0) {
+        rollbackStateRef.current.delete(vars.campaignMapGalleryIndexId);
+        return;
+      }
+
+      rollbackStateRef.current.set(vars.campaignMapGalleryIndexId, {
+        ...rollbackState,
+        pendingCount,
+      });
     },
   });
 }
