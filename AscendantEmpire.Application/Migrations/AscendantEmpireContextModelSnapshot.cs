@@ -1351,10 +1351,16 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<long?>("Detection")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<long?>("Visibility")
+                        .HasColumnType("bigint");
 
                     b.Property<long>("Weight")
                         .HasColumnType("bigint");

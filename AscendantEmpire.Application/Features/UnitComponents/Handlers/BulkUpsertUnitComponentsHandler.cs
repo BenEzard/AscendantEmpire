@@ -367,6 +367,8 @@ internal class BulkUpsertUnitComponentsHandler(
             Description = dto.Description,
             ComponentType = dto.ComponentType,
             Weight = dto.Weight,
+            Detection = dto.Detection,
+            Visibility = dto.Visibility,
             Body = dto.Body is { } bodyDto ? BuildBody(bodyDto) : null,
             Weapon = dto.Weapon is { } weaponDto ? BuildWeapon(weaponDto) : null,
             Armour = dto.Armour is { } armourDto ? BuildArmour(armourDto) : null,
@@ -458,6 +460,8 @@ internal class BulkUpsertUnitComponentsHandler(
         existing.DisplayName = dto.DisplayName;
         existing.Description = dto.Description;
         existing.Weight = dto.Weight;
+        existing.Detection = dto.Detection;
+        existing.Visibility = dto.Visibility;
 
         switch (dto.ComponentType)
         {

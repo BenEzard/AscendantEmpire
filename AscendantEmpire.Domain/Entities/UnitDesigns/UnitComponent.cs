@@ -40,6 +40,24 @@ public class UnitComponent
     public long Weight { get; set; }
 
     /// <summary>
+    /// How well this component detects other Units. Null means the component contributes no detection.
+    /// </summary>
+    /// <remarks>
+    /// Raw fixed-point (Scale 1,000) like weapon damage — a stored value of 1,000 represents 1.0.
+    /// Detection values from a Unit's fitted components are aggregated to the Unit's overall sight.
+    /// </remarks>
+    public long? Detection { get; set; }
+
+    /// <summary>
+    /// How easily this component is seen by other Units. Null means the component contributes no visibility.
+    /// </summary>
+    /// <remarks>
+    /// Raw fixed-point (Scale 1,000) like weapon damage — a stored value of 1,000 represents 1.0.
+    /// Visibility values from a Unit's fitted components are aggregated to the Unit's overall signature.
+    /// </remarks>
+    public long? Visibility { get; set; }
+
+    /// <summary>
     /// Body-only extension; populated only when <see cref="ComponentType"/> is <c>Body</c>.
     /// </summary>
     public UnitComponentBody? Body { get; set; }

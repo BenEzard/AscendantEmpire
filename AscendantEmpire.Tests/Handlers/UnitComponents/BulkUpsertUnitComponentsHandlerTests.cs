@@ -73,6 +73,10 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
             // --- Tag join ---
             Assert.That(body.Tags, Has.Count.EqualTo(1), "Body should carry one tag join.");
 
+            // --- Main-table Detection/Visibility round-trip ---
+            Assert.That(weapon.Detection, Is.EqualTo(2000), "Detection should round-trip on insert.");
+            Assert.That(weapon.Visibility, Is.EqualTo(3000), "Visibility should round-trip on insert.");
+
             // --- Weapon + complex Attack profile + domain modifier ---
             Assert.That(weapon.Weapon, Is.Not.Null);
             Assert.That(weapon.Weapon!.UnitComponentId, Is.EqualTo(weapon.Id), "Weapon extension shares the component PK.");
@@ -111,6 +115,8 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
         UnitComponentDto changedWeapon = changed.Components.Single(c => c.Code == WEAPON_CODE) with
         {
             DisplayName = "Upgraded Weapon",
+            Detection = 5000,
+            Visibility = 6000,
             Weapon = new UnitComponentWeaponDto
             {
                 Attack = new DamageProfileDto { Slash = 7777 },
@@ -153,6 +159,8 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
 
             // --- The weapon's scalars and children reflect the new payload. ---
             Assert.That(weapon.DisplayName, Is.EqualTo("Upgraded Weapon"), "Scalar field should be overwritten.");
+            Assert.That(weapon.Detection, Is.EqualTo(5000), "Detection should be overwritten on update.");
+            Assert.That(weapon.Visibility, Is.EqualTo(6000), "Visibility should be overwritten on update.");
             Assert.That(weapon.Weapon!.Attack.Slash, Is.EqualTo(7777), "Complex attack profile should be overwritten.");
             Assert.That(weapon.Weapon.MaximumRange, Is.EqualTo(9));
             Assert.That(weapon.Weapon.DomainModifiers, Has.Count.EqualTo(1), "Old modifier replaced, not appended.");
@@ -381,6 +389,8 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
             DisplayName = "Test Weapon",
             ComponentType = ComponentType.Weapon,
             Weight = 10,
+            Detection = 2000,
+            Visibility = 3000,
             Weapon = new UnitComponentWeaponDto
             {
                 Attack = new DamageProfileDto { Slash = 1000, Pierce = 500 },

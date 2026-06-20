@@ -31,6 +31,16 @@ public record UnitComponentDto
     public long Weight { get; init; }
 
     /// <summary>
+    /// How well this component detects other Units (fixed-point, Scale 1,000). Null = no contribution.
+    /// </summary>
+    public long? Detection { get; init; }
+
+    /// <summary>
+    /// How easily this component is seen by other Units (fixed-point, Scale 1,000). Null = no contribution.
+    /// </summary>
+    public long? Visibility { get; init; }
+
+    /// <summary>
     /// Body-only extension; populated only when <see cref="ComponentType"/> is <c>Body</c>.
     /// </summary>
     public UnitComponentBodyDto? Body { get; init; }

@@ -44,9 +44,9 @@ Unit Components should have the following properties:
 
 * 0 or more bonuses/buff tags
 
-* (TODO LATER) A Detection value (how well they detect other Units)
+* A Detection value (how well they detect other Units) — nullable, fixed-point (Scale 1,000)
 
-* (TODO LATER) A Visibility value (how easily they are seen)
+* A Visibility value (how easily they are seen) — nullable, fixed-point (Scale 1,000)
 
 #### Body Components
 
