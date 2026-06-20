@@ -23,7 +23,7 @@ internal class GetFullCatalogHandlerTests : SqlServerTestBase
     {
         await using (AscendantEmpireContext seed = await DbFactory.CreateDbContextAsync())
         {
-            var tag = new Tag { Code = "amphibious", DisplayName = "Amphibious" };
+            var tag = new Tag { Code = "amphibious", DisplayName = "Amphibious", TagType = TagType.Buff };
 
             var body = new UnitComponent
             {

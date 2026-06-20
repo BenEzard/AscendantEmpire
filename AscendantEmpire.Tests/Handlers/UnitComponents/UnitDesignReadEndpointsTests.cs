@@ -63,7 +63,7 @@ internal class UnitDesignReadEndpointsTests : SqlServerTestBase
         context.Players.Add(player);
         await context.SaveChangesAsync();
 
-        var tag = new Tag { Code = "amphibious", DisplayName = "Amphibious" };
+        var tag = new Tag { Code = "amphibious", DisplayName = "Amphibious", TagType = TagType.Buff };
 
         // Unlocked body with a single slot that accepts only Weapons.
         var body = new UnitComponent

@@ -20,4 +20,11 @@ public record BulkUpsertUnitComponentsDto
     /// The components to upsert.
     /// </summary>
     public required IReadOnlyCollection<UnitComponentDto> Components { get; init; }
+
+    /// <summary>
+    /// Directed component upgrade links to upsert. The list is authoritative per predecessor: for every
+    /// predecessor code mentioned here its existing links are replaced by exactly those listed; a
+    /// predecessor not mentioned is left untouched.
+    /// </summary>
+    public IReadOnlyCollection<ComponentSupersessionDto> ComponentSupersessions { get; init; } = [];
 }

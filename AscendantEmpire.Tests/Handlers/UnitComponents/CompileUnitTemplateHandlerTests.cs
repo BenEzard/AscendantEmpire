@@ -31,8 +31,8 @@ internal class CompileUnitTemplateHandlerTests : SqlServerTestBase
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        var amphibious = new Tag { Code = "amphibious", DisplayName = "Amphibious" };
-        var settler = new Tag { Code = "settler", DisplayName = "Settler" };
+        var amphibious = new Tag { Code = "amphibious", DisplayName = "Amphibious", TagType = TagType.Buff };
+        var settler = new Tag { Code = "settler", DisplayName = "Settler", TagType = TagType.Buff };
 
         var body = new UnitComponent
         {

@@ -1401,6 +1401,25 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("CompiledUnitTemplateComponent", "unitdesigns");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.ComponentSupersession", b =>
+                {
+                    b.Property<int>("PredecessorComponentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SuccessorComponentId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsRecommended")
+                        .HasColumnType("bit");
+
+                    b.HasKey("PredecessorComponentId", "SuccessorComponentId");
+
+                    b.HasIndex("SuccessorComponentId")
+                        .HasDatabaseName("IX_ComponentSupersession_Successor");
+
+                    b.ToTable("ComponentSupersession", "unitdesigns");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.PlayerUnitDesignState", b =>
                 {
                     b.Property<int>("PlayerId")
@@ -1493,6 +1512,9 @@ namespace AscendantEmpire.Application.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<int>("TagType")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Code")
@@ -1500,6 +1522,25 @@ namespace AscendantEmpire.Application.Migrations
                         .HasDatabaseName("UX_Tag_Code");
 
                     b.ToTable("Tag", "unitdesigns");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.TemplateSupersession", b =>
+                {
+                    b.Property<int>("PredecessorTemplateId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SuccessorTemplateId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsRecommended")
+                        .HasColumnType("bit");
+
+                    b.HasKey("PredecessorTemplateId", "SuccessorTemplateId");
+
+                    b.HasIndex("SuccessorTemplateId")
+                        .HasDatabaseName("IX_TemplateSupersession_Successor");
+
+                    b.ToTable("TemplateSupersession", "unitdesigns");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponent", b =>
@@ -2556,6 +2597,27 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("CompiledUnitTemplate");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.ComponentSupersession", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponent", "Predecessor")
+                        .WithMany("SupersededBy")
+                        .HasForeignKey("PredecessorComponentId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_ComponentSupersession_UnitComponent_PredecessorComponentId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponent", "Successor")
+                        .WithMany("Supersedes")
+                        .HasForeignKey("SuccessorComponentId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_ComponentSupersession_UnitComponent_SuccessorComponentId");
+
+                    b.Navigation("Predecessor");
+
+                    b.Navigation("Successor");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.PlayerUnitDesignState", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
@@ -2617,6 +2679,27 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Player");
 
                     b.Navigation("UnitTemplate");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.TemplateSupersession", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitTemplate", "Predecessor")
+                        .WithMany("SupersededBy")
+                        .HasForeignKey("PredecessorTemplateId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_TemplateSupersession_UnitTemplate_PredecessorTemplateId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitTemplate", "Successor")
+                        .WithMany("Supersedes")
+                        .HasForeignKey("SuccessorTemplateId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_TemplateSupersession_UnitTemplate_SuccessorTemplateId");
+
+                    b.Navigation("Predecessor");
+
+                    b.Navigation("Successor");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentArmour", b =>
@@ -2933,6 +3016,10 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.Navigation("Body");
 
+                    b.Navigation("SupersededBy");
+
+                    b.Navigation("Supersedes");
+
                     b.Navigation("Tags");
 
                     b.Navigation("Weapon");
@@ -2966,6 +3053,10 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Components");
 
                     b.Navigation("PlayerStates");
+
+                    b.Navigation("SupersededBy");
+
+                    b.Navigation("Supersedes");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopInstance", b =>

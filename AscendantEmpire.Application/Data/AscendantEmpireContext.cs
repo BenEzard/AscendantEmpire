@@ -174,6 +174,11 @@ public class AscendantEmpireContext : DbContext
     public DbSet<UnitComponentTag> UnitComponentTags { get; set; }
 
     /// <summary>
+    /// Directed "successor supersedes predecessor" links between components (upgrade paths).
+    /// </summary>
+    public DbSet<ComponentSupersession> ComponentSupersessions { get; set; }
+
+    /// <summary>
     /// Per-player record of which components have been unlocked.
     /// </summary>
     public DbSet<PlayerUnlockedComponent> PlayerUnlockedComponents { get; set; }
@@ -192,6 +197,11 @@ public class AscendantEmpireContext : DbContext
     /// Components fitted into a template's body slots.
     /// </summary>
     public DbSet<UnitTemplateComponent> UnitTemplateComponents { get; set; }
+
+    /// <summary>
+    /// Directed "successor supersedes predecessor" links between global templates (upgrade paths).
+    /// </summary>
+    public DbSet<TemplateSupersession> TemplateSupersessions { get; set; }
 
     /// <summary>
     /// Denormalized snapshots of finalized templates, read without the unlock filter (e.g. for enemy designs).
@@ -1116,6 +1126,70 @@ public class AscendantEmpireContext : DbContext
 
         ConfigureUnitComponentCatalog(modelBuilder, schema);
         ConfigureUnitTemplates(modelBuilder, schema);
+        ConfigureComponentSupersession(modelBuilder, schema);
+        ConfigureTemplateSupersession(modelBuilder, schema);
+    }
+
+    /// <summary>
+    /// Configures the directed many-to-many "successor supersedes predecessor" links between components.
+    /// </summary>
+    private static void ConfigureComponentSupersession(ModelBuilder modelBuilder, string schema)
+    {
+        modelBuilder.Entity<ComponentSupersession>(entity =>
+        {
+            entity.ToTable("ComponentSupersession", schema);
+
+            entity.HasKey(e => new { e.PredecessorComponentId, e.SuccessorComponentId });
+
+            // Both self-referencing FKs must be NoAction: cascading either way would create multiple
+            // cascade paths into UnitComponent.
+            entity.HasOne(e => e.Predecessor)
+                .WithMany(e => e.SupersededBy)
+                .HasForeignKey(e => e.PredecessorComponentId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_ComponentSupersession_UnitComponent_PredecessorComponentId");
+
+            entity.HasOne(e => e.Successor)
+                .WithMany(e => e.Supersedes)
+                .HasForeignKey(e => e.SuccessorComponentId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_ComponentSupersession_UnitComponent_SuccessorComponentId");
+
+            // Reverse lookups ("what does this component supersede") hit the successor side.
+            entity.HasIndex(e => e.SuccessorComponentId)
+                .HasDatabaseName("IX_ComponentSupersession_Successor");
+        });
+    }
+
+    /// <summary>
+    /// Configures the directed many-to-many "successor supersedes predecessor" links between templates.
+    /// </summary>
+    private static void ConfigureTemplateSupersession(ModelBuilder modelBuilder, string schema)
+    {
+        modelBuilder.Entity<TemplateSupersession>(entity =>
+        {
+            entity.ToTable("TemplateSupersession", schema);
+
+            entity.HasKey(e => new { e.PredecessorTemplateId, e.SuccessorTemplateId });
+
+            // Both self-referencing FKs must be NoAction: cascading either way would create multiple
+            // cascade paths into UnitTemplate.
+            entity.HasOne(e => e.Predecessor)
+                .WithMany(e => e.SupersededBy)
+                .HasForeignKey(e => e.PredecessorTemplateId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_TemplateSupersession_UnitTemplate_PredecessorTemplateId");
+
+            entity.HasOne(e => e.Successor)
+                .WithMany(e => e.Supersedes)
+                .HasForeignKey(e => e.SuccessorTemplateId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_TemplateSupersession_UnitTemplate_SuccessorTemplateId");
+
+            // Reverse lookups ("what does this template supersede") hit the successor side.
+            entity.HasIndex(e => e.SuccessorTemplateId)
+                .HasDatabaseName("IX_TemplateSupersession_Successor");
+        });
     }
 
     /// <summary>
@@ -1306,6 +1380,10 @@ public class AscendantEmpireContext : DbContext
 
             entity.Property(e => e.DisplayName)
                 .HasMaxLength(Tag.DISPLAY_NAME_MAX_LENGTH)
+                .IsRequired();
+
+            entity.Property(e => e.TagType)
+                .HasConversion<int>()
                 .IsRequired();
 
             entity.HasIndex(e => e.Code)

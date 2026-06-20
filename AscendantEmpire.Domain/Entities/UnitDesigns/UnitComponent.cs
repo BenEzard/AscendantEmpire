@@ -76,4 +76,16 @@ public class UnitComponent
     /// The buff/bonus tags attached to this component (0 or more).
     /// </summary>
     public ICollection<UnitComponentTag> Tags { get; set; } = [];
+
+    /// <summary>
+    /// Supersession links where this component is the predecessor — i.e. the newer components that
+    /// supersede this one (what supersedes me).
+    /// </summary>
+    public ICollection<ComponentSupersession> SupersededBy { get; set; } = [];
+
+    /// <summary>
+    /// Supersession links where this component is the successor — i.e. the older components this one
+    /// supersedes (what I supersede).
+    /// </summary>
+    public ICollection<ComponentSupersession> Supersedes { get; set; } = [];
 }

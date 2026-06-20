@@ -1,9 +1,12 @@
+using AscendantEmpire.Domain.Enums.UnitDesigns;
+
 using System.ComponentModel.DataAnnotations;
 
 namespace AscendantEmpire.Domain.Entities.UnitDesigns;
 
 /// <summary>
-/// A global, reusable bonus/buff tag that can be attached to components.
+/// A global, reusable tag attached to components — either a structural classification (its family/role)
+/// or a bonus, distinguished by <see cref="TagType"/>.
 /// </summary>
 public class Tag
 {
@@ -25,6 +28,11 @@ public class Tag
     /// Optional free-text description.
     /// </summary>
     public string? Description { get; set; }
+
+    /// <summary>
+    /// Whether this tag is a structural classification or a bonus (buff/perk).
+    /// </summary>
+    public required TagType TagType { get; set; }
 
     public ICollection<UnitComponentTag> ComponentTags { get; set; } = [];
 }
