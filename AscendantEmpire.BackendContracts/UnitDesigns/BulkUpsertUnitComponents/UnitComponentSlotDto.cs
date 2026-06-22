@@ -1,7 +1,7 @@
 namespace AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 
 /// <summary>
-/// A Template Slot defined by a body component — a place where another Unit Component can be plugged in.
+/// A Template Slot defined by a component — a place where another Unit Component can be plugged in.
 /// </summary>
 public record UnitComponentSlotDto
 {

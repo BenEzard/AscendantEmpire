@@ -6,8 +6,9 @@ namespace AscendantEmpire.Domain.Entities.UnitDesigns;
 /// Body-specific properties for a <see cref="UnitComponent"/> whose type is <c>Body</c>.
 /// </summary>
 /// <remarks>
-/// One-to-one with <see cref="UnitComponent"/> (shares its primary key). A body defines the
-/// movement characteristics, strength bounds, and the Template Slots that other components fit into.
+/// One-to-one with <see cref="UnitComponent"/> (shares its primary key). A body defines the movement
+/// characteristics and strength bounds. Slots now live on <see cref="UnitComponent"/> itself, so any
+/// component (not just a body) can expose them.
 /// </remarks>
 public class UnitComponentBody
 {
@@ -53,9 +54,4 @@ public class UnitComponentBody
     public long? CrushAttack { get; set; }
 
     public UnitComponent UnitComponent { get; set; } = null!;
-
-    /// <summary>
-    /// The Template Slots this body exposes for fitting other components (1 or more).
-    /// </summary>
-    public ICollection<UnitComponentSlot> Slots { get; set; } = [];
 }

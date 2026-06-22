@@ -83,27 +83,28 @@ internal class UnitDesignReadEndpointsTests : SqlServerTestBase
                 MinStrength = 1,
                 MaxStrength = 10,
                 IncrementStrength = 1,
-                Slots =
-                [
-                    new UnitComponentSlot
-                    {
-                        DisplayName = "Weapon Slot",
-                        IsVisible = true,
-                        IsLocked = false,
-                        UIXPosition = 1,
-                        UIYPosition = 0,
-                        Rules =
-                        [
-                            new UnitComponentSlotRule
-                            {
-                                RuleType = SlotRuleType.ComponentType,
-                                Operator = SlotRuleOperator.Equals,
-                                Value = nameof(ComponentType.Weapon),
-                            },
-                        ],
-                    },
-                ],
             },
+            // Slots now live on the component itself, not the body extension.
+            Slots =
+            [
+                new UnitComponentSlot
+                {
+                    DisplayName = "Weapon Slot",
+                    IsVisible = true,
+                    IsLocked = false,
+                    UIXPosition = 1,
+                    UIYPosition = 0,
+                    Rules =
+                    [
+                        new UnitComponentSlotRule
+                        {
+                            RuleType = SlotRuleType.ComponentType,
+                            Operator = SlotRuleOperator.Equals,
+                            Value = nameof(ComponentType.Weapon),
+                        },
+                    ],
+                },
+            ],
         };
 
         UnitComponent unlockedWeapon = BuildWeapon("wpn_unlocked");
@@ -141,7 +142,7 @@ internal class UnitDesignReadEndpointsTests : SqlServerTestBase
         _gameId = game.Id;
         _playerId = player.Id;
         _bodyId = body.Id;
-        _slotId = body.Body.Slots.Single().Id;
+        _slotId = body.Slots.Single().Id;
         _unlockedWeaponId = unlockedWeapon.Id;
     }
 

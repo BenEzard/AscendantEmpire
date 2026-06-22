@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 
 using AscendantEmpire.BackendContracts.UnitDesigns.GetSlotCandidateComponents;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetUnlockedBodies;
+using AscendantEmpire.BackendContracts.UnitDesigns.Shared;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 
 namespace AscendantEmpire.Application.Features.UnitComponents.Services;
@@ -30,8 +31,9 @@ public static class DesignComponentProjections
         IncrementStrength = c.Body.IncrementStrength,
         CrushAttack = c.Body.CrushAttack,
         TagCodes = c.Tags.Select(t => t.Tag.Code).ToList(),
-        Slots = c.Body.Slots
-            .Select(s => new DesignBodySlot
+        // Slots now live on the component itself, not the body extension.
+        Slots = c.Slots
+            .Select(s => new DesignSlot
             {
                 Id = s.Id,
                 DisplayName = s.DisplayName,
@@ -97,6 +99,26 @@ public static class DesignComponentProjections
                     Poison = c.Armour.Resistance.Poison,
                 },
             },
+        // A candidate may itself expose slots (e.g. a weapon mount), so surface them for nesting.
+        Slots = c.Slots
+            .Select(s => new DesignSlot
+            {
+                Id = s.Id,
+                DisplayName = s.DisplayName,
+                IsVisible = s.IsVisible,
+                IsLocked = s.IsLocked,
+                UIXPosition = s.UIXPosition,
+                UIYPosition = s.UIYPosition,
+                Rules = s.Rules
+                    .Select(r => new DesignSlotRule
+                    {
+                        RuleType = r.RuleType,
+                        Operator = r.Operator,
+                        Value = r.Value,
+                    })
+                    .ToList(),
+            })
+            .ToList(),
         TagCodes = c.Tags.Select(t => t.Tag.Code).ToList(),
     };
 }

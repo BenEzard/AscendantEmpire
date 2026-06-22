@@ -1,9 +1,9 @@
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 
-namespace AscendantEmpire.BackendContracts.UnitDesigns.GetUnlockedBodies;
+namespace AscendantEmpire.BackendContracts.UnitDesigns.Shared;
 
 /// <summary>
-/// A single acceptance rule on a body slot, surfaced so the UI can show/explain what a slot accepts.
+/// A single acceptance rule on a slot, surfaced so the UI can show/explain what a slot accepts.
 /// </summary>
 public record DesignSlotRule
 {

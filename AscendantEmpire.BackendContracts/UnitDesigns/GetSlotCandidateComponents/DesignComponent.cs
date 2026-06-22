@@ -1,3 +1,4 @@
+using AscendantEmpire.BackendContracts.UnitDesigns.Shared;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 
 namespace AscendantEmpire.BackendContracts.UnitDesigns.GetSlotCandidateComponents;
@@ -27,5 +28,12 @@ public record DesignComponent
 
     public DesignWeapon? Weapon { get; init; }
     public DesignArmour? Armour { get; init; }
+
+    /// <summary>
+    /// Slots this component itself exposes (0 or more), so a fitted component that carries its own slots
+    /// can be rendered with them for further nesting.
+    /// </summary>
+    public required IReadOnlyCollection<DesignSlot> Slots { get; init; }
+
     public required IReadOnlyCollection<string> TagCodes { get; init; }
 }

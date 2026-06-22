@@ -13,6 +13,12 @@ public class CompiledUnitTemplateComponent
     /// <summary>FK to <see cref="CompiledUnitTemplate.UnitTemplateId"/>.</summary>
     public int CompiledUnitTemplateId { get; set; }
 
+    /// <summary>
+    /// The parent snapshot row this one nests inside; null for the body and for components fitted directly
+    /// into a body slot. Preserves the fitted-component tree so a compiled design can be rendered nested.
+    /// </summary>
+    public int? ParentId { get; set; }
+
     /// <summary>The slot this component fills; null for the template's body (which sits in no slot).</summary>
     public int? UnitComponentSlotId { get; set; }
 
@@ -27,4 +33,10 @@ public class CompiledUnitTemplateComponent
     public ComponentType ComponentType { get; set; }
 
     public CompiledUnitTemplate CompiledUnitTemplate { get; set; } = null!;
+
+    /// <summary>The parent snapshot row; null for the body and root-fitted components.</summary>
+    public CompiledUnitTemplateComponent? Parent { get; set; }
+
+    /// <summary>The snapshot rows nested inside this one (0 or more).</summary>
+    public ICollection<CompiledUnitTemplateComponent> Children { get; set; } = [];
 }

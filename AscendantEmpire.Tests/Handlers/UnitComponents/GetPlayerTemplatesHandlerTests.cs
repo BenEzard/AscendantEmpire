@@ -66,11 +66,12 @@ internal class GetPlayerTemplatesHandlerTests : SqlServerTestBase
             Body = new UnitComponentBody
             {
                 MovementDomain = DomainType.Land,
-                Slots =
-                [
-                    new UnitComponentSlot { DisplayName = "Weapon Slot", IsVisible = true, UIXPosition = 0, UIYPosition = 0 },
-                ],
             },
+            // Slots now live on the component itself, not the body extension.
+            Slots =
+            [
+                new UnitComponentSlot { DisplayName = "Weapon Slot", IsVisible = true, UIXPosition = 0, UIYPosition = 0 },
+            ],
         };
         var weapon = new UnitComponent
         {
@@ -83,7 +84,7 @@ internal class GetPlayerTemplatesHandlerTests : SqlServerTestBase
         context.UnitComponents.AddRange(body, weapon);
         await context.SaveChangesAsync();
 
-        int slotId = body.Body!.Slots.Single().Id;
+        int slotId = body.Slots.Single().Id;
 
         // Unlocked global template (Code set, no game/player), prototyped.
         var globalTemplate = new UnitTemplate

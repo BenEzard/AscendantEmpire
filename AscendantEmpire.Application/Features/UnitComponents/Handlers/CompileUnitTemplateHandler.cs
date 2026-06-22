@@ -1,4 +1,5 @@
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.UnitComponents.Services;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 
 using MediatR;
@@ -40,6 +41,8 @@ internal class CompileUnitTemplateHandler(
                 .Include(t => t.Components).ThenInclude(tc => tc.UnitComponent).ThenInclude(c => c.Weapon)
                 .Include(t => t.Components).ThenInclude(tc => tc.UnitComponent).ThenInclude(c => c.Armour)
                 .Include(t => t.Components).ThenInclude(tc => tc.UnitComponent).ThenInclude(c => c.Tags).ThenInclude(ct => ct.Tag)
+                // The slot (with its rules) is needed to validate the assembled tree before compiling.
+                .Include(t => t.Components).ThenInclude(tc => tc.UnitComponentSlot).ThenInclude(s => s.Rules)
                 .FirstOrDefaultAsync(t => t.Id == request.UnitTemplateId, cancelToken);
 
             if (template is null)
@@ -52,6 +55,17 @@ internal class CompileUnitTemplateHandler(
             if (bodyComponent.Body is not { } body)
             {
                 return ServiceResult<int>.Fail($"Template {request.UnitTemplateId}'s body component is not a body.");
+            }
+
+            // Validate the fitted-component tree (correct owner per slot, rules satisfied, no double-fills)
+            // before compiling, so a malformed assembly never produces a snapshot.
+            List<string> assemblyErrors = SlotAssemblyValidator.Validate(template.BodyComponentId, template.Components);
+
+            if (assemblyErrors.Count > 0)
+            {
+                logger.LogWarning("Assembly validation failed for template {TemplateId}. Errors: {Errors}",
+                    request.UnitTemplateId, string.Join("; ", assemblyErrors));
+                return ServiceResult<int>.Fail(assemblyErrors);
             }
 
             // Aggregate stats across the body and every fitted component.
@@ -84,26 +98,39 @@ internal class CompileUnitTemplateHandler(
                 }
             }
 
-            // Resolved component snapshot: the body (no slot) plus each fitted component.
-            List<CompiledUnitTemplateComponent> snapshotComponents =
-            [
-                new CompiledUnitTemplateComponent
-                {
-                    UnitComponentSlotId = null,
-                    UnitComponentId = bodyComponent.Id,
-                    Code = bodyComponent.Code,
-                    DisplayName = bodyComponent.DisplayName,
-                    ComponentType = bodyComponent.ComponentType,
-                },
-                .. template.Components.Select(fitted => new CompiledUnitTemplateComponent
+            // Resolved component snapshot: the body (no slot, no parent) plus each fitted component.
+            var bodySnapshot = new CompiledUnitTemplateComponent
+            {
+                UnitComponentSlotId = null,
+                UnitComponentId = bodyComponent.Id,
+                Code = bodyComponent.Code,
+                DisplayName = bodyComponent.DisplayName,
+                ComponentType = bodyComponent.ComponentType,
+            };
+
+            // One snapshot row per fitted component, keyed by its source id so we can wire parent links.
+            Dictionary<int, CompiledUnitTemplateComponent> snapshotByFittedId = template.Components.ToDictionary(
+                fitted => fitted.Id,
+                fitted => new CompiledUnitTemplateComponent
                 {
                     UnitComponentSlotId = fitted.UnitComponentSlotId,
                     UnitComponentId = fitted.UnitComponentId,
                     Code = fitted.UnitComponent.Code,
                     DisplayName = fitted.UnitComponent.DisplayName,
                     ComponentType = fitted.UnitComponent.ComponentType,
-                }),
-            ];
+                });
+
+            // Wire each fitted snapshot to its parent snapshot via navigation, so EF assigns ParentId on
+            // save. Root-fitted components (no parent) keep ParentId null, matching the live model.
+            foreach (UnitTemplateComponent fitted in template.Components)
+            {
+                if (fitted.ParentTemplateComponentId is { } parentId)
+                {
+                    snapshotByFittedId[fitted.Id].Parent = snapshotByFittedId[parentId];
+                }
+            }
+
+            List<CompiledUnitTemplateComponent> snapshotComponents = [bodySnapshot, .. snapshotByFittedId.Values];
 
             // Capabilities: the distinct tags carried across the body and fitted components.
             IEnumerable<Tag> allTags = bodyComponent.Tags.Select(t => t.Tag)

@@ -1,3 +1,4 @@
+using AscendantEmpire.BackendContracts.UnitDesigns.Shared;
 using AscendantEmpire.Domain.Enums.Maps;
 
 namespace AscendantEmpire.BackendContracts.UnitDesigns.GetUnlockedBodies;
@@ -31,5 +32,5 @@ public record DesignBody
     public long? CrushAttack { get; init; }
 
     public required IReadOnlyCollection<string> TagCodes { get; init; }
-    public required IReadOnlyCollection<DesignBodySlot> Slots { get; init; }
+    public required IReadOnlyCollection<DesignSlot> Slots { get; init; }
 }

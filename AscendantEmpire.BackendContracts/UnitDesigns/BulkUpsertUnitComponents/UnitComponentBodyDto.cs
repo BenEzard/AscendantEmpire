@@ -6,8 +6,8 @@ namespace AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 /// Body-specific properties for a component whose type is <c>Body</c>.
 /// </summary>
 /// <remarks>
-/// A body defines movement characteristics, strength bounds, and the Template Slots that other
-/// components fit into.
+/// A body defines movement characteristics and strength bounds. Slots now live on the component itself
+/// (see <c>UnitComponentDto.Slots</c>), so any component — not just a body — can expose them.
 /// </remarks>
 public record UnitComponentBodyDto
 {
@@ -45,9 +45,4 @@ public record UnitComponentBodyDto
     /// Optional inherent crush attack the body itself deals (e.g. a cavalry charge). Null = none.
     /// </summary>
     public long? CrushAttack { get; init; }
-
-    /// <summary>
-    /// The Template Slots this body exposes for fitting other components (1 or more).
-    /// </summary>
-    public IReadOnlyCollection<UnitComponentSlotDto> Slots { get; init; } = [];
 }

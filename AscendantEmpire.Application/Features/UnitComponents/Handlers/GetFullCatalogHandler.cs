@@ -75,6 +75,8 @@ internal class GetFullCatalogHandler(
                     Components = t.Components
                         .Select(tc => new DesignTemplateComponent
                         {
+                            Id = tc.Id,
+                            ParentTemplateComponentId = tc.ParentTemplateComponentId,
                             UnitComponentSlotId = tc.UnitComponentSlotId,
                             UnitComponentId = tc.UnitComponentId,
                             ComponentCode = tc.UnitComponent.Code,

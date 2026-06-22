@@ -1328,14 +1328,16 @@ public class AscendantEmpireContext : DbContext
             entity.Property(e => e.DisplayName)
                 .HasMaxLength(UnitComponentSlot.DISPLAY_NAME_MAX_LENGTH);
 
-            entity.HasOne(e => e.Body)
+            // Slots now hang off any UnitComponent (not just bodies), so a fitted component can carry
+            // its own slots for further nesting.
+            entity.HasOne(e => e.OwnerComponent)
                 .WithMany(e => e.Slots)
-                .HasForeignKey(e => e.UnitComponentBodyId)
+                .HasForeignKey(e => e.UnitComponentId)
                 .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_UnitComponentSlot_UnitComponentBody_UnitComponentBodyId");
+                .HasConstraintName("FK_UnitComponentSlot_UnitComponent_UnitComponentId");
 
-            entity.HasIndex(e => e.UnitComponentBodyId)
-                .HasDatabaseName("IX_UnitComponentSlot_Body");
+            entity.HasIndex(e => e.UnitComponentId)
+                .HasDatabaseName("IX_UnitComponentSlot_Component");
         });
 
         // --- UnitComponentSlotRule -------------------------------------------------
@@ -1502,6 +1504,14 @@ public class AscendantEmpireContext : DbContext
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_UnitTemplateComponent_UnitTemplate_UnitTemplateId");
 
+            // Self-reference: a fitted component nests inside a parent fitted-component. NoAction (like
+            // every FK here) — a self FK must be NoAction to avoid multiple cascade paths.
+            entity.HasOne(e => e.ParentTemplateComponent)
+                .WithMany(e => e.Children)
+                .HasForeignKey(e => e.ParentTemplateComponentId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitTemplateComponent_UnitTemplateComponent_ParentTemplateComponentId");
+
             entity.HasOne(e => e.UnitComponentSlot)
                 .WithMany()
                 .HasForeignKey(e => e.UnitComponentSlotId)
@@ -1514,16 +1524,27 @@ public class AscendantEmpireContext : DbContext
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_UnitTemplateComponent_UnitComponent_UnitComponentId");
 
-            // One component per slot within a template.
+            // One component per slot of the body root (parent null). Filtered because SQL Server treats
+            // NULLs as distinct, so an unfiltered index over the nullable parent wouldn't enforce this.
             entity.HasIndex(e => new { e.UnitTemplateId, e.UnitComponentSlotId })
                 .IsUnique()
-                .HasDatabaseName("UX_UnitTemplateComponent_Template_Slot");
+                .HasFilter("[ParentTemplateComponentId] IS NULL")
+                .HasDatabaseName("UX_UnitTemplateComponent_Root");
+
+            // One component per slot per parent instance (nesting). Filtered to the parent-set rows.
+            entity.HasIndex(e => new { e.UnitTemplateId, e.ParentTemplateComponentId, e.UnitComponentSlotId })
+                .IsUnique()
+                .HasFilter("[ParentTemplateComponentId] IS NOT NULL")
+                .HasDatabaseName("UX_UnitTemplateComponent_Nested");
 
             entity.HasIndex(e => e.UnitComponentSlotId)
                 .HasDatabaseName("IX_UnitTemplateComponent_Slot");
 
             entity.HasIndex(e => e.UnitComponentId)
                 .HasDatabaseName("IX_UnitTemplateComponent_Component");
+
+            entity.HasIndex(e => e.ParentTemplateComponentId)
+                .HasDatabaseName("IX_UnitTemplateComponent_Parent");
         });
 
         // --- PlayerUnlockedTemplate ------------------------------------------------
@@ -1620,8 +1641,18 @@ public class AscendantEmpireContext : DbContext
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_CompiledUnitTemplateComponent_CompiledUnitTemplate_CompiledUnitTemplateId");
 
+            // Self-reference preserving the fitted-component tree in the snapshot (NoAction self FK).
+            entity.HasOne(e => e.Parent)
+                .WithMany(e => e.Children)
+                .HasForeignKey(e => e.ParentId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_CompiledUnitTemplateComponent_CompiledUnitTemplateComponent_ParentId");
+
             entity.HasIndex(e => e.CompiledUnitTemplateId)
                 .HasDatabaseName("IX_CompiledUnitTemplateComponent_Template");
+
+            entity.HasIndex(e => e.ParentId)
+                .HasDatabaseName("IX_CompiledUnitTemplateComponent_Parent");
         });
 
         // --- CompiledUnitTemplateCapability ----------------------------------------

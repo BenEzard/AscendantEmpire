@@ -3,8 +3,12 @@ using System.ComponentModel.DataAnnotations;
 namespace AscendantEmpire.Domain.Entities.UnitDesigns;
 
 /// <summary>
-/// A Template Slot defined by a body component — a place where another Unit Component can be plugged in.
+/// A Template Slot defined by a component — a place where another Unit Component can be plugged in.
 /// </summary>
+/// <remarks>
+/// Any component (not just bodies) may expose slots, so a fitted component can carry its own slots —
+/// e.g. a weapon mount whose slots accept a gun and a targeting module.
+/// </remarks>
 public class UnitComponentSlot
 {
     public const int DISPLAY_NAME_MAX_LENGTH = 100;
@@ -12,9 +16,9 @@ public class UnitComponentSlot
     public int Id { get; set; }
 
     /// <summary>
-    /// The body component (via <see cref="UnitComponentBody.UnitComponentId"/>) that owns this slot.
+    /// The component (via <see cref="UnitComponent.Id"/>) that owns this slot.
     /// </summary>
-    public int UnitComponentBodyId { get; set; }
+    public int UnitComponentId { get; set; }
 
     /// <summary>
     /// Optional label shown for the slot.
@@ -42,7 +46,10 @@ public class UnitComponentSlot
     /// </summary>
     public int UIYPosition { get; set; }
 
-    public UnitComponentBody Body { get; set; } = null!;
+    /// <summary>
+    /// The component that owns (exposes) this slot.
+    /// </summary>
+    public UnitComponent OwnerComponent { get; set; } = null!;
 
     /// <summary>
     /// Acceptance rules that decide which components may be fitted (1 or more).

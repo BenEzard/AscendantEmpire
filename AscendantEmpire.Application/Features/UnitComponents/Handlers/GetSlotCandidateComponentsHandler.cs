@@ -15,10 +15,11 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 
 /// <summary>
-/// Returns the components a player has unlocked that satisfy a specific body slot's acceptance rules —
-/// the feed for the component-selection window. Game and player are supplied from the caller's token.
+/// Returns the components a player has unlocked that satisfy a specific slot's acceptance rules — the
+/// feed for the component-selection window. The slot may belong to any component (a body or a fitted
+/// component that exposes its own slots). Game and player are supplied from the caller's token.
 /// </summary>
-public record GetSlotCandidateComponentsRequest(int GameId, int PlayerId, int BodyComponentId, int SlotId)
+public record GetSlotCandidateComponentsRequest(int GameId, int PlayerId, int OwnerComponentId, int SlotId)
     : IRequest<ServiceResult<SlotCandidateComponentsResult>>;
 
 internal class GetSlotCandidateComponentsHandler(
@@ -30,23 +31,24 @@ internal class GetSlotCandidateComponentsHandler(
     {
         try
         {
-            if (request.GameId <= 0 || request.PlayerId <= 0 || request.BodyComponentId <= 0 || request.SlotId <= 0)
+            if (request.GameId <= 0 || request.PlayerId <= 0 || request.OwnerComponentId <= 0 || request.SlotId <= 0)
             {
-                return ServiceResult<SlotCandidateComponentsResult>.Fail("Game, player, body and slot are required.");
+                return ServiceResult<SlotCandidateComponentsResult>.Fail("Game, player, owner component and slot are required.");
             }
 
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            // Load the slot with its rules, and confirm it actually belongs to the named body.
+            // Load the slot with its rules, and confirm it actually belongs to the named owner component
+            // (which may be a body or any fitted component that exposes slots).
             UnitComponentSlot? slot = await context.UnitComponentSlots
                 .AsNoTracking()
                 .Include(s => s.Rules)
-                .FirstOrDefaultAsync(s => s.Id == request.SlotId && s.UnitComponentBodyId == request.BodyComponentId, cancelToken);
+                .FirstOrDefaultAsync(s => s.Id == request.SlotId && s.UnitComponentId == request.OwnerComponentId, cancelToken);
 
             if (slot is null)
             {
                 return ServiceResult<SlotCandidateComponentsResult>.NotFound(
-                    $"Slot {request.SlotId} was not found on body component {request.BodyComponentId}.");
+                    $"Slot {request.SlotId} was not found on component {request.OwnerComponentId}.");
             }
 
             IQueryable<int> unlockedComponentIds = context.PlayerUnlockedComponents

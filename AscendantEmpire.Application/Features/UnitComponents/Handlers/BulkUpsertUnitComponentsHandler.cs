@@ -53,7 +53,8 @@ internal class BulkUpsertUnitComponentsHandler(
 
             Dictionary<string, UnitComponent> existingByCode = await context.UnitComponents
                 .Where(c => componentCodes.Contains(c.Code))
-                .Include(c => c.Body!).ThenInclude(b => b.Slots).ThenInclude(s => s.Rules)
+                .Include(c => c.Slots).ThenInclude(s => s.Rules)
+                .Include(c => c.Body)
                 .Include(c => c.Weapon!).ThenInclude(w => w.DomainModifiers)
                 .Include(c => c.Armour)
                 .Include(c => c.Tags).ThenInclude(t => t.Tag)
@@ -314,25 +315,23 @@ internal class BulkUpsertUnitComponentsHandler(
             errors.Add($"Component '{component.Code}' weapon MinimumRange ({weapon.MinimumRange}) exceeds MaximumRange ({weapon.MaximumRange}).");
         }
 
-        if (component.Body is { } body)
+        // Slots can be exposed by any component type (not just bodies), so validate them at the component level.
+        foreach (UnitComponentSlotDto slot in component.Slots)
         {
-            foreach (UnitComponentSlotDto slot in body.Slots)
+            if (slot.DisplayName is { Length: > UnitComponentSlot.DISPLAY_NAME_MAX_LENGTH })
             {
-                if (slot.DisplayName is { Length: > UnitComponentSlot.DISPLAY_NAME_MAX_LENGTH })
-                {
-                    errors.Add($"Component '{component.Code}' has a slot DisplayName exceeding {UnitComponentSlot.DISPLAY_NAME_MAX_LENGTH} characters.");
-                }
+                errors.Add($"Component '{component.Code}' has a slot DisplayName exceeding {UnitComponentSlot.DISPLAY_NAME_MAX_LENGTH} characters.");
+            }
 
-                foreach (UnitComponentSlotRuleDto rule in slot.Rules)
+            foreach (UnitComponentSlotRuleDto rule in slot.Rules)
+            {
+                if (string.IsNullOrWhiteSpace(rule.Value))
                 {
-                    if (string.IsNullOrWhiteSpace(rule.Value))
-                    {
-                        errors.Add($"Component '{component.Code}' has a slot rule with an empty Value.");
-                    }
-                    else if (rule.Value.Length > UnitComponentSlotRule.VALUE_MAX_LENGTH)
-                    {
-                        errors.Add($"Component '{component.Code}' has a slot rule Value exceeding {UnitComponentSlotRule.VALUE_MAX_LENGTH} characters.");
-                    }
+                    errors.Add($"Component '{component.Code}' has a slot rule with an empty Value.");
+                }
+                else if (rule.Value.Length > UnitComponentSlotRule.VALUE_MAX_LENGTH)
+                {
+                    errors.Add($"Component '{component.Code}' has a slot rule Value exceeding {UnitComponentSlotRule.VALUE_MAX_LENGTH} characters.");
                 }
             }
         }
@@ -547,6 +546,7 @@ internal class BulkUpsertUnitComponentsHandler(
             Body = dto.Body is { } bodyDto ? BuildBody(bodyDto) : null,
             Weapon = dto.Weapon is { } weaponDto ? BuildWeapon(weaponDto) : null,
             Armour = dto.Armour is { } armourDto ? BuildArmour(armourDto) : null,
+            Slots = [.. dto.Slots.Select(BuildSlot)],
             Tags = BuildTagJoins(dto.TagCodes, tagsByCode),
         };
     }
@@ -562,7 +562,6 @@ internal class BulkUpsertUnitComponentsHandler(
             MaxStrength = dto.MaxStrength,
             IncrementStrength = dto.IncrementStrength,
             CrushAttack = dto.CrushAttack,
-            Slots = [.. dto.Slots.Select(BuildSlot)],
         };
     }
 
@@ -653,7 +652,27 @@ internal class BulkUpsertUnitComponentsHandler(
                 break;
         }
 
+        // Slots live on the component itself (any type), so reconcile them here rather than per-extension.
+        UpdateSlots(existing, dto.Slots);
+
         MergeTagJoins(existing, dto.TagCodes, tagsByCode);
+    }
+
+    /// <summary>
+    /// Fully replaces a component's slots (and their rules) from the payload. Old slots and rules are
+    /// deleted explicitly (NoAction FKs => no orphan cascade); deleting rules first keeps the FK order valid.
+    /// </summary>
+    private void UpdateSlots(UnitComponent existing, IReadOnlyCollection<UnitComponentSlotDto> slots)
+    {
+        List<UnitComponentSlot> oldSlots = [.. existing.Slots];
+
+        foreach (UnitComponentSlot oldSlot in oldSlots)
+        {
+            context.UnitComponentSlotRules.RemoveRange(oldSlot.Rules);
+        }
+
+        context.UnitComponentSlots.RemoveRange(oldSlots);
+        existing.Slots = [.. slots.Select(BuildSlot)];
     }
 
     /// <summary>
@@ -686,9 +705,10 @@ internal class BulkUpsertUnitComponentsHandler(
     }
 
     /// <summary>
-    /// Overwrites a body extension's scalars and fully replaces its slots (and their rules).
+    /// Overwrites a body extension's scalars. Slots are reconciled separately at the component level
+    /// (see <see cref="UpdateSlots"/>), since any component type can expose them.
     /// </summary>
-    private void UpdateBody(UnitComponentBody body, UnitComponentBodyDto dto)
+    private static void UpdateBody(UnitComponentBody body, UnitComponentBodyDto dto)
     {
         body.MovementDomain = dto.MovementDomain;
         body.CampaignMovementPoints = dto.CampaignMovementPoints;
@@ -697,18 +717,6 @@ internal class BulkUpsertUnitComponentsHandler(
         body.MaxStrength = dto.MaxStrength;
         body.IncrementStrength = dto.IncrementStrength;
         body.CrushAttack = dto.CrushAttack;
-
-        // Explicitly delete the old slots and their rules (NoAction FKs => no orphan cascade), then
-        // rebuild from the payload. Deleting rules first keeps the FK order valid.
-        List<UnitComponentSlot> oldSlots = [.. body.Slots];
-
-        foreach (UnitComponentSlot oldSlot in oldSlots)
-        {
-            context.UnitComponentSlotRules.RemoveRange(oldSlot.Rules);
-        }
-
-        context.UnitComponentSlots.RemoveRange(oldSlots);
-        body.Slots = [.. dto.Slots.Select(BuildSlot)];
     }
 
     /// <summary>
