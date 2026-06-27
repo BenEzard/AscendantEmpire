@@ -8,14 +8,36 @@ import { HiMagnifyingGlass } from "react-icons/hi2";
 import ToolBar from "@/components/Toolbar";
 import type { ToolBarGroup } from "@/components/Toolbar";
 
+import { createTag } from "../api/tagsApi";
+import type { Tag } from "../types/Tag";
 import ComponentSetupDialog from "./ComponentSetupDialog";
+import TagSetupDialog from "./TagSetupDialog";
 
 export default function UnitDesignerTool() {
   // Controls the ComponentSetupDialog opened by the toolbar's "Add" button.
   const [showComponentSetup, setShowComponentSetup] = useState(false);
 
-  // Single "Components" group for now. Add opens the component-setup dialog; search
-  // remains a placeholder until the component browser is built.
+  // Controls the TagSetupDialog opened by the Tags group's "Add Tag" button.
+  const [showTagSetup, setShowTagSetup] = useState(false);
+
+  // Persists a newly authored tag, then closes the dialog. Errors are logged for now — this dev tool
+  // has no toast wiring yet; surfacing them in the UI can come with the Search/edit flow.
+  const handleTagCommit = async (tag: Tag) => {
+    try {
+      await createTag({
+        code: tag.code,
+        displayName: tag.displayName,
+        description: tag.description,
+        tagType: tag.tagType,
+      });
+      setShowTagSetup(false);
+    } catch (error) {
+      console.error("Failed to create tag.", error);
+    }
+  };
+
+  // "Components" group plus a "Tags" group. Each group's Add opens its setup dialog; the search
+  // buttons remain placeholders until their browsers are built.
   const toolBarGroups = useMemo<ToolBarGroup[]>(
     () => [
       {
@@ -33,6 +55,25 @@ export default function UnitDesignerTool() {
             tooltip: "Search Components",
             onClick: () => {
               // TODO: open the component search.
+            },
+          },
+        ],
+      },
+      {
+        caption: "Tags",
+        buttons: [
+          {
+            key: "add-tag",
+            icon: <FaPlus />,
+            tooltip: "Add Tag",
+            onClick: () => setShowTagSetup(true),
+          },
+          {
+            key: "search-tag",
+            icon: <HiMagnifyingGlass />,
+            tooltip: "Search Tag",
+            onClick: () => {
+              // TODO: open the tag search (stub for now).
             },
           },
         ],
@@ -61,6 +102,8 @@ export default function UnitDesignerTool() {
           setShowComponentSetup(false);
         }}
       />
+
+      <TagSetupDialog open={showTagSetup} onCancel={() => setShowTagSetup(false)} onCommit={handleTagCommit} />
     </div>
   );
 }

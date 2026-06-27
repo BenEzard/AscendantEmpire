@@ -32,3 +32,5 @@ export { default as ProgressOperationDialog } from "./ProgressOperationDialog";
 export type { ProgressOperationDialogProps } from "./ProgressOperationDialog";
 export { default as EditableTable } from "./EditableTable";
 export type { EditableTableColumn, EditableTableProps } from "./EditableTable";
+export { default as CodeField, toCodeChars, toCodeSlug } from "./CodeField";
+export type { CodeFieldProps } from "./CodeField";

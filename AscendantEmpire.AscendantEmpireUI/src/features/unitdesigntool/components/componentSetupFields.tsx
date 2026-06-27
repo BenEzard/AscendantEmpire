@@ -13,11 +13,27 @@ export const inputClass = "w-full rounded-md border border-slate-300 px-2 py-2 t
 /**
  * A label/control row matching the two-column layout used by the other manager dialogs.
  * The optional hint renders as small muted text after the label (e.g. "(1.0 = base)").
+ * `align` controls how the label sits against the control: "center" (default) vertically centres it,
+ * while "top" pins it to the control's first line — better when the control is a tall, multi-line input.
  */
-export function FieldRow({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+export function FieldRow({
+  label,
+  hint,
+  align = "center",
+  children,
+}: {
+  label: string;
+  hint?: string;
+  align?: "center" | "top";
+  children: ReactNode;
+}) {
+  const isTop = align === "top";
+
   return (
-    <div className="mb-2 grid grid-cols-12 items-center gap-2">
-      <label className="col-span-5 text-sm text-slate-700">
+    <div className={`mb-2 grid grid-cols-12 gap-2 ${isTop ? "items-start" : "items-center"}`}>
+      {/* When top-aligned, nudge the label down by the control's vertical padding (py-2) so its text
+          lines up with the control's first line rather than the control's border. */}
+      <label className={`col-span-5 text-sm text-slate-700 ${isTop ? "pt-2" : ""}`}>
         {label}
         {hint ? <span className="ml-1 text-xs text-slate-400">{hint}</span> : null}
       </label>

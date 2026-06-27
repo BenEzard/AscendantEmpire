@@ -6,7 +6,9 @@ using AscendantEmpire.BackendContracts.UnitDesigns.GetCompiledUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetFullCatalog;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetPlayerTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetSlotCandidateComponents;
+using AscendantEmpire.BackendContracts.UnitDesigns.GetTags;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetUnlockedBodies;
+using AscendantEmpire.BackendContracts.UnitDesigns.UpsertTag;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.UnitDesigns.BulkUpsertUnitComponents;
 
@@ -186,6 +188,85 @@ public class UnitDesignController : ControllerBase
     {
         ServiceResult<FullCatalogResult> response =
             await mediator.Send(new GetFullCatalogRequest(), cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Dev design tool: get every tag in the global catalog, unfiltered.
+    /// </summary>
+    /// <remarks>
+    /// TODO: lock down before any non-dev deployment. This endpoint is intentionally left unauthorized for now;
+    /// it must be gated behind a dev/admin policy (or mapped only in Development) before shipping, since it exposes the whole tag catalog.
+    /// </remarks>
+    /// <response code="200">The full set of tags</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpGet("tags")]
+    [ProducesResponseType(typeof(GetTagsResult), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetTagsAsync(
+        [FromServices] IMediator mediator,
+        CancellationToken cancelToken)
+    {
+        ServiceResult<GetTagsResult> response =
+            await mediator.Send(new GetTagsRequest(), cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Dev design tool: create a single tag in the global catalog.
+    /// </summary>
+    /// <remarks>
+    /// TODO: lock down before any non-dev deployment. This endpoint is intentionally left unauthorized for now;
+    /// it must be gated behind a dev/admin policy (or mapped only in Development) before shipping, since it writes the global tag catalog.
+    /// </remarks>
+    /// <response code="201">The tag was created; returns the created tag</response>
+    /// <response code="400">Validation error</response>
+    /// <response code="409">A tag with the same code already exists</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpPost("tags")]
+    [ProducesResponseType(typeof(TagView), 201)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 409)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> CreateTagAsync(
+        [FromServices] IMediator mediator,
+        [FromBody] UpsertTagDto request,
+        CancellationToken cancelToken)
+    {
+        ServiceResult<TagView> response =
+            await mediator.Send(new CreateTagRequest(request), cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Dev design tool: update an existing tag in the global catalog.
+    /// </summary>
+    /// <remarks>
+    /// TODO: lock down before any non-dev deployment. This endpoint is intentionally left unauthorized for now;
+    /// it must be gated behind a dev/admin policy (or mapped only in Development) before shipping, since it writes the global tag catalog.
+    /// </remarks>
+    /// <response code="200">The tag was updated; returns the updated tag</response>
+    /// <response code="400">Validation error</response>
+    /// <response code="404">No tag exists with the given id</response>
+    /// <response code="409">Another tag already uses the requested code</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpPut("tags/{id:int}")]
+    [ProducesResponseType(typeof(TagView), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 409)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> UpdateTagAsync(
+        [FromServices] IMediator mediator,
+        int id,
+        [FromBody] UpsertTagDto request,
+        CancellationToken cancelToken)
+    {
+        ServiceResult<TagView> response =
+            await mediator.Send(new UpdateTagRequest(id, request), cancelToken);
 
         return response.ToActionResult();
     }
