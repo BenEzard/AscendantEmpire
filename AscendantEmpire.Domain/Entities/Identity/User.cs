@@ -1,4 +1,5 @@
 using AscendantEmpire.Domain.Entities.Games;
+using AscendantEmpire.Domain.Enums.Authentication;
 
 using System.ComponentModel.DataAnnotations;
 
@@ -41,6 +42,16 @@ public class User
     public required string PasswordHash { get; set; }
 
     public required DateTimeOffset CreatedAt { get; set; }
+
+    /// <summary>
+    /// When the account became inactive, or null while the account is still active.
+    /// </summary>
+    public DateTimeOffset? InactiveAt { get; set; }
+
+    /// <summary>
+    /// Why the account is inactive, or <see cref="InactiveReasonType.Active"/> while the account is active.
+    /// </summary>
+    public InactiveReasonType InactiveReasonType { get; set; }
 
     /// <summary>
     /// The Players this user controls across all their games.

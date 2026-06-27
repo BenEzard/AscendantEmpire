@@ -40,9 +40,4 @@ public record UnitComponentBodyDto
     /// The size of the increment by which strength can be adjusted.
     /// </summary>
     public int IncrementStrength { get; init; }
-
-    /// <summary>
-    /// Optional inherent crush attack the body itself deals (e.g. a cavalry charge). Null = none.
-    /// </summary>
-    public long? CrushAttack { get; init; }
 }

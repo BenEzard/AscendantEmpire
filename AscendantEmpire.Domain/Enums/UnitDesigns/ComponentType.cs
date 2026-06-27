@@ -15,9 +15,5 @@ public enum ComponentType
     Engine,
     Armour,
     Equipment,
-    Radar,
-    System,
-    Fitting,
     Training,
-    Special,
 }

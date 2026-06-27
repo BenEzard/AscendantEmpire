@@ -272,6 +272,52 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
         }
     }
 
+    [Test, Description("A Body may also carry inherent Weapon and Armour data; all three extensions persist.")]
+    public async Task BodyWithInherentWeaponAndArmourPersistsAsync()
+    {
+        var bodyWithCombat = new UnitComponentDto
+        {
+            Code = "armed_body",
+            DisplayName = "Armed Body",
+            ComponentType = ComponentType.Body,
+            Body = new UnitComponentBodyDto
+            {
+                MovementDomain = DomainType.Land,
+                CampaignMovementPoints = 2m,
+                BattlefieldMovementPoints = 4m,
+                MinStrength = 1,
+                MaxStrength = 5,
+                IncrementStrength = 1,
+            },
+            // Inherent attack/defence the body itself contributes.
+            Weapon = new UnitComponentWeaponDto { Attack = new DamageProfileDto { Crush = 300 }, MinimumRange = 0, MaximumRange = 1 },
+            Armour = new UnitComponentArmourDto { Resistance = new DamageProfileDto { Slash = 150 } },
+        };
+
+        BulkUpsertUnitComponentsHandler handler = await CreateHandlerAsync();
+        ServiceResult<BulkUpsertUnitComponentsResult> result =
+            await handler.Handle(
+                new BulkUpsertUnitComponentsRequest(new BulkUpsertUnitComponentsDto { Components = [bodyWithCombat] }),
+                CancellationToken.None);
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+        UnitComponent persisted = await verifyContext.UnitComponents
+            .Include(c => c.Body)
+            .Include(c => c.Weapon)
+            .Include(c => c.Armour)
+            .SingleAsync(c => c.Code == "armed_body");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, "A body with inherent weapon/armour should be accepted.");
+            Assert.That(persisted.Body, Is.Not.Null, "Body extension persists.");
+            Assert.That(persisted.Weapon, Is.Not.Null, "Inherent weapon extension persists.");
+            Assert.That(persisted.Weapon!.Attack.Crush, Is.EqualTo(300), "Body weapon attack round-trips.");
+            Assert.That(persisted.Armour, Is.Not.Null, "Inherent armour extension persists.");
+            Assert.That(persisted.Armour!.Resistance.Slash, Is.EqualTo(150), "Body armour resistance round-trips.");
+        }
+    }
+
     [Test, Description("Two components sharing a Code fail validation and write nothing.")]
     public async Task DuplicateCodeInPayloadFailsAsync()
     {

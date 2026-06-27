@@ -18,6 +18,8 @@ export { default as Tooltip } from "./Tooltip";
 export { default as Badge } from "./Badge";
 export { default as DeltaIndicator } from "./DeltaIndicator";
 export { default as ProgressBar } from "./ProgressBar";
+export { default as RangeSlider } from "./RangeSlider";
+export type { RangeSliderProps } from "./RangeSlider";
 export { Slider, SliderButton, SliderGroup } from "./slider";
 export type { SliderProps, SliderGroupProps } from "./slider";
 export { default as ToggleSwitch } from "./ToggleSwitch";
@@ -28,3 +30,5 @@ export { default as DescriptiveSettingDropDown } from "./DescriptiveSettingDropD
 export type { SelectionOption, DescriptiveSettingDropDownProps } from "./DescriptiveSettingDropDown";
 export { default as ProgressOperationDialog } from "./ProgressOperationDialog";
 export type { ProgressOperationDialogProps } from "./ProgressOperationDialog";
+export { default as EditableTable } from "./EditableTable";
+export type { EditableTableColumn, EditableTableProps } from "./EditableTable";

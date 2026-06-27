@@ -51,7 +51,13 @@ internal class CompileUnitTemplateHandlerTests : SqlServerTestBase
                 MinStrength = 1,
                 MaxStrength = 10,
                 IncrementStrength = 1,
-                CrushAttack = 200,
+            },
+            // A body may carry its own inherent weapon (here a crush attack), which the compiler folds in.
+            Weapon = new UnitComponentWeapon
+            {
+                Attack = new DamageProfile { Crush = 200 },
+                MinimumRange = 0,
+                MaximumRange = 1,
             },
             // Slots now live on the component itself, not the body extension.
             Slots =
@@ -150,9 +156,9 @@ internal class CompileUnitTemplateHandlerTests : SqlServerTestBase
             Assert.That(snapshot.TotalDetection, Is.EqualTo(1500), "1000 + 500.");
             Assert.That(snapshot.TotalVisibility, Is.EqualTo(2700), "2000 + 700.");
 
-            // Attack = weapon attack, with the body's crush folded into Crush.
+            // Attack = fitted weapon attack, with the body's own inherent weapon folded into Crush.
             Assert.That(snapshot.Attack.Slash, Is.EqualTo(1000));
-            Assert.That(snapshot.Attack.Crush, Is.EqualTo(250), "Weapon crush 50 + body crush 200.");
+            Assert.That(snapshot.Attack.Crush, Is.EqualTo(250), "Fitted weapon crush 50 + body's inherent weapon crush 200.");
             Assert.That(snapshot.Resistance.Pierce, Is.EqualTo(250), "From the fitted armour.");
 
             // Body-derived movement/strength.

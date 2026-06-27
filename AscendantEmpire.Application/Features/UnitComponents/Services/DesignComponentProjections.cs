@@ -29,7 +29,6 @@ public static class DesignComponentProjections
         MinStrength = c.Body.MinStrength,
         MaxStrength = c.Body.MaxStrength,
         IncrementStrength = c.Body.IncrementStrength,
-        CrushAttack = c.Body.CrushAttack,
         TagCodes = c.Tags.Select(t => t.Tag.Code).ToList(),
         // Slots now live on the component itself, not the body extension.
         Slots = c.Slots

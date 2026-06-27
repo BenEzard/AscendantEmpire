@@ -8,6 +8,11 @@ export interface ModalProps {
   children: ReactNode;
   footer?: ReactNode;
   size?: "md" | "lg" | "xl";
+  /**
+   * Explicit max width for the panel (number = px). Overrides `size` when provided. The panel still
+   * uses `w-full`, so it shrinks responsively on narrow viewports — this only caps how wide it grows.
+   */
+  width?: number | string;
   panelClassName?: string;
 }
 
@@ -32,7 +37,7 @@ function sizeClass(size: NonNullable<ModalProps["size"]>): string {
   }
 }
 
-export default function Modal({ open, title, onClose, children, footer, size = "md", panelClassName }: ModalProps) {
+export default function Modal({ open, title, onClose, children, footer, size = "md", width, panelClassName }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -62,7 +67,9 @@ export default function Modal({ open, title, onClose, children, footer, size = "
       <div
         ref={panelRef}
         tabIndex={-1}
-        className={["relative w-full", sizeClass(size), "rounded-lg bg-white text-black shadow-xl outline-none", panelClassName ?? ""].filter(Boolean).join(" ")}
+        // An explicit `width` wins over the `size` preset; otherwise fall back to the size's max-width class.
+        className={["relative w-full", width == null ? sizeClass(size) : "", "rounded-lg bg-white text-black shadow-xl outline-none", panelClassName ?? ""].filter(Boolean).join(" ")}
+        style={width == null ? undefined : { maxWidth: typeof width === "number" ? `${width}px` : width }}
         onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
           <div className="text-base font-semibold">{title}</div>

@@ -669,6 +669,7 @@ public class AscendantEmpireContext : DbContext
             entity.Property(x => x.Username).HasMaxLength(User.USERNAME_MAX_LENGTH).IsRequired();
             entity.Property(x => x.Email).HasMaxLength(User.EMAIL_MAX_LENGTH);
             entity.Property(x => x.PasswordHash).HasMaxLength(User.PASSWORD_HASH_MAX_LENGTH).IsRequired();
+            entity.Property(x => x.InactiveReasonType).HasDefaultValue(Domain.Enums.Authentication.InactiveReasonType.Active);
 
             // Usernames are the login key, so they must be unique.
             entity.HasIndex(x => x.Username).IsUnique();

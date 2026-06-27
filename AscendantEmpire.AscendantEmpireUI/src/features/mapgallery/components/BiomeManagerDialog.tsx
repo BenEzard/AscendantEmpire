@@ -1,5 +1,5 @@
 import { Button, PagedDialog, Toast, ToastViewport } from "@/components/ui";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { CiExport } from "react-icons/ci";
 import type { Biome } from "../../../types/map/Biome";
@@ -39,13 +39,40 @@ function BiomeManagerDialog({
   const [showErrorToast, setShowErrorToast] = useState(false);
   const [errorToastItems, setErrorToastItems] = useState<string[]>([]);
   const toggleErrorToast = () => setShowErrorToast(!showErrorToast);
+  const [isBiomeDropdownOpen, setIsBiomeDropdownOpen] = useState(false);
+  const biomeDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const mustBeTraversablePaintable = selectedBiome?.isTraversable === false || selectedBiome?.isPaintableOnCampaignMap === false;
   const mustBeTraversablePaintableLand = mustBeTraversablePaintable || selectedBiome?.isWater;
   const isFishDisabled =
     !selectedBiome || selectedBiome.isTraversable === false || selectedBiome.isPaintableOnCampaignMap === false || selectedBiome.isWater === false;
+  const selectedBiomeHtmlColor = selectedBiome?.mapEditorHtmlColor;
+  const selectedBiomeSwatchColor = isValidColor(selectedBiomeHtmlColor) ? selectedBiomeHtmlColor : "#ffffff";
 
   const orderedBiomes = useMemo(() => biomes.slice().sort((a, b) => a.name.localeCompare(b.name)), [biomes]);
+
+  useEffect(() => {
+    if (!isBiomeDropdownOpen) return;
+
+    const onPointerDown = (e: PointerEvent) => {
+      const root = biomeDropdownRef.current;
+      if (!root) return;
+      if (e.target instanceof Node && root.contains(e.target)) return;
+      setIsBiomeDropdownOpen(false);
+    };
+
+    const onEscape = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setIsBiomeDropdownOpen(false);
+    };
+
+    document.addEventListener("pointerdown", onPointerDown, { capture: true });
+    document.addEventListener("keydown", onEscape);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, { capture: true } as AddEventListenerOptions);
+      document.removeEventListener("keydown", onEscape);
+    };
+  }, [isBiomeDropdownOpen]);
 
   const handleBiomeFieldChange = <K extends keyof Biome>(field: K, value: Biome[K]) => {
     if (!selectedBiome) return;
@@ -106,19 +133,59 @@ function BiomeManagerDialog({
         header={
           <div className="flex flex-wrap items-center gap-2 mb-4">
             <label className="text-sm font-semibold whitespace-nowrap">Select Biome</label>
-            <select
-              className="w-64 max-w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
-              value={selectedBiome?.biomeType ?? ""}
-              onChange={(e) => {
-                const raw = e.target.value;
-                onSelectBiomeManagerSelection(raw === "" ? null : Number(raw));
-              }}>
-              {orderedBiomes.map((b) => (
-                <option key={b.biomeType} value={b.biomeType}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+            <div ref={biomeDropdownRef} className="relative w-64 max-w-full">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-700"
+                aria-haspopup="listbox"
+                aria-expanded={isBiomeDropdownOpen}
+                onClick={() => setIsBiomeDropdownOpen((prev) => !prev)}>
+                <span className="flex min-w-0 items-center gap-2">
+                  <span
+                    className="inline-block h-3.5 w-3.5 shrink-0 rounded-sm border border-slate-400"
+                    style={{ backgroundColor: selectedBiomeSwatchColor }}
+                    aria-hidden="true"
+                  />
+                  <span className="truncate">{selectedBiome?.name ?? "Select biome"}</span>
+                </span>
+                <span className="ml-2 text-xs text-slate-500" aria-hidden="true">
+                  ▾
+                </span>
+              </button>
+
+              {isBiomeDropdownOpen && (
+                <div
+                  role="listbox"
+                  className="absolute left-0 top-full z-50 mt-1 max-h-64 w-full overflow-auto rounded-md border border-slate-300 bg-white py-1 shadow-md">
+                  {orderedBiomes.map((b) => {
+                    const swatchColor = isValidColor(b.mapEditorHtmlColor) ? b.mapEditorHtmlColor : "#ffffff";
+                    const isSelected = selectedBiome?.biomeType === b.biomeType;
+                    return (
+                      <button
+                        key={b.biomeType}
+                        type="button"
+                        role="option"
+                        aria-selected={isSelected}
+                        className={[
+                          "flex w-full items-center gap-2 px-2 py-1.5 text-left text-sm text-slate-700",
+                          isSelected ? "bg-slate-100 font-medium" : "hover:bg-slate-50",
+                        ].join(" ")}
+                        onClick={() => {
+                          onSelectBiomeManagerSelection(b.biomeType);
+                          setIsBiomeDropdownOpen(false);
+                        }}>
+                        <span
+                          className="inline-block h-3.5 w-3.5 shrink-0 rounded-sm border border-slate-400"
+                          style={{ backgroundColor: swatchColor }}
+                          aria-hidden="true"
+                        />
+                        <span className="truncate">{b.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         }
         footer={
@@ -143,18 +210,6 @@ function BiomeManagerDialog({
             label: "General Properties",
             content: (
               <div className="w-full max-w-xl">
-                <div className="grid grid-cols-12 items-center gap-2 mb-2">
-                  <label className="col-span-5 text-sm text-slate-700">Id</label>
-                  <div className="col-span-7">
-                    <input
-                      className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm bg-gray-100"
-                      value={selectedBiome?.biomeType ?? ""}
-                      disabled
-                      readOnly
-                    />
-                  </div>
-                </div>
-
                 <div className="grid grid-cols-12 items-center gap-2 mb-2">
                   <label className="col-span-5 text-sm text-slate-700">Name</label>
                   <div className="col-span-7">

@@ -28,9 +28,6 @@ public record DesignBody
     public required int MaxStrength { get; init; }
     public required int IncrementStrength { get; init; }
 
-    /// <summary>Optional inherent crush attack the body deals (fixed-point, Scale 1,000).</summary>
-    public long? CrushAttack { get; init; }
-
     public required IReadOnlyCollection<string> TagCodes { get; init; }
     public required IReadOnlyCollection<DesignSlot> Slots { get; init; }
 }

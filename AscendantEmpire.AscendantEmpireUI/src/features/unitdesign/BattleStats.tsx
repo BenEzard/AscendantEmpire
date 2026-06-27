@@ -6,19 +6,11 @@ import type { WeaponDamageProfile } from "./types/UnitComponent";
 import Tooltip from "@/components/ui/Tooltip";
 
 import { ALL_DAMAGE_TYPES } from "./types/UnitComponent";
-import { GiFlatHammer, GiFlame, GiPoisonBottle, GiQuickSlash, GiSunSpear } from "react-icons/gi";
+import { DAMAGE_TYPE_BADGES } from "./types/damageTypeBadges";
 import { PiSword } from "react-icons/pi";
 import { BsShield } from "react-icons/bs";
 
 type IconBadgeMeta = { title: string; Icon: IconType };
-
-const DAMAGE_BADGES: Partial<Record<DamageType, IconBadgeMeta>> = {
-  slash: { title: "Slash", Icon: GiQuickSlash },
-  pierce: { title: "Pierce", Icon: GiSunSpear },
-  burn: { title: "Burn", Icon: GiFlame },
-  crush: { title: "Crush", Icon: GiFlatHammer },
-  poison: { title: "Poison", Icon: GiPoisonBottle },
-};
 
 const ROW_BADGES = {
   attack: { title: "Attack", Icon: PiSword },
@@ -92,7 +84,7 @@ export function BattleStats({ stats, existingStats, className }: { stats: Battle
   );
 
   const damageTypeBadge = (dt: DamageType) => {
-    const meta = DAMAGE_BADGES[dt];
+    const meta = DAMAGE_TYPE_BADGES[dt];
     if (!meta) return dt;
 
     const Icon = meta.Icon;

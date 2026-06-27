@@ -13,7 +13,7 @@ export function useDialogKeyboardShortcuts<K extends string>({
   open: boolean;
   onCommit?: () => void;
   onCancel?: () => void;
-  sections?: readonly { key: K }[];
+  sections?: readonly { key: K; disabled?: boolean }[];
   activeSection?: K;
   onSectionChange?: (key: K) => void;
 }) {
@@ -37,15 +37,22 @@ export function useDialogKeyboardShortcuts<K extends string>({
       if (sections && onSectionChange) {
         const index = parseInt(e.key, 10) - 1;
         if (index >= 0 && index < sections.length) {
-          onSectionChange(sections[index].key);
+          // Number jump: ignore the key when it targets a disabled section.
+          if (!sections[index].disabled) {
+            onSectionChange(sections[index].key);
+          }
           return;
         }
         if (e.key === "ArrowUp" || e.key === "ArrowDown") {
           e.preventDefault();
           const currentIndex = sections.findIndex((s) => s.key === activeSectionRef.current);
-          const next = e.key === "ArrowDown" ? currentIndex + 1 : currentIndex - 1;
-          if (next >= 0 && next < sections.length) {
-            onSectionChange(sections[next].key);
+          const step = e.key === "ArrowDown" ? 1 : -1;
+          // Walk in the chosen direction to the next enabled section, skipping disabled ones.
+          for (let next = currentIndex + step; next >= 0 && next < sections.length; next += step) {
+            if (!sections[next].disabled) {
+              onSectionChange(sections[next].key);
+              break;
+            }
           }
         }
       }

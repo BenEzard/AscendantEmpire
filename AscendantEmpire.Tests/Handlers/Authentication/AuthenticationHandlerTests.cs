@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Authentication.Handlers;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Identity;
+using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.Domain.Enums.Games;
 
 using Microsoft.AspNetCore.Identity;
@@ -74,6 +75,108 @@ internal class AuthenticationHandlerTests
         {
             Assert.That(stored.PasswordHash, Is.Not.Empty);
             Assert.That(stored.PasswordHash, Is.Not.EqualTo("password123"));
+            Assert.That(stored.InactiveAt, Is.Null);
+            Assert.That(stored.InactiveReasonType, Is.EqualTo(InactiveReasonType.Active));
+        }
+    }
+
+    [Test, Description("Getting auth users returns the projected user records including inactivity metadata.")]
+    public async Task GetUsers_ShouldReturnProjectedAuthUsersAsync()
+    {
+        DateTimeOffset inactiveAt = new(2026, 6, 27, 12, 0, 0, TimeSpan.Zero);
+
+        User activeUser = await SeedUserAsync("alice", "password123");
+        User inactiveUser = await SeedUserAsync("banned-user", "password123", inactiveAt, InactiveReasonType.Banned, "banned@example.com");
+
+        var handler = new GetUsersHandler(NullLogger<GetUsersHandler>.Instance, _dbFactory);
+
+        var result = await handler.Handle(new GetUsersRequest(), CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True);
+            Assert.That(result.SuccessValue, Is.Not.Null);
+            Assert.That(result.SuccessValue!.Select(user => user.Id), Is.EqualTo(new[] { activeUser.Id, inactiveUser.Id }));
+        }
+
+        var users = result.SuccessValue!.ToArray();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(users[0].Username, Is.EqualTo("alice"));
+            Assert.That(users[0].Email, Is.Null);
+            Assert.That(users[0].InactiveAt, Is.Null);
+            Assert.That(users[0].InactiveReasonType, Is.EqualTo(InactiveReasonType.Active));
+
+            Assert.That(users[1].Username, Is.EqualTo("banned-user"));
+            Assert.That(users[1].Email, Is.EqualTo("banned@example.com"));
+            Assert.That(users[1].InactiveAt, Is.EqualTo(inactiveAt));
+            Assert.That(users[1].InactiveReasonType, Is.EqualTo(InactiveReasonType.Banned));
+        }
+    }
+
+    [Test, Description("Setting a user inactive stores the requested non-active reason and records the inactive timestamp.")]
+    public async Task SetUserInactive_ShouldSetReasonAndTimestampAsync()
+    {
+        User user = await SeedUserAsync("quitter", "password123");
+
+        var handler = new SetUserInactiveHandler(NullLogger<SetUserInactiveHandler>.Instance, _dbFactory);
+
+        var result = await handler.Handle(new SetUserInactiveRequest(user.Id, InactiveReasonType.Quit), CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.SuccessNoContent));
+        }
+
+        await using var context = new AscendantEmpireContext(DbOptions);
+        User stored = await context.Users.SingleAsync(u => u.Id == user.Id);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(stored.InactiveReasonType, Is.EqualTo(InactiveReasonType.Quit));
+            Assert.That(stored.InactiveAt, Is.Not.Null);
+        }
+    }
+
+    [Test, Description("Setting a user back to Active clears the inactive timestamp.")]
+    public async Task SetUserInactive_ShouldClearTimestampWhenReactivatedAsync()
+    {
+        DateTimeOffset inactiveAt = new(2026, 6, 27, 12, 0, 0, TimeSpan.Zero);
+        User user = await SeedUserAsync("reactivate-me", "password123", inactiveAt, InactiveReasonType.Banned);
+
+        var handler = new SetUserInactiveHandler(NullLogger<SetUserInactiveHandler>.Instance, _dbFactory);
+
+        var result = await handler.Handle(new SetUserInactiveRequest(user.Id, InactiveReasonType.Active), CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.SuccessNoContent));
+        }
+
+        await using var context = new AscendantEmpireContext(DbOptions);
+        User stored = await context.Users.SingleAsync(u => u.Id == user.Id);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(stored.InactiveReasonType, Is.EqualTo(InactiveReasonType.Active));
+            Assert.That(stored.InactiveAt, Is.Null);
+        }
+    }
+
+    [Test, Description("Setting inactivity for an unknown user returns NotFound.")]
+    public async Task SetUserInactive_ShouldReturnNotFoundForUnknownUserAsync()
+    {
+        var handler = new SetUserInactiveHandler(NullLogger<SetUserInactiveHandler>.Instance, _dbFactory);
+
+        var result = await handler.Handle(new SetUserInactiveRequest(999, InactiveReasonType.Deleted), CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.NotFound));
         }
     }
 
@@ -186,15 +289,23 @@ internal class AuthenticationHandlerTests
 
     // --- Seeding helpers ---------------------------------------------------------------------
 
-    private async Task<User> SeedUserAsync(string username, string password)
+    private async Task<User> SeedUserAsync(
+        string username,
+        string password,
+        DateTimeOffset? inactiveAt = null,
+        InactiveReasonType inactiveReasonType = InactiveReasonType.Active,
+        string? email = null)
     {
         await using var context = new AscendantEmpireContext(DbOptions);
 
         User user = new()
         {
             Username = username,
+            Email = email,
             PasswordHash = string.Empty,
             CreatedAt = DateTimeOffset.UtcNow,
+            InactiveAt = inactiveAt,
+            InactiveReasonType = inactiveReasonType,
         };
         user.PasswordHash = _passwordHasher.HashPassword(user, password);
 

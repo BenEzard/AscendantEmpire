@@ -37,6 +37,9 @@ internal class CompileUnitTemplateHandler(
             // Load the whole template graph: body (+ its body extension and tags) and every fitted component (+ its weapon/armour/tags) so we can aggregate without further round-trips.
             UnitTemplate? template = await context.UnitTemplates
                 .Include(t => t.BodyComponent).ThenInclude(b => b.Body)
+                // A body may carry its own inherent weapon/armour, which contribute to the unit's stats.
+                .Include(t => t.BodyComponent).ThenInclude(b => b.Weapon)
+                .Include(t => t.BodyComponent).ThenInclude(b => b.Armour)
                 .Include(t => t.BodyComponent).ThenInclude(b => b.Tags).ThenInclude(ct => ct.Tag)
                 .Include(t => t.Components).ThenInclude(tc => tc.UnitComponent).ThenInclude(c => c.Weapon)
                 .Include(t => t.Components).ThenInclude(tc => tc.UnitComponent).ThenInclude(c => c.Armour)
@@ -76,8 +79,16 @@ internal class CompileUnitTemplateHandler(
             long totalDetection = bodyComponent.Detection ?? 0;
             long totalVisibility = bodyComponent.Visibility ?? 0;
 
-            // The body's inherent crush contributes to the unit's attack.
-            attack.Crush += body.CrushAttack ?? 0;
+            // The body's own inherent weapon/armour (if any) contribute just like a fitted weapon/armour.
+            if (bodyComponent.Weapon is { } bodyWeapon)
+            {
+                AddProfile(attack, bodyWeapon.Attack);
+            }
+
+            if (bodyComponent.Armour is { } bodyArmour)
+            {
+                AddProfile(resistance, bodyArmour.Resistance);
+            }
 
             foreach (UnitTemplateComponent fitted in template.Components)
             {

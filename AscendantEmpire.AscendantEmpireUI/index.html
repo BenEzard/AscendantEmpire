@@ -24,7 +24,14 @@
         font-size: 1.75rem;
       }
       nav {
+        /* Stack the card rows vertically; each .row lays its cards out horizontally. */
         display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+      .row {
+        display: flex;
+        justify-content: center;
         gap: 1rem;
       }
       a {
@@ -51,9 +58,15 @@
   <body>
     <h1>Ascendant Empire</h1>
     <nav>
-      <a href="/game/">Game</a>
-      <a href="/mapeditor/">Map Editor</a>
-      <a href="/matchmaker/">Match Maker</a>
+      <div class="row">
+        <a href="/matchmaker/">Match-Maker</a>
+        <a href="/game/">Game</a>
+        <a href="/system/">System</a>
+      </div>
+      <div class="row">
+        <a href="/mapeditor/">Map Editor</a>
+        <a href="/unitdesigntool/">Unit Designer</a>
+      </div>
     </nav>
   </body>
 </html>

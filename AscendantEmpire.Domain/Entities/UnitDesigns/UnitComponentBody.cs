@@ -47,11 +47,5 @@ public class UnitComponentBody
     /// </summary>
     public int IncrementStrength { get; set; }
 
-    /// <summary>
-    /// Optional inherent crush attack the body itself deals (e.g. a cavalry charge or vehicle ramming).
-    /// Null means the body has no inherent attack. Raw fixed-point (Scale 1,000) like weapon damage.
-    /// </summary>
-    public long? CrushAttack { get; set; }
-
     public UnitComponent UnitComponent { get; set; } = null!;
 }

@@ -1,9 +1,11 @@
 using AscendantEmpire.Api.Authentication;
 using AscendantEmpire.Api.Utilities;
+using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Features.Authentication.Classes;
 using AscendantEmpire.Application.Features.Authentication.Handlers;
 using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.BackendContracts.Authentication;
+using AscendantEmpire.BackendContracts.Authentication.GetUsers;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Authentication;
 
@@ -21,6 +23,51 @@ namespace AscendantEmpire.Api.Controllers;
 [Route("[controller]")]
 public class AuthController : ControllerBase
 {
+    /// <summary>
+    /// Return the current auth users.
+    /// </summary>
+    /// <response code="200">Current auth users.</response>
+    /// <response code="401">Missing or invalid token</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize]
+    [HttpGet("users")]
+    [ProducesResponseType(typeof(IReadOnlyCollection<AuthUser>), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetUsersAsync(
+        [FromServices] IMediator mediator,
+        CancellationToken cancelToken)
+    {
+        ServiceResult<IReadOnlyCollection<AuthUser>> response = await mediator.Send(new GetUsersRequest(), cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Update an auth user's inactivity state.
+    /// </summary>
+    /// <response code="204">User inactivity state updated.</response>
+    /// <response code="400">Validation error</response>
+    /// <response code="401">Missing or invalid token</response>
+    /// <response code="404">User not found</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize]
+    [HttpPost("users/inactive")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> SetUserInactiveAsync(
+        [FromServices] IMediator mediator,
+        [FromBody] SetUserInactiveDto request,
+        CancellationToken cancelToken)
+    {
+        ServiceResultBase response = await mediator.Send(new SetUserInactiveRequest(request.UserId, request.InactiveReasonType), cancelToken);
+
+        return response.ToActionResult();
+    }
+
     /// <summary>
     /// Register a new account.
     /// </summary>

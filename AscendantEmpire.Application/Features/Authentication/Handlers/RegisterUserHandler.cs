@@ -2,6 +2,7 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Authentication.Classes;
 using AscendantEmpire.Domain.Entities.Identity;
+using AscendantEmpire.Domain.Enums.Authentication;
 
 using FluentValidation;
 
@@ -73,6 +74,7 @@ internal class RegisterUserHandler(
                 // Never store the plaintext password — only the hash.
                 PasswordHash = string.Empty,
                 CreatedAt = DateTimeOffset.UtcNow,
+                InactiveReasonType = InactiveReasonType.Active,
             };
 
             user.PasswordHash = passwordHasher.HashPassword(user, request.Password);

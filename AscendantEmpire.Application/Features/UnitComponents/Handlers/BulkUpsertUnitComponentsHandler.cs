@@ -274,37 +274,45 @@ internal class BulkUpsertUnitComponentsHandler(
             errors.Add($"Component '{component.Code}' DisplayName exceeds {UnitComponent.DISPLAY_NAME_MAX_LENGTH} characters.");
         }
 
-        // Exactly the extension matching the component type may be present.
-        bool bodyAllowed = component.ComponentType == ComponentType.Body;
-        bool weaponAllowed = component.ComponentType == ComponentType.Weapon;
-        bool armourAllowed = component.ComponentType == ComponentType.Armour;
+        // Which type-specific extension(s) a component may carry depends on its type:
+        //   Body   -> a Body extension (required), and OPTIONALLY a Weapon and/or Armour describing the
+        //             inherent attack/defence the body deals itself (e.g. a cavalry charge, a hide).
+        //   Weapon -> a Weapon extension only.
+        //   Armour -> an Armour extension only.
+        //   other  -> no type-specific extension.
+        bool isBody = component.ComponentType == ComponentType.Body;
+        bool isWeapon = component.ComponentType == ComponentType.Weapon;
+        bool isArmour = component.ComponentType == ComponentType.Armour;
 
-        if (bodyAllowed && component.Body is null)
+        // Body data: required for a Body, forbidden for anything else.
+        if (isBody && component.Body is null)
         {
             errors.Add($"Component '{component.Code}' is a Body but has no Body data.");
         }
 
-        if (!bodyAllowed && component.Body is not null)
+        if (!isBody && component.Body is not null)
         {
             errors.Add($"Component '{component.Code}' is {component.ComponentType} but carries Body data.");
         }
 
-        if (weaponAllowed && component.Weapon is null)
+        // Weapon data: required for a Weapon, optional for a Body (inherent attack), forbidden otherwise.
+        if (isWeapon && component.Weapon is null)
         {
             errors.Add($"Component '{component.Code}' is a Weapon but has no Weapon data.");
         }
 
-        if (!weaponAllowed && component.Weapon is not null)
+        if (!isWeapon && !isBody && component.Weapon is not null)
         {
             errors.Add($"Component '{component.Code}' is {component.ComponentType} but carries Weapon data.");
         }
 
-        if (armourAllowed && component.Armour is null)
+        // Armour data: required for Armour, optional for a Body (inherent defence), forbidden otherwise.
+        if (isArmour && component.Armour is null)
         {
             errors.Add($"Component '{component.Code}' is Armour but has no Armour data.");
         }
 
-        if (!armourAllowed && component.Armour is not null)
+        if (!isArmour && !isBody && component.Armour is not null)
         {
             errors.Add($"Component '{component.Code}' is {component.ComponentType} but carries Armour data.");
         }
@@ -561,7 +569,6 @@ internal class BulkUpsertUnitComponentsHandler(
             MinStrength = dto.MinStrength,
             MaxStrength = dto.MaxStrength,
             IncrementStrength = dto.IncrementStrength,
-            CrushAttack = dto.CrushAttack,
         };
     }
 
@@ -641,6 +648,10 @@ internal class BulkUpsertUnitComponentsHandler(
         {
             case ComponentType.Body:
                 UpdateBody(existing.Body!, dto.Body!);
+                // A body may additionally carry an inherent weapon and/or armour; reconcile each since the
+                // payload can add, update or clear them between upserts.
+                ReconcileOptionalWeapon(existing, dto.Weapon);
+                ReconcileOptionalArmour(existing, dto.Armour);
                 break;
 
             case ComponentType.Weapon:
@@ -716,7 +727,63 @@ internal class BulkUpsertUnitComponentsHandler(
         body.MinStrength = dto.MinStrength;
         body.MaxStrength = dto.MaxStrength;
         body.IncrementStrength = dto.IncrementStrength;
-        body.CrushAttack = dto.CrushAttack;
+    }
+
+    /// <summary>
+    /// Reconciles a component's optional weapon extension against the payload: builds it when newly
+    /// present, updates it in place when it stays, and deletes it (with its domain modifiers) when the
+    /// payload drops it. Used for a body's inherent attack, which may be added or removed between upserts.
+    /// </summary>
+    private void ReconcileOptionalWeapon(UnitComponent existing, UnitComponentWeaponDto? dto)
+    {
+        if (dto is null)
+        {
+            if (existing.Weapon is { } weapon)
+            {
+                // NoAction FKs => delete the modifiers first, then the weapon row, explicitly.
+                context.RemoveRange(weapon.DomainModifiers);
+                context.Remove(weapon);
+                existing.Weapon = null;
+            }
+
+            return;
+        }
+
+        if (existing.Weapon is { } existingWeapon)
+        {
+            UpdateWeapon(existingWeapon, dto);
+        }
+        else
+        {
+            existing.Weapon = BuildWeapon(dto);
+        }
+    }
+
+    /// <summary>
+    /// Reconciles a component's optional armour extension against the payload: builds it when newly
+    /// present, updates it in place when it stays, and deletes it when the payload drops it.
+    /// </summary>
+    private void ReconcileOptionalArmour(UnitComponent existing, UnitComponentArmourDto? dto)
+    {
+        if (dto is null)
+        {
+            if (existing.Armour is { } armour)
+            {
+                context.Remove(armour);
+                existing.Armour = null;
+            }
+
+            return;
+        }
+
+        if (existing.Armour is { } existingArmour)
+        {
+            existingArmour.Resistance = ToDamageProfile(dto.Resistance);
+        }
+        else
+        {
+            existing.Armour = BuildArmour(dto);
+        }
     }
 
     /// <summary>

@@ -625,6 +625,14 @@ namespace AscendantEmpire.Application.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
+                    b.Property<DateTimeOffset?>("InactiveAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("InactiveReasonType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -1641,9 +1649,6 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<decimal>("CampaignMovementPoints")
                         .HasPrecision(18, 3)
                         .HasColumnType("decimal(18,3)");
-
-                    b.Property<long?>("CrushAttack")
-                        .HasColumnType("bigint");
 
                     b.Property<int>("IncrementStrength")
                         .HasColumnType("int");
