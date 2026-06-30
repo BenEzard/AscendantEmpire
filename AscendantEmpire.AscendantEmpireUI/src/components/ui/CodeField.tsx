@@ -3,9 +3,9 @@
 //
 // Behaviour:
 //   • While untouched, the code auto-tracks `source`: lowercased, with every non-alphanumeric character
-//     swapped for an underscore and leading/trailing underscores trimmed (see toCodeSlug).
+//     swapped for a hyphen and leading/trailing hyphens trimmed (see toCodeSlug).
 //   • Typing directly in the field is a manual override. The input is still sanitised live (lowercase +
-//     underscores, but NOT trimmed, so separators stay typeable), it stops tracking `source`, and the
+//     hyphens, but NOT trimmed, so separators stay typeable), it stops tracking `source`, and the
 //     pencil affordance turns orange to flag that the code was hand-edited.
 //   • Clicking the pencil discards the manual value and re-derives the code from the current `source`.
 
@@ -19,19 +19,19 @@ import Tooltip from "./Tooltip";
 const DEFAULT_INPUT_CLASS = "w-full rounded-md border border-slate-300 px-2 py-2 text-sm";
 
 /**
- * Lowercase a string and replace each non-alphanumeric character with a single underscore (one per
+ * Lowercase a string and replace each non-alphanumeric character with a single hyphen (one per
  * character — runs are NOT collapsed). Does not trim, so it is safe to apply to live manual typing.
  */
 export function toCodeChars(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]/g, "_");
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "-");
 }
 
 /**
- * The full code algorithm: {@link toCodeChars} plus trimming of leading/trailing underscores. Used to
+ * The full code algorithm: {@link toCodeChars} plus trimming of leading/trailing hyphens. Used to
  * auto-derive the code from the source field and when resetting via the pencil.
  */
 export function toCodeSlug(source: string): string {
-  return toCodeChars(source).replace(/^_+|_+$/g, "");
+  return toCodeChars(source).replace(/^-+|-+$/g, "");
 }
 
 export interface CodeFieldProps {
@@ -71,7 +71,7 @@ export default function CodeField({ value, onChange, source, placeholder, classN
     }
   }, [source, isManuallyEdited]);
 
-  // Manual typing: sanitise live (lowercase + underscores, no trim) and flag the code as hand-edited.
+  // Manual typing: sanitise live (lowercase + hyphens, no trim) and flag the code as hand-edited.
   const handleManualInput = (raw: string) => {
     setIsManuallyEdited(true);
     onChange(toCodeChars(raw));

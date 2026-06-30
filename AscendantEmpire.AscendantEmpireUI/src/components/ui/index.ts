@@ -4,6 +4,8 @@ export { default as Modal } from "./Modal";
 export { default as PagedDialog } from "./PagedDialog";
 export type { PagedDialogProps, PagedDialogSection } from "./PagedDialog";
 export { default as Drawer } from "./Drawer";
+export { default as SearchDrawer } from "./SearchDrawer";
+export type { SearchDrawerProps } from "./SearchDrawer";
 export { default as Alert } from "./Alert";
 export { default as Spinner } from "./Spinner";
 export { default as Toast, ToastViewport } from "./Toast";

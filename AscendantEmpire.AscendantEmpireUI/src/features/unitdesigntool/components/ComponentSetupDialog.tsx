@@ -12,7 +12,7 @@
 
 import { useEffect, useState } from "react";
 
-import { Button, PagedDialog } from "@/components/ui";
+import { Alert, Button, PagedDialog } from "@/components/ui";
 
 import {
   createEmptyArmour,
@@ -37,11 +37,13 @@ interface ComponentSetupDialogProps {
   onCancel: () => void;
   /** Optional starting component (for editing). When omitted, a blank component is created. */
   initialComponent?: UnitComponent;
-  /** Called with the edited component when the user commits. UI-only for now (no API call). */
+  /** Called with the edited component when the user commits. */
   onCommit?: (component: UnitComponent) => void;
+  /** API or validation error from the last commit attempt; shown as a danger alert above the sections. */
+  error?: string | null;
 }
 
-export default function ComponentSetupDialog({ open, onCancel, initialComponent, onCommit }: ComponentSetupDialogProps) {
+export default function ComponentSetupDialog({ open, onCancel, initialComponent, onCommit, error }: ComponentSetupDialogProps) {
   // The working copy of the component being authored.
   const [component, setComponent] = useState<UnitComponent>(() => initialComponent ?? createEmptyComponent());
 
@@ -101,6 +103,13 @@ export default function ComponentSetupDialog({ open, onCancel, initialComponent,
       panelClassName="thick-border-modal"
       onCancel={onCancel}
       onCommit={handleCommit}
+      header={
+        error != null && (
+          <Alert variant="danger" className="mb-3">
+            {error}
+          </Alert>
+        )
+      }
       footer={
         <>
           <Button variant="secondary" onClick={onCancel}>

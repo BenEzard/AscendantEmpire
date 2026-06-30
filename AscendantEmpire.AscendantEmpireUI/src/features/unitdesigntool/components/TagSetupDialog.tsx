@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from "react";
 
-import { Button, CodeField, Modal } from "@/components/ui";
+import { Alert, Button, CodeField, Modal } from "@/components/ui";
 
 import { FieldRow, inputClass } from "./componentSetupFields";
 import { createEmptyTag, TAG_TYPES, type Tag, type TagType } from "../types/Tag";
@@ -19,9 +19,11 @@ interface TagSetupDialogProps {
   initialTag?: Tag;
   /** Called with the edited tag when the user commits. */
   onCommit: (tag: Tag) => void;
+  /** API or validation error from the last commit attempt; shown as a danger alert above the form. */
+  error?: string | null;
 }
 
-export default function TagSetupDialog({ open, onCancel, initialTag, onCommit }: TagSetupDialogProps) {
+export default function TagSetupDialog({ open, onCancel, initialTag, onCommit, error }: TagSetupDialogProps) {
   // The working copy of the tag being authored.
   const [tag, setTag] = useState<Tag>(() => initialTag ?? createEmptyTag());
 
@@ -32,8 +34,9 @@ export default function TagSetupDialog({ open, onCancel, initialTag, onCommit }:
     }
   }, [open, initialTag]);
 
-  // Code and DisplayName are required; the backend is authoritative, this just gates the Save button.
-  const canSave = tag.code.trim() !== "" && tag.displayName.trim() !== "";
+  // Code, DisplayName, and Description are all required; the backend enforces the same rules, but
+  // gating the Save button here avoids a round-trip for the most common empty-field cases.
+  const canSave = tag.code.trim() !== "" && tag.displayName.trim() !== "" && tag.description.trim() !== "";
 
   const handleCommit = () => {
     if (!canSave) {
@@ -58,6 +61,13 @@ export default function TagSetupDialog({ open, onCancel, initialTag, onCommit }:
           </Button>
         </>
       }>
+      {/* API or validation error from the last commit attempt. */}
+      {error && (
+        <Alert variant="danger" className="mb-3">
+          {error}
+        </Alert>
+      )}
+
       {/* Two-column rows (label left, control right) matching the other manager dialogs via FieldRow. */}
       <div className="flex flex-col">
         <FieldRow label="Display Name" align="top">
@@ -83,18 +93,14 @@ export default function TagSetupDialog({ open, onCancel, initialTag, onCommit }:
           <textarea
             className={inputClass}
             rows={3}
-            // Treat an empty box as "no description" so we don't store blank strings.
-            value={tag.description ?? ""}
-            placeholder="Optional free-text description"
-            onChange={(e) => setTag((prev) => ({ ...prev, description: e.target.value === "" ? null : e.target.value }))}
+            value={tag.description}
+            placeholder="Description of what this tag provides"
+            onChange={(e) => setTag((prev) => ({ ...prev, description: e.target.value }))}
           />
         </FieldRow>
 
         <FieldRow label="Tag Type" align="top">
-          <select
-            className={inputClass}
-            value={tag.tagType}
-            onChange={(e) => setTag((prev) => ({ ...prev, tagType: e.target.value as TagType }))}>
+          <select className={inputClass} value={tag.tagType} onChange={(e) => setTag((prev) => ({ ...prev, tagType: e.target.value as TagType }))}>
             {TAG_TYPES.map((tagType) => (
               <option key={tagType} value={tagType}>
                 {tagType}

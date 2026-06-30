@@ -12,6 +12,7 @@ public class Tag
 {
     public const int CODE_MAX_LENGTH = 50;
     public const int DISPLAY_NAME_MAX_LENGTH = 100;
+    public const int DESCRIPTION_MAX_LENGTH = 200;
 
     public int Id { get; set; }
 
@@ -27,6 +28,7 @@ public class Tag
     /// <summary>
     /// Optional free-text description.
     /// </summary>
+    [MaxLength(DESCRIPTION_MAX_LENGTH)]
     public string? Description { get; set; }
 
     /// <summary>

@@ -7,10 +7,10 @@
  * Whether a tag is a structural classification or a bonus. Names match the C# `TagType` enum exactly
  * so the value round-trips to the backend without translation (same convention as `ComponentType`).
  */
-export type TagType = "Classification" | "Buff" | "Perk";
+export type TagType = "Ability" | "Combat" | "Classification" | "Movement";
 
 // Order follows the backend enum so dropdowns read the same as the design doc.
-export const TAG_TYPES: readonly TagType[] = ["Classification", "Buff", "Perk"];
+export const TAG_TYPES: readonly TagType[] = ["Ability","Combat", "Classification", "Movement"];
 
 /**
  * A single editable tag. `id` is null for a not-yet-saved tag (the backend assigns it on create).
@@ -20,7 +20,8 @@ export interface Tag {
   /** Unique, stable key for the tag, e.g. "amphibious", "stealth". */
   code: string;
   displayName: string;
-  description: string | null;
+  /** Required — the backend rejects a tag whose description is blank. */
+  description: string;
   tagType: TagType;
 }
 
@@ -30,7 +31,7 @@ export function createEmptyTag(): Tag {
     id: null,
     code: "",
     displayName: "",
-    description: null,
+    description: "",
     tagType: "Classification",
   };
 }

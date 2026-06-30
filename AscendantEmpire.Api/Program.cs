@@ -18,6 +18,7 @@ using Microsoft.OpenApi;
 
 using System.Reflection;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace AscendantEmpire.Api
@@ -36,6 +37,14 @@ namespace AscendantEmpire.Api
             {
                 // Use kebab-case for route parameters
                 options.Conventions.Add(new RouteTokenTransformerConvention(new KebabCaseParameterTransformer()));
+            })
+            .AddJsonOptions(options =>
+            {
+                // Serialize/deserialize enums by their name (e.g. "Classification") rather than the
+                // default numeric value. The React frontend sends and reads enum *names* across the
+                // whole app (TagType, ComponentType, etc.), so without this the names fail to bind and
+                // ASP.NET returns a 400 before any handler runs.
+                options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
             });
 
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

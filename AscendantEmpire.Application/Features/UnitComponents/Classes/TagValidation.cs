@@ -38,6 +38,16 @@ internal static class TagValidation
             errors.Add($"Tag DisplayName exceeds {Tag.DISPLAY_NAME_MAX_LENGTH} characters.");
         }
 
+        if (string.IsNullOrWhiteSpace(tag.Description))
+        {
+            errors.Add("The tag is missing its Description.");
+        }
+        else if (tag.Description.Length > Tag.DESCRIPTION_MAX_LENGTH)
+        {
+            errors.Add($"Tag Description exceeds {Tag.DESCRIPTION_MAX_LENGTH} characters.");
+        }
+
+
         if (!Enum.IsDefined(tag.TagType))
         {
             errors.Add("The tag has an undefined TagType value.");

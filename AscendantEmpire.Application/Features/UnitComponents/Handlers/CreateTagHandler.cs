@@ -15,7 +15,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 
 /// <summary>
-/// Creates a single tag in the global catalog from the dev Unit Designer's tag manager.
+/// Creates a single Tag in the global catalog from the dev Unit Designer's tag manager.
 /// </summary>
 /// <remarks>
 /// The tag's <c>Code</c> is the unique natural key, so a request whose code already exists is rejected
