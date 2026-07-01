@@ -1,4 +1,4 @@
-// Editable client-side model for a UnitComponent in the developer Unit Designer tool.
+// Editable client-side model for a UnitComponent in the developer Entity Setup Tool.
 //
 // The shapes here mirror the backend Domain entities / BulkUpsertUnitComponents DTOs
 // (AscendantEmpire.Domain.Entities.UnitDesigns.*) so this model can be mapped straight

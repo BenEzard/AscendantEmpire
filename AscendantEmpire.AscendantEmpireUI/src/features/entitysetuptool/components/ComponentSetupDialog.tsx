@@ -1,4 +1,4 @@
-// ComponentSetupDialog — a PagedDialog for authoring a single UnitComponent in the dev Unit Designer.
+// ComponentSetupDialog — a PagedDialog for authoring a single UnitComponent in the dev Entity Setup Tool.
 //
 // This is a thin orchestrator. It owns the working UnitComponent and wires up two pages:
 //   • "General"    — GeneralSection: the fields common to every component.

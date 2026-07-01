@@ -37,7 +37,7 @@ export default defineConfig({
         mapeditor: path.resolve(__dirname, "mapeditor/index.html"),
         matchmaker: path.resolve(__dirname, "matchmaker/index.html"),
         system: path.resolve(__dirname, "system/index.html"),
-        unitdesigntool: path.resolve(__dirname, "unitdesigntool/index.html"),
+        entitysetuptool: path.resolve(__dirname, "entitysetuptool/index.html"),
       },
     },
   },

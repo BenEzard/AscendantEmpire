@@ -1,4 +1,4 @@
-// Stub for the developer-only "Unit Designer" tool, created alongside the landing-page split.
+// Stub for the developer-only "Entity Setup Tool", created alongside the landing-page split.
 // This is a standalone dev tool like the Map Editor (no AuthGate) and is intentionally separate
 // from the game-side `unitdesign` feature. The real functionality will be filled in later.
 import { useMemo, useState } from "react";
@@ -25,7 +25,7 @@ function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error ? err.message : fallback;
 }
 
-export default function UnitDesignerTool() {
+export default function EntitySetupTool() {
   // Controls the ComponentSetupDialog opened by the toolbar's "Add" button.
   const [showComponentSetup, setShowComponentSetup] = useState(false);
 
@@ -203,7 +203,7 @@ export default function UnitDesignerTool() {
       <ToolBar groups={toolBarGroups} containerClassName="toolbar flex justify-start border-b border-slate-200 bg-stone-100 sticky top-0 z-10" />
 
       <div className="flex flex-1 flex-col items-center justify-center gap-2">
-        <h1 className="text-2xl font-semibold">Unit Designer</h1>
+        <h1 className="text-2xl font-semibold">Entity Setup Tool</h1>
         <p className="text-sm text-slate-400">Developer tool — stub. Functionality coming soon.</p>
       </div>
 

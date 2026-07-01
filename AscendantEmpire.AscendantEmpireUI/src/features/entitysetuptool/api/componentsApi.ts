@@ -1,4 +1,4 @@
-// API service for the dev Unit Designer's component catalog. Thin wrapper over the shared axios
+// API service for the dev Entity Setup Tool's component catalog. Thin wrapper over the shared axios
 // `http` client for the BulkUpsertUnitComponents endpoint (POST /unit-design/components/bulk).
 
 import { http } from "@/api/http";

@@ -1,4 +1,4 @@
-// API service for the dev Unit Designer's global tag catalog. Thin wrappers over the shared axios
+// API service for the dev Entity Setup Tool's global tag catalog. Thin wrappers over the shared axios
 // `http` client, one per backend endpoint on UnitDesignController (GET/POST/PUT /UnitDesign/tags).
 
 import { http } from "@/api/http";

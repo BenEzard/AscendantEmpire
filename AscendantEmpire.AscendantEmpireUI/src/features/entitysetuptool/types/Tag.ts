@@ -1,4 +1,4 @@
-// Editable client-side model for a global Tag in the developer Unit Designer tool.
+// Editable client-side model for a global Tag in the developer Entity Setup Tool.
 //
 // Mirrors the backend Domain entity (AscendantEmpire.Domain.Entities.UnitDesigns.Tag) and the
 // UpsertTagDto / TagView contracts, so a Tag here maps straight onto the create/update payloads.

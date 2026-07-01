@@ -1,4 +1,4 @@
-// API service for the dev Unit Designer's full catalog read. Thin wrapper over the shared axios `http`
+// API service for the dev Entity Setup Tool's full catalog read. Thin wrapper over the shared axios `http`
 // client for GET /unit-design/catalog (the dev god-view that returns every body, component, tag and
 // template unfiltered). Only the fields the search drawer needs are typed here.
 
