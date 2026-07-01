@@ -41,9 +41,9 @@ function mapBody(body: UnitComponentBody) {
     movementDomain: body.movementDomain,
     campaignMovementPoints: body.campaignMovementPoints,
     battlefieldMovementPoints: body.battlefieldMovementPoints,
-    minStrength: body.minStrength,
-    maxStrength: body.maxStrength,
-    incrementStrength: body.incrementStrength,
+    minimumUnitSize: body.minimumUnitSize,
+    maximumUnitSize: body.maximumUnitSize,
+    sizeIncrement: body.sizeIncrement,
   };
 }
 
@@ -138,9 +138,9 @@ interface BodyWire {
   movementDomain: DomainType;
   campaignMovementPoints: number;
   battlefieldMovementPoints: number;
-  minStrength: number;
-  maxStrength: number;
-  incrementStrength: number;
+  minimumUnitSize: number;
+  maximumUnitSize: number;
+  sizeIncrement: number;
 }
 
 interface WeaponWire {
@@ -203,9 +203,9 @@ function mapBodyFromWire(body: BodyWire): UnitComponentBody {
     movementDomain: body.movementDomain,
     campaignMovementPoints: body.campaignMovementPoints,
     battlefieldMovementPoints: body.battlefieldMovementPoints,
-    minStrength: body.minStrength,
-    maxStrength: body.maxStrength,
-    incrementStrength: body.incrementStrength,
+    minimumUnitSize: body.minimumUnitSize,
+    maximumUnitSize: body.maximumUnitSize,
+    sizeIncrement: body.sizeIncrement,
   };
 }
 

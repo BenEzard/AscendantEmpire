@@ -1268,10 +1268,10 @@ namespace AscendantEmpire.Application.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<int>("MaxStrength")
+                    b.Property<int>("MaximumUnitSize")
                         .HasColumnType("int");
 
-                    b.Property<int>("MinStrength")
+                    b.Property<int>("MinimumUnitSize")
                         .HasColumnType("int");
 
                     b.Property<int>("MovementDomain")
@@ -1519,7 +1519,8 @@ namespace AscendantEmpire.Application.Migrations
                         .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("DisplayName")
                         .IsRequired()
@@ -1650,16 +1651,16 @@ namespace AscendantEmpire.Application.Migrations
                         .HasPrecision(18, 3)
                         .HasColumnType("decimal(18,3)");
 
-                    b.Property<int>("IncrementStrength")
+                    b.Property<int>("MaximumUnitSize")
                         .HasColumnType("int");
 
-                    b.Property<int>("MaxStrength")
-                        .HasColumnType("int");
-
-                    b.Property<int>("MinStrength")
+                    b.Property<int>("MinimumUnitSize")
                         .HasColumnType("int");
 
                     b.Property<int>("MovementDomain")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SizeIncrement")
                         .HasColumnType("int");
 
                     b.HasKey("UnitComponentId");

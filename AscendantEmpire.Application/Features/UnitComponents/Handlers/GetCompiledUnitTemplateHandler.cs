@@ -46,8 +46,8 @@ internal class GetCompiledUnitTemplateHandler(
                     TotalVisibility = c.TotalVisibility,
                     CampaignMovementPoints = c.CampaignMovementPoints,
                     BattlefieldMovementPoints = c.BattlefieldMovementPoints,
-                    MinStrength = c.MinStrength,
-                    MaxStrength = c.MaxStrength,
+                    MinimumUnitSize = c.MinimumUnitSize,
+                    MaximumUnitSize = c.MaximumUnitSize,
                     Attack = new CompiledDamageProfile
                     {
                         Slash = c.Attack.Slash,

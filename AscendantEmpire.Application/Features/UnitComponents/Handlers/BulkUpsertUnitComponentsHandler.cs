@@ -566,9 +566,9 @@ internal class BulkUpsertUnitComponentsHandler(
             MovementDomain = dto.MovementDomain,
             CampaignMovementPoints = dto.CampaignMovementPoints,
             BattlefieldMovementPoints = dto.BattlefieldMovementPoints,
-            MinStrength = dto.MinStrength,
-            MaxStrength = dto.MaxStrength,
-            IncrementStrength = dto.IncrementStrength,
+            MinimumUnitSize = dto.MinimumUnitSize,
+            MaximumUnitSize = dto.MaximumUnitSize,
+            SizeIncrement = dto.SizeIncrement,
         };
     }
 
@@ -724,9 +724,9 @@ internal class BulkUpsertUnitComponentsHandler(
         body.MovementDomain = dto.MovementDomain;
         body.CampaignMovementPoints = dto.CampaignMovementPoints;
         body.BattlefieldMovementPoints = dto.BattlefieldMovementPoints;
-        body.MinStrength = dto.MinStrength;
-        body.MaxStrength = dto.MaxStrength;
-        body.IncrementStrength = dto.IncrementStrength;
+        body.MinimumUnitSize = dto.MinimumUnitSize;
+        body.MaximumUnitSize = dto.MaximumUnitSize;
+        body.SizeIncrement = dto.SizeIncrement;
     }
 
     /// <summary>

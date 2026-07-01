@@ -6,7 +6,7 @@ namespace AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 /// Body-specific properties for a component whose type is <c>Body</c>.
 /// </summary>
 /// <remarks>
-/// A body defines movement characteristics and strength bounds. Slots now live on the component itself
+/// A body defines movement characteristics and unit-size bounds. Slots now live on the component itself
 /// (see <c>UnitComponentDto.Slots</c>), so any component — not just a body — can expose them.
 /// </remarks>
 public record UnitComponentBodyDto
@@ -27,17 +27,17 @@ public record UnitComponentBodyDto
     public decimal BattlefieldMovementPoints { get; init; }
 
     /// <summary>
-    /// Minimum number of individuals in a Unit using this body.
+    /// Minimum number of individuals in a Unit using this body (the smallest allowed unit size).
     /// </summary>
-    public int MinStrength { get; init; }
+    public int MinimumUnitSize { get; init; }
 
     /// <summary>
-    /// Maximum number of individuals in a Unit using this body.
+    /// Maximum number of individuals in a Unit using this body (the largest allowed unit size).
     /// </summary>
-    public int MaxStrength { get; init; }
+    public int MaximumUnitSize { get; init; }
 
     /// <summary>
-    /// The size of the increment by which strength can be adjusted.
+    /// The step by which unit size can be adjusted.
     /// </summary>
-    public int IncrementStrength { get; init; }
+    public int SizeIncrement { get; init; }
 }

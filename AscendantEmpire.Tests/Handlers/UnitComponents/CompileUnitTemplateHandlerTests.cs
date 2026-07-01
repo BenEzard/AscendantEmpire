@@ -31,8 +31,8 @@ internal class CompileUnitTemplateHandlerTests : SqlServerTestBase
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        var amphibious = new Tag { Code = "amphibious", DisplayName = "Amphibious", TagType = TagType.Buff };
-        var settler = new Tag { Code = "settler", DisplayName = "Settler", TagType = TagType.Buff };
+        var amphibious = new Tag { Code = "amphibious", DisplayName = "Amphibious", TagType = TagType.Ability };
+        var settler = new Tag { Code = "settler", DisplayName = "Settler", TagType = TagType.Combat };
 
         var body = new UnitComponent
         {
@@ -48,9 +48,9 @@ internal class CompileUnitTemplateHandlerTests : SqlServerTestBase
                 MovementDomain = DomainType.Land,
                 CampaignMovementPoints = 3m,
                 BattlefieldMovementPoints = 6m,
-                MinStrength = 1,
-                MaxStrength = 10,
-                IncrementStrength = 1,
+                MinimumUnitSize = 1,
+                MaximumUnitSize = 10,
+                SizeIncrement = 1,
             },
             // A body may carry its own inherent weapon (here a crush attack), which the compiler folds in.
             Weapon = new UnitComponentWeapon
@@ -161,10 +161,10 @@ internal class CompileUnitTemplateHandlerTests : SqlServerTestBase
             Assert.That(snapshot.Attack.Crush, Is.EqualTo(250), "Fitted weapon crush 50 + body's inherent weapon crush 200.");
             Assert.That(snapshot.Resistance.Pierce, Is.EqualTo(250), "From the fitted armour.");
 
-            // Body-derived movement/strength.
+            // Body-derived movement/unit-size.
             Assert.That(snapshot.MovementDomain, Is.EqualTo(DomainType.Land));
             Assert.That(snapshot.CampaignMovementPoints, Is.EqualTo(3m));
-            Assert.That(snapshot.MaxStrength, Is.EqualTo(10));
+            Assert.That(snapshot.MaximumUnitSize, Is.EqualTo(10));
             Assert.That(snapshot.CompiledOnTurn, Is.EqualTo(5));
 
             // Components: body (null slot) + 3 fitted.
@@ -214,7 +214,7 @@ internal class CompileUnitTemplateHandlerTests : SqlServerTestBase
                 DisplayName = "Nested Body",
                 ComponentType = ComponentType.Body,
                 Weight = 100,
-                Body = new UnitComponentBody { MovementDomain = DomainType.Land, MinStrength = 1, MaxStrength = 5, IncrementStrength = 1 },
+                Body = new UnitComponentBody { MovementDomain = DomainType.Land, MinimumUnitSize = 1, MaximumUnitSize = 5, SizeIncrement = 1 },
                 Slots =
                 [
                     new UnitComponentSlot

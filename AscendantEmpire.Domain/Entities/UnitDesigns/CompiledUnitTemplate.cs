@@ -35,8 +35,8 @@ public class CompiledUnitTemplate
 
     public decimal CampaignMovementPoints { get; set; }
     public decimal BattlefieldMovementPoints { get; set; }
-    public int MinStrength { get; set; }
-    public int MaxStrength { get; set; }
+    public int MinimumUnitSize { get; set; }
+    public int MaximumUnitSize { get; set; }
 
     /// <summary>Aggregated offensive output: the sum of fitted weapons' attack plus the body's crush.</summary>
     public DamageProfile Attack { get; set; } = new();

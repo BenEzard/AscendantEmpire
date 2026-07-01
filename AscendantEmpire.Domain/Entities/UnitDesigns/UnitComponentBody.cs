@@ -7,7 +7,7 @@ namespace AscendantEmpire.Domain.Entities.UnitDesigns;
 /// </summary>
 /// <remarks>
 /// One-to-one with <see cref="UnitComponent"/> (shares its primary key). A body defines the movement
-/// characteristics and strength bounds. Slots now live on <see cref="UnitComponent"/> itself, so any
+/// characteristics and unit-size bounds. Slots now live on <see cref="UnitComponent"/> itself, so any
 /// component (not just a body) can expose them.
 /// </remarks>
 public class UnitComponentBody
@@ -33,19 +33,19 @@ public class UnitComponentBody
     public decimal BattlefieldMovementPoints { get; set; }
 
     /// <summary>
-    /// Minimum number of individuals in a Unit using this body.
+    /// Minimum number of individuals in a Unit using this body (the smallest allowed unit size).
     /// </summary>
-    public int MinStrength { get; set; }
+    public int MinimumUnitSize { get; set; }
 
     /// <summary>
-    /// Maximum number of individuals in a Unit using this body.
+    /// Maximum number of individuals in a Unit using this body (the largest allowed unit size).
     /// </summary>
-    public int MaxStrength { get; set; }
+    public int MaximumUnitSize { get; set; }
 
     /// <summary>
-    /// The size of the increment by which strength can be adjusted (e.g. strength changes in steps of this amount).
+    /// The step by which unit size can be adjusted (unit size changes in increments of this amount).
     /// </summary>
-    public int IncrementStrength { get; set; }
+    public int SizeIncrement { get; set; }
 
     public UnitComponent UnitComponent { get; set; } = null!;
 }

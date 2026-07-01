@@ -48,7 +48,7 @@ internal class SlotAssemblyValidatorTests
             Code = code,
             DisplayName = code,
             ComponentType = type,
-            Tags = [.. tagCodes.Select(c => new UnitComponentTag { Tag = new Tag { Code = c, DisplayName = c, TagType = TagType.Buff } })],
+            Tags = [.. tagCodes.Select(c => new UnitComponentTag { Tag = new Tag { Code = c, DisplayName = c, TagType = TagType.Ability } })],
         };
 
         return new UnitTemplateComponent

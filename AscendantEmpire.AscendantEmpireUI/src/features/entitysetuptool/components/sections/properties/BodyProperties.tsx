@@ -41,16 +41,16 @@ export default function BodyProperties({ body, onChange }: BodyPropertiesProps) 
         <NumberField value={body.battlefieldMovementPoints} step={0.1} onChange={(next) => patch("battlefieldMovementPoints", next)} />
       </FieldRow>
 
-      <FieldRow label="Min Strength">
-        <NumberField value={body.minStrength} onChange={(next) => patch("minStrength", next)} />
+      <FieldRow label="Minimum Unit Size">
+        <NumberField value={body.minimumUnitSize} onChange={(next) => patch("minimumUnitSize", next)} />
       </FieldRow>
 
-      <FieldRow label="Max Strength">
-        <NumberField value={body.maxStrength} onChange={(next) => patch("maxStrength", next)} />
+      <FieldRow label="Maximum Unit Size">
+        <NumberField value={body.maximumUnitSize} onChange={(next) => patch("maximumUnitSize", next)} />
       </FieldRow>
 
-      <FieldRow label="Increment Strength">
-        <NumberField value={body.incrementStrength} onChange={(next) => patch("incrementStrength", next)} />
+      <FieldRow label="Size Increment">
+        <NumberField value={body.sizeIncrement} onChange={(next) => patch("sizeIncrement", next)} />
       </FieldRow>
     </div>
   );

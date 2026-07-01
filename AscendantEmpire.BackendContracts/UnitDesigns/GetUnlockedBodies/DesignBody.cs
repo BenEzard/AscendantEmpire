@@ -4,7 +4,7 @@ using AscendantEmpire.Domain.Enums.Maps;
 namespace AscendantEmpire.BackendContracts.UnitDesigns.GetUnlockedBodies;
 
 /// <summary>
-/// A body component the player has unlocked, with its movement/strength stats and the slots (and their
+/// A body component the player has unlocked, with its movement/unit-size stats and the slots (and their
 /// rules) other components fit into. This is the canvas the unit designer is built around.
 /// </summary>
 public record DesignBody
@@ -24,9 +24,9 @@ public record DesignBody
     public required DomainType MovementDomain { get; init; }
     public required decimal CampaignMovementPoints { get; init; }
     public required decimal BattlefieldMovementPoints { get; init; }
-    public required int MinStrength { get; init; }
-    public required int MaxStrength { get; init; }
-    public required int IncrementStrength { get; init; }
+    public required int MinimumUnitSize { get; init; }
+    public required int MaximumUnitSize { get; init; }
+    public required int SizeIncrement { get; init; }
 
     public required IReadOnlyCollection<string> TagCodes { get; init; }
     public required IReadOnlyCollection<DesignSlot> Slots { get; init; }

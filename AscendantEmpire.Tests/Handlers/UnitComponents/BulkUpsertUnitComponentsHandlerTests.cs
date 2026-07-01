@@ -285,9 +285,9 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
                 MovementDomain = DomainType.Land,
                 CampaignMovementPoints = 2m,
                 BattlefieldMovementPoints = 4m,
-                MinStrength = 1,
-                MaxStrength = 5,
-                IncrementStrength = 1,
+                MinimumUnitSize = 1,
+                MaximumUnitSize = 5,
+                SizeIncrement = 1,
             },
             // Inherent attack/defence the body itself contributes.
             Weapon = new UnitComponentWeaponDto { Attack = new DamageProfileDto { Crush = 300 }, MinimumRange = 0, MaximumRange = 1 },
@@ -568,7 +568,7 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
         // Re-import the same tag code re-classified as a Buff.
         var secondCatalog = new BulkUpsertUnitComponentsDto
         {
-            Tags = [new TagDto { Code = "sword", DisplayName = "Sword", TagType = TagType.Buff }],
+            Tags = [new TagDto { Code = "sword", DisplayName = "Sword", TagType = TagType.Combat }],
             Components = [BuildWeapon(WEAPON_CODE)],
         };
 
@@ -582,7 +582,7 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(tagCount, Is.EqualTo(1), "No duplicate tag should be created on re-import.");
-            Assert.That(updated, Is.EqualTo(TagType.Buff), "TagType should be overwritten on re-import.");
+            Assert.That(updated, Is.EqualTo(TagType.Combat), "TagType should be overwritten on re-import.");
         }
     }
 
@@ -661,7 +661,7 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
     {
         return new BulkUpsertUnitComponentsDto
         {
-            Tags = [new TagDto { Code = TAG_CODE, DisplayName = "Amphibious", TagType = TagType.Buff }],
+            Tags = [new TagDto { Code = TAG_CODE, DisplayName = "Amphibious", TagType = TagType.Classification }],
             Components =
             [
                 new UnitComponentDto
@@ -676,9 +676,9 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
                         MovementDomain = DomainType.Land,
                         CampaignMovementPoints = 3m,
                         BattlefieldMovementPoints = 6m,
-                        MinStrength = 1,
-                        MaxStrength = 10,
-                        IncrementStrength = 1,
+                        MinimumUnitSize = 1,
+                        MaximumUnitSize = 10,
+                        SizeIncrement = 1,
                     },
                     // Slots now live on the component itself, not the body extension.
                     Slots =

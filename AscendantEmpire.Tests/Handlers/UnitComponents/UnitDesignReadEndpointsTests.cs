@@ -63,7 +63,7 @@ internal class UnitDesignReadEndpointsTests : SqlServerTestBase
         context.Players.Add(player);
         await context.SaveChangesAsync();
 
-        var tag = new Tag { Code = "amphibious", DisplayName = "Amphibious", TagType = TagType.Buff };
+        var tag = new Tag { Code = "amphibious", DisplayName = "Amphibious", TagType = TagType.Ability };
 
         // Unlocked body with a single slot that accepts only Weapons.
         var body = new UnitComponent
@@ -80,9 +80,9 @@ internal class UnitDesignReadEndpointsTests : SqlServerTestBase
                 MovementDomain = DomainType.Land,
                 CampaignMovementPoints = 3m,
                 BattlefieldMovementPoints = 6m,
-                MinStrength = 1,
-                MaxStrength = 10,
-                IncrementStrength = 1,
+                MinimumUnitSize = 1,
+                MaximumUnitSize = 10,
+                SizeIncrement = 1,
             },
             // Slots now live on the component itself, not the body extension.
             Slots =

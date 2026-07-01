@@ -204,8 +204,8 @@ internal class CompileUnitTemplateHandler(
                 TotalVisibility = totalVisibility,
                 CampaignMovementPoints = body.CampaignMovementPoints,
                 BattlefieldMovementPoints = body.BattlefieldMovementPoints,
-                MinStrength = body.MinStrength,
-                MaxStrength = body.MaxStrength,
+                MinimumUnitSize = body.MinimumUnitSize,
+                MaximumUnitSize = body.MaximumUnitSize,
                 Attack = attack,
                 Resistance = resistance,
                 CompiledOnTurn = compiledOnTurn,
@@ -224,8 +224,8 @@ internal class CompileUnitTemplateHandler(
             existing.TotalVisibility = totalVisibility;
             existing.CampaignMovementPoints = body.CampaignMovementPoints;
             existing.BattlefieldMovementPoints = body.BattlefieldMovementPoints;
-            existing.MinStrength = body.MinStrength;
-            existing.MaxStrength = body.MaxStrength;
+            existing.MinimumUnitSize = body.MinimumUnitSize;
+            existing.MaximumUnitSize = body.MaximumUnitSize;
             existing.Attack = attack;
             existing.Resistance = resistance;
             existing.CompiledOnTurn = compiledOnTurn;

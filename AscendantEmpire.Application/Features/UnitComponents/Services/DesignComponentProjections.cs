@@ -26,9 +26,9 @@ public static class DesignComponentProjections
         MovementDomain = c.Body!.MovementDomain,
         CampaignMovementPoints = c.Body.CampaignMovementPoints,
         BattlefieldMovementPoints = c.Body.BattlefieldMovementPoints,
-        MinStrength = c.Body.MinStrength,
-        MaxStrength = c.Body.MaxStrength,
-        IncrementStrength = c.Body.IncrementStrength,
+        MinimumUnitSize = c.Body.MinimumUnitSize,
+        MaximumUnitSize = c.Body.MaximumUnitSize,
+        SizeIncrement = c.Body.SizeIncrement,
         TagCodes = c.Tags.Select(t => t.Tag.Code).ToList(),
         // Slots now live on the component itself, not the body extension.
         Slots = c.Slots

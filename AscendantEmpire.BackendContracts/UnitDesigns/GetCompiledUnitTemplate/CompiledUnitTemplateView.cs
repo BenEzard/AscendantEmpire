@@ -19,8 +19,8 @@ public record CompiledUnitTemplateView
     public required long TotalVisibility { get; init; }
     public required decimal CampaignMovementPoints { get; init; }
     public required decimal BattlefieldMovementPoints { get; init; }
-    public required int MinStrength { get; init; }
-    public required int MaxStrength { get; init; }
+    public required int MinimumUnitSize { get; init; }
+    public required int MaximumUnitSize { get; init; }
 
     public required CompiledDamageProfile Attack { get; init; }
     public required CompiledDamageProfile Resistance { get; init; }

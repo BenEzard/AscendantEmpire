@@ -55,9 +55,9 @@ internal class GetComponentHandler(
                                 MovementDomain = c.Body.MovementDomain,
                                 CampaignMovementPoints = c.Body.CampaignMovementPoints,
                                 BattlefieldMovementPoints = c.Body.BattlefieldMovementPoints,
-                                MinStrength = c.Body.MinStrength,
-                                MaxStrength = c.Body.MaxStrength,
-                                IncrementStrength = c.Body.IncrementStrength,
+                                MinimumUnitSize = c.Body.MinimumUnitSize,
+                                MaximumUnitSize = c.Body.MaximumUnitSize,
+                                SizeIncrement = c.Body.SizeIncrement,
                             },
                         Weapon = c.Weapon == null
                             ? null

@@ -65,9 +65,9 @@ export interface UnitComponentBody {
   movementDomain: DomainType;
   campaignMovementPoints: number;
   battlefieldMovementPoints: number;
-  minStrength: number;
-  maxStrength: number;
-  incrementStrength: number;
+  minimumUnitSize: number;
+  maximumUnitSize: number;
+  sizeIncrement: number;
 }
 
 /** Per-Domain damage multiplier for a weapon. Presence of an entry gates which Domains it can attack. */
@@ -173,9 +173,9 @@ export function createEmptyBody(): UnitComponentBody {
     movementDomain: "Land",
     campaignMovementPoints: 0,
     battlefieldMovementPoints: 0,
-    minStrength: 0,
-    maxStrength: 0,
-    incrementStrength: 0,
+    minimumUnitSize: 0,
+    maximumUnitSize: 0,
+    sizeIncrement: 0,
   };
 }
 
