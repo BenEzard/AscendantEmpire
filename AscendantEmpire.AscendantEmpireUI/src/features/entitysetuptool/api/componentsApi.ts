@@ -94,6 +94,7 @@ export async function bulkUpsertComponents(component: UnitComponent): Promise<Bu
         code: component.code,
         displayName: component.displayName,
         description: component.description,
+        designerImagePath: component.designerImagePath,
         componentType: component.componentType,
         weight: component.weight,
         detection: component.detection,
@@ -171,6 +172,7 @@ interface ComponentWire {
   code: string;
   displayName: string;
   description: string | null;
+  designerImagePath: string | null;
   componentType: ComponentType;
   weight: number;
   detection: number | null;
@@ -258,6 +260,7 @@ export function mapEditableComponentToModel(wire: EditableComponentWire): UnitCo
     code: component.code,
     displayName: component.displayName,
     description: component.description,
+    designerImagePath: component.designerImagePath,
     componentType: component.componentType,
     weight: component.weight,
     detection: component.detection,

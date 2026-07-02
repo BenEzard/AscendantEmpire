@@ -1213,6 +1213,9 @@ public class AscendantEmpireContext : DbContext
                 .HasMaxLength(UnitComponent.DISPLAY_NAME_MAX_LENGTH)
                 .IsRequired();
 
+            entity.Property(e => e.DesignerImagePath)
+                .HasMaxLength(UnitComponent.DESIGNER_IMAGE_PATH_MAX_LENGTH);
+
             entity.Property(e => e.ComponentType)
                 .HasConversion<int>()
                 .IsRequired();
@@ -1328,6 +1331,14 @@ public class AscendantEmpireContext : DbContext
 
             entity.Property(e => e.DisplayName)
                 .HasMaxLength(UnitComponentSlot.DISPLAY_NAME_MAX_LENGTH);
+
+            // Normalized (image-relative) slot offsets. 9,4 gives 0.0001 granularity with ample range
+            // for the rare slot that sits well outside the image bounds.
+            entity.Property(e => e.UIXPosition)
+                .HasPrecision(9, 4);
+
+            entity.Property(e => e.UIYPosition)
+                .HasPrecision(9, 4);
 
             // Slots now hang off any UnitComponent (not just bodies), so a fitted component can carry
             // its own slots for further nesting.

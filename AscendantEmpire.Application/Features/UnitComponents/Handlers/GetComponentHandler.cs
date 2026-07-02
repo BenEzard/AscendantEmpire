@@ -44,6 +44,7 @@ internal class GetComponentHandler(
                         Code = c.Code,
                         DisplayName = c.DisplayName,
                         Description = c.Description,
+                        DesignerImagePath = c.DesignerImagePath,
                         ComponentType = c.ComponentType,
                         Weight = c.Weight,
                         Detection = c.Detection,

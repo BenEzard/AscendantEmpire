@@ -37,14 +37,22 @@ public class UnitComponentSlot
     public bool IsLocked { get; set; }
 
     /// <summary>
-    /// X position where the slot sits on the UI.
+    /// Normalized X offset of the slot from the owning component's image center.
     /// </summary>
-    public int UIXPosition { get; set; }
+    /// <remarks>
+    /// 0 is the image center; -1 / +1 are the left / right edges (i.e. relative to the image half-width).
+    /// Values may fall outside -1..1 for slots that sit beyond the image bounds.
+    /// </remarks>
+    public decimal UIXPosition { get; set; }
 
     /// <summary>
-    /// Y position where the slot sits on the UI.
+    /// Normalized Y offset of the slot from the owning component's image center.
     /// </summary>
-    public int UIYPosition { get; set; }
+    /// <remarks>
+    /// 0 is the image center; -1 / +1 are the top / bottom edges (i.e. relative to the image half-height).
+    /// Values may fall outside -1..1 for slots that sit beyond the image bounds.
+    /// </remarks>
+    public decimal UIYPosition { get; set; }
 
     /// <summary>
     /// The component that owns (exposes) this slot.

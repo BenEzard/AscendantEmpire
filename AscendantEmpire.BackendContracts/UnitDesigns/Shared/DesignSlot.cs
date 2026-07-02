@@ -11,7 +11,10 @@ public record DesignSlot
     public string? DisplayName { get; init; }
     public required bool IsVisible { get; init; }
     public required bool IsLocked { get; init; }
-    public required int UIXPosition { get; init; }
-    public required int UIYPosition { get; init; }
+    /// <summary>Normalized X offset from the owning component's image center (0 = center, ±1 = edges).</summary>
+    public required decimal UIXPosition { get; init; }
+
+    /// <summary>Normalized Y offset from the owning component's image center (0 = center, ±1 = edges).</summary>
+    public required decimal UIYPosition { get; init; }
     public required IReadOnlyCollection<DesignSlotRule> Rules { get; init; }
 }

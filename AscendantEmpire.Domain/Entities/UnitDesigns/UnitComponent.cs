@@ -15,6 +15,7 @@ public class UnitComponent
 {
     public const int CODE_MAX_LENGTH = 50;
     public const int DISPLAY_NAME_MAX_LENGTH = 100;
+    public const int DESIGNER_IMAGE_PATH_MAX_LENGTH = 500;
 
     public int Id { get; set; }
 
@@ -31,6 +32,12 @@ public class UnitComponent
     /// Optional free-text description.
     /// </summary>
     public string? Description { get; set; }
+
+    /// <summary>
+    /// Optional path to the image shown for this component in the dev Entity Setup Tool.
+    /// </summary>
+    [MaxLength(DESIGNER_IMAGE_PATH_MAX_LENGTH)]
+    public string? DesignerImagePath { get; set; }
 
     public required ComponentType ComponentType { get; set; }
 

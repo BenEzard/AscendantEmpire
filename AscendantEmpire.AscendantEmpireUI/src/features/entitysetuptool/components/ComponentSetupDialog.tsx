@@ -27,6 +27,7 @@ import {
 import AttackSection from "./sections/AttackSection";
 import DefenceSection from "./sections/DefenceSection";
 import GeneralSection from "./sections/GeneralSection";
+import ImageSection from "./sections/ImageSection";
 import PropertiesSection from "./sections/PropertiesSection";
 import SlotsSection from "./sections/SlotsSection";
 import SupersessionSection from "./sections/SupersessionSection";
@@ -52,10 +53,17 @@ export default function ComponentSetupDialog({ open, onCancel, initialComponent,
   // while closed, so the reset arrives via effect — the key guarantees children mount against it).
   const [openInstance, setOpenInstance] = useState(0);
 
+  // PagedDialog itself never unmounts (Modal just renders null while closed), so its own active-section
+  // state would otherwise persist across closes — reopening the dialog would land back on whatever page
+  // was last viewed. Controlling it here and resetting alongside the component lets us force it back to
+  // the first page ("general") on every open.
+  const [activeSection, setActiveSection] = useState("general");
+
   useEffect(() => {
     if (open) {
       setComponent(initialComponent ?? createEmptyComponent());
       setOpenInstance((instance) => instance + 1);
+      setActiveSection("general");
     }
   }, [open, initialComponent]);
 
@@ -103,6 +111,8 @@ export default function ComponentSetupDialog({ open, onCancel, initialComponent,
       panelClassName="thick-border-modal"
       onCancel={onCancel}
       onCommit={handleCommit}
+      activeSection={activeSection}
+      onSectionChange={setActiveSection}
       header={
         error != null && (
           <Alert variant="danger" className="mb-3">
@@ -148,6 +158,11 @@ export default function ComponentSetupDialog({ open, onCancel, initialComponent,
               onChange={(slots) => setComponent((prev) => ({ ...prev, slots }))}
             />
           ),
+        },
+        {
+          key: "image",
+          label: "Image",
+          content: <ImageSection key={openInstance} component={component} onChange={setComponent} />,
         },
         {
           key: "tags",

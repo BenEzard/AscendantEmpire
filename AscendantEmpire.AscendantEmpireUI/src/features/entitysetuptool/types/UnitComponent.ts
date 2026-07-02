@@ -110,7 +110,11 @@ export interface UnitComponentSlotRule {
 
 /**
  * A slot this component exposes for fitting another component (any component type may carry slots).
- * `displayName` is an optional label; the UI position is used when laying the slot out on a unit canvas.
+ * `displayName` is an optional label. `uiXPosition` / `uiYPosition` are *normalized offsets from the
+ * owning component's image center*: (0, 0) is the centre, -1 / +1 are the left/right (X) or top/bottom
+ * (Y) edges (relative to the image's half-width / half-height), and values may fall outside -1..1 for
+ * slots that sit beyond the image bounds. Nested slots are therefore always relative to their own
+ * component's image, so a fitted component's slots compose naturally under the parent's position.
  */
 export interface UnitComponentSlot {
   displayName: string | null;
@@ -145,6 +149,8 @@ export interface UnitComponent {
   code: string;
   displayName: string;
   description: string | null;
+  /** Optional path to the image shown for this component in the dev Entity Setup Tool. */
+  designerImagePath: string | null;
   componentType: ComponentType;
   weight: number;
   /** Raw Scale-1,000; null means the component contributes no detection. */
@@ -290,6 +296,7 @@ export function createEmptyComponent(): UnitComponent {
     code: "",
     displayName: "",
     description: null,
+    designerImagePath: null,
     componentType: "Body",
     weight: 0,
     detection: null,

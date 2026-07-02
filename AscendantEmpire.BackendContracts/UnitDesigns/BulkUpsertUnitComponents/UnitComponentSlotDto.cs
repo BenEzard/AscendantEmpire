@@ -21,14 +21,14 @@ public record UnitComponentSlotDto
     public bool IsLocked { get; init; }
 
     /// <summary>
-    /// X position where the slot sits on the UI.
+    /// Normalized X offset of the slot from the owning component's image center (0 = center, ±1 = edges).
     /// </summary>
-    public int UIXPosition { get; init; }
+    public decimal UIXPosition { get; init; }
 
     /// <summary>
-    /// Y position where the slot sits on the UI.
+    /// Normalized Y offset of the slot from the owning component's image center (0 = center, ±1 = edges).
     /// </summary>
-    public int UIYPosition { get; init; }
+    public decimal UIYPosition { get; init; }
 
     /// <summary>
     /// Acceptance rules that decide which components may be fitted (1 or more).

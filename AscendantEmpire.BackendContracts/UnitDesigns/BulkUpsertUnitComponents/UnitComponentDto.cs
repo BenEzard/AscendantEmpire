@@ -23,6 +23,11 @@ public record UnitComponentDto
     /// </summary>
     public string? Description { get; init; }
 
+    /// <summary>
+    /// Optional path to the image shown for this component in the dev Entity Setup Tool.
+    /// </summary>
+    public string? DesignerImagePath { get; init; }
+
     public required ComponentType ComponentType { get; init; }
 
     /// <summary>

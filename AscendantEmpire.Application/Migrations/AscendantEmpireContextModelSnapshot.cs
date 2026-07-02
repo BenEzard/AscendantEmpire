@@ -1577,6 +1577,10 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("DesignerImagePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<long?>("Detection")
                         .HasColumnType("bigint");
 
@@ -1686,11 +1690,13 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<bool>("IsVisible")
                         .HasColumnType("bit");
 
-                    b.Property<int>("UIXPosition")
-                        .HasColumnType("int");
+                    b.Property<decimal>("UIXPosition")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("decimal(9,4)");
 
-                    b.Property<int>("UIYPosition")
-                        .HasColumnType("int");
+                    b.Property<decimal>("UIYPosition")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("decimal(9,4)");
 
                     b.Property<int>("UnitComponentId")
                         .HasColumnType("int");

@@ -49,8 +49,9 @@ interface SlotsSectionProps {
 
 export default function SlotsSection({ slots, onChange }: SlotsSectionProps) {
   // Collapse state is lifted up here (rather than local to each SlotCard) so addSlot can collapse every
-  // existing card at once. Keyed by array index, same as the slots array itself.
-  const [collapsedIndices, setCollapsedIndices] = useState<Set<number>>(new Set());
+  // existing card at once. Keyed by array index, same as the slots array itself. Starts with every
+  // existing slot collapsed so the page opens compact rather than dumping every card's fields at once.
+  const [collapsedIndices, setCollapsedIndices] = useState<Set<number>>(() => new Set(slots.map((_, i) => i)));
 
   // Replace the slot at `index` with `next`; add/remove operate on the whole array.
   const updateSlot = (index: number, next: UnitComponentSlot) => {
@@ -301,10 +302,12 @@ function SlotCard({
             </div>
           </FieldRow>
 
-          <FieldRow label="UI Position" hint="(x, y)">
+          {/* Normalized offset from the component image's center (0 = center, ±1 = edges). Usually set by
+              dragging on the Image page, but editable here for fine-tuning — hence the fractional step. */}
+          <FieldRow label="UI Position" hint="(x, y from center)">
             <div className="flex items-center gap-2">
-              <NumberField value={slot.uiXPosition} onChange={(next) => patch("uiXPosition", next)} />
-              <NumberField value={slot.uiYPosition} onChange={(next) => patch("uiYPosition", next)} />
+              <NumberField value={slot.uiXPosition} step={0.01} onChange={(next) => patch("uiXPosition", next)} />
+              <NumberField value={slot.uiYPosition} step={0.01} onChange={(next) => patch("uiYPosition", next)} />
             </div>
           </FieldRow>
 

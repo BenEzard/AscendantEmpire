@@ -547,6 +547,7 @@ internal class BulkUpsertUnitComponentsHandler(
             Code = dto.Code,
             DisplayName = dto.DisplayName,
             Description = dto.Description,
+            DesignerImagePath = dto.DesignerImagePath,
             ComponentType = dto.ComponentType,
             Weight = dto.Weight,
             Detection = dto.Detection,
@@ -640,6 +641,7 @@ internal class BulkUpsertUnitComponentsHandler(
     {
         existing.DisplayName = dto.DisplayName;
         existing.Description = dto.Description;
+        existing.DesignerImagePath = dto.DesignerImagePath;
         existing.Weight = dto.Weight;
         existing.Detection = dto.Detection;
         existing.Visibility = dto.Visibility;

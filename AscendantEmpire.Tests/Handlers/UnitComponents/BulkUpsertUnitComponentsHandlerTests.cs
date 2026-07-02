@@ -589,13 +589,15 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
     [Test, Description("A non-body component (a weapon) can carry slots; they round-trip on insert and are replaced on re-import.")]
     public async Task NonBodyComponentSlotsRoundTripAndReplaceAsync()
     {
-        // A weapon that itself exposes a slot accepting Equipment (e.g. a targeting module).
-        UnitComponentSlotDto Slot(string label, string acceptedType) => new()
+        // A weapon that itself exposes a slot accepting Equipment (e.g. a targeting module). The UI
+        // position is a normalized offset from the image center, so it carries fractional values that
+        // must round-trip exactly through the decimal column.
+        UnitComponentSlotDto Slot(string label, string acceptedType, decimal x = 0m, decimal y = 0m) => new()
         {
             DisplayName = label,
             IsVisible = true,
-            UIXPosition = 0,
-            UIYPosition = 0,
+            UIXPosition = x,
+            UIYPosition = y,
             Rules =
             [
                 new UnitComponentSlotRuleDto
@@ -607,7 +609,7 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
             ],
         };
 
-        UnitComponentDto weaponWithSlot = BuildWeapon(WEAPON_CODE) with { Slots = [Slot("Module", nameof(ComponentType.Equipment))] };
+        UnitComponentDto weaponWithSlot = BuildWeapon(WEAPON_CODE) with { Slots = [Slot("Module", nameof(ComponentType.Equipment), -0.9m, 0.4m)] };
 
         BulkUpsertUnitComponentsHandler insertHandler = await CreateHandlerAsync();
         await insertHandler.Handle(
@@ -624,6 +626,8 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
             {
                 Assert.That(weapon.Slots, Has.Count.EqualTo(1), "The weapon's slot should persist.");
                 Assert.That(weapon.Slots.Single().DisplayName, Is.EqualTo("Module"));
+                Assert.That(weapon.Slots.Single().UIXPosition, Is.EqualTo(-0.9m), "Fractional X position round-trips.");
+                Assert.That(weapon.Slots.Single().UIYPosition, Is.EqualTo(0.4m), "Fractional Y position round-trips.");
                 Assert.That(weapon.Slots.Single().Rules.Single().Value, Is.EqualTo(nameof(ComponentType.Equipment)));
             }
         }
