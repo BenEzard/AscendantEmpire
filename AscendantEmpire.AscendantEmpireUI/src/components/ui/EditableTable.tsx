@@ -8,7 +8,6 @@
 import type { ReactNode } from "react";
 import { HiTrash } from "react-icons/hi2";
 
-import Button from "./Button";
 import Tooltip from "./Tooltip";
 
 /** Describes one column: its header text and how to render the cell for a given row. */
@@ -60,15 +59,16 @@ export default function EditableTable<TRow>({
             {/* The "+" add button lives in the trailing header, directly above the per-row trash buttons. */}
             <th className="w-8 px-2 py-1 text-center">
               <Tooltip content={addLabel ? `Add ${addLabel}` : "Add row"}>
-                <Button
-                  variant="outline-primary"
-                  className="px-1.5 py-1 text-xs leading-none"
+                {/* Plain icon-only control (no border/padding), matching the per-row trash buttons. */}
+                <button
+                  type="button"
+                  className="text-lg leading-none text-[var(--bs-primary)] hover:opacity-70 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
                   disabled={addDisabled}
                   aria-label={addLabel ? `Add ${addLabel}` : "Add row"}
                   onClick={onAddRow}
                 >
                   +
-                </Button>
+                </button>
               </Tooltip>
             </th>
           </tr>

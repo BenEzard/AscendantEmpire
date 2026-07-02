@@ -20,11 +20,19 @@ export const COMPONENT_VALUE_SCALE = 1000;
  * The category a UnitComponent belongs to. Names match the C# `ComponentType` enum exactly so the
  * value round-trips to the backend without translation.
  */
-export type ComponentType = "Body" | "Weapon" | "Engine" | "Armour" | "Equipment" | "Training";
+export type ComponentType = "Body" | "Weapon" | "Engine" | "Armour" | "Equipment" | "Training" | "Extension";
 
 // Order follows the backend enum (minus the types not surfaced by this tool) so dropdowns read the
 // same as the design doc.
-export const COMPONENT_TYPES: readonly ComponentType[] = ["Body", "Weapon", "Engine", "Armour", "Equipment", "Training"];
+export const COMPONENT_TYPES: readonly ComponentType[] = ["Body", "Weapon", "Engine", "Armour", "Equipment", "Training", "Extension"];
+
+// The component types a slot's "ComponentType" acceptance rule may match against — every type except
+// Body, since a Body is a Unit Template's root and is never itself fitted into another component's
+// slot (see SlotRuleEvaluator on the backend). Sorted alphabetically rather than mirroring the backend
+// enum order, since this list is only ever shown as a rule-matching option list, not a type selector.
+export const SLOT_MATCHABLE_COMPONENT_TYPES: readonly ComponentType[] = COMPONENT_TYPES.filter((type) => type !== "Body")
+  .slice()
+  .sort((a, b) => a.localeCompare(b));
 
 /**
  * The Domain a body moves in / a weapon can engage. Names match the C# `DomainType` enum

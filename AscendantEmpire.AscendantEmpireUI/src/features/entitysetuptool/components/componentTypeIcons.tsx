@@ -4,7 +4,7 @@
 // features/map/components/mapEditorIcons.ts.
 
 import type { IconType } from "react-icons";
-import { GiBackpack, GiCrossedSwords, GiGears, GiPerson, GiShield, GiWeightLiftingUp } from "react-icons/gi";
+import { GiBackpack, GiCrossedSwords, GiGearHammer, GiGears, GiPerson, GiShield, GiWeightLiftingUp } from "react-icons/gi";
 
 import type { ComponentType } from "../types/UnitComponent";
 
@@ -16,4 +16,5 @@ export const componentTypeIcons: Record<ComponentType, IconType> = {
   Armour: GiShield,
   Equipment: GiBackpack,
   Training: GiWeightLiftingUp,
+  Extension: GiGearHammer,
 };

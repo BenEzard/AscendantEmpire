@@ -16,4 +16,11 @@ public enum ComponentType
     Armour,
     Equipment,
     Training,
+
+    /// <summary>
+    /// A component that fits into another component's slots but, unlike <see cref="Body"/>, may itself
+    /// be fitted into a slot (e.g. a pod or sub-assembly). Added at the end so existing stored values
+    /// (persisted as this enum's underlying int) are unaffected.
+    /// </summary>
+    Extension,
 }

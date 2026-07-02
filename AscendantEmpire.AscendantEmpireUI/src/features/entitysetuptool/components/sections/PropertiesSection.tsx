@@ -31,7 +31,7 @@ export default function PropertiesSection({ component, onChange }: PropertiesSec
     return <ArmourProperties armour={component.armour} onChange={(armour) => onChange({ ...component, armour })} />;
   }
 
-  // Engine, Equipment, Radar, System, Fitting, Training, Special — no type-specific properties yet.
+  // Engine, Equipment, Training, Extension, Radar, System, Fitting, Special — no type-specific properties yet.
   return (
     <div className="w-full max-w-xl text-sm text-slate-500">
       <p>The “{component.componentType}” component type has no additional properties.</p>
