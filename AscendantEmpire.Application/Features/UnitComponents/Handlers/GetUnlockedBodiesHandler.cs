@@ -49,6 +49,18 @@ internal class GetUnlockedBodiesHandler(
                 .Select(DesignComponentProjections.ToDesignBody)
                 .ToListAsync(cancelToken);
 
+            // The projection emits each slot's raw design-time lock flag; overlay the player's unlocks so
+            // an IsLocked slot the player has opened is reported as unlocked.
+            HashSet<int> unlockedSlotIds = await context.PlayerUnlockedSlots
+                .Where(u => u.PlayerId == request.PlayerId && u.ObsoleteOnTurn == null)
+                .Select(u => u.UnitComponentSlotId)
+                .ToHashSetAsync(cancelToken);
+
+            bodies = [.. bodies.Select(body => body with
+            {
+                Slots = DesignComponentProjections.WithPlayerLockState(body.Slots, unlockedSlotIds),
+            })];
+
             return ServiceResult<UnlockedBodiesResult>.Succeed(new UnlockedBodiesResult { Bodies = bodies });
         }
         catch (Exception ex)

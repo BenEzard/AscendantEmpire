@@ -120,4 +120,25 @@ public static class DesignComponentProjections
             .ToList(),
         TagCodes = c.Tags.Select(t => t.Tag.Code).ToList(),
     };
+
+    /// <summary>
+    /// Rewrites a projected slot collection so each slot's <see cref="DesignSlot.IsLocked"/> reflects the
+    /// requesting player, not just the design-time flag. A slot is locked for the player when it is
+    /// design-locked and the player has no active unlock row for it (see <c>PlayerUnlockedSlot</c>).
+    /// </summary>
+    /// <remarks>
+    /// The projections above emit the raw design-time <c>IsLocked</c> (correct for the dev god-view, which
+    /// has no player). Player-scoped read handlers call this to overlay per-player unlocks. Slots that are
+    /// not design-locked are returned unchanged, so no allocation happens in the common case.
+    /// </remarks>
+    public static IReadOnlyCollection<DesignSlot> WithPlayerLockState(
+        IReadOnlyCollection<DesignSlot> slots,
+        IReadOnlySet<int> unlockedSlotIds)
+    {
+        return [.. slots.Select(slot =>
+        {
+            bool lockedForPlayer = slot.IsLocked && !unlockedSlotIds.Contains(slot.Id);
+            return lockedForPlayer == slot.IsLocked ? slot : slot with { IsLocked = lockedForPlayer };
+        })];
+    }
 }

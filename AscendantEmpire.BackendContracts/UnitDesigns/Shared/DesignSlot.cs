@@ -10,6 +10,12 @@ public record DesignSlot
     public required int Id { get; init; }
     public string? DisplayName { get; init; }
     public required bool IsVisible { get; init; }
+
+    /// <summary>
+    /// Whether the slot is locked for the recipient. On the player-scoped read endpoints this is the
+    /// *effective* per-player value (design-locked and not yet unlocked by that player); on the dev
+    /// god-view, which has no player, it is the raw design-time flag.
+    /// </summary>
     public required bool IsLocked { get; init; }
     /// <summary>Normalized X offset from the owning component's image center (0 = center, ±1 = edges).</summary>
     public required decimal UIXPosition { get; init; }

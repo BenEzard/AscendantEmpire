@@ -51,6 +51,21 @@ internal class GetSlotCandidateComponentsHandler(
                     $"Slot {request.SlotId} was not found on component {request.OwnerComponentId}.");
             }
 
+            // The slots the player has unlocked, used both to gate this target slot and to overlay the
+            // per-player lock state onto any slots the candidate components themselves expose.
+            HashSet<int> unlockedSlotIds = await context.PlayerUnlockedSlots
+                .Where(u => u.PlayerId == request.PlayerId && u.ObsoleteOnTurn == null)
+                .Select(u => u.UnitComponentSlotId)
+                .ToHashSetAsync(cancelToken);
+
+            // A design-locked slot the player hasn't unlocked can't be filled, so it offers no candidates.
+            bool slotLockedForPlayer = slot.IsLocked && !unlockedSlotIds.Contains(slot.Id);
+
+            if (slotLockedForPlayer)
+            {
+                return ServiceResult<SlotCandidateComponentsResult>.Succeed(new SlotCandidateComponentsResult { Components = [] });
+            }
+
             IQueryable<int> unlockedComponentIds = context.PlayerUnlockedComponents
                 .Where(u => u.PlayerId == request.PlayerId && u.ObsoleteOnTurn == null)
                 .Select(u => u.UnitComponentId);
@@ -65,6 +80,11 @@ internal class GetSlotCandidateComponentsHandler(
 
             List<DesignComponent> accepted = unlocked
                 .Where(component => SlotRuleEvaluator.Accepts(component.ComponentType, component.TagCodes, slot.Rules))
+                .Select(component => component with
+                {
+                    // A candidate may itself expose slots, so overlay the player's unlocks on those too.
+                    Slots = DesignComponentProjections.WithPlayerLockState(component.Slots, unlockedSlotIds),
+                })
                 .ToList();
 
             return ServiceResult<SlotCandidateComponentsResult>.Succeed(new SlotCandidateComponentsResult { Components = accepted });

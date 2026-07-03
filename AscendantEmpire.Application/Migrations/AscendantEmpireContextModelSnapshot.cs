@@ -1480,6 +1480,28 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("PlayerUnlockedComponent", "unitdesigns");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.PlayerUnlockedSlot", b =>
+                {
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UnitComponentSlotId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ObsoleteOnTurn")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UnlockedOnTurn")
+                        .HasColumnType("int");
+
+                    b.HasKey("PlayerId", "UnitComponentSlotId");
+
+                    b.HasIndex("UnitComponentSlotId")
+                        .HasDatabaseName("IX_PlayerUnlockedSlot_UnitComponentSlot");
+
+                    b.ToTable("PlayerUnlockedSlot", "unitdesigns");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.PlayerUnlockedTemplate", b =>
                 {
                     b.Property<int>("PlayerId")
@@ -2696,6 +2718,27 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Player");
 
                     b.Navigation("UnitComponent");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.PlayerUnlockedSlot", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerUnlockedSlot_Player_PlayerId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentSlot", "Slot")
+                        .WithMany()
+                        .HasForeignKey("UnitComponentSlotId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerUnlockedSlot_UnitComponentSlot_UnitComponentSlotId");
+
+                    b.Navigation("Player");
+
+                    b.Navigation("Slot");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.PlayerUnlockedTemplate", b =>

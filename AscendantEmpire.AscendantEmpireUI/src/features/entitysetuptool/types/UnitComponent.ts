@@ -119,6 +119,11 @@ export interface UnitComponentSlotRule {
 export interface UnitComponentSlot {
   displayName: string | null;
   isVisible: boolean;
+  /**
+   * Whether the slot starts locked. A locked slot is closed for every player until they unlock it
+   * in-game (e.g. via tech); an unlocked (false) slot is always usable. This is the design-time default,
+   * not a per-player state — per-player unlocks are tracked server-side (PlayerUnlockedSlot).
+   */
   isLocked: boolean;
   uiXPosition: number;
   uiYPosition: number;
@@ -213,7 +218,10 @@ export function createEmptySlotRule(): UnitComponentSlotRule {
   return { ruleType: "ComponentType", operator: "Equals", value: "" };
 }
 
-/** A fresh, visible, unlocked slot at the origin with one starter rule (the backend wants at least one). */
+/**
+ * A fresh slot at the origin with one starter rule (the backend wants at least one). Defaults to visible
+ * and unlocked (`isLocked: false`), i.e. usable by every player until a designer marks it locked.
+ */
 export function createEmptySlot(): UnitComponentSlot {
   return {
     displayName: null,

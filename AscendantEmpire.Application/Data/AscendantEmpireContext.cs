@@ -189,6 +189,11 @@ public class AscendantEmpireContext : DbContext
     public DbSet<PlayerUnlockedTemplate> PlayerUnlockedTemplates { get; set; }
 
     /// <summary>
+    /// Per-player record of which otherwise-locked component slots have been unlocked.
+    /// </summary>
+    public DbSet<PlayerUnlockedSlot> PlayerUnlockedSlots { get; set; }
+
+    /// <summary>
     /// Assembled unit templates (global/common and custom player-owned).
     /// </summary>
     public DbSet<UnitTemplate> UnitTemplates { get; set; }
@@ -1449,6 +1454,29 @@ public class AscendantEmpireContext : DbContext
 
             entity.HasIndex(e => e.UnitComponentId)
                 .HasDatabaseName("IX_PlayerUnlockedComponent_UnitComponent");
+        });
+
+        // --- PlayerUnlockedSlot ----------------------------------------------------
+        modelBuilder.Entity<PlayerUnlockedSlot>(entity =>
+        {
+            entity.ToTable("PlayerUnlockedSlot", schema);
+
+            entity.HasKey(e => new { e.PlayerId, e.UnitComponentSlotId });
+
+            entity.HasOne(e => e.Player)
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerUnlockedSlot_Player_PlayerId");
+
+            entity.HasOne(e => e.Slot)
+                .WithMany()
+                .HasForeignKey(e => e.UnitComponentSlotId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerUnlockedSlot_UnitComponentSlot_UnitComponentSlotId");
+
+            entity.HasIndex(e => e.UnitComponentSlotId)
+                .HasDatabaseName("IX_PlayerUnlockedSlot_UnitComponentSlot");
         });
     }
 
