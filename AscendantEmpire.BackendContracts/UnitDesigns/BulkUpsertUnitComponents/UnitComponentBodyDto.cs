@@ -17,14 +17,24 @@ public record UnitComponentBodyDto
     public required DomainType MovementDomain { get; init; }
 
     /// <summary>
-    /// Movement Points available per turn on the campaign map.
+    /// Movement Points available per turn on the campaign map (raw fixed-point, Scale 1,000; 1,000 = 1.0).
     /// </summary>
-    public decimal CampaignMovementPoints { get; init; }
+    public long CampaignMovementPoints { get; init; }
 
     /// <summary>
-    /// Movement Points available per turn on the battlefield.
+    /// Movement Points available per turn on the battlefield (raw fixed-point, Scale 1,000; 1,000 = 1.0).
     /// </summary>
-    public decimal BattlefieldMovementPoints { get; init; }
+    public long BattlefieldMovementPoints { get; init; }
+
+    /// <summary>
+    /// The combat power this body contributes (raw fixed-point, Scale 1,000; 1,000 = 1.0).
+    /// </summary>
+    public long Power { get; init; }
+
+    /// <summary>
+    /// The hitpoints (health) this body has (raw fixed-point, Scale 1,000; 1,000 = 1.0).
+    /// </summary>
+    public long Hitpoints { get; init; }
 
     /// <summary>
     /// Minimum number of individuals in a Unit using this body (the smallest allowed unit size).

@@ -22,8 +22,19 @@ public record DesignBody
     public long? Visibility { get; init; }
 
     public required DomainType MovementDomain { get; init; }
-    public required decimal CampaignMovementPoints { get; init; }
-    public required decimal BattlefieldMovementPoints { get; init; }
+
+    /// <summary>Campaign-map movement points (raw fixed-point, Scale 1,000; 1,000 = 1.0).</summary>
+    public required long CampaignMovementPoints { get; init; }
+
+    /// <summary>Battlefield movement points (raw fixed-point, Scale 1,000; 1,000 = 1.0).</summary>
+    public required long BattlefieldMovementPoints { get; init; }
+
+    /// <summary>Combat power this body contributes (raw fixed-point, Scale 1,000; 1,000 = 1.0).</summary>
+    public required long Power { get; init; }
+
+    /// <summary>Hitpoints (health) this body has (raw fixed-point, Scale 1,000; 1,000 = 1.0).</summary>
+    public required long Hitpoints { get; init; }
+
     public required int MinimumUnitSize { get; init; }
     public required int MaximumUnitSize { get; init; }
     public required int SizeIncrement { get; init; }

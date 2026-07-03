@@ -68,11 +68,16 @@ export type DamageProfile = Record<DamageType, number>;
 /**
  * Body-only properties; present only when ComponentType is "Body". A body's inherent attack/defence
  * (if any) live in the component's optional `weapon`/`armour` extensions, not here.
+ *
+ * `campaignMovementPoints`, `battlefieldMovementPoints`, `power` and `hitpoints` are all raw Scale-1,000
+ * fixed-point values (1,000 raw = 1.0); edit them through ScaledNumberField so the user sees decimals.
  */
 export interface UnitComponentBody {
   movementDomain: DomainType;
   campaignMovementPoints: number;
   battlefieldMovementPoints: number;
+  power: number;
+  hitpoints: number;
   minimumUnitSize: number;
   maximumUnitSize: number;
   sizeIncrement: number;
@@ -192,6 +197,8 @@ export function createEmptyBody(): UnitComponentBody {
     movementDomain: "Land",
     campaignMovementPoints: 0,
     battlefieldMovementPoints: 0,
+    power: 0,
+    hitpoints: 0,
     minimumUnitSize: 0,
     maximumUnitSize: 0,
     sizeIncrement: 0,

@@ -1244,16 +1244,14 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("UnitTemplateId")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("BattlefieldMovementPoints")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("decimal(18,3)");
+                    b.Property<long>("BattlefieldMovementPoints")
+                        .HasColumnType("bigint");
 
                     b.Property<int>("BodyComponentId")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("CampaignMovementPoints")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("decimal(18,3)");
+                    b.Property<long>("CampaignMovementPoints")
+                        .HasColumnType("bigint");
 
                     b.Property<int>("CompiledOnTurn")
                         .HasColumnType("int");
@@ -1262,6 +1260,9 @@ namespace AscendantEmpire.Application.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<long>("Hitpoints")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("MapImagePath")
                         .IsRequired()
@@ -1276,6 +1277,9 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.Property<int>("MovementDomain")
                         .HasColumnType("int");
+
+                    b.Property<long>("Power")
+                        .HasColumnType("bigint");
 
                     b.Property<long>("TotalDetection")
                         .HasColumnType("bigint");
@@ -1669,13 +1673,14 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("UnitComponentId")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("BattlefieldMovementPoints")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("decimal(18,3)");
+                    b.Property<long>("BattlefieldMovementPoints")
+                        .HasColumnType("bigint");
 
-                    b.Property<decimal>("CampaignMovementPoints")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("decimal(18,3)");
+                    b.Property<long>("CampaignMovementPoints")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Hitpoints")
+                        .HasColumnType("bigint");
 
                     b.Property<int>("MaximumUnitSize")
                         .HasColumnType("int");
@@ -1685,6 +1690,9 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.Property<int>("MovementDomain")
                         .HasColumnType("int");
+
+                    b.Property<long>("Power")
+                        .HasColumnType("bigint");
 
                     b.Property<int>("SizeIncrement")
                         .HasColumnType("int");

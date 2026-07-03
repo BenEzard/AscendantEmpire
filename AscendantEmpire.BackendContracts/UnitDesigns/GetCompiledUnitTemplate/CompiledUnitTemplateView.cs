@@ -17,8 +17,12 @@ public record CompiledUnitTemplateView
     public required long TotalWeight { get; init; }
     public required long TotalDetection { get; init; }
     public required long TotalVisibility { get; init; }
-    public required decimal CampaignMovementPoints { get; init; }
-    public required decimal BattlefieldMovementPoints { get; init; }
+
+    // Movement/power/hitpoints are raw fixed-point longs (Scale 1,000; 1,000 = 1.0), copied from the body.
+    public required long CampaignMovementPoints { get; init; }
+    public required long BattlefieldMovementPoints { get; init; }
+    public required long Power { get; init; }
+    public required long Hitpoints { get; init; }
     public required int MinimumUnitSize { get; init; }
     public required int MaximumUnitSize { get; init; }
 

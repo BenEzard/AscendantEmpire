@@ -39,8 +39,11 @@ function mapDamageProfile(profile: DamageProfile) {
 function mapBody(body: UnitComponentBody) {
   return {
     movementDomain: body.movementDomain,
+    // Movement/power/hitpoints are raw Scale-1,000 longs, sent through as-is.
     campaignMovementPoints: body.campaignMovementPoints,
     battlefieldMovementPoints: body.battlefieldMovementPoints,
+    power: body.power,
+    hitpoints: body.hitpoints,
     minimumUnitSize: body.minimumUnitSize,
     maximumUnitSize: body.maximumUnitSize,
     sizeIncrement: body.sizeIncrement,
@@ -137,8 +140,11 @@ interface DamageProfileWire {
 
 interface BodyWire {
   movementDomain: DomainType;
+  // Raw Scale-1,000 fixed-point values.
   campaignMovementPoints: number;
   battlefieldMovementPoints: number;
+  power: number;
+  hitpoints: number;
   minimumUnitSize: number;
   maximumUnitSize: number;
   sizeIncrement: number;
@@ -205,6 +211,8 @@ function mapBodyFromWire(body: BodyWire): UnitComponentBody {
     movementDomain: body.movementDomain,
     campaignMovementPoints: body.campaignMovementPoints,
     battlefieldMovementPoints: body.battlefieldMovementPoints,
+    power: body.power,
+    hitpoints: body.hitpoints,
     minimumUnitSize: body.minimumUnitSize,
     maximumUnitSize: body.maximumUnitSize,
     sizeIncrement: body.sizeIncrement,

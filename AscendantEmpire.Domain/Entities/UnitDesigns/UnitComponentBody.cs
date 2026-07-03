@@ -25,12 +25,38 @@ public class UnitComponentBody
     /// <summary>
     /// Movement Points available per turn on the campaign map.
     /// </summary>
-    public decimal CampaignMovementPoints { get; set; }
+    /// <remarks>
+    /// Stored as a raw fixed-point integer using the Scale 1,000 convention of <c>ScaledAmount</c>
+    /// (1,000 raw = 1.0). Wrap via <c>ScaledAmount.FromRaw(...)</c> to do arithmetic.
+    /// </remarks>
+    public long CampaignMovementPoints { get; set; }
 
     /// <summary>
     /// Movement Points available per turn on the battlefield.
     /// </summary>
-    public decimal BattlefieldMovementPoints { get; set; }
+    /// <remarks>
+    /// Stored as a raw fixed-point integer using the Scale 1,000 convention of <c>ScaledAmount</c>
+    /// (1,000 raw = 1.0). Wrap via <c>ScaledAmount.FromRaw(...)</c> to do arithmetic.
+    /// </remarks>
+    public long BattlefieldMovementPoints { get; set; }
+
+    /// <summary>
+    /// The combat power this body contributes.
+    /// </summary>
+    /// <remarks>
+    /// Stored as a raw fixed-point integer using the Scale 1,000 convention of <c>ScaledAmount</c>
+    /// (1,000 raw = 1.0). Wrap via <c>ScaledAmount.FromRaw(...)</c> to do arithmetic.
+    /// </remarks>
+    public long Power { get; set; }
+
+    /// <summary>
+    /// The hitpoints (health) this body has.
+    /// </summary>
+    /// <remarks>
+    /// Stored as a raw fixed-point integer using the Scale 1,000 convention of <c>ScaledAmount</c>
+    /// (1,000 raw = 1.0). Wrap via <c>ScaledAmount.FromRaw(...)</c> to do arithmetic.
+    /// </remarks>
+    public long Hitpoints { get; set; }
 
     /// <summary>
     /// Minimum number of individuals in a Unit using this body (the smallest allowed unit size).

@@ -56,6 +56,8 @@ internal class GetComponentHandler(
                                 MovementDomain = c.Body.MovementDomain,
                                 CampaignMovementPoints = c.Body.CampaignMovementPoints,
                                 BattlefieldMovementPoints = c.Body.BattlefieldMovementPoints,
+                                Power = c.Body.Power,
+                                Hitpoints = c.Body.Hitpoints,
                                 MinimumUnitSize = c.Body.MinimumUnitSize,
                                 MaximumUnitSize = c.Body.MaximumUnitSize,
                                 SizeIncrement = c.Body.SizeIncrement,

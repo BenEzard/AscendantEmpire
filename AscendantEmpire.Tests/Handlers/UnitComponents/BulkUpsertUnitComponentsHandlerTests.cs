@@ -283,8 +283,9 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
             Body = new UnitComponentBodyDto
             {
                 MovementDomain = DomainType.Land,
-                CampaignMovementPoints = 2m,
-                BattlefieldMovementPoints = 4m,
+                // Raw fixed-point (Scale 1,000): 2,000 = 2.0 campaign, 4,000 = 4.0 battlefield movement points.
+                CampaignMovementPoints = 2000,
+                BattlefieldMovementPoints = 4000,
                 MinimumUnitSize = 1,
                 MaximumUnitSize = 5,
                 SizeIncrement = 1,
@@ -678,8 +679,9 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
                     Body = new UnitComponentBodyDto
                     {
                         MovementDomain = DomainType.Land,
-                        CampaignMovementPoints = 3m,
-                        BattlefieldMovementPoints = 6m,
+                        // Raw fixed-point (Scale 1,000): 3,000 = 3.0 campaign, 6,000 = 6.0 battlefield movement points.
+                        CampaignMovementPoints = 3000,
+                        BattlefieldMovementPoints = 6000,
                         MinimumUnitSize = 1,
                         MaximumUnitSize = 10,
                         SizeIncrement = 1,

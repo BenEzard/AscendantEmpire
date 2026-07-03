@@ -4,6 +4,7 @@
 // has no sparse key/value tables, so there's no working-row state to manage here.
 
 import { DOMAIN_TYPES, type DomainType, type UnitComponentBody } from "../../../types/UnitComponent";
+import ScaledNumberField from "../../ScaledNumberField";
 import { FieldRow, NumberField, inputClass } from "../../componentSetupFields";
 import { DOMAIN_TYPE_LABELS } from "../../componentSetupLabels";
 
@@ -36,12 +37,26 @@ export default function BodyProperties({ body, onChange }: BodyPropertiesProps) 
           </select>
         </FieldRow>
 
+        {/* Movement points are stored as raw Scale-1,000 longs; ScaledNumberField shows the decimal. */}
         <FieldRow label="Campaign Points">
-          <NumberField value={body.campaignMovementPoints} step={0.1} onChange={(next) => patch("campaignMovementPoints", next)} />
+          <ScaledNumberField rawValue={body.campaignMovementPoints} onChange={(next) => patch("campaignMovementPoints", next ?? 0)} />
         </FieldRow>
 
         <FieldRow label="Battlefield Points">
-          <NumberField value={body.battlefieldMovementPoints} step={0.1} onChange={(next) => patch("battlefieldMovementPoints", next)} />
+          <ScaledNumberField rawValue={body.battlefieldMovementPoints} onChange={(next) => patch("battlefieldMovementPoints", next ?? 0)} />
+        </FieldRow>
+      </fieldset>
+
+      <fieldset className="mt-3 rounded-md border border-slate-200 px-3 pb-1 pt-1">
+        <legend className="px-1 text-xs font-medium text-slate-500">Attributes</legend>
+
+        {/* Power and Hitpoints are stored as raw Scale-1,000 longs; ScaledNumberField shows the decimal. */}
+        <FieldRow label="Power">
+          <ScaledNumberField rawValue={body.power} onChange={(next) => patch("power", next ?? 0)} />
+        </FieldRow>
+
+        <FieldRow label="Hitpoints">
+          <ScaledNumberField rawValue={body.hitpoints} onChange={(next) => patch("hitpoints", next ?? 0)} />
         </FieldRow>
       </fieldset>
 

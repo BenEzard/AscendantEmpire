@@ -567,6 +567,8 @@ internal class BulkUpsertUnitComponentsHandler(
             MovementDomain = dto.MovementDomain,
             CampaignMovementPoints = dto.CampaignMovementPoints,
             BattlefieldMovementPoints = dto.BattlefieldMovementPoints,
+            Power = dto.Power,
+            Hitpoints = dto.Hitpoints,
             MinimumUnitSize = dto.MinimumUnitSize,
             MaximumUnitSize = dto.MaximumUnitSize,
             SizeIncrement = dto.SizeIncrement,
@@ -726,6 +728,8 @@ internal class BulkUpsertUnitComponentsHandler(
         body.MovementDomain = dto.MovementDomain;
         body.CampaignMovementPoints = dto.CampaignMovementPoints;
         body.BattlefieldMovementPoints = dto.BattlefieldMovementPoints;
+        body.Power = dto.Power;
+        body.Hitpoints = dto.Hitpoints;
         body.MinimumUnitSize = dto.MinimumUnitSize;
         body.MaximumUnitSize = dto.MaximumUnitSize;
         body.SizeIncrement = dto.SizeIncrement;

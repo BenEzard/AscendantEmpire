@@ -202,8 +202,11 @@ internal class CompileUnitTemplateHandler(
                 TotalWeight = totalWeight,
                 TotalDetection = totalDetection,
                 TotalVisibility = totalVisibility,
+                // Movement/power/hitpoints are raw fixed-point longs (Scale 1,000) copied straight from the body.
                 CampaignMovementPoints = body.CampaignMovementPoints,
                 BattlefieldMovementPoints = body.BattlefieldMovementPoints,
+                Power = body.Power,
+                Hitpoints = body.Hitpoints,
                 MinimumUnitSize = body.MinimumUnitSize,
                 MaximumUnitSize = body.MaximumUnitSize,
                 Attack = attack,
@@ -222,8 +225,11 @@ internal class CompileUnitTemplateHandler(
             existing.TotalWeight = totalWeight;
             existing.TotalDetection = totalDetection;
             existing.TotalVisibility = totalVisibility;
+            // Movement/power/hitpoints are raw fixed-point longs (Scale 1,000) copied straight from the body.
             existing.CampaignMovementPoints = body.CampaignMovementPoints;
             existing.BattlefieldMovementPoints = body.BattlefieldMovementPoints;
+            existing.Power = body.Power;
+            existing.Hitpoints = body.Hitpoints;
             existing.MinimumUnitSize = body.MinimumUnitSize;
             existing.MaximumUnitSize = body.MaximumUnitSize;
             existing.Attack = attack;

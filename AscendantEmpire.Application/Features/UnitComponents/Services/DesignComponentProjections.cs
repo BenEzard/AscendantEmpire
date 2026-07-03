@@ -24,8 +24,11 @@ public static class DesignComponentProjections
         Detection = c.Detection,
         Visibility = c.Visibility,
         MovementDomain = c.Body!.MovementDomain,
+        // These are raw fixed-point longs (Scale 1,000); DesignBody carries them through unchanged.
         CampaignMovementPoints = c.Body.CampaignMovementPoints,
         BattlefieldMovementPoints = c.Body.BattlefieldMovementPoints,
+        Power = c.Body.Power,
+        Hitpoints = c.Body.Hitpoints,
         MinimumUnitSize = c.Body.MinimumUnitSize,
         MaximumUnitSize = c.Body.MaximumUnitSize,
         SizeIncrement = c.Body.SizeIncrement,

@@ -33,8 +33,18 @@ public class CompiledUnitTemplate
     /// <summary>Aggregated visibility across the unit's components (fixed-point, Scale 1,000).</summary>
     public long TotalVisibility { get; set; }
 
-    public decimal CampaignMovementPoints { get; set; }
-    public decimal BattlefieldMovementPoints { get; set; }
+    /// <summary>Campaign-map movement points, copied from the body (raw fixed-point, Scale 1,000; 1,000 = 1.0).</summary>
+    public long CampaignMovementPoints { get; set; }
+
+    /// <summary>Battlefield movement points, copied from the body (raw fixed-point, Scale 1,000; 1,000 = 1.0).</summary>
+    public long BattlefieldMovementPoints { get; set; }
+
+    /// <summary>Combat power, copied from the body (raw fixed-point, Scale 1,000; 1,000 = 1.0).</summary>
+    public long Power { get; set; }
+
+    /// <summary>Hitpoints (health), copied from the body (raw fixed-point, Scale 1,000; 1,000 = 1.0).</summary>
+    public long Hitpoints { get; set; }
+
     public int MinimumUnitSize { get; set; }
     public int MaximumUnitSize { get; set; }
 
