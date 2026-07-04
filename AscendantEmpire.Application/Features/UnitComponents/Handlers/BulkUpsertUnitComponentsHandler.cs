@@ -605,6 +605,7 @@ internal class BulkUpsertUnitComponentsHandler(
             Attack = ToDamageProfile(dto.Attack),
             MinimumRange = dto.MinimumRange,
             MaximumRange = dto.MaximumRange,
+            DualWield = dto.DualWield,
             DomainModifiers = [.. dto.DomainModifiers.Select(BuildDomainModifier)],
         };
     }
@@ -800,6 +801,7 @@ internal class BulkUpsertUnitComponentsHandler(
         weapon.Attack = ToDamageProfile(dto.Attack);
         weapon.MinimumRange = dto.MinimumRange;
         weapon.MaximumRange = dto.MaximumRange;
+        weapon.DualWield = dto.DualWield;
 
         MergeDomainModifiers(weapon, dto.DomainModifiers);
     }

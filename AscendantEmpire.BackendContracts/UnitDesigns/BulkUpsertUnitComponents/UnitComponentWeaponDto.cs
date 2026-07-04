@@ -21,6 +21,11 @@ public record UnitComponentWeaponDto
     public int MaximumRange { get; init; }
 
     /// <summary>
+    /// Whether this weapon is wielded two at a time (e.g. dual pistols).
+    /// </summary>
+    public bool DualWield { get; init; }
+
+    /// <summary>
     /// The target Domains this weapon can engage, each with a per-Domain damage multiplier.
     /// </summary>
     public IReadOnlyCollection<UnitComponentWeaponDomainModifierDto> DomainModifiers { get; init; } = [];

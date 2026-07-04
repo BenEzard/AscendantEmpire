@@ -76,6 +76,7 @@ internal class GetComponentHandler(
                                 },
                                 MinimumRange = c.Weapon.MinimumRange,
                                 MaximumRange = c.Weapon.MaximumRange,
+                                DualWield = c.Weapon.DualWield,
                                 DomainModifiers = c.Weapon.DomainModifiers
                                     .Select(m => new UnitComponentWeaponDomainModifierDto
                                     {

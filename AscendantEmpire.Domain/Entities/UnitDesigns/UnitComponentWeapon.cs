@@ -36,6 +36,12 @@ public class UnitComponentWeapon
     /// </summary>
     public int MaximumRange { get; set; }
 
+    /// <summary>
+    /// Whether this weapon is wielded two at a time (e.g. dual pistols). Purely descriptive for now —
+    /// it does not yet affect attack calculation.
+    /// </summary>
+    public bool DualWield { get; set; }
+
     public UnitComponent UnitComponent { get; set; } = null!;
 
     /// <summary>

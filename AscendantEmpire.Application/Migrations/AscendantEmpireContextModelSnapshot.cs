@@ -1790,6 +1790,9 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("UnitComponentId")
                         .HasColumnType("int");
 
+                    b.Property<bool>("DualWield")
+                        .HasColumnType("bit");
+
                     b.Property<int>("MaximumRange")
                         .HasColumnType("int");
 

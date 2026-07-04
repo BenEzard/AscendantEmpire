@@ -55,6 +55,7 @@ function mapWeapon(weapon: UnitComponentWeapon) {
     attack: mapDamageProfile(weapon.attack),
     minimumRange: weapon.minimumRange,
     maximumRange: weapon.maximumRange,
+    dualWield: weapon.dualWield,
     // WeaponDomainModifiers is a sparse record keyed by DomainType — flatten to the DTO list shape.
     domainModifiers: (Object.entries(weapon.domainModifiers) as [DomainType, number][]).map(
       ([domain, damageMultiplier]) => ({ domain, damageMultiplier }),
@@ -154,6 +155,7 @@ interface WeaponWire {
   attack: DamageProfileWire;
   minimumRange: number;
   maximumRange: number;
+  dualWield: boolean;
   domainModifiers: { domain: DomainType; damageMultiplier: number }[];
 }
 
@@ -231,6 +233,7 @@ function mapWeaponFromWire(weapon: WeaponWire): UnitComponentWeapon {
     attack: mapDamageProfileFromWire(weapon.attack),
     minimumRange: weapon.minimumRange,
     maximumRange: weapon.maximumRange,
+    dualWield: weapon.dualWield,
     domainModifiers,
   };
 }

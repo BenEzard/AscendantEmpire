@@ -108,6 +108,8 @@ export interface UnitComponentWeapon {
   attack: DamageProfile;
   minimumRange: number;
   maximumRange: number;
+  /** Whether this weapon is wielded two at a time (e.g. dual pistols). */
+  dualWield: boolean;
   /** Target Domains this weapon can engage, each with a raw Scale-1,000 damage multiplier (1,000 = 100%). */
   domainModifiers: WeaponDomainModifiers;
 }
@@ -228,7 +230,8 @@ export function createEmptyWeapon(): UnitComponentWeapon {
   return {
     attack: createEmptyDamageProfile(),
     minimumRange: 0,
-    maximumRange: 1,
+    maximumRange: 0,
+    dualWield: false,
     domainModifiers: {},
   };
 }

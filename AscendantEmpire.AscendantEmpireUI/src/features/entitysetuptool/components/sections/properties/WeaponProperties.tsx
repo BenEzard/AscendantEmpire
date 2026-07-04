@@ -73,6 +73,10 @@ export default function WeaponProperties({ weapon, onChange }: WeaponPropertiesP
     emit({ base: { ...weapon, minimumRange: next.min, maximumRange: next.max } });
   };
 
+  const handleDualWieldChange = (next: boolean) => {
+    emit({ base: { ...weapon, dualWield: next } });
+  };
+
   return (
     <div className="w-full max-w-xl">
       <div className="mb-1 text-sm font-semibold text-slate-700">Attack</div>
@@ -98,6 +102,13 @@ export default function WeaponProperties({ weapon, onChange }: WeaponPropertiesP
           step={1}
           onChange={handleRangeChange}
         />
+      </div>
+
+      <div className="mt-3">
+        <label className="flex items-center gap-1.5 text-sm text-slate-700">
+          <input type="checkbox" checked={weapon.dualWield} onChange={(e) => handleDualWieldChange(e.target.checked)} />
+          Dual Wield
+        </label>
       </div>
 
       {/* Domain modifiers: each row is a Domain the weapon can engage, with its damage multiplier. */}
