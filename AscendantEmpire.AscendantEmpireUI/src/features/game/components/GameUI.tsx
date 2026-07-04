@@ -302,7 +302,11 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
 
         <div className="flex flex-col grow min-h-0">
           {activePanel === "unit-design" ? (
-            <UnitDesigner onClose={() => setActivePanel(null)} />
+            <UnitDesigner
+              onClose={() => setActivePanel(null)}
+              onSaveSuccess={(msg) => openToast(msg, "success")}
+              onSaveError={(msg) => openToast(msg, "danger")}
+            />
           ) : (
             <div className="mt-3">
               {gameSelection == null ? (

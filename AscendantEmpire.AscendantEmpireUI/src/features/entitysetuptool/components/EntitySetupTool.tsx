@@ -34,10 +34,14 @@ export default function EntitySetupTool() {
   // Controls the TagSetupDialog opened by the Tags group's "Add Tag" button.
   const [showTagSetup, setShowTagSetup] = useState(false);
 
-  // Controls the full-screen Unit Designer overlay opened by the Designer group. The designer self-loads
-  // the catalogue and assembles a template; persistence is a follow-up (no unit-template endpoint yet),
-  // so it opens in edit mode with no onSave handler — assemble/inspect only.
+  // Controls the full-screen Unit Designer overlay opened by the Designer group. Saves here persist a
+  // global/common catalog template (saveAsGlobal) rather than a player-owned custom one, since this dev
+  // tool never acquires a game/player token.
   const [showDesigner, setShowDesigner] = useState(false);
+
+  // Success/error toast messages for the Unit Designer's Save button.
+  const [templateSuccessMessage, setTemplateSuccessMessage] = useState<string | null>(null);
+  const [templateErrorMessage, setTemplateErrorMessage] = useState<string | null>(null);
 
   // When set, the respective dialog opens in edit mode seeded from this item; undefined = blank "Add".
   const [initialComponent, setInitialComponent] = useState<UnitComponent | undefined>(undefined);
@@ -286,16 +290,25 @@ export default function EntitySetupTool() {
         error={tagError}
       />
 
-      {/* Full-screen Unit Designer overlay. Edit mode, no onSave (template persistence is a follow-up). */}
+      {/* Full-screen Unit Designer overlay. saveAsGlobal routes Save to the dev tool's catalog endpoints
+          (POST/PUT /unit-design/templates/global), which need no game/player token. */}
       {showDesigner && (
         <div className="fixed inset-0 z-40 flex flex-col">
-          <UnitDesigner mode="edit" onClose={() => setShowDesigner(false)} />
+          <UnitDesigner
+            mode="edit"
+            saveAsGlobal
+            onClose={() => setShowDesigner(false)}
+            onSaveSuccess={setTemplateSuccessMessage}
+            onSaveError={setTemplateErrorMessage}
+          />
         </div>
       )}
 
       <ToastViewport>
         <Toast open={componentSuccessMessage !== null} message={componentSuccessMessage} variant="success" onClose={() => setComponentSuccessMessage(null)} />
         <Toast open={tagSuccessMessage !== null} message={tagSuccessMessage} variant="success" onClose={() => setTagSuccessMessage(null)} />
+        <Toast open={templateSuccessMessage !== null} message={templateSuccessMessage} variant="success" onClose={() => setTemplateSuccessMessage(null)} />
+        <Toast open={templateErrorMessage !== null} message={templateErrorMessage} variant="danger" onClose={() => setTemplateErrorMessage(null)} />
       </ToastViewport>
     </div>
   );

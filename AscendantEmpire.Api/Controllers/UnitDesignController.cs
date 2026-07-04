@@ -9,6 +9,8 @@ using AscendantEmpire.BackendContracts.UnitDesigns.GetPlayerTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetSlotCandidateComponents;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetTags;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetUnlockedBodies;
+using AscendantEmpire.BackendContracts.UnitDesigns.SaveGlobalUnitTemplate;
+using AscendantEmpire.BackendContracts.UnitDesigns.SaveUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.UpsertTag;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.UnitDesigns.BulkUpsertUnitComponents;
@@ -147,6 +149,77 @@ public class UnitDesignController : ControllerBase
     }
 
     /// <summary>
+    /// Create a new custom (player-owned) unit template from an assembled design.
+    /// </summary>
+    /// <remarks>
+    /// The game and player are read from the caller's game token, not the request. Persists the draft
+    /// template only — finalizing/prototyping (which compiles a stats snapshot) is a separate, later step.
+    /// </remarks>
+    /// <response code="201">The template was created; returns the created template</response>
+    /// <response code="400">Validation error, or the assembled design fails slot-acceptance rules</response>
+    /// <response code="403">No game entered, or a referenced component has not been unlocked by the player</response>
+    /// <response code="404">The base or a fitted component code does not exist in the catalog</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize]
+    [HttpPost("templates")]
+    [ProducesResponseType(typeof(UnitTemplateView), 201)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 403)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> CreateUnitTemplateAsync(
+        [FromServices] IMediator mediator,
+        [FromBody] SaveUnitTemplateDto request,
+        CancellationToken cancelToken)
+    {
+        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
+        {
+            return contextError!;
+        }
+
+        ServiceResult<UnitTemplateView> response =
+            await mediator.Send(new CreateUnitTemplateRequest(gameId, playerId, request), cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Update an existing custom (player-owned) unit template, replacing its base and fitted components.
+    /// </summary>
+    /// <remarks>
+    /// The game and player are read from the caller's game token, not the request. Only the template's own
+    /// owner may update it; any other caller (or an unknown id) gets a not-found.
+    /// </remarks>
+    /// <response code="200">The template was updated; returns the updated template</response>
+    /// <response code="400">Validation error, or the assembled design fails slot-acceptance rules</response>
+    /// <response code="403">No game entered, or a referenced component has not been unlocked by the player</response>
+    /// <response code="404">No custom template exists with the given id (owned by the caller), or a referenced component code does not exist</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize]
+    [HttpPut("templates/{templateId:int}")]
+    [ProducesResponseType(typeof(UnitTemplateView), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 403)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> UpdateUnitTemplateAsync(
+        [FromServices] IMediator mediator,
+        int templateId,
+        [FromBody] SaveUnitTemplateDto request,
+        CancellationToken cancelToken)
+    {
+        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
+        {
+            return contextError!;
+        }
+
+        ServiceResult<UnitTemplateView> response =
+            await mediator.Send(new UpdateUnitTemplateRequest(gameId, playerId, templateId, request), cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
     /// Get the compiled snapshot of a finalized template (aggregated stats, resolved components and capabilities).
     /// </summary>
     /// <remarks>
@@ -214,6 +287,66 @@ public class UnitDesignController : ControllerBase
     {
         ServiceResult<EditableComponentResult> response =
             await mediator.Send(new GetComponentRequest(code), cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Dev design tool: create a new global/common unit template in the shared catalog.
+    /// </summary>
+    /// <remarks>
+    /// TODO: lock down before any non-dev deployment. This endpoint is intentionally left unauthorized for now;
+    /// it must be gated behind a dev/admin policy (or mapped only in Development) before shipping, since it writes the shared template catalog.
+    /// Unlike the player-facing create endpoint, this template has no game/player, its Code is required and unique, and no unlock check is applied.
+    /// </remarks>
+    /// <response code="201">The template was created; returns the created template</response>
+    /// <response code="400">Validation error, or the assembled design fails slot-acceptance rules</response>
+    /// <response code="404">The base or a fitted component code does not exist in the catalog</response>
+    /// <response code="409">A template with the same code already exists</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpPost("templates/global")]
+    [ProducesResponseType(typeof(GlobalUnitTemplateView), 201)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 409)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> CreateGlobalUnitTemplateAsync(
+        [FromServices] IMediator mediator,
+        [FromBody] SaveGlobalUnitTemplateDto request,
+        CancellationToken cancelToken)
+    {
+        ServiceResult<GlobalUnitTemplateView> response =
+            await mediator.Send(new CreateGlobalUnitTemplateRequest(request), cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Dev design tool: update an existing global/common unit template in the shared catalog.
+    /// </summary>
+    /// <remarks>
+    /// TODO: lock down before any non-dev deployment. This endpoint is intentionally left unauthorized for now;
+    /// it must be gated behind a dev/admin policy (or mapped only in Development) before shipping, since it writes the shared template catalog.
+    /// </remarks>
+    /// <response code="200">The template was updated; returns the updated template</response>
+    /// <response code="400">Validation error, or the assembled design fails slot-acceptance rules</response>
+    /// <response code="404">No global template exists with the given id, or a referenced component code does not exist</response>
+    /// <response code="409">Another template already uses the requested code</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpPut("templates/global/{id:int}")]
+    [ProducesResponseType(typeof(GlobalUnitTemplateView), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 409)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> UpdateGlobalUnitTemplateAsync(
+        [FromServices] IMediator mediator,
+        int id,
+        [FromBody] SaveGlobalUnitTemplateDto request,
+        CancellationToken cancelToken)
+    {
+        ServiceResult<GlobalUnitTemplateView> response =
+            await mediator.Send(new UpdateGlobalUnitTemplateRequest(id, request), cancelToken);
 
         return response.ToActionResult();
     }

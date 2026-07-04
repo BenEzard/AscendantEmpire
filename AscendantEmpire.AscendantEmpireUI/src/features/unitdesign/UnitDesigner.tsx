@@ -1,17 +1,37 @@
 import DesignProperties from "./DesignProperties";
 import UnitDesignHeader from "./UnitDesignHeader";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import SlotPlaceHolder from "./SlotPlaceHolder";
 import ComponentSelectionWindow from "./ComponentSelectionWindow";
 
 import type { UnitComponent } from "./types/UnitComponent";
 import { useUnitDesignCatalog } from "./api/useUnitDesignCatalog";
+import {
+  createGlobalUnitTemplate,
+  createUnitTemplate,
+  type SaveGlobalUnitTemplatePayload,
+  type SaveUnitTemplatePayload,
+} from "./api/templatesApi";
 import { componentSatisfiesSlot } from "./model/slotRules";
 import { aggregateDesign, type UnitDesign } from "./model/unitDesign";
 import { toPixel, type ImageBox } from "./model/slotImagePosition";
 
 /** Sentinel slotIndex used for the central base slot (the base body itself). */
 const BASE_SLOT_INDEX = -1;
+
+/**
+ * Derives a stable catalog code from a display name (dev/global save flow only, where a Code is required
+ * but the header's naming textbox only collects one field): lowercase, non-alphanumerics collapsed to a
+ * single underscore, leading/trailing underscores trimmed.
+ */
+function slugify(displayName: string): string {
+  return displayName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
 
 export interface UnitDesignerProps {
   /** "edit" (default) allows changing the base and fitted components; "view" is read-only. */
@@ -23,12 +43,31 @@ export interface UnitDesignerProps {
   catalog?: UnitComponent[];
   /** An existing design to open. Defaults to empty (nothing chosen). */
   design?: UnitDesign;
-  /** When provided (and mode is "edit"), a Save button hands the assembled design back to the host. */
-  onSave?: (design: UnitDesign) => void;
+  /**
+   * When provided (and mode is "edit"), a Save button is shown that persists the assembled design via the
+   * backend, then reports the resulting success message.
+   */
+  onSaveSuccess?: (message: string) => void;
+  /** Called with a user-facing message when the save request fails. */
+  onSaveError?: (message: string) => void;
+  /**
+   * When true, Save persists a global/common catalog template (the dev tool's flow) instead of a
+   * player-owned custom one — no game/player token required, and a Code is derived from the display name
+   * since the header's naming textbox only collects one field.
+   */
+  saveAsGlobal?: boolean;
   onClose?: () => void;
 }
 
-export default function UnitDesigner({ mode = "edit", catalog: injectedCatalog, design, onSave, onClose }: UnitDesignerProps) {
+export default function UnitDesigner({
+  mode = "edit",
+  catalog: injectedCatalog,
+  design,
+  onSaveSuccess,
+  onSaveError,
+  saveAsGlobal = false,
+  onClose,
+}: UnitDesignerProps) {
   const editable = mode === "edit";
 
   // Source the catalogue from the host when injected, otherwise self-load it.
@@ -45,9 +84,18 @@ export default function UnitDesigner({ mode = "edit", catalog: injectedCatalog, 
   // Which slot's selection window is open (null = closed). BASE_SLOT_INDEX targets the base itself.
   const [selectionOpenFor, setSelectionOpenFor] = useState<null | { slotIndex: number }>(null);
 
-  // The base image wrapper is the positioning canvas: slot offsets are normalized to its half-extent.
-  const imageBoxRef = useRef<HTMLDivElement | null>(null);
-  const [imageBox, setImageBox] = useState<ImageBox>({ width: 0, height: 0 });
+  // The area available for the design canvas — used only to size the placeholder square when no base
+  // image is chosen yet, and to cap how large a chosen image renders.
+  const canvasAreaRef = useRef<HTMLDivElement | null>(null);
+  const [canvasSize, setCanvasSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+
+  // The actual rendered <img> element and its measured box. Slot uiXPosition/uiYPosition are normalized
+  // against the image's own rendered box (see model/slotImagePosition.ts) — the same reference frame
+  // ComponentSetupDialog's Image tab measures via its own imgRef/clientWidth/clientHeight. Measuring the
+  // wrapper div instead (as this used to) diverges whenever object-fit letterboxes the image within a
+  // differently-shaped box, silently shifting every slot off its authored position.
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const [imgBox, setImgBox] = useState<ImageBox>({ width: 0, height: 0 });
 
   const componentByCode = useMemo(() => {
     const map = new Map<string, UnitComponent>();
@@ -73,23 +121,44 @@ export default function UnitDesigner({ mode = "edit", catalog: injectedCatalog, 
     });
   }, [baseSlots.length]);
 
-  // Measure the base image wrapper so normalized slot positions can be projected to pixels.
+  // Measure the available canvas area, used to size the no-image placeholder and cap a chosen image.
   useEffect(() => {
-    const element = imageBoxRef.current;
+    const element = canvasAreaRef.current;
     if (!element) {
       return;
     }
 
     const update = () => {
       const rect = element.getBoundingClientRect();
-      setImageBox({ width: rect.width, height: rect.height });
+      setCanvasSize({ width: rect.width, height: rect.height });
     };
 
     update();
     const observer = new ResizeObserver(() => update());
     observer.observe(element);
     return () => observer.disconnect();
-  }, [baseComponent?.code]);
+  }, []);
+
+  // Measure the actual <img> element's rendered box (mirrors ComponentSetupDialog's ImageSection).
+  const measureImg = () => {
+    const img = imgRef.current;
+    if (!img) {
+      return;
+    }
+    setImgBox({ width: img.clientWidth, height: img.clientHeight });
+  };
+
+  useEffect(() => {
+    const img = imgRef.current;
+    if (!img) {
+      return;
+    }
+
+    const observer = new ResizeObserver(() => measureImg());
+    observer.observe(img);
+    return () => observer.disconnect();
+    // Re-attach whenever the base (and so its image src) changes.
+  }, [baseComponent?.designerImagePath]);
 
   if (!isVisible) {
     return null;
@@ -162,20 +231,78 @@ export default function UnitDesigner({ mode = "edit", catalog: injectedCatalog, 
     setSlotComponentCodes((prev) => prev.map((code, index) => (index === selectionOpenFor.slotIndex ? selectedCode : code)));
   };
 
-  const handleSave = onSave
-    ? () => onSave({ baseCode, slotComponentCodes })
+  const saveMutation = useMutation({
+    mutationFn: (payload: SaveUnitTemplatePayload) => createUnitTemplate(payload),
+  });
+
+  const saveGlobalMutation = useMutation({
+    mutationFn: (payload: SaveGlobalUnitTemplatePayload) => createGlobalUnitTemplate(payload),
+  });
+
+  const handleSave = onSaveSuccess
+    ? (displayName: string) => {
+        if (baseCode == null || baseComponent == null) {
+          return;
+        }
+
+        const mapImagePath = baseComponent.designerImagePath ?? "";
+
+        if (saveAsGlobal) {
+          const payload: SaveGlobalUnitTemplatePayload = {
+            code: slugify(displayName),
+            displayName,
+            mapImagePath,
+            baseCode,
+            slotComponentCodes,
+          };
+
+          saveGlobalMutation.mutate(payload, {
+            onSuccess: (template) => onSaveSuccess(`Saved "${template.displayName}" (${template.code}).`),
+            onError: (error) => onSaveError?.(error instanceof Error ? error.message : "Could not save the template."),
+          });
+          return;
+        }
+
+        const payload: SaveUnitTemplatePayload = {
+          displayName,
+          mapImagePath,
+          baseCode,
+          slotComponentCodes,
+        };
+
+        saveMutation.mutate(payload, {
+          onSuccess: (template) => onSaveSuccess(`Saved "${template.displayName}".`),
+          onError: (error) => onSaveError?.(error instanceof Error ? error.message : "Could not save the template."),
+        });
+      }
     : undefined;
 
-  // Half-extents used to project a slot's normalized (uiX, uiY) into pixels within the image wrapper.
-  const halfWidth = imageBox.width / 2;
-  const halfHeight = imageBox.height / 2;
-  const basePixel = toPixel(0, 0, imageBox);
+  const hasImage = baseComponent?.designerImagePath != null;
+
+  // A square placeholder box for when no base image is chosen yet, so slots still have a frame to sit in.
+  const fallbackSize = Math.max(0, Math.min(canvasSize.width, canvasSize.height) * 0.7);
+
+  // The box slot positions are projected against: the actual rendered <img> box when one is shown
+  // (matching ComponentSetupDialog's Image tab), else the fallback placeholder square.
+  const referenceBox: ImageBox = hasImage ? imgBox : { width: fallbackSize, height: fallbackSize };
+
+  // Half-extents used to project a slot's normalized (uiX, uiY) into pixels within the reference box.
+  const halfWidth = referenceBox.width / 2;
+  const halfHeight = referenceBox.height / 2;
+  const basePixel = toPixel(0, 0, referenceBox);
 
   return (
     <div
       className="relative flex flex-col bg-sky-800"
       style={{ width: "100%", height: "100%", flex: 1, minHeight: 0 }}>
-      <UnitDesignHeader onClose={handleClose} onReset={resetDesign} onSave={editable ? handleSave : undefined} canSave={baseCode != null} />
+      <UnitDesignHeader
+        onClose={handleClose}
+        onReset={resetDesign}
+        onSave={editable ? handleSave : undefined}
+        canSave={baseCode != null}
+        defaultDisplayName={baseComponent?.displayName ?? ""}
+        saving={saveMutation.isPending || saveGlobalMutation.isPending}
+      />
 
       <div className="flex flex-1 min-h-0">
         <div className="relative flex-1" style={{ minWidth: 0, minHeight: 0 }}>
@@ -183,15 +310,24 @@ export default function UnitDesigner({ mode = "edit", catalog: injectedCatalog, 
           {selfLoad && loading && <div className="absolute inset-0 flex items-center justify-center text-white/80">Loading catalogue…</div>}
           {selfLoad && !loading && error && <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-red-300">{error}</div>}
 
-          {/* The design canvas: a centered square wrapper holding the base image and slot placeholders. */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div ref={imageBoxRef} className="relative h-[70%] aspect-square">
-              {baseComponent?.designerImagePath && (
+          {/* The design canvas: a centered wrapper holding the base image and slot placeholders. The
+              wrapper is sized to its content (inline-block) rather than a fixed box, so it always
+              coincides exactly with the rendered <img>'s own box — the same reference frame slot
+              positions were authored against in ComponentSetupDialog's Image tab. */}
+          <div ref={canvasAreaRef} className="absolute inset-0 flex items-center justify-center">
+            <div className="relative inline-block" style={!hasImage ? { width: fallbackSize, height: fallbackSize } : undefined}>
+              {hasImage && (
                 <img
-                  src={baseComponent.designerImagePath}
-                  alt={baseComponent.displayName}
-                  className="pointer-events-none absolute inset-0 h-full w-full object-contain opacity-80"
+                  ref={imgRef}
+                  src={baseComponent!.designerImagePath!}
+                  alt={baseComponent!.displayName}
+                  className="pointer-events-none block opacity-80"
+                  style={{
+                    maxHeight: canvasSize.height ? canvasSize.height * 0.85 : undefined,
+                    maxWidth: canvasSize.width ? canvasSize.width * 0.85 : undefined,
+                  }}
                   draggable={false}
+                  onLoad={measureImg}
                 />
               )}
 
