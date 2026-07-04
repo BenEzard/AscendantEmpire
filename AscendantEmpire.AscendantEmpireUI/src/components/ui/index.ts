@@ -36,3 +36,5 @@ export { default as EditableTable } from "./EditableTable";
 export type { EditableTableColumn, EditableTableProps } from "./EditableTable";
 export { default as CodeField, toCodeChars, toCodeSlug } from "./CodeField";
 export type { CodeFieldProps } from "./CodeField";
+export { default as SearchableComboBox } from "./SearchableComboBox";
+export type { SearchableComboBoxProps } from "./SearchableComboBox";

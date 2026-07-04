@@ -162,6 +162,7 @@ interface ArmourWire {
 }
 
 interface SlotWire {
+  id?: number;
   displayName: string | null;
   isVisible: boolean;
   isLocked: boolean;
@@ -240,6 +241,7 @@ function mapArmourFromWire(armour: ArmourWire): UnitComponentArmour {
 
 function mapSlotFromWire(slot: SlotWire): UnitComponentSlot {
   return {
+    id: slot.id,
     displayName: slot.displayName,
     isVisible: slot.isVisible,
     isLocked: slot.isLocked,

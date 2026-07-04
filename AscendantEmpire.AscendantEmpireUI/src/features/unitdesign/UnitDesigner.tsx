@@ -4,17 +4,23 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import SlotPlaceHolder from "./SlotPlaceHolder";
 import ComponentSelectionWindow from "./ComponentSelectionWindow";
+import Modal from "@/components/ui/Modal";
+import Button from "@/components/ui/Button";
 
 import type { UnitComponent } from "./types/UnitComponent";
 import { useUnitDesignCatalog } from "./api/useUnitDesignCatalog";
 import {
   createGlobalUnitTemplate,
   createUnitTemplate,
+  getGlobalTemplates,
+  getPlayerTemplates,
   type SaveGlobalUnitTemplatePayload,
   type SaveUnitTemplatePayload,
+  type TemplateSummary,
 } from "./api/templatesApi";
 import { componentSatisfiesSlot } from "./model/slotRules";
 import { aggregateDesign, type UnitDesign } from "./model/unitDesign";
+import { resolveTemplateDesign } from "./model/templateToDesign";
 import { toPixel, type ImageBox } from "./model/slotImagePosition";
 
 /** Sentinel slotIndex used for the central base slot (the base body itself). */
@@ -83,6 +89,50 @@ export default function UnitDesigner({
 
   // Which slot's selection window is open (null = closed). BASE_SLOT_INDEX targets the base itself.
   const [selectionOpenFor, setSelectionOpenFor] = useState<null | { slotIndex: number }>(null);
+
+  // The templates offered by the header's "Load template…" combo box: the master/global catalogue for
+  // the dev tool (saveAsGlobal), or the current game/player's available templates otherwise — mirroring
+  // the same flag that already picks the Save endpoint. Fetched once on mount, edit mode only (a
+  // read-only viewer shouldn't be able to swap out the design it was given).
+  const [templates, setTemplates] = useState<TemplateSummary[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(editable);
+  const [templatesError, setTemplatesError] = useState<string | null>(null);
+
+  // Set when a template is picked while a design is already in progress, so a confirmation can be shown
+  // before it overwrites the current base/slots; null when no confirmation is pending.
+  const [pendingTemplate, setPendingTemplate] = useState<TemplateSummary | null>(null);
+
+  useEffect(() => {
+    if (!editable) {
+      return;
+    }
+
+    let cancelled = false;
+    setTemplatesLoading(true);
+    setTemplatesError(null);
+
+    const load = saveAsGlobal ? getGlobalTemplates() : getPlayerTemplates();
+    load
+      .then((result) => {
+        if (!cancelled) {
+          setTemplates(result);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setTemplatesError(err instanceof Error ? err.message : "Failed to load templates.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setTemplatesLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [editable, saveAsGlobal]);
 
   // The area available for the design canvas — used only to size the placeholder square when no base
   // image is chosen yet, and to cap how large a chosen image renders.
@@ -173,6 +223,37 @@ export default function UnitDesigner({
     setSelectionOpenFor(null);
     setBaseCode(null);
     setSlotComponentCodes([]);
+  };
+
+  // Loads a picked template's base + fitted components straight into the design, replacing whatever is
+  // currently assembled.
+  const applyTemplate = (template: TemplateSummary) => {
+    const resolved = resolveTemplateDesign(template, catalog);
+    if (resolved == null) {
+      onSaveError?.(`Could not load "${template.displayName}": its base component is missing from the catalogue.`);
+      return;
+    }
+
+    setSelectionOpenFor(null);
+    setBaseCode(resolved.baseCode);
+    setSlotComponentCodes(resolved.slotComponentCodes);
+  };
+
+  // A template is applied immediately when nothing is assembled yet; otherwise confirmation is required
+  // first, since loading would silently discard the in-progress design.
+  const handleSelectTemplate = (template: TemplateSummary) => {
+    if (baseCode != null) {
+      setPendingTemplate(template);
+      return;
+    }
+    applyTemplate(template);
+  };
+
+  const confirmPendingTemplate = () => {
+    if (pendingTemplate) {
+      applyTemplate(pendingTemplate);
+    }
+    setPendingTemplate(null);
   };
 
   // Fitted components resolved from their codes (nulls / unknown codes dropped) for aggregation.
@@ -302,6 +383,10 @@ export default function UnitDesigner({
         canSave={baseCode != null}
         defaultDisplayName={baseComponent?.displayName ?? ""}
         saving={saveMutation.isPending || saveGlobalMutation.isPending}
+        onSelectTemplate={editable ? handleSelectTemplate : undefined}
+        templates={templates}
+        templatesLoading={templatesLoading}
+        templatesError={templatesError}
       />
 
       <div className="flex flex-1 min-h-0">
@@ -386,6 +471,23 @@ export default function UnitDesigner({
           onClose={() => setSelectionOpenFor(null)}
         />
       )}
+
+      <Modal
+        open={pendingTemplate != null}
+        title="Replace current design?"
+        onClose={() => setPendingTemplate(null)}
+        footer={
+          <>
+            <Button variant="light" onClick={() => setPendingTemplate(null)}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={confirmPendingTemplate}>
+              Load Template
+            </Button>
+          </>
+        }>
+        Loading &ldquo;{pendingTemplate?.displayName}&rdquo; will discard the design currently assembled here.
+      </Modal>
     </div>
   );
 }

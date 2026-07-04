@@ -97,9 +97,14 @@ internal class GetComponentHandler(
                                     Poison = c.Armour.Resistance.Poison,
                                 },
                             },
+                        // Ordered by Id to match the canonical slot order UnitTemplateAssembly uses when a
+                        // template is saved (baseComponent.Slots.OrderBy(s => s.Id)), so a template loaded
+                        // back into the designer can match its fitted components onto the right slot.
                         Slots = c.Slots
+                            .OrderBy(s => s.Id)
                             .Select(s => new UnitComponentSlotDto
                             {
+                                Id = s.Id,
                                 DisplayName = s.DisplayName,
                                 IsVisible = s.IsVisible,
                                 IsLocked = s.IsLocked,

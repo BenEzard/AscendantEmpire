@@ -138,6 +138,8 @@ export interface UnitComponentSlotRule {
  * component's image, so a fitted component's slots compose naturally under the parent's position.
  */
 export interface UnitComponentSlot {
+  /** The slot's database id. Present when read from the backend; absent for a freshly-authored slot. */
+  id?: number;
   displayName: string | null;
   isVisible: boolean;
   /**

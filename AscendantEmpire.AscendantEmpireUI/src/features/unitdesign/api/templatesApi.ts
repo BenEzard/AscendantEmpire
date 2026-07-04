@@ -71,3 +71,59 @@ export async function updateGlobalUnitTemplate(id: number, payload: SaveGlobalUn
   const { data } = await http.put<GlobalUnitTemplateView>(`/unit-design/templates/global/${id}`, payload);
   return data;
 }
+
+// --- template listing (for the designer's "load a template" combo box) -------------------------
+
+/** A component fitted into one of a template's slots (mirrors the backend DesignTemplateComponent). */
+export interface TemplateComponentSummary {
+  id: number;
+  /** Null when fitted into a body slot directly; otherwise the parent fitted-component's id (nesting). */
+  parentTemplateComponentId: number | null;
+  unitComponentSlotId: number;
+  unitComponentId: number;
+  componentCode: string;
+  componentDisplayName: string;
+  componentType: string;
+}
+
+/** A unit template as listed for loading (mirrors the backend DesignTemplate). */
+export interface TemplateSummary {
+  id: number;
+  /** Stable key for global/common templates; null for custom player-owned ones. */
+  code: string | null;
+  displayName: string;
+  description: string | null;
+  mapImagePath: string;
+  /** True for the player's own custom template; false for a global/common one. */
+  isCustom: boolean;
+  hasBeenPrototyped: boolean;
+  bodyComponentId: number;
+  bodyComponentCode: string;
+  bodyComponentDisplayName: string;
+  components: TemplateComponentSummary[];
+}
+
+/** Wire shape shared by GET /unit-design/catalog and GET /unit-design/templates: only `templates` is read here. */
+interface TemplatesWire {
+  templates: TemplateSummary[];
+}
+
+/**
+ * Dev tool: the master/global unit-template catalogue, unrelated to any game — for the Entity Setup
+ * Tool's "load a template" combo box. Reads GET /unit-design/catalog (the unfiltered dev god-view) and
+ * keeps only the global/common templates (`!isCustom`), dropping the per-game custom ones it also returns.
+ */
+export async function getGlobalTemplates(): Promise<TemplateSummary[]> {
+  const { data } = await http.get<TemplatesWire>("/unit-design/catalog");
+  return data.templates.filter((template) => !template.isCustom);
+}
+
+/**
+ * The templates available to the current player in the current game — global/common templates they've
+ * unlocked plus their own custom ones. Reads GET /unit-design/templates, which is already scoped to the
+ * caller's game/player by their token, so no client-side filtering is needed.
+ */
+export async function getPlayerTemplates(): Promise<TemplateSummary[]> {
+  const { data } = await http.get<TemplatesWire>("/unit-design/templates");
+  return data.templates;
+}

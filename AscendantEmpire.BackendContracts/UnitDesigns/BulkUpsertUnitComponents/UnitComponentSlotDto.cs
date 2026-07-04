@@ -6,6 +6,13 @@ namespace AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 public record UnitComponentSlotDto
 {
     /// <summary>
+    /// The slot's database id. Populated on reads (e.g. the dev designer's component fetch) so a saved
+    /// template's fitted components — keyed by this id — can be matched back onto the right slot; null
+    /// on writes, since the bulk-upsert path replaces a component's slots wholesale and never reads it.
+    /// </summary>
+    public int? Id { get; init; }
+
+    /// <summary>
     /// Optional label shown for the slot.
     /// </summary>
     public string? DisplayName { get; init; }

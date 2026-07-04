@@ -1,6 +1,9 @@
 import Button from "@/components/ui/Button";
+import { SearchableComboBox } from "@/components/ui";
 import { useState } from "react";
 import { VscNewFile } from "react-icons/vsc";
+
+import type { TemplateSummary } from "./api/templatesApi";
 
 export interface UnitDesignHeaderProps {
   onClose: () => void;
@@ -17,6 +20,17 @@ export interface UnitDesignHeaderProps {
   defaultDisplayName?: string;
   /** True while a save request is in flight — disables Save/Confirm and shows a busy label. */
   saving?: boolean;
+  /**
+   * When provided, a "Load template…" combo box is shown next to the title, listing these templates.
+   * Picking one calls this with the chosen template.
+   */
+  onSelectTemplate?: (template: TemplateSummary) => void;
+  /** The templates the combo box lists (master catalogue in the dev tool, or the current game/player's in-game). */
+  templates?: TemplateSummary[];
+  /** While true, the combo box shows a busy state instead of the template list. */
+  templatesLoading?: boolean;
+  /** When set, the combo box shows this message instead of the template list. */
+  templatesError?: string | null;
 }
 
 export default function UnitDesignHeader({
@@ -26,6 +40,10 @@ export default function UnitDesignHeader({
   canSave = true,
   defaultDisplayName = "",
   saving = false,
+  onSelectTemplate,
+  templates = [],
+  templatesLoading = false,
+  templatesError = null,
 }: UnitDesignHeaderProps) {
   // Clicking Save doesn't persist immediately — it opens this inline textbox (prefilled with
   // defaultDisplayName) so the player can confirm or edit the template's name first.
@@ -59,6 +77,19 @@ export default function UnitDesignHeader({
           onClick={onReset}>
           <VscNewFile className="h-4 w-4" aria-hidden />
         </button>
+        {onSelectTemplate && (
+          <SearchableComboBox<TemplateSummary>
+            items={templates}
+            loading={templatesLoading}
+            error={templatesError}
+            getKey={(template) => template.id}
+            getPrimaryText={(template) => template.displayName}
+            getSecondaryText={(template) => (template.isCustom ? "Custom" : (template.code ?? ""))}
+            getSearchText={(template) => `${template.displayName} ${template.code ?? ""}`}
+            placeholder="Load template…"
+            onSelect={onSelectTemplate}
+          />
+        )}
       </div>
       <div className="flex items-center gap-2">
         {onSave && naming && (
