@@ -1,11 +1,10 @@
 import type { ReactNode } from "react";
-import type { Domain } from "./types/Domain";
 import type { DamageType } from "./types/DamageType";
 import type { IconType } from "react-icons";
-import type { WeaponDamageProfile } from "./types/UnitComponent";
+import type { DamageProfile, DomainType } from "./types/UnitComponent";
 import Tooltip from "@/components/ui/Tooltip";
 
-import { ALL_DAMAGE_TYPES } from "./types/UnitComponent";
+import { ALL_DAMAGE_TYPES, rawToScaled } from "./types/UnitComponent";
 import { DAMAGE_TYPE_BADGES } from "./types/damageTypeBadges";
 import { PiSword } from "react-icons/pi";
 import { BsShield } from "react-icons/bs";
@@ -22,11 +21,11 @@ const ROW_BADGES = {
  * armour supplies `resistance`. Whichever fields are present get a row.
  */
 export interface BattleStatsData {
-  attack?: WeaponDamageProfile;
-  resistance?: WeaponDamageProfile;
+  attack?: DamageProfile;
+  resistance?: DamageProfile;
   minimumRange?: number;
   maximumRange?: number;
-  domainModifiers?: Partial<Record<Domain, number>>;
+  domainModifiers?: Partial<Record<DomainType, number>>;
 }
 
 function fmt(n: number) {
@@ -38,11 +37,13 @@ function round1(n: number) {
   return Math.round(n * 10) / 10;
 }
 
+// Damage profiles are stored as raw Scale-1,000 fixed-point; convert to friendly decimals for display.
 function DamageCell({ current, existing }: { current: number; existing?: number }) {
-  if (existing == null) return <>{fmt(current)}</>;
+  const currentScaled = rawToScaled(current);
+  if (existing == null) return <>{fmt(currentScaled)}</>;
 
-  const currentRounded = round1(current);
-  const existingRounded = round1(existing);
+  const currentRounded = round1(currentScaled);
+  const existingRounded = round1(rawToScaled(existing));
   const deltaRounded = round1(currentRounded - existingRounded);
 
   if (!Number.isFinite(deltaRounded)) return <>{fmt(deltaRounded)}</>;
@@ -57,8 +58,8 @@ function DamageRow({
   existingValues,
 }: {
   label: ReactNode;
-  values: WeaponDamageProfile;
-  existingValues?: WeaponDamageProfile;
+  values: DamageProfile;
+  existingValues?: DamageProfile;
 }) {
   return (
     <div className="flex items-center justify-between gap-3 text-xs">
@@ -91,8 +92,8 @@ export function BattleStats({ stats, existingStats, className }: { stats: Battle
     return iconBadge(meta.title, <Icon className="h-4 w-4" aria-label={meta.title} />);
   };
 
-  // Domain modifiers are rendered as a compact "Land ×1, Air ×0.5" list.
-  const domainModifierEntries = Object.entries(stats.domainModifiers ?? {}) as [Domain, number][];
+  // Domain modifiers are rendered as a compact "Land ×1, Air ×0.5" list. Multipliers are raw Scale-1,000.
+  const domainModifierEntries = Object.entries(stats.domainModifiers ?? {}) as [DomainType, number][];
 
   return (
     <div className={className ?? "-mx-2 rounded-md border border-white/10 bg-sky-900/30 px-3 py-2"}>
@@ -136,7 +137,7 @@ export function BattleStats({ stats, existingStats, className }: { stats: Battle
         {domainModifierEntries.length > 0 && (
           <div className="flex items-center justify-between gap-3 text-xs text-white/80">
             <div>Targets</div>
-            <div className="text-white">{domainModifierEntries.map(([d, m]) => `${d} ×${m}`).join(", ")}</div>
+            <div className="text-white">{domainModifierEntries.map(([d, m]) => `${d} ×${rawToScaled(m)}`).join(", ")}</div>
           </div>
         )}
       </div>

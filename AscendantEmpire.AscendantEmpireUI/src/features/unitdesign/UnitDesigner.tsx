@@ -4,315 +4,249 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import SlotPlaceHolder from "./SlotPlaceHolder";
 import ComponentSelectionWindow from "./ComponentSelectionWindow";
 
-import { DUMMY_UNIT_COMPONENTS } from "./dummyUnitComponents";
-import { ALL_DAMAGE_TYPES } from "./types/UnitComponent";
-import type { BattleStatsData } from "./BattleStats";
-import type { BaseSlotType, ComponentCost, ComponentUpkeep, UnitComponent } from "./types/UnitComponent";
-import type { UnitComponentType } from "./types/UnitComponentType";
-import type { DamageType } from "./types/DamageType";
+import type { UnitComponent } from "./types/UnitComponent";
+import { useUnitDesignCatalog } from "./api/useUnitDesignCatalog";
+import { componentSatisfiesSlot } from "./model/slotRules";
+import { aggregateDesign, type UnitDesign } from "./model/unitDesign";
+import { toPixel, type ImageBox } from "./model/slotImagePosition";
 
-function makeInitialSlotPlaceholders() {
-  return [
-    {
-      componentId: 1,
-      type: "base" as const,
-      label: "Base",
-      offsetX: 0,
-      offsetY: 0,
-      selectedComponentId: null as number | null,
-      selectedName: null as string | null,
-    },
-  ];
-}
+/** Sentinel slotIndex used for the central base slot (the base body itself). */
+const BASE_SLOT_INDEX = -1;
 
 export interface UnitDesignerProps {
+  /** "edit" (default) allows changing the base and fitted components; "view" is read-only. */
+  mode?: "view" | "edit";
+  /**
+   * Fully-hydrated component catalogue. When omitted, the designer self-loads it from the API — hosts
+   * only need to inject this for tests or when they already hold the catalogue.
+   */
+  catalog?: UnitComponent[];
+  /** An existing design to open. Defaults to empty (nothing chosen). */
+  design?: UnitDesign;
+  /** When provided (and mode is "edit"), a Save button hands the assembled design back to the host. */
+  onSave?: (design: UnitDesign) => void;
   onClose?: () => void;
 }
 
-export default function UnitDesigner({ onClose }: UnitDesignerProps) {
+export default function UnitDesigner({ mode = "edit", catalog: injectedCatalog, design, onSave, onClose }: UnitDesignerProps) {
+  const editable = mode === "edit";
+
+  // Source the catalogue from the host when injected, otherwise self-load it.
+  const selfLoad = injectedCatalog === undefined;
+  const { catalog: loadedCatalog, loading, error } = useUnitDesignCatalog(selfLoad);
+  const catalog = injectedCatalog ?? loadedCatalog;
+
   const [isVisible, setIsVisible] = useState(true);
-  const surfaceRef = useRef<HTMLDivElement | null>(null);
 
-  const [surfaceSize, setSurfaceSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
+  // The assembled design: the chosen base code + the fitted component code per base slot (by index).
+  const [baseCode, setBaseCode] = useState<string | null>(design?.baseCode ?? null);
+  const [slotComponentCodes, setSlotComponentCodes] = useState<(string | null)[]>(design?.slotComponentCodes ?? []);
 
-  const [slotPlaceholders, setSlotPlaceholders] = useState<
-    Array<{
-      componentId: number;
-      type: UnitComponentType;
-      label: string;
-      /** Normalized offsets from the base center (0,0). */
-      offsetX: number;
-      offsetY: number;
-      selectedComponentId?: number | null;
-      selectedName?: string | null;
-    }>
-  >([]);
-  const [selectionOpenFor, setSelectionOpenFor] = useState<null | { componentId: number; type: UnitComponentType }>(null);
+  // Which slot's selection window is open (null = closed). BASE_SLOT_INDEX targets the base itself.
+  const [selectionOpenFor, setSelectionOpenFor] = useState<null | { slotIndex: number }>(null);
 
-  if (!isVisible) return null;
+  // The base image wrapper is the positioning canvas: slot offsets are normalized to its half-extent.
+  const imageBoxRef = useRef<HTMLDivElement | null>(null);
+  const [imageBox, setImageBox] = useState<ImageBox>({ width: 0, height: 0 });
+
+  const componentByCode = useMemo(() => {
+    const map = new Map<string, UnitComponent>();
+    for (const component of catalog) {
+      map.set(component.code, component);
+    }
+    return map;
+  }, [catalog]);
+
+  const baseComponent = useMemo(() => (baseCode != null ? (componentByCode.get(baseCode) ?? null) : null), [baseCode, componentByCode]);
+
+  // Slots exposed by the chosen base body (empty until a base is picked).
+  const baseSlots = baseComponent?.slots ?? [];
+
+  // Keep the slot-assignment array length in step with the current base's slot count.
+  useEffect(() => {
+    setSlotComponentCodes((prev) => {
+      if (prev.length === baseSlots.length) {
+        return prev;
+      }
+      const next = baseSlots.map((_, index) => prev[index] ?? null);
+      return next;
+    });
+  }, [baseSlots.length]);
+
+  // Measure the base image wrapper so normalized slot positions can be projected to pixels.
+  useEffect(() => {
+    const element = imageBoxRef.current;
+    if (!element) {
+      return;
+    }
+
+    const update = () => {
+      const rect = element.getBoundingClientRect();
+      setImageBox({ width: rect.width, height: rect.height });
+    };
+
+    update();
+    const observer = new ResizeObserver(() => update());
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [baseComponent?.code]);
+
+  if (!isVisible) {
+    return null;
+  }
 
   const handleClose = () => {
     setIsVisible(false);
     onClose?.();
   };
 
-  const resetToInitialView = () => {
+  const resetDesign = () => {
     setSelectionOpenFor(null);
-    setSlotPlaceholders(makeInitialSlotPlaceholders());
+    setBaseCode(null);
+    setSlotComponentCodes([]);
   };
 
-  useEffect(() => {
-    if (slotPlaceholders.length > 0) return;
-    setSlotPlaceholders(makeInitialSlotPlaceholders());
-  }, [slotPlaceholders.length]);
+  // Fitted components resolved from their codes (nulls / unknown codes dropped) for aggregation.
+  const fittedComponents = slotComponentCodes
+    .map((code) => (code != null ? (componentByCode.get(code) ?? null) : null))
+    .filter((component): component is UnitComponent => component != null);
 
-  useEffect(() => {
-    const el = surfaceRef.current;
-    if (!el) return;
+  const aggregate = useMemo(() => aggregateDesign(baseComponent, fittedComponents), [baseComponent, fittedComponents]);
 
-    const update = () => {
-      const r = el.getBoundingClientRect();
-      setSurfaceSize({ width: r.width, height: r.height });
-    };
-
-    update();
-
-    const ro = new ResizeObserver(() => update());
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  const setPlaceholdersForBase = (base: Extract<UnitComponent, { type: "base" }>) => {
-    setSlotPlaceholders([
-      {
-        componentId: 1,
-        type: "base",
-        label: "Base",
-        offsetX: 0,
-        offsetY: 0,
-        selectedComponentId: base.id,
-        selectedName: base.name,
-      },
-      ...base.slots.map((s) => ({
-        componentId: s.componentId,
-        type: s.type,
-        label: s.label,
-        offsetX: s.offsetX,
-        offsetY: s.offsetY,
-        selectedComponentId: null,
-        selectedName: null,
-      })),
-    ]);
-  };
-
-  const selectedComponentIdForOpenSlot =
-    selectionOpenFor == null ? null : (slotPlaceholders.find((p) => p.componentId === selectionOpenFor.componentId)?.selectedComponentId ?? null);
-
-  const selectedBaseComponent = useMemo(() => {
-    const baseId = slotPlaceholders.find((p) => p.type === "base")?.selectedComponentId;
-    if (baseId == null) return null;
-    return (DUMMY_UNIT_COMPONENTS.find((c) => c.type === "base" && c.id === baseId) as Extract<UnitComponent, { type: "base" }> | undefined) ?? null;
-  }, [slotPlaceholders]);
-
+  // Candidate components offered by the open selection window: bodies for the base slot, or the
+  // components a slot's acceptance rules admit for a normal slot.
   const selectionComponents: UnitComponent[] = useMemo(() => {
-    const slotType = selectionOpenFor?.type;
-    if (!slotType) return [];
+    if (selectionOpenFor == null) {
+      return [];
+    }
+    if (selectionOpenFor.slotIndex === BASE_SLOT_INDEX) {
+      return catalog.filter((component) => component.componentType === "Body");
+    }
+    const slot = baseSlots[selectionOpenFor.slotIndex];
+    if (!slot) {
+      return [];
+    }
+    return catalog.filter((component) => componentSatisfiesSlot(component, slot));
+  }, [selectionOpenFor, catalog, baseSlots]);
 
-    if (slotType === "base") {
-      return DUMMY_UNIT_COMPONENTS.filter((c) => c.type === "base");
+  const openSelectionCode =
+    selectionOpenFor == null
+      ? null
+      : selectionOpenFor.slotIndex === BASE_SLOT_INDEX
+        ? baseCode
+        : (slotComponentCodes[selectionOpenFor.slotIndex] ?? null);
+
+  const openSelectionTitle =
+    selectionOpenFor == null
+      ? ""
+      : selectionOpenFor.slotIndex === BASE_SLOT_INDEX
+        ? "Base Selection"
+        : (baseSlots[selectionOpenFor.slotIndex]?.displayName ?? `Slot ${selectionOpenFor.slotIndex + 1}`);
+
+  const handleConfirmSelection = ({ selectedCode }: { selectedCode: string | null; selectedName: string | null }) => {
+    if (selectionOpenFor == null) {
+      return;
     }
 
-    // For any non-base slot, filter based on the currently selected base.
-    const baseId = selectedBaseComponent?.id ?? null;
-    if (baseId == null) return [];
-
-    const asSlotType = slotType as BaseSlotType;
-
-    return DUMMY_UNIT_COMPONENTS.filter((c) => {
-      if (c.type === "base") return false;
-
-      const slotTypes = c.slotTypes ?? [c.type];
-      if (!slotTypes.includes(asSlotType)) return false;
-
-      if (c.allowedBaseIds && !c.allowedBaseIds.includes(baseId)) return false;
-      return true;
-    });
-  }, [selectionOpenFor?.type, selectedBaseComponent?.id]);
-
-  const componentById = useMemo(() => {
-    const m = new Map<number, UnitComponent>();
-    for (const c of DUMMY_UNIT_COMPONENTS) m.set(c.id, c);
-    return m;
-  }, []);
-
-  const totalDesignCost: ComponentCost = useMemo(() => {
-    const totals: ComponentCost = {};
-
-    for (const p of slotPlaceholders) {
-      if (p.selectedComponentId == null) continue;
-      const c = componentById.get(p.selectedComponentId);
-      if (!c) continue;
-
-      for (const [resource, amount] of Object.entries(c.common.cost)) {
-        if (!amount) continue;
-        totals[resource] = (totals[resource] ?? 0) + amount;
+    if (selectionOpenFor.slotIndex === BASE_SLOT_INDEX) {
+      // Choosing a new base resets the slot assignments (the new base defines a different slot set).
+      if (selectedCode == null) {
+        return;
       }
+      const nextBase = componentByCode.get(selectedCode);
+      setBaseCode(selectedCode);
+      setSlotComponentCodes((nextBase?.slots ?? []).map(() => null));
+      return;
     }
 
-    return totals;
-  }, [componentById, slotPlaceholders]);
+    setSlotComponentCodes((prev) => prev.map((code, index) => (index === selectionOpenFor.slotIndex ? selectedCode : code)));
+  };
 
-  const totalDesignUpkeep: ComponentUpkeep = useMemo(() => {
-    const totals: ComponentUpkeep = {};
+  const handleSave = onSave
+    ? () => onSave({ baseCode, slotComponentCodes })
+    : undefined;
 
-    for (const p of slotPlaceholders) {
-      if (p.selectedComponentId == null) continue;
-      const c = componentById.get(p.selectedComponentId);
-      if (!c) continue;
-
-      for (const [category, resources] of Object.entries(c.common.upkeep ?? {})) {
-        if (!resources) continue;
-        const categoryTotals = (totals[category as keyof ComponentUpkeep] ?? {}) as Record<string, number>;
-
-        for (const [resource, amount] of Object.entries(resources)) {
-          if (!amount) continue;
-          categoryTotals[resource] = (categoryTotals[resource] ?? 0) + amount;
-        }
-
-        totals[category as keyof ComponentUpkeep] = categoryTotals;
-      }
-    }
-
-    return totals;
-  }, [componentById, slotPlaceholders]);
-
-  const totalDesignBattleStats: BattleStatsData = useMemo(() => {
-    const emptyProfile = () => {
-      const out = {} as Record<DamageType, number>;
-      for (const dt of ALL_DAMAGE_TYPES) out[dt] = 0;
-      return out;
-    };
-
-    // Sum offensive output from every fitted weapon and defensive resistance from every fitted armour.
-    const attack = emptyProfile();
-    const resistance = emptyProfile();
-
-    for (const p of slotPlaceholders) {
-      if (p.selectedComponentId == null) continue;
-      const c = componentById.get(p.selectedComponentId);
-      if (!c) continue;
-
-      if ("weapon" in c) {
-        for (const dt of ALL_DAMAGE_TYPES) {
-          const a = c.weapon.attack[dt];
-          if (Number.isFinite(a) && a) attack[dt] += a;
-        }
-      } else if ("armour" in c) {
-        for (const dt of ALL_DAMAGE_TYPES) {
-          const r = c.armour.resistance[dt];
-          if (Number.isFinite(r) && r) resistance[dt] += r;
-        }
-      }
-    }
-
-    return { attack, resistance };
-  }, [componentById, slotPlaceholders]);
-
-  const baseIconUrl = selectedBaseComponent?.iconUrl;
-
-  const baseIconNode = useMemo(() => {
-    if (selectedBaseComponent?.type !== "base") return null;
-    const Icon = selectedBaseComponent.icon;
-    return Icon ? <Icon className="h-[70%] w-auto opacity-80 text-white/80" aria-hidden /> : null;
-  }, [selectedBaseComponent]);
-
-  const cx = surfaceSize.width / 2;
-  const cy = surfaceSize.height / 2;
-
-  // Scale normalized slot offsets into pixels based on current surface size.
-  const dx = Math.min(260, Math.max(160, surfaceSize.width * 0.22));
-  const dy = Math.min(180, Math.max(120, surfaceSize.height * 0.18));
+  // Half-extents used to project a slot's normalized (uiX, uiY) into pixels within the image wrapper.
+  const halfWidth = imageBox.width / 2;
+  const halfHeight = imageBox.height / 2;
+  const basePixel = toPixel(0, 0, imageBox);
 
   return (
     <div
       className="relative flex flex-col bg-sky-800"
-      style={{
-        width: "100%",
-        height: "100%",
-        flex: 1,
-        minHeight: 0,
-      }}>
-      <UnitDesignHeader onClose={handleClose} onReset={resetToInitialView} />
+      style={{ width: "100%", height: "100%", flex: 1, minHeight: 0 }}>
+      <UnitDesignHeader onClose={handleClose} onReset={resetDesign} onSave={editable ? handleSave : undefined} canSave={baseCode != null} />
 
       <div className="flex flex-1 min-h-0">
         <div className="relative flex-1" style={{ minWidth: 0, minHeight: 0 }}>
-          <div ref={surfaceRef} className="absolute inset-0" style={{ minWidth: 0, minHeight: 0 }}>
-            {(baseIconUrl || baseIconNode) && (
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                {baseIconUrl ? (
-                  <img src={baseIconUrl} alt={selectedBaseComponent?.name ?? "Base"} className="h-[80%] w-auto opacity-80" draggable={false} />
-                ) : (
-                  baseIconNode
-                )}
-              </div>
-            )}
-            {slotPlaceholders.map((p) =>
-              (() => {
-                const selectedComponent = p.selectedComponentId != null ? componentById.get(p.selectedComponentId) : null;
-                const selectedIconUrl = selectedComponent?.iconUrl ?? null;
-                const selectedDisplayName = p.selectedName ?? selectedComponent?.name ?? null;
-                const SelectedIcon = selectedComponent?.icon;
-                const selectedIcon = SelectedIcon ? <SelectedIcon className="h-10 w-10 text-white/90" aria-hidden /> : null;
+          {/* Loading / error / empty states for the self-loaded catalogue. */}
+          {selfLoad && loading && <div className="absolute inset-0 flex items-center justify-center text-white/80">Loading catalogue…</div>}
+          {selfLoad && !loading && error && <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-red-300">{error}</div>}
+
+          {/* The design canvas: a centered square wrapper holding the base image and slot placeholders. */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div ref={imageBoxRef} className="relative h-[70%] aspect-square">
+              {baseComponent?.designerImagePath && (
+                <img
+                  src={baseComponent.designerImagePath}
+                  alt={baseComponent.displayName}
+                  className="pointer-events-none absolute inset-0 h-full w-full object-contain opacity-80"
+                  draggable={false}
+                />
+              )}
+
+              {/* Central base slot — clicking it picks the base body. */}
+              <SlotPlaceHolder
+                slotIndex={BASE_SLOT_INDEX}
+                componentType="Body"
+                text="Base"
+                name={baseComponent?.displayName ?? null}
+                x={basePixel.x}
+                y={basePixel.y}
+                interactive={editable}
+                onClick={editable ? (args) => setSelectionOpenFor(args) : undefined}
+              />
+
+              {/* One placeholder per base slot, positioned from its normalized UI offset. */}
+              {baseSlots.map((slot, index) => {
+                const fittedCode = slotComponentCodes[index] ?? null;
+                const fitted = fittedCode != null ? componentByCode.get(fittedCode) : null;
+                // The slot's first ComponentType rule gives a representative type for tinting.
+                const typeRule = slot.rules.find((rule) => rule.ruleType === "ComponentType");
+                const representativeType = typeRule ? (typeRule.value.split(",")[0]?.trim() as UnitComponent["componentType"]) : undefined;
 
                 return (
                   <SlotPlaceHolder
-                    key={p.componentId}
-                    componentId={p.componentId}
-                    type={p.type}
-                    text={p.selectedName ? `${p.label}: ${p.selectedName}` : p.label}
-                    iconUrl={selectedIconUrl}
-                    icon={selectedIcon}
-                    name={selectedDisplayName}
-                    x={cx + p.offsetX * dx}
-                    y={cy + p.offsetY * dy}
-                    onClick={(args) => setSelectionOpenFor(args)}
+                    key={index}
+                    slotIndex={index}
+                    componentType={representativeType}
+                    text={slot.displayName ?? `Slot ${index + 1}`}
+                    name={fitted?.displayName ?? null}
+                    iconUrl={fitted?.designerImagePath ?? null}
+                    x={halfWidth + slot.uiXPosition * halfWidth}
+                    y={halfHeight + slot.uiYPosition * halfHeight}
+                    interactive={editable}
+                    onClick={editable ? (args) => setSelectionOpenFor(args) : undefined}
                   />
                 );
-              })(),
-            )}
+              })}
+            </div>
           </div>
         </div>
 
         <div className="basis-1/5 shrink-0" style={{ minHeight: 0 }}>
-          <DesignProperties totalCost={totalDesignCost} totalUpkeep={totalDesignUpkeep} totalBattleStats={totalDesignBattleStats} />
+          <DesignProperties aggregate={aggregate} />
         </div>
       </div>
 
       {selectionOpenFor != null && (
         <ComponentSelectionWindow
           open
-          componentId={selectionOpenFor.componentId}
-          type={selectionOpenFor.type}
-          base={selectionOpenFor.type === "base" ? null : selectedBaseComponent}
-          selectedComponentId={selectedComponentIdForOpenSlot}
+          title={openSelectionTitle}
+          isBaseSlot={selectionOpenFor.slotIndex === BASE_SLOT_INDEX}
           components={selectionComponents}
-          onConfirm={({ selectedComponentId: _selectedComponentId, selectedName }) => {
-            if (selectionOpenFor.type === "base") {
-              if (_selectedComponentId == null) return;
-              const base = DUMMY_UNIT_COMPONENTS.find((c) => c.type === "base" && c.id === _selectedComponentId) as
-                | Extract<UnitComponent, { type: "base" }>
-                | undefined;
-              if (base) setPlaceholdersForBase(base);
-            } else {
-              setSlotPlaceholders((prev) =>
-                prev.map((p) =>
-                  p.componentId === selectionOpenFor.componentId
-                    ? { ...p, selectedName: selectedName ?? null, selectedComponentId: _selectedComponentId }
-                    : p,
-                ),
-              );
-            }
-          }}
+          selectedCode={openSelectionCode}
+          onConfirm={handleConfirmSelection}
           onClose={() => setSelectionOpenFor(null)}
         />
       )}

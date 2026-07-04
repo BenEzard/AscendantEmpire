@@ -6,7 +6,7 @@
 // the user enters values. The weapon is dropped at save time when its attack has no positive value
 // (see ComponentSetupDialog's handleCommit), so a body without an inherent attack stays lean.
 
-import { createEmptyWeapon, type UnitComponent } from "../../types/UnitComponent";
+import { createEmptyWeapon, type UnitComponent } from "@/features/unitdesign/types/UnitComponent";
 
 import WeaponProperties from "./properties/WeaponProperties";
 

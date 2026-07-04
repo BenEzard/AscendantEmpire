@@ -24,7 +24,7 @@ import {
   type DomainType,
   type KeyValueRow,
   type UnitComponentWeapon,
-} from "../../../types/UnitComponent";
+} from "@/features/unitdesign/types/UnitComponent";
 import { RangeSlider } from "@/components/ui";
 
 import PillKeyValueEditor from "../../PillKeyValueEditor";

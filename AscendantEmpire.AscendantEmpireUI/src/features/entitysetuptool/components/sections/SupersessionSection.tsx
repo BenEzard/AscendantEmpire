@@ -6,7 +6,7 @@
 
 import EditableTable, { type EditableTableColumn } from "@/components/ui/EditableTable";
 
-import { type ComponentSupersessionLink } from "../../types/UnitComponent";
+import { type ComponentSupersessionLink } from "@/features/unitdesign/types/UnitComponent";
 import { inputClass } from "../componentSetupFields";
 
 interface SupersessionSectionProps {

@@ -20,7 +20,7 @@ import { HiPlus, HiTrash } from "react-icons/hi2";
 
 import Tooltip from "@/components/ui/Tooltip";
 
-import type { KeyValueRow } from "../types/UnitComponent";
+import type { KeyValueRow } from "@/features/unitdesign/types/UnitComponent";
 import { inputClass } from "./componentSetupFields";
 import ScaledNumberField, { rawToScaled } from "./ScaledNumberField";
 

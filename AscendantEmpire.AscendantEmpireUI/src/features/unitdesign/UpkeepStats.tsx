@@ -4,18 +4,18 @@ import type { IconType } from "react-icons";
 import { FaFish } from "react-icons/fa";
 import { GiHeavyBullets, GiJerrycan, GiSpanner } from "react-icons/gi";
 
-import type { ComponentUpkeep, UpkeepCategory } from "./types/UnitComponent";
+import type { PlaceholderUpkeep, PlaceholderUpkeepCategory } from "./model/placeholderCosts";
 import { getResourceIconByLabel } from "@/features/game/resources/tickers/resourceIcons";
 import Tooltip from "@/components/ui/Tooltip";
 
-const CATEGORY_META: Record<UpkeepCategory, { title: string; Icon: IconType }> = {
+const CATEGORY_META: Record<PlaceholderUpkeepCategory, { title: string; Icon: IconType }> = {
   food: { title: "Food", Icon: FaFish },
   fuel: { title: "Fuel", Icon: GiJerrycan },
   repair: { title: "Repair", Icon: GiSpanner },
   ammunition: { title: "Ammunition", Icon: GiHeavyBullets },
 };
 
-const CATEGORY_ORDER: UpkeepCategory[] = ["food", "fuel", "repair", "ammunition"];
+const CATEGORY_ORDER: PlaceholderUpkeepCategory[] = ["food", "fuel", "repair", "ammunition"];
 
 function iconBadge(title: string, icon: ReactNode) {
   return (
@@ -39,8 +39,8 @@ function resourceIcon(label: string) {
 }
 
 export interface UpkeepStatsProps {
-  upkeep?: ComponentUpkeep;
-  existingUpkeep?: ComponentUpkeep;
+  upkeep?: PlaceholderUpkeep;
+  existingUpkeep?: PlaceholderUpkeep;
   className?: string;
 }
 
@@ -75,7 +75,7 @@ export function UpkeepStats({ upkeep, existingUpkeep, className }: UpkeepStatsPr
     (existingUpkeep != null &&
       Object.values(existingUpkeep).some((resources) => resources != null && Object.values(resources).some((n) => Number.isFinite(n) && n > 0)));
 
-  const categoryResources = (category: UpkeepCategory): Array<[string, number, number | undefined]> => {
+  const categoryResources = (category: PlaceholderUpkeepCategory): Array<[string, number, number | undefined]> => {
     const current = upkeep?.[category] ?? {};
     const existing = existingUpkeep?.[category] ?? {};
     const labels = new Set<string>([...Object.keys(current), ...Object.keys(existing)]);

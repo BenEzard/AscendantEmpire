@@ -1,6 +1,5 @@
 export interface ComponentCardProps {
   name: string;
-  properties: Record<string, number>;
   imageUrl?: string;
   imageAlt?: string;
   icon?: React.ReactNode;

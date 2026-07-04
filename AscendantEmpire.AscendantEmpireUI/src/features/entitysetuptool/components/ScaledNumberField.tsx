@@ -2,20 +2,13 @@
 // user a friendly decimal (1,000 raw <-> 1.0 shown). Shared by ComponentSetupDialog and the pill editor
 // so both convert at the same edit boundary.
 
-import { COMPONENT_VALUE_SCALE } from "../types/UnitComponent";
+// The Scale-1,000 conversion helpers now live with the canonical model (features/unitdesign/types);
+// re-exported here so existing importers (PillKeyValueEditor) keep resolving them from this module.
+import { rawToScaled, scaledToRaw } from "@/features/unitdesign/types/UnitComponent";
+export { rawToScaled, scaledToRaw };
 
 // Local copy of the dialog's input styling so this stays self-contained.
 const inputClass = "w-full rounded-md border border-slate-300 px-2 py-2 text-sm";
-
-/** Raw fixed-point long -> display decimal (e.g. 1500 -> 1.5). */
-export function rawToScaled(raw: number): number {
-  return raw / COMPONENT_VALUE_SCALE;
-}
-
-/** Display decimal -> raw fixed-point long (e.g. 1.5 -> 1500), rounded to the nearest whole unit. */
-export function scaledToRaw(scaled: number): number {
-  return Math.round(scaled * COMPONENT_VALUE_SCALE);
-}
 
 /**
  * A numeric input that edits a raw Scale-1,000 value while showing the user a decimal. When the field

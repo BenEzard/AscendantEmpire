@@ -6,7 +6,7 @@
 import type { IconType } from "react-icons";
 import { GiBackpack, GiCrossedSwords, GiGearHammer, GiGears, GiPerson, GiShield, GiWeightLiftingUp } from "react-icons/gi";
 
-import type { ComponentType } from "../types/UnitComponent";
+import type { ComponentType } from "@/features/unitdesign/types/UnitComponent";
 
 // One icon per component type. Keyed over ComponentType so the compiler flags any missing/added type.
 export const componentTypeIcons: Record<ComponentType, IconType> = {

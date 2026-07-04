@@ -6,7 +6,7 @@
 // in-progress edits. This section only ever renders the editor for the *active* type; the non-active
 // extensions ride along untouched until they're collapsed away at Save time.
 
-import type { UnitComponent } from "../../types/UnitComponent";
+import type { UnitComponent } from "@/features/unitdesign/types/UnitComponent";
 
 import ArmourProperties from "./properties/ArmourProperties";
 import BodyProperties from "./properties/BodyProperties";

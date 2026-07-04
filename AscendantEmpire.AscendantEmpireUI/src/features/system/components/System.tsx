@@ -1,4 +1,5 @@
-// Developer-only "System" tool (a standalone dev tool like the Map Editor — no AuthGate). Its first
+// Developer-only "System" tool (a standalone dev tool like the Map Editor), gated behind login via
+// AuthGate since its user-administration endpoints require an authenticated bearer token. Its first
 // feature is user administration: a toolbar "Users" button loads every user into a table where each
 // account can be inactivated for a reason (Quit/Banned/Deleted) or reactivated.
 import { useMemo, useState } from "react";

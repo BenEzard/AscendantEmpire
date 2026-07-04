@@ -3,7 +3,7 @@
 // Controlled component: it takes the body slice and emits the full updated body via onChange. A body
 // has no sparse key/value tables, so there's no working-row state to manage here.
 
-import { DOMAIN_TYPES, type DomainType, type UnitComponentBody } from "../../../types/UnitComponent";
+import { DOMAIN_TYPES, type DomainType, type UnitComponentBody } from "@/features/unitdesign/types/UnitComponent";
 import ScaledNumberField from "../../ScaledNumberField";
 import { FieldRow, NumberField, inputClass } from "../../componentSetupFields";
 import { DOMAIN_TYPE_LABELS } from "../../componentSetupLabels";
@@ -25,10 +25,7 @@ export default function BodyProperties({ body, onChange }: BodyPropertiesProps) 
         <legend className="px-1 text-xs font-medium text-slate-500">Movement</legend>
 
         <FieldRow label="Domain">
-          <select
-            className={inputClass}
-            value={body.movementDomain}
-            onChange={(e) => patch("movementDomain", e.target.value as DomainType)}>
+          <select className={inputClass} value={body.movementDomain} onChange={(e) => patch("movementDomain", e.target.value as DomainType)}>
             {DOMAIN_TYPES.map((domain) => (
               <option key={domain} value={domain}>
                 {DOMAIN_TYPE_LABELS[domain]}
@@ -48,19 +45,6 @@ export default function BodyProperties({ body, onChange }: BodyPropertiesProps) 
       </fieldset>
 
       <fieldset className="mt-3 rounded-md border border-slate-200 px-3 pb-1 pt-1">
-        <legend className="px-1 text-xs font-medium text-slate-500">Attributes</legend>
-
-        {/* Power and Hitpoints are stored as raw Scale-1,000 longs; ScaledNumberField shows the decimal. */}
-        <FieldRow label="Power">
-          <ScaledNumberField rawValue={body.power} onChange={(next) => patch("power", next ?? 0)} />
-        </FieldRow>
-
-        <FieldRow label="Hitpoints">
-          <ScaledNumberField rawValue={body.hitpoints} onChange={(next) => patch("hitpoints", next ?? 0)} />
-        </FieldRow>
-      </fieldset>
-
-      <fieldset className="mt-3 rounded-md border border-slate-200 px-3 pb-1 pt-1">
         <legend className="px-1 text-xs font-medium text-slate-500">Unit Size</legend>
 
         <FieldRow label="Minimum">
@@ -75,6 +59,15 @@ export default function BodyProperties({ body, onChange }: BodyPropertiesProps) 
           <NumberField value={body.sizeIncrement} onChange={(next) => patch("sizeIncrement", next)} />
         </FieldRow>
       </fieldset>
+
+      {/* Power and Hitpoints are stored as raw Scale-1,000 longs; ScaledNumberField shows the decimal. */}
+      <FieldRow label="Power">
+        <ScaledNumberField rawValue={body.power} onChange={(next) => patch("power", next ?? 0)} />
+      </FieldRow>
+
+      <FieldRow label="Hitpoints">
+        <ScaledNumberField rawValue={body.hitpoints} onChange={(next) => patch("hitpoints", next ?? 0)} />
+      </FieldRow>
     </div>
   );
 }
