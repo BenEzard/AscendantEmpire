@@ -5,7 +5,7 @@ import { GiWoodStick } from "react-icons/gi";
 import { GrCaretNext } from "react-icons/gr";
 import { SlClose } from "react-icons/sl";
 import { VscNewFile } from "react-icons/vsc";
-import type { ToolBarGroup } from "@/components/Toolbar";
+import type { ToolBarGroup } from "@/components/toolbar/Toolbar";
 import { HamburgerMenu } from "@/components/ui";
 import { CONSTRUCTION_BUTTON_DOM_ID } from "../hooks/useConstructionPanel";
 

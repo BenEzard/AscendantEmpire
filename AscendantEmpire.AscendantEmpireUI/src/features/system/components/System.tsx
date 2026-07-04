@@ -5,8 +5,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { HiUsers } from "react-icons/hi2";
 
-import ToolBar from "@/components/Toolbar";
-import type { ToolBarGroup } from "@/components/Toolbar";
+import ToolBar from "@/components/toolbar/Toolbar";
+import type { ToolBarGroup } from "@/components/toolbar/Toolbar";
 import { Alert } from "@/components/ui";
 
 import { getUsers, setUserInactive } from "../api/usersApi";

@@ -1,4 +1,4 @@
-import { Button, PagedDialog, Toast, ToastViewport } from "@/components/ui";
+import { Button, ExportDialog, PagedDialog, Toast, ToastViewport } from "@/components/ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { CiExport } from "react-icons/ci";
@@ -6,7 +6,6 @@ import type { Biome } from "../../../types/map/Biome";
 import { safeStringify } from "../../../util/json";
 import { useSaveCampaignMapBiomesMutation } from "../hooks/useCampaignMapBiomes";
 import { isValidColor, pickTextColorOnBg } from "../../../util/color";
-import ExportDialog from "../../../components/ExportDialog";
 import BiomeResource from "./BiomeResource";
 
 interface BiomeManagerProps {

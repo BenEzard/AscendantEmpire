@@ -6,6 +6,7 @@ import SlotPlaceHolder from "./SlotPlaceHolder";
 import ComponentSelectionWindow from "./ComponentSelectionWindow";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
+import Alert from "@/components/ui/Alert";
 
 import type { UnitComponent } from "./types/UnitComponent";
 import { useUnitDesignCatalog } from "./api/useUnitDesignCatalog";
@@ -393,8 +394,12 @@ export default function UnitDesigner({
 
       <div className="flex flex-1 min-h-0">
         <div className="relative flex-1" style={{ minWidth: 0, minHeight: 0 }}>
-          {/* Loading / error / empty states for the self-loaded catalogue. */}
-          {selfLoad && loading && <div className="absolute inset-0 flex items-center justify-center text-white/80">Loading catalogue…</div>}
+          {/* Loading / error states for the self-loaded catalogue. */}
+          {selfLoad && loading && (
+            <Alert variant="info" className="absolute bottom-4 right-4 z-10 shadow-sm">
+              Loading catalogue…
+            </Alert>
+          )}
           {selfLoad && !loading && error && <div className="absolute inset-0 flex items-center justify-center px-6 text-center text-red-300">{error}</div>}
 
           {/* The design canvas: a centered wrapper holding the base image and slot placeholders. The

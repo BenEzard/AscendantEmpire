@@ -13,7 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { FaPencil } from "react-icons/fa6";
 
 import Tooltip from "./Tooltip";
-import { toCodeChars, toCodeSlug } from "./codeSlug";
+import { toCodeChars, toCodeSlug } from "@/util/codeSlug";
 
 // The shared text-input styling (kept in step with the dialogs' `inputClass`) so a CodeField's input
 // looks identical to a plain text field next to it.

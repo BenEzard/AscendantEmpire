@@ -5,7 +5,7 @@
 // onChange. Component-type changes are delegated to the orchestrator (onComponentTypeChange), because
 // switching type has to swap the type-specific extension, which lives above this section.
 
-import ToolbarExclusiveButtons, { type ToolbarExclusiveItem } from "@/components/ToolbarExclusiveButtons";
+import ToolbarExclusiveButtons, { type ToolbarExclusiveItem } from "@/components/toolbar/ToolbarExclusiveButtons";
 import { CodeField } from "@/components/ui";
 
 import { COMPONENT_TYPES, type ComponentType, type UnitComponent } from "@/features/unitdesign/types/UnitComponent";

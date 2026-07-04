@@ -1,9 +1,8 @@
-import { Button, PagedDialog, Toast, ToastViewport } from "@/components/ui";
+import { Button, ExportDialog, PagedDialog, Toast, ToastViewport } from "@/components/ui";
 import { useCallback, useMemo, useState } from "react";
 import { CiExport } from "react-icons/ci";
 import type { Geography } from "../../../types/map/Geography";
 import { safeStringify } from "../../../util/json";
-import ExportDialog from "../../../components/ExportDialog";
 import { useSaveCampaignMapGeographiesMutation } from "../hooks/useCampaignMapGeographies";
 
 interface GeographyManagerProps {
