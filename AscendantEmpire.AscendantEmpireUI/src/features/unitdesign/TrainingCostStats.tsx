@@ -1,4 +1,4 @@
-import type { ComponentCost } from "./types/UnitComponent";
+import type { PlaceholderCost } from "./model/placeholderCosts";
 
 import { getResourceIconByLabel } from "@/features/game/resources/tickers/resourceIcons";
 import Tooltip from "@/components/ui/Tooltip";
@@ -22,7 +22,7 @@ function resourceIcon(label: string) {
 }
 
 export interface TrainingCostStatsProps {
-  cost?: ComponentCost;
+  cost?: PlaceholderCost;
   className?: string;
 }
 

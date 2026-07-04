@@ -1,5 +1,17 @@
 # Unit Design System
 
+## Concepts & In-Game Considerations
+
+
+
+
+
+## *Unsorted Notes*
+
+
+
+
+
 **Terminology specific to this page:**
 
 * Cost - a cost is both a type and a quantity of `Resource`.
@@ -73,6 +85,5 @@ Unit Components should have the following properties:
 - Maximum strength - maximum number of individuals in a Unit
 
 - 
-  
 
 - Different components will have different properties

@@ -13,9 +13,9 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import type { UnitComponent, UnitComponentSlot } from "../../types/UnitComponent";
+import type { UnitComponent, UnitComponentSlot } from "@/features/unitdesign/types/UnitComponent";
 import { FieldRow, inputClass } from "../componentSetupFields";
-import { toNormalized, toPixel } from "./slotImagePosition";
+import { toNormalized, toPixel } from "@/features/unitdesign/model/slotImagePosition";
 
 interface ImageSectionProps {
   component: UnitComponent;

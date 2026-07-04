@@ -22,7 +22,7 @@ import {
   type SlotRuleType,
   type UnitComponentSlot,
   type UnitComponentSlotRule,
-} from "../../types/UnitComponent";
+} from "@/features/unitdesign/types/UnitComponent";
 import { FieldRow, NumberField, inputClass } from "../componentSetupFields";
 
 // A smaller-text, tighter-left-padding variant of the shared inputClass, scoped to the rules table's

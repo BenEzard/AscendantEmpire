@@ -3,7 +3,7 @@
 
 import type { DamageType } from "@/features/unitdesign/types/DamageType";
 
-import type { DomainType } from "../types/UnitComponent";
+import type { DomainType } from "@/features/unitdesign/types/UnitComponent";
 
 // Labels for the five damage types, in the canonical ALL_DAMAGE_TYPES order.
 export const DAMAGE_TYPE_LABELS: Record<DamageType, string> = {

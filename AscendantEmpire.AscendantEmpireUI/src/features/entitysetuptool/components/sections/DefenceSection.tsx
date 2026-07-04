@@ -6,7 +6,7 @@
 // the user enters values. The armour is dropped at save time when its resistance has no positive value
 // (see ComponentSetupDialog's handleCommit), so a body without inherent defence stays lean.
 
-import { createEmptyArmour, type UnitComponent } from "../../types/UnitComponent";
+import { createEmptyArmour, type UnitComponent } from "@/features/unitdesign/types/UnitComponent";
 
 import ArmourProperties from "./properties/ArmourProperties";
 

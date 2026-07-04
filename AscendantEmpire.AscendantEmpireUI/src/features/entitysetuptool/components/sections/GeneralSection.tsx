@@ -8,7 +8,7 @@
 import ToolbarExclusiveButtons, { type ToolbarExclusiveItem } from "@/components/ToolbarExclusiveButtons";
 import { CodeField } from "@/components/ui";
 
-import { COMPONENT_TYPES, type ComponentType, type UnitComponent } from "../../types/UnitComponent";
+import { COMPONENT_TYPES, type ComponentType, type UnitComponent } from "@/features/unitdesign/types/UnitComponent";
 import ScaledNumberField from "../ScaledNumberField";
 import { componentTypeIcons } from "../componentTypeIcons";
 import { FieldRow, inputClass } from "../componentSetupFields";

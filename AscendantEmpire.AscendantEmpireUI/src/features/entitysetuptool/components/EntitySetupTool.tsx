@@ -4,18 +4,20 @@
 import { useMemo, useState } from "react";
 import { FaPlus } from "react-icons/fa6";
 import { HiMagnifyingGlass } from "react-icons/hi2";
+import { GiGearHammer } from "react-icons/gi";
 
 import ToolBar from "@/components/Toolbar";
 import type { ToolBarGroup } from "@/components/Toolbar";
 import { SearchDrawer, Toast, ToastViewport } from "@/components/ui";
 
-import { bulkUpsertComponents, getComponent } from "../api/componentsApi";
-import { getComponentList, type ComponentListRow } from "../api/catalogApi";
-import { createTag, getTags, updateTag } from "../api/tagsApi";
-import type { Tag } from "../types/Tag";
-import type { UnitComponent } from "../types/UnitComponent";
+import { bulkUpsertComponents, getComponent } from "@/features/unitdesign/api/componentsApi";
+import { getComponentList, type ComponentListRow } from "@/features/unitdesign/api/catalogApi";
+import { createTag, getTags, updateTag } from "@/features/unitdesign/api/tagsApi";
+import type { Tag } from "@/features/unitdesign/types/Tag";
+import type { UnitComponent } from "@/features/unitdesign/types/UnitComponent";
 import ComponentSetupDialog from "./ComponentSetupDialog";
 import TagSetupDialog from "./TagSetupDialog";
+import UnitDesigner from "@/features/unitdesign/UnitDesigner";
 
 // Which catalog the left-hand search drawer is currently browsing (null = closed).
 type SearchKind = "components" | "tags" | null;
@@ -31,6 +33,11 @@ export default function EntitySetupTool() {
 
   // Controls the TagSetupDialog opened by the Tags group's "Add Tag" button.
   const [showTagSetup, setShowTagSetup] = useState(false);
+
+  // Controls the full-screen Unit Designer overlay opened by the Designer group. The designer self-loads
+  // the catalogue and assembles a template; persistence is a follow-up (no unit-template endpoint yet),
+  // so it opens in edit mode with no onSave handler — assemble/inspect only.
+  const [showDesigner, setShowDesigner] = useState(false);
 
   // When set, the respective dialog opens in edit mode seeded from this item; undefined = blank "Add".
   const [initialComponent, setInitialComponent] = useState<UnitComponent | undefined>(undefined);
@@ -194,6 +201,18 @@ export default function EntitySetupTool() {
           },
         ],
       },
+      {
+        caption: "Designer",
+        buttons: [
+          {
+            key: "open-designer",
+            icon: <GiGearHammer />,
+            tooltip: "Open Unit Designer",
+            // Opens the shared assembly bench full-screen, in edit mode, self-loading the catalogue.
+            onClick: () => setShowDesigner(true),
+          },
+        ],
+      },
     ],
     [],
   );
@@ -266,6 +285,13 @@ export default function EntitySetupTool() {
         onCommit={handleTagCommit}
         error={tagError}
       />
+
+      {/* Full-screen Unit Designer overlay. Edit mode, no onSave (template persistence is a follow-up). */}
+      {showDesigner && (
+        <div className="fixed inset-0 z-40 flex flex-col">
+          <UnitDesigner mode="edit" onClose={() => setShowDesigner(false)} />
+        </div>
+      )}
 
       <ToastViewport>
         <Toast open={componentSuccessMessage !== null} message={componentSuccessMessage} variant="success" onClose={() => setComponentSuccessMessage(null)} />

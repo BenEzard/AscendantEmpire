@@ -22,7 +22,7 @@ import {
   damageProfileHasPositiveValue,
   type ComponentType,
   type UnitComponent,
-} from "../types/UnitComponent";
+} from "@/features/unitdesign/types/UnitComponent";
 
 import AttackSection from "./sections/AttackSection";
 import DefenceSection from "./sections/DefenceSection";

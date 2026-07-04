@@ -15,7 +15,7 @@ import {
   rowsToDamageProfile,
   type KeyValueRow,
   type UnitComponentArmour,
-} from "../../../types/UnitComponent";
+} from "@/features/unitdesign/types/UnitComponent";
 import PillKeyValueEditor from "../../PillKeyValueEditor";
 import { DAMAGE_TYPE_LABELS } from "../../componentSetupLabels";
 
