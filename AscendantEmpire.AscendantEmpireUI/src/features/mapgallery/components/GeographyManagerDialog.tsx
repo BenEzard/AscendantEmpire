@@ -168,7 +168,7 @@ function GeographyManagerDialog({
                       className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
                       value={selectedGeography?.mapEditorIcon ?? ""}
                       disabled={!selectedGeography}
-                      onChange={(e) => handleGeographyFieldChange("mapEditorIcon", e.target.value as any)}
+                      onChange={(e) => handleGeographyFieldChange("mapEditorIcon", e.target.value)}
                     />
                   </div>
                 </div>

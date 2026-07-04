@@ -73,7 +73,7 @@ export default function BiomeResource<K extends keyof Biome>({
     if (!biome) return false;
     if (canClear) return canClear(biome);
 
-    const current = biome[field] as unknown as any;
+    const current = biome[field];
     return current !== null && current !== undefined;
   })();
 
@@ -115,7 +115,7 @@ export default function BiomeResource<K extends keyof Biome>({
           type={inputType}
           disabled={isDisabled}
           placeholder={isDisabled ? disabledPlaceholder : placeholder}
-          value={value as any}
+          value={value}
           onChange={(e) => handleInputChange(e.target.value)}
         />
 

@@ -49,7 +49,7 @@ export default function OpenCampaignMapDialog({ show, onClose, onSaveSuccess, on
     setFilter("");
     setSelectedId(null);
     setSelectedMap(null);
-  }, [show]);
+  }, [show, resetExport, resetImport]);
 
   // Once an import finishes, refresh the list so the new map appears, then return to idle.
   useEffect(() => {

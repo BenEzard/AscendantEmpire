@@ -157,8 +157,9 @@ export default function UnitDesigner({
 
   const baseComponent = useMemo(() => (baseCode != null ? (componentByCode.get(baseCode) ?? null) : null), [baseCode, componentByCode]);
 
-  // Slots exposed by the chosen base body (empty until a base is picked).
-  const baseSlots = baseComponent?.slots ?? [];
+  // Slots exposed by the chosen base body (empty until a base is picked). Memoized so it has a stable
+  // reference across renders, matching baseComponent's own identity.
+  const baseSlots = useMemo(() => baseComponent?.slots ?? [], [baseComponent]);
 
   // Keep the slot-assignment array length in step with the current base's slot count.
   useEffect(() => {
@@ -169,7 +170,7 @@ export default function UnitDesigner({
       const next = baseSlots.map((_, index) => prev[index] ?? null);
       return next;
     });
-  }, [baseSlots.length]);
+  }, [baseSlots]);
 
   // Measure the available canvas area, used to size the no-image placeholder and cap a chosen image.
   useEffect(() => {
@@ -209,10 +210,6 @@ export default function UnitDesigner({
     return () => observer.disconnect();
     // Re-attach whenever the base (and so its image src) changes.
   }, [baseComponent?.designerImagePath]);
-
-  if (!isVisible) {
-    return null;
-  }
 
   const handleClose = () => {
     setIsVisible(false);
@@ -319,6 +316,11 @@ export default function UnitDesigner({
   const saveGlobalMutation = useMutation({
     mutationFn: (payload: SaveGlobalUnitTemplatePayload) => createGlobalUnitTemplate(payload),
   });
+
+  // All hooks must run above this point — bailing out earlier for isVisible would call them conditionally.
+  if (!isVisible) {
+    return null;
+  }
 
   const handleSave = onSaveSuccess
     ? (displayName: string) => {

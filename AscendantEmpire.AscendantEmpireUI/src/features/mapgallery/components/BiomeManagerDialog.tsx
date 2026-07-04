@@ -95,7 +95,7 @@ function BiomeManagerDialog({
 
       onSaveSuccess("Biomes saved successfully.");
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       let items: string[] = ["An unknown error occurred."];
 
       if (axios.isAxiosError(error)) {
@@ -109,8 +109,8 @@ function BiomeManagerDialog({
         } else if (error.message) {
           items = [error.message as string];
         }
-      } else if (error?.message) {
-        items = [error.message as string];
+      } else if (error instanceof Error) {
+        items = [error.message];
       }
 
       setErrorToastItems(items);
@@ -288,16 +288,21 @@ function BiomeManagerDialog({
                 <div className="grid grid-cols-12 items-center gap-2 mb-2">
                   <label className="col-span-5 text-sm text-slate-700">HTML Color</label>
                   <div className="col-span-7">
-                    <input
-                      className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
-                      value={selectedBiome?.mapEditorHtmlColor ?? ""}
-                      disabled={!selectedBiome}
-                      onChange={(e) => handleBiomeFieldChange("mapEditorHtmlColor", e.target.value)}
-                      style={{
-                        backgroundColor: isValidColor(selectedBiome?.mapEditorHtmlColor) ? selectedBiome?.mapEditorHtmlColor! : "white",
-                        color: pickTextColorOnBg(isValidColor(selectedBiome?.mapEditorHtmlColor) ? selectedBiome!.mapEditorHtmlColor! : "white"),
-                      }}
-                    />
+                    {(() => {
+                      const htmlColor = selectedBiome?.mapEditorHtmlColor;
+                      return (
+                        <input
+                          className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
+                          value={htmlColor ?? ""}
+                          disabled={!selectedBiome}
+                          onChange={(e) => handleBiomeFieldChange("mapEditorHtmlColor", e.target.value)}
+                          style={{
+                            backgroundColor: isValidColor(htmlColor) ? htmlColor! : "white",
+                            color: pickTextColorOnBg(isValidColor(htmlColor) ? htmlColor! : "white"),
+                          }}
+                        />
+                      );
+                    })()}
                   </div>
                 </div>
               </div>

@@ -51,6 +51,7 @@ function mergeTiles(prev: CampaignMapTilesResponse | undefined, next: CampaignMa
     // Vision observer data is UI-tool state and should be kept separate.
     ...prev,
     ...(() => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { observers: _observers, ...rest } = next;
       return rest;
     })(),

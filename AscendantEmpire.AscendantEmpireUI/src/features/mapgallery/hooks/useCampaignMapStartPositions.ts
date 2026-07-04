@@ -113,6 +113,13 @@ export function usePutCampaignMapStartPositionsMutation(opts?: {
     },
 
     onError: (err, _vars, ctx) => {
+      // ctx is undefined if onMutate itself threw before returning its context; nothing to roll back in that case.
+      if (ctx == null) {
+        const msg = err instanceof Error ? err.message : "Failed to update start positions.";
+        opts?.onFailureToast?.(msg);
+        return;
+      }
+
       const rollbackState = rollbackStateRef.current.get(ctx.campaignMapGalleryIndexId);
       if (rollbackState?.base != null) {
         queryClient.setQueryData(ctx.key, rollbackState.base);

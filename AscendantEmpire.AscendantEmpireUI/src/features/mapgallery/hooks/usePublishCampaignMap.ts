@@ -16,7 +16,7 @@ export function usePublishCampaignMapMutation(opts?: {
     },
     onSuccess: (_data, vars) => {
       const mapLabel = vars.mapName?.trim();
-      opts?.onSuccessToast?.(mapLabel ? `Exported \"${mapLabel}\".` : "Map exported.");
+      opts?.onSuccessToast?.(mapLabel ? `Exported "${mapLabel}".` : "Map exported.");
     },
     onError: (err) => {
       const message = err instanceof Error ? err.message : "Failed to export map.";

@@ -1,24 +1,10 @@
-import { useState, useCallback, useMemo, useEffect, createContext, useContext, type ReactNode } from "react";
+import { useState, useCallback, useMemo, useEffect, type ReactNode } from "react";
 import type { LockedState } from "../../../../components/ui/slider/Slider";
 import { SliderCollectionContext, rebalance } from "../../../../components/ui/slider/SliderCollectionContext";
 import type { CollectionState, SliderEntry, SliderSnapshot } from "../../../../components/ui/slider/SliderCollectionContext";
+import { ResourceRemainderContext } from "./resourceRemainderContext";
 
 export type { SliderSnapshot };
-
-// ---- Consume-remainder context ----
-
-interface ResourceRemainderContextValue {
-  activeRemainderId: string | null;
-  registerCandidate: (id: string, initialWill: boolean) => void;
-  unregisterCandidate: (id: string) => void;
-  requestRemainderToggle: (id: string) => void;
-}
-
-const ResourceRemainderContext = createContext<ResourceRemainderContextValue | null>(null);
-
-export function useResourceRemainder(): ResourceRemainderContextValue | null {
-  return useContext(ResourceRemainderContext);
-}
 
 // ---- Collection props ----
 

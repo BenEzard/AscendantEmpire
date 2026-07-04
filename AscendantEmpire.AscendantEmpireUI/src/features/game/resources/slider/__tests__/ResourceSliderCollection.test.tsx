@@ -1,7 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useEffect, useId } from "react";
-import ResourceSliderCollection, { useResourceRemainder } from "../ResourceSliderCollection";
+import ResourceSliderCollection from "../ResourceSliderCollection";
+import { useResourceRemainder } from "../resourceRemainderContext";
 import { useSliderCollection } from "../../../../../components/ui/slider/SliderCollectionContext";
 import type { LockedState } from "../../../../../components/ui/slider/Slider";
 

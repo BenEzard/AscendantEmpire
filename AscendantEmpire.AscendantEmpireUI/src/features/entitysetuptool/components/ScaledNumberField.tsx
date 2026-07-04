@@ -2,10 +2,8 @@
 // user a friendly decimal (1,000 raw <-> 1.0 shown). Shared by ComponentSetupDialog and the pill editor
 // so both convert at the same edit boundary.
 
-// The Scale-1,000 conversion helpers now live with the canonical model (features/unitdesign/types);
-// re-exported here so existing importers (PillKeyValueEditor) keep resolving them from this module.
+// The Scale-1,000 conversion helpers live with the canonical model (features/unitdesign/types).
 import { rawToScaled, scaledToRaw } from "@/features/unitdesign/types/UnitComponent";
-export { rawToScaled, scaledToRaw };
 
 // Local copy of the dialog's input styling so this stays self-contained.
 const inputClass = "w-full rounded-md border border-slate-300 px-2 py-2 text-sm";

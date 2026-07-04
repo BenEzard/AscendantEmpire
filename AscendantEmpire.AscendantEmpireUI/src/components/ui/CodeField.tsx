@@ -13,26 +13,11 @@ import { useEffect, useRef, useState } from "react";
 import { FaPencil } from "react-icons/fa6";
 
 import Tooltip from "./Tooltip";
+import { toCodeChars, toCodeSlug } from "./codeSlug";
 
 // The shared text-input styling (kept in step with the dialogs' `inputClass`) so a CodeField's input
 // looks identical to a plain text field next to it.
 const DEFAULT_INPUT_CLASS = "w-full rounded-md border border-slate-300 px-2 py-2 text-sm";
-
-/**
- * Lowercase a string and replace each non-alphanumeric character with a single hyphen (one per
- * character — runs are NOT collapsed). Does not trim, so it is safe to apply to live manual typing.
- */
-export function toCodeChars(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]/g, "-");
-}
-
-/**
- * The full code algorithm: {@link toCodeChars} plus trimming of leading/trailing hyphens. Used to
- * auto-derive the code from the source field and when resetting via the pencil.
- */
-export function toCodeSlug(source: string): string {
-  return toCodeChars(source).replace(/^-+|-+$/g, "");
-}
 
 export interface CodeFieldProps {
   /** The current code value (controlled). */

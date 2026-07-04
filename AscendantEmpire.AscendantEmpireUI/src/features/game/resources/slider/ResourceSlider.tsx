@@ -3,7 +3,7 @@ import Slider from "../../../../components/ui/slider/Slider";
 import type { SliderProps } from "../../../../components/ui/slider/Slider";
 import NumberValueField from "../../../../components/ui/NumberValueField";
 import ProgressBar from "../../../../components/ui/ProgressBar";
-import { useResourceRemainder } from "./ResourceSliderCollection";
+import { useResourceRemainder } from "./resourceRemainderContext";
 import Tooltip from "@/components/ui/Tooltip";
 
 const VALUE_WIDTH = 56;

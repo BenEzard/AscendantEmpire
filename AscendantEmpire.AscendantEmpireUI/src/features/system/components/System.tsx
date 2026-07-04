@@ -2,7 +2,7 @@
 // AuthGate since its user-administration endpoints require an authenticated bearer token. Its first
 // feature is user administration: a toolbar "Users" button loads every user into a table where each
 // account can be inactivated for a reason (Quit/Banned/Deleted) or reactivated.
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { HiUsers } from "react-icons/hi2";
 
 import ToolBar from "@/components/Toolbar";
@@ -26,7 +26,7 @@ export default function System() {
 
   // Loads (or reloads) the full user list. Used both when opening the Users view and after every
   // status change so the table reflects the server's truth (timestamps, etc.).
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -39,13 +39,13 @@ export default function System() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Opens the Users view and kicks off a load.
-  const handleOpenUsers = () => {
+  const handleOpenUsers = useCallback(() => {
     setView("users");
     loadUsers();
-  };
+  }, [loadUsers]);
 
   // Applies a new reason to a user. Destructive reasons (Banned/Deleted) confirm first; everything
   // else applies immediately. On success we re-fetch so the table mirrors the server exactly.
@@ -86,7 +86,7 @@ export default function System() {
         ],
       },
     ],
-    [view],
+    [view, handleOpenUsers],
   );
 
   return (

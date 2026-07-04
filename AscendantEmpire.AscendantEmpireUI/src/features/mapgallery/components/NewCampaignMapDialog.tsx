@@ -6,12 +6,12 @@ import axios from "axios";
 // ── Engine options ──────────────────────────────────────────────────────────
 
 // Must match the MapCreationEngine enum order on the backend (0-based).
-export const engineOptions = [
+const engineOptions = [
   { value: 0, label: "Blank Map" },
   { value: 1, label: "Perlin Noise V1" },
 ] as const;
 
-export type EngineValue = (typeof engineOptions)[number]["value"];
+type EngineValue = (typeof engineOptions)[number]["value"];
 
 // ── Blank-map settings ──────────────────────────────────────────────────────
 

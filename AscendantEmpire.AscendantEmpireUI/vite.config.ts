@@ -1,4 +1,3 @@
-/// <reference types="vitest/config" />
 // Import defineConfig from 'vitest/config' (not 'vite') so the `test` block below is typed.
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'

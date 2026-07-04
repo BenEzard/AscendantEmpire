@@ -20,9 +20,9 @@ import { HiPlus, HiTrash } from "react-icons/hi2";
 
 import Tooltip from "@/components/ui/Tooltip";
 
-import type { KeyValueRow } from "@/features/unitdesign/types/UnitComponent";
+import { rawToScaled, type KeyValueRow } from "@/features/unitdesign/types/UnitComponent";
 import { inputClass } from "./componentSetupFields";
-import ScaledNumberField, { rawToScaled } from "./ScaledNumberField";
+import ScaledNumberField from "./ScaledNumberField";
 
 interface PillKeyValueEditorProps<TKey extends string> {
   /** The committed entries (the pills). */
@@ -214,7 +214,8 @@ export default function PillKeyValueEditor<TKey extends string>({
         ) : (
           <div className="flex flex-wrap gap-2">
             {rows.map((row, index) => {
-              const Icon = keyIcons?.[row.key];
+              // Cast needed: with a generic TKey, TS can't narrow the indexed-access type for JSX use below.
+              const Icon = keyIcons?.[row.key] as IconType | undefined;
               const isSelected = sel === index;
               return (
                 <Tooltip key={row.key} content={keyLabels[row.key]}>
