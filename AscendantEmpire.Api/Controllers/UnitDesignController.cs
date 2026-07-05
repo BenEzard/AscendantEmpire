@@ -1,7 +1,10 @@
 using AscendantEmpire.Api.Utilities;
+using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.UnitComponents.Classes;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
+using AscendantEmpire.Application.Options;
 using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
+using AscendantEmpire.BackendContracts.UnitDesigns.CatalogTransfer;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetCompiledUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetComponent;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetFullCatalog;
@@ -12,6 +15,8 @@ using AscendantEmpire.BackendContracts.UnitDesigns.GetUnlockedBodies;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveGlobalUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.UpsertTag;
+using AscendantEmpire.Domain.Enums.Processing;
+using AscendantEmpire.Domain.Enums.System;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.UnitDesigns.BulkUpsertUnitComponents;
 
@@ -19,6 +24,8 @@ using MediatR;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
@@ -426,6 +433,145 @@ public class UnitDesignController : ControllerBase
     {
         ServiceResult<TagView> response =
             await mediator.Send(new UpdateTagRequest(id, request), cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Dev design tool: initiate an export of selected parts of the unit-design catalogue.
+    /// The export runs asynchronously. Poll <c>GET /system/status?processId=X</c> for progress.
+    /// Once complete, download via <c>GET /unit-design/export/download?processId=X</c>.
+    /// </summary>
+    /// <remarks>
+    /// TODO: lock down before any non-dev deployment. Left unauthorized for now, consistent with the other
+    /// dev catalog endpoints; it must be gated behind a dev/admin policy before shipping.
+    /// </remarks>
+    /// <response code="201">Export job accepted. Returns the processId.</response>
+    /// <response code="400">Nothing was selected to export.</response>
+    /// <response code="500">Server error.</response>
+    [HttpPost("export")]
+    [ProducesResponseType(typeof(int), 201)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> InitiateCatalogExportAsync(
+        [FromServices] IMediator mediator,
+        [FromBody] InitiateCatalogExportDto request,
+        CancellationToken cancelToken)
+    {
+        ServiceResult<int> response = await mediator.Send(
+            new InitiateCatalogExportRequest(ExportComponents: request.Components, ExportTemplates: request.Templates), cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Dev design tool: download the completed catalogue export zip.
+    /// Returns 404 if the export has not yet completed or the processId is not found.
+    /// </summary>
+    /// <response code="200">Returns the export zip file.</response>
+    /// <response code="404">Export not ready or processId not found.</response>
+    /// <response code="500">Server error.</response>
+    [HttpGet("export/download")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> DownloadCatalogExportAsync(
+        [FromServices] IDbContextFactory<AscendantEmpireContext> contextFactory,
+        [FromQuery] int processId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using AscendantEmpireContext context = await contextFactory.CreateDbContextAsync(cancellationToken);
+
+            var processing = await context.Processing
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    p => p.ProcessingId == processId && p.ProcessType == ProcessType.ExportCatalog,
+                    cancellationToken);
+
+            if (processing is null || processing.Status != ProcessingStatus.Complete || string.IsNullOrEmpty(processing.ResultReference))
+            {
+                return new ObjectResult(new DTApiErrorResult(["Export not ready or processId not found."]))
+                {
+                    StatusCode = StatusCodes.Status404NotFound
+                };
+            }
+
+            if (!System.IO.File.Exists(processing.ResultReference))
+            {
+                return new ObjectResult(new DTApiErrorResult(["Export file no longer available on the server."]))
+                {
+                    StatusCode = StatusCodes.Status404NotFound
+                };
+            }
+
+            string fileName = Path.GetFileName(processing.ResultReference);
+            Stream stream = new FileStream(
+                processing.ResultReference,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize: 65536,
+                useAsync: true);
+
+            return new FileStreamResult(stream, "application/zip")
+            {
+                FileDownloadName = fileName
+            };
+        }
+        catch (Exception)
+        {
+            return new ObjectResult(new DTApiErrorResult(["An error occurred while retrieving the export file."]))
+            {
+                StatusCode = StatusCodes.Status500InternalServerError
+            };
+        }
+    }
+
+    /// <summary>
+    /// Dev design tool: import a unit-design catalogue from a previously exported zip file.
+    /// The uploaded zip is staged on disk and the import runs asynchronously.
+    /// Poll <c>GET /system/status?processId=X</c> for progress.
+    /// </summary>
+    /// <remarks>
+    /// TODO: lock down before any non-dev deployment. Left unauthorized for now, consistent with the other
+    /// dev catalog endpoints; it must be gated behind a dev/admin policy before shipping, since it writes the shared catalog.
+    /// </remarks>
+    /// <response code="201">Import job accepted. Returns the processId.</response>
+    /// <response code="400">No file supplied or the file is empty.</response>
+    /// <response code="500">Server error.</response>
+    [HttpPost("import")]
+    [RequestSizeLimit(50 * 1024 * 1024)]
+    [ProducesResponseType(typeof(int), 201)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> ImportCatalogAsync(
+        [FromServices] IMediator mediator,
+        [FromServices] IOptions<ImportSettings> importOptions,
+        IFormFile file,
+        CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return new ObjectResult(new DTApiErrorResult(["No import file was supplied."]))
+            {
+                StatusCode = StatusCodes.Status400BadRequest
+            };
+        }
+
+        // Stage the upload to the import temp directory under a unique name before queueing the job.
+        string tempDirectory = importOptions.Value.TempDirectory;
+        Directory.CreateDirectory(tempDirectory);
+        string stagedPath = Path.Combine(tempDirectory, $"import_{Guid.NewGuid():N}.zip");
+
+        await using (FileStream stagedStream = new(stagedPath, FileMode.Create, FileAccess.Write, FileShare.None))
+        {
+            await file.CopyToAsync(stagedStream, cancellationToken);
+        }
+
+        ServiceResult<int> response = await mediator.Send(
+            new InitiateCatalogImportRequest(ZipPath: stagedPath), cancellationToken);
 
         return response.ToActionResult();
     }

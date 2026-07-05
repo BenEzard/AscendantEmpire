@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Executors;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
+using AscendantEmpire.Application.Features.UnitComponents.Executors;
 using AscendantEmpire.Application.Features.TroopOrders.Movement;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions;
@@ -49,6 +50,8 @@ public static class MediatrStartup
         services.AddScoped<IProcessExecutor, MapImportExecutor>();
         services.AddScoped<IProcessExecutor, GenerateCampaignMapExecutor>();
         services.AddScoped<IProcessExecutor, RenderCampaignMapPreviewExecutor>();
+        services.AddScoped<IProcessExecutor, CatalogExportExecutor>();
+        services.AddScoped<IProcessExecutor, CatalogImportExecutor>();
 
         return services;
     }

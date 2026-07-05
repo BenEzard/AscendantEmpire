@@ -20,5 +20,15 @@ public enum ProcessType
     /// <summary>
     /// Import a gallery map from a previously exported zip file.
     /// </summary>
-    ImportGalleryMap = 4
+    ImportGalleryMap = 4,
+
+    /// <summary>
+    /// Export selected parts of the unit-design catalogue (components and/or templates) to a zip file.
+    /// </summary>
+    ExportCatalog = 5,
+
+    /// <summary>
+    /// Import a unit-design catalogue from a previously exported zip file.
+    /// </summary>
+    ImportCatalog = 6
 }
