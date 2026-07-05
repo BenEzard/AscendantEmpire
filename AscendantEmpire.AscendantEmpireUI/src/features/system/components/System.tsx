@@ -2,27 +2,75 @@
 // AuthGate since its user-administration endpoints require an authenticated bearer token. Its first
 // feature is user administration: a toolbar "Users" button loads every user into a table where each
 // account can be inactivated for a reason (Quit/Banned/Deleted) or reactivated.
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { HiUsers } from "react-icons/hi2";
+import { FaFileExport, FaFileImport } from "react-icons/fa6";
 
 import ToolBar from "@/components/ui/toolbar/Toolbar";
 import type { ToolBarGroup } from "@/components/ui/toolbar/Toolbar";
-import { Alert } from "@/components/ui";
+import { Alert, ProgressOperationDialog } from "@/components/ui";
 
 import { getUsers, setUserInactive } from "../api/usersApi";
 import { INACTIVATION_REASONS } from "../types/User";
 import type { AuthUser, InactiveReasonType } from "../types/User";
 import UsersTable from "./UsersTable";
+import ExportSelectionDialog from "./ExportSelectionDialog";
+import { useCatalogExport, type CatalogExportPhase } from "../hooks/useCatalogExport";
+import { useCatalogImport, type CatalogImportPhase } from "../hooks/useCatalogImport";
 
 // Which panel the page is currently showing. Only the Users view exists for now, but this leaves room
 // for more System tools (each toolbar group can flip to its own view).
 type SystemView = "none" | "users";
+
+// Short status labels shown under the progress bar for each phase of the export/import state machines.
+const EXPORT_PHASE_LABELS: Record<CatalogExportPhase["phase"], string> = {
+  idle: "",
+  starting: "Starting export…",
+  polling: "Export in progress…",
+  downloading: "Preparing download…",
+  done: "",
+  error: "",
+};
+
+const IMPORT_PHASE_LABELS: Record<CatalogImportPhase["phase"], string> = {
+  idle: "",
+  starting: "Starting import…",
+  polling: "Import in progress…",
+  done: "",
+  error: "",
+};
+
+/** Maps an export/import phase onto the ProgressOperationDialog status prop. */
+function progressStatus(phase: string): "active" | "done" | "error" {
+  if (phase === "done") {
+    return "done";
+  }
+  if (phase === "error") {
+    return "error";
+  }
+  return "active";
+}
 
 export default function System() {
   const [view, setView] = useState<SystemView>("none");
   const [users, setUsers] = useState<AuthUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // --- Files (catalogue export / import) state --------------------------------------------------
+  // Controls the ExportSelectionDialog opened by the Files group's "Export" button, plus its error banner.
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  // The name of the file the user picked to import, shown in the import progress dialog title.
+  const [importFileName, setImportFileName] = useState("");
+
+  // Hidden file input clicked by the "Import" button so the developer can pick an exported zip.
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Background export/import state machines (initiate → poll → download/done), reusing the generic poller.
+  const catalogExport = useCatalogExport();
+  const catalogImport = useCatalogImport();
 
   // Loads (or reloads) the full user list. Used both when opening the Users view and after every
   // status change so the table reflects the server's truth (timestamps, etc.).
@@ -70,7 +118,32 @@ export default function System() {
     }
   };
 
-  // A single "Users" group for now. The button opens the user-management table.
+  // Confirming the export dialog closes it and kicks off the background export for the chosen kinds. The
+  // checkbox ids map straight onto the API's selection flags.
+  const handleExportCommit = (selectedIds: string[]) => {
+    setExportError(null);
+    setShowExportDialog(false);
+    catalogExport.startExport({
+      components: selectedIds.includes("components"),
+      templates: selectedIds.includes("templates"),
+    });
+  };
+
+  // Picking a file starts the background import. The input value is cleared so re-picking the same file
+  // still fires onChange.
+  const handleImportFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+
+    setImportFileName(file.name);
+    catalogImport.startImport(file);
+  };
+
+  // A "Users" group plus a "Files" group for catalogue export/import. The Users button opens the
+  // user-management table; the Files buttons drive the background export/import state machines.
   const toolBarGroups = useMemo<ToolBarGroup[]>(
     () => [
       {
@@ -82,6 +155,28 @@ export default function System() {
             tooltip: "Manage Users",
             active: view === "users",
             onClick: handleOpenUsers,
+          },
+        ],
+      },
+      {
+        caption: "Files",
+        buttons: [
+          {
+            key: "export-catalogue",
+            icon: <FaFileExport />,
+            tooltip: "Export Catalogue",
+            // Open the selection dialog; the actual export starts when the user confirms their picks.
+            onClick: () => {
+              setExportError(null);
+              setShowExportDialog(true);
+            },
+          },
+          {
+            key: "import-catalogue",
+            icon: <FaFileImport />,
+            tooltip: "Import Catalogue",
+            // Delegate to the hidden file input; the import starts from its onChange handler.
+            onClick: () => fileInputRef.current?.click(),
           },
         ],
       },
@@ -113,6 +208,43 @@ export default function System() {
           <p className="text-sm text-slate-400">Pick a tool from the toolbar to get started.</p>
         </div>
       )}
+
+      {/* Hidden file input backing the Files group's Import button. */}
+      <input ref={fileInputRef} type="file" accept=".zip" className="hidden" onChange={handleImportFileChange} />
+
+      <ExportSelectionDialog
+        open={showExportDialog}
+        onCancel={() => {
+          setShowExportDialog(false);
+          setExportError(null);
+        }}
+        onCommit={handleExportCommit}
+        error={exportError}
+      />
+
+      {/* Export progress + auto-download. Driven by the export state machine; closing resets it to idle. */}
+      <ProgressOperationDialog
+        open={catalogExport.isActive}
+        title="Exporting catalogue"
+        operationLabel={EXPORT_PHASE_LABELS[catalogExport.exportPhase.phase]}
+        progressPercent={catalogExport.progressPercent}
+        status={progressStatus(catalogExport.exportPhase.phase)}
+        successMessage="Export complete. Your download has started."
+        errorMessage={catalogExport.exportPhase.phase === "error" ? catalogExport.exportPhase.message : undefined}
+        onClose={catalogExport.resetExport}
+      />
+
+      {/* Import progress. Driven by the import state machine; closing resets it to idle. */}
+      <ProgressOperationDialog
+        open={catalogImport.isActive}
+        title={importFileName ? `Importing "${importFileName}"` : "Importing catalogue"}
+        operationLabel={IMPORT_PHASE_LABELS[catalogImport.importPhase.phase]}
+        progressPercent={catalogImport.progressPercent}
+        status={progressStatus(catalogImport.importPhase.phase)}
+        successMessage="Import complete. The catalogue has been updated."
+        errorMessage={catalogImport.importPhase.phase === "error" ? catalogImport.importPhase.message : undefined}
+        onClose={catalogImport.resetImport}
+      />
     </div>
   );
 }
