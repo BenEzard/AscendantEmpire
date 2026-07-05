@@ -42,11 +42,7 @@ export default function WeaponProperties({ weapon, onChange }: WeaponPropertiesP
 
   // Rebuild and emit a fully-hydrated weapon from the latest pieces. Whichever part just changed is
   // passed as an override, because the matching setState above hasn't flushed yet when we emit.
-  const emit = (overrides: {
-    base?: UnitComponentWeapon;
-    attack?: KeyValueRow<DamageType>[];
-    domains?: KeyValueRow<DomainType>[];
-  }) => {
+  const emit = (overrides: { base?: UnitComponentWeapon; attack?: KeyValueRow<DamageType>[]; domains?: KeyValueRow<DomainType>[] }) => {
     const base = overrides.base ?? weapon;
     const nextAttackRows = overrides.attack ?? attackRows;
     const nextDomainRows = overrides.domains ?? domainRows;
@@ -79,15 +75,14 @@ export default function WeaponProperties({ weapon, onChange }: WeaponPropertiesP
 
   return (
     <div className="w-full max-w-xl">
-      <div className="mb-1 text-sm font-semibold text-slate-700">Attack</div>
       <PillKeyValueEditor
         rows={attackRows}
         onChange={handleAttackChange}
         allKeys={ALL_DAMAGE_TYPES}
         keyLabels={DAMAGE_TYPE_LABELS}
         keyIcons={DAMAGE_TYPE_ICONS}
-        keyHeader="Damage Type"
-        valueHeader="Damage Value"
+        keyHeader="Attack Type"
+        valueHeader="Attack Value"
         defaultValueRaw={0}
       />
 
@@ -104,15 +99,7 @@ export default function WeaponProperties({ weapon, onChange }: WeaponPropertiesP
         />
       </div>
 
-      <div className="mt-3">
-        <label className="flex items-center gap-1.5 text-sm text-slate-700">
-          <input type="checkbox" checked={weapon.dualWield} onChange={(e) => handleDualWieldChange(e.target.checked)} />
-          Dual Wield
-        </label>
-      </div>
-
       {/* Domain modifiers: each row is a Domain the weapon can engage, with its damage multiplier. */}
-      <div className="mt-3 mb-1 text-sm font-semibold text-slate-700">Target Domains</div>
       <PillKeyValueEditor
         rows={domainRows}
         onChange={handleDomainChange}
@@ -125,6 +112,13 @@ export default function WeaponProperties({ weapon, onChange }: WeaponPropertiesP
         defaultValueRaw={COMPONENT_VALUE_SCALE}
       />
       <p className="mt-1 text-xs text-slate-400">Multiplier 1.0 = 100% damage. Domains not listed cannot be attacked.</p>
+
+      <div className="mt-3">
+        <label className="flex items-center gap-1.5 text-sm text-slate-700">
+          <input type="checkbox" checked={weapon.dualWield} onChange={(e) => handleDualWieldChange(e.target.checked)} />
+          Dual Wield
+        </label>
+      </div>
     </div>
   );
 }

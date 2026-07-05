@@ -1,4 +1,4 @@
-import ToolBar from "@/components/toolbar/Toolbar";
+import ToolBar from "@/components/ui/toolbar/Toolbar";
 import ResourceManagerDialog from "@/features/game/resources/manager/ResourceManagerDialog";
 import { usePlayerCampaignMapTilesQuery } from "@/features/map/hooks/useCampaignMapTiles";
 import TileGrid, { TILE_SIZE_PX } from "@/features/map/components/TileGrid";

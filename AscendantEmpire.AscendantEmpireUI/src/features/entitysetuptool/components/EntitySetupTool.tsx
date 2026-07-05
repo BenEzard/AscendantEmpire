@@ -6,8 +6,8 @@ import { FaPlus } from "react-icons/fa6";
 import { HiMagnifyingGlass } from "react-icons/hi2";
 import { GiGearHammer } from "react-icons/gi";
 
-import ToolBar from "@/components/toolbar/Toolbar";
-import type { ToolBarGroup } from "@/components/toolbar/Toolbar";
+import ToolBar from "@/components/ui/toolbar/Toolbar";
+import type { ToolBarGroup } from "@/components/ui/toolbar/Toolbar";
 import { SearchDrawer, Toast, ToastViewport } from "@/components/ui";
 
 import { bulkUpsertComponents, getComponent } from "@/features/unitdesign/api/componentsApi";

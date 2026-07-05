@@ -16,10 +16,13 @@ export default function ScaledNumberField({
   rawValue,
   onChange,
   nullable,
+  onBlur,
 }: {
   rawValue: number | null;
   onChange: (next: number | null) => void;
   nullable?: boolean;
+  /** Fired when the input loses focus (e.g. so callers can auto-commit a composed entry). */
+  onBlur?: () => void;
 }) {
   // Show the decimal form of the stored raw value; blank when null.
   const display = rawValue == null ? "" : String(rawToScaled(rawValue));
@@ -42,6 +45,7 @@ export default function ScaledNumberField({
       value={display}
       placeholder={nullable ? "none" : undefined}
       onChange={(e) => handleChange(e.target.value)}
+      onBlur={onBlur}
     />
   );
 }

@@ -1,4 +1,4 @@
-import ToolBar from "@/components/toolbar/Toolbar";
+import ToolBar from "@/components/ui/toolbar/Toolbar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Button, Modal, Spinner } from "@/components/ui";
 import NewCampaignMapDialog from "./NewCampaignMapDialog";

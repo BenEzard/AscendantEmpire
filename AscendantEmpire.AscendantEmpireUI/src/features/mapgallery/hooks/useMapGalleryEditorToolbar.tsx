@@ -6,10 +6,10 @@ import { VscNewFile } from "react-icons/vsc";
 import { FaPaintBrush } from "react-icons/fa";
 import { HiMagnifyingGlass } from "react-icons/hi2";
 
-import type { ToolBarGroup } from "@/components/toolbar/Toolbar";
+import type { ToolBarGroup } from "@/components/ui/toolbar/Toolbar";
 import { DropButton, HamburgerMenu, Spinner } from "@/components/ui";
 import type { DropButtonItem } from "@/components/ui/DropButton";
-import ToolbarExclusiveButtons from "@/components/toolbar/ToolbarExclusiveButtons";
+import ToolbarExclusiveButtons from "@/components/ui/toolbar/ToolbarExclusiveButtons";
 
 import type { Biome } from "@/types/map/Biome";
 import type { Geography } from "@/types/map/Geography";

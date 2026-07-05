@@ -5,9 +5,10 @@
 //
 // Interaction:
 //   • Nothing selected → the entry row composes a NEW entry; the dropdown offers only unused keys, and
-//     the "+" button commits it as a pill.
+//     the "+" button (on the header row) commits it as a pill. Blurring the value field also commits it
+//     automatically, as long as its value isn't zero/empty — "+" just makes that explicit/optional.
 //   • Click a pill → it becomes selected (highlighted) and loads into the entry row, which now edits
-//     that pill live (changes apply immediately).
+//     that pill live (changes apply immediately); blurring the value field does nothing extra here.
 //   • The "🗑" button deletes the selected pill; "+" while a pill is selected starts a fresh new entry.
 //
 // Like the old table editor this enforces one entry per key (the dropdown only ever offers keys not in
@@ -52,8 +53,10 @@ export default function PillKeyValueEditor<TKey extends string>({
   valueHeader,
   defaultValueRaw,
 }: PillKeyValueEditorProps<TKey>) {
-  // Which pill is currently being edited (null = composing a new entry).
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  // Which pill is currently being edited (null = composing a new entry). Defaults to the first pill when
+  // opening on an existing (already-populated) component, so its values show immediately rather than a
+  // blank composer; a fresh/empty component still starts in composing mode since there's nothing to show.
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(() => (rows.length > 0 ? 0 : null));
   // The new-entry draft (only consulted when nothing is selected).
   const [draftKey, setDraftKey] = useState<TKey | null>(null);
   const [draftValue, setDraftValue] = useState<number>(defaultValueRaw);
@@ -123,6 +126,16 @@ export default function PillKeyValueEditor<TKey extends string>({
     setDraftValue(defaultValueRaw);
   };
 
+  // Value field lost focus — while composing (not editing an existing pill) a non-zero value commits
+  // itself as a pill immediately, so the "+" button becomes optional rather than required.
+  const handleValueBlur = () => {
+    if (editing || currentValue === 0) {
+      return;
+    }
+
+    handleAdd();
+  };
+
   // "🗑" — delete the selected pill and return to composing (its key is now free again).
   const handleRemove = () => {
     if (sel == null) {
@@ -151,10 +164,23 @@ export default function PillKeyValueEditor<TKey extends string>({
     <div className="rounded-md border border-slate-200">
       {/* Entry row: a header line, then the key dropdown + value input + add/remove buttons. */}
       <div className="border-b border-slate-200 p-2">
-        <div className="grid grid-cols-12 gap-2 px-1 pb-1 text-xs font-medium text-slate-500">
+        <div className="grid grid-cols-12 items-center gap-2 px-1 pb-1 text-xs font-medium text-slate-500">
           <div className="col-span-5">{keyHeader}</div>
           <div className="col-span-4">{valueHeader}</div>
-          <div className="col-span-3" />
+          <div className="col-span-3 flex items-center justify-end">
+            <Tooltip content={editing ? `New ${keyHeader}` : `Add ${keyHeader}`}>
+              {/* Plain icon control (no border/padding) so it reads as a subtle action, not a button. */}
+              <button
+                type="button"
+                className="text-slate-500 hover:text-[var(--bs-primary)] disabled:opacity-30 disabled:hover:text-slate-500"
+                disabled={firstUnused == null}
+                aria-label={editing ? `New ${keyHeader}` : `Add ${keyHeader}`}
+                onClick={handleAdd}
+              >
+                <HiPlus size={18} aria-hidden />
+              </button>
+            </Tooltip>
+          </div>
         </div>
 
         <div className="grid grid-cols-12 items-center gap-2">
@@ -175,23 +201,15 @@ export default function PillKeyValueEditor<TKey extends string>({
           </div>
 
           <div className="col-span-4">
-            <ScaledNumberField rawValue={currentValue} nullable={false} onChange={(next) => handleValueChange(next ?? 0)} />
+            <ScaledNumberField
+              rawValue={currentValue}
+              nullable={false}
+              onChange={(next) => handleValueChange(next ?? 0)}
+              onBlur={handleValueBlur}
+            />
           </div>
 
-          <div className="col-span-3 flex items-center justify-end gap-3">
-            <Tooltip content={editing ? `New ${keyHeader}` : `Add ${keyHeader}`}>
-              {/* Plain icon controls (no border/padding) so they read as subtle actions, not buttons. */}
-              <button
-                type="button"
-                className="text-slate-500 hover:text-[var(--bs-primary)] disabled:opacity-30 disabled:hover:text-slate-500"
-                disabled={firstUnused == null}
-                aria-label={editing ? `New ${keyHeader}` : `Add ${keyHeader}`}
-                onClick={handleAdd}
-              >
-                <HiPlus size={18} aria-hidden />
-              </button>
-            </Tooltip>
-
+          <div className="col-span-3 flex items-center justify-end">
             <Tooltip content="Remove selected">
               <button
                 type="button"
