@@ -36,7 +36,9 @@ function slotLabel(slot: UnitComponentSlot, index: number): string {
 }
 
 export default function ImageSection({ component, onChange }: ImageSectionProps) {
-  const { designerImagePath, slots } = component;
+  const { designerImagePath } = component;
+  // Only bodies expose slots, so they live on the body extension (empty for every other component type).
+  const slots = component.body?.slots ?? [];
 
   // Whether the browser failed to load `designerImagePath` as an image. Reset whenever the path itself
   // changes, so a freshly-typed path is given a chance to load before we hide the preview.
@@ -71,11 +73,17 @@ export default function ImageSection({ component, onChange }: ImageSectionProps)
     onChange({ ...component, designerImagePath: value === "" ? null : value });
   };
 
-  // Write a slot's normalized position back into the component.
+  // Write a slot's normalized position back into the body (only bodies carry slots).
   const setSlotPosition = (index: number, x: number, y: number) => {
+    if (component.body == null) {
+      return;
+    }
     onChange({
       ...component,
-      slots: slots.map((slot, i) => (i === index ? { ...slot, uiXPosition: x, uiYPosition: y } : slot)),
+      body: {
+        ...component.body,
+        slots: slots.map((slot, i) => (i === index ? { ...slot, uiXPosition: x, uiYPosition: y } : slot)),
+      },
     });
   };
 

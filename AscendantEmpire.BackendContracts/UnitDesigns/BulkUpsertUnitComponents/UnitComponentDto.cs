@@ -61,12 +61,6 @@ public record UnitComponentDto
     public UnitComponentArmourDto? Armour { get; init; }
 
     /// <summary>
-    /// The Template Slots this component exposes for fitting other components (0 or more). Any component
-    /// type may carry slots, so a fitted component can itself expose slots for further nesting.
-    /// </summary>
-    public IReadOnlyCollection<UnitComponentSlotDto> Slots { get; init; } = [];
-
-    /// <summary>
     /// Codes of buff tags attached to this component. Each must resolve to a tag in the payload
     /// <c>Tags</c> list or an existing tag in the database.
     /// </summary>

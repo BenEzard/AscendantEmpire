@@ -33,8 +33,6 @@ internal static class CatalogExportProjections
             Body = component.Body is { } body ? ToBodyDto(body) : null,
             Weapon = component.Weapon is { } weapon ? ToWeaponDto(weapon) : null,
             Armour = component.Armour is { } armour ? ToArmourDto(armour) : null,
-            // Slots are exported in slot-id order so a template's positional SlotComponentCodes round-trip.
-            Slots = [.. component.Slots.OrderBy(s => s.Id).Select(ToSlotDto)],
             // Tag join rows carry the Tag navigation; export just the stable codes.
             TagCodes = [.. component.Tags.Select(t => t.Tag.Code)],
         };
@@ -66,6 +64,8 @@ internal static class CatalogExportProjections
             MinimumUnitSize = body.MinimumUnitSize,
             MaximumUnitSize = body.MaximumUnitSize,
             SizeIncrement = body.SizeIncrement,
+            // Slots are exported in slot-id order so a template's positional SlotComponentCodes round-trip.
+            Slots = [.. body.Slots.OrderBy(s => s.Id).Select(ToSlotDto)],
         };
     }
 
@@ -102,7 +102,6 @@ internal static class CatalogExportProjections
             // Id is intentionally left null: it is meaningless in another database and the upsert ignores it.
             DisplayName = slot.DisplayName,
             IsVisible = slot.IsVisible,
-            IsLocked = slot.IsLocked,
             UIXPosition = slot.UIXPosition,
             UIYPosition = slot.UIYPosition,
             Rules = [.. slot.Rules.OrderBy(r => r.Id).Select(r => new UnitComponentSlotRuleDto

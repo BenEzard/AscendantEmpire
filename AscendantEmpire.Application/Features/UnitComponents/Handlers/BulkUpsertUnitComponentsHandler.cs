@@ -53,8 +53,7 @@ internal class BulkUpsertUnitComponentsHandler(
 
             Dictionary<string, UnitComponent> existingByCode = await context.UnitComponents
                 .Where(c => componentCodes.Contains(c.Code))
-                .Include(c => c.Slots).ThenInclude(s => s.Rules)
-                .Include(c => c.Body)
+                .Include(c => c.Body!).ThenInclude(b => b.Slots).ThenInclude(s => s.Rules)
                 .Include(c => c.Weapon!).ThenInclude(w => w.DomainModifiers)
                 .Include(c => c.Armour)
                 .Include(c => c.Tags).ThenInclude(t => t.Tag)
@@ -323,8 +322,9 @@ internal class BulkUpsertUnitComponentsHandler(
             errors.Add($"Component '{component.Code}' weapon MinimumRange ({weapon.MinimumRange}) exceeds MaximumRange ({weapon.MaximumRange}).");
         }
 
-        // Slots can be exposed by any component type (not just bodies), so validate them at the component level.
-        foreach (UnitComponentSlotDto slot in component.Slots)
+        // Only bodies expose slots, and a body's slots live on its Body extension. A non-body component
+        // therefore cannot carry any (its Body is null), which is how "Body-only slots" is enforced.
+        foreach (UnitComponentSlotDto slot in component.Body?.Slots ?? [])
         {
             if (slot.DisplayName is { Length: > UnitComponentSlot.DISPLAY_NAME_MAX_LENGTH })
             {
@@ -555,7 +555,6 @@ internal class BulkUpsertUnitComponentsHandler(
             Body = dto.Body is { } bodyDto ? BuildBody(bodyDto) : null,
             Weapon = dto.Weapon is { } weaponDto ? BuildWeapon(weaponDto) : null,
             Armour = dto.Armour is { } armourDto ? BuildArmour(armourDto) : null,
-            Slots = [.. dto.Slots.Select(BuildSlot)],
             Tags = BuildTagJoins(dto.TagCodes, tagsByCode),
         };
     }
@@ -572,6 +571,7 @@ internal class BulkUpsertUnitComponentsHandler(
             MinimumUnitSize = dto.MinimumUnitSize,
             MaximumUnitSize = dto.MaximumUnitSize,
             SizeIncrement = dto.SizeIncrement,
+            Slots = [.. dto.Slots.Select(BuildSlot)],
         };
     }
 
@@ -581,7 +581,6 @@ internal class BulkUpsertUnitComponentsHandler(
         {
             DisplayName = dto.DisplayName,
             IsVisible = dto.IsVisible,
-            IsLocked = dto.IsLocked,
             UIXPosition = dto.UIXPosition,
             UIYPosition = dto.UIYPosition,
             Rules = [.. dto.Rules.Select(BuildSlotRule)],
@@ -653,6 +652,8 @@ internal class BulkUpsertUnitComponentsHandler(
         {
             case ComponentType.Body:
                 UpdateBody(existing.Body!, dto.Body!);
+                // Only bodies expose slots; reconcile them against the body extension.
+                UpdateSlots(existing.Body!, dto.Body!.Slots);
                 // A body may additionally carry an inherent weapon and/or armour; reconcile each since the
                 // payload can add, update or clear them between upserts.
                 ReconcileOptionalWeapon(existing, dto.Weapon);
@@ -668,19 +669,16 @@ internal class BulkUpsertUnitComponentsHandler(
                 break;
         }
 
-        // Slots live on the component itself (any type), so reconcile them here rather than per-extension.
-        UpdateSlots(existing, dto.Slots);
-
         MergeTagJoins(existing, dto.TagCodes, tagsByCode);
     }
 
     /// <summary>
-    /// Fully replaces a component's slots (and their rules) from the payload. Old slots and rules are
-    /// deleted explicitly (NoAction FKs => no orphan cascade); deleting rules first keeps the FK order valid.
+    /// Fully replaces a body's slots (and their rules) from the payload. Old slots and rules are deleted
+    /// explicitly (NoAction FKs => no orphan cascade); deleting rules first keeps the FK order valid.
     /// </summary>
-    private void UpdateSlots(UnitComponent existing, IReadOnlyCollection<UnitComponentSlotDto> slots)
+    private void UpdateSlots(UnitComponentBody body, IReadOnlyCollection<UnitComponentSlotDto> slots)
     {
-        List<UnitComponentSlot> oldSlots = [.. existing.Slots];
+        List<UnitComponentSlot> oldSlots = [.. body.Slots];
 
         foreach (UnitComponentSlot oldSlot in oldSlots)
         {
@@ -688,7 +686,7 @@ internal class BulkUpsertUnitComponentsHandler(
         }
 
         context.UnitComponentSlots.RemoveRange(oldSlots);
-        existing.Slots = [.. slots.Select(BuildSlot)];
+        body.Slots = [.. slots.Select(BuildSlot)];
     }
 
     /// <summary>
@@ -721,8 +719,7 @@ internal class BulkUpsertUnitComponentsHandler(
     }
 
     /// <summary>
-    /// Overwrites a body extension's scalars. Slots are reconciled separately at the component level
-    /// (see <see cref="UpdateSlots"/>), since any component type can expose them.
+    /// Overwrites a body extension's scalars. Its slots are reconciled separately (see <see cref="UpdateSlots"/>).
     /// </summary>
     private static void UpdateBody(UnitComponentBody body, UnitComponentBodyDto dto)
     {

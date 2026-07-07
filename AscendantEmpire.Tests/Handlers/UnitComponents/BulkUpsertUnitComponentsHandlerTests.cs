@@ -42,8 +42,7 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
 
         UnitComponent body = await verifyContext.UnitComponents
-            .Include(c => c.Body)
-            .Include(c => c.Slots).ThenInclude(s => s.Rules)
+            .Include(c => c.Body!).ThenInclude(b => b.Slots).ThenInclude(s => s.Rules)
             .Include(c => c.Tags)
             .SingleAsync(c => c.Code == BODY_CODE);
 
@@ -67,9 +66,9 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
             Assert.That(body.Body, Is.Not.Null);
             Assert.That(body.Body!.UnitComponentId, Is.EqualTo(body.Id), "Body extension shares the component PK.");
             Assert.That(body.Body.MovementDomain, Is.EqualTo(DomainType.Land));
-            Assert.That(body.Slots, Has.Count.EqualTo(1));
-            Assert.That(body.Slots.Single().Rules, Has.Count.EqualTo(1));
-            Assert.That(body.Slots.Single().Rules.Single().Value, Is.EqualTo(nameof(ComponentType.Weapon)));
+            Assert.That(body.Body.Slots, Has.Count.EqualTo(1));
+            Assert.That(body.Body.Slots.Single().Rules, Has.Count.EqualTo(1));
+            Assert.That(body.Body.Slots.Single().Rules.Single().Value, Is.EqualTo(nameof(ComponentType.Weapon)));
 
             // --- Tag join ---
             Assert.That(body.Tags, Has.Count.EqualTo(1), "Body should carry one tag join.");
@@ -587,12 +586,11 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
         }
     }
 
-    [Test, Description("A non-body component (a weapon) can carry slots; they round-trip on insert and are replaced on re-import.")]
-    public async Task NonBodyComponentSlotsRoundTripAndReplaceAsync()
+    [Test, Description("A body's slots round-trip on insert and are replaced (not appended) on re-import.")]
+    public async Task BodySlotsRoundTripAndReplaceAsync()
     {
-        // A weapon that itself exposes a slot accepting Equipment (e.g. a targeting module). The UI
-        // position is a normalized offset from the image center, so it carries fractional values that
-        // must round-trip exactly through the decimal column.
+        // A slot's UI position is a normalized offset from the image center, so it carries fractional
+        // values that must round-trip exactly through the decimal column.
         UnitComponentSlotDto Slot(string label, string acceptedType, decimal x = 0m, decimal y = 0m) => new()
         {
             DisplayName = label,
@@ -610,48 +608,67 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
             ],
         };
 
-        UnitComponentDto weaponWithSlot = BuildWeapon(WEAPON_CODE) with { Slots = [Slot("Module", nameof(ComponentType.Equipment), -0.9m, 0.4m)] };
+        // A body exposing a single slot. Only bodies carry slots, so they ride on the body extension.
+        UnitComponentDto BodyWithSlot(UnitComponentSlotDto slot) => new()
+        {
+            Code = BODY_CODE,
+            DisplayName = "Test Body",
+            ComponentType = ComponentType.Body,
+            Weight = 100,
+            Body = new UnitComponentBodyDto
+            {
+                MovementDomain = DomainType.Land,
+                CampaignMovementPoints = 3000,
+                BattlefieldMovementPoints = 6000,
+                MinimumUnitSize = 1,
+                MaximumUnitSize = 10,
+                SizeIncrement = 1,
+                Slots = [slot],
+            },
+        };
+
+        UnitComponentDto bodyWithSlot = BodyWithSlot(Slot("Module", nameof(ComponentType.Equipment), -0.9m, 0.4m));
 
         BulkUpsertUnitComponentsHandler insertHandler = await CreateHandlerAsync();
         await insertHandler.Handle(
-            new BulkUpsertUnitComponentsRequest(new BulkUpsertUnitComponentsDto { Components = [weaponWithSlot] }),
+            new BulkUpsertUnitComponentsRequest(new BulkUpsertUnitComponentsDto { Components = [bodyWithSlot] }),
             CancellationToken.None);
 
         await using (AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync())
         {
-            UnitComponent weapon = await verify.UnitComponents
-                .Include(c => c.Slots).ThenInclude(s => s.Rules)
-                .SingleAsync(c => c.Code == WEAPON_CODE);
+            UnitComponent body = await verify.UnitComponents
+                .Include(c => c.Body!).ThenInclude(b => b.Slots).ThenInclude(s => s.Rules)
+                .SingleAsync(c => c.Code == BODY_CODE);
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(weapon.Slots, Has.Count.EqualTo(1), "The weapon's slot should persist.");
-                Assert.That(weapon.Slots.Single().DisplayName, Is.EqualTo("Module"));
-                Assert.That(weapon.Slots.Single().UIXPosition, Is.EqualTo(-0.9m), "Fractional X position round-trips.");
-                Assert.That(weapon.Slots.Single().UIYPosition, Is.EqualTo(0.4m), "Fractional Y position round-trips.");
-                Assert.That(weapon.Slots.Single().Rules.Single().Value, Is.EqualTo(nameof(ComponentType.Equipment)));
+                Assert.That(body.Body!.Slots, Has.Count.EqualTo(1), "The body's slot should persist.");
+                Assert.That(body.Body.Slots.Single().DisplayName, Is.EqualTo("Module"));
+                Assert.That(body.Body.Slots.Single().UIXPosition, Is.EqualTo(-0.9m), "Fractional X position round-trips.");
+                Assert.That(body.Body.Slots.Single().UIYPosition, Is.EqualTo(0.4m), "Fractional Y position round-trips.");
+                Assert.That(body.Body.Slots.Single().Rules.Single().Value, Is.EqualTo(nameof(ComponentType.Equipment)));
             }
         }
 
         // Re-import with a different slot — the old slot (and its rules) should be replaced, not appended.
-        UnitComponentDto weaponReimport = BuildWeapon(WEAPON_CODE) with { Slots = [Slot("Scope", nameof(ComponentType.Weapon))] };
+        UnitComponentDto bodyReimport = BodyWithSlot(Slot("Scope", nameof(ComponentType.Weapon)));
 
         BulkUpsertUnitComponentsHandler updateHandler = await CreateHandlerAsync();
         await updateHandler.Handle(
-            new BulkUpsertUnitComponentsRequest(new BulkUpsertUnitComponentsDto { Components = [weaponReimport] }),
+            new BulkUpsertUnitComponentsRequest(new BulkUpsertUnitComponentsDto { Components = [bodyReimport] }),
             CancellationToken.None);
 
         await using (AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync())
         {
-            UnitComponent weapon = await verify.UnitComponents
-                .Include(c => c.Slots).ThenInclude(s => s.Rules)
-                .SingleAsync(c => c.Code == WEAPON_CODE);
+            UnitComponent body = await verify.UnitComponents
+                .Include(c => c.Body!).ThenInclude(b => b.Slots).ThenInclude(s => s.Rules)
+                .SingleAsync(c => c.Code == BODY_CODE);
             int totalSlotRows = await verify.UnitComponentSlots.CountAsync();
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(weapon.Slots, Has.Count.EqualTo(1), "Still one slot after re-import.");
-                Assert.That(weapon.Slots.Single().DisplayName, Is.EqualTo("Scope"), "The slot was replaced from the payload.");
+                Assert.That(body.Body!.Slots, Has.Count.EqualTo(1), "Still one slot after re-import.");
+                Assert.That(body.Body.Slots.Single().DisplayName, Is.EqualTo("Scope"), "The slot was replaced from the payload.");
                 Assert.That(totalSlotRows, Is.EqualTo(1), "The old slot row was deleted, not left orphaned.");
             }
         }
@@ -685,27 +702,27 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
                         MinimumUnitSize = 1,
                         MaximumUnitSize = 10,
                         SizeIncrement = 1,
+                        // Only bodies expose slots, so they live on the body extension.
+                        Slots =
+                        [
+                            new UnitComponentSlotDto
+                            {
+                                DisplayName = "Weapon Slot",
+                                IsVisible = true,
+                                UIXPosition = 1,
+                                UIYPosition = 0,
+                                Rules =
+                                [
+                                    new UnitComponentSlotRuleDto
+                                    {
+                                        RuleType = SlotRuleType.ComponentType,
+                                        Operator = SlotRuleOperator.Equals,
+                                        Value = nameof(ComponentType.Weapon),
+                                    },
+                                ],
+                            },
+                        ],
                     },
-                    // Slots now live on the component itself, not the body extension.
-                    Slots =
-                    [
-                        new UnitComponentSlotDto
-                        {
-                            DisplayName = "Weapon Slot",
-                            IsVisible = true,
-                            UIXPosition = 1,
-                            UIYPosition = 0,
-                            Rules =
-                            [
-                                new UnitComponentSlotRuleDto
-                                {
-                                    RuleType = SlotRuleType.ComponentType,
-                                    Operator = SlotRuleOperator.Equals,
-                                    Value = nameof(ComponentType.Weapon),
-                                },
-                            ],
-                        },
-                    ],
                 },
                 BuildWeapon(WEAPON_CODE),
                 new UnitComponentDto

@@ -47,6 +47,8 @@ function mapBody(body: UnitComponentBody) {
     minimumUnitSize: body.minimumUnitSize,
     maximumUnitSize: body.maximumUnitSize,
     sizeIncrement: body.sizeIncrement,
+    // Only bodies carry slots, so they ride on the body payload.
+    slots: body.slots.map(mapSlot),
   };
 }
 
@@ -71,7 +73,6 @@ function mapSlot(slot: UnitComponentSlot) {
   return {
     displayName: slot.displayName,
     isVisible: slot.isVisible,
-    isLocked: slot.isLocked,
     // C# property is UIXPosition; ASP.NET Core deserialises case-insensitively.
     uiXPosition: slot.uiXPosition,
     uiYPosition: slot.uiYPosition,
@@ -106,7 +107,6 @@ export async function bulkUpsertComponents(component: UnitComponent): Promise<Bu
         body: component.body != null ? mapBody(component.body) : null,
         weapon: component.weapon != null ? mapWeapon(component.weapon) : null,
         armour: component.armour != null ? mapArmour(component.armour) : null,
-        slots: component.slots.map(mapSlot),
         tagCodes: component.tagCodes,
       },
     ],
@@ -149,6 +149,7 @@ interface BodyWire {
   minimumUnitSize: number;
   maximumUnitSize: number;
   sizeIncrement: number;
+  slots: SlotWire[];
 }
 
 interface WeaponWire {
@@ -167,7 +168,6 @@ interface SlotWire {
   id?: number;
   displayName: string | null;
   isVisible: boolean;
-  isLocked: boolean;
   // The C# property is UIXPosition; the MVC camelCase policy serialises it as "uixPosition", but we read
   // the alternate casing too in case the naming policy ever changes (same defensive pattern as elsewhere).
   uixPosition?: number;
@@ -189,7 +189,6 @@ interface ComponentWire {
   body: BodyWire | null;
   weapon: WeaponWire | null;
   armour: ArmourWire | null;
-  slots: SlotWire[];
   tagCodes: string[];
 }
 
@@ -219,6 +218,7 @@ function mapBodyFromWire(body: BodyWire): UnitComponentBody {
     minimumUnitSize: body.minimumUnitSize,
     maximumUnitSize: body.maximumUnitSize,
     sizeIncrement: body.sizeIncrement,
+    slots: body.slots.map(mapSlotFromWire),
   };
 }
 
@@ -247,7 +247,6 @@ function mapSlotFromWire(slot: SlotWire): UnitComponentSlot {
     id: slot.id,
     displayName: slot.displayName,
     isVisible: slot.isVisible,
-    isLocked: slot.isLocked,
     uiXPosition: slot.uixPosition ?? slot.uiXPosition ?? 0,
     uiYPosition: slot.uiyPosition ?? slot.uiYPosition ?? 0,
     rules: slot.rules.map((rule) => ({
@@ -281,7 +280,6 @@ export function mapEditableComponentToModel(wire: EditableComponentWire): UnitCo
     body: component.body != null ? mapBodyFromWire(component.body) : null,
     weapon: component.weapon != null ? mapWeaponFromWire(component.weapon) : null,
     armour: component.armour != null ? mapArmourFromWire(component.armour) : null,
-    slots: component.slots.map(mapSlotFromWire),
     tagCodes: component.tagCodes,
     supersededBy,
   };

@@ -149,13 +149,17 @@ export default function ComponentSetupDialog({ open, onCancel, initialComponent,
           content: <PropertiesSection key={openInstance} component={component} onChange={setComponent} />,
         },
         {
+          // Only bodies expose slots, so this page is disabled (greyed) for every other component type.
           key: "slots",
           label: "Slots",
+          disabled: component.componentType !== "Body",
           content: (
             <SlotsSection
               key={openInstance}
-              slots={component.slots}
-              onChange={(slots) => setComponent((prev) => ({ ...prev, slots }))}
+              slots={component.body?.slots ?? []}
+              onChange={(slots) =>
+                setComponent((prev) => (prev.body != null ? { ...prev, body: { ...prev.body, slots } } : prev))
+              }
             />
           ),
         },

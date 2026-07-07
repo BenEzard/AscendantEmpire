@@ -61,14 +61,14 @@ internal class CompileUnitTemplateHandlerTests : SqlServerTestBase
                 MinimumRange = 0,
                 MaximumRange = 1,
             },
-            // Slots now live on the component itself, not the body extension.
-            Slots =
-            [
-                new UnitComponentSlot { DisplayName = "Weapon", IsVisible = true, UIXPosition = 0, UIYPosition = 0 },
-                new UnitComponentSlot { DisplayName = "Armour", IsVisible = true, UIXPosition = 1, UIYPosition = 0 },
-                new UnitComponentSlot { DisplayName = "Utility", IsVisible = true, UIXPosition = 2, UIYPosition = 0 },
-            ],
+            // Only bodies expose slots, so they live on the body extension.
         };
+        body.Body!.Slots =
+        [
+            new UnitComponentSlot { DisplayName = "Weapon", IsVisible = true, UIXPosition = 0, UIYPosition = 0 },
+            new UnitComponentSlot { DisplayName = "Armour", IsVisible = true, UIXPosition = 1, UIYPosition = 0 },
+            new UnitComponentSlot { DisplayName = "Utility", IsVisible = true, UIXPosition = 2, UIYPosition = 0 },
+        ];
 
         var weapon = new UnitComponent
         {
@@ -107,7 +107,7 @@ internal class CompileUnitTemplateHandlerTests : SqlServerTestBase
         context.UnitComponents.AddRange(body, weapon, armour, equipment);
         await context.SaveChangesAsync();
 
-        List<UnitComponentSlot> slots = [.. body.Slots.OrderBy(s => s.UIXPosition)];
+        List<UnitComponentSlot> slots = [.. body.Body!.Slots.OrderBy(s => s.UIXPosition)];
 
         var template = new UnitTemplate
         {
@@ -197,129 +197,6 @@ internal class CompileUnitTemplateHandlerTests : SqlServerTestBase
             Assert.That(view.Components.Any(c => c.UnitComponentId == _equipmentComponentId), Is.True,
                 "A component no player unlocked still appears in the compiled (enemy-viewable) snapshot.");
             Assert.That(view.Capabilities.Any(c => c.TagCode == "settler"), Is.True);
-        }
-    }
-
-    [Test, Description("A nested assembly (gun fitted into a mount that is itself fitted into a body slot) compiles: stats sum across depths and the snapshot ParentId chain reflects the tree.")]
-    public async Task CompileNestedAssemblyAggregatesAndLinksTreeAsync()
-    {
-        int templateId;
-        int mountComponentId;
-        int gunComponentId;
-
-        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
-        {
-            // Body exposes one slot that accepts Equipment (the mount).
-            var body = new UnitComponent
-            {
-                Code = "nested_body",
-                DisplayName = "Nested Body",
-                ComponentType = ComponentType.Body,
-                Weight = 100,
-                Body = new UnitComponentBody { MovementDomain = DomainType.Land, MinimumUnitSize = 1, MaximumUnitSize = 5, SizeIncrement = 1 },
-                Slots =
-                [
-                    new UnitComponentSlot
-                    {
-                        DisplayName = "Mount Point",
-                        IsVisible = true,
-                        UIXPosition = 0,
-                        UIYPosition = 0,
-                        Rules = [new UnitComponentSlotRule { RuleType = SlotRuleType.ComponentType, Operator = SlotRuleOperator.Equals, Value = nameof(ComponentType.Equipment) }],
-                    },
-                ],
-            };
-
-            // The mount is an Equipment component that itself exposes a slot accepting a Weapon (the gun).
-            var mount = new UnitComponent
-            {
-                Code = "weapon_mount",
-                DisplayName = "Weapon Mount",
-                ComponentType = ComponentType.Equipment,
-                Weight = 20,
-                Slots =
-                [
-                    new UnitComponentSlot
-                    {
-                        DisplayName = "Gun Slot",
-                        IsVisible = true,
-                        UIXPosition = 0,
-                        UIYPosition = 0,
-                        Rules = [new UnitComponentSlotRule { RuleType = SlotRuleType.ComponentType, Operator = SlotRuleOperator.Equals, Value = nameof(ComponentType.Weapon) }],
-                    },
-                ],
-            };
-
-            var gun = new UnitComponent
-            {
-                Code = "nested_gun",
-                DisplayName = "Nested Gun",
-                ComponentType = ComponentType.Weapon,
-                Weight = 10,
-                Weapon = new UnitComponentWeapon { Attack = new DamageProfile { Slash = 400 }, MinimumRange = 1, MaximumRange = 3 },
-            };
-
-            context.UnitComponents.AddRange(body, mount, gun);
-            await context.SaveChangesAsync();
-
-            int bodySlotId = body.Slots.Single().Id;
-            int mountSlotId = mount.Slots.Single().Id;
-
-            // Fit the mount into the body slot (root), then the gun into the mount's slot (nested).
-            var fittedMount = new UnitTemplateComponent { UnitComponentSlotId = bodySlotId, UnitComponentId = mount.Id };
-            var template = new UnitTemplate
-            {
-                Code = "tmpl_nested",
-                DisplayName = "Nested Template",
-                MapImagePath = "nested.png",
-                BodyComponentId = body.Id,
-                Components = [fittedMount],
-            };
-            context.UnitTemplates.Add(template);
-            await context.SaveChangesAsync();
-
-            // The gun's parent is the fitted mount row, so it nests inside the mount's slot.
-            context.UnitTemplateComponents.Add(new UnitTemplateComponent
-            {
-                UnitTemplateId = template.Id,
-                ParentTemplateComponentId = fittedMount.Id,
-                UnitComponentSlotId = mountSlotId,
-                UnitComponentId = gun.Id,
-            });
-            await context.SaveChangesAsync();
-
-            templateId = template.Id;
-            mountComponentId = mount.Id;
-            gunComponentId = gun.Id;
-        }
-
-        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
-        {
-            var handler = new CompileUnitTemplateHandler(new NullLogger<CompileUnitTemplateHandler>(), context);
-            ServiceResult<int> result = await handler.Handle(new CompileUnitTemplateRequest(templateId, 1), CancellationToken.None);
-            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Success), "A valid nested assembly should compile.");
-        }
-
-        await using (AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync())
-        {
-            CompiledUnitTemplate snapshot = await verify.CompiledUnitTemplates
-                .Include(c => c.Components)
-                .SingleAsync(c => c.UnitTemplateId == templateId);
-
-            CompiledUnitTemplateComponent mountRow = snapshot.Components.Single(c => c.UnitComponentId == mountComponentId);
-            CompiledUnitTemplateComponent gunRow = snapshot.Components.Single(c => c.UnitComponentId == gunComponentId);
-
-            using (Assert.EnterMultipleScope())
-            {
-                // Stats sum across every depth (body + mount + gun), regardless of nesting.
-                Assert.That(snapshot.TotalWeight, Is.EqualTo(130), "100 + 20 + 10.");
-                Assert.That(snapshot.Attack.Slash, Is.EqualTo(400), "The nested gun's attack still contributes.");
-
-                // Snapshot tree: body + mount + gun, with the gun nested under the mount.
-                Assert.That(snapshot.Components, Has.Count.EqualTo(3));
-                Assert.That(mountRow.ParentId, Is.Null, "The mount is fitted into a body slot (root).");
-                Assert.That(gunRow.ParentId, Is.EqualTo(mountRow.Id), "The gun's parent is the mount snapshot row.");
-            }
         }
     }
 

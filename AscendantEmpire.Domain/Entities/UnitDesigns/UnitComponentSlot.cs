@@ -3,11 +3,11 @@ using System.ComponentModel.DataAnnotations;
 namespace AscendantEmpire.Domain.Entities.UnitDesigns;
 
 /// <summary>
-/// A Template Slot defined by a component — a place where another Unit Component can be plugged in.
+/// A Template Slot defined by a body — a place where another Unit Component can be plugged in.
 /// </summary>
 /// <remarks>
-/// Any component (not just bodies) may expose slots, so a fitted component can carry its own slots —
-/// e.g. a weapon mount whose slots accept a gun and a targeting module.
+/// Only body components expose slots; a Unit Template is built around a body and every other component is
+/// fitted into one of its slots.
 /// </remarks>
 public class UnitComponentSlot
 {
@@ -16,9 +16,9 @@ public class UnitComponentSlot
     public int Id { get; set; }
 
     /// <summary>
-    /// The component (via <see cref="UnitComponent.Id"/>) that owns this slot.
+    /// The body (via <see cref="UnitComponentBody.UnitComponentId"/>) that owns this slot.
     /// </summary>
-    public int UnitComponentId { get; set; }
+    public int UnitComponentBodyId { get; set; }
 
     /// <summary>
     /// Optional label shown for the slot.
@@ -30,11 +30,6 @@ public class UnitComponentSlot
     /// Whether the slot is shown on the UI.
     /// </summary>
     public bool IsVisible { get; set; }
-
-    /// <summary>
-    /// Whether the slot is locked (cannot be changed by the player).
-    /// </summary>
-    public bool IsLocked { get; set; }
 
     /// <summary>
     /// Normalized X offset of the slot from the owning component's image center.
@@ -55,9 +50,9 @@ public class UnitComponentSlot
     public decimal UIYPosition { get; set; }
 
     /// <summary>
-    /// The component that owns (exposes) this slot.
+    /// The body that owns (exposes) this slot.
     /// </summary>
-    public UnitComponent OwnerComponent { get; set; } = null!;
+    public UnitComponentBody Body { get; set; } = null!;
 
     /// <summary>
     /// Acceptance rules that decide which components may be fitted (1 or more).

@@ -84,28 +84,27 @@ internal class UnitDesignReadEndpointsTests : SqlServerTestBase
                 MinimumUnitSize = 1,
                 MaximumUnitSize = 10,
                 SizeIncrement = 1,
+                // Only bodies expose slots, so they live on the body extension.
+                Slots =
+                [
+                    new UnitComponentSlot
+                    {
+                        DisplayName = "Weapon Slot",
+                        IsVisible = true,
+                        UIXPosition = 1,
+                        UIYPosition = 0,
+                        Rules =
+                        [
+                            new UnitComponentSlotRule
+                            {
+                                RuleType = SlotRuleType.ComponentType,
+                                Operator = SlotRuleOperator.Equals,
+                                Value = nameof(ComponentType.Weapon),
+                            },
+                        ],
+                    },
+                ],
             },
-            // Slots now live on the component itself, not the body extension.
-            Slots =
-            [
-                new UnitComponentSlot
-                {
-                    DisplayName = "Weapon Slot",
-                    IsVisible = true,
-                    IsLocked = false,
-                    UIXPosition = 1,
-                    UIYPosition = 0,
-                    Rules =
-                    [
-                        new UnitComponentSlotRule
-                        {
-                            RuleType = SlotRuleType.ComponentType,
-                            Operator = SlotRuleOperator.Equals,
-                            Value = nameof(ComponentType.Weapon),
-                        },
-                    ],
-                },
-            ],
         };
 
         UnitComponent unlockedWeapon = BuildWeapon("wpn_unlocked");
@@ -143,7 +142,7 @@ internal class UnitDesignReadEndpointsTests : SqlServerTestBase
         _gameId = game.Id;
         _playerId = player.Id;
         _bodyId = body.Id;
-        _slotId = body.Slots.Single().Id;
+        _slotId = body.Body!.Slots.Single().Id;
         _unlockedWeaponId = unlockedWeapon.Id;
     }
 
@@ -231,110 +230,4 @@ internal class UnitDesignReadEndpointsTests : SqlServerTestBase
         }
     }
 
-    [Test, Description("Bodies endpoint reports a design-locked slot's IsLocked per player: true with no unlock row, false once unlocked; an unlocked-by-design slot stays false throughout.")]
-    public async Task UnlockedBodiesReflectsPerPlayerSlotLockAsync()
-    {
-        await SeedAsync();
-
-        // Add a second slot on the body that IS design-locked (the existing seeded slot is not).
-        int lockedSlotId = await AddLockedWeaponSlotAsync(_bodyId);
-
-        var handler = new GetUnlockedBodiesHandler(new NullLogger<GetUnlockedBodiesHandler>(), DbFactory);
-
-        // Before any unlock: the design-locked slot reads locked, the design-unlocked slot reads unlocked.
-        ServiceResult<UnlockedBodiesResult> before =
-            await handler.Handle(new GetUnlockedBodiesRequest(_gameId, _playerId), CancellationToken.None);
-
-        DesignBody bodyBefore = before.SuccessValue!.Bodies.Single();
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(SlotLock(bodyBefore, lockedSlotId), Is.True, "Design-locked slot is locked for a player with no unlock row.");
-            Assert.That(SlotLock(bodyBefore, _slotId), Is.False, "A slot that is not design-locked is always unlocked.");
-        }
-
-        // Grant the player an unlock for the locked slot.
-        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
-        {
-            context.PlayerUnlockedSlots.Add(new PlayerUnlockedSlot { PlayerId = _playerId, UnitComponentSlotId = lockedSlotId, UnlockedOnTurn = 1 });
-            await context.SaveChangesAsync();
-        }
-
-        // After the unlock: the previously locked slot now reads unlocked for this player.
-        ServiceResult<UnlockedBodiesResult> after =
-            await handler.Handle(new GetUnlockedBodiesRequest(_gameId, _playerId), CancellationToken.None);
-
-        DesignBody bodyAfter = after.SuccessValue!.Bodies.Single();
-        Assert.That(SlotLock(bodyAfter, lockedSlotId), Is.False, "Once the player unlocks the slot, it reports unlocked.");
-    }
-
-    [Test, Description("Slot-candidates returns nothing while the slot is locked for the player, and returns the fitting components once the player unlocks it.")]
-    public async Task SlotCandidatesSuppressedWhileSlotLockedForPlayerAsync()
-    {
-        await SeedAsync();
-
-        // Lock the seeded weapon slot at design time. The per-test database is isolated, so mutating it here is safe.
-        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
-        {
-            UnitComponentSlot slot = (await context.UnitComponentSlots.FindAsync(_slotId))!;
-            slot.IsLocked = true;
-            await context.SaveChangesAsync();
-        }
-
-        var handler = new GetSlotCandidateComponentsHandler(new NullLogger<GetSlotCandidateComponentsHandler>(), DbFactory);
-
-        // Locked for this player => no candidates, even though a fitting weapon is unlocked.
-        ServiceResult<SlotCandidateComponentsResult> locked =
-            await handler.Handle(new GetSlotCandidateComponentsRequest(_gameId, _playerId, _bodyId, _slotId), CancellationToken.None);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(locked.StatusCode, Is.EqualTo(ServiceResultStatus.Success));
-            Assert.That(locked.SuccessValue!.Components, Is.Empty, "A slot locked for the player offers no candidates.");
-        }
-
-        // Unlock the slot for the player.
-        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
-        {
-            context.PlayerUnlockedSlots.Add(new PlayerUnlockedSlot { PlayerId = _playerId, UnitComponentSlotId = _slotId, UnlockedOnTurn = 1 });
-            await context.SaveChangesAsync();
-        }
-
-        ServiceResult<SlotCandidateComponentsResult> unlocked =
-            await handler.Handle(new GetSlotCandidateComponentsRequest(_gameId, _playerId, _bodyId, _slotId), CancellationToken.None);
-
-        Assert.That(unlocked.SuccessValue!.Components.Single().Id, Is.EqualTo(_unlockedWeaponId), "Once unlocked, the fitting weapon is offered.");
-    }
-
-    /// <summary>Adds a design-locked, Weapon-accepting slot to the given component and returns its id.</summary>
-    private async Task<int> AddLockedWeaponSlotAsync(int componentId)
-    {
-        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
-
-        var slot = new UnitComponentSlot
-        {
-            UnitComponentId = componentId,
-            DisplayName = "Locked Weapon Slot",
-            IsVisible = true,
-            IsLocked = true,
-            UIXPosition = -1,
-            UIYPosition = 0,
-            Rules =
-            [
-                new UnitComponentSlotRule
-                {
-                    RuleType = SlotRuleType.ComponentType,
-                    Operator = SlotRuleOperator.Equals,
-                    Value = nameof(ComponentType.Weapon),
-                },
-            ],
-        };
-        context.UnitComponentSlots.Add(slot);
-        await context.SaveChangesAsync();
-
-        return slot.Id;
-    }
-
-    /// <summary>Reads the effective IsLocked flag for a specific slot on a returned body.</summary>
-    private static bool SlotLock(DesignBody body, int slotId) => body.Slots.Single(s => s.Id == slotId).IsLocked;
 }

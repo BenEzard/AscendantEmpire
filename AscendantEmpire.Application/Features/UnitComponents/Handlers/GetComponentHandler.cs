@@ -61,6 +61,28 @@ internal class GetComponentHandler(
                                 MinimumUnitSize = c.Body.MinimumUnitSize,
                                 MaximumUnitSize = c.Body.MaximumUnitSize,
                                 SizeIncrement = c.Body.SizeIncrement,
+                                // Ordered by Id to match the canonical slot order UnitTemplateAssembly uses
+                                // when a template is saved (body.Slots.OrderBy(s => s.Id)), so a template
+                                // loaded back into the designer can match its fitted components onto the right slot.
+                                Slots = c.Body.Slots
+                                    .OrderBy(s => s.Id)
+                                    .Select(s => new UnitComponentSlotDto
+                                    {
+                                        Id = s.Id,
+                                        DisplayName = s.DisplayName,
+                                        IsVisible = s.IsVisible,
+                                        UIXPosition = s.UIXPosition,
+                                        UIYPosition = s.UIYPosition,
+                                        Rules = s.Rules
+                                            .Select(r => new UnitComponentSlotRuleDto
+                                            {
+                                                RuleType = r.RuleType,
+                                                Operator = r.Operator,
+                                                Value = r.Value,
+                                            })
+                                            .ToList(),
+                                    })
+                                    .ToList(),
                             },
                         Weapon = c.Weapon == null
                             ? null
@@ -98,29 +120,6 @@ internal class GetComponentHandler(
                                     Poison = c.Armour.Resistance.Poison,
                                 },
                             },
-                        // Ordered by Id to match the canonical slot order UnitTemplateAssembly uses when a
-                        // template is saved (baseComponent.Slots.OrderBy(s => s.Id)), so a template loaded
-                        // back into the designer can match its fitted components onto the right slot.
-                        Slots = c.Slots
-                            .OrderBy(s => s.Id)
-                            .Select(s => new UnitComponentSlotDto
-                            {
-                                Id = s.Id,
-                                DisplayName = s.DisplayName,
-                                IsVisible = s.IsVisible,
-                                IsLocked = s.IsLocked,
-                                UIXPosition = s.UIXPosition,
-                                UIYPosition = s.UIYPosition,
-                                Rules = s.Rules
-                                    .Select(r => new UnitComponentSlotRuleDto
-                                    {
-                                        RuleType = r.RuleType,
-                                        Operator = r.Operator,
-                                        Value = r.Value,
-                                    })
-                                    .ToList(),
-                            })
-                            .ToList(),
                         TagCodes = c.Tags.Select(t => t.Tag.Code).ToList(),
                     },
                     // This component is always the predecessor here, so surface only the successor side.

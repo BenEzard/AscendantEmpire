@@ -119,29 +119,18 @@ internal class CompileUnitTemplateHandler(
                 ComponentType = bodyComponent.ComponentType,
             };
 
-            // One snapshot row per fitted component, keyed by its source id so we can wire parent links.
-            Dictionary<int, CompiledUnitTemplateComponent> snapshotByFittedId = template.Components.ToDictionary(
-                fitted => fitted.Id,
-                fitted => new CompiledUnitTemplateComponent
+            // One snapshot row per fitted component (each fitted directly into a body slot).
+            List<CompiledUnitTemplateComponent> fittedSnapshots = [.. template.Components.Select(fitted =>
+                new CompiledUnitTemplateComponent
                 {
                     UnitComponentSlotId = fitted.UnitComponentSlotId,
                     UnitComponentId = fitted.UnitComponentId,
                     Code = fitted.UnitComponent.Code,
                     DisplayName = fitted.UnitComponent.DisplayName,
                     ComponentType = fitted.UnitComponent.ComponentType,
-                });
+                })];
 
-            // Wire each fitted snapshot to its parent snapshot via navigation, so EF assigns ParentId on
-            // save. Root-fitted components (no parent) keep ParentId null, matching the live model.
-            foreach (UnitTemplateComponent fitted in template.Components)
-            {
-                if (fitted.ParentTemplateComponentId is { } parentId)
-                {
-                    snapshotByFittedId[fitted.Id].Parent = snapshotByFittedId[parentId];
-                }
-            }
-
-            List<CompiledUnitTemplateComponent> snapshotComponents = [bodySnapshot, .. snapshotByFittedId.Values];
+            List<CompiledUnitTemplateComponent> snapshotComponents = [bodySnapshot, .. fittedSnapshots];
 
             // Capabilities: the distinct tags carried across the body and fitted components.
             IEnumerable<Tag> allTags = bodyComponent.Tags.Select(t => t.Tag)

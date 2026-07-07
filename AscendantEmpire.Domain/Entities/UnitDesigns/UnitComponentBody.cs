@@ -7,8 +7,8 @@ namespace AscendantEmpire.Domain.Entities.UnitDesigns;
 /// </summary>
 /// <remarks>
 /// One-to-one with <see cref="UnitComponent"/> (shares its primary key). A body defines the movement
-/// characteristics and unit-size bounds. Slots now live on <see cref="UnitComponent"/> itself, so any
-/// component (not just a body) can expose them.
+/// characteristics and unit-size bounds, and is the only component type that exposes Template Slots
+/// (see <see cref="Slots"/>).
 /// </remarks>
 public class UnitComponentBody
 {
@@ -72,6 +72,12 @@ public class UnitComponentBody
     /// The step by which unit size can be adjusted (unit size changes in increments of this amount).
     /// </summary>
     public int SizeIncrement { get; set; }
+
+    /// <summary>
+    /// The Template Slots this body exposes for fitting other components (0 or more). Only bodies expose
+    /// slots — a Unit Template is built around a body, and every other component is fitted into its slots.
+    /// </summary>
+    public ICollection<UnitComponentSlot> Slots { get; set; } = [];
 
     public UnitComponent UnitComponent { get; set; } = null!;
 }

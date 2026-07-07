@@ -1,657 +1,546 @@
 # Ascendant Empire Tickets
 
-
 ## In Progress Tickets
-
 
 ## Pending Tickets
 
-
 ### Stream: Battle Map (BM)
-
 
 ### Stream: Combat Mechanics (ComM)
 
-
 ### Stream: City Development (CD)
 
-
 ### Stream: Campaign Map (CM)
-
 
 #### CM-?: Change the Perlin Map Generator for Campaign Maps so Mountains and Hills are in lines, not blocks
 
-| | |
-|---|---|
+|                       |                                                                |
+| --------------------- | -------------------------------------------------------------- |
 | **Current Situation** | Map generation puts the hills and mountains in block groupings |
-| **Proposed Changes** | Make the hills and mountains more like ranges than blocks |
-
+| **Proposed Changes**  | Make the hills and mountains more like ranges than blocks      |
 
 #### GM-?: Add Biome Information to the map view
 
-
 #### ?: Fix BiomesController.AddCampaignMapBiomesAsync
 
-| | |
-|---|---|
+|                       |                                                      |
+| --------------------- | ---------------------------------------------------- |
 | **Current Situation** | AddOrUpdateCampaignMapBiomeDto is a backend contract |
-| **Proposed Changes** | This should be a frontend contract |
-
+| **Proposed Changes**  | This should be a frontend contract                   |
 
 ### Stream: Diplomacy (D)
 
-
 ### Stream: General (G)
-
 
 #### G-?: Tidy up: CampaignMapId and BattleMapId should reference Tile in name
 
-| | |
-|---|---|
-| **Current Situation** | Various tables have CampaignMapId and BattleMapId |
-| **Proposed Changes** | These really reference a CampaignMapTileId and a BattleMapTileId, so fix this naming up. |
-
+|                       |                                                                                          |
+| --------------------- | ---------------------------------------------------------------------------------------- |
+| **Current Situation** | Various tables have CampaignMapId and BattleMapId                                        |
+| **Proposed Changes**  | These really reference a CampaignMapTileId and a BattleMapTileId, so fix this naming up. |
 
 #### G-?: Tidy up: Extrapolate Faction instead of Player
 
-| | |
-|---|---|
-| **Current Situation** | PlayerId is referenced in multiple Players |
-| **Proposed Changes** | PlayerId is referenced, but I'm thinking of it in terms of Factions. <br><br>If we extrapolate and use Faction instead, then it opens up the possibility for multiple Players to control a Faction, and more closely aligns with my thinking. |
-
+|                       |                                                                                                                                                                                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | PlayerId is referenced in multiple Players                                                                                                                                                                                                    |
+| **Proposed Changes**  | PlayerId is referenced, but I'm thinking of it in terms of Factions. <br><br>If we extrapolate and use Faction instead, then it opens up the possibility for multiple Players to control a Faction, and more closely aligns with my thinking. |
 
 #### G-?: Harmonise PKs
 
-| | |
-|---|---|
+|                       |                                         |
+| --------------------- | --------------------------------------- |
 | **Current Situation** | I haven't been consistent with PK names |
-| **Proposed Changes** | Make them Id, except for exceptions. |
-
+| **Proposed Changes**  | Make them Id, except for exceptions.    |
 
 ### Stream: Game Mechanism (GM)
 
-
 ### Stream: Game Setup (GS)
-
 
 #### GS-?: EPIC: During GameCreation, resolve the User
 
-| | |
-|---|---|
-| **Current Situation** | When a game is created by SetupGameHandler there are game.Player records where the UserId is null. This is because a user isn't assigned yet to take the Player slot. |
-| **Proposed Changes** | Create the required functionality to <br>Create a waitlist for players wanting to play the game.<br>Allow the game creator to send out requests to specific users to join the game.<br>Allow users to "take/claim" and customise a Player slot |
-
+|                       |                                                                                                                                                                                                                                                |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | When a game is created by SetupGameHandler there are game.Player records where the UserId is null. This is because a user isn't assigned yet to take the Player slot.                                                                          |
+| **Proposed Changes**  | Create the required functionality to <br>Create a waitlist for players wanting to play the game.<br>Allow the game creator to send out requests to specific users to join the game.<br>Allow users to "take/claim" and customise a Player slot |
 
 #### GS-?: Store the list of Ruler Titles elsewhere
 
-| | |
-|---|---|
-| **Current Situation** | When a game is created by SetupGameHandler there are a list of Player titles, where one is chosen at random. |
-| **Proposed Changes** | Move the list to be stored elsewhere<br>Note a Player will be able to add their own title; these are suggestions only |
-
+|                       |                                                                                                                       |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | When a game is created by SetupGameHandler there are a list of Player titles, where one is chosen at random.          |
+| **Proposed Changes**  | Move the list to be stored elsewhere<br>Note a Player will be able to add their own title; these are suggestions only |
 
 ### Stream: Map Editor (ME)
-
 
 #### ME-?: Uplift Biome Diversity into the tables
 
-| | |
-|---|---|
+|                       |                                                                                              |
+| --------------------- | -------------------------------------------------------------------------------------------- |
 | **Current Situation** | In BattleMapGenerator.cs (lines 217-229) there is a dictionary of Biomes that can co-locate. |
-| **Proposed Changes** | Move this into a table (possibly BiomeColocations)<br>Add to the BiomeManagerDialog |
-
+| **Proposed Changes**  | Move this into a table (possibly BiomeColocations)<br>Add to the BiomeManagerDialog          |
 
 #### ME-?: Add a method to delete Campaign Maps from the Gallery
 
-| | |
-|---|---|
-| **Current Situation** | There's some untested and incomplete code |
-| **Proposed Changes** | Create an endpoint to delete campaign maps from the map gallery.<br>Hook up to a delete button on the Open Campaign Map Dialog (there should be a verification before it happens)<br>The delete method needs to delete<br>Mapgallery.CampaignMap<br>Mapgallery.CampaignMapIndex<br>Any preview images in the directory<br>Tests to ensure that the records and files are deleted |
-
+|                       |                                                                                                                                                                                                                                                                                                                                                                                  |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | There's some untested and incomplete code                                                                                                                                                                                                                                                                                                                                        |
+| **Proposed Changes**  | Create an endpoint to delete campaign maps from the map gallery.<br>Hook up to a delete button on the Open Campaign Map Dialog (there should be a verification before it happens)<br>The delete method needs to delete<br>Mapgallery.CampaignMap<br>Mapgallery.CampaignMapIndex<br>Any preview images in the directory<br>Tests to ensure that the records and files are deleted |
 
 #### ME-?: Add the ability to click-and-drag with the Paint tool
 
-| | |
-|---|---|
-| **Current Situation** | Nothing exists |
-| **Proposed Changes** | Enable click-and-drag with the Paint tool |
-
+|                       |                                           |
+| --------------------- | ----------------------------------------- |
+| **Current Situation** | Nothing exists                            |
+| **Proposed Changes**  | Enable click-and-drag with the Paint tool |
 
 #### ME-?: Fix the map gallery Map Creation
 
-| | |
-|---|---|
+|                       |                                                               |
+| --------------------- | ------------------------------------------------------------- |
 | **Current Situation** | The map gallery create new functionality doesn't seem to work |
-
 
 #### ME-?: Change the New Map Gallery dialog to look more like the Biome and Geography Editors
 
-| | |
-|---|---|
-| **Current Situation** | The dialog only contains one page |
-| **Proposed Changes** | Create a new tab, one for each generator type<br>Remove the id field from the first page.<br>Remove the json field and automatically generate the json to populate the api. |
-
+|                       |                                                                                                                                                                             |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | The dialog only contains one page                                                                                                                                           |
+| **Proposed Changes**  | Create a new tab, one for each generator type<br>Remove the id field from the first page.<br>Remove the json field and automatically generate the json to populate the api. |
 
 #### Ticket-?: (UNDER REVIEW) Add Delete functionality to the Biome Manager in AscendantEditor
 
-| | |
-|---|---|
-| **Current Situation** | Nothing exists |
-| **Proposed Changes** | Add a red delete button and remove items from the list <br>When there are no items, the button should be disabled |
-
+|                       |                                                                                                                   |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | Nothing exists                                                                                                    |
+| **Proposed Changes**  | Add a red delete button and remove items from the list <br>When there are no items, the button should be disabled |
 
 ### Stream: Resource System (RS)
-
 
 #### RS-?: Work out balance required to enable Biome depredations
 
-| | |
-|---|---|
-| **Current Situation** | Nothing exists |
-| **Proposed Changes** | We want to support a situation where a Unit moves across the map and consumes the food (especially) resources on the tile. This forces them to keep moving, and also have supply lines when moving large forces.<br><br>However, current food supplies on the biome are not enough. (I was thinking that supply lines would only be necessary if you move more than 200 people). For that to work though, if movement onto a hill takes 2 turns, or a jungle or river crossing 3 turns – then you need to have the numbers balanced so that the unit can endure that, without starving.<br><br>One potential hack would be to not require food deductions while waiting out the movement penalties.<br><br>We also don’t want a situation where a player can potentially trap Units by making land impassable due to it being all eaten out. |
-
+|                       |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | Nothing exists                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| **Proposed Changes**  | We want to support a situation where a Unit moves across the map and consumes the food (especially) resources on the tile. This forces them to keep moving, and also have supply lines when moving large forces.<br><br>However, current food supplies on the biome are not enough. (I was thinking that supply lines would only be necessary if you move more than 200 people). For that to work though, if movement onto a hill takes 2 turns, or a jungle or river crossing 3 turns – then you need to have the numbers balanced so that the unit can endure that, without starving.<br><br>One potential hack would be to not require food deductions while waiting out the movement penalties.<br><br>We also don’t want a situation where a player can potentially trap Units by making land impassable due to it being all eaten out. |
 
 #### RS-3: Change the IsObsoleting to an int
 
-| | |
-|---|---|
-| **Current Situation** | IsObsoleting on the ResourceTicker is currently a boolean value |
-| **Proposed Changes** | Change the value to an int on the UI (isObsoletingInTurns)<br>Change the display on ResourceManagerDialog so it tells you when it's obsoleting.<br>Change the value to an int on the table |
-
+|                       |                                                                                                                                                                                            |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Current Situation** | IsObsoleting on the ResourceTicker is currently a boolean value                                                                                                                            |
+| **Proposed Changes**  | Change the value to an int on the UI (isObsoletingInTurns)<br>Change the display on ResourceManagerDialog so it tells you when it's obsoleting.<br>Change the value to an int on the table |
 
 ### Stream: Technology (T)
 
-
 ### Stream: Unit Design (UD)
-
-
-#### UD-?: Support nested fitted components in catalogue template export/import
-
-| | |
-|---|---|
-| **Current Situation** | Catalogue template export/import (Entity Setup Tool → Files ▸ Export/Import) only round-trips single-level templates. The `UnitTemplateComponent` tree supports nesting (a component fitted into another fitted-component's slot via `ParentTemplateComponentId`), but the global-template save path (`SaveGlobalUnitTemplateDto` = `BaseCode` + positional `SlotComponentCodes`, resolved by `UnitTemplateAssembly.ResolveAsync`) only expresses components fitted directly into the body's slots. Export (`CatalogExportExecutor.BuildTemplateDto`) reads only root-level rows (`ParentTemplateComponentId == null`) and import replays through the same flat path, so any nested fitting is silently dropped. In practice catalogue templates are authored flat via the dev tool, and game/player-owned templates (the only ones that can nest) are excluded from export — so today this only affects a manually-inserted nested catalogue template. |
-| **Proposed Changes** | Represent the full fitted-component tree in the template transfer format and rebuild it on import:<br>- Richer template export DTO: each fitted node keyed by owner-component code + slot ordinal, with a temporary node id so children can reference their parent.<br>- A template upsert that reconstructs the tree rather than routing through the flat `SlotComponentCodes` path.<br>- Export walks fitted children recursively instead of only root-level rows.<br>- Round-trip test covering a multi-level template. |
-
 
 ## Completed Tickets
 
-
 ### Stream: Battle Map (BM)
-
 
 ### Stream: City Development (CD)
 
-
 ### Stream: Combat Mechanics (ComM)
-
 
 ### Stream: Campaign Map (CM)
 
-
 #### CM-20: Move map preview rendering to its own background channel
 
-| | |
-|---|---|
-| **Current Situation** | The Campaign Map generates an image at the same time the map is generated |
-| **Proposed Changes** | Carve preview PNG rendering out of GeneratePerlinNoiseCampaignMap into a<br>dedicated RenderCampaignMapPreview background job, so it can be re-triggered<br>on its own (e.g. after a map edit) rather than only at generation time.<br>- Add RenderCampaignMapPreview ProcessType (int value, no migration)<br>- Add reusable InitiateMapPreviewRenderRequest handler that enqueues the job<br>- Add RenderCampaignMapPreviewExecutor: reloads tiles, rebuilds the<br>  geography/biome arrays, renders PNGs, writes paths back onto the index<br>- Generator now enqueues the render request instead of rendering inline;<br>  drop its now-unused MapGenerationSettings dependency<br>- Add executor tests; fix existing test for the new constructor |
-
+|                       |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | The Campaign Map generates an image at the same time the map is generated                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| **Proposed Changes**  | Carve preview PNG rendering out of GeneratePerlinNoiseCampaignMap into a<br>dedicated RenderCampaignMapPreview background job, so it can be re-triggered<br>on its own (e.g. after a map edit) rather than only at generation time.<br>- Add RenderCampaignMapPreview ProcessType (int value, no migration)<br>- Add reusable InitiateMapPreviewRenderRequest handler that enqueues the job<br>- Add RenderCampaignMapPreviewExecutor: reloads tiles, rebuilds the<br>  geography/biome arrays, renders PNGs, writes paths back onto the index<br>- Generator now enqueues the render request instead of rendering inline;<br>  drop its now-unused MapGenerationSettings dependency<br>- Add executor tests; fix existing test for the new constructor |
 
 #### CM-21: Change the Perlin Map Generator for Campaign Maps so Mountains and Hills are in lines, not blocks
 
-| | |
-|---|---|
-| **Current Situation** | Nothing existed |
-| **Proposed Changes** | Introduce CampaignMapStartPosition entity (coords, display name, location score) with a migration and gallery-index navigation.<br>Add GET/PUT {id}/start-positions endpoints to MapGalleryController, backed by handlers to load and replace a map's start positions, with front/back-end contracts and DTOs.<br>Include start positions in the map export document, ordered by Y/X/Id. |
-
+|                       |                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | Nothing existed                                                                                                                                                                                                                                                                                                                                                                          |
+| **Proposed Changes**  | Introduce CampaignMapStartPosition entity (coords, display name, location score) with a migration and gallery-index navigation.<br>Add GET/PUT {id}/start-positions endpoints to MapGalleryController, backed by handlers to load and replace a map's start positions, with front/back-end contracts and DTOs.<br>Include start positions in the map export document, ordered by Y/X/Id. |
 
 #### CM-22: Add start-position editor tool to MapGalleryEditor
 
-| | |
-|---|---|
-| **Current Situation** | Map generation puts the hills and mountains in block groupings |
-| **Proposed Changes** | New startPositionsApi (GET/PUT) and useCampaignMapStartPositions hook   (query + optimistic-update mutation)<br>BiLocationPlus tool button in Editor Tools; clicking a tile toggles its start position and PUTs the full updated collection<br>Start-position overlay rendered on tiles via tile-start-position-icon CSS class<br>Fix http interceptor to extract IApiErrorResult { Errors: string[] }<br>{PascalCase array) so server validation messages surface correctly |
-
+|                       |                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | Map generation puts the hills and mountains in block groupings                                                                                                                                                                                                                                                                                                                                                                                                               |
+| **Proposed Changes**  | New startPositionsApi (GET/PUT) and useCampaignMapStartPositions hook   (query + optimistic-update mutation)<br>BiLocationPlus tool button in Editor Tools; clicking a tile toggles its start position and PUTs the full updated collection<br>Start-position overlay rendered on tiles via tile-start-position-icon CSS class<br>Fix http interceptor to extract IApiErrorResult { Errors: string[] }<br>{PascalCase array) so server validation messages surface correctly |
 
 #### CM-23: Add map properties dialog; slim update endpoint to name/description only
 
-| | |
-|---|---|
-| **Current Situation** | Map generation puts the hills and mountains in block groupings |
-| **Proposed Changes** | Slim POST /{id}/update to MapName + Description only; remove Width/Height/Engine/Parameters<br>Remove Pending-only guard from update handler so name/description are editable at any map status<br>Make Description nullable everywhere; remove all description validation (backend + UI)<br>Add gear-icon Properties button to Editor Tools toolbar<br>New MapPropertiesDialog: edits name/description, shows start location count read-only<br>Update tests to reflect slimmed request and removed Pending restriction |
-
+|                       |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Current Situation** | Map generation puts the hills and mountains in block groupings                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| **Proposed Changes**  | Slim POST /{id}/update to MapName + Description only; remove Width/Height/Engine/Parameters<br>Remove Pending-only guard from update handler so name/description are editable at any map status<br>Make Description nullable everywhere; remove all description validation (backend + UI)<br>Add gear-icon Properties button to Editor Tools toolbar<br>New MapPropertiesDialog: edits name/description, shows start location count read-only<br>Update tests to reflect slimmed request and removed Pending restriction |
 
 ### Stream: Diplomacy (D)
 
-
 ### Stream: General (G)
-
 
 #### G-?: Tidy up Feature structure
 
-| | |
-|---|---|
-| **Current Situation** | Atm its Handlers/ |
-| **Proposed Changes** | It should be Features/xxx/Handlers |
-
+|                       |                                    |
+| --------------------- | ---------------------------------- |
+| **Current Situation** | Atm its Handlers/                  |
+| **Proposed Changes**  | It should be Features/xxx/Handlers |
 
 #### G-?: Add Tanstack CSS
 
-| | |
-|---|---|
-| **Current Situation** | Custom css |
-| **Proposed Changes** | Add Tanstack CSS (Update: I've installed it, but not sure if it's usable or not yet) |
-
+|                       |                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------ |
+| **Current Situation** | Custom css                                                                           |
+| **Proposed Changes**  | Add Tanstack CSS (Update: I've installed it, but not sure if it's usable or not yet) |
 
 #### G-4: Split the MapEditorUI and GameUI into separate projects
 
-| | |
-|---|---|
+|                       |                                                       |
+| --------------------- | ----------------------------------------------------- |
 | **Current Situation** | MapEditor and GameUI are both under AscendantEmpireUI |
-
 
 #### G-5: Shrink data migrations
 
-| | |
-|---|---|
+|                       |                                                    |
+| --------------------- | -------------------------------------------------- |
 | **Current Situation** | All of the data migrations are in individual files |
-| **Proposed Changes** | Shrink down into one. |
-
+| **Proposed Changes**  | Shrink down into one.                              |
 
 #### G-7: Decompose map/game god components; fix tile-grid perf and listener leaks
 
-| | |
-|---|---|
-| **Current Situation** | The Campaign Map generates an image at the same time the map is generated |
-| **Proposed Changes** | Split GameUI (909→343), MapGalleryEditor (516→360) and the editor toolbar<br>hook (458→405) into focused hooks (session, vision, force selection, brush,<br>tile rendering, construction) plus a shared useToast.<br>Perf/memory/config fixes: index geographies by id in TileGrid (drop per-tile<br>Array.find) and memoize it; tear down Slider drag and ExportDialog timers;<br>thread AbortSignal into the tiles query; revoke export blob URL on error;<br>add QueryClient defaults and an http timeout/error interceptor. |
-
+|                       |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | The Campaign Map generates an image at the same time the map is generated                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| **Proposed Changes**  | Split GameUI (909→343), MapGalleryEditor (516→360) and the editor toolbar<br>hook (458→405) into focused hooks (session, vision, force selection, brush,<br>tile rendering, construction) plus a shared useToast.<br>Perf/memory/config fixes: index geographies by id in TileGrid (drop per-tile<br>Array.find) and memoize it; tear down Slider drag and ExportDialog timers;<br>thread AbortSignal into the tiles query; revoke export blob URL on error;<br>add QueryClient defaults and an http timeout/error interceptor. |
 
 #### G-8: Store Biome base resource values scaled as bigint, expose whole numbers via API
 
-| | |
-|---|---|
+|                      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Proposed Changes** | The 8 CampaignBiome Base*Value fields are now stored scaled (×1,000) as bigint so fixed-point bonus math keeps sub-unit precision, while the UI/API continue to work in whole numbers.<br>Entity: Base*Value int? -> long?<br>Handlers convert whole<->scaled (ScaledResourceValue.ToRaw/ToWhole); Get materializes before mapping since the conversion can't translate to SQL<br>MapExportExecutor exports whole numbers (export contract unchanged)<br>Migration alters columns to bigint and backfills existing rows (×1,000)<br>Contracts/DTOs/frontend unchanged — scaling is invisible to clients |
-
 
 #### G-9: Project update to .net10, package updates and numbers table population
 
-
 #### G-10:  Swap out SixLabours image generation for SkiaSharp
-
 
 #### G-11: Add JWT authentication and game-scoped authorisation
 
-| | |
-|---|---|
+|                      |                                                                                                                                                                                                                                                                                                                   |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Proposed Changes** | Add user accounts (auth.Users) with one-player-per-user-per-game enforced<br>via a filtered unique index. Login/register issue a user token; enter-game<br>issues a game token carrying gameId/playerId. PlayerController now reads<br>game context from token claims. Frontend gates the game page behind login. |
-
 
 #### G-12: Add MatchMaker subsystem for claiming player slots
 
-| | |
-|---|---|
+|                      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Proposed Changes** | Let a user register, log in, and claim an unassigned player slot in an<br>open game, then jump into it. A slot is a game.Player row with a null<br>UserId; claiming sets it to the logged-in account (guarded by the<br>existing UX_Player_Game_User unique index).<br>Backend:<br>- [Authorize] MatchmakingController: GET /matchmaking/games (joinable<br>  games + slots flagged claimed/free) and POST /matchmaking/claim<br>  (204, 404 if missing, 409 if taken or already in that game). Account<br>  read from the token, not the body.<br>- GetMatchmakingGamesHandler + ClaimPlayerSlotHandler with contracts and<br>  DTOs under the new MatchMaking namespaces.<br>Frontend (new "matchmaker" page, alongside game/mapeditor):<br>- Lists games/slots; held slots offer "Play now" (reuses enterGame then<br>  redirects to /game/), free slots offer Claim. Wrapped in AuthGate,<br>  registered in vite.config.ts, linked from the landing page.<br>- Landing nav links restyled as playing-card tiles (200x280, 5:7 ratio).<br>Docs: add docs/matchmaker.md. |
-
 
 #### G-17: Add Unit Designer & System dev tools, user-admin endpoints, and shared UI controls
 
-| | |
-|---|---|
+|                      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Proposed Changes** | Unit Designer (new /unitdesigntool dev page):<br>- ComponentSetupDialog (PagedDialog) for authoring a UnitComponent, with paged sections: General, Properties (Body/Weapon/Armour editors), Slots, Tags, Supersession, and Body-only Attack/Defence (moved to the end of the tab order).<br>- Supporting pieces: PillKeyValueEditor, ScaledNumberField, component type icons/labels/field primitives, UnitComponent types + unit tests.<br>- Backend: BulkUpsertUnitComponents and CompileUnitTemplate handler updates, DesignComponentProjections, and matching contract changes.<br><br>System tool + user administration:<br>- New /system dev page (stub).<br>- Auth endpoints: GET /auth/users (GetUsersHandler) and POST /auth/users/inactive (SetUserInactiveHandler), with AuthUser and SetUserInactiveDto contracts.<br>- User entity gains InactiveAt + InactiveReasonType; new InactiveReasonType enum.<br>- Handler tests for both new endpoints.<br><br>ComponentType / body cleanup:<br>- Drop the Radar, System, Fitting, and Special component types.<br>- Drop the body's inherent CrushAttack (entity, DTO, projection).<br>- Migration DropBodyCrushAttack: drops UnitComponentBody.CrushAttack and adds the Users.InactiveAt + InactiveReasonType columns.<br><br>Shared UI components:<br>- RangeSlider: new dual-thumb min/max slider (Min knob/caption above the line, Max below; track bounds and step are props).<br>- ToolbarExclusiveButtons: arrow-key navigation via a roving tabindex over the radiogroup buttons.<br>- Modal / PagedDialog: optional static width/height props so a paged dialog keeps a constant size across pages and scrolls overflowing content.<br>- EditableTable: generic add/remove-row table (used by Supersession et al.).<br>- BattleStats + damageTypeBadges tweaks; useDialogKeyboardShortcuts updates; Biome and Geography manager dialogs refactored.<br><br>Build / multi-page infra:<br>- Landing page split into card rows, adding System and Unit Designer links.<br>- vite.config multi-page inputs (system, unitdesigntool) with their HTML entries and entry modules.<br>- .claude/launch.json for the dev-server preview. |
-
 
 #### G-18: Add user table
 
-| | |
-|---|---|
+|                      |                |
+| -------------------- | -------------- |
 | **Proposed Changes** | Add user table |
-
 
 #### G-19: Rename unitdesigntool to entitysetuptool
 
-| | |
-|---|---|
+|                      |                                          |
+| -------------------- | ---------------------------------------- |
 | **Proposed Changes** | Rename unitdesigntool to entitysetuptool |
-
 
 #### GEN-20: Path tidy-up
 
-| | |
-|---|---|
+|                      |              |
+| -------------------- | ------------ |
 | **Proposed Changes** | Path tidy-up |
-
 
 #### G-21: Fix TypeScript build errors and clear frontend lint debt
 
-| | |
-|---|---|
+|                      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Proposed Changes** | Resolves the 5 tsc compile errors blocking a clean build: a react-icons generic-indexing quirk in PillKeyValueEditor breaking JSX prop inference, and useCampaignMapStartPositions' onError handler not accounting for react-query's possibly-undefined mutation context.<br><br>Also fixes a real bug found while auditing: UnitDesigner called useMemo/useMutation conditionally after an early "!isVisible" return, violating the Rules of Hooks. Moved the early return below all hook calls.<br><br>Remaining changes clear the rest of `eslint .`'s pre-existing findings (0 errors, 0 warnings now, down from 19 errors / 4 warnings):<br>- Split non-component exports (toCodeChars/toCodeSlug, rawToScaled/scaledToRaw re-export, useResourceRemainder) out of component files and into new codeSlug.ts / resourceRemainderContext.ts modules so Fast Refresh works correctly.<br>- Removed unnecessary `any` casts in BiomeManagerDialog, BiomeResource, and GeographyManagerDialog in favor of proper narrowing.<br>- Fixed an unsafe non-null assertion on an optional chain, an unused destructured variable, escaped quotes inside a template literal, and a redundant triple-slash type reference in vite.config.ts.<br>- Corrected several useEffect/useMemo dependency arrays (OpenCampaignMapDialog, System, UnitDesigner), wrapping unstable callbacks in useCallback where needed so the fixes are honest rather than just silencing the linter. |
-
 
 #### G-22: General tidy up of UI folder/files
 
-| | |
-|---|---|
+|                      |                                    |
+| -------------------- | ---------------------------------- |
 | **Proposed Changes** | General tidy up of UI folder/files |
-
 
 #### G-23: More file movements
 
-| | |
-|---|---|
+|                      |                     |
+| -------------------- | ------------------- |
 | **Proposed Changes** | More file movements |
-
 
 ### Stream: Game Mechanism (GM)
 
-
 #### GM-2: Create a basic mechanism to insert a Unit onto the map
 
-| | |
-|---|---|
-| **Current Situation** | Nothing exists |
-| **Proposed Changes** | The purpose of this endpoint is to enable the fine tuning of other mechanics; it will not be a complete feature by any means.<br><br>Include:<br>An endpoint to create a Unit controller with an endpoint <br>units/enqueue and a payload of<br>{<br>   gameId - int<br>   playerId - int<br>   xCoord<br>   yCoord<br>   UnitDesignId<br>}<br><br>This will necessitate creating a table units.TroopInstances with the following fields:<br>Id, PK/auto-inc<br>GameId<br>PlayerId<br>CampaignMapTileId<br>BattleMapTileId nullable<br>UnitDesignId<br><br>And unitdesigns.CompiledDesignStats<br>UnitDesignId<br>SightRange<br><br>Exclude:<br>Any concept of unit template/design<br>Any build costs or requirements<br>Any validation of X/Y<br>Any concept of turn<br>Handling what other Players know about the Unit |
-
+|                       |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | Nothing exists                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| **Proposed Changes**  | The purpose of this endpoint is to enable the fine tuning of other mechanics; it will not be a complete feature by any means.<br><br>Include:<br>An endpoint to create a Unit controller with an endpoint <br>units/enqueue and a payload of<br>{<br>   gameId - int<br>   playerId - int<br>   xCoord<br>   yCoord<br>   UnitDesignId<br>}<br><br>This will necessitate creating a table units.TroopInstances with the following fields:<br>Id, PK/auto-inc<br>GameId<br>PlayerId<br>CampaignMapTileId<br>BattleMapTileId nullable<br>UnitDesignId<br><br>And unitdesigns.CompiledDesignStats<br>UnitDesignId<br>SightRange<br><br>Exclude:<br>Any concept of unit template/design<br>Any build costs or requirements<br>Any validation of X/Y<br>Any concept of turn<br>Handling what other Players know about the Unit |
 
 #### GM-3: Add Units to the Observers on the map Campaign
 
-| | |
-|---|---|
+|                       |                                       |
+| --------------------- | ------------------------------------- |
 | **Current Situation** | They aren't included yet as observers |
-
 
 #### GM-5: Review Turn Roster system
 
-| | |
-|---|---|
+|                       |                                                                                                      |
+| --------------------- | ---------------------------------------------------------------------------------------------------- |
 | **Current Situation** | There's a TurnRoster table, but I'm not sure if it's optimal for handling campaign and battle turns. |
-| **Proposed Changes** | Investigate changes needed to make the roster good for both concepts. |
-
+| **Proposed Changes**  | Investigate changes needed to make the roster good for both concepts.                                |
 
 ### Stream: Game Setup (GS)
 
-
 #### GS-1: Create a basic Add Game endpoint
 
-| | |
-|---|---|
-| **Current Situation** | Nothing exists |
-| **Proposed Changes** | Create a new Game Controller with a /setup endpoint, with the following properties:<br>Int CampaignMapGalleryIndexId<br>String GameName<br>Int NumberOfPlayers<br><br>It should return a guid |
-
+|                       |                                                                                                                                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | Nothing exists                                                                                                                                                                                |
+| **Proposed Changes**  | Create a new Game Controller with a /setup endpoint, with the following properties:<br>Int CampaignMapGalleryIndexId<br>String GameName<br>Int NumberOfPlayers<br><br>It should return a guid |
 
 #### GS-3: Add Turn Roster information into the Game
 
-| | |
-|---|---|
-| **Current Situation** | Nothing exists |
-| **Proposed Changes** | Add a game.TurnRoster table which tracks who's turn it is for both Campaign Map and Battle Maps.<br>Add a Turn Controller<br>Add a new CreateCampaignTurnRosterHandler. <br>If there are no records for this game in the table, then initialise it, by inserting a record for every Player. (during Game Setup). <br>If there are existing records, then take a copy of the last Round (ensuring to exclude any Players who are no longer in the Game) and insert new records<br>Add a new endpoint and GetTurnHandler, GET /Turn that returns a collection of PlayerIds who's turn it currently is (1 record for the Campaign Map, and 0 or more records for Battles).<br>Roster[]<br>int PlayerId // current Player<br>int PlayersUntilMyTurn <br>bool IsCampaign<br>PlayerStatus PlayerStatus<br>DateTimeOffset TimeRemaining |
-
+|                       |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | Nothing exists                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| **Proposed Changes**  | Add a game.TurnRoster table which tracks who's turn it is for both Campaign Map and Battle Maps.<br>Add a Turn Controller<br>Add a new CreateCampaignTurnRosterHandler. <br>If there are no records for this game in the table, then initialise it, by inserting a record for every Player. (during Game Setup). <br>If there are existing records, then take a copy of the last Round (ensuring to exclude any Players who are no longer in the Game) and insert new records<br>Add a new endpoint and GetTurnHandler, GET /Turn that returns a collection of PlayerIds who's turn it currently is (1 record for the Campaign Map, and 0 or more records for Battles).<br>Roster[]<br>int PlayerId // current Player<br>int PlayersUntilMyTurn <br>bool IsCampaign<br>PlayerStatus PlayerStatus<br>DateTimeOffset TimeRemaining |
 
 ### Stream: Map Editor (ME)
 
-
 #### Ticket-1: Create Campaign Map Biome
 
-| | |
-|---|---|
-| **Current Situation** | Nothing exists |
-| **Proposed Changes** | Create a map.CampaignBiome table to hold the Campaign Map Biomes<br>Create a POST method to insert records, including validation<br>Create a PUT method to update records, including validation<br>Create a GET method to return the records<br>Create a DELETE method endpoint to delete records |
-
+|                       |                                                                                                                                                                                                                                                                                                   |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | Nothing exists                                                                                                                                                                                                                                                                                    |
+| **Proposed Changes**  | Create a map.CampaignBiome table to hold the Campaign Map Biomes<br>Create a POST method to insert records, including validation<br>Create a PUT method to update records, including validation<br>Create a GET method to return the records<br>Create a DELETE method endpoint to delete records |
 
 #### Ticket-2: Create AscendantEditor with Campaign Map Biome editing
 
-| | |
-|---|---|
-| **Current Situation** | Nothing exists |
-| **Proposed Changes** | Create a React app "AscendantEditor" which can view/edit/delete Campaign Map Biomes |
-
+|                       |                                                                                     |
+| --------------------- | ----------------------------------------------------------------------------------- |
+| **Current Situation** | Nothing exists                                                                      |
+| **Proposed Changes**  | Create a React app "AscendantEditor" which can view/edit/delete Campaign Map Biomes |
 
 #### Ticket-3: Add export for Campaign Map Biome editing in AscendantEditor
 
-| | |
-|---|---|
-| **Current Situation** | Nothing exists |
-| **Proposed Changes** | Add JSON export functionality for the Campaign Map Biomes<br>Create a JSON file with all of the Campaign Map Biomes |
-
+|                       |                                                                                                                     |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | Nothing exists                                                                                                      |
+| **Proposed Changes**  | Add JSON export functionality for the Campaign Map Biomes<br>Create a JSON file with all of the Campaign Map Biomes |
 
 #### Ticket-4: Add Campaign Map Geography Endpoints
 
-| | |
-|---|---|
-| **Current Situation** | Nothing exists |
-| **Proposed Changes** | Create a map.CampaignGeography table to hold the Campaign Map Geographies<br>Create a POST method to insert records, including validation<br>Create a PUT method to upsert records, including validation<br>Create a GET method to return the records<br>Tests for the above |
-
+|                       |                                                                                                                                                                                                                                                                              |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | Nothing exists                                                                                                                                                                                                                                                               |
+| **Proposed Changes**  | Create a map.CampaignGeography table to hold the Campaign Map Geographies<br>Create a POST method to insert records, including validation<br>Create a PUT method to upsert records, including validation<br>Create a GET method to return the records<br>Tests for the above |
 
 #### Ticket-8: Create an endpoint to add a Campaign Map Gallery index entry
 
-| | |
-|---|---|
-| **Current Situation** | Nothing exists |
-| **Proposed Changes** | This should create an index entry in a mapgallery.CampaignMapIndex with the following properties<br>Name<br>Map Width<br>Map Height<br>MapCreationStatus [Pending, Creating, Complete]<br>CreationEngine [enum: Blank, PerlinNoise]<br>Properties<br>Create a POST endpoint to create the index<br>Create a GET endpoint for Campaign Map Index<br>Create a Number table |
-
+|                       |                                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Current Situation** | Nothing exists                                                                                                                                                                                                                                                                                                                                                           |
+| **Proposed Changes**  | This should create an index entry in a mapgallery.CampaignMapIndex with the following properties<br>Name<br>Map Width<br>Map Height<br>MapCreationStatus [Pending, Creating, Complete]<br>CreationEngine [enum: Blank, PerlinNoise]<br>Properties<br>Create a POST endpoint to create the index<br>Create a GET endpoint for Campaign Map Index<br>Create a Number table |
 
 #### ME-3: Create an endpoint which resets the Player campaign map view
 
-| | |
-|---|---|
-| **Current Situation** | The player's campaign map is permanently visible. |
-| **Proposed Changes** | Create an endpoint campaign-map/player/view which clears the Player's view of the Campaign Map.<br><br>This should reset values in both game.PlayerCampaignMap and game.CampaignMap tables. |
-
+|                       |                                                                                                                                                                                             |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | The player's campaign map is permanently visible.                                                                                                                                           |
+| **Proposed Changes**  | Create an endpoint campaign-map/player/view which clears the Player's view of the Campaign Map.<br><br>This should reset values in both game.PlayerCampaignMap and game.CampaignMap tables. |
 
 #### ME-1: Tidy up the Biome Editor Dialog (Phase 1)
 
-| | |
-|---|---|
-| **Current Situation** | The Biome Editor has been designed poorly |
-| **Proposed Changes** | Review the Biome Editor code and see what can be improved.<br>Move the data loading (and other operations) out of the UI which shouldn't be there for SRP.<br>Look for other improvements |
-
+|                       |                                                                                                                                                                                           |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | The Biome Editor has been designed poorly                                                                                                                                                 |
+| **Proposed Changes**  | Review the Biome Editor code and see what can be improved.<br>Move the data loading (and other operations) out of the UI which shouldn't be there for SRP.<br>Look for other improvements |
 
 #### ME-3: Tidy up the Geography Editor Dialog
 
-| | |
-|---|---|
-| **Current Situation** | The Geography Editor has been designed poorly |
-| **Proposed Changes** | Review the Geography Editor code and see what can be improved.<br>Remove the add Geography button. Biomes are tied to the Geography Type enum, so the user can't add a Biome without the backend being updated. It makes more sense to not include this functionality than to support it in such a haphazard way.<br>Move the data loading (and other operations) out of the UI which shouldn't be there for SRP.<br>Look for other improvements |
-
+|                       |                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Current Situation** | The Geography Editor has been designed poorly                                                                                                                                                                                                                                                                                                                                                                                                    |
+| **Proposed Changes**  | Review the Geography Editor code and see what can be improved.<br>Remove the add Geography button. Biomes are tied to the Geography Type enum, so the user can't add a Biome without the backend being updated. It makes more sense to not include this functionality than to support it in such a haphazard way.<br>Move the data loading (and other operations) out of the UI which shouldn't be there for SRP.<br>Look for other improvements |
 
 #### ME-4: Add the "show vision" to the GameUI
 
-| | |
-|---|---|
-| **Current Situation** | In the map editor when you select a tile, it shows the tile details. |
-| **Proposed Changes** | The purpose of this task is to enable validation of the sight range mechanisms.<br><br>This task will add a selectable tool "show vision" to the MapEditor UI toolbar. Right clicking on the button will open an off-window toolbar that lets you set the Sight Range (int) value. <br><br>Clicking on a tile will then call the campaign-map/player/view endpoint, which will then shade the tiles to show which ones are visible. |
-
+|                       |                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | In the map editor when you select a tile, it shows the tile details.                                                                                                                                                                                                                                                                                                                                                                |
+| **Proposed Changes**  | The purpose of this task is to enable validation of the sight range mechanisms.<br><br>This task will add a selectable tool "show vision" to the MapEditor UI toolbar. Right clicking on the button will open an off-window toolbar that lets you set the Sight Range (int) value. <br><br>Clicking on a tile will then call the campaign-map/player/view endpoint, which will then shade the tiles to show which ones are visible. |
 
 #### ME-5: Populate the Biome information again
 
-| | |
-|---|---|
-| **Current Situation** | Most of the data for Biomes has been lost (somehow). |
-| **Proposed Changes** | Repopulate the missing data<br>Add a Biome for settlement.<br>Ensure we have a text file with the up-to-date values. |
-
+|                       |                                                                                                                      |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | Most of the data for Biomes has been lost (somehow).                                                                 |
+| **Proposed Changes**  | Repopulate the missing data<br>Add a Biome for settlement.<br>Ensure we have a text file with the up-to-date values. |
 
 #### ME-6: Add the ability to paint Biome and Geography onto a Campaign Map
 
-| | |
-|---|---|
-| **Current Situation** | Nothing exists |
-| **Proposed Changes** | Add the ability to paint Biome and Geography onto the Campaign Map. |
-
+|                       |                                                                     |
+| --------------------- | ------------------------------------------------------------------- |
+| **Current Situation** | Nothing exists                                                      |
+| **Proposed Changes**  | Add the ability to paint Biome and Geography onto the Campaign Map. |
 
 #### ME-7: Add the ability to push Campaign Map changes to already ongoing games
 
-| | |
-|---|---|
-| **Current Situation** | Nothing exists |
-| **Proposed Changes** | Add an icon so the Map Editor which will push changes to the map gallery to both the game.CampaignMap and also to any Player – known tiles on PlayerCampaignMaps |
-
+|                       |                                                                                                                                                                  |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | Nothing exists                                                                                                                                                   |
+| **Proposed Changes**  | Add an icon so the Map Editor which will push changes to the map gallery to both the game.CampaignMap and also to any Player – known tiles on PlayerCampaignMaps |
 
 #### ME-8: Update the Biome Editor and Geography Editor
 
-| | |
-|---|---|
-| **Current Situation** | There's an id field on the Biome and Geography Editor |
-| **Proposed Changes** | Remove the id field<br>Move the export button to be at the bottom of the dialog |
-
+|                       |                                                                                 |
+| --------------------- | ------------------------------------------------------------------------------- |
+| **Current Situation** | There's an id field on the Biome and Geography Editor                           |
+| **Proposed Changes**  | Remove the id field<br>Move the export button to be at the bottom of the dialog |
 
 #### ME-9: Export Map from Map Gallery
 
-| | |
-|---|---|
-| **Current Situation** | Nothing exists |
-| **Proposed Changes** | Create an endpoint which can export a map from the Map Gallery in a state which can then be re-loaded back in.<br>Change the existing front end UI which is "export" (change it to publish and make it a Dev control.<br>Add a new export map option on the menu. |
-
+|                       |                                                                                                                                                                                                                                                                   |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | Nothing exists                                                                                                                                                                                                                                                    |
+| **Proposed Changes**  | Create an endpoint which can export a map from the Map Gallery in a state which can then be re-loaded back in.<br>Change the existing front end UI which is "export" (change it to publish and make it a Dev control.<br>Add a new export map option on the menu. |
 
 #### ME-10: MapGallery Campaign and Battle Map generation with Perlin Noise
 
-| | |
-|---|---|
-| **Current Situation** | Nothing exists |
-| **Proposed Changes** | Generate continuous maps using Perlin Noise generation. |
-
+|                       |                                                         |
+| --------------------- | ------------------------------------------------------- |
+| **Current Situation** | Nothing exists                                          |
+| **Proposed Changes**  | Generate continuous maps using Perlin Noise generation. |
 
 #### ME-11: Generate a Preview image of the Campaign Map Gallery
 
-| | |
-|---|---|
-| **Current Situation** | Nothing exists |
-| **Proposed Changes** | Generate a Preview image of the Campaign Map Gallery |
-
+|                       |                                                      |
+| --------------------- | ---------------------------------------------------- |
+| **Current Situation** | Nothing exists                                       |
+| **Proposed Changes**  | Generate a Preview image of the Campaign Map Gallery |
 
 #### ME-12: Generate a Preview image of the Campaign Map Gallery
 
-| | |
-|---|---|
-| **Current Situation** | Nothing exists |
-| **Proposed Changes** | Generate a Preview image of the Campaign Map Gallery |
-
+|                       |                                                      |
+| --------------------- | ---------------------------------------------------- |
+| **Current Situation** | Nothing exists                                       |
+| **Proposed Changes**  | Generate a Preview image of the Campaign Map Gallery |
 
 #### ME-14: Remove the reliance on the Campaign Map Generation "PROD" endpoint
 
-| | |
-|---|---|
-| **Current Situation** | Nothing exists |
-| **Proposed Changes** | Replace the export-only channel/BackgroundService with a single dispatcher<br>(BackgroundProcessingService) that routes each Processing row to the<br>IProcessExecutor matching its ProcessType (MapExportExecutor,<br>GenerateCampaignMapExecutor). AddCampaignMapHandler now enqueues generation<br>automatically and returns { galleryIndexId, processingId }; the dev-only<br>prod-map-creation endpoint and CreateCampaignMapHandler are removed.<br>- Rename system.Processing -> system.BackgroundProcessing; add<br>  CampaignMapGalleryIndex.ProgressPercent (migration ME-13).<br>- Channel capacity configurable via BackgroundProcessingSettings.<br>- Fix GenerateBlankCampaignMap referencing the renamed CampaignMapIndex table.<br>- Frontend: process-agnostic useProcessStatus + ProcessProgressDialog; new maps<br>  show a generation progress dialog.<br>- Tests for queueing, dispatch routing/backstop, and executor success/failure. |
-
+|                       |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Current Situation** | Nothing exists                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| **Proposed Changes**  | Replace the export-only channel/BackgroundService with a single dispatcher<br>(BackgroundProcessingService) that routes each Processing row to the<br>IProcessExecutor matching its ProcessType (MapExportExecutor,<br>GenerateCampaignMapExecutor). AddCampaignMapHandler now enqueues generation<br>automatically and returns { galleryIndexId, processingId }; the dev-only<br>prod-map-creation endpoint and CreateCampaignMapHandler are removed.<br>- Rename system.Processing -> system.BackgroundProcessing; add<br>  CampaignMapGalleryIndex.ProgressPercent (migration ME-13).<br>- Channel capacity configurable via BackgroundProcessingSettings.<br>- Fix GenerateBlankCampaignMap referencing the renamed CampaignMapIndex table.<br>- Frontend: process-agnostic useProcessStatus + ProcessProgressDialog; new maps<br>  show a generation progress dialog.<br>- Tests for queueing, dispatch routing/backstop, and executor success/failure. |
 
 #### ME-15: UI improvements to the Map Editor
 
-| | |
-|---|---|
-| **Current Situation** | There is a black strip at the top and bottom of the mapeditor window displaying the name and description of the map |
-| **Proposed Changes** | Remove the black strip at the top and bottom <br>Ensure the toolbar remains visible even when the page scrolls downwards |
-
+|                       |                                                                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **Current Situation** | There is a black strip at the top and bottom of the mapeditor window displaying the name and description of the map      |
+| **Proposed Changes**  | Remove the black strip at the top and bottom <br>Ensure the toolbar remains visible even when the page scrolls downwards |
 
 #### ME-16: Refactor the code to be "push out" instead of "Export map" in the Map Editor to match the UI
 
-| | |
-|---|---|
+|                       |                                                                |
+| --------------------- | -------------------------------------------------------------- |
 | **Current Situation** | Map generation puts the hills and mountains in block groupings |
-
 
 ### Stream: Resource System (RS)
 
-
 #### RS-1: Add Resource UI
 
-| | |
-|---|---|
-| **Current Situation** | No Resource UI exists |
-| **Proposed Changes** | Add a UI which can display multiple categories of Resources. <br><br>For example a UI which shows "Construction materials" – showing a row of data for stone, wood, other. In each row should be ResourceTickers which will keep track of the resource. <br><br>E.g. in wood there will be different kinds of wood: generic wood, oak, cedar etc (each in its own ResourceTicker)<br>At the left edge of the category will be a ResourceTotal which calculates the sum of all resource tickers in that row.<br>ResourceTickers can be moved left and right via drag and drop. This will be used so that the user can set which ones should be used first.<br>Double click on a ResourceTicker will (later) open a dialog<br>A ResourceCategory can be marked as mixedItems: true, which will prevent the drag and drop behaviour.<br><br>The Resource Ticker will display quantities in shortened format eg. 4.5K<br><br>Here’s what each TSX file in the resources folder does (few lines each). Folder: resources<br><br>ResourceTickerCollection.tsx<br><br>Defines the shared types ResourceTickerData and ResourceCategoryData.<br>Renders a vertical list of ResourceCategory components.<br>Wires up optional callbacks for clicking amounts and reordering tickers; uses mixedItems to disable drag/reorder for categories like “Other”.<br>ResourceCategory.tsx<br><br>Renders one category row: a header + a grid of tickers (and optionally a total).<br>Computes the category total and sorts tickers by column.<br>Implements the pointer-based drag interaction to reorder tickers left/right within the category (only when draggableTickers + onReorderTickers are provided).<br>ResourceCategoryHeader.tsx<br><br>Tiny presentational component: renders the category label using the shared CSS class.<br>ResourceTicker.tsx<br><br>Renders a single resource “ticker” button showing an icon and a compact-formatted amount.<br>Shows a tooltip (React-Bootstrap OverlayTrigger/Tooltip) and supports double-click action via onClick.<br>Applies luxury styling when IsLuxury is true.<br>ResourceTotal.tsx<br><br>Renders the “total” ticker (similar UI to ResourceTicker, but specialized).<br>Formats and displays the sum for the category and shows a tooltip.<br>Can be clickable (double-click) and can be disabled.<br>resourceIcons.tsx<br><br>Maps resource labels to imported SVG icon assets.<br>Exposes getResourceIconByLabel(label) which returns an <img> React node (or undefined if no match).<br>If you meant a different “features/resources” folder (outside the game feature), tell me the path and I’ll summarize that one too. |
-
+|                       |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | No Resource UI exists                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| **Proposed Changes**  | Add a UI which can display multiple categories of Resources. <br><br>For example a UI which shows "Construction materials" – showing a row of data for stone, wood, other. In each row should be ResourceTickers which will keep track of the resource. <br><br>E.g. in wood there will be different kinds of wood: generic wood, oak, cedar etc (each in its own ResourceTicker)<br>At the left edge of the category will be a ResourceTotal which calculates the sum of all resource tickers in that row.<br>ResourceTickers can be moved left and right via drag and drop. This will be used so that the user can set which ones should be used first.<br>Double click on a ResourceTicker will (later) open a dialog<br>A ResourceCategory can be marked as mixedItems: true, which will prevent the drag and drop behaviour.<br><br>The Resource Ticker will display quantities in shortened format eg. 4.5K<br><br>Here’s what each TSX file in the resources folder does (few lines each). Folder: resources<br><br>ResourceTickerCollection.tsx<br><br>Defines the shared types ResourceTickerData and ResourceCategoryData.<br>Renders a vertical list of ResourceCategory components.<br>Wires up optional callbacks for clicking amounts and reordering tickers; uses mixedItems to disable drag/reorder for categories like “Other”.<br>ResourceCategory.tsx<br><br>Renders one category row: a header + a grid of tickers (and optionally a total).<br>Computes the category total and sorts tickers by column.<br>Implements the pointer-based drag interaction to reorder tickers left/right within the category (only when draggableTickers + onReorderTickers are provided).<br>ResourceCategoryHeader.tsx<br><br>Tiny presentational component: renders the category label using the shared CSS class.<br>ResourceTicker.tsx<br><br>Renders a single resource “ticker” button showing an icon and a compact-formatted amount.<br>Shows a tooltip (React-Bootstrap OverlayTrigger/Tooltip) and supports double-click action via onClick.<br>Applies luxury styling when IsLuxury is true.<br>ResourceTotal.tsx<br><br>Renders the “total” ticker (similar UI to ResourceTicker, but specialized).<br>Formats and displays the sum for the category and shows a tooltip.<br>Can be clickable (double-click) and can be disabled.<br>resourceIcons.tsx<br><br>Maps resource labels to imported SVG icon assets.<br>Exposes getResourceIconByLabel(label) which returns an <img> React node (or undefined if no match).<br>If you meant a different “features/resources” folder (outside the game feature), tell me the path and I’ll summarize that one too. |
 
 #### RS-4: Modify Resources infrastructure
 
-| | |
-|---|---|
-| **Current Situation** | Create an endpoint to load the Resources lookups.<br><br>There is an endpoint, but I don’t like it, and it's never been used. |
-| **Proposed Changes** | Refactored the existing (but not yet used) asset/resource tables.<br>Moved from assets schema to resources schema<br>Dropped most of the tables (moved code to _not_used_yet folder<br>Draft of the upser resources endpoint (untested) |
-
+|                       |                                                                                                                                                                                                                                         |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Current Situation** | Create an endpoint to load the Resources lookups.<br><br>There is an endpoint, but I don’t like it, and it's never been used.                                                                                                           |
+| **Proposed Changes**  | Refactored the existing (but not yet used) asset/resource tables.<br>Moved from assets schema to resources schema<br>Dropped most of the tables (moved code to _not_used_yet folder<br>Draft of the upser resources endpoint (untested) |
 
 ### Stream: Technology (T)
 
-
 ### Stream: Unit Design (UD)
-
 
 #### UD-1:  Refactor Unit Designer for cleaner structure and fewer redundant renders
 
-| | |
-|---|---|
+|                      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Proposed Changes** | Bring the Unit Designer feature in line with the rest of the codebase:<br>* deduplicate shared helpers, tighten render/memory behaviour, and fix a latent Rules-of-Hooks violation. Behaviour is unchanged and the feature still runs off the placeholder DUMMY_UNIT_COMPONENTS data.<br><br>UnitDesigner: remove the redundant isVisible state and its early return, which sat above several hooks and risked "rendered fewer hooks thanexpected" when closing. Visibility is owned by the parent via onClose.<br>UnitDesigner: lazy-init slot placeholders in useState and drop the back-fill effect, removing an extra render on mount.<br>Add computeDesignTotals (unitDesignTotals.ts) to aggregate cost, upkeep and battle stats in a single pass instead of three separate loops.<br>Move component lookups next to the data: export COMPONENT_BY_ID,<br>BASE_COMPONENTS and getComponentsForSlot from dummyUnitComponents, built once and shared rather than rebuilt per instance.<br>Extract shared stat helpers (IconBadge, ResourceIconCell, DeltaValue) and add roundTo/formatFixed to util/number, replacing copy-pasted fmt/round1 and delta-colouring logic across the stats panels.<br>Add isBaseComponent/isWeaponComponent guards and reuse them in place ofinline "weapon" in c / type === "base" checks.<br>Extract the inline slot-render IIFE into a DesignSlot component with a shared SlotPlaceholder type. |
-
 
 #### UD-10: Add Tag management to the Unit Designer with CRUD endpoints
 
-| | |
-|---|---|
+|                      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Proposed Changes** | Introduce a "Tags" toolbar group in the dev Unit Designer for authoring global tags (unitdesigns.Tag), backed by new GET/POST/PUT endpoints.<br><br>Backend:<br>- Add GetTags, CreateTag and UpdateTag MediatR handlers under Features/UnitComponents, with a shared TagValidation helper (required, length-bounded Code/DisplayName; defined TagType). Create rejects a duplicate Code (409); Update is keyed by Id (404 if missing) and guards Code uniqueness against other tags.<br>- Add TagView, GetTagsResult and UpsertTagDto contracts.<br>- Expose GET/POST/PUT /UnitDesign/tags on UnitDesignController, left unauthorized to match the existing dev god-view endpoints (same "lock down before shipping" TODO).<br><br>Frontend:<br>- Add the Tag type/model and tagsApi (get/create/update).<br>- Add a single-page TagSetupDialog (Modal) with Display Name, Code, Description and Tag Type; wire "Add Tag" to it (POST on save). "Search Tag" is a stub for now.<br>- Add a reusable CodeField UI component: a text field with a pencil affordance that auto-derives a slug from a source field (lowercase, non-alphanumeric -> underscore, trimmed), sanitises manual input live, and turns orange when hand-edited (click to reset to the derived code).<br>- Adopt CodeField in TagSetupDialog and GeneralSection, replacing the old whitespace-only code derivation in ComponentSetup.<br>- Add an optional top-align mode to the shared FieldRow. |
-
 
 #### UD-11: Add search-and-edit flow to the Unit Designer dev tool
 
-| | |
-|---|---|
+|                      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Proposed Changes** | Extend the dev Unit Designer from create-only to full search-and-edit for both components and tags, and fix enum serialization so the React frontend's name-based enums bind correctly.<br><br>Backend:<br>- Add GET /unit-design/components/{code} (GetComponentHandler + EditableComponentResult) — the lossless read counterpart of the bulk-upsert write side, returning a component in full (body/weapon/armour extension, slots, tags and supersession links) so the Component Setup dialog can re-open an existing component for editing.<br>- Register JsonStringEnumConverter in Program.cs so enums serialize/deserialize by name (e.g. "Classification") instead of by number; the frontend sends and reads enum names across the app, so without this binding fails with a 400 before any handler runs.<br>- Rework the TagType enum from Classification/Buff/Perk to Classification/Combat/Movement/Ability.<br>- Make a tag's Description required and length-bounded (DESCRIPTION_MAX_LENGTH = 200), enforced in TagValidation and on the Tag entity.<br><br>Frontend:<br>- Add a generic, reusable SearchDrawer UI control (filterable left-hand list) and export it from components/ui.<br>- Add catalogApi (getComponentList for the drawer) and componentsApi (bulkUpsertComponents, getComponent); extend tagsApi with getTags/updateTag.<br>- Wire UnitDesignerTool to search and edit existing components and tags, with toast notifications and per-dialog error surfacing.<br>- Give ComponentSetupDialog and TagSetupDialog an `error` prop (danger Alert) and edit-mode seeding; component commits now persist via the API rather than being UI-only.<br>- Update the Tag TS type to the new TagType values and a required description. |
-
 
 #### UD-12: Rename Body strength fields to unit-size terminology
 
-| | |
-|---|---|
+|                      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Proposed Changes** | Rename the UnitComponentBody's MinStrength/MaxStrength/IncrementStrength to MinimumUnitSize/MaximumUnitSize/SizeIncrement across the whole stack, and drop the planned RangeSlider in favour of keeping the three existing number fields (relabelled). The old "Strength" name collided conceptually with the movement/combat "Strength" in the design doc; "Unit Size" is the intended meaning here (min/max number of individuals in a unit).<br><br>Backend:<br>- UnitComponentBody entity + UnitComponentBodyDto, DesignBody read contract.<br>- Cascade into the CompiledUnitTemplate snapshot (Min/Max only; it has no increment) and its CompiledUnitTemplateView read contract.<br>- Update the projections and compile/read handlers (DesignComponentProjections, GetComponentHandler, GetCompiledUnitTemplateHandler, CompileUnitTemplateHandler, BulkUpsertUnitComponentsHandler).<br><br>Frontend (Entity Setup Tool):<br>- UnitComponent model + createEmptyBody, componentsApi payload/wire mappers.<br>- BodyProperties labels are now "Minimum Unit Size" / "Maximum Unit Size" / "Size Increment".<br><br>Tests updated to the new field names.<br><br>Columns follow property names by EF convention, so no explicit column config changed. The [unitdesigns].[UnitComponentBody] and [unitdesigns].[CompiledUnitTemplate] column renames still need a migration (RenameColumn) — generated/applied separately. |
-
 
 #### UD-14: Add Extension component type and rework the Slots editor UI
 
-| | |
-|---|---|
+|                      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Proposed Changes** | Add a new `Extension` ComponentType (backend enum + frontend union type) for components that fit into another component's slot but, unlike Body, can themselves be fitted into a slot (e.g. a pod/sub-assembly). Added at the end of the C# enum so existing persisted int values are unaffected.<br>Slots section (entitysetuptool):<br>- Slot cards are now collapsible, keyed by index, with newly-added slots auto-collapsing existing ones so the new one stands out.<br>- The slot label is inline-editable (click to edit, matches the old "Slot N" fallback) instead of a separate Label field row.<br>- ComponentType + In acceptance rules get a checklist dropdown (ComponentTypeInField) instead of free-text CSV entry; still serialises to the same comma-separated string on the wire.<br>- Introduce SLOT_MATCHABLE_COMPONENT_TYPES (all component types except Body) for the ComponentType rule dropdowns, since a Body is a template root and never itself fitted into a slot.<br>- Tighter table styling for the rules row (smaller text/padding) and symbol labels for Equals/NotEquals operators.<br>Tooltip: portal the bubble to document.body and switch to fixed positioning computed from the trigger's bounding rect, so tooltips aren't clipped by a scrollable ancestor (e.g. a dialog pane) and stack above Modal/Drawer/Toast z-indexes.<br>EditableTable: replace the Button-based add-row control with a plain icon button to match the per-row trash button styling.<br>BodyProperties: group Movement and Unit Size fields into labelled fieldsets. |
-
 
 #### UD-15: Add component designer image with drag-to-place slot editor
 
-| | |
-|---|---|
+|                      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Proposed Changes** | Adds DesignerImagePath to UnitComponent and a new "Image" dialog page where a component's slots can be dragged onto its preview image to set their UI position, instead of typing raw coordinates. Slot UI positions move from int to decimal so placements aren't rounded to whole pixels. Also fixes ComponentSetupDialog always reopening on its last-viewed page instead of the first, and slot cards on the Slots page starting expanded instead of collapsed. |
-
 
 #### UD-16: Add per-player unlockable component slots
 
-| | |
-|---|---|
+|                      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Proposed Changes** | Introduce a per-player unlock concept at slot granularity, mirroring the existing PlayerUnlockedComponent / PlayerUnlockedTemplate pattern. A slot's design-time UnitComponentSlot.IsLocked flag now means "locked until unlocked": the slot starts locked for everyone, and the presence of a PlayerUnlockedSlot row opens it for one player. Slots that are not IsLocked remain always usable.<br><br>Domain / schema:<br>- Add PlayerUnlockedSlot entity (composite PK PlayerId + UnitComponentSlotId, UnlockedOnTurn, ObsoleteOnTurn) with Player and Slot navigations.<br>- Register the DbSet and fluent config (composite key, NoAction FKs to Player and UnitComponentSlot, IX_PlayerUnlockedSlot_UnitComponentSlot index).<br>- Add migration UD-16_AddPlayerUnlockedSlot creating the unitdesigns table.<br><br>Write path:<br>- Add UnlockSlotForPlayerCommand + handler that idempotently inserts an unlock row. Invoked only from in-game backend logic; no controller endpoint.<br><br>Read path:<br>- Overlay effective per-player lock state in GetUnlockedBodies and GetSlotCandidateComponents via a shared DesignComponentProjections helper, so an IsLocked slot the player has unlocked reports as unlocked. The dev god-view (no player) still emits the raw design-time flag.<br>- A slot locked for the player now yields no slot candidates.<br>- Note the caller-effective meaning of DesignSlot.IsLocked on the contract.<br><br>Frontend / tests:<br>- Update the Entity Setup Tool Locked toggle label/comments to reflect the new "locked until a player unlocks it in-game" meaning.<br>- Add read-overlay tests and UnlockSlotForPlayer handler tests (insert, idempotent no-op, validation). |
-
 
 #### UD-17: Convert Body movement points to scaled longs, add Power and Hitpoints
 
-| | |
-|---|---|
+|                      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Proposed Changes** | CampaignMovementPoints and BattlefieldMovementPoints on UnitComponentBody now store raw fixed-point longs (ScaledAmount, Scale 1,000) instead of decimal, matching the convention used elsewhere in the catalog (Weight, Detection, DamageProfile). Added two new scaled-long fields, Power and Hitpoints, alongside them.<br><br>The change flows through the whole compile pipeline rather than stopping at UnitComponentBody: CompiledUnitTemplate, CompiledUnitTemplateView and DesignBody all carry the same raw longs, and Power/Hitpoints are copied from the body into the compiled snapshot the same way movement and unit-size already are.<br><br>ComponentSetupDialog's Body section gets a new "Attributes" fieldset with Power and Hitpoints fields, edited via ScaledNumberField like the other scaled values. |
-
 
 #### UD-18: Consolidate unit designer onto the canonical model as one shared component
 
-| | |
-|---|---|
+|                      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Proposed Changes** | Merge the two parallel unit-design systems into a single, host-parameterised assembly bench built on the canonical backend-aligned model.<br><br>Domain model consolidation:<br>- Move the canonical UnitComponent/Tag types, the API layer (catalog/components/tags) and the slotImagePosition helper out of entitysetuptool into features/unitdesign (types/, api/, model/), making unitdesign the single domain home. Repoint all entitysetuptool imports to @/features/unitdesign/*.<br>- Keep the dependency direction one-way (entitysetuptool -> unitdesign) to avoid the import cycle through DamageType; home rawToScaled/scaledToRaw with the model.<br>- Delete the prototype union model, DUMMY_UNIT_COMPONENTS, and the .bak file.<br><br>Designer retarget:<br>- Rewrite UnitDesigner + subcomponents to consume the canonical model: base is a Body component, slots come from body.slots (positioned via toPixel), selection is filtered by a new client-side slot-rule evaluator mirroring the backend, and Scale-1000 values render via rawToScaled. The catalogue self-loads (hydrated) or can be injected.<br>- DesignProperties now shows real summary stats (weight, movement, hitpoints, detection, visibility) and battle stats. Training Cost/Upkeep stay visible on a clearly-marked temporary placeholder provider (grep PLACEHOLDER_COST_UPKEEP) until the backend models cost/upkeep.<br><br>Host wiring:<br>- UnitDesignerProps: { mode, catalog?, design?, onSave?, onClose? } — host-agnostic, no auto-detection of game vs system context.<br>- Embed the designer in EntitySetupTool via a Designer toolbar button (edit mode, no onSave). GameUI's existing mount keeps working and now shows real data.<br><br>Scope: persisting an assembled unit template is deferred — no template save endpoint exists yet, so the designer assembles/inspects only (onSave omitted). |
-
 
 #### UD-19: Add Unit Template save endpoints and wire up the designer's Save button
 
-| | |
-|---|---|
+|                      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Proposed Changes** | Backend:<br>- Add POST/PUT /unit-design/templates for player-owned custom unit templates (authenticated, game/player token, unlock-checked against the caller's PlayerUnlockedComponents).<br>- Add POST/PUT /unit-design/templates/global for the dev tool's catalog templates (unauthenticated for now, matching the other dev endpoints; Code is the natural key, no unlock check).<br>- Extract UnitTemplateAssembly as a shared resolve/validate helper (base + slot codes -> UnitTemplate/UnitTemplateComponent graph, reusing SlotAssemblyValidator) so all four handlers apply identical rules; playerId is nullable to select between the two flows.<br>- New BackendContracts DTOs under SaveUnitTemplate/ and SaveGlobalUnitTemplate/.<br><br>Frontend:<br>- UnitDesignHeader: clicking Save now opens an inline, prefilled textbox for the template's display name instead of saving immediately, with Confirm/Cancel and a busy state while the request is in flight.<br>- UnitDesigner: replace the old no-op onSave (which just handed the raw design back to the host) with real mutations against the new endpoints; add onSaveSuccess/onSaveError callbacks and a saveAsGlobal flag that routes Save to the catalog endpoints instead (deriving a Code from the display name via slugify).<br>- Wire GameUI's designer panel to the player-owned save flow via the existing toast system, and EntitySetupTool's designer overlay to the global/catalog save flow with its own success/error toasts.<br><br>Known gap: the dev tool's Save only collects DisplayName; Code is auto-slugified, MapImagePath is reused from the base body's image, and Description isn't collected — follow-up needed to give the catalog flow proper field control. |
-
 
 #### UD-20: Add a searchable "load template" combo box to the Unit Designer
 
-| | |
-|---|---|
+|                      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Proposed Changes** | Lets a designer session load a previously-saved Unit Template back onto the bench instead of only building from scratch. The Entity Setup Tool (saveAsGlobal) lists the master/global catalogue only; the in-game designer lists the current game/player's unlocked + custom templates, via the existing GET /unit-design/catalog and GET /unit-design/templates endpoints — no new listing endpoints were needed.<br><br>Loading a template correctly onto the base body's slots required threading the slot's database id through GetComponentHandler's DTO (previously omitted), since a saved template's fitted components are keyed by slot id rather than position. Also adds a reusable SearchableComboBox UI component and a confirmation prompt when loading would discard an in-progress design. |
-
 
 #### UD-21: Add Dual Wield to weapon components
 
-| | |
-|---|---|
+|                      |                                     |
+| -------------------- | ----------------------------------- |
 | **Proposed Changes** | Add Dual Wield to weapon components |

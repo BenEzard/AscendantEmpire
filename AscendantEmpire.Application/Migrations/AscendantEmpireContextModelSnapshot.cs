@@ -1399,9 +1399,6 @@ namespace AscendantEmpire.Application.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<int?>("ParentId")
-                        .HasColumnType("int");
-
                     b.Property<int>("UnitComponentId")
                         .HasColumnType("int");
 
@@ -1412,9 +1409,6 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.HasIndex("CompiledUnitTemplateId")
                         .HasDatabaseName("IX_CompiledUnitTemplateComponent_Template");
-
-                    b.HasIndex("ParentId")
-                        .HasDatabaseName("IX_CompiledUnitTemplateComponent_Parent");
 
                     b.ToTable("CompiledUnitTemplateComponent", "unitdesigns");
                 });
@@ -1482,28 +1476,6 @@ namespace AscendantEmpire.Application.Migrations
                         .HasDatabaseName("IX_PlayerUnlockedComponent_UnitComponent");
 
                     b.ToTable("PlayerUnlockedComponent", "unitdesigns");
-                });
-
-            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.PlayerUnlockedSlot", b =>
-                {
-                    b.Property<int>("PlayerId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("UnitComponentSlotId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ObsoleteOnTurn")
-                        .HasColumnType("int");
-
-                    b.Property<int>("UnlockedOnTurn")
-                        .HasColumnType("int");
-
-                    b.HasKey("PlayerId", "UnitComponentSlotId");
-
-                    b.HasIndex("UnitComponentSlotId")
-                        .HasDatabaseName("IX_PlayerUnlockedSlot_UnitComponentSlot");
-
-                    b.ToTable("PlayerUnlockedSlot", "unitdesigns");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.PlayerUnlockedTemplate", b =>
@@ -1714,9 +1686,6 @@ namespace AscendantEmpire.Application.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<bool>("IsLocked")
-                        .HasColumnType("bit");
-
                     b.Property<bool>("IsVisible")
                         .HasColumnType("bit");
 
@@ -1728,13 +1697,13 @@ namespace AscendantEmpire.Application.Migrations
                         .HasPrecision(9, 4)
                         .HasColumnType("decimal(9,4)");
 
-                    b.Property<int>("UnitComponentId")
+                    b.Property<int>("UnitComponentBodyId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UnitComponentId")
-                        .HasDatabaseName("IX_UnitComponentSlot_Component");
+                    b.HasIndex("UnitComponentBodyId")
+                        .HasDatabaseName("IX_UnitComponentSlot_Body");
 
                     b.ToTable("UnitComponentSlot", "unitdesigns");
                 });
@@ -1950,9 +1919,6 @@ namespace AscendantEmpire.Application.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("ParentTemplateComponentId")
-                        .HasColumnType("int");
-
                     b.Property<int>("UnitComponentId")
                         .HasColumnType("int");
 
@@ -1964,9 +1930,6 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ParentTemplateComponentId")
-                        .HasDatabaseName("IX_UnitTemplateComponent_Parent");
-
                     b.HasIndex("UnitComponentId")
                         .HasDatabaseName("IX_UnitTemplateComponent_Component");
 
@@ -1975,13 +1938,7 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.HasIndex("UnitTemplateId", "UnitComponentSlotId")
                         .IsUnique()
-                        .HasDatabaseName("UX_UnitTemplateComponent_Root")
-                        .HasFilter("[ParentTemplateComponentId] IS NULL");
-
-                    b.HasIndex("UnitTemplateId", "ParentTemplateComponentId", "UnitComponentSlotId")
-                        .IsUnique()
-                        .HasDatabaseName("UX_UnitTemplateComponent_Nested")
-                        .HasFilter("[ParentTemplateComponentId] IS NOT NULL");
+                        .HasDatabaseName("UX_UnitTemplateComponent_Template_Slot");
 
                     b.ToTable("UnitTemplateComponent", "unitdesigns");
                 });
@@ -2657,15 +2614,7 @@ namespace AscendantEmpire.Application.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_CompiledUnitTemplateComponent_CompiledUnitTemplate_CompiledUnitTemplateId");
 
-                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.CompiledUnitTemplateComponent", "Parent")
-                        .WithMany("Children")
-                        .HasForeignKey("ParentId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .HasConstraintName("FK_CompiledUnitTemplateComponent_CompiledUnitTemplateComponent_ParentId");
-
                     b.Navigation("CompiledUnitTemplate");
-
-                    b.Navigation("Parent");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.ComponentSupersession", b =>
@@ -2729,27 +2678,6 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Player");
 
                     b.Navigation("UnitComponent");
-                });
-
-            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.PlayerUnlockedSlot", b =>
-                {
-                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
-                        .WithMany()
-                        .HasForeignKey("PlayerId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired()
-                        .HasConstraintName("FK_PlayerUnlockedSlot_Player_PlayerId");
-
-                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentSlot", "Slot")
-                        .WithMany()
-                        .HasForeignKey("UnitComponentSlotId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired()
-                        .HasConstraintName("FK_PlayerUnlockedSlot_UnitComponentSlot_UnitComponentSlotId");
-
-                    b.Navigation("Player");
-
-                    b.Navigation("Slot");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.PlayerUnlockedTemplate", b =>
@@ -2820,14 +2748,14 @@ namespace AscendantEmpire.Application.Migrations
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentSlot", b =>
                 {
-                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponent", "OwnerComponent")
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentBody", "Body")
                         .WithMany("Slots")
-                        .HasForeignKey("UnitComponentId")
+                        .HasForeignKey("UnitComponentBodyId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired()
-                        .HasConstraintName("FK_UnitComponentSlot_UnitComponent_UnitComponentId");
+                        .HasConstraintName("FK_UnitComponentSlot_UnitComponentBody_UnitComponentBodyId");
 
-                    b.Navigation("OwnerComponent");
+                    b.Navigation("Body");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentSlotRule", b =>
@@ -2936,12 +2864,6 @@ namespace AscendantEmpire.Application.Migrations
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitTemplateComponent", b =>
                 {
-                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitTemplateComponent", "ParentTemplateComponent")
-                        .WithMany("Children")
-                        .HasForeignKey("ParentTemplateComponentId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .HasConstraintName("FK_UnitTemplateComponent_UnitTemplateComponent_ParentTemplateComponentId");
-
                     b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponent", "UnitComponent")
                         .WithMany()
                         .HasForeignKey("UnitComponentId")
@@ -2962,8 +2884,6 @@ namespace AscendantEmpire.Application.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired()
                         .HasConstraintName("FK_UnitTemplateComponent_UnitTemplate_UnitTemplateId");
-
-                    b.Navigation("ParentTemplateComponent");
 
                     b.Navigation("UnitComponent");
 
@@ -3105,11 +3025,6 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Components");
                 });
 
-            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.CompiledUnitTemplateComponent", b =>
-                {
-                    b.Navigation("Children");
-                });
-
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.Tag", b =>
                 {
                     b.Navigation("ComponentTags");
@@ -3121,8 +3036,6 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.Navigation("Body");
 
-                    b.Navigation("Slots");
-
                     b.Navigation("SupersededBy");
 
                     b.Navigation("Supersedes");
@@ -3130,6 +3043,11 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Tags");
 
                     b.Navigation("Weapon");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentBody", b =>
+                {
+                    b.Navigation("Slots");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentSlot", b =>
@@ -3159,11 +3077,6 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("SupersededBy");
 
                     b.Navigation("Supersedes");
-                });
-
-            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitTemplateComponent", b =>
-                {
-                    b.Navigation("Children");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopInstance", b =>

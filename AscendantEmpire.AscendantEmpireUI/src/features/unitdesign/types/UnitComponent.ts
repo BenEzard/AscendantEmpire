@@ -87,6 +87,9 @@ export type DamageProfile = Record<DamageType, number>;
  *
  * `campaignMovementPoints`, `battlefieldMovementPoints`, `power` and `hitpoints` are all raw Scale-1,000
  * fixed-point values (1,000 raw = 1.0); edit them through ScaledNumberField so the user sees decimals.
+ *
+ * Only bodies expose Template Slots (`slots`) — a Unit Template is built around a body and every other
+ * component is fitted into one of its slots.
  */
 export interface UnitComponentBody {
   movementDomain: DomainType;
@@ -97,6 +100,8 @@ export interface UnitComponentBody {
   minimumUnitSize: number;
   maximumUnitSize: number;
   sizeIncrement: number;
+  /** Slots this body exposes for fitting other components (0 or more). */
+  slots: UnitComponentSlot[];
 }
 
 /** Per-Domain damage multiplier for a weapon. Presence of an entry gates which Domains it can attack. */
@@ -132,24 +137,16 @@ export interface UnitComponentSlotRule {
 }
 
 /**
- * A slot this component exposes for fitting another component (any component type may carry slots).
- * `displayName` is an optional label. `uiXPosition` / `uiYPosition` are *normalized offsets from the
- * owning component's image center*: (0, 0) is the centre, -1 / +1 are the left/right (X) or top/bottom
- * (Y) edges (relative to the image's half-width / half-height), and values may fall outside -1..1 for
- * slots that sit beyond the image bounds. Nested slots are therefore always relative to their own
- * component's image, so a fitted component's slots compose naturally under the parent's position.
+ * A slot a body exposes for fitting another component (only bodies carry slots). `displayName` is an
+ * optional label. `uiXPosition` / `uiYPosition` are *normalized offsets from the body's image center*:
+ * (0, 0) is the centre, -1 / +1 are the left/right (X) or top/bottom (Y) edges (relative to the image's
+ * half-width / half-height), and values may fall outside -1..1 for slots that sit beyond the image bounds.
  */
 export interface UnitComponentSlot {
   /** The slot's database id. Present when read from the backend; absent for a freshly-authored slot. */
   id?: number;
   displayName: string | null;
   isVisible: boolean;
-  /**
-   * Whether the slot starts locked. A locked slot is closed for every player until they unlock it
-   * in-game (e.g. via tech); an unlocked (false) slot is always usable. This is the design-time default,
-   * not a per-player state — per-player unlocks are tracked server-side (PlayerUnlockedSlot).
-   */
-  isLocked: boolean;
   uiXPosition: number;
   uiYPosition: number;
   /** Acceptance rules (a candidate must satisfy all of them). The backend expects at least one. */
@@ -190,8 +187,6 @@ export interface UnitComponent {
   body: UnitComponentBody | null;
   weapon: UnitComponentWeapon | null;
   armour: UnitComponentArmour | null;
-  /** Slots this component exposes for fitting other components (0 or more). Any component type may have them. */
-  slots: UnitComponentSlot[];
   /** Codes of buff/classification tags attached to this component (the tag definitions live elsewhere). */
   tagCodes: string[];
   /** Upgrade links where this component is the predecessor — the newer components that supersede it. */
@@ -211,7 +206,7 @@ export function damageProfileHasPositiveValue(profile: DamageProfile): boolean {
   return ALL_DAMAGE_TYPES.some((damageType) => profile[damageType] > 0);
 }
 
-/** A fresh body with sensible neutral defaults. */
+/** A fresh body with sensible neutral defaults (and no slots yet). */
 export function createEmptyBody(): UnitComponentBody {
   return {
     movementDomain: "Land",
@@ -222,6 +217,7 @@ export function createEmptyBody(): UnitComponentBody {
     minimumUnitSize: 0,
     maximumUnitSize: 0,
     sizeIncrement: 0,
+    slots: [],
   };
 }
 
@@ -247,14 +243,12 @@ export function createEmptySlotRule(): UnitComponentSlotRule {
 }
 
 /**
- * A fresh slot at the origin with one starter rule (the backend wants at least one). Defaults to visible
- * and unlocked (`isLocked: false`), i.e. usable by every player until a designer marks it locked.
+ * A fresh slot at the origin with one starter rule (the backend wants at least one). Defaults to visible.
  */
 export function createEmptySlot(): UnitComponentSlot {
   return {
     displayName: null,
     isVisible: true,
-    isLocked: false,
     uiXPosition: 0,
     uiYPosition: 0,
     rules: [createEmptySlotRule()],
@@ -340,7 +334,6 @@ export function createEmptyComponent(): UnitComponent {
     body: createEmptyBody(),
     weapon: null,
     armour: null,
-    slots: [],
     tagCodes: [],
     supersededBy: [],
   };

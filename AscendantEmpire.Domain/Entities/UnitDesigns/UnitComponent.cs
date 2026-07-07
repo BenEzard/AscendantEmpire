@@ -80,12 +80,6 @@ public class UnitComponent
     public UnitComponentArmour? Armour { get; set; }
 
     /// <summary>
-    /// The Template Slots this component exposes for fitting other components (0 or more). Any component
-    /// type may carry slots — a fitted component can itself expose slots for further nesting.
-    /// </summary>
-    public ICollection<UnitComponentSlot> Slots { get; set; } = [];
-
-    /// <summary>
     /// The buff/bonus tags attached to this component (0 or more).
     /// </summary>
     public ICollection<UnitComponentTag> Tags { get; set; } = [];

@@ -189,11 +189,6 @@ public class AscendantEmpireContext : DbContext
     public DbSet<PlayerUnlockedTemplate> PlayerUnlockedTemplates { get; set; }
 
     /// <summary>
-    /// Per-player record of which otherwise-locked component slots have been unlocked.
-    /// </summary>
-    public DbSet<PlayerUnlockedSlot> PlayerUnlockedSlots { get; set; }
-
-    /// <summary>
     /// Assembled unit templates (global/common and custom player-owned).
     /// </summary>
     public DbSet<UnitTemplate> UnitTemplates { get; set; }
@@ -1250,6 +1245,13 @@ public class AscendantEmpireContext : DbContext
                 .HasForeignKey<UnitComponentBody>(e => e.UnitComponentId)
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_UnitComponentBody_UnitComponent_UnitComponentId");
+
+            // Only bodies expose Template Slots, so the slot collection hangs off the body extension.
+            entity.HasMany(e => e.Slots)
+                .WithOne(e => e.Body)
+                .HasForeignKey(e => e.UnitComponentBodyId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitComponentSlot_UnitComponentBody_UnitComponentBodyId");
         });
 
         // --- UnitComponentWeapon (1:1 with UnitComponent) --------------------------
@@ -1345,16 +1347,10 @@ public class AscendantEmpireContext : DbContext
             entity.Property(e => e.UIYPosition)
                 .HasPrecision(9, 4);
 
-            // Slots now hang off any UnitComponent (not just bodies), so a fitted component can carry
-            // its own slots for further nesting.
-            entity.HasOne(e => e.OwnerComponent)
-                .WithMany(e => e.Slots)
-                .HasForeignKey(e => e.UnitComponentId)
-                .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_UnitComponentSlot_UnitComponent_UnitComponentId");
-
-            entity.HasIndex(e => e.UnitComponentId)
-                .HasDatabaseName("IX_UnitComponentSlot_Component");
+            // Slots hang off the body extension (see UnitComponentBody config for the FK); only bodies
+            // expose slots.
+            entity.HasIndex(e => e.UnitComponentBodyId)
+                .HasDatabaseName("IX_UnitComponentSlot_Body");
         });
 
         // --- UnitComponentSlotRule -------------------------------------------------
@@ -1455,29 +1451,6 @@ public class AscendantEmpireContext : DbContext
             entity.HasIndex(e => e.UnitComponentId)
                 .HasDatabaseName("IX_PlayerUnlockedComponent_UnitComponent");
         });
-
-        // --- PlayerUnlockedSlot ----------------------------------------------------
-        modelBuilder.Entity<PlayerUnlockedSlot>(entity =>
-        {
-            entity.ToTable("PlayerUnlockedSlot", schema);
-
-            entity.HasKey(e => new { e.PlayerId, e.UnitComponentSlotId });
-
-            entity.HasOne(e => e.Player)
-                .WithMany()
-                .HasForeignKey(e => e.PlayerId)
-                .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_PlayerUnlockedSlot_Player_PlayerId");
-
-            entity.HasOne(e => e.Slot)
-                .WithMany()
-                .HasForeignKey(e => e.UnitComponentSlotId)
-                .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_PlayerUnlockedSlot_UnitComponentSlot_UnitComponentSlotId");
-
-            entity.HasIndex(e => e.UnitComponentSlotId)
-                .HasDatabaseName("IX_PlayerUnlockedSlot_UnitComponentSlot");
-        });
     }
 
     /// <summary>
@@ -1544,14 +1517,6 @@ public class AscendantEmpireContext : DbContext
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_UnitTemplateComponent_UnitTemplate_UnitTemplateId");
 
-            // Self-reference: a fitted component nests inside a parent fitted-component. NoAction (like
-            // every FK here) — a self FK must be NoAction to avoid multiple cascade paths.
-            entity.HasOne(e => e.ParentTemplateComponent)
-                .WithMany(e => e.Children)
-                .HasForeignKey(e => e.ParentTemplateComponentId)
-                .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_UnitTemplateComponent_UnitTemplateComponent_ParentTemplateComponentId");
-
             entity.HasOne(e => e.UnitComponentSlot)
                 .WithMany()
                 .HasForeignKey(e => e.UnitComponentSlotId)
@@ -1564,27 +1529,16 @@ public class AscendantEmpireContext : DbContext
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_UnitTemplateComponent_UnitComponent_UnitComponentId");
 
-            // One component per slot of the body root (parent null). Filtered because SQL Server treats
-            // NULLs as distinct, so an unfiltered index over the nullable parent wouldn't enforce this.
+            // One component per slot of the template's body.
             entity.HasIndex(e => new { e.UnitTemplateId, e.UnitComponentSlotId })
                 .IsUnique()
-                .HasFilter("[ParentTemplateComponentId] IS NULL")
-                .HasDatabaseName("UX_UnitTemplateComponent_Root");
-
-            // One component per slot per parent instance (nesting). Filtered to the parent-set rows.
-            entity.HasIndex(e => new { e.UnitTemplateId, e.ParentTemplateComponentId, e.UnitComponentSlotId })
-                .IsUnique()
-                .HasFilter("[ParentTemplateComponentId] IS NOT NULL")
-                .HasDatabaseName("UX_UnitTemplateComponent_Nested");
+                .HasDatabaseName("UX_UnitTemplateComponent_Template_Slot");
 
             entity.HasIndex(e => e.UnitComponentSlotId)
                 .HasDatabaseName("IX_UnitTemplateComponent_Slot");
 
             entity.HasIndex(e => e.UnitComponentId)
                 .HasDatabaseName("IX_UnitTemplateComponent_Component");
-
-            entity.HasIndex(e => e.ParentTemplateComponentId)
-                .HasDatabaseName("IX_UnitTemplateComponent_Parent");
         });
 
         // --- PlayerUnlockedTemplate ------------------------------------------------
@@ -1681,18 +1635,8 @@ public class AscendantEmpireContext : DbContext
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_CompiledUnitTemplateComponent_CompiledUnitTemplate_CompiledUnitTemplateId");
 
-            // Self-reference preserving the fitted-component tree in the snapshot (NoAction self FK).
-            entity.HasOne(e => e.Parent)
-                .WithMany(e => e.Children)
-                .HasForeignKey(e => e.ParentId)
-                .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_CompiledUnitTemplateComponent_CompiledUnitTemplateComponent_ParentId");
-
             entity.HasIndex(e => e.CompiledUnitTemplateId)
                 .HasDatabaseName("IX_CompiledUnitTemplateComponent_Template");
-
-            entity.HasIndex(e => e.ParentId)
-                .HasDatabaseName("IX_CompiledUnitTemplateComponent_Parent");
         });
 
         // --- CompiledUnitTemplateCapability ----------------------------------------

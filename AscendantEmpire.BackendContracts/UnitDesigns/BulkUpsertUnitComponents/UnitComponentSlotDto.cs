@@ -23,11 +23,6 @@ public record UnitComponentSlotDto
     public bool IsVisible { get; init; }
 
     /// <summary>
-    /// Whether the slot is locked (cannot be changed by the player).
-    /// </summary>
-    public bool IsLocked { get; init; }
-
-    /// <summary>
     /// Normalized X offset of the slot from the owning component's image center (0 = center, ±1 = edges).
     /// </summary>
     public decimal UIXPosition { get; init; }

@@ -295,12 +295,6 @@ function SlotCard({
                 <input type="checkbox" checked={slot.isVisible} onChange={(e) => patch("isVisible", e.target.checked)} />
                 Visible
               </label>
-              <label
-                className="flex items-center gap-1.5"
-                title="Starts locked for every player; a player must unlock it in-game (e.g. via tech) before they can fit anything into it.">
-                <input type="checkbox" checked={slot.isLocked} onChange={(e) => patch("isLocked", e.target.checked)} />
-                Locked
-              </label>
             </div>
           </FieldRow>
 

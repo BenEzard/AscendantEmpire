@@ -48,7 +48,7 @@ internal static class UnitTemplateAssembly
         }
 
         UnitComponent? baseComponent = await context.UnitComponents
-            .Include(c => c.Slots).ThenInclude(s => s.Rules)
+            .Include(c => c.Body!).ThenInclude(b => b.Slots).ThenInclude(s => s.Rules)
             .Include(c => c.Tags).ThenInclude(t => t.Tag)
             .FirstOrDefaultAsync(c => c.Code == baseCode, cancelToken);
 
@@ -113,7 +113,7 @@ internal static class UnitTemplateAssembly
         }
 
         // Base slots ordered deterministically (by Id), matching the frontend's positional slot indexing.
-        List<UnitComponentSlot> orderedSlots = [.. baseComponent.Slots.OrderBy(s => s.Id)];
+        List<UnitComponentSlot> orderedSlots = [.. baseComponent.Body!.Slots.OrderBy(s => s.Id)];
 
         List<string> indexErrors = [];
         var fitted = new List<UnitTemplateComponent>();

@@ -2,7 +2,7 @@
 // UnitDesign shape UnitDesigner edits (a base code + fitted component code per base slot).
 //
 // A template's fitted components are keyed by `unitComponentSlotId`, the base body's slot's database id;
-// UnitDesigner only tracks slots positionally (see model/unitDesign.ts), so this walks the base component's
+// UnitDesigner only tracks slots positionally (see model/unitDesign.ts), so this walks the base body's
 // `slots` in order and looks up each one's fitted code by matching `slot.id`.
 
 import type { TemplateSummary } from "../api/templatesApi";
@@ -20,13 +20,9 @@ export function resolveTemplateDesign(template: TemplateSummary, catalog: UnitCo
     return null;
   }
 
-  // Only top-level fitted components (fitted directly into a body slot) are considered — the designer
-  // has no UI for nested slots (a component fitted inside another fitted component), so any such rows a
-  // template happens to carry are silently dropped rather than surfaced as unmapped.
-  const slotComponentCodes = baseComponent.slots.map((slot) => {
-    const fitted = template.components.find(
-      (component) => component.parentTemplateComponentId == null && component.unitComponentSlotId === slot.id,
-    );
+  // Each fitted component sits directly in one of the base body's slots, keyed by slot id.
+  const slotComponentCodes = (baseComponent.body?.slots ?? []).map((slot) => {
+    const fitted = template.components.find((component) => component.unitComponentSlotId === slot.id);
     return fitted?.componentCode ?? null;
   });
 

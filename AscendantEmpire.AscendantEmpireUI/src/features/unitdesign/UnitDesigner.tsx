@@ -160,7 +160,7 @@ export default function UnitDesigner({
 
   // Slots exposed by the chosen base body (empty until a base is picked). Memoized so it has a stable
   // reference across renders, matching baseComponent's own identity.
-  const baseSlots = useMemo(() => baseComponent?.slots ?? [], [baseComponent]);
+  const baseSlots = useMemo(() => baseComponent?.body?.slots ?? [], [baseComponent]);
 
   // Keep the slot-assignment array length in step with the current base's slot count.
   useEffect(() => {
@@ -303,7 +303,7 @@ export default function UnitDesigner({
       }
       const nextBase = componentByCode.get(selectedCode);
       setBaseCode(selectedCode);
-      setSlotComponentCodes((nextBase?.slots ?? []).map(() => null));
+      setSlotComponentCodes((nextBase?.body?.slots ?? []).map(() => null));
       return;
     }
 

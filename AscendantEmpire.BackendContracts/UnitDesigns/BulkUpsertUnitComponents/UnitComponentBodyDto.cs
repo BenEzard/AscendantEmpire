@@ -6,8 +6,8 @@ namespace AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 /// Body-specific properties for a component whose type is <c>Body</c>.
 /// </summary>
 /// <remarks>
-/// A body defines movement characteristics and unit-size bounds. Slots now live on the component itself
-/// (see <c>UnitComponentDto.Slots</c>), so any component — not just a body — can expose them.
+/// A body defines movement characteristics and unit-size bounds, and is the only component type that
+/// exposes Template Slots (see <see cref="Slots"/>).
 /// </remarks>
 public record UnitComponentBodyDto
 {
@@ -50,4 +50,9 @@ public record UnitComponentBodyDto
     /// The step by which unit size can be adjusted.
     /// </summary>
     public int SizeIncrement { get; init; }
+
+    /// <summary>
+    /// The Template Slots this body exposes for fitting other components (0 or more). Only bodies expose slots.
+    /// </summary>
+    public IReadOnlyCollection<UnitComponentSlotDto> Slots { get; init; } = [];
 }

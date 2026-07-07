@@ -122,7 +122,7 @@ internal sealed class CatalogExportExecutor(
         return await context.UnitTemplates
             .AsNoTracking()
             .Where(t => t.Code != null && t.GameId == null && t.PlayerId == null)
-            .Include(t => t.BodyComponent).ThenInclude(b => b.Slots)
+            .Include(t => t.BodyComponent).ThenInclude(b => b.Body!).ThenInclude(bd => bd.Slots)
             .Include(t => t.Components).ThenInclude(c => c.UnitComponent)
             .ToListAsync(cancellationToken);
     }
@@ -162,10 +162,9 @@ internal sealed class CatalogExportExecutor(
 
         IQueryable<UnitComponent> query = context.UnitComponents
             .AsNoTracking()
-            .Include(c => c.Body)
+            .Include(c => c.Body!).ThenInclude(b => b.Slots).ThenInclude(s => s.Rules)
             .Include(c => c.Weapon!).ThenInclude(w => w.DomainModifiers)
             .Include(c => c.Armour)
-            .Include(c => c.Slots).ThenInclude(s => s.Rules)
             .Include(c => c.Tags).ThenInclude(t => t.Tag);
 
         if (!exportAll)
@@ -264,17 +263,12 @@ internal sealed class CatalogExportExecutor(
     /// Projects a single template onto its export DTO, reconstructing <c>SlotComponentCodes</c> from the
     /// fitted components by ordering the body's slots by id (the same positional scheme the save path uses).
     /// </summary>
-    /// <remarks>
-    /// Only root-level fitting (a null <c>ParentTemplateComponentId</c>) is represented — that is all the
-    /// dev tool can author for a catalogue template. Any nested fitted-component rows are ignored.
-    /// </remarks>
     private static CatalogTemplateDto BuildTemplateDto(UnitTemplate template)
     {
-        List<UnitComponentSlot> orderedSlots = [.. template.BodyComponent.Slots.OrderBy(s => s.Id)];
+        List<UnitComponentSlot> orderedSlots = [.. template.BodyComponent.Body!.Slots.OrderBy(s => s.Id)];
 
-        // The component fitted directly into each body slot, keyed by slot id (root-level only).
+        // The component fitted into each body slot, keyed by slot id.
         Dictionary<int, string> fittedBySlotId = template.Components
-            .Where(c => c.ParentTemplateComponentId == null)
             .ToDictionary(c => c.UnitComponentSlotId, c => c.UnitComponent.Code);
 
         List<string?> slotComponentCodes = [.. orderedSlots.Select(slot =>

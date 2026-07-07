@@ -61,7 +61,6 @@ internal class GetPlayerTemplatesHandler(
                         .Select(tc => new DesignTemplateComponent
                         {
                             Id = tc.Id,
-                            ParentTemplateComponentId = tc.ParentTemplateComponentId,
                             UnitComponentSlotId = tc.UnitComponentSlotId,
                             UnitComponentId = tc.UnitComponentId,
                             ComponentCode = tc.UnitComponent.Code,

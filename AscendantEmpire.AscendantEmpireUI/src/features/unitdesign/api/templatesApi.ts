@@ -74,11 +74,9 @@ export async function updateGlobalUnitTemplate(id: number, payload: SaveGlobalUn
 
 // --- template listing (for the designer's "load a template" combo box) -------------------------
 
-/** A component fitted into one of a template's slots (mirrors the backend DesignTemplateComponent). */
+/** A component fitted into one of a template's body slots (mirrors the backend DesignTemplateComponent). */
 export interface TemplateComponentSummary {
   id: number;
-  /** Null when fitted into a body slot directly; otherwise the parent fitted-component's id (nesting). */
-  parentTemplateComponentId: number | null;
   unitComponentSlotId: number;
   unitComponentId: number;
   componentCode: string;
