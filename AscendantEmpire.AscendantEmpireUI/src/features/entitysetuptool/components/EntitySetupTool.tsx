@@ -3,12 +3,12 @@
 // from the game-side `unitdesign` feature. The real functionality will be filled in later.
 import { useMemo, useState } from "react";
 import { FaPlus } from "react-icons/fa6";
-import { HiMagnifyingGlass } from "react-icons/hi2";
+import { HiMagnifyingGlass, HiXMark } from "react-icons/hi2";
 import { GiGearHammer } from "react-icons/gi";
 
 import ToolBar from "@/components/ui/toolbar/Toolbar";
 import type { ToolBarGroup } from "@/components/ui/toolbar/Toolbar";
-import { SearchDrawer, Toast, ToastViewport } from "@/components/ui";
+import { SearchDrawer, SearchTable, Toast, ToastViewport } from "@/components/ui";
 
 import { bulkUpsertComponents, getComponent } from "@/features/unitdesign/api/componentsApi";
 import { getComponentList, type ComponentListRow } from "@/features/unitdesign/api/catalogApi";
@@ -225,30 +225,46 @@ export default function EntitySetupTool() {
     <div className="flex min-h-screen flex-col bg-slate-900 text-slate-200">
       <ToolBar groups={toolBarGroups} containerClassName="toolbar flex justify-start border-b border-slate-200 bg-stone-100 sticky top-0 z-10" />
 
-      <div className="flex flex-1 flex-col items-center justify-center gap-2">
-        <h1 className="text-2xl font-semibold">Entity Setup Tool</h1>
-        <p className="text-sm text-slate-400">Developer tool — stub. Functionality coming soon.</p>
-      </div>
+      {/* Main content area. The Components search now renders an inline, sortable table here (replacing the
+          old left-hand drawer); when no components search is active we fall back to the stub placeholder. */}
+      {searchKind === "components" ? (
+        <div className="flex flex-1 flex-col gap-3 p-4">
+          {/* Header row: title + live row count, plus an X to close the table back to the placeholder. */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Components ({componentRows.length})</h2>
+            <button
+              type="button"
+              className="rounded-md p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200 focus:outline-none"
+              aria-label="Close components table"
+              onClick={() => setSearchKind(null)}>
+              <HiXMark size={20} aria-hidden />
+            </button>
+          </div>
 
-      {/* Left-hand search drawer — one instance per catalog, picked by `searchKind`. Each is generic over
-          its row type; double-clicking a row opens it in the matching setup dialog. */}
-      {searchKind === "components" && (
-        <SearchDrawer<ComponentListRow>
-          open
-          title="Search Components"
-          items={componentRows}
-          loading={searchLoading}
-          error={searchError}
-          getKey={(row) => row.code}
-          getPrimaryText={(row) => row.displayName}
-          getSecondaryText={(row) => `${row.code} · ${row.componentType}`}
-          getSearchText={(row) => `${row.displayName} ${row.code} ${row.componentType}`}
-          placeholder="Search components…"
-          onClose={() => setSearchKind(null)}
-          onActivate={handleComponentRowActivate}
-        />
+          <SearchTable<ComponentListRow>
+            items={componentRows}
+            loading={searchLoading}
+            error={searchError}
+            getKey={(row) => row.code}
+            getSearchText={(row) => `${row.displayName} ${row.code} ${row.componentType}`}
+            placeholder="Search components…"
+            onActivate={handleComponentRowActivate}
+            columns={[
+              { header: "Display Name", renderCell: (row) => row.displayName, getSortValue: (row) => row.displayName },
+              { header: "Code", renderCell: (row) => row.code, getSortValue: (row) => row.code },
+              { header: "Component Type", renderCell: (row) => row.componentType, getSortValue: (row) => row.componentType },
+            ]}
+          />
+        </div>
+      ) : (
+        <div className="flex flex-1 flex-col items-center justify-center gap-2">
+          <h1 className="text-2xl font-semibold">Entity Setup Tool</h1>
+          <p className="text-sm text-slate-400">Developer tool — stub. Functionality coming soon.</p>
+        </div>
       )}
 
+      {/* Left-hand search drawer for Tags. Components now use the inline SearchTable above instead; Tags
+          will get the same treatment in a later ticket. Double-clicking a row opens its setup dialog. */}
       {searchKind === "tags" && (
         <SearchDrawer<Tag>
           open
