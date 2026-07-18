@@ -4,7 +4,7 @@ namespace AscendantEmpire.Domain.Entities.UnitDesigns;
 
 /// <summary>
 /// A snapshot of one component in a compiled template — the body or a fitted component — captured so a
-/// finalized (or enemy) design can be rendered without touching the live, unlock-filtered catalog.
+/// saved (or enemy) design can be rendered without touching the live, unlock-filtered catalog.
 /// </summary>
 public class CompiledUnitTemplateComponent
 {

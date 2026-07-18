@@ -3,8 +3,8 @@ using AscendantEmpire.Domain.Enums.Maps;
 namespace AscendantEmpire.BackendContracts.UnitDesigns.GetCompiledUnitTemplate;
 
 /// <summary>
-/// A compiled (finalized) design's aggregated stats, resolved components and capabilities. Read without
-/// the unlock filter, so it serves both the player's own finalized designs and enemy designs.
+/// A compiled design's aggregated stats, resolved components and capabilities. Read without
+/// the unlock filter, so it serves both the player's own designs and enemy designs.
 /// </summary>
 public record CompiledUnitTemplateView
 {

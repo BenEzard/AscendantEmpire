@@ -72,6 +72,24 @@ export async function updateGlobalUnitTemplate(id: number, payload: SaveGlobalUn
   return data;
 }
 
+/** Server response shape for the bulk recompilation (mirrors RecompileAllUnitTemplatesResult). */
+export interface RecompileAllUnitTemplatesResult {
+  /** How many templates were successfully recompiled. */
+  recompiledCount: number;
+  /** Per-template failure messages for templates that could not be recompiled. */
+  failures: string[];
+}
+
+/**
+ * Dev tool: recompile every unit template's compiled snapshot. Use after editing catalogue components,
+ * whose changes don't propagate to the snapshots of templates already built with them. Best-effort per
+ * template — failures come back in the result rather than failing the whole call.
+ */
+export async function recompileAllTemplates(): Promise<RecompileAllUnitTemplatesResult> {
+  const { data } = await http.post<RecompileAllUnitTemplatesResult>("/unit-design/templates/recompile-all");
+  return data;
+}
+
 // --- template listing (for the designer's "load a template" combo box) -------------------------
 
 /** A component fitted into one of a template's body slots (mirrors the backend DesignTemplateComponent). */

@@ -3,7 +3,7 @@
 // from the game-side `unitdesign` feature. The real functionality will be filled in later.
 import { useMemo, useState } from "react";
 import { FaPlus } from "react-icons/fa6";
-import { HiMagnifyingGlass, HiXMark } from "react-icons/hi2";
+import { HiArrowPath, HiMagnifyingGlass, HiXMark } from "react-icons/hi2";
 import { GiGearHammer } from "react-icons/gi";
 
 import ToolBar from "@/components/ui/toolbar/Toolbar";
@@ -12,6 +12,7 @@ import { SearchDrawer, SearchTable, Toast, ToastViewport } from "@/components/ui
 
 import { bulkUpsertComponents, getComponent } from "@/features/unitdesign/api/componentsApi";
 import { getComponentList, type ComponentListRow } from "@/features/unitdesign/api/catalogApi";
+import { recompileAllTemplates } from "@/features/unitdesign/api/templatesApi";
 import { createTag, getTags, updateTag } from "@/features/unitdesign/api/tagsApi";
 import type { Tag } from "@/features/unitdesign/types/Tag";
 import type { UnitComponent } from "@/features/unitdesign/types/UnitComponent";
@@ -39,9 +40,13 @@ export default function EntitySetupTool() {
   // tool never acquires a game/player token.
   const [showDesigner, setShowDesigner] = useState(false);
 
-  // Success/error toast messages for the Unit Designer's Save button.
+  // Success/error toast messages for template operations: the Unit Designer's Save button and the
+  // toolbar's "Recompile All Templates" refresh.
   const [templateSuccessMessage, setTemplateSuccessMessage] = useState<string | null>(null);
   const [templateErrorMessage, setTemplateErrorMessage] = useState<string | null>(null);
+
+  // True while a bulk template recompilation is in flight, disabling its toolbar button against double-triggers.
+  const [recompiling, setRecompiling] = useState(false);
 
   // When set, the respective dialog opens in edit mode seeded from this item; undefined = blank "Add".
   const [initialComponent, setInitialComponent] = useState<UnitComponent | undefined>(undefined);
@@ -140,7 +145,8 @@ export default function EntitySetupTool() {
   };
 
   // "Components" group plus a "Tags" group. Each group's Add opens its setup dialog (blank); the search
-  // buttons open the left-hand search drawer populated from the catalog / tag endpoints.
+  // buttons open the left-hand search drawer populated from the catalog / tag endpoints; the Components
+  // group's refresh recompiles every template's stats snapshot after catalogue component edits.
   const toolBarGroups = useMemo<ToolBarGroup[]>(
     () => [
       {
@@ -170,6 +176,33 @@ export default function EntitySetupTool() {
                 .then(setComponentRows)
                 .catch((err) => setSearchError(errorMessage(err, "Failed to load components.")))
                 .finally(() => setSearchLoading(false));
+            },
+          },
+          {
+            key: "recompile-templates",
+            icon: <HiArrowPath />,
+            tooltip: "Recompile All Templates",
+            // Component edits don't propagate to the stats snapshots of templates already built with
+            // them, so this refresh recompiles every template's snapshot. Disabled while a run is in
+            // flight so it can't be double-triggered; per-template failures come back in the result.
+            disabled: recompiling,
+            onClick: () => {
+              setRecompiling(true);
+              recompileAllTemplates()
+                .then((result) => {
+                  if (result.failures.length > 0) {
+                    setTemplateErrorMessage(
+                      `Recompiled ${result.recompiledCount} template(s); ${result.failures.length} failed. ${result.failures.join(" ")}`,
+                    );
+                  } else {
+                    setTemplateSuccessMessage(`Recompiled ${result.recompiledCount} template(s).`);
+                  }
+                })
+                .catch((err) => {
+                  setTemplateErrorMessage(errorMessage(err, "Failed to recompile templates."));
+                  console.error("Failed to recompile templates.", err);
+                })
+                .finally(() => setRecompiling(false));
             },
           },
         ],
@@ -218,7 +251,8 @@ export default function EntitySetupTool() {
         ],
       },
     ],
-    [],
+    // recompiling drives the refresh button's disabled state, so the groups rebuild when it flips.
+    [recompiling],
   );
 
   return (

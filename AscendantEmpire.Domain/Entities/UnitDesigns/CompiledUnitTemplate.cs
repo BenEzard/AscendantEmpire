@@ -3,12 +3,12 @@ using AscendantEmpire.Domain.Enums.Maps;
 namespace AscendantEmpire.Domain.Entities.UnitDesigns;
 
 /// <summary>
-/// A denormalized snapshot of a finalized <see cref="UnitTemplate"/>: its aggregated stats and resolved
-/// component list, written once at finalization so reads are cheap.
+/// A denormalized snapshot of a <see cref="UnitTemplate"/>: its aggregated stats and resolved
+/// component list, (re)written on every template save so reads are cheap.
 /// </summary>
 /// <remarks>
 /// <para>One-to-one with <see cref="UnitTemplate"/> (shares its primary key).</para>
-/// <para>Crucially this is read <b>without</b> the per-player unlock filter, so it can render finalized
+/// <para>Crucially this is read <b>without</b> the per-player unlock filter, so it can render saved
 /// designs — including <b>enemy</b> designs that contain components the viewer never unlocked. Stats are
 /// stored as typed columns/complex types (not JSON) so designs can be compared and queried in SQL.</para>
 /// </remarks>

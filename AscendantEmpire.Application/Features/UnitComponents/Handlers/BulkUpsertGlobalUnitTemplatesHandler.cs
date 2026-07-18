@@ -24,12 +24,16 @@ namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 /// apply. Referenced components must already exist (import upserts components before templates).</para>
 /// <para>Template supersession links are reconciled per predecessor, mirroring the component behaviour;
 /// links whose ends do not resolve to a known template are skipped.</para>
+/// <para>Every upserted template's <c>CompiledUnitTemplate</c> snapshot is (re)compiled in the same transaction
+/// (via <see cref="CompileUnitTemplateHandler"/>), so imported catalogues never carry stale or missing snapshots.
+/// Global templates aren't game-scoped, so snapshots are stamped with turn <c>0</c>.</para>
 /// </remarks>
 public record BulkUpsertGlobalUnitTemplatesRequest(CatalogTemplatesDocument Document) : IRequest<ServiceResult<BulkUpsertGlobalUnitTemplatesResult>>;
 
 internal class BulkUpsertGlobalUnitTemplatesHandler(
     ILogger<BulkUpsertGlobalUnitTemplatesHandler> logger,
-    AscendantEmpireContext context
+    AscendantEmpireContext context,
+    IMediator mediator
 ) : IRequestHandler<BulkUpsertGlobalUnitTemplatesRequest, ServiceResult<BulkUpsertGlobalUnitTemplatesResult>>
 {
     public async Task<ServiceResult<BulkUpsertGlobalUnitTemplatesResult>> Handle(BulkUpsertGlobalUnitTemplatesRequest request, CancellationToken cancelToken)
@@ -96,6 +100,11 @@ internal class BulkUpsertGlobalUnitTemplatesHandler(
                 .Include(t => t.Components)
                 .ToDictionaryAsync(t => t.Code!, cancelToken);
 
+            // Upsert + compile atomically: every upserted template must end up with a fresh snapshot, so a compile
+            // failure part-way through must roll back the whole import. CompileUnitTemplateHandler shares this
+            // request scope's context, so one transaction covers everything; disposing without Commit rolls back.
+            await using var transaction = await context.Database.BeginTransactionAsync(cancelToken);
+
             // A code -> template map (existing + newly built) lets the supersession step wire links by
             // navigation, so EF assigns foreign keys even for brand-new templates on save.
             Dictionary<string, UnitTemplate> templatesByCode = new(existingByCode);
@@ -127,6 +136,27 @@ internal class BulkUpsertGlobalUnitTemplatesHandler(
             }
 
             await context.SaveChangesAsync(cancelToken);
+
+            // (Re)compile every upserted template's snapshot — templates loaded only for supersession links are
+            // untouched, so their existing snapshots remain valid. Ids exist now that the save has run.
+            foreach (string code in addedCodes.Concat(updatedCodes))
+            {
+                ServiceResult<int> compiled = await mediator.Send(
+                    new CompileUnitTemplateRequest(UnitTemplateId: templatesByCode[code].Id, CompiledOnTurn: 0), cancelToken);
+
+                if (!compiled.HasSucceeded)
+                {
+                    logger.LogWarning("Compilation failed for template '{Code}' during {Request}. Errors: {Errors}",
+                        code, nameof(BulkUpsertGlobalUnitTemplatesRequest), string.Join("; ", compiled.Errors));
+                    return new ServiceResult<BulkUpsertGlobalUnitTemplatesResult>
+                    {
+                        StatusCode = compiled.StatusCode,
+                        Errors = [.. compiled.Errors.Select(e => $"Template '{code}': {e}")],
+                    };
+                }
+            }
+
+            await transaction.CommitAsync(cancelToken);
 
             logger.LogInformation("Bulk upserted catalogue templates: {AddedCount} added, {UpdatedCount} updated.", addedCodes.Count, updatedCodes.Count);
 

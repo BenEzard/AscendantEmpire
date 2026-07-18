@@ -11,8 +11,8 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 
 /// <summary>
-/// Returns the compiled snapshot of a finalized template. Deliberately <b>not</b> unlock-filtered, 
-/// so it can render the player's own finalized designs as well as enemy designs containing components the viewer never unlocked.
+/// Returns the compiled snapshot of a saved template. Deliberately <b>not</b> unlock-filtered,
+/// so it can render the player's own designs as well as enemy designs containing components the viewer never unlocked.
 /// </summary>
 public record GetCompiledUnitTemplateRequest(int UnitTemplateId) : IRequest<ServiceResult<CompiledUnitTemplateView>>;
 

@@ -28,12 +28,14 @@ public static class GameTokenExtensions
             {
                 StatusCode = 403,
             };
+            
             return false;
         }
 
         gameId = tokenGameId.Value;
         playerId = tokenPlayerId.Value;
         error = null;
+
         return true;
     }
 }

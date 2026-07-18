@@ -12,11 +12,12 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 
 /// <summary>
-/// Compiles a finalized <see cref="UnitTemplate"/> into its denormalized <see cref="CompiledUnitTemplate"/> snapshot: 
+/// Compiles a saved <see cref="UnitTemplate"/> into its denormalized <see cref="CompiledUnitTemplate"/> snapshot:
 /// aggregates the body + fitted components into typed stats, captures the resolved component list and capability tags, and upserts the snapshot row.
 /// </summary>
 /// <remarks>
-/// Intended to be invoked from the (future) template-finalization flow — i.e. when a template is prototyped. Returns the compiled template id on success.
+/// Invoked from every template-writing flow (player/global create + update, catalogue import), inside the caller's transaction and
+/// sharing its scoped context, so a template is never persisted without a current snapshot. Returns the compiled template id on success.
 /// </remarks>
 public record CompileUnitTemplateRequest(int UnitTemplateId, int CompiledOnTurn) : IRequest<ServiceResult<int>>;
 
@@ -60,14 +61,15 @@ internal class CompileUnitTemplateHandler(
                 return ServiceResult<int>.Fail($"Template {request.UnitTemplateId}'s body component is not a body.");
             }
 
-            // Validate the fitted-component tree (correct owner per slot, rules satisfied, no double-fills)
-            // before compiling, so a malformed assembly never produces a snapshot.
+            // Validate the fitted-component tree (correct owner per slot, rules satisfied, no double-fills) before compiling, so a malformed assembly never produces a snapshot.
             List<string> assemblyErrors = SlotAssemblyValidator.Validate(template.BodyComponentId, template.Components);
 
             if (assemblyErrors.Count > 0)
             {
                 logger.LogWarning("Assembly validation failed for template {TemplateId}. Errors: {Errors}",
-                    request.UnitTemplateId, string.Join("; ", assemblyErrors));
+                    request.UnitTemplateId, 
+                    string.Join("; ", assemblyErrors));
+
                 return ServiceResult<int>.Fail(assemblyErrors);
             }
 
@@ -136,14 +138,13 @@ internal class CompileUnitTemplateHandler(
             IEnumerable<Tag> allTags = bodyComponent.Tags.Select(t => t.Tag)
                 .Concat(template.Components.SelectMany(fitted => fitted.UnitComponent.Tags.Select(t => t.Tag)));
 
-            List<CompiledUnitTemplateCapability> snapshotCapabilities = allTags
+            List<CompiledUnitTemplateCapability> snapshotCapabilities = [.. allTags
                 .GroupBy(tag => tag.Code)
                 .Select(group => new CompiledUnitTemplateCapability
                 {
                     TagCode = group.Key,
                     DisplayName = group.First().DisplayName,
-                })
-                .ToList();
+                })];
 
             await UpsertSnapshotAsync(template, body, totalWeight, totalDetection, totalVisibility, attack, resistance,
                 snapshotComponents, snapshotCapabilities, request.CompiledOnTurn, cancelToken);
@@ -154,6 +155,7 @@ internal class CompileUnitTemplateHandler(
         {
             const string error = "An exception occurred while processing " + nameof(CompileUnitTemplateHandler) + ".";
             logger.LogError(ex, error);
+
             return ServiceResult<int>.InternalServerError(ex, error);
         }
     }

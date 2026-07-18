@@ -60,12 +60,14 @@ public class CampaignTurnService(
         {
             const string error = "Multiple active Campaign Turn Queues or current players were found for the Game.";
             logger.LogError(ex, "{Error} Game Id: {GameId}", error, gameId);
+
             return ServiceResult<CurrentCampaignTurn>.Fail(error);
         }
         catch (Exception ex)
         {
             const string error = "An error occurred while getting current campaign turn details.";
             logger.LogError(ex, error);
+
             return ServiceResult<CurrentCampaignTurn>.Fail([error, ex.Message]);
         }
     }
@@ -78,6 +80,7 @@ public class CampaignTurnService(
             if (gameId <= 0)
             {
                 logger.LogWarning("Game Id must be greater than 0. Provided Game Id: {GameId}", gameId);
+
                 return ServiceResult<CurrentCampaignTurn>.Fail("Game Id must be greater than 0.");
             }
 
@@ -110,6 +113,7 @@ public class CampaignTurnService(
             if (currentTurn is null)
             {
                 logger.LogWarning("No next Campaign Turn Queue or current Player was found for Game Id: {GameId}", gameId);
+
                 return ServiceResult<CurrentCampaignTurn>.NotFound($"No next Campaign Turn Queue or current player was found for Game Id {gameId}.");
             }
 
@@ -119,12 +123,14 @@ public class CampaignTurnService(
         {
             const string error = "Multiple active Campaign Turn Queues or current players were found for the Game.";
             logger.LogError(ex, "{Error} Game Id: {GameId}", error, gameId);
+
             return ServiceResult<CurrentCampaignTurn>.Fail(error);
         }
         catch (Exception ex)
         {
             const string error = "An error occurred while getting next campaign turn details.";
             logger.LogError(ex, error);
+
             return ServiceResult<CurrentCampaignTurn>.Fail([error, ex.Message]);
         }
     }
@@ -137,6 +143,7 @@ public class CampaignTurnService(
             if (gameId <= 0)
             {
                 logger.LogWarning("Game Id must be greater than 0. Provided Game Id: {GameId}", gameId);
+
                 return ServiceResult<CurrentCampaignTurn>.Fail("Game Id must be greater than 0.");
             }
 
@@ -177,7 +184,25 @@ public class CampaignTurnService(
         {
             const string error = "An error occurred while getting the first campaign turn details.";
             logger.LogError(ex, "{Error} Game Id: {GameId}", error, gameId);
+
             return ServiceResult<CurrentCampaignTurn>.Fail([error, ex.Message]);
         }
+    }
+
+    /// <inheritdoc />
+    public async Task<int> GetCurrentRoundNumberAsync(int gameId, CancellationToken cancellationToken = default)
+    {
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancellationToken);
+
+        // FirstOrDefaultAsync over the projected round number naturally yields 0 when no active queue matches
+        // (e.g. a save made before the campaign has started) — the same sentinel used for turn-stamping
+        // global/common templates, which aren't game-scoped at all.
+        return await context.TurnQueues
+            .Where(q => q.GameId == gameId)
+            .Where(q => q.QueueType == TurnQueueType.Campaign)
+            .Where(q => q.BattleId == null)
+            .Where(q => !q.IsCompleted)
+            .Select(q => q.CurrentRoundNumber)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 }

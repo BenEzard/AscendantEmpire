@@ -12,6 +12,7 @@ using AscendantEmpire.BackendContracts.UnitDesigns.GetPlayerTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetSlotCandidateComponents;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetTags;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetUnlockedBodies;
+using AscendantEmpire.BackendContracts.UnitDesigns.RecompileAllUnitTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveGlobalUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.UpsertTag;
@@ -88,8 +89,7 @@ public class UnitDesignController : ControllerBase
             return contextError!;
         }
 
-        ServiceResult<UnlockedBodiesResult> response =
-            await mediator.Send(new GetUnlockedBodiesRequest(gameId, playerId), cancelToken);
+        ServiceResult<UnlockedBodiesResult> response = await mediator.Send(new GetUnlockedBodiesRequest(gameId, playerId), cancelToken);
 
         return response.ToActionResult();
     }
@@ -149,8 +149,7 @@ public class UnitDesignController : ControllerBase
             return contextError!;
         }
 
-        ServiceResult<PlayerTemplatesResult> response =
-            await mediator.Send(new GetPlayerTemplatesRequest(gameId, playerId), cancelToken);
+        ServiceResult<PlayerTemplatesResult> response = await mediator.Send(new GetPlayerTemplatesRequest(gameId, playerId), cancelToken);
 
         return response.ToActionResult();
     }
@@ -159,8 +158,8 @@ public class UnitDesignController : ControllerBase
     /// Create a new custom (player-owned) unit template from an assembled design.
     /// </summary>
     /// <remarks>
-    /// The game and player are read from the caller's game token, not the request. Persists the draft
-    /// template only — finalizing/prototyping (which compiles a stats snapshot) is a separate, later step.
+    /// The game and player are read from the caller's game token, not the request. 
+    /// The template and its compiled stats snapshot are persisted together, so the compiled read is available immediately after saving.
     /// </remarks>
     /// <response code="201">The template was created; returns the created template</response>
     /// <response code="400">Validation error, or the assembled design fails slot-acceptance rules</response>
@@ -184,8 +183,7 @@ public class UnitDesignController : ControllerBase
             return contextError!;
         }
 
-        ServiceResult<UnitTemplateView> response =
-            await mediator.Send(new CreateUnitTemplateRequest(gameId, playerId, request), cancelToken);
+        ServiceResult<UnitTemplateView> response = await mediator.Send(new CreateUnitTemplateRequest(gameId, playerId, request), cancelToken);
 
         return response.ToActionResult();
     }
@@ -227,10 +225,10 @@ public class UnitDesignController : ControllerBase
     }
 
     /// <summary>
-    /// Get the compiled snapshot of a finalized template (aggregated stats, resolved components and capabilities).
+    /// Get the compiled snapshot of a saved template (aggregated stats, resolved components and capabilities).
     /// </summary>
     /// <remarks>
-    /// Not unlock-filtered: the snapshot may contain components the caller never unlocked, so it serves both the player's own finalized designs and enemy designs.
+    /// Not unlock-filtered: the snapshot may contain components the caller never unlocked, so it serves both the player's own designs and enemy designs.
     /// </remarks>
     /// <response code="200">The compiled design snapshot</response>
     /// <response code="404">No compiled snapshot exists for the template</response>
@@ -292,8 +290,7 @@ public class UnitDesignController : ControllerBase
         string code,
         CancellationToken cancelToken)
     {
-        ServiceResult<EditableComponentResult> response =
-            await mediator.Send(new GetComponentRequest(code), cancelToken);
+        ServiceResult<EditableComponentResult> response = await mediator.Send(new GetComponentRequest(code), cancelToken);
 
         return response.ToActionResult();
     }
@@ -322,8 +319,7 @@ public class UnitDesignController : ControllerBase
         [FromBody] SaveGlobalUnitTemplateDto request,
         CancellationToken cancelToken)
     {
-        ServiceResult<GlobalUnitTemplateView> response =
-            await mediator.Send(new CreateGlobalUnitTemplateRequest(request), cancelToken);
+        ServiceResult<GlobalUnitTemplateView> response = await mediator.Send(new CreateGlobalUnitTemplateRequest(request), cancelToken);
 
         return response.ToActionResult();
     }
@@ -359,6 +355,30 @@ public class UnitDesignController : ControllerBase
     }
 
     /// <summary>
+    /// Dev design tool: recompile every unit template's compiled snapshot (global and custom alike).
+    /// </summary>
+    /// <remarks>
+    /// TODO: lock down before any non-dev deployment. This endpoint is intentionally left unauthorized for now;
+    /// it must be gated behind a dev/admin policy (or mapped only in Development) before shipping, since it rewrites every compiled snapshot.
+    /// Use after editing catalogue components, whose changes don't propagate to the snapshots of templates already built with them.
+    /// Best-effort per template: failures are reported in the result without blocking the rest.
+    /// </remarks>
+    /// <response code="200">The recompilation ran; returns the recompiled count and any per-template failures</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpPost("templates/recompile-all")]
+    [ProducesResponseType(typeof(RecompileAllUnitTemplatesResult), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> RecompileAllUnitTemplatesAsync(
+        [FromServices] IMediator mediator,
+        CancellationToken cancelToken)
+    {
+        ServiceResult<RecompileAllUnitTemplatesResult> response =
+            await mediator.Send(new RecompileAllUnitTemplatesRequest(), cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
     /// Dev design tool: get every tag in the global catalog, unfiltered.
     /// </summary>
     /// <remarks>
@@ -374,8 +394,7 @@ public class UnitDesignController : ControllerBase
         [FromServices] IMediator mediator,
         CancellationToken cancelToken)
     {
-        ServiceResult<GetTagsResult> response =
-            await mediator.Send(new GetTagsRequest(), cancelToken);
+        ServiceResult<GetTagsResult> response = await mediator.Send(new GetTagsRequest(), cancelToken);
 
         return response.ToActionResult();
     }
@@ -401,8 +420,7 @@ public class UnitDesignController : ControllerBase
         [FromBody] UpsertTagDto request,
         CancellationToken cancelToken)
     {
-        ServiceResult<TagView> response =
-            await mediator.Send(new CreateTagRequest(request), cancelToken);
+        ServiceResult<TagView> response = await mediator.Send(new CreateTagRequest(request), cancelToken);
 
         return response.ToActionResult();
     }
@@ -431,8 +449,7 @@ public class UnitDesignController : ControllerBase
         [FromBody] UpsertTagDto request,
         CancellationToken cancelToken)
     {
-        ServiceResult<TagView> response =
-            await mediator.Send(new UpdateTagRequest(id, request), cancelToken);
+        ServiceResult<TagView> response = await mediator.Send(new UpdateTagRequest(id, request), cancelToken);
 
         return response.ToActionResult();
     }
@@ -458,8 +475,7 @@ public class UnitDesignController : ControllerBase
         [FromBody] InitiateCatalogExportDto request,
         CancellationToken cancelToken)
     {
-        ServiceResult<int> response = await mediator.Send(
-            new InitiateCatalogExportRequest(ExportComponents: request.Components, ExportTemplates: request.Templates), cancelToken);
+        ServiceResult<int> response = await mediator.Send(new InitiateCatalogExportRequest(ExportComponents: request.Components, ExportTemplates: request.Templates), cancelToken);
 
         return response.ToActionResult();
     }
@@ -508,10 +524,10 @@ public class UnitDesignController : ControllerBase
 
             string fileName = Path.GetFileName(processing.ResultReference);
             Stream stream = new FileStream(
-                processing.ResultReference,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.Read,
+                path: processing.ResultReference,
+                mode: FileMode.Open,
+                access: FileAccess.Read,
+                share: FileShare.Read,
                 bufferSize: 65536,
                 useAsync: true);
 
@@ -570,8 +586,7 @@ public class UnitDesignController : ControllerBase
             await file.CopyToAsync(stagedStream, cancellationToken);
         }
 
-        ServiceResult<int> response = await mediator.Send(
-            new InitiateCatalogImportRequest(ZipPath: stagedPath), cancellationToken);
+        ServiceResult<int> response = await mediator.Send(new InitiateCatalogImportRequest(ZipPath: stagedPath), cancellationToken);
 
         return response.ToActionResult();
     }

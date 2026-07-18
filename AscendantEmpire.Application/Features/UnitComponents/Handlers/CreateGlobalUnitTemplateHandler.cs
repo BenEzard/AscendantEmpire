@@ -17,15 +17,18 @@ namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 /// Dev design tool: creates a new global/common unit template in the shared catalog.
 /// </summary>
 /// <remarks>
-/// Unlike <see cref="CreateUnitTemplateHandler"/> (player-owned custom templates), a global template has
+/// <para>Unlike <see cref="CreateUnitTemplateHandler"/> (player-owned custom templates), a global template has
 /// no game/player, its <c>Code</c> is the unique natural key, and no unlock check is applied — the dev
-/// tool authors the catalog itself rather than a specific player's already-unlocked parts.
+/// tool authors the catalog itself rather than a specific player's already-unlocked parts.</para>
+/// <para>The template and its <c>CompiledUnitTemplate</c> snapshot (via <see cref="CompileUnitTemplateHandler"/>) are persisted
+/// atomically. Global templates aren't game-scoped, so the snapshot is stamped with turn <c>0</c>.</para>
 /// </remarks>
 public record CreateGlobalUnitTemplateRequest(SaveGlobalUnitTemplateDto Template) : IRequest<ServiceResult<GlobalUnitTemplateView>>;
 
 internal class CreateGlobalUnitTemplateHandler(
     ILogger<CreateGlobalUnitTemplateHandler> logger,
-    AscendantEmpireContext context
+    AscendantEmpireContext context,
+    IMediator mediator
 ) : IRequestHandler<CreateGlobalUnitTemplateRequest, ServiceResult<GlobalUnitTemplateView>>
 {
     public async Task<ServiceResult<GlobalUnitTemplateView>> Handle(CreateGlobalUnitTemplateRequest request, CancellationToken cancelToken)
@@ -74,8 +77,25 @@ internal class CreateGlobalUnitTemplateHandler(
                 Components = fitted,
             };
 
+            // Save + compile atomically: the snapshot is the template's read model, so a template must never exist without one.
+            // CompileUnitTemplateHandler shares this request scope's context, so one transaction covers both saves;
+            // disposing without Commit (any failure path) rolls the template back too.
+            await using var transaction = await context.Database.BeginTransactionAsync(cancelToken);
+
             context.UnitTemplates.Add(template);
             await context.SaveChangesAsync(cancelToken);
+
+            ServiceResult<int> compiled = await mediator.Send(
+                new CompileUnitTemplateRequest(UnitTemplateId: template.Id, CompiledOnTurn: 0), cancelToken);
+
+            if (!compiled.HasSucceeded)
+            {
+                logger.LogWarning("Compilation failed for {Request}. Errors: {Errors}",
+                    nameof(CreateGlobalUnitTemplateRequest), string.Join("; ", compiled.Errors));
+                return new ServiceResult<GlobalUnitTemplateView> { StatusCode = compiled.StatusCode, Errors = compiled.Errors };
+            }
+
+            await transaction.CommitAsync(cancelToken);
 
             logger.LogInformation("Created global unit template '{Code}' (id {Id}).", template.Code, template.Id);
 

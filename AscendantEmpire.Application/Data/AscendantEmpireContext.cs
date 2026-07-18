@@ -204,7 +204,7 @@ public class AscendantEmpireContext : DbContext
     public DbSet<TemplateSupersession> TemplateSupersessions { get; set; }
 
     /// <summary>
-    /// Denormalized snapshots of finalized templates, read without the unlock filter (e.g. for enemy designs).
+    /// Denormalized snapshots of saved templates, read without the unlock filter (e.g. for enemy designs).
     /// </summary>
     public DbSet<CompiledUnitTemplate> CompiledUnitTemplates { get; set; }
 
@@ -1564,7 +1564,7 @@ public class AscendantEmpireContext : DbContext
                 .HasDatabaseName("IX_PlayerUnlockedTemplate_UnitTemplate");
         });
 
-        // --- CompiledUnitTemplate (1:1 snapshot of a finalized UnitTemplate) -------
+        // --- CompiledUnitTemplate (1:1 snapshot of a saved UnitTemplate) -----------
         modelBuilder.Entity<CompiledUnitTemplate>(entity =>
         {
             entity.ToTable("CompiledUnitTemplate", schema);

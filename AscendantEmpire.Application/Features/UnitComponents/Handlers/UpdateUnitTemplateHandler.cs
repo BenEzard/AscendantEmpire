@@ -1,5 +1,6 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.UnitComponents.Classes;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveUnitTemplate;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
@@ -18,15 +19,19 @@ namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 /// from the request and replaces the previous assignment wholesale.
 /// </summary>
 /// <remarks>
-/// The template is located by its <c>Id</c>. Only its own owner (matching game and player) may update it;
+/// <para>The template is located by its <c>Id</c>. Only its own owner (matching game and player) may update it;
 /// any other caller — or an unknown id — gets a not-found rather than a permissions error, so a custom
-/// template's existence isn't leaked to callers who don't own it.
+/// template's existence isn't leaked to callers who don't own it.</para>
+/// <para>The update and a recompile of the template's <c>CompiledUnitTemplate</c> snapshot (via <see cref="CompileUnitTemplateHandler"/>)
+/// are persisted atomically, stamped with the game's current campaign turn.</para>
 /// </remarks>
 public record UpdateUnitTemplateRequest(int GameId, int PlayerId, int TemplateId, SaveUnitTemplateDto Template) : IRequest<ServiceResult<UnitTemplateView>>;
 
 internal class UpdateUnitTemplateHandler(
     ILogger<UpdateUnitTemplateHandler> logger,
-    AscendantEmpireContext context
+    AscendantEmpireContext context,
+    IMediator mediator,
+    ICampaignTurnService campaignTurnService
 ) : IRequestHandler<UpdateUnitTemplateRequest, ServiceResult<UnitTemplateView>>
 {
     public async Task<ServiceResult<UnitTemplateView>> Handle(UpdateUnitTemplateRequest request, CancellationToken cancelToken)
@@ -61,6 +66,11 @@ internal class UpdateUnitTemplateHandler(
             existing.MapImagePath = dto.MapImagePath;
             existing.BodyComponentId = baseComponent.Id;
 
+            // Update + recompile atomically: the snapshot is the template's read model, so it must never lag the
+            // template it summarizes. CompileUnitTemplateHandler shares this request scope's context, so one
+            // transaction covers both saves; disposing without Commit (any failure path) rolls the update back too.
+            await using var transaction = await context.Database.BeginTransactionAsync(cancelToken);
+
             // Replace the fitted-component collection wholesale; the child FK is NoAction, so the old
             // rows must be deleted explicitly rather than just unlinked (mirrors CompileUnitTemplateHandler's
             // handling of CompiledUnitTemplateComponents).
@@ -68,6 +78,21 @@ internal class UpdateUnitTemplateHandler(
             existing.Components = fitted;
 
             await context.SaveChangesAsync(cancelToken);
+
+            // Stamp the refreshed snapshot with the game's current campaign turn (0 if the campaign hasn't started yet).
+            int currentTurn = await campaignTurnService.GetCurrentRoundNumberAsync(request.GameId, cancelToken);
+
+            ServiceResult<int> compiled = await mediator.Send(
+                new CompileUnitTemplateRequest(UnitTemplateId: existing.Id, CompiledOnTurn: currentTurn), cancelToken);
+
+            if (!compiled.HasSucceeded)
+            {
+                logger.LogWarning("Compilation failed for {Request}. Errors: {Errors}",
+                    nameof(UpdateUnitTemplateRequest), string.Join("; ", compiled.Errors));
+                return new ServiceResult<UnitTemplateView> { StatusCode = compiled.StatusCode, Errors = compiled.Errors };
+            }
+
+            await transaction.CommitAsync(cancelToken);
 
             logger.LogInformation("Updated custom unit template '{DisplayName}' (id {Id}) for player {PlayerId}.",
                 existing.DisplayName, existing.Id, request.PlayerId);
