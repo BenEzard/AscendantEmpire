@@ -24,4 +24,9 @@ public enum TagType
     /// The tag represents a unique capability or function of a unit component.
     /// </summary>
     Ability,
+
+    /// <summary>
+    /// The organisational group this fits into when organising the military into hierarchy.
+    /// </summary>
+    MilitaryOrganisationalGroup,
 }

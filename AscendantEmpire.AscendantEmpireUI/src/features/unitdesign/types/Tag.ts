@@ -7,10 +7,10 @@
  * Whether a tag is a structural classification or a bonus. Names match the C# `TagType` enum exactly
  * so the value round-trips to the backend without translation (same convention as `ComponentType`).
  */
-export type TagType = "Ability" | "Combat" | "Classification" | "Movement";
+export type TagType = "Ability" | "Combat" | "Classification" | "Movement" | "MilitaryOrganisationalGroup";
 
 // Order follows the backend enum so dropdowns read the same as the design doc.
-export const TAG_TYPES: readonly TagType[] = ["Ability","Combat", "Classification", "Movement"];
+export const TAG_TYPES: readonly TagType[] = ["Ability", "Combat", "Classification", "Movement", "MilitaryOrganisationalGroup"];
 
 /**
  * A single editable tag. `id` is null for a not-yet-saved tag (the backend assigns it on create).

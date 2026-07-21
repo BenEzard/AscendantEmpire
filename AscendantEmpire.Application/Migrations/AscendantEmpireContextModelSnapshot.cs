@@ -1534,7 +1534,77 @@ namespace AscendantEmpire.Application.Migrations
                         .IsUnique()
                         .HasDatabaseName("UX_Tag_Code");
 
+                    b.HasIndex("TagType");
+
                     b.ToTable("Tag", "unitdesigns");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.TagTypeInfo", b =>
+                {
+                    b.Property<int>("TagTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Colour")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Icon")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("IsInherited")
+                        .HasColumnType("bit");
+
+                    b.HasKey("TagTypeId");
+
+                    b.ToTable("TagType", "unitdesigns");
+
+                    b.HasData(
+                        new
+                        {
+                            TagTypeId = 0,
+                            Description = "A structural classification of a component, such as its family or role.",
+                            DisplayName = "Classification",
+                            IsInherited = false
+                        },
+                        new
+                        {
+                            TagTypeId = 1,
+                            Description = "A temporary or permanent enhancement or buff to combat.",
+                            DisplayName = "Combat",
+                            IsInherited = false
+                        },
+                        new
+                        {
+                            TagTypeId = 2,
+                            Description = "A temporary or permanent enhancement or buff to movement.",
+                            DisplayName = "Movement",
+                            IsInherited = false
+                        },
+                        new
+                        {
+                            TagTypeId = 3,
+                            Description = "A unique capability or function of a unit component.",
+                            DisplayName = "Ability",
+                            IsInherited = false
+                        },
+                        new
+                        {
+                            TagTypeId = 4,
+                            Description = "The organisational group this fits into when organising the military into hierarchy.",
+                            DisplayName = "Military Organisational Group",
+                            IsInherited = false
+                        });
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.TemplateSupersession", b =>
@@ -2699,6 +2769,16 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Player");
 
                     b.Navigation("UnitTemplate");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.Tag", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.TagTypeInfo", null)
+                        .WithMany()
+                        .HasForeignKey("TagType")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_Tag_TagType_TagType");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.TemplateSupersession", b =>

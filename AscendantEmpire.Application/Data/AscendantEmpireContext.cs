@@ -11,6 +11,7 @@ using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Entities.Util;
+using AscendantEmpire.Domain.Enums.UnitDesigns;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -167,6 +168,11 @@ public class AscendantEmpireContext : DbContext
     /// Global, reusable bonus/buff tag catalog.
     /// </summary>
     public DbSet<Tag> Tags { get; set; }
+
+    /// <summary>
+    /// Editable metadata for each <see cref="Domain.Enums.UnitDesigns.TagType"/> value (keyed by the enum).
+    /// </summary>
+    public DbSet<TagTypeInfo> TagTypeInfos { get; set; }
 
     /// <summary>
     /// Join between components and their tags.
@@ -1404,6 +1410,82 @@ public class AscendantEmpireContext : DbContext
             entity.HasIndex(e => e.Code)
                 .IsUnique()
                 .HasDatabaseName("UX_Tag_Code");
+
+            // The TagType enum column doubles as a FK into the TagType metadata table (which is keyed by
+            // the same enum). Restrict deletes so a tag type can't be removed while tags still reference it.
+            entity.HasOne<TagTypeInfo>()
+                .WithMany()
+                .HasForeignKey(e => e.TagType)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_Tag_TagType_TagType");
+        });
+
+        // --- TagTypeInfo -----------------------------------------------------------
+        modelBuilder.Entity<TagTypeInfo>(entity =>
+        {
+            // Table is literally "TagType"; the entity is TagTypeInfo to avoid the enum name collision.
+            entity.ToTable("TagType", schema);
+
+            // Keyed by the enum value itself — never database-generated.
+            entity.HasKey(e => e.TagTypeId);
+
+            entity.Property(e => e.TagTypeId)
+                .HasConversion<int>()
+                .ValueGeneratedNever();
+
+            entity.Property(e => e.DisplayName)
+                .HasMaxLength(TagTypeInfo.DISPLAY_NAME_MAX_LENGTH)
+                .IsRequired();
+
+            entity.Property(e => e.Description)
+                .HasMaxLength(TagTypeInfo.DESCRIPTION_MAX_LENGTH)
+                .IsRequired();
+
+            entity.Property(e => e.Colour)
+                .HasMaxLength(TagTypeInfo.COLOUR_MAX_LENGTH);
+
+            entity.Property(e => e.Icon)
+                .HasMaxLength(TagTypeInfo.ICON_MAX_LENGTH);
+
+            // Seed one row per TagType enum member so the catalog is never empty and the Tag -> TagType FK
+            // is always satisfiable. Default display names/descriptions mirror the enum; colour/icon start
+            // unset and are filled in through the Tag Type manager.
+            entity.HasData(
+                new TagTypeInfo
+                {
+                    TagTypeId = TagType.Classification,
+                    DisplayName = "Classification",
+                    Description = "A structural classification of a component, such as its family or role.",
+                    IsInherited = false,
+                },
+                new TagTypeInfo
+                {
+                    TagTypeId = TagType.Combat,
+                    DisplayName = "Combat",
+                    Description = "A temporary or permanent enhancement or buff to combat.",
+                    IsInherited = false,
+                },
+                new TagTypeInfo
+                {
+                    TagTypeId = TagType.Movement,
+                    DisplayName = "Movement",
+                    Description = "A temporary or permanent enhancement or buff to movement.",
+                    IsInherited = false,
+                },
+                new TagTypeInfo
+                {
+                    TagTypeId = TagType.Ability,
+                    DisplayName = "Ability",
+                    Description = "A unique capability or function of a unit component.",
+                    IsInherited = false,
+                },
+                new TagTypeInfo
+                {
+                    TagTypeId = TagType.MilitaryOrganisationalGroup,
+                    DisplayName = "Military Organisational Group",
+                    Description = "The organisational group this fits into when organising the military into hierarchy.",
+                    IsInherited = false,
+                });
         });
 
         // --- UnitComponentTag (join) -----------------------------------------------

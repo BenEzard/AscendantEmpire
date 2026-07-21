@@ -1,8 +1,8 @@
 // Stub for the developer-only "Entity Setup Tool", created alongside the landing-page split.
 // This is a standalone dev tool like the Map Editor (no AuthGate) and is intentionally separate
 // from the game-side `unitdesign` feature. The real functionality will be filled in later.
-import { useMemo, useState } from "react";
-import { FaPlus } from "react-icons/fa6";
+import { useEffect, useMemo, useState } from "react";
+import { FaPlus, FaTags } from "react-icons/fa6";
 import { HiArrowPath, HiMagnifyingGlass, HiXMark } from "react-icons/hi2";
 import { GiGearHammer } from "react-icons/gi";
 
@@ -14,10 +14,13 @@ import { bulkUpsertComponents, getComponent } from "@/features/unitdesign/api/co
 import { getComponentList, type ComponentListRow } from "@/features/unitdesign/api/catalogApi";
 import { recompileAllTemplates } from "@/features/unitdesign/api/templatesApi";
 import { createTag, getTags, updateTag } from "@/features/unitdesign/api/tagsApi";
+import { getTagTypes, saveTagTypes } from "@/features/unitdesign/api/tagTypesApi";
 import type { Tag } from "@/features/unitdesign/types/Tag";
+import type { TagTypeInfo } from "@/features/unitdesign/types/TagType";
 import type { UnitComponent } from "@/features/unitdesign/types/UnitComponent";
 import ComponentSetupDialog from "./ComponentSetupDialog";
 import TagSetupDialog from "./TagSetupDialog";
+import TagTypeSetupDialog from "./TagTypeSetupDialog";
 import UnitDesigner from "@/features/unitdesign/UnitDesigner";
 
 // Which catalog the left-hand search drawer is currently browsing (null = closed).
@@ -34,6 +37,13 @@ export default function EntitySetupTool() {
 
   // Controls the TagSetupDialog opened by the Tags group's "Add Tag" button.
   const [showTagSetup, setShowTagSetup] = useState(false);
+
+  // Controls the TagTypeSetupDialog opened by the Tags group's "Tag Types" button.
+  const [showTagTypeSetup, setShowTagTypeSetup] = useState(false);
+
+  // The tag type catalog, loaded once on mount. Backs both the Tag Type manager (as its editable set)
+  // and the Tag dialog's "Tag Type" dropdown (as its options).
+  const [tagTypes, setTagTypes] = useState<TagTypeInfo[]>([]);
 
   // Controls the full-screen Unit Designer overlay opened by the Designer group. Saves here persist a
   // global/common catalog template (saveAsGlobal) rather than a player-owned custom one, since this dev
@@ -58,9 +68,21 @@ export default function EntitySetupTool() {
   // Holds the error message from the most recent failed tag commit, shown as an Alert in the dialog.
   const [tagError, setTagError] = useState<string | null>(null);
 
+  // Holds the error message from the most recent failed tag-type commit, shown as an Alert in the dialog.
+  const [tagTypeError, setTagTypeError] = useState<string | null>(null);
+
   // Success toast messages; non-null while the respective toast is visible.
   const [componentSuccessMessage, setComponentSuccessMessage] = useState<string | null>(null);
   const [tagSuccessMessage, setTagSuccessMessage] = useState<string | null>(null);
+  const [tagTypeSuccessMessage, setTagTypeSuccessMessage] = useState<string | null>(null);
+
+  // Load the tag type catalog once on mount so it's ready for both the Tag Type manager and the Tag
+  // dialog's type dropdown. A failure is logged but non-fatal (the dropdown falls back gracefully).
+  useEffect(() => {
+    getTagTypes()
+      .then(setTagTypes)
+      .catch((err) => console.error("Failed to load tag types.", err));
+  }, []);
 
   // --- Search drawer state ---------------------------------------------------------------------
   // Which catalog the drawer is showing, the fetched rows for each, plus shared loading/error flags.
@@ -115,6 +137,25 @@ export default function EntitySetupTool() {
       const message = errorMessage(err, "Failed to save tag.");
       setTagError(message);
       console.error("Failed to save tag.", err);
+    }
+  };
+
+  // Persists the whole edited tag type set (the backend upserts every row), then closes the dialog on
+  // success and refreshes the local catalog. On failure the error is surfaced in the dialog so the user
+  // can correct and retry without losing their edits.
+  const handleTagTypeCommit = async (edited: TagTypeInfo[]) => {
+    try {
+      setTagTypeError(null);
+      await saveTagTypes(edited);
+      // Re-fetch so the local copy reflects exactly what was persisted (and feeds the Tag dropdown).
+      const fresh = await getTagTypes();
+      setTagTypes(fresh);
+      setShowTagTypeSetup(false);
+      setTagTypeSuccessMessage("Tag types saved successfully.");
+    } catch (err) {
+      const message = errorMessage(err, "Failed to save tag types.");
+      setTagTypeError(message);
+      console.error("Failed to save tag types.", err);
     }
   };
 
@@ -236,6 +277,16 @@ export default function EntitySetupTool() {
                 .finally(() => setSearchLoading(false));
             },
           },
+          {
+            key: "tag-types",
+            icon: <FaTags />,
+            tooltip: "Tag Types",
+            // Opens the Tag Type manager over the catalog loaded on mount (and refreshed after each save).
+            onClick: () => {
+              setTagTypeError(null);
+              setShowTagTypeSetup(true);
+            },
+          },
         ],
       },
       {
@@ -331,6 +382,7 @@ export default function EntitySetupTool() {
       <TagSetupDialog
         open={showTagSetup}
         initialTag={initialTag}
+        tagTypes={tagTypes}
         onCancel={() => {
           setShowTagSetup(false);
           setInitialTag(undefined);
@@ -338,6 +390,17 @@ export default function EntitySetupTool() {
         }}
         onCommit={handleTagCommit}
         error={tagError}
+      />
+
+      <TagTypeSetupDialog
+        open={showTagTypeSetup}
+        initialTagTypes={tagTypes}
+        onCancel={() => {
+          setShowTagTypeSetup(false);
+          setTagTypeError(null);
+        }}
+        onCommit={handleTagTypeCommit}
+        error={tagTypeError}
       />
 
       {/* Full-screen Unit Designer overlay. saveAsGlobal routes Save to the dev tool's catalog endpoints
@@ -357,6 +420,7 @@ export default function EntitySetupTool() {
       <ToastViewport>
         <Toast open={componentSuccessMessage !== null} message={componentSuccessMessage} variant="success" onClose={() => setComponentSuccessMessage(null)} />
         <Toast open={tagSuccessMessage !== null} message={tagSuccessMessage} variant="success" onClose={() => setTagSuccessMessage(null)} />
+        <Toast open={tagTypeSuccessMessage !== null} message={tagTypeSuccessMessage} variant="success" onClose={() => setTagTypeSuccessMessage(null)} />
         <Toast open={templateSuccessMessage !== null} message={templateSuccessMessage} variant="success" onClose={() => setTemplateSuccessMessage(null)} />
         <Toast open={templateErrorMessage !== null} message={templateErrorMessage} variant="danger" onClose={() => setTemplateErrorMessage(null)} />
       </ToastViewport>

@@ -1,4 +1,5 @@
 using AscendantEmpire.Api.Utilities;
+using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.UnitComponents.Classes;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
@@ -11,11 +12,13 @@ using AscendantEmpire.BackendContracts.UnitDesigns.GetFullCatalog;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetPlayerTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetSlotCandidateComponents;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetTags;
+using AscendantEmpire.BackendContracts.UnitDesigns.GetTagTypes;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetUnlockedBodies;
 using AscendantEmpire.BackendContracts.UnitDesigns.RecompileAllUnitTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveGlobalUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.UpsertTag;
+using AscendantEmpire.BackendContracts.UnitDesigns.UpsertTagType;
 using AscendantEmpire.Domain.Enums.Processing;
 using AscendantEmpire.Domain.Enums.System;
 using AscendantEmpire.FrontendContracts;
@@ -450,6 +453,51 @@ public class UnitDesignController : ControllerBase
         CancellationToken cancelToken)
     {
         ServiceResult<TagView> response = await mediator.Send(new UpdateTagRequest(id, request), cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Dev design tool: get every tag type's editable metadata.
+    /// </summary>
+    /// <remarks>
+    /// TODO: lock down before any non-dev deployment. This endpoint is intentionally left unauthorized for now;
+    /// it must be gated behind a dev/admin policy (or mapped only in Development) before shipping.
+    /// </remarks>
+    /// <response code="200">The full set of tag types</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpGet("tag-types")]
+    [ProducesResponseType(typeof(GetTagTypesResult), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetTagTypesAsync(
+        [FromServices] IMediator mediator,
+        CancellationToken cancelToken)
+    {
+        ServiceResult<GetTagTypesResult> response = await mediator.Send(new GetTagTypesRequest(), cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Dev design tool: bulk-upsert the tag type catalog (create missing rows, update existing ones).
+    /// </summary>
+    /// <remarks>
+    /// TODO: lock down before any non-dev deployment. This endpoint is intentionally left unauthorized for now;
+    /// it must be gated behind a dev/admin policy (or mapped only in Development) before shipping, since it writes the global tag type catalog.
+    /// </remarks>
+    /// <response code="204">The tag types were upserted</response>
+    /// <response code="400">Validation error</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpPut("tag-types")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> UpsertTagTypesAsync(
+        [FromServices] IMediator mediator,
+        [FromBody] IReadOnlyCollection<UpsertTagTypeDto> request,
+        CancellationToken cancelToken)
+    {
+        ServiceResultBase response = await mediator.Send(new UpsertTagTypesRequest(request), cancelToken);
 
         return response.ToActionResult();
     }

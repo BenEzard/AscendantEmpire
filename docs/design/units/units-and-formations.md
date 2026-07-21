@@ -2,133 +2,119 @@
 
 ## Definitions
 
-- **Unit** — multiple soldiers equipped with the same weaponry/gear, trained at the same time, and
-  of the same nationality (e.g. archers).
-- **Sub Unit** — a Unit is made up of Sub Units when there are enough soldiers and ranking officers
-  to comprise them. A Unit of 1,000 men, with an army organised in tens, has 10 Sub Units of 100
-  soldiers each.
-- **Formation** — a collection of Units combined under a command structure, residing on the same
-  campaign tile. (Two units of the same kind — e.g. two archer units — still form a Formation.)
-  Formations can also contain [Specialists](specialists.md).
-- **Unit Stack** — multiple Units that reside on the same campaign tile but are **not** combined
-  into a Formation.
-- **Initial force strength** — the size of the Unit when it was created. If a Unit created with
-  1,000 men loses 200 in battle, its initial force strength is still 1,000.
+These are ordered by size (so intentionally not alphabetical):
 
-## Formation rules
+### Command
 
-- All Units in a Formation must share the same **domain** (land, sea, air), except:
-- Units (up to the applicable quantity) of domain Land or Sea may be on the Water domain provided
-  there are Units carrying a respective `LAND_CARRYING_CAPACITY` or `AIR_CARRYING_CAPACITY`.
+A collection of one or more `Units` operating under a shared command structure on the same Campaign Tile.
 
-## Unit design
+A Command has:
 
-The weapons, armour, and training a Unit is equipped with are chosen by the player, who must weigh
-**combat effectiveness against cost and production time**.
+* one Command Commander
+* a maximum total strength based on the Commander’s rank
+* a maximum number of Units
+* a maximum number of **attached** Specialists
+* share `Detection` and `Sight` information.
 
-- A Unit is made up of **1 base Unit Component** and **0 or more non-base Unit Components**,
-  assigned into applicable **Slots**.
-- A **template entry** is a special unit design where only the base is defined and the other slots
-  are empty. Players use templates to define their own unit designs.
+### Unit
 
-### Material Class
+A persistent body of soldiers with the same components, faction, training time and location, and authorized organization.
 
-When designing a Unit you choose which **Class** of component to equip (e.g. you choose to give a
+A Unit has:
+
+* a Unit Commander
+* an Authorized Strength
+* a Current Strength
+* one or more Companies (with embedded Officers)
+* no **attached** Specialists.
+
+The Authorized Strength of the Unit is set at Unit creation time, and has size bounds of between `UnitComponentBody.MinimumUnitSize`and `Max(Faction.MaximumUnitSize, UnitComponentBody.MaximumUnitSize)`
+
+A Unit containing two or more `Companies` requires one additional Unit Commander.
+
+* **Initial Unit Strength** — the size of the Unit when it was created. If a Unit created with 1,000 men loses 200 in battle, its Initial Unit Strength is still 1,000. This is the maximum number of soldiers that it can have.
+
+### Company (Plural: Companies)
+
+A persistent organizational subdivision of a `Unit`.
+
+* Each Company requires one Company Officer.
+* Additional Companies may be formed according to preferred Company size and available Officers.
+* A Unit with three or more Companies requires a separate Unit Commander.
+* Companies remain after casualties and are not recalculated automatically.
+* Companies may merge or disband during reorganization or when no longer viable.
+
+A `Unit` is comprised of one or more Companies.
+
+
+ when there are enough soldiers **and** ranking Officers to sub-divide. 
+
+*Company creation rule:* enough soldiers (based on on the `UnitComponentBody.MinimumUnitSize`) and Officers to establish another Company. The number of required Officers is 1 per `Company` (up to 2) or 1 per `Company` + 1 (where greater or equal to 3)
+
+*Company persistence rule:* the Company continues until disbanded, merged, leaderless, or critically depleted.
+
+Each Company requires one or more Company `Officers`. 
+
+For example if the MiniumUnitSize is 100: 
+* And there are 200 soldiers with 2 Officers, then the Unit will be two Companies. 
+* If there are 300 soldiers and 3 Officers, then it will be a two Companies of 150 soldiers. 
+* If there are 180 soldiers and 1 Officer, then it will be a single Company. 
+* If there are 120 soldiers and 2 Officers then it will be a single Company. 
+* If there are 200 soldiers and 3 Officers then there will be two Companies (one with an extra Officer)
+
+### Officer
+
+An Officer is a type of **embedded** `Specialist`. They can be earned through `Command Experience` or paid for in `Research Points` to attain a specified `Rank`. 
+
+The higher the rank, the longer it takes (or the more research points it costs). For example, you might generate 3,000 research points per turn, but the military academy may only spend 100 per turn; a general may take 500.
+
+- `Combat Experience` can be **converted** toward Officers. An entire `Company` or `Unit` can be sent "to
+  the academy" via a button; a percentage then emerge at various ranks. Higher `Combat Experience`
+  raises the likelihood of higher ranks. This doesn't necessarily *complete* their training, but can reduce it.
+- The senior-most Officer in a Command determines how many `Units` it can contain and `Specialists` can be assigned to it. (A Unit, therefore, does not itself have command experience.)
+
+
+### Rank
+* Ranks are **unlocked per Player** (except for Rank 1 which is always available).
+
+* **Promotion Ceiling** - With the exception of Rank 1, how many of each rank can exist simultaneously for a Player is governed by calculations. e.g. Max 1 General per 10 settlements of city size.
+
+#### Properties of Rank
+* Rank Title - Segmented by `Movement Domain` (e.g. "General" for Land would be "Admiral" for Sea (by default). Rank Titles can be changed by the `Player` (for free, at any time) onc.
+
+
+
+
+The Max # of soldiers Per Unit may be adjusted down
+
+MaxFactionCount
+
+|Rank| Rank Title | Max # of soldiers Per Unit | Max # of attached Specialists |
+| --- | --- | --- | --- |
+|1|Lieutenant | 44 | 1 |
+|2|Captain | 200 | 3 |
+|3|Major | 1,000 | 5 |
+|4|Colonel | 3,200 | 10 |
+|5|Major General | 10,000–16,000 | 12 |
+|6|General | | 15 |
+
+  
+**Unit Stack** 
+
+Multiple `Units` that reside on the same Campaign Tile but are **not** combined into a `Command`.
+
+<span style="color:orange;">TODO: Units (up to the applicable quantity) of domain Land or Sea may be on the Water domain provided there are Units carrying a respective `LAND_CARRYING_CAPACITY` or `AIR_CARRYING_CAPACITY`.
+
+<span style="color:orange;">TODO: Unit Design: component production time.
+
+<span style="color:orange;">TODO: Material Class. When designing a Unit you choose which **Class** of component to equip (e.g. you choose to give a
 soldier a sword). The *concrete* type of sword (broadsword, short sword, katana) is decided **at
 creation time** from available assets, ordered by the player's [Material Preference](production-and-assets.md).
 
-### Unlocking components, units, and slots
-
-- Components are unlocked via **technology discovery** (e.g. discovering "Wood Tools" unlocks the
-  "Club" component).
-- A pre-existing Unit Design is unlocked once **all** of its requisite components are unlocked.
-- Players can mix-and-match available components into unique designs for a tactical edge.
-- Technology can also **add Slots** to unit designs. By default these new slots are empty in
-  pre-existing units.
-
-### Obsolescence
-
-Discovering new components can make existing components obsolete (e.g. tank technology obsoletes
-cavalry).
-
-A **Unit** becomes obsolete via either of:
-
-- all components on the design **except the base** are obsolete, or
-- the **base** component is obsolete (regardless of how many non-obsolete components the design
-  has).
-
-Obsolescence is always at the **player's discretion**: auto-obsolescence is the default, but the
-player ultimately decides when a unit is retired. Existing units with an obsolete component still
-function and may upgrade to a different component.
-
-## Unit Components
-
-A component is one of these types:
-
-- **base** (chassis)
-- **engine** (power source)
-- **armour**
-- **weapon**
-- **supply** (equipment)
-- **training** (skill)
-
-### Component attributes
-
-| Attribute | Description | Empire-flexible |
-| --- | --- | --- |
-| Unit Component Code | API-referenceable unique name of the component | No |
-| Unit Component Name | User-displayed name | No |
-| Action Constraints | | No |
-| Design Constraints | | No |
-| Fits to Slot List | | No |
-| Domain | | No |
-| Catalogue Path | | No |
-| Weight | Weight of the object. `Base.Power − Σ(components.weight) = movement points` | No |
-| Power | Amount of power the component has (typically only populated for BASE items) | Yes |
-| Attack values | Per type: Slash, Pierce, Crush/Impact, Burn, Poison | Yes |
-| Defensive values | Per type: Slash, Pierce, Crush/Impact, Burn, Poison | Yes |
-| Minimum Range | Only applicable to WEAPON components | Yes |
-| Maximum Range | Only applicable to WEAPON components | Yes |
-| Sight | | Yes |
-| Disturbance | | Yes |
-| Supply Health Resource / Quantity | | No |
-| Supply Movement Resource / Quantity | | No |
-| Ammunition Movement Resource / Quantity | | No |
-
-### Base (chassis)
-
-The base is the main component; it determines how many slots are available (i.e. how many other
-components fit).
-
-- A base has an **operation domain** which determines whether it moves on land, sea, or air.
-- A base has a **type** used by the UI to group components.
-
-### Component constraints
-
-- A Unit's `Σ(weight of components)` must be `< Σ(power of components)`.
-- The movement speed of a Unit on the campaign map derives from `Σ(Power)`.
-
-### Obsoleting a component
-
-When a component is made obsolete by a new technology discovery, it is no longer used in
-automatically generated unit designs. Existing units keep working and may upgrade. When **all**
+<span style="color:orange;">TODO: Obsoleting a component check. When a component is made obsolete by a new technology discovery, it is no longer used in automatically generated unit designs. Existing units keep working and may upgrade. When **all**
 components of a unit are obsolete, the unit design itself is obsoleted.
 
-## Technical detail
+<span style="color:orange;">TODO: When a unit has multiple weapons, how is partial ammunition availability handled?
 
-Two pairs of tables hold the unit and unit-design information (a `config.*` definition table plus a
-per-game `game.Empire*` table):
+TODO: Integrated design with [Infrastructure](campaign-map.md#infrastructure-terrain-improvements).</span> 
 
-| Schema & table | Description |
-| --- | --- |
-| `config.UnitMasterList` / `game.EmpireUnitMasterList` | "Header" information about a Unit; the list from which unit selection (for building) occurs. When a record is marked obsoleted, no more units of this type can be built. Notable columns: `UnitName` (renameable), `UnitNameCode` (fixed), `StowageSize` (space per soldier in a transport; `< 0` means cannot be transported), `MinTroopCount`, `MaxTroopCount` (divisible by `TroopIncrement`), `TroopIncrement`, `IsTemplateEntry`, `UnlockedOnTurn` (`-1` if locked), `NotificationOfUnlock`, `ObsoletedOnTurn`. |
-| `config.UnitTemplate` / `game.EmpireUnitTemplate` | The design (template) of the Unit. Notable columns: `EmpireUnitComponentCode` (component in this slot), `SlotName`, `SlotCanBeModified`, `SlotIsHidden`. |
-
-## Open questions
-
-- Can some weapons be ranged but not melee? (Perhaps if range `> 1` they cannot be used for melee.)
-- When a unit has multiple weapons, how is partial ammunition availability handled?
-- Domain of weapons — Land, Air, Water, Underwater, Space (a `Domain` string on the component).
-- Integrated design with [Infrastructure](campaign-map.md#infrastructure-terrain-improvements).
-- Is there any benefit to unit-ID inheritance?
-- How is a "compiled unit" carrying weapons of differing range handled?

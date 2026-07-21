@@ -12,19 +12,22 @@ import { Alert, Button, CodeField, PagedDialog } from "@/components/ui";
 
 import { FieldRow, inputClass } from "./componentSetupFields";
 import { createEmptyTag, TAG_TYPES, type Tag, type TagType } from "@/features/unitdesign/types/Tag";
+import type { TagTypeInfo } from "@/features/unitdesign/types/TagType";
 
 interface TagSetupDialogProps {
   open: boolean;
   onCancel: () => void;
   /** Optional starting tag (for editing). When omitted, a blank tag is created. */
   initialTag?: Tag;
+  /** The tag type catalog, driving the "Tag Type" dropdown (option label = display name, value = enum). */
+  tagTypes: TagTypeInfo[];
   /** Called with the edited tag when the user commits. */
   onCommit: (tag: Tag) => void;
   /** API or validation error from the last commit attempt; shown as a danger alert above the form. */
   error?: string | null;
 }
 
-export default function TagSetupDialog({ open, onCancel, initialTag, onCommit, error }: TagSetupDialogProps) {
+export default function TagSetupDialog({ open, onCancel, initialTag, tagTypes, onCommit, error }: TagSetupDialogProps) {
   // The working copy of the tag being authored.
   const [tag, setTag] = useState<Tag>(() => initialTag ?? createEmptyTag());
 
@@ -38,6 +41,18 @@ export default function TagSetupDialog({ open, onCancel, initialTag, onCommit, e
   // Code, DisplayName, and Description are all required; the backend enforces the same rules, but
   // gating the Save button here avoids a round-trip for the most common empty-field cases.
   const canSave = tag.code.trim() !== "" && tag.displayName.trim() !== "" && tag.description.trim() !== "";
+
+  // The "Tag Type" options come from the tag type catalog (label = display name, value = enum key). Fall
+  // back to the raw enum names if the catalog hasn't loaded, and always ensure the tag's current type is
+  // present so an edited tag never shows a blank selection.
+  const typeOptions: { value: TagType; label: string }[] =
+    tagTypes.length > 0
+      ? tagTypes.map((t) => ({ value: t.tagTypeId, label: t.displayName.trim() !== "" ? t.displayName : t.tagTypeId }))
+      : TAG_TYPES.map((t) => ({ value: t, label: t }));
+
+  if (!typeOptions.some((option) => option.value === tag.tagType)) {
+    typeOptions.unshift({ value: tag.tagType, label: tag.tagType });
+  }
 
   const handleCommit = () => {
     if (!canSave) {
@@ -112,9 +127,9 @@ export default function TagSetupDialog({ open, onCancel, initialTag, onCommit, e
                   className={inputClass}
                   value={tag.tagType}
                   onChange={(e) => setTag((prev) => ({ ...prev, tagType: e.target.value as TagType }))}>
-                  {TAG_TYPES.map((tagType) => (
-                    <option key={tagType} value={tagType}>
-                      {tagType}
+                  {typeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
