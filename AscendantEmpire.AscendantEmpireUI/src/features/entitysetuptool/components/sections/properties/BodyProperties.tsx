@@ -3,10 +3,10 @@
 // Controlled component: it takes the body slice and emits the full updated body via onChange. A body
 // has no sparse key/value tables, so there's no working-row state to manage here.
 
-import { DOMAIN_TYPES, type DomainType, type UnitComponentBody } from "@/features/unitdesign/types/UnitComponent";
+import { type UnitComponentBody } from "@/features/unitdesign/types/UnitComponent";
+import DomainSelection from "@/components/game/DomainSelection";
 import ScaledNumberField from "../../ScaledNumberField";
-import { FieldRow, NumberField, inputClass } from "../../componentSetupFields";
-import { DOMAIN_TYPE_LABELS } from "../../componentSetupLabels";
+import { FieldRow, NumberField } from "../../componentSetupFields";
 
 interface BodyPropertiesProps {
   body: UnitComponentBody;
@@ -25,13 +25,7 @@ export default function BodyProperties({ body, onChange }: BodyPropertiesProps) 
         <legend className="px-1 text-xs font-medium text-slate-500">Movement</legend>
 
         <FieldRow label="Domain">
-          <select className={inputClass} value={body.movementDomain} onChange={(e) => patch("movementDomain", e.target.value as DomainType)}>
-            {DOMAIN_TYPES.map((domain) => (
-              <option key={domain} value={domain}>
-                {DOMAIN_TYPE_LABELS[domain]}
-              </option>
-            ))}
-          </select>
+          <DomainSelection value={body.movementDomain} onChange={(next) => patch("movementDomain", next)} />
         </FieldRow>
 
         {/* Movement points are stored as raw Scale-1,000 longs; ScaledNumberField shows the decimal. */}
