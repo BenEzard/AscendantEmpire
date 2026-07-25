@@ -198,8 +198,6 @@ internal class CompileUnitTemplateHandler(
                 BattlefieldMovementPoints = body.BattlefieldMovementPoints,
                 Power = body.Power,
                 Hitpoints = body.Hitpoints,
-                MinimumUnitSize = body.MinimumUnitSize,
-                MaximumUnitSize = body.MaximumUnitSize,
                 Attack = attack,
                 Resistance = resistance,
                 CompiledOnTurn = compiledOnTurn,
@@ -221,8 +219,6 @@ internal class CompileUnitTemplateHandler(
             existing.BattlefieldMovementPoints = body.BattlefieldMovementPoints;
             existing.Power = body.Power;
             existing.Hitpoints = body.Hitpoints;
-            existing.MinimumUnitSize = body.MinimumUnitSize;
-            existing.MaximumUnitSize = body.MaximumUnitSize;
             existing.Attack = attack;
             existing.Resistance = resistance;
             existing.CompiledOnTurn = compiledOnTurn;

@@ -6,8 +6,8 @@ namespace AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 /// Body-specific properties for a component whose type is <c>Body</c>.
 /// </summary>
 /// <remarks>
-/// A body defines movement characteristics and unit-size bounds, and is the only component type that
-/// exposes Template Slots (see <see cref="Slots"/>).
+/// A body defines movement characteristics, and is the only component type that exposes Template Slots
+/// (see <see cref="Slots"/>).
 /// </remarks>
 public record UnitComponentBodyDto
 {
@@ -35,21 +35,6 @@ public record UnitComponentBodyDto
     /// The hitpoints (health) this body has (raw fixed-point, Scale 1,000; 1,000 = 1.0).
     /// </summary>
     public long Hitpoints { get; init; }
-
-    /// <summary>
-    /// Minimum number of individuals in a Unit using this body (the smallest allowed unit size).
-    /// </summary>
-    public int MinimumUnitSize { get; init; }
-
-    /// <summary>
-    /// Maximum number of individuals in a Unit using this body (the largest allowed unit size).
-    /// </summary>
-    public int MaximumUnitSize { get; init; }
-
-    /// <summary>
-    /// The step by which unit size can be adjusted.
-    /// </summary>
-    public int SizeIncrement { get; init; }
 
     /// <summary>
     /// The Template Slots this body exposes for fitting other components (0 or more). Only bodies expose slots.

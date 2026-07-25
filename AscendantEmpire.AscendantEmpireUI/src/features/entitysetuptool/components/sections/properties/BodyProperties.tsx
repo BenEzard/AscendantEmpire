@@ -6,7 +6,7 @@
 import { type UnitComponentBody } from "@/features/unitdesign/types/UnitComponent";
 import DomainSelection from "@/components/game/DomainSelection";
 import ScaledNumberField from "../../ScaledNumberField";
-import { FieldRow, NumberField } from "../../componentSetupFields";
+import { FieldRow } from "../../componentSetupFields";
 
 interface BodyPropertiesProps {
   body: UnitComponentBody;
@@ -35,22 +35,6 @@ export default function BodyProperties({ body, onChange }: BodyPropertiesProps) 
 
         <FieldRow label="Battlefield Points">
           <ScaledNumberField rawValue={body.battlefieldMovementPoints} onChange={(next) => patch("battlefieldMovementPoints", next ?? 0)} />
-        </FieldRow>
-      </fieldset>
-
-      <fieldset className="mt-3 rounded-md border border-slate-200 px-3 pb-1 pt-1">
-        <legend className="px-1 text-xs font-medium text-slate-500">Unit Size</legend>
-
-        <FieldRow label="Minimum">
-          <NumberField value={body.minimumUnitSize} onChange={(next) => patch("minimumUnitSize", next)} />
-        </FieldRow>
-
-        <FieldRow label="Maximum">
-          <NumberField value={body.maximumUnitSize} onChange={(next) => patch("maximumUnitSize", next)} />
-        </FieldRow>
-
-        <FieldRow label="Increment">
-          <NumberField value={body.sizeIncrement} onChange={(next) => patch("sizeIncrement", next)} />
         </FieldRow>
       </fieldset>
 

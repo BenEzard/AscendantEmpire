@@ -81,9 +81,6 @@ internal class UnitDesignReadEndpointsTests : SqlServerTestBase
                 // Raw fixed-point (Scale 1,000): 3,000 = 3.0 campaign, 6,000 = 6.0 battlefield movement points.
                 CampaignMovementPoints = 3000,
                 BattlefieldMovementPoints = 6000,
-                MinimumUnitSize = 1,
-                MaximumUnitSize = 10,
-                SizeIncrement = 1,
                 // Only bodies expose slots, so they live on the body extension.
                 Slots =
                 [

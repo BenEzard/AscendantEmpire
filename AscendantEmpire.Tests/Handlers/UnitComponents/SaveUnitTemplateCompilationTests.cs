@@ -88,9 +88,6 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
                 // Raw fixed-point (Scale 1,000): 3,000 = 3.0 campaign, 6,000 = 6.0 battlefield movement points.
                 CampaignMovementPoints = 3000,
                 BattlefieldMovementPoints = 6000,
-                MinimumUnitSize = 1,
-                MaximumUnitSize = 10,
-                SizeIncrement = 1,
                 // Only bodies expose slots, so they live on the body extension.
                 Slots =
                 [
@@ -336,8 +333,8 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.HasSucceeded, Is.False);
-            Assert.That(templateCount, Is.EqualTo(0), "The rejected template was not persisted.");
-            Assert.That(snapshotCount, Is.EqualTo(0), "No orphaned snapshot either.");
+            Assert.That(templateCount, Is.Zero, "The rejected template was not persisted.");
+            Assert.That(snapshotCount, Is.Zero, "No orphaned snapshot either.");
         }
     }
 

@@ -44,9 +44,6 @@ function mapBody(body: UnitComponentBody) {
     battlefieldMovementPoints: body.battlefieldMovementPoints,
     power: body.power,
     hitpoints: body.hitpoints,
-    minimumUnitSize: body.minimumUnitSize,
-    maximumUnitSize: body.maximumUnitSize,
-    sizeIncrement: body.sizeIncrement,
     // Only bodies carry slots, so they ride on the body payload.
     slots: body.slots.map(mapSlot),
   };
@@ -146,9 +143,6 @@ interface BodyWire {
   battlefieldMovementPoints: number;
   power: number;
   hitpoints: number;
-  minimumUnitSize: number;
-  maximumUnitSize: number;
-  sizeIncrement: number;
   slots: SlotWire[];
 }
 
@@ -215,9 +209,6 @@ function mapBodyFromWire(body: BodyWire): UnitComponentBody {
     battlefieldMovementPoints: body.battlefieldMovementPoints,
     power: body.power,
     hitpoints: body.hitpoints,
-    minimumUnitSize: body.minimumUnitSize,
-    maximumUnitSize: body.maximumUnitSize,
-    sizeIncrement: body.sizeIncrement,
     slots: body.slots.map(mapSlotFromWire),
   };
 }

@@ -58,9 +58,6 @@ internal class GetComponentHandler(
                                 BattlefieldMovementPoints = c.Body.BattlefieldMovementPoints,
                                 Power = c.Body.Power,
                                 Hitpoints = c.Body.Hitpoints,
-                                MinimumUnitSize = c.Body.MinimumUnitSize,
-                                MaximumUnitSize = c.Body.MaximumUnitSize,
-                                SizeIncrement = c.Body.SizeIncrement,
                                 // Ordered by Id to match the canonical slot order UnitTemplateAssembly uses
                                 // when a template is saved (body.Slots.OrderBy(s => s.Id)), so a template
                                 // loaded back into the designer can match its fitted components onto the right slot.

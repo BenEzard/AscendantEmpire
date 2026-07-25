@@ -97,9 +97,6 @@ export interface UnitComponentBody {
   battlefieldMovementPoints: number;
   power: number;
   hitpoints: number;
-  minimumUnitSize: number;
-  maximumUnitSize: number;
-  sizeIncrement: number;
   /** Slots this body exposes for fitting other components (0 or more). */
   slots: UnitComponentSlot[];
 }
@@ -214,9 +211,6 @@ export function createEmptyBody(): UnitComponentBody {
     battlefieldMovementPoints: 0,
     power: 0,
     hitpoints: 0,
-    minimumUnitSize: 0,
-    maximumUnitSize: 0,
-    sizeIncrement: 0,
     slots: [],
   };
 }

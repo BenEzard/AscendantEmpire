@@ -285,9 +285,6 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
                 // Raw fixed-point (Scale 1,000): 2,000 = 2.0 campaign, 4,000 = 4.0 battlefield movement points.
                 CampaignMovementPoints = 2000,
                 BattlefieldMovementPoints = 4000,
-                MinimumUnitSize = 1,
-                MaximumUnitSize = 5,
-                SizeIncrement = 1,
             },
             // Inherent attack/defence the body itself contributes.
             Weapon = new UnitComponentWeaponDto { Attack = new DamageProfileDto { Crush = 300 }, MinimumRange = 0, MaximumRange = 1 },
@@ -620,9 +617,6 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
                 MovementDomain = DomainType.Land,
                 CampaignMovementPoints = 3000,
                 BattlefieldMovementPoints = 6000,
-                MinimumUnitSize = 1,
-                MaximumUnitSize = 10,
-                SizeIncrement = 1,
                 Slots = [slot],
             },
         };
@@ -699,9 +693,6 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
                         // Raw fixed-point (Scale 1,000): 3,000 = 3.0 campaign, 6,000 = 6.0 battlefield movement points.
                         CampaignMovementPoints = 3000,
                         BattlefieldMovementPoints = 6000,
-                        MinimumUnitSize = 1,
-                        MaximumUnitSize = 10,
-                        SizeIncrement = 1,
                         // Only bodies expose slots, so they live on the body extension.
                         Slots =
                         [

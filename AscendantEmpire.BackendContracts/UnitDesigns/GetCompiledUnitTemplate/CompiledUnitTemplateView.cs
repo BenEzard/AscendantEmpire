@@ -23,8 +23,6 @@ public record CompiledUnitTemplateView
     public required long BattlefieldMovementPoints { get; init; }
     public required long Power { get; init; }
     public required long Hitpoints { get; init; }
-    public required int MinimumUnitSize { get; init; }
-    public required int MaximumUnitSize { get; init; }
 
     public required CompiledDamageProfile Attack { get; init; }
     public required CompiledDamageProfile Resistance { get; init; }

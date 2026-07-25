@@ -29,9 +29,6 @@ public static class DesignComponentProjections
         BattlefieldMovementPoints = c.Body.BattlefieldMovementPoints,
         Power = c.Body.Power,
         Hitpoints = c.Body.Hitpoints,
-        MinimumUnitSize = c.Body.MinimumUnitSize,
-        MaximumUnitSize = c.Body.MaximumUnitSize,
-        SizeIncrement = c.Body.SizeIncrement,
         TagCodes = c.Tags.Select(t => t.Tag.Code).ToList(),
         // Only bodies expose slots, so they hang off the body extension.
         Slots = c.Body!.Slots

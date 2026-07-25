@@ -7,8 +7,7 @@ namespace AscendantEmpire.Domain.Entities.UnitDesigns;
 /// </summary>
 /// <remarks>
 /// One-to-one with <see cref="UnitComponent"/> (shares its primary key). A body defines the movement
-/// characteristics and unit-size bounds, and is the only component type that exposes Template Slots
-/// (see <see cref="Slots"/>).
+/// characteristics, and is the only component type that exposes Template Slots (see <see cref="Slots"/>).
 /// </remarks>
 public class UnitComponentBody
 {
@@ -57,21 +56,6 @@ public class UnitComponentBody
     /// (1,000 raw = 1.0). Wrap via <c>ScaledAmount.FromRaw(...)</c> to do arithmetic.
     /// </remarks>
     public long Hitpoints { get; set; }
-
-    /// <summary>
-    /// Minimum number of individuals in a Unit using this body (the smallest allowed unit size).
-    /// </summary>
-    public int MinimumUnitSize { get; set; }
-
-    /// <summary>
-    /// Maximum number of individuals in a Unit using this body (the largest allowed unit size).
-    /// </summary>
-    public int MaximumUnitSize { get; set; }
-
-    /// <summary>
-    /// The step by which unit size can be adjusted (unit size changes in increments of this amount).
-    /// </summary>
-    public int SizeIncrement { get; set; }
 
     /// <summary>
     /// The Template Slots this body exposes for fitting other components (0 or more). Only bodies expose

@@ -50,9 +50,6 @@ internal class CompileUnitTemplateHandlerTests : SqlServerTestBase
                 // The compile step unscales these into the snapshot's decimals (asserted as 3m below).
                 CampaignMovementPoints = 3000,
                 BattlefieldMovementPoints = 6000,
-                MinimumUnitSize = 1,
-                MaximumUnitSize = 10,
-                SizeIncrement = 1,
             },
             // A body may carry its own inherent weapon (here a crush attack), which the compiler folds in.
             Weapon = new UnitComponentWeapon
@@ -163,10 +160,9 @@ internal class CompileUnitTemplateHandlerTests : SqlServerTestBase
             Assert.That(snapshot.Attack.Crush, Is.EqualTo(250), "Fitted weapon crush 50 + body's inherent weapon crush 200.");
             Assert.That(snapshot.Resistance.Pierce, Is.EqualTo(250), "From the fitted armour.");
 
-            // Body-derived movement/unit-size. Movement is copied through as the raw fixed-point long (3,000 = 3.0).
+            // Body-derived movement. Movement is copied through as the raw fixed-point long (3,000 = 3.0).
             Assert.That(snapshot.MovementDomain, Is.EqualTo(DomainType.Land));
             Assert.That(snapshot.CampaignMovementPoints, Is.EqualTo(3000));
-            Assert.That(snapshot.MaximumUnitSize, Is.EqualTo(10));
             Assert.That(snapshot.CompiledOnTurn, Is.EqualTo(5));
 
             // Components: body (null slot) + 3 fitted.

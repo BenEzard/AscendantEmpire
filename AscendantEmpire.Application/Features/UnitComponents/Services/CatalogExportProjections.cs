@@ -61,9 +61,6 @@ internal static class CatalogExportProjections
             BattlefieldMovementPoints = body.BattlefieldMovementPoints,
             Power = body.Power,
             Hitpoints = body.Hitpoints,
-            MinimumUnitSize = body.MinimumUnitSize,
-            MaximumUnitSize = body.MaximumUnitSize,
-            SizeIncrement = body.SizeIncrement,
             // Slots are exported in slot-id order so a template's positional SlotComponentCodes round-trip.
             Slots = [.. body.Slots.OrderBy(s => s.Id).Select(ToSlotDto)],
         };

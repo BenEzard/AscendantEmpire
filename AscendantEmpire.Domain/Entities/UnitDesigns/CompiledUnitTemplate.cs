@@ -45,9 +45,6 @@ public class CompiledUnitTemplate
     /// <summary>Hitpoints (health), copied from the body (raw fixed-point, Scale 1,000; 1,000 = 1.0).</summary>
     public long Hitpoints { get; set; }
 
-    public int MinimumUnitSize { get; set; }
-    public int MaximumUnitSize { get; set; }
-
     /// <summary>Aggregated offensive output: the sum of fitted weapons' attack plus the body's crush.</summary>
     public DamageProfile Attack { get; set; } = new();
 

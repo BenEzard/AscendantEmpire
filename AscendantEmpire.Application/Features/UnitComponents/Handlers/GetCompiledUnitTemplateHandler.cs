@@ -48,8 +48,6 @@ internal class GetCompiledUnitTemplateHandler(
                     BattlefieldMovementPoints = c.BattlefieldMovementPoints,
                     Power = c.Power,
                     Hitpoints = c.Hitpoints,
-                    MinimumUnitSize = c.MinimumUnitSize,
-                    MaximumUnitSize = c.MaximumUnitSize,
                     Attack = new CompiledDamageProfile
                     {
                         Slash = c.Attack.Slash,

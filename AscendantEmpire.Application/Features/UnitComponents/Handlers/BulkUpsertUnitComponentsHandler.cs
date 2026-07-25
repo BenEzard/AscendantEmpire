@@ -568,9 +568,6 @@ internal class BulkUpsertUnitComponentsHandler(
             BattlefieldMovementPoints = dto.BattlefieldMovementPoints,
             Power = dto.Power,
             Hitpoints = dto.Hitpoints,
-            MinimumUnitSize = dto.MinimumUnitSize,
-            MaximumUnitSize = dto.MaximumUnitSize,
-            SizeIncrement = dto.SizeIncrement,
             Slots = [.. dto.Slots.Select(BuildSlot)],
         };
     }
@@ -728,9 +725,6 @@ internal class BulkUpsertUnitComponentsHandler(
         body.BattlefieldMovementPoints = dto.BattlefieldMovementPoints;
         body.Power = dto.Power;
         body.Hitpoints = dto.Hitpoints;
-        body.MinimumUnitSize = dto.MinimumUnitSize;
-        body.MaximumUnitSize = dto.MaximumUnitSize;
-        body.SizeIncrement = dto.SizeIncrement;
     }
 
     /// <summary>

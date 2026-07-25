@@ -35,10 +35,6 @@ public record DesignBody
     /// <summary>Hitpoints (health) this body has (raw fixed-point, Scale 1,000; 1,000 = 1.0).</summary>
     public required long Hitpoints { get; init; }
 
-    public required int MinimumUnitSize { get; init; }
-    public required int MaximumUnitSize { get; init; }
-    public required int SizeIncrement { get; init; }
-
     public required IReadOnlyCollection<string> TagCodes { get; init; }
     public required IReadOnlyCollection<DesignSlot> Slots { get; init; }
 }
