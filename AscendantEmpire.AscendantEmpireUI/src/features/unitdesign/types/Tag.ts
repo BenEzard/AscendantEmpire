@@ -22,7 +22,10 @@ export interface Tag {
   /** Unique, stable key for the tag, e.g. "amphibious", "stealth". */
   code: string;
   displayName: string;
-  /** Required — the backend rejects a tag whose description is blank. */
+  /**
+   * Optional free-text description. Held as a string here (empty when blank) so the textarea stays a
+   * controlled input; the commit maps a blank value to null before sending (see TagUpsert).
+   */
   description: string;
   tagType: TagType;
   /**
@@ -30,6 +33,8 @@ export interface Tag {
    * to a domain). Null for every other tag type. The backend rejects a domain set on a non-organisation tag.
    */
   movementDomain: DomainType | null;
+  /** Whether the tag is system-created (seeded/built-in) rather than user-authored. Defaults to false. */
+  systemCreated: boolean;
 }
 
 /** A blank tag for the "Add Tag" flow — defaults to a Classification. */
@@ -41,5 +46,6 @@ export function createEmptyTag(): Tag {
     description: "",
     tagType: "Classification",
     movementDomain: null,
+    systemCreated: false,
   };
 }

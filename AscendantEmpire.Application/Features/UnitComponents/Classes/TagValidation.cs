@@ -39,11 +39,8 @@ internal static class TagValidation
             errors.Add($"Tag DisplayName exceeds {Tag.DISPLAY_NAME_MAX_LENGTH} characters.");
         }
 
-        if (string.IsNullOrWhiteSpace(tag.Description))
-        {
-            errors.Add("The tag is missing its Description.");
-        }
-        else if (tag.Description.Length > Tag.DESCRIPTION_MAX_LENGTH)
+        // Description is optional (the column is nullable), so only bound its length when one is supplied.
+        if (!string.IsNullOrWhiteSpace(tag.Description) && tag.Description.Length > Tag.DESCRIPTION_MAX_LENGTH)
         {
             errors.Add($"Tag Description exceeds {Tag.DESCRIPTION_MAX_LENGTH} characters.");
         }

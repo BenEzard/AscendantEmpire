@@ -38,6 +38,7 @@ internal class GetTagsHandler(
                     Description = t.Description,
                     TagType = t.TagType,
                     MovementDomain = t.MovementDomain,
+                    SystemCreated = t.SystemCreated,
                 })
                 .ToListAsync(cancelToken);
 

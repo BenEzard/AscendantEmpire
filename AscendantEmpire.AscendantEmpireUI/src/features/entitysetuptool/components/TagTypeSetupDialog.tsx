@@ -33,12 +33,17 @@ export default function TagTypeSetupDialog({ open, onCancel, initialTagTypes, on
   // Which tag type is currently selected for editing (its enum key), or null when the set is empty.
   const [selectedId, setSelectedId] = useState<TagType | null>(null);
 
+  // Whether the user has pressed Save yet. Validation messages stay hidden until then (so a freshly
+  // opened form isn't pre-littered with "required" errors), then update live as fields are filled in.
+  const [submitted, setSubmitted] = useState(false);
+
   // Re-seed the draft and default the selection to the first row each time the dialog opens, so a
-  // previous edit session never leaks in.
+  // previous edit session never leaks in, and reset the submitted flag so validation starts quiet.
   useEffect(() => {
     if (open) {
       setDraft(initialTagTypes);
       setSelectedId(initialTagTypes[0]?.tagTypeId ?? null);
+      setSubmitted(false);
     }
   }, [open, initialTagTypes]);
 
@@ -53,12 +58,40 @@ export default function TagTypeSetupDialog({ open, onCancel, initialTagTypes, on
     setDraft((prev) => prev.map((t) => (t.tagTypeId === selected.tagTypeId ? { ...t, [field]: value } : t)));
   };
 
-  // Every row must have a non-blank Display Name and Description; the backend enforces the same, but
-  // gating here avoids a round-trip for the common empty-field case.
-  const canSave = draft.length > 0 && draft.every((t) => t.displayName.trim() !== "" && t.description.trim() !== "");
+  // Required-field validation for a single row: Display Name and Description must both be non-blank.
+  // The backend enforces the same rules, so this is a fast local pre-check, not the source of truth.
+  const rowErrors = (tagType: TagTypeInfo): Partial<Record<"displayName" | "description", string>> => {
+    const errors: Partial<Record<"displayName" | "description", string>> = {};
+    if (tagType.displayName.trim() === "") {
+      errors.displayName = "Display Name is required.";
+    }
+    if (tagType.description.trim() === "") {
+      errors.description = "Description is required.";
+    }
+    return errors;
+  };
+
+  // Errors for the currently selected row, revealed inline only once a save has been attempted.
+  const shownErrors: Partial<Record<"displayName" | "description", string>> =
+    submitted && selected ? rowErrors(selected) : {};
+
+  // Appended to a control's class when its field is in error to give it a red border. The `!` forces
+  // the colour to win over inputClass's default slate border regardless of Tailwind's rule ordering.
+  const errorClass = (hasError: boolean) => (hasError ? `${inputClass} !border-red-500` : inputClass);
 
   const handleCommit = () => {
-    if (!canSave) {
+    // Reveal validation now that a save was attempted.
+    setSubmitted(true);
+    if (draft.length === 0) {
+      return;
+    }
+
+    // Only one row is on screen at a time, so if some other row is invalid the user would never see why
+    // Save "did nothing". Jump the selection to the first offending row so its inline errors are visible,
+    // and only commit once every row passes.
+    const firstInvalid = draft.find((tagType) => Object.keys(rowErrors(tagType)).length > 0);
+    if (firstInvalid) {
+      setSelectedId(firstInvalid.tagTypeId);
       return;
     }
 
@@ -74,10 +107,10 @@ export default function TagTypeSetupDialog({ open, onCancel, initialTagTypes, on
       onCancel={onCancel}
       onCommit={handleCommit}
       header={
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 pb-2">
           {/* Selection box: pick which tag type to edit (the set is fixed by the enum). */}
           <div className="flex flex-wrap items-center gap-2">
-            <label className="text-sm font-semibold whitespace-nowrap">Select Tag Type</label>
+            <label className="text-sm text-slate-700 whitespace-nowrap">Tag Type:</label>
             <select
               className="w-64 max-w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
               value={selectedId ?? ""}
@@ -104,7 +137,7 @@ export default function TagTypeSetupDialog({ open, onCancel, initialTagTypes, on
           <Button variant="secondary" onClick={onCancel}>
             Cancel / Close
           </Button>
-          <Button variant="success" disabled={!canSave} onClick={handleCommit}>
+          <Button variant="success" onClick={handleCommit}>
             Save
           </Button>
         </>
@@ -115,9 +148,9 @@ export default function TagTypeSetupDialog({ open, onCancel, initialTagTypes, on
           label: "General",
           content: (
             <div className="flex flex-col">
-              <FieldRow label="Display Name" align="top">
+              <FieldRow label="Display Name" align="top" error={shownErrors.displayName}>
                 <input
-                  className={inputClass}
+                  className={errorClass(!!shownErrors.displayName)}
                   value={selected?.displayName ?? ""}
                   placeholder="e.g. Classification"
                   disabled={!selected}
@@ -125,9 +158,9 @@ export default function TagTypeSetupDialog({ open, onCancel, initialTagTypes, on
                 />
               </FieldRow>
 
-              <FieldRow label="Description" align="top">
+              <FieldRow label="Description" align="top" error={shownErrors.description}>
                 <textarea
-                  className={inputClass}
+                  className={errorClass(!!shownErrors.description)}
                   rows={3}
                   value={selected?.description ?? ""}
                   placeholder="Description of what this tag type represents"
@@ -136,15 +169,14 @@ export default function TagTypeSetupDialog({ open, onCancel, initialTagTypes, on
                 />
               </FieldRow>
 
-              <FieldRow label="Is Inherited" align="top">
-                <label className="flex items-center gap-2 pt-2 text-sm text-slate-700">
+              <FieldRow label="Is Inherited">
+                <label className="flex items-center gap-2 text-sm text-slate-700">
                   <input
                     type="checkbox"
                     checked={selected?.isInherited ?? false}
                     disabled={!selected}
                     onChange={(e) => updateField("isInherited", e.target.checked)}
                   />
-                  Inherited
                 </label>
               </FieldRow>
 

@@ -27,4 +27,9 @@ public record TagView
     /// organisation tag with no domain assigned yet).
     /// </summary>
     public DomainType? MovementDomain { get; init; }
+
+    /// <summary>
+    /// Whether the tag is system-created (seeded/built-in) rather than user-authored.
+    /// </summary>
+    public required bool SystemCreated { get; init; }
 }

@@ -53,6 +53,7 @@ internal class GetFullCatalogHandler(
                     Code = t.Code,
                     DisplayName = t.DisplayName,
                     Description = t.Description,
+                    SystemCreated = t.SystemCreated,
                 })
                 .ToListAsync(cancelToken);
 

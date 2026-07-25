@@ -58,6 +58,7 @@ internal class CreateTagHandler(
                 Description = dto.Description,
                 TagType = dto.TagType,
                 MovementDomain = dto.MovementDomain,
+                SystemCreated = dto.SystemCreated,
             };
 
             context.Tags.Add(tag);
@@ -88,6 +89,7 @@ internal class CreateTagHandler(
             Description = tag.Description,
             TagType = tag.TagType,
             MovementDomain = tag.MovementDomain,
+            SystemCreated = tag.SystemCreated,
         };
     }
 }

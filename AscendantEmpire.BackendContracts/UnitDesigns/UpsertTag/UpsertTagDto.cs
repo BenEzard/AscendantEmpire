@@ -29,4 +29,9 @@ public record UpsertTagDto
     /// The movement domain, for a MilitaryOrganisationalGroup tag. Must be null for any other tag type.
     /// </summary>
     public DomainType? MovementDomain { get; init; }
+
+    /// <summary>
+    /// Whether the tag is system-created (seeded/built-in) rather than user-authored. Defaults to false.
+    /// </summary>
+    public bool SystemCreated { get; init; }
 }

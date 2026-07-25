@@ -9,4 +9,9 @@ public record CatalogTag
     public required string Code { get; init; }
     public required string DisplayName { get; init; }
     public string? Description { get; init; }
+
+    /// <summary>
+    /// Whether the tag is system-created (seeded/built-in) rather than user-authored.
+    /// </summary>
+    public required bool SystemCreated { get; init; }
 }

@@ -128,9 +128,11 @@ export default function EntitySetupTool() {
       const payload = {
         code: tag.code,
         displayName: tag.displayName,
-        description: tag.description,
+        // Description is optional: send a blank value as null so it persists as SQL NULL, not "".
+        description: tag.description.trim() === "" ? null : tag.description,
         tagType: tag.tagType,
         movementDomain: tag.movementDomain,
+        systemCreated: tag.systemCreated,
       };
 
       if (tag.id != null) {

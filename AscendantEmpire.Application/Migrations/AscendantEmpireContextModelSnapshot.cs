@@ -1618,6 +1618,9 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int?>("MovementDomain")
                         .HasColumnType("int");
 
+                    b.Property<bool>("SystemCreated")
+                        .HasColumnType("bit");
+
                     b.Property<int>("TagType")
                         .HasColumnType("int");
 

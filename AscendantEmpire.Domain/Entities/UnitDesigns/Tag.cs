@@ -44,5 +44,11 @@ public class Tag
     /// </summary>
     public DomainType? MovementDomain { get; set; }
 
+    /// <summary>
+    /// Whether this tag was created by the system (e.g. seeded/built-in) rather than authored by a user.
+    /// Defaults to false for user-created tags.
+    /// </summary>
+    public bool SystemCreated { get; set; }
+
     public ICollection<UnitComponentTag> ComponentTags { get; set; } = [];
 }

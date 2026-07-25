@@ -66,6 +66,7 @@ internal class UpdateTagHandler(
             tag.Description = dto.Description;
             tag.TagType = dto.TagType;
             tag.MovementDomain = dto.MovementDomain;
+            tag.SystemCreated = dto.SystemCreated;
 
             await context.SaveChangesAsync(cancelToken);
 
@@ -94,6 +95,7 @@ internal class UpdateTagHandler(
             Description = tag.Description,
             TagType = tag.TagType,
             MovementDomain = tag.MovementDomain,
+            SystemCreated = tag.SystemCreated,
         };
     }
 }
