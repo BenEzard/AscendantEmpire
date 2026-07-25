@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { FaChessKnight, FaRegFolderOpen } from "react-icons/fa6";
 import { GoEye, GoEyeClosed } from "react-icons/go";
-import { GiWoodStick } from "react-icons/gi";
+import { GiRank3, GiWoodStick } from "react-icons/gi";
 import { GrCaretNext } from "react-icons/gr";
 import { SlClose } from "react-icons/sl";
 import { VscNewFile } from "react-icons/vsc";
@@ -22,9 +22,11 @@ interface UseGameToolbarArgs {
   unitDesignActive: boolean;
   onToggleUnitDesign: () => void;
   onEndTurn: () => void;
+  militaryAdvisorActive: boolean;
+  onToggleMilitaryAdvisor: () => void;
 }
 
-/** Builds the game screen's toolbar groups (Game menu, Dev Tools, Structures). */
+/** Builds the game screen's toolbar groups (Game menu, Dev Tools, Structures, Advisors). */
 export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
   const {
     gameOpen,
@@ -39,6 +41,8 @@ export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
     unitDesignActive,
     onToggleUnitDesign,
     onEndTurn,
+    militaryAdvisorActive,
+    onToggleMilitaryAdvisor,
   } = args;
 
   return useMemo<ToolBarGroup[]>(
@@ -113,7 +117,22 @@ export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
           },
         ],
       },
+      {
+        // Departments/Advisors — see docs/design/departments-advisors.md. Military is the first of
+        // several advisors expected to live in this group.
+        caption: "Advisors",
+        buttons: [
+          {
+            key: "military-advisor",
+            icon: <GiRank3 />,
+            tooltip: "Military Advisor",
+            disabled: !gameOpen,
+            active: militaryAdvisorActive,
+            onClick: onToggleMilitaryAdvisor,
+          },
+        ],
+      },
     ],
-    [gameOpen, onNewGame, onOpenGame, onCloseGame, onClearVision, visionActive, onToggleVision, onOpenVisionSettings, onToggleConstruction, unitDesignActive, onToggleUnitDesign, onEndTurn],
+    [gameOpen, onNewGame, onOpenGame, onCloseGame, onClearVision, visionActive, onToggleVision, onOpenVisionSettings, onToggleConstruction, unitDesignActive, onToggleUnitDesign, onEndTurn, militaryAdvisorActive, onToggleMilitaryAdvisor],
   );
 }

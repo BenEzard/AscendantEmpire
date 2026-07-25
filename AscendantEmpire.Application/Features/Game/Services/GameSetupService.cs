@@ -1,8 +1,10 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
+using AscendantEmpire.Application.Features.Military;
 using AscendantEmpire.BackendContracts.Turns.CreateCampaignTurnQueue;
 using AscendantEmpire.Domain.Entities.Games;
+using AscendantEmpire.Domain.Entities.Military;
 using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Enums.Games;
 using AscendantEmpire.Domain.Enums.Maps;
@@ -54,6 +56,10 @@ internal class GameSetupService(
             int gameId = newGameIndex.Id;
 
             IReadOnlyCollection<DomainPlayer> addedPlayers = await AddPlayersAsync(context, gameId, request.NumberOfPlayers, cancellationToken);
+
+            // Seed each player's default military organisation config (officer rank ladders). Organisation
+            // structures are created on demand when a player first customises a tag, so nothing is seeded here.
+            await SeedPlayerMilitaryAsync(context, addedPlayers, cancellationToken);
 
             // Copy the 'global' view of the map gallery to the campaign map for this game.
             var generateCampaignMapResult = await GenerateCampaignMapAsync(context, gameId, mapProperties.Id, cancellationToken);
@@ -281,6 +287,42 @@ internal class GameSetupService(
         await context.SaveChangesAsync(cancellationToken);
 
         return playersToAdd;
+    }
+
+    /// <summary>
+    /// Seeds every player's default officer rank ladders — one full ladder per seeded movement domain — from
+    /// the code-defined <see cref="MilitaryOrganisationDefaults"/>.
+    /// </summary>
+    /// <remarks>(The method is self-saving.)</remarks>
+    private static async Task SeedPlayerMilitaryAsync(
+        AscendantEmpireContext context,
+        IReadOnlyCollection<DomainPlayer> addedPlayers,
+        CancellationToken cancellationToken)
+    {
+        List<PlayerOfficerRank> ranksToAdd = [];
+
+        foreach (DomainPlayer player in addedPlayers)
+        {
+            foreach (DomainType domain in MilitaryOrganisationDefaults.SeededDomains)
+            {
+                foreach (MilitaryOrganisationDefaults.RankDefault rank in MilitaryOrganisationDefaults.RanksForDomain(domain))
+                {
+                    ranksToAdd.Add(new PlayerOfficerRank
+                    {
+                        PlayerId = player.Id,
+                        MovementDomain = domain,
+                        Level = rank.Level,
+                        Title = rank.Title,
+                        MaxSoldiers = rank.MaxSoldiers,
+                        MaxAttachedSpecialists = rank.MaxAttachedSpecialists,
+                        InUse = true,
+                    });
+                }
+            }
+        }
+
+        context.PlayerOfficerRanks.AddRange(ranksToAdd);
+        await context.SaveChangesAsync(cancellationToken);
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 
 namespace AscendantEmpire.BackendContracts.UnitDesigns.UpsertTag;
@@ -23,4 +24,9 @@ public record UpsertTagDto
     /// Whether this tag is a structural classification or a bonus (buff/perk).
     /// </summary>
     public required TagType TagType { get; init; }
+
+    /// <summary>
+    /// The movement domain, for a MilitaryOrganisationalGroup tag. Must be null for any other tag type.
+    /// </summary>
+    public DomainType? MovementDomain { get; init; }
 }

@@ -121,6 +121,7 @@ export default function EntitySetupTool() {
         displayName: tag.displayName,
         description: tag.description,
         tagType: tag.tagType,
+        movementDomain: tag.movementDomain,
       };
 
       if (tag.id != null) {

@@ -4,6 +4,7 @@ using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Identity;
 using AscendantEmpire.Domain.Entities.Maps.BattleMaps;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
+using AscendantEmpire.Domain.Entities.Military;
 using AscendantEmpire.Domain.Entities.Resources;
 using AscendantEmpire.Domain.Entities.Structures;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
@@ -226,6 +227,23 @@ public class AscendantEmpireContext : DbContext
     #endregion
 
 
+    #region Military Schema
+    /// <summary>
+    /// Per-player officer rank ladders (one row per player / movement domain / level).
+    /// </summary>
+    public DbSet<PlayerOfficerRank> PlayerOfficerRanks { get; set; }
+
+    /// <summary>
+    /// Per-player organisation structures, each bound to a MilitaryOrganisationalGroup tag.
+    /// </summary>
+    public DbSet<PlayerOrganisationStructure> PlayerOrganisationStructures { get; set; }
+
+    /// <summary>
+    /// The tiers belonging to each player organisation structure.
+    /// </summary>
+    public DbSet<PlayerOrganisationStructureTier> PlayerOrganisationStructureTiers { get; set; }
+    #endregion
+
     #region System Schema
     /// <summary>
     /// Background process tracking records (exports, imports, etc.).
@@ -268,6 +286,8 @@ public class AscendantEmpireContext : DbContext
         ConfigureUnitSchema(modelBuilder);
 
         ConfigureUnitDesignSchema(modelBuilder);
+
+        ConfigureMilitarySchema(modelBuilder);
     }
 
     private static void ConfigureResourcesSchema(ModelBuilder modelBuilder)
@@ -1407,6 +1427,10 @@ public class AscendantEmpireContext : DbContext
                 .HasConversion<int>()
                 .IsRequired();
 
+            // Nullable — only organisation-group tags carry a domain; stored as the enum's int value.
+            entity.Property(e => e.MovementDomain)
+                .HasConversion<int>();
+
             entity.HasIndex(e => e.Code)
                 .IsUnique()
                 .HasDatabaseName("UX_Tag_Code");
@@ -1749,6 +1773,93 @@ public class AscendantEmpireContext : DbContext
         });
     }
 
+
+    /// <summary>
+    /// Configures the per-player military organisation tables: officer rank ladders and organisation
+    /// structures (with their tiers).
+    /// </summary>
+    private static void ConfigureMilitarySchema(ModelBuilder modelBuilder)
+    {
+        const string schema = "military";
+
+        // --- PlayerOfficerRank -----------------------------------------------------
+        modelBuilder.Entity<PlayerOfficerRank>(entity =>
+        {
+            entity.ToTable("PlayerOfficerRank", schema);
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.MovementDomain)
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.Property(e => e.Title)
+                .HasMaxLength(PlayerOfficerRank.TITLE_MAX_LENGTH)
+                .IsRequired();
+
+            // One row per player / domain / level — the natural key the save handler upserts against.
+            entity.HasIndex(e => new { e.PlayerId, e.MovementDomain, e.Level })
+                .IsUnique()
+                .HasDatabaseName("UX_PlayerOfficerRank_Player_Domain_Level");
+
+            // NoAction (not cascade): Player already sits at the head of several cascade paths, so cascading
+            // a player delete through here would create multiple cascade paths into Player.
+            entity.HasOne(e => e.Player)
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerOfficerRank_Player_PlayerId");
+        });
+
+        // --- PlayerOrganisationStructure -------------------------------------------
+        modelBuilder.Entity<PlayerOrganisationStructure>(entity =>
+        {
+            entity.ToTable("PlayerOrganisationStructure", schema);
+
+            entity.HasKey(e => e.Id);
+
+            // At most one structure per player per tag.
+            entity.HasIndex(e => new { e.PlayerId, e.TagId })
+                .IsUnique()
+                .HasDatabaseName("UX_PlayerOrganisationStructure_Player_Tag");
+
+            entity.HasOne(e => e.Player)
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerOrganisationStructure_Player_PlayerId");
+
+            // Restrict: a MilitaryOrganisationalGroup tag can't be deleted while a structure still points at it.
+            entity.HasOne(e => e.Tag)
+                .WithMany()
+                .HasForeignKey(e => e.TagId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_PlayerOrganisationStructure_Tag_TagId");
+
+            entity.HasMany(e => e.Tiers)
+                .WithOne(t => t.Structure)
+                .HasForeignKey(t => t.StructureId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_PlayerOrganisationStructureTier_Structure_StructureId");
+        });
+
+        // --- PlayerOrganisationStructureTier ---------------------------------------
+        modelBuilder.Entity<PlayerOrganisationStructureTier>(entity =>
+        {
+            entity.ToTable("PlayerOrganisationStructureTier", schema);
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Name)
+                .HasMaxLength(PlayerOrganisationStructureTier.NAME_MAX_LENGTH)
+                .IsRequired();
+
+            // One row per structure / tier index.
+            entity.HasIndex(e => new { e.StructureId, e.TierIndex })
+                .IsUnique()
+                .HasDatabaseName("UX_PlayerOrganisationStructureTier_Structure_TierIndex");
+        });
+    }
 
     /// <summary>
     /// Sets the precision and scale for all decimal properties in the model.

@@ -3,18 +3,20 @@
 
 import { http } from "@/api/http";
 
+import type { DomainType } from "../types/UnitComponent";
 import type { Tag, TagType } from "../types/Tag";
 
 /** The fields the create/update endpoints accept — a Tag without its server-assigned id. */
 export type TagUpsert = Omit<Tag, "id">;
 
-/** Server tag shape (GetTagsResult.Tags / TagView). Description is nullable server-side. */
+/** Server tag shape (GetTagsResult.Tags / TagView). Description and movement domain are nullable server-side. */
 interface TagViewWire {
   id: number;
   code: string;
   displayName: string;
   description: string | null;
   tagType: TagType;
+  movementDomain: DomainType | null;
 }
 
 /** Map a server TagView onto the editable Tag model (a missing description becomes an empty string). */
@@ -25,6 +27,7 @@ function mapTagViewToModel(wire: TagViewWire): Tag {
     displayName: wire.displayName,
     description: wire.description ?? "",
     tagType: wire.tagType,
+    movementDomain: wire.movementDomain ?? null,
   };
 }
 

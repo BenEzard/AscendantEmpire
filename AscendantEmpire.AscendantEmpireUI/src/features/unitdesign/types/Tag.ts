@@ -12,6 +12,8 @@ export type TagType = "Ability" | "Combat" | "Classification" | "Movement" | "Mi
 // Order follows the backend enum so dropdowns read the same as the design doc.
 export const TAG_TYPES: readonly TagType[] = ["Ability", "Combat", "Classification", "Movement", "MilitaryOrganisationalGroup"];
 
+import type { DomainType } from "./UnitComponent";
+
 /**
  * A single editable tag. `id` is null for a not-yet-saved tag (the backend assigns it on create).
  */
@@ -23,6 +25,11 @@ export interface Tag {
   /** Required — the backend rejects a tag whose description is blank. */
   description: string;
   tagType: TagType;
+  /**
+   * Movement domain — only meaningful for a MilitaryOrganisationalGroup tag (ties an organisation hierarchy
+   * to a domain). Null for every other tag type. The backend rejects a domain set on a non-organisation tag.
+   */
+  movementDomain: DomainType | null;
 }
 
 /** A blank tag for the "Add Tag" flow — defaults to a Classification. */
@@ -33,5 +40,6 @@ export function createEmptyTag(): Tag {
     displayName: "",
     description: "",
     tagType: "Classification",
+    movementDomain: null,
   };
 }

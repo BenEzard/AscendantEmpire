@@ -1,5 +1,6 @@
 using AscendantEmpire.BackendContracts.UnitDesigns.UpsertTag;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
+using AscendantEmpire.Domain.Enums.UnitDesigns;
 
 namespace AscendantEmpire.Application.Features.UnitComponents.Classes;
 
@@ -51,6 +52,20 @@ internal static class TagValidation
         if (!Enum.IsDefined(tag.TagType))
         {
             errors.Add("The tag has an undefined TagType value.");
+        }
+
+        // A movement domain is only meaningful for organisation-group tags (it ties an organisation hierarchy
+        // to a domain). Reject it on any other type, and reject an undefined enum value.
+        if (tag.MovementDomain.HasValue)
+        {
+            if (tag.TagType != TagType.MilitaryOrganisationalGroup)
+            {
+                errors.Add("A movement domain can only be set on a Military Organisational Group tag.");
+            }
+            else if (!Enum.IsDefined(tag.MovementDomain.Value))
+            {
+                errors.Add("The tag has an undefined MovementDomain value.");
+            }
         }
 
         return errors;

@@ -27,6 +27,11 @@ export interface SearchableComboBoxProps<T> {
   error?: string | null;
   /** Disables the input entirely. */
   disabled?: boolean;
+  /**
+   * Overrides the input's CSS classes. The default styling is tuned for a dark toolbar header (white text on
+   * a translucent fill); pass a light-field class set when placing the combo box on a light surface.
+   */
+  inputClassName?: string;
   /** Called with the picked item; the combo box then clears its text and closes. */
   onSelect: (item: T) => void;
 }
@@ -41,6 +46,7 @@ export default function SearchableComboBox<T>({
   loading = false,
   error = null,
   disabled = false,
+  inputClassName,
   onSelect,
 }: SearchableComboBoxProps<T>) {
   const [searchText, setSearchText] = useState("");
@@ -114,7 +120,10 @@ export default function SearchableComboBox<T>({
   return (
     <div ref={rootRef} className="relative inline-block">
       <input
-        className="rounded-md border border-white/20 bg-white/10 px-2 py-1 text-sm text-white placeholder-white/50 outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+        className={
+          inputClassName ??
+          "rounded-md border border-white/20 bg-white/10 px-2 py-1 text-sm text-white placeholder-white/50 outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+        }
         value={searchText}
         placeholder={placeholder}
         disabled={disabled}

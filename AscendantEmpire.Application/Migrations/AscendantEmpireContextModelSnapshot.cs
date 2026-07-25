@@ -945,6 +945,102 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("CampaignMapStartPosition", "mapgallery");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Military.PlayerOfficerRank", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("InUse")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MaxAttachedSpecialists")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MaxSoldiers")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MovementDomain")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerId", "MovementDomain", "Level")
+                        .IsUnique()
+                        .HasDatabaseName("UX_PlayerOfficerRank_Player_Domain_Level");
+
+                    b.ToTable("PlayerOfficerRank", "military");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Military.PlayerOrganisationStructure", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TagId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TagId");
+
+                    b.HasIndex("PlayerId", "TagId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_PlayerOrganisationStructure_Player_Tag");
+
+                    b.ToTable("PlayerOrganisationStructure", "military");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Military.PlayerOrganisationStructureTier", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Multiplier")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("StructureId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TierIndex")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StructureId", "TierIndex")
+                        .IsUnique()
+                        .HasDatabaseName("UX_PlayerOrganisationStructureTier_Structure_TierIndex");
+
+                    b.ToTable("PlayerOrganisationStructureTier", "military");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Resources.ResourceCategory", b =>
                 {
                     b.Property<int>("Id")
@@ -1524,6 +1620,9 @@ namespace AscendantEmpire.Application.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("MovementDomain")
+                        .HasColumnType("int");
 
                     b.Property<int>("TagType")
                         .HasColumnType("int");
@@ -2580,6 +2679,51 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("CampaignMapGalleryIndex");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Military.PlayerOfficerRank", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerOfficerRank_Player_PlayerId");
+
+                    b.Navigation("Player");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Military.PlayerOrganisationStructure", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerOrganisationStructure_Player_PlayerId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.Tag", "Tag")
+                        .WithMany()
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerOrganisationStructure_Tag_TagId");
+
+                    b.Navigation("Player");
+
+                    b.Navigation("Tag");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Military.PlayerOrganisationStructureTier", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Military.PlayerOrganisationStructure", "Structure")
+                        .WithMany("Tiers")
+                        .HasForeignKey("StructureId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerOrganisationStructureTier_Structure_StructureId");
+
+                    b.Navigation("Structure");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Resources.ResourceCategory", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.Resources.ResourceMetaCategory", "MetaCategory")
@@ -3074,6 +3218,11 @@ namespace AscendantEmpire.Application.Migrations
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignMapGalleryIndex", b =>
                 {
                     b.Navigation("StartPositions");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Military.PlayerOrganisationStructure", b =>
+                {
+                    b.Navigation("Tiers");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Resources.ResourceCategory", b =>

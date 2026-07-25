@@ -1,3 +1,4 @@
+using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 
 namespace AscendantEmpire.BackendContracts.UnitDesigns.GetTags;
@@ -20,4 +21,10 @@ public record TagView
     public string? Description { get; init; }
 
     public required TagType TagType { get; init; }
+
+    /// <summary>
+    /// The movement domain for a MilitaryOrganisationalGroup tag; null for other tag types (or an
+    /// organisation tag with no domain assigned yet).
+    /// </summary>
+    public DomainType? MovementDomain { get; init; }
 }

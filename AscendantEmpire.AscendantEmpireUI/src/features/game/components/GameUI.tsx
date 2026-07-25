@@ -7,9 +7,10 @@ import type { TileCell } from "@/features/map/components/TileTypes";
 import { useCampaignMapBiomesQuery } from "@/features/map/hooks/useCampaignMapBiomes";
 import { useCampaignMapGeographiesQuery } from "@/features/map/hooks/useCampaignMapGeographies";
 import { useTroopDisplayInfoQuery } from "@/features/map/hooks/useTroopDisplayInfo";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Spinner } from "@/components/ui";
 import UnitDesigner from "@/features/unitdesign/UnitDesigner";
+import MilitaryAdvisorDialog from "@/features/game/advisors/military/MilitaryAdvisorDialog";
 import OpenGameDialog from "./OpenGameDialog";
 import VisionSettingsOffcanvas from "./VisionSettingsOffcanvas";
 import { http } from "@/api/http";
@@ -63,6 +64,7 @@ function buildTiles2d(width: number, height: number, tiles: CampaignMapTileDto[]
 function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
+  const [showMilitaryAdvisor, setShowMilitaryAdvisor] = useState(false);
 
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const tileGridContainerRef = useRef<HTMLDivElement | null>(null);
@@ -182,6 +184,17 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const openNewGame = useCallback(() => setActiveDialog("newGame"), [setActiveDialog]);
   const openOpenGame = useCallback(() => setActiveDialog("openGame"), [setActiveDialog]);
   const toggleUnitDesign = useCallback(() => setActivePanel((p) => (p === "unit-design" ? null : "unit-design")), []);
+  const toggleMilitaryAdvisor = useCallback(() => setShowMilitaryAdvisor((shown) => !shown), []);
+  const closeMilitaryAdvisor = useCallback(() => setShowMilitaryAdvisor(false), []);
+
+  // Dismiss the Military Advisor when the game closes — its toolbar button is disabled without an
+  // open game, so an already-open dialog would otherwise be left showing stale, unreopenable state.
+  // Watching `gameSelection` rather than hooking `closeGame` covers any future path that clears it.
+  useEffect(() => {
+    if (gameSelection == null) {
+      setShowMilitaryAdvisor(false);
+    }
+  }, [gameSelection]);
 
   const onEndTurn = useCallback(async () => {
     if (gameId == null || playerId == null) return;
@@ -209,6 +222,8 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     unitDesignActive: activePanel === "unit-design",
     onToggleUnitDesign: toggleUnitDesign,
     onEndTurn,
+    militaryAdvisorActive: showMilitaryAdvisor,
+    onToggleMilitaryAdvisor: toggleMilitaryAdvisor,
   });
 
   return (
@@ -295,6 +310,8 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
             console.log("[GameUI] ResourceManager trade partners committed:", tradePartners);
           }}
         />
+
+        <MilitaryAdvisorDialog show={showMilitaryAdvisor} onClose={closeMilitaryAdvisor} />
 
         <ContextActionToolbar visible={selectedForce != null && contextActionToolbarActions.length > 0} actions={contextActionToolbarActions} />
 

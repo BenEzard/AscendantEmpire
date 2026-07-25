@@ -13,6 +13,8 @@ import { Alert, Button, CodeField, PagedDialog } from "@/components/ui";
 import { FieldRow, inputClass } from "./componentSetupFields";
 import { createEmptyTag, TAG_TYPES, type Tag, type TagType } from "@/features/unitdesign/types/Tag";
 import type { TagTypeInfo } from "@/features/unitdesign/types/TagType";
+import { DOMAIN_TYPES, type DomainType } from "@/features/unitdesign/types/UnitComponent";
+import { DOMAIN_TYPE_LABELS } from "@/components/game/domainLabels";
 
 interface TagSetupDialogProps {
   open: boolean;
@@ -126,7 +128,16 @@ export default function TagSetupDialog({ open, onCancel, initialTag, tagTypes, o
                 <select
                   className={inputClass}
                   value={tag.tagType}
-                  onChange={(e) => setTag((prev) => ({ ...prev, tagType: e.target.value as TagType }))}>
+                  onChange={(e) => {
+                    const nextType = e.target.value as TagType;
+                    // A movement domain is only valid on an organisation-group tag, so clear it when switching
+                    // away from that type (the backend would otherwise reject the pairing).
+                    setTag((prev) => ({
+                      ...prev,
+                      tagType: nextType,
+                      movementDomain: nextType === "MilitaryOrganisationalGroup" ? prev.movementDomain : null,
+                    }));
+                  }}>
                   {typeOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
@@ -134,6 +145,27 @@ export default function TagSetupDialog({ open, onCancel, initialTag, tagTypes, o
                   ))}
                 </select>
               </FieldRow>
+
+              {/* Movement Domain — only shown for organisation-group tags. It ties the organisation hierarchy
+                  built on this tag to a domain, so its tier depth is capped by that domain's rank ladder. */}
+              {tag.tagType === "MilitaryOrganisationalGroup" && (
+                <FieldRow label="Movement Domain" align="top">
+                  <select
+                    className={inputClass}
+                    value={tag.movementDomain ?? ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setTag((prev) => ({ ...prev, movementDomain: value === "" ? null : (value as DomainType) }));
+                    }}>
+                    <option value="">— none —</option>
+                    {DOMAIN_TYPES.map((domain) => (
+                      <option key={domain} value={domain}>
+                        {DOMAIN_TYPE_LABELS[domain]}
+                      </option>
+                    ))}
+                  </select>
+                </FieldRow>
+              )}
             </div>
           ),
         },
