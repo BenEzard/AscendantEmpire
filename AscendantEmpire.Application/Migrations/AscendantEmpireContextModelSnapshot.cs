@@ -1661,43 +1661,6 @@ namespace AscendantEmpire.Application.Migrations
                     b.HasKey("TagTypeId");
 
                     b.ToTable("TagType", "unitdesigns");
-
-                    b.HasData(
-                        new
-                        {
-                            TagTypeId = 0,
-                            Description = "A structural classification of a component, such as its family or role.",
-                            DisplayName = "Classification",
-                            IsInherited = false
-                        },
-                        new
-                        {
-                            TagTypeId = 1,
-                            Description = "A temporary or permanent enhancement or buff to combat.",
-                            DisplayName = "Combat",
-                            IsInherited = false
-                        },
-                        new
-                        {
-                            TagTypeId = 2,
-                            Description = "A temporary or permanent enhancement or buff to movement.",
-                            DisplayName = "Movement",
-                            IsInherited = false
-                        },
-                        new
-                        {
-                            TagTypeId = 3,
-                            Description = "A unique capability or function of a unit component.",
-                            DisplayName = "Ability",
-                            IsInherited = false
-                        },
-                        new
-                        {
-                            TagTypeId = 4,
-                            Description = "The organisational group this fits into when organising the military into hierarchy.",
-                            DisplayName = "Military Organisational Group",
-                            IsInherited = false
-                        });
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.TemplateSupersession", b =>

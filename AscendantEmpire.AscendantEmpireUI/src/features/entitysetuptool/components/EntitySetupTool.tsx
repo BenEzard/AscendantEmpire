@@ -2,13 +2,15 @@
 // This is a standalone dev tool like the Map Editor (no AuthGate) and is intentionally separate
 // from the game-side `unitdesign` feature. The real functionality will be filled in later.
 import { useEffect, useMemo, useState } from "react";
-import { FaPlus, FaTags } from "react-icons/fa6";
+import { FaDatabase, FaPlus, FaTags } from "react-icons/fa6";
 import { HiArrowPath, HiMagnifyingGlass, HiXMark } from "react-icons/hi2";
 import { GiGearHammer } from "react-icons/gi";
 
 import ToolBar from "@/components/ui/toolbar/Toolbar";
 import type { ToolBarGroup } from "@/components/ui/toolbar/Toolbar";
-import { SearchDrawer, SearchTable, Toast, ToastViewport } from "@/components/ui";
+import { Button, ExportDialog, Modal, ProgressOperationDialog, SearchDrawer, SearchTable, Toast, ToastViewport } from "@/components/ui";
+
+import { useDatabaseSeed } from "../hooks/useDatabaseSeed";
 
 import { bulkUpsertComponents, getComponent } from "@/features/unitdesign/api/componentsApi";
 import { getComponentList, type ComponentListRow } from "@/features/unitdesign/api/catalogApi";
@@ -49,6 +51,13 @@ export default function EntitySetupTool() {
   // global/common catalog template (saveAsGlobal) rather than a player-owned custom one, since this dev
   // tool never acquires a game/player token.
   const [showDesigner, setShowDesigner] = useState(false);
+
+  // Controls the confirmation modal opened by the Database group's "Seed" button.
+  const [showSeedConfirm, setShowSeedConfirm] = useState(false);
+
+  // Drives the database seed background process (initiate -> poll -> done/error). Progress and the terminal
+  // state are rendered by the ProgressOperationDialog (active/done) and the copyable ExportDialog (error).
+  const seed = useDatabaseSeed();
 
   // Success/error toast messages for template operations: the Unit Designer's Save button and the
   // toolbar's "Recompile All Templates" refresh.
@@ -302,10 +311,34 @@ export default function EntitySetupTool() {
           },
         ],
       },
+      {
+        caption: "Database",
+        buttons: [
+          {
+            key: "seed-database",
+            icon: <FaDatabase />,
+            tooltip: "Seed Database",
+            // Disabled while a seed is in flight so it can't be double-triggered. Opens a confirmation
+            // first; the actual seed starts only once the user confirms.
+            disabled: seed.isActive,
+            onClick: () => setShowSeedConfirm(true),
+          },
+        ],
+      },
     ],
-    // recompiling drives the refresh button's disabled state, so the groups rebuild when it flips.
-    [recompiling],
+    // recompiling and seed.isActive each drive a button's disabled state, so the groups rebuild when they flip.
+    [recompiling, seed.isActive],
   );
+
+  // Map the seed phase onto the two dialogs: the ProgressOperationDialog shows progress (active) and the
+  // success alert (done); the copyable ExportDialog shows the full server error text (error).
+  const seedProgressStatus: "active" | "done" | null =
+    seed.seedPhase.phase === "starting" || seed.seedPhase.phase === "polling"
+      ? "active"
+      : seed.seedPhase.phase === "done"
+        ? "done"
+        : null;
+  const seedErrorMessage = seed.seedPhase.phase === "error" ? seed.seedPhase.message : null;
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-900 text-slate-200">
@@ -417,6 +450,52 @@ export default function EntitySetupTool() {
           />
         </div>
       )}
+
+      {/* Database seed: confirmation before the (overwriting) seed runs. */}
+      <Modal
+        open={showSeedConfirm}
+        onClose={() => setShowSeedConfirm(false)}
+        title="Seed Database"
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowSeedConfirm(false)}>
+              No
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setShowSeedConfirm(false);
+                seed.startSeed();
+              }}>
+              Yes, Seed
+            </Button>
+          </>
+        }>
+        <p>
+          Seed the database with its initial values? Existing rows for the seeded tables (biomes, geographies,
+          tag types) will be overwritten to match the seed values.
+        </p>
+      </Modal>
+
+      {/* Seed progress + success. Errors are shown in the copyable ExportDialog below instead. */}
+      <ProgressOperationDialog
+        open={seedProgressStatus !== null}
+        title="Seeding Database"
+        operationLabel="Seeding initial values…"
+        progressPercent={seed.progressPercent}
+        status={seedProgressStatus ?? "active"}
+        successMessage="Database seeded successfully."
+        onClose={seed.resetSeed}
+      />
+
+      {/* Seed failure: full server error text in a dialog the user can copy. */}
+      <ExportDialog
+        show={seedErrorMessage !== null}
+        title="Database Seed — Error"
+        textBody={seedErrorMessage ?? undefined}
+        onClose={seed.resetSeed}
+      />
 
       <ToastViewport>
         <Toast open={componentSuccessMessage !== null} message={componentSuccessMessage} variant="success" onClose={() => setComponentSuccessMessage(null)} />

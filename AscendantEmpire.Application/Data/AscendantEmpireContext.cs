@@ -1471,45 +1471,10 @@ public class AscendantEmpireContext : DbContext
             entity.Property(e => e.Icon)
                 .HasMaxLength(TagTypeInfo.ICON_MAX_LENGTH);
 
-            // Seed one row per TagType enum member so the catalog is never empty and the Tag -> TagType FK
-            // is always satisfiable. Default display names/descriptions mirror the enum; colour/icon start
-            // unset and are filled in through the Tag Type manager.
-            entity.HasData(
-                new TagTypeInfo
-                {
-                    TagTypeId = TagType.Classification,
-                    DisplayName = "Classification",
-                    Description = "A structural classification of a component, such as its family or role.",
-                    IsInherited = false,
-                },
-                new TagTypeInfo
-                {
-                    TagTypeId = TagType.Combat,
-                    DisplayName = "Combat",
-                    Description = "A temporary or permanent enhancement or buff to combat.",
-                    IsInherited = false,
-                },
-                new TagTypeInfo
-                {
-                    TagTypeId = TagType.Movement,
-                    DisplayName = "Movement",
-                    Description = "A temporary or permanent enhancement or buff to movement.",
-                    IsInherited = false,
-                },
-                new TagTypeInfo
-                {
-                    TagTypeId = TagType.Ability,
-                    DisplayName = "Ability",
-                    Description = "A unique capability or function of a unit component.",
-                    IsInherited = false,
-                },
-                new TagTypeInfo
-                {
-                    TagTypeId = TagType.MilitaryOrganisationalGroup,
-                    DisplayName = "Military Organisational Group",
-                    Description = "The organisational group this fits into when organising the military into hierarchy.",
-                    IsInherited = false,
-                });
+            // Tag type rows are no longer seeded here via HasData — the database seed tool (EntitySetupTool
+            // -> Database -> Seed) now owns the initial TagType catalogue. See TagTypeSeedData /
+            // DatabaseSeedExecutor. A migration removes the previously HasData-seeded rows so this stays the
+            // single source of truth.
         });
 
         // --- UnitComponentTag (join) -----------------------------------------------

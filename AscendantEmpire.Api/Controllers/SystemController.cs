@@ -1,4 +1,5 @@
 using AscendantEmpire.Api.Utilities;
+using AscendantEmpire.Application.Features.DatabaseSeeding.Handlers;
 using AscendantEmpire.Application.Features.SystemMonitoring.Classes;
 using AscendantEmpire.Application.Features.SystemMonitoring.Handlers;
 using AscendantEmpire.FrontendContracts;
@@ -32,6 +33,28 @@ public class SystemController
     {
         ServiceResult<DTProcessingStatus> response = await mediator.Send(
             new GetProcessingStatusRequest(ProcessingId: processId), cancellationToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Dev tool: initiate seeding the database with its initial reference/catalogue values.
+    /// The seed runs asynchronously. Poll <c>GET /system/status?processId=X</c> for progress.
+    /// </summary>
+    /// <remarks>
+    /// Values come entirely from the backend's static seed-data classes; the request takes no body. The seed
+    /// is idempotent (upsert), so it is safe to re-run.
+    /// </remarks>
+    /// <response code="201">Seed job accepted. Returns the processId.</response>
+    /// <response code="500">Server error.</response>
+    [HttpPost("seed")]
+    [ProducesResponseType(typeof(int), 201)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> InitiateDatabaseSeedAsync(
+        [FromServices] IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        ServiceResult<int> response = await mediator.Send(new InitiateDatabaseSeedRequest(), cancellationToken);
 
         return response.ToActionResult();
     }

@@ -30,5 +30,10 @@ public enum ProcessType
     /// <summary>
     /// Import a unit-design catalogue from a previously exported zip file.
     /// </summary>
-    ImportCatalog = 6
+    ImportCatalog = 6,
+
+    /// <summary>
+    /// Seed the database with its initial reference/catalogue values (biomes, geographies, tag types, etc.).
+    /// </summary>
+    SeedDatabase = 7
 }

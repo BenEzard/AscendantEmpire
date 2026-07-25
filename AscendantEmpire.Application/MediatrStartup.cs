@@ -1,5 +1,6 @@
 ﻿using AscendantEmpire.Application.BackgroundServices;
 using AscendantEmpire.Application.Features.Authentication.Services;
+using AscendantEmpire.Application.Features.DatabaseSeeding.Executors;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Executors;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
@@ -52,6 +53,7 @@ public static class MediatrStartup
         services.AddScoped<IProcessExecutor, RenderCampaignMapPreviewExecutor>();
         services.AddScoped<IProcessExecutor, CatalogExportExecutor>();
         services.AddScoped<IProcessExecutor, CatalogImportExecutor>();
+        services.AddScoped<IProcessExecutor, DatabaseSeedExecutor>();
 
         return services;
     }
