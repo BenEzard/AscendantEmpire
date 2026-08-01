@@ -9,8 +9,6 @@ using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Turns;
 
-using FluentValidation.Results;
-
 using MediatR;
 
 using Microsoft.EntityFrameworkCore;
@@ -20,26 +18,20 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace AscendantEmpire.Tests.Features.Turns.Handlers;
 
 /// <summary>
-/// Unit tests for <see cref="CreateBattleTurnQueueRequestValidator"/>.
-/// Each test case exercises one of the four validation rules defined in the validator.
-/// No database or mediator is required — the validator is instantiated directly.
+/// Integration tests for <see cref="CreateBattleTurnQueueHandler"/>.
 /// </summary>
+/// <remarks>
+/// The handler writes the Battle, its participants and the turn queue inside an explicit transaction and leans on the game's foreign keys, so these tests
+/// need a real SQL Server. The validator's own rules are covered without a database in <see cref="CreateBattleTurnQueueRequestValidatorTests"/>.
+/// </remarks>
 [TestFixture]
 public class CreateBattleTurnQueueHandlerTests : GameSqlServerTestBase
 {
-    private CreateBattleTurnQueueRequestValidator _validator = null!;
     private CreateBattleTurnQueueHandler _handler = null!;
-
-    /// <summary>
-    /// Builds a valid request so individual tests can selectively break one field at a time.
-    /// </summary>
-    private static CreateBattleTurnQueueRequest ValidRequest() => new(GameId: 1, CampaignMapTileId: 1, PlayerIdsInTurnOrder: [1, 2]);
 
     [SetUp]
     public void SetUp()
     {
-        _validator = new CreateBattleTurnQueueRequestValidator();
-
         // Build a real IMediator wired with the handlers that CreateBattleTurnQueueHandler depends on.
         // DbFactory is initialised by SqlServerTestBase before this SetUp runs.
         ServiceProvider sp = new ServiceCollection()
@@ -55,75 +47,6 @@ public class CreateBattleTurnQueueHandlerTests : GameSqlServerTestBase
     private async Task SetupGameVariablesAsync(int mapWidth, int mapHeight)
     {
         await SeedGameAsync(mapWidth, mapHeight, 2);
-    }
-
-    [TestCase(0, Description = "GameId of zero fails the GreaterThan(0) rule.")]
-    [TestCase(-1, Description = "Negative GameId fails the GreaterThan(0) rule.")]
-    public void ShouldFailWhenGameIdIsNotGreaterThanZero(int invalidGameId)
-    {
-        CreateBattleTurnQueueRequest request = ValidRequest() with { GameId = invalidGameId };
-
-        ValidationResult result = _validator.Validate(request);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(result.IsValid, Is.False, "Validation should fail when GameId is not greater than zero.");
-            Assert.That(result.Errors.Select(e => e.ErrorMessage), Has.Some.EqualTo("Game Id is required."));
-        }
-    }
-
-    [TestCase(0, Description = "CampaignMapTileId of zero fails the GreaterThan(0) rule.")]
-    [TestCase(-1, Description = "Negative CampaignMapTileId fails the GreaterThan(0) rule.")]
-    public void ShouldFailWhenCampaignMapTileIdIsNotGreaterThanZero(int invalidTileId)
-    {
-        CreateBattleTurnQueueRequest request = ValidRequest() with { CampaignMapTileId = invalidTileId };
-
-        ValidationResult result = _validator.Validate(request);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(result.IsValid, Is.False, "Validation should fail when CampaignMapTileId is not greater than zero.");
-            Assert.That(result.Errors.Select(e => e.ErrorMessage), Has.Some.EqualTo("Campaign Map Tile Id is required."));
-        }
-    }
-
-    [Test]
-    public void ShouldFailWhenPlayerIdsInTurnOrderIsEmpty()
-    {
-        CreateBattleTurnQueueRequest request = ValidRequest() with { PlayerIdsInTurnOrder = [] };
-
-        ValidationResult result = _validator.Validate(request);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(result.IsValid, Is.False, "Validation should fail when PlayerIdsInTurnOrder is empty.");
-            Assert.That(result.Errors.Select(e => e.ErrorMessage), Has.Some.EqualTo("At least one Player is required to create a Battle Turn Queue."));
-        }
-    }
-
-    [Test]
-    public void ShouldFailWhenPlayerIdsInTurnOrderContainsDuplicates()
-    {
-        // Player Id 1 appears twice — violates the Distinct check.
-        CreateBattleTurnQueueRequest request = ValidRequest() with { PlayerIdsInTurnOrder = [1, 1, 2] };
-
-        ValidationResult result = _validator.Validate(request);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(result.IsValid, Is.False, "Validation should fail when PlayerIdsInTurnOrder contains duplicate ids.");
-            Assert.That(result.Errors.Select(e => e.ErrorMessage), Has.Some.EqualTo("Duplicate Player Ids are not allowed."));
-        }
-    }
-
-    [Test]
-    public void ShouldSucceedWhenRequestIsValid()
-    {
-        CreateBattleTurnQueueRequest request = ValidRequest();
-
-        ValidationResult result = _validator.Validate(request);
-
-        Assert.That(result.IsValid, Is.True, $"Validation should pass for a valid request. Errors: {string.Join(", ", result.Errors.Select(e => e.ErrorMessage))}");
     }
 
     [Test]

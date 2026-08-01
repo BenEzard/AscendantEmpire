@@ -14,8 +14,6 @@ using AscendantEmpire.BackendContracts.Turns.GetCurrentCampaignTurn;
 using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Enums.Turns;
 
-using FluentValidation.Results;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -28,11 +26,13 @@ namespace AscendantEmpire.Tests.Features.Turns.Handlers;
 /// <summary>
 /// Tests for <see cref="EndCampaignTurnHandler"/>.
 /// </summary>
+/// <remarks>
+/// The force-end path marks participants and queues completed with <c>ExecuteUpdateAsync</c>, which the in-memory provider cannot run, so these tests need
+/// a real SQL Server. The request validator's own rules are covered without a database in <see cref="EndCampaignTurnRequestValidatorTests"/>.
+/// </remarks>
 [TestFixture]
 public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
 {
-    private EndCampaignTurnRequestValidator _validator = null!;
-
     // ── mocked services ──────────────────────────────────────────────────────
     private IOpenGameService _openGameService = null!;
     private ICampaignTurnService _campaignTurnService = null!;
@@ -52,16 +52,9 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
     private int _participant1Id; // TurnOrder 1
     private int _participant2Id; // TurnOrder 2
 
-    /// <summary>
-    /// Builds a valid request so individual test cases can selectively break one field at a time.
-    /// </summary>
-    private static EndCampaignTurnRequest ValidRequest() => new(GameId: 1, PlayerId: 1, EndTurnMode: EndTurnMode.CheckForActions);
-
     [SetUp]
     public async Task SetUp()
     {
-        _validator = new EndCampaignTurnRequestValidator();
-
         // Seed a 2×2 map and 2 players so we have real FK-valid rows.
         await SeedGameAsync(2, 2, 2);
         _gameId = await SeedGameWithPlayersAsync(2);
@@ -199,76 +192,6 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
         _campaignTurnService
             .GetCurrentCampaignTurnAsync(_gameId, Arg.Any<CancellationToken>())
             .Returns(ServiceResult<CurrentCampaignTurn>.Succeed(currentTurn));
-    }
-
-    // =========================================================================
-    // Validator tests
-    // =========================================================================
-
-    // ── GameId ────────────────────────────────────────────────────────────────
-
-    [TestCase(0, Description = "GameId of zero fails the GreaterThan(0) rule.")]
-    [TestCase(-1, Description = "Negative GameId fails the GreaterThan(0) rule.")]
-    public void ShouldFailWhenGameIdIsNotGreaterThanZero(int invalidGameId)
-    {
-        EndCampaignTurnRequest request = ValidRequest() with { GameId = invalidGameId };
-
-        ValidationResult result = _validator.Validate(request);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(result.IsValid, Is.False, "Validation should fail when GameId is not greater than zero.");
-            Assert.That(result.Errors.Select(e => e.ErrorMessage), Has.Some.EqualTo("Game Id is required."));
-        }
-    }
-
-    // ── PlayerId ──────────────────────────────────────────────────────────────
-
-    [TestCase(0, Description = "PlayerId of zero fails the GreaterThan(0) rule.")]
-    [TestCase(-1, Description = "Negative PlayerId fails the GreaterThan(0) rule.")]
-    public void ShouldFailWhenPlayerIdIsNotGreaterThanZero(int invalidPlayerId)
-    {
-        EndCampaignTurnRequest request = ValidRequest() with { PlayerId = invalidPlayerId };
-
-        ValidationResult result = _validator.Validate(request);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(result.IsValid, Is.False, "Validation should fail when PlayerId is not greater than zero.");
-            Assert.That(result.Errors.Select(e => e.ErrorMessage), Has.Some.EqualTo("Player Id is required."));
-        }
-    }
-
-    // ── EndTurnMode ───────────────────────────────────────────────────────────
-
-    [TestCase(-1, Description = "Value -1 is not a defined EndTurnMode member.")]
-    [TestCase(99, Description = "Value 99 is not a defined EndTurnMode member.")]
-    public void ShouldFailWhenEndTurnModeIsNotAValidEnumValue(int invalidMode)
-    {
-        EndCampaignTurnRequest request = ValidRequest() with { EndTurnMode = (EndTurnMode)invalidMode };
-
-        ValidationResult result = _validator.Validate(request);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(result.IsValid, Is.False, "Validation should fail when EndTurnMode is not a valid enum value.");
-            Assert.That(result.Errors.Select(e => e.ErrorMessage), Has.Some.EqualTo("End Turn Mode is not valid."));
-        }
-    }
-
-    // ── Valid request ─────────────────────────────────────────────────────────
-
-    [TestCase(EndTurnMode.CheckForActions, Description = "CheckForActions is a valid EndTurnMode.")]
-    [TestCase(EndTurnMode.ForceEnd, Description = "ForceEnd is a valid EndTurnMode.")]
-    [TestCase(EndTurnMode.Developer_AllAboutMe, Description = "Developer_AllAboutMe is a valid EndTurnMode.")]
-    public void ShouldSucceedWhenRequestIsValid(EndTurnMode validMode)
-    {
-        EndCampaignTurnRequest request = ValidRequest() with { EndTurnMode = validMode };
-
-        ValidationResult result = _validator.Validate(request);
-
-        Assert.That(result.IsValid, Is.True,
-            $"Validation should pass for EndTurnMode.{validMode}. Errors: {string.Join(", ", result.Errors.Select(e => e.ErrorMessage))}");
     }
 
     // =========================================================================

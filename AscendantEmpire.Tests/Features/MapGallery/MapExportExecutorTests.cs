@@ -17,7 +17,13 @@ using Microsoft.Extensions.Options;
 
 namespace AscendantEmpire.Tests.Features.MapGallery;
 
-internal sealed class MapExportExecutorTests : SqlServerTestBase
+/// <summary>
+/// Integration tests for <see cref="MapExportExecutor"/>: it reads a map and serialises it into a zip.
+/// </summary>
+/// <remarks>
+/// The read-and-serialise path uses only plain EF queries and <c>SaveChanges</c> — no raw SQL or transactions — so the in-memory tier suffices.
+/// </remarks>
+internal sealed class MapExportExecutorTests : InMemoryTestBase
 {
     private string _tempDirectory = null!;
 

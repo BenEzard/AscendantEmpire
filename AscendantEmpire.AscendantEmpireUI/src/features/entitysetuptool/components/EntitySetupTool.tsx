@@ -413,6 +413,7 @@ export default function EntitySetupTool() {
         }}
         onCommit={handleComponentCommit}
         error={componentError}
+        tagTypes={tagTypes}
       />
 
       <TagSetupDialog

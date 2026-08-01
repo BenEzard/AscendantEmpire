@@ -3,7 +3,6 @@ using System.Text.RegularExpressions;
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.Resources;
-using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.Resources;
 using AscendantEmpire.Domain.Enums.Resources;
 

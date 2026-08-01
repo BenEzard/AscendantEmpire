@@ -14,6 +14,10 @@ import { useEffect, useState } from "react";
 
 import { Alert, Button, PagedDialog } from "@/components/ui";
 
+import { getTags } from "@/features/unitdesign/api/tagsApi";
+import type { Tag } from "@/features/unitdesign/types/Tag";
+import type { TagTypeInfo } from "@/features/unitdesign/types/TagType";
+
 import {
   createEmptyArmour,
   createEmptyBody,
@@ -42,9 +46,11 @@ interface ComponentSetupDialogProps {
   onCommit?: (component: UnitComponent) => void;
   /** API or validation error from the last commit attempt; shown as a danger alert above the sections. */
   error?: string | null;
+  /** Tag type metadata (colour/icon per type); feeds the Tags page's chip colouring. */
+  tagTypes: TagTypeInfo[];
 }
 
-export default function ComponentSetupDialog({ open, onCancel, initialComponent, onCommit, error }: ComponentSetupDialogProps) {
+export default function ComponentSetupDialog({ open, onCancel, initialComponent, onCommit, error, tagTypes }: ComponentSetupDialogProps) {
   // The working copy of the component being authored.
   const [component, setComponent] = useState<UnitComponent>(() => initialComponent ?? createEmptyComponent());
 
@@ -59,6 +65,12 @@ export default function ComponentSetupDialog({ open, onCancel, initialComponent,
   // the first page ("general") on every open.
   const [activeSection, setActiveSection] = useState("general");
 
+  // The global tag catalog the Tags page's combo box picks from. Fetched fresh on each open so a tag
+  // created earlier in the same tool session is immediately selectable. Loading/error feed the combo box.
+  const [availableTags, setAvailableTags] = useState<Tag[]>([]);
+  const [tagsLoading, setTagsLoading] = useState(false);
+  const [tagsError, setTagsError] = useState<string | null>(null);
+
   useEffect(() => {
     if (open) {
       setComponent(initialComponent ?? createEmptyComponent());
@@ -66,6 +78,40 @@ export default function ComponentSetupDialog({ open, onCancel, initialComponent,
       setActiveSection("general");
     }
   }, [open, initialComponent]);
+
+  // Load the tag catalog whenever the dialog opens. Kept separate from the reset effect above so the
+  // async result never races the model reset. A failure surfaces in the combo box (non-fatal).
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    let cancelled = false;
+    setTagsLoading(true);
+    setTagsError(null);
+    getTags()
+      .then((tags) => {
+        if (!cancelled) {
+          setAvailableTags(tags);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setTagsError("Failed to load tags.");
+          console.error("Failed to load tags.", err);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setTagsLoading(false);
+        }
+      });
+
+    // Ignore an in-flight load if the dialog closes (or reopens) before it resolves.
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   // Changing the component type makes sure the newly-active type has an extension object to edit, but
   // deliberately keeps the other extensions populated so toggling type never loses in-progress edits.
@@ -176,6 +222,10 @@ export default function ComponentSetupDialog({ open, onCancel, initialComponent,
               key={openInstance}
               tagCodes={component.tagCodes}
               onChange={(tagCodes) => setComponent((prev) => ({ ...prev, tagCodes }))}
+              availableTags={availableTags}
+              tagTypes={tagTypes}
+              loading={tagsLoading}
+              error={tagsError}
             />
           ),
         },

@@ -1,10 +1,8 @@
-﻿using AscendantEmpire.Domain.Entities.Assets._not_used_yet;
-using AscendantEmpire.Domain.Entities.Resources;
-using AscendantEmpire.Domain.Enums.Resources;
+﻿using AscendantEmpire.Domain.Enums.Resources;
 
 using System.ComponentModel.DataAnnotations;
 
-namespace AscendantEmpire.Domain.Entities.Assets;
+namespace AscendantEmpire.Domain.Entities.Resources;
 
 /// <summary>
 /// The actual resource, e.g. Oak, Marble, Coal, Small Game Meat.

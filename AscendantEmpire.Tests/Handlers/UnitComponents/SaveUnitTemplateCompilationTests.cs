@@ -1,5 +1,6 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
 using AscendantEmpire.BackendContracts.UnitDesigns.CatalogTransfer;
 using AscendantEmpire.BackendContracts.UnitDesigns.RecompileAllUnitTemplates;
@@ -49,6 +50,13 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
         services.AddDbContext<AscendantEmpireContext>(o => o.UseSqlServer(connectionString));
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<CreateUnitTemplateHandler>());
         services.AddLogging();
+
+        // The save handlers stamp each snapshot with the game's current campaign round via ICampaignTurnService, so it has to be resolvable
+        // or MediatR cannot activate them. CampaignTurnService opens its own contexts through a factory rather than sharing the scoped one,
+        // so the base class's DbFactory (already pointed at this test's database) is handed straight over.
+        services.AddSingleton(DbFactory);
+        services.AddScoped<ICampaignTurnService, CampaignTurnService>();
+
         _provider = services.BuildServiceProvider();
     }
 

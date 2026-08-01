@@ -14,13 +14,18 @@ using Microsoft.Extensions.Options;
 namespace AscendantEmpire.Tests.Features.MapGallery;
 
 /// <summary>
-/// Integration tests for <see cref="RenderCampaignMapPreviewExecutor"/> against a real SQL Server (Testcontainers).
+/// Integration tests for <see cref="RenderCampaignMapPreviewExecutor"/>.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Covers the happy path: the executor reloads a map's tiles, renders the preview PNGs, writes their paths back
 /// onto the index, and marks the Processing record Complete.
+/// </para>
+/// <para>
+/// The executor reads through plain EF queries and saves normally — the work that matters here is the SkiaSharp render — so the in-memory tier suffices.
+/// </para>
 /// </remarks>
-internal sealed class RenderCampaignMapPreviewExecutorTests : SqlServerTestBase
+internal sealed class RenderCampaignMapPreviewExecutorTests : InMemoryTestBase
 {
     private string _outputDirectory = null!;
 

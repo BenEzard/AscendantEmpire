@@ -21,10 +21,13 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Tests.Handlers.Military;
 
 /// <summary>
-/// Integration tests for the per-player military organisation handlers: officer rank ladders and
-/// organisation structures.
+/// Integration tests for the per-player military organisation handlers: officer rank ladders and organisation structures.
 /// </summary>
-internal class MilitaryHandlersTests : SqlServerTestBase
+/// <remarks>
+/// These handlers stick to plain EF LINQ, <c>Add</c>/<c>Remove</c> and <c>SaveChanges</c>, and enforce their rules (duplicate ranks, tier caps) in code
+/// rather than leaning on database constraints — so the in-memory tier suffices.
+/// </remarks>
+internal class MilitaryHandlersTests : InMemoryTestBase
 {
     private int _playerId;
 

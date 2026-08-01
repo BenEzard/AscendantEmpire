@@ -1,4 +1,6 @@
-﻿namespace AscendantEmpire.Domain.Entities.Assets._not_used_yet;
+﻿using AscendantEmpire.Domain.Entities.Resources;
+
+namespace AscendantEmpire.Domain.Entities.Assets._not_used_yet;
 
 /// <summary>
 /// Current amount of a resource in a given bank.

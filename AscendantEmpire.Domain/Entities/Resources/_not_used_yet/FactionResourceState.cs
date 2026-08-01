@@ -1,4 +1,5 @@
-﻿using AscendantEmpire.Domain.Entities.Resources._not_used_yet;
+﻿using AscendantEmpire.Domain.Entities.Resources;
+using AscendantEmpire.Domain.Entities.Resources._not_used_yet;
 
 namespace AscendantEmpire.Domain.Entities.Assets._not_used_yet;
 

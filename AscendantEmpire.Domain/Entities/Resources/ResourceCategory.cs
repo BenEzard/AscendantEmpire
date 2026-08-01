@@ -1,5 +1,4 @@
-﻿using AscendantEmpire.Domain.Entities.Assets;
-using AscendantEmpire.Domain.Enums.Resources;
+﻿using AscendantEmpire.Domain.Enums.Resources;
 
 namespace AscendantEmpire.Domain.Entities.Resources;
 

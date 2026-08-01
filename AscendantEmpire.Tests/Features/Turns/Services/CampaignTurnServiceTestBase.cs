@@ -1,6 +1,8 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Turns.Services;
+using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Turns;
+using AscendantEmpire.Domain.Enums.Games;
 using AscendantEmpire.Domain.Enums.Turns;
 
 using Microsoft.Extensions.Logging.Abstractions;
@@ -8,25 +10,73 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace AscendantEmpire.Tests.Features.Turns.Services;
 
 /// <summary>
-/// Shared setup and seeding helpers for <see cref="CampaignTurnService"/> integration tests.
-///
-/// Each test uses a real per-test SQL Server database (via <see cref="GameSqlServerTestBase"/>).
-/// The minimum game/player data is seeded through <see cref="GameSqlServerTestBase.SeedGameAsync"/>,
-/// and turn-queue rows are inserted directly so each test controls exactly the state it needs.
+/// Shared setup and seeding helpers for <see cref="CampaignTurnService"/> tests.
 /// </summary>
-public abstract class CampaignTurnServiceTestBase : GameSqlServerTestBase
+/// <remarks>
+/// <para>
+/// The service is read-only — every lookup is ordinary EF LINQ over the turn queue — so these tests sit on the in-memory tier rather than standing up a
+/// SQL Server container.
+/// </para>
+/// <para>
+/// Only a game, its players and the turn-queue rows are seeded. The service never looks at the campaign map, so no map or gallery data is created.
+/// Turn-queue rows are inserted directly, letting each test arrange exactly the state it needs without going through the setup service.
+/// </para>
+/// </remarks>
+public abstract class CampaignTurnServiceTestBase : InMemoryTestBase
 {
+    /// <summary>The number of players seeded into each test game, and therefore the number of participants in a seeded queue.</summary>
+    internal int _numberOfPlayers = 2;
+
     internal CampaignTurnService Service = null!;
 
     [SetUp]
-    public async Task SetUp()
+    public void SetUp()
     {
-        // 2×2 map, 2 players — keeps per-test DB work fast.
-        await SeedGameAsync(2, 2, 2);
-
         Service = new CampaignTurnService(
             new NullLogger<CampaignTurnService>(),
             DbFactory);
+    }
+
+    /// <summary>
+    /// Seeds a <see cref="GameIndex"/> with <paramref name="numberOfPlayers"/> active players.
+    /// </summary>
+    /// <returns>The Id of the seeded <see cref="GameIndex"/>.</returns>
+    protected async Task<int> SeedGameWithPlayersAsync(int numberOfPlayers)
+    {
+        await using AscendantEmpireContext ctx = await DbFactory.CreateDbContextAsync();
+
+        var game = new GameIndex
+        {
+            GameName = "Turn Service Test Game",
+            // No campaign map is seeded, so this points at nothing — the service never dereferences it.
+            CampaignMapIndexId = 0,
+            NumberOfPlayers = numberOfPlayers,
+            CreationStatus = GameCreationStatus.SetupInProgress,
+            PlayStatus = GamePlayStatus.SetupInProgress,
+            CreatedAt = DateTimeOffset.UtcNow,
+            HorizontalWrap = false,
+            VerticalWrap = false,
+            GenerationSeed = 0,
+            BattleMapSize = 50,
+        };
+        ctx.GameIndex.Add(game);
+        await ctx.SaveChangesAsync();
+
+        for (int playerNumber = 1; playerNumber <= numberOfPlayers; playerNumber++)
+        {
+            ctx.Players.Add(new Player
+            {
+                GameId = game.Id,
+                UserId = null,
+                RulerTitle = "King",
+                RulerName = $"Player {playerNumber}",
+                FactionName = $"Faction {playerNumber}",
+                Status = PlayerStatus.Active
+            });
+        }
+        await ctx.SaveChangesAsync();
+
+        return game.Id;
     }
 
     /// <summary>

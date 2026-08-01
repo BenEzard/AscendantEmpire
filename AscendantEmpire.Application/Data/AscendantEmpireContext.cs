@@ -1,5 +1,4 @@
-﻿using AscendantEmpire.Domain.Entities.Assets;
-using AscendantEmpire.Domain.Entities.Battles;
+﻿using AscendantEmpire.Domain.Entities.Battles;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Identity;
 using AscendantEmpire.Domain.Entities.Maps.BattleMaps;
@@ -12,7 +11,6 @@ using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Entities.Util;
-using AscendantEmpire.Domain.Enums.UnitDesigns;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;

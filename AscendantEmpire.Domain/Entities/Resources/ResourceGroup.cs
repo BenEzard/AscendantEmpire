@@ -1,6 +1,4 @@
-﻿using AscendantEmpire.Domain.Entities.Assets;
-
-namespace AscendantEmpire.Domain.Entities.Resources;
+﻿namespace AscendantEmpire.Domain.Entities.Resources;
 
 public sealed class ResourceGroup
 {

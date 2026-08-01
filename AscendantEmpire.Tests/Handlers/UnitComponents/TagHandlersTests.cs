@@ -16,7 +16,10 @@ namespace AscendantEmpire.Tests.Handlers.UnitComponents;
 /// flag: it defaults to false on create, an explicit value round-trips through create/get, and the
 /// update endpoint can change it.
 /// </summary>
-internal class TagHandlersTests : SqlServerTestBase
+/// <remarks>
+/// <c>Tag</c> is a flat entity and the handlers only do plain EF reads/writes, so the in-memory tier suffices.
+/// </remarks>
+internal class TagHandlersTests : InMemoryTestBase
 {
     /// <summary>
     /// Builds a minimal valid tag upsert (Code, DisplayName and TagType are the only required fields).
