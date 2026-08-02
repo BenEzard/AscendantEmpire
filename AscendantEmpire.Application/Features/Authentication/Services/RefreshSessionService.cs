@@ -1,6 +1,7 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Authentication.Classes;
 using AscendantEmpire.Domain.Entities.Identity;
+using AscendantEmpire.Domain.Enums.Authentication;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -74,6 +75,10 @@ internal class RefreshSessionService(
             .Select(u => u.Username)
             .FirstAsync(cancelToken);
 
+        // Re-read the grants on every rotation rather than carrying them over from the expiring token.
+        // This is what bounds how long a revoked permission keeps working: one access-token lifetime.
+        IReadOnlyCollection<PermissionType> permissions = await context.GetUserPermissionsAsync(session.UserId, cancelToken);
+
         // Rotate the token in place: a new secret replaces the old, keeping the same absolute
         // expiry so refreshing can't extend a session indefinitely.
         string newRawToken = GenerateRawToken();
@@ -82,7 +87,7 @@ internal class RefreshSessionService(
 
         await context.SaveChangesAsync(cancelToken);
 
-        return new RefreshedSession(session.Id, session.UserId, username, session.GameId, session.PlayerId, newRawToken);
+        return new RefreshedSession(session.Id, session.UserId, username, session.GameId, session.PlayerId, newRawToken, permissions);
     }
 
     public async Task UpdateGameContextAsync(int sessionId, int gameId, int playerId, CancellationToken cancelToken)

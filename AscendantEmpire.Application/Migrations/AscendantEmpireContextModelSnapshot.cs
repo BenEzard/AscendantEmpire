@@ -23,66 +23,6 @@ namespace AscendantEmpire.Application.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.Resource", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("IconPath")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<bool>("IsGradedResource")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("NeverLuxury")
-                        .HasColumnType("bit");
-
-                    b.Property<int?>("ResourceCategoryId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ResourceGrade")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ResourceGroupId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ResourceMetaCategoryId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique();
-
-                    b.HasIndex("DisplayName");
-
-                    b.HasIndex("ResourceCategoryId");
-
-                    b.HasIndex("ResourceGroupId");
-
-                    b.HasIndex("ResourceMetaCategoryId");
-
-                    b.ToTable("Resource", "resources", t =>
-                        {
-                            t.HasCheckConstraint("CK_Resource_GroupOrCategoryXor", "([ResourceGroupId] IS NOT NULL AND [ResourceCategoryId] IS NULL) OR ([ResourceGroupId] IS NULL AND [ResourceCategoryId] IS NOT NULL)");
-                        });
-                });
-
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.BackgroundProcessing.Processing", b =>
                 {
                     b.Property<int>("ProcessingId")
@@ -651,6 +591,32 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("Users", "auth");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Identity.UserPermission", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("GrantedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Permission")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Permission")
+                        .IsUnique()
+                        .HasDatabaseName("UX_UserPermission_User_Permission");
+
+                    b.ToTable("UserPermission", "auth");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.BattleMaps.BattleMap", b =>
                 {
                     b.Property<int>("Id")
@@ -1039,6 +1005,66 @@ namespace AscendantEmpire.Application.Migrations
                         .HasDatabaseName("UX_PlayerOrganisationStructureTier_Structure_TierIndex");
 
                     b.ToTable("PlayerOrganisationStructureTier", "military");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Resources.Resource", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("IconPath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsGradedResource")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("NeverLuxury")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("ResourceCategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ResourceGrade")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ResourceGroupId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ResourceMetaCategoryId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("DisplayName");
+
+                    b.HasIndex("ResourceCategoryId");
+
+                    b.HasIndex("ResourceGroupId");
+
+                    b.HasIndex("ResourceMetaCategoryId");
+
+                    b.ToTable("Resource", "resources", t =>
+                        {
+                            t.HasCheckConstraint("CK_Resource_GroupOrCategoryXor", "([ResourceGroupId] IS NOT NULL AND [ResourceCategoryId] IS NULL) OR ([ResourceGroupId] IS NULL AND [ResourceCategoryId] IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Resources.ResourceCategory", b =>
@@ -2305,31 +2331,6 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("Numbers", "util");
                 });
 
-            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.Resource", b =>
-                {
-                    b.HasOne("AscendantEmpire.Domain.Entities.Resources.ResourceCategory", "Category")
-                        .WithMany("Resources")
-                        .HasForeignKey("ResourceCategoryId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.HasOne("AscendantEmpire.Domain.Entities.Resources.ResourceGroup", "Group")
-                        .WithMany("Resources")
-                        .HasForeignKey("ResourceGroupId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.HasOne("AscendantEmpire.Domain.Entities.Resources.ResourceMetaCategory", "MetaCategory")
-                        .WithMany()
-                        .HasForeignKey("ResourceMetaCategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Category");
-
-                    b.Navigation("Group");
-
-                    b.Navigation("MetaCategory");
-                });
-
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Battles.Battle", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", "Game")
@@ -2562,6 +2563,17 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Identity.UserPermission", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Identity.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.BattleMaps.BattleMap", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.Maps.BattleMaps.BattleMapIndex", "Index")
@@ -2673,6 +2685,31 @@ namespace AscendantEmpire.Application.Migrations
                         .HasConstraintName("FK_PlayerOrganisationStructureTier_Structure_StructureId");
 
                     b.Navigation("Structure");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Resources.Resource", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Resources.ResourceCategory", "Category")
+                        .WithMany("Resources")
+                        .HasForeignKey("ResourceCategoryId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Resources.ResourceGroup", "Group")
+                        .WithMany("Resources")
+                        .HasForeignKey("ResourceGroupId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Resources.ResourceMetaCategory", "MetaCategory")
+                        .WithMany()
+                        .HasForeignKey("ResourceMetaCategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+
+                    b.Navigation("Group");
+
+                    b.Navigation("MetaCategory");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Resources.ResourceCategory", b =>

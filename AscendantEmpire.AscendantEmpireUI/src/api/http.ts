@@ -1,5 +1,6 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { clearAuth, getRefreshToken, getToken, updateTokens } from "./authToken";
+import type { PermissionType } from "@/features/system/types/Permission";
 
 // Use env first, fallback to local dev.
 export const http = axios.create({
@@ -32,6 +33,7 @@ type ApiErrorBody = {
 type RefreshResult = {
   token: string;
   refreshToken: string;
+  permissions: PermissionType[];
 };
 
 // A config we've already attempted to refresh-and-retry, so we don't loop forever.
@@ -40,6 +42,10 @@ type RetryableConfig = InternalAxiosRequestConfig & { _retried?: boolean };
 // Single-flight guard: while a refresh is in progress, concurrent 401s await this same promise
 // instead of each firing their own refresh (which would invalidate one another via rotation).
 let refreshPromise: Promise<string> | null = null;
+
+// Whether an unrecoverable 401 has already triggered a reload during this page load. Guards against a
+// reload loop when the request that 401'd is one the app fires again as soon as it mounts.
+let hasReloadedForAuth = false;
 
 /**
  * Exchanges the stored refresh token for a new access token, persists both, and returns the new
@@ -56,7 +62,9 @@ async function refreshAccessToken(): Promise<string> {
     refreshToken,
   });
 
-  updateTokens(data.token, data.refreshToken);
+  // The server re-reads permissions on every rotation, so this is where a grant or revocation made
+  // while the user was logged in finally reaches their browser.
+  updateTokens(data.token, data.refreshToken, data.permissions);
   return data.token;
 }
 
@@ -94,8 +102,15 @@ http.interceptors.response.use(
       }
     }
 
-    // A 401 we can't refresh away (no refresh token, or the retry also 401'd) means log out.
-    if (status === 401 && getToken()) {
+    // A 401 we can't refresh away (no refresh token, or the retry also 401'd) means log out. This
+    // deliberately doesn't require a token to already be held: a 401 arriving while logged out means
+    // something fired a request outside the gate, and the user should land on the login form rather
+    // than stare at an error toast with no way forward.
+    //
+    // The reload is one-shot per page load. Reloading unconditionally on every 401 would loop forever
+    // if whatever fired that request fires again on mount.
+    if (status === 401 && hasReloadedForAuth === false) {
+      hasReloadedForAuth = true;
       clearAuth();
       window.location.reload();
     }

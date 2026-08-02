@@ -3,11 +3,13 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Features.Maps.Biomes.Classes;
 using AscendantEmpire.Application.Features.Maps.Biomes.Handlers;
 using AscendantEmpire.BackendContracts.Biomes;
+using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Biomes.GetCampaignMapBiomes;
 
 using MediatR;
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
@@ -24,6 +26,7 @@ namespace AscendantEmpire.Api.Controllers
         /// <response code="201">Campaign Map Biomes successfully created</response>
         /// <response code="400">Validation error</response>
         /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+        [Authorize(Policy = nameof(PermissionType.MapEditor))]
         [HttpPost("campaign-map")]
         [ProducesResponseType(201)]
         [ProducesResponseType(400)]
@@ -43,6 +46,7 @@ namespace AscendantEmpire.Api.Controllers
         /// <response code="201">Campaign Map Biomes successfully upserted</response>
         /// <response code="400">Validation error</response>
         /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+        [Authorize(Policy = nameof(PermissionType.MapEditor))]
         [HttpPut("campaign-map")]
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]

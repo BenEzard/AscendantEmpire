@@ -6,6 +6,7 @@ using AscendantEmpire.Application.Features.Authentication.Handlers;
 using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.BackendContracts.Authentication;
 using AscendantEmpire.BackendContracts.Authentication.GetUsers;
+using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Authentication;
 
@@ -28,8 +29,9 @@ public class AuthController : ControllerBase
     /// </summary>
     /// <response code="200">Current auth users.</response>
     /// <response code="401">Missing or invalid token</response>
+    /// <response code="403">The caller does not hold the System panel permission</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [Authorize]
+    [Authorize(Policy = nameof(PermissionType.SystemPanel))]
     [HttpGet("users")]
     [ProducesResponseType(typeof(IReadOnlyCollection<AuthUser>), 200)]
     [ProducesResponseType(401)]
@@ -49,13 +51,15 @@ public class AuthController : ControllerBase
     /// <response code="204">User inactivity state updated.</response>
     /// <response code="400">Validation error</response>
     /// <response code="401">Missing or invalid token</response>
+    /// <response code="403">The caller does not hold the System panel permission</response>
     /// <response code="404">User not found</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [Authorize]
+    [Authorize(Policy = nameof(PermissionType.SystemPanel))]
     [HttpPost("users/inactive")]
     [ProducesResponseType(204)]
     [ProducesResponseType(typeof(IApiErrorResult), 400)]
     [ProducesResponseType(401)]
+    [ProducesResponseType(typeof(IApiErrorResult), 403)]
     [ProducesResponseType(typeof(IApiErrorResult), 404)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
     public async Task<IActionResult> SetUserInactiveAsync(
@@ -64,6 +68,37 @@ public class AuthController : ControllerBase
         CancellationToken cancelToken)
     {
         ServiceResultBase response = await mediator.Send(new SetUserInactiveRequest(request.UserId, request.InactiveReasonType), cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Replace the set of permissions granted to a user.
+    /// </summary>
+    /// <remarks>
+    /// The body carries the complete desired state, so any permission it omits is revoked. A changed permission reaches the affected user on their next
+    /// token refresh rather than immediately — their current access token keeps whatever it was minted with until it expires.
+    /// </remarks>
+    /// <response code="204">Permissions updated.</response>
+    /// <response code="400">Validation error</response>
+    /// <response code="401">Missing or invalid token</response>
+    /// <response code="403">The caller does not hold the System panel permission</response>
+    /// <response code="404">User not found</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.SystemPanel))]
+    [HttpPut("users/permissions")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(typeof(IApiErrorResult), 403)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> SetUserPermissionsAsync(
+        [FromServices] IMediator mediator,
+        [FromBody] SetUserPermissionsDto request,
+        CancellationToken cancelToken)
+    {
+        ServiceResultBase response = await mediator.Send(new SetUserPermissionsRequest(request.UserId, request.Permissions), cancelToken);
 
         return response.ToActionResult();
     }
@@ -172,6 +207,7 @@ public class AuthController : ControllerBase
             Username = context.Username,
             GameId = context.GameId,
             PlayerId = context.PlayerId,
+            Permissions = context.Permissions,
         };
 
         return response.ToActionResult(_ => body);
@@ -201,15 +237,16 @@ public class AuthController : ControllerBase
         }
 
         // A session that has entered a game gets a game-scoped token; otherwise a plain user token.
+        // Either way the permissions come from the rotation, which re-read them from the database.
         string token;
         if (refreshed.GameId is int gameId && refreshed.PlayerId is int playerId)
         {
-            GameContext context = new(refreshed.UserId, refreshed.Username, gameId, playerId);
+            GameContext context = new(refreshed.UserId, refreshed.Username, gameId, playerId, refreshed.Permissions);
             token = tokenService.CreateGameToken(context, refreshed.SessionId);
         }
         else
         {
-            AuthenticatedUser user = new(refreshed.UserId, refreshed.Username);
+            AuthenticatedUser user = new(refreshed.UserId, refreshed.Username, refreshed.Permissions);
             token = tokenService.CreateUserToken(user, refreshed.SessionId);
         }
 
@@ -220,6 +257,7 @@ public class AuthController : ControllerBase
             Username = refreshed.Username,
             GameId = refreshed.GameId,
             PlayerId = refreshed.PlayerId,
+            Permissions = refreshed.Permissions,
         };
 
         return Ok(body);
@@ -275,6 +313,7 @@ public class AuthController : ControllerBase
             Token = tokenService.CreateUserToken(user, issued.SessionId),
             RefreshToken = issued.RefreshToken,
             Username = user.Username,
+            Permissions = user.Permissions,
         };
 
         // Preserve the handler's status code (201 Created for register, 200 OK for login).

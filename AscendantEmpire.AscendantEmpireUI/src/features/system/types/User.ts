@@ -3,25 +3,32 @@
 // Mirrors the backend GetUsers contract (AscendantEmpire.BackendContracts.Authentication.GetUsers.AuthUser)
 // and the InactiveReasonType domain enum (AscendantEmpire.Domain.Enums.Authentication.InactiveReasonType).
 //
-// IMPORTANT: the API serializes enums as their NUMERIC value (System.Text.Json default — there is no
-// JsonStringEnumConverter registered in AscendantEmpire.Api). So InactiveReasonType travels over the
-// wire as a number both inbound (GET /auth/users) and outbound (POST /auth/users/inactive). We model
-// it numerically here so values round-trip without translation.
+// IMPORTANT: the API serializes enums as their NAME, not their numeric value — AscendantEmpire.Api/Program.cs
+// registers a JsonStringEnumConverter. So InactiveReasonType travels as e.g. "Active" both inbound
+// (GET /auth/users) and outbound (POST /auth/users/inactive), and is modelled as a string union here so values
+// round-trip without translation.
+
+import type { PermissionType } from "./Permission";
 
 /**
- * The reason an account is inactive, or `Active` while it is still usable. Values match the C#
- * `InactiveReasonType` enum exactly (PreActivation=0, Active=1, Quit=2, Banned=3, Deleted=4).
+ * The reason an account is inactive, or `Active` while it is still usable. Names match the C#
+ * `InactiveReasonType` enum exactly.
+ */
+export type InactiveReasonType = "PreActivation" | "Active" | "Quit" | "Banned" | "Deleted";
+
+/**
+ * The reason values by name.
+ *
+ * Kept as an object so call sites read as `InactiveReason.Banned` rather than a bare string literal, which makes a
+ * typo a compile error instead of a value that silently never matches.
  */
 export const InactiveReason = {
-  PreActivation: 0,
-  Active: 1,
-  Quit: 2,
-  Banned: 3,
-  Deleted: 4,
-} as const;
-
-/** A valid inactive-reason value (one of the numeric members of `InactiveReason`). */
-export type InactiveReasonType = (typeof InactiveReason)[keyof typeof InactiveReason];
+  PreActivation: "PreActivation",
+  Active: "Active",
+  Quit: "Quit",
+  Banned: "Banned",
+  Deleted: "Deleted",
+} as const satisfies Record<InactiveReasonType, InactiveReasonType>;
 
 /**
  * A single user as returned by GET /auth/users. Field names are camelCase to match the JSON the API
@@ -34,6 +41,8 @@ export interface AuthUser {
   createdAt: string;
   inactiveAt: string | null;
   inactiveReasonType: InactiveReasonType;
+  /** The capabilities currently granted. Returned with the list so the permissions dialog opens on data already held. */
+  permissions: PermissionType[];
 }
 
 /** Human-readable label for every reason, used when rendering a user's current status. */

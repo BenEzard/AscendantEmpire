@@ -4,11 +4,13 @@ using AscendantEmpire.Application.Features.Game.Classes;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.BackendContracts.Games.AddGame;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Games.GetOpenGames;
 
 using MediatR;
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
@@ -25,6 +27,7 @@ public class GamesController : ControllerBase
     /// <response code="201">Game successfully created</response>
     /// <response code="400">Validation error</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.CreateGame))]
     [HttpPost("setup")]
     [ProducesResponseType(201)]
     [ProducesResponseType(typeof(IApiErrorResult), 400)]

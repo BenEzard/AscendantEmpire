@@ -1,7 +1,9 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Authentication.Classes;
+using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.Domain.Entities.Identity;
+using AscendantEmpire.Domain.Enums.Authentication;
 
 using FluentValidation;
 
@@ -77,7 +79,11 @@ internal class LoginHandler(
 
             logger.LogInformation("User {Username} (Id {UserId}) logged in.", user.Username, user.Id);
 
-            return ServiceResult<AuthenticatedUser>.Succeed(new AuthenticatedUser(user.Id, user.Username));
+            // Read the grants now so the token the API mints carries them; a change made after this point
+            // takes effect on the user's next refresh.
+            IReadOnlyCollection<PermissionType> permissions = await context.GetUserPermissionsAsync(user.Id, cancelToken);
+
+            return ServiceResult<AuthenticatedUser>.Succeed(new AuthenticatedUser(user.Id, user.Username, permissions));
         }
         catch (Exception ex)
         {

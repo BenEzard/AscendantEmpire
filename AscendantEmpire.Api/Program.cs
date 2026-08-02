@@ -3,6 +3,7 @@ using AscendantEmpire.Api.Authentication;
 using AscendantEmpire.Api.Middleware.Validators;
 using AscendantEmpire.Application;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Domain.Enums.Authentication;
 
 using FluentValidation;
 
@@ -11,6 +12,7 @@ using Serilog;
 using MediatR;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -119,6 +121,11 @@ namespace AscendantEmpire.Api
             builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
             builder.Services.AddSingleton<ITokenService, JwtTokenService>();
 
+            // Grants every permission to the configured administrator when nobody holds SystemPanel yet, so a
+            // database with no administrator can still be administered. No-ops when the setting is blank.
+            builder.Services.Configure<BootstrapSettings>(builder.Configuration.GetSection(BootstrapSettings.SectionName));
+            builder.Services.AddHostedService<PermissionBootstrapService>();
+
             JwtSettings jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
                 ?? throw new InvalidOperationException("Missing 'Jwt' configuration section.");
 
@@ -147,9 +154,24 @@ namespace AscendantEmpire.Api
                     };
                 });
 
-            builder.Services.AddAuthorization();
+            // Deny by default. Without a fallback policy ASP.NET treats an action with no [Authorize] attribute as anonymous, which is how most of the API
+            // ended up publicly writable. Anything genuinely public now has to opt out in the open with [AllowAnonymous] — currently only register, login
+            // and refresh on AuthController, since you can't require a token to ask for one.
+            builder.Services.AddAuthorization(options =>
+            {
+                options.FallbackPolicy = new AuthorizationPolicyBuilder()
+                    .RequireAuthenticatedUser()
+                    .Build();
 
-            IServiceCollection services = builder.Services;
+                // One policy per permission, named after the enum member, so a controller can say
+                // [Authorize(Policy = nameof(PermissionType.MapEditor))] and get a compile-checked name rather than a
+                // string literal. Registering them in a loop means a new enum member can never be forgotten here.
+                foreach (PermissionType permission in Enum.GetValues<PermissionType>())
+                {
+                    options.AddPolicy(permission.ToString(),
+                        policy => policy.RequireClaim(AuthClaimTypes.Permission, permission.ToString()));
+                }
+            });
 
             var app = builder.Build();
 

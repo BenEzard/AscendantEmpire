@@ -1,4 +1,4 @@
-using AscendantEmpire.Api.Utilities;
+﻿using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.UnitComponents.Classes;
@@ -19,6 +19,7 @@ using AscendantEmpire.BackendContracts.UnitDesigns.SaveGlobalUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.UpsertTag;
 using AscendantEmpire.BackendContracts.UnitDesigns.UpsertTagType;
+using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.Domain.Enums.Processing;
 using AscendantEmpire.Domain.Enums.System;
 using AscendantEmpire.FrontendContracts;
@@ -50,6 +51,7 @@ public class UnitDesignController : ControllerBase
     /// <response code="201">All components were newly inserted; returns the added/updated summary</response>
     /// <response code="400">Validation error</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
     [HttpPost("components/bulk")]
     [ProducesResponseType(typeof(IBulkUpsertUnitComponentsResult), 200)]
     [ProducesResponseType(typeof(IBulkUpsertUnitComponentsResult), 201)]
@@ -311,6 +313,7 @@ public class UnitDesignController : ControllerBase
     /// <response code="404">The base or a fitted component code does not exist in the catalog</response>
     /// <response code="409">A template with the same code already exists</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
     [HttpPost("templates/global")]
     [ProducesResponseType(typeof(GlobalUnitTemplateView), 201)]
     [ProducesResponseType(typeof(IApiErrorResult), 400)]
@@ -339,6 +342,7 @@ public class UnitDesignController : ControllerBase
     /// <response code="404">No global template exists with the given id, or a referenced component code does not exist</response>
     /// <response code="409">Another template already uses the requested code</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
     [HttpPut("templates/global/{id:int}")]
     [ProducesResponseType(typeof(GlobalUnitTemplateView), 200)]
     [ProducesResponseType(typeof(IApiErrorResult), 400)]
@@ -368,6 +372,7 @@ public class UnitDesignController : ControllerBase
     /// </remarks>
     /// <response code="200">The recompilation ran; returns the recompiled count and any per-template failures</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
     [HttpPost("templates/recompile-all")]
     [ProducesResponseType(typeof(RecompileAllUnitTemplatesResult), 200)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
@@ -413,6 +418,7 @@ public class UnitDesignController : ControllerBase
     /// <response code="400">Validation error</response>
     /// <response code="409">A tag with the same code already exists</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
     [HttpPost("tags")]
     [ProducesResponseType(typeof(TagView), 201)]
     [ProducesResponseType(typeof(IApiErrorResult), 400)]
@@ -440,6 +446,7 @@ public class UnitDesignController : ControllerBase
     /// <response code="404">No tag exists with the given id</response>
     /// <response code="409">Another tag already uses the requested code</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
     [HttpPut("tags/{id:int}")]
     [ProducesResponseType(typeof(TagView), 200)]
     [ProducesResponseType(typeof(IApiErrorResult), 400)]
@@ -488,6 +495,7 @@ public class UnitDesignController : ControllerBase
     /// <response code="204">The tag types were upserted</response>
     /// <response code="400">Validation error</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
     [HttpPut("tag-types")]
     [ProducesResponseType(204)]
     [ProducesResponseType(typeof(IApiErrorResult), 400)]
@@ -514,6 +522,7 @@ public class UnitDesignController : ControllerBase
     /// <response code="201">Export job accepted. Returns the processId.</response>
     /// <response code="400">Nothing was selected to export.</response>
     /// <response code="500">Server error.</response>
+    [Authorize(Policy = nameof(PermissionType.SystemPanel))]
     [HttpPost("export")]
     [ProducesResponseType(typeof(int), 201)]
     [ProducesResponseType(typeof(IApiErrorResult), 400)]
@@ -535,6 +544,7 @@ public class UnitDesignController : ControllerBase
     /// <response code="200">Returns the export zip file.</response>
     /// <response code="404">Export not ready or processId not found.</response>
     /// <response code="500">Server error.</response>
+    [Authorize(Policy = nameof(PermissionType.SystemPanel))]
     [HttpGet("export/download")]
     [ProducesResponseType(200)]
     [ProducesResponseType(typeof(IApiErrorResult), 404)]
@@ -605,6 +615,7 @@ public class UnitDesignController : ControllerBase
     /// <response code="201">Import job accepted. Returns the processId.</response>
     /// <response code="400">No file supplied or the file is empty.</response>
     /// <response code="500">Server error.</response>
+    [Authorize(Policy = nameof(PermissionType.SystemPanel))]
     [HttpPost("import")]
     [RequestSizeLimit(50 * 1024 * 1024)]
     [ProducesResponseType(typeof(int), 201)]

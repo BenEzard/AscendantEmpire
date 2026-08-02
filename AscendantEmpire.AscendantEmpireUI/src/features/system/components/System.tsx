@@ -10,10 +10,12 @@ import ToolBar from "@/components/ui/toolbar/Toolbar";
 import type { ToolBarGroup } from "@/components/ui/toolbar/Toolbar";
 import { Alert, ProgressOperationDialog } from "@/components/ui";
 
-import { getUsers, setUserInactive } from "../api/usersApi";
+import { getUsers, setUserInactive, setUserPermissions } from "../api/usersApi";
 import { INACTIVATION_REASONS } from "../types/User";
 import type { AuthUser, InactiveReasonType } from "../types/User";
+import type { PermissionType } from "../types/Permission";
 import UsersTable from "./UsersTable";
+import UserPermissionsDialog from "./UserPermissionsDialog";
 import ExportSelectionDialog from "./ExportSelectionDialog";
 import { useCatalogExport, type CatalogExportPhase } from "../hooks/useCatalogExport";
 import { useCatalogImport, type CatalogImportPhase } from "../hooks/useCatalogImport";
@@ -56,6 +58,13 @@ export default function System() {
   const [users, setUsers] = useState<AuthUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // --- Permissions dialog state -----------------------------------------------------------------
+  // The user whose permissions are being edited (null when the dialog is closed), plus its own error and
+  // in-flight flag so a failed save can keep the dialog open with the edit intact.
+  const [permissionsUser, setPermissionsUser] = useState<AuthUser | null>(null);
+  const [permissionsError, setPermissionsError] = useState<string | null>(null);
+  const [savingPermissions, setSavingPermissions] = useState(false);
 
   // --- Files (catalogue export / import) state --------------------------------------------------
   // Controls the ExportSelectionDialog opened by the Files group's "Export" button, plus its error banner.
@@ -115,6 +124,28 @@ export default function System() {
     } catch (err) {
       console.error("Failed to update user status.", err);
       setError("Failed to update user status. See the console for details.");
+    }
+  };
+
+  // Saving permissions re-loads the list so the row's summary reflects what was actually persisted, then
+  // closes. On failure the dialog stays open with the message, so the edit isn't lost.
+  const handlePermissionsCommit = async (permissions: PermissionType[]) => {
+    if (permissionsUser == null) {
+      return;
+    }
+
+    setPermissionsError(null);
+    setSavingPermissions(true);
+
+    try {
+      await setUserPermissions(permissionsUser.id, permissions);
+      await loadUsers();
+      setPermissionsUser(null);
+    } catch (err) {
+      console.error("Failed to save user permissions.", err);
+      setPermissionsError(err instanceof Error ? err.message : "Failed to save permissions.");
+    } finally {
+      setSavingPermissions(false);
     }
   };
 
@@ -200,7 +231,15 @@ export default function System() {
 
           {error != null && <Alert variant="danger">{error}</Alert>}
 
-          <UsersTable users={users} loading={loading} onSetReason={handleSetReason} />
+          <UsersTable
+            users={users}
+            loading={loading}
+            onSetReason={handleSetReason}
+            onEditPermissions={(user) => {
+              setPermissionsError(null);
+              setPermissionsUser(user);
+            }}
+          />
         </div>
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-2">
@@ -211,6 +250,18 @@ export default function System() {
 
       {/* Hidden file input backing the Files group's Import button. */}
       <input ref={fileInputRef} type="file" accept=".zip" className="hidden" onChange={handleImportFileChange} />
+
+      <UserPermissionsDialog
+        open={permissionsUser != null}
+        user={permissionsUser}
+        saving={savingPermissions}
+        error={permissionsError}
+        onCancel={() => {
+          setPermissionsUser(null);
+          setPermissionsError(null);
+        }}
+        onCommit={handlePermissionsCommit}
+      />
 
       <ExportSelectionDialog
         open={showExportDialog}

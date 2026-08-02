@@ -20,6 +20,8 @@ interface UsersTableProps {
   loading: boolean;
   /** Called when an admin picks a new reason (or Reactivate) for a user. */
   onSetReason: (userId: number, reason: InactiveReasonType) => void;
+  /** Called when an admin opens the permissions dialog for a user. */
+  onEditPermissions: (user: AuthUser) => void;
 }
 
 /** Formats an ISO timestamp as a short local date/time, or an em dash when absent. */
@@ -45,7 +47,7 @@ function statusColors(active: boolean): { textColor: string; backgroundColor: st
   return { textColor: "#7f1d1d", backgroundColor: "#fecaca" };
 }
 
-export default function UsersTable({ users, loading, onSetReason }: UsersTableProps) {
+export default function UsersTable({ users, loading, onSetReason, onEditPermissions }: UsersTableProps) {
   // While the first load is in flight, show a spinner instead of an empty grid.
   if (loading && users.length === 0) {
     return (
@@ -70,6 +72,7 @@ export default function UsersTable({ users, loading, onSetReason }: UsersTablePr
             <th className="px-3 py-2 font-semibold">Email</th>
             <th className="px-3 py-2 font-semibold">Created</th>
             <th className="px-3 py-2 font-semibold">Status</th>
+            <th className="px-3 py-2 font-semibold">Permissions</th>
             <th className="px-3 py-2 font-semibold">Actions</th>
           </tr>
         </thead>
@@ -96,6 +99,21 @@ export default function UsersTable({ users, loading, onSetReason }: UsersTablePr
                   {active === false && (
                     <span className="ml-2 text-xs text-slate-500">{formatDate(user.inactiveAt)}</span>
                   )}
+                </td>
+                <td className="px-3 py-2">
+                  {/* Summarised rather than listed in full: five labels per row would crowd out the actions,
+                      and the dialog is one click away for the detail. */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400">
+                      {user.permissions.length === 0 ? "None" : `${user.permissions.length} granted`}
+                    </span>
+                    <Button
+                      variant="outline-secondary"
+                      className="px-2 py-1 text-xs"
+                      onClick={() => onEditPermissions(user)}>
+                      Edit
+                    </Button>
+                  </div>
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex flex-wrap items-center gap-2">

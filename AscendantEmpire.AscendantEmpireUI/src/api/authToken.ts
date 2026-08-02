@@ -10,6 +10,8 @@
 // token already is here. A more secure design keeps it in an httpOnly cookie, at the cost of CORS
 // credentials + CSRF handling. We keep localStorage for consistency with the current setup.
 
+import type { PermissionType } from "@/features/system/types/Permission";
+
 const STORAGE_KEY = "ae_auth";
 
 export type AuthState = {
@@ -20,6 +22,13 @@ export type AuthState = {
   // Present only once a game has been entered (game token).
   gameId?: number | null;
   playerId?: number | null;
+  // The capabilities the current token grants, returned alongside it by every auth endpoint.
+  //
+  // This drives what the UI offers — which pages open, which tools appear — and nothing more. It is
+  // as tamperable as anything else in localStorage, so the server never trusts it: every gated
+  // endpoint checks the permission claims inside the signed token instead. Optional because a state
+  // written by an older build won't have it.
+  permissions?: PermissionType[] | null;
 };
 
 /** Reads the full auth state, or null when logged out. */
@@ -56,18 +65,37 @@ export function getRefreshToken(): string | null {
 }
 
 /**
- * Replaces just the tokens after a refresh, keeping the rest of the auth state (username, game
- * context) intact. No-op when logged out.
+ * Replaces the tokens after a refresh, keeping the rest of the auth state (username, game context)
+ * intact. No-op when logged out.
+ *
+ * Permissions are refreshed alongside the tokens because the server re-reads them on every rotation —
+ * that is how a granted or revoked permission reaches an already-logged-in user without them having to
+ * log out. Omit them and the UI would keep offering a tool whose every call now 403s.
  */
-export function updateTokens(token: string, refreshToken: string): void {
+export function updateTokens(token: string, refreshToken: string, permissions?: PermissionType[] | null): void {
   const current = getAuth();
   if (!current) return;
 
-  setAuth({ ...current, token, refreshToken });
+  setAuth({ ...current, token, refreshToken, permissions: permissions ?? current.permissions });
 }
 
 /** True once a game token is held (the user has entered a game). */
 export function hasGameContext(): boolean {
   const auth = getAuth();
   return auth?.gameId != null && auth?.playerId != null;
+}
+
+/** The capabilities the current token grants, or an empty list when logged out. */
+export function getPermissions(): PermissionType[] {
+  return getAuth()?.permissions ?? [];
+}
+
+/**
+ * True when the logged-in user holds the given permission.
+ *
+ * A UI hint only — it decides what to show, never what is allowed. The server enforces the same rule
+ * from the token's claims, so a tampered localStorage buys nothing but a screen full of 403s.
+ */
+export function hasPermission(permission: PermissionType): boolean {
+  return getPermissions().includes(permission);
 }

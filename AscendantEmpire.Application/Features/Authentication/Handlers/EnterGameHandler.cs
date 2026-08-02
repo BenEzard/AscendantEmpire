@@ -1,7 +1,9 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Authentication.Classes;
+using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.Domain.Entities.Games;
+using AscendantEmpire.Domain.Enums.Authentication;
 
 using FluentValidation;
 
@@ -69,7 +71,10 @@ internal class EnterGameHandler(
 
             logger.LogInformation("User {UserId} entered game {GameId} as player {PlayerId}.", request.UserId, request.GameId, player.Id);
 
-            return ServiceResult<GameContext>.Succeed(new GameContext(request.UserId, username, request.GameId, player.Id));
+            // Permissions belong to the account, so the game token carries the same set the user token did.
+            IReadOnlyCollection<PermissionType> permissions = await context.GetUserPermissionsAsync(request.UserId, cancelToken);
+
+            return ServiceResult<GameContext>.Succeed(new GameContext(request.UserId, username, request.GameId, player.Id, permissions));
         }
         catch (Exception ex)
         {

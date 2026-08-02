@@ -2,10 +2,12 @@ using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Features.DatabaseSeeding.Handlers;
 using AscendantEmpire.Application.Features.SystemMonitoring.Classes;
 using AscendantEmpire.Application.Features.SystemMonitoring.Handlers;
+using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
 
 using MediatR;
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
@@ -47,6 +49,7 @@ public class SystemController
     /// </remarks>
     /// <response code="201">Seed job accepted. Returns the processId.</response>
     /// <response code="500">Server error.</response>
+    [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
     [HttpPost("seed")]
     [ProducesResponseType(typeof(int), 201)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]

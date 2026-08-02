@@ -4,11 +4,13 @@ using AscendantEmpire.Application.Features.Units.Classes;
 using AscendantEmpire.Application.Features.Units.Handlers;
 using AscendantEmpire.BackendContracts.Units.GetTroopDisplayInfo;
 using AscendantEmpire.BackendContracts.Units.Spawn;
+using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Units.GetTroopDisplayInfo;
 
 using MediatR;
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
@@ -24,6 +26,7 @@ public class UnitsController : ControllerBase
     /// </summary>
     /// <response code="201">End Turn</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
     [HttpPost("temporary-dev-only/spawn")]
     [ProducesResponseType(201)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]

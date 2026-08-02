@@ -50,6 +50,11 @@ internal class RegisterUserHandler(
     IPasswordHasher<User> passwordHasher
 ) : IRequestHandler<RegisterUserRequest, ServiceResult<AuthenticatedUser>>
 {
+    /// <summary>
+    /// What a brand-new account is granted: the two ordinary player capabilities, and nothing that reaches a developer tool.
+    /// </summary>
+    private static readonly IReadOnlyCollection<PermissionType> DefaultPermissions = [PermissionType.CreateGame, PermissionType.JoinGame];
+
     public async Task<ServiceResult<AuthenticatedUser>> Handle(RegisterUserRequest request, CancellationToken cancelToken)
     {
         try
@@ -82,9 +87,25 @@ internal class RegisterUserHandler(
             context.Users.Add(user);
             await context.SaveChangesAsync(cancelToken);
 
+            // Grant the two ordinary player capabilities so a new account can play straight away. The three
+            // developer-tool permissions are never automatic — someone with the System panel grants those.
+            DateTimeOffset grantedAt = DateTimeOffset.UtcNow;
+
+            foreach (PermissionType permission in DefaultPermissions)
+            {
+                context.UserPermissions.Add(new UserPermission
+                {
+                    UserId = user.Id,
+                    Permission = permission,
+                    GrantedAt = grantedAt,
+                });
+            }
+
+            await context.SaveChangesAsync(cancelToken);
+
             logger.LogInformation("Registered new user {Username} (Id {UserId}).", user.Username, user.Id);
 
-            return ServiceResult<AuthenticatedUser>.Created(new AuthenticatedUser(user.Id, user.Username));
+            return ServiceResult<AuthenticatedUser>.Created(new AuthenticatedUser(user.Id, user.Username, DefaultPermissions));
         }
         catch (Exception ex)
         {

@@ -98,6 +98,11 @@ public class AscendantEmpireContext : DbContext
     /// Server-side login sessions backing refresh tokens. Revocable, unlike the access token.
     /// </summary>
     public DbSet<RefreshSession> RefreshSessions { get; set; }
+
+    /// <summary>
+    /// Capabilities granted to users. A user holds a permission when a row exists for the pair.
+    /// </summary>
+    public DbSet<UserPermission> UserPermissions { get; set; }
     #endregion
 
     #region Resources Schema
@@ -737,6 +742,29 @@ public class AscendantEmpireContext : DbContext
 
             // Deleting a user takes their sessions with them (unlike Players, sessions are
             // disposable and carry no game state worth preserving).
+            entity.HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // --- UserPermission --------------------------------------------------------------
+        modelBuilder.Entity<UserPermission>(entity =>
+        {
+            entity.ToTable("UserPermission", schema);
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Permission).HasConversion<int>().IsRequired();
+
+            // A permission is held or it isn't, so the same pair must never appear twice. This is
+            // also the natural key the save handler upserts against.
+            entity.HasIndex(x => new { x.UserId, x.Permission })
+                .IsUnique()
+                .HasDatabaseName("UX_UserPermission_User_Permission");
+
+            // Grants are meaningless without the account, so they go when the user does — the same
+            // reasoning as RefreshSessions above.
             entity.HasOne(x => x.User)
                 .WithMany()
                 .HasForeignKey(x => x.UserId)

@@ -4,11 +4,13 @@ using AscendantEmpire.Application.Features.Maps.Geographies.Classes;
 using AscendantEmpire.Application.Features.Maps.Geographies.Handlers;
 using AscendantEmpire.BackendContracts.Geographies;
 using AscendantEmpire.BackendContracts.Geographies.AddCampaignMapGeography;
+using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Geographies.GetCampaignMapGeographies;
 
 using MediatR;
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
@@ -24,6 +26,7 @@ public class GeographyController : ControllerBase
     /// </summary>
     /// <response code="200">Campaign Map Geographies successfully created</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.MapEditor))]
     [HttpPost("campaign-map")]
     [ProducesResponseType(201)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
@@ -42,6 +45,7 @@ public class GeographyController : ControllerBase
     /// <response code="201">Campaign Map Geographies successfully upserted</response>
     /// <response code="400">Validation error</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.MapEditor))]
     [HttpPut("campaign-map")]
     [ProducesResponseType(204)]
     [ProducesResponseType(400)]

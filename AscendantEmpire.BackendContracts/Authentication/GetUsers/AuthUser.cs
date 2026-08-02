@@ -15,4 +15,12 @@ public record class AuthUser
     public DateTimeOffset? InactiveAt { get; init; }
 
     public InactiveReasonType InactiveReasonType { get; init; }
+
+    /// <summary>
+    /// The capabilities currently granted to this account.
+    /// </summary>
+    /// <remarks>
+    /// Included in the list rather than fetched per user, so the System panel's permissions dialog opens on data it already has.
+    /// </remarks>
+    public required IReadOnlyCollection<PermissionType> Permissions { get; init; }
 }

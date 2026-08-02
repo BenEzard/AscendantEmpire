@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Button, PagedDialog, Toast, ToastViewport, ToggleSwitch } from "@/components/ui";
-import axios from "axios";
+import { http } from "@/api/http";
 
 // ── Engine options ──────────────────────────────────────────────────────────
 
@@ -270,14 +270,9 @@ export default function NewCampaignMapDialog({ show, onClose, onSaveSuccess }: N
 
   const saveMutation = useMutation({
     mutationFn: async (request: AddCampaignMapRequest) => {
-      // Backend returns 201 with { galleryIndexId, processingId }.
-      const response = await axios.post<{ galleryIndexId: number; processingId: number }>(
-        "https://localhost:7242/map-gallery/add-campaign-map",
-        request,
-        {
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+      // Goes through the shared client so the bearer token is attached — this endpoint requires the
+      // Map Editor permission. Backend returns 201 with { galleryIndexId, processingId }.
+      const response = await http.post<{ galleryIndexId: number; processingId: number }>("/map-gallery/add-campaign-map", request);
       return response.data;
     },
     onSuccess: (data) => {
@@ -287,22 +282,10 @@ export default function NewCampaignMapDialog({ show, onClose, onSaveSuccess }: N
       onSaveSuccess({ processingId: data.processingId, mapName: form.mapName.trim() });
     },
     onError: (error: unknown) => {
-      let items: string[] = ["An unknown error occurred."];
-
-      if (axios.isAxiosError(error)) {
-        const data = error.response?.data;
-        if (Array.isArray(data?.errors)) {
-          items = data.errors as string[];
-        } else if (typeof data === "string") {
-          items = [data];
-        } else if (data?.message) {
-          items = [data.message as string];
-        } else if (error.message) {
-          items = [error.message as string];
-        }
-      } else if (error instanceof Error) {
-        items = [error.message];
-      }
+      // The shared client's response interceptor has already unwrapped the server's error body and
+      // rejected with a plain Error carrying the joined message, so there is no axios error to inspect
+      // here any more — reading error.message is the whole job.
+      const items: string[] = [error instanceof Error ? error.message : "An unknown error occurred."];
 
       setErrorItems(items);
       setShowErrorToast(true);

@@ -33,4 +33,13 @@ public static class AuthClaimTypes
     /// The player the user controls in the entered game. Present only in game-scoped tokens.
     /// </summary>
     public const string PlayerId = "playerId";
+
+    /// <summary>
+    /// One capability granted to the user, named after a <see cref="AscendantEmpire.Domain.Enums.Authentication.PermissionType"/> member.
+    /// </summary>
+    /// <remarks>
+    /// Unlike every other claim here this one is <b>multi-valued</b>: a user holding three permissions gets three separate claims of this type, which is
+    /// the form <c>RequireClaim</c> matches against. Read it with <c>FindAll</c>, never <c>FindFirst</c>.
+    /// </remarks>
+    public const string Permission = "permission";
 }

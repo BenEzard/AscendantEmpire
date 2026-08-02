@@ -1,4 +1,5 @@
 using AscendantEmpire.Application.Features.Authentication.Classes;
+using AscendantEmpire.Domain.Enums.Authentication;
 
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -26,6 +27,8 @@ public class JwtTokenService(IOptions<JwtSettings> settings) : ITokenService
             new Claim(AuthClaimTypes.SessionId, sessionId.ToString()),
         ];
 
+        AddPermissionClaims(claims, user.Permissions);
+
         return BuildToken(claims);
     }
 
@@ -41,7 +44,24 @@ public class JwtTokenService(IOptions<JwtSettings> settings) : ITokenService
             new Claim(AuthClaimTypes.PlayerId, context.PlayerId.ToString()),
         ];
 
+        AddPermissionClaims(claims, context.Permissions);
+
         return BuildToken(claims);
+    }
+
+    /// <summary>
+    /// Appends one claim per granted permission, named after the enum member.
+    /// </summary>
+    /// <remarks>
+    /// Repeated single-valued claims rather than one delimited value: that is what the policies built with <c>RequireClaim</c> match, and it keeps a
+    /// permission name from ever having to be escaped.
+    /// </remarks>
+    private static void AddPermissionClaims(List<Claim> claims, IReadOnlyCollection<PermissionType> permissions)
+    {
+        foreach (PermissionType permission in permissions)
+        {
+            claims.Add(new Claim(AuthClaimTypes.Permission, permission.ToString()));
+        }
     }
 
     /// <summary>

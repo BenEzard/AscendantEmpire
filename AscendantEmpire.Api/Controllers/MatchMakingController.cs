@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Features.MatchMaking.Classes;
 using AscendantEmpire.Application.Features.MatchMaking.Handlers;
 using AscendantEmpire.BackendContracts.MatchMaking;
+using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.MatchMaking;
 
@@ -80,6 +81,7 @@ public class MatchMakingController : ControllerBase
     /// <response code="404">The slot does not exist in that game</response>
     /// <response code="409">The slot is already taken, or the user already controls a player in that game</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.JoinGame))]
     [HttpPost("claim")]
     [ProducesResponseType(204)]
     [ProducesResponseType(typeof(IApiErrorResult), 400)]

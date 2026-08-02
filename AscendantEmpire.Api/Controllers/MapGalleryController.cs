@@ -12,6 +12,7 @@ using AscendantEmpire.BackendContracts.MapGallery.PutCampaignMapStartPositions;
 using AscendantEmpire.BackendContracts.MapGallery.SearchCampaignMap;
 using AscendantEmpire.BackendContracts.MapGallery.UpdateCampaignMapIndex;
 using AscendantEmpire.BackendContracts.MapGallery.UpdateCampaignMapTiles;
+using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.Domain.Enums.Processing;
 using AscendantEmpire.Domain.Enums.System;
 using AscendantEmpire.FrontendContracts;
@@ -24,6 +25,7 @@ using AscendantEmpire.FrontendContracts.MapGallery.UpdateCampaignMapTiles;
 
 using MediatR;
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -43,6 +45,7 @@ public class MapGalleryController
     /// <response code="201">Campaign Map successfully created</response>
     /// <response code="400">Validation error</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.MapEditor))]
     [HttpPost("add-campaign-map")]
     [ProducesResponseType(typeof(AddCampaignMapResponse), 201)]
     [ProducesResponseType(400)]
@@ -70,6 +73,7 @@ public class MapGalleryController
     /// <response code="200">Campaign Map successfully updated</response>
     /// <response code="400">Validation error</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.MapEditor))]
     [HttpPost("{id}/update")]
     [ProducesResponseType(200)]
     [ProducesResponseType(400)]
@@ -203,6 +207,7 @@ public class MapGalleryController
     /// <response code="400">Validation error</response>
     /// <response code="404">Campaign Map not found</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.MapEditor))]
     [HttpPut("{id:int}/start-positions")]
     [ProducesResponseType(typeof(ICampaignMapStartPositionCollection), 200)]
     [ProducesResponseType(typeof(IApiErrorResult), 400)]
@@ -282,6 +287,7 @@ public class MapGalleryController
     /// <response code="400">Validation error</response>
     /// <response code="404">Map gallery not found (or other not-found validation error)</response>
     /// <response code="500">Server error</response>
+    [Authorize(Policy = nameof(PermissionType.MapEditor))]
     [HttpPost("{id:int}/update-tiles")]
     [ProducesResponseType(typeof(IUpdateCampaignMapTilesResponse), 200)]
     [ProducesResponseType(typeof(IUpdateCampaignMapTilesResponse), 206)]
@@ -353,6 +359,7 @@ public class MapGalleryController
     /// <response code="201">Export job accepted. Returns the processId.</response>
     /// <response code="404">Map Gallery entry not found.</response>
     /// <response code="500">Server error.</response>
+    [Authorize(Policy = nameof(PermissionType.MapEditor))]
     [HttpPost("{id}/export")]
     [ProducesResponseType(typeof(int), 201)]
     [ProducesResponseType(typeof(IApiErrorResult), 404)]
@@ -375,6 +382,7 @@ public class MapGalleryController
     /// <response code="200">Returns the export zip file.</response>
     /// <response code="404">Export not ready or processId not found.</response>
     /// <response code="500">Server error.</response>
+    [Authorize(Policy = nameof(PermissionType.MapEditor))]
     [HttpGet("{id}/export/download")]
     [ProducesResponseType(200)]
     [ProducesResponseType(typeof(IApiErrorResult), 404)]
@@ -442,6 +450,7 @@ public class MapGalleryController
     /// <response code="201">Import job accepted. Returns the processId.</response>
     /// <response code="400">No file supplied or the file is empty.</response>
     /// <response code="500">Server error.</response>
+    [Authorize(Policy = nameof(PermissionType.MapEditor))]
     [HttpPost("import")]
     [RequestSizeLimit(50 * 1024 * 1024)]
     [ProducesResponseType(typeof(int), 201)]
@@ -644,6 +653,7 @@ public class MapGalleryController
     /// <response code="200">Campaign Maps successfully updated</response>
     /// <response code="400">Validation error</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.MapEditor))]
     [HttpPost("{id}/publish")]
     [ProducesResponseType(200)]
     [ProducesResponseType(400)]

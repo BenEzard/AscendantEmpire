@@ -1,3 +1,5 @@
+using AscendantEmpire.Domain.Enums.Authentication;
+
 namespace AscendantEmpire.FrontendContracts.Authentication;
 
 /// <summary>
@@ -20,4 +22,10 @@ public interface IAuthTokenResult
 
     int? GameId { get; }
     int? PlayerId { get; }
+
+    /// <summary>
+    /// The capabilities the accompanying token grants, so the client can hide tools the user cannot reach.
+    /// A hint for the UI only — every gate is enforced server-side from the token's own claims.
+    /// </summary>
+    IReadOnlyCollection<PermissionType> Permissions { get; }
 }

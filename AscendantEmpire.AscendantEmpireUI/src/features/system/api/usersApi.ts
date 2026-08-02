@@ -3,6 +3,7 @@
 
 import { http } from "@/api/http";
 
+import type { PermissionType } from "../types/Permission";
 import type { AuthUser, InactiveReasonType } from "../types/User";
 
 /**
@@ -20,4 +21,15 @@ export async function getUsers(): Promise<AuthUser[]> {
  */
 export async function setUserInactive(userId: number, reason: InactiveReasonType): Promise<void> {
   await http.post("/auth/users/inactive", { userId, inactiveReasonType: reason });
+}
+
+/**
+ * Replace a user's permissions. The list is the complete desired state, so anything omitted is revoked
+ * (an empty list strips them all). Responds 204 No Content on success.
+ *
+ * The change reaches the affected user on their next token refresh rather than immediately — their
+ * current access token keeps the permissions it was minted with until it expires.
+ */
+export async function setUserPermissions(userId: number, permissions: PermissionType[]): Promise<void> {
+  await http.put("/auth/users/permissions", { userId, permissions });
 }

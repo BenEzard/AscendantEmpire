@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { FaLocationDot, FaMountain, FaTree } from "react-icons/fa6";
 import { Spinner } from "@/components/ui";
-import { getCampaignMapPreviewUrl, type CampaignMapPreviewMode } from "@/features/mapgallery/api/mapGalleryApi";
+import { fetchCampaignMapPreview, type CampaignMapPreviewMode } from "@/features/mapgallery/api/mapGalleryApi";
 
 type Props = {
   selectedMapId: number | null;
@@ -13,12 +13,46 @@ type PreviewStatus = "idle" | "loading" | "loaded" | "missing";
 export default function SelectCampaignMapPreview({ selectedMapId, selectedMapName }: Props) {
   const [mode, setMode] = useState<CampaignMapPreviewMode>("biome");
   const [status, setStatus] = useState<PreviewStatus>(selectedMapId == null ? "idle" : "loading");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
+  // The preview endpoint needs a bearer token, which an <img src> cannot send, so the image is fetched
+  // through the shared client and shown from an object URL instead. The cleanup both aborts an in-flight
+  // request — so switching maps quickly can't leave a stale image winning the race — and revokes the URL,
+  // which the browser would otherwise hold in memory for the lifetime of the page.
   useEffect(() => {
-    setStatus(selectedMapId == null ? "idle" : "loading");
-  }, [selectedMapId, mode]);
+    if (selectedMapId == null) {
+      setStatus("idle");
+      setPreviewUrl(null);
+      return;
+    }
 
-  const previewUrl = selectedMapId == null ? null : getCampaignMapPreviewUrl(selectedMapId, mode);
+    setStatus("loading");
+
+    const abortController = new AbortController();
+    let objectUrl: string | null = null;
+
+    void (async () => {
+      try {
+        const blob = await fetchCampaignMapPreview(selectedMapId, mode, abortController.signal);
+
+        objectUrl = URL.createObjectURL(blob);
+        setPreviewUrl(objectUrl);
+      } catch {
+        // An abort lands here too, but the cleanup has already run and the component has moved on to a
+        // newer request, so setting "missing" is harmless — the newer request overwrites it.
+        setPreviewUrl(null);
+        setStatus("missing");
+      }
+    })();
+
+    return () => {
+      abortController.abort();
+
+      if (objectUrl != null) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [selectedMapId, mode]);
   const buttonClassName = (isActive: boolean) =>
     [
       "inline-flex h-8 w-8 items-center justify-center rounded border text-sm transition-colors",

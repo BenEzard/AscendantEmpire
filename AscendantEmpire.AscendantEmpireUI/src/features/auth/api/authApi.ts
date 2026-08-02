@@ -1,5 +1,6 @@
 import { http } from "@/api/http";
 import { getAuth, setAuth } from "@/api/authToken";
+import type { PermissionType } from "@/features/system/types/Permission";
 
 // Mirrors the API's IAuthTokenResult (camelCased by ASP.NET's JSON serializer).
 type AuthTokenResult = {
@@ -8,6 +9,7 @@ type AuthTokenResult = {
   username: string;
   gameId?: number | null;
   playerId?: number | null;
+  permissions: PermissionType[];
 };
 
 /**
@@ -16,7 +18,7 @@ type AuthTokenResult = {
  */
 export async function register(username: string, password: string, email?: string): Promise<AuthTokenResult> {
   const { data } = await http.post<AuthTokenResult>("/auth/register", { username, password, email });
-  setAuth({ token: data.token, refreshToken: data.refreshToken, username: data.username });
+  setAuth({ token: data.token, refreshToken: data.refreshToken, username: data.username, permissions: data.permissions });
   return data;
 }
 
@@ -25,7 +27,7 @@ export async function register(username: string, password: string, email?: strin
  */
 export async function login(username: string, password: string): Promise<AuthTokenResult> {
   const { data } = await http.post<AuthTokenResult>("/auth/login", { username, password });
-  setAuth({ token: data.token, refreshToken: data.refreshToken, username: data.username });
+  setAuth({ token: data.token, refreshToken: data.refreshToken, username: data.username, permissions: data.permissions });
   return data;
 }
 
@@ -37,12 +39,15 @@ export async function login(username: string, password: string): Promise<AuthTok
 export async function enterGame(gameId: number): Promise<AuthTokenResult> {
   const { data } = await http.post<AuthTokenResult>("/auth/enter-game", { gameId });
   const existingRefreshToken = getAuth()?.refreshToken ?? null;
+  // Note this rebuilds the state field by field rather than spreading the old one, so any field added to
+  // AuthState has to be listed here too or it is silently dropped on entering a game.
   setAuth({
     token: data.token,
     refreshToken: existingRefreshToken,
     username: data.username,
     gameId: data.gameId,
     playerId: data.playerId,
+    permissions: data.permissions,
   });
   return data;
 }
