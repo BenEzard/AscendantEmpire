@@ -24,6 +24,17 @@ public class UnitsController : ControllerBase
     /// <summary>
     /// Spawn a troop into a game and location.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This action takes the game and player from the request body on purpose, and is <b>not</b> a pattern to copy. It is a developer tool gated behind the
+    /// <see cref="PermissionType.EntitySetupTool"/> permission, and placing a unit into an arbitrary game for an arbitrary player is the whole point of it —
+    /// the caller is deliberately acting outside any game they have entered, so there is no token context to read.
+    /// </para>
+    /// <para>
+    /// Every game-scoped action elsewhere reads its identity from the token via <c>TryGetGameContext</c>. See <c>EndpointIdentityBindingTests</c>, which
+    /// enforces that and names this endpoint as one of a handful of justified exceptions.
+    /// </para>
+    /// </remarks>
     /// <response code="201">End Turn</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
@@ -52,15 +63,23 @@ public class UnitsController : ControllerBase
     /// Get the UnitDesign display information which maps the UnitDesignId to the image which should be shown on the map.
     /// </summary>
     /// <response code="201">End Turn</response>
+    /// <response code="403">The caller has not entered a game</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [HttpGet("{gameId}/display")]
+    [Authorize]
+    [HttpGet("display")]
     [ProducesResponseType(typeof(ITroopDisplayInfoCollection), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 403)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
     public async Task<IActionResult> GetUnitsAsync(
         [FromServices] IMediator mediator,
-        [FromRoute] int gameId,
         CancellationToken cancelToken)
     {
+        // The game comes from the token, so the caller can't read another game's troop display info.
+        if (!this.TryGetGameContext(out int gameId, out int _, out IActionResult? contextError))
+        {
+            return contextError!;
+        }
+
         ServiceResult<IReadOnlyCollection<TroopDisplayInfo>> response = await mediator.Send(new GetTroopDisplayInfoRequest(gameId), cancelToken);
 
         return response.ToActionResult(contract =>

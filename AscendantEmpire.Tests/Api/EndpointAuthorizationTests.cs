@@ -137,7 +137,7 @@ public sealed class EndpointAuthorizationTests
         "GET /turn/campaign",
         "POST /turn/end-campaign",
 
-        "GET /units/{gameId}/display",
+        "GET /units/display",
 
         "GET /unit-design/bodies",
         "GET /unit-design/catalog",

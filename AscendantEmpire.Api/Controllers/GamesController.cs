@@ -44,6 +44,17 @@ public class GamesController : ControllerBase
     /// <summary>
     /// Get a list of Open Games, or a specific one.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The <c>GameId</c> and <c>PlayerId</c> in the body are optional <i>filters</i>, not an identity claim, and they are not a pattern to copy. This is a
+    /// lobby listing reached <b>before</b> the caller has entered a game, so there is no game token to read them from, and it returns only what a lobby
+    /// shows anyway: game name, map size and the ruler labels of the active slots.
+    /// </para>
+    /// <para>
+    /// Every game-scoped action elsewhere reads its identity from the token via <c>TryGetGameContext</c>. See <c>EndpointIdentityBindingTests</c>, which
+    /// enforces that and names this endpoint as one of a handful of justified exceptions.
+    /// </para>
+    /// </remarks>
     /// <response code="200">List of Open Games</response>
     /// <response code="400">Validation error</response>
     /// <response code="404">Game or Player not found</response>

@@ -1,5 +1,7 @@
 import { http } from "@/api/http";
 
+// gameId/playerId are client-side only: they scope the React Query cache, and are deliberately NOT sent to the server.
+// The API reads both from the game token, so a request cannot ask about — or clear — another player's map.
 export type LoadPlayerCampaignMapRequest = {
   gameId: number;
   playerId: number;
@@ -207,9 +209,12 @@ export async function postPlayerCampaignMap(req: LoadPlayerCampaignMapRequest): 
 
   console.log("[API] POST /campaign-map/player", { baseUrl, req });
 
-  const { data } = await http.post<PlayerCampaignMapResponseWireDto>("/campaign-map/player", req, {
-    headers: { "Content-Type": "application/json" },
-  });
+  // Only loadWholeMap goes over the wire — the server takes the game and player from the token.
+  const { data } = await http.post<PlayerCampaignMapResponseWireDto>(
+    "/campaign-map/player",
+    { loadWholeMap: req.loadWholeMap ?? false },
+    { headers: { "Content-Type": "application/json" } },
+  );
 
   const normalizedResponse = normalizeResponse(data);
   logTroopTable(normalizedResponse);
@@ -228,7 +233,6 @@ export async function postClearPlayerCampaignMap(req: ClearPlayerCampaignMapRequ
   const baseUrl = http.defaults.baseURL ?? "";
   console.log("[API] POST /campaign-map/player/clear", { baseUrl, req });
 
-  await http.post("/campaign-map/player/clear", req, {
-    headers: { "Content-Type": "application/json" },
-  });
+  // No body: the server clears the caller's own map, identified by the token.
+  await http.post("/campaign-map/player/clear");
 }

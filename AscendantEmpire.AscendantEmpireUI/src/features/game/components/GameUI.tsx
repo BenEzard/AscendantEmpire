@@ -199,13 +199,13 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const onEndTurn = useCallback(async () => {
     if (gameId == null || playerId == null) return;
 
-    const payload = { gameId, playerId };
+    // No payload: the server ends the turn of whoever the token says the caller is.
     try {
-      await http.post("/turn/end", payload);
+      await http.post("/turn/end-campaign");
       // optional: only toggle after success
       setActivePanel((p) => (p === "unit-design" ? null : "unit-design"));
     } catch (err) {
-      console.error("POST /turn/end failed", err);
+      console.error("POST /turn/end-campaign failed", err);
     }
   }, [gameId, playerId]);
 

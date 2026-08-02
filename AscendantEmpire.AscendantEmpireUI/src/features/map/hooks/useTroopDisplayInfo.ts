@@ -11,7 +11,9 @@ export function useTroopDisplayInfoQuery(gameId: number | undefined, enabled: bo
     refetchOnWindowFocus: false,
     queryFn: async () => {
       if (gameId == null) throw new Error("gameId is null");
-      const troopDisplayInfo = await getTroopDisplayInfo(gameId);
+
+      // gameId is only the cache key here — the request itself carries no game, because the server reads it from the token.
+      const troopDisplayInfo = await getTroopDisplayInfo();
       return buildTroopImageSrcByUnitDesignId(troopDisplayInfo);
     },
   });
