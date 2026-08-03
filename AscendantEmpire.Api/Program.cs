@@ -120,8 +120,20 @@ namespace AscendantEmpire.Api
             builder.Services.Configure<AscendantEmpire.Application.Options.BackgroundProcessingSettings>(
                 builder.Configuration.GetSection("BackgroundProcessingSettings"));
 
+            // The base appsettings.json deliberately carries no connection string, so that no single machine's SQL Server becomes the silent fallback for
+            // every environment. That only helps if a missing value is noticed: UseSqlServer accepts null and defers the failure to the first query, which
+            // would surface as a broken request long after startup. Check it here instead, matching the fail-fast treatment Jwt:SigningKey gets below.
+            string? databaseConnectionString = builder.Configuration.GetConnectionString("AscendantEmpireDatabase");
+
+            if (string.IsNullOrWhiteSpace(databaseConnectionString))
+            {
+                throw new InvalidOperationException(
+                    "ConnectionStrings:AscendantEmpireDatabase is not configured. Set it via user-secrets, an environment variable "
+                    + "(ConnectionStrings__AscendantEmpireDatabase), or the environment's appsettings file.");
+            }
+
             builder.Services.AddDbContextFactory<AscendantEmpireContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("AscendantEmpireDatabase"))
+                options.UseSqlServer(databaseConnectionString)
             );
 
             // --- Authentication ----------------------------------------------------------------
