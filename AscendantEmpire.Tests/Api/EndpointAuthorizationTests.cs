@@ -379,13 +379,14 @@ public sealed class EndpointAuthorizationTests
     }
 
     /// <summary>
-    /// Issues a bodyless request to a route pattern and returns the status, or null when the request reached application code and threw.
+    /// Issues a bodyless request to a route pattern and returns the status, or null when the request failed before a response could be read.
     /// </summary>
     /// <remarks>
-    /// The API registers no exception-handling middleware, so <c>TestServer</c> rethrows whatever a handler throws rather than turning it into a 500. Here
-    /// that is a signal rather than a problem: these tests send no request body and run against a database that does not exist, so a handler that is reached
-    /// at all is expected to fail. What the caller needs to know is that the request got <i>past</i> authorization, which is exactly what an exception
-    /// proves — so it is reported as "no status" and each test decides whether that counts for or against it.
+    /// These tests send no request body and run against a database that does not exist, so a handler that is reached at all is expected to fail. What the
+    /// caller needs to know is only that the request got <i>past</i> authorization — and since <c>GlobalExceptionHandler</c> was added, that shows up as a
+    /// <b>500</b> rather than as an exception, because the pipeline now turns anything escaping a handler into a response. Each test decides for itself
+    /// whether a 500 counts for or against it. The <c>catch</c> below is a transport-level backstop that should no longer fire; a null status now means
+    /// something went wrong that the exception handling middleware could not answer, which is worth seeing named in a failure message.
     /// </remarks>
     private static async Task<HttpStatusCode?> SendAsync(HttpClient client, string httpMethod, RoutePattern routePattern)
     {
@@ -404,11 +405,11 @@ public sealed class EndpointAuthorizationTests
     }
 
     /// <summary>
-    /// Renders a status for a failure message, naming the "reached a handler and threw" case explicitly.
+    /// Renders a status for a failure message, naming the "no response at all" case explicitly.
     /// </summary>
     private static string DescribeStatus(HttpStatusCode? status)
     {
-        return status is null ? "no status (the request reached a handler and threw)" : $"{(int)status} {status}";
+        return status is null ? "no status (the request failed without a response, which the global exception handler should have prevented)" : $"{(int)status} {status}";
     }
 
     /// <summary>

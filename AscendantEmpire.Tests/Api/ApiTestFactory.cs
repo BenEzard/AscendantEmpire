@@ -2,7 +2,9 @@ using AscendantEmpire.Api.Authentication;
 using AscendantEmpire.Application.Features.Authentication.Classes;
 using AscendantEmpire.Domain.Enums.Authentication;
 
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 
 using System.Net.Http.Headers;
@@ -67,6 +69,22 @@ public sealed class ApiTestFactory : WebApplicationFactory<AscendantEmpire.Api.P
         {
             Environment.SetEnvironmentVariable(setting.Key, setting.Value);
         }
+    }
+
+    /// <summary>
+    /// Replaces or adds registrations for a single fixture, after the application's own services have been registered.
+    /// </summary>
+    /// <remarks>
+    /// The alternative, <c>WithWebHostBuilder</c>, hands back a plain <see cref="WebApplicationFactory{TEntryPoint}"/> and with it the two client helpers
+    /// below — a fixture that swapped a service would then have to mint its own token. Set this instead, before the first client is created.
+    /// </remarks>
+    public Action<IServiceCollection>? ConfigureAdditionalTestServices { get; init; }
+
+    /// <inheritdoc />
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        // ConfigureTestServices runs last, so anything registered here wins the resolution that GetRequiredService performs.
+        builder.ConfigureTestServices(services => ConfigureAdditionalTestServices?.Invoke(services));
     }
 
     /// <summary>

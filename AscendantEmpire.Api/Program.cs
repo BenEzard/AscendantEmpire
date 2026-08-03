@@ -1,5 +1,6 @@
 
 using AscendantEmpire.Api.Authentication;
+using AscendantEmpire.Api.Middleware.ExceptionHandling;
 using AscendantEmpire.Api.Middleware.Validators;
 using AscendantEmpire.Application;
 using AscendantEmpire.Application.Data;
@@ -86,7 +87,10 @@ namespace AscendantEmpire.Api
                 options.AddPolicy("AllowReactApp",
                     policy => policy.WithOrigins("http://localhost:5173")
                     .AllowAnyMethod()
-                    .AllowAnyHeader());
+                    .AllowAnyHeader()
+                    // AllowAnyHeader governs which *request* headers the browser may send. A response header stays invisible to JavaScript unless it is named
+                    // here, so without this line the correlation id on an error response could be read by curl and Swagger but not by the app that needs it.
+                    .WithExposedHeaders(GlobalExceptionHandler.CorrelationIdHeaderName));
             });
 
             // Auto-register MediatR handlers 
@@ -96,6 +100,10 @@ namespace AscendantEmpire.Api
             builder.Services.AddValidatorsFromAssembly(typeof(MediatrStartup).Assembly, includeInternalTypes: true);
 
             builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>));
+
+            // Turns anything that escapes a handler into the { errors: [] } contract the frontend reads, instead of the framework default (a text/plain stack
+            // trace in Development, an empty 500 in Production). Registered as a singleton by AddExceptionHandler, so it may only depend on singletons.
+            builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
             builder.Services.AddApplicationServices();
 
@@ -176,6 +184,20 @@ namespace AscendantEmpire.Api
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
+
+            // First, so it wraps every middleware below it as well as the endpoints themselves. Keeping UseCors inside it is what lets the browser read an
+            // error response at all: the CORS middleware applies its headers from an OnStarting callback, and that callback survives the Response.Clear() the
+            // exception handling middleware performs before it hands over.
+            //
+            // The options object is not optional. UseExceptionHandler() throws at startup unless ExceptionHandler, ExceptionHandlingPath or a registered
+            // IProblemDetailsService is present, and registered IExceptionHandler services do not satisfy that check. Naming our own fallback rather than
+            // calling AddProblemDetails() keeps every error body in the DTApiErrorResult shape; ProblemDetails would emit application/problem+json, which the
+            // frontend cannot read. GlobalExceptionHandler still runs first and handles everything, so the fallback is a safety net rather than a code path.
+            app.UseExceptionHandler(new ExceptionHandlerOptions
+            {
+                ExceptionHandler = GlobalExceptionHandler.WriteFallbackResponseAsync,
+            });
+
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
