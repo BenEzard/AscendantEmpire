@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { getTroopDisplayInfo } from "@/features/map/api/troopDisplayApi";
-import { buildTroopImageSrcByUnitDesignId } from "@/features/map/util/troopDisplayImageResolver";
+import { buildTroopImageSrcByUnitTemplateId } from "@/features/map/util/troopDisplayImageResolver";
 
 export const troopDisplayInfoKey = (gameId: number | undefined) => ["troopDisplayInfo", gameId] as const;
 
@@ -14,7 +14,7 @@ export function useTroopDisplayInfoQuery(gameId: number | undefined, enabled: bo
 
       // gameId is only the cache key here — the request itself carries no game, because the server reads it from the token.
       const troopDisplayInfo = await getTroopDisplayInfo();
-      return buildTroopImageSrcByUnitDesignId(troopDisplayInfo);
+      return buildTroopImageSrcByUnitTemplateId(troopDisplayInfo);
     },
   });
 }

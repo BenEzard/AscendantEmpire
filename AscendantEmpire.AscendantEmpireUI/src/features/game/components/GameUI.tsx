@@ -1,4 +1,4 @@
-import ToolBar from "@/components/ui/toolbar/Toolbar";
+﻿import ToolBar from "@/components/ui/toolbar/Toolbar";
 import ResourceManagerDialog from "@/features/game/resources/manager/ResourceManagerDialog";
 import { usePlayerCampaignMapTilesQuery } from "@/features/map/hooks/useCampaignMapTiles";
 import TileGrid, { TILE_SIZE_PX } from "@/features/map/components/TileGrid";
@@ -112,7 +112,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     isLoading: tilesLoading,
     isFetching: tilesFetching,
   } = usePlayerCampaignMapTilesQuery(gameId, playerId, tilesEnabled);
-  const { data: troopImageSrcByUnitDesignId } = useTroopDisplayInfoQuery(gameId, gameId != null);
+  const { data: troopImageSrcByUnitTemplateId } = useTroopDisplayInfoQuery(gameId, gameId != null);
 
   const tiles2d = useMemo(() => {
     if (!gameSelection || !tilesResponse) return null;
@@ -142,7 +142,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
         behavior: "smooth",
       });
     } else {
-      // Container expands to its content (no internal scroll) — the window scrolls instead.
+      // Container expands to its content (no internal scroll) â€” the window scrolls instead.
       const rect = el.getBoundingClientRect();
       const absLeft = rect.left + window.scrollX + tileCenterX;
       const absTop = rect.top + window.scrollY + tileCenterY;
@@ -187,7 +187,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const toggleMilitaryAdvisor = useCallback(() => setShowMilitaryAdvisor((shown) => !shown), []);
   const closeMilitaryAdvisor = useCallback(() => setShowMilitaryAdvisor(false), []);
 
-  // Dismiss the Military Advisor when the game closes — its toolbar button is disabled without an
+  // Dismiss the Military Advisor when the game closes â€” its toolbar button is disabled without an
   // open game, so an already-open dialog would otherwise be left showing stale, unreopenable state.
   // Watching `gameSelection` rather than hooking `closeGame` covers any future path that clears it.
   useEffect(() => {
@@ -294,7 +294,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
           open={forceSelectionTile != null}
           tile={forceSelectionTile}
           selectedTroopId={selectedForce?.id}
-          troopImageSrcByUnitDesignId={troopImageSrcByUnitDesignId}
+          troopImageSrcByUnitTemplateId={troopImageSrcByUnitTemplateId}
           onClose={closeForceSelectionDialog}
           onSelect={chooseForce}
         />
@@ -328,7 +328,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
             <div className="mt-3">
               {gameSelection == null ? (
                 <Alert variant="secondary" className="mb-0">
-                  No game opened. Use <strong>Game → Open</strong>.
+                  No game opened. Use <strong>Game â†’ Open</strong>.
                 </Alert>
               ) : (
                 <>
@@ -351,7 +351,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
                       geographies={geographiesList}
                       containerRef={tileGridContainerRef}
                       selectedTroopId={selectedForce?.id}
-                      troopImageSrcByUnitDesignId={troopImageSrcByUnitDesignId}
+                      troopImageSrcByUnitTemplateId={troopImageSrcByUnitTemplateId}
                       getVisibleTroopId={getVisibleTroopId}
                       onTileClick={onTileClick}
                       onTileHold={onTileHold}

@@ -15,6 +15,14 @@ export const TAG_TYPES: readonly TagType[] = ["Ability", "Combat", "Classificati
 import type { DomainType } from "./UnitComponent";
 
 /**
+ * How formations under a MilitaryOrganisationalGroup tag are led. Names match the C# `LeadershipModel`
+ * enum exactly so the value round-trips to the backend without translation.
+ */
+export type LeadershipModel = "Commissioned" | "Unled";
+
+export const LEADERSHIP_MODELS: readonly LeadershipModel[] = ["Commissioned", "Unled"];
+
+/**
  * A single editable tag. `id` is null for a not-yet-saved tag (the backend assigns it on create).
  */
 export interface Tag {
@@ -33,6 +41,17 @@ export interface Tag {
    * to a domain). Null for every other tag type. The backend rejects a domain set on a non-organisation tag.
    */
   movementDomain: DomainType | null;
+  /**
+   * Leadership model — only meaningful for a MilitaryOrganisationalGroup tag; null for every other tag type.
+   * "Unled" formations have no officers and are sized by the three unled values below.
+   */
+  leadershipModel: LeadershipModel | null;
+  /** The indivisible group size (quantum) for an Unled tag; null otherwise. */
+  unledBaseSize: number | null;
+  /** The size an unled unit takes when created without an explicit choice; a multiple of the base. */
+  unledDefaultSize: number | null;
+  /** The largest a single unled unit may be — the authored guardrail replacing the rank ceiling. */
+  unledMaxSize: number | null;
   /** Whether the tag is system-created (seeded/built-in) rather than user-authored. Defaults to false. */
   systemCreated: boolean;
 }
@@ -46,6 +65,10 @@ export function createEmptyTag(): Tag {
     description: "",
     tagType: "Classification",
     movementDomain: null,
+    leadershipModel: null,
+    unledBaseSize: null,
+    unledDefaultSize: null,
+    unledMaxSize: null,
     systemCreated: false,
   };
 }

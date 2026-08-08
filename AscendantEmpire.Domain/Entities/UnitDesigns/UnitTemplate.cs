@@ -66,6 +66,12 @@ public class UnitTemplate
     public ICollection<PlayerUnlockedTemplate> PlayerStates { get; set; } = [];
 
     /// <summary>
+    /// The denormalized snapshot compiled from this template (1:1; rewritten on every save). Null only for a
+    /// template that has never been compiled — every template-writing flow compiles in the same transaction.
+    /// </summary>
+    public CompiledUnitTemplate? Compiled { get; set; }
+
+    /// <summary>
     /// Supersession links where this template is the predecessor — i.e. the newer templates that
     /// supersede this one (what supersedes me).
     /// </summary>

@@ -61,7 +61,10 @@ The original discussion (kept below) was treating classification, passive bonuse
 Examples from the original discussion:
 
 - `camp-goods` (equipment) enables building a camp, if contextual conditions are met.
-- `self-organised` (training) enables a unit to split without a Leader, if conditions are met.
+- ~~`self-organised` (training) enables a unit to split without a Leader, if conditions are
+  met.~~ **Superseded** by the Unled leadership model on MilitaryOrganisation tags — splitting
+  without a leader is now intrinsic to unled structures, not a training grant. See
+  [military-organisation.md](../units/military-organisation.md#leadership-model).
 - `stealth-observation` (training, sniper) enables a toggleable special movement mode.
 
 These aren't modifiers — they don't change a number, they unlock a player-facing action. Model as a lookup (`TagCode → CapabilityCode`) checked by game/UI logic when the action is attempted, rather than folding this into the modifier shape.

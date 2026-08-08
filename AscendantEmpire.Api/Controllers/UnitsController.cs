@@ -46,11 +46,11 @@ public class UnitsController : ControllerBase
         [FromBody] SpawnUnitDto request,
         CancellationToken cancelToken)
     {
-        ServiceResultBase response = await mediator.Send(new SpawnTroopRequest(request.GameId, 
-            request.PlayerId, 
-            request.XCoord, 
-            request.YCoord, 
-            request.UnitDesignId,
+        ServiceResultBase response = await mediator.Send(new SpawnTroopRequest(request.GameId,
+            request.PlayerId,
+            request.XCoord,
+            request.YCoord,
+            request.UnitTemplateId,
             request.InitialStrength,
             request.HealthyCount,
             request.InjuredCount),
@@ -60,7 +60,7 @@ public class UnitsController : ControllerBase
     }
 
     /// <summary>
-    /// Get the UnitDesign display information which maps the UnitDesignId to the image which should be shown on the map.
+    /// Get the unit template display information which maps the UnitTemplateId to the image which should be shown on the map.
     /// </summary>
     /// <response code="201">End Turn</response>
     /// <response code="403">The caller has not entered a game</response>
@@ -88,7 +88,7 @@ public class UnitsController : ControllerBase
             {
                 TroopDisplayInfo = contract.Select(t => new DTTroopDisplayInfo
                 {
-                    UnitDesignId = t.UnitDesignId,
+                    UnitTemplateId = t.UnitTemplateId,
                     MapImagePath = t.MapImagePath
                 }).ToList() ?? []
             };

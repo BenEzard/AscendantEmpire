@@ -49,6 +49,12 @@ internal static class CatalogExportProjections
             DisplayName = tag.DisplayName,
             Description = tag.Description,
             TagType = tag.TagType,
+            // Organisation fields travel with the tag so an unled tag re-imports still unled, with its sizing.
+            MovementDomain = tag.MovementDomain,
+            LeadershipModel = tag.LeadershipModel,
+            UnledBaseSize = tag.UnledBaseSize,
+            UnledDefaultSize = tag.UnledDefaultSize,
+            UnledMaxSize = tag.UnledMaxSize,
         };
     }
 

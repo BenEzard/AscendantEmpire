@@ -19,7 +19,11 @@ public class TroopInstance
     /// </summary>
     public int? BattleMapTileId { get; set; }
 
-    public int UnitDesignId { get; set; }
+    /// <summary>
+    /// The <see cref="UnitTemplate"/> this troop was created from. Runtime reads (map image, movement points,
+    /// combat stats) come from the template's 1:1 <see cref="CompiledUnitTemplate"/> snapshot.
+    /// </summary>
+    public int UnitTemplateId { get; set; }
 
     /// <summary>
     /// The total number of troops in this troop at creation.
@@ -43,7 +47,7 @@ public class TroopInstance
 
     public GameIndex Game { get; set; } = null!;
     public Player Player { get; set; } = null!;
-    public UnitDesign UnitDesign { get; set; } = null!;
+    public UnitTemplate UnitTemplate { get; set; } = null!;
     public CampaignMap CampaignMap { get; set; } = null!;
     public virtual ICollection<TroopOrder> Orders { get; set; } = [];
 }

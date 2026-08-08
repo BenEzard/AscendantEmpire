@@ -10,5 +10,5 @@ public interface ITroopStub
     public int HealthyTroops { get; }
     public int InjuredTroops { get; }
     public int InitialStrength { get; set; }
-    public int UnitDesignId { get; }
+    public int UnitTemplateId { get; }
 }

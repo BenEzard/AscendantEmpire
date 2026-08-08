@@ -32,6 +32,9 @@ export async function saveOfficerRanks(ranks: OfficerRank[]): Promise<void> {
   await http.put("/military/officer-ranks", ranks);
 }
 
+/** How formations under an organisation tag are led (mirrors the C# LeadershipModel enum by name). */
+export type LeadershipModel = "Commissioned" | "Unled";
+
 /** A MilitaryOrganisationalGroup tag offered in the Organisation combo box. */
 export interface OrganisationTag {
   id: number;
@@ -39,6 +42,14 @@ export interface OrganisationTag {
   displayName: string;
   /** The tag's movement domain, or null if it hasn't been assigned one. */
   movementDomain: DomainType | null;
+  /** The tag's leadership model; null when unspecified (treated as commissioned). */
+  leadershipModel: LeadershipModel | null;
+  /** The indivisible group size (quantum) for an Unled tag; null otherwise. */
+  unledBaseSize: number | null;
+  /** The size an unled unit takes when created without an explicit choice; null unless unled. */
+  unledDefaultSize: number | null;
+  /** The largest a single unled unit may be; null unless unled. */
+  unledMaxSize: number | null;
 }
 
 /** Get the organisation tags — the searchable combo box feed (under a `tags` envelope). */

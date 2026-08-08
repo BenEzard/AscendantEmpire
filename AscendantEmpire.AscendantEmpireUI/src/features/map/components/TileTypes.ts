@@ -9,7 +9,7 @@ export type ObservedTroopTile = {
   id: number;
   recordType: number;
   commanderId: number;
-  unitDesignId: number;
+  unitTemplateId: number;
   healthyTroops: number;
   injuredTroops: number;
   initialStrength: number;

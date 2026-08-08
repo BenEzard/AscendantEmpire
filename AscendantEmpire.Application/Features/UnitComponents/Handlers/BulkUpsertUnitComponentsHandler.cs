@@ -1,5 +1,6 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.UnitComponents.Classes;
 using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Enums.Maps;
@@ -81,12 +82,17 @@ internal class BulkUpsertUnitComponentsHandler(
             }
 
             // Create any tags defined in the payload that don't already exist; for those that do, let
-            // the payload re-classify them (TagType is authoritative on re-import).
+            // the payload re-classify them (TagType and the organisation fields are authoritative on re-import).
             foreach (TagDto tagDto in catalog.Tags)
             {
                 if (tagsByCode.TryGetValue(tagDto.Code, out Tag? existingTag))
                 {
                     existingTag.TagType = tagDto.TagType;
+                    existingTag.MovementDomain = tagDto.MovementDomain;
+                    existingTag.LeadershipModel = tagDto.LeadershipModel;
+                    existingTag.UnledBaseSize = tagDto.UnledBaseSize;
+                    existingTag.UnledDefaultSize = tagDto.UnledDefaultSize;
+                    existingTag.UnledMaxSize = tagDto.UnledMaxSize;
                 }
                 else
                 {
@@ -96,6 +102,11 @@ internal class BulkUpsertUnitComponentsHandler(
                         DisplayName = tagDto.DisplayName,
                         Description = tagDto.Description,
                         TagType = tagDto.TagType,
+                        MovementDomain = tagDto.MovementDomain,
+                        LeadershipModel = tagDto.LeadershipModel,
+                        UnledBaseSize = tagDto.UnledBaseSize,
+                        UnledDefaultSize = tagDto.UnledDefaultSize,
+                        UnledMaxSize = tagDto.UnledMaxSize,
                     };
                     context.Tags.Add(tag);
                     tagsByCode[tagDto.Code] = tag;
@@ -244,6 +255,17 @@ internal class BulkUpsertUnitComponentsHandler(
             {
                 errors.Add($"Tag '{tag.Code}' has an undefined TagType value.");
             }
+
+            // The organisation rules are shared with the single-tag create/update path, so an imported
+            // catalogue cannot slip past the checks the Tag manager enforces.
+            errors.AddRange(TagValidation.ValidateOrganisationFields(
+                tag.TagType,
+                tag.MovementDomain,
+                tag.LeadershipModel,
+                tag.UnledBaseSize,
+                tag.UnledDefaultSize,
+                tag.UnledMaxSize,
+                tag.Code));
         }
 
         return errors;

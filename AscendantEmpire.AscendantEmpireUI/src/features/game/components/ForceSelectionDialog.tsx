@@ -1,4 +1,4 @@
-import { Button, Modal } from "@/components/ui";
+﻿import { Button, Modal } from "@/components/ui";
 import ObservedTroop from "@/features/map/components/ObservedTroop";
 import type { ObservedTroopTile } from "@/features/map/components/TileTypes";
 
@@ -12,7 +12,7 @@ export interface ForceSelectionDialogProps {
   open: boolean;
   tile: ForceSelectionDialogTile | null;
   selectedTroopId?: number;
-  troopImageSrcByUnitDesignId?: ReadonlyMap<number, string>;
+  troopImageSrcByUnitTemplateId?: ReadonlyMap<number, string>;
   onClose: () => void;
   onSelect: (troop: ObservedTroopTile) => void;
 }
@@ -21,7 +21,7 @@ export default function ForceSelectionDialog({
   open,
   tile,
   selectedTroopId,
-  troopImageSrcByUnitDesignId,
+  troopImageSrcByUnitTemplateId,
   onClose,
   onSelect,
 }: ForceSelectionDialogProps) {
@@ -52,7 +52,7 @@ export default function ForceSelectionDialog({
                   troop={troop}
                   troopInstanceCount={1}
                   isSelected={selectedTroopId === troop.id}
-                  troopImageSrcByUnitDesignId={troopImageSrcByUnitDesignId}
+                  troopImageSrcByUnitTemplateId={troopImageSrcByUnitTemplateId}
                 />
               </div>
               <div className="text-xs text-slate-600">Troop #{troop.id}</div>

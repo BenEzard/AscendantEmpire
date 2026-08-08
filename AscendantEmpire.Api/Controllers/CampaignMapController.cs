@@ -81,7 +81,7 @@ public class CampaignMapController : ControllerBase
                             Id = t.Id,
                             RecordType = t.RecordType,
                             CommanderId = t.CommanderId,
-                            UnitDesignId = t.UnitDesignId,
+                            UnitTemplateId = t.UnitTemplateId,
                             HealthyTroops = t.HealthyTroops,
                             InjuredTroops = t.InjuredTroops,
                             InitialStrength = t.InitialStrength

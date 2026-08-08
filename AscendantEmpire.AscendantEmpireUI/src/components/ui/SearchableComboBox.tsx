@@ -5,6 +5,10 @@
 // filtering), and the dropdown below the input (styled after DescriptiveSettingDropDown's popover) closes
 // on outside click, Escape, or a successful pick. The component is generic over the item type `T` so the
 // same combo box can list templates, components, or anything else via small accessor functions.
+//
+// One opt-in prop varies the row layout: `secondaryPlacement="right"` lays each row out as two columns
+// (primary | secondary) instead of stacking the secondary text underneath. It defaults off so the
+// existing toolbar usages keep their current look.
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
@@ -15,8 +19,14 @@ export interface SearchableComboBoxProps<T> {
   getKey: (item: T) => string | number;
   /** Primary (bold) line for a row — typically the display name. */
   getPrimaryText: (item: T) => string;
-  /** Optional secondary (dimmed) line for a row. */
+  /** Optional secondary (dimmed) text for a row. Placed by `secondaryPlacement`. */
   getSecondaryText?: (item: T) => string;
+  /**
+   * Where the secondary text sits relative to the primary text. "below" (the default) stacks it as a
+   * dimmed second line; "right" puts it in its own right-aligned column on the same line, giving a
+   * two-column row (primary | secondary) and a slightly wider dropdown so both columns breathe.
+   */
+  secondaryPlacement?: "below" | "right";
   /** The text an item is matched against when filtering. */
   getSearchText: (item: T) => string;
   /** Placeholder for the filter textbox. */
@@ -41,6 +51,7 @@ export default function SearchableComboBox<T>({
   getKey,
   getPrimaryText,
   getSecondaryText,
+  secondaryPlacement = "below",
   getSearchText,
   placeholder = "Search…",
   loading = false,
@@ -128,6 +139,8 @@ export default function SearchableComboBox<T>({
         placeholder={placeholder}
         disabled={disabled}
         onFocus={() => setIsOpen(true)}
+        // Re-opens the list after Escape closed it, where onFocus won't fire again (the input kept focus).
+        onClick={() => setIsOpen(true)}
         onChange={(e) => {
           setSearchText(e.target.value);
           setIsOpen(true);
@@ -138,7 +151,10 @@ export default function SearchableComboBox<T>({
       {isOpen && !disabled && (
         <div
           role="listbox"
-          className="absolute left-0 top-full z-50 mt-1 max-h-72 w-72 overflow-auto rounded border border-slate-300 bg-white py-1 shadow-md">
+          // Two-column rows need a little more room than the stacked layout, so widen the panel there.
+          className={`absolute left-0 top-full z-50 mt-1 max-h-72 ${
+            secondaryPlacement === "right" ? "w-96" : "w-72"
+          } overflow-auto rounded border border-slate-300 bg-white py-1 shadow-md`}>
           {loading && <div className="px-3 py-1.5 text-sm text-slate-500">Loading…</div>}
           {!loading && error != null && <div className="px-3 py-1.5 text-sm text-red-600">{error}</div>}
           {!loading && error == null && filteredItems.length === 0 && <div className="px-3 py-1.5 text-sm text-slate-500">No matches.</div>}
@@ -146,17 +162,32 @@ export default function SearchableComboBox<T>({
             error == null &&
             filteredItems.map((item) => {
               const secondary = getSecondaryText?.(item);
+              const hasSecondary = secondary != null && secondary !== "";
+
               return (
                 <div
                   key={getKey(item)}
                   role="option"
                   aria-selected={false}
                   tabIndex={0}
-                  className="cursor-pointer select-none px-3 py-1.5 text-sm hover:bg-slate-100 focus:outline-none focus-visible:bg-slate-100"
+                  className={`cursor-pointer select-none px-3 py-1.5 text-sm hover:bg-slate-100 focus:outline-none focus-visible:bg-slate-100 ${
+                    secondaryPlacement === "right" ? "flex items-baseline gap-3" : ""
+                  }`}
                   onClick={() => handleSelect(item)}
                   onKeyDown={(e) => handleOptionKeyDown(e, item)}>
-                  <div className="font-medium text-slate-800">{getPrimaryText(item)}</div>
-                  {secondary != null && secondary !== "" && <div className="text-xs text-slate-500">{secondary}</div>}
+                  {secondaryPlacement === "right" ? (
+                    <>
+                      {/* Two columns: the primary text takes the slack and truncates, the secondary column
+                          hugs the right edge and never wraps. */}
+                      <div className="min-w-0 flex-1 truncate font-medium text-slate-800">{getPrimaryText(item)}</div>
+                      {hasSecondary && <div className="shrink-0 whitespace-nowrap text-xs text-slate-500">{secondary}</div>}
+                    </>
+                  ) : (
+                    <>
+                      <div className="font-medium text-slate-800">{getPrimaryText(item)}</div>
+                      {hasSecondary && <div className="text-xs text-slate-500">{secondary}</div>}
+                    </>
+                  )}
                 </div>
               );
             })}

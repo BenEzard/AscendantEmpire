@@ -4,8 +4,10 @@ using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
+using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Enums.Games;
 using AscendantEmpire.Domain.Enums.Maps;
+using AscendantEmpire.Domain.Enums.UnitDesigns;
 
 using NSubstitute;
 
@@ -32,6 +34,12 @@ public class GameSqlServerTestBase : SqlServerTestBase
         _numberOfPlayers = numberOfPlayers;
 
         _galleryIndexId = await SeedMinimumGalleryDataAsync(mapWidth, mapHeight);
+
+        // Game setup now spawns each player's starting units, so every full SetupGameAsync run needs the
+        // starter catalog (org tags, components, templates + compiled snapshots) and one start position per
+        // player on the gallery map.
+        await SeedStarterCatalogAsync();
+        await SeedStartPositionsAsync(_galleryIndexId, numberOfPlayers, mapWidth, mapHeight);
 
         _completedMapProperties = new CampaignMapGalleryProperties
         {
@@ -172,6 +180,167 @@ public class GameSqlServerTestBase : SqlServerTestBase
 
         await ctx.SaveChangesAsync();
         return galleryIndex.Id;
+    }
+
+    /// <summary>
+    /// Seeds one <see cref="CampaignMapStartPosition"/> per player on the gallery map, walking the grid so
+    /// every position lands on a distinct in-bounds tile.
+    /// </summary>
+    public async Task SeedStartPositionsAsync(int galleryIndexId, int numberOfPlayers, int mapWidth, int mapHeight)
+    {
+        await using AscendantEmpireContext ctx = await DbFactory.CreateDbContextAsync();
+
+        for (int positionIndex = 0; positionIndex < numberOfPlayers; positionIndex++)
+        {
+            ctx.CampaignMapStartPositions.Add(new CampaignMapStartPosition
+            {
+                CampaignMapGalleryIndexId = galleryIndexId,
+                XCoord = positionIndex % mapWidth,
+                YCoord = positionIndex / mapWidth % mapHeight,
+                DisplayName = $"Start {positionIndex + 1}",
+                LocationScore = numberOfPlayers - positionIndex,
+            });
+        }
+
+        await ctx.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Seeds the starter catalog game setup depends on: the unled Settler/Scout organisation tags, a human
+    /// body plus the camping-goods / scout-training components carrying those tags, and the SETTLER / SCOUT
+    /// global templates with hand-built compiled snapshots (skipping the compile pipeline keeps the base
+    /// light — snapshot correctness is covered by the compilation tests).
+    /// </summary>
+    /// <remarks>
+    /// This is test arrangement, not application behaviour: the app never creates this content — a real
+    /// catalogue is hand-authored, and game setup fails without it. These rows stand in for that catalogue so
+    /// <c>SetupGameAsync</c> has something to read.
+    /// </remarks>
+    public async Task SeedStarterCatalogAsync()
+    {
+        await using AscendantEmpireContext ctx = await DbFactory.CreateDbContextAsync();
+
+        // The design doc's worked sizes: settlers spawn at 200 by default, scouts are individuals.
+        var settlerTag = new Tag
+        {
+            Code = "settler",
+            DisplayName = "Settler",
+            TagType = TagType.MilitaryOrganisationalGroup,
+            MovementDomain = DomainType.Land,
+            LeadershipModel = LeadershipModel.Unled,
+            UnledBaseSize = 25,
+            UnledDefaultSize = 200,
+            UnledMaxSize = 5000,
+            SystemCreated = true,
+        };
+
+        var scoutTag = new Tag
+        {
+            Code = "scout",
+            DisplayName = "Scout",
+            TagType = TagType.MilitaryOrganisationalGroup,
+            MovementDomain = DomainType.Land,
+            LeadershipModel = LeadershipModel.Unled,
+            UnledBaseSize = 1,
+            UnledDefaultSize = 1,
+            UnledMaxSize = 1,
+            SystemCreated = true,
+        };
+
+        var humanBody = new UnitComponent
+        {
+            Code = "human-body",
+            DisplayName = "Human",
+            ComponentType = ComponentType.Body,
+            Weight = 0,
+            Detection = 1000,
+            Body = new UnitComponentBody
+            {
+                MovementDomain = DomainType.Land,
+                CampaignMovementPoints = 1000,
+                BattlefieldMovementPoints = 2000,
+                Power = 1000,
+                Hitpoints = 1000,
+            },
+        };
+
+        var campingGoods = new UnitComponent
+        {
+            Code = "camping-goods",
+            DisplayName = "Camping Goods",
+            ComponentType = ComponentType.Equipment,
+            Weight = 2000,
+            Tags = [new UnitComponentTag { Tag = settlerTag }],
+        };
+
+        var scoutTraining = new UnitComponent
+        {
+            Code = "scout-training",
+            DisplayName = "Scout Training",
+            ComponentType = ComponentType.Training,
+            Weight = 0,
+            Detection = 2000,
+            Tags = [new UnitComponentTag { Tag = scoutTag }],
+        };
+
+        ctx.UnitComponents.AddRange(humanBody, campingGoods, scoutTraining);
+        await ctx.SaveChangesAsync();
+
+        // Global templates (no game/player) with the codes GameSetupService.StarterTemplateCodes expects.
+        // The fitted components are attached directly (no slots involved) — assembly rules are out of scope here.
+        var settlerTemplate = new UnitTemplate
+        {
+            Code = "SETTLER",
+            DisplayName = "Settler",
+            MapImagePath = "assets/units/test-settler.png",
+            BodyComponentId = humanBody.Id,
+        };
+
+        var scoutTemplate = new UnitTemplate
+        {
+            Code = "SCOUT",
+            DisplayName = "Scout",
+            MapImagePath = "assets/units/test-scout.png",
+            BodyComponentId = humanBody.Id,
+        };
+
+        ctx.UnitTemplates.AddRange(settlerTemplate, scoutTemplate);
+        await ctx.SaveChangesAsync();
+
+        // Hand-built snapshots carrying the resolved organisation tag, which is all game setup reads.
+        ctx.CompiledUnitTemplates.AddRange(
+            new CompiledUnitTemplate
+            {
+                UnitTemplateId = settlerTemplate.Id,
+                DisplayName = "Settler",
+                MapImagePath = "assets/units/test-settler.png",
+                BodyComponentId = humanBody.Id,
+                MovementDomain = DomainType.Land,
+                OrganisationTagId = settlerTag.Id,
+                CampaignMovementPoints = 1000,
+                BattlefieldMovementPoints = 2000,
+                Power = 1000,
+                Hitpoints = 1000,
+                TotalWeight = 2000,
+                TotalDetection = 1000,
+            },
+            new CompiledUnitTemplate
+            {
+                UnitTemplateId = scoutTemplate.Id,
+                DisplayName = "Scout",
+                MapImagePath = "assets/units/test-scout.png",
+                BodyComponentId = humanBody.Id,
+                MovementDomain = DomainType.Land,
+                OrganisationTagId = scoutTag.Id,
+                CampaignMovementPoints = 1000,
+                BattlefieldMovementPoints = 2000,
+                Power = 1000,
+                Hitpoints = 1000,
+                TotalWeight = 0,
+                TotalDetection = 3000,
+            });
+
+        await ctx.SaveChangesAsync();
     }
 
     /// <summary>

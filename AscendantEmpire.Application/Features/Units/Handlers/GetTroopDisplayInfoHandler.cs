@@ -58,20 +58,19 @@ internal class GetTroopDisplayInfoHandler(
 
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            List<TroopDisplayInfo> troopDisplayInfo = await context.UnitDesignStats
-                .Where(t => t.UnitDesign.GameId == null || t.UnitDesign.GameId == request.GameId)
-                .Where(t => t.UnitDesign.PlayerStates
-                    .Any(ps => ps.Player.GameId == request.GameId && ps.IsUnlocked && !ps.IsObsolete))
-                .Select(t => new
+            // A template's map image comes from its compiled snapshot. Include every template a player in this
+            // game could field: global/common templates unlocked (and not obsolete) by a player in the game,
+            // plus custom templates owned by a player in the game (custom templates carry no unlock rows —
+            // they are built from already-unlocked components).
+            List<TroopDisplayInfo> troopDisplayInfo = await context.CompiledUnitTemplates
+                .Where(c => c.UnitTemplate.GameId == null || c.UnitTemplate.GameId == request.GameId)
+                .Where(c => c.UnitTemplate.PlayerStates
+                        .Any(ps => ps.Player.GameId == request.GameId && ps.ObsoleteOnTurn == null)
+                    || (c.UnitTemplate.PlayerId != null && c.UnitTemplate.Player!.GameId == request.GameId))
+                .Select(c => new TroopDisplayInfo
                 {
-                    t.UnitDesignId,
-                    t.UnitDesign.MapImagePath
-                })
-                .Distinct()
-                .Select(t => new TroopDisplayInfo
-                {
-                    UnitDesignId = t.UnitDesignId,
-                    MapImagePath = t.MapImagePath
+                    UnitTemplateId = c.UnitTemplateId,
+                    MapImagePath = c.MapImagePath
                 })
                 .ToListAsync(cancelToken);
 

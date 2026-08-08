@@ -21,17 +21,25 @@ internal sealed class MovementProfileFactory : IMovementProfileFactory
     public MovementProfile Create(TroopInstance troop, DomainType domainType)
     {
         ArgumentNullException.ThrowIfNull(troop);
-        ArgumentNullException.ThrowIfNull(troop.UnitDesign);
-        ArgumentNullException.ThrowIfNull(troop.UnitDesign.CompiledStats);
+        ArgumentNullException.ThrowIfNull(troop.UnitTemplate);
+        ArgumentNullException.ThrowIfNull(troop.UnitTemplate.Compiled);
 
-        var stats = troop.UnitDesign.CompiledStats;
-        IReadOnlyList<MovementModifier> modifiers = ParseModifiers(stats.ModifiersJson);
+        var compiled = troop.UnitTemplate.Compiled;
+
+        // The compiled template snapshot does not carry movement-modifier JSON yet (the legacy
+        // CompiledDesignStats.ModifiersJson has no template-model equivalent), so template troops move
+        // un-modified for now. The parsing below is kept wired so the JSON slots straight back in when it
+        // is compiled onto the snapshot — see the military-organisation implementation notes.
+        string? modifiersJson = null;
+
+        IReadOnlyList<MovementModifier> modifiers = ParseModifiers(modifiersJson);
         IReadOnlySet<MoveModifier> bonuses = DeriveBonuses(modifiers);
 
         return new MovementProfile
         {
             DomainType = domainType,
-            BaseMovementPoints = stats.MovementPoints,
+            // Raw fixed-point (Scale 1,000; 1,000 = 1.0) converted to the decimal MP the movement engine uses.
+            BaseMovementPoints = compiled.CampaignMovementPoints / 1000m,
             Bonuses = bonuses,
             Modifiers = modifiers
         };
@@ -68,7 +76,7 @@ internal sealed class MovementProfileFactory : IMovementProfileFactory
         }
         catch (JsonException ex)
         {
-            throw new InvalidOperationException("CompiledDesignStats.ModifiersJson is not valid movement modifier JSON.", ex);
+            throw new InvalidOperationException("The compiled design's modifier payload is not valid movement modifier JSON.", ex);
         }
     }
 

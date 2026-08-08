@@ -3,9 +3,12 @@
 // just manage the component's set of tag *codes* as a list of chips.
 //
 // Rather than free-typing a code (which then has to match the catalog on save), the user picks from a
-// combo box populated with the existing catalog tags — so an attached tag is always a real one. Each
-// selected tag is shown as a chip coloured by its tag *type* (colour lives on the type, not the tag),
-// with a tooltip of "display name - description" and a generic tag glyph.
+// drop down populated with the existing catalog tags (the same getTags() catalog behind the tool's
+// "Search Tag" drawer) — so an attached tag is always a real one. Each row is two columns: the tag's
+// display name, then its tag type. Typing still filters the list, which matters as the catalog grows.
+//
+// Each selected tag is shown as a chip coloured by its tag *type* (colour lives on the type, not the
+// tag), with a tooltip of "display name - description" and a generic tag glyph.
 
 import { useMemo } from "react";
 import { HiTag, HiXMark } from "react-icons/hi2";
@@ -55,6 +58,13 @@ export default function TagsSection({ tagCodes, onChange, availableTags, tagType
     return availableTags.filter((tag) => !attached.has(tag.code));
   }, [availableTags, tagCodes]);
 
+  // The label for a tag's type column. Prefers the type's friendly display name ("Military Organisational
+  // Group") and falls back to the raw enum name when a type has no metadata row loaded.
+  const tagTypeLabel = (tag: Tag) => {
+    const typeInfo = tagTypeById.get(tag.tagType);
+    return typeInfo != null && typeInfo.displayName.trim() !== "" ? typeInfo.displayName : tag.tagType;
+  };
+
   const addTag = (tag: Tag) => {
     // Guard against a stale duplicate (the combo already filters these out).
     if (tagCodes.includes(tag.code)) {
@@ -77,10 +87,13 @@ export default function TagsSection({ tagCodes, onChange, availableTags, tagType
         <SearchableComboBox<Tag>
           items={selectableTags}
           getKey={(tag) => tag.code}
+          // Two columns per row: display name, then tag type. The code isn't shown (the chips carry it)
+          // but still matches when filtering, so an old muscle-memory search on a code keeps working.
           getPrimaryText={(tag) => tag.displayName}
-          getSecondaryText={(tag) => tag.code}
-          getSearchText={(tag) => `${tag.displayName} ${tag.code}`}
-          placeholder="Add a tag…"
+          getSecondaryText={tagTypeLabel}
+          secondaryPlacement="right"
+          getSearchText={(tag) => `${tag.displayName} ${tag.code} ${tagTypeLabel(tag)}`}
+          placeholder="Select a tag…"
           loading={loading}
           error={error}
           // Light-surface styling (the combo's default is tuned for a dark toolbar header).

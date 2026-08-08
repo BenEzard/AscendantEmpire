@@ -39,6 +39,10 @@ internal class GetOrganisationTagsHandler(
                     Code = t.Code,
                     DisplayName = t.DisplayName,
                     MovementDomain = t.MovementDomain,
+                    LeadershipModel = t.LeadershipModel,
+                    UnledBaseSize = t.UnledBaseSize,
+                    UnledDefaultSize = t.UnledDefaultSize,
+                    UnledMaxSize = t.UnledMaxSize,
                 })
                 .ToListAsync(cancelToken);
 

@@ -995,11 +995,11 @@ public class AscendantEmpireContext : DbContext
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_TroopInstances_CampaignMap_CampaignMapTileId");
 
-            entity.HasOne(e => e.UnitDesign)
+            entity.HasOne(e => e.UnitTemplate)
                  .WithMany()
-                 .HasForeignKey(e => e.UnitDesignId)
+                 .HasForeignKey(e => e.UnitTemplateId)
                  .OnDelete(DeleteBehavior.NoAction)
-                 .HasConstraintName("FK_TroopInstances_UnitDesigns_UnitDesignId");
+                 .HasConstraintName("FK_TroopInstances_UnitTemplate_UnitTemplateId");
         });
 
         modelBuilder.Entity<TroopOrder>(entity =>
@@ -1457,6 +1457,11 @@ public class AscendantEmpireContext : DbContext
             entity.Property(e => e.MovementDomain)
                 .HasConversion<int>();
 
+            // Nullable — only organisation-group tags carry a leadership model; stored as the enum's int value.
+            // The three Unled* sizes are plain nullable ints and need no explicit configuration.
+            entity.Property(e => e.LeadershipModel)
+                .HasConversion<int>();
+
             entity.HasIndex(e => e.Code)
                 .IsUnique()
                 .HasDatabaseName("UX_Tag_Code");
@@ -1701,10 +1706,18 @@ public class AscendantEmpireContext : DbContext
             });
 
             entity.HasOne(e => e.UnitTemplate)
-                .WithOne()
+                .WithOne(t => t.Compiled)
                 .HasForeignKey<CompiledUnitTemplate>(e => e.UnitTemplateId)
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_CompiledUnitTemplate_UnitTemplate_UnitTemplateId");
+
+            // The organisation tag resolved from the template's components at compile time (nullable —
+            // not every template carries one).
+            entity.HasOne(e => e.OrganisationTag)
+                .WithMany()
+                .HasForeignKey(e => e.OrganisationTagId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_CompiledUnitTemplate_Tag_OrganisationTagId");
         });
 
         // --- CompiledUnitTemplateComponent -----------------------------------------

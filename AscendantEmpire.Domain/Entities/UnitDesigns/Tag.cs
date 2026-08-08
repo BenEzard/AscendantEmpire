@@ -45,6 +45,30 @@ public class Tag
     public DomainType? MovementDomain { get; set; }
 
     /// <summary>
+    /// How formations under this tag are led. Only meaningful for <see cref="TagType.MilitaryOrganisationalGroup"/> tags; null for every other tag type. 
+    /// </summary>
+    /// <remarks>Authored here (not on the player's structure) so a player cannot opt a hierarchy out of the officer economy by editing their own data.</remarks>
+    public LeadershipModel? LeadershipModel { get; set; }
+
+    /// <summary>
+    /// The indivisible group size (quantum) for an <see cref="Enums.UnitDesigns.LeadershipModel.Unled"/> tag — every legal unit size is a whole multiple of this. 
+    /// Null unless the tag is unled.
+    /// </summary>
+    public int? UnledBaseSize { get; set; }
+
+    /// <summary>
+    /// The size an unled unit takes when created without an explicit choice (e.g. game-start spawns).
+    /// </summary>
+    /// <remarks>A multiple of <see cref="UnledBaseSize"/>. Null unless the tag is unled.</remarks>
+    public int? UnledDefaultSize { get; set; }
+
+    /// <summary>
+    /// The largest a single unled unit may be — the authored guardrail that replaces the officer rank ceiling (there is no officer whose ceiling could apply). 
+    /// </summary>
+    /// <remarks>Null unless the tag is unled.</remarks>
+    public int? UnledMaxSize { get; set; }
+
+    /// <summary>
     /// Whether this tag was created by the system (e.g. seeded/built-in) rather than authored by a user.
     /// Defaults to false for user-created tags.
     /// </summary>

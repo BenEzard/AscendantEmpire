@@ -38,6 +38,10 @@ internal class GetTagsHandler(
                     Description = t.Description,
                     TagType = t.TagType,
                     MovementDomain = t.MovementDomain,
+                    LeadershipModel = t.LeadershipModel,
+                    UnledBaseSize = t.UnledBaseSize,
+                    UnledDefaultSize = t.UnledDefaultSize,
+                    UnledMaxSize = t.UnledMaxSize,
                     SystemCreated = t.SystemCreated,
                 })
                 .ToListAsync(cancelToken);

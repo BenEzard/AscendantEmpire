@@ -24,6 +24,13 @@ public class CompiledUnitTemplate
     public int BodyComponentId { get; set; }
     public DomainType MovementDomain { get; set; }
 
+    /// <summary>
+    /// The military organisation tag resolved from the template's components at compile time (a non-body
+    /// component's organisation tag beats the body's default). Null when no component carries one. Spawn and
+    /// sizing rules read this single column rather than re-deriving from components.
+    /// </summary>
+    public int? OrganisationTagId { get; set; }
+
     /// <summary>Sum of every fitted component's weight (body included).</summary>
     public long TotalWeight { get; set; }
 
@@ -55,6 +62,9 @@ public class CompiledUnitTemplate
     public int CompiledOnTurn { get; set; }
 
     public UnitTemplate UnitTemplate { get; set; } = null!;
+
+    /// <summary>The resolved organisation tag (see <see cref="OrganisationTagId"/>).</summary>
+    public Tag? OrganisationTag { get; set; }
 
     /// <summary>The resolved components (the body plus each fitted component) for rendering the design.</summary>
     public ICollection<CompiledUnitTemplateComponent> Components { get; set; } = [];

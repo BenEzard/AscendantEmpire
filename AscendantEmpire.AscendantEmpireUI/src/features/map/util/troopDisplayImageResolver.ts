@@ -18,14 +18,14 @@ export function resolveTroopMapImageSrc(mapImagePath: string): string | undefine
   return troopImageSrcByAssetPath.get(normalizeTroopAssetPath(mapImagePath));
 }
 
-export function buildTroopImageSrcByUnitDesignId(troopDisplayInfo: TroopDisplayInfoDto[]): Map<number, string> {
-  const troopImageSrcByUnitDesignId = new Map<number, string>();
+export function buildTroopImageSrcByUnitTemplateId(troopDisplayInfo: TroopDisplayInfoDto[]): Map<number, string> {
+  const troopImageSrcByUnitTemplateId = new Map<number, string>();
 
   for (const displayInfo of troopDisplayInfo) {
     const resolvedSrc = resolveTroopMapImageSrc(displayInfo.mapImagePath);
     if (!resolvedSrc) continue;
-    troopImageSrcByUnitDesignId.set(displayInfo.unitDesignId, resolvedSrc);
+    troopImageSrcByUnitTemplateId.set(displayInfo.unitTemplateId, resolvedSrc);
   }
 
-  return troopImageSrcByUnitDesignId;
+  return troopImageSrcByUnitTemplateId;
 }

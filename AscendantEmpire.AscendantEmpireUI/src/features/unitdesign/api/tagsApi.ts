@@ -4,7 +4,7 @@
 import { http } from "@/api/http";
 
 import type { DomainType } from "../types/UnitComponent";
-import type { Tag, TagType } from "../types/Tag";
+import type { LeadershipModel, Tag, TagType } from "../types/Tag";
 
 /**
  * The fields the create/update endpoints accept — a Tag without its server-assigned id. Description is
@@ -12,7 +12,7 @@ import type { Tag, TagType } from "../types/Tag";
  */
 export type TagUpsert = Omit<Tag, "id" | "description"> & { description: string | null };
 
-/** Server tag shape (GetTagsResult.Tags / TagView). Description and movement domain are nullable server-side. */
+/** Server tag shape (GetTagsResult.Tags / TagView). Description and the organisation fields are nullable server-side. */
 interface TagViewWire {
   id: number;
   code: string;
@@ -20,6 +20,10 @@ interface TagViewWire {
   description: string | null;
   tagType: TagType;
   movementDomain: DomainType | null;
+  leadershipModel: LeadershipModel | null;
+  unledBaseSize: number | null;
+  unledDefaultSize: number | null;
+  unledMaxSize: number | null;
   systemCreated: boolean;
 }
 
@@ -32,6 +36,10 @@ function mapTagViewToModel(wire: TagViewWire): Tag {
     description: wire.description ?? "",
     tagType: wire.tagType,
     movementDomain: wire.movementDomain ?? null,
+    leadershipModel: wire.leadershipModel ?? null,
+    unledBaseSize: wire.unledBaseSize ?? null,
+    unledDefaultSize: wire.unledDefaultSize ?? null,
+    unledMaxSize: wire.unledMaxSize ?? null,
     systemCreated: wire.systemCreated,
   };
 }

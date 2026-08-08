@@ -10,15 +10,19 @@ apart and joined by a single positional rule:
   each with an authored size. Reusable; owned by nothing in particular.
 * **MilitaryOrganisation tag** — a *pointer* to one OrganisationStructure. A tag is just a
   named handle; the structure it points at is the real definition.
+* **Leadership model** — authored *on the tag*: **Commissioned** (the ranked hierarchy this
+  document mostly describes) or **Unled** (no officers at any tier — scouts, snipers, drones,
+  settlers). Unled formations sit entirely outside the officer economy.
 * **Rank (OfficerClass)** — the *seniority* of an individual officer. Supplies a **hard
   ceiling** on formation size and a cap on attached specialists. It never defines a
   formation's size — it only limits it.
 * **Officer** — a person with a permanent movement domain and a rank, grown from combat.
 * **Population cap** — how many officers of each rank a player may hold at once.
 
-The join between shape and seniority is **positional**: *tier N is commanded by a Rank-N
-officer*. Because tiers ascend, chain-of-command seniority is automatic — a commander
-always outranks the tier directly beneath him.
+For **Commissioned** structures, the join between shape and seniority is **positional**:
+*tier N is commanded by a Rank-N officer*. Because tiers ascend, chain-of-command seniority
+is automatic — a commander always outranks the tier directly beneath him. **Unled**
+structures never enter that join — see [Leadership model](#leadership-model).
 
 ---
 
@@ -58,6 +62,49 @@ A tag reaches a Unit Template through three sources, in increasing specificity (
 
 Players may keep many structures and tags, and different templates may use different ones.
 
+Beyond being a pointer, the tag carries a small amount of **authored** (catalog-level,
+non-player-editable) data: its movement domain, its **leadership model**, and — for unled
+tags — the unled size values (see below). The tag is the right home for authored guardrails
+precisely *because* the player cannot edit it: per-player data (the structure's tiers) is
+where player freedom lives, and the tag is where the limits on that freedom live.
+
+### Leadership model
+
+Not every formation is a military hierarchy. A settler caravan, a lone scout, a drone — these
+have no officers, and pretending otherwise (free officers, hidden officers) creates entities
+that then need special-casing everywhere. Instead, each MilitaryOrganisation tag declares a
+**leadership model**:
+
+| | **Commissioned** | **Unled** |
+| --- | --- | --- |
+| Officers | tier 1 free and ascending; tiers 2+ earned from the roster | none, at any tier |
+| Legal sizes | only the authored tier sizes (10 / 50 / 100 / …) | any `n × Base`, up to `Max` |
+| Why | each level needs a commander of matching rank | nothing constrains the grouping |
+| Size bound | rank ceiling, per tier | tag-authored `Max` |
+| Splitting | detach a whole formation; its officer goes with it | peel off quanta (see [Splitting and merging](#splitting-and-merging)) |
+| Officer economy | full participant | outside it entirely: no roster slots, no population-cap consumption, no Command Experience, no ascension |
+
+An unled tag is **not** officer suppression — it is a declaration that the formation is not a
+commissioned hierarchy, so no officer entity is ever created and there is nothing to hide.
+
+Two alternatives were considered and rejected:
+
+* **Free officers.** Free ≠ absent: a free officer still exists, still accrues Command
+  Experience and still ascends — so a cheap, risk-free unled blob becomes an *officer farm*
+  feeding the ladder. It also hides entities rather than removing them.
+* **A suppression ability tag on the template.** Organisation tags already point at
+  structures; a second independent "no officers" axis can contradict the structure it is
+  attached to — two sources of truth for one question.
+
+The leadership model is **authored on the tag**, never on the player's structure — if it
+lived on player-editable data, a player could toggle Infantry to Unled and walk out of the
+entire officer economy.
+
+`Command` is structurally unaffected: a Command's commander is external to its Units, so an
+unled scout can still sit inside a Command, and the *(max tiers)+1* top rank is unchanged.
+(Whether unled units *should* be allowed into Commands is an open balance question — see
+[Future review](#future-review).)
+
 ### Rank (OfficerClass)
 
 Rank is an attribute of an **individual officer** — their seniority — not of a formation.
@@ -91,29 +138,45 @@ of Units instead.
 
 ### Size model — operative vs ceiling
 
-Two different numbers, deliberately stored in two different places:
+The numbers in play, deliberately stored in different places:
 
-| Number | Lives on | Player-editable? | Role |
-| --- | --- | --- | --- |
-| **Operative size** | the structure's **tier** | yes | what this formation actually holds |
-| **Hard ceiling** | the **rank** | no (fixed) | the most a tier at that rank may be set to |
+| Number | Applies to | Lives on | Player-editable? | Role |
+| --- | --- | --- | --- | --- |
+| **Operative size** | Commissioned | the structure's **tier** | yes | what this formation actually holds |
+| **Hard ceiling** | Commissioned | the **rank** | no (fixed) | the most a tier at that rank may be set to |
+| **Base (quantum)** | Unled | the **tag** | no (authored) | the indivisible group size; all sizes are multiples of it |
+| **Default** | Unled | the **tag** | no (authored) | the size a unit takes when created without an explicit choice |
+| **Max** | Unled | the **tag** | no (authored) | the largest a single unled unit may be |
 
-The **constraint is enforced against the tier** but the **ceiling value lives on the rank**:
+For **Commissioned** structures the **constraint is enforced against the tier** but the
+**ceiling value lives on the rank**:
 
 ```
-structure.tier[N].operativeSize  ≤  rank[N].maxSoldiers
+Commissioned:  structure.tier[N].operativeSize  ≤  rank[N].maxSoldiers
+Unled:         unit.size = n × tag.Base,  n ≥ 1,  tag.Base ≤ unit.size ≤ tag.Max
 ```
 
-The player may adjust a tier's operative size **within the range** up to its rank ceiling.
-The ceiling must live on the rank (which the player cannot edit per-structure) — if it lived
-on the tier, a player could simply raise it, and the guardrail would mean nothing.
+The player may adjust a Commissioned tier's operative size **within the range** up to its
+rank ceiling. The ceiling must live on the rank (which the player cannot edit per-structure)
+— if it lived on the tier, a player could simply raise it, and the guardrail would mean
+nothing. The same argument places the unled values on the **tag**: the rank ceiling models
+how many men one officer can effectively lead, so with no officer it measures nothing, and
+the tag's authored `Max` replaces it as the guardrail. The player's freedom moves to
+**creation time** instead: an unled unit may be created at any multiple of `Base` up to
+`Max` (e.g. a settler party of 50, 500 or 5,000), with `Default` used when no size is chosen
+(e.g. game-start spawns).
 
-* **Floor:** a tier must contain a whole number **≥ 2** of the formations beneath it — a
-  fan-out of 1 would just be a pointless duplicate of the tier below. So the smallest legal
-  size for tier N is **2 × (tier N-1)**, and any operative size is a multiple `m × size[N-1]`
-  with `m ≥ 2` that still fits under the rank ceiling.
+Unled tags therefore need **no per-player structure at all** — there are no tiers to author.
+The Military Organisation page shows unled tags read-only.
+
+* **Floor (Commissioned):** a tier must contain a whole number **≥ 2** of the formations
+  beneath it — a fan-out of 1 would just be a pointless duplicate of the tier below. So the
+  smallest legal size for tier N is **2 × (tier N-1)**, and any operative size is a multiple
+  `m × size[N-1]` with `m ≥ 2` that still fits under the rank ceiling. Unled tags have no
+  tiers, so the rule does not apply to them; their floor is a single quantum (`Base`).
 * The old `UnitComponentBody.MinimumUnitSize` / `MaximumUnitSize` fields are **removed** —
-  size bounds now come from the structure tier (floor) and the rank ceiling (cap).
+  size bounds now come from the structure tier and rank ceiling (Commissioned) or the tag's
+  authored `Base`/`Max` (Unled), never from the body component.
 
 ### Officer
 
@@ -218,8 +281,12 @@ shape *is* the tiers of the OrganisationStructure the template points at.
 * Has a Unit Commander and one or more bottom-tier formations.
 * **Authorised Strength** — set at creation, bounded by the tier floor and rank ceiling.
 * **Current Strength** — falls with casualties.
-* **Initial Unit Strength** — the size at creation; the maximum the Unit can ever have. A Unit
-  created with 1,000 men that loses 200 still has an Initial Unit Strength of 1,000.
+* **Initial Unit Strength** — *(Commissioned only)* the size at creation; the maximum the Unit
+  can ever have. A Unit created with 1,000 men that loses 200 still has an Initial Unit
+  Strength of 1,000. This models a bloodied formation being reinforced back up to — but never
+  beyond — its authorised strength. **Unled units are not bound by it**: they are bounded by
+  their tag's `Max` instead, so a split-off settler group can later merge back up to full size
+  (see [Splitting and merging](#splitting-and-merging)).
 * Bottom-tier formations persist through casualties, are not recalculated automatically, and
   may merge or disband during reorganisation (disbanded, merged, leaderless, or critically
   depleted).
@@ -247,8 +314,43 @@ full 5-tier structure — rename freely:
 | 4 | Regiment | Task Group | Group |
 | 5 | Division | Fleet | Air Command |
 
-A structure with fewer tiers simply uses fewer labels — a 2-tier Settler structure might be
-*Party → Caravan*, for instance.
+A structure with fewer tiers simply uses fewer labels — a 2-tier militia structure might be
+*Band → Warband*, for instance. (Unled tags have no tiers and therefore no tier labels.)
+
+---
+
+## Splitting and merging
+
+Splitting is a **player action, available at any time in the field** — not only at creation.
+
+### Commissioned
+
+Splitting detaches **whole formations along tier lines**; the detachment takes its officer
+with it. The legal split points are exactly the structure's tiers — a Division can release a
+Regiment, a Regiment a Battalion, and so on. (This is unchanged behaviour, recorded here for
+the first time.)
+
+### Unled
+
+Splitting peels off **quanta**, subject to one invariant:
+
+> Every resulting group is at least one quantum (`Base`). All but one of the groups are exact
+> multiples of `Base`; one group carries the remainder.
+
+Worked example — a 90-strength settler unit with `Base = 25` can split at most
+`floor(90 / 25) = 3` ways. Legal outcomes are `25 + 25 + 40`, `25 + 65`, `50 + 40`, or no
+split. A lone 15 never exists — the remainder always rides with a group. A unit below one
+quantum cannot split at all.
+
+This is the mechanic behind the settler decision: a 200-strong party can found one
+200-resident city, split into two 100s for two towns, or peel off 25s for work camps.
+
+### Merging
+
+Unled units of the same tag on the **same tile** may merge, up to the tag's `Max` — so
+splitting is fully reversible (100 + 100 → 200), and ragged remainders can recombine into
+clean multiples (40 + 35 → 75). Commissioned merging remains governed by the reorganisation
+rules under [Structural concepts](#structural-concepts-not-labels).
 
 ---
 
@@ -280,18 +382,34 @@ sizes sit under their rank ceiling (leaving room to adjust up):
 A maxed 5-tier Infantry formation therefore needs **265 officers**, of which **200 are free**
 (the bottom tier) and **65 must be earned** through combat and ascension.
 
-### Settler (via a `camping-goods` component override) — 2 tiers
+### Settler (via a `camping-goods` component override) — Unled
 
-Structure sizes: **25 / 100**. The same human Body, but a different structure via the tag
-override:
+The same human Body, but the `camping-goods` component swaps the tag to `Settler`, which is
+**Unled** with authored sizes:
 
-| Tier | Operative size | Rank | Rank ceiling |
+| Base (quantum) | Default | Max |
+| --- | --- | --- |
+| 25 | 200 | 5,000 |
+
+**Zero officers**, at any size. Legal sizes are any multiple of 25 up to 5,000; a unit
+created without an explicit choice is 200 strong. The payoff is the settlement decision: one
+200-resident city, two 100-resident towns, or smaller work camps split off in the field —
+and, because unled units merge freely up to `Max`, the choice stays open until the moment of
+settling.
+
+### Scout, sniper, drone — Unled individuals
+
+The cases that motivated the unled model: templates fielding one person (or machine), where
+an officer in the chain is pure noise.
+
+| Tag | Base | Default | Max |
 | --- | --- | --- | --- |
-| 1 | 25 | 1 | 44 |
-| 2 | 100 | 2 | 200 |
+| Scout | 1 | 1 | 1 |
+| Sniper | 1 | 1 | 2 |
+| Drone | 1 | 1 | 4 |
 
-A full 100-man Settler formation = four tier-1 groups + one tier-2 commander = **5 officers**,
-of which **4 are free** and **1 is earned**.
+A `Max` above 1 (a sniper pair, a drone flight) allows a small pooled group that still has no
+officers, no hierarchy and no tier structure — it splits and merges by ones.
 
 ---
 
@@ -312,6 +430,33 @@ experience, and auto-promotes when a slot frees.
 
 **Overload** (parked). A commander taking responsibility for another's orphaned soldiers when
 that officer dies — intentionally left out of the current model; revisit later.
+
+**The armed-settler hole** (known open risk — accepted for now). Because org tags derive from
+components, nothing stops a design of human body + `camping-goods` + swords + armour: it
+derives the `Settler` tag, is Unled, and can be 5,000 strong with **zero officer
+requirements** — sidestepping the officer economy. Banning weapons on unled templates is not
+an option (a sniper is unled *and* armed). The only committed guardrail today is the
+tag-authored `Max`. Candidate mechanical levers, deliberately **not** committed yet:
+
+* **Unled units cannot join a `Command`** — no shared vision/detection, no command bonuses.
+* **A leaderless combat malus** — unled units attack/defend at a penalty (number to be set
+  with combat resolution, alongside the existing 30% out-of-supply values).
+* **No veterancy growth / no academy feed** — closes the indirect officer-farm route, at the
+  cost of ruling out things like a veteran sniper corps.
+
+**Unled units and the promotion ceiling.** Do unled soldiers count toward `totalSoldiers` in
+`maxOfficers(rank) = floor(totalSoldiers / divisor[rank]) + perkBonus[rank]`? If they do,
+settler spam inflates the officer cap — the same exploit shape as the rejected officer farm.
+
+**Unled units and Combat Experience.** Command Experience is settled (unled units earn none).
+Combat Experience is a separate currency: if unled units earn it, the academy conversion lets
+a veteran scout corps feed the officer pool indirectly. Feature or leak — undecided.
+
+**Compiled snapshots are replaced on recompile.** A fielded unit references its template's
+compiled snapshot, which is overwritten when the template is recompiled — so fielded units
+silently track template edits. That collides with "existing units keep working exactly as
+they are" (see the obsolescence design). An obsolescence-era problem (snapshot versioning),
+noted now rather than solved now.
 
 **Promotion ceiling basis.** Cap is currently `floor(totalSoldiers / divisor[rank]) + perks`.
 Consider whether settlement count or other factors should also feed it.

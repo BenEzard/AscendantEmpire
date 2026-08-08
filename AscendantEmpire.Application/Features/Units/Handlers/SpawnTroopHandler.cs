@@ -1,8 +1,10 @@
-﻿using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
+using AscendantEmpire.Application.Features.Units.Classes;
 using AscendantEmpire.Application.Helpers;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
 
 using FluentValidation;
@@ -21,7 +23,7 @@ public record SpawnTroopRequest(
     int PlayerId,
     int XCoord,
     int YCoord,
-    int UnitDesignId,
+    int UnitTemplateId,
     int InitialStrength,
     int HealthyCount,
     int InjuredCount
@@ -42,8 +44,8 @@ internal class SpawnTroopRequestValidator : AbstractValidator<SpawnTroopRequest>
         RuleFor(x => x.YCoord)
             .GreaterThanOrEqualTo(0).WithMessage("YCoord must be greater than or equal to 0.");
 
-        RuleFor(x => x.UnitDesignId)
-            .GreaterThan(0).WithMessage("Unit Design Id must be greater than 0.");
+        RuleFor(x => x.UnitTemplateId)
+            .GreaterThan(0).WithMessage("Unit Template Id must be greater than 0.");
 
         RuleFor(x => x.InitialStrength)
             .GreaterThan(0).WithMessage("Initial Strength must be greater than 0.");
@@ -109,19 +111,44 @@ internal class SpawnTroopHandler(
 
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
+            // The troop's stats are served from the template's compiled snapshot, so a template that has never
+            // been compiled cannot be fielded. The snapshot also carries the organisation tag resolved from the
+            // template's components, which decides whether the unled sizing rules apply.
+            CompiledUnitTemplate? compiledTemplate = await context.CompiledUnitTemplates
+                .AsNoTracking()
+                .Include(c => c.OrganisationTag)
+                .FirstOrDefaultAsync(c => c.UnitTemplateId == request.UnitTemplateId, cancelToken);
+
+            if (compiledTemplate is null)
+            {
+                string error = $"Unit template {request.UnitTemplateId} has no compiled snapshot — it does not exist or has never been compiled.";
+                logger.LogWarning("{Error}", error);
+                return ServiceResultBase.NotFound(error);
+            }
+
+            // Unled units (settlers, scouts, ...) must be a whole multiple of their tag's base quantum, capped
+            // at the tag's max. Commissioned templates pass through — their tier-size rules are enforced elsewhere.
+            List<string> sizeErrors = UnledSpawnRules.ValidateSize(compiledTemplate.OrganisationTag, request.InitialStrength);
+
+            if (sizeErrors.Count > 0)
+            {
+                logger.LogWarning("Unled size validation failed for {Request}. Errors: {Errors}", nameof(SpawnTroopRequest), string.Join("; ", sizeErrors));
+                return ServiceResultBase.Fail(sizeErrors);
+            }
+
             context.TroopInstances.Add(new TroopInstance
             {
                 GameId = gameInfo.GameId,
                 PlayerId = thisPlayer.PlayerId,
                 CampaignMapTileId = campaignMapTileId,
-                UnitDesignId = request.UnitDesignId,
+                UnitTemplateId = request.UnitTemplateId,
                 InitialStrength = request.InitialStrength,
                 HealthyCount = request.HealthyCount,
                 InjuredCount = request.InjuredCount,
             });
 
             await context.SaveChangesAsync(cancelToken);
-    
+
             return ServiceResultBase.Created();
         }
         catch (Exception ex)

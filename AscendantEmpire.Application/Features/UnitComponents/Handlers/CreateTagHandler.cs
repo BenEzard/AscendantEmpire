@@ -58,6 +58,10 @@ internal class CreateTagHandler(
                 Description = dto.Description,
                 TagType = dto.TagType,
                 MovementDomain = dto.MovementDomain,
+                LeadershipModel = dto.LeadershipModel,
+                UnledBaseSize = dto.UnledBaseSize,
+                UnledDefaultSize = dto.UnledDefaultSize,
+                UnledMaxSize = dto.UnledMaxSize,
                 SystemCreated = dto.SystemCreated,
             };
 
@@ -89,6 +93,10 @@ internal class CreateTagHandler(
             Description = tag.Description,
             TagType = tag.TagType,
             MovementDomain = tag.MovementDomain,
+            LeadershipModel = tag.LeadershipModel,
+            UnledBaseSize = tag.UnledBaseSize,
+            UnledDefaultSize = tag.UnledDefaultSize,
+            UnledMaxSize = tag.UnledMaxSize,
             SystemCreated = tag.SystemCreated,
         };
     }

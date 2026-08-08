@@ -1,6 +1,7 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.UnitComponents.Services;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
+using AscendantEmpire.Domain.Enums.UnitDesigns;
 
 using MediatR;
 
@@ -146,8 +147,23 @@ internal class CompileUnitTemplateHandler(
                     DisplayName = group.First().DisplayName,
                 })];
 
+            // Resolve the template's military organisation tag from its components (there is no field on the
+            // template itself): a non-body component's organisation tag (e.g. camping-goods -> Settler)
+            // overrides the body's default (e.g. human -> Infantry). More than one organisation tag at the
+            // same precedence level is ambiguous, so the compile fails rather than guessing.
+            ServiceResult<int?> organisationTagResult = ResolveOrganisationTag(bodyComponent, template.Components);
+
+            if (organisationTagResult.HasSucceeded == false)
+            {
+                logger.LogWarning("Organisation-tag resolution failed for template {TemplateId}. Errors: {Errors}",
+                    request.UnitTemplateId,
+                    string.Join("; ", organisationTagResult.Errors));
+
+                return ServiceResult<int>.Fail(organisationTagResult.Errors);
+            }
+
             await UpsertSnapshotAsync(template, body, totalWeight, totalDetection, totalVisibility, attack, resistance,
-                snapshotComponents, snapshotCapabilities, request.CompiledOnTurn, cancelToken);
+                snapshotComponents, snapshotCapabilities, organisationTagResult.SuccessValue, request.CompiledOnTurn, cancelToken);
 
             return ServiceResult<int>.Succeed(template.Id);
         }
@@ -158,6 +174,43 @@ internal class CompileUnitTemplateHandler(
 
             return ServiceResult<int>.InternalServerError(ex, error);
         }
+    }
+
+    /// <summary>
+    /// Resolves the template's military organisation tag from its components. A non-body component's
+    /// organisation tag beats the body's default; two organisation tags at the same precedence level fail.
+    /// Succeeds with null when no component carries an organisation tag at all.
+    /// </summary>
+    private static ServiceResult<int?> ResolveOrganisationTag(UnitComponent bodyComponent, ICollection<UnitTemplateComponent> fittedComponents)
+    {
+        // Distinct by tag id — the same tag carried by two fitted components (or twice on the body) is
+        // agreement, not ambiguity.
+        List<Tag> bodyOrgTags = [.. bodyComponent.Tags
+            .Select(componentTag => componentTag.Tag)
+            .Where(tag => tag.TagType == TagType.MilitaryOrganisationalGroup)
+            .DistinctBy(tag => tag.Id)];
+
+        List<Tag> fittedOrgTags = [.. fittedComponents
+            .SelectMany(fitted => fitted.UnitComponent.Tags.Select(componentTag => componentTag.Tag))
+            .Where(tag => tag.TagType == TagType.MilitaryOrganisationalGroup)
+            .DistinctBy(tag => tag.Id)];
+
+        if (fittedOrgTags.Count > 1)
+        {
+            return ServiceResult<int?>.Fail(
+                $"The template's fitted components carry more than one military organisation tag ({string.Join(", ", fittedOrgTags.Select(t => $"'{t.Code}'"))}) — the organisation is ambiguous.");
+        }
+
+        if (bodyOrgTags.Count > 1)
+        {
+            return ServiceResult<int?>.Fail(
+                $"The template's body carries more than one military organisation tag ({string.Join(", ", bodyOrgTags.Select(t => $"'{t.Code}'"))}) — the organisation is ambiguous.");
+        }
+
+        // Precedence: a fitted component's tag overrides the body's default.
+        int? organisationTagId = fittedOrgTags.FirstOrDefault()?.Id ?? bodyOrgTags.FirstOrDefault()?.Id;
+
+        return ServiceResult<int?>.Succeed(organisationTagId);
     }
 
     /// <summary>
@@ -173,6 +226,7 @@ internal class CompileUnitTemplateHandler(
         DamageProfile resistance,
         List<CompiledUnitTemplateComponent> components,
         List<CompiledUnitTemplateCapability> capabilities,
+        int? organisationTagId,
         int compiledOnTurn,
         CancellationToken cancelToken)
     {
@@ -190,6 +244,7 @@ internal class CompileUnitTemplateHandler(
                 MapImagePath = template.MapImagePath,
                 BodyComponentId = template.BodyComponentId,
                 MovementDomain = body.MovementDomain,
+                OrganisationTagId = organisationTagId,
                 TotalWeight = totalWeight,
                 TotalDetection = totalDetection,
                 TotalVisibility = totalVisibility,
@@ -211,6 +266,7 @@ internal class CompileUnitTemplateHandler(
             existing.MapImagePath = template.MapImagePath;
             existing.BodyComponentId = template.BodyComponentId;
             existing.MovementDomain = body.MovementDomain;
+            existing.OrganisationTagId = organisationTagId;
             existing.TotalWeight = totalWeight;
             existing.TotalDetection = totalDetection;
             existing.TotalVisibility = totalVisibility;

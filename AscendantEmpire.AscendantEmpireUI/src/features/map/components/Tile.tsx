@@ -1,4 +1,4 @@
-// src/features/map-gallery/components/Tile.tsx
+﻿// src/features/map-gallery/components/Tile.tsx
 import React from "react";
 import type { Geography } from "@/types/map/Geography";
 import type { TileCell } from "./TileTypes";
@@ -13,7 +13,7 @@ export interface TileProps {
   geography: Geography;
   selectedTroopId?: number;
   visibleTroopId?: number;
-  troopImageSrcByUnitDesignId?: ReadonlyMap<number, string>;
+  troopImageSrcByUnitTemplateId?: ReadonlyMap<number, string>;
   onClick?: (tile: TileCell) => void;
   onHold?: (tile: TileCell) => void;
   className?: string;
@@ -32,7 +32,7 @@ const Tile = React.memo(function Tile({
   geography,
   selectedTroopId,
   visibleTroopId,
-  troopImageSrcByUnitDesignId,
+  troopImageSrcByUnitTemplateId,
   onClick,
   onHold,
   className,
@@ -125,7 +125,7 @@ const Tile = React.memo(function Tile({
           troop={visibleTroop}
           troopInstanceCount={visibleTroopCount}
           isSelected={visibleTroop.id === selectedTroopId}
-          troopImageSrcByUnitDesignId={troopImageSrcByUnitDesignId}
+          troopImageSrcByUnitTemplateId={troopImageSrcByUnitTemplateId}
         />
       ) : null}
     </div>

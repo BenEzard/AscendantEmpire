@@ -80,7 +80,7 @@ internal class MoveTroopHandler(
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
             TroopInstance? troop = await context.TroopInstances
-                .Include(ti => ti.UnitDesign.CompiledStats)
+                .Include(ti => ti.UnitTemplate.Compiled)
                 .FirstOrDefaultAsync(ti => ti.Id == request.TroopInstanceId && ti.GameId == request.GameId, cancelToken);
 
             ServiceResult<IReadOnlyCollection<OpenGame>> gameInfoResult = await mediator.Send(new GetOpenGamesRequest(request.GameId, request.PlayerId), cancelToken);

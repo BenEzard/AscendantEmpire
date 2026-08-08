@@ -31,6 +31,29 @@ public record UpsertTagDto
     public DomainType? MovementDomain { get; init; }
 
     /// <summary>
+    /// The leadership model, for a MilitaryOrganisationalGroup tag. Must be null for any other tag type.
+    /// </summary>
+    public LeadershipModel? LeadershipModel { get; init; }
+
+    /// <summary>
+    /// The indivisible group size (quantum) for an Unled tag. Required when <see cref="LeadershipModel"/>
+    /// is Unled; must be null otherwise.
+    /// </summary>
+    public int? UnledBaseSize { get; init; }
+
+    /// <summary>
+    /// The size an unled unit takes when created without an explicit choice. A multiple of
+    /// <see cref="UnledBaseSize"/>. Required when <see cref="LeadershipModel"/> is Unled; must be null otherwise.
+    /// </summary>
+    public int? UnledDefaultSize { get; init; }
+
+    /// <summary>
+    /// The largest a single unled unit may be. Required when <see cref="LeadershipModel"/> is Unled; must be
+    /// null otherwise.
+    /// </summary>
+    public int? UnledMaxSize { get; init; }
+
+    /// <summary>
     /// Whether the tag is system-created (seeded/built-in) rather than user-authored. Defaults to false.
     /// </summary>
     public bool SystemCreated { get; init; }

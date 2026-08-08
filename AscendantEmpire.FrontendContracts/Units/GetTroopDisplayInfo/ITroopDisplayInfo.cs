@@ -2,6 +2,6 @@
 
 public interface ITroopDisplayInfo
 {
-    public int UnitDesignId { get; }
+    public int UnitTemplateId { get; }
     public string MapImagePath { get; }
 }

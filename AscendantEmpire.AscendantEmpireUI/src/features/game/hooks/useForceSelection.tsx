@@ -187,7 +187,13 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
       });
     }
 
-    if (!hasPendingMultiTroopSelection && selectedForce.unitDesignId === 2) {
+    // TODO: The Hunt action was gated on legacy unit design id 2, which no longer exists now that troops
+    // reference unit templates (whose ids are database-dependent, so a magic number can't stand in).
+    // Re-enable via a compiled capability tag (e.g. "hunting") once capability grants exist — see
+    // docs/design/unit-design/tags-and-modifiers.md, concept 3.
+    const canHunt = false;
+
+    if (!hasPendingMultiTroopSelection && canHunt) {
       actions.push({
         key: "hunt",
         label: "Hunt",

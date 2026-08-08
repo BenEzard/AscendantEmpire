@@ -104,6 +104,16 @@ const MilitaryOrganisationPage = forwardRef<MilitaryPageHandle>(function Militar
   async function handleSelectTag(tag: OrganisationTag) {
     setSelectedTag(tag);
     setSavedNote(false);
+
+    // Unled tags have no per-player structure at all — their sizing is authored on the tag (catalog data)
+    // and shown read-only below, so there is nothing to load.
+    if (tag.leadershipModel === "Unled") {
+      setRows(makeEmptyRows());
+      setIsDefault(false);
+      setError(null);
+      return;
+    }
+
     try {
       setIsLoadingStructure(true);
       setError(null);
@@ -146,7 +156,8 @@ const MilitaryOrganisationPage = forwardRef<MilitaryPageHandle>(function Militar
   // saves this page alongside the others. A no-op (resolves) when no tag is selected, so the shared Save never
   // fails just because this page has nothing loaded. Errors are surfaced here and re-thrown.
   const save = useCallback(async () => {
-    if (selectedTag === null) {
+    // Nothing to persist with no selection, and unled tags are read-only here (no per-player structure).
+    if (selectedTag === null || selectedTag.leadershipModel === "Unled") {
       return;
     }
     try {
@@ -195,6 +206,28 @@ const MilitaryOrganisationPage = forwardRef<MilitaryPageHandle>(function Militar
 
       {selectedTag === null ? (
         <p className="text-sm text-slate-500">Choose an organisation group above to edit its structure.</p>
+      ) : selectedTag.leadershipModel === "Unled" ? (
+        // Unled organisations have no officers and no tier structure; their sizing is authored on the tag
+        // itself (base quantum / default / max) and is read-only here. See the design doc's "Leadership
+        // model" section.
+        <div className="flex flex-col gap-2">
+          <p className="text-xs text-slate-500">
+            {selectedTag.movementDomain ? `Domain: ${DOMAIN_TYPE_LABELS[selectedTag.movementDomain]} · ` : ""}
+            Unled — this organisation has no officers and no tier structure. Units are any whole multiple of
+            the base size, up to the maximum; sizes are fixed by the game and cannot be edited.
+          </p>
+          <div className="flex gap-6 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <span>
+              Base (quantum): <span className="font-semibold">{selectedTag.unledBaseSize ?? "—"}</span>
+            </span>
+            <span>
+              Default: <span className="font-semibold">{selectedTag.unledDefaultSize ?? "—"}</span>
+            </span>
+            <span>
+              Maximum: <span className="font-semibold">{selectedTag.unledMaxSize ?? "—"}</span>
+            </span>
+          </div>
+        </div>
       ) : isLoadingStructure ? (
         <p className="text-sm text-slate-500">Loading…</p>
       ) : (

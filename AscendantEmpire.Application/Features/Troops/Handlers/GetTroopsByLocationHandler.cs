@@ -58,7 +58,6 @@ internal class GetTroopsByLocationHandler(
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
             List<PlayerTroop> troops = await context.TroopInstances
-                  .Include(ti => ti.UnitDesign.CompiledStats)
                   .Where(pu => pu.GameId == request.GameId)
                   .Where(pu => pu.HealthyCount + pu.InjuredCount > 0) // Only include troops that are alive
                   .Where(pu => request.CampaignMapTileIds.Contains(pu.CampaignMapTileId))
@@ -72,12 +71,16 @@ internal class GetTroopsByLocationHandler(
                       BattleMapTileId = pu.BattleMapTileId,
                       CampaignXCoord = pu.CampaignMap.XCoord,
                       CampaignYCoord = pu.CampaignMap.YCoord,
-                      SightRange = pu.UnitDesign.CompiledStats.SightRange,
-                      MapImagePath = pu.UnitDesign.MapImagePath,
+                      // Sight range in tiles, derived from the compiled snapshot's aggregated detection
+                      // (fixed-point, Scale 1,000 — see the template compilation). Stand-in until a dedicated
+                      // sight-range stat is compiled. The snapshot always exists: a troop cannot be spawned
+                      // from an uncompiled template.
+                      SightRange = (int)(pu.UnitTemplate.Compiled!.TotalDetection / 1000),
+                      MapImagePath = pu.UnitTemplate.Compiled!.MapImagePath,
                       HealthyTroops = pu.HealthyCount,
                       InjuredTroops = pu.InjuredCount,
                       InitialStrength = pu.InitialStrength,
-                      UnitDesignId = pu.UnitDesignId,
+                      UnitTemplateId = pu.UnitTemplateId,
 
                   })
                   .ToListAsync(cancelToken);

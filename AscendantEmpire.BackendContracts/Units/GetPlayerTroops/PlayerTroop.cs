@@ -11,7 +11,7 @@ public class PlayerTroop
     public int? BattleMapTileId { get; set; }
     public int CampaignXCoord { get; set; }
     public int CampaignYCoord { get; set; }
-    public int UnitDesignId { get; set; }
+    public int UnitTemplateId { get; set; }
     public int SightRange { get; set; }
     public int HealthyTroops { get; set; }
     public int InjuredTroops { get; set; }

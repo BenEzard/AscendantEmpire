@@ -233,7 +233,7 @@ internal class GetPlayerCampaignMapHandler(
                                     Id = ot.TroopInstanceId,
                                     RecordType = ot.RecordType,
                                     CommanderId = ot.PlayerId,
-                                    UnitDesignId = ot.UnitDesignId,
+                                    UnitTemplateId = ot.UnitTemplateId,
                                     HealthyTroops = ot.HealthyTroops,
                                     InjuredTroops = ot.InjuredTroops,
                                     InitialStrength = ot.InitialStrength,

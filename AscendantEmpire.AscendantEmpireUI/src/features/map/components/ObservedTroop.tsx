@@ -1,10 +1,10 @@
-import type { ObservedTroopTile } from "./TileTypes";
+﻿import type { ObservedTroopTile } from "./TileTypes";
 
 export interface ObservedTroopProps {
   troop: ObservedTroopTile;
   troopInstanceCount: number;
   isSelected?: boolean;
-  troopImageSrcByUnitDesignId?: ReadonlyMap<number, string>;
+  troopImageSrcByUnitTemplateId?: ReadonlyMap<number, string>;
 }
 
 function clampPercent(value: number): number {
@@ -19,8 +19,8 @@ function getUnitMarkerCount(unitCount: number): number {
   return 4;
 }
 
-export default function ObservedTroop({ troop, troopInstanceCount, isSelected = false, troopImageSrcByUnitDesignId }: ObservedTroopProps) {
-  const troopImageSrc = troopImageSrcByUnitDesignId?.get(troop.unitDesignId);
+export default function ObservedTroop({ troop, troopInstanceCount, isSelected = false, troopImageSrcByUnitTemplateId }: ObservedTroopProps) {
+  const troopImageSrc = troopImageSrcByUnitTemplateId?.get(troop.UnitTemplateId);
 
   if (!troopImageSrc) return null;
 

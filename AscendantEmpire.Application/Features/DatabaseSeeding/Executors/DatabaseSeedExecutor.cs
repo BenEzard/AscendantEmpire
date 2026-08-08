@@ -16,18 +16,21 @@ using Microsoft.Extensions.Logging;
 namespace AscendantEmpire.Application.Features.DatabaseSeeding.Executors;
 
 /// <summary>
-/// Executes <see cref="ProcessType.SeedDatabase"/> jobs — populates the database with its initial
-/// reference/catalogue values from the static seed-data classes.
+/// Executes <see cref="ProcessType.SeedDatabase"/> jobs — populates the database with its initial reference values from the static seed-data classes.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Each target's values are pushed through its existing idempotent upsert handler, so re-running the seed
-/// overwrites existing rows to match the code values and inserts any that are missing. Validation and the
-/// biome resource-value scaling therefore stay in one place — this executor only orchestrates.
+/// Each target's values are pushed through its existing idempotent upsert handler, so re-running the seed overwrites existing rows to match the code values and
+/// inserts any that are missing. Validation and the biome resource-value scaling therefore stay in one place — this executor only orchestrates.
 /// </para>
 /// <para>
-/// Steps run in a deliberate order (currently order-independent, since the three targets have no
-/// inter-dependencies): add a new step by appending another <c>RunStepAsync</c> call in the desired place.
+/// Steps run in a deliberate order (currently order-independent, since the three targets have no inter-dependencies):
+/// add a new step by appending another <c>RunStepAsync</c> call in the desired place.
+/// </para>
+/// <para>
+/// <b>Reference data only.</b> Unit design content — tags, components and unit templates, including the <c>SETTLER</c> and <c>SCOUT</c> starter templates a new
+/// game needs — is authored by hand through the Entity Setup Tool and the Unit Designer, and is deliberately not created here. Game setup reads that catalogue
+/// and fails loudly when it is absent (see <c>GameSetupService.StarterTemplateCodes</c>).
 /// </para>
 /// </remarks>
 internal sealed class DatabaseSeedExecutor(
@@ -92,12 +95,20 @@ internal sealed class DatabaseSeedExecutor(
     {
         ServiceResultBase result = await mediator.Send(request, cancellationToken);
 
+        ThrowIfFailed(stepName, result);
+
+        logger.LogInformation("Seeded {StepName}.", stepName);
+    }
+
+    /// <summary>
+    /// Throws when a seed step's result is a failure, so the outer catch records it against the Processing row.
+    /// </summary>
+    private static void ThrowIfFailed(string stepName, ServiceResultBase result)
+    {
         if (result.HasSucceeded == false)
         {
             throw new InvalidOperationException($"Seeding {stepName} failed: {string.Join("; ", result.Errors)}");
         }
-
-        logger.LogInformation("Seeded {StepName}.", stepName);
     }
 
     /// <summary>

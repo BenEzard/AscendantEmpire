@@ -11,5 +11,5 @@ public class DTTroopStub : ITroopStub
     public int HealthyTroops { get; set; }
     public int InjuredTroops { get; set; }
     public int InitialStrength { get; set; }
-    public int UnitDesignId { get; set; }
+    public int UnitTemplateId { get; set; }
 }

@@ -66,6 +66,10 @@ internal class UpdateTagHandler(
             tag.Description = dto.Description;
             tag.TagType = dto.TagType;
             tag.MovementDomain = dto.MovementDomain;
+            tag.LeadershipModel = dto.LeadershipModel;
+            tag.UnledBaseSize = dto.UnledBaseSize;
+            tag.UnledDefaultSize = dto.UnledDefaultSize;
+            tag.UnledMaxSize = dto.UnledMaxSize;
             tag.SystemCreated = dto.SystemCreated;
 
             await context.SaveChangesAsync(cancelToken);
@@ -95,6 +99,10 @@ internal class UpdateTagHandler(
             Description = tag.Description,
             TagType = tag.TagType,
             MovementDomain = tag.MovementDomain,
+            LeadershipModel = tag.LeadershipModel,
+            UnledBaseSize = tag.UnledBaseSize,
+            UnledDefaultSize = tag.UnledDefaultSize,
+            UnledMaxSize = tag.UnledMaxSize,
             SystemCreated = tag.SystemCreated,
         };
     }

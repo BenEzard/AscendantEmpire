@@ -444,4 +444,124 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
             Assert.That(globalSnapshot.CompiledOnTurn, Is.EqualTo(0), "Global templates keep the turn-0 sentinel.");
         }
     }
+
+    /// <summary>
+    /// Creates a MilitaryOrganisationalGroup tag (if it doesn't exist yet) and attaches it to the catalogue
+    /// component with the given code. Returns the tag's id.
+    /// </summary>
+    private async Task<int> AttachOrganisationTagAsync(string componentCode, string tagCode)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        Tag? tag = await context.Tags.SingleOrDefaultAsync(t => t.Code == tagCode);
+
+        if (tag is null)
+        {
+            tag = new Tag
+            {
+                Code = tagCode,
+                DisplayName = tagCode,
+                TagType = TagType.MilitaryOrganisationalGroup,
+            };
+            context.Tags.Add(tag);
+        }
+
+        UnitComponent component = await context.UnitComponents.SingleAsync(c => c.Code == componentCode);
+        context.UnitComponentTags.Add(new UnitComponentTag { UnitComponent = component, Tag = tag });
+        await context.SaveChangesAsync();
+
+        return tag.Id;
+    }
+
+    [Test, Description("A fitted component's organisation tag overrides the body's default on the compiled snapshot.")]
+    public async Task CompileResolvesFittedOrganisationTagOverBodyDefaultAsync()
+    {
+        await SeedCatalogAsync();
+        await AttachOrganisationTagAsync("test_body", "infantry");
+        int fittedTagId = await AttachOrganisationTagAsync("wpn", "settler");
+
+        ServiceResult<GlobalUnitTemplateView> result = await SendAsync(new CreateGlobalUnitTemplateRequest(new SaveGlobalUnitTemplateDto
+        {
+            Code = "tmpl_org",
+            DisplayName = "Org Template",
+            MapImagePath = "org.png",
+            BaseCode = "test_body",
+            SlotComponentCodes = ["wpn", null],
+        }));
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        CompiledUnitTemplate snapshot = await LoadSnapshotAsync(result.SuccessValue!.Id);
+        Assert.That(snapshot.OrganisationTagId, Is.EqualTo(fittedTagId), "camping-goods-style override: the fitted component's tag wins.");
+    }
+
+    [Test, Description("With no fitted organisation tag, the body's default organisation tag lands on the snapshot.")]
+    public async Task CompileFallsBackToBodyOrganisationTagAsync()
+    {
+        await SeedCatalogAsync();
+        int bodyTagId = await AttachOrganisationTagAsync("test_body", "infantry");
+
+        ServiceResult<GlobalUnitTemplateView> result = await SendAsync(new CreateGlobalUnitTemplateRequest(new SaveGlobalUnitTemplateDto
+        {
+            Code = "tmpl_body_org",
+            DisplayName = "Body Org Template",
+            MapImagePath = "org.png",
+            BaseCode = "test_body",
+            SlotComponentCodes = ["wpn", null],
+        }));
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        CompiledUnitTemplate snapshot = await LoadSnapshotAsync(result.SuccessValue!.Id);
+        Assert.That(snapshot.OrganisationTagId, Is.EqualTo(bodyTagId));
+    }
+
+    [Test, Description("With no organisation tags anywhere, the snapshot's organisation tag is null.")]
+    public async Task CompileLeavesOrganisationTagNullWhenNoneCarriedAsync()
+    {
+        await SeedCatalogAsync();
+
+        ServiceResult<GlobalUnitTemplateView> result = await SendAsync(new CreateGlobalUnitTemplateRequest(new SaveGlobalUnitTemplateDto
+        {
+            Code = "tmpl_no_org",
+            DisplayName = "No Org Template",
+            MapImagePath = "org.png",
+            BaseCode = "test_body",
+            SlotComponentCodes = ["wpn", null],
+        }));
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        CompiledUnitTemplate snapshot = await LoadSnapshotAsync(result.SuccessValue!.Id);
+        Assert.That(snapshot.OrganisationTagId, Is.Null);
+    }
+
+    [Test, Description("Two different organisation tags across the fitted components make the organisation ambiguous — the save fails and writes nothing.")]
+    public async Task CompileRejectsAmbiguousFittedOrganisationTagsAsync()
+    {
+        await SeedCatalogAsync();
+        await AttachOrganisationTagAsync("wpn", "settler");
+        await AttachOrganisationTagAsync("arm", "scout");
+
+        ServiceResult<GlobalUnitTemplateView> result = await SendAsync(new CreateGlobalUnitTemplateRequest(new SaveGlobalUnitTemplateDto
+        {
+            Code = "tmpl_ambiguous",
+            DisplayName = "Ambiguous Template",
+            MapImagePath = "org.png",
+            BaseCode = "test_body",
+            SlotComponentCodes = ["wpn", "arm"],
+        }));
+
+        await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
+        int templateCount = await verify.UnitTemplates.CountAsync();
+        int snapshotCount = await verify.CompiledUnitTemplates.CountAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Has.Some.Contains("more than one military organisation tag"));
+            Assert.That(templateCount, Is.Zero, "The rejected template was not persisted.");
+            Assert.That(snapshotCount, Is.Zero, "No orphaned snapshot either.");
+        }
+    }
 }

@@ -1,14 +1,19 @@
+using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
 using AscendantEmpire.Application.Features.Military;
 using AscendantEmpire.BackendContracts.Turns.CreateCampaignTurnQueue;
 using AscendantEmpire.Domain.Entities.Games;
+using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Military;
 using AscendantEmpire.Domain.Entities.Turns;
+using AscendantEmpire.Domain.Entities.UnitDesigns;
+using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums.Games;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Turns;
+using AscendantEmpire.Domain.Enums.UnitDesigns;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -28,6 +33,17 @@ internal class GameSetupService(
     public const int MIN_NUMBER_OF_PLAYERS = 2; // TODO: Make this configurable as AppSettings.
     public const int MAX_NUMBER_OF_PLAYERS = 8; // TODO: Make this configurable as AppSettings.
     public const int TURN_MAX_DURATION_HOURS = 24; // TODO: Make this configurable as a property of the Game.
+
+    /// <summary>
+    /// The global template codes every player starts the game with — unlocked, and spawned once each at the
+    /// player's start position. Each must resolve to an unled organisation tag (see
+    /// <see cref="SeedStarterUnitsAsync"/>).
+    /// </summary>
+    /// <remarks>
+    /// These are <b>hand-authored catalogue content</b>, not seeded: game setup reads them and fails if they
+    /// are absent. See <c>docs/design/units/military-organisation-implementation-notes.md</c>.
+    /// </remarks>
+    public static readonly string[] StarterTemplateCodes = ["SETTLER", "SCOUT"];
 
     /// <inheritdoc/>
     public async Task<ServiceResult<int>> SetupGameAsync(SetupGameRequest request, CancellationToken cancellationToken = default)
@@ -100,6 +116,19 @@ internal class GameSetupService(
                     gameId);
 
                 return ServiceResult<int>.Fail($"The number of records inserted into the Player Campaign Map's was less than expected. Something went wrong.");
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // Unlock the starter templates for every player and place their starting units (settler + scout)
+            // at the map's authored start positions.
+            ServiceResultBase starterUnitsResult = await SeedStarterUnitsAsync(context, gameId, mapProperties.Id, addedPlayers, cancellationToken);
+
+            if (starterUnitsResult.HasSucceeded == false)
+            {
+                const string error = "An error occurred while creating the starting units during Game setup.";
+                logger.LogError("{Error} Errors: {Errors}", error, string.Join("; ", starterUnitsResult.Errors));
+                return ServiceResult<int>.Fail(starterUnitsResult.Errors.Prepend(error));
             }
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -323,6 +352,151 @@ internal class GameSetupService(
 
         context.PlayerOfficerRanks.AddRange(ranksToAdd);
         await context.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Unlocks the starter templates (and their components) for every player, then spawns each player's
+    /// starting units — one of each starter template — at the map's authored start positions.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Starter templates are hand-authored global templates identified by <see cref="StarterTemplateCodes"/>;
+    /// nothing creates them, so this reads the catalogue as it finds it. Each must be unled (its compiled
+    /// organisation tag declares <c>LeadershipModel.Unled</c>) because the unit's starting size is the tag's
+    /// authored <c>UnledDefaultSize</c> — a commissioned template has no equivalent single default.
+    /// </para>
+    /// <para>
+    /// A missing template, missing snapshot, non-unled organisation, or missing start position fails game
+    /// setup loudly rather than starting a game with no units. (The method is self-saving.)
+    /// </para>
+    /// </remarks>
+    private async Task<ServiceResultBase> SeedStarterUnitsAsync(
+        AscendantEmpireContext context,
+        int gameId,
+        int galleryMapId,
+        IReadOnlyCollection<DomainPlayer> addedPlayers,
+        CancellationToken cancellationToken)
+    {
+        // Load the starter templates (with their fitted components, for the unlock rows).
+        List<UnitTemplate> starterTemplates = await context.UnitTemplates
+            .Include(t => t.Components)
+            .Where(t => t.Code != null && StarterTemplateCodes.Contains(t.Code))
+            .ToListAsync(cancellationToken);
+
+        string[] missingCodes = [.. StarterTemplateCodes.Except(starterTemplates.Select(t => t.Code!))];
+
+        if (missingCodes.Length > 0)
+        {
+            return ServiceResultBase.Fail($"Starter template(s) not found in the catalogue: {string.Join(", ", missingCodes)}. A game cannot start without them — author a global unit template with each of these codes in the Unit Designer.");
+        }
+
+        // The compiled snapshots carry the resolved organisation tag, which supplies each unit's starting size.
+        int[] starterTemplateIds = [.. starterTemplates.Select(t => t.Id)];
+
+        List<CompiledUnitTemplate> compiledTemplates = await context.CompiledUnitTemplates
+            .Include(c => c.OrganisationTag)
+            .Where(c => starterTemplateIds.Contains(c.UnitTemplateId))
+            .ToListAsync(cancellationToken);
+
+        // Resolve each starter's spawn size up front so a misconfigured catalog fails before anything is written.
+        List<(UnitTemplate Template, int SpawnSize)> startersToSpawn = [];
+
+        foreach (UnitTemplate template in starterTemplates)
+        {
+            CompiledUnitTemplate? compiled = compiledTemplates.FirstOrDefault(c => c.UnitTemplateId == template.Id);
+
+            if (compiled is null)
+            {
+                return ServiceResultBase.Fail($"Starter template '{template.Code}' has no compiled snapshot — recompile the catalog templates.");
+            }
+
+            if (compiled.OrganisationTag is not { LeadershipModel: LeadershipModel.Unled } organisationTag)
+            {
+                return ServiceResultBase.Fail($"Starter template '{template.Code}' is not unled — starting units must resolve to an unled organisation tag, which supplies their default size.");
+            }
+
+            if (organisationTag.UnledDefaultSize is not > 0)
+            {
+                return ServiceResultBase.Fail($"Starter template '{template.Code}' resolves to unled tag '{organisationTag.Code}', which has no authored UnledDefaultSize.");
+            }
+
+            startersToSpawn.Add((template, organisationTag.UnledDefaultSize.Value));
+        }
+
+        // One start position per player, best-scored first (unscored positions come last).
+        List<CampaignMapStartPosition> startPositions = await context.CampaignMapStartPositions
+            .Where(sp => sp.CampaignMapGalleryIndexId == galleryMapId)
+            .OrderByDescending(sp => sp.LocationScore ?? int.MinValue)
+            .ThenBy(sp => sp.Id)
+            .ToListAsync(cancellationToken);
+
+        if (startPositions.Count < addedPlayers.Count)
+        {
+            return ServiceResultBase.Fail($"The map has {startPositions.Count} start position(s) but the game has {addedPlayers.Count} players — every player needs one.");
+        }
+
+        // TroopInstance FKs the per-game CampaignMap rows (identity keys), so resolve each start coordinate to
+        // its actual tile row for this game rather than deriving an id from the coordinates.
+        List<CampaignMap> startTiles = [];
+
+        foreach (CampaignMapStartPosition position in startPositions.Take(addedPlayers.Count))
+        {
+            CampaignMap? tile = await context.CampaignMaps
+                .FirstOrDefaultAsync(cm => cm.GameId == gameId && cm.XCoord == position.XCoord && cm.YCoord == position.YCoord, cancellationToken);
+
+            if (tile is null)
+            {
+                return ServiceResultBase.Fail($"Start position ({position.XCoord}, {position.YCoord}) has no matching campaign map tile for game {gameId}.");
+            }
+
+            startTiles.Add(tile);
+        }
+
+        // Every player starts with the same unlocks: each starter template and all of its components.
+        int[] starterComponentIds = [.. starterTemplates
+            .SelectMany(t => t.Components.Select(c => c.UnitComponentId).Append(t.BodyComponentId))
+            .Distinct()];
+
+        List<DomainPlayer> playersInOrder = [.. addedPlayers.OrderBy(p => p.Id)];
+
+        for (int playerIndex = 0; playerIndex < playersInOrder.Count; playerIndex++)
+        {
+            DomainPlayer player = playersInOrder[playerIndex];
+            CampaignMap startTile = startTiles[playerIndex];
+
+            context.PlayerUnlockedComponents.AddRange(starterComponentIds.Select(componentId => new PlayerUnlockedComponent
+            {
+                PlayerId = player.Id,
+                UnitComponentId = componentId,
+                UnlockedOnTurn = 0,
+            }));
+
+            context.PlayerUnlockedTemplates.AddRange(starterTemplates.Select(template => new PlayerUnlockedTemplate
+            {
+                PlayerId = player.Id,
+                UnitTemplateId = template.Id,
+                UnlockedOnTurn = 0,
+            }));
+
+            // One unit of each starter template, at the player's start tile, at its tag's default size, all healthy.
+            context.TroopInstances.AddRange(startersToSpawn.Select(starter => new TroopInstance
+            {
+                GameId = gameId,
+                PlayerId = player.Id,
+                CampaignMapTileId = startTile.CampaignMapId,
+                UnitTemplateId = starter.Template.Id,
+                InitialStrength = starter.SpawnSize,
+                HealthyCount = starter.SpawnSize,
+                InjuredCount = 0,
+            }));
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Spawned {UnitCount} starting unit(s) for each of {PlayerCount} player(s) in game {GameId}.",
+            startersToSpawn.Count, playersInOrder.Count, gameId);
+
+        return ServiceResultBase.Succeed();
     }
 
     /// <summary>

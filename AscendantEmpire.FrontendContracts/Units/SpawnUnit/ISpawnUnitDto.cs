@@ -6,7 +6,11 @@ public interface ISpawnUnitDto
     int PlayerId { get; }
     int XCoord { get; }
     int YCoord { get; }
-    int UnitDesignId { get; }
+
+    /// <summary>
+    /// The <c>UnitTemplate</c> to spawn from (the unit's stats come from its compiled snapshot).
+    /// </summary>
+    int UnitTemplateId { get; }
     /// <summary>
     /// Initial number of troops
     /// </summary>

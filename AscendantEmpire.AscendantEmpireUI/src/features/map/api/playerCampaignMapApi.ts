@@ -1,7 +1,7 @@
-import { http } from "@/api/http";
+﻿import { http } from "@/api/http";
 
 // gameId/playerId are client-side only: they scope the React Query cache, and are deliberately NOT sent to the server.
-// The API reads both from the game token, so a request cannot ask about — or clear — another player's map.
+// The API reads both from the game token, so a request cannot ask about â€” or clear â€” another player's map.
 export type LoadPlayerCampaignMapRequest = {
   gameId: number;
   playerId: number;
@@ -45,7 +45,7 @@ export type ObservedTroopDto = {
   healthyTroops: number;
   injuredTroops: number;
   initialStrength: number;
-  unitDesignId: number;
+  unitTemplateId: number;
 };
 
 type ObservedStructureWireDto = Partial<{
@@ -61,7 +61,7 @@ type ObservedTroopWireDto = Partial<{
   id: number;
   recordType: number;
   commanderId: number;
-  unitDesignId: number;
+  unitTemplateId: number;
   healthyTroops: number;
   injuredTroops: number;
   initialStrength: number;
@@ -121,7 +121,7 @@ function normalizeObservedTroop(troop: ObservedTroopWireDto): ObservedTroopDto {
     id: troop.id ?? 0,
     recordType: troop.recordType ?? 0,
     commanderId: troop.commanderId ?? 0,
-    unitDesignId: troop.unitDesignId ?? 0,
+    unitTemplateId: troop.unitTemplateId ?? 0,
     healthyTroops: troop.healthyTroops ?? 0,
     injuredTroops: troop.injuredTroops ?? 0,
     initialStrength: troop.initialStrength ?? 0,
@@ -192,7 +192,7 @@ function logTroopTable(response: PlayerCampaignMapResponseDto): void {
         yCoord: tile.yCoord,
         troopId: troop.id,
         troopRecordType: troop.recordType,
-        unitDesignId: troop.unitDesignId,
+        unitTemplateId: troop.unitTemplateId,
         healthyTroops: troop.healthyTroops,
         injuredTroops: troop.injuredTroops,
         initialStrength: troop.initialStrength,
@@ -209,7 +209,7 @@ export async function postPlayerCampaignMap(req: LoadPlayerCampaignMapRequest): 
 
   console.log("[API] POST /campaign-map/player", { baseUrl, req });
 
-  // Only loadWholeMap goes over the wire — the server takes the game and player from the token.
+  // Only loadWholeMap goes over the wire â€” the server takes the game and player from the token.
   const { data } = await http.post<PlayerCampaignMapResponseWireDto>(
     "/campaign-map/player",
     { loadWholeMap: req.loadWholeMap ?? false },

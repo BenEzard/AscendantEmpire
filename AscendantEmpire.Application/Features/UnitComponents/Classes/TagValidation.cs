@@ -1,5 +1,6 @@
 using AscendantEmpire.BackendContracts.UnitDesigns.UpsertTag;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
+using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 
 namespace AscendantEmpire.Application.Features.UnitComponents.Classes;
@@ -51,18 +52,109 @@ internal static class TagValidation
             errors.Add("The tag has an undefined TagType value.");
         }
 
+        errors.AddRange(ValidateOrganisationFields(
+            tag.TagType,
+            tag.MovementDomain,
+            tag.LeadershipModel,
+            tag.UnledBaseSize,
+            tag.UnledDefaultSize,
+            tag.UnledMaxSize));
+
+        return errors;
+    }
+
+    /// <summary>
+    /// Returns every problem with a tag's military-organisation fields — the movement domain, the leadership
+    /// model, and the unled sizing the model gates.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Shared by the single-tag create/update path and the catalogue bulk-upsert path, so importing a
+    /// catalogue cannot become a back door around the rules the Tag manager enforces.
+    /// </para>
+    /// <para>
+    /// <paramref name="tagCode"/> qualifies the messages when the caller validates many tags at once; leave it
+    /// null when the request is already about one known tag.
+    /// </para>
+    /// </remarks>
+    public static List<string> ValidateOrganisationFields(
+        TagType tagType,
+        DomainType? movementDomain,
+        LeadershipModel? leadershipModel,
+        int? unledBaseSize,
+        int? unledDefaultSize,
+        int? unledMaxSize,
+        string? tagCode = null)
+    {
+        List<string> errors = [];
+
+        string prefix = string.IsNullOrWhiteSpace(tagCode) ? string.Empty : $"Tag '{tagCode}': ";
+
         // A movement domain is only meaningful for organisation-group tags (it ties an organisation hierarchy
         // to a domain). Reject it on any other type, and reject an undefined enum value.
-        if (tag.MovementDomain.HasValue)
+        if (movementDomain.HasValue)
         {
-            if (tag.TagType != TagType.MilitaryOrganisationalGroup)
+            if (tagType != TagType.MilitaryOrganisationalGroup)
             {
-                errors.Add("A movement domain can only be set on a Military Organisational Group tag.");
+                errors.Add($"{prefix}A movement domain can only be set on a Military Organisational Group tag.");
             }
-            else if (!Enum.IsDefined(tag.MovementDomain.Value))
+            else if (!Enum.IsDefined(movementDomain.Value))
             {
-                errors.Add("The tag has an undefined MovementDomain value.");
+                errors.Add($"{prefix}The tag has an undefined MovementDomain value.");
             }
+        }
+
+        // Like the movement domain, the leadership model (and the unled sizing it gates) is only meaningful
+        // for organisation-group tags.
+        if (leadershipModel.HasValue)
+        {
+            if (tagType != TagType.MilitaryOrganisationalGroup)
+            {
+                errors.Add($"{prefix}A leadership model can only be set on a Military Organisational Group tag.");
+            }
+            else if (!Enum.IsDefined(leadershipModel.Value))
+            {
+                errors.Add($"{prefix}The tag has an undefined LeadershipModel value.");
+            }
+        }
+
+        if (leadershipModel == LeadershipModel.Unled)
+        {
+            // An unled tag's sizing is authored here on the tag (there is no per-player structure and no rank
+            // ceiling to bound it), so all three values are required and must be coherent.
+            if (unledBaseSize is not > 0)
+            {
+                errors.Add($"{prefix}An Unled tag requires an UnledBaseSize greater than 0.");
+            }
+
+            if (unledDefaultSize is not > 0)
+            {
+                errors.Add($"{prefix}An Unled tag requires an UnledDefaultSize greater than 0.");
+            }
+
+            if (unledMaxSize is not > 0)
+            {
+                errors.Add($"{prefix}An Unled tag requires an UnledMaxSize greater than 0.");
+            }
+
+            // Only check the cross-field rules once the individual values are present and positive.
+            if (unledBaseSize is > 0 && unledDefaultSize is > 0 && unledMaxSize is > 0)
+            {
+                if (unledBaseSize > unledDefaultSize || unledDefaultSize > unledMaxSize)
+                {
+                    errors.Add($"{prefix}Unled sizes must satisfy UnledBaseSize <= UnledDefaultSize <= UnledMaxSize.");
+                }
+
+                // Every legal unled size is a whole multiple of the base quantum — including the default.
+                if (unledDefaultSize % unledBaseSize != 0)
+                {
+                    errors.Add($"{prefix}UnledDefaultSize must be a whole multiple of UnledBaseSize.");
+                }
+            }
+        }
+        else if (unledBaseSize.HasValue || unledDefaultSize.HasValue || unledMaxSize.HasValue)
+        {
+            errors.Add($"{prefix}Unled sizes can only be set on a tag whose LeadershipModel is Unled.");
         }
 
         return errors;

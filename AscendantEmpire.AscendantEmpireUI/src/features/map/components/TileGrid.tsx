@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import type { Geography } from "@/types/map/Geography";
 import type { TileCell } from "./TileTypes";
 import Tile from "./Tile";
@@ -15,7 +15,7 @@ export interface TileGridProps {
   geographies: Geography[];
   containerRef?: React.Ref<HTMLDivElement>;
   selectedTroopId?: number;
-  troopImageSrcByUnitDesignId?: ReadonlyMap<number, string>;
+  troopImageSrcByUnitTemplateId?: ReadonlyMap<number, string>;
   getVisibleTroopId?: (tile: TileCell) => number | undefined;
   onTileClick?: (tile: TileCell) => void;
   onTileHold?: (tile: TileCell) => void;
@@ -35,7 +35,7 @@ const TileGrid = React.memo(function TileGrid({
   geographies,
   containerRef,
   selectedTroopId,
-  troopImageSrcByUnitDesignId,
+  troopImageSrcByUnitTemplateId,
   getVisibleTroopId,
   onTileClick,
   onTileHold,
@@ -49,7 +49,7 @@ const TileGrid = React.memo(function TileGrid({
 
   // Index geographies by their type id once per geographies change, so the per-tile
   // lookup is an O(1) Map.get() instead of an O(geographies) Array.find() running for
-  // every tile on every render (O(tiles × geographies)).
+  // every tile on every render (O(tiles Ã— geographies)).
   const geographyByType = React.useMemo(() => {
     const m = new Map<number, Geography>();
     for (const g of geographies) {
@@ -85,7 +85,7 @@ const TileGrid = React.memo(function TileGrid({
               geography={g}
               sizePx={TILE_SIZE_PX}
               selectedTroopId={selectedTroopId}
-              troopImageSrcByUnitDesignId={troopImageSrcByUnitDesignId}
+              troopImageSrcByUnitTemplateId={troopImageSrcByUnitTemplateId}
               visibleTroopId={getVisibleTroopId?.(t)}
               onClick={onTileClick}
               onHold={onTileHold}

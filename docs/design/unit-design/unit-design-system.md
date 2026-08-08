@@ -48,7 +48,7 @@ The interesting decisions live in how the parts play off each other:
 
 * **Armour.** Reduces incoming damage per damage type, so armour choices are a direct answer to the weapons you expect to face.
 
-* **Unit size.** A body sets the minimum, maximum and step for how many individuals make up the unit.
+* **Unit size.** Size bounds no longer live on the body (the min/max/step fields were removed in UD-29). A unit's legal sizes come from its military organisation: the structure's tiers and rank ceilings for commissioned units, or the tag's authored Base/Default/Max for unled units. See [military-organisation.md](../units/military-organisation.md#size-model--operative-vs-ceiling).
 
 * **Tags.** Tags act both as buffs and as classification labels (e.g. "sword", "stealth"). Because slot acceptance rules can match on tags, they also decide what is allowed to fit where.
 
@@ -76,7 +76,7 @@ Template Slots (`UnitComponentSlot`) hang off `UnitComponentBody` — only bodie
 
 ### Bodies, weapons and armour
 
-* `UnitComponentBody` holds the movement Domain (`DomainType`), campaign and battlefield movement points, power, hitpoints, the unit-size bounds (min/max/increment), and the body's `Slots`.
+* `UnitComponentBody` holds the movement Domain (`DomainType`), campaign and battlefield movement points, power, hitpoints, and the body's `Slots`. (The unit-size bounds — min/max/increment — were removed in UD-29; sizing is a military-organisation concern.)
 
 * `UnitComponentWeapon` holds an attack `DamageProfile` (a five-value complex type: Slash, Pierce, Crush, Burn, Poison), a min/max range, a dual-wield flag, and a set of `UnitComponentWeaponDomainModifier` rows. Each modifier both declares a Domain the weapon can attack and scales its damage there.
 

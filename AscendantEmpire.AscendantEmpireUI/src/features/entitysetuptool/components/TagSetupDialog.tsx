@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import { Alert, Button, CodeField, PagedDialog } from "@/components/ui";
 
 import { FieldRow, inputClass } from "./componentSetupFields";
-import { createEmptyTag, TAG_TYPES, type Tag, type TagType } from "@/features/unitdesign/types/Tag";
+import { createEmptyTag, LEADERSHIP_MODELS, TAG_TYPES, type LeadershipModel, type Tag, type TagType } from "@/features/unitdesign/types/Tag";
 import type { TagTypeInfo } from "@/features/unitdesign/types/TagType";
 import { DOMAIN_TYPES, type DomainType } from "@/features/unitdesign/types/UnitComponent";
 import { DOMAIN_TYPE_LABELS } from "@/components/game/domainLabels";
@@ -51,12 +51,25 @@ export default function TagSetupDialog({ open, onCancel, initialTag, tagTypes, o
   // greyed out), Save is always clickable; pressing it runs these checks and surfaces any problems.
   // The backend enforces the same rules, so this is a fast local pre-check, not the source of truth.
   // Description is intentionally omitted: it's optional (nullable column, no server-side requirement).
-  const fieldErrors: Partial<Record<"displayName" | "code", string>> = {};
+  const fieldErrors: Partial<Record<"displayName" | "code" | "unledSizes", string>> = {};
   if (tag.displayName.trim() === "") {
     fieldErrors.displayName = "Display Name is required.";
   }
   if (tag.code.trim() === "") {
     fieldErrors.code = "Code is required.";
+  }
+
+  // An Unled organisation tag authors its own sizing, so all three values are required and must cohere.
+  // (The backend applies the same rules in TagValidation — this is the fast local pre-check.)
+  if (tag.leadershipModel === "Unled") {
+    const { unledBaseSize, unledDefaultSize, unledMaxSize } = tag;
+    if (!unledBaseSize || !unledDefaultSize || !unledMaxSize) {
+      fieldErrors.unledSizes = "An Unled tag requires all three sizes (base, default, max), each above 0.";
+    } else if (unledBaseSize > unledDefaultSize || unledDefaultSize > unledMaxSize) {
+      fieldErrors.unledSizes = "Sizes must satisfy base ≤ default ≤ max.";
+    } else if (unledDefaultSize % unledBaseSize !== 0) {
+      fieldErrors.unledSizes = "The default size must be a whole multiple of the base size.";
+    }
   }
 
   // Only reveal errors once the user has attempted a save; they then drive the inline per-field messages.
@@ -126,12 +139,18 @@ export default function TagSetupDialog({ open, onCancel, initialTag, tagTypes, o
                   value={tag.tagType}
                   onChange={(e) => {
                     const nextType = e.target.value as TagType;
-                    // A movement domain is only valid on an organisation-group tag, so clear it when switching
-                    // away from that type (the backend would otherwise reject the pairing).
+                    // A movement domain / leadership model (and its unled sizes) are only valid on an
+                    // organisation-group tag, so clear them when switching away from that type (the backend
+                    // would otherwise reject the pairing).
+                    const isOrganisationGroup = nextType === "MilitaryOrganisationalGroup";
                     setTag((prev) => ({
                       ...prev,
                       tagType: nextType,
-                      movementDomain: nextType === "MilitaryOrganisationalGroup" ? prev.movementDomain : null,
+                      movementDomain: isOrganisationGroup ? prev.movementDomain : null,
+                      leadershipModel: isOrganisationGroup ? prev.leadershipModel : null,
+                      unledBaseSize: isOrganisationGroup ? prev.unledBaseSize : null,
+                      unledDefaultSize: isOrganisationGroup ? prev.unledDefaultSize : null,
+                      unledMaxSize: isOrganisationGroup ? prev.unledMaxSize : null,
                     }));
                   }}>
                   {typeOptions.map((option) => (
@@ -205,6 +224,85 @@ export default function TagSetupDialog({ open, onCancel, initialTag, tagTypes, o
                       ))}
                     </select>
                   </FieldRow>
+                );
+              })()}
+
+              {/* Leadership Model + unled sizing — organisation-group tags only. Commissioned formations
+                  are sized by their player-authored structure tiers under the officer rank ceilings; Unled
+                  formations (settlers, scouts, drones) have no officers and are sized here on the tag:
+                  any whole multiple of Base up to Max, with Default used when no size is chosen (e.g.
+                  game-start spawns). See docs/design/units/military-organisation.md, "Leadership model". */}
+              {(() => {
+                const leadershipEnabled = tag.tagType === "MilitaryOrganisationalGroup";
+                const unledEnabled = leadershipEnabled && tag.leadershipModel === "Unled";
+                const disabledClass = `${inputClass} cursor-not-allowed bg-slate-100 text-slate-400`;
+
+                // Maps a number input's raw string onto the nullable model field (blank -> null).
+                const parseSize = (raw: string): number | null => (raw === "" ? null : Number(raw));
+
+                return (
+                  <>
+                    <FieldRow label="Leadership Model" align="top" className="-mt-1">
+                      <select
+                        className={leadershipEnabled ? inputClass : disabledClass}
+                        disabled={!leadershipEnabled}
+                        value={tag.leadershipModel ?? ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          const nextModel = value === "" ? null : (value as LeadershipModel);
+                          // The unled sizes are only valid while the model is Unled; clear them otherwise.
+                          setTag((prev) => ({
+                            ...prev,
+                            leadershipModel: nextModel,
+                            unledBaseSize: nextModel === "Unled" ? prev.unledBaseSize : null,
+                            unledDefaultSize: nextModel === "Unled" ? prev.unledDefaultSize : null,
+                            unledMaxSize: nextModel === "Unled" ? prev.unledMaxSize : null,
+                          }));
+                        }}>
+                        <option value="">— none —</option>
+                        {LEADERSHIP_MODELS.map((model) => (
+                          <option key={model} value={model}>
+                            {model}
+                          </option>
+                        ))}
+                      </select>
+                    </FieldRow>
+
+                    <FieldRow label="Unled Sizes" align="top" error={shownErrors.unledSizes}>
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          min={1}
+                          className={unledEnabled ? errorClass(!!shownErrors.unledSizes) : disabledClass}
+                          disabled={!unledEnabled}
+                          value={tag.unledBaseSize ?? ""}
+                          placeholder="base"
+                          title="Base (quantum) — every legal size is a whole multiple of this"
+                          onChange={(e) => setTag((prev) => ({ ...prev, unledBaseSize: parseSize(e.target.value) }))}
+                        />
+                        <input
+                          type="number"
+                          min={1}
+                          className={unledEnabled ? errorClass(!!shownErrors.unledSizes) : disabledClass}
+                          disabled={!unledEnabled}
+                          value={tag.unledDefaultSize ?? ""}
+                          placeholder="default"
+                          title="Default — the size used when a unit is created without an explicit choice"
+                          onChange={(e) => setTag((prev) => ({ ...prev, unledDefaultSize: parseSize(e.target.value) }))}
+                        />
+                        <input
+                          type="number"
+                          min={1}
+                          className={unledEnabled ? errorClass(!!shownErrors.unledSizes) : disabledClass}
+                          disabled={!unledEnabled}
+                          value={tag.unledMaxSize ?? ""}
+                          placeholder="max"
+                          title="Max — the largest a single unled unit may be"
+                          onChange={(e) => setTag((prev) => ({ ...prev, unledMaxSize: parseSize(e.target.value) }))}
+                        />
+                      </div>
+                    </FieldRow>
+                  </>
                 );
               })()}
 

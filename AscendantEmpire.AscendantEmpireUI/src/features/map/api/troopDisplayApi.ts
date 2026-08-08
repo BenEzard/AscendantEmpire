@@ -1,12 +1,12 @@
 import { http } from "@/api/http";
 
 export interface TroopDisplayInfoDto {
-  unitDesignId: number;
+  unitTemplateId: number;
   mapImagePath: string;
 }
 
 type TroopDisplayInfoWireDto = Partial<{
-  unitDesignId: number;
+  unitTemplateId: number;
   mapImagePath: string;
 }>;
 
@@ -16,7 +16,7 @@ type TroopDisplayResponseWireDto = Partial<{
 
 function normalizeTroopDisplayInfo(info: TroopDisplayInfoWireDto): TroopDisplayInfoDto {
   return {
-    unitDesignId: info.unitDesignId ?? 0,
+    unitTemplateId: info.unitTemplateId ?? 0,
     mapImagePath: info.mapImagePath ?? "",
   };
 }

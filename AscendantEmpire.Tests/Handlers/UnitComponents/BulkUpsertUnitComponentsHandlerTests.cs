@@ -1,6 +1,7 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
+using AscendantEmpire.Application.Features.UnitComponents.Services;
 using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Enums.Maps;
@@ -580,6 +581,115 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
         {
             Assert.That(tagCount, Is.EqualTo(1), "No duplicate tag should be created on re-import.");
             Assert.That(updated, Is.EqualTo(TagType.Combat), "TagType should be overwritten on re-import.");
+        }
+    }
+
+    /// <summary>
+    /// Builds an unled organisation tag DTO with the design doc's Settler sizing.
+    /// </summary>
+    private static TagDto BuildUnledSettlerTagDto()
+    {
+        return new TagDto
+        {
+            Code = "settler",
+            DisplayName = "Settler",
+            TagType = TagType.MilitaryOrganisationalGroup,
+            MovementDomain = DomainType.Land,
+            LeadershipModel = LeadershipModel.Unled,
+            UnledBaseSize = 25,
+            UnledDefaultSize = 200,
+            UnledMaxSize = 5000,
+        };
+    }
+
+    [Test, Description("An exported organisation tag round-trips through the catalogue: importing the projected DTO preserves the domain, leadership model and unled sizes.")]
+    public async Task OrganisationTagRoundTripsThroughCatalogueAsync()
+    {
+        // Import the hand-authored tag, then re-export it exactly as the catalogue zip would.
+        var catalog = new BulkUpsertUnitComponentsDto
+        {
+            Tags = [BuildUnledSettlerTagDto()],
+            Components = [BuildWeapon(WEAPON_CODE)],
+        };
+
+        BulkUpsertUnitComponentsHandler handler = await CreateHandlerAsync();
+        ServiceResult<BulkUpsertUnitComponentsResult> imported = await handler.Handle(new BulkUpsertUnitComponentsRequest(catalog), CancellationToken.None);
+        Assert.That(imported.HasSucceeded, Is.True, () => string.Join("; ", imported.Errors));
+
+        TagDto exported;
+
+        await using (AscendantEmpireContext exportContext = await DbFactory.CreateDbContextAsync())
+        {
+            Tag persisted = await exportContext.Tags.SingleAsync(t => t.Code == "settler");
+            exported = CatalogExportProjections.ToTagDto(persisted);
+        }
+
+        // Re-importing the exported DTO is the move-between-databases path; the organisation data must survive it.
+        var reimportCatalog = new BulkUpsertUnitComponentsDto
+        {
+            Tags = [exported],
+            Components = [BuildWeapon(WEAPON_CODE)],
+        };
+
+        BulkUpsertUnitComponentsHandler reimportHandler = await CreateHandlerAsync();
+        ServiceResult<BulkUpsertUnitComponentsResult> reimported = await reimportHandler.Handle(
+            new BulkUpsertUnitComponentsRequest(reimportCatalog), CancellationToken.None);
+        Assert.That(reimported.HasSucceeded, Is.True, () => string.Join("; ", reimported.Errors));
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+        Tag roundTripped = await verifyContext.Tags.SingleAsync(t => t.Code == "settler");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(exported.LeadershipModel, Is.EqualTo(LeadershipModel.Unled), "The export projection carries the leadership model.");
+            Assert.That(exported.UnledBaseSize, Is.EqualTo(25), "The export projection carries the unled sizes.");
+            Assert.That(roundTripped.MovementDomain, Is.EqualTo(DomainType.Land));
+            Assert.That(roundTripped.LeadershipModel, Is.EqualTo(LeadershipModel.Unled), "A settler tag must not arrive silently commissioned.");
+            Assert.That(roundTripped.UnledBaseSize, Is.EqualTo(25));
+            Assert.That(roundTripped.UnledDefaultSize, Is.EqualTo(200));
+            Assert.That(roundTripped.UnledMaxSize, Is.EqualTo(5000));
+        }
+    }
+
+    [Test, Description("The import applies the same unled sizing rules as the Tag manager — an incoherent tag is rejected and nothing is written.")]
+    public async Task ImportRejectsIncoherentUnledSizingAsync()
+    {
+        // 90 is not a whole multiple of the 25 quantum, which the single-tag path also rejects.
+        var catalog = new BulkUpsertUnitComponentsDto
+        {
+            Tags = [BuildUnledSettlerTagDto() with { UnledDefaultSize = 90 }],
+            Components = [BuildWeapon(WEAPON_CODE)],
+        };
+
+        BulkUpsertUnitComponentsHandler handler = await CreateHandlerAsync();
+        ServiceResult<BulkUpsertUnitComponentsResult> result = await handler.Handle(new BulkUpsertUnitComponentsRequest(catalog), CancellationToken.None);
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Has.Some.Contains("whole multiple"));
+            Assert.That(await verifyContext.Tags.AnyAsync(t => t.Code == "settler"), Is.False, "A rejected import writes nothing.");
+        }
+    }
+
+    [Test, Description("The import rejects unled sizes on a tag that is not an organisation group, matching the single-tag path.")]
+    public async Task ImportRejectsUnledSizesOnNonOrganisationTagAsync()
+    {
+        var catalog = new BulkUpsertUnitComponentsDto
+        {
+            Tags = [BuildUnledSettlerTagDto() with { Code = "sneaky", TagType = TagType.Ability }],
+            Components = [BuildWeapon(WEAPON_CODE)],
+        };
+
+        BulkUpsertUnitComponentsHandler handler = await CreateHandlerAsync();
+        ServiceResult<BulkUpsertUnitComponentsResult> result = await handler.Handle(new BulkUpsertUnitComponentsRequest(catalog), CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Has.Some.Contains("Military Organisational Group"));
         }
     }
 

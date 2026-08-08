@@ -2,6 +2,6 @@
 
 public record TroopDisplayInfo
 {
-    public int UnitDesignId { get; init; }
+    public int UnitTemplateId { get; init; }
     public string MapImagePath { get; init; } = null!;
 }

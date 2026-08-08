@@ -89,4 +89,97 @@ internal class TagHandlersTests : InMemoryTestBase
             Assert.That(updated.SuccessValue!.SystemCreated, Is.True);
         }
     }
+
+    /// <summary>
+    /// Builds an organisation-group tag upsert with a leadership model and (optionally) the unled sizes.
+    /// </summary>
+    private static UpsertTagDto BuildOrganisationDto(
+        string code,
+        LeadershipModel? leadershipModel,
+        int? baseSize = null,
+        int? defaultSize = null,
+        int? maxSize = null)
+    {
+        return new UpsertTagDto
+        {
+            Code = code,
+            DisplayName = code,
+            TagType = TagType.MilitaryOrganisationalGroup,
+            LeadershipModel = leadershipModel,
+            UnledBaseSize = baseSize,
+            UnledDefaultSize = defaultSize,
+            UnledMaxSize = maxSize,
+        };
+    }
+
+    [Test, Description("A valid unled organisation tag persists its leadership model and all three sizes.")]
+    public async Task CreateUnledTagRoundTripsSizingAsync()
+    {
+        ServiceResult<TagView> result = await CreateAsync(
+            BuildOrganisationDto("settler", LeadershipModel.Unled, baseSize: 25, defaultSize: 200, maxSize: 5000));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Created));
+            Assert.That(result.SuccessValue!.LeadershipModel, Is.EqualTo(LeadershipModel.Unled));
+            Assert.That(result.SuccessValue.UnledBaseSize, Is.EqualTo(25));
+            Assert.That(result.SuccessValue.UnledDefaultSize, Is.EqualTo(200));
+            Assert.That(result.SuccessValue.UnledMaxSize, Is.EqualTo(5000));
+        }
+    }
+
+    [Test, Description("An unled tag missing any of its three sizes is rejected.")]
+    public async Task CreateUnledTagWithoutSizesFailsAsync()
+    {
+        ServiceResult<TagView> result = await CreateAsync(
+            BuildOrganisationDto("half-sized", LeadershipModel.Unled, baseSize: 25));
+
+        Assert.That(result.HasSucceeded, Is.False);
+    }
+
+    [Test, Description("Unled sizes must satisfy base <= default <= max.")]
+    public async Task CreateUnledTagWithDisorderedSizesFailsAsync()
+    {
+        ServiceResult<TagView> result = await CreateAsync(
+            BuildOrganisationDto("disordered", LeadershipModel.Unled, baseSize: 50, defaultSize: 25, maxSize: 100));
+
+        Assert.That(result.HasSucceeded, Is.False);
+    }
+
+    [Test, Description("The unled default size must be a whole multiple of the base quantum.")]
+    public async Task CreateUnledTagWithNonMultipleDefaultFailsAsync()
+    {
+        ServiceResult<TagView> result = await CreateAsync(
+            BuildOrganisationDto("ragged", LeadershipModel.Unled, baseSize: 25, defaultSize: 90, maxSize: 200));
+
+        Assert.That(result.HasSucceeded, Is.False);
+    }
+
+    [Test, Description("Unled sizes are rejected on a commissioned organisation tag.")]
+    public async Task CreateCommissionedTagWithUnledSizesFailsAsync()
+    {
+        ServiceResult<TagView> result = await CreateAsync(
+            BuildOrganisationDto("infantry", LeadershipModel.Commissioned, baseSize: 25, defaultSize: 200, maxSize: 5000));
+
+        Assert.That(result.HasSucceeded, Is.False);
+    }
+
+    [Test, Description("A leadership model is rejected on a non-organisation tag type.")]
+    public async Task CreateNonOrganisationTagWithLeadershipModelFailsAsync()
+    {
+        UpsertTagDto dto = new UpsertTagDto
+        {
+            Code = "sneaky",
+            DisplayName = "Sneaky",
+            TagType = TagType.Ability,
+            LeadershipModel = LeadershipModel.Unled,
+            UnledBaseSize = 1,
+            UnledDefaultSize = 1,
+            UnledMaxSize = 1,
+        };
+
+        ServiceResult<TagView> result = await CreateAsync(dto);
+
+        Assert.That(result.HasSucceeded, Is.False);
+    }
 }
