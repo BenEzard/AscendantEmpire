@@ -7,8 +7,11 @@ using AscendantEmpire.BackendContracts.UnitDesigns.UpsertUnitComponent;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
+using AscendantEmpire.Tests.UnitDesigns.Shared;
 
 using MediatR;
+
+using static AscendantEmpire.Tests.UnitDesigns.Shared.UnitDesignPayloads;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -30,8 +33,10 @@ namespace AscendantEmpire.Tests.Handlers.UnitComponents;
 /// </remarks>
 internal class UpsertUnitComponentHandlerTests : SqlServerTestBase
 {
-    private const string BODY_CODE = "test_body";
-    private const string WEAPON_CODE = "test_weapon";
+    // Aliased rather than referenced through UnitDesignPayloads at every call site, which would add noise
+    // without adding meaning — the codes only matter here as "the body" and "the weapon".
+    private const string BODY_CODE = UnitDesignPayloads.BODY_CODE;
+    private const string WEAPON_CODE = UnitDesignPayloads.WEAPON_CODE;
 
     private async Task<CreateUnitComponentHandler> CreateHandlerAsync()
     {
@@ -57,71 +62,6 @@ internal class UpsertUnitComponentHandlerTests : SqlServerTestBase
             context,
             mediator,
             Substitute.For<ICampaignTurnService>());
-    }
-
-    /// <summary>
-    /// Builds a body slot DTO accepting a single component type, optionally carrying an existing slot id.
-    /// </summary>
-    private static UnitComponentSlotDto BuildSlotDto(string label, string acceptedType, int? id = null, string? code = null)
-    {
-        return new UnitComponentSlotDto
-        {
-            Id = id,
-            // Slot codes are uppercase, underscore-separated keys; default one from the label for brevity.
-            Code = code ?? label.ToUpperInvariant().Replace(' ', '_'),
-            DisplayName = label,
-            IsVisible = true,
-            Rules =
-            [
-                new UnitComponentSlotRuleDto
-                {
-                    RuleType = SlotRuleType.ComponentType,
-                    Operator = SlotRuleOperator.Equals,
-                    Value = acceptedType,
-                },
-            ],
-        };
-    }
-
-    /// <summary>
-    /// Builds the test body exposing exactly the given slots.
-    /// </summary>
-    private static UnitComponentDto BuildBodyWithSlots(params UnitComponentSlotDto[] slots)
-    {
-        return new UnitComponentDto
-        {
-            Code = BODY_CODE,
-            DisplayName = "Test Body",
-            ComponentType = ComponentType.Body,
-            Weight = 100,
-            Body = new UnitComponentBodyDto
-            {
-                MovementDomain = DomainType.Land,
-                CampaignMovementPoints = 3000,
-                BattlefieldMovementPoints = 6000,
-                Slots = slots,
-            },
-        };
-    }
-
-    /// <summary>
-    /// A standalone weapon component with the given code.
-    /// </summary>
-    private static UnitComponentDto BuildWeapon(string code)
-    {
-        return new UnitComponentDto
-        {
-            Code = code,
-            DisplayName = "Test Weapon",
-            ComponentType = ComponentType.Weapon,
-            Weight = 10,
-            Weapon = new UnitComponentWeaponDto
-            {
-                Attack = new DamageProfileDto { Slash = 1000 },
-                MinimumRange = 1,
-                MaximumRange = 4,
-            },
-        };
     }
 
     /// <summary>
@@ -199,31 +139,8 @@ internal class UpsertUnitComponentHandlerTests : SqlServerTestBase
         await CreateAsync(BuildBodyWithSlots(BuildSlotDto("Weapon 1", nameof(ComponentType.Weapon))));
         await CreateAsync(BuildWeapon(WEAPON_CODE));
 
-        int originalSlotId;
-
-        await using (AscendantEmpireContext seedContext = await DbFactory.CreateDbContextAsync())
-        {
-            UnitComponent body = await seedContext.UnitComponents
-                .Include(component => component.Body!).ThenInclude(bodyExtension => bodyExtension.Slots)
-                .SingleAsync(component => component.Code == BODY_CODE);
-
-            int weaponId = await seedContext.UnitComponents
-                .Where(component => component.Code == WEAPON_CODE)
-                .Select(component => component.Id)
-                .SingleAsync();
-
-            originalSlotId = body.Body!.Slots.Single().Id;
-
-            seedContext.UnitTemplates.Add(new UnitTemplate
-            {
-                DisplayName = "Fitted Template",
-                MapImagePath = "test.png",
-                BodyComponentId = body.Id,
-                Components = [new UnitTemplateComponent { UnitComponentSlotId = originalSlotId, UnitComponentId = weaponId }],
-            });
-
-            await seedContext.SaveChangesAsync();
-        }
+        // The body has exactly one slot at this point, so the fitted one is the only one.
+        int originalSlotId = (await DbFactory.FitWeaponIntoFirstSlotAsync("Fitted Template")).Single();
 
         UpdateUnitComponentHandler handler = await UpdateHandlerAsync();
         ServiceResult<UnitComponentView> result = await handler.Handle(
