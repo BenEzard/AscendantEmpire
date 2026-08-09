@@ -58,14 +58,14 @@ internal class GetComponentHandler(
                                 BattlefieldMovementPoints = c.Body.BattlefieldMovementPoints,
                                 Power = c.Body.Power,
                                 Hitpoints = c.Body.Hitpoints,
-                                // Ordered by Id to match the canonical slot order UnitTemplateAssembly uses
-                                // when a template is saved (body.Slots.OrderBy(s => s.Id)), so a template
-                                // loaded back into the designer can match its fitted components onto the right slot.
+                                // Ordered by Id for a stable presentation order. Which component sits in which
+                                // slot is decided by the slot's Code, not by this ordering.
                                 Slots = c.Body.Slots
                                     .OrderBy(s => s.Id)
                                     .Select(s => new UnitComponentSlotDto
                                     {
                                         Id = s.Id,
+                                        Code = s.Code,
                                         DisplayName = s.DisplayName,
                                         IsVisible = s.IsVisible,
                                         UIXPosition = s.UIXPosition,

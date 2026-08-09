@@ -37,7 +37,7 @@ internal static class UnitTemplateAssembly
         string displayName,
         string mapImagePath,
         string baseCode,
-        IReadOnlyList<string?>? slotComponentCodes,
+        IReadOnlyDictionary<string, string>? slotComponentCodes,
         CancellationToken cancelToken)
     {
         List<string> shapeErrors = ValidateShape(displayName, mapImagePath, baseCode, slotComponentCodes);
@@ -76,11 +76,11 @@ internal static class UnitTemplateAssembly
             return ServiceResult<ResolvedAssembly>.Forbidden($"Component '{baseCode}' has not been unlocked.");
         }
 
-        // Non-null fitted codes, keyed by the slot index the frontend positioned them at.
-        List<(int SlotIndex, string Code)> fittedEntries = [.. slotComponentCodes!
-            .Select((code, index) => (SlotIndex: index, Code: code))
-            .Where(entry => entry.Code != null)
-            .Select(entry => (entry.SlotIndex, Code: entry.Code!))];
+        // Fitted components, keyed by the slot code the caller named. Only filled slots are listed, so an
+        // absent slot code simply means that slot is empty.
+        List<(string SlotCode, string Code)> fittedEntries = [.. slotComponentCodes!
+            .Where(entry => !string.IsNullOrWhiteSpace(entry.Value))
+            .Select(entry => (SlotCode: entry.Key, Code: entry.Value))];
 
         HashSet<string> fittedCodes = [.. fittedEntries.Select(e => e.Code)];
 
@@ -112,21 +112,21 @@ internal static class UnitTemplateAssembly
             }
         }
 
-        // Base slots ordered deterministically (by Id), matching the frontend's positional slot indexing.
-        List<UnitComponentSlot> orderedSlots = [.. baseComponent.Body!.Slots.OrderBy(s => s.Id)];
+        // Slots are addressed by their code, which is unique within the body — so which component sits in
+        // which slot no longer depends on the order the slots happen to be in.
+        Dictionary<string, UnitComponentSlot> slotsByCode = baseComponent.Body!.Slots.ToDictionary(s => s.Code);
 
-        List<string> indexErrors = [];
+        List<string> slotErrors = [];
         var fitted = new List<UnitTemplateComponent>();
 
-        foreach ((int slotIndex, string code) in fittedEntries)
+        foreach ((string slotCode, string code) in fittedEntries)
         {
-            if (slotIndex >= orderedSlots.Count)
+            if (!slotsByCode.TryGetValue(slotCode, out UnitComponentSlot? slot))
             {
-                indexErrors.Add($"Slot index {slotIndex} is out of range for '{baseCode}', which has {orderedSlots.Count} slot(s).");
+                slotErrors.Add($"Component '{baseCode}' has no slot with code '{slotCode}'.");
                 continue;
             }
 
-            UnitComponentSlot slot = orderedSlots[slotIndex];
             UnitComponent component = fittedByCode[code];
 
             // Navigation properties (not just FKs) are set here because SlotAssemblyValidator reads them,
@@ -140,9 +140,9 @@ internal static class UnitTemplateAssembly
             });
         }
 
-        if (indexErrors.Count > 0)
+        if (slotErrors.Count > 0)
         {
-            return ServiceResult<ResolvedAssembly>.Fail(indexErrors);
+            return ServiceResult<ResolvedAssembly>.Fail(slotErrors);
         }
 
         List<string> assemblyErrors = SlotAssemblyValidator.Validate(baseComponent.Id, fitted);
@@ -155,7 +155,7 @@ internal static class UnitTemplateAssembly
         return ServiceResult<ResolvedAssembly>.Succeed(new ResolvedAssembly(baseComponent, fitted));
     }
 
-    private static List<string> ValidateShape(string displayName, string mapImagePath, string baseCode, IReadOnlyList<string?>? slotComponentCodes)
+    private static List<string> ValidateShape(string displayName, string mapImagePath, string baseCode, IReadOnlyDictionary<string, string>? slotComponentCodes)
     {
         List<string> errors = [];
 

@@ -36,7 +36,7 @@ internal class GetFullCatalogHandlerTests : SqlServerTestBase
                 {
                     MovementDomain = DomainType.Land,
                     // Only bodies expose slots, so they live on the body extension.
-                    Slots = [new UnitComponentSlot { DisplayName = "Weapon", IsVisible = true, UIXPosition = 0, UIYPosition = 0 }],
+                    Slots = [new UnitComponentSlot { Code = "WEAPON_1", DisplayName = "Weapon", IsVisible = true, UIXPosition = 0, UIYPosition = 0 }],
                 },
             };
             var weapon = new UnitComponent

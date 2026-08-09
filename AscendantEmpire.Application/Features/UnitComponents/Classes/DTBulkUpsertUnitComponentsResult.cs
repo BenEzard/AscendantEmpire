@@ -10,4 +10,6 @@ public class DTBulkUpsertUnitComponentsResult : IBulkUpsertUnitComponentsResult
     public required int AddedCount { get; set; }
     public required int UpdatedCount { get; set; }
     public required IReadOnlyCollection<string> UpdatedCodes { get; set; }
+    public required int RemovedSlotCount { get; set; }
+    public required IReadOnlyCollection<string> UnfittedTemplateNames { get; set; }
 }

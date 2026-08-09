@@ -67,7 +67,8 @@ internal static class CatalogExportProjections
             BattlefieldMovementPoints = body.BattlefieldMovementPoints,
             Power = body.Power,
             Hitpoints = body.Hitpoints,
-            // Slots are exported in slot-id order so a template's positional SlotComponentCodes round-trip.
+            // Ordered by id purely for a stable, diffable export; templates address slots by code, so the
+            // order no longer carries meaning.
             Slots = [.. body.Slots.OrderBy(s => s.Id).Select(ToSlotDto)],
         };
     }
@@ -102,7 +103,9 @@ internal static class CatalogExportProjections
     {
         return new UnitComponentSlotDto
         {
-            // Id is intentionally left null: it is meaningless in another database and the upsert ignores it.
+            // Id is intentionally left null: it is meaningless in another database. Code is the portable
+            // identity the importing side matches on, which is what stops a re-import recreating the slots.
+            Code = slot.Code,
             DisplayName = slot.DisplayName,
             IsVisible = slot.IsVisible,
             UIXPosition = slot.UIXPosition,

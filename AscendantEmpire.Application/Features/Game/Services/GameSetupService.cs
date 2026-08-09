@@ -383,7 +383,10 @@ internal class GameSetupService(
             .Where(t => t.Code != null && StarterTemplateCodes.Contains(t.Code))
             .ToListAsync(cancellationToken);
 
-        string[] missingCodes = [.. StarterTemplateCodes.Except(starterTemplates.Select(t => t.Code!))];
+        // Compare case-insensitively: the database matches codes under its own (case-insensitive) collation,
+        // and the Unit Designer lower-cases the code it derives from the display name — so a template saved as
+        // "settler" satisfies the "SETTLER" requirement and must not be reported missing.
+        string[] missingCodes = [.. StarterTemplateCodes.Except(starterTemplates.Select(t => t.Code!), StringComparer.OrdinalIgnoreCase)];
 
         if (missingCodes.Length > 0)
         {

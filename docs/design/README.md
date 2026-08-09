@@ -15,6 +15,7 @@ is settled, some of it is still a working sketch with open questions called out 
 | Document | Covers |
 | --- | --- |
 | [design-principles.md](design-principles.md) | The guiding philosophy ("fun over accuracy"). |
+| [starting-requirements.md](starting-requirements.md) | The catalogue content a database needs before a game can be created: the settler and scout tags, components and templates. |
 | [turn-structure.md](turn-structure.md) | The parallel "turn-based" model, rosters, and how battle rounds interleave with campaign turns. |
 | [production-and-assets.md](production-and-assets.md) | Assets, Material Classes, Material Preferences, luxury goods, and resources. |
 | [units-and-formations.md](units-and-formations.md) | Units, Sub Units, Formations, Unit Stacks, unit design, components, and obsolescence. |

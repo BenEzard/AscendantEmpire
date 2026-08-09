@@ -1388,6 +1388,16 @@ public class AscendantEmpireContext : DbContext
 
             entity.HasKey(e => e.Id);
 
+            // The slot's portable identity. Unique per body rather than globally, so two different bodies may
+            // each expose a "MAIN_HAND" without colliding.
+            entity.Property(e => e.Code)
+                .HasMaxLength(UnitComponentSlot.CODE_MAX_LENGTH)
+                .IsRequired();
+
+            entity.HasIndex(e => new { e.UnitComponentBodyId, e.Code })
+                .IsUnique()
+                .HasDatabaseName("UX_UnitComponentSlot_Body_Code");
+
             entity.Property(e => e.DisplayName)
                 .HasMaxLength(UnitComponentSlot.DISPLAY_NAME_MAX_LENGTH);
 

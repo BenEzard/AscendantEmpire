@@ -1,8 +1,13 @@
 // The assembled unit design (a "template"): a base Body plus the component fitted into each of its slots.
 //
 // This is the lightweight, serialisable value the designer edits and hands back to its host via onSave.
-// It references components by `code` (the canonical identity), indexed positionally to the base body's
-// slots, so it stays stable even though the full component catalogue lives elsewhere.
+// It references components by `code` (the canonical identity).
+//
+// Fittings are held positionally here, index-aligned with the base body's `slots` array the designer is
+// rendering from. That is safe only because it is transient working state, rebuilt from the current slot
+// list every time a design is loaded. Nothing positional is ever persisted or sent: the wire contract keys
+// fittings by the slot's own `code` (see UnitDesigner's save handler), so changing a body's slots cannot
+// silently re-map which component sits where.
 
 import type { BattleStatsData } from "../BattleStats";
 import type { DamageProfile, UnitComponent } from "../types/UnitComponent";
@@ -19,7 +24,10 @@ import {
 export interface UnitDesign {
   /** Code of the base Body component, or null when nothing is chosen yet. */
   baseCode: string | null;
-  /** Fitted component code per base slot, positionally indexed to the base body's `slots`. */
+  /**
+   * Fitted component code per base slot, index-aligned with the base body's `slots`. Working state only —
+   * see the file header: it is converted to a slot-code map before anything leaves the designer.
+   */
   slotComponentCodes: (string | null)[];
 }
 

@@ -1845,6 +1845,11 @@ namespace AscendantEmpire.Application.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
                     b.Property<string>("DisplayName")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -1867,6 +1872,10 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.HasIndex("UnitComponentBodyId")
                         .HasDatabaseName("IX_UnitComponentSlot_Body");
+
+                    b.HasIndex("UnitComponentBodyId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("UX_UnitComponentSlot_Body_Code");
 
                     b.ToTable("UnitComponentSlot", "unitdesigns");
                 });

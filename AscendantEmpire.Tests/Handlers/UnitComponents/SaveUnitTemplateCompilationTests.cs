@@ -5,7 +5,9 @@ using AscendantEmpire.Application.Features.UnitComponents.Handlers;
 using AscendantEmpire.BackendContracts.UnitDesigns.CatalogTransfer;
 using AscendantEmpire.BackendContracts.UnitDesigns.RecompileAllUnitTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveGlobalUnitTemplate;
+using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveUnitTemplate;
+using AscendantEmpire.BackendContracts.UnitDesigns.UpsertUnitComponent;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
@@ -29,6 +31,11 @@ namespace AscendantEmpire.Tests.Handlers.UnitComponents;
 /// </summary>
 internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
 {
+    // The test body's two slot codes. Templates name the slot they fit into, so an empty slot is simply
+    // absent from the map rather than a null placeholder.
+    private const string SLOT_A = "SLOT_A";
+    private const string SLOT_B = "SLOT_B";
+
     private ServiceProvider _provider = null!;
 
     private int _gameId;
@@ -99,8 +106,8 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
                 // Only bodies expose slots, so they live on the body extension.
                 Slots =
                 [
-                    new UnitComponentSlot { DisplayName = "Slot A", IsVisible = true, UIXPosition = 0, UIYPosition = 0 },
-                    new UnitComponentSlot { DisplayName = "Slot B", IsVisible = true, UIXPosition = 1, UIYPosition = 0 },
+                    new UnitComponentSlot { Code = SLOT_A, DisplayName = "Slot A", IsVisible = true, UIXPosition = 0, UIYPosition = 0 },
+                    new UnitComponentSlot { Code = SLOT_B, DisplayName = "Slot B", IsVisible = true, UIXPosition = 1, UIYPosition = 0 },
                 ],
             },
         };
@@ -209,8 +216,59 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
         DisplayName = "My Design",
         MapImagePath = "design.png",
         BaseCode = "test_body",
-        SlotComponentCodes = [fittedCode, null],
+        SlotComponentCodes = new Dictionary<string, string> { [SLOT_A] = fittedCode },
     };
+
+    [Test, Description("Editing a catalogue component refreshes the snapshot of every template already built with it, with no explicit recompile.")]
+    public async Task EditingComponentRecompilesDependentTemplateSnapshotsAsync()
+    {
+        await SeedCatalogAsync();
+        await SeedGameAndPlayerAsync();
+        await SeedCampaignQueueAsync(currentRoundNumber: 7);
+
+        ServiceResult<UnitTemplateView> created =
+            await SendAsync(new CreateUnitTemplateRequest(GameId: _gameId, PlayerId: _playerId, PlayerDto("wpn")));
+
+        Assert.That(created.HasSucceeded, Is.True, () => string.Join("; ", created.Errors));
+
+        int templateId = created.SuccessValue!.Id;
+        CompiledUnitTemplate before = await LoadSnapshotAsync(templateId);
+
+        // Buff the fitted weapon through the component endpoint. Nothing here touches the template — the
+        // snapshot would simply go stale without the recompile the component save now triggers.
+        var buffedWeapon = new UpsertUnitComponentDto
+        {
+            Component = new UnitComponentDto
+            {
+                Code = "wpn",
+                DisplayName = "Test Weapon",
+                ComponentType = ComponentType.Weapon,
+                Weight = 50,
+                Weapon = new UnitComponentWeaponDto
+                {
+                    Attack = new DamageProfileDto { Slash = 5000 },
+                    MinimumRange = 1,
+                    MaximumRange = 2,
+                },
+            },
+        };
+
+        ServiceResult<UnitComponentView> updated = await SendAsync(new UpdateUnitComponentRequest("wpn", buffedWeapon));
+
+        Assert.That(updated.HasSucceeded, Is.True, () => string.Join("; ", updated.Errors));
+
+        CompiledUnitTemplate after = await LoadSnapshotAsync(templateId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(before.Attack.Slash, Is.EqualTo(1000), "Baseline: the snapshot held the original weapon's attack.");
+            Assert.That(before.TotalWeight, Is.EqualTo(110), "Baseline: body 100 + weapon 10.");
+
+            Assert.That(after.Attack.Slash, Is.EqualTo(5000), "The snapshot picks up the component's new attack.");
+            Assert.That(after.TotalWeight, Is.EqualTo(150), "Body 100 + the weapon's new weight of 50.");
+            Assert.That(after.CompiledOnTurn, Is.EqualTo(7), "Recompiled against the game's current campaign round.");
+        }
+    }
 
     [Test, Description("Creating a custom template compiles its snapshot in the same save, stamped with the game's current campaign round.")]
     public async Task CreateCompilesSnapshotStampedWithCurrentTurnAsync()
@@ -294,7 +352,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
             DisplayName = "Global Template",
             MapImagePath = "global.png",
             BaseCode = "test_body",
-            SlotComponentCodes = ["wpn", null],
+            SlotComponentCodes = new Dictionary<string, string> { [SLOT_A] = "wpn" },
         };
 
         ServiceResult<GlobalUnitTemplateView> created = await SendAsync(new CreateGlobalUnitTemplateRequest(createDto));
@@ -304,7 +362,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
         CompiledUnitTemplate afterCreate = await LoadSnapshotAsync(templateId);
 
         ServiceResult<GlobalUnitTemplateView> updated = await SendAsync(
-            new UpdateGlobalUnitTemplateRequest(templateId, createDto with { SlotComponentCodes = ["arm", null] }));
+            new UpdateGlobalUnitTemplateRequest(templateId, createDto with { SlotComponentCodes = new Dictionary<string, string> { [SLOT_A] = "arm" } }));
         Assert.That(updated.HasSucceeded, Is.True, () => string.Join("; ", updated.Errors));
 
         CompiledUnitTemplate afterUpdate = await LoadSnapshotAsync(templateId);
@@ -331,7 +389,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
             MapImagePath = "bad.png",
             BaseCode = "test_body",
             // A component code that doesn't exist in the catalogue fails resolution.
-            SlotComponentCodes = ["does_not_exist", null],
+            SlotComponentCodes = new Dictionary<string, string> { [SLOT_A] = "does_not_exist" },
         }));
 
         await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
@@ -355,8 +413,8 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
         {
             Templates =
             [
-                new CatalogTemplateDto { Code = "bulk_a", DisplayName = "Bulk A", MapImagePath = "a.png", BaseCode = "test_body", SlotComponentCodes = ["wpn", null] },
-                new CatalogTemplateDto { Code = "bulk_b", DisplayName = "Bulk B", MapImagePath = "b.png", BaseCode = "test_body", SlotComponentCodes = ["arm", null] },
+                new CatalogTemplateDto { Code = "bulk_a", DisplayName = "Bulk A", MapImagePath = "a.png", BaseCode = "test_body", SlotComponentCodes = new Dictionary<string, string> { [SLOT_A] = "wpn" } },
+                new CatalogTemplateDto { Code = "bulk_b", DisplayName = "Bulk B", MapImagePath = "b.png", BaseCode = "test_body", SlotComponentCodes = new Dictionary<string, string> { [SLOT_A] = "arm" } },
             ],
         };
 
@@ -375,7 +433,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
         {
             Templates =
             [
-                new CatalogTemplateDto { Code = "bulk_a", DisplayName = "Bulk A", MapImagePath = "a.png", BaseCode = "test_body", SlotComponentCodes = ["arm", null] },
+                new CatalogTemplateDto { Code = "bulk_a", DisplayName = "Bulk A", MapImagePath = "a.png", BaseCode = "test_body", SlotComponentCodes = new Dictionary<string, string> { [SLOT_A] = "arm" } },
             ],
         };
 
@@ -411,7 +469,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
             DisplayName = "Global Template",
             MapImagePath = "global.png",
             BaseCode = "test_body",
-            SlotComponentCodes = ["wpn", null],
+            SlotComponentCodes = new Dictionary<string, string> { [SLOT_A] = "wpn" },
         }));
         Assert.That(globalTemplate.HasSucceeded, Is.True, () => string.Join("; ", globalTemplate.Errors));
 
@@ -486,7 +544,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
             DisplayName = "Org Template",
             MapImagePath = "org.png",
             BaseCode = "test_body",
-            SlotComponentCodes = ["wpn", null],
+            SlotComponentCodes = new Dictionary<string, string> { [SLOT_A] = "wpn" },
         }));
 
         Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
@@ -507,7 +565,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
             DisplayName = "Body Org Template",
             MapImagePath = "org.png",
             BaseCode = "test_body",
-            SlotComponentCodes = ["wpn", null],
+            SlotComponentCodes = new Dictionary<string, string> { [SLOT_A] = "wpn" },
         }));
 
         Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
@@ -527,7 +585,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
             DisplayName = "No Org Template",
             MapImagePath = "org.png",
             BaseCode = "test_body",
-            SlotComponentCodes = ["wpn", null],
+            SlotComponentCodes = new Dictionary<string, string> { [SLOT_A] = "wpn" },
         }));
 
         Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
@@ -549,7 +607,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
             DisplayName = "Ambiguous Template",
             MapImagePath = "org.png",
             BaseCode = "test_body",
-            SlotComponentCodes = ["wpn", "arm"],
+            SlotComponentCodes = new Dictionary<string, string> { [SLOT_A] = "wpn", [SLOT_B] = "arm" },
         }));
 
         await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();

@@ -140,8 +140,18 @@ export interface UnitComponentSlotRule {
  * half-width / half-height), and values may fall outside -1..1 for slots that sit beyond the image bounds.
  */
 export interface UnitComponentSlot {
-  /** The slot's database id. Present when read from the backend; absent for a freshly-authored slot. */
+  /**
+   * The slot's database id. Present when read from the backend; absent for a freshly-authored slot. Sent on
+   * save so the backend updates this exact row in place — which is also the only way it can tell a `code`
+   * rename apart from a slot being removed and a different one added.
+   */
   id?: number;
+  /**
+   * Stable key for the slot, unique within its body (e.g. `MAIN_HAND`). This is how a template names the slot
+   * it fits a component into, and how a catalogue imported from another database matches slots to existing
+   * rows — neither of which an id or a position can do.
+   */
+  code: string;
   displayName: string | null;
   isVisible: boolean;
   uiXPosition: number;
@@ -238,15 +248,33 @@ export function createEmptySlotRule(): UnitComponentSlotRule {
 
 /**
  * A fresh slot at the origin with one starter rule (the backend wants at least one). Defaults to visible.
+ * `code` must be unique within the body — see `nextSlotCode`, which the Slots editor uses to pick one.
  */
-export function createEmptySlot(): UnitComponentSlot {
+export function createEmptySlot(code: string): UnitComponentSlot {
   return {
+    code,
     displayName: null,
     isVisible: true,
     uiXPosition: 0,
     uiYPosition: 0,
     rules: [createEmptySlotRule()],
   };
+}
+
+/**
+ * Picks an unused `SLOT_n` code for a body that already exposes `slots`. A generated placeholder rather than
+ * a prompt: the dev renames it to something meaningful in the editor, and because the slot's id travels with
+ * the rename, doing so updates the row rather than replacing it.
+ */
+export function nextSlotCode(slots: readonly UnitComponentSlot[]): string {
+  const taken = new Set(slots.map((slot) => slot.code));
+
+  for (let candidate = slots.length + 1; ; candidate++) {
+    const code = `SLOT_${candidate}`;
+    if (!taken.has(code)) {
+      return code;
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

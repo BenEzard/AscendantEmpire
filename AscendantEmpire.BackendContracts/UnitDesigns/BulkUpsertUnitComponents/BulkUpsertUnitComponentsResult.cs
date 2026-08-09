@@ -19,4 +19,19 @@ public record BulkUpsertUnitComponentsResult
     /// The codes of the components that were updated.
     /// </summary>
     public required IReadOnlyCollection<string> UpdatedCodes { get; init; }
+
+    /// <summary>
+    /// Number of body slots deleted because the payload no longer listed them.
+    /// </summary>
+    public int RemovedSlotCount { get; init; }
+
+    /// <summary>
+    /// Display names of the saved templates that lost a fitted component because the slot holding it was removed.
+    /// </summary>
+    /// <remarks>
+    /// Deleting a slot takes its fittings with it — the fitted row cannot outlive the slot it names. That is
+    /// intended, but it is not something to discover later in the designer, so the affected templates are
+    /// reported here for the caller to surface.
+    /// </remarks>
+    public IReadOnlyCollection<string> UnfittedTemplateNames { get; init; } = [];
 }

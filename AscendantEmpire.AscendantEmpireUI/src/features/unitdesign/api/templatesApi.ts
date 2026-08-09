@@ -12,8 +12,11 @@ export interface SaveUnitTemplatePayload {
   mapImagePath: string;
   /** Code of the chosen base Body component. */
   baseCode: string;
-  /** Fitted component code per base slot, positionally indexed to the base body's slots. */
-  slotComponentCodes: (string | null)[];
+  /**
+   * The component fitted into each filled slot, keyed by the base body's slot code. Only filled slots
+   * appear — an absent slot code means that slot is empty.
+   */
+  slotComponentCodes: Record<string, string>;
 }
 
 /** Server response shape (mirrors UnitTemplateView). */
@@ -46,7 +49,8 @@ export interface SaveGlobalUnitTemplatePayload {
   description?: string | null;
   mapImagePath: string;
   baseCode: string;
-  slotComponentCodes: (string | null)[];
+  /** The component fitted into each filled slot, keyed by the base body's slot code. */
+  slotComponentCodes: Record<string, string>;
 }
 
 /** Server response shape (mirrors GlobalUnitTemplateView). */

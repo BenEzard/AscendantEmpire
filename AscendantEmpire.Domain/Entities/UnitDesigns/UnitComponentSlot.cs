@@ -11,9 +11,25 @@ namespace AscendantEmpire.Domain.Entities.UnitDesigns;
 /// </remarks>
 public class UnitComponentSlot
 {
+    public const int CODE_MAX_LENGTH = 32;
     public const int DISPLAY_NAME_MAX_LENGTH = 100;
 
     public int Id { get; set; }
+
+    /// <summary>
+    /// Stable key for the slot, unique within its owning body (e.g. <c>MAIN_HAND</c>).
+    /// </summary>
+    /// <remarks>
+    /// <para><see cref="Id"/> identifies the slot inside this database — it is what
+    /// <see cref="UnitTemplateComponent.UnitComponentSlotId"/> references. The code identifies it
+    /// <i>across</i> databases, which an identity value cannot: a catalogue exported from one database and
+    /// imported into another has no meaningful ids, so the code is what lets an import match slots to the
+    /// rows they already have instead of deleting and recreating them.</para>
+    /// <para>It is also what a template's fitted components are keyed by on the wire, which is why adding,
+    /// removing or reordering a body's slots no longer disturbs the templates built on it.</para>
+    /// </remarks>
+    [MaxLength(CODE_MAX_LENGTH)]
+    public required string Code { get; set; }
 
     /// <summary>
     /// The body (via <see cref="UnitComponentBody.UnitComponentId"/>) that owns this slot.

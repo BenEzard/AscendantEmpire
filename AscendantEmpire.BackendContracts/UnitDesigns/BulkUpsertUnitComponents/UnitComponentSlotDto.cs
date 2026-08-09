@@ -6,11 +6,26 @@ namespace AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 public record UnitComponentSlotDto
 {
     /// <summary>
-    /// The slot's database id. Populated on reads (e.g. the dev designer's component fetch) so a saved
-    /// template's fitted components — keyed by this id — can be matched back onto the right slot; null
-    /// on writes, since the bulk-upsert path replaces a component's slots wholesale and never reads it.
+    /// The slot's database id — the upsert key when the caller has one.
     /// </summary>
+    /// <remarks>
+    /// <para>Populated on reads. On writes it names an existing slot to update in place, keeping the row and
+    /// with it every fitted template component pointing at it. <c>null</c> falls back to matching on
+    /// <see cref="Code"/>, which is what a catalogue imported from another database does — its ids are
+    /// meaningless here. An id the target component doesn't own is rejected rather than treated as new.</para>
+    /// <para>Sending the id matters for a rename: it is the only way the upsert can tell "this slot's code
+    /// changed" apart from "that slot went and a different one arrived".</para>
+    /// </remarks>
     public int? Id { get; init; }
+
+    /// <summary>
+    /// Stable key for the slot, unique within its owning body (e.g. <c>MAIN_HAND</c>).
+    /// </summary>
+    /// <remarks>
+    /// The portable identity: it survives a move between databases, which <see cref="Id"/> does not, and it is
+    /// how a template names the slot it fits a component into.
+    /// </remarks>
+    public required string Code { get; init; }
 
     /// <summary>
     /// Optional label shown for the slot.

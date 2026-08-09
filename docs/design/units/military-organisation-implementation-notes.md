@@ -98,10 +98,14 @@ rather than starting a game with no units:
 The unled requirement is not incidental: the spawn size *is* the tag's `UnledDefaultSize`, and a
 commissioned template has no equivalent single default.
 
-To author a set: create the organisation tags in the Tag manager (leadership model + unled sizes), the
-components carrying those tags, then the global templates in the Unit Designer. The catalogue
-export/import zip carries all of it, including the organisation fields, so a catalogue authored once can
-be moved to another database (see the note under Outstanding work item 9).
+**[starting-requirements.md](../starting-requirements.md) is the authoring checklist** — the exact tags,
+components and templates, in order, with the field values. In short: organisation tags first (leadership
+model + unled sizes), then the components carrying those tags, then the global templates in the Unit
+Designer. The catalogue export/import zip carries all of it, including the organisation fields, so a
+catalogue authored once can be moved to another database (see the note under Outstanding work item 9).
+
+Code matching is case-insensitive, so the lower-cased code the Unit Designer derives from a display name
+(`settler`) satisfies the `SETTLER` requirement.
 
 Carried debts from the `TroopInstance` FK swap (`UnitDesignId` → `UnitTemplateId`):
 

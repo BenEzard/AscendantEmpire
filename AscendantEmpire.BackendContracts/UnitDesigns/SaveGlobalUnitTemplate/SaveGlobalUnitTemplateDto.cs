@@ -29,8 +29,12 @@ public record SaveGlobalUnitTemplateDto
     public required string BaseCode { get; init; }
 
     /// <summary>
-    /// Fitted component code per base slot, positionally indexed to the base body's slots (in slot-id
-    /// order). A null entry means that slot is left empty.
+    /// The component fitted into each filled slot, keyed by the base body's slot code.
     /// </summary>
-    public required IReadOnlyList<string?> SlotComponentCodes { get; init; }
+    /// <remarks>
+    /// Only filled slots appear — an absent slot code means that slot is left empty. Keying by slot code
+    /// rather than by position means adding, removing or reordering the base body's slots cannot silently
+    /// re-map which component sits where.
+    /// </remarks>
+    public required IReadOnlyDictionary<string, string> SlotComponentCodes { get; init; }
 }

@@ -62,9 +62,9 @@ internal class CompileUnitTemplateHandlerTests : SqlServerTestBase
         };
         body.Body!.Slots =
         [
-            new UnitComponentSlot { DisplayName = "Weapon", IsVisible = true, UIXPosition = 0, UIYPosition = 0 },
-            new UnitComponentSlot { DisplayName = "Armour", IsVisible = true, UIXPosition = 1, UIYPosition = 0 },
-            new UnitComponentSlot { DisplayName = "Utility", IsVisible = true, UIXPosition = 2, UIYPosition = 0 },
+            new UnitComponentSlot { Code = "WEAPON_1", DisplayName = "Weapon", IsVisible = true, UIXPosition = 0, UIYPosition = 0 },
+            new UnitComponentSlot { Code = "ARMOUR_1", DisplayName = "Armour", IsVisible = true, UIXPosition = 1, UIYPosition = 0 },
+            new UnitComponentSlot { Code = "UTILITY_1", DisplayName = "Utility", IsVisible = true, UIXPosition = 2, UIYPosition = 0 },
         ];
 
         var weapon = new UnitComponent

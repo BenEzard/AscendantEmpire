@@ -331,13 +331,24 @@ export default function UnitDesigner({
 
         const mapImagePath = baseComponent.designerImagePath ?? "";
 
+        // The designer tracks fittings positionally because that array is index-aligned with the `baseSlots`
+        // it just rendered. The wire contract names each slot by its code instead, so that adding, removing
+        // or reordering the body's slots can never silently re-map which component sits where. Empty slots
+        // are simply left out of the map.
+        const slotComponentCodeMap: Record<string, string> = Object.fromEntries(
+          baseSlots.flatMap((slot, index) => {
+            const fittedCode = slotComponentCodes[index];
+            return fittedCode != null ? [[slot.code, fittedCode] as const] : [];
+          }),
+        );
+
         if (saveAsGlobal) {
           const payload: SaveGlobalUnitTemplatePayload = {
             code: slugify(displayName),
             displayName,
             mapImagePath,
             baseCode,
-            slotComponentCodes,
+            slotComponentCodes: slotComponentCodeMap,
           };
 
           saveGlobalMutation.mutate(payload, {
@@ -351,7 +362,7 @@ export default function UnitDesigner({
           displayName,
           mapImagePath,
           baseCode,
-          slotComponentCodes,
+          slotComponentCodes: slotComponentCodeMap,
         };
 
         saveMutation.mutate(payload, {

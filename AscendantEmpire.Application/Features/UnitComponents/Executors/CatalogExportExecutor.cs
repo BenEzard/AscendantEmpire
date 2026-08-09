@@ -114,8 +114,8 @@ internal sealed class CatalogExportExecutor(
     }
 
     /// <summary>
-    /// Loads every catalogue (global/common) template with the graph needed to rebuild its
-    /// positional slot codes: its body component's slots and its fitted components.
+    /// Loads every catalogue (global/common) template with the graph needed to rebuild its slot-code map:
+    /// its body component's slots, and each fitted component along with the slot it occupies.
     /// </summary>
     private async Task<List<UnitTemplate>> LoadCatalogueTemplatesAsync(CancellationToken cancellationToken)
     {
@@ -124,6 +124,7 @@ internal sealed class CatalogExportExecutor(
             .Where(t => t.Code != null && t.GameId == null && t.PlayerId == null)
             .Include(t => t.BodyComponent).ThenInclude(b => b.Body!).ThenInclude(bd => bd.Slots)
             .Include(t => t.Components).ThenInclude(c => c.UnitComponent)
+            .Include(t => t.Components).ThenInclude(c => c.UnitComponentSlot)
             .ToListAsync(cancellationToken);
     }
 
@@ -261,18 +262,14 @@ internal sealed class CatalogExportExecutor(
 
     /// <summary>
     /// Projects a single template onto its export DTO, reconstructing <c>SlotComponentCodes</c> from the
-    /// fitted components by ordering the body's slots by id (the same positional scheme the save path uses).
+    /// fitted components by naming each one's slot code — the identity that survives the move to another
+    /// database, unlike the slot id or its position.
     /// </summary>
     private static CatalogTemplateDto BuildTemplateDto(UnitTemplate template)
     {
-        List<UnitComponentSlot> orderedSlots = [.. template.BodyComponent.Body!.Slots.OrderBy(s => s.Id)];
-
-        // The component fitted into each body slot, keyed by slot id.
-        Dictionary<int, string> fittedBySlotId = template.Components
-            .ToDictionary(c => c.UnitComponentSlotId, c => c.UnitComponent.Code);
-
-        List<string?> slotComponentCodes = [.. orderedSlots.Select(slot =>
-            fittedBySlotId.TryGetValue(slot.Id, out string? code) ? code : null)];
+        // Empty slots are simply absent from the map, so nothing has to stand in for them.
+        Dictionary<string, string> slotComponentCodes = template.Components
+            .ToDictionary(fitted => fitted.UnitComponentSlot.Code, fitted => fitted.UnitComponent.Code);
 
         return new CatalogTemplateDto
         {

@@ -20,7 +20,7 @@ function getUnitMarkerCount(unitCount: number): number {
 }
 
 export default function ObservedTroop({ troop, troopInstanceCount, isSelected = false, troopImageSrcByUnitTemplateId }: ObservedTroopProps) {
-  const troopImageSrc = troopImageSrcByUnitTemplateId?.get(troop.UnitTemplateId);
+  const troopImageSrc = troopImageSrcByUnitTemplateId?.get(troop.unitTemplateId);
 
   if (!troopImageSrc) return null;
 

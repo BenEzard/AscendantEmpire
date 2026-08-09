@@ -18,6 +18,7 @@ import {
   SLOT_RULE_TYPES,
   createEmptySlot,
   createEmptySlotRule,
+  nextSlotCode,
   type SlotRuleOperator,
   type SlotRuleType,
   type UnitComponentSlot,
@@ -61,7 +62,24 @@ export default function SlotsSection({ slots, onChange }: SlotsSectionProps) {
   const addSlot = () => {
     // Collapse every existing slot so the newly-added one (expanded by default) stands out.
     setCollapsedIndices(new Set(slots.map((_, i) => i)));
-    onChange([...slots, createEmptySlot()]);
+    onChange([...slots, createEmptySlot(nextSlotCode(slots))]);
+  };
+
+  // Codes address slots on the wire, so a duplicate makes "which slot?" ambiguous — and the backend's unique
+  // index would reject the save anyway. Flagged per card rather than blocking the edit, so the user can fix
+  // it in whichever card they meant to change.
+  const duplicateCodes = new Set(
+    slots.map((slot) => slot.code).filter((code, index, all) => code !== "" && all.indexOf(code) !== index),
+  );
+
+  const codeErrorFor = (slot: UnitComponentSlot): string | null => {
+    if (slot.code.trim() === "") {
+      return "A slot needs a code.";
+    }
+    if (duplicateCodes.has(slot.code)) {
+      return `Another slot already uses the code "${slot.code}".`;
+    }
+    return null;
   };
 
   const removeSlot = (index: number) => {
@@ -106,6 +124,7 @@ export default function SlotsSection({ slots, onChange }: SlotsSectionProps) {
               key={index}
               slot={slot}
               index={index}
+              codeError={codeErrorFor(slot)}
               isCollapsed={collapsedIndices.has(index)}
               onToggleCollapsed={() => toggleCollapsed(index)}
               onChange={(next) => updateSlot(index, next)}
@@ -132,6 +151,7 @@ export default function SlotsSection({ slots, onChange }: SlotsSectionProps) {
 function SlotCard({
   slot,
   index,
+  codeError,
   isCollapsed,
   onToggleCollapsed,
   onChange,
@@ -139,6 +159,8 @@ function SlotCard({
 }: {
   slot: UnitComponentSlot;
   index: number;
+  /** Why this slot's code is unusable (blank or a duplicate), or null when it's fine. */
+  codeError: string | null;
   isCollapsed: boolean;
   onToggleCollapsed: () => void;
   onChange: (next: UnitComponentSlot) => void;
@@ -289,6 +311,22 @@ function SlotCard({
 
       {!isCollapsed && (
         <>
+          {/* The slot's stable key. Templates record the slot code they fitted a component into, and a
+              catalogue import matches on it, so changing one is a rename of something other data points at —
+              safe here (the slot's id travels with the edit) but not something to do casually. */}
+          <FieldRow label="Code" hint="(unique within this body)">
+            <input
+              className={`${inputClass} font-mono uppercase`}
+              value={slot.code}
+              aria-label="Slot code"
+              aria-invalid={codeError != null}
+              // Codes are uppercase, underscore-separated; normalise as the user types rather than
+              // rejecting afterwards.
+              onChange={(e) => patch("code", e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, "_"))}
+            />
+          </FieldRow>
+          {codeError != null && <div className="mb-1 text-xs text-[var(--bs-danger)]">{codeError}</div>}
+
           <FieldRow label="Accessibility">
             <div className="flex items-center gap-4 text-sm text-slate-700">
               <label className="flex items-center gap-1.5">

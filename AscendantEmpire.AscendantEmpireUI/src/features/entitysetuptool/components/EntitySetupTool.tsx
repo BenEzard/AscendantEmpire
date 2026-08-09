@@ -12,7 +12,7 @@ import { Button, ExportDialog, Modal, ProgressOperationDialog, SearchDrawer, Sea
 
 import { useDatabaseSeed } from "../hooks/useDatabaseSeed";
 
-import { bulkUpsertComponents, getComponent } from "@/features/unitdesign/api/componentsApi";
+import { createComponent, getComponent, updateComponent } from "@/features/unitdesign/api/componentsApi";
 import { getComponentList, type ComponentListRow } from "@/features/unitdesign/api/catalogApi";
 import { recompileAllTemplates } from "@/features/unitdesign/api/templatesApi";
 import { createTag, getTags, updateTag } from "@/features/unitdesign/api/tagsApi";
@@ -101,17 +101,28 @@ export default function EntitySetupTool() {
   const [componentRows, setComponentRows] = useState<ComponentListRow[]>([]);
   const [tagRows, setTagRows] = useState<Tag[]>([]);
 
-  // Persists a newly authored (or edited) component via BulkUpsertUnitComponents, then closes the dialog
-  // on success. Bulk-upsert keys on Code, so the same call both creates and updates. On failure the error
-  // is surfaced in the dialog via the `error` prop so the user can correct and retry without losing input.
+  // Persists a newly authored (or edited) component, then closes the dialog on success. A component with no
+  // id has never been saved, so it goes to the create endpoint; anything else is an update keyed on its code.
+  // (Both replaced the old bulk-upsert call, which was the catalogue *import* path — a single edit shouldn't
+  // be expressed as a catalogue import.) On failure the error is surfaced in the dialog via the `error` prop
+  // so the user can correct and retry without losing input.
   const handleComponentCommit = async (component: UnitComponent) => {
     try {
       setComponentError(null);
-      const result = await bulkUpsertComponents(component);
+      const isNew = component.id == null;
+      const result = isNew ? await createComponent(component) : await updateComponent(component);
       setShowComponentSetup(false);
       setInitialComponent(undefined);
-      const verb = result.addedCount > 0 ? "created" : "updated";
-      setComponentSuccessMessage(`Component: "${component.displayName}" ${verb} successfully.`);
+      const verb = isNew ? "created" : "updated";
+
+      // Deleting a slot also deletes whatever saved templates had fitted into it. That's intended, but the
+      // dev shouldn't have to find out by opening the designer later — so it's called out in the toast.
+      const unfittedNote =
+        result.unfittedTemplateNames.length > 0
+          ? ` ${result.removedSlotCount} slot(s) removed, which cleared fitted components from: ${result.unfittedTemplateNames.join(", ")}.`
+          : "";
+
+      setComponentSuccessMessage(`Component: "${component.displayName}" ${verb} successfully.${unfittedNote}`);
     } catch (err) {
       const message = errorMessage(err, "Failed to save component.");
       setComponentError(message);
@@ -132,6 +143,12 @@ export default function EntitySetupTool() {
         description: tag.description.trim() === "" ? null : tag.description,
         tagType: tag.tagType,
         movementDomain: tag.movementDomain,
+        // Organisation-group fields: the leadership model and, for unled tags, the authored sizing.
+        // Null for every other tag type (the dialog clears them when the type changes).
+        leadershipModel: tag.leadershipModel,
+        unledBaseSize: tag.unledBaseSize,
+        unledDefaultSize: tag.unledDefaultSize,
+        unledMaxSize: tag.unledMaxSize,
         systemCreated: tag.systemCreated,
       };
 

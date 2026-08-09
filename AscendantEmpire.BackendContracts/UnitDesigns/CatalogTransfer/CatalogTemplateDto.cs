@@ -33,8 +33,11 @@ public record CatalogTemplateDto
     public required string BaseCode { get; init; }
 
     /// <summary>
-    /// Fitted component code per base slot, positionally indexed to the base body's slots (in slot-id
-    /// order). A null entry means that slot is left empty.
+    /// The component fitted into each filled slot, keyed by the base body's slot code.
     /// </summary>
-    public required IReadOnlyList<string?> SlotComponentCodes { get; init; }
+    /// <remarks>
+    /// Slot codes are portable between databases, which slot ids and positions are not — so a catalogue
+    /// exported here and imported elsewhere lands each fitted component in the slot it actually named.
+    /// </remarks>
+    public required IReadOnlyDictionary<string, string> SlotComponentCodes { get; init; }
 }
