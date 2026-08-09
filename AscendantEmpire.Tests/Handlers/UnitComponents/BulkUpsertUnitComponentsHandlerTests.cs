@@ -35,12 +35,19 @@ internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
     {
         AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        // These tests are about the component graph, not the snapshots downstream of it. A stub mediator
-        // makes the post-save recompile a no-op, which SaveUnitTemplateCompilationTests covers for real.
+        // These tests are about the component graph, not the snapshots downstream of it — SaveUnitTemplateCompilationTests
+        // covers those for real. The stub still has to answer the compile request rather than being left bare, though:
+        // AffectedTemplateRecompiler sends one CompileUnitTemplateRequest per template built on an edited component and
+        // reads the result, so an unconfigured substitute fails every test that seeds a fitted template on the recompile
+        // instead of on what it set out to assert.
+        IMediator mediator = Substitute.For<IMediator>();
+        mediator.Send(Arg.Any<CompileUnitTemplateRequest>(), Arg.Any<CancellationToken>())
+            .Returns(ServiceResult<int>.Succeed(0));
+
         return new BulkUpsertUnitComponentsHandler(
             new NullLogger<BulkUpsertUnitComponentsHandler>(),
             context,
-            Substitute.For<IMediator>(),
+            mediator,
             Substitute.For<ICampaignTurnService>());
     }
 
