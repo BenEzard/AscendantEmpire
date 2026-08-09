@@ -123,18 +123,18 @@ export interface TemplateSummary {
   components: TemplateComponentSummary[];
 }
 
-/** Wire shape shared by GET /unit-design/catalog and GET /unit-design/templates: only `templates` is read here. */
+/** Wire shape shared by GET /unit-design-catalogue and GET /unit-design/templates: only `templates` is read here. */
 interface TemplatesWire {
   templates: TemplateSummary[];
 }
 
 /**
  * Dev tool: the master/global unit-template catalogue, unrelated to any game — for the Entity Setup
- * Tool's "load a template" combo box. Reads GET /unit-design/catalog (the unfiltered dev god-view) and
+ * Tool's "load a template" combo box. Reads GET /unit-design-catalogue (the unfiltered dev god-view) and
  * keeps only the global/common templates (`!isCustom`), dropping the per-game custom ones it also returns.
  */
 export async function getGlobalTemplates(): Promise<TemplateSummary[]> {
-  const { data } = await http.get<TemplatesWire>("/unit-design/catalog");
+  const { data } = await http.get<TemplatesWire>("/unit-design-catalogue");
   return data.templates.filter((template) => !template.isCustom);
 }
 

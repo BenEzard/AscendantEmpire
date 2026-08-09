@@ -8,7 +8,6 @@ using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 using AscendantEmpire.BackendContracts.UnitDesigns.CatalogTransfer;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetCompiledUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetComponent;
-using AscendantEmpire.BackendContracts.UnitDesigns.GetFullCatalog;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetPlayerTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetSlotCandidateComponents;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetTags;
@@ -63,8 +62,7 @@ public class UnitDesignController : ControllerBase
         [FromBody] BulkUpsertUnitComponentsDto request,
         CancellationToken cancelToken)
     {
-        ServiceResult<BulkUpsertUnitComponentsResult> response =
-            await mediator.Send(new BulkUpsertUnitComponentsRequest(request), cancelToken);
+        ServiceResult<BulkUpsertUnitComponentsResult> response = await mediator.Send(new BulkUpsertUnitComponentsRequest(request), cancelToken);
 
         return response.ToActionResult(result => new DTBulkUpsertUnitComponentsResult
         {
@@ -310,28 +308,6 @@ public class UnitDesignController : ControllerBase
     {
         ServiceResult<CompiledUnitTemplateView> response =
             await mediator.Send(new GetCompiledUnitTemplateRequest(templateId), cancelToken);
-
-        return response.ToActionResult();
-    }
-
-    /// <summary>
-    /// Dev design tool: get the entire unit-design catalog unfiltered (every body, component, tag and template), ignoring game/player and unlock scoping.
-    /// </summary>
-    /// <remarks>
-    /// TODO: lock down before any non-dev deployment. This endpoint is intentionally left unauthorized for now; 
-    /// it must be gated behind a dev/admin policy (or mapped only in Development) before shipping, since it exposes the whole catalog.
-    /// </remarks>
-    /// <response code="200">The full catalog</response>
-    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [HttpGet("catalog")]
-    [ProducesResponseType(typeof(FullCatalogResult), 200)]
-    [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> GetFullCatalogAsync(
-        [FromServices] IMediator mediator,
-        CancellationToken cancelToken)
-    {
-        ServiceResult<FullCatalogResult> response =
-            await mediator.Send(new GetFullCatalogRequest(), cancelToken);
 
         return response.ToActionResult();
     }

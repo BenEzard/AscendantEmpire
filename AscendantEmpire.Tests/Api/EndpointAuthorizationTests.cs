@@ -142,7 +142,6 @@ public sealed class EndpointAuthorizationTests
         "GET /units/display",
 
         "GET /unit-design/bodies",
-        "GET /unit-design/catalog",
         "GET /unit-design/components/{code}",
         "GET /unit-design/components/{ownerComponentId}/slots/{slotId}/components",
         "GET /unit-design/tags",
@@ -151,6 +150,8 @@ public sealed class EndpointAuthorizationTests
         "POST /unit-design/templates",
         "PUT /unit-design/templates/{templateId}",
         "GET /unit-design/templates/{templateId}/compiled",
+
+        "GET /unit-design-catalogue",
     ];
 
     /// <summary>

@@ -1,5 +1,5 @@
 // API service for the dev Entity Setup Tool's full catalog read. Thin wrapper over the shared axios `http`
-// client for GET /unit-design/catalog (the dev god-view that returns every body, component, tag and
+// client for GET /unit-design-catalogue (the dev god-view that returns every body, component, tag and
 // template unfiltered). Only the fields the search drawer needs are typed here.
 
 import { http } from "@/api/http";
@@ -21,7 +21,7 @@ interface CatalogBody {
   displayName: string;
 }
 
-/** The subset of GET /unit-design/catalog we consume for the search drawer. */
+/** The subset of GET /unit-design-catalogue we consume for the search drawer. */
 interface FullCatalogResponse {
   bodies: CatalogBody[];
   components: CatalogComponent[];
@@ -40,7 +40,7 @@ export interface ComponentListRow {
  * implicit "Body" component type — to match the editor, which can author bodies too.
  */
 export async function getComponentList(): Promise<ComponentListRow[]> {
-  const { data } = await http.get<FullCatalogResponse>("/unit-design/catalog");
+  const { data } = await http.get<FullCatalogResponse>("/unit-design-catalogue");
 
   const bodyRows: ComponentListRow[] = data.bodies.map((body) => ({
     code: body.code,

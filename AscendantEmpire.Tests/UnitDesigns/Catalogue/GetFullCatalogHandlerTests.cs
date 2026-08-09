@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
-namespace AscendantEmpire.Tests.Handlers.UnitComponents;
+namespace AscendantEmpire.Tests.UnitDesigns.Catalogue;
 
 /// <summary>
 /// Smoke test for the dev god-view: it returns the whole catalog (bodies, components, tags, templates)
