@@ -187,7 +187,7 @@ export async function updateComponent(component: UnitComponent): Promise<UnitCom
 // --- GET one full component (edit flow) ---------------------------------------------------------
 //
 // The catalog's component DTO is lossy (no body stats / supersession, bodies excluded), so opening a
-// component for edit fetches it in full from GET /unit-design/components/{code}. The wire shapes below
+// component for edit fetches it in full from GET /unit-design-catalogue/{code}. The wire shapes below
 // mirror EditableComponentResult; mapEditableComponentToModel inverts the bulkUpsertComponents payload
 // mapping back into the editable UnitComponent the dialog expects.
 
@@ -314,7 +314,7 @@ function mapSlotFromWire(slot: SlotWire): UnitComponentSlot {
   };
 }
 
-/** Maps the full GET /unit-design/components/{code} response back into the editable UnitComponent model. */
+/** Maps the full GET /unit-design-catalogue/{code} response back into the editable UnitComponent model. */
 export function mapEditableComponentToModel(wire: EditableComponentWire): UnitComponent {
   const { component } = wire;
 
@@ -344,6 +344,6 @@ export function mapEditableComponentToModel(wire: EditableComponentWire): UnitCo
 
 /** Fetch a single component in full by code and map it to the editable UnitComponent model. */
 export async function getComponent(code: string): Promise<UnitComponent> {
-  const { data } = await http.get<EditableComponentWire>(`/unit-design/components/${encodeURIComponent(code)}`);
+  const { data } = await http.get<EditableComponentWire>(`/unit-design-catalogue/${encodeURIComponent(code)}`);
   return mapEditableComponentToModel(data);
 }

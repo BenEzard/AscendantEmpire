@@ -7,7 +7,7 @@ namespace AscendantEmpire.BackendContracts.UnitDesigns.UpsertUnitComponent;
 /// </summary>
 /// <remarks>
 /// Deliberately a summary rather than the full editable graph: the Entity Setup Tool closes its dialog on
-/// success and re-fetches through <c>GET components/{code}</c> when the component is next opened. What it does
+/// success and re-fetches through <c>GET /unit-design-catalogue/{code}</c> when the component is next opened. What it does
 /// need back is anything the save destroyed, so a cascaded slot deletion can be reported rather than
 /// discovered later.
 /// </remarks>

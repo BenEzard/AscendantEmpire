@@ -1,5 +1,6 @@
 using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
+using AscendantEmpire.BackendContracts.UnitDesigns.GetComponent;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetFullCatalog;
 using AscendantEmpire.FrontendContracts;
 
@@ -37,6 +38,31 @@ public class UnitDesignCatalogueController : ControllerBase
     {
         ServiceResult<FullCatalogResult> response =
             await mediator.Send(new GetFullCatalogRequest(), cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Dev design tool: get a single component in full (its body/weapon/armour extension, slots, tags and supersession links) by code, for the edit flow.
+    /// </summary>
+    /// <remarks>
+    /// TODO: lock down before any non-dev deployment. 
+    /// This endpoint is intentionally left unauthorized for now; it must be gated behind a dev/admin policy (or mapped only in Development) before shipping, 
+    /// since it exposes the whole catalog.
+    /// </remarks>
+    /// <response code="200">The full component</response>
+    /// <response code="404">No component exists with the given code</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpGet("{code}")]
+    [ProducesResponseType(typeof(EditableComponentResult), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetComponentAsync(
+        [FromServices] IMediator mediator,
+        string code,
+        CancellationToken cancelToken)
+    {
+        ServiceResult<EditableComponentResult> response = await mediator.Send(new GetComponentRequest(code), cancelToken);
 
         return response.ToActionResult();
     }

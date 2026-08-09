@@ -1,4 +1,3 @@
-using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetComponent;
@@ -13,9 +12,8 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 
 /// <summary>
-/// Returns a single component in full (general fields, its body/weapon/armour extension, slots, tags and
-/// supersession links) by code, for the dev Unit Designer's edit flow. Applies no game/player or unlock
-/// filtering — it is the lossless read counterpart of the bulk-upsert write side.
+/// Returns a single component in full (general fields, its body/weapon/armour extension, slots, tags and supersession links) by code, for the dev Unit Designer's edit flow. 
+/// Applies no game/player or unlock filtering — it is the lossless read counterpart of the bulk-upsert write side.
 /// </summary>
 public record GetComponentRequest(string Code) : IRequest<ServiceResult<EditableComponentResult>>;
 
@@ -30,9 +28,8 @@ internal class GetComponentHandler(
         {
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            // Project the whole graph in one query (mirrors DesignComponentProjections, but keeps the
-            // body extension and supersession links the catalog read drops). A single Select avoids any
-            // explicit Include and translates cleanly to SQL.
+            // Project the whole graph in one query (mirrors DesignComponentProjections, but keeps the body extension and supersession links the catalog read drops).
+            // A single Select avoids any explicit Include and translates cleanly to SQL.
             EditableComponentResult? result = await context.UnitComponents
                 .AsNoTracking()
                 .Where(c => c.Code == request.Code)
@@ -58,8 +55,7 @@ internal class GetComponentHandler(
                                 BattlefieldMovementPoints = c.Body.BattlefieldMovementPoints,
                                 Power = c.Body.Power,
                                 Hitpoints = c.Body.Hitpoints,
-                                // Ordered by Id for a stable presentation order. Which component sits in which
-                                // slot is decided by the slot's Code, not by this ordering.
+                                // Ordered by Id for a stable presentation order. Which component sits in which slot is decided by the slot's Code, not by this ordering.
                                 Slots = c.Body.Slots
                                     .OrderBy(s => s.Id)
                                     .Select(s => new UnitComponentSlotDto
