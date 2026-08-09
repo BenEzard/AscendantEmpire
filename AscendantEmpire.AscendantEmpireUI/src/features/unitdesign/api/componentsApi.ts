@@ -164,11 +164,11 @@ function mapUpsertPayload(component: UnitComponent) {
 }
 
 /**
- * Creates a component via POST /unit-design/components. Fails with 409 if the code is already taken —
+ * Creates a component via POST /unit-design-catalogue. Fails with 409 if the code is already taken —
  * use `updateComponent` to edit an existing one.
  */
 export async function createComponent(component: UnitComponent): Promise<UnitComponentSaveResult> {
-  const { data } = await http.post<UnitComponentSaveResult>("/unit-design/components", mapUpsertPayload(component));
+  const { data } = await http.post<UnitComponentSaveResult>("/unit-design-catalogue", mapUpsertPayload(component));
   return data;
 }
 

@@ -68,7 +68,7 @@ public sealed class EndpointAuthorizationTests
         // Entity setup tool: everything that writes to the shared catalogues, plus the dev-only actions.
         ["POST /system/seed"] = PermissionType.EntitySetupTool,
         ["POST /unit-design/components/bulk"] = PermissionType.EntitySetupTool,
-        ["POST /unit-design/components"] = PermissionType.EntitySetupTool,
+        ["POST /unit-design-catalogue"] = PermissionType.EntitySetupTool,
         ["PUT /unit-design/components/{code}"] = PermissionType.EntitySetupTool,
         ["POST /unit-design/tags"] = PermissionType.EntitySetupTool,
         ["PUT /unit-design/tags/{id}"] = PermissionType.EntitySetupTool,
