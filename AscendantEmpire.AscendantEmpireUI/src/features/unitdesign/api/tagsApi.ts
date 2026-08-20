@@ -1,5 +1,5 @@
 // API service for the dev Entity Setup Tool's global tag catalog. Thin wrappers over the shared axios
-// `http` client, one per backend endpoint on UnitDesignController (GET/POST/PUT /UnitDesign/tags).
+// `http` client, one per backend tag endpoint (GET /unit-design-tags, POST/PUT /unit-design/tags).
 
 import { http } from "@/api/http";
 
@@ -50,7 +50,7 @@ function mapTagViewToModel(wire: TagViewWire): Tag {
  * them under a `tags` envelope (GetTagsResult).
  */
 export async function getTags(): Promise<Tag[]> {
-  const { data } = await http.get<{ tags: TagViewWire[] }>("/unit-design/tags");
+  const { data } = await http.get<{ tags: TagViewWire[] }>("/unit-design-tags");
   return data.tags.map(mapTagViewToModel);
 }
 

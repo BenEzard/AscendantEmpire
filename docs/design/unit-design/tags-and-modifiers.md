@@ -14,7 +14,7 @@ questions, and the work that remains.
 - `UnitComponentTag.cs` — many-to-many join between `Tag` and `UnitComponent`.
 - `TagType.cs` — enum: `Classification`, `Combat`, `Movement`, `Ability`.
 - EF Core: `DbSet<Tag> Tags`, `DbSet<UnitComponentTag> UnitComponentTags`.
-- `UnitDesignController.cs` — dev-only endpoints `GET/POST /tags`, `PUT /tags/{id}`, backed by `GetTagsHandler`, `CreateTagHandler`, `UpdateTagHandler`, and shape validation in `TagValidation.cs`.
+- `UnitDesignTagsController.cs` — dev-only endpoints, backed by `GetTagsHandler`, `CreateTagHandler`, `UpdateTagHandler`, and shape validation in `TagValidation.cs`. `GET /unit-design-tags` has moved onto it; `POST /tags` and `PUT /tags/{id}` are still on `UnitDesignController.cs` until the rest of the split lands — see [UD-32](../../work-in-progress/UD-32.md).
 - Contracts: `UpsertTagDto`, `TagView`, `CatalogTag`.
 
 **Frontend**, all under `AscendantEmpire.AscendantEmpireUI/src/features/entitysetuptool/`:
@@ -90,7 +90,8 @@ Structured Modifier shape (concept 2) should gain an optional `ApplyTo` field (s
 3. Tags are flat — no hierarchy.
 4. Simple constraints are allowed (e.g. a `TagType` restricts which `ComponentType`s may carry it), and should warn rather than block at design time — consistent with the existing obsolescence pattern ("obsolescence is always at the player's discretion").
 5. Values support both flat and percentage, via an explicit `ValueType` enum next to `Value`.
-6. Tags stay scoped to unit design for now. The `Tag`/`TagType` entities have no unit-design-specific fields, so relocating them later (own folder/namespace, own controller/routes) is cheap — do it when a second consumer needs tagging (e.g. adding a `StructureTag` join table beside `UnitComponentTag`), not before.
+6. Tags stay scoped to unit design for now. The `Tag`/`TagType` entities have no unit-design-specific fields, so relocating them later (own folder/namespace, own entities outside unit design) is cheap — do it when a second consumer needs tagging (e.g. adding a `StructureTag` join table beside `UnitComponentTag`), not before.
+   - Note this is about moving the **entities** out of unit design, and is unaffected by `UnitDesignTagsController` existing. That controller was split out of `UnitDesignController` for size and cohesion (see [UD-32](../../work-in-progress/UD-32.md)) and keeps tags firmly *inside* unit design — it is not the relocation this point defers, and does not bring it forward.
 
 ## Remaining open work
 
