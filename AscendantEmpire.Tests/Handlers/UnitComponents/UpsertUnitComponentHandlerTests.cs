@@ -169,6 +169,51 @@ internal class UpsertUnitComponentHandlerTests : SqlServerTestBase
         }
     }
 
+    [Test, Description("Dropping a slot through the update endpoint deletes it with its fittings, and reports both in the response.")]
+    public async Task UpdateRemovingSlotDeletesFittingsAndReportsThemAsync()
+    {
+        // Two slots, so one can be dropped while the other proves the surviving rows keep their ids.
+        await CreateAsync(BuildBodyWithSlots(
+            BuildSlotDto("Weapon 1", nameof(ComponentType.Weapon)),
+            BuildSlotDto("Training 1", nameof(ComponentType.Equipment))));
+        await CreateAsync(BuildWeapon(WEAPON_CODE));
+
+        // The template fits the weapon into the first slot — the very slot the update below drops.
+        List<int> slotIds = await DbFactory.FitWeaponIntoFirstSlotAsync("Fitted Template");
+
+        UpdateUnitComponentHandler handler = await UpdateHandlerAsync();
+        ServiceResult<UnitComponentView> result = await handler.Handle(
+            new UpdateUnitComponentRequest(BODY_CODE, Payload(BuildBodyWithSlots(
+                BuildSlotDto("Training 1", nameof(ComponentType.Equipment), slotIds[1])))),
+            CancellationToken.None);
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+
+        UnitComponent updated = await verifyContext.UnitComponents
+            .Include(component => component.Body!).ThenInclude(bodyExtension => bodyExtension.Slots)
+            .SingleAsync(component => component.Code == BODY_CODE);
+
+        bool droppedSlotStillExists = await verifyContext.UnitComponentSlots.AnyAsync(slot => slot.Id == slotIds[0]);
+        int fittedCount = await verifyContext.UnitTemplateComponents.CountAsync();
+        bool templateStillExists = await verifyContext.UnitTemplates.AnyAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+            // The response contract the Entity Setup Tool warns the user with, and the reason this test exists:
+            // the sibling bulk test proves the reconciler deletes the rows, but it asserts against a different
+            // result type. This is the only cover for UnitComponentView carrying a non-zero removal.
+            Assert.That(result.SuccessValue!.RemovedSlotCount, Is.EqualTo(1), "The removal is counted.");
+            Assert.That(result.SuccessValue.UnfittedTemplateNames, Is.EqualTo(new[] { "Fitted Template" }), "The affected template is named back to the caller.");
+
+            Assert.That(droppedSlotStillExists, Is.False, "The dropped slot row is deleted.");
+            Assert.That(updated.Body!.Slots.Single().Id, Is.EqualTo(slotIds[1]), "The kept slot survives with its id.");
+            Assert.That(fittedCount, Is.EqualTo(0), "The fitting cannot outlive the slot it named.");
+            Assert.That(templateStillExists, Is.True, "Only the fitting goes — the template itself is left alone.");
+        }
+    }
+
     [Test, Description("Updating a code that doesn't exist is a not-found.")]
     public async Task UpdateUnknownCodeIsNotFoundAsync()
     {
