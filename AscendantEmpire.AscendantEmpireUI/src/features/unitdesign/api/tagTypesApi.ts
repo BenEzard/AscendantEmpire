@@ -1,5 +1,5 @@
 // API service for the dev Entity Setup Tool's tag type catalog. Thin wrappers over the shared axios
-// `http` client, mapping the UnitDesignController tag-type endpoints (GET/PUT /UnitDesign/tag-types).
+// `http` client, one per backend tag-type endpoint (GET /unit-design-tags/types, PUT /unit-design/tag-types).
 
 import { http } from "@/api/http";
 
@@ -33,7 +33,7 @@ function mapTagTypeViewToModel(wire: TagTypeViewWire): TagTypeInfo {
  * Setup dialog's type dropdown. The backend returns them under a `tagTypes` envelope (GetTagTypesResult).
  */
 export async function getTagTypes(): Promise<TagTypeInfo[]> {
-  const { data } = await http.get<{ tagTypes: TagTypeViewWire[] }>("/unit-design/tag-types");
+  const { data } = await http.get<{ tagTypes: TagTypeViewWire[] }>("/unit-design-tags/types");
   return data.tagTypes.map(mapTagTypeViewToModel);
 }
 

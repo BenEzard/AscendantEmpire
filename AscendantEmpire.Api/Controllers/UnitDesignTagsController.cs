@@ -1,6 +1,7 @@
 using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetTags;
+using AscendantEmpire.BackendContracts.UnitDesigns.GetTagTypes;
 using AscendantEmpire.BackendContracts.UnitDesigns.UpsertTag;
 using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
@@ -97,6 +98,27 @@ public class UnitDesignTagsController : ControllerBase
         CancellationToken cancelToken)
     {
         ServiceResult<TagView> response = await mediator.Send(new UpdateTagRequest(id, request), cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Dev design tool: get every tag type's editable metadata.
+    /// </summary>
+    /// <remarks>
+    /// TODO: lock down before any non-dev deployment. This endpoint is intentionally left unauthorized for now;
+    /// it must be gated behind a dev/admin policy (or mapped only in Development) before shipping.
+    /// </remarks>
+    /// <response code="200">The full set of tag types</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpGet("types")]
+    [ProducesResponseType(typeof(GetTagTypesResult), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetTagTypesAsync(
+        [FromServices] IMediator mediator,
+        CancellationToken cancelToken)
+    {
+        ServiceResult<GetTagTypesResult> response = await mediator.Send(new GetTagTypesRequest(), cancelToken);
 
         return response.ToActionResult();
     }
