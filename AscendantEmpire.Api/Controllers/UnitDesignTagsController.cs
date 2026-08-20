@@ -67,4 +67,37 @@ public class UnitDesignTagsController : ControllerBase
 
         return response.ToActionResult();
     }
+
+    /// <summary>
+    /// Dev design tool: update an existing tag in the global catalog.
+    /// </summary>
+    /// <remarks>
+    /// <para>Gated behind <see cref="PermissionType.EntitySetupTool"/>, since it writes the global tag catalog.</para>
+    /// <para>
+    /// The <c>:int</c> route constraint is load-bearing, not decoration. Without it this route also matches
+    /// <c>PUT /unit-design-tags/types</c>, and the two become an ambiguous match — a 500, not a 404.
+    /// </para>
+    /// </remarks>
+    /// <response code="200">The tag was updated; returns the updated tag</response>
+    /// <response code="400">Validation error</response>
+    /// <response code="404">No tag exists with the given id</response>
+    /// <response code="409">Another tag already uses the requested code</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
+    [HttpPut("{id:int}")]
+    [ProducesResponseType(typeof(TagView), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 409)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> UpdateTagAsync(
+        [FromServices] IMediator mediator,
+        int id,
+        [FromBody] UpsertTagDto request,
+        CancellationToken cancelToken)
+    {
+        ServiceResult<TagView> response = await mediator.Send(new UpdateTagRequest(id, request), cancelToken);
+
+        return response.ToActionResult();
+    }
 }

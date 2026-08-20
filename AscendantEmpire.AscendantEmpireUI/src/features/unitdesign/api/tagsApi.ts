@@ -1,5 +1,5 @@
 // API service for the dev Entity Setup Tool's global tag catalog. Thin wrappers over the shared axios
-// `http` client, one per backend tag endpoint (GET/POST /unit-design-tags, PUT /unit-design/tags).
+// `http` client, one per backend tag endpoint (GET/POST /unit-design-tags, PUT /unit-design-tags/{id}).
 
 import { http } from "@/api/http";
 
@@ -62,6 +62,6 @@ export async function createTag(tag: TagUpsert): Promise<Tag> {
 
 /** Update an existing tag by id. Returns the updated tag. Wired for the later Search/edit flow. */
 export async function updateTag(id: number, tag: TagUpsert): Promise<Tag> {
-  const { data } = await http.put<Tag>(`/unit-design/tags/${id}`, tag);
+  const { data } = await http.put<Tag>(`/unit-design-tags/${id}`, tag);
   return data;
 }
