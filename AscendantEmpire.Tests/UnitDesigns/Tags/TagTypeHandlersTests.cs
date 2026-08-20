@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
-namespace AscendantEmpire.Tests.Handlers.UnitComponents;
+namespace AscendantEmpire.Tests.UnitDesigns.Tags;
 
 /// <summary>
 /// Covers <see cref="UpsertTagTypesHandler"/>: the duplicate-key guard, both branches of the upsert, and

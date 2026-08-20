@@ -1,5 +1,5 @@
 // API service for the dev Entity Setup Tool's tag type catalog. Thin wrappers over the shared axios
-// `http` client, one per backend tag-type endpoint (GET /unit-design-tags/types, PUT /unit-design/tag-types).
+// `http` client, one per backend tag-type endpoint (GET/PUT /unit-design-tags/types).
 
 import { http } from "@/api/http";
 
@@ -42,5 +42,5 @@ export async function getTagTypes(): Promise<TagTypeInfo[]> {
  * so the caller sends the entire edited collection. Returns nothing (the endpoint responds 204).
  */
 export async function saveTagTypes(tagTypes: TagTypeInfo[]): Promise<void> {
-  await http.put("/unit-design/tag-types", tagTypes);
+  await http.put("/unit-design-tags/types", tagTypes);
 }

@@ -11,7 +11,6 @@ using AscendantEmpire.BackendContracts.UnitDesigns.GetUnlockedBodies;
 using AscendantEmpire.BackendContracts.UnitDesigns.RecompileAllUnitTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveGlobalUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveUnitTemplate;
-using AscendantEmpire.BackendContracts.UnitDesigns.UpsertTagType;
 using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.Domain.Enums.Processing;
 using AscendantEmpire.Domain.Enums.System;
@@ -295,31 +294,6 @@ public class UnitDesignController : ControllerBase
     {
         ServiceResult<RecompileAllUnitTemplatesResult> response =
             await mediator.Send(new RecompileAllUnitTemplatesRequest(), cancelToken);
-
-        return response.ToActionResult();
-    }
-
-    /// <summary>
-    /// Dev design tool: bulk-upsert the tag type catalog (create missing rows, update existing ones).
-    /// </summary>
-    /// <remarks>
-    /// TODO: lock down before any non-dev deployment. This endpoint is intentionally left unauthorized for now;
-    /// it must be gated behind a dev/admin policy (or mapped only in Development) before shipping, since it writes the global tag type catalog.
-    /// </remarks>
-    /// <response code="204">The tag types were upserted</response>
-    /// <response code="400">Validation error</response>
-    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
-    [HttpPut("tag-types")]
-    [ProducesResponseType(204)]
-    [ProducesResponseType(typeof(IApiErrorResult), 400)]
-    [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> UpsertTagTypesAsync(
-        [FromServices] IMediator mediator,
-        [FromBody] IReadOnlyCollection<UpsertTagTypeDto> request,
-        CancellationToken cancelToken)
-    {
-        ServiceResultBase response = await mediator.Send(new UpsertTagTypesRequest(request), cancelToken);
 
         return response.ToActionResult();
     }

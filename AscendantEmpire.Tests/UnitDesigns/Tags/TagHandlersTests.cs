@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
-namespace AscendantEmpire.Tests.Handlers.UnitComponents;
+namespace AscendantEmpire.Tests.UnitDesigns.Tags;
 
 /// <summary>
 /// Integration tests for the global Tag CRUD endpoints, focused on the <c>SystemCreated</c> provenance

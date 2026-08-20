@@ -1,8 +1,10 @@
 using AscendantEmpire.Api.Utilities;
+using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetTags;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetTagTypes;
 using AscendantEmpire.BackendContracts.UnitDesigns.UpsertTag;
+using AscendantEmpire.BackendContracts.UnitDesigns.UpsertTagType;
 using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
 
@@ -119,6 +121,34 @@ public class UnitDesignTagsController : ControllerBase
         CancellationToken cancelToken)
     {
         ServiceResult<GetTagTypesResult> response = await mediator.Send(new GetTagTypesRequest(), cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Dev design tool: bulk-upsert the tag type catalog (create missing rows, update existing ones).
+    /// </summary>
+    /// <remarks>
+    /// <para>Gated behind <see cref="PermissionType.EntitySetupTool"/>, since it writes the global tag type catalog.</para>
+    /// <para>
+    /// This route is the reason <see cref="UpdateTagAsync"/> constrains its id to <c>:int</c> — without that
+    /// constraint, <c>types</c> would match both actions and the pair would be an ambiguous match.
+    /// </para>
+    /// </remarks>
+    /// <response code="204">The tag types were upserted</response>
+    /// <response code="400">Validation error</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
+    [HttpPut("types")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> UpsertTagTypesAsync(
+        [FromServices] IMediator mediator,
+        [FromBody] IReadOnlyCollection<UpsertTagTypeDto> request,
+        CancellationToken cancelToken)
+    {
+        ServiceResultBase response = await mediator.Send(new UpsertTagTypesRequest(request), cancelToken);
 
         return response.ToActionResult();
     }

@@ -14,7 +14,7 @@ questions, and the work that remains.
 - `UnitComponentTag.cs` — many-to-many join between `Tag` and `UnitComponent`.
 - `TagType.cs` — enum: `Classification`, `Combat`, `Movement`, `Ability`.
 - EF Core: `DbSet<Tag> Tags`, `DbSet<UnitComponentTag> UnitComponentTags`.
-- `UnitDesignTagsController.cs` — dev-only endpoints, backed by `GetTagsHandler`, `CreateTagHandler`, `UpdateTagHandler`, and shape validation in `TagValidation.cs`. `GET /unit-design-tags` has moved onto it; `POST /tags` and `PUT /tags/{id}` are still on `UnitDesignController.cs` until the rest of the split lands — see [UD-32](../../work-in-progress/UD-32.md).
+- `UnitDesignTagsController.cs` — dev-only endpoints `GET/POST /unit-design-tags`, `PUT /unit-design-tags/{id}`, backed by `GetTagsHandler`, `CreateTagHandler`, `UpdateTagHandler`, and shape validation in `TagValidation.cs`. The tag-type catalogue sits under the same controller as a sub-resource: `GET/PUT /unit-design-tags/types`, backed by `GetTagTypesHandler` and `UpsertTagTypesHandler`. The `:int` constraint on `{id}` is what keeps it distinct from the literal `types` segment.
 - Contracts: `UpsertTagDto`, `TagView`, `CatalogTag`.
 
 **Frontend**, all under `AscendantEmpire.AscendantEmpireUI/src/features/entitysetuptool/`:
