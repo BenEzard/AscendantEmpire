@@ -1,5 +1,5 @@
 // API service for the dev Entity Setup Tool's component catalog. Thin wrapper over the shared axios
-// `http` client for the BulkUpsertUnitComponents endpoint (POST /unit-design/components/bulk).
+// `http` client for the BulkUpsertUnitComponents endpoint (POST /unit-design-catalogue/bulk).
 
 import { http } from "@/api/http";
 
@@ -17,7 +17,7 @@ import type {
   WeaponDomainModifiers,
 } from "../types/UnitComponent";
 
-/** Shape returned by POST /unit-design/components/bulk (mirrors IBulkUpsertUnitComponentsResult). */
+/** Shape returned by POST /unit-design-catalogue/bulk (mirrors IBulkUpsertUnitComponentsResult). */
 export interface BulkUpsertComponentsResult {
   addedCount: number;
   updatedCount: number;
@@ -94,7 +94,7 @@ function mapSlot(slot: UnitComponentSlot) {
 }
 
 /**
- * Bulk-upserts a single component via POST /unit-design/components/bulk. A component whose
+ * Bulk-upserts a single component via POST /unit-design-catalogue/bulk. A component whose
  * code doesn't yet exist is inserted; one whose code already exists is updated in place.
  * Returns a summary of how many components were added vs updated.
  */
@@ -113,7 +113,7 @@ export async function bulkUpsertComponents(component: UnitComponent): Promise<Bu
     })),
   };
 
-  const { data } = await http.post<BulkUpsertComponentsResult>("/unit-design/components/bulk", payload);
+  const { data } = await http.post<BulkUpsertComponentsResult>("/unit-design-catalogue/bulk", payload);
   return data;
 }
 
