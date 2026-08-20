@@ -97,4 +97,33 @@ public class UnitDesignCatalogueController : ControllerBase
 
         return response.ToActionResult();
     }
+
+    /// <summary>
+    /// Dev design tool: update a single existing unit component in the global catalog.
+    /// </summary>
+    /// <remarks>
+    /// Child collections are reconciled rather than replaced, so slots that survive the edit keep their ids and
+    /// the templates fitted into them keep working. A slot dropped from the payload is deleted together with
+    /// its fittings, which the response reports so the loss isn't silent.
+    /// </remarks>
+    /// <response code="200">The component was updated; returns the updated component</response>
+    /// <response code="400">Validation error, or the route code disagrees with the payload code</response>
+    /// <response code="404">No component exists with the given code</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
+    [HttpPut("{code}")]
+    [ProducesResponseType(typeof(UnitComponentView), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> UpdateComponentAsync(
+        [FromServices] IMediator mediator,
+        string code,
+        [FromBody] UpsertUnitComponentDto request,
+        CancellationToken cancelToken)
+    {
+        ServiceResult<UnitComponentView> response = await mediator.Send(new UpdateUnitComponentRequest(code, request), cancelToken);
+
+        return response.ToActionResult();
+    }
 }

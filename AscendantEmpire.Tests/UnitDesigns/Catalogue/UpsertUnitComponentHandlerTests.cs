@@ -20,7 +20,7 @@ using NSubstitute;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
-namespace AscendantEmpire.Tests.Handlers.UnitComponents;
+namespace AscendantEmpire.Tests.UnitDesigns.Catalogue;
 
 /// <summary>
 /// Exercises the single-component create/update endpoints — the granular write path the Entity Setup Tool

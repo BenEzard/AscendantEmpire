@@ -173,12 +173,12 @@ export async function createComponent(component: UnitComponent): Promise<UnitCom
 }
 
 /**
- * Updates an existing component via PUT /unit-design/components/{code}. Child collections are reconciled
+ * Updates an existing component via PUT /unit-design-catalogue/{code}. Child collections are reconciled
  * rather than replaced, so slots keep their ids and saved templates keep their fitted components.
  */
 export async function updateComponent(component: UnitComponent): Promise<UnitComponentSaveResult> {
   const { data } = await http.put<UnitComponentSaveResult>(
-    `/unit-design/components/${encodeURIComponent(component.code)}`,
+    `/unit-design-catalogue/${encodeURIComponent(component.code)}`,
     mapUpsertPayload(component),
   );
   return data;
