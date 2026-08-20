@@ -70,7 +70,7 @@ public sealed class EndpointAuthorizationTests
         ["POST /unit-design-catalogue/bulk"] = PermissionType.EntitySetupTool,
         ["POST /unit-design-catalogue"] = PermissionType.EntitySetupTool,
         ["PUT /unit-design-catalogue/{code}"] = PermissionType.EntitySetupTool,
-        ["POST /unit-design/tags"] = PermissionType.EntitySetupTool,
+        ["POST /unit-design-tags"] = PermissionType.EntitySetupTool,
         ["PUT /unit-design/tags/{id}"] = PermissionType.EntitySetupTool,
         ["PUT /unit-design/tag-types"] = PermissionType.EntitySetupTool,
         ["POST /unit-design/templates/global"] = PermissionType.EntitySetupTool,
