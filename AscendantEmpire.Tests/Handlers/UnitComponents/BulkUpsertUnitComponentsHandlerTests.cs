@@ -23,10 +23,14 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Tests.Handlers.UnitComponents;
 
 /// <summary>
-/// Exercises <see cref="BulkUpsertUnitComponentsHandler"/> against a real SQL Server database — the
-/// catalog relies on EF complex types (DamageProfile) and 1:1 shared-PK extensions that the in-memory
-/// provider does not model correctly.
+/// Exercises <see cref="BulkUpsertUnitComponentsHandler"/> against a real SQL Server database, because
+/// these tests read back the <c>DamageProfile</c> complex type on weapons and armour, which the in-memory
+/// provider throws on. See the measured limitation in <c>docs/testing.md</c>.
 /// </summary>
+/// <remarks>
+/// The 1:1 shared-PK extensions this fixture also uses are <em>not</em> a reason to be here — those work
+/// fine in memory. The complex-type read is the whole of it.
+/// </remarks>
 internal class BulkUpsertUnitComponentsHandlerTests : SqlServerTestBase
 {
     // The body and weapon codes are aliased from the shared payloads rather than referenced through them at

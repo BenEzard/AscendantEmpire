@@ -3,8 +3,7 @@ using AscendantEmpire.Domain.Enums.UnitDesigns;
 namespace AscendantEmpire.BackendContracts.UnitDesigns.GetSlotCandidateComponents;
 
 /// <summary>
-/// A non-body component the player has unlocked that fits a given slot — returned to populate the
-/// component-selection window with full display stats.
+/// A non-body component the player has unlocked that fits a given slot — returned to populate the component-selection window with full display stats.
 /// </summary>
 /// <remarks>
 /// <see cref="Weapon"/>/<see cref="Armour"/> are populated only for the matching <see cref="ComponentType"/>;

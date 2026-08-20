@@ -27,9 +27,10 @@ namespace AscendantEmpire.Tests.Handlers.UnitComponents;
 /// uses instead of the catalogue bulk importer.
 /// </summary>
 /// <remarks>
-/// Runs against a real SQL Server for the same reason the bulk tests do (EF complex types and 1:1 shared-PK
-/// extensions that the in-memory provider does not model), and because the fitted-component foreign key these
-/// tests turn on is only enforced by a real relational engine.
+/// Runs against a real SQL Server for the same reason the bulk tests do — these tests read back the
+/// <c>DamageProfile</c> complex type, which the in-memory provider throws on (see <c>docs/testing.md</c>) —
+/// and because the fitted-component foreign key the update tests turn on is only enforced by a real
+/// relational engine. The 1:1 shared-PK extensions are not a factor; those work in memory.
 /// </remarks>
 internal class UpsertUnitComponentHandlerTests : SqlServerTestBase
 {
