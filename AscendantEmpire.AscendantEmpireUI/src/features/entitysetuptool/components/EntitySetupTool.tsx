@@ -458,7 +458,7 @@ export default function EntitySetupTool() {
       />
 
       {/* Full-screen Unit Designer overlay. saveAsGlobal routes Save to the dev tool's catalog endpoints
-          (POST/PUT /unit-design/templates/global), which need no game/player token. */}
+          (POST/PUT /global-unit-templates), which need no game/player token. */}
       {showDesigner && (
         <div className="fixed inset-0 z-40 flex flex-col">
           <UnitDesigner

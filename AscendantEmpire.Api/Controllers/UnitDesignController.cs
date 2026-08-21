@@ -20,36 +20,6 @@ namespace AscendantEmpire.Api.Controllers;
 public class UnitDesignController : ControllerBase
 {
     /// <summary>
-    /// Dev design tool: create a new global/common unit template in the shared catalog.
-    /// </summary>
-    /// <remarks>
-    /// TODO: lock down before any non-dev deployment. This endpoint is intentionally left unauthorized for now;
-    /// it must be gated behind a dev/admin policy (or mapped only in Development) before shipping, since it writes the shared template catalog.
-    /// Unlike the player-facing create endpoint, this template has no game/player, its Code is required and unique, and no unlock check is applied.
-    /// </remarks>
-    /// <response code="201">The template was created; returns the created template</response>
-    /// <response code="400">Validation error, or the assembled design fails slot-acceptance rules</response>
-    /// <response code="404">The base or a fitted component code does not exist in the catalog</response>
-    /// <response code="409">A template with the same code already exists</response>
-    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
-    [HttpPost("templates/global")]
-    [ProducesResponseType(typeof(GlobalUnitTemplateView), 201)]
-    [ProducesResponseType(typeof(IApiErrorResult), 400)]
-    [ProducesResponseType(typeof(IApiErrorResult), 404)]
-    [ProducesResponseType(typeof(IApiErrorResult), 409)]
-    [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> CreateGlobalUnitTemplateAsync(
-        [FromServices] IMediator mediator,
-        [FromBody] SaveGlobalUnitTemplateDto request,
-        CancellationToken cancelToken)
-    {
-        ServiceResult<GlobalUnitTemplateView> response = await mediator.Send(new CreateGlobalUnitTemplateRequest(request), cancelToken);
-
-        return response.ToActionResult();
-    }
-
-    /// <summary>
     /// Dev design tool: update an existing global/common unit template in the shared catalog.
     /// </summary>
     /// <remarks>
