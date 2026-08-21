@@ -1,6 +1,7 @@
 using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
+using AscendantEmpire.BackendContracts.UnitDesigns.GetCompiledUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetPlayerTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetSlotCandidateComponents;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetUnlockedBodies;
@@ -24,7 +25,10 @@ namespace AscendantEmpire.Api.Controllers;
 /// Every action here serves the one Unit Designer screen and shares a single authorization posture — a plain <c>[Authorize]</c> with no permission policy — so this controller is reachable by any authenticated player, unlike the dev-tool controllers the rest of the unit-design surface was split into.
 /// </para>
 /// <para>
-/// Identity is never taken from the request. Game and player come from the caller's game token via <c>TryGetGameContext</c>, which answers 403 when no game has been entered; ids carried in a route or body would let a caller read or write another player's designs.
+/// Identity is never taken from the request. Every action that needs a game and player reads them from the caller's game token via <c>TryGetGameContext</c>, which answers 403 when no game has been entered; ids carried in a route or body would let a caller read or write another player's designs.
+/// </para>
+/// <para>
+/// The compiled-snapshot read is the single exception, and deliberately so: it takes no game context because it is not unlock-filtered, serving enemy designs as readily as the caller's own.
 /// </para>
 /// </remarks>
 [ApiController]
@@ -182,6 +186,31 @@ public class UnitDesignerController : ControllerBase
 
         ServiceResult<UnitTemplateView> response =
             await mediator.Send(new UpdateUnitTemplateRequest(gameId, playerId, templateId, request), cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Get the compiled snapshot of a saved template (aggregated stats, resolved components and capabilities).
+    /// </summary>
+    /// <remarks>
+    /// Not unlock-filtered, and the only action here that reads no game context: the snapshot may contain components the caller never unlocked, so it serves both the player's own designs and enemy designs.
+    /// </remarks>
+    /// <response code="200">The compiled design snapshot</response>
+    /// <response code="404">No compiled snapshot exists for the template</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize]
+    [HttpGet("templates/{templateId:int}/compiled")]
+    [ProducesResponseType(typeof(CompiledUnitTemplateView), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetCompiledUnitTemplateAsync(
+        [FromServices] IMediator mediator,
+        int templateId,
+        CancellationToken cancelToken)
+    {
+        ServiceResult<CompiledUnitTemplateView> response =
+            await mediator.Send(new GetCompiledUnitTemplateRequest(templateId), cancelToken);
 
         return response.ToActionResult();
     }

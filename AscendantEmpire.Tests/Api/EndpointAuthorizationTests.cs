@@ -148,7 +148,7 @@ public sealed class EndpointAuthorizationTests
         "GET /unit-designer/templates",
         "POST /unit-designer/templates",
         "PUT /unit-designer/templates/{templateId}",
-        "GET /unit-design/templates/{templateId}/compiled",
+        "GET /unit-designer/templates/{templateId}/compiled",
 
         "GET /unit-design-catalogue",
         "GET /unit-design-catalogue/{code}",

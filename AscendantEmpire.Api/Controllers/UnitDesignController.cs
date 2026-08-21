@@ -1,7 +1,6 @@
 ﻿using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
-using AscendantEmpire.BackendContracts.UnitDesigns.GetCompiledUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.RecompileAllUnitTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveGlobalUnitTemplate;
 using AscendantEmpire.Domain.Enums.Authentication;
@@ -20,31 +19,6 @@ namespace AscendantEmpire.Api.Controllers;
 [Route("[controller]")]
 public class UnitDesignController : ControllerBase
 {
-    /// <summary>
-    /// Get the compiled snapshot of a saved template (aggregated stats, resolved components and capabilities).
-    /// </summary>
-    /// <remarks>
-    /// Not unlock-filtered: the snapshot may contain components the caller never unlocked, so it serves both the player's own designs and enemy designs.
-    /// </remarks>
-    /// <response code="200">The compiled design snapshot</response>
-    /// <response code="404">No compiled snapshot exists for the template</response>
-    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [Authorize]
-    [HttpGet("templates/{templateId:int}/compiled")]
-    [ProducesResponseType(typeof(CompiledUnitTemplateView), 200)]
-    [ProducesResponseType(typeof(IApiErrorResult), 404)]
-    [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> GetCompiledUnitTemplateAsync(
-        [FromServices] IMediator mediator,
-        int templateId,
-        CancellationToken cancelToken)
-    {
-        ServiceResult<CompiledUnitTemplateView> response =
-            await mediator.Send(new GetCompiledUnitTemplateRequest(templateId), cancelToken);
-
-        return response.ToActionResult();
-    }
-
     /// <summary>
     /// Dev design tool: create a new global/common unit template in the shared catalog.
     /// </summary>
