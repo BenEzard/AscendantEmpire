@@ -3,7 +3,6 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetCompiledUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetPlayerTemplates;
-using AscendantEmpire.BackendContracts.UnitDesigns.GetSlotCandidateComponents;
 using AscendantEmpire.BackendContracts.UnitDesigns.RecompileAllUnitTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveGlobalUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveUnitTemplate;
@@ -23,40 +22,6 @@ namespace AscendantEmpire.Api.Controllers;
 [Route("[controller]")]
 public class UnitDesignController : ControllerBase
 {
-    /// <summary>
-    /// Get the unlocked components that fit a given slot of a given owner component (the component-selection feed).
-    /// </summary>
-    /// <remarks>
-    /// The game and player are read from the caller's game token, not the request. The owner component may
-    /// be a body or any fitted component that exposes its own slots (nesting).
-    /// </remarks>
-    /// <response code="200">The unlocked components that satisfy the slot's rules</response>
-    /// <response code="403">No game entered (the token has no game context)</response>
-    /// <response code="404">The slot does not belong to the given owner component</response>
-    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [Authorize]
-    [HttpGet("components/{ownerComponentId:int}/slots/{slotId:int}/components")]
-    [ProducesResponseType(typeof(SlotCandidateComponentsResult), 200)]
-    [ProducesResponseType(typeof(IApiErrorResult), 403)]
-    [ProducesResponseType(typeof(IApiErrorResult), 404)]
-    [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> GetSlotCandidateComponentsAsync(
-        [FromServices] IMediator mediator,
-        int ownerComponentId,
-        int slotId,
-        CancellationToken cancelToken)
-    {
-        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
-        {
-            return contextError!;
-        }
-
-        ServiceResult<SlotCandidateComponentsResult> response =
-            await mediator.Send(new GetSlotCandidateComponentsRequest(gameId, playerId, ownerComponentId, slotId), cancelToken);
-
-        return response.ToActionResult();
-    }
-
     /// <summary>
     /// Get the templates available to the caller: global/common templates they have unlocked plus their own custom templates.
     /// </summary>

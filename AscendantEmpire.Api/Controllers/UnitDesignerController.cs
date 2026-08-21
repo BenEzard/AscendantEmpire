@@ -1,6 +1,7 @@
 using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
+using AscendantEmpire.BackendContracts.UnitDesigns.GetSlotCandidateComponents;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetUnlockedBodies;
 using AscendantEmpire.FrontendContracts;
 
@@ -50,6 +51,39 @@ public class UnitDesignerController : ControllerBase
         }
 
         ServiceResult<UnlockedBodiesResult> response = await mediator.Send(new GetUnlockedBodiesRequest(gameId, playerId), cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Get the unlocked components that fit a given slot of a given owner component (the component-selection feed).
+    /// </summary>
+    /// <remarks>
+    /// The game and player are read from the caller's game token, not the request. The owner component is always a body — the only component type that exposes slots — which is why the route names <c>bodies</c>; <c>GetSlotCandidateComponentsHandler</c> enforces it by matching the slot on <c>UnitComponentBodyId</c>.
+    /// </remarks>
+    /// <response code="200">The unlocked components that satisfy the slot's rules</response>
+    /// <response code="403">No game entered (the token has no game context)</response>
+    /// <response code="404">The slot does not belong to the given owner component</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize]
+    [HttpGet("bodies/{ownerComponentId:int}/slots/{slotId:int}/components")]
+    [ProducesResponseType(typeof(SlotCandidateComponentsResult), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 403)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetSlotCandidateComponentsAsync(
+        [FromServices] IMediator mediator,
+        int ownerComponentId,
+        int slotId,
+        CancellationToken cancelToken)
+    {
+        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
+        {
+            return contextError!;
+        }
+
+        ServiceResult<SlotCandidateComponentsResult> response =
+            await mediator.Send(new GetSlotCandidateComponentsRequest(gameId, playerId, ownerComponentId, slotId), cancelToken);
 
         return response.ToActionResult();
     }
