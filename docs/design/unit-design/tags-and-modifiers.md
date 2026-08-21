@@ -24,7 +24,7 @@ questions, and the work that remains.
 - `TagSetupDialog.tsx` — authoring dialog for a single global tag.
 - `components/sections/TagsSection.tsx` — tab in `ComponentSetupDialog` for attaching/removing tag codes as chips (references only, no definition editing).
 - `EntitySetupTool.tsx` — top-level dev tool with an Add/Search toolbar group for Tags.
-- `api/tagsApi.ts` — `getTags/createTag/updateTag` hitting `/unit-design/tags`.
+- `api/tagsApi.ts` — `getTags/createTag/updateTag` hitting `/unit-design-tags`.
 - `api/componentsApi.ts` — sends `tagCodes: string[]` on bulk component upsert; backend resolves codes to `Tag` rows.
 
 ### Modifiers — narrower, not a unified type
