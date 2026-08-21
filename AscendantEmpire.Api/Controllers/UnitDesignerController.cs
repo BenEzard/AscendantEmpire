@@ -149,4 +149,40 @@ public class UnitDesignerController : ControllerBase
 
         return response.ToActionResult();
     }
+
+    /// <summary>
+    /// Update an existing custom (player-owned) unit template, replacing its base and fitted components.
+    /// </summary>
+    /// <remarks>
+    /// The game and player are read from the caller's game token, not the request. Only the template's own
+    /// owner may update it; any other caller (or an unknown id) gets a not-found.
+    /// </remarks>
+    /// <response code="200">The template was updated; returns the updated template</response>
+    /// <response code="400">Validation error, or the assembled design fails slot-acceptance rules</response>
+    /// <response code="403">No game entered, or a referenced component has not been unlocked by the player</response>
+    /// <response code="404">No custom template exists with the given id (owned by the caller), or a referenced component code does not exist</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize]
+    [HttpPut("templates/{templateId:int}")]
+    [ProducesResponseType(typeof(UnitTemplateView), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 403)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> UpdateUnitTemplateAsync(
+        [FromServices] IMediator mediator,
+        int templateId,
+        [FromBody] SaveUnitTemplateDto request,
+        CancellationToken cancelToken)
+    {
+        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
+        {
+            return contextError!;
+        }
+
+        ServiceResult<UnitTemplateView> response =
+            await mediator.Send(new UpdateUnitTemplateRequest(gameId, playerId, templateId, request), cancelToken);
+
+        return response.ToActionResult();
+    }
 }

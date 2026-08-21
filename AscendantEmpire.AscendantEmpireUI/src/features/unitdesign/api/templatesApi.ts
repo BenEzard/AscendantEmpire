@@ -38,7 +38,7 @@ export async function createUnitTemplate(payload: SaveUnitTemplatePayload): Prom
 
 /** Update an existing custom unit template by id. Returns the updated template. */
 export async function updateUnitTemplate(id: number, payload: SaveUnitTemplatePayload): Promise<UnitTemplateView> {
-  const { data } = await http.put<UnitTemplateView>(`/unit-design/templates/${id}`, payload);
+  const { data } = await http.put<UnitTemplateView>(`/unit-designer/templates/${id}`, payload);
   return data;
 }
 
