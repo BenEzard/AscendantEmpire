@@ -18,12 +18,12 @@ export async function postInitiateCatalogExport(
   return data;
 }
 
-/** GET /unit-design/export/download?processId={n} — downloads the completed export zip. */
+/** GET /unit-design-transfer/export/download?processId={n} — downloads the completed export zip. */
 export async function getCatalogExportDownload(
   processId: number,
   signal?: AbortSignal,
 ): Promise<{ blob: Blob; fileName: string }> {
-  const response = await http.get(`/unit-design/export/download`, {
+  const response = await http.get(`/unit-design-transfer/export/download`, {
     params: { processId },
     responseType: "blob",
     signal,

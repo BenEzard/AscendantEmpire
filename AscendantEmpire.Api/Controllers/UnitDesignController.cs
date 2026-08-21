@@ -1,6 +1,5 @@
 ﻿using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
-using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
 using AscendantEmpire.Application.Options;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetCompiledUnitTemplate;
@@ -11,15 +10,12 @@ using AscendantEmpire.BackendContracts.UnitDesigns.RecompileAllUnitTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveGlobalUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveUnitTemplate;
 using AscendantEmpire.Domain.Enums.Authentication;
-using AscendantEmpire.Domain.Enums.Processing;
-using AscendantEmpire.Domain.Enums.System;
 using AscendantEmpire.FrontendContracts;
 
 using MediatR;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
@@ -295,72 +291,6 @@ public class UnitDesignController : ControllerBase
             await mediator.Send(new RecompileAllUnitTemplatesRequest(), cancelToken);
 
         return response.ToActionResult();
-    }
-
-    /// <summary>
-    /// Dev design tool: download the completed catalogue export zip.
-    /// Returns 404 if the export has not yet completed or the processId is not found.
-    /// </summary>
-    /// <response code="200">Returns the export zip file.</response>
-    /// <response code="404">Export not ready or processId not found.</response>
-    /// <response code="500">Server error.</response>
-    [Authorize(Policy = nameof(PermissionType.SystemPanel))]
-    [HttpGet("export/download")]
-    [ProducesResponseType(200)]
-    [ProducesResponseType(typeof(IApiErrorResult), 404)]
-    [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> DownloadCatalogExportAsync(
-        [FromServices] IDbContextFactory<AscendantEmpireContext> contextFactory,
-        [FromQuery] int processId,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            await using AscendantEmpireContext context = await contextFactory.CreateDbContextAsync(cancellationToken);
-
-            var processing = await context.Processing
-                .AsNoTracking()
-                .FirstOrDefaultAsync(
-                    p => p.ProcessingId == processId && p.ProcessType == ProcessType.ExportCatalog,
-                    cancellationToken);
-
-            if (processing is null || processing.Status != ProcessingStatus.Complete || string.IsNullOrEmpty(processing.ResultReference))
-            {
-                return new ObjectResult(new DTApiErrorResult(["Export not ready or processId not found."]))
-                {
-                    StatusCode = StatusCodes.Status404NotFound
-                };
-            }
-
-            if (!System.IO.File.Exists(processing.ResultReference))
-            {
-                return new ObjectResult(new DTApiErrorResult(["Export file no longer available on the server."]))
-                {
-                    StatusCode = StatusCodes.Status404NotFound
-                };
-            }
-
-            string fileName = Path.GetFileName(processing.ResultReference);
-            Stream stream = new FileStream(
-                path: processing.ResultReference,
-                mode: FileMode.Open,
-                access: FileAccess.Read,
-                share: FileShare.Read,
-                bufferSize: 65536,
-                useAsync: true);
-
-            return new FileStreamResult(stream, "application/zip")
-            {
-                FileDownloadName = fileName
-            };
-        }
-        catch (Exception)
-        {
-            return new ObjectResult(new DTApiErrorResult(["An error occurred while retrieving the export file."]))
-            {
-                StatusCode = StatusCodes.Status500InternalServerError
-            };
-        }
     }
 
     /// <summary>

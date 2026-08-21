@@ -62,7 +62,7 @@ public sealed class EndpointAuthorizationTests
         ["POST /auth/users/inactive"] = PermissionType.SystemPanel,
         ["PUT /auth/users/permissions"] = PermissionType.SystemPanel,
         ["POST /unit-design-transfer/export"] = PermissionType.SystemPanel,
-        ["GET /unit-design/export/download"] = PermissionType.SystemPanel,
+        ["GET /unit-design-transfer/export/download"] = PermissionType.SystemPanel,
         ["POST /unit-design/import"] = PermissionType.SystemPanel,
 
         // Entity setup tool: everything that writes to the shared catalogues, plus the dev-only actions.

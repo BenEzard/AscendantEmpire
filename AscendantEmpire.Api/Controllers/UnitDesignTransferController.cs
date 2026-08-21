@@ -1,14 +1,18 @@
 using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
 using AscendantEmpire.BackendContracts.UnitDesigns.CatalogTransfer;
 using AscendantEmpire.Domain.Enums.Authentication;
+using AscendantEmpire.Domain.Enums.Processing;
+using AscendantEmpire.Domain.Enums.System;
 using AscendantEmpire.FrontendContracts;
 
 using MediatR;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
@@ -18,7 +22,12 @@ namespace AscendantEmpire.Api.Controllers;
 /// Round-trips the unit-design catalogue between databases as a zip, driven by the dev Entity Setup Tool.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Export and import both run asynchronously as background processes rather than completing on the request, so every action here returns a processId and the caller polls <c>GET /system/status?processId=X</c> for progress.
+/// </para>
+/// <para>
+/// Two architectural styles live here deliberately: the job-initiating actions go through MediatR, while the download reads the process row directly through an <see cref="IDbContextFactory{TContext}"/> and streams a file off disk. That mix is the reason transfer is its own controller rather than part of the catalogue.
+/// </para>
 /// </remarks>
 [ApiController]
 [Route("[controller]")]
@@ -48,5 +57,72 @@ public class UnitDesignTransferController : ControllerBase
         ServiceResult<int> response = await mediator.Send(new InitiateCatalogExportRequest(ExportComponents: request.Components, ExportTemplates: request.Templates), cancelToken);
 
         return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Dev design tool: download the completed catalogue export zip.
+    /// Returns 404 if the export has not yet completed or the processId is not found.
+    /// </summary>
+    /// <response code="200">Returns the export zip file.</response>
+    /// <response code="404">Export not ready or processId not found.</response>
+    /// <response code="500">Server error.</response>
+    [Authorize(Policy = nameof(PermissionType.SystemPanel))]
+    [HttpGet("export/download")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> DownloadCatalogExportAsync(
+        [FromServices] IDbContextFactory<AscendantEmpireContext> contextFactory,
+        [FromQuery] int processId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using AscendantEmpireContext context = await contextFactory.CreateDbContextAsync(cancellationToken);
+
+            var processing = await context.Processing
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    p => p.ProcessingId == processId && p.ProcessType == ProcessType.ExportCatalog,
+                    cancellationToken);
+
+            if (processing is null || processing.Status != ProcessingStatus.Complete || string.IsNullOrEmpty(processing.ResultReference))
+            {
+                return new ObjectResult(new DTApiErrorResult(["Export not ready or processId not found."]))
+                {
+                    StatusCode = StatusCodes.Status404NotFound
+                };
+            }
+
+            // System.IO.File is qualified because ControllerBase.File(...) shadows the type name here.
+            if (!System.IO.File.Exists(processing.ResultReference))
+            {
+                return new ObjectResult(new DTApiErrorResult(["Export file no longer available on the server."]))
+                {
+                    StatusCode = StatusCodes.Status404NotFound
+                };
+            }
+
+            string fileName = Path.GetFileName(processing.ResultReference);
+            Stream stream = new FileStream(
+                path: processing.ResultReference,
+                mode: FileMode.Open,
+                access: FileAccess.Read,
+                share: FileShare.Read,
+                bufferSize: 65536,
+                useAsync: true);
+
+            return new FileStreamResult(stream, "application/zip")
+            {
+                FileDownloadName = fileName
+            };
+        }
+        catch (Exception)
+        {
+            return new ObjectResult(new DTApiErrorResult(["An error occurred while retrieving the export file."]))
+            {
+                StatusCode = StatusCodes.Status500InternalServerError
+            };
+        }
     }
 }
