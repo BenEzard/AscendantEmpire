@@ -61,7 +61,7 @@ public sealed class EndpointAuthorizationTests
         ["GET /auth/users"] = PermissionType.SystemPanel,
         ["POST /auth/users/inactive"] = PermissionType.SystemPanel,
         ["PUT /auth/users/permissions"] = PermissionType.SystemPanel,
-        ["POST /unit-design/export"] = PermissionType.SystemPanel,
+        ["POST /unit-design-transfer/export"] = PermissionType.SystemPanel,
         ["GET /unit-design/export/download"] = PermissionType.SystemPanel,
         ["POST /unit-design/import"] = PermissionType.SystemPanel,
 

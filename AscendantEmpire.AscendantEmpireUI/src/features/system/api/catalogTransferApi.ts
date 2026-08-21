@@ -9,12 +9,12 @@ export interface CatalogExportSelection {
   templates: boolean;
 }
 
-/** POST /unit-design/export — returns the processId (bare int, HTTP 201). */
+/** POST /unit-design-transfer/export — returns the processId (bare int, HTTP 201). */
 export async function postInitiateCatalogExport(
   selection: CatalogExportSelection,
   signal?: AbortSignal,
 ): Promise<number> {
-  const { data } = await http.post<number>("/unit-design/export", selection, { signal });
+  const { data } = await http.post<number>("/unit-design-transfer/export", selection, { signal });
   return data;
 }
 

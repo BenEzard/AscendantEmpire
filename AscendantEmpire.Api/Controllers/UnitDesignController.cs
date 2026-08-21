@@ -3,7 +3,6 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
 using AscendantEmpire.Application.Options;
-using AscendantEmpire.BackendContracts.UnitDesigns.CatalogTransfer;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetCompiledUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetPlayerTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetSlotCandidateComponents;
@@ -294,33 +293,6 @@ public class UnitDesignController : ControllerBase
     {
         ServiceResult<RecompileAllUnitTemplatesResult> response =
             await mediator.Send(new RecompileAllUnitTemplatesRequest(), cancelToken);
-
-        return response.ToActionResult();
-    }
-
-    /// <summary>
-    /// Dev design tool: initiate an export of selected parts of the unit-design catalogue.
-    /// The export runs asynchronously. Poll <c>GET /system/status?processId=X</c> for progress.
-    /// Once complete, download via <c>GET /unit-design/export/download?processId=X</c>.
-    /// </summary>
-    /// <remarks>
-    /// TODO: lock down before any non-dev deployment. Left unauthorized for now, consistent with the other
-    /// dev catalog endpoints; it must be gated behind a dev/admin policy before shipping.
-    /// </remarks>
-    /// <response code="201">Export job accepted. Returns the processId.</response>
-    /// <response code="400">Nothing was selected to export.</response>
-    /// <response code="500">Server error.</response>
-    [Authorize(Policy = nameof(PermissionType.SystemPanel))]
-    [HttpPost("export")]
-    [ProducesResponseType(typeof(int), 201)]
-    [ProducesResponseType(typeof(IApiErrorResult), 400)]
-    [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> InitiateCatalogExportAsync(
-        [FromServices] IMediator mediator,
-        [FromBody] InitiateCatalogExportDto request,
-        CancellationToken cancelToken)
-    {
-        ServiceResult<int> response = await mediator.Send(new InitiateCatalogExportRequest(ExportComponents: request.Components, ExportTemplates: request.Templates), cancelToken);
 
         return response.ToActionResult();
     }

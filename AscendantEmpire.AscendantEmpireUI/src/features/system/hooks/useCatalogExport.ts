@@ -38,7 +38,7 @@ export function useCatalogExport(): UseCatalogExportResult {
   // Held in local state so it persists through the download phase (when polling has stopped).
   const [progressPercent, setProgressPercent] = useState(0);
 
-  // --- POST /unit-design/export ---
+  // --- POST /unit-design-transfer/export ---
   const initiateMutation = useMutation({
     mutationFn: (selection: CatalogExportSelection) => postInitiateCatalogExport(selection),
     onSuccess: (processId: number) => {
