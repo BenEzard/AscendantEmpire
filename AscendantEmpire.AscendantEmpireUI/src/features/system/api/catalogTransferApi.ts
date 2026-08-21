@@ -38,7 +38,7 @@ export async function getCatalogExportDownload(
 }
 
 /**
- * POST /unit-design/import — uploads a previously exported catalogue zip and returns the processId
+ * POST /unit-design-transfer/import — uploads a previously exported catalogue zip and returns the processId
  * (bare int, HTTP 201) so the caller can poll import progress.
  */
 export async function postInitiateCatalogImport(file: File, signal?: AbortSignal): Promise<number> {
@@ -46,6 +46,6 @@ export async function postInitiateCatalogImport(file: File, signal?: AbortSignal
   formData.append("file", file);
 
   // axios sets the multipart boundary on the Content-Type header automatically from the FormData.
-  const { data } = await http.post<number>("/unit-design/import", formData, { signal });
+  const { data } = await http.post<number>("/unit-design-transfer/import", formData, { signal });
   return data;
 }

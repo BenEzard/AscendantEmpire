@@ -30,7 +30,7 @@ export function useCatalogImport(): UseCatalogImportResult {
   // Held in local state so it survives once polling stops at the terminal phase.
   const [progressPercent, setProgressPercent] = useState(0);
 
-  // --- POST /unit-design/import ---
+  // --- POST /unit-design-transfer/import ---
   const initiateMutation = useMutation({
     mutationFn: (file: File) => postInitiateCatalogImport(file),
     onSuccess: (processId: number) => {

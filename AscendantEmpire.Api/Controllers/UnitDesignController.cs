@@ -1,7 +1,6 @@
 ﻿using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
-using AscendantEmpire.Application.Options;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetCompiledUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetPlayerTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetSlotCandidateComponents;
@@ -16,7 +15,6 @@ using MediatR;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
@@ -289,53 +287,6 @@ public class UnitDesignController : ControllerBase
     {
         ServiceResult<RecompileAllUnitTemplatesResult> response =
             await mediator.Send(new RecompileAllUnitTemplatesRequest(), cancelToken);
-
-        return response.ToActionResult();
-    }
-
-    /// <summary>
-    /// Dev design tool: import a unit-design catalogue from a previously exported zip file.
-    /// The uploaded zip is staged on disk and the import runs asynchronously.
-    /// Poll <c>GET /system/status?processId=X</c> for progress.
-    /// </summary>
-    /// <remarks>
-    /// TODO: lock down before any non-dev deployment. Left unauthorized for now, consistent with the other
-    /// dev catalog endpoints; it must be gated behind a dev/admin policy before shipping, since it writes the shared catalog.
-    /// </remarks>
-    /// <response code="201">Import job accepted. Returns the processId.</response>
-    /// <response code="400">No file supplied or the file is empty.</response>
-    /// <response code="500">Server error.</response>
-    [Authorize(Policy = nameof(PermissionType.SystemPanel))]
-    [HttpPost("import")]
-    [RequestSizeLimit(50 * 1024 * 1024)]
-    [ProducesResponseType(typeof(int), 201)]
-    [ProducesResponseType(typeof(IApiErrorResult), 400)]
-    [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> ImportCatalogAsync(
-        [FromServices] IMediator mediator,
-        [FromServices] IOptions<ImportSettings> importOptions,
-        IFormFile file,
-        CancellationToken cancellationToken)
-    {
-        if (file is null || file.Length == 0)
-        {
-            return new ObjectResult(new DTApiErrorResult(["No import file was supplied."]))
-            {
-                StatusCode = StatusCodes.Status400BadRequest
-            };
-        }
-
-        // Stage the upload to the import temp directory under a unique name before queueing the job.
-        string tempDirectory = importOptions.Value.TempDirectory;
-        Directory.CreateDirectory(tempDirectory);
-        string stagedPath = Path.Combine(tempDirectory, $"import_{Guid.NewGuid():N}.zip");
-
-        await using (FileStream stagedStream = new(stagedPath, FileMode.Create, FileAccess.Write, FileShare.None))
-        {
-            await file.CopyToAsync(stagedStream, cancellationToken);
-        }
-
-        ServiceResult<int> response = await mediator.Send(new InitiateCatalogImportRequest(ZipPath: stagedPath), cancellationToken);
 
         return response.ToActionResult();
     }
