@@ -22,40 +22,6 @@ namespace AscendantEmpire.Api.Controllers;
 public class UnitDesignController : ControllerBase
 {
     /// <summary>
-    /// Create a new custom (player-owned) unit template from an assembled design.
-    /// </summary>
-    /// <remarks>
-    /// The game and player are read from the caller's game token, not the request. 
-    /// The template and its compiled stats snapshot are persisted together, so the compiled read is available immediately after saving.
-    /// </remarks>
-    /// <response code="201">The template was created; returns the created template</response>
-    /// <response code="400">Validation error, or the assembled design fails slot-acceptance rules</response>
-    /// <response code="403">No game entered, or a referenced component has not been unlocked by the player</response>
-    /// <response code="404">The base or a fitted component code does not exist in the catalog</response>
-    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [Authorize]
-    [HttpPost("templates")]
-    [ProducesResponseType(typeof(UnitTemplateView), 201)]
-    [ProducesResponseType(typeof(IApiErrorResult), 400)]
-    [ProducesResponseType(typeof(IApiErrorResult), 403)]
-    [ProducesResponseType(typeof(IApiErrorResult), 404)]
-    [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> CreateUnitTemplateAsync(
-        [FromServices] IMediator mediator,
-        [FromBody] SaveUnitTemplateDto request,
-        CancellationToken cancelToken)
-    {
-        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
-        {
-            return contextError!;
-        }
-
-        ServiceResult<UnitTemplateView> response = await mediator.Send(new CreateUnitTemplateRequest(gameId, playerId, request), cancelToken);
-
-        return response.ToActionResult();
-    }
-
-    /// <summary>
     /// Update an existing custom (player-owned) unit template, replacing its base and fitted components.
     /// </summary>
     /// <remarks>
