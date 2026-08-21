@@ -123,7 +123,7 @@ export interface TemplateSummary {
   components: TemplateComponentSummary[];
 }
 
-/** Wire shape shared by GET /unit-design-catalogue and GET /unit-design/templates: only `templates` is read here. */
+/** Wire shape shared by GET /unit-design-catalogue and GET /unit-designer/templates: only `templates` is read here. */
 interface TemplatesWire {
   templates: TemplateSummary[];
 }
@@ -140,10 +140,10 @@ export async function getGlobalTemplates(): Promise<TemplateSummary[]> {
 
 /**
  * The templates available to the current player in the current game — global/common templates they've
- * unlocked plus their own custom ones. Reads GET /unit-design/templates, which is already scoped to the
+ * unlocked plus their own custom ones. Reads GET /unit-designer/templates, which is already scoped to the
  * caller's game/player by their token, so no client-side filtering is needed.
  */
 export async function getPlayerTemplates(): Promise<TemplateSummary[]> {
-  const { data } = await http.get<TemplatesWire>("/unit-design/templates");
+  const { data } = await http.get<TemplatesWire>("/unit-designer/templates");
   return data.templates;
 }

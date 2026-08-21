@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
-namespace AscendantEmpire.Tests.Handlers.UnitComponents;
+namespace AscendantEmpire.Tests.UnitDesigns.Designer;
 
 /// <summary>
 /// Integration tests for the player-templates read endpoint: returns unlocked global templates plus the

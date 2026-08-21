@@ -2,7 +2,6 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetCompiledUnitTemplate;
-using AscendantEmpire.BackendContracts.UnitDesigns.GetPlayerTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.RecompileAllUnitTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveGlobalUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveUnitTemplate;
@@ -22,32 +21,6 @@ namespace AscendantEmpire.Api.Controllers;
 [Route("[controller]")]
 public class UnitDesignController : ControllerBase
 {
-    /// <summary>
-    /// Get the templates available to the caller: global/common templates they have unlocked plus their own custom templates.
-    /// </summary>
-    /// <remarks>The game and player are read from the caller's game token, not the request.</remarks>
-    /// <response code="200">The player's available templates</response>
-    /// <response code="403">No game entered (the token has no game context)</response>
-    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [Authorize]
-    [HttpGet("templates")]
-    [ProducesResponseType(typeof(PlayerTemplatesResult), 200)]
-    [ProducesResponseType(typeof(IApiErrorResult), 403)]
-    [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> GetPlayerTemplatesAsync(
-        [FromServices] IMediator mediator,
-        CancellationToken cancelToken)
-    {
-        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
-        {
-            return contextError!;
-        }
-
-        ServiceResult<PlayerTemplatesResult> response = await mediator.Send(new GetPlayerTemplatesRequest(gameId, playerId), cancelToken);
-
-        return response.ToActionResult();
-    }
-
     /// <summary>
     /// Create a new custom (player-owned) unit template from an assembled design.
     /// </summary>
