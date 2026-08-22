@@ -1,7 +1,7 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
-using AscendantEmpire.BackendContracts.UnitDesigns.GetFullCatalog;
+using AscendantEmpire.BackendContracts.UnitDesigns.GetFullCatalogue;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetPlayerTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetSlotCandidateComponents;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetUnlockedBodies;
@@ -47,7 +47,7 @@ namespace AscendantEmpire.Tests.UnitDesigns.Catalogue;
 /// position; asserting an index would be asserting an implementation detail the handler never promised.
 /// </para>
 /// </remarks>
-internal class GetFullCatalogHandlerTests : SqlServerTestBase
+internal class GetFullCatalogueHandlerTests : SqlServerTestBase
 {
     // One holder per seeded row. Both the seed and the assertions read their values from here, so a value can
     // never be changed in one place and left stale in the other, and the distinctness rule described in the
@@ -401,10 +401,10 @@ internal class GetFullCatalogHandlerTests : SqlServerTestBase
     /// Runs the handler and unwraps a successful result, failing with the handler's own errors if it did not
     /// succeed rather than with a bare null-reference further down the test.
     /// </summary>
-    private async Task<FullCatalogResult> FetchCatalogAsync()
+    private async Task<FullCatalogueResult> FetchCatalogAsync()
     {
-        var handler = new GetFullCatalogHandler(new NullLogger<GetFullCatalogHandler>(), DbFactory);
-        ServiceResult<FullCatalogResult> result = await handler.Handle(new GetFullCatalogRequest(), CancellationToken.None);
+        var handler = new GetFullCatalogueHandler(new NullLogger<GetFullCatalogueHandler>(), DbFactory);
+        ServiceResult<FullCatalogueResult> result = await handler.Handle(new GetFullCatalogueRequest(), CancellationToken.None);
 
         Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Success), () => string.Join("; ", result.Errors));
 
@@ -416,7 +416,7 @@ internal class GetFullCatalogHandlerTests : SqlServerTestBase
     {
         // Nothing is seeded. The dev tool loads this endpoint on a fresh database before anything has been
         // authored, so "no rows" has to be an ordinary success rather than a 500.
-        FullCatalogResult catalog = await FetchCatalogAsync();
+        FullCatalogueResult catalog = await FetchCatalogAsync();
 
         using (Assert.EnterMultipleScope())
         {
@@ -432,7 +432,7 @@ internal class GetFullCatalogHandlerTests : SqlServerTestBase
     {
         SeededCatalogue seeded = await SeedRichCatalogueAsync();
 
-        FullCatalogResult catalog = await FetchCatalogAsync();
+        FullCatalogueResult catalog = await FetchCatalogAsync();
         DesignBody projectedBody = catalog.Bodies.Single(candidate => candidate.Code == SeededBody.CODE);
 
         using (Assert.EnterMultipleScope())
@@ -457,7 +457,7 @@ internal class GetFullCatalogHandlerTests : SqlServerTestBase
     {
         SeededCatalogue seeded = await SeedRichCatalogueAsync();
 
-        FullCatalogResult catalog = await FetchCatalogAsync();
+        FullCatalogueResult catalog = await FetchCatalogAsync();
         DesignBody projectedBody = catalog.Bodies.Single(candidate => candidate.Code == SeededBody.CODE);
 
         // DesignSlot carries no Code, so DisplayName is the only distinguishing value available here.
@@ -497,7 +497,7 @@ internal class GetFullCatalogHandlerTests : SqlServerTestBase
     {
         SeededCatalogue seeded = await SeedRichCatalogueAsync();
 
-        FullCatalogResult catalog = await FetchCatalogAsync();
+        FullCatalogueResult catalog = await FetchCatalogAsync();
         DesignComponent projectedWeapon = catalog.Components.Single(candidate => candidate.Code == SeededWeapon.CODE);
 
         DesignWeapon weapon = projectedWeapon.Weapon!;
@@ -538,7 +538,7 @@ internal class GetFullCatalogHandlerTests : SqlServerTestBase
     {
         await SeedRichCatalogueAsync();
 
-        FullCatalogResult catalog = await FetchCatalogAsync();
+        FullCatalogueResult catalog = await FetchCatalogAsync();
         DesignComponent projectedArmour = catalog.Components.Single(candidate => candidate.Code == SeededArmour.CODE);
 
         DesignDamageProfile resistance = projectedArmour.Armour!.Resistance;
@@ -565,7 +565,7 @@ internal class GetFullCatalogHandlerTests : SqlServerTestBase
     {
         await SeedRichCatalogueAsync();
 
-        FullCatalogResult catalog = await FetchCatalogAsync();
+        FullCatalogueResult catalog = await FetchCatalogAsync();
 
         IReadOnlyCollection<string> bodyCodes = [.. catalog.Bodies.Select(body => body.Code)];
         IReadOnlyCollection<string> componentCodes = [.. catalog.Components.Select(component => component.Code)];
@@ -587,10 +587,10 @@ internal class GetFullCatalogHandlerTests : SqlServerTestBase
     {
         await SeedRichCatalogueAsync();
 
-        FullCatalogResult catalog = await FetchCatalogAsync();
+        FullCatalogueResult catalog = await FetchCatalogAsync();
 
-        CatalogTag combatTag = catalog.Tags.Single(tag => tag.Code == SeededCombatTag.CODE);
-        CatalogTag abilityTag = catalog.Tags.Single(tag => tag.Code == SeededAbilityTag.CODE);
+        CatalogueTag combatTag = catalog.Tags.Single(tag => tag.Code == SeededCombatTag.CODE);
+        CatalogueTag abilityTag = catalog.Tags.Single(tag => tag.Code == SeededAbilityTag.CODE);
 
         using (Assert.EnterMultipleScope())
         {
@@ -614,7 +614,7 @@ internal class GetFullCatalogHandlerTests : SqlServerTestBase
     {
         SeededCatalogue seeded = await SeedRichCatalogueAsync();
 
-        FullCatalogResult catalog = await FetchCatalogAsync();
+        FullCatalogueResult catalog = await FetchCatalogAsync();
 
         DesignTemplate globalTemplate = catalog.Templates.Single(template => template.Id == seeded.GlobalTemplateId);
         DesignTemplate customTemplate = catalog.Templates.Single(template => template.Id == seeded.CustomTemplateId);
@@ -651,7 +651,7 @@ internal class GetFullCatalogHandlerTests : SqlServerTestBase
     {
         SeededCatalogue seeded = await SeedRichCatalogueAsync();
 
-        FullCatalogResult catalog = await FetchCatalogAsync();
+        FullCatalogueResult catalog = await FetchCatalogAsync();
 
         DesignTemplate globalTemplate = catalog.Templates.Single(template => template.Id == seeded.GlobalTemplateId);
         DesignTemplate customTemplate = catalog.Templates.Single(template => template.Id == seeded.CustomTemplateId);
@@ -678,7 +678,7 @@ internal class GetFullCatalogHandlerTests : SqlServerTestBase
 
         // No PlayerUnlockedComponent or PlayerUnlockedTemplate rows exist, so an unlock-scoped read would return nothing.
         // The god-view returns everything anyway — that is the endpoint's whole purpose.
-        FullCatalogResult catalog = await FetchCatalogAsync();
+        FullCatalogueResult catalog = await FetchCatalogAsync();
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
         int unlockedComponentCount = await verifyContext.PlayerUnlockedComponents.CountAsync();

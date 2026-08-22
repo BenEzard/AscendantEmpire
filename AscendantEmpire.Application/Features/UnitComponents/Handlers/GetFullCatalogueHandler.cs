@@ -1,7 +1,7 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.UnitComponents.Services;
-using AscendantEmpire.BackendContracts.UnitDesigns.GetFullCatalog;
+using AscendantEmpire.BackendContracts.UnitDesigns.GetFullCatalogue;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetPlayerTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetSlotCandidateComponents;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetUnlockedBodies;
@@ -20,14 +20,14 @@ namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 /// Returns the entire unit-design catalog unfiltered (every body, component, tag and template) for a
 /// developer design tool. Unlike the player endpoints, this applies no game/player or unlock filtering.
 /// </summary>
-public record GetFullCatalogRequest() : IRequest<ServiceResult<FullCatalogResult>>;
+public record GetFullCatalogueRequest() : IRequest<ServiceResult<FullCatalogueResult>>;
 
-internal class GetFullCatalogHandler(
-    ILogger<GetFullCatalogHandler> logger,
+internal class GetFullCatalogueHandler(
+    ILogger<GetFullCatalogueHandler> logger,
     IDbContextFactory<AscendantEmpireContext> dbFactory
-) : IRequestHandler<GetFullCatalogRequest, ServiceResult<FullCatalogResult>>
+) : IRequestHandler<GetFullCatalogueRequest, ServiceResult<FullCatalogueResult>>
 {
-    public async Task<ServiceResult<FullCatalogResult>> Handle(GetFullCatalogRequest request, CancellationToken cancelToken)
+    public async Task<ServiceResult<FullCatalogueResult>> Handle(GetFullCatalogueRequest request, CancellationToken cancelToken)
     {
         try
         {
@@ -45,9 +45,9 @@ internal class GetFullCatalogHandler(
                 .Select(DesignComponentProjections.ToDesignComponent)
                 .ToListAsync(cancelToken);
 
-            List<CatalogTag> tags = await context.Tags
+            List<CatalogueTag> tags = await context.Tags
                 .AsNoTracking()
-                .Select(t => new CatalogTag
+                .Select(t => new CatalogueTag
                 {
                     Id = t.Id,
                     Code = t.Code,
@@ -87,7 +87,7 @@ internal class GetFullCatalogHandler(
                 })
                 .ToListAsync(cancelToken);
 
-            var result = new FullCatalogResult
+            var result = new FullCatalogueResult
             {
                 Bodies = bodies,
                 Components = components,
@@ -95,13 +95,13 @@ internal class GetFullCatalogHandler(
                 Templates = templates,
             };
 
-            return ServiceResult<FullCatalogResult>.Succeed(result);
+            return ServiceResult<FullCatalogueResult>.Succeed(result);
         }
         catch (Exception ex)
         {
-            const string error = "An exception occurred while processing " + nameof(GetFullCatalogHandler) + ".";
+            const string error = "An exception occurred while processing " + nameof(GetFullCatalogueHandler) + ".";
             logger.LogError(ex, error);
-            return ServiceResult<FullCatalogResult>.InternalServerError(ex, error);
+            return ServiceResult<FullCatalogueResult>.InternalServerError(ex, error);
         }
     }
 }

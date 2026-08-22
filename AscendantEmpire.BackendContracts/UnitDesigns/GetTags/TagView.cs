@@ -7,7 +7,7 @@ namespace AscendantEmpire.BackendContracts.UnitDesigns.GetTags;
 /// A single tag in the global catalog as seen by the dev Unit Designer tool.
 /// </summary>
 /// <remarks>
-/// Like <c>CatalogTag</c> but also carries <see cref="TagType"/>, which the tag-management UI needs to
+/// Like <c>CatalogueTag</c> but also carries <see cref="TagType"/>, which the tag-management UI needs to
 /// display and edit (the read-only god-view catalog omits it).
 /// </remarks>
 public record TagView

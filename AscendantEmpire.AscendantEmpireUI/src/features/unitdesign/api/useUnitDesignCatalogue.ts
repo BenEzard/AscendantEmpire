@@ -7,11 +7,11 @@
 
 import { useEffect, useState } from "react";
 
-import { getComponentList } from "./catalogApi";
+import { getComponentList } from "./catalogueApi";
 import { getComponent } from "./componentsApi";
 import type { UnitComponent } from "../types/UnitComponent";
 
-export interface UnitDesignCatalogState {
+export interface UnitDesignCatalogueState {
   /** Fully-hydrated components (bodies + non-body components). Empty until the load resolves. */
   catalog: UnitComponent[];
   loading: boolean;
@@ -23,7 +23,7 @@ export interface UnitDesignCatalogState {
  * Fetches and hydrates the whole catalogue once on mount (when `enabled`). Pass `enabled: false` to skip
  * the fetch entirely — e.g. when the host injects its own catalogue for tests.
  */
-export function useUnitDesignCatalog(enabled: boolean = true): UnitDesignCatalogState {
+export function useUnitDesignCatalogue(enabled: boolean = true): UnitDesignCatalogueState {
   const [catalog, setCatalog] = useState<UnitComponent[]>([]);
   const [loading, setLoading] = useState<boolean>(enabled);
   const [error, setError] = useState<string | null>(null);

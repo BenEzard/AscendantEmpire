@@ -3,7 +3,7 @@ using AscendantEmpire.Application.Features.UnitComponents.Classes;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
 using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetComponent;
-using AscendantEmpire.BackendContracts.UnitDesigns.GetFullCatalog;
+using AscendantEmpire.BackendContracts.UnitDesigns.GetFullCatalogue;
 using AscendantEmpire.BackendContracts.UnitDesigns.UpsertUnitComponent;
 using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
@@ -36,14 +36,14 @@ public class UnitDesignCatalogueController : ControllerBase
     /// <response code="200">The full catalog</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [HttpGet]
-    [ProducesResponseType(typeof(FullCatalogResult), 200)]
+    [ProducesResponseType(typeof(FullCatalogueResult), 200)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> GetFullCatalogAsync(
+    public async Task<IActionResult> GetFullCatalogueAsync(
         [FromServices] IMediator mediator,
         CancellationToken cancelToken)
     {
-        ServiceResult<FullCatalogResult> response =
-            await mediator.Send(new GetFullCatalogRequest(), cancelToken);
+        ServiceResult<FullCatalogueResult> response =
+            await mediator.Send(new GetFullCatalogueRequest(), cancelToken);
 
         return response.ToActionResult();
     }

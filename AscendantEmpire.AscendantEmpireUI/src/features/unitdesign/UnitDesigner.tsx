@@ -9,7 +9,7 @@ import Button from "@/components/ui/Button";
 import Alert from "@/components/ui/Alert";
 
 import type { UnitComponent } from "./types/UnitComponent";
-import { useUnitDesignCatalog } from "./api/useUnitDesignCatalog";
+import { useUnitDesignCatalogue } from "./api/useUnitDesignCatalogue";
 import {
   createGlobalUnitTemplate,
   createUnitTemplate,
@@ -79,7 +79,7 @@ export default function UnitDesigner({
 
   // Source the catalogue from the host when injected, otherwise self-load it.
   const selfLoad = injectedCatalog === undefined;
-  const { catalog: loadedCatalog, loading, error } = useUnitDesignCatalog(selfLoad);
+  const { catalog: loadedCatalog, loading, error } = useUnitDesignCatalogue(selfLoad);
   const catalog = injectedCatalog ?? loadedCatalog;
 
   const [isVisible, setIsVisible] = useState(true);

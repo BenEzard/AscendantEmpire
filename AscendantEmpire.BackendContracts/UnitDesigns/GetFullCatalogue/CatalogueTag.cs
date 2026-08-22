@@ -1,9 +1,9 @@
-namespace AscendantEmpire.BackendContracts.UnitDesigns.GetFullCatalog;
+namespace AscendantEmpire.BackendContracts.UnitDesigns.GetFullCatalogue;
 
 /// <summary>
 /// A buff/bonus tag in the global catalog (dev god-view).
 /// </summary>
-public record CatalogTag
+public record CatalogueTag
 {
     public required int Id { get; init; }
     public required string Code { get; init; }

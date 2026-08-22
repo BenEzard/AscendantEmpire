@@ -13,7 +13,7 @@ import { Button, ExportDialog, Modal, ProgressOperationDialog, SearchDrawer, Sea
 import { useDatabaseSeed } from "../hooks/useDatabaseSeed";
 
 import { createComponent, getComponent, updateComponent } from "@/features/unitdesign/api/componentsApi";
-import { getComponentList, type ComponentListRow } from "@/features/unitdesign/api/catalogApi";
+import { getComponentList, type ComponentListRow } from "@/features/unitdesign/api/catalogueApi";
 import { recompileAllTemplates } from "@/features/unitdesign/api/templatesApi";
 import { createTag, getTags, updateTag } from "@/features/unitdesign/api/tagsApi";
 import { getTagTypes, saveTagTypes } from "@/features/unitdesign/api/tagTypesApi";

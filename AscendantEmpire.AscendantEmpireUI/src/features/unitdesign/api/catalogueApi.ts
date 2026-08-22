@@ -7,7 +7,7 @@ import { http } from "@/api/http";
 import type { ComponentType } from "../types/UnitComponent";
 
 /** A component as it appears in the catalog's `components` collection (non-body components). */
-interface CatalogComponent {
+interface CatalogueComponent {
   id: number;
   code: string;
   displayName: string;
@@ -15,16 +15,16 @@ interface CatalogComponent {
 }
 
 /** A body as it appears in the catalog's `bodies` collection. Bodies carry no `componentType` field. */
-interface CatalogBody {
+interface CatalogueBody {
   id: number;
   code: string;
   displayName: string;
 }
 
 /** The subset of GET /unit-design-catalogue we consume for the search drawer. */
-interface FullCatalogResponse {
-  bodies: CatalogBody[];
-  components: CatalogComponent[];
+interface FullCatalogueResponse {
+  bodies: CatalogueBody[];
+  components: CatalogueComponent[];
 }
 
 /** A flat row in the component search list — every component type, bodies included. */
@@ -40,7 +40,7 @@ export interface ComponentListRow {
  * implicit "Body" component type — to match the editor, which can author bodies too.
  */
 export async function getComponentList(): Promise<ComponentListRow[]> {
-  const { data } = await http.get<FullCatalogResponse>("/unit-design-catalogue");
+  const { data } = await http.get<FullCatalogueResponse>("/unit-design-catalogue");
 
   const bodyRows: ComponentListRow[] = data.bodies.map((body) => ({
     code: body.code,
