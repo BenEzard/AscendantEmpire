@@ -36,6 +36,21 @@ internal static class UnitDesignPayloads
     public const string WEAPON_CODE = "test_weapon";
 
     /// <summary>
+    /// Mirrors the Entity Setup Tool's slot-code derivation (<c>toCodeSlug</c> in <c>util/codeSlug.ts</c>):
+    /// lowercase, every non-alphanumeric character to a hyphen, leading/trailing hyphens trimmed.
+    /// </summary>
+    /// <remarks>
+    /// Duplicated here rather than shared, because the backend never derives a code — it only validates the
+    /// one the caller sends. This exists so the test payloads look like what the tool actually posts.
+    /// </remarks>
+    public static string ToSlotCode(string displayName)
+    {
+        string hyphenated = new([.. displayName.ToLowerInvariant().Select(character => char.IsAsciiLetterOrDigit(character) ? character : '-')]);
+
+        return hyphenated.Trim('-');
+    }
+
+    /// <summary>
     /// Builds a body slot DTO accepting a single component type, optionally carrying an existing slot id.
     /// </summary>
     /// <remarks>
@@ -47,8 +62,8 @@ internal static class UnitDesignPayloads
         return new UnitComponentSlotDto
         {
             Id = id,
-            // Slot codes are uppercase, underscore-separated keys; default one from the label for brevity.
-            Code = code ?? label.ToUpperInvariant().Replace(' ', '_'),
+            // The authoring tool derives the code from the display name, so default it the same way here.
+            Code = code ?? ToSlotCode(label),
             DisplayName = label,
             IsVisible = true,
             Rules =

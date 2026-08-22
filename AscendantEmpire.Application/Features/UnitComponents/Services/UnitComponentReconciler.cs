@@ -151,7 +151,14 @@ internal static class UnitComponentReconciler
         // therefore cannot carry any (its Body is null), which is how "Body-only slots" is enforced.
         foreach (UnitComponentSlotDto slot in component.Body?.Slots ?? [])
         {
-            if (slot.DisplayName is { Length: > UnitComponentSlot.DISPLAY_NAME_MAX_LENGTH })
+            // `required` on the DTO only makes the caller send the property; it does not stop them sending
+            // null. Check it here so a nameless slot fails with a usable message rather than a NOT NULL
+            // violation from the database.
+            if (string.IsNullOrWhiteSpace(slot.DisplayName))
+            {
+                errors.Add($"Component '{component.Code}' has a slot with no DisplayName.");
+            }
+            else if (slot.DisplayName.Length > UnitComponentSlot.DISPLAY_NAME_MAX_LENGTH)
             {
                 errors.Add($"Component '{component.Code}' has a slot DisplayName exceeding {UnitComponentSlot.DISPLAY_NAME_MAX_LENGTH} characters.");
             }

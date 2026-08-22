@@ -45,7 +45,7 @@ internal class BulkUpsertSlotReconciliationTests : SqlServerTestBase
         // values that must round-trip exactly through the decimal column.
         UnitComponentSlotDto Slot(string label, string acceptedType, decimal x = 0m, decimal y = 0m) => new()
         {
-            Code = label.ToUpperInvariant(),
+            Code = ToSlotCode(label),
             DisplayName = label,
             IsVisible = true,
             UIXPosition = x,
@@ -270,7 +270,7 @@ internal class BulkUpsertSlotReconciliationTests : SqlServerTestBase
         // A catalogue exported from another database carries no slot ids — they would be meaningless here.
         // Matching falls back to the code, which is exactly what makes the import non-destructive.
         UnitComponentDto reimported = BuildBodyWithSlots(
-            BuildSlotDto("Weapon Mount", nameof(ComponentType.Weapon), id: null, code: "WEAPON_1"));
+            BuildSlotDto("Weapon Mount", nameof(ComponentType.Weapon), id: null, code: "weapon-1"));
 
         BulkUpsertUnitComponentsHandler handler = await DbFactory.CreateBulkUpsertHandlerAsync();
         ServiceResult<BulkUpsertUnitComponentsResult> result = await handler.Handle(
@@ -306,7 +306,7 @@ internal class BulkUpsertSlotReconciliationTests : SqlServerTestBase
         // The dev tool always round-trips the id, which is the only thing distinguishing a rename from a
         // slot being deleted and an unrelated one added.
         UnitComponentDto renamed = BuildBodyWithSlots(
-            BuildSlotDto("Weapon 1", nameof(ComponentType.Weapon), id: originalSlotId, code: "MAIN_HAND"));
+            BuildSlotDto("Weapon 1", nameof(ComponentType.Weapon), id: originalSlotId, code: "main-hand"));
 
         BulkUpsertUnitComponentsHandler handler = await DbFactory.CreateBulkUpsertHandlerAsync();
         ServiceResult<BulkUpsertUnitComponentsResult> result = await handler.Handle(
@@ -323,7 +323,7 @@ internal class BulkUpsertSlotReconciliationTests : SqlServerTestBase
             Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
             Assert.That(result.SuccessValue!.RemovedSlotCount, Is.EqualTo(0), "A rename removes nothing.");
             Assert.That(slot.Id, Is.EqualTo(originalSlotId), "Same row.");
-            Assert.That(slot.Code, Is.EqualTo("MAIN_HAND"), "The code is updated.");
+            Assert.That(slot.Code, Is.EqualTo("main-hand"), "The code is updated.");
             Assert.That(fitted, Is.Not.Null, "The fitting is undisturbed by the rename.");
         }
     }
@@ -332,8 +332,8 @@ internal class BulkUpsertSlotReconciliationTests : SqlServerTestBase
     public async Task DuplicateSlotCodesAreRejectedAsync()
     {
         UnitComponentDto body = BuildBodyWithSlots(
-            BuildSlotDto("Weapon 1", nameof(ComponentType.Weapon), id: null, code: "WEAPON_1"),
-            BuildSlotDto("Weapon 2", nameof(ComponentType.Weapon), id: null, code: "WEAPON_1"));
+            BuildSlotDto("Weapon 1", nameof(ComponentType.Weapon), id: null, code: "weapon-1"),
+            BuildSlotDto("Weapon 2", nameof(ComponentType.Weapon), id: null, code: "weapon-1"));
 
         BulkUpsertUnitComponentsHandler handler = await DbFactory.CreateBulkUpsertHandlerAsync();
         ServiceResult<BulkUpsertUnitComponentsResult> result = await handler.Handle(
@@ -346,6 +346,42 @@ internal class BulkUpsertSlotReconciliationTests : SqlServerTestBase
         {
             Assert.That(result.HasSucceeded, Is.False);
             Assert.That(result.Errors, Has.Some.Contains("duplicate slot code"));
+            Assert.That(await verifyContext.UnitComponents.AnyAsync(), Is.False, "Nothing should be written.");
+        }
+    }
+
+    [Test, Description("A slot sent with no display name is rejected with a usable message rather than an opaque NOT NULL violation.")]
+    public async Task SlotWithoutDisplayNameIsRejectedAsync()
+    {
+        // `required` on the DTO only obliges the caller to send the property, not to send a value — so a
+        // null still reaches the handler and has to be caught before EF tries to write it.
+        UnitComponentSlotDto namelessSlot = new()
+        {
+            Code = "weapon-1",
+            DisplayName = null!,
+            IsVisible = true,
+            Rules =
+            [
+                new UnitComponentSlotRuleDto
+                {
+                    RuleType = SlotRuleType.ComponentType,
+                    Operator = SlotRuleOperator.Equals,
+                    Value = nameof(ComponentType.Weapon),
+                },
+            ],
+        };
+
+        BulkUpsertUnitComponentsHandler handler = await DbFactory.CreateBulkUpsertHandlerAsync();
+        ServiceResult<BulkUpsertUnitComponentsResult> result = await handler.Handle(
+            new BulkUpsertUnitComponentsRequest(new BulkUpsertUnitComponentsDto { Components = [BuildBodyWithSlots(namelessSlot)] }),
+            CancellationToken.None);
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Has.Some.Contains("no DisplayName"));
             Assert.That(await verifyContext.UnitComponents.AnyAsync(), Is.False, "Nothing should be written.");
         }
     }

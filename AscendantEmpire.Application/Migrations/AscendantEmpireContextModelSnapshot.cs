@@ -1851,6 +1851,7 @@ namespace AscendantEmpire.Application.Migrations
                         .HasColumnType("nvarchar(32)");
 
                     b.Property<string>("DisplayName")
+                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 

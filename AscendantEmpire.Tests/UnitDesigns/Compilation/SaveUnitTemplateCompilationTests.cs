@@ -33,8 +33,8 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
 {
     // The test body's two slot codes. Templates name the slot they fit into, so an empty slot is simply
     // absent from the map rather than a null placeholder.
-    private const string SLOT_A = "SLOT_A";
-    private const string SLOT_B = "SLOT_B";
+    private const string SLOT_A = "slot-a";
+    private const string SLOT_B = "slot-b";
 
     private ServiceProvider _provider = null!;
 

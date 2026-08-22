@@ -88,7 +88,7 @@ Bonus/classification tags live in `Tag` (`TagType` categorises them) and attach 
 
 ### Slots and acceptance rules
 
-A `UnitComponentSlot` records its owning body (`UnitComponentBodyId`), an optional label, a visibility flag, a normalized UI position, and its rules. A `UnitComponentSlotRule` has a `RuleType` (`ComponentType` or `HasTag`), a `SlotRuleOperator` (`Equals`, `NotEquals`, `In`) and a string value. `SlotRuleEvaluator` is the single authority for "what fits where" — a candidate is accepted only if it satisfies *every* rule on the slot.
+A `UnitComponentSlot` records its owning body (`UnitComponentBodyId`), a required `DisplayName`, a `Code`, a visibility flag, a normalized UI position, and its rules. The `Code` is the slot's portable identity (unique per body, and what a catalogue import matches on) but is never hand-authored: the Entity Setup Tool slugifies the display name into it, using the same lowercase/hyphen convention as component and tag codes. That is why the display name is required, and why two slots on one body may not share a name — they would derive the same code. A `UnitComponentSlotRule` has a `RuleType` (`ComponentType` or `HasTag`), a `SlotRuleOperator` (`Equals`, `NotEquals`, `In`) and a string value. `SlotRuleEvaluator` is the single authority for "what fits where" — a candidate is accepted only if it satisfies *every* rule on the slot.
 
 ### Templates and compilation
 

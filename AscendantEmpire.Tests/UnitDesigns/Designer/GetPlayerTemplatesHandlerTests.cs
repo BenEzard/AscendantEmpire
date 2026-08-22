@@ -69,7 +69,7 @@ internal class GetPlayerTemplatesHandlerTests : SqlServerTestBase
                 // Only bodies expose slots, so they live on the body extension.
                 Slots =
                 [
-                    new UnitComponentSlot { Code = "WEAPON_1", DisplayName = "Weapon Slot", IsVisible = true, UIXPosition = 0, UIYPosition = 0 },
+                    new UnitComponentSlot { Code = "weapon-1", DisplayName = "Weapon Slot", IsVisible = true, UIXPosition = 0, UIYPosition = 0 },
                 ],
             },
         };

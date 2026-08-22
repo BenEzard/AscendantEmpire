@@ -7,7 +7,9 @@ namespace AscendantEmpire.BackendContracts.UnitDesigns.Shared;
 public record DesignSlot
 {
     public required int Id { get; init; }
-    public string? DisplayName { get; init; }
+
+    /// <summary>The label shown for the slot. Always present — the catalogue requires every slot to be named.</summary>
+    public required string DisplayName { get; init; }
     public required bool IsVisible { get; init; }
 
     /// <summary>Normalized X offset from the owning component's image center (0 = center, ±1 = edges).</summary>

@@ -19,18 +19,20 @@ public record UnitComponentSlotDto
     public int? Id { get; init; }
 
     /// <summary>
-    /// Stable key for the slot, unique within its owning body (e.g. <c>MAIN_HAND</c>).
+    /// Stable key for the slot, unique within its owning body (e.g. <c>main-hand</c>).
     /// </summary>
     /// <remarks>
-    /// The portable identity: it survives a move between databases, which <see cref="Id"/> does not, and it is
-    /// how a template names the slot it fits a component into.
+    /// <para>The portable identity: it survives a move between databases, which <see cref="Id"/> does not, and
+    /// it is how a template names the slot it fits a component into.</para>
+    /// <para>Derived from <see cref="DisplayName"/> by the authoring tool rather than typed by hand, so two
+    /// slots on one body may not share a display name — they would derive the same code.</para>
     /// </remarks>
     public required string Code { get; init; }
 
     /// <summary>
-    /// Optional label shown for the slot.
+    /// The label shown for the slot, and the source <see cref="Code"/> is derived from.
     /// </summary>
-    public string? DisplayName { get; init; }
+    public required string DisplayName { get; init; }
 
     /// <summary>
     /// Whether the slot is shown on the UI.

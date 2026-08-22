@@ -1398,8 +1398,10 @@ public class AscendantEmpireContext : DbContext
                 .IsUnique()
                 .HasDatabaseName("UX_UnitComponentSlot_Body_Code");
 
+            // Required: Code is slugified from the display name, so a blank name means a blank identity.
             entity.Property(e => e.DisplayName)
-                .HasMaxLength(UnitComponentSlot.DISPLAY_NAME_MAX_LENGTH);
+                .HasMaxLength(UnitComponentSlot.DISPLAY_NAME_MAX_LENGTH)
+                .IsRequired();
 
             // Normalized (image-relative) slot offsets. 9,4 gives 0.0001 granularity with ample range
             // for the rare slot that sits well outside the image bounds.

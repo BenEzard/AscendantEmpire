@@ -20,7 +20,7 @@ internal class SlotAssemblyValidatorTests
     /// <summary>Builds a slot owned by the given body, with optional acceptance rules.</summary>
     private static UnitComponentSlot Slot(int id, int ownerBodyId, params UnitComponentSlotRule[] rules)
     {
-        return new UnitComponentSlot { Id = id, Code = $"SLOT_{id}", UnitComponentBodyId = ownerBodyId, Rules = rules };
+        return new UnitComponentSlot { Id = id, Code = $"slot-{id}", DisplayName = $"Slot {id}", UnitComponentBodyId = ownerBodyId, Rules = rules };
     }
 
     private static UnitComponentSlotRule TypeEquals(ComponentType type)

@@ -17,7 +17,7 @@ public class UnitComponentSlot
     public int Id { get; set; }
 
     /// <summary>
-    /// Stable key for the slot, unique within its owning body (e.g. <c>MAIN_HAND</c>).
+    /// Stable key for the slot, unique within its owning body (e.g. <c>main-hand</c>).
     /// </summary>
     /// <remarks>
     /// <para><see cref="Id"/> identifies the slot inside this database — it is what
@@ -27,6 +27,10 @@ public class UnitComponentSlot
     /// rows they already have instead of deleting and recreating them.</para>
     /// <para>It is also what a template's fitted components are keyed by on the wire, which is why adding,
     /// removing or reordering a body's slots no longer disturbs the templates built on it.</para>
+    /// <para>The code is <i>derived</i>, never hand-authored: the Entity Setup Tool slugifies
+    /// <see cref="DisplayName"/> into it (lowercase, non-alphanumerics to hyphens). That is why the display
+    /// name is required, and why two slots on one body may not share a name — they would derive the same
+    /// code and collide on <c>UX_UnitComponentSlot_Body_Code</c>.</para>
     /// </remarks>
     [MaxLength(CODE_MAX_LENGTH)]
     public required string Code { get; set; }
@@ -37,10 +41,14 @@ public class UnitComponentSlot
     public int UnitComponentBodyId { get; set; }
 
     /// <summary>
-    /// Optional label shown for the slot.
+    /// The label shown for the slot, and the source <see cref="Code"/> is derived from.
     /// </summary>
+    /// <remarks>
+    /// Required: a blank name would derive a blank code, and the slot's identity depends on it. A newly
+    /// added slot starts life as <c>Slot 1</c>, <c>Slot 2</c>, … rather than empty.
+    /// </remarks>
     [MaxLength(DISPLAY_NAME_MAX_LENGTH)]
-    public string? DisplayName { get; set; }
+    public required string DisplayName { get; set; }
 
     /// <summary>
     /// Whether the slot is shown on the UI.

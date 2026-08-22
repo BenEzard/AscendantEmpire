@@ -81,7 +81,7 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
     /// <summary>The body's visible slot: two acceptance rules, and the slot the global template fits a weapon into.</summary>
     private static class SeededWeaponSlot
     {
-        public const string CODE = "WEAPON_1";
+        public const string CODE = "weapon-1";
         public const string DISPLAY_NAME = "Weapon 1";
         public const decimal UI_X_POSITION = -0.25m;
         public const decimal UI_Y_POSITION = 0.5m;
@@ -90,7 +90,7 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
     /// <summary>The body's hidden slot: one rule and mirrored positions, so neither slot can stand in for the other.</summary>
     private static class SeededArmourSlot
     {
-        public const string CODE = "ARMOUR_1";
+        public const string CODE = "armour-1";
         public const string DISPLAY_NAME = "Armour 1";
         public const decimal UI_X_POSITION = 0.75m;
         public const decimal UI_Y_POSITION = -0.125m;

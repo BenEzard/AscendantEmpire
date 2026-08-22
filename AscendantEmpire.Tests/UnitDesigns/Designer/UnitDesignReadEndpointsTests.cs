@@ -86,7 +86,7 @@ internal class UnitDesignReadEndpointsTests : SqlServerTestBase
                 [
                     new UnitComponentSlot
                     {
-                        Code = "WEAPON_1",
+                        Code = "weapon-1",
                         DisplayName = "Weapon Slot",
                         IsVisible = true,
                         UIXPosition = 1,
