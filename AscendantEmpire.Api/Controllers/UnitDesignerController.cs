@@ -62,24 +62,24 @@ public class UnitDesignerController : ControllerBase
     }
 
     /// <summary>
-    /// Get the unlocked components that fit a given slot of a given owner component (the component-selection feed).
+    /// Get the unlocked components that fit a given slot of a given body (the component-selection feed).
     /// </summary>
     /// <remarks>
-    /// The game and player are read from the caller's game token, not the request. The owner component is always a body — the only component type that exposes slots — which is why the route names <c>bodies</c>; <c>GetSlotCandidateComponentsHandler</c> enforces it by matching the slot on <c>UnitComponentBodyId</c>.
+    /// The game and player are read from the caller's game token, not the request. A slot's owner is always a body — the only component type that exposes slots — which is why both the route segment and the parameter name say body; <c>GetSlotCandidateComponentsHandler</c> enforces it by matching the slot on <c>UnitComponentBodyId</c>.
     /// </remarks>
     /// <response code="200">The unlocked components that satisfy the slot's rules</response>
     /// <response code="403">No game entered (the token has no game context)</response>
-    /// <response code="404">The slot does not belong to the given owner component</response>
+    /// <response code="404">The slot does not belong to the given body</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [Authorize]
-    [HttpGet("bodies/{ownerComponentId:int}/slots/{slotId:int}/components")]
+    [HttpGet("bodies/{bodyComponentId:int}/slots/{slotId:int}/components")]
     [ProducesResponseType(typeof(SlotCandidateComponentsResult), 200)]
     [ProducesResponseType(typeof(IApiErrorResult), 403)]
     [ProducesResponseType(typeof(IApiErrorResult), 404)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
     public async Task<IActionResult> GetSlotCandidateComponentsAsync(
         [FromServices] IMediator mediator,
-        int ownerComponentId,
+        int bodyComponentId,
         int slotId,
         CancellationToken cancelToken)
     {
@@ -89,7 +89,7 @@ public class UnitDesignerController : ControllerBase
         }
 
         ServiceResult<SlotCandidateComponentsResult> response =
-            await mediator.Send(new GetSlotCandidateComponentsRequest(gameId, playerId, ownerComponentId, slotId), cancelToken);
+            await mediator.Send(new GetSlotCandidateComponentsRequest(gameId, playerId, bodyComponentId, slotId), cancelToken);
 
         return response.ToActionResult();
     }

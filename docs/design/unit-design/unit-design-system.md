@@ -114,7 +114,7 @@ Unit design is served by **five controllers**, split out of a single 712-line `U
 
 | Controller | Route prefix | Endpoints | Authorization |
 |---|---|---|---|
-| `UnitDesignerController` | `/unit-designer` | `GET bodies`, `GET bodies/{ownerComponentId}/slots/{slotId}/components`, `GET templates`, `POST templates`, `PUT templates/{templateId}`, `GET templates/{templateId}/compiled` | `[Authorize]`, any authenticated player |
+| `UnitDesignerController` | `/unit-designer` | `GET bodies`, `GET bodies/{bodyComponentId}/slots/{slotId}/components`, `GET templates`, `POST templates`, `PUT templates/{templateId}`, `GET templates/{templateId}/compiled` | `[Authorize]`, any authenticated player |
 | `UnitDesignCatalogueController` | `/unit-design-catalogue` | `GET`, `GET {code}`, `POST`, `PUT {code}`, `POST bulk` | `EntitySetupTool` on the writes; the two reads are ungated — see below |
 | `UnitDesignTagsController` | `/unit-design-tags` | `GET`, `POST`, `PUT {id}`, `GET types`, `PUT types` | `EntitySetupTool` on the writes; the two reads are ungated — see below |
 | `UnitDesignTransferController` | `/unit-design-transfer` | `POST export`, `GET export/download`, `POST import` | `SystemPanel` |

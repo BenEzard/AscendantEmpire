@@ -142,7 +142,7 @@ public sealed class EndpointAuthorizationTests
         "GET /units/display",
 
         "GET /unit-designer/bodies",
-        "GET /unit-designer/bodies/{ownerComponentId}/slots/{slotId}/components",
+        "GET /unit-designer/bodies/{bodyComponentId}/slots/{slotId}/components",
         "GET /unit-design-tags",
         "GET /unit-design-tags/types",
         "GET /unit-designer/templates",
