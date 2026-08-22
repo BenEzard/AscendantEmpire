@@ -64,7 +64,7 @@ internal class BulkUpsertGlobalUnitTemplatesHandler(
                 return ServiceResult<BulkUpsertGlobalUnitTemplatesResult>.Fail($"Duplicate template code(s) in the payload: {string.Join(", ", duplicateCodes)}");
             }
 
-            // Resolve + validate every template against the catalog before writing anything, so a rejected
+            // Resolve + validate every template against the catalogue before writing anything, so a rejected
             // request writes nothing. Resolution reads the (already-upserted) components and builds the
             // fitted-component rows, applying the same assembly rules as the create/update handlers.
             Dictionary<string, UnitTemplateAssembly.ResolvedAssembly> resolvedByCode = [];

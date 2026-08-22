@@ -1,6 +1,6 @@
 // API service for persisting unit templates. Thin wrapper over the shared axios `http` client for the
 // create/update endpoints of two different controllers: the player-owned custom flow on
-// UnitDesignerController (POST/PUT /unit-designer/templates), and the dev tool's global/common catalog
+// UnitDesignerController (POST/PUT /unit-designer/templates), and the dev tool's global/common catalogue
 // flow on GlobalUnitTemplatesController (POST/PUT /global-unit-templates).
 
 import { http } from "@/api/http";
@@ -65,7 +65,7 @@ export interface GlobalUnitTemplateView {
   bodyComponentCode: string;
 }
 
-/** Dev tool: create a new global/common unit template in the shared catalog. */
+/** Dev tool: create a new global/common unit template in the shared catalogue. */
 export async function createGlobalUnitTemplate(payload: SaveGlobalUnitTemplatePayload): Promise<GlobalUnitTemplateView> {
   const { data } = await http.post<GlobalUnitTemplateView>("/global-unit-templates", payload);
   return data;

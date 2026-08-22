@@ -28,7 +28,7 @@ internal class GetComponentHandler(
         {
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            // Project the whole graph in one query (mirrors DesignComponentProjections, but keeps the body extension and supersession links the catalog read drops).
+            // Project the whole graph in one query (mirrors DesignComponentProjections, but keeps the body extension and supersession links the catalogue read drops).
             // A single Select avoids any explicit Include and translates cleanly to SQL.
             EditableComponentResult? result = await context.UnitComponents
                 .AsNoTracking()

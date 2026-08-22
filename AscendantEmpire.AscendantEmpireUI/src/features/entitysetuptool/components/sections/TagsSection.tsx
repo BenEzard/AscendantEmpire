@@ -1,11 +1,11 @@
 // TagsSection — the dialog's "Tags" page. A component references buff/classification tags by their
-// code (the tag definitions themselves live in the global tag catalog, edited elsewhere). So here we
+// code (the tag definitions themselves live in the global tag catalogue, edited elsewhere). So here we
 // just manage the component's set of tag *codes* as a list of chips.
 //
-// Rather than free-typing a code (which then has to match the catalog on save), the user picks from a
-// drop down populated with the existing catalog tags (the same getTags() catalog behind the tool's
+// Rather than free-typing a code (which then has to match the catalogue on save), the user picks from a
+// drop down populated with the existing catalogue tags (the same getTags() catalogue behind the tool's
 // "Search Tag" drawer) — so an attached tag is always a real one. Each row is two columns: the tag's
-// display name, then its tag type. Typing still filters the list, which matters as the catalog grows.
+// display name, then its tag type. Typing still filters the list, which matters as the catalogue grows.
 //
 // Each selected tag is shown as a chip coloured by its tag *type* (colour lives on the type, not the
 // tag), with a tooltip of "display name - description" and a generic tag glyph.
@@ -23,7 +23,7 @@ interface TagsSectionProps {
   /** The component's currently-attached tag codes (the committed value). */
   tagCodes: string[];
   onChange: (next: string[]) => void;
-  /** The full global tag catalog to choose from. */
+  /** The full global tag catalogue to choose from. */
   availableTags: Tag[];
   /** Tag type metadata (keyed by type), used to colour a chip by its tag's type. */
   tagTypes: TagTypeInfo[];
@@ -80,7 +80,7 @@ export default function TagsSection({ tagCodes, onChange, availableTags, tagType
   return (
     <div className="w-full max-w-xl">
       <p className="mb-2 text-xs text-slate-400">
-        Pick tags to attach to this component. Only tags that exist in the catalog can be selected, so the set always resolves on save.
+        Pick tags to attach to this component. Only tags that exist in the catalogue can be selected, so the set always resolves on save.
       </p>
 
       <div className="mb-3">
@@ -107,7 +107,7 @@ export default function TagsSection({ tagCodes, onChange, availableTags, tagType
       ) : (
         <div className="flex flex-wrap gap-2">
           {tagCodes.map((code) => {
-            // Resolve the tag (and its type's colour) from the catalog. A code with no matching tag can
+            // Resolve the tag (and its type's colour) from the catalogue. A code with no matching tag can
             // still occur on a legacy component; it renders as a plain chip labelled by the raw code.
             const tag = tagByCode.get(code);
             const typeInfo = tag != null ? tagTypeById.get(tag.tagType) : undefined;

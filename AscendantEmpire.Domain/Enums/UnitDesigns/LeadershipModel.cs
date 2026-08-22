@@ -5,7 +5,7 @@ namespace AscendantEmpire.Domain.Enums.UnitDesigns;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Authored on the tag (catalog data) rather than on the player's organisation structure, so a player cannot
+/// Authored on the tag (catalogue data) rather than on the player's organisation structure, so a player cannot
 /// opt a hierarchy out of the officer economy by editing their own data. See
 /// <c>docs/design/units/military-organisation.md</c> ("Leadership model").
 /// </para>

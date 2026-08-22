@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations;
 namespace AscendantEmpire.Domain.Entities.UnitDesigns;
 
 /// <summary>
-/// A single buildable part in the global component catalog (body, weapon, engine, armour, etc.).
+/// A single buildable part in the global component catalogue (body, weapon, engine, armour, etc.).
 /// </summary>
 /// <remarks>
 /// <para>This is the shared global reference list — rows are not owned by any player or game.</para>

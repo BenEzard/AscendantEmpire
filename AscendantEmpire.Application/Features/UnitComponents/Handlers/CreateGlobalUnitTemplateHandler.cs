@@ -14,12 +14,12 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 
 /// <summary>
-/// Dev design tool: creates a new global/common unit template in the shared catalog.
+/// Dev design tool: creates a new global/common unit template in the shared catalogue.
 /// </summary>
 /// <remarks>
 /// <para>Unlike <see cref="CreateUnitTemplateHandler"/> (player-owned custom templates), a global template has
 /// no game/player, its <c>Code</c> is the unique natural key, and no unlock check is applied — the dev
-/// tool authors the catalog itself rather than a specific player's already-unlocked parts.</para>
+/// tool authors the catalogue itself rather than a specific player's already-unlocked parts.</para>
 /// <para>The template and its <c>CompiledUnitTemplate</c> snapshot (via <see cref="CompileUnitTemplateHandler"/>) are persisted
 /// atomically. Global templates aren't game-scoped, so the snapshot is stamped with turn <c>0</c>.</para>
 /// </remarks>

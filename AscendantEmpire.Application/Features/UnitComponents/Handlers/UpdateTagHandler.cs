@@ -15,7 +15,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 
 /// <summary>
-/// Updates an existing tag in the global catalog from the dev Unit Designer's tag manager.
+/// Updates an existing tag in the global catalogue from the dev Unit Designer's tag manager.
 /// </summary>
 /// <remarks>
 /// The tag is located by its <c>Id</c>; a missing id is a not-found. The <c>Code</c> may be changed,

@@ -4,7 +4,7 @@ using AscendantEmpire.Domain.Enums.UnitDesigns;
 namespace AscendantEmpire.BackendContracts.UnitDesigns.UpsertTag;
 
 /// <summary>
-/// The request body for creating (POST) or updating (PUT) a single tag in the global catalog.
+/// The request body for creating (POST) or updating (PUT) a single tag in the global catalogue.
 /// </summary>
 public record UpsertTagDto
 {

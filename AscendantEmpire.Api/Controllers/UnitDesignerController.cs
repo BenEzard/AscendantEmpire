@@ -130,7 +130,7 @@ public class UnitDesignerController : ControllerBase
     /// <response code="201">The template was created; returns the created template</response>
     /// <response code="400">Validation error, or the assembled design fails slot-acceptance rules</response>
     /// <response code="403">No game entered, or a referenced component has not been unlocked by the player</response>
-    /// <response code="404">The base or a fitted component code does not exist in the catalog</response>
+    /// <response code="404">The base or a fitted component code does not exist in the catalogue</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [Authorize]
     [HttpPost("templates")]

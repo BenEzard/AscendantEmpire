@@ -1,4 +1,4 @@
-// API service for the dev Entity Setup Tool's tag type catalog. Thin wrappers over the shared axios
+// API service for the dev Entity Setup Tool's tag type catalogue. Thin wrappers over the shared axios
 // `http` client, one per backend tag-type endpoint (GET/PUT /unit-design-tags/types).
 
 import { http } from "@/api/http";

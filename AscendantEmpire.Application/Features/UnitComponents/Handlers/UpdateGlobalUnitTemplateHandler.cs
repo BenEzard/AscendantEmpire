@@ -14,7 +14,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 
 /// <summary>
-/// Dev design tool: updates an existing global/common unit template in the shared catalog.
+/// Dev design tool: updates an existing global/common unit template in the shared catalogue.
 /// </summary>
 /// <remarks>
 /// <para>The template is located by its <c>Id</c>; a missing id, or an id belonging to a player-owned custom

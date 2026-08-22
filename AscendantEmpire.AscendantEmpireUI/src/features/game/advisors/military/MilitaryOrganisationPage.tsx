@@ -105,7 +105,7 @@ const MilitaryOrganisationPage = forwardRef<MilitaryPageHandle>(function Militar
     setSelectedTag(tag);
     setSavedNote(false);
 
-    // Unled tags have no per-player structure at all — their sizing is authored on the tag (catalog data)
+    // Unled tags have no per-player structure at all — their sizing is authored on the tag (catalogue data)
     // and shown read-only below, so there is nothing to load.
     if (tag.leadershipModel === "Unled") {
       setRows(makeEmptyRows());

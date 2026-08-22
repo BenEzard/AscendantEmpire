@@ -1,9 +1,9 @@
 // Loads the full, hydrated unit-design catalogue for the designer: every body + component, each fetched
-// in full (the catalog list rows are lossy — no slots / stats). Bodies are needed as bases and carry the
+// in full (the catalogue list rows are lossy — no slots / stats). Bodies are needed as bases and carry the
 // slot layout, so we hydrate everything up front.
 //
 // N+1 requests (one list + one per component) is acceptable for the current dev-scale catalogue; if the
-// catalogue grows, add a bulk "full catalog" endpoint and swap the per-code fetch out here.
+// catalogue grows, add a bulk "full catalogue" endpoint and swap the per-code fetch out here.
 
 import { useEffect, useState } from "react";
 
@@ -13,7 +13,7 @@ import type { UnitComponent } from "../types/UnitComponent";
 
 export interface UnitDesignCatalogueState {
   /** Fully-hydrated components (bodies + non-body components). Empty until the load resolves. */
-  catalog: UnitComponent[];
+  catalogue: UnitComponent[];
   loading: boolean;
   /** A user-facing message if the load failed, else null. */
   error: string | null;
@@ -24,7 +24,7 @@ export interface UnitDesignCatalogueState {
  * the fetch entirely — e.g. when the host injects its own catalogue for tests.
  */
 export function useUnitDesignCatalogue(enabled: boolean = true): UnitDesignCatalogueState {
-  const [catalog, setCatalog] = useState<UnitComponent[]>([]);
+  const [catalogue, setCatalogue] = useState<UnitComponent[]>([]);
   const [loading, setLoading] = useState<boolean>(enabled);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,7 +45,7 @@ export function useUnitDesignCatalogue(enabled: boolean = true): UnitDesignCatal
         // Hydrate each row to a full component; a single failure fails the whole load (reported below).
         const hydrated = await Promise.all(rows.map((row) => getComponent(row.code)));
         if (!cancelled) {
-          setCatalog(hydrated);
+          setCatalogue(hydrated);
         }
       } catch (err) {
         if (!cancelled) {
@@ -63,5 +63,5 @@ export function useUnitDesignCatalogue(enabled: boolean = true): UnitDesignCatal
     };
   }, [enabled]);
 
-  return { catalog, loading, error };
+  return { catalogue, loading, error };
 }

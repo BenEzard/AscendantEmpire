@@ -131,10 +131,10 @@ public class AscendantEmpireContext : DbContext
     public DbSet<CompiledDesignStats> UnitDesignStats { get; set; }
     public DbSet<PlayerUnitDesignState> PlayerUnitDesignStates { get; set; }
 
-    // --- Component-based unit design system (global catalog, unlocks, templates) ---
+    // --- Component-based unit design system (global catalogue, unlocks, templates) ---
 
     /// <summary>
-    /// Global reference catalog of buildable unit components (body, weapon, engine, etc.).
+    /// Global reference catalogue of buildable unit components (body, weapon, engine, etc.).
     /// </summary>
     public DbSet<UnitComponent> UnitComponents { get; set; }
 
@@ -169,7 +169,7 @@ public class AscendantEmpireContext : DbContext
     public DbSet<UnitComponentSlotRule> UnitComponentSlotRules { get; set; }
 
     /// <summary>
-    /// Global, reusable bonus/buff tag catalog.
+    /// Global, reusable bonus/buff tag catalogue.
     /// </summary>
     public DbSet<Tag> Tags { get; set; }
 
@@ -1177,7 +1177,7 @@ public class AscendantEmpireContext : DbContext
                 .HasConstraintName("FK_PlayerUnitDesignStates_Player_PlayerId");
         });
 
-        ConfigureUnitComponentCatalog(modelBuilder, schema);
+        ConfigureUnitComponentCatalogue(modelBuilder, schema);
         ConfigureUnitTemplates(modelBuilder, schema);
         ConfigureComponentSupersession(modelBuilder, schema);
         ConfigureTemplateSupersession(modelBuilder, schema);
@@ -1246,9 +1246,9 @@ public class AscendantEmpireContext : DbContext
     }
 
     /// <summary>
-    /// Configures the global component catalog: components, body extension, slots, slot rules and buff tags.
+    /// Configures the global component catalogue: components, body extension, slots, slot rules and buff tags.
     /// </summary>
-    private static void ConfigureUnitComponentCatalog(ModelBuilder modelBuilder, string schema)
+    private static void ConfigureUnitComponentCatalogue(ModelBuilder modelBuilder, string schema)
     {
         // --- UnitComponent ---------------------------------------------------------
         modelBuilder.Entity<UnitComponent>(entity =>

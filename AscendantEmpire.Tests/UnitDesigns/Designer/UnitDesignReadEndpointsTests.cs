@@ -30,7 +30,7 @@ internal class UnitDesignReadEndpointsTests : SqlServerTestBase
     private int _unlockedWeaponId;
 
     /// <summary>
-    /// Seeds a game + player, a catalog (one unlocked body with a Weapon-only slot, an unlocked weapon,
+    /// Seeds a game + player, a catalogue (one unlocked body with a Weapon-only slot, an unlocked weapon,
     /// a locked weapon, an unlocked armour, and a locked second body) and the player's unlock rows.
     /// </summary>
     private async Task SeedAsync()

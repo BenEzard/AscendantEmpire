@@ -36,9 +36,9 @@ public class GameSqlServerTestBase : SqlServerTestBase
         _galleryIndexId = await SeedMinimumGalleryDataAsync(mapWidth, mapHeight);
 
         // Game setup now spawns each player's starting units, so every full SetupGameAsync run needs the
-        // starter catalog (org tags, components, templates + compiled snapshots) and one start position per
+        // starter catalogue (org tags, components, templates + compiled snapshots) and one start position per
         // player on the gallery map.
-        await SeedStarterCatalogAsync();
+        await SeedStarterCatalogueAsync();
         await SeedStartPositionsAsync(_galleryIndexId, numberOfPlayers, mapWidth, mapHeight);
 
         _completedMapProperties = new CampaignMapGalleryProperties
@@ -206,7 +206,7 @@ public class GameSqlServerTestBase : SqlServerTestBase
     }
 
     /// <summary>
-    /// Seeds the starter catalog game setup depends on: the unled Settler/Scout organisation tags, a human
+    /// Seeds the starter catalogue game setup depends on: the unled Settler/Scout organisation tags, a human
     /// body plus the camping-goods / scout-training components carrying those tags, and the SETTLER / SCOUT
     /// global templates with hand-built compiled snapshots (skipping the compile pipeline keeps the base
     /// light — snapshot correctness is covered by the compilation tests).
@@ -216,7 +216,7 @@ public class GameSqlServerTestBase : SqlServerTestBase
     /// catalogue is hand-authored, and game setup fails without it. These rows stand in for that catalogue so
     /// <c>SetupGameAsync</c> has something to read.
     /// </remarks>
-    public async Task SeedStarterCatalogAsync()
+    public async Task SeedStarterCatalogueAsync()
     {
         await using AscendantEmpireContext ctx = await DbFactory.CreateDbContextAsync();
 

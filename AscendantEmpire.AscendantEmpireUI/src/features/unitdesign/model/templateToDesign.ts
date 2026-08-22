@@ -14,8 +14,8 @@ import type { UnitDesign } from "./unitDesign";
  * body isn't found in the catalogue (e.g. it was removed after the template was saved), so the caller
  * can surface an error instead of loading a broken design.
  */
-export function resolveTemplateDesign(template: TemplateSummary, catalog: UnitComponent[]): UnitDesign | null {
-  const baseComponent = catalog.find((component) => component.code === template.bodyComponentCode);
+export function resolveTemplateDesign(template: TemplateSummary, catalogue: UnitComponent[]): UnitDesign | null {
+  const baseComponent = catalogue.find((component) => component.code === template.bodyComponentCode);
   if (baseComponent == null) {
     return null;
   }

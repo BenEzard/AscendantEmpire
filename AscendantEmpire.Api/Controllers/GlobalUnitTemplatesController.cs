@@ -31,15 +31,15 @@ namespace AscendantEmpire.Api.Controllers;
 public class GlobalUnitTemplatesController : ControllerBase
 {
     /// <summary>
-    /// Dev design tool: create a new global/common unit template in the shared catalog.
+    /// Dev design tool: create a new global/common unit template in the shared catalogue.
     /// </summary>
     /// <remarks>
-    /// Gated behind <see cref="PermissionType.EntitySetupTool"/>, since it writes the shared template catalog.
+    /// Gated behind <see cref="PermissionType.EntitySetupTool"/>, since it writes the shared template catalogue.
     /// Unlike the player-facing create endpoint, this template has no game/player, its Code is required and unique, and no unlock check is applied.
     /// </remarks>
     /// <response code="201">The template was created; returns the created template</response>
     /// <response code="400">Validation error, or the assembled design fails slot-acceptance rules</response>
-    /// <response code="404">The base or a fitted component code does not exist in the catalog</response>
+    /// <response code="404">The base or a fitted component code does not exist in the catalogue</response>
     /// <response code="409">A template with the same code already exists</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
@@ -60,10 +60,10 @@ public class GlobalUnitTemplatesController : ControllerBase
     }
 
     /// <summary>
-    /// Dev design tool: update an existing global/common unit template in the shared catalog.
+    /// Dev design tool: update an existing global/common unit template in the shared catalogue.
     /// </summary>
     /// <remarks>
-    /// Gated behind <see cref="PermissionType.EntitySetupTool"/>, since it writes the shared template catalog.
+    /// Gated behind <see cref="PermissionType.EntitySetupTool"/>, since it writes the shared template catalogue.
     /// </remarks>
     /// <response code="200">The template was updated; returns the updated template</response>
     /// <response code="400">Validation error, or the assembled design fails slot-acceptance rules</response>

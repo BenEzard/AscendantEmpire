@@ -16,7 +16,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 
 /// <summary>
-/// Bulk-upserts unit components (with their full type-specific graph) into the global catalog.
+/// Bulk-upserts unit components (with their full type-specific graph) into the global catalogue.
 /// </summary>
 /// <remarks>
 /// <para>This is the catalogue-transfer path — importing a whole authored catalogue, potentially from another
@@ -28,7 +28,7 @@ namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 /// <para>An existing component's <c>ComponentType</c> is immutable: re-submitting a code with a
 /// different type is rejected rather than silently swapping its extension.</para>
 /// </remarks>
-public record BulkUpsertUnitComponentsRequest(BulkUpsertUnitComponentsDto Catalog) : IRequest<ServiceResult<BulkUpsertUnitComponentsResult>>;
+public record BulkUpsertUnitComponentsRequest(BulkUpsertUnitComponentsDto Catalogue) : IRequest<ServiceResult<BulkUpsertUnitComponentsResult>>;
 
 internal class BulkUpsertUnitComponentsHandler(
     ILogger<BulkUpsertUnitComponentsHandler> logger,
@@ -41,10 +41,10 @@ internal class BulkUpsertUnitComponentsHandler(
     {
         try
         {
-            BulkUpsertUnitComponentsDto catalog = request.Catalog;
+            BulkUpsertUnitComponentsDto catalogue = request.Catalogue;
 
             // Request-level validation. Collect every problem so the caller gets a complete picture rather than one error at a time.
-            List<string> errors = ValidateRequest(catalog);
+            List<string> errors = ValidateRequest(catalogue);
 
             if (errors.Count > 0)
             {
@@ -55,22 +55,22 @@ internal class BulkUpsertUnitComponentsHandler(
             // Bulk-load existing state to avoid N+1 queries. For upsert we need the full graph of any
             // component that already exists (so its children can be reconciled) and any tags that already
             // exist (so they can be re-used rather than duplicated).
-            string[] componentCodes = [.. catalog.Components.Select(c => c.Code)];
+            string[] componentCodes = [.. catalogue.Components.Select(c => c.Code)];
 
             Dictionary<string, UnitComponent> existingByCode = await UnitComponentReconciler
                 .WithFullGraph(context.UnitComponents.Where(c => componentCodes.Contains(c.Code)))
                 .ToDictionaryAsync(c => c.Code, cancelToken);
 
             // All tag codes referenced anywhere in the payload, plus those defined in the Tags list.
-            string[] referencedTagCodes = [.. catalog.Components
+            string[] referencedTagCodes = [.. catalogue.Components
                 .SelectMany(c => c.TagCodes)
-                .Concat(catalog.Tags.Select(t => t.Code))
+                .Concat(catalogue.Tags.Select(t => t.Code))
                 .Distinct()];
 
             Dictionary<string, Tag> tagsByCode = await UnitComponentReconciler.LoadTagsByCodeAsync(context, referencedTagCodes, cancelToken);
 
             // Validate tag references against payload + DB now that we know what exists.
-            List<string> tagErrors = ValidateTagReferences(catalog, tagsByCode);
+            List<string> tagErrors = ValidateTagReferences(catalogue, tagsByCode);
 
             if (tagErrors.Count > 0)
             {
@@ -80,7 +80,7 @@ internal class BulkUpsertUnitComponentsHandler(
 
             // Create any tags defined in the payload that don't already exist; for those that do, let
             // the payload re-classify them (TagType and the organisation fields are authoritative on re-import).
-            foreach (TagDto tagDto in catalog.Tags)
+            foreach (TagDto tagDto in catalogue.Tags)
             {
                 if (tagsByCode.TryGetValue(tagDto.Code, out Tag? existingTag))
                 {
@@ -112,7 +112,7 @@ internal class BulkUpsertUnitComponentsHandler(
 
             // A component's type is immutable, and a slot id must belong to the component carrying it. Both
             // are checked before the graph is touched so a rejected request writes nothing.
-            List<string> graphErrors = ValidateAgainstExisting(catalog, existingByCode);
+            List<string> graphErrors = ValidateAgainstExisting(catalogue, existingByCode);
 
             if (graphErrors.Count > 0)
             {
@@ -137,7 +137,7 @@ internal class BulkUpsertUnitComponentsHandler(
             // afterwards, so their dependent rows cost a single query rather than one per body.
             List<UnitComponentSlot> removedSlots = [];
 
-            foreach (UnitComponentDto componentDto in catalog.Components)
+            foreach (UnitComponentDto componentDto in catalogue.Components)
             {
                 if (existingByCode.TryGetValue(componentDto.Code, out UnitComponent? existing))
                 {
@@ -164,11 +164,11 @@ internal class BulkUpsertUnitComponentsHandler(
 
             // Reconcile the component supersession (upgrade) links from the payload. Validation runs
             // before any links are staged, so a rejected request still writes nothing.
-            if (catalog.ComponentSupersessions.Count > 0)
+            if (catalogue.ComponentSupersessions.Count > 0)
             {
-                await LoadComponentsReferencedBySupersessionsAsync(catalog, componentsByCode, cancelToken);
+                await LoadComponentsReferencedBySupersessionsAsync(catalogue, componentsByCode, cancelToken);
 
-                List<string> supersessionErrors = ValidateComponentSupersessions(catalog, componentsByCode);
+                List<string> supersessionErrors = ValidateComponentSupersessions(catalogue, componentsByCode);
 
                 if (supersessionErrors.Count > 0)
                 {
@@ -176,7 +176,7 @@ internal class BulkUpsertUnitComponentsHandler(
                     return ServiceResult<BulkUpsertUnitComponentsResult>.Fail(supersessionErrors);
                 }
 
-                await ReconcileComponentSupersessionsAsync(catalog, componentsByCode, cancelToken);
+                await ReconcileComponentSupersessionsAsync(catalogue, componentsByCode, cancelToken);
             }
 
             // Single SaveChanges => the whole graph (components, extensions, slots, rules, modifiers, tags, joins and supersession links) is written in one transaction.
@@ -224,18 +224,18 @@ internal class BulkUpsertUnitComponentsHandler(
     /// Validates the shape of the request: non-empty components, unique codes, type/extension
     /// consistency and field constraints. Returns an empty list when the request is valid.
     /// </summary>
-    private static List<string> ValidateRequest(BulkUpsertUnitComponentsDto catalog)
+    private static List<string> ValidateRequest(BulkUpsertUnitComponentsDto catalogue)
     {
         List<string> errors = [];
 
-        if (catalog.Components.Count == 0)
+        if (catalogue.Components.Count == 0)
         {
             errors.Add("At least one component must be provided.");
             return errors;
         }
 
         // Duplicate component codes within the payload.
-        string[] duplicateComponentCodes = [.. catalog.Components
+        string[] duplicateComponentCodes = [.. catalogue.Components
             .GroupBy(c => c.Code)
             .Where(g => g.Count() > 1)
             .Select(g => g.Key)];
@@ -246,7 +246,7 @@ internal class BulkUpsertUnitComponentsHandler(
         }
 
         // Duplicate tag codes within the payload's Tags list.
-        string[] duplicateTagCodes = [.. catalog.Tags
+        string[] duplicateTagCodes = [.. catalogue.Tags
             .GroupBy(t => t.Code)
             .Where(g => g.Count() > 1)
             .Select(g => g.Key)];
@@ -256,12 +256,12 @@ internal class BulkUpsertUnitComponentsHandler(
             errors.Add($"Duplicate tag code(s) in the payload: {string.Join(", ", duplicateTagCodes)}");
         }
 
-        foreach (UnitComponentDto component in catalog.Components)
+        foreach (UnitComponentDto component in catalogue.Components)
         {
             UnitComponentReconciler.ValidateComponent(component, errors);
         }
 
-        foreach (TagDto tag in catalog.Tags)
+        foreach (TagDto tag in catalogue.Tags)
         {
             if (string.IsNullOrWhiteSpace(tag.Code))
             {
@@ -305,18 +305,18 @@ internal class BulkUpsertUnitComponentsHandler(
     /// Validates that every tag code referenced by a component resolves to a tag defined in the
     /// payload or already present in the database.
     /// </summary>
-    private static List<string> ValidateTagReferences(BulkUpsertUnitComponentsDto catalog, IReadOnlyDictionary<string, Tag> existingTagsByCode)
+    private static List<string> ValidateTagReferences(BulkUpsertUnitComponentsDto catalogue, IReadOnlyDictionary<string, Tag> existingTagsByCode)
     {
         List<string> errors = [];
 
         HashSet<string> knownTagCodes = [.. existingTagsByCode.Keys];
 
-        foreach (TagDto tag in catalog.Tags)
+        foreach (TagDto tag in catalogue.Tags)
         {
             knownTagCodes.Add(tag.Code);
         }
 
-        foreach (UnitComponentDto component in catalog.Components)
+        foreach (UnitComponentDto component in catalogue.Components)
         {
             UnitComponentReconciler.ValidateTagReferences(component, knownTagCodes, errors);
         }
@@ -328,11 +328,11 @@ internal class BulkUpsertUnitComponentsHandler(
     /// Validates each payload component against the row it will update: its type must be unchanged, and any
     /// slot id it carries must belong to it. Components that don't exist yet are checked for stray slot ids.
     /// </summary>
-    private static List<string> ValidateAgainstExisting(BulkUpsertUnitComponentsDto catalog, IReadOnlyDictionary<string, UnitComponent> existingByCode)
+    private static List<string> ValidateAgainstExisting(BulkUpsertUnitComponentsDto catalogue, IReadOnlyDictionary<string, UnitComponent> existingByCode)
     {
         List<string> errors = [];
 
-        foreach (UnitComponentDto component in catalog.Components)
+        foreach (UnitComponentDto component in catalogue.Components)
         {
             existingByCode.TryGetValue(component.Code, out UnitComponent? existing);
 
@@ -352,11 +352,11 @@ internal class BulkUpsertUnitComponentsHandler(
     /// may point at components that already exist in the database but aren't part of this payload.
     /// </summary>
     private async Task LoadComponentsReferencedBySupersessionsAsync(
-        BulkUpsertUnitComponentsDto catalog,
+        BulkUpsertUnitComponentsDto catalogue,
         Dictionary<string, UnitComponent> componentsByCode,
         CancellationToken cancelToken)
     {
-        string[] missingCodes = [.. catalog.ComponentSupersessions
+        string[] missingCodes = [.. catalogue.ComponentSupersessions
             .SelectMany(s => new[] { s.PredecessorCode, s.SuccessorCode })
             .Where(code => !string.IsNullOrWhiteSpace(code) && !componentsByCode.ContainsKey(code))
             .Distinct()];
@@ -381,13 +381,13 @@ internal class BulkUpsertUnitComponentsHandler(
     /// pairs and at most one recommended successor per predecessor. Returns an empty list when valid.
     /// </summary>
     private static List<string> ValidateComponentSupersessions(
-        BulkUpsertUnitComponentsDto catalog,
+        BulkUpsertUnitComponentsDto catalogue,
         IReadOnlyDictionary<string, UnitComponent> componentsByCode)
     {
         List<string> errors = [];
 
         // Duplicate (predecessor, successor) pairs in the payload.
-        string[] duplicatePairs = [.. catalog.ComponentSupersessions
+        string[] duplicatePairs = [.. catalogue.ComponentSupersessions
             .GroupBy(s => (s.PredecessorCode, s.SuccessorCode))
             .Where(g => g.Count() > 1)
             .Select(g => $"{g.Key.PredecessorCode} -> {g.Key.SuccessorCode}")];
@@ -397,7 +397,7 @@ internal class BulkUpsertUnitComponentsHandler(
             errors.Add($"Duplicate component supersession pair(s): {string.Join(", ", duplicatePairs)}");
         }
 
-        foreach (ComponentSupersessionDto link in catalog.ComponentSupersessions)
+        foreach (ComponentSupersessionDto link in catalogue.ComponentSupersessions)
         {
             if (string.IsNullOrWhiteSpace(link.PredecessorCode) || string.IsNullOrWhiteSpace(link.SuccessorCode))
             {
@@ -422,7 +422,7 @@ internal class BulkUpsertUnitComponentsHandler(
         }
 
         // A predecessor may flag at most one of its successors as the recommended upgrade.
-        string[] predecessorsWithMultipleRecommended = [.. catalog.ComponentSupersessions
+        string[] predecessorsWithMultipleRecommended = [.. catalogue.ComponentSupersessions
             .Where(s => s.IsRecommended)
             .GroupBy(s => s.PredecessorCode)
             .Where(g => g.Count() > 1)
@@ -441,11 +441,11 @@ internal class BulkUpsertUnitComponentsHandler(
     /// payload. Predecessors absent from the payload are left untouched.
     /// </summary>
     private async Task ReconcileComponentSupersessionsAsync(
-        BulkUpsertUnitComponentsDto catalog,
+        BulkUpsertUnitComponentsDto catalogue,
         IReadOnlyDictionary<string, UnitComponent> componentsByCode,
         CancellationToken cancelToken)
     {
-        foreach (IGrouping<string, ComponentSupersessionDto> desiredForPredecessor in catalog.ComponentSupersessions.GroupBy(s => s.PredecessorCode))
+        foreach (IGrouping<string, ComponentSupersessionDto> desiredForPredecessor in catalogue.ComponentSupersessions.GroupBy(s => s.PredecessorCode))
         {
             await UnitComponentReconciler.ReconcileSupersessionsForPredecessorAsync(
                 context,

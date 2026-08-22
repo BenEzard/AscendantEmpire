@@ -1,4 +1,4 @@
-// API service for the dev Entity Setup Tool's component catalog. Thin wrapper over the shared axios
+// API service for the dev Entity Setup Tool's component catalogue. Thin wrapper over the shared axios
 // `http` client for the BulkUpsertUnitComponents endpoint (POST /unit-design-catalogue/bulk).
 
 import { http } from "@/api/http";
@@ -99,7 +99,7 @@ function mapSlot(slot: UnitComponentSlot) {
  * Returns a summary of how many components were added vs updated.
  */
 export async function bulkUpsertComponents(component: UnitComponent): Promise<BulkUpsertComponentsResult> {
-  // Tags are referenced by code only (the backend resolves them against the existing catalog),
+  // Tags are referenced by code only (the backend resolves them against the existing catalogue),
   // so the tags array is left empty — no inline tag definitions are sent.
   const payload = {
     tags: [],
@@ -186,7 +186,7 @@ export async function updateComponent(component: UnitComponent): Promise<UnitCom
 
 // --- GET one full component (edit flow) ---------------------------------------------------------
 //
-// The catalog's component DTO is lossy (no body stats / supersession, bodies excluded), so opening a
+// The catalogue's component DTO is lossy (no body stats / supersession, bodies excluded), so opening a
 // component for edit fetches it in full from GET /unit-design-catalogue/{code}. The wire shapes below
 // mirror EditableComponentResult; mapEditableComponentToModel inverts the bulkUpsertComponents payload
 // mapping back into the editable UnitComponent the dialog expects.

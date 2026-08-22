@@ -1,10 +1,10 @@
 namespace AscendantEmpire.Domain.Entities.UnitDesigns;
 
 /// <summary>
-/// A directed "successor supersedes predecessor" link in the global component catalog.
+/// A directed "successor supersedes predecessor" link in the global component catalogue.
 /// </summary>
 /// <remarks>
-/// <para>Authored catalog data (not per-player): it records that <see cref="Successor"/> is an upgrade
+/// <para>Authored catalogue data (not per-player): it records that <see cref="Successor"/> is an upgrade
 /// of <see cref="Predecessor"/>. The relationship is many-to-many so upgrade paths can branch (one
 /// predecessor superseded by several options) and merge (several predecessors collapsing into one
 /// successor). Composite primary key on (PredecessorComponentId, SuccessorComponentId).</para>

@@ -1,7 +1,7 @@
 namespace AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 
 /// <summary>
-/// Request payload for bulk-upserting unit components into the global catalog.
+/// Request payload for bulk-upserting unit components into the global catalogue.
 /// </summary>
 /// <remarks>
 /// <para>The full component graph is written in a single transaction.</para>

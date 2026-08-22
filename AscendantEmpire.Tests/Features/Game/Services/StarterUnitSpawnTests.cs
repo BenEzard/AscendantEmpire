@@ -12,11 +12,11 @@ namespace AscendantEmpire.Tests.Features.Game.Services;
 /// <summary>
 /// Integration tests for the starter-unit step of game setup: every player gets the starter templates
 /// unlocked and one settler (at its tag's default size) plus one scout spawned at their start position,
-/// and a misconfigured catalog or map fails setup loudly.
+/// and a misconfigured catalogue or map fails setup loudly.
 /// </summary>
 /// <remarks>
 /// Runs at the SqlServer tier because <c>SetupGameAsync</c> generates the campaign map with raw SQL.
-/// The starter catalog and start positions are seeded by <see cref="GameSqlServerTestBase.SeedGameAsync"/>.
+/// The starter catalogue and start positions are seeded by <see cref="GameSqlServerTestBase.SeedGameAsync"/>.
 /// </remarks>
 internal class StarterUnitSpawnTests : GameSqlServerTestBase
 {
@@ -45,7 +45,7 @@ internal class StarterUnitSpawnTests : GameSqlServerTestBase
         List<Player> players = await verify.Players.Where(p => p.GameId == gameId).ToListAsync();
         List<TroopInstance> troops = await verify.TroopInstances.Where(t => t.GameId == gameId).ToListAsync();
 
-        // The seeded catalog's template codes, resolved to ids for the assertions below.
+        // The seeded catalogue's template codes, resolved to ids for the assertions below.
         int settlerTemplateId = (await verify.UnitTemplates.SingleAsync(t => t.Code == "SETTLER")).Id;
         int scoutTemplateId = (await verify.UnitTemplates.SingleAsync(t => t.Code == "SCOUT")).Id;
 
@@ -130,7 +130,7 @@ internal class StarterUnitSpawnTests : GameSqlServerTestBase
     {
         await SeedGameAsync(mapWidth: 2, mapHeight: 2, numberOfPlayers: 2);
 
-        // Remove the compiled snapshots after seeding — the catalog is now half-configured.
+        // Remove the compiled snapshots after seeding — the catalogue is now half-configured.
         await using (AscendantEmpireContext sabotage = await DbFactory.CreateDbContextAsync())
         {
             List<CompiledUnitTemplate> snapshots = await sabotage.CompiledUnitTemplates.ToListAsync();

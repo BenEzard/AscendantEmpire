@@ -20,7 +20,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Tests.UnitDesigns.Catalogue;
 
 /// <summary>
-/// Covers the dev god-view read: it returns the whole catalog (bodies, components, tags, templates) with no
+/// Covers the dev god-view read: it returns the whole catalogue (bodies, components, tags, templates) with no
 /// game/player or unlock filtering, and every leaf of that projection carries the value it was seeded with.
 /// </summary>
 /// <remarks>
@@ -401,7 +401,7 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
     /// Runs the handler and unwraps a successful result, failing with the handler's own errors if it did not
     /// succeed rather than with a bare null-reference further down the test.
     /// </summary>
-    private async Task<FullCatalogueResult> FetchCatalogAsync()
+    private async Task<FullCatalogueResult> FetchCatalogueAsync()
     {
         var handler = new GetFullCatalogueHandler(new NullLogger<GetFullCatalogueHandler>(), DbFactory);
         ServiceResult<FullCatalogueResult> result = await handler.Handle(new GetFullCatalogueRequest(), CancellationToken.None);
@@ -416,14 +416,14 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
     {
         // Nothing is seeded. The dev tool loads this endpoint on a fresh database before anything has been
         // authored, so "no rows" has to be an ordinary success rather than a 500.
-        FullCatalogueResult catalog = await FetchCatalogAsync();
+        FullCatalogueResult catalogue = await FetchCatalogueAsync();
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(catalog.Bodies, Is.Empty);
-            Assert.That(catalog.Components, Is.Empty);
-            Assert.That(catalog.Tags, Is.Empty);
-            Assert.That(catalog.Templates, Is.Empty);
+            Assert.That(catalogue.Bodies, Is.Empty);
+            Assert.That(catalogue.Components, Is.Empty);
+            Assert.That(catalogue.Tags, Is.Empty);
+            Assert.That(catalogue.Templates, Is.Empty);
         }
     }
 
@@ -432,8 +432,8 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
     {
         SeededCatalogue seeded = await SeedRichCatalogueAsync();
 
-        FullCatalogueResult catalog = await FetchCatalogAsync();
-        DesignBody projectedBody = catalog.Bodies.Single(candidate => candidate.Code == SeededBody.CODE);
+        FullCatalogueResult catalogue = await FetchCatalogueAsync();
+        DesignBody projectedBody = catalogue.Bodies.Single(candidate => candidate.Code == SeededBody.CODE);
 
         using (Assert.EnterMultipleScope())
         {
@@ -457,8 +457,8 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
     {
         SeededCatalogue seeded = await SeedRichCatalogueAsync();
 
-        FullCatalogueResult catalog = await FetchCatalogAsync();
-        DesignBody projectedBody = catalog.Bodies.Single(candidate => candidate.Code == SeededBody.CODE);
+        FullCatalogueResult catalogue = await FetchCatalogueAsync();
+        DesignBody projectedBody = catalogue.Bodies.Single(candidate => candidate.Code == SeededBody.CODE);
 
         // DesignSlot carries no Code, so DisplayName is the only distinguishing value available here.
         DesignSlot weaponSlot = projectedBody.Slots.Single(slot => slot.DisplayName == SeededWeaponSlot.DISPLAY_NAME);
@@ -497,8 +497,8 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
     {
         SeededCatalogue seeded = await SeedRichCatalogueAsync();
 
-        FullCatalogueResult catalog = await FetchCatalogAsync();
-        DesignComponent projectedWeapon = catalog.Components.Single(candidate => candidate.Code == SeededWeapon.CODE);
+        FullCatalogueResult catalogue = await FetchCatalogueAsync();
+        DesignComponent projectedWeapon = catalogue.Components.Single(candidate => candidate.Code == SeededWeapon.CODE);
 
         DesignWeapon weapon = projectedWeapon.Weapon!;
         DesignWeaponDomainModifier landModifier = weapon.DomainModifiers.Single(modifier => modifier.Domain == DomainType.Land);
@@ -538,8 +538,8 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
     {
         await SeedRichCatalogueAsync();
 
-        FullCatalogueResult catalog = await FetchCatalogAsync();
-        DesignComponent projectedArmour = catalog.Components.Single(candidate => candidate.Code == SeededArmour.CODE);
+        FullCatalogueResult catalogue = await FetchCatalogueAsync();
+        DesignComponent projectedArmour = catalogue.Components.Single(candidate => candidate.Code == SeededArmour.CODE);
 
         DesignDamageProfile resistance = projectedArmour.Armour!.Resistance;
 
@@ -565,10 +565,10 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
     {
         await SeedRichCatalogueAsync();
 
-        FullCatalogueResult catalog = await FetchCatalogAsync();
+        FullCatalogueResult catalogue = await FetchCatalogueAsync();
 
-        IReadOnlyCollection<string> bodyCodes = [.. catalog.Bodies.Select(body => body.Code)];
-        IReadOnlyCollection<string> componentCodes = [.. catalog.Components.Select(component => component.Code)];
+        IReadOnlyCollection<string> bodyCodes = [.. catalogue.Bodies.Select(body => body.Code)];
+        IReadOnlyCollection<string> componentCodes = [.. catalogue.Components.Select(component => component.Code)];
 
         using (Assert.EnterMultipleScope())
         {
@@ -587,16 +587,16 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
     {
         await SeedRichCatalogueAsync();
 
-        FullCatalogueResult catalog = await FetchCatalogAsync();
+        FullCatalogueResult catalogue = await FetchCatalogueAsync();
 
-        CatalogueTag combatTag = catalog.Tags.Single(tag => tag.Code == SeededCombatTag.CODE);
-        CatalogueTag abilityTag = catalog.Tags.Single(tag => tag.Code == SeededAbilityTag.CODE);
+        CatalogueTag combatTag = catalogue.Tags.Single(tag => tag.Code == SeededCombatTag.CODE);
+        CatalogueTag abilityTag = catalogue.Tags.Single(tag => tag.Code == SeededAbilityTag.CODE);
 
         using (Assert.EnterMultipleScope())
         {
             // Both seeded tags and nothing else: the ability tag is attached to no component, so this is also
             // what proves the collection is the whole tag table rather than "tags in use".
-            Assert.That(catalog.Tags.Select(tag => tag.Code), Is.EquivalentTo([SeededCombatTag.CODE, SeededAbilityTag.CODE]));
+            Assert.That(catalogue.Tags.Select(tag => tag.Code), Is.EquivalentTo([SeededCombatTag.CODE, SeededAbilityTag.CODE]));
 
             Assert.That(combatTag.Id, Is.GreaterThan(0));
             Assert.That(combatTag.DisplayName, Is.EqualTo(SeededCombatTag.DISPLAY_NAME));
@@ -614,16 +614,16 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
     {
         SeededCatalogue seeded = await SeedRichCatalogueAsync();
 
-        FullCatalogueResult catalog = await FetchCatalogAsync();
+        FullCatalogueResult catalogue = await FetchCatalogueAsync();
 
-        DesignTemplate globalTemplate = catalog.Templates.Single(template => template.Id == seeded.GlobalTemplateId);
-        DesignTemplate customTemplate = catalog.Templates.Single(template => template.Id == seeded.CustomTemplateId);
+        DesignTemplate globalTemplate = catalogue.Templates.Single(template => template.Id == seeded.GlobalTemplateId);
+        DesignTemplate customTemplate = catalogue.Templates.Single(template => template.Id == seeded.CustomTemplateId);
 
         using (Assert.EnterMultipleScope())
         {
             // The global and the custom template, and no third row: the god-view applies no player scoping,
             // but it must not duplicate a template either.
-            Assert.That(catalog.Templates.Select(template => template.Id), Is.EquivalentTo([seeded.GlobalTemplateId, seeded.CustomTemplateId]));
+            Assert.That(catalogue.Templates.Select(template => template.Id), Is.EquivalentTo([seeded.GlobalTemplateId, seeded.CustomTemplateId]));
 
             Assert.That(globalTemplate.Code, Is.EqualTo(SeededGlobalTemplate.CODE));
             Assert.That(globalTemplate.DisplayName, Is.EqualTo(SeededGlobalTemplate.DISPLAY_NAME));
@@ -651,10 +651,10 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
     {
         SeededCatalogue seeded = await SeedRichCatalogueAsync();
 
-        FullCatalogueResult catalog = await FetchCatalogAsync();
+        FullCatalogueResult catalogue = await FetchCatalogueAsync();
 
-        DesignTemplate globalTemplate = catalog.Templates.Single(template => template.Id == seeded.GlobalTemplateId);
-        DesignTemplate customTemplate = catalog.Templates.Single(template => template.Id == seeded.CustomTemplateId);
+        DesignTemplate globalTemplate = catalogue.Templates.Single(template => template.Id == seeded.GlobalTemplateId);
+        DesignTemplate customTemplate = catalogue.Templates.Single(template => template.Id == seeded.CustomTemplateId);
 
         DesignTemplateComponent fitted = globalTemplate.Components.Single();
 
@@ -672,13 +672,13 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
     }
 
     [Test, Description("Returns every body, component, tag and template regardless of unlocks — no player scoping is applied.")]
-    public async Task ReturnsEntireCatalogUnfilteredAsync()
+    public async Task ReturnsEntireCatalogueUnfilteredAsync()
     {
         await SeedRichCatalogueAsync();
 
         // No PlayerUnlockedComponent or PlayerUnlockedTemplate rows exist, so an unlock-scoped read would return nothing.
         // The god-view returns everything anyway — that is the endpoint's whole purpose.
-        FullCatalogueResult catalog = await FetchCatalogAsync();
+        FullCatalogueResult catalogue = await FetchCatalogueAsync();
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
         int unlockedComponentCount = await verifyContext.PlayerUnlockedComponents.CountAsync();
@@ -686,10 +686,10 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(unlockedComponentCount, Is.Zero, "Nothing is unlocked for anybody.");
-            Assert.That(catalog.Bodies, Is.Not.Empty);
-            Assert.That(catalog.Components, Is.Not.Empty);
-            Assert.That(catalog.Tags, Is.Not.Empty);
-            Assert.That(catalog.Templates, Is.Not.Empty);
+            Assert.That(catalogue.Bodies, Is.Not.Empty);
+            Assert.That(catalogue.Components, Is.Not.Empty);
+            Assert.That(catalogue.Tags, Is.Not.Empty);
+            Assert.That(catalogue.Templates, Is.Not.Empty);
         }
     }
 }

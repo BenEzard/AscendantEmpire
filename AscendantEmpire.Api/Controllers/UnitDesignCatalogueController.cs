@@ -26,14 +26,14 @@ namespace AscendantEmpire.Api.Controllers;
 public class UnitDesignCatalogueController : ControllerBase
 {
     /// <summary>
-    /// Dev design tool: get the entire unit-design catalog unfiltered (every body, component, tag and template), ignoring game/player and unlock scoping.
+    /// Dev design tool: get the entire unit-design catalogue unfiltered (every body, component, tag and template), ignoring game/player and unlock scoping.
     /// </summary>
     /// <remarks>
     /// TODO: lock down before any non-dev deployment. 
     /// This endpoint is intentionally left unauthorized for now; it must be gated behind a dev/admin policy (or mapped only in Development) before shipping, 
-    /// since it exposes the whole catalog.
+    /// since it exposes the whole catalogue.
     /// </remarks>
-    /// <response code="200">The full catalog</response>
+    /// <response code="200">The full catalogue</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [HttpGet]
     [ProducesResponseType(typeof(FullCatalogueResult), 200)]
@@ -54,7 +54,7 @@ public class UnitDesignCatalogueController : ControllerBase
     /// <remarks>
     /// TODO: lock down before any non-dev deployment. 
     /// This endpoint is intentionally left unauthorized for now; it must be gated behind a dev/admin policy (or mapped only in Development) before shipping, 
-    /// since it exposes the whole catalog.
+    /// since it exposes the whole catalogue.
     /// </remarks>
     /// <response code="200">The full component</response>
     /// <response code="404">No component exists with the given code</response>
@@ -74,7 +74,7 @@ public class UnitDesignCatalogueController : ControllerBase
     }
 
     /// <summary>
-    /// Dev design tool: create a single unit component in the global catalog.
+    /// Dev design tool: create a single unit component in the global catalogue.
     /// </summary>
     /// <remarks>
     /// The granular counterpart to <c>bulk</c>, which exists for catalogue transfer. A single edit
@@ -102,7 +102,7 @@ public class UnitDesignCatalogueController : ControllerBase
     }
 
     /// <summary>
-    /// Dev design tool: update a single existing unit component in the global catalog.
+    /// Dev design tool: update a single existing unit component in the global catalogue.
     /// </summary>
     /// <remarks>
     /// Child collections are reconciled rather than replaced, so slots that survive the edit keep their ids and
@@ -131,7 +131,7 @@ public class UnitDesignCatalogueController : ControllerBase
     }
 
     /// <summary>
-    /// Bulk-upsert unit components into the global catalog.
+    /// Bulk-upsert unit components into the global catalogue.
     /// </summary>
     /// <remarks>
     /// Writes the full component graph in one transaction. Components whose Code is new are inserted; components whose Code already exists are updated in place.

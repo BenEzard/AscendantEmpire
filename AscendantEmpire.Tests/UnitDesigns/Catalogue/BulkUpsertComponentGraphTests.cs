@@ -37,7 +37,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
 {
     // The body and weapon codes are aliased from the shared payloads rather than referenced through them at
     // every call site, which would add noise without adding meaning. The armour and tag codes stay local:
-    // only BuildFullCatalog below uses them, so there is nothing to share.
+    // only BuildFullCatalogue below uses them, so there is nothing to share.
     private const string BODY_CODE = UnitDesignPayloads.BODY_CODE;
     private const string WEAPON_CODE = UnitDesignPayloads.WEAPON_CODE;
     private const string ARMOUR_CODE = "test_armour";
@@ -49,7 +49,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
         BulkUpsertUnitComponentsHandler handler = await DbFactory.CreateBulkUpsertHandlerAsync();
 
         ServiceResult<BulkUpsertUnitComponentsResult> result =
-            await handler.Handle(new BulkUpsertUnitComponentsRequest(BuildFullCatalog()), CancellationToken.None);
+            await handler.Handle(new BulkUpsertUnitComponentsRequest(BuildFullCatalogue()), CancellationToken.None);
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
 
@@ -113,7 +113,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
     {
         // First run inserts everything.
         BulkUpsertUnitComponentsHandler firstHandler = await DbFactory.CreateBulkUpsertHandlerAsync();
-        await firstHandler.Handle(new BulkUpsertUnitComponentsRequest(BuildFullCatalog()), CancellationToken.None);
+        await firstHandler.Handle(new BulkUpsertUnitComponentsRequest(BuildFullCatalogue()), CancellationToken.None);
 
         // Capture the original surrogate ids so we can prove the rows were updated, not replaced.
         await using (AscendantEmpireContext beforeContext = await DbFactory.CreateDbContextAsync())
@@ -122,8 +122,8 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
             Assert.That(originalWeaponId, Is.GreaterThan(0));
         }
 
-        // Build a mutated catalog: rename the weapon, change its attack, and swap the body's slot.
-        BulkUpsertUnitComponentsDto changed = BuildFullCatalog();
+        // Build a mutated catalogue: rename the weapon, change its attack, and swap the body's slot.
+        BulkUpsertUnitComponentsDto changed = BuildFullCatalogue();
         UnitComponentDto changedWeapon = changed.Components.Single(c => c.Code == WEAPON_CODE) with
         {
             DisplayName = "Upgraded Weapon",
@@ -138,7 +138,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
             },
         };
 
-        var changedCatalog = new BulkUpsertUnitComponentsDto
+        var changedCatalogue = new BulkUpsertUnitComponentsDto
         {
             Tags = changed.Tags,
             Components = [.. changed.Components.Select(c => c.Code == WEAPON_CODE ? changedWeapon : c)],
@@ -147,7 +147,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
         // Second run upserts the mutated payload.
         BulkUpsertUnitComponentsHandler secondHandler = await DbFactory.CreateBulkUpsertHandlerAsync();
         ServiceResult<BulkUpsertUnitComponentsResult> result =
-            await secondHandler.Handle(new BulkUpsertUnitComponentsRequest(changedCatalog), CancellationToken.None);
+            await secondHandler.Handle(new BulkUpsertUnitComponentsRequest(changedCatalogue), CancellationToken.None);
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
         int componentCount = await verifyContext.UnitComponents.CountAsync();
@@ -192,14 +192,14 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
         // Re-submit the same weapon (renamed) plus a brand-new one.
         UnitComponentDto renamedWeapon = BuildWeapon(WEAPON_CODE) with { DisplayName = "Renamed Weapon" };
 
-        var mixedCatalog = new BulkUpsertUnitComponentsDto
+        var mixedCatalogue = new BulkUpsertUnitComponentsDto
         {
             Components = [renamedWeapon, BuildWeapon("new_weapon")],
         };
 
         BulkUpsertUnitComponentsHandler handler = await DbFactory.CreateBulkUpsertHandlerAsync();
         ServiceResult<BulkUpsertUnitComponentsResult> result =
-            await handler.Handle(new BulkUpsertUnitComponentsRequest(mixedCatalog), CancellationToken.None);
+            await handler.Handle(new BulkUpsertUnitComponentsRequest(mixedCatalogue), CancellationToken.None);
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
         int weaponCount = await verifyContext.UnitComponents.CountAsync();
@@ -330,14 +330,14 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
     [Test, Description("Two components sharing a Code fail validation and write nothing.")]
     public async Task DuplicateCodeInPayloadFailsAsync()
     {
-        var catalog = new BulkUpsertUnitComponentsDto
+        var catalogue = new BulkUpsertUnitComponentsDto
         {
             Components = [BuildWeapon("dup"), BuildWeapon("dup")],
         };
 
         BulkUpsertUnitComponentsHandler handler = await DbFactory.CreateBulkUpsertHandlerAsync();
         ServiceResult<BulkUpsertUnitComponentsResult> result =
-            await handler.Handle(new BulkUpsertUnitComponentsRequest(catalog), CancellationToken.None);
+            await handler.Handle(new BulkUpsertUnitComponentsRequest(catalogue), CancellationToken.None);
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
 
@@ -373,7 +373,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
     [Test, Description("A valid supersession pair creates a directed link with its IsRecommended flag.")]
     public async Task SupersessionPairCreatesLinkAsync()
     {
-        var catalog = new BulkUpsertUnitComponentsDto
+        var catalogue = new BulkUpsertUnitComponentsDto
         {
             Components = [BuildWeapon("sword_basic"), BuildWeapon("sword_advanced")],
             ComponentSupersessions =
@@ -384,7 +384,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
 
         BulkUpsertUnitComponentsHandler handler = await DbFactory.CreateBulkUpsertHandlerAsync();
         ServiceResult<BulkUpsertUnitComponentsResult> result =
-            await handler.Handle(new BulkUpsertUnitComponentsRequest(catalog), CancellationToken.None);
+            await handler.Handle(new BulkUpsertUnitComponentsRequest(catalogue), CancellationToken.None);
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
         int predecessorId = await verifyContext.UnitComponents.Where(c => c.Code == "sword_basic").Select(c => c.Id).SingleAsync();
@@ -405,7 +405,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
     public async Task ReimportReplacesPredecessorLinksAsync()
     {
         // First import: basic is superseded by two successors, with adv2 recommended.
-        var firstCatalog = new BulkUpsertUnitComponentsDto
+        var firstCatalogue = new BulkUpsertUnitComponentsDto
         {
             Components = [BuildWeapon("sword_basic"), BuildWeapon("sword_adv1"), BuildWeapon("sword_adv2")],
             ComponentSupersessions =
@@ -416,11 +416,11 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
         };
 
         BulkUpsertUnitComponentsHandler firstHandler = await DbFactory.CreateBulkUpsertHandlerAsync();
-        await firstHandler.Handle(new BulkUpsertUnitComponentsRequest(firstCatalog), CancellationToken.None);
+        await firstHandler.Handle(new BulkUpsertUnitComponentsRequest(firstCatalogue), CancellationToken.None);
 
         // Second import re-submits only the predecessor and a single link to adv1 (now recommended).
         // adv1 resolves from the database even though it isn't in this payload's Components list.
-        var secondCatalog = new BulkUpsertUnitComponentsDto
+        var secondCatalogue = new BulkUpsertUnitComponentsDto
         {
             Components = [BuildWeapon("sword_basic")],
             ComponentSupersessions =
@@ -430,7 +430,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
         };
 
         BulkUpsertUnitComponentsHandler secondHandler = await DbFactory.CreateBulkUpsertHandlerAsync();
-        await secondHandler.Handle(new BulkUpsertUnitComponentsRequest(secondCatalog), CancellationToken.None);
+        await secondHandler.Handle(new BulkUpsertUnitComponentsRequest(secondCatalogue), CancellationToken.None);
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
         int predecessorId = await verifyContext.UnitComponents.Where(c => c.Code == "sword_basic").Select(c => c.Id).SingleAsync();
@@ -451,7 +451,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
     [Test, Description("A component that supersedes itself is rejected and writes nothing.")]
     public async Task SelfSupersessionFailsAsync()
     {
-        var catalog = new BulkUpsertUnitComponentsDto
+        var catalogue = new BulkUpsertUnitComponentsDto
         {
             Components = [BuildWeapon("sword")],
             ComponentSupersessions =
@@ -462,7 +462,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
 
         BulkUpsertUnitComponentsHandler handler = await DbFactory.CreateBulkUpsertHandlerAsync();
         ServiceResult<BulkUpsertUnitComponentsResult> result =
-            await handler.Handle(new BulkUpsertUnitComponentsRequest(catalog), CancellationToken.None);
+            await handler.Handle(new BulkUpsertUnitComponentsRequest(catalogue), CancellationToken.None);
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
 
@@ -478,7 +478,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
     [Test, Description("A supersession referencing a code absent from the payload and the DB is rejected and writes nothing.")]
     public async Task UnknownSupersessionCodeFailsAsync()
     {
-        var catalog = new BulkUpsertUnitComponentsDto
+        var catalogue = new BulkUpsertUnitComponentsDto
         {
             Components = [BuildWeapon("sword")],
             ComponentSupersessions =
@@ -489,7 +489,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
 
         BulkUpsertUnitComponentsHandler handler = await DbFactory.CreateBulkUpsertHandlerAsync();
         ServiceResult<BulkUpsertUnitComponentsResult> result =
-            await handler.Handle(new BulkUpsertUnitComponentsRequest(catalog), CancellationToken.None);
+            await handler.Handle(new BulkUpsertUnitComponentsRequest(catalogue), CancellationToken.None);
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
 
@@ -504,7 +504,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
     [Test, Description("Two identical supersession pairs are rejected and write nothing.")]
     public async Task DuplicateSupersessionPairFailsAsync()
     {
-        var catalog = new BulkUpsertUnitComponentsDto
+        var catalogue = new BulkUpsertUnitComponentsDto
         {
             Components = [BuildWeapon("a"), BuildWeapon("b")],
             ComponentSupersessions =
@@ -516,7 +516,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
 
         BulkUpsertUnitComponentsHandler handler = await DbFactory.CreateBulkUpsertHandlerAsync();
         ServiceResult<BulkUpsertUnitComponentsResult> result =
-            await handler.Handle(new BulkUpsertUnitComponentsRequest(catalog), CancellationToken.None);
+            await handler.Handle(new BulkUpsertUnitComponentsRequest(catalogue), CancellationToken.None);
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
 
@@ -531,7 +531,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
     [Test, Description("Flagging more than one recommended successor for a predecessor is rejected and writes nothing.")]
     public async Task MultipleRecommendedSuccessorsFailAsync()
     {
-        var catalog = new BulkUpsertUnitComponentsDto
+        var catalogue = new BulkUpsertUnitComponentsDto
         {
             Components = [BuildWeapon("a"), BuildWeapon("b"), BuildWeapon("c")],
             ComponentSupersessions =
@@ -543,7 +543,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
 
         BulkUpsertUnitComponentsHandler handler = await DbFactory.CreateBulkUpsertHandlerAsync();
         ServiceResult<BulkUpsertUnitComponentsResult> result =
-            await handler.Handle(new BulkUpsertUnitComponentsRequest(catalog), CancellationToken.None);
+            await handler.Handle(new BulkUpsertUnitComponentsRequest(catalogue), CancellationToken.None);
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
 
@@ -559,14 +559,14 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
     public async Task TagTypeIsSetOnCreateAndUpdatedOnReimportAsync()
     {
         // First import classifies "sword" as a Classification tag.
-        var firstCatalog = new BulkUpsertUnitComponentsDto
+        var firstCatalogue = new BulkUpsertUnitComponentsDto
         {
             Tags = [new TagDto { Code = "sword", DisplayName = "Sword", TagType = TagType.Classification }],
             Components = [BuildWeapon(WEAPON_CODE)],
         };
 
         BulkUpsertUnitComponentsHandler firstHandler = await DbFactory.CreateBulkUpsertHandlerAsync();
-        await firstHandler.Handle(new BulkUpsertUnitComponentsRequest(firstCatalog), CancellationToken.None);
+        await firstHandler.Handle(new BulkUpsertUnitComponentsRequest(firstCatalogue), CancellationToken.None);
 
         await using (AscendantEmpireContext afterCreate = await DbFactory.CreateDbContextAsync())
         {
@@ -575,14 +575,14 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
         }
 
         // Re-import the same tag code re-classified as a Buff.
-        var secondCatalog = new BulkUpsertUnitComponentsDto
+        var secondCatalogue = new BulkUpsertUnitComponentsDto
         {
             Tags = [new TagDto { Code = "sword", DisplayName = "Sword", TagType = TagType.Combat }],
             Components = [BuildWeapon(WEAPON_CODE)],
         };
 
         BulkUpsertUnitComponentsHandler secondHandler = await DbFactory.CreateBulkUpsertHandlerAsync();
-        await secondHandler.Handle(new BulkUpsertUnitComponentsRequest(secondCatalog), CancellationToken.None);
+        await secondHandler.Handle(new BulkUpsertUnitComponentsRequest(secondCatalogue), CancellationToken.None);
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
         int tagCount = await verifyContext.Tags.CountAsync(t => t.Code == "sword");
@@ -617,14 +617,14 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
     public async Task OrganisationTagRoundTripsThroughCatalogueAsync()
     {
         // Import the hand-authored tag, then re-export it exactly as the catalogue zip would.
-        var catalog = new BulkUpsertUnitComponentsDto
+        var catalogue = new BulkUpsertUnitComponentsDto
         {
             Tags = [BuildUnledSettlerTagDto()],
             Components = [BuildWeapon(WEAPON_CODE)],
         };
 
         BulkUpsertUnitComponentsHandler handler = await DbFactory.CreateBulkUpsertHandlerAsync();
-        ServiceResult<BulkUpsertUnitComponentsResult> imported = await handler.Handle(new BulkUpsertUnitComponentsRequest(catalog), CancellationToken.None);
+        ServiceResult<BulkUpsertUnitComponentsResult> imported = await handler.Handle(new BulkUpsertUnitComponentsRequest(catalogue), CancellationToken.None);
         Assert.That(imported.HasSucceeded, Is.True, () => string.Join("; ", imported.Errors));
 
         TagDto exported;
@@ -636,7 +636,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
         }
 
         // Re-importing the exported DTO is the move-between-databases path; the organisation data must survive it.
-        var reimportCatalog = new BulkUpsertUnitComponentsDto
+        var reimportCatalogue = new BulkUpsertUnitComponentsDto
         {
             Tags = [exported],
             Components = [BuildWeapon(WEAPON_CODE)],
@@ -644,7 +644,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
 
         BulkUpsertUnitComponentsHandler reimportHandler = await DbFactory.CreateBulkUpsertHandlerAsync();
         ServiceResult<BulkUpsertUnitComponentsResult> reimported = await reimportHandler.Handle(
-            new BulkUpsertUnitComponentsRequest(reimportCatalog), CancellationToken.None);
+            new BulkUpsertUnitComponentsRequest(reimportCatalogue), CancellationToken.None);
         Assert.That(reimported.HasSucceeded, Is.True, () => string.Join("; ", reimported.Errors));
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
@@ -666,14 +666,14 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
     public async Task ImportRejectsIncoherentUnledSizingAsync()
     {
         // 90 is not a whole multiple of the 25 quantum, which the single-tag path also rejects.
-        var catalog = new BulkUpsertUnitComponentsDto
+        var catalogue = new BulkUpsertUnitComponentsDto
         {
             Tags = [BuildUnledSettlerTagDto() with { UnledDefaultSize = 90 }],
             Components = [BuildWeapon(WEAPON_CODE)],
         };
 
         BulkUpsertUnitComponentsHandler handler = await DbFactory.CreateBulkUpsertHandlerAsync();
-        ServiceResult<BulkUpsertUnitComponentsResult> result = await handler.Handle(new BulkUpsertUnitComponentsRequest(catalog), CancellationToken.None);
+        ServiceResult<BulkUpsertUnitComponentsResult> result = await handler.Handle(new BulkUpsertUnitComponentsRequest(catalogue), CancellationToken.None);
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
 
@@ -688,14 +688,14 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
     [Test, Description("The import rejects unled sizes on a tag that is not an organisation group, matching the single-tag path.")]
     public async Task ImportRejectsUnledSizesOnNonOrganisationTagAsync()
     {
-        var catalog = new BulkUpsertUnitComponentsDto
+        var catalogue = new BulkUpsertUnitComponentsDto
         {
             Tags = [BuildUnledSettlerTagDto() with { Code = "sneaky", TagType = TagType.Ability }],
             Components = [BuildWeapon(WEAPON_CODE)],
         };
 
         BulkUpsertUnitComponentsHandler handler = await DbFactory.CreateBulkUpsertHandlerAsync();
-        ServiceResult<BulkUpsertUnitComponentsResult> result = await handler.Handle(new BulkUpsertUnitComponentsRequest(catalog), CancellationToken.None);
+        ServiceResult<BulkUpsertUnitComponentsResult> result = await handler.Handle(new BulkUpsertUnitComponentsRequest(catalogue), CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
@@ -706,9 +706,9 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
     // --- Payload builders -------------------------------------------------------------------
 
     /// <summary>
-    /// A catalog with one of each extension type plus a tag referenced by the body.
+    /// A catalogue with one of each extension type plus a tag referenced by the body.
     /// </summary>
-    private static BulkUpsertUnitComponentsDto BuildFullCatalog()
+    private static BulkUpsertUnitComponentsDto BuildFullCatalogue()
     {
         return new BulkUpsertUnitComponentsDto
         {

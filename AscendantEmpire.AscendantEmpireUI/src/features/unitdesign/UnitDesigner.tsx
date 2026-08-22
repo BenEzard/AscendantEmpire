@@ -28,7 +28,7 @@ import { toPixel, type ImageBox } from "./model/slotImagePosition";
 const BASE_SLOT_INDEX = -1;
 
 /**
- * Derives a stable catalog code from a display name (dev/global save flow only, where a Code is required
+ * Derives a stable catalogue code from a display name (dev/global save flow only, where a Code is required
  * but the header's naming textbox only collects one field): lowercase, non-alphanumerics collapsed to a
  * single underscore, leading/trailing underscores trimmed.
  */
@@ -47,7 +47,7 @@ export interface UnitDesignerProps {
    * Fully-hydrated component catalogue. When omitted, the designer self-loads it from the API — hosts
    * only need to inject this for tests or when they already hold the catalogue.
    */
-  catalog?: UnitComponent[];
+  catalogue?: UnitComponent[];
   /** An existing design to open. Defaults to empty (nothing chosen). */
   design?: UnitDesign;
   /**
@@ -58,7 +58,7 @@ export interface UnitDesignerProps {
   /** Called with a user-facing message when the save request fails. */
   onSaveError?: (message: string) => void;
   /**
-   * When true, Save persists a global/common catalog template (the dev tool's flow) instead of a
+   * When true, Save persists a global/common catalogue template (the dev tool's flow) instead of a
    * player-owned custom one — no game/player token required, and a Code is derived from the display name
    * since the header's naming textbox only collects one field.
    */
@@ -68,7 +68,7 @@ export interface UnitDesignerProps {
 
 export default function UnitDesigner({
   mode = "edit",
-  catalog: injectedCatalog,
+  catalogue: injectedCatalogue,
   design,
   onSaveSuccess,
   onSaveError,
@@ -78,9 +78,9 @@ export default function UnitDesigner({
   const editable = mode === "edit";
 
   // Source the catalogue from the host when injected, otherwise self-load it.
-  const selfLoad = injectedCatalog === undefined;
-  const { catalog: loadedCatalog, loading, error } = useUnitDesignCatalogue(selfLoad);
-  const catalog = injectedCatalog ?? loadedCatalog;
+  const selfLoad = injectedCatalogue === undefined;
+  const { catalogue: loadedCatalogue, loading, error } = useUnitDesignCatalogue(selfLoad);
+  const catalogue = injectedCatalogue ?? loadedCatalogue;
 
   const [isVisible, setIsVisible] = useState(true);
 
@@ -150,11 +150,11 @@ export default function UnitDesigner({
 
   const componentByCode = useMemo(() => {
     const map = new Map<string, UnitComponent>();
-    for (const component of catalog) {
+    for (const component of catalogue) {
       map.set(component.code, component);
     }
     return map;
-  }, [catalog]);
+  }, [catalogue]);
 
   const baseComponent = useMemo(() => (baseCode != null ? (componentByCode.get(baseCode) ?? null) : null), [baseCode, componentByCode]);
 
@@ -226,7 +226,7 @@ export default function UnitDesigner({
   // Loads a picked template's base + fitted components straight into the design, replacing whatever is
   // currently assembled.
   const applyTemplate = (template: TemplateSummary) => {
-    const resolved = resolveTemplateDesign(template, catalog);
+    const resolved = resolveTemplateDesign(template, catalogue);
     if (resolved == null) {
       onSaveError?.(`Could not load "${template.displayName}": its base component is missing from the catalogue.`);
       return;
@@ -268,14 +268,14 @@ export default function UnitDesigner({
       return [];
     }
     if (selectionOpenFor.slotIndex === BASE_SLOT_INDEX) {
-      return catalog.filter((component) => component.componentType === "Body");
+      return catalogue.filter((component) => component.componentType === "Body");
     }
     const slot = baseSlots[selectionOpenFor.slotIndex];
     if (!slot) {
       return [];
     }
-    return catalog.filter((component) => componentSatisfiesSlot(component, slot));
-  }, [selectionOpenFor, catalog, baseSlots]);
+    return catalogue.filter((component) => componentSatisfiesSlot(component, slot));
+  }, [selectionOpenFor, catalogue, baseSlots]);
 
   const openSelectionCode =
     selectionOpenFor == null

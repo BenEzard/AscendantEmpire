@@ -87,7 +87,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
     /// Seeds the shared component catalogue: a two-slot body (weight 100), a weapon (weight 10, slash 1,000) and an armour (weight 30, resist pierce 250).
     /// The slots carry no rules, so tests can fit and swap components freely.
     /// </summary>
-    private async Task SeedCatalogAsync()
+    private async Task SeedCatalogueAsync()
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
@@ -222,7 +222,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
     [Test, Description("Editing a catalogue component refreshes the snapshot of every template already built with it, with no explicit recompile.")]
     public async Task EditingComponentRecompilesDependentTemplateSnapshotsAsync()
     {
-        await SeedCatalogAsync();
+        await SeedCatalogueAsync();
         await SeedGameAndPlayerAsync();
         await SeedCampaignQueueAsync(currentRoundNumber: 7);
 
@@ -273,7 +273,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
     [Test, Description("Creating a custom template compiles its snapshot in the same save, stamped with the game's current campaign round.")]
     public async Task CreateCompilesSnapshotStampedWithCurrentTurnAsync()
     {
-        await SeedCatalogAsync();
+        await SeedCatalogueAsync();
         await SeedGameAndPlayerAsync();
         await SeedCampaignQueueAsync(currentRoundNumber: 7);
 
@@ -296,7 +296,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
     [Test, Description("With no active campaign queue (e.g. the campaign hasn't started), the snapshot is stamped with the turn-0 sentinel.")]
     public async Task CreateStampsTurnZeroWithoutActiveCampaignQueueAsync()
     {
-        await SeedCatalogAsync();
+        await SeedCatalogueAsync();
         await SeedGameAndPlayerAsync();
 
         ServiceResult<UnitTemplateView> result =
@@ -312,7 +312,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
     [Test, Description("Updating a custom template recompiles its snapshot in place — new stats, still one row, children replaced.")]
     public async Task UpdateRecompilesSnapshotAsync()
     {
-        await SeedCatalogAsync();
+        await SeedCatalogueAsync();
         await SeedGameAndPlayerAsync();
 
         ServiceResult<UnitTemplateView> created =
@@ -344,7 +344,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
     [Test, Description("Global (dev catalogue) create and update both compile, stamped with turn 0 since global templates aren't game-scoped.")]
     public async Task GlobalCreateAndUpdateCompileAtTurnZeroAsync()
     {
-        await SeedCatalogAsync();
+        await SeedCatalogueAsync();
 
         var createDto = new SaveGlobalUnitTemplateDto
         {
@@ -380,7 +380,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
     [Test, Description("A rejected assembly writes nothing at all — no template row and no snapshot row.")]
     public async Task RejectedAssemblyWritesNothingAsync()
     {
-        await SeedCatalogAsync();
+        await SeedCatalogueAsync();
 
         ServiceResult<GlobalUnitTemplateView> result = await SendAsync(new CreateGlobalUnitTemplateRequest(new SaveGlobalUnitTemplateDto
         {
@@ -407,7 +407,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
     [Test, Description("Catalogue bulk import compiles a snapshot for every upserted template — both newly added and updated in place.")]
     public async Task BulkUpsertCompilesEverySnapshotAsync()
     {
-        await SeedCatalogAsync();
+        await SeedCatalogueAsync();
 
         var firstImport = new CatalogueTemplatesDocument
         {
@@ -454,7 +454,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
     [Test, Description("Recompile-all refreshes every stale snapshot after a catalogue component edit, re-stamping each template's turn appropriately.")]
     public async Task RecompileAllRefreshesStaleSnapshotsAsync()
     {
-        await SeedCatalogAsync();
+        await SeedCatalogueAsync();
         await SeedGameAndPlayerAsync();
         await SeedCampaignQueueAsync(currentRoundNumber: 3);
 
@@ -534,7 +534,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
     [Test, Description("A fitted component's organisation tag overrides the body's default on the compiled snapshot.")]
     public async Task CompileResolvesFittedOrganisationTagOverBodyDefaultAsync()
     {
-        await SeedCatalogAsync();
+        await SeedCatalogueAsync();
         await AttachOrganisationTagAsync("test_body", "infantry");
         int fittedTagId = await AttachOrganisationTagAsync("wpn", "settler");
 
@@ -556,7 +556,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
     [Test, Description("With no fitted organisation tag, the body's default organisation tag lands on the snapshot.")]
     public async Task CompileFallsBackToBodyOrganisationTagAsync()
     {
-        await SeedCatalogAsync();
+        await SeedCatalogueAsync();
         int bodyTagId = await AttachOrganisationTagAsync("test_body", "infantry");
 
         ServiceResult<GlobalUnitTemplateView> result = await SendAsync(new CreateGlobalUnitTemplateRequest(new SaveGlobalUnitTemplateDto
@@ -577,7 +577,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
     [Test, Description("With no organisation tags anywhere, the snapshot's organisation tag is null.")]
     public async Task CompileLeavesOrganisationTagNullWhenNoneCarriedAsync()
     {
-        await SeedCatalogAsync();
+        await SeedCatalogueAsync();
 
         ServiceResult<GlobalUnitTemplateView> result = await SendAsync(new CreateGlobalUnitTemplateRequest(new SaveGlobalUnitTemplateDto
         {
@@ -597,7 +597,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
     [Test, Description("Two different organisation tags across the fitted components make the organisation ambiguous — the save fails and writes nothing.")]
     public async Task CompileRejectsAmbiguousFittedOrganisationTagsAsync()
     {
-        await SeedCatalogAsync();
+        await SeedCatalogueAsync();
         await AttachOrganisationTagAsync("wpn", "settler");
         await AttachOrganisationTagAsync("arm", "scout");
 

@@ -3,7 +3,7 @@ using AscendantEmpire.Domain.Enums.UnitDesigns;
 namespace AscendantEmpire.BackendContracts.UnitDesigns.UpsertTagType;
 
 /// <summary>
-/// One tag type's values in a bulk upsert (PUT) of the tag type catalog. <see cref="TagTypeId"/>
+/// One tag type's values in a bulk upsert (PUT) of the tag type catalogue. <see cref="TagTypeId"/>
 /// identifies which row to create or update.
 /// </summary>
 public record UpsertTagTypeDto

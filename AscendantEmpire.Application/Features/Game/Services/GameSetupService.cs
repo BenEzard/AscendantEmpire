@@ -401,7 +401,7 @@ internal class GameSetupService(
             .Where(c => starterTemplateIds.Contains(c.UnitTemplateId))
             .ToListAsync(cancellationToken);
 
-        // Resolve each starter's spawn size up front so a misconfigured catalog fails before anything is written.
+        // Resolve each starter's spawn size up front so a misconfigured catalogue fails before anything is written.
         List<(UnitTemplate Template, int SpawnSize)> startersToSpawn = [];
 
         foreach (UnitTemplate template in starterTemplates)
@@ -410,7 +410,7 @@ internal class GameSetupService(
 
             if (compiled is null)
             {
-                return ServiceResultBase.Fail($"Starter template '{template.Code}' has no compiled snapshot — recompile the catalog templates.");
+                return ServiceResultBase.Fail($"Starter template '{template.Code}' has no compiled snapshot — recompile the catalogue templates.");
             }
 
             if (compiled.OrganisationTag is not { LeadershipModel: LeadershipModel.Unled } organisationTag)

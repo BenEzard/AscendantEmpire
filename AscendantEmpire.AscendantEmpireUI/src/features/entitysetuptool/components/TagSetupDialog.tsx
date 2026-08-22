@@ -21,7 +21,7 @@ interface TagSetupDialogProps {
   onCancel: () => void;
   /** Optional starting tag (for editing). When omitted, a blank tag is created. */
   initialTag?: Tag;
-  /** The tag type catalog, driving the "Tag Type" dropdown (option label = display name, value = enum). */
+  /** The tag type catalogue, driving the "Tag Type" dropdown (option label = display name, value = enum). */
   tagTypes: TagTypeInfo[];
   /** Called with the edited tag when the user commits. */
   onCommit: (tag: Tag) => void;
@@ -79,8 +79,8 @@ export default function TagSetupDialog({ open, onCancel, initialTag, tagTypes, o
   // the colour to win over inputClass's default slate border regardless of Tailwind's rule ordering.
   const errorClass = (hasError: boolean) => (hasError ? `${inputClass} !border-red-500` : inputClass);
 
-  // The "Tag Type" options come from the tag type catalog (label = display name, value = enum key). Fall
-  // back to the raw enum names if the catalog hasn't loaded, and always ensure the tag's current type is
+  // The "Tag Type" options come from the tag type catalogue (label = display name, value = enum key). Fall
+  // back to the raw enum names if the catalogue hasn't loaded, and always ensure the tag's current type is
   // present so an edited tag never shows a blank selection.
   const typeOptions: { value: TagType; label: string }[] =
     tagTypes.length > 0

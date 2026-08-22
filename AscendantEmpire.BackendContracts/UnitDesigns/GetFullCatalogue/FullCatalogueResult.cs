@@ -5,7 +5,7 @@ using AscendantEmpire.BackendContracts.UnitDesigns.GetUnlockedBodies;
 namespace AscendantEmpire.BackendContracts.UnitDesigns.GetFullCatalogue;
 
 /// <summary>
-/// The entire unit-design catalog, unfiltered — every body, component, tag and template. The read
+/// The entire unit-design catalogue, unfiltered — every body, component, tag and template. The read
 /// counterpart of the bulk-upsert write side, for a developer design tool.
 /// </summary>
 public record FullCatalogueResult

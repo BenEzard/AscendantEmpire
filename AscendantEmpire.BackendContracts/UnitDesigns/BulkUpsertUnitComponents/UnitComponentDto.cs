@@ -3,7 +3,7 @@ using AscendantEmpire.Domain.Enums.UnitDesigns;
 namespace AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 
 /// <summary>
-/// A single buildable component to insert into the global catalog, with its type-specific extension.
+/// A single buildable component to insert into the global catalogue, with its type-specific extension.
 /// </summary>
 /// <remarks>
 /// Exactly one of <see cref="Body"/>, <see cref="Weapon"/> or <see cref="Armour"/> must be populated

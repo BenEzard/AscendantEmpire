@@ -4,11 +4,11 @@ using AscendantEmpire.Domain.Enums.UnitDesigns;
 namespace AscendantEmpire.BackendContracts.UnitDesigns.GetTags;
 
 /// <summary>
-/// A single tag in the global catalog as seen by the dev Unit Designer tool.
+/// A single tag in the global catalogue as seen by the dev Unit Designer tool.
 /// </summary>
 /// <remarks>
 /// Like <c>CatalogueTag</c> but also carries <see cref="TagType"/>, which the tag-management UI needs to
-/// display and edit (the read-only god-view catalog omits it).
+/// display and edit (the read-only god-view catalogue omits it).
 /// </remarks>
 public record TagView
 {

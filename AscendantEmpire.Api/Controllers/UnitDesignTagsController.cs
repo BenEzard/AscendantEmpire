@@ -25,11 +25,11 @@ namespace AscendantEmpire.Api.Controllers;
 public class UnitDesignTagsController : ControllerBase
 {
     /// <summary>
-    /// Dev design tool: get every tag in the global catalog, unfiltered.
+    /// Dev design tool: get every tag in the global catalogue, unfiltered.
     /// </summary>
     /// <remarks>
     /// TODO: lock down before any non-dev deployment. This endpoint is intentionally left unauthorized for now;
-    /// it must be gated behind a dev/admin policy (or mapped only in Development) before shipping, since it exposes the whole tag catalog.
+    /// it must be gated behind a dev/admin policy (or mapped only in Development) before shipping, since it exposes the whole tag catalogue.
     /// </remarks>
     /// <response code="200">The full set of tags</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
@@ -46,10 +46,10 @@ public class UnitDesignTagsController : ControllerBase
     }
 
     /// <summary>
-    /// Dev design tool: create a single tag in the global catalog.
+    /// Dev design tool: create a single tag in the global catalogue.
     /// </summary>
     /// <remarks>
-    /// Gated behind <see cref="PermissionType.EntitySetupTool"/>, since it writes the global tag catalog.
+    /// Gated behind <see cref="PermissionType.EntitySetupTool"/>, since it writes the global tag catalogue.
     /// </remarks>
     /// <response code="201">The tag was created; returns the created tag</response>
     /// <response code="400">Validation error</response>
@@ -72,10 +72,10 @@ public class UnitDesignTagsController : ControllerBase
     }
 
     /// <summary>
-    /// Dev design tool: update an existing tag in the global catalog.
+    /// Dev design tool: update an existing tag in the global catalogue.
     /// </summary>
     /// <remarks>
-    /// <para>Gated behind <see cref="PermissionType.EntitySetupTool"/>, since it writes the global tag catalog.</para>
+    /// <para>Gated behind <see cref="PermissionType.EntitySetupTool"/>, since it writes the global tag catalogue.</para>
     /// <para>
     /// The <c>:int</c> route constraint is load-bearing, not decoration. Without it this route also matches
     /// <c>PUT /unit-design-tags/types</c>, and the two become an ambiguous match — a 500, not a 404.
@@ -126,10 +126,10 @@ public class UnitDesignTagsController : ControllerBase
     }
 
     /// <summary>
-    /// Dev design tool: bulk-upsert the tag type catalog (create missing rows, update existing ones).
+    /// Dev design tool: bulk-upsert the tag type catalogue (create missing rows, update existing ones).
     /// </summary>
     /// <remarks>
-    /// <para>Gated behind <see cref="PermissionType.EntitySetupTool"/>, since it writes the global tag type catalog.</para>
+    /// <para>Gated behind <see cref="PermissionType.EntitySetupTool"/>, since it writes the global tag type catalogue.</para>
     /// <para>
     /// This route is the reason <see cref="UpdateTagAsync"/> constrains its id to <c>:int</c> — without that
     /// constraint, <c>types</c> would match both actions and the pair would be an ambiguous match.

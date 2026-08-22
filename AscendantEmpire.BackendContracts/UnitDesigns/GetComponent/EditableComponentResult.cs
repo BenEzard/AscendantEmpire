@@ -7,7 +7,7 @@ namespace AscendantEmpire.BackendContracts.UnitDesigns.GetComponent;
 /// counterpart of the bulk-upsert write side.
 /// </summary>
 /// <remarks>
-/// Unlike the catalog's <c>DesignComponent</c> (which omits body stats and supersession, and excludes
+/// Unlike the catalogue's <c>DesignComponent</c> (which omits body stats and supersession, and excludes
 /// bodies), this carries everything the Component Setup dialog needs to re-open a component for editing.
 /// The component graph reuses <see cref="UnitComponentDto"/> so the shape matches the upsert payload
 /// exactly; <see cref="SupersededBy"/> lists the upgrade links where this component is the predecessor.

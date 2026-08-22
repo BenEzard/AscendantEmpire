@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging;
 namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 
 /// <summary>
-/// Bulk-upserts the tag type catalog from the dev Unit Designer's tag type manager: every posted row is
+/// Bulk-upserts the tag type catalogue from the dev Unit Designer's tag type manager: every posted row is
 /// created (if its enum key is missing) or updated in place. Mirrors the campaign map biome upsert flow.
 /// </summary>
 /// <remarks>

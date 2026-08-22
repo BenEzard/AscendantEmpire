@@ -2,7 +2,7 @@ namespace AscendantEmpire.BackendContracts.UnitDesigns.SaveGlobalUnitTemplate;
 
 /// <summary>
 /// The request body for the dev design tool's create (POST) / update (PUT) of a global/common unit
-/// template in the shared catalog.
+/// template in the shared catalogue.
 /// </summary>
 public record SaveGlobalUnitTemplateDto
 {

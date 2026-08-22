@@ -56,7 +56,7 @@ export default function SearchDrawer<T>({
   const [searchText, setSearchText] = useState("");
 
   // Case-insensitive substring filter over each item's search text. Recomputed only when the inputs
-  // change so typing through a large catalog stays cheap.
+  // change so typing through a large catalogue stays cheap.
   const filteredItems = useMemo(() => {
     const needle = searchText.trim().toLowerCase();
     if (needle === "") {

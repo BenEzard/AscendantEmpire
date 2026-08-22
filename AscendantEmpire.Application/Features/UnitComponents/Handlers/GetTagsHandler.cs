@@ -12,7 +12,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 
 /// <summary>
-/// Returns every tag in the global catalog (unfiltered) for the dev Unit Designer's tag manager.
+/// Returns every tag in the global catalogue (unfiltered) for the dev Unit Designer's tag manager.
 /// </summary>
 public record GetTagsRequest() : IRequest<ServiceResult<GetTagsResult>>;
 

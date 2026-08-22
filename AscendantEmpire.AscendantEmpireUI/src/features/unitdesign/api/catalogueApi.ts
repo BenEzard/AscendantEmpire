@@ -1,4 +1,4 @@
-// API service for the dev Entity Setup Tool's full catalog read. Thin wrapper over the shared axios `http`
+// API service for the dev Entity Setup Tool's full catalogue read. Thin wrapper over the shared axios `http`
 // client for GET /unit-design-catalogue (the dev god-view that returns every body, component, tag and
 // template unfiltered). Only the fields the search drawer needs are typed here.
 
@@ -6,7 +6,7 @@ import { http } from "@/api/http";
 
 import type { ComponentType } from "../types/UnitComponent";
 
-/** A component as it appears in the catalog's `components` collection (non-body components). */
+/** A component as it appears in the catalogue's `components` collection (non-body components). */
 interface CatalogueComponent {
   id: number;
   code: string;
@@ -14,7 +14,7 @@ interface CatalogueComponent {
   componentType: ComponentType;
 }
 
-/** A body as it appears in the catalog's `bodies` collection. Bodies carry no `componentType` field. */
+/** A body as it appears in the catalogue's `bodies` collection. Bodies carry no `componentType` field. */
 interface CatalogueBody {
   id: number;
   code: string;
@@ -35,7 +35,7 @@ export interface ComponentListRow {
 }
 
 /**
- * Get every component for the search drawer as a single flat list. The catalog keeps bodies in their own
+ * Get every component for the search drawer as a single flat list. The catalogue keeps bodies in their own
  * `bodies` collection (excluded from `components`), so we merge the two — tagging each body row with the
  * implicit "Body" component type — to match the editor, which can author bodies too.
  */

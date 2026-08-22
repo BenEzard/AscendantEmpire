@@ -25,7 +25,7 @@ import TagSetupDialog from "./TagSetupDialog";
 import TagTypeSetupDialog from "./TagTypeSetupDialog";
 import UnitDesigner from "@/features/unitdesign/UnitDesigner";
 
-// Which catalog the left-hand search drawer is currently browsing (null = closed).
+// Which catalogue the left-hand search drawer is currently browsing (null = closed).
 type SearchKind = "components" | "tags" | null;
 
 /** Pulls a user-facing message out of an unknown thrown value, falling back to `fallback`. */
@@ -43,12 +43,12 @@ export default function EntitySetupTool() {
   // Controls the TagTypeSetupDialog opened by the Tags group's "Tag Types" button.
   const [showTagTypeSetup, setShowTagTypeSetup] = useState(false);
 
-  // The tag type catalog, loaded once on mount. Backs both the Tag Type manager (as its editable set)
+  // The tag type catalogue, loaded once on mount. Backs both the Tag Type manager (as its editable set)
   // and the Tag dialog's "Tag Type" dropdown (as its options).
   const [tagTypes, setTagTypes] = useState<TagTypeInfo[]>([]);
 
   // Controls the full-screen Unit Designer overlay opened by the Designer group. Saves here persist a
-  // global/common catalog template (saveAsGlobal) rather than a player-owned custom one, since this dev
+  // global/common catalogue template (saveAsGlobal) rather than a player-owned custom one, since this dev
   // tool never acquires a game/player token.
   const [showDesigner, setShowDesigner] = useState(false);
 
@@ -85,7 +85,7 @@ export default function EntitySetupTool() {
   const [tagSuccessMessage, setTagSuccessMessage] = useState<string | null>(null);
   const [tagTypeSuccessMessage, setTagTypeSuccessMessage] = useState<string | null>(null);
 
-  // Load the tag type catalog once on mount so it's ready for both the Tag Type manager and the Tag
+  // Load the tag type catalogue once on mount so it's ready for both the Tag Type manager and the Tag
   // dialog's type dropdown. A failure is logged but non-fatal (the dropdown falls back gracefully).
   useEffect(() => {
     getTagTypes()
@@ -94,7 +94,7 @@ export default function EntitySetupTool() {
   }, []);
 
   // --- Search drawer state ---------------------------------------------------------------------
-  // Which catalog the drawer is showing, the fetched rows for each, plus shared loading/error flags.
+  // Which catalogue the drawer is showing, the fetched rows for each, plus shared loading/error flags.
   const [searchKind, setSearchKind] = useState<SearchKind>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -170,7 +170,7 @@ export default function EntitySetupTool() {
   };
 
   // Persists the whole edited tag type set (the backend upserts every row), then closes the dialog on
-  // success and refreshes the local catalog. On failure the error is surfaced in the dialog so the user
+  // success and refreshes the local catalogue. On failure the error is surfaced in the dialog so the user
   // can correct and retry without losing their edits.
   const handleTagTypeCommit = async (edited: TagTypeInfo[]) => {
     try {
@@ -188,7 +188,7 @@ export default function EntitySetupTool() {
     }
   };
 
-  // Double-clicking a component row fetches it in full (the catalog list rows are lossy) and opens the
+  // Double-clicking a component row fetches it in full (the catalogue list rows are lossy) and opens the
   // Component Setup dialog seeded with it for editing.
   const handleComponentRowActivate = async (row: ComponentListRow) => {
     try {
@@ -215,7 +215,7 @@ export default function EntitySetupTool() {
   };
 
   // "Components" group plus a "Tags" group. Each group's Add opens its setup dialog (blank); the search
-  // buttons open the left-hand search drawer populated from the catalog / tag endpoints; the Components
+  // buttons open the left-hand search drawer populated from the catalogue / tag endpoints; the Components
   // group's refresh recompiles every template's stats snapshot after catalogue component edits.
   const toolBarGroups = useMemo<ToolBarGroup[]>(
     () => [
@@ -237,7 +237,7 @@ export default function EntitySetupTool() {
             key: "search-components",
             icon: <HiMagnifyingGlass />,
             tooltip: "Search Components",
-            // Open the drawer immediately, then fetch the full catalog (bodies + components merged).
+            // Open the drawer immediately, then fetch the full catalogue (bodies + components merged).
             onClick: () => {
               setSearchKind("components");
               setSearchError(null);
@@ -310,7 +310,7 @@ export default function EntitySetupTool() {
             key: "tag-types",
             icon: <FaTags />,
             tooltip: "Tag Types",
-            // Opens the Tag Type manager over the catalog loaded on mount (and refreshed after each save).
+            // Opens the Tag Type manager over the catalogue loaded on mount (and refreshed after each save).
             onClick: () => {
               setTagTypeError(null);
               setShowTagTypeSetup(true);
@@ -457,7 +457,7 @@ export default function EntitySetupTool() {
         error={tagTypeError}
       />
 
-      {/* Full-screen Unit Designer overlay. saveAsGlobal routes Save to the dev tool's catalog endpoints
+      {/* Full-screen Unit Designer overlay. saveAsGlobal routes Save to the dev tool's catalogue endpoints
           (POST/PUT /global-unit-templates), which need no game/player token. */}
       {showDesigner && (
         <div className="fixed inset-0 z-40 flex flex-col">

@@ -65,7 +65,7 @@ export default function ComponentSetupDialog({ open, onCancel, initialComponent,
   // the first page ("general") on every open.
   const [activeSection, setActiveSection] = useState("general");
 
-  // The global tag catalog the Tags page's combo box picks from. Fetched fresh on each open so a tag
+  // The global tag catalogue the Tags page's combo box picks from. Fetched fresh on each open so a tag
   // created earlier in the same tool session is immediately selectable. Loading/error feed the combo box.
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [tagsLoading, setTagsLoading] = useState(false);
@@ -79,7 +79,7 @@ export default function ComponentSetupDialog({ open, onCancel, initialComponent,
     }
   }, [open, initialComponent]);
 
-  // Load the tag catalog whenever the dialog opens. Kept separate from the reset effect above so the
+  // Load the tag catalogue whenever the dialog opens. Kept separate from the reset effect above so the
   // async result never races the model reset. A failure surfaces in the combo box (non-fatal).
   useEffect(() => {
     if (!open) {

@@ -11,7 +11,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Features.UnitComponents.Classes;
 
 /// <summary>
-/// Resolves a base/slot-codes save request against the catalog and validates the resulting fitted-component
+/// Resolves a base/slot-codes save request against the catalogue and validates the resulting fitted-component
 /// tree. Shared by the player-owned and global/common unit-template create+update handlers so all four
 /// apply identical assembly rules before writing anything.
 /// </summary>
@@ -28,7 +28,7 @@ internal static class UnitTemplateAssembly
     /// </summary>
     /// <param name="playerId">
     /// The owning player, whose unlocks every referenced component is checked against — or <c>null</c> for
-    /// a global/common (dev-authored) template, which skips the unlock check entirely since the catalog
+    /// a global/common (dev-authored) template, which skips the unlock check entirely since the catalogue
     /// itself is being authored rather than a specific player's already-unlocked parts.
     /// </param>
     public static async Task<ServiceResult<ResolvedAssembly>> ResolveAsync(

@@ -17,7 +17,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 
 /// <summary>
-/// Returns the entire unit-design catalog unfiltered (every body, component, tag and template) for a
+/// Returns the entire unit-design catalogue unfiltered (every body, component, tag and template) for a
 /// developer design tool. Unlike the player endpoints, this applies no game/player or unlock filtering.
 /// </summary>
 public record GetFullCatalogueRequest() : IRequest<ServiceResult<FullCatalogueResult>>;

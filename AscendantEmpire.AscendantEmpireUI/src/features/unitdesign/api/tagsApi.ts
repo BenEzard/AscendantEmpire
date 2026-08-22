@@ -1,4 +1,4 @@
-// API service for the dev Entity Setup Tool's global tag catalog. Thin wrappers over the shared axios
+// API service for the dev Entity Setup Tool's global tag catalogue. Thin wrappers over the shared axios
 // `http` client, one per backend tag endpoint (GET/POST /unit-design-tags, PUT /unit-design-tags/{id}).
 
 import { http } from "@/api/http";
@@ -45,7 +45,7 @@ function mapTagViewToModel(wire: TagViewWire): Tag {
 }
 
 /**
- * Get every tag in the global catalog as editable Tag models. Backs the "Search Tag" drawer — each row
+ * Get every tag in the global catalogue as editable Tag models. Backs the "Search Tag" drawer — each row
  * carries its id and tagType, so double-clicking opens the editor fully populated. The backend returns
  * them under a `tags` envelope (GetTagsResult).
  */
