@@ -2,7 +2,7 @@ using AscendantEmpire.Application.Features.UnitComponents.Services;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 
-namespace AscendantEmpire.Tests.Services.UnitComponents;
+namespace AscendantEmpire.Tests.UnitDesigns.Rules;
 
 /// <summary>
 /// Pure unit tests for <see cref="SlotRuleEvaluator"/> — no database required.

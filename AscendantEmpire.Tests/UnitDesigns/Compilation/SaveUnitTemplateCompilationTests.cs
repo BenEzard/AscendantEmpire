@@ -23,7 +23,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
-namespace AscendantEmpire.Tests.Handlers.UnitComponents;
+namespace AscendantEmpire.Tests.UnitDesigns.Compilation;
 
 /// <summary>
 /// Integration tests proving every template-writing path (player create/update, global create/update, catalogue bulk import)
