@@ -12,7 +12,7 @@
 
 import { useEffect, useState } from "react";
 
-import { Alert, Button, PagedDialog } from "@/components/ui";
+import { Alert, Button, PagedDialog, dialogTitle } from "@/components/ui";
 
 import { getTags } from "@/features/unitdesign/api/tagsApi";
 import type { Tag } from "@/features/unitdesign/types/Tag";
@@ -148,7 +148,9 @@ export default function ComponentSetupDialog({ open, onCancel, initialComponent,
   return (
     <PagedDialog
       open={open}
-      title="Component Setup"
+      // The component being authored names the dialog once it has a display name; a brand-new (still
+      // unnamed) component keeps the bare "Component Setup".
+      title={dialogTitle("Component Setup", component.displayName)}
       // Static panel size so the dialog never resizes between pages (or as content is edited). 896px is
       // the existing "lg" width; 500px gives the tallest page ("Attack (Body)", ~424px empty) some
       // headroom so a few added rows fit before the content scrolls.

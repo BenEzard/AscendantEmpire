@@ -8,7 +8,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { Alert, Button, PagedDialog } from "@/components/ui";
+import { Alert, Button, PagedDialog, dialogTitle } from "@/components/ui";
 import { useValidatedCommit } from "@/hooks/useValidatedCommit";
 import { isValidColor, pickTextColorOnBg } from "@/util/color";
 
@@ -93,7 +93,9 @@ export default function TagTypeSetupDialog({ open, onCancel, initialTagTypes, on
   return (
     <PagedDialog
       open={open}
-      title="Tag Type Setup"
+      // The tag type picked in the selection box names the dialog; an empty set (or a blank display name)
+      // falls back to the bare "Tag Type Setup".
+      title={dialogTitle("Tag Type Setup", selected?.displayName)}
       onCancel={onCancel}
       onCommit={attemptCommit}
       header={

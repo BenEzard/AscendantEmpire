@@ -4,6 +4,7 @@ export { default as Modal } from "./Modal";
 export { default as ExportDialog } from "./ExportDialog";
 export { default as PagedDialog } from "./PagedDialog";
 export type { PagedDialogProps, PagedDialogSection } from "./PagedDialog";
+export { dialogTitle } from "./dialogTitle";
 export { default as Drawer } from "./Drawer";
 export { default as SearchDrawer } from "./SearchDrawer";
 export type { SearchDrawerProps } from "./SearchDrawer";

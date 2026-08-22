@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Modal, Button, Alert } from "@/components/ui";
+import { Modal, Button, Alert, dialogTitle } from "@/components/ui";
 
 import { PERMISSIONS, PERMISSION_DESCRIPTIONS, PERMISSION_LABELS, type PermissionType } from "../types/Permission";
 import type { AuthUser } from "../types/User";
@@ -49,7 +49,8 @@ export default function UserPermissionsDialog({ open, user, onCancel, onCommit, 
     <Modal
       open={open}
       onClose={onCancel}
-      title={user == null ? "Permissions" : `Permissions — ${user.username}`}
+      // The account being edited names the dialog; with no user selected the bare "Permissions" is kept.
+      title={dialogTitle("Permissions", user?.username)}
       size="md"
       footer={
         <>

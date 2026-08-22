@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from "react";
 
-import { Alert, Button, CodeField, PagedDialog } from "@/components/ui";
+import { Alert, Button, CodeField, PagedDialog, dialogTitle } from "@/components/ui";
 import { useValidatedCommit } from "@/hooks/useValidatedCommit";
 
 import { FieldRow, inputClass } from "./componentSetupFields";
@@ -90,15 +90,12 @@ export default function TagSetupDialog({ open, onCancel, initialTag, tagTypes, o
     typeOptions.unshift({ value: tag.tagType, label: tag.tagType });
   }
 
-  // The tag being authored names the dialog once it has a display name; until then the bare "Tag Setup"
-  // is kept rather than showing a dangling colon on a blank name.
-  const trimmedDisplayName = tag.displayName.trim();
-  const dialogTitle = trimmedDisplayName === "" ? "Tag Setup" : `Tag Setup: ${trimmedDisplayName}`;
-
   return (
     <PagedDialog<TagSection>
       open={open}
-      title={dialogTitle}
+      // The tag being authored names the dialog once it has a display name; until then the bare
+      // "Tag Setup" is kept rather than showing a dangling colon on a blank name.
+      title={dialogTitle("Tag Setup", tag.displayName)}
       onCancel={onCancel}
       onCommit={attemptCommit}
       activeSection={activeSection}
