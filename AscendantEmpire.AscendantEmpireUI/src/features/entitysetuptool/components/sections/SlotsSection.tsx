@@ -18,7 +18,8 @@ import {
   SLOT_RULE_TYPES,
   createEmptySlot,
   createEmptySlotRule,
-  nextSlotCode,
+  nextSlotName,
+  toSlotCode,
   type SlotRuleOperator,
   type SlotRuleType,
   type UnitComponentSlot,
@@ -62,22 +63,26 @@ export default function SlotsSection({ slots, onChange }: SlotsSectionProps) {
   const addSlot = () => {
     // Collapse every existing slot so the newly-added one (expanded by default) stands out.
     setCollapsedIndices(new Set(slots.map((_, i) => i)));
-    onChange([...slots, createEmptySlot(nextSlotCode(slots))]);
+    onChange([...slots, createEmptySlot(nextSlotName(slots))]);
   };
 
-  // Codes address slots on the wire, so a duplicate makes "which slot?" ambiguous — and the backend's unique
-  // index would reject the save anyway. Flagged per card rather than blocking the edit, so the user can fix
-  // it in whichever card they meant to change.
+  // The slot's code is derived from its name, and codes address slots on the wire — so two slots sharing a
+  // name would derive one code, making "which slot?" ambiguous, and the backend's unique index would reject
+  // the save anyway. Flagged per card rather than blocking the edit, so the user can fix it in whichever
+  // card they meant to change.
+  //
+  // Compared on the derived code rather than the raw name, because that is what actually has to be unique:
+  // "Main Hand" and "main hand" read as different names but collapse to the same code.
   const duplicateCodes = new Set(
     slots.map((slot) => slot.code).filter((code, index, all) => code !== "" && all.indexOf(code) !== index),
   );
 
-  const codeErrorFor = (slot: UnitComponentSlot): string | null => {
-    if (slot.code.trim() === "") {
-      return "A slot needs a code.";
+  const nameErrorFor = (slot: UnitComponentSlot): string | null => {
+    if (slot.displayName.trim() === "") {
+      return "A slot needs a name.";
     }
     if (duplicateCodes.has(slot.code)) {
-      return `Another slot already uses the code "${slot.code}".`;
+      return `Another slot is already called "${slot.displayName}" — rename one of them.`;
     }
     return null;
   };
@@ -124,7 +129,7 @@ export default function SlotsSection({ slots, onChange }: SlotsSectionProps) {
               key={index}
               slot={slot}
               index={index}
-              codeError={codeErrorFor(slot)}
+              nameError={nameErrorFor(slot)}
               isCollapsed={collapsedIndices.has(index)}
               onToggleCollapsed={() => toggleCollapsed(index)}
               onChange={(next) => updateSlot(index, next)}
@@ -151,7 +156,7 @@ export default function SlotsSection({ slots, onChange }: SlotsSectionProps) {
 function SlotCard({
   slot,
   index,
-  codeError,
+  nameError,
   isCollapsed,
   onToggleCollapsed,
   onChange,
@@ -159,8 +164,8 @@ function SlotCard({
 }: {
   slot: UnitComponentSlot;
   index: number;
-  /** Why this slot's code is unusable (blank or a duplicate), or null when it's fine. */
-  codeError: string | null;
+  /** Why this slot's name is unusable (blank, or deriving a code another slot already has), or null when it's fine. */
+  nameError: string | null;
   isCollapsed: boolean;
   onToggleCollapsed: () => void;
   onChange: (next: UnitComponentSlot) => void;
@@ -171,7 +176,13 @@ function SlotCard({
     onChange({ ...slot, [field]: value });
   };
 
-  // Falls back to "Slot N" while no custom label has been set, matching the old static header text.
+  // Renaming re-derives the code, since the code has no independent existence. The slot's id travels with
+  // the edit, so the backend updates the row in place rather than reading this as a remove plus an add.
+  const renameSlot = (displayName: string) => {
+    onChange({ ...slot, displayName, code: toSlotCode(displayName) });
+  };
+
+  // Shown in place of the name while it is blank, so a nameless card is still identifiable in the list.
   const fallbackLabel = `Slot ${index + 1}`;
 
   // The header label toggles between display text and an input on click; collapsing (state lifted to
@@ -257,10 +268,11 @@ function SlotCard({
             // on the card (e.g. "Acceptance Rules"); the padding itself stays, for the height-matching
             // reason below.
             className={`${inputClass} -ml-2 text-sm font-semibold text-slate-700`}
-            value={slot.displayName ?? ""}
+            value={slot.displayName}
             placeholder={fallbackLabel}
-            // Empty box means "no label" (null), matching the nullable backend column.
-            onChange={(e) => patch("displayName", e.target.value === "" ? null : e.target.value)}
+            // The name is the slot's identity source, so editing it re-derives the code (see renameSlot).
+            // An empty box is a validation error now, not a "no label" state.
+            onChange={(e) => renameSlot(e.target.value)}
             onBlur={() => setIsEditingLabel(false)}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === "Escape") {
@@ -276,7 +288,9 @@ function SlotCard({
             // exactly the same height in both states — otherwise entering edit mode grows the row and
             // shifts everything below it down. -ml-2 cancels the padding back out so the text still
             // lines up with the card's other left-aligned text.
-            className="-ml-2 inline-flex min-w-0 cursor-text items-center gap-1 rounded-md border border-transparent px-2 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900"
+            className={`-ml-2 inline-flex min-w-0 cursor-text items-center gap-1 rounded-md border border-transparent px-2 py-2 text-sm font-semibold hover:text-slate-900 ${
+              nameError != null ? "text-[var(--bs-danger)]" : "text-slate-700"
+            }`}
             onClick={() => setIsEditingLabel(true)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
@@ -309,24 +323,13 @@ function SlotCard({
         </div>
       </div>
 
+      {/* The name is the only thing the dev authors here — the code follows from it — so its validation sits
+          against the header rather than in the field list below. Kept outside the collapse so a broken name
+          is still visible on a collapsed card. */}
+      {nameError != null && <div className="mb-1.5 text-xs text-[var(--bs-danger)]">{nameError}</div>}
+
       {!isCollapsed && (
         <>
-          {/* The slot's stable key. Templates record the slot code they fitted a component into, and a
-              catalogue import matches on it, so changing one is a rename of something other data points at —
-              safe here (the slot's id travels with the edit) but not something to do casually. */}
-          <FieldRow label="Code" hint="(unique within this body)">
-            <input
-              className={`${inputClass} font-mono uppercase`}
-              value={slot.code}
-              aria-label="Slot code"
-              aria-invalid={codeError != null}
-              // Codes are uppercase, underscore-separated; normalise as the user types rather than
-              // rejecting afterwards.
-              onChange={(e) => patch("code", e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, "_"))}
-            />
-          </FieldRow>
-          {codeError != null && <div className="mb-1 text-xs text-[var(--bs-danger)]">{codeError}</div>}
-
           <FieldRow label="Accessibility">
             <div className="flex items-center gap-4 text-sm text-slate-700">
               <label className="flex items-center gap-1.5">

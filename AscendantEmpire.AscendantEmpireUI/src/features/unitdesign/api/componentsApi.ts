@@ -298,11 +298,15 @@ function mapArmourFromWire(armour: ArmourWire): UnitComponentArmour {
   return { resistance: mapDamageProfileFromWire(armour.resistance) };
 }
 
-function mapSlotFromWire(slot: SlotWire): UnitComponentSlot {
+function mapSlotFromWire(slot: SlotWire, index: number): UnitComponentSlot {
   return {
     id: slot.id,
     code: slot.code,
-    displayName: slot.displayName,
+    // A slot's display name is required now (it is what the code is derived from), and the UD-48 migration
+    // named every slot that lacked one. The wire type stays nullable and is defaulted here purely so the
+    // editor still opens against a database that migration has not reached yet — without it, the first
+    // `displayName.trim()` in the Slots editor would throw on a legacy row.
+    displayName: slot.displayName ?? `Slot ${index + 1}`,
     isVisible: slot.isVisible,
     uiXPosition: slot.uixPosition ?? slot.uiXPosition ?? 0,
     uiYPosition: slot.uiyPosition ?? slot.uiYPosition ?? 0,

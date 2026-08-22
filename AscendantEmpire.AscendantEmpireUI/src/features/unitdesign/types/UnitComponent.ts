@@ -11,6 +11,8 @@
 // (1,000 raw = 1.0); editors convert to/from human-friendly decimals at the edit boundary
 // (see ScaledNumberField's SCALE / scaled helpers).
 
+import { toCodeSlug } from "@/util/codeSlug";
+
 import type { DamageType } from "./DamageType";
 
 /**
@@ -134,8 +136,9 @@ export interface UnitComponentSlotRule {
 }
 
 /**
- * A slot a body exposes for fitting another component (only bodies carry slots). `displayName` is an
- * optional label. `uiXPosition` / `uiYPosition` are *normalized offsets from the body's image center*:
+ * A slot a body exposes for fitting another component (only bodies carry slots). `displayName` is the
+ * slot's label and the source its `code` is derived from, so it is required.
+ * `uiXPosition` / `uiYPosition` are *normalized offsets from the body's image center*:
  * (0, 0) is the centre, -1 / +1 are the left/right (X) or top/bottom (Y) edges (relative to the image's
  * half-width / half-height), and values may fall outside -1..1 for slots that sit beyond the image bounds.
  */
@@ -147,12 +150,16 @@ export interface UnitComponentSlot {
    */
   id?: number;
   /**
-   * Stable key for the slot, unique within its body (e.g. `MAIN_HAND`). This is how a template names the slot
+   * Stable key for the slot, unique within its body (e.g. `main-hand`). This is how a template names the slot
    * it fits a component into, and how a catalogue imported from another database matches slots to existing
    * rows — neither of which an id or a position can do.
+   *
+   * Derived from `displayName` via `toSlotCode`, never typed by hand — which is why two slots on one body
+   * may not share a name, and why the editor shows this as a tooltip rather than a field.
    */
   code: string;
-  displayName: string | null;
+  /** The slot's label, and the source `code` is derived from. Required — a blank name means a blank code. */
+  displayName: string;
   isVisible: boolean;
   uiXPosition: number;
   uiYPosition: number;
@@ -247,13 +254,25 @@ export function createEmptySlotRule(): UnitComponentSlotRule {
 }
 
 /**
- * A fresh slot at the origin with one starter rule (the backend wants at least one). Defaults to visible.
- * `code` must be unique within the body — see `nextSlotCode`, which the Slots editor uses to pick one.
+ * Derives a slot's code from its display name, using the same rule as component and tag codes
+ * (`toCodeSlug`): lowercase, every non-alphanumeric character to a hyphen, ends trimmed.
+ *
+ * Wrapped rather than called directly so the slot-specific reason for it stays findable: the code is the
+ * slot's identity, so this is the single point where a name becomes one.
  */
-export function createEmptySlot(code: string): UnitComponentSlot {
+export function toSlotCode(displayName: string): string {
+  return toCodeSlug(displayName);
+}
+
+/**
+ * A fresh slot at the origin with one starter rule (the backend wants at least one). Defaults to visible.
+ * The code is derived from `displayName`, which must be unique within the body — see `nextSlotName`, which
+ * the Slots editor uses to pick a starting one.
+ */
+export function createEmptySlot(displayName: string): UnitComponentSlot {
   return {
-    code,
-    displayName: null,
+    code: toSlotCode(displayName),
+    displayName,
     isVisible: true,
     uiXPosition: 0,
     uiYPosition: 0,
@@ -262,17 +281,21 @@ export function createEmptySlot(code: string): UnitComponentSlot {
 }
 
 /**
- * Picks an unused `SLOT_n` code for a body that already exposes `slots`. A generated placeholder rather than
- * a prompt: the dev renames it to something meaningful in the editor, and because the slot's id travels with
- * the rename, doing so updates the row rather than replacing it.
+ * Picks an unused `Slot n` display name for a body that already exposes `slots`, which in turn derives a
+ * `slot-n` code.
+ *
+ * A generated placeholder rather than a prompt: the dev renames it to something meaningful in the editor,
+ * and because the slot's id travels with the rename, doing so updates the row rather than replacing it.
+ * Names are compared case-insensitively, since two names differing only in case would still collapse to the
+ * same code.
  */
-export function nextSlotCode(slots: readonly UnitComponentSlot[]): string {
-  const taken = new Set(slots.map((slot) => slot.code));
+export function nextSlotName(slots: readonly UnitComponentSlot[]): string {
+  const taken = new Set(slots.map((slot) => slot.displayName.trim().toLowerCase()));
 
   for (let candidate = slots.length + 1; ; candidate++) {
-    const code = `SLOT_${candidate}`;
-    if (!taken.has(code)) {
-      return code;
+    const displayName = `Slot ${candidate}`;
+    if (!taken.has(displayName.toLowerCase())) {
+      return displayName;
     }
   }
 }
