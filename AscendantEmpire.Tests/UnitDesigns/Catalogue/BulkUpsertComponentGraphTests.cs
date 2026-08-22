@@ -632,7 +632,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
         await using (AscendantEmpireContext exportContext = await DbFactory.CreateDbContextAsync())
         {
             Tag persisted = await exportContext.Tags.SingleAsync(t => t.Code == "settler");
-            exported = CatalogExportProjections.ToTagDto(persisted);
+            exported = CatalogueExportProjections.ToTagDto(persisted);
         }
 
         // Re-importing the exported DTO is the move-between-databases path; the organisation data must survive it.

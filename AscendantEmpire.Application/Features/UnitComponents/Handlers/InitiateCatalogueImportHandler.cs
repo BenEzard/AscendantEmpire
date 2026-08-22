@@ -21,15 +21,15 @@ namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 /// The controller stages the uploaded zip to disk first and passes its path here. Returns the new
 /// <c>ProcessingId</c> so the caller can poll for status.
 /// </remarks>
-public record InitiateCatalogImportRequest(string ZipPath) : IRequest<ServiceResult<int>>;
+public record InitiateCatalogueImportRequest(string ZipPath) : IRequest<ServiceResult<int>>;
 
-internal class InitiateCatalogImportHandler(
-    ILogger<InitiateCatalogImportHandler> logger,
+internal class InitiateCatalogueImportHandler(
+    ILogger<InitiateCatalogueImportHandler> logger,
     AscendantEmpireContext context,
     IBackgroundProcessingChannel processingChannel
-) : IRequestHandler<InitiateCatalogImportRequest, ServiceResult<int>>
+) : IRequestHandler<InitiateCatalogueImportRequest, ServiceResult<int>>
 {
-    public async Task<ServiceResult<int>> Handle(InitiateCatalogImportRequest request, CancellationToken cancellationToken)
+    public async Task<ServiceResult<int>> Handle(InitiateCatalogueImportRequest request, CancellationToken cancellationToken)
     {
         try
         {

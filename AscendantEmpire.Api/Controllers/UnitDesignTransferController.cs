@@ -3,7 +3,7 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
 using AscendantEmpire.Application.Options;
-using AscendantEmpire.BackendContracts.UnitDesigns.CatalogTransfer;
+using AscendantEmpire.BackendContracts.UnitDesigns.CatalogueTransfer;
 using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.Domain.Enums.Processing;
 using AscendantEmpire.Domain.Enums.System;
@@ -51,12 +51,12 @@ public class UnitDesignTransferController : ControllerBase
     [ProducesResponseType(typeof(int), 201)]
     [ProducesResponseType(typeof(IApiErrorResult), 400)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> InitiateCatalogExportAsync(
+    public async Task<IActionResult> InitiateCatalogueExportAsync(
         [FromServices] IMediator mediator,
-        [FromBody] InitiateCatalogExportDto request,
+        [FromBody] InitiateCatalogueExportDto request,
         CancellationToken cancelToken)
     {
-        ServiceResult<int> response = await mediator.Send(new InitiateCatalogExportRequest(ExportComponents: request.Components, ExportTemplates: request.Templates), cancelToken);
+        ServiceResult<int> response = await mediator.Send(new InitiateCatalogueExportRequest(ExportComponents: request.Components, ExportTemplates: request.Templates), cancelToken);
 
         return response.ToActionResult();
     }
@@ -73,7 +73,7 @@ public class UnitDesignTransferController : ControllerBase
     [ProducesResponseType(200)]
     [ProducesResponseType(typeof(IApiErrorResult), 404)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> DownloadCatalogExportAsync(
+    public async Task<IActionResult> DownloadCatalogueExportAsync(
         [FromServices] IDbContextFactory<AscendantEmpireContext> contextFactory,
         [FromQuery] int processId,
         CancellationToken cancellationToken)
@@ -145,7 +145,7 @@ public class UnitDesignTransferController : ControllerBase
     [ProducesResponseType(typeof(int), 201)]
     [ProducesResponseType(typeof(IApiErrorResult), 400)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> ImportCatalogAsync(
+    public async Task<IActionResult> ImportCatalogueAsync(
         [FromServices] IMediator mediator,
         [FromServices] IOptions<ImportSettings> importOptions,
         IFormFile file,
@@ -169,7 +169,7 @@ public class UnitDesignTransferController : ControllerBase
             await file.CopyToAsync(stagedStream, cancellationToken);
         }
 
-        ServiceResult<int> response = await mediator.Send(new InitiateCatalogImportRequest(ZipPath: stagedPath), cancellationToken);
+        ServiceResult<int> response = await mediator.Send(new InitiateCatalogueImportRequest(ZipPath: stagedPath), cancellationToken);
 
         return response.ToActionResult();
     }

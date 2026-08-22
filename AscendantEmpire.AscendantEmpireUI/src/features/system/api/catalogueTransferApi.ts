@@ -4,14 +4,14 @@ import { http } from "@/api/http";
 // see src/features/processing/api/processStatusApi.ts (getProcessStatus).
 
 /** Which catalogue kinds an export should include. Grows as the export dialog gains more checkboxes. */
-export interface CatalogExportSelection {
+export interface CatalogueExportSelection {
   components: boolean;
   templates: boolean;
 }
 
 /** POST /unit-design-transfer/export — returns the processId (bare int, HTTP 201). */
-export async function postInitiateCatalogExport(
-  selection: CatalogExportSelection,
+export async function postInitiateCatalogueExport(
+  selection: CatalogueExportSelection,
   signal?: AbortSignal,
 ): Promise<number> {
   const { data } = await http.post<number>("/unit-design-transfer/export", selection, { signal });
@@ -19,7 +19,7 @@ export async function postInitiateCatalogExport(
 }
 
 /** GET /unit-design-transfer/export/download?processId={n} — downloads the completed export zip. */
-export async function getCatalogExportDownload(
+export async function getCatalogueExportDownload(
   processId: number,
   signal?: AbortSignal,
 ): Promise<{ blob: Blob; fileName: string }> {
@@ -41,7 +41,7 @@ export async function getCatalogExportDownload(
  * POST /unit-design-transfer/import — uploads a previously exported catalogue zip and returns the processId
  * (bare int, HTTP 201) so the caller can poll import progress.
  */
-export async function postInitiateCatalogImport(file: File, signal?: AbortSignal): Promise<number> {
+export async function postInitiateCatalogueImport(file: File, signal?: AbortSignal): Promise<number> {
   const formData = new FormData();
   formData.append("file", file);
 

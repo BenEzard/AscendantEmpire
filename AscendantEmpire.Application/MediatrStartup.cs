@@ -51,8 +51,8 @@ public static class MediatrStartup
         services.AddScoped<IProcessExecutor, MapImportExecutor>();
         services.AddScoped<IProcessExecutor, GenerateCampaignMapExecutor>();
         services.AddScoped<IProcessExecutor, RenderCampaignMapPreviewExecutor>();
-        services.AddScoped<IProcessExecutor, CatalogExportExecutor>();
-        services.AddScoped<IProcessExecutor, CatalogImportExecutor>();
+        services.AddScoped<IProcessExecutor, CatalogueExportExecutor>();
+        services.AddScoped<IProcessExecutor, CatalogueImportExecutor>();
         services.AddScoped<IProcessExecutor, DatabaseSeedExecutor>();
 
         return services;

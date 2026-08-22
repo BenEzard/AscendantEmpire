@@ -6,7 +6,7 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
 using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
-using AscendantEmpire.BackendContracts.UnitDesigns.CatalogTransfer;
+using AscendantEmpire.BackendContracts.UnitDesigns.CatalogueTransfer;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Enums.Processing;
 using AscendantEmpire.Domain.Enums.System;
@@ -20,7 +20,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Features.UnitComponents.Executors;
 
 /// <summary>
-/// Executes <see cref="ProcessType.ImportCatalog"/> jobs — the inverse of <see cref="CatalogExportExecutor"/>.
+/// Executes <see cref="ProcessType.ImportCatalog"/> jobs — the inverse of <see cref="CatalogueExportExecutor"/>.
 /// </summary>
 /// <remarks>
 /// Reads the staged export zip and replays each JSON file through the existing upsert handlers:
@@ -29,10 +29,10 @@ namespace AscendantEmpire.Application.Features.UnitComponents.Executors;
 /// reference component codes. Missing entities are created and changed values updated; the staged upload is
 /// deleted when the job finishes (success or failure).
 /// </remarks>
-internal sealed class CatalogImportExecutor(
+internal sealed class CatalogueImportExecutor(
     AscendantEmpireContext context,
     IMediator mediator,
-    ILogger<CatalogImportExecutor> logger
+    ILogger<CatalogueImportExecutor> logger
 ) : IProcessExecutor
 {
     private static readonly JsonSerializerOptions _jsonOptions = new()
@@ -81,7 +81,7 @@ internal sealed class CatalogImportExecutor(
 
             // --- Templates ----------------------------------------------------------------
             BulkUpsertGlobalUnitTemplatesResult? templateResult = null;
-            CatalogTemplatesDocument? templatesDocument = ReadEntry<CatalogTemplatesDocument>(archive, "templates.json");
+            CatalogueTemplatesDocument? templatesDocument = ReadEntry<CatalogueTemplatesDocument>(archive, "templates.json");
 
             if (templatesDocument is not null)
             {

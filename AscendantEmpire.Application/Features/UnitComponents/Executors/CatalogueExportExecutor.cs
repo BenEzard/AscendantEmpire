@@ -6,7 +6,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.UnitComponents.Services;
 using AscendantEmpire.Application.Options;
 using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
-using AscendantEmpire.BackendContracts.UnitDesigns.CatalogTransfer;
+using AscendantEmpire.BackendContracts.UnitDesigns.CatalogueTransfer;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Enums.Processing;
@@ -24,15 +24,15 @@ namespace AscendantEmpire.Application.Features.UnitComponents.Executors;
 /// <remarks>
 /// Builds a zipped export of the unit-design catalogue — <c>components.json</c> (a
 /// <see cref="BulkUpsertUnitComponentsDto"/>) and/or <c>templates.json</c> (a
-/// <see cref="CatalogTemplatesDocument"/>) — writes it to the configured temp directory, and records the
+/// <see cref="CatalogueTemplatesDocument"/>) — writes it to the configured temp directory, and records the
 /// file path on the <see cref="Processing"/> record so the API can stream it back. Only catalogue data is
 /// exported; game/player-owned templates are excluded. Ticking templates always pulls in the components
 /// they need so the zip is self-contained.
 /// </remarks>
-internal sealed class CatalogExportExecutor(
+internal sealed class CatalogueExportExecutor(
     AscendantEmpireContext context,
     IOptions<ExportSettings> exportOptions,
-    ILogger<CatalogExportExecutor> logger
+    ILogger<CatalogueExportExecutor> logger
 ) : IProcessExecutor
 {
     private static readonly JsonSerializerOptions _jsonOptions = new()
@@ -80,7 +80,7 @@ internal sealed class CatalogExportExecutor(
 
             await UpdateProgressAsync(processing, 75, cancellationToken);
 
-            CatalogTemplatesDocument? templatesDocument = templates.Count > 0
+            CatalogueTemplatesDocument? templatesDocument = templates.Count > 0
                 ? await BuildTemplatesDocumentAsync(templates, cancellationToken)
                 : null;
 
@@ -185,14 +185,14 @@ internal sealed class CatalogExportExecutor(
     {
         List<UnitComponentDto> componentDtos = [.. components
             .OrderBy(c => c.Code)
-            .Select(CatalogExportProjections.ToUnitComponentDto)];
+            .Select(CatalogueExportProjections.ToUnitComponentDto)];
 
         // Distinct tags referenced by the exported components (keyed by code).
         List<TagDto> tagDtos = [.. components
             .SelectMany(c => c.Tags.Select(t => t.Tag))
             .DistinctBy(t => t.Code)
             .OrderBy(t => t.Code)
-            .Select(CatalogExportProjections.ToTagDto)];
+            .Select(CatalogueExportProjections.ToTagDto)];
 
         // Only keep supersession links whose predecessor AND successor are both exported, so the import
         // never references a component that isn't in the zip.
@@ -227,9 +227,9 @@ internal sealed class CatalogExportExecutor(
     /// Builds the <c>templates.json</c> payload: each catalogue template (with its positional slot codes
     /// rebuilt) plus the template supersession links whose both ends are exported.
     /// </summary>
-    private async Task<CatalogTemplatesDocument> BuildTemplatesDocumentAsync(List<UnitTemplate> templates, CancellationToken cancellationToken)
+    private async Task<CatalogueTemplatesDocument> BuildTemplatesDocumentAsync(List<UnitTemplate> templates, CancellationToken cancellationToken)
     {
-        List<CatalogTemplateDto> templateDtos = [.. templates
+        List<CatalogueTemplateDto> templateDtos = [.. templates
             .OrderBy(t => t.Code)
             .Select(BuildTemplateDto)];
 
@@ -242,10 +242,10 @@ internal sealed class CatalogExportExecutor(
             .Where(s => templateIds.Contains(s.PredecessorTemplateId) && templateIds.Contains(s.SuccessorTemplateId))
             .ToListAsync(cancellationToken);
 
-        List<CatalogTemplateSupersessionDto> supersessionDtos = [.. links
+        List<CatalogueTemplateSupersessionDto> supersessionDtos = [.. links
             .OrderBy(s => s.Predecessor.Code)
             .ThenBy(s => s.Successor.Code)
-            .Select(s => new CatalogTemplateSupersessionDto
+            .Select(s => new CatalogueTemplateSupersessionDto
             {
                 // Both ends are catalogue templates loaded above, so their Code is non-null.
                 PredecessorCode = s.Predecessor.Code!,
@@ -253,7 +253,7 @@ internal sealed class CatalogExportExecutor(
                 IsRecommended = s.IsRecommended,
             })];
 
-        return new CatalogTemplatesDocument
+        return new CatalogueTemplatesDocument
         {
             Templates = templateDtos,
             TemplateSupersessions = supersessionDtos,
@@ -265,13 +265,13 @@ internal sealed class CatalogExportExecutor(
     /// fitted components by naming each one's slot code — the identity that survives the move to another
     /// database, unlike the slot id or its position.
     /// </summary>
-    private static CatalogTemplateDto BuildTemplateDto(UnitTemplate template)
+    private static CatalogueTemplateDto BuildTemplateDto(UnitTemplate template)
     {
         // Empty slots are simply absent from the map, so nothing has to stand in for them.
         Dictionary<string, string> slotComponentCodes = template.Components
             .ToDictionary(fitted => fitted.UnitComponentSlot.Code, fitted => fitted.UnitComponent.Code);
 
-        return new CatalogTemplateDto
+        return new CatalogueTemplateDto
         {
             // A catalogue template always has a Code (filtered on load).
             Code = template.Code!,
@@ -288,7 +288,7 @@ internal sealed class CatalogExportExecutor(
     /// </summary>
     private async Task WriteZipAsync(
         BulkUpsertUnitComponentsDto? componentsDocument,
-        CatalogTemplatesDocument? templatesDocument,
+        CatalogueTemplatesDocument? templatesDocument,
         string zipPath,
         CancellationToken cancellationToken)
     {

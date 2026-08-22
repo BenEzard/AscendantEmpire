@@ -1,7 +1,7 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.UnitComponents.Classes;
-using AscendantEmpire.BackendContracts.UnitDesigns.CatalogTransfer;
+using AscendantEmpire.BackendContracts.UnitDesigns.CatalogueTransfer;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 
 using MediatR;
@@ -28,7 +28,7 @@ namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 /// (via <see cref="CompileUnitTemplateHandler"/>), so imported catalogues never carry stale or missing snapshots.
 /// Global templates aren't game-scoped, so snapshots are stamped with turn <c>0</c>.</para>
 /// </remarks>
-public record BulkUpsertGlobalUnitTemplatesRequest(CatalogTemplatesDocument Document) : IRequest<ServiceResult<BulkUpsertGlobalUnitTemplatesResult>>;
+public record BulkUpsertGlobalUnitTemplatesRequest(CatalogueTemplatesDocument Document) : IRequest<ServiceResult<BulkUpsertGlobalUnitTemplatesResult>>;
 
 internal class BulkUpsertGlobalUnitTemplatesHandler(
     ILogger<BulkUpsertGlobalUnitTemplatesHandler> logger,
@@ -40,7 +40,7 @@ internal class BulkUpsertGlobalUnitTemplatesHandler(
     {
         try
         {
-            CatalogTemplatesDocument document = request.Document;
+            CatalogueTemplatesDocument document = request.Document;
 
             // An empty payload is a valid no-op (e.g. a components-only export re-imported).
             if (document.Templates.Count == 0)
@@ -70,7 +70,7 @@ internal class BulkUpsertGlobalUnitTemplatesHandler(
             Dictionary<string, UnitTemplateAssembly.ResolvedAssembly> resolvedByCode = [];
             List<string> errors = [];
 
-            foreach (CatalogTemplateDto templateDto in document.Templates)
+            foreach (CatalogueTemplateDto templateDto in document.Templates)
             {
                 ServiceResult<UnitTemplateAssembly.ResolvedAssembly> resolved = await UnitTemplateAssembly.ResolveAsync(
                     context, playerId: null, templateDto.DisplayName, templateDto.MapImagePath, templateDto.BaseCode, templateDto.SlotComponentCodes, cancelToken);
@@ -111,7 +111,7 @@ internal class BulkUpsertGlobalUnitTemplatesHandler(
             List<string> addedCodes = [];
             List<string> updatedCodes = [];
 
-            foreach (CatalogTemplateDto templateDto in document.Templates)
+            foreach (CatalogueTemplateDto templateDto in document.Templates)
             {
                 UnitTemplateAssembly.ResolvedAssembly assembly = resolvedByCode[templateDto.Code];
 
@@ -178,7 +178,7 @@ internal class BulkUpsertGlobalUnitTemplatesHandler(
     /// <summary>
     /// Builds a brand-new catalogue template from a DTO and its resolved assembly.
     /// </summary>
-    private static UnitTemplate BuildTemplate(CatalogTemplateDto dto, UnitTemplateAssembly.ResolvedAssembly assembly)
+    private static UnitTemplate BuildTemplate(CatalogueTemplateDto dto, UnitTemplateAssembly.ResolvedAssembly assembly)
     {
         return new UnitTemplate
         {
@@ -197,7 +197,7 @@ internal class BulkUpsertGlobalUnitTemplatesHandler(
     /// Overwrites an existing tracked catalogue template from the DTO: scalar fields, its base body and its
     /// fitted components (old rows deleted, resolved rows attached).
     /// </summary>
-    private void UpdateTemplate(UnitTemplate existing, CatalogTemplateDto dto, UnitTemplateAssembly.ResolvedAssembly assembly)
+    private void UpdateTemplate(UnitTemplate existing, CatalogueTemplateDto dto, UnitTemplateAssembly.ResolvedAssembly assembly)
     {
         existing.DisplayName = dto.DisplayName;
         existing.Description = dto.Description;
@@ -215,7 +215,7 @@ internal class BulkUpsertGlobalUnitTemplatesHandler(
     /// Links whose ends do not resolve to a known template are skipped.
     /// </summary>
     private async Task ReconcileTemplateSupersessionsAsync(
-        CatalogTemplatesDocument document,
+        CatalogueTemplatesDocument document,
         Dictionary<string, UnitTemplate> templatesByCode,
         CancellationToken cancelToken)
     {
@@ -223,10 +223,10 @@ internal class BulkUpsertGlobalUnitTemplatesHandler(
         await LoadTemplatesReferencedBySupersessionsAsync(document, templatesByCode, cancelToken);
 
         // Only keep links whose predecessor and successor both resolve to a known template.
-        List<CatalogTemplateSupersessionDto> resolvableLinks = [.. document.TemplateSupersessions
+        List<CatalogueTemplateSupersessionDto> resolvableLinks = [.. document.TemplateSupersessions
             .Where(link => templatesByCode.ContainsKey(link.PredecessorCode) && templatesByCode.ContainsKey(link.SuccessorCode))];
 
-        foreach (IGrouping<string, CatalogTemplateSupersessionDto> desiredForPredecessor in resolvableLinks.GroupBy(s => s.PredecessorCode))
+        foreach (IGrouping<string, CatalogueTemplateSupersessionDto> desiredForPredecessor in resolvableLinks.GroupBy(s => s.PredecessorCode))
         {
             UnitTemplate predecessor = templatesByCode[desiredForPredecessor.Key];
 
@@ -240,7 +240,7 @@ internal class BulkUpsertGlobalUnitTemplatesHandler(
             Dictionary<int, TemplateSupersession> existingBySuccessorId = existingLinks.ToDictionary(s => s.SuccessorTemplateId);
             HashSet<int> keptSuccessorIds = [];
 
-            foreach (CatalogTemplateSupersessionDto desired in desiredForPredecessor)
+            foreach (CatalogueTemplateSupersessionDto desired in desiredForPredecessor)
             {
                 UnitTemplate successor = templatesByCode[desired.SuccessorCode];
 
@@ -270,7 +270,7 @@ internal class BulkUpsertGlobalUnitTemplatesHandler(
     /// Loads any catalogue template referenced by a supersession link that isn't already tracked.
     /// </summary>
     private async Task LoadTemplatesReferencedBySupersessionsAsync(
-        CatalogTemplatesDocument document,
+        CatalogueTemplatesDocument document,
         Dictionary<string, UnitTemplate> templatesByCode,
         CancellationToken cancelToken)
     {

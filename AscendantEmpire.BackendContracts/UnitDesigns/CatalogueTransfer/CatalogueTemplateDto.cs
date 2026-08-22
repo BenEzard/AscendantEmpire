@@ -1,4 +1,4 @@
-namespace AscendantEmpire.BackendContracts.UnitDesigns.CatalogTransfer;
+namespace AscendantEmpire.BackendContracts.UnitDesigns.CatalogueTransfer;
 
 /// <summary>
 /// A single catalogue (global/common) unit template, expressed by stable codes so it round-trips across
@@ -8,7 +8,7 @@ namespace AscendantEmpire.BackendContracts.UnitDesigns.CatalogTransfer;
 /// Mirrors the shape the dev tool's save path consumes (base body + positional slot codes). Only the
 /// single-level fitting the tool can author is represented; nested fitted-component trees are out of scope.
 /// </remarks>
-public record CatalogTemplateDto
+public record CatalogueTemplateDto
 {
     /// <summary>
     /// Unique, stable key for the template, e.g. "scout_walker_mk1".

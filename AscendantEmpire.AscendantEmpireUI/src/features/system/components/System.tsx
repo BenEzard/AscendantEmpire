@@ -17,15 +17,15 @@ import type { PermissionType } from "../types/Permission";
 import UsersTable from "./UsersTable";
 import UserPermissionsDialog from "./UserPermissionsDialog";
 import ExportSelectionDialog from "./ExportSelectionDialog";
-import { useCatalogExport, type CatalogExportPhase } from "../hooks/useCatalogExport";
-import { useCatalogImport, type CatalogImportPhase } from "../hooks/useCatalogImport";
+import { useCatalogueExport, type CatalogueExportPhase } from "../hooks/useCatalogueExport";
+import { useCatalogueImport, type CatalogueImportPhase } from "../hooks/useCatalogueImport";
 
 // Which panel the page is currently showing. Only the Users view exists for now, but this leaves room
 // for more System tools (each toolbar group can flip to its own view).
 type SystemView = "none" | "users";
 
 // Short status labels shown under the progress bar for each phase of the export/import state machines.
-const EXPORT_PHASE_LABELS: Record<CatalogExportPhase["phase"], string> = {
+const EXPORT_PHASE_LABELS: Record<CatalogueExportPhase["phase"], string> = {
   idle: "",
   starting: "Starting export…",
   polling: "Export in progress…",
@@ -34,7 +34,7 @@ const EXPORT_PHASE_LABELS: Record<CatalogExportPhase["phase"], string> = {
   error: "",
 };
 
-const IMPORT_PHASE_LABELS: Record<CatalogImportPhase["phase"], string> = {
+const IMPORT_PHASE_LABELS: Record<CatalogueImportPhase["phase"], string> = {
   idle: "",
   starting: "Starting import…",
   polling: "Import in progress…",
@@ -78,8 +78,8 @@ export default function System() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Background export/import state machines (initiate → poll → download/done), reusing the generic poller.
-  const catalogExport = useCatalogExport();
-  const catalogImport = useCatalogImport();
+  const catalogueExport = useCatalogueExport();
+  const catalogueImport = useCatalogueImport();
 
   // Loads (or reloads) the full user list. Used both when opening the Users view and after every
   // status change so the table reflects the server's truth (timestamps, etc.).
@@ -154,7 +154,7 @@ export default function System() {
   const handleExportCommit = (selectedIds: string[]) => {
     setExportError(null);
     setShowExportDialog(false);
-    catalogExport.startExport({
+    catalogueExport.startExport({
       components: selectedIds.includes("components"),
       templates: selectedIds.includes("templates"),
     });
@@ -170,7 +170,7 @@ export default function System() {
     }
 
     setImportFileName(file.name);
-    catalogImport.startImport(file);
+    catalogueImport.startImport(file);
   };
 
   // A "Users" group plus a "Files" group for catalogue export/import. The Users button opens the
@@ -275,26 +275,26 @@ export default function System() {
 
       {/* Export progress + auto-download. Driven by the export state machine; closing resets it to idle. */}
       <ProgressOperationDialog
-        open={catalogExport.isActive}
+        open={catalogueExport.isActive}
         title="Exporting catalogue"
-        operationLabel={EXPORT_PHASE_LABELS[catalogExport.exportPhase.phase]}
-        progressPercent={catalogExport.progressPercent}
-        status={progressStatus(catalogExport.exportPhase.phase)}
+        operationLabel={EXPORT_PHASE_LABELS[catalogueExport.exportPhase.phase]}
+        progressPercent={catalogueExport.progressPercent}
+        status={progressStatus(catalogueExport.exportPhase.phase)}
         successMessage="Export complete. Your download has started."
-        errorMessage={catalogExport.exportPhase.phase === "error" ? catalogExport.exportPhase.message : undefined}
-        onClose={catalogExport.resetExport}
+        errorMessage={catalogueExport.exportPhase.phase === "error" ? catalogueExport.exportPhase.message : undefined}
+        onClose={catalogueExport.resetExport}
       />
 
       {/* Import progress. Driven by the import state machine; closing resets it to idle. */}
       <ProgressOperationDialog
-        open={catalogImport.isActive}
+        open={catalogueImport.isActive}
         title={importFileName ? `Importing "${importFileName}"` : "Importing catalogue"}
-        operationLabel={IMPORT_PHASE_LABELS[catalogImport.importPhase.phase]}
-        progressPercent={catalogImport.progressPercent}
-        status={progressStatus(catalogImport.importPhase.phase)}
+        operationLabel={IMPORT_PHASE_LABELS[catalogueImport.importPhase.phase]}
+        progressPercent={catalogueImport.progressPercent}
+        status={progressStatus(catalogueImport.importPhase.phase)}
         successMessage="Import complete. The catalogue has been updated."
-        errorMessage={catalogImport.importPhase.phase === "error" ? catalogImport.importPhase.message : undefined}
-        onClose={catalogImport.resetImport}
+        errorMessage={catalogueImport.importPhase.phase === "error" ? catalogueImport.importPhase.message : undefined}
+        onClose={catalogueImport.resetImport}
       />
     </div>
   );

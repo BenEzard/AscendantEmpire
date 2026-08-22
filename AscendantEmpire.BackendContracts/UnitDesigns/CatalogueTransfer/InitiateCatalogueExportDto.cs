@@ -1,4 +1,4 @@
-namespace AscendantEmpire.BackendContracts.UnitDesigns.CatalogTransfer;
+namespace AscendantEmpire.BackendContracts.UnitDesigns.CatalogueTransfer;
 
 /// <summary>
 /// Selects which parts of the unit-design catalogue an export job should include.
@@ -10,7 +10,7 @@ namespace AscendantEmpire.BackendContracts.UnitDesigns.CatalogTransfer;
 /// even when <see cref="Components"/> is false; ticking <see cref="Components"/> exports the entire
 /// component catalogue.</para>
 /// </remarks>
-public record InitiateCatalogExportDto
+public record InitiateCatalogueExportDto
 {
     /// <summary>
     /// Export the entire component catalogue (every component, the tags they reference and the

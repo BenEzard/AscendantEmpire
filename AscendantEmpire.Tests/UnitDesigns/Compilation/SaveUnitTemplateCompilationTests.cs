@@ -2,7 +2,7 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
-using AscendantEmpire.BackendContracts.UnitDesigns.CatalogTransfer;
+using AscendantEmpire.BackendContracts.UnitDesigns.CatalogueTransfer;
 using AscendantEmpire.BackendContracts.UnitDesigns.RecompileAllUnitTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveGlobalUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
@@ -409,12 +409,12 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
     {
         await SeedCatalogAsync();
 
-        var firstImport = new CatalogTemplatesDocument
+        var firstImport = new CatalogueTemplatesDocument
         {
             Templates =
             [
-                new CatalogTemplateDto { Code = "bulk_a", DisplayName = "Bulk A", MapImagePath = "a.png", BaseCode = "test_body", SlotComponentCodes = new Dictionary<string, string> { [SLOT_A] = "wpn" } },
-                new CatalogTemplateDto { Code = "bulk_b", DisplayName = "Bulk B", MapImagePath = "b.png", BaseCode = "test_body", SlotComponentCodes = new Dictionary<string, string> { [SLOT_A] = "arm" } },
+                new CatalogueTemplateDto { Code = "bulk_a", DisplayName = "Bulk A", MapImagePath = "a.png", BaseCode = "test_body", SlotComponentCodes = new Dictionary<string, string> { [SLOT_A] = "wpn" } },
+                new CatalogueTemplateDto { Code = "bulk_b", DisplayName = "Bulk B", MapImagePath = "b.png", BaseCode = "test_body", SlotComponentCodes = new Dictionary<string, string> { [SLOT_A] = "arm" } },
             ],
         };
 
@@ -429,11 +429,11 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
         CompiledUnitTemplate snapshotB = await LoadSnapshotAsync(templateBId);
 
         // Re-import bulk_a with its weapon swapped for the armour: the existing snapshot must be recompiled.
-        var secondImport = new CatalogTemplatesDocument
+        var secondImport = new CatalogueTemplatesDocument
         {
             Templates =
             [
-                new CatalogTemplateDto { Code = "bulk_a", DisplayName = "Bulk A", MapImagePath = "a.png", BaseCode = "test_body", SlotComponentCodes = new Dictionary<string, string> { [SLOT_A] = "arm" } },
+                new CatalogueTemplateDto { Code = "bulk_a", DisplayName = "Bulk A", MapImagePath = "a.png", BaseCode = "test_body", SlotComponentCodes = new Dictionary<string, string> { [SLOT_A] = "arm" } },
             ],
         };
 

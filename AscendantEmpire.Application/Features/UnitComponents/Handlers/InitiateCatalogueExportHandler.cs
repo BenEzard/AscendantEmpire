@@ -20,15 +20,15 @@ namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 /// <remarks>
 /// Returns the new <c>ProcessingId</c> so the caller can poll for status and then download the zip.
 /// </remarks>
-public record InitiateCatalogExportRequest(bool ExportComponents, bool ExportTemplates) : IRequest<ServiceResult<int>>;
+public record InitiateCatalogueExportRequest(bool ExportComponents, bool ExportTemplates) : IRequest<ServiceResult<int>>;
 
-internal class InitiateCatalogExportHandler(
-    ILogger<InitiateCatalogExportHandler> logger,
+internal class InitiateCatalogueExportHandler(
+    ILogger<InitiateCatalogueExportHandler> logger,
     AscendantEmpireContext context,
     IBackgroundProcessingChannel processingChannel
-) : IRequestHandler<InitiateCatalogExportRequest, ServiceResult<int>>
+) : IRequestHandler<InitiateCatalogueExportRequest, ServiceResult<int>>
 {
-    public async Task<ServiceResult<int>> Handle(InitiateCatalogExportRequest request, CancellationToken cancellationToken)
+    public async Task<ServiceResult<int>> Handle(InitiateCatalogueExportRequest request, CancellationToken cancellationToken)
     {
         try
         {

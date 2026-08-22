@@ -13,7 +13,7 @@ namespace AscendantEmpire.Application.Features.UnitComponents.Services;
 /// with its type-specific extension, slots, rules, domain modifiers and tag joins for the projection to
 /// be complete.
 /// </remarks>
-internal static class CatalogExportProjections
+internal static class CatalogueExportProjections
 {
     /// <summary>
     /// Projects a fully-loaded component (extension + slots + rules + tags) onto its export DTO.

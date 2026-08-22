@@ -1,4 +1,4 @@
-namespace AscendantEmpire.BackendContracts.UnitDesigns.CatalogTransfer;
+namespace AscendantEmpire.BackendContracts.UnitDesigns.CatalogueTransfer;
 
 /// <summary>
 /// Backend result of a catalogue-template bulk upsert, summarising what was inserted vs updated.

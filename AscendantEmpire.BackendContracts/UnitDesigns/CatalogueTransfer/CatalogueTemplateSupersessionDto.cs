@@ -1,4 +1,4 @@
-namespace AscendantEmpire.BackendContracts.UnitDesigns.CatalogTransfer;
+namespace AscendantEmpire.BackendContracts.UnitDesigns.CatalogueTransfer;
 
 /// <summary>
 /// A directed "successor supersedes predecessor" upgrade link between two catalogue templates, by code.
@@ -7,7 +7,7 @@ namespace AscendantEmpire.BackendContracts.UnitDesigns.CatalogTransfer;
 /// Both codes must resolve to a template in the export's <c>Templates</c> list (or an existing template in
 /// the database) on import; links whose ends do not resolve are skipped.
 /// </remarks>
-public record CatalogTemplateSupersessionDto
+public record CatalogueTemplateSupersessionDto
 {
     /// <summary>
     /// Code of the older template being superseded.

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import {
-  getCatalogExportDownload,
-  postInitiateCatalogExport,
-  type CatalogExportSelection,
-} from "../api/catalogTransferApi";
+  getCatalogueExportDownload,
+  postInitiateCatalogueExport,
+  type CatalogueExportSelection,
+} from "../api/catalogueTransferApi";
 import { useProcessStatus } from "@/features/processing/hooks/useProcessStatus";
 
-export type CatalogExportPhase =
+export type CatalogueExportPhase =
   | { phase: "idle" }
   | { phase: "starting" }
   | { phase: "polling"; processId: number }
@@ -15,32 +15,32 @@ export type CatalogExportPhase =
   | { phase: "done" }
   | { phase: "error"; message: string };
 
-export interface UseCatalogExportResult {
-  exportPhase: CatalogExportPhase;
+export interface UseCatalogueExportResult {
+  exportPhase: CatalogueExportPhase;
   /** The latest progress value (0–100) from the polling response. */
   progressPercent: number;
   /** Initiate an export for the given catalogue selection. */
-  startExport: (selection: CatalogExportSelection) => void;
+  startExport: (selection: CatalogueExportSelection) => void;
   /** Reset back to idle (e.g. when the user closes the dialog). */
   resetExport: () => void;
   /** True while any export phase other than idle is active. */
   isActive: boolean;
 }
 
-const IDLE: CatalogExportPhase = { phase: "idle" };
+const IDLE: CatalogueExportPhase = { phase: "idle" };
 
 /**
  * Drives a catalogue export: initiate → poll → auto-download. Mirrors the map-gallery export hook, but the
  * download only needs the processId (the zip filename identifies itself), so no per-entity id is tracked.
  */
-export function useCatalogExport(): UseCatalogExportResult {
-  const [exportPhase, setExportPhase] = useState<CatalogExportPhase>(IDLE);
+export function useCatalogueExport(): UseCatalogueExportResult {
+  const [exportPhase, setExportPhase] = useState<CatalogueExportPhase>(IDLE);
   // Held in local state so it persists through the download phase (when polling has stopped).
   const [progressPercent, setProgressPercent] = useState(0);
 
   // --- POST /unit-design-transfer/export ---
   const initiateMutation = useMutation({
-    mutationFn: (selection: CatalogExportSelection) => postInitiateCatalogExport(selection),
+    mutationFn: (selection: CatalogueExportSelection) => postInitiateCatalogueExport(selection),
     onSuccess: (processId: number) => {
       setExportPhase({ phase: "polling", processId });
     },
@@ -64,7 +64,7 @@ export function useCatalogExport(): UseCatalogExportResult {
   // --- Trigger file download ---
   const triggerDownload = useCallback(async (processId: number) => {
     try {
-      const { blob, fileName } = await getCatalogExportDownload(processId);
+      const { blob, fileName } = await getCatalogueExportDownload(processId);
       const url = URL.createObjectURL(blob);
       try {
         const anchor = document.createElement("a");
@@ -101,7 +101,7 @@ export function useCatalogExport(): UseCatalogExportResult {
     }
   }, [poll.phase, poll.errorMessage, exportPhase, triggerDownload]);
 
-  const startExport = useCallback((selection: CatalogExportSelection) => {
+  const startExport = useCallback((selection: CatalogueExportSelection) => {
     setProgressPercent(0);
     setExportPhase({ phase: "starting" });
     initiateMutation.mutate(selection);
