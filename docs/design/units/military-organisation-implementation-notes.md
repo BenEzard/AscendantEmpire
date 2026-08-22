@@ -51,7 +51,7 @@ Military Advisor). Companion to [military-organisation.md](military-organisation
 8. **Officer economy & population cap** (growth from combat, per-rank population ceiling, banked-XP promotion)
    from the design doc are **not** implemented here — this pass is configuration only.
 9. **Whole-game save/load**: there is no whole-game export/import in the codebase — per-player military config
-    persists with the game in the DB. The catalog export/import carries `MilitaryOrganisationalGroup` tags via
+    persists with the game in the DB. The catalogue export/import carries `MilitaryOrganisationalGroup` tags via
     the components that reference them — and, since the starter units became hand-authored content, `TagDto`
     now also carries the tag's `MovementDomain`, `LeadershipModel` and unled sizes. Without those the zip
     would move a settler tag between databases silently commissioned, and game setup would then reject a
@@ -90,7 +90,7 @@ rather than starting a game with no units:
 | Requirement | Failure if missing |
 | --- | --- |
 | A global template exists with the code | "Starter template(s) not found in the catalogue…" |
-| It has a compiled snapshot | "…has no compiled snapshot — recompile the catalog templates." |
+| It has a compiled snapshot | "…has no compiled snapshot — recompile the catalogue templates." |
 | Its resolved organisation tag is `Unled` | "…is not unled — starting units must resolve to an unled organisation tag…" |
 | That tag has an authored `UnledDefaultSize` | "…which has no authored UnledDefaultSize." |
 | The map has one start position per player | "The map has N start position(s) but the game has M players…" |

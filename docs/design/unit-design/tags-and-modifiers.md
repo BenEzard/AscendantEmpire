@@ -6,7 +6,7 @@ questions, and the work that remains.
 
 ## Current references in the code
 
-## Tags — a global, reusable catalog
+## Tags — a global, reusable catalogue
 
 **Backend (C#/.NET):**
 
@@ -15,7 +15,7 @@ questions, and the work that remains.
 - `TagType.cs` — enum: `Classification`, `Combat`, `Movement`, `Ability`.
 - EF Core: `DbSet<Tag> Tags`, `DbSet<UnitComponentTag> UnitComponentTags`.
 - `UnitDesignTagsController.cs` — dev-only endpoints `GET/POST /unit-design-tags`, `PUT /unit-design-tags/{id}`, backed by `GetTagsHandler`, `CreateTagHandler`, `UpdateTagHandler`, and shape validation in `TagValidation.cs`. The tag-type catalogue sits under the same controller as a sub-resource: `GET/PUT /unit-design-tags/types`, backed by `GetTagTypesHandler` and `UpsertTagTypesHandler`. The `:int` constraint on `{id}` is what keeps it distinct from the literal `types` segment.
-- Contracts: `UpsertTagDto`, `TagView`, `CatalogTag`.
+- Contracts: `UpsertTagDto`, `TagView`, `CatalogueTag`.
 
 **Frontend**, all under `AscendantEmpire.AscendantEmpireUI/src/features/entitysetuptool/`:
 
@@ -45,8 +45,8 @@ The original discussion (kept below) was treating classification, passive bonuse
 
 ### 1. Tags — classification only (implemented)
 
-- Flat, global, string-keyed catalog (`Tag`/`TagType`). No hierarchy — combine meaning via multiple tags on a component (e.g. a camel base carries both a "cavalry" tag and a "desert" tag) rather than a tag tree.
-- Tags carry no data beyond their own catalog fields (`Code`, `DisplayName`, `Description`, `TagType`) — they are keys, not behavior.
+- Flat, global, string-keyed catalogue (`Tag`/`TagType`). No hierarchy — combine meaning via multiple tags on a component (e.g. a camel base carries both a "cavalry" tag and a "desert" tag) rather than a tag tree.
+- Tags carry no data beyond their own catalogue fields (`Code`, `DisplayName`, `Description`, `TagType`) — they are keys, not behavior.
 - Consumed today for classification and for slot-acceptance rules (`SlotRuleType.HasTag`).
 
 ### 2. Structured Modifiers — numeric, single-unit scope (implemented, partial)

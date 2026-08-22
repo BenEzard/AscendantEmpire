@@ -167,7 +167,7 @@ their start tile. If not, game creation fails with the specific reason:
 | Message | Fix |
 | --- | --- |
 | "Starter template(s) not found in the catalogue…" | Author the missing global template (step 3). |
-| "…has no compiled snapshot — recompile the catalog templates." | Run recompile all templates. |
+| "…has no compiled snapshot — recompile the catalogue templates." | Run recompile all templates. |
 | "…is not unled — starting units must resolve to an unled organisation tag…" | The template resolved to a commissioned tag or none: check the fitted component carries `settler` / `scout`, and that the tag's Leadership Model is Unled (step 1). |
 | "…which has no authored UnledDefaultSize." | Fill in the tag's unled sizes (step 1). |
 | "The map has N start position(s) but the game has M players…" | Add start positions (step 4). |

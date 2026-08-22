@@ -25,7 +25,7 @@ sword**. The system is built to handle these branches and merges, and to mark on
 *recommended* default when there are several.
 
 Components are also loosely grouped by what they *are* (e.g. all "sword"-type parts) using a
-classification label. This keeps the catalog tidy and lets a design slot say "any sword fits here,"
+classification label. This keeps the catalogue tidy and lets a design slot say "any sword fits here,"
 separately from the upgrade relationships.
 
 ---
@@ -46,9 +46,9 @@ separately from the upgrade relationships.
 - **Which design uses which part already exists** via `UnitTemplateComponent`. Upgrade recommendations
   read from there.
 - Component supersessions and `TagType` are imported through the existing
-  `BulkUpsertUnitComponents` catalog endpoint, following its "payload is authoritative, one
+  `BulkUpsertUnitComponents` catalogue endpoint, following its "payload is authoritative, one
   transaction" pattern.
-- **In scope:** entities, EF configuration, migration, and catalog-import wiring (components).
+- **In scope:** entities, EF configuration, migration, and catalogue-import wiring (components).
   **Out of scope (follow-ups):** the recommendation engine, the obsolete-offer handler, build-path
   enforcement, and surfacing supersessions in read endpoints.
 - Rejected alternative: a "Component Class + linear tier." A linear tier conflates *grouping* with
@@ -66,7 +66,7 @@ separately from the upgrade relationships.
   an `IsRecommended` flag to mark the default upgrade among several successors.
 - **Grouping via Tags + a new `TagType`**, keeping a classification tag (`"sword"`) distinct from
   buff/perk bonus tags while reusing the existing join table and the existing `HasTag` slot rule.
-- **Supersession is authored global catalog data** (not per-player). Per-player *obsolescence* remains
+- **Supersession is authored global catalogue data** (not per-player). Per-player *obsolescence* remains
   in the existing `PlayerUnlockedComponent` / `PlayerUnlockedTemplate` `ObsoleteOnTurn` fields.
 
 ### 1. New enum — `TagType`
@@ -102,7 +102,7 @@ public class ComponentSupersession
 }
 ```
 - Composite PK `(PredecessorComponentId, SuccessorComponentId)` — mirrors `UnitComponentTag`.
-- Authored global catalog data (not per-player).
+- Authored global catalogue data (not per-player).
 
 On `UnitComponent` add two nav collections (read as: *what supersedes me* / *what I supersede*):
 - `ICollection<ComponentSupersession> SupersededBy` — rows where this component is the **predecessor**.
@@ -175,7 +175,7 @@ Contracts under `AscendantEmpire.BackendContracts/UnitDesigns/BulkUpsertUnitComp
   component, propose the successor if it passes the slot's acceptance rules and is unlocked).
 - The obsolete-offer handler (set `ObsoleteOnTurn` on accept).
 - Build-path enforcement blocking obsolete components on *new* units.
-- Surfacing supersession in read endpoints (`GetFullCatalog`, `GetPlayerTemplates`).
+- Surfacing supersession in read endpoints (`GetFullCatalogue`, `GetPlayerTemplates`).
 
 ### Verification
 1. `dotnet build` the solution.

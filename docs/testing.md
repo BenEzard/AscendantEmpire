@@ -55,7 +55,7 @@ fixture, rather than inferred:
   `InMemoryShapedQueryCompilingExpressionVisitor.ShaperExpressionProcessingExpressionVisitor`.
   The failure is in the query shaper, so no query shape avoids it.
 - The blast radius is per-query, not per-context: a query that never pulls in the owning entity is
-  unaffected. `GetFullCatalogHandler`'s bodies query is fine; its components query is not.
+  unaffected. `GetFullCatalogueHandler`'s bodies query is fine; its components query is not.
 
 In this codebase that means any test reading `UnitComponentWeapon.Attack`,
 `UnitComponentArmour.Resistance`, or `CompiledUnitTemplate`'s `Attack`/`Resistance` belongs in tier 3.

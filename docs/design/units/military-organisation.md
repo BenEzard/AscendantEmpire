@@ -62,7 +62,7 @@ A tag reaches a Unit Template through three sources, in increasing specificity (
 
 Players may keep many structures and tags, and different templates may use different ones.
 
-Beyond being a pointer, the tag carries a small amount of **authored** (catalog-level,
+Beyond being a pointer, the tag carries a small amount of **authored** (catalogue-level,
 non-player-editable) data: its movement domain, its **leadership model**, and — for unled
 tags — the unled size values (see below). The tag is the right home for authored guardrails
 precisely *because* the player cannot edit it: per-player data (the structure's tiers) is
