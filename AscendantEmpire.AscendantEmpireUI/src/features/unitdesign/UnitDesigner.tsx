@@ -58,11 +58,13 @@ export interface UnitDesignerProps {
   /** Called with a user-facing message when the save request fails. */
   onSaveError?: (message: string) => void;
   /**
-   * When true, Save persists a global/common catalogue template (the dev tool's flow) instead of a
-   * player-owned custom one — no game/player token required, and a Code is derived from the display name
-   * since the header's naming textbox only collects one field.
+   * Marks the designer as hosted by the dev Entity Setup Tool rather than by the game. It switches every
+   * global/common-catalogue behaviour on at once: Save persists a shared catalogue template instead of a
+   * player-owned custom one (no game/player token required, with a Code derived from the display name
+   * since the header's naming textbox only collects one field), the "Load template…" combo box lists the
+   * master catalogue, and the developer-only fields appear — currently just the template's map sprite.
    */
-  saveAsGlobal?: boolean;
+  developerMode?: boolean;
   onClose?: () => void;
 }
 
@@ -72,7 +74,7 @@ export default function UnitDesigner({
   design,
   onSaveSuccess,
   onSaveError,
-  saveAsGlobal = false,
+  developerMode = false,
   onClose,
 }: UnitDesignerProps) {
   const editable = mode === "edit";
@@ -92,7 +94,7 @@ export default function UnitDesigner({
   const [selectionOpenFor, setSelectionOpenFor] = useState<null | { slotIndex: number }>(null);
 
   // The templates offered by the header's "Load template…" combo box: the master/global catalogue for
-  // the dev tool (saveAsGlobal), or the current game/player's available templates otherwise — mirroring
+  // the dev tool (developerMode), or the current game/player's available templates otherwise — mirroring
   // the same flag that already picks the Save endpoint. Fetched once on mount, edit mode only (a
   // read-only viewer shouldn't be able to swap out the design it was given).
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
@@ -103,6 +105,15 @@ export default function UnitDesigner({
   // before it overwrites the current base/slots; null when no confirmation is pending.
   const [pendingTemplate, setPendingTemplate] = useState<TemplateSummary | null>(null);
 
+  // The template's map sprite path — the image representing this unit on the campaign map. Developer-only
+  // (see the developerMode prop); players never set it.
+  //
+  // It lives on the template rather than being derived from the chosen base, because the sprite depends on
+  // the whole assembly: a spearman and a swordsman are both built on the human body but have to read
+  // differently on the map. Seeded when a template is loaded so an existing one shows its current sprite,
+  // and cleared by Reset along with the rest of the design.
+  const [mapImagePath, setMapImagePath] = useState("");
+
   useEffect(() => {
     if (!editable) {
       return;
@@ -112,7 +123,7 @@ export default function UnitDesigner({
     setTemplatesLoading(true);
     setTemplatesError(null);
 
-    const load = saveAsGlobal ? getGlobalTemplates() : getPlayerTemplates();
+    const load = developerMode ? getGlobalTemplates() : getPlayerTemplates();
     load
       .then((result) => {
         if (!cancelled) {
@@ -133,7 +144,7 @@ export default function UnitDesigner({
     return () => {
       cancelled = true;
     };
-  }, [editable, saveAsGlobal]);
+  }, [editable, developerMode]);
 
   // The area available for the design canvas — used only to size the placeholder square when no base
   // image is chosen yet, and to cap how large a chosen image renders.
@@ -221,6 +232,7 @@ export default function UnitDesigner({
     setSelectionOpenFor(null);
     setBaseCode(null);
     setSlotComponentCodes([]);
+    setMapImagePath("");
   };
 
   // Loads a picked template's base + fitted components straight into the design, replacing whatever is
@@ -235,6 +247,8 @@ export default function UnitDesigner({
     setSelectionOpenFor(null);
     setBaseCode(resolved.baseCode);
     setSlotComponentCodes(resolved.slotComponentCodes);
+    // Carry the saved sprite across so a loaded template shows what it currently renders as on the map.
+    setMapImagePath(template.mapImagePath ?? "");
   };
 
   // A template is applied immediately when nothing is assembled yet; otherwise confirmation is required
@@ -329,7 +343,14 @@ export default function UnitDesigner({
           return;
         }
 
-        const mapImagePath = baseComponent.designerImagePath ?? "";
+        // The developer picks the sprite explicitly in the properties panel. The in-game player flow has no
+        // such field, so it still falls back to the base's designer image purely to satisfy the server's
+        // non-empty MapImagePath check (UnitTemplateAssembly rejects a blank one). That fallback does not
+        // actually render: designer images are served from public/, while the map resolves sprites out of
+        // the bundled src/assets/units set, so a player-designed unit ends up with no map image. Giving
+        // players a real sprite is its own piece of work — this preserves the existing behaviour rather
+        // than regressing it.
+        const savedMapImagePath = developerMode ? mapImagePath.trim() : (baseComponent.designerImagePath ?? "");
 
         // The designer tracks fittings positionally because that array is index-aligned with the `baseSlots`
         // it just rendered. The wire contract names each slot by its code instead, so that adding, removing
@@ -342,11 +363,11 @@ export default function UnitDesigner({
           }),
         );
 
-        if (saveAsGlobal) {
+        if (developerMode) {
           const payload: SaveGlobalUnitTemplatePayload = {
             code: slugify(displayName),
             displayName,
-            mapImagePath,
+            mapImagePath: savedMapImagePath,
             baseCode,
             slotComponentCodes: slotComponentCodeMap,
           };
@@ -360,7 +381,7 @@ export default function UnitDesigner({
 
         const payload: SaveUnitTemplatePayload = {
           displayName,
-          mapImagePath,
+          mapImagePath: savedMapImagePath,
           baseCode,
           slotComponentCodes: slotComponentCodeMap,
         };
@@ -394,7 +415,9 @@ export default function UnitDesigner({
         onClose={handleClose}
         onReset={resetDesign}
         onSave={editable ? handleSave : undefined}
-        canSave={baseCode != null}
+        // In the dev tool the sprite is a required part of the template, so Save stays disabled until one
+        // is entered — the server rejects a blank MapImagePath, and failing here is clearer than a 400.
+        canSave={baseCode != null && (!developerMode || mapImagePath.trim() !== "")}
         defaultDisplayName={baseComponent?.displayName ?? ""}
         saving={saveMutation.isPending || saveGlobalMutation.isPending}
         onSelectTemplate={editable ? handleSelectTemplate : undefined}
@@ -474,7 +497,13 @@ export default function UnitDesigner({
         </div>
 
         <div className="basis-1/5 shrink-0" style={{ minHeight: 0 }}>
-          <DesignProperties aggregate={aggregate} />
+          <DesignProperties
+            aggregate={aggregate}
+            mapImagePath={mapImagePath}
+            // Supplying the change handler is what reveals the developer-only Map Image card; the in-game
+            // host leaves it undefined, so players never see the field at all.
+            onMapImagePathChange={developerMode ? setMapImagePath : undefined}
+          />
         </div>
       </div>
 

@@ -3,9 +3,23 @@ import { BattleStats } from "./BattleStats";
 import { UpkeepStats } from "./UpkeepStats";
 import { TrainingCostStats } from "./TrainingCostStats";
 import { rawToScaled } from "./types/UnitComponent";
+import { resolveTroopMapImageSrc } from "@/features/map/util/troopDisplayImageResolver";
+
+/** Mirrors UnitTemplate.MAP_IMAGE_PATH_MAX_LENGTH on the server. */
+const MAP_IMAGE_PATH_MAX_LENGTH = 500;
 
 export interface DesignPropertiesProps {
   aggregate: DesignAggregate;
+  /**
+   * The template's map sprite path. Only meaningful alongside onMapImagePathChange — without a change
+   * handler the Map Image card isn't rendered and this value is ignored.
+   */
+  mapImagePath?: string;
+  /**
+   * Supplied only by the developer host (the Entity Setup Tool). Its presence is what makes the
+   * developer-only Map Image card appear; the in-game player build passes neither prop.
+   */
+  onMapImagePathChange?: (next: string) => void;
 }
 
 /** A labelled Scale-1,000 summary row (values are raw and shown as decimals). */
@@ -18,7 +32,53 @@ function SummaryRow({ label, raw }: { label: string; raw: number }) {
   );
 }
 
-export default function DesignProperties({ aggregate }: DesignPropertiesProps) {
+/**
+ * Developer-only editor for the template's map sprite — the image this unit is drawn as on the campaign
+ * map, as opposed to the full-size artwork the designer canvas shows.
+ *
+ * The thumbnail deliberately resolves the path through the campaign map's own resolver rather than dropping
+ * it into a plain img src. Map sprites are bundled out of src/assets/units, not served from public/, so a
+ * raw src would show nothing even for a perfectly valid path — and, worse, would happily display a
+ * public/ designer image that the map itself could never resolve. Going through the real resolver makes
+ * the thumbnail an honest answer to "will this render on the map?": if it shows here, it shows there.
+ * That is also why nothing is said on success and only failures get text — the image is the message.
+ */
+function MapImageCard({ mapImagePath, onChange }: { mapImagePath: string; onChange: (next: string) => void }) {
+  const trimmedPath = mapImagePath.trim();
+  const resolvedSrc = trimmedPath === "" ? undefined : resolveTroopMapImageSrc(trimmedPath);
+
+  return (
+    <div className="-mx-2 space-y-1 rounded-md border border-white/10 bg-sky-900/30 px-3 py-2">
+      <div className="border-b border-white/10 pb-1 text-sm font-semibold text-white">Map Image</div>
+
+      <div className="mt-1 space-y-2">
+        {/* The sprite sits to the right of the box, so a resolving path speaks for itself and needs no
+            accompanying text — the thumbnail appearing beside what you typed is the confirmation. */}
+        <div className="flex items-center gap-2">
+          <input
+            className="min-w-0 flex-1 rounded-md border border-white/20 bg-white/10 px-2 py-1 text-sm text-white placeholder-white/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+            value={mapImagePath}
+            onChange={(event) => onChange(event.target.value)}
+            placeholder="e.g. ancient-spearman_40px.png"
+            maxLength={MAP_IMAGE_PATH_MAX_LENGTH}
+            spellCheck={false}
+          />
+          {resolvedSrc && <img src={resolvedSrc} alt="Map sprite preview" className="h-10 w-10 shrink-0 object-contain" />}
+        </div>
+
+        {/* Errors only. An empty box isn't flagged — that's just the starting state of every new design,
+            and the disabled Save already says it's required. A non-empty path that resolves to nothing is
+            worth shouting about: the server only checks MapImagePath is non-empty, so a typo saves happily
+            and leaves the unit sprite-less on the map with nothing else to warn you. */}
+        {trimmedPath !== "" && !resolvedSrc && (
+          <p className="text-xs text-amber-300">No sprite found in src/assets/units for this path — the unit will have no image on the map.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function DesignProperties({ aggregate, mapImagePath = "", onMapImagePathChange }: DesignPropertiesProps) {
   const { summary, battleStats, cost, upkeep } = aggregate;
 
   const showBattleStats =
@@ -31,6 +91,10 @@ export default function DesignProperties({ aggregate }: DesignPropertiesProps) {
 
       <div className="flex-1 overflow-auto px-4 py-3 text-sm text-white" style={{ minHeight: 0 }}>
         <div className="space-y-3">
+          {/* Developer-only: absent entirely in the player build (no change handler is passed). Sits at the
+              top because it's an authoring field rather than a derived stat. */}
+          {onMapImagePathChange && <MapImageCard mapImagePath={mapImagePath} onChange={onMapImagePathChange} />}
+
           {/* Real, canonical-backed summary stats. */}
           <div className="-mx-2 space-y-1 rounded-md border border-white/10 bg-sky-900/30 px-3 py-2">
             <div className="border-b border-white/10 pb-1 text-sm font-semibold text-white">Summary</div>

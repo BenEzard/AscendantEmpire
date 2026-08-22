@@ -48,7 +48,7 @@ export default function EntitySetupTool() {
   const [tagTypes, setTagTypes] = useState<TagTypeInfo[]>([]);
 
   // Controls the full-screen Unit Designer overlay opened by the Designer group. Saves here persist a
-  // global/common catalogue template (saveAsGlobal) rather than a player-owned custom one, since this dev
+  // global/common catalogue template (developerMode) rather than a player-owned custom one, since this dev
   // tool never acquires a game/player token.
   const [showDesigner, setShowDesigner] = useState(false);
 
@@ -457,13 +457,14 @@ export default function EntitySetupTool() {
         error={tagTypeError}
       />
 
-      {/* Full-screen Unit Designer overlay. saveAsGlobal routes Save to the dev tool's catalogue endpoints
-          (POST/PUT /global-unit-templates), which need no game/player token. */}
+      {/* Full-screen Unit Designer overlay. developerMode routes Save to the dev tool's catalogue endpoints
+          (POST/PUT /global-unit-templates), which need no game/player token, and reveals the
+          developer-only fields in the properties panel — currently the template's map sprite. */}
       {showDesigner && (
         <div className="fixed inset-0 z-40 flex flex-col">
           <UnitDesigner
             mode="edit"
-            saveAsGlobal
+            developerMode
             onClose={() => setShowDesigner(false)}
             onSaveSuccess={setTemplateSuccessMessage}
             onSaveError={setTemplateErrorMessage}
