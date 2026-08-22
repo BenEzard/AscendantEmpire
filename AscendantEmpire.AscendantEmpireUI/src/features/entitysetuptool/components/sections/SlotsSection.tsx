@@ -281,25 +281,31 @@ function SlotCard({
             }}
           />
         ) : (
-          <span
-            role="button"
-            tabIndex={0}
-            // Matches the edit-mode input's border + padding (with a transparent border) so the box is
-            // exactly the same height in both states — otherwise entering edit mode grows the row and
-            // shifts everything below it down. -ml-2 cancels the padding back out so the text still
-            // lines up with the card's other left-aligned text.
-            className={`-ml-2 inline-flex min-w-0 cursor-text items-center gap-1 rounded-md border border-transparent px-2 py-2 text-sm font-semibold hover:text-slate-900 ${
-              nameError != null ? "text-[var(--bs-danger)]" : "text-slate-700"
-            }`}
-            onClick={() => setIsEditingLabel(true)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                setIsEditingLabel(true);
-              }
-            }}>
-            <span className="truncate">{slot.displayName || fallbackLabel}</span>
-            <FaPencil size={11} className="shrink-0 text-slate-400" aria-hidden />
-          </span>
+          // The derived code has no field of its own — it is not something the dev edits — so it surfaces
+          // on hover over the name it comes from. Blank while the name is blank, in which case Tooltip
+          // renders the header alone. min-w-0 is passed down because Tooltip's wrapper becomes the flex
+          // child here, and without it the name below can no longer shrink to truncate.
+          <Tooltip content={slot.code === "" ? undefined : `Code: ${slot.code}`} className="min-w-0">
+            <span
+              role="button"
+              tabIndex={0}
+              // Matches the edit-mode input's border + padding (with a transparent border) so the box is
+              // exactly the same height in both states — otherwise entering edit mode grows the row and
+              // shifts everything below it down. -ml-2 cancels the padding back out so the text still
+              // lines up with the card's other left-aligned text.
+              className={`-ml-2 inline-flex min-w-0 cursor-text items-center gap-1 rounded-md border border-transparent px-2 py-2 text-sm font-semibold hover:text-slate-900 ${
+                nameError != null ? "text-[var(--bs-danger)]" : "text-slate-700"
+              }`}
+              onClick={() => setIsEditingLabel(true)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  setIsEditingLabel(true);
+                }
+              }}>
+              <span className="truncate">{slot.displayName || fallbackLabel}</span>
+              <FaPencil size={11} className="shrink-0 text-slate-400" aria-hidden />
+            </span>
+          </Tooltip>
         )}
 
         <div className="flex shrink-0 items-center gap-2">
