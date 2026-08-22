@@ -91,7 +91,7 @@ export interface RecompileAllUnitTemplatesResult {
  * template — failures come back in the result rather than failing the whole call.
  */
 export async function recompileAllTemplates(): Promise<RecompileAllUnitTemplatesResult> {
-  const { data } = await http.post<RecompileAllUnitTemplatesResult>("/unit-design/templates/recompile-all");
+  const { data } = await http.post<RecompileAllUnitTemplatesResult>("/global-unit-templates/recompile-all");
   return data;
 }
 

@@ -1,6 +1,7 @@
 using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
+using AscendantEmpire.BackendContracts.UnitDesigns.RecompileAllUnitTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveGlobalUnitTemplate;
 using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
@@ -22,7 +23,7 @@ namespace AscendantEmpire.Api.Controllers;
 /// Global templates and the player templates on <c>UnitDesignerController</c> share a table but are different resources: a global template has no game and no player, its <c>Code</c> is required and unique, and no unlock check is applied when it is saved. That is why they are authored through a separate controller rather than a <c>global</c> sub-route of the player one.
 /// </para>
 /// <para>
-/// Every action is gated behind <see cref="PermissionType.EntitySetupTool"/>, since all three write the shared catalogue rather than anything the caller owns.
+/// Every action is gated behind <see cref="PermissionType.EntitySetupTool"/>, since all three write the shared catalogue rather than anything the caller owns. The recompile-all maintenance action is the one whose reach is wider than this controller's name: it rewrites custom snapshots too, and lives here for its permission gate rather than its scope.
 /// </para>
 /// </remarks>
 [ApiController]
@@ -84,6 +85,37 @@ public class GlobalUnitTemplatesController : ControllerBase
     {
         ServiceResult<GlobalUnitTemplateView> response =
             await mediator.Send(new UpdateGlobalUnitTemplateRequest(id, request), cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Dev design tool: recompile every unit template's compiled snapshot (global and custom alike).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Gated behind <see cref="PermissionType.EntitySetupTool"/>, since it rewrites every compiled snapshot in the database.
+    /// </para>
+    /// <para>
+    /// Despite living on this controller, this action is not global-only: it recompiles player-owned custom templates as well. It sits here because it is the dev catalogue's maintenance action and shares the same permission gate, not because its scope is limited to global templates.
+    /// </para>
+    /// <para>
+    /// Use after editing catalogue components, whose changes don't propagate to the snapshots of templates already built with them.
+    /// Best-effort per template: failures are reported in the result without blocking the rest.
+    /// </para>
+    /// </remarks>
+    /// <response code="200">The recompilation ran; returns the recompiled count and any per-template failures</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
+    [HttpPost("recompile-all")]
+    [ProducesResponseType(typeof(RecompileAllUnitTemplatesResult), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> RecompileAllUnitTemplatesAsync(
+        [FromServices] IMediator mediator,
+        CancellationToken cancelToken)
+    {
+        ServiceResult<RecompileAllUnitTemplatesResult> response =
+            await mediator.Send(new RecompileAllUnitTemplatesRequest(), cancelToken);
 
         return response.ToActionResult();
     }

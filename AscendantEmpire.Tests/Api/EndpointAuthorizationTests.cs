@@ -75,7 +75,7 @@ public sealed class EndpointAuthorizationTests
         ["PUT /unit-design-tags/types"] = PermissionType.EntitySetupTool,
         ["POST /global-unit-templates"] = PermissionType.EntitySetupTool,
         ["PUT /global-unit-templates/{id}"] = PermissionType.EntitySetupTool,
-        ["POST /unit-design/templates/recompile-all"] = PermissionType.EntitySetupTool,
+        ["POST /global-unit-templates/recompile-all"] = PermissionType.EntitySetupTool,
         ["PUT /resources"] = PermissionType.EntitySetupTool,
         ["POST /units/temporary-dev-only/spawn"] = PermissionType.EntitySetupTool,
 
