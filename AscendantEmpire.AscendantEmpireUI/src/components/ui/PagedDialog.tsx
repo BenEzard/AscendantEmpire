@@ -17,6 +17,21 @@ export interface PagedDialogSection<K extends string = string> {
   /** When true, the section's nav button is shown greyed-out and cannot be selected. */
   disabled?: boolean;
   /**
+   * How many items the section's page currently holds, for pages that edit a collection rather than a
+   * fixed set of fields (a body's slots, a component's tags, …). When set and greater than zero it is
+   * shown as a muted "(n)" after the label — "Slots" becomes "Slots (2)" — so the nav column says how
+   * full a page is without it having to be opened.
+   *
+   * `0`, `undefined` and `null` all render nothing, so an empty page looks exactly as it did before the
+   * caller started passing a count. A `disabled` section never shows one either: its page can't be
+   * reached, so any count there is stale trivia rather than information (a Body's slots, for instance,
+   * are deliberately kept in the model after the component is switched to another type).
+   *
+   * Pass the live length straight off the same state that feeds `content` (`slots.length`) and the
+   * number then tracks additions and removals on its own.
+   */
+  count?: number;
+  /**
    * When true, the section's nav button carries a red dot marking it as holding a validation error.
    * Only one page is on screen at a time, so without this a failed save on a *different* page looks
    * like Save silently doing nothing. Purely presentational — the dialog neither computes this nor
@@ -127,19 +142,26 @@ export default function PagedDialog<K extends string = string>({
               inline-flex Tooltip below, the wrapper still stretches full width and the items stack —
               matching the un-wrapped block layout exactly when no tooltip is present. */}
           <div className="flex flex-col rounded-md border border-slate-200 bg-white">
-            {sections.map(({ key, label, icon, disabled, invalid }, index) => {
+            {sections.map(({ key, label, icon, disabled, invalid, count }, index) => {
               // Only a string label can drive the tooltip / accessible name once an icon hides the
               // visible text; a non-string (ReactNode) label yields no tooltip.
               const labelText = typeof label === "string" ? label : undefined;
+              // The collection count, rendered only when the page actually holds something and can be
+              // opened — see `PagedDialogSection.count`. Built as text (rather than interpolated into the
+              // label) because `label` is a ReactNode and may not be a string at all.
+              const countText = !disabled && count != null && count > 0 ? `(${count})` : null;
+              // The label as plain text with the count folded in, e.g. "Slots (2)". Drives both the
+              // icon-mode tooltip and its aria-label, so the count survives the label being hidden.
+              const labelTextWithCount = labelText != null ? [labelText, countText].filter(Boolean).join(" ") : undefined;
               // The custom Tooltip only appears when a section is icon-only (Tooltip renders nothing
               // extra when `content` is undefined, so text sections keep the button as a direct child).
-              const tooltip = icon != null ? labelText : undefined;
+              const tooltip = icon != null ? labelTextWithCount : undefined;
               // In icon mode the button's aria-label becomes its *entire* accessible name (an aria-label
-              // overrides descendant content), which would swallow the validation marker's own label — so
-              // fold the error state in here. In text mode there's no aria-label and the name comes from
-              // the content, where the marker speaks for itself.
+              // overrides descendant content), which would swallow both the count and the validation
+              // marker's own label — so fold them in here. In text mode there's no aria-label and the name
+              // comes from the content, where the count is plain text and the marker speaks for itself.
               const ariaLabel =
-                icon != null ? [labelText, invalid ? "has validation errors" : null].filter(Boolean).join(", ") || undefined : undefined;
+                icon != null ? [labelTextWithCount, invalid ? "has validation errors" : null].filter(Boolean).join(", ") || undefined : undefined;
               return (
                 <Tooltip key={key} content={tooltip}>
                   <button
@@ -169,6 +191,21 @@ export default function PagedDialog<K extends string = string>({
                     {/* text-2xl bumps the icon size (react-icons scale with font-size / 1em) well above
                         the button's own text-sm, so the icon reads clearly at the collapsed nav width. */}
                     {icon != null ? <span className="inline-flex align-middle text-2xl">{icon}</span> : label}
+                    {/* Collection count, e.g. the "(2)" in "Slots (2)". Sits between the label and the validation
+                        marker, and is deliberately muted and a size down so it reads as an annotation on the label
+                        rather than part of it. In icon mode it follows the icon (the tooltip / aria-label above
+                        carry it too, so it is never the only place the number appears).
+
+                        Alignment differs by mode. Against text it is left on the default baseline so the digits sit
+                        on the same line as the label — `align-middle` would centre this smaller text-xs box on the
+                        label's x-height midline, which sits above the baseline and leaves the count riding visibly
+                        high. Against an icon there is no shared baseline worth keeping (the glyph is text-2xl and
+                        itself middle-aligned), so there `align-middle` is what centres the two on each other. */}
+                    {countText != null ? (
+                      <span className={icon != null ? "ml-1 align-middle text-xs text-slate-400" : "ml-1 text-xs text-slate-400"}>
+                        {countText}
+                      </span>
+                    ) : null}
                     {/* Validation marker. `role="img"` + `aria-label` carry the announcement in text mode,
                         where the button has no aria-label of its own; in icon mode the button's aria-label
                         (see `ariaLabel` above) already covers it and this is ignored. */}

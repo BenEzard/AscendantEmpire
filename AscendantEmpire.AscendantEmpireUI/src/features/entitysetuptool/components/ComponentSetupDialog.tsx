@@ -199,6 +199,9 @@ export default function ComponentSetupDialog({ open, onCancel, initialComponent,
           key: "slots",
           label: "Slots",
           disabled: component.componentType !== "Body",
+          // Live slot count, shown as "Slots (2)" in the nav. Read off the same array that feeds the page
+          // below, so adding or removing a slot moves the number with it.
+          count: component.body?.slots.length ?? 0,
           content: (
             <SlotsSection
               key={openInstance}
@@ -217,6 +220,8 @@ export default function ComponentSetupDialog({ open, onCancel, initialComponent,
         {
           key: "tags",
           label: "Tags",
+          // Live count of attached tags, shown as "Tags (3)" in the nav.
+          count: component.tagCodes.length,
           content: (
             <TagsSection
               key={openInstance}
