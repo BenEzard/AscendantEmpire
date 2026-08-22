@@ -9,9 +9,11 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { Alert, Button, PagedDialog } from "@/components/ui";
+import { useValidatedCommit } from "@/hooks/useValidatedCommit";
 import { isValidColor, pickTextColorOnBg } from "@/util/color";
 
 import { FieldRow, inputClass } from "./componentSetupFields";
+import { errorClass } from "./fieldStyles";
 import type { TagType } from "@/features/unitdesign/types/Tag";
 import type { TagTypeInfo } from "@/features/unitdesign/types/TagType";
 
@@ -33,17 +35,12 @@ export default function TagTypeSetupDialog({ open, onCancel, initialTagTypes, on
   // Which tag type is currently selected for editing (its enum key), or null when the set is empty.
   const [selectedId, setSelectedId] = useState<TagType | null>(null);
 
-  // Whether the user has pressed Save yet. Validation messages stay hidden until then (so a freshly
-  // opened form isn't pre-littered with "required" errors), then update live as fields are filled in.
-  const [submitted, setSubmitted] = useState(false);
-
   // Re-seed the draft and default the selection to the first row each time the dialog opens, so a
-  // previous edit session never leaks in, and reset the submitted flag so validation starts quiet.
+  // previous edit session never leaks in. (useValidatedCommit resets the revealed-errors flag on open.)
   useEffect(() => {
     if (open) {
       setDraft(initialTagTypes);
       setSelectedId(initialTagTypes[0]?.tagTypeId ?? null);
-      setSubmitted(false);
     }
   }, [open, initialTagTypes]);
 
@@ -71,32 +68,25 @@ export default function TagTypeSetupDialog({ open, onCancel, initialTagTypes, on
     return errors;
   };
 
+  // Only one row is on screen at a time, so if some *other* row is invalid the user would never see why
+  // Save "did nothing" — the commit therefore jumps the selection to the first offending row.
+  const firstInvalid = draft.find((tagType) => Object.keys(rowErrors(tagType)).length > 0) ?? null;
+
+  const { submitted, attemptCommit } = useValidatedCommit({
+    open,
+    // An empty draft has nothing to upsert, so it never commits (and there is no row to jump to).
+    isValid: draft.length > 0 && firstInvalid === null,
+    locate: () => {
+      if (firstInvalid) {
+        setSelectedId(firstInvalid.tagTypeId);
+      }
+    },
+    onValid: () => onCommit(draft),
+  });
+
   // Errors for the currently selected row, revealed inline only once a save has been attempted.
   const shownErrors: Partial<Record<"displayName" | "description", string>> =
     submitted && selected ? rowErrors(selected) : {};
-
-  // Appended to a control's class when its field is in error to give it a red border. The `!` forces
-  // the colour to win over inputClass's default slate border regardless of Tailwind's rule ordering.
-  const errorClass = (hasError: boolean) => (hasError ? `${inputClass} !border-red-500` : inputClass);
-
-  const handleCommit = () => {
-    // Reveal validation now that a save was attempted.
-    setSubmitted(true);
-    if (draft.length === 0) {
-      return;
-    }
-
-    // Only one row is on screen at a time, so if some other row is invalid the user would never see why
-    // Save "did nothing". Jump the selection to the first offending row so its inline errors are visible,
-    // and only commit once every row passes.
-    const firstInvalid = draft.find((tagType) => Object.keys(rowErrors(tagType)).length > 0);
-    if (firstInvalid) {
-      setSelectedId(firstInvalid.tagTypeId);
-      return;
-    }
-
-    onCommit(draft);
-  };
 
   const colour = selected?.colour ?? "";
 
@@ -105,7 +95,7 @@ export default function TagTypeSetupDialog({ open, onCancel, initialTagTypes, on
       open={open}
       title="Tag Type Setup"
       onCancel={onCancel}
-      onCommit={handleCommit}
+      onCommit={attemptCommit}
       header={
         <div className="flex flex-col gap-3 pb-2">
           {/* Selection box: pick which tag type to edit (the set is fixed by the enum). */}
@@ -137,7 +127,7 @@ export default function TagTypeSetupDialog({ open, onCancel, initialTagTypes, on
           <Button variant="secondary" onClick={onCancel}>
             Cancel / Close
           </Button>
-          <Button variant="success" onClick={handleCommit}>
+          <Button variant="success" onClick={attemptCommit}>
             Save
           </Button>
         </>

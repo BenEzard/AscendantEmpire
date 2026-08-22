@@ -16,6 +16,14 @@ export interface PagedDialogSection<K extends string = string> {
   icon?: ReactNode;
   /** When true, the section's nav button is shown greyed-out and cannot be selected. */
   disabled?: boolean;
+  /**
+   * When true, the section's nav button carries a red dot marking it as holding a validation error.
+   * Only one page is on screen at a time, so without this a failed save on a *different* page looks
+   * like Save silently doing nothing. Purely presentational — the dialog neither computes this nor
+   * acts on it; the caller decides what counts as invalid and when to reveal it (typically only once
+   * a save has been attempted, matching the inline per-field messages).
+   */
+  invalid?: boolean;
 }
 
 export interface PagedDialogProps<K extends string = string> {
@@ -119,13 +127,19 @@ export default function PagedDialog<K extends string = string>({
               inline-flex Tooltip below, the wrapper still stretches full width and the items stack —
               matching the un-wrapped block layout exactly when no tooltip is present. */}
           <div className="flex flex-col rounded-md border border-slate-200 bg-white">
-            {sections.map(({ key, label, icon, disabled }, index) => {
+            {sections.map(({ key, label, icon, disabled, invalid }, index) => {
               // Only a string label can drive the tooltip / accessible name once an icon hides the
               // visible text; a non-string (ReactNode) label yields no tooltip.
               const labelText = typeof label === "string" ? label : undefined;
               // The custom Tooltip only appears when a section is icon-only (Tooltip renders nothing
               // extra when `content` is undefined, so text sections keep the button as a direct child).
               const tooltip = icon != null ? labelText : undefined;
+              // In icon mode the button's aria-label becomes its *entire* accessible name (an aria-label
+              // overrides descendant content), which would swallow the validation marker's own label — so
+              // fold the error state in here. In text mode there's no aria-label and the name comes from
+              // the content, where the marker speaks for itself.
+              const ariaLabel =
+                icon != null ? [labelText, invalid ? "has validation errors" : null].filter(Boolean).join(", ") || undefined : undefined;
               return (
                 <Tooltip key={key} content={tooltip}>
                   <button
@@ -133,7 +147,10 @@ export default function PagedDialog<K extends string = string>({
                     disabled={disabled}
                     // With the label hidden behind an icon, keep the tab identifiable to screen readers
                     // (the visual tooltip is the custom bubble from the Tooltip wrapper, not `title`).
-                    aria-label={icon != null ? labelText : undefined}
+                    aria-label={ariaLabel}
+                    // Which page you're on is otherwise conveyed by styling alone, which assistive tech
+                    // can't see. "page" (rather than "true") matches the nav-between-views sense here.
+                    aria-current={activeSection === key ? "page" : undefined}
                     onClick={disabled ? undefined : () => setActiveSection(key)}
                     className={[
                       "block w-full px-3 py-2 text-left text-sm",
@@ -152,6 +169,17 @@ export default function PagedDialog<K extends string = string>({
                     {/* text-2xl bumps the icon size (react-icons scale with font-size / 1em) well above
                         the button's own text-sm, so the icon reads clearly at the collapsed nav width. */}
                     {icon != null ? <span className="inline-flex align-middle text-2xl">{icon}</span> : label}
+                    {/* Validation marker. `role="img"` + `aria-label` carry the announcement in text mode,
+                        where the button has no aria-label of its own; in icon mode the button's aria-label
+                        (see `ariaLabel` above) already covers it and this is ignored. */}
+                    {invalid ? (
+                      <span
+                        role="img"
+                        aria-label="has validation errors"
+                        title="This page has validation errors"
+                        className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-red-500 align-middle"
+                      />
+                    ) : null}
                   </button>
                 </Tooltip>
               );

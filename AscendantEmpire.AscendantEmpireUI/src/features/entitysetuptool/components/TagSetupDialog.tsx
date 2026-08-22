@@ -1,6 +1,7 @@
-// TagSetupDialog — a PagedDialog for authoring a single global Tag in the dev Unit Designer. Tag has
-// only four fields, so unlike ComponentSetupDialog it uses a single "General" section rather than
-// splitting fields across pages. Controlled local state is seeded from `createEmptyTag()` and
+// TagSetupDialog — a PagedDialog for authoring a single global Tag in the dev Unit Designer. The form
+// is split across two pages: "General" carries the fields every tag has (type, name, code, description,
+// system-created), and "Tag Specifics" carries the organisation-group-only fields (movement domain,
+// leadership model, unled sizing). Controlled local state is seeded from `createEmptyTag()` and
 // re-seeded on every open.
 //
 // The dialog is create-focused for now ("Add Tag"); editing an existing tag (the stubbed "Search Tag"
@@ -9,12 +10,27 @@
 import { useEffect, useState } from "react";
 
 import { Alert, Button, CodeField, PagedDialog } from "@/components/ui";
+import { useValidatedCommit } from "@/hooks/useValidatedCommit";
 
 import { FieldRow, inputClass } from "./componentSetupFields";
-import { createEmptyTag, LEADERSHIP_MODELS, TAG_TYPES, type LeadershipModel, type Tag, type TagType } from "@/features/unitdesign/types/Tag";
+import { errorClass } from "./fieldStyles";
+import {
+  createEmptyTag,
+  LEADERSHIP_MODELS,
+  normaliseTag,
+  TAG_TYPES,
+  validateTag,
+  type LeadershipModel,
+  type Tag,
+  type TagFieldErrors,
+  type TagType,
+} from "@/features/unitdesign/types/Tag";
 import type { TagTypeInfo } from "@/features/unitdesign/types/TagType";
 import { DOMAIN_TYPES, type DomainType } from "@/features/unitdesign/types/UnitComponent";
 import { DOMAIN_TYPE_LABELS } from "@/components/game/domainLabels";
+
+/** The dialog's pages, in nav order. */
+type TagSection = "general" | "specifics";
 
 interface TagSetupDialogProps {
   open: boolean;
@@ -33,51 +49,34 @@ export default function TagSetupDialog({ open, onCancel, initialTag, tagTypes, o
   // The working copy of the tag being authored.
   const [tag, setTag] = useState<Tag>(() => initialTag ?? createEmptyTag());
 
-  // Whether the user has pressed Save at least once. Validation messages stay hidden until then (so a
-  // freshly opened form isn't pre-littered with "required" errors), and from that point on they update
-  // live as the user fills each field in.
-  const [submitted, setSubmitted] = useState(false);
+  // The visible page. Held here (rather than left to PagedDialog's own internal state) so that a failed
+  // save can jump the user to whichever page is carrying the problem.
+  const [activeSection, setActiveSection] = useState<TagSection>("general");
 
   // Re-seed the form each time the dialog opens so a previous edit never leaks into a new "Add", and
-  // reset the submitted flag so validation starts quiet again.
+  // return to the first page. (useValidatedCommit resets the revealed-errors flag on open itself.)
   useEffect(() => {
     if (open) {
       setTag(initialTag ?? createEmptyTag());
-      setSubmitted(false);
+      setActiveSection("general");
     }
   }, [open, initialTag]);
 
-  // Required-field validation. Rather than disabling Save (which leaves the user guessing why it's
-  // greyed out), Save is always clickable; pressing it runs these checks and surfaces any problems.
-  // The backend enforces the same rules, so this is a fast local pre-check, not the source of truth.
-  // Description is intentionally omitted: it's optional (nullable column, no server-side requirement).
-  const fieldErrors: Partial<Record<"displayName" | "code" | "unledSizes", string>> = {};
-  if (tag.displayName.trim() === "") {
-    fieldErrors.displayName = "Display Name is required.";
-  }
-  if (tag.code.trim() === "") {
-    fieldErrors.code = "Code is required.";
-  }
+  // Required-field validation; the rules themselves live on the model, in Tag.ts.
+  const fieldErrors = validateTag(tag);
 
-  // An Unled organisation tag authors its own sizing, so all three values are required and must cohere.
-  // (The backend applies the same rules in TagValidation — this is the fast local pre-check.)
-  if (tag.leadershipModel === "Unled") {
-    const { unledBaseSize, unledDefaultSize, unledMaxSize } = tag;
-    if (!unledBaseSize || !unledDefaultSize || !unledMaxSize) {
-      fieldErrors.unledSizes = "An Unled tag requires all three sizes (base, default, max), each above 0.";
-    } else if (unledBaseSize > unledDefaultSize || unledDefaultSize > unledMaxSize) {
-      fieldErrors.unledSizes = "Sizes must satisfy base ≤ default ≤ max.";
-    } else if (unledDefaultSize % unledBaseSize !== 0) {
-      fieldErrors.unledSizes = "The default size must be a whole multiple of the base size.";
-    }
-  }
+  const { submitted, attemptCommit } = useValidatedCommit({
+    open,
+    isValid: Object.keys(fieldErrors).length === 0,
+    // The unled sizing is the only validation living on the "Tag Specifics" page, so when that's the sole
+    // problem the user would otherwise press Save on the General page and see nothing happen. Land on
+    // whichever page carries the error; General wins when both do, since it comes first.
+    locate: () => setActiveSection(!fieldErrors.displayName && !fieldErrors.code ? "specifics" : "general"),
+    onValid: () => onCommit(tag),
+  });
 
   // Only reveal errors once the user has attempted a save; they then drive the inline per-field messages.
-  const shownErrors: typeof fieldErrors = submitted ? fieldErrors : {};
-
-  // Appended to a control's class when its field is in error to give it a red border. The `!` forces
-  // the colour to win over inputClass's default slate border regardless of Tailwind's rule ordering.
-  const errorClass = (hasError: boolean) => (hasError ? `${inputClass} !border-red-500` : inputClass);
+  const shownErrors: TagFieldErrors = submitted ? fieldErrors : {};
 
   // The "Tag Type" options come from the tag type catalogue (label = display name, value = enum key). Fall
   // back to the raw enum names if the catalogue hasn't loaded, and always ensure the tag's current type is
@@ -91,22 +90,19 @@ export default function TagSetupDialog({ open, onCancel, initialTag, tagTypes, o
     typeOptions.unshift({ value: tag.tagType, label: tag.tagType });
   }
 
-  const handleCommit = () => {
-    // Reveal validation now that a save was attempted, then bail if anything is invalid.
-    setSubmitted(true);
-    if (Object.keys(fieldErrors).length > 0) {
-      return;
-    }
-
-    onCommit(tag);
-  };
+  // The tag being authored names the dialog once it has a display name; until then the bare "Tag Setup"
+  // is kept rather than showing a dangling colon on a blank name.
+  const trimmedDisplayName = tag.displayName.trim();
+  const dialogTitle = trimmedDisplayName === "" ? "Tag Setup" : `Tag Setup: ${trimmedDisplayName}`;
 
   return (
-    <PagedDialog
+    <PagedDialog<TagSection>
       open={open}
-      title="Tag Setup"
+      title={dialogTitle}
       onCancel={onCancel}
-      onCommit={handleCommit}
+      onCommit={attemptCommit}
+      activeSection={activeSection}
+      onSectionChange={setActiveSection}
       header={
         // API or validation error from the last commit attempt. Required-field problems are shown
         // inline beneath each field rather than summarised here.
@@ -121,7 +117,7 @@ export default function TagSetupDialog({ open, onCancel, initialTag, tagTypes, o
           <Button variant="secondary" onClick={onCancel}>
             Cancel / Close
           </Button>
-          <Button variant="success" onClick={handleCommit}>
+          <Button variant="success" onClick={attemptCommit}>
             Save
           </Button>
         </>
@@ -130,6 +126,10 @@ export default function TagSetupDialog({ open, onCancel, initialTag, tagTypes, o
         {
           key: "general",
           label: "General",
+          // Marks the nav button when this page is holding a validation error. Driven off `shownErrors`
+          // (not `fieldErrors`) so the marker appears only once a save has been attempted, in step with
+          // the inline per-field messages.
+          invalid: !!(shownErrors.displayName || shownErrors.code),
           content: (
             // Two-column rows (label left, control right) matching the other manager dialogs via FieldRow.
             <div className="flex flex-col">
@@ -139,19 +139,9 @@ export default function TagSetupDialog({ open, onCancel, initialTag, tagTypes, o
                   value={tag.tagType}
                   onChange={(e) => {
                     const nextType = e.target.value as TagType;
-                    // A movement domain / leadership model (and its unled sizes) are only valid on an
-                    // organisation-group tag, so clear them when switching away from that type (the backend
-                    // would otherwise reject the pairing).
-                    const isOrganisationGroup = nextType === "MilitaryOrganisationalGroup";
-                    setTag((prev) => ({
-                      ...prev,
-                      tagType: nextType,
-                      movementDomain: isOrganisationGroup ? prev.movementDomain : null,
-                      leadershipModel: isOrganisationGroup ? prev.leadershipModel : null,
-                      unledBaseSize: isOrganisationGroup ? prev.unledBaseSize : null,
-                      unledDefaultSize: isOrganisationGroup ? prev.unledDefaultSize : null,
-                      unledMaxSize: isOrganisationGroup ? prev.unledMaxSize : null,
-                    }));
+                    // normaliseTag drops the organisation-group-only fields when switching away from that
+                    // type (the backend would otherwise reject the pairing).
+                    setTag((prev) => normaliseTag({ ...prev, tagType: nextType }));
                   }}>
                   {typeOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -192,49 +182,37 @@ export default function TagSetupDialog({ open, onCancel, initialTag, tagTypes, o
                 />
               </FieldRow>
 
-              {/* Movement Domain — only meaningful for organisation-group tags. It ties the organisation
-                  hierarchy built on this tag to a domain, so its tier depth is capped by that domain's rank
-                  ladder. The row is always shown for layout stability, but stays disabled (read-only) until
-                  the tag type is Military Organisation Group, at which point it becomes editable. */}
+              {/* System Created — flags a tag as seeded/built-in rather than user-authored. Defaults to
+                  false; editable here so dev tooling can set it explicitly. */}
+              <FieldRow label="System Created">
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={tag.systemCreated}
+                    onChange={(e) => setTag((prev) => ({ ...prev, systemCreated: e.target.checked }))}
+                  />
+                </label>
+              </FieldRow>
+            </div>
+          ),
+        },
+        {
+          key: "specifics",
+          label: "Tag Specifics",
+          // The unled sizing is the only validation on this page — see the note on "general" above.
+          invalid: !!shownErrors.unledSizes,
+          content: (
+            // Every field on this page belongs to an organisation-group tag. The rows are always shown (for
+            // layout stability) but stay disabled — read-only — until the tag type is Military Organisation
+            // Group, at which point they become editable.
+            <div className="flex flex-col">
               {(() => {
-                // The control is only accessible when the selected tag type is an organisation group.
-                const movementDomainEnabled = tag.tagType === "MilitaryOrganisationalGroup";
-                return (
-                  // `-mt-1` trims half of the Description row's `mb-2` so Movement Domain sits closer to it.
-                  <FieldRow label="Movement Domain" align="top" className="-mt-1">
-                    <select
-                      // Dim the control and show a not-allowed cursor while it's disabled so the read-only
-                      // state reads clearly rather than looking like a normal, empty dropdown.
-                      className={
-                        movementDomainEnabled
-                          ? inputClass
-                          : `${inputClass} cursor-not-allowed bg-slate-100 text-slate-400`
-                      }
-                      disabled={!movementDomainEnabled}
-                      value={tag.movementDomain ?? ""}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setTag((prev) => ({ ...prev, movementDomain: value === "" ? null : (value as DomainType) }));
-                      }}>
-                      <option value="">— none —</option>
-                      {DOMAIN_TYPES.map((domain) => (
-                        <option key={domain} value={domain}>
-                          {DOMAIN_TYPE_LABELS[domain]}
-                        </option>
-                      ))}
-                    </select>
-                  </FieldRow>
-                );
-              })()}
-
-              {/* Leadership Model + unled sizing — organisation-group tags only. Commissioned formations
-                  are sized by their player-authored structure tiers under the officer rank ceilings; Unled
-                  formations (settlers, scouts, drones) have no officers and are sized here on the tag:
-                  any whole multiple of Base up to Max, with Default used when no size is chosen (e.g.
-                  game-start spawns). See docs/design/units/military-organisation.md, "Leadership model". */}
-              {(() => {
-                const leadershipEnabled = tag.tagType === "MilitaryOrganisationalGroup";
-                const unledEnabled = leadershipEnabled && tag.leadershipModel === "Unled";
+                // The shared gate for the whole page: only an organisation-group tag can author these.
+                const organisationGroup = tag.tagType === "MilitaryOrganisationalGroup";
+                // The unled sizes carry the extra condition that the leadership model is actually Unled.
+                const unledEnabled = organisationGroup && tag.leadershipModel === "Unled";
+                // Dims the control and shows a not-allowed cursor while it's disabled, so the read-only
+                // state reads clearly rather than looking like a normal, empty dropdown.
                 const disabledClass = `${inputClass} cursor-not-allowed bg-slate-100 text-slate-400`;
 
                 // Maps a number input's raw string onto the nullable model field (blank -> null).
@@ -242,22 +220,41 @@ export default function TagSetupDialog({ open, onCancel, initialTag, tagTypes, o
 
                 return (
                   <>
+                    {/* Movement Domain — ties the organisation hierarchy built on this tag to a domain, so
+                        its tier depth is capped by that domain's rank ladder. */}
+                    <FieldRow label="Movement Domain" align="top">
+                      <select
+                        className={organisationGroup ? inputClass : disabledClass}
+                        disabled={!organisationGroup}
+                        value={tag.movementDomain ?? ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setTag((prev) => ({ ...prev, movementDomain: value === "" ? null : (value as DomainType) }));
+                        }}>
+                        <option value="">— none —</option>
+                        {DOMAIN_TYPES.map((domain) => (
+                          <option key={domain} value={domain}>
+                            {DOMAIN_TYPE_LABELS[domain]}
+                          </option>
+                        ))}
+                      </select>
+                    </FieldRow>
+
+                    {/* Leadership Model + unled sizing. Commissioned formations are sized by their
+                        player-authored structure tiers under the officer rank ceilings; Unled formations
+                        (settlers, scouts, drones) have no officers and are sized here on the tag: any whole
+                        multiple of Base up to Max, with Default used when no size is chosen (e.g. game-start
+                        spawns). See docs/design/units/military-organisation.md, "Leadership model". */}
                     <FieldRow label="Leadership Model" align="top" className="-mt-1">
                       <select
-                        className={leadershipEnabled ? inputClass : disabledClass}
-                        disabled={!leadershipEnabled}
+                        className={organisationGroup ? inputClass : disabledClass}
+                        disabled={!organisationGroup}
                         value={tag.leadershipModel ?? ""}
                         onChange={(e) => {
                           const value = e.target.value;
                           const nextModel = value === "" ? null : (value as LeadershipModel);
-                          // The unled sizes are only valid while the model is Unled; clear them otherwise.
-                          setTag((prev) => ({
-                            ...prev,
-                            leadershipModel: nextModel,
-                            unledBaseSize: nextModel === "Unled" ? prev.unledBaseSize : null,
-                            unledDefaultSize: nextModel === "Unled" ? prev.unledDefaultSize : null,
-                            unledMaxSize: nextModel === "Unled" ? prev.unledMaxSize : null,
-                          }));
+                          // The unled sizes are only valid while the model is Unled; normaliseTag drops them.
+                          setTag((prev) => normaliseTag({ ...prev, leadershipModel: nextModel }));
                         }}>
                         <option value="">— none —</option>
                         {LEADERSHIP_MODELS.map((model) => (
@@ -305,18 +302,6 @@ export default function TagSetupDialog({ open, onCancel, initialTag, tagTypes, o
                   </>
                 );
               })()}
-
-              {/* System Created — flags a tag as seeded/built-in rather than user-authored. Defaults to
-                  false; editable here so dev tooling can set it explicitly. */}
-              <FieldRow label="System Created">
-                <label className="flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={tag.systemCreated}
-                    onChange={(e) => setTag((prev) => ({ ...prev, systemCreated: e.target.checked }))}
-                  />
-                </label>
-              </FieldRow>
             </div>
           ),
         },

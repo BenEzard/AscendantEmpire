@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 // The shared input styling used by the dialog's text/number/select controls. Exported so the other
 // editors (e.g. PillKeyValueEditor, ScaledNumberField) can reuse the exact same look.
 export const inputClass = "w-full rounded-md border border-slate-300 px-2 py-2 text-sm";
+// The matching error-state styling lives in ./fieldStyles — see the note at the top of that file.
 
 /**
  * A label/control row matching the two-column layout used by the other manager dialogs.
