@@ -73,7 +73,7 @@ export async function createGlobalUnitTemplate(payload: SaveGlobalUnitTemplatePa
 
 /** Dev tool: update an existing global/common unit template by id. */
 export async function updateGlobalUnitTemplate(id: number, payload: SaveGlobalUnitTemplatePayload): Promise<GlobalUnitTemplateView> {
-  const { data } = await http.put<GlobalUnitTemplateView>(`/unit-design/templates/global/${id}`, payload);
+  const { data } = await http.put<GlobalUnitTemplateView>(`/global-unit-templates/${id}`, payload);
   return data;
 }
 

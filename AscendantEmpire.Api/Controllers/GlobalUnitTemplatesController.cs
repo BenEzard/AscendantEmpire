@@ -57,4 +57,34 @@ public class GlobalUnitTemplatesController : ControllerBase
 
         return response.ToActionResult();
     }
+
+    /// <summary>
+    /// Dev design tool: update an existing global/common unit template in the shared catalog.
+    /// </summary>
+    /// <remarks>
+    /// Gated behind <see cref="PermissionType.EntitySetupTool"/>, since it writes the shared template catalog.
+    /// </remarks>
+    /// <response code="200">The template was updated; returns the updated template</response>
+    /// <response code="400">Validation error, or the assembled design fails slot-acceptance rules</response>
+    /// <response code="404">No global template exists with the given id, or a referenced component code does not exist</response>
+    /// <response code="409">Another template already uses the requested code</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
+    [HttpPut("{id:int}")]
+    [ProducesResponseType(typeof(GlobalUnitTemplateView), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 409)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> UpdateGlobalUnitTemplateAsync(
+        [FromServices] IMediator mediator,
+        int id,
+        [FromBody] SaveGlobalUnitTemplateDto request,
+        CancellationToken cancelToken)
+    {
+        ServiceResult<GlobalUnitTemplateView> response =
+            await mediator.Send(new UpdateGlobalUnitTemplateRequest(id, request), cancelToken);
+
+        return response.ToActionResult();
+    }
 }
