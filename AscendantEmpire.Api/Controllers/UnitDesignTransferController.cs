@@ -85,7 +85,7 @@ public class UnitDesignTransferController : ControllerBase
             var processing = await context.Processing
                 .AsNoTracking()
                 .FirstOrDefaultAsync(
-                    p => p.ProcessingId == processId && p.ProcessType == ProcessType.ExportCatalog,
+                    p => p.ProcessingId == processId && p.ProcessType == ProcessType.ExportCatalogue,
                     cancellationToken);
 
             if (processing is null || processing.Status != ProcessingStatus.Complete || string.IsNullOrEmpty(processing.ResultReference))

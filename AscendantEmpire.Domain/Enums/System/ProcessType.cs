@@ -25,12 +25,12 @@ public enum ProcessType
     /// <summary>
     /// Export selected parts of the unit-design catalogue (components and/or templates) to a zip file.
     /// </summary>
-    ExportCatalog = 5,
+    ExportCatalogue = 5,
 
     /// <summary>
     /// Import a unit-design catalogue from a previously exported zip file.
     /// </summary>
-    ImportCatalog = 6,
+    ImportCatalogue = 6,
 
     /// <summary>
     /// Seed the database with its initial reference/catalogue values (biomes, geographies, tag types, etc.).

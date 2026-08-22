@@ -19,7 +19,7 @@ using Microsoft.Extensions.Options;
 namespace AscendantEmpire.Application.Features.UnitComponents.Executors;
 
 /// <summary>
-/// Executes <see cref="ProcessType.ExportCatalog"/> jobs.
+/// Executes <see cref="ProcessType.ExportCatalogue"/> jobs.
 /// </summary>
 /// <remarks>
 /// Builds a zipped export of the unit-design catalogue — <c>components.json</c> (a
@@ -40,7 +40,7 @@ internal sealed class CatalogueExportExecutor(
         WriteIndented = true
     };
 
-    public ProcessType ProcessType => ProcessType.ExportCatalog;
+    public ProcessType ProcessType => ProcessType.ExportCatalogue;
 
     public async Task ExecuteAsync(Processing processing, CancellationToken cancellationToken)
     {

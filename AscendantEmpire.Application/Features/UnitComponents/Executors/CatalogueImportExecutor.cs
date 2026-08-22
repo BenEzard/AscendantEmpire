@@ -20,7 +20,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Features.UnitComponents.Executors;
 
 /// <summary>
-/// Executes <see cref="ProcessType.ImportCatalog"/> jobs — the inverse of <see cref="CatalogueExportExecutor"/>.
+/// Executes <see cref="ProcessType.ImportCatalogue"/> jobs — the inverse of <see cref="CatalogueExportExecutor"/>.
 /// </summary>
 /// <remarks>
 /// Reads the staged export zip and replays each JSON file through the existing upsert handlers:
@@ -41,7 +41,7 @@ internal sealed class CatalogueImportExecutor(
         PropertyNameCaseInsensitive = true
     };
 
-    public ProcessType ProcessType => ProcessType.ImportCatalog;
+    public ProcessType ProcessType => ProcessType.ImportCatalogue;
 
     public async Task ExecuteAsync(Processing processing, CancellationToken cancellationToken)
     {

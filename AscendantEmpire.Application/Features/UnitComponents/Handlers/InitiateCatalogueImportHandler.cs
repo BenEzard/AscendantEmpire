@@ -38,7 +38,7 @@ internal class InitiateCatalogueImportHandler(
 
             var processing = new Processing
             {
-                ProcessType = ProcessType.ImportCatalog,
+                ProcessType = ProcessType.ImportCatalogue,
                 Status = ProcessingStatus.Pending,
                 // StartedAt is overwritten when processing begins; set now so the column satisfies its non-null constraint.
                 StartedAt = DateTime.UtcNow,
