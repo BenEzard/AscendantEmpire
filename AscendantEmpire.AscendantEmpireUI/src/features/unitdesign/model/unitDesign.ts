@@ -19,6 +19,7 @@ import {
   type PlaceholderUpkeep,
   type PlaceholderUpkeepCategory,
 } from "./placeholderCosts";
+import { calculateBattleMovementPoints } from "./battleMovement";
 
 /** An assembled design: the chosen base plus the component fitted into each base slot (by index). */
 export interface UnitDesign {
@@ -36,12 +37,15 @@ export function createEmptyDesign(): UnitDesign {
   return { baseCode: null, slotComponentCodes: [] };
 }
 
-/** Aggregate non-combat stats for the whole design. All values are raw Scale-1,000 (except movement math). */
+/** Aggregate non-combat stats for the whole design. All values are raw Scale-1,000. */
 export interface DesignSummary {
   /** Total mass: base chassis + every fitted component. */
   weight: number;
-  /** Base body power minus the mass of everything fitted (per the unit-design doc's movement formula). */
-  movementPoints: number;
+  /**
+   * Tiles the design can cross in one battle turn: base body power minus the mass of everything fitted,
+   * floored at zero. The base's own weight does not count against it — see `calculateBattleMovementPoints`.
+   */
+  battleMovementPoints: number;
   /** The base body's hitpoints (components don't contribute HP). */
   hitpoints: number;
   /** Summed detection contribution across base + fitted components. */
@@ -110,7 +114,9 @@ export function aggregateDesign(base: UnitComponent | null, fitted: UnitComponen
 
   const summary: DesignSummary = {
     weight,
-    movementPoints: (base?.body?.power ?? 0) - fittedWeight,
+    // Only `fittedWeight` is subtracted, never `weight` — the latter includes the base's own mass, which
+    // power already accounts for.
+    battleMovementPoints: calculateBattleMovementPoints(base?.body?.power ?? 0, fittedWeight),
     hitpoints: base?.body?.hitpoints ?? 0,
     detection,
     visibility,

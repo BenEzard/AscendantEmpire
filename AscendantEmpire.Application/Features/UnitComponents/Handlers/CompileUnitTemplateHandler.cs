@@ -82,6 +82,10 @@ internal class CompileUnitTemplateHandler(
             long totalDetection = bodyComponent.Detection ?? 0;
             long totalVisibility = bodyComponent.Visibility ?? 0;
 
+            // Carried weight is the fitted components only, so it deliberately starts at zero rather than at the body's own weight. It feeds the
+            // battle-map movement derivation, where the body's weight must not count against it — see BattleMovementCalculator.
+            long carriedWeight = 0;
+
             // The body's own inherent weapon/armour (if any) contribute just like a fitted weapon/armour.
             if (bodyComponent.Weapon is { } bodyWeapon)
             {
@@ -98,6 +102,7 @@ internal class CompileUnitTemplateHandler(
                 UnitComponent component = fitted.UnitComponent;
 
                 totalWeight += component.Weight;
+                carriedWeight += component.Weight;
                 totalDetection += component.Detection ?? 0;
                 totalVisibility += component.Visibility ?? 0;
 
@@ -162,8 +167,12 @@ internal class CompileUnitTemplateHandler(
                 return ServiceResult<int>.Fail(organisationTagResult.Errors);
             }
 
-            await UpsertSnapshotAsync(template, body, totalWeight, totalDetection, totalVisibility, attack, resistance,
-                snapshotComponents, snapshotCapabilities, organisationTagResult.SuccessValue, request.CompiledOnTurn, cancelToken);
+            // Battle-map movement is derived here rather than authored on the body: power minus what the unit is carrying, floored at zero.
+            long battlefieldMovementPoints = BattleMovementCalculator.CalculateBattlefieldMovementPoints(body.Power, carriedWeight);
+
+            await UpsertSnapshotAsync(template, body, totalWeight: totalWeight, totalDetection: totalDetection, totalVisibility: totalVisibility,
+                battlefieldMovementPoints: battlefieldMovementPoints, attack, resistance, snapshotComponents, snapshotCapabilities,
+                organisationTagResult.SuccessValue, request.CompiledOnTurn, cancelToken);
 
             return ServiceResult<int>.Succeed(template.Id);
         }
@@ -222,6 +231,7 @@ internal class CompileUnitTemplateHandler(
         long totalWeight,
         long totalDetection,
         long totalVisibility,
+        long battlefieldMovementPoints,
         DamageProfile attack,
         DamageProfile resistance,
         List<CompiledUnitTemplateComponent> components,
@@ -248,9 +258,10 @@ internal class CompileUnitTemplateHandler(
                 TotalWeight = totalWeight,
                 TotalDetection = totalDetection,
                 TotalVisibility = totalVisibility,
-                // Movement/power/hitpoints are raw fixed-point longs (Scale 1,000) copied straight from the body.
+                // Campaign movement/power/hitpoints are raw fixed-point longs (Scale 1,000) copied straight from the body. Battle-map movement is
+                // the exception: it is derived from power and carried weight by the caller, so the body's authored value is ignored.
                 CampaignMovementPoints = body.CampaignMovementPoints,
-                BattlefieldMovementPoints = body.BattlefieldMovementPoints,
+                BattlefieldMovementPoints = battlefieldMovementPoints,
                 Power = body.Power,
                 Hitpoints = body.Hitpoints,
                 Attack = attack,
@@ -270,9 +281,10 @@ internal class CompileUnitTemplateHandler(
             existing.TotalWeight = totalWeight;
             existing.TotalDetection = totalDetection;
             existing.TotalVisibility = totalVisibility;
-            // Movement/power/hitpoints are raw fixed-point longs (Scale 1,000) copied straight from the body.
+            // Campaign movement/power/hitpoints are raw fixed-point longs (Scale 1,000) copied straight from the body. Battle-map movement is
+            // the exception: it is derived from power and carried weight by the caller, so the body's authored value is ignored.
             existing.CampaignMovementPoints = body.CampaignMovementPoints;
-            existing.BattlefieldMovementPoints = body.BattlefieldMovementPoints;
+            existing.BattlefieldMovementPoints = battlefieldMovementPoints;
             existing.Power = body.Power;
             existing.Hitpoints = body.Hitpoints;
             existing.Attack = attack;

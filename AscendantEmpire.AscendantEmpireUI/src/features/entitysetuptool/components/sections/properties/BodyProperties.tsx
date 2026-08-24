@@ -3,10 +3,11 @@
 // Controlled component: it takes the body slice and emits the full updated body via onChange. A body
 // has no sparse key/value tables, so there's no working-row state to manage here.
 
-import { type UnitComponentBody } from "@/features/unitdesign/types/UnitComponent";
+import { rawToScaled, type UnitComponentBody } from "@/features/unitdesign/types/UnitComponent";
 import DomainSelection from "@/components/game/DomainSelection";
 import ScaledNumberField from "../../ScaledNumberField";
 import { FieldRow } from "../../componentSetupFields";
+import { calculateBattleMovementPoints } from "@/features/unitdesign/model/battleMovement";
 
 interface BodyPropertiesProps {
   body: UnitComponentBody;
@@ -33,8 +34,13 @@ export default function BodyProperties({ body, onChange }: BodyPropertiesProps) 
           <ScaledNumberField rawValue={body.campaignMovementPoints} onChange={(next) => patch("campaignMovementPoints", next ?? 0)} />
         </FieldRow>
 
+        {/* Battlefield points are no longer authored: template compilation derives them from Power less the
+            weight of the components fitted to the body, so anything typed here would be silently discarded.
+            The unloaded figure is still shown, because it is the ceiling every design built on this body
+            starts from — fitting kit only ever takes movement away from it. */}
+        {/* Padded to match the inputs above so the value sits on the same baseline as the fields it replaces. */}
         <FieldRow label="Battlefield Points">
-          <ScaledNumberField rawValue={body.battlefieldMovementPoints} onChange={(next) => patch("battlefieldMovementPoints", next ?? 0)} />
+          <div className="px-2 py-2 text-sm text-slate-700">{rawToScaled(calculateBattleMovementPoints(body.power, 0)).toFixed(2)}</div>
         </FieldRow>
       </fieldset>
 

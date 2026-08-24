@@ -7,6 +7,7 @@ import { GiHeavyBullets, GiJerrycan, GiSpanner } from "react-icons/gi";
 import type { PlaceholderUpkeep, PlaceholderUpkeepCategory } from "./model/placeholderCosts";
 import { getResourceIconByLabel } from "@/features/game/resources/tickers/resourceIcons";
 import Tooltip from "@/components/ui/Tooltip";
+import { formatToOneDecimal } from "@/util/number";
 
 const CATEGORY_META: Record<PlaceholderUpkeepCategory, { title: string; Icon: IconType }> = {
   food: { title: "Food", Icon: FaFish },
@@ -44,26 +45,21 @@ export interface UpkeepStatsProps {
   className?: string;
 }
 
-function fmt(n: number) {
-  if (!Number.isFinite(n)) return String(n);
-  return n.toFixed(1);
-}
-
 function round1(n: number) {
   return Math.round(n * 10) / 10;
 }
 
 function ResourceAmount({ current, existing, baselineProvided }: { current: number; existing?: number; baselineProvided: boolean }) {
-  if (!baselineProvided) return <>{fmt(current)}</>;
+  if (!baselineProvided) return <>{formatToOneDecimal(current)}</>;
 
   const currentRounded = round1(current);
   const existingRounded = round1(existing ?? 0);
   const deltaRounded = round1(currentRounded - existingRounded);
 
-  if (!Number.isFinite(deltaRounded)) return <>{fmt(deltaRounded)}</>;
+  if (!Number.isFinite(deltaRounded)) return <>{formatToOneDecimal(deltaRounded)}</>;
 
   const className = deltaRounded === 0 ? "text-white" : deltaRounded < 0 ? "text-red-400" : "text-green-400";
-  return <span className={className}>{fmt(Math.abs(deltaRounded))}</span>;
+  return <span className={className}>{formatToOneDecimal(Math.abs(deltaRounded))}</span>;
 }
 
 export function UpkeepStats({ upkeep, existingUpkeep, className }: UpkeepStatsProps) {

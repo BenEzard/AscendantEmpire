@@ -4,6 +4,8 @@ import { UpkeepStats } from "./UpkeepStats";
 import { TrainingCostStats } from "./TrainingCostStats";
 import { rawToScaled } from "./types/UnitComponent";
 import { resolveTroopMapImageSrc } from "@/features/map/util/troopDisplayImageResolver";
+import Tooltip from "@/components/ui/Tooltip";
+import { formatToOneDecimal } from "@/util/number";
 
 /** Mirrors UnitTemplate.MAP_IMAGE_PATH_MAX_LENGTH on the server. */
 const MAP_IMAGE_PATH_MAX_LENGTH = 500;
@@ -22,12 +24,18 @@ export interface DesignPropertiesProps {
   onMapImagePathChange?: (next: string) => void;
 }
 
-/** A labelled Scale-1,000 summary row (values are raw and shown as decimals). */
-function SummaryRow({ label, raw }: { label: string; raw: number }) {
+/**
+ * A labelled Scale-1,000 summary row (values are raw and shown as decimals). An optional `tooltip` explains
+ * where a derived figure comes from; rows that simply sum their components don't need one.
+ *
+ * Styled to match the panel's other cards: same text size, and `tabular-nums` (without a monospace face) so
+ * the values still line up in their column.
+ */
+function SummaryRow({ label, raw, tooltip }: { label: string; raw: number; tooltip?: string }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <div className="text-white/80">{label}</div>
-      <div className="font-mono tabular-nums text-white">{rawToScaled(raw).toFixed(2)}</div>
+    <div className="flex items-center justify-between gap-3 text-xs">
+      <div className="text-white/80">{tooltip ? <Tooltip content={tooltip}>{label}</Tooltip> : label}</div>
+      <div className="tabular-nums text-white">{formatToOneDecimal(rawToScaled(raw))}</div>
     </div>
   );
 }
@@ -100,7 +108,13 @@ export default function DesignProperties({ aggregate, mapImagePath = "", onMapIm
             <div className="border-b border-white/10 pb-1 text-sm font-semibold text-white">Summary</div>
             <div className="mt-1 space-y-1">
               <SummaryRow label="Weight" raw={summary.weight} />
-              <SummaryRow label="Movement" raw={summary.movementPoints} />
+              {/* Battle movement is derived, not authored, so the tooltip carries the rule that produced the
+                  number — otherwise a figure that drops as you fit components looks arbitrary. */}
+              <SummaryRow
+                label="Battle Movement"
+                raw={summary.battleMovementPoints}
+                tooltip="Tiles per battle turn: the body's Power less the weight of everything fitted to it."
+              />
               <SummaryRow label="Hitpoints" raw={summary.hitpoints} />
               <SummaryRow label="Detection" raw={summary.detection} />
               <SummaryRow label="Visibility" raw={summary.visibility} />

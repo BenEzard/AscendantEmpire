@@ -3,6 +3,7 @@ import type { DamageType } from "./types/DamageType";
 import type { IconType } from "react-icons";
 import type { DamageProfile, DomainType } from "./types/UnitComponent";
 import Tooltip from "@/components/ui/Tooltip";
+import { formatToOneDecimal } from "@/util/number";
 
 import { ALL_DAMAGE_TYPES, rawToScaled } from "./types/UnitComponent";
 import { DAMAGE_TYPE_BADGES } from "./types/damageTypeBadges";
@@ -28,11 +29,6 @@ export interface BattleStatsData {
   domainModifiers?: Partial<Record<DomainType, number>>;
 }
 
-function fmt(n: number) {
-  if (!Number.isFinite(n)) return String(n);
-  return n.toFixed(1);
-}
-
 function round1(n: number) {
   return Math.round(n * 10) / 10;
 }
@@ -40,16 +36,16 @@ function round1(n: number) {
 // Damage profiles are stored as raw Scale-1,000 fixed-point; convert to friendly decimals for display.
 function DamageCell({ current, existing }: { current: number; existing?: number }) {
   const currentScaled = rawToScaled(current);
-  if (existing == null) return <>{fmt(currentScaled)}</>;
+  if (existing == null) return <>{formatToOneDecimal(currentScaled)}</>;
 
   const currentRounded = round1(currentScaled);
   const existingRounded = round1(rawToScaled(existing));
   const deltaRounded = round1(currentRounded - existingRounded);
 
-  if (!Number.isFinite(deltaRounded)) return <>{fmt(deltaRounded)}</>;
+  if (!Number.isFinite(deltaRounded)) return <>{formatToOneDecimal(deltaRounded)}</>;
 
   const className = deltaRounded === 0 ? "text-white" : deltaRounded < 0 ? "text-red-400" : "text-green-400";
-  return <span className={className}>{fmt(Math.abs(deltaRounded))}</span>;
+  return <span className={className}>{formatToOneDecimal(Math.abs(deltaRounded))}</span>;
 }
 
 function DamageRow({

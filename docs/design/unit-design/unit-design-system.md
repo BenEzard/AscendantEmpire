@@ -40,7 +40,7 @@ The Unit Design System lets a player assemble their own unit designs from a cata
 
 The interesting decisions live in how the parts play off each other:
 
-* **Weight vs. mobility & power.** Heavier loadouts cost movement and power budget.
+* **Weight vs. mobility & power.** Heavier loadouts cost movement and power budget. Concretely, a body's battle-map movement is its **Power less the weight of everything fitted to it**: a man carrying a knife crosses 6.5 tiles a turn, the same man with a sword or spear 6, and in armour with a spear and shield 5. Every piece of kit is therefore paid for in tiles. See [Battle-map movement points](#battle-map-movement-points) for the arithmetic.
 
 * **Detection vs. visibility.** Detection is how well the unit spots others; visibility is how easily it is spotted. A scout wants high detection and low visibility.
 
@@ -76,7 +76,7 @@ Template Slots (`UnitComponentSlot`) hang off `UnitComponentBody` — only bodie
 
 ### Bodies, weapons and armour
 
-* `UnitComponentBody` holds the movement Domain (`DomainType`), campaign and battlefield movement points, power, hitpoints, and the body's `Slots`. (The unit-size bounds — min/max/increment — were removed in UD-29; sizing is a military-organisation concern.)
+* `UnitComponentBody` holds the movement Domain (`DomainType`), campaign and battlefield movement points, power, hitpoints, and the body's `Slots`. (The unit-size bounds — min/max/increment — were removed in UD-29; sizing is a military-organisation concern.) Its `BattlefieldMovementPoints` is **no longer authored**: since UD-52 the value is derived at compile time (see [Battle-map movement points](#battle-map-movement-points)), the Entity Setup Tool shows it read-only, and removing the now-dead column is tracked as **UD-53**. `CampaignMovementPoints` is still authored and copied through unchanged.
 
 * `UnitComponentWeapon` holds an attack `DamageProfile` (a five-value complex type: Slash, Pierce, Crush, Burn, Poison), a min/max range, a dual-wield flag, and a set of `UnitComponentWeaponDomainModifier` rows. Each modifier both declares a Domain the weapon can attack and scales its damage there.
 
@@ -94,7 +94,40 @@ A `UnitComponentSlot` records its owning body (`UnitComponentBodyId`), a require
 
 A `UnitTemplate` references its `BodyComponent` and holds one `UnitTemplateComponent` per filled body slot (each pins a slot to the fitted component; at most one component per slot). Global/common templates carry a unique `Code` and no game/player; custom templates are owned by a player.
 
-`UnitTemplateAssembly` resolves a save request (a base body code plus a positional list of slot codes), enforcing that the base is a Body and that every fitted part passes `SlotAssemblyValidator` — which checks each fitted component sits in one of the body's own slots, satisfies that slot's rules, and that no slot is filled twice. `CompileUnitTemplateHandler` then produces a denormalized snapshot (`CompiledUnitTemplate` + `CompiledUnitTemplateComponent` + `CompiledUnitTemplateCapability`) with the design's aggregated stats, readable without the per-player unlock filter (e.g. for enemy designs).
+`UnitTemplateAssembly` resolves a save request (a base body code plus a positional list of slot codes), enforcing that the base is a Body and that every fitted part passes `SlotAssemblyValidator` — which checks each fitted component sits in one of the body's own slots, satisfies that slot's rules, and that no slot is filled twice. `CompileUnitTemplateHandler` then produces a denormalized snapshot (`CompiledUnitTemplate` + `CompiledUnitTemplateComponent` + `CompiledUnitTemplateCapability`) with the design's aggregated stats, readable without the per-player unlock filter (e.g. for enemy designs). Most of those stats are sums or straight copies; battle-map movement is the one that is *calculated* — see [Battle-map movement points](#battle-map-movement-points).
+
+### Battle-map movement points
+
+A template's battle-map movement is **derived, never authored** (UD-52):
+
+```
+BattlefieldMovementPoints = MAX(0, Body.Power - SUM(Weight of fitted components))
+```
+
+Three things about that formula are easy to get wrong:
+
+* **The body's own weight is excluded.** Power is what the body can move with *once it is already carrying itself*, so subtracting the body's weight again would charge for it twice. Only components fitted into the body's slots subtract. This is why `CompiledUnitTemplate.TotalWeight` (which *does* include the body) and the movement figure disagree — that is correct, not a bug.
+* **It is floored at zero.** An over-loaded design stands still rather than acquiring negative movement.
+* **Fractions are exact.** Everything is raw Scale-1,000, so 6.5 tiles is simply `6500` and no rounding is involved.
+
+The **agreed calibration** — the numbers that make the design targets come out right:
+
+| Item | Decimal | Raw |
+|---|---|---|
+| Body power (human) | 7.0 | 7,000 |
+| Spear / sword | 1.0 | 1,000 |
+| Knife | 0.5 | 500 |
+| Armour | 0.5 | 500 |
+| Shield | 0.5 | 500 |
+
+Which yields: sword or spear alone **6.0** tiles, knife alone **6.5**, armour + spear + shield **5.0**. Power was anchored at 7.0 precisely because it makes the catalogue values that already existed (the human body's power, the primitive spear's weight) correct as they stood. Only the spear exists as a component so far; the knife, sword, armour and shield weights above are the calibration those components should be authored with when they are added.
+
+The arithmetic lives in **two places on purpose**:
+
+* `BattleMovementCalculator` (`Features/UnitComponents/Services`) is authoritative. `CompileUnitTemplateHandler` calls it and writes the result into the snapshot, ignoring whatever sits on the body.
+* `calculateBattleMovementPoints` (`features/unitdesign/model/battleMovement.ts`) mirrors it, because the designer must show the figure live as components are dragged in and out, long before a save. `BattleMovementCalculatorTests.cs` and `battleMovement.test.ts` pin both to the same calibration cases; change one and you must change the other.
+
+> **A half tile does not currently buy half a move.** Battle-map movement costs a flat 1 MP per tile (`BattleRemainingMovementCheck`), so 6.5 spends as six tiles with 0.5 stranded. The fraction is precision in the stat, not a usable half-step; it starts to matter if fractional terrain costs or turn-to-turn carry-over arrive. Note also that nothing resets `TroopInstance.MovementPointsRemaining` per turn yet, so the compiled value is not yet spent on the battle map at all.
 
 ### Per-player unlock state
 

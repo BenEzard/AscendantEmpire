@@ -4,6 +4,21 @@ export function formatNumberWithCommas(value: number): string {
   return new Intl.NumberFormat("en-US").format(whole);
 }
 
+/**
+ * Formats a number to a single decimal place (6.5, 1.0, 0.0).
+ *
+ * Shared by the unit designer's stat cards — Summary, Battle Stats, Training Cost and Upkeep — so every
+ * figure in that panel is written the same way.
+ *
+ * Unlike the two helpers either side of it, a non-finite value is returned as it is ("NaN", "Infinity")
+ * rather than flattened to "0": these are derived design stats, and a broken one should be visible rather
+ * than quietly rendered as a plausible-looking zero.
+ */
+export function formatToOneDecimal(value: number): string {
+  if (!Number.isFinite(value)) return String(value);
+  return value.toFixed(1);
+}
+
 export function formatResourceAmount(amount: number): string {
   if (!Number.isFinite(amount)) return "0";
 

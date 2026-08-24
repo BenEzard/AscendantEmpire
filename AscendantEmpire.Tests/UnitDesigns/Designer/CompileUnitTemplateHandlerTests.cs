@@ -49,7 +49,10 @@ internal class CompileUnitTemplateHandlerTests : SqlServerTestBase
                 // Raw fixed-point (Scale 1,000): 3,000 = 3.0 campaign, 6,000 = 6.0 battlefield movement points.
                 // The compile step unscales these into the snapshot's decimals (asserted as 3m below).
                 CampaignMovementPoints = 3000,
+                // Authored battlefield movement is deliberately left at a value the compile step must NOT use: since UD-52 the snapshot derives
+                // battle-map movement from Power minus carried weight instead (7.0 - 0.045 = 6.955, asserted below).
                 BattlefieldMovementPoints = 6000,
+                Power = 7000,
             },
             // A body may carry its own inherent weapon (here a crush attack), which the compiler folds in.
             Weapon = new UnitComponentWeapon
@@ -160,10 +163,15 @@ internal class CompileUnitTemplateHandlerTests : SqlServerTestBase
             Assert.That(snapshot.Attack.Crush, Is.EqualTo(250), "Fitted weapon crush 50 + body's inherent weapon crush 200.");
             Assert.That(snapshot.Resistance.Pierce, Is.EqualTo(250), "From the fitted armour.");
 
-            // Body-derived movement. Movement is copied through as the raw fixed-point long (3,000 = 3.0).
+            // Body-derived movement. Campaign movement is copied through as the raw fixed-point long (3,000 = 3.0).
             Assert.That(snapshot.MovementDomain, Is.EqualTo(DomainType.Land));
             Assert.That(snapshot.CampaignMovementPoints, Is.EqualTo(3000));
             Assert.That(snapshot.CompiledOnTurn, Is.EqualTo(5));
+
+            // Battle-map movement is derived, not copied: power 7,000 minus the 45 of carried weight (10 + 30 + 5). The body's own weight of 100
+            // does not count against it, and the 6,000 authored on the body is ignored entirely.
+            Assert.That(snapshot.BattlefieldMovementPoints, Is.EqualTo(6955), "7,000 power - 45 carried; the body's own 100 weight is excluded.");
+            Assert.That(snapshot.BattlefieldMovementPoints, Is.Not.EqualTo(6000), "The value authored on the body must not be copied through.");
 
             // Components: body (null slot) + 3 fitted.
             Assert.That(snapshot.Components, Has.Count.EqualTo(4));

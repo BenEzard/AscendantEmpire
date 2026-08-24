@@ -2,11 +2,7 @@ import type { PlaceholderCost } from "./model/placeholderCosts";
 
 import { getResourceIconByLabel } from "@/features/game/resources/tickers/resourceIcons";
 import Tooltip from "@/components/ui/Tooltip";
-
-function fmt(n: number) {
-  if (!Number.isFinite(n)) return String(n);
-  return n.toFixed(1);
-}
+import { formatToOneDecimal } from "@/util/number";
 
 function resourceIcon(label: string) {
   const icon = getResourceIconByLabel(label);
@@ -51,7 +47,7 @@ export function TrainingCostStats({ cost, className }: TrainingCostStatsProps) {
             {entries.map(([label, amount]) => (
               <div key={label} className="row-span-2 flex h-12 w-full flex-col items-center justify-center rounded border border-white/10 box-border">
                 <div className="flex h-6 items-center justify-center">{resourceIcon(label)}</div>
-                <div className="flex h-6 items-center justify-center text-center text-xs tabular-nums leading-none text-white">{fmt(amount)}</div>
+                <div className="flex h-6 items-center justify-center text-center text-xs tabular-nums leading-none text-white">{formatToOneDecimal(amount)}</div>
               </div>
             ))}
           </div>
