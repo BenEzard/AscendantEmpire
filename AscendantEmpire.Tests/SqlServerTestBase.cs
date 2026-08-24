@@ -1,6 +1,5 @@
 using AscendantEmpire.Application.Data;
 
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
@@ -8,13 +7,21 @@ namespace AscendantEmpire.Tests;
 
 /// <summary>
 /// Base class for tests that need a real SQL Server database via Testcontainers.
-/// 
-/// Each test gets its own isolated database (named after the test) that is created with EnsureCreated before the test runs and dropped afterwards.
-/// 
-/// To use:
-///   1. Inherit your test class from SqlServerTestBase.
-///   2. Use the <see cref="DbFactory"/> field to resolve an <see cref="IDbContextFactory{AscendantEmpireContext}"/>.
 /// </summary>
+/// <remarks>
+/// <para>
+/// Each test gets its own isolated database, named after nothing but a fresh GUID, restored from the migrated template before the test runs and dropped
+/// afterwards. The template is built once for the whole assembly by <see cref="MsSqlContainerFixture"/>, so the migration history is applied once per run
+/// rather than once per test — see <see cref="SqlServerTemplateDatabase"/> for why that matters.
+/// </para>
+/// <para>
+/// To use:
+/// <list type="number">
+/// <item><description>Inherit your test class from <see cref="SqlServerTestBase"/>.</description></item>
+/// <item><description>Use the <see cref="DbFactory"/> property to resolve an <see cref="IDbContextFactory{AscendantEmpireContext}"/>.</description></item>
+/// </list>
+/// </para>
+/// </remarks>
 public abstract class SqlServerTestBase
 {
     private string _databaseName = string.Empty;
@@ -28,21 +35,14 @@ public abstract class SqlServerTestBase
     [SetUp]
     public async Task SqlServerBaseSetUp()
     {
+        // Built by the first containerised test to run; every later test finds it already there.
+        await SqlServerTemplateDatabase.EnsureBuiltAsync(MsSqlContainerFixture.ConnectionString);
+
         // Each test gets a unique database name so tests are fully isolated.
         _databaseName = $"AscendantEmpire_Test_{Guid.NewGuid():N}";
 
-        // SqlClient opens the connection to the InitialCatalog specified in the connection string before EF Core gets a chance to run CREATE DATABASE.
-        // We therefore create the database explicitly via master first, then hand off to EF migrations.
-        string masterConnectionString = BuildConnectionString(MsSqlContainerFixture.ConnectionString, "master");
-        await using (var masterConnection = new SqlConnection(masterConnectionString))
-        {
-            await masterConnection.OpenAsync();
-            await using var cmd = masterConnection.CreateCommand();
-            cmd.CommandText = $"CREATE DATABASE [{_databaseName}]";
-            await cmd.ExecuteNonQueryAsync();
-        }
-
-        string connectionString = BuildConnectionString(MsSqlContainerFixture.ConnectionString, _databaseName);
+        // Restoring the already-migrated template both creates the database and gives it the production schema, so no migration runs here.
+        string connectionString = await SqlServerTemplateDatabase.RestoreCopyAsync(_databaseName);
 
         _options = new DbContextOptionsBuilder<AscendantEmpireContext>()
             .UseSqlServer(connectionString)
@@ -52,10 +52,6 @@ public abstract class SqlServerTestBase
             .Options;
 
         DbFactory = new TestDbContextFactory<AscendantEmpireContext>(_options);
-
-        // Apply all migrations so the schema matches production exactly.
-        await using var context = await DbFactory.CreateDbContextAsync();
-        await context.Database.MigrateAsync();
     }
 
     [TearDown]
@@ -64,20 +60,5 @@ public abstract class SqlServerTestBase
         // Drop the per-test database to keep the container clean.
         await using var context = await DbFactory.CreateDbContextAsync();
         await context.Database.EnsureDeletedAsync();
-    }
-
-    /// <summary>
-    /// Replaces the Initial Catalog in the container's connection string with the specified database name.
-    /// </summary>
-    private static string BuildConnectionString(string containerConnectionString, string databaseName)
-    {
-        var builder = new SqlConnectionStringBuilder(containerConnectionString)
-        {
-            InitialCatalog = databaseName,
-            // Required when connecting to a SQL Server container: the container uses a self-signed certificate, and Microsoft.Data.SqlClient 4+ defaults to Encrypt=True.
-            // Without this the SSL handshake fails and surfaces as "Login failed for user 'sa'".
-            TrustServerCertificate = true
-        };
-        return builder.ConnectionString;
     }
 }

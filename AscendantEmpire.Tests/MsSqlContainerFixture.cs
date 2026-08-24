@@ -6,11 +6,17 @@ namespace AscendantEmpire.Tests;
 
 /// <summary>
 /// Assembly-wide NUnit setup fixture that starts a single SQL Server container before any tests run and disposes it once all tests have finished.
-/// 
-/// Usage in a test class:
-///   - Inherit from <see cref="SqlServerTestBase"/> to get a pre-migrated
-///     <see cref="IDbContextFactory{AscendantEmpireContext}"/> that is isolated per test.
 /// </summary>
+/// <remarks>
+/// <para>
+/// Usage in a test class: inherit from <see cref="SqlServerTestBase"/> to get a pre-migrated <see cref="IDbContextFactory{AscendantEmpireContext}"/> that
+/// is isolated per test.
+/// </para>
+/// <para>
+/// This fixture only owns the container. The migrated database inside it is built by <see cref="SqlServerTemplateDatabase"/>, lazily, when the first
+/// containerised test asks for one — so a run that selects no such test starts the container but never migrates anything.
+/// </para>
+/// </remarks>
 [SetUpFixture]
 public sealed class MsSqlContainerFixture
 {

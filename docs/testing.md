@@ -73,6 +73,28 @@ on one or more of the container-only behaviours listed above (real constraint en
 `ExecuteUpdateAsync`/`ExecuteDeleteAsync`, raw T-SQL, transactions, reading an EF complex type, or
 provider-specific mapping that only a real relational engine reproduces).
 
+#### How a tier-3 database is provisioned
+
+Each tier-3 test still gets its **own** database, created before it runs and dropped after, so tests
+stay isolated and order-independent. What changed is how that database is built.
+
+Applying the migration history costs seconds per database, and most of it is one migration —
+`PopulateNumbersTable`, which writes 1,000,001 rows into `util.Numbers`. Paying that per test made the
+containerised tier roughly 4.8 seconds per test regardless of what the test actually did.
+
+Instead, `SqlServerTemplateDatabase` migrates a single **template** database the first time a tier-3
+test runs, shrinks its log, and backs it up once. `SqlServerTestBase` then restores that backup under a
+fresh GUID-named database for each test. A restore is a file copy inside the container, so the per-test
+cost drops to roughly 0.7 seconds while each test still sees an identical pristine database — same
+schema, same migration history, same seeded rows, same identity seeds.
+
+Two consequences worth knowing:
+
+- **Nothing needs to clean up after itself.** A test can write whatever it likes; the database is thrown
+  away at teardown.
+- **The template is built lazily**, on the first tier-3 test, so a run that selects only tier 1 and
+  tier 2 tests never pays for it.
+
 ## Deciding which tier a test belongs to
 
 Ask, in order:
