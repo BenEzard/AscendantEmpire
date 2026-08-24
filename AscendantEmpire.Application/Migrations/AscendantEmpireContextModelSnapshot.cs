@@ -1701,7 +1701,7 @@ namespace AscendantEmpire.Application.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<bool>("IsInherited")
+                    b.Property<bool>("IsInheritedToBase")
                         .HasColumnType("bit");
 
                     b.HasKey("TagTypeId");

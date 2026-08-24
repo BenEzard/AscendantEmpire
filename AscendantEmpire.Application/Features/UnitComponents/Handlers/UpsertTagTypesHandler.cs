@@ -64,7 +64,7 @@ internal class UpsertTagTypesHandler(
                 {
                     existing.DisplayName = dto.DisplayName;
                     existing.Description = dto.Description;
-                    existing.IsInherited = dto.IsInherited;
+                    existing.IsInheritedToBase = dto.IsInheritedToBase;
                     existing.Colour = dto.Colour;
                     existing.Icon = dto.Icon;
                 }
@@ -75,7 +75,7 @@ internal class UpsertTagTypesHandler(
                         TagTypeId = dto.TagTypeId,
                         DisplayName = dto.DisplayName,
                         Description = dto.Description,
-                        IsInherited = dto.IsInherited,
+                        IsInheritedToBase = dto.IsInheritedToBase,
                         Colour = dto.Colour,
                         Icon = dto.Icon,
                     });

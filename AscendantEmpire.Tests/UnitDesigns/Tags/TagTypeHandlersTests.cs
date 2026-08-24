@@ -38,7 +38,7 @@ internal class TagTypeHandlersTests : InMemoryTestBase
         TagType tagTypeId,
         string displayName = "Display Name",
         string description = "Description",
-        bool isInherited = false,
+        bool isInheritedToBase = false,
         string? colour = "#3366cc",
         string? icon = "shield")
     {
@@ -47,7 +47,7 @@ internal class TagTypeHandlersTests : InMemoryTestBase
             TagTypeId = tagTypeId,
             DisplayName = displayName,
             Description = description,
-            IsInherited = isInherited,
+            IsInheritedToBase = isInheritedToBase,
             Colour = colour,
             Icon = icon,
         };
@@ -76,7 +76,7 @@ internal class TagTypeHandlersTests : InMemoryTestBase
             TagTypeId = tagTypeId,
             DisplayName = displayName,
             Description = "Seeded",
-            IsInherited = false,
+            IsInheritedToBase = false,
         });
 
         await context.SaveChangesAsync();
@@ -130,7 +130,7 @@ internal class TagTypeHandlersTests : InMemoryTestBase
             TagType.Movement,
             displayName: "Edited Movement",
             description: "Edited description",
-            isInherited: true,
+            isInheritedToBase: true,
             colour: "#ff0000",
             icon: "boot"));
 
@@ -144,7 +144,7 @@ internal class TagTypeHandlersTests : InMemoryTestBase
             Assert.That(rows, Has.Count.EqualTo(1), "The row is updated in place — the enum key means there can only ever be one.");
             Assert.That(updated.DisplayName, Is.EqualTo("Edited Movement"));
             Assert.That(updated.Description, Is.EqualTo("Edited description"));
-            Assert.That(updated.IsInherited, Is.True);
+            Assert.That(updated.IsInheritedToBase, Is.True);
             Assert.That(updated.Colour, Is.EqualTo("#ff0000"));
             Assert.That(updated.Icon, Is.EqualTo("boot"));
         }

@@ -161,13 +161,13 @@ export default function TagTypeSetupDialog({ open, onCancel, initialTagTypes, on
                 />
               </FieldRow>
 
-              <FieldRow label="Is Inherited">
+              <FieldRow label="Is Inherited To Base">
                 <label className="flex items-center gap-2 text-sm text-slate-700">
                   <input
                     type="checkbox"
-                    checked={selected?.isInherited ?? false}
+                    checked={selected?.isInheritedToBase ?? false}
                     disabled={!selected}
-                    onChange={(e) => updateField("isInherited", e.target.checked)}
+                    onChange={(e) => updateField("isInheritedToBase", e.target.checked)}
                   />
                 </label>
               </FieldRow>

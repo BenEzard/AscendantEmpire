@@ -15,7 +15,7 @@ export interface TagTypeInfo {
   displayName: string;
   description: string;
   /** Stored/retrieved only — no behaviour is attached to this flag yet. */
-  isInherited: boolean;
+  isInheritedToBase: boolean;
   /** Optional HTML colour string, e.g. "#3366cc". */
   colour: string | null;
   /** Optional icon identifier string. */

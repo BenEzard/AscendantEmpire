@@ -35,7 +35,7 @@ internal class GetTagTypesHandler(
                     TagTypeId = t.TagTypeId,
                     DisplayName = t.DisplayName,
                     Description = t.Description,
-                    IsInherited = t.IsInherited,
+                    IsInheritedToBase = t.IsInheritedToBase,
                     Colour = t.Colour,
                     Icon = t.Icon,
                 })

@@ -11,7 +11,7 @@ interface TagTypeViewWire {
   tagTypeId: TagType;
   displayName: string;
   description: string;
-  isInherited: boolean;
+  isInheritedToBase: boolean;
   colour: string | null;
   icon: string | null;
 }
@@ -22,7 +22,7 @@ function mapTagTypeViewToModel(wire: TagTypeViewWire): TagTypeInfo {
     tagTypeId: wire.tagTypeId,
     displayName: wire.displayName,
     description: wire.description,
-    isInherited: wire.isInherited,
+    isInheritedToBase: wire.isInheritedToBase,
     colour: wire.colour,
     icon: wire.icon,
   };

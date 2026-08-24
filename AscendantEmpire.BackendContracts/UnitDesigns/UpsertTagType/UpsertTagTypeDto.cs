@@ -15,9 +15,9 @@ public record UpsertTagTypeDto
     public required string Description { get; init; }
 
     /// <summary>
-    /// Whether tags of this type are inherited. Stored/retrieved only — no behaviour attached yet.
+    /// Whether tags of this type are inherited to the base. Stored/retrieved only — no behaviour attached yet.
     /// </summary>
-    public required bool IsInherited { get; init; }
+    public required bool IsInheritedToBase { get; init; }
 
     /// <summary>
     /// Optional HTML colour string used to present the tag type, e.g. "#3366cc".
