@@ -50,9 +50,6 @@ internal sealed class GetMatchMakingGamesHandler(
                 from gi in context.GameIndex.AsNoTracking()
                 where gi.CreationStatus == GameCreationStatus.SetupComplete
                    && gi.PlayStatus == GamePlayStatus.InProgress
-                join cmi in context.CampaignMapGalleryIndex.AsNoTracking()
-                    on gi.CampaignMapIndexId equals cmi.Id into cmiGroup
-                from cmi in cmiGroup.DefaultIfEmpty()
                 join p in context.Players.AsNoTracking()
                     on gi.Id equals p.GameId
                 where p.Status == PlayerStatus.Active
@@ -61,8 +58,8 @@ internal sealed class GetMatchMakingGamesHandler(
                     GameId = gi.Id,
                     gi.GameName,
                     gi.NumberOfPlayers,
-                    cmi.Width,
-                    cmi.Height,
+                    gi.MapWidth,
+                    gi.MapHeight,
 
                     PlayerId = p.Id,
                     p.RulerTitle,
@@ -79,16 +76,16 @@ internal sealed class GetMatchMakingGamesHandler(
                     r.GameId,
                     r.GameName,
                     r.NumberOfPlayers,
-                    r.Width,
-                    r.Height
+                    r.MapWidth,
+                    r.MapHeight
                 })
                 .Select(g => new MatchMakingGame
                 {
                     GameId = g.Key.GameId,
                     GameName = g.Key.GameName,
                     NumberOfPlayers = g.Key.NumberOfPlayers,
-                    MapWidth = g.Key.Width,
-                    MapHeight = g.Key.Height,
+                    MapWidth = g.Key.MapWidth,
+                    MapHeight = g.Key.MapHeight,
                     Slots = [.. g
                         .Select(s => new MatchMakingSlot
                         {

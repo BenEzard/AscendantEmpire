@@ -89,8 +89,8 @@ internal sealed class GenerateBattleMapHandler(
             int tileY = tile.YCoord;
 
             // ── Load the parent campaign map gallery index ────────────────────
-            // Required for the master seed (terrain continuity) and map dimensions
-            // (neighbour bounds check).
+            // Required for the master seed, which drives terrain continuity and lives nowhere else. The map dimensions are deliberately not taken from here: one
+            // gallery row is shared by every game copied from it and can be edited afterwards, so the game's own snapshot is what describes this game's map.
             CampaignMapGalleryIndex? campaignIndex = await context.CampaignMapGalleryIndex
                 .AsNoTracking()
                 .FirstOrDefaultAsync(cmi => cmi.Id == gameIndex.CampaignMapIndexId, cancellationToken);
@@ -126,7 +126,7 @@ internal sealed class GenerateBattleMapHandler(
                 int nx = tileX + neighbourDx[i];
                 int ny = tileY + neighbourDy[i];
 
-                if (nx < 0 || nx >= campaignIndex.Width || ny < 0 || ny >= campaignIndex.Height)
+                if (nx < 0 || nx >= gameIndex.MapWidth || ny < 0 || ny >= gameIndex.MapHeight)
                 {
                     // No neighbour at this edge — leave null.
                     continue;
@@ -148,8 +148,8 @@ internal sealed class GenerateBattleMapHandler(
                 camX:           tileX,
                 camY:           tileY,
                 battleSize:     gameIndex.BattleMapSize,
-                campaignWidth:  campaignIndex.Width,
-                campaignHeight: campaignIndex.Height,
+                campaignWidth:  gameIndex.MapWidth,
+                campaignHeight: gameIndex.MapHeight,
                 tileGeo:        tile.CampaignMapGeographyTypeId,
                 tileBiome:      tile.BiomeTypeId,
                 neighbourGeo:   neighbourGeos);
@@ -158,9 +158,8 @@ internal sealed class GenerateBattleMapHandler(
             int battleMapIndexId = await InsertBattleMapIndexAsync(request.CampaignMapId, cancellationToken);
 
             // ── Bulk-insert all BattleMap tiles ───────────────────────────────
-            int tileStartId = await GetNextBattleMapTileStartIdAsync();
-
-            await BulkInsertBattleTilesAsync(battleMapIndexId, tileStartId, gameIndex.BattleMapSize, data.Altitudes, data.Biomes);
+            // Reserving the id range and writing the tiles happen together, inside one transaction, so the range cannot be handed out twice.
+            int tileStartId = await BulkInsertBattleTilesAsync(battleMapIndexId, gameIndex.BattleMapSize, data.Altitudes, data.Biomes, cancellationToken);
 
             // ── Mark the index row as Complete ────────────────────────────────
             await context.BattleMapIndex
@@ -209,10 +208,23 @@ internal sealed class GenerateBattleMapHandler(
     }
 
     /// <summary>
-    /// Determines the next sequential BattleMap Id using a table-level lock
-    /// to prevent ID collisions when two BattleMaps are generated concurrently.
+    /// Claims the next block of BattleMap tile ids, holding the table until the caller's transaction ends.
     /// </summary>
-    private async Task<int> GetNextBattleMapTileStartIdAsync()
+    /// <remarks>
+    /// <para>
+    /// <c>battle.BattleMap.Id</c> is not an IDENTITY column: tile ids are positional, addressing tile (x, y) as <c>BattleMapOffsetId + (y * Size + x)</c>, so the
+    /// application chooses them rather than the database. That makes reserving the range this handler is about to write the caller's problem.
+    /// </para>
+    /// <para>
+    /// <c>TABLOCKX</c> with <c>HOLDLOCK</c> keeps the exclusive table lock for the life of the enclosing transaction, which is why the connection and transaction
+    /// are passed in rather than opened here. Taken on its own connection with no transaction, as this used to be, the lock was released the moment the SELECT
+    /// finished and two concurrent generations could read the same starting id and write overlapping tiles.
+    /// </para>
+    /// </remarks>
+    private static async Task<int> ReserveTileIdRangeAsync(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        CancellationToken cancellationToken)
     {
         const string sql = """
             SELECT ISNULL(
@@ -221,24 +233,36 @@ internal sealed class GenerateBattleMapHandler(
                 0) + 1
             """;
 
-        await using var conn = new SqlConnection(context.Database.GetConnectionString());
-        await conn.OpenAsync();
-        await using var cmd = new SqlCommand(sql, conn);
-        object result = await cmd.ExecuteScalarAsync() ?? 1;
+        await using var command = new SqlCommand(sql, connection, transaction);
+
+        object result = await command.ExecuteScalarAsync(cancellationToken) ?? 1;
+
         return Convert.ToInt32(result);
     }
 
     /// <summary>
-    /// Bulk-inserts all BattleMap tiles using SqlBulkCopy.
-    /// Tiles are stored in (Y, X) order — matching the BattleMapOffsetId convention.
+    /// Reserves this BattleMap's block of tile ids and bulk-inserts its tiles, in one transaction.
     /// </summary>
-    private async Task BulkInsertBattleTilesAsync(
+    /// <remarks>
+    /// Tiles are written in (Y, X) order with ids assigned from the reserved start, which is what makes <c>BattleMapOffsetId + (y * Size + x)</c> address a tile.
+    /// </remarks>
+    /// <returns>The id of the first tile written, to be recorded as the BattleMap's offset.</returns>
+    private async Task<int> BulkInsertBattleTilesAsync(
         int                  battleMapIndexId,
-        int                  startId,
         int                  size,
         BattleMapAltitude[]  altitudes,
-        BiomeType[]          biomes)
+        BiomeType[]          biomes,
+        CancellationToken    cancellationToken)
     {
+        await using var connection = new SqlConnection(context.Database.GetConnectionString());
+        await connection.OpenAsync(cancellationToken);
+
+        // The reservation and the write share this transaction, so the exclusive table lock taken while reading the highest existing id is still held when the
+        // tiles claiming that range are written. Splitting them across two connections, as this used to do, released the lock before a single row was inserted.
+        await using SqlTransaction transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
+
+        int startId = await ReserveTileIdRangeAsync(connection, transaction, cancellationToken);
+
         var table = new DataTable();
         table.Columns.Add("Id",               typeof(int));
         table.Columns.Add("BattleMapIndexId", typeof(int));
@@ -264,11 +288,7 @@ internal sealed class GenerateBattleMapHandler(
             }
         }
 
-        string? connStr = context.Database.GetConnectionString();
-        await using var conn = new SqlConnection(connStr);
-        await conn.OpenAsync();
-
-        using var bulkCopy = new SqlBulkCopy(conn, SqlBulkCopyOptions.TableLock, null)
+        using var bulkCopy = new SqlBulkCopy(connection, SqlBulkCopyOptions.TableLock, transaction)
         {
             DestinationTableName = "[battle].[BattleMap]",
             BatchSize            = 10_000,
@@ -281,6 +301,10 @@ internal sealed class GenerateBattleMapHandler(
         bulkCopy.ColumnMappings.Add("AltitudeLevel",    "AltitudeLevel");
         bulkCopy.ColumnMappings.Add("BiomeTypeId",      "BiomeTypeId");
 
-        await bulkCopy.WriteToServerAsync(table);
+        await bulkCopy.WriteToServerAsync(table, cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return startId;
     }
 }

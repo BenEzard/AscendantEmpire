@@ -107,11 +107,9 @@ internal class SpawnTroopHandler(
 
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            // Resolve the coordinates to this game's actual tile row rather than calculating an id from
-            // them. Deriving it would usually agree, but nothing bounds the requested coordinates against
-            // the map size, and a coordinate past the edge still produces a perfectly valid id — one
-            // belonging to another game's block, which the foreign key would happily accept. Looking the
-            // tile up rejects the coordinate instead, and is what GameSetupService already does for start
+            // Resolve the coordinates to this game's actual tile row rather than calculating an id from them.
+            // Deriving it would usually agree, but nothing bounds the requested coordinates against the map size, and a coordinate past the edge still produces a perfectly valid id — one
+            // belonging to another game's block, which the foreign key would happily accept. Looking the tile up rejects the coordinate instead, and is what GameSetupService already does for start
             // positions. UX_CampaignMap_Game_X_Y covers this lookup.
             CampaignMap? targetTile = await context.CampaignMaps
                 .AsNoTracking()
