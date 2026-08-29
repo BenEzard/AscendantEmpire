@@ -31,6 +31,18 @@ public record ServiceResultBase
     /// </summary>
     public IReadOnlyCollection<string> Errors { get; init; } = [];
 
+    /// <summary>
+    /// Optional machine-readable detail carried alongside an error status, for the cases where the caller has to branch on the failure rather than just
+    /// display it.
+    /// </summary>
+    /// <remarks>
+    /// <para>Serialized into the error response body next to <see cref="Errors"/> when set, and omitted entirely when null — so every existing error path
+    /// is unaffected. <see cref="Errors"/> stays the human-readable account of what went wrong; this is only for what the caller must decide.</para>
+    /// <para>Example: a unit-template save that clashes on name answers 409 either way, but the designer has to know whether to offer an overwrite or
+    /// simply report the refusal.</para>
+    /// </remarks>
+    public object? ErrorDetail { get; init; }
+
     public static ServiceResultBase Succeed() => new() { StatusCode = ServiceResultStatus.Success };
     public static ServiceResultBase Created() => new() { StatusCode = ServiceResultStatus.Created };
     public static ServiceResultBase SuccessNoContent() => new() { StatusCode = ServiceResultStatus.SuccessNoContent };
@@ -146,6 +158,18 @@ public record ServiceResultBase
         {
             StatusCode = ServiceResultStatus.Conflict,
             Errors = [.. errors]
+        };
+
+        /// <summary>
+        /// Conflict error carrying machine-readable detail, for when the caller has to branch on the conflict rather than just display it.
+        /// </summary>
+        /// <param name="error">The human-readable account of the clash.</param>
+        /// <param name="detail">Structured detail, serialized alongside the error message. See <see cref="ServiceResultBase.ErrorDetail"/>.</param>
+        public static ServiceResult<TSuccess> Conflict(string error, object detail) => new()
+        {
+            StatusCode = ServiceResultStatus.Conflict,
+            Errors = [error],
+            ErrorDetail = detail
         };
 
         /// <summary>

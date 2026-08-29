@@ -37,4 +37,15 @@ public record SaveGlobalUnitTemplateDto
     /// re-map which component sits where.
     /// </remarks>
     public required IReadOnlyDictionary<string, string> SlotComponentCodes { get; init; }
+
+    /// <summary>
+    /// Set to confirm that saving over the existing catalogue template with this <see cref="Code"/> is intended.
+    /// </summary>
+    /// <remarks>
+    /// <para>Read only by the create endpoint, which answers 409 with a <c>TemplateNameConflict</c> when the code is taken and this is false, and performs
+    /// the overwrite when it is true. Ignored by the update endpoint, which is already addressing one specific template by id.</para>
+    /// <para>Unlike the player-facing flow, nothing here is ever unresolvable: authoring the shared catalogue is this endpoint's purpose, so troops
+    /// already built from the template are reported in the conflict but never refuse the overwrite.</para>
+    /// </remarks>
+    public bool OverwriteExisting { get; init; }
 }

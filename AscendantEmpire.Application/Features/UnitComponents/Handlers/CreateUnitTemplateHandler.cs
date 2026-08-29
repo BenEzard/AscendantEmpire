@@ -2,6 +2,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.UnitComponents.Classes;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveUnitTemplate;
+using AscendantEmpire.BackendContracts.UnitDesigns.Shared;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 
 using MediatR;
@@ -14,11 +15,14 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 
 /// <summary>
-/// Creates a new custom (Player-owned) Unit Template from an assembled design: a base body plus the components fitted into its Slots.
+/// Saves a custom (Player-owned) Unit Template from an assembled design: a base body plus the components fitted into its Slots.
 /// </summary>
 /// <remarks>
-/// The Template and its <c>CompiledUnitTemplate</c> snapshot (via <see cref="CompileUnitTemplateHandler"/>) are persisted atomically,
-/// stamped with the game's current campaign turn — every saved template always has a compiled read model.
+/// <para>The Template and its <c>CompiledUnitTemplate</c> snapshot (via <see cref="CompileUnitTemplateHandler"/>) are persisted atomically,
+/// stamped with the game's current campaign turn — every saved template always has a compiled read model.</para>
+/// <para>Names are the player's natural key for their own designs, so this is an upsert rather than a plain insert. A name already in use answers 409
+/// with a <see cref="TemplateNameConflict"/> describing whether confirming would help; re-sending with <c>OverwriteExisting</c> set then hands the save
+/// to <see cref="UpdateUnitTemplateHandler"/>, which owns the one update path. The caller never needs to know the existing design's id.</para>
 /// </remarks>
 public record CreateUnitTemplateRequest(int GameId, int PlayerId, SaveUnitTemplateDto Template) : IRequest<ServiceResult<UnitTemplateView>>;
 
@@ -34,6 +38,15 @@ internal class CreateUnitTemplateHandler(
         try
         {
             SaveUnitTemplateDto dto = request.Template;
+
+            // Name clashes are settled before anything is resolved or written: either they end the request with a conflict the caller can act on, or
+            // they redirect it to the update path.
+            ServiceResult<UnitTemplateView>? nameOutcome = await ResolveNameClashAsync(request, cancelToken);
+
+            if (nameOutcome != null)
+            {
+                return nameOutcome;
+            }
 
             ServiceResult<UnitTemplateAssembly.ResolvedAssembly> resolved = await UnitTemplateAssembly.ResolveAsync(
                 context, request.PlayerId, dto.DisplayName, dto.MapImagePath, dto.BaseCode, dto.SlotComponentCodes, cancelToken);
@@ -97,6 +110,84 @@ internal class CreateUnitTemplateHandler(
 
             return ServiceResult<UnitTemplateView>.InternalServerError(ex, error);
         }
+    }
+
+    /// <summary>
+    /// Settles what an already-taken name means for this save: a conflict to answer with, the result of the overwrite it was confirmed for, or null when
+    /// the name is free and the create should carry on.
+    /// </summary>
+    /// <remarks>
+    /// <para>Three outcomes, distinguished by who can resolve the clash. A global/common design owning the name is terminal — the shared catalogue is
+    /// not a player's to overwrite. One of the player's own with troops already fielded is terminal too: those troops read their stats from the design's
+    /// compiled snapshot, so redrawing it would silently re-equip units standing on the map. Anything else is the player's to confirm.</para>
+    /// <para><c>OverwriteExisting</c> confirms an intent rather than granting a permission, so it is only consulted once the terminal cases are out of
+    /// the way — a caller that sets it on a clash they could never resolve is still refused.</para>
+    /// </remarks>
+    private async Task<ServiceResult<UnitTemplateView>?> ResolveNameClashAsync(CreateUnitTemplateRequest request, CancellationToken cancelToken)
+    {
+        SaveUnitTemplateDto dto = request.Template;
+
+        // A blank name is the shape validator's error to report, with the rest of the shape problems, rather than a conflict.
+        if (string.IsNullOrWhiteSpace(dto.DisplayName))
+        {
+            return null;
+        }
+
+        UnitTemplate? global = await UnitTemplateNameLookup.FindGlobalTemplateByNameAsync(context, dto.DisplayName, cancelToken);
+
+        if (global != null)
+        {
+            return ServiceResult<UnitTemplateView>.Conflict(
+                $"A standard design is already called \"{global.DisplayName}\". Choose a different name.",
+                new TemplateNameConflict { CanOverwrite = false, ExistingDisplayName = global.DisplayName });
+        }
+
+        UnitTemplate? existing = await UnitTemplateNameLookup.FindPlayerTemplateByNameAsync(
+            context,
+            request.GameId,
+            request.PlayerId,
+            dto.DisplayName,
+            excludeTemplateId: null,
+            cancelToken);
+
+        if (existing == null)
+        {
+            return null;
+        }
+
+        int instanceCount = await UnitTemplateNameLookup.CountTroopInstancesAsync(context, existing.Id, cancelToken);
+
+        if (instanceCount > 0)
+        {
+            return ServiceResult<UnitTemplateView>.Conflict(
+                $"\"{existing.DisplayName}\" cannot be changed while {FormatTroopCount(instanceCount)} built from it. "
+                + "Choose a different name, or disband those troops first.",
+                new TemplateNameConflict { CanOverwrite = false, ExistingDisplayName = existing.DisplayName, InstanceCount = instanceCount });
+        }
+
+        if (!dto.OverwriteExisting)
+        {
+            return ServiceResult<UnitTemplateView>.Conflict(
+                $"You already have a design called \"{existing.DisplayName}\".",
+                new TemplateNameConflict { CanOverwrite = true, ExistingDisplayName = existing.DisplayName });
+        }
+
+        // Confirmed. The update handler owns the one update path — including re-checking everything above — so the overwrite goes through it rather than
+        // being reimplemented here.
+        logger.LogInformation("Overwriting custom unit template '{DisplayName}' (id {Id}) for player {PlayerId}.",
+            existing.DisplayName,
+            existing.Id,
+            request.PlayerId);
+
+        return await mediator.Send(new UpdateUnitTemplateRequest(request.GameId, request.PlayerId, existing.Id, dto), cancelToken);
+    }
+
+    /// <summary>
+    /// Renders a troop count as the subject of a sentence, so the message reads naturally at one troop as well as at many.
+    /// </summary>
+    private static string FormatTroopCount(int instanceCount)
+    {
+        return instanceCount == 1 ? "1 troop is" : $"{instanceCount} troops are";
     }
 
     /// <summary>

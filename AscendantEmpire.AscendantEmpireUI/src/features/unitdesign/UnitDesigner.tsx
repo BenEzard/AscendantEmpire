@@ -1,6 +1,6 @@
 import DesignProperties from "./DesignProperties";
 import UnitDesignHeader from "./UnitDesignHeader";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import SlotPlaceHolder from "./SlotPlaceHolder";
 import ComponentSelectionWindow from "./ComponentSelectionWindow";
@@ -11,6 +11,7 @@ import Alert from "@/components/ui/Alert";
 import type { UnitComponent } from "./types/UnitComponent";
 import { useUnitDesignCatalogue } from "./api/useUnitDesignCatalogue";
 import {
+  asTemplateNameConflict,
   createGlobalUnitTemplate,
   createUnitTemplate,
   getGlobalTemplates,
@@ -105,6 +106,22 @@ export default function UnitDesigner({
   // before it overwrites the current base/slots; null when no confirmation is pending.
   const [pendingTemplate, setPendingTemplate] = useState<TemplateSummary | null>(null);
 
+  // Set when a save comes back 409 because the name is already held by a design this flow may replace, so
+  // an Overwrite/Cancel confirmation can be shown; null when no confirmation is pending.
+  //
+  // The rejected payload rides along on it, so confirming is just "send that again with the flag set".
+  // `payload` is one shape or the other depending on developerMode, exactly as handleSave built it.
+  const [pendingOverwrite, setPendingOverwrite] = useState<null | {
+    existingName: string;
+    instanceCount: number;
+    payload: SaveUnitTemplatePayload | SaveGlobalUnitTemplatePayload;
+  }>(null);
+
+  // The name the last save attempt used, kept so a rejected save doesn't make the user retype it: the
+  // header closes its naming textbox as soon as Save is confirmed, and reopens it from defaultDisplayName.
+  // Cleared once a save succeeds, and by Reset along with the rest of the design.
+  const [lastAttemptedName, setLastAttemptedName] = useState<string | null>(null);
+
   // The template's map sprite path — the image representing this unit on the campaign map. Developer-only
   // (see the developerMode prop); players never set it.
   //
@@ -114,37 +131,42 @@ export default function UnitDesigner({
   // and cleared by Reset along with the rest of the design.
   const [mapImagePath, setMapImagePath] = useState("");
 
+  // Identifies the most recently started template load, so a slow earlier response can't overwrite a newer
+  // one's results (this used to be a per-effect `cancelled` flag, which no longer covers the post-save calls).
+  const templateLoadSequence = useRef(0);
+
+  // Fetches the combo box's template list. Called on mount and again after every successful save, so a
+  // second save in the same session sees the template the first one just wrote — without the refresh, an
+  // overwrite of a design created moments ago would look like a brand-new name.
+  const reloadTemplates = useCallback(async () => {
+    const sequence = ++templateLoadSequence.current;
+
+    setTemplatesLoading(true);
+    setTemplatesError(null);
+
+    try {
+      const result = await (developerMode ? getGlobalTemplates() : getPlayerTemplates());
+      if (sequence === templateLoadSequence.current) {
+        setTemplates(result);
+      }
+    } catch (err) {
+      if (sequence === templateLoadSequence.current) {
+        setTemplatesError(err instanceof Error ? err.message : "Failed to load templates.");
+      }
+    } finally {
+      if (sequence === templateLoadSequence.current) {
+        setTemplatesLoading(false);
+      }
+    }
+  }, [developerMode]);
+
   useEffect(() => {
     if (!editable) {
       return;
     }
 
-    let cancelled = false;
-    setTemplatesLoading(true);
-    setTemplatesError(null);
-
-    const load = developerMode ? getGlobalTemplates() : getPlayerTemplates();
-    load
-      .then((result) => {
-        if (!cancelled) {
-          setTemplates(result);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setTemplatesError(err instanceof Error ? err.message : "Failed to load templates.");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setTemplatesLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [editable, developerMode]);
+    void reloadTemplates();
+  }, [editable, reloadTemplates]);
 
   // The area available for the design canvas — used only to size the placeholder square when no base
   // image is chosen yet, and to cap how large a chosen image renders.
@@ -233,6 +255,7 @@ export default function UnitDesigner({
     setBaseCode(null);
     setSlotComponentCodes([]);
     setMapImagePath("");
+    setLastAttemptedName(null);
   };
 
   // Loads a picked template's base + fitted components straight into the design, replacing whatever is
@@ -324,6 +347,9 @@ export default function UnitDesigner({
     setSlotComponentCodes((prev) => prev.map((code, index) => (index === selectionOpenFor.slotIndex ? selectedCode : code)));
   };
 
+  // One mutation per flow, used for both the first attempt and the confirmed retry: the save endpoints are
+  // upserts keyed on the design's name (or the dev tool's derived Code), so an overwrite is the same
+  // request with `overwriteExisting` set. The designer never needs the existing template's id.
   const saveMutation = useMutation({
     mutationFn: (payload: SaveUnitTemplatePayload) => createUnitTemplate(payload),
   });
@@ -337,11 +363,72 @@ export default function UnitDesigner({
     return null;
   }
 
+  // Runs after any successful write: reports it to the host, drops the retained name (there is nothing to
+  // retype now), and refreshes the combo box so the saved template is immediately loadable and detectable.
+  const handleSaveSucceeded = (message: string) => {
+    setLastAttemptedName(null);
+    onSaveSuccess?.(message);
+    void reloadTemplates();
+  };
+
+  /** Renders a troop count as the subject of a sentence, so messages read naturally at one troop as well as many. */
+  const troopCountPhrase = (instanceCount: number) => (instanceCount === 1 ? "1 troop is" : `${instanceCount} troops are`);
+
+  /**
+   * Sends a save to the endpoint matching the current flow.
+   *
+   * A name clash comes back as a 409 carrying a TemplateNameConflict. When it says the clash is the user's
+   * to resolve, the payload is parked for the confirmation modal, which re-sends it with `overwriteExisting`
+   * set; when it isn't — a standard design's name, or one with troops already in the field — the server's
+   * message is reported as-is, since only a different name gets past it. Anything else is an ordinary error.
+   */
+  const submitSave = (payload: SaveUnitTemplatePayload | SaveGlobalUnitTemplatePayload, savedVerb: "Saved" | "Overwrote") => {
+    const onError = (error: unknown) => {
+      const conflict = asTemplateNameConflict(error);
+
+      if (conflict?.canOverwrite === true) {
+        setPendingOverwrite({ existingName: conflict.existingDisplayName, instanceCount: conflict.instanceCount, payload });
+        return;
+      }
+
+      onSaveError?.(error instanceof Error ? error.message : "Could not save the template.");
+    };
+
+    if (developerMode) {
+      saveGlobalMutation.mutate(payload as SaveGlobalUnitTemplatePayload, {
+        onSuccess: (template) => handleSaveSucceeded(`${savedVerb} "${template.displayName}" (${template.code}).`),
+        onError,
+      });
+      return;
+    }
+
+    saveMutation.mutate(payload as SaveUnitTemplatePayload, {
+      onSuccess: (template) => handleSaveSucceeded(`${savedVerb} "${template.displayName}".`),
+      onError,
+    });
+  };
+
+  // Re-sends the rejected save with the overwrite confirmed. The design can't have drifted in the meantime:
+  // the modal is blocking, and the payload was captured when the clash was reported.
+  const confirmPendingOverwrite = () => {
+    if (pendingOverwrite == null) {
+      return;
+    }
+
+    const { payload } = pendingOverwrite;
+    setPendingOverwrite(null);
+
+    submitSave({ ...payload, overwriteExisting: true }, "Overwrote");
+  };
+
   const handleSave = onSaveSuccess
     ? (displayName: string) => {
         if (baseCode == null || baseComponent == null) {
           return;
         }
+
+        // Retained so a rejected save can put the name straight back in the header's textbox.
+        setLastAttemptedName(displayName);
 
         // The developer picks the sprite explicitly in the properties panel. The in-game player flow has no
         // such field, so it still falls back to the base's designer image purely to satisfy the server's
@@ -363,33 +450,24 @@ export default function UnitDesigner({
           }),
         );
 
-        if (developerMode) {
-          const payload: SaveGlobalUnitTemplatePayload = {
-            code: slugify(displayName),
-            displayName,
-            mapImagePath: savedMapImagePath,
-            baseCode,
-            slotComponentCodes: slotComponentCodeMap,
-          };
+        const payload: SaveUnitTemplatePayload | SaveGlobalUnitTemplatePayload = developerMode
+          ? {
+              code: slugify(displayName),
+              displayName,
+              mapImagePath: savedMapImagePath,
+              baseCode,
+              slotComponentCodes: slotComponentCodeMap,
+            }
+          : {
+              displayName,
+              mapImagePath: savedMapImagePath,
+              baseCode,
+              slotComponentCodes: slotComponentCodeMap,
+            };
 
-          saveGlobalMutation.mutate(payload, {
-            onSuccess: (template) => onSaveSuccess(`Saved "${template.displayName}" (${template.code}).`),
-            onError: (error) => onSaveError?.(error instanceof Error ? error.message : "Could not save the template."),
-          });
-          return;
-        }
-
-        const payload: SaveUnitTemplatePayload = {
-          displayName,
-          mapImagePath: savedMapImagePath,
-          baseCode,
-          slotComponentCodes: slotComponentCodeMap,
-        };
-
-        saveMutation.mutate(payload, {
-          onSuccess: (template) => onSaveSuccess(`Saved "${template.displayName}".`),
-          onError: (error) => onSaveError?.(error instanceof Error ? error.message : "Could not save the template."),
-        });
+        // Sent without the overwrite flag: a clash comes back as a 409 the handler above turns into either
+        // the confirmation modal or a plain error message.
+        submitSave(payload, "Saved");
       }
     : undefined;
 
@@ -418,7 +496,9 @@ export default function UnitDesigner({
         // In the dev tool the sprite is a required part of the template, so Save stays disabled until one
         // is entered — the server rejects a blank MapImagePath, and failing here is clearer than a 400.
         canSave={baseCode != null && (!developerMode || mapImagePath.trim() !== "")}
-        defaultDisplayName={baseComponent?.displayName ?? ""}
+        // After a rejected save the name that was typed comes back, so it doesn't have to be entered again
+        // just to correct it; otherwise the chosen base's name is the starting suggestion as before.
+        defaultDisplayName={lastAttemptedName ?? baseComponent?.displayName ?? ""}
         saving={saveMutation.isPending || saveGlobalMutation.isPending}
         onSelectTemplate={editable ? handleSelectTemplate : undefined}
         templates={templates}
@@ -534,6 +614,33 @@ export default function UnitDesigner({
           </>
         }>
         Loading &ldquo;{pendingTemplate?.displayName}&rdquo; will discard the design currently assembled here.
+      </Modal>
+
+      {/* Overwrite confirmation: shown when a save was refused because the name already belongs to a
+          design this flow is allowed to replace. Destructive, so the confirm button is the danger
+          variant — matching the Seed and Push-Out confirmations elsewhere. */}
+      <Modal
+        open={pendingOverwrite != null}
+        title="Overwrite existing design?"
+        onClose={() => setPendingOverwrite(null)}
+        footer={
+          <>
+            <Button variant="light" onClick={() => setPendingOverwrite(null)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={confirmPendingOverwrite}>
+              Overwrite
+            </Button>
+          </>
+        }>
+        <p>
+          A design called &ldquo;{pendingOverwrite?.existingName}&rdquo; already exists. Overwriting replaces its components and stats.
+        </p>
+        <p className="mt-2">
+          {pendingOverwrite != null && pendingOverwrite.instanceCount > 0
+            ? `${troopCountPhrase(pendingOverwrite.instanceCount)} currently built from it and will be changed.`
+            : "No troops are currently built from it."}
+        </p>
       </Modal>
     </div>
   );

@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
 using AscendantEmpire.BackendContracts.UnitDesigns.RecompileAllUnitTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveGlobalUnitTemplate;
+using AscendantEmpire.BackendContracts.UnitDesigns.Shared;
 using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
 
@@ -31,23 +32,29 @@ namespace AscendantEmpire.Api.Controllers;
 public class GlobalUnitTemplatesController : ControllerBase
 {
     /// <summary>
-    /// Dev design tool: create a new global/common unit template in the shared catalogue.
+    /// Dev design tool: save a global/common unit template into the shared catalogue, creating it or — on confirmation — overwriting the one that already
+    /// holds its Code.
     /// </summary>
     /// <remarks>
-    /// Gated behind <see cref="PermissionType.EntitySetupTool"/>, since it writes the shared template catalogue.
-    /// Unlike the player-facing create endpoint, this template has no game/player, its Code is required and unique, and no unlock check is applied.
+    /// <para>Gated behind <see cref="PermissionType.EntitySetupTool"/>, since it writes the shared template catalogue.
+    /// Unlike the player-facing save endpoint, this template has no game/player, its Code is required and unique, and no unlock check is applied.</para>
+    /// <para>Code is the natural key, so a taken code answers 409 with a <see cref="TemplateNameConflict"/> reporting the existing template and how many
+    /// troops are built from it. Re-sending the same body with <c>OverwriteExisting</c> set performs the overwrite and answers 200. The caller never
+    /// needs the existing template's id — that is what separates this from the by-id update below.</para>
     /// </remarks>
+    /// <response code="200">An existing template was overwritten (the request set OverwriteExisting); returns the updated template</response>
     /// <response code="201">The template was created; returns the created template</response>
     /// <response code="400">Validation error, or the assembled design fails slot-acceptance rules</response>
     /// <response code="404">The base or a fitted component code does not exist in the catalogue</response>
-    /// <response code="409">A template with the same code already exists</response>
+    /// <response code="409">A template with the same code already exists and the save did not confirm the overwrite</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
     [HttpPost]
+    [ProducesResponseType(typeof(GlobalUnitTemplateView), 200)]
     [ProducesResponseType(typeof(GlobalUnitTemplateView), 201)]
     [ProducesResponseType(typeof(IApiErrorResult), 400)]
     [ProducesResponseType(typeof(IApiErrorResult), 404)]
-    [ProducesResponseType(typeof(IApiErrorResult), 409)]
+    [ProducesResponseType(typeof(TemplateNameConflict), 409)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
     public async Task<IActionResult> CreateGlobalUnitTemplateAsync(
         [FromServices] IMediator mediator,

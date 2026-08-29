@@ -33,7 +33,7 @@ public static class ServiceResultExtensions
             case ServiceResultStatus.Gone:
             case ServiceResultStatus.InternalServerError:
             default:
-                IApiErrorResult errorResult = new DTApiErrorResult(serviceResult.Errors);
+                IApiErrorResult errorResult = new DTApiErrorResult(serviceResult.Errors, serviceResult.ErrorDetail);
                 result = new ObjectResult(errorResult)
                 {
                     StatusCode = (int)serviceResult.StatusCode
@@ -80,7 +80,7 @@ public static class ServiceResultExtensions
             case ServiceResultStatus.Gone:
             case ServiceResultStatus.InternalServerError:
             default:
-                IApiErrorResult errorResult = new DTApiErrorResult(serviceResult.Errors);
+                IApiErrorResult errorResult = new DTApiErrorResult(serviceResult.Errors, serviceResult.ErrorDetail);
                 result = new ObjectResult(errorResult)
                 {
                     StatusCode = (int)serviceResult.StatusCode

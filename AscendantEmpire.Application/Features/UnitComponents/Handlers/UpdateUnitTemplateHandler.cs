@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.UnitComponents.Classes;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveUnitTemplate;
+using AscendantEmpire.BackendContracts.UnitDesigns.Shared;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 
 using MediatR;
@@ -48,6 +49,28 @@ internal class UpdateUnitTemplateHandler(
             }
 
             SaveUnitTemplateDto dto = request.Template;
+
+            // A design that is already in the field can't be redrawn under the troops built from it: their stats are read from this template's compiled
+            // snapshot, so rewriting it would silently re-equip units already standing on the map. Renaming or disbanding is the way through.
+            int instanceCount = await UnitTemplateNameLookup.CountTroopInstancesAsync(context, existing.Id, cancelToken);
+
+            if (instanceCount > 0)
+            {
+                return ServiceResult<UnitTemplateView>.Conflict(
+                    $"\"{existing.DisplayName}\" cannot be changed while {FormatTroopCount(instanceCount)} built from it. "
+                    + "Choose a different name, or disband those troops first.",
+                    new TemplateNameConflict { CanOverwrite = false, ExistingDisplayName = existing.DisplayName, InstanceCount = instanceCount });
+            }
+
+            // A rename must not land on a name another design already holds. The template being updated is exempted from its own check, so keeping the
+            // current name (the overwrite case) is always allowed.
+            ServiceResult<UnitTemplateView>? nameConflict = await CheckNameIsFreeAsync(
+                dto.DisplayName, request.GameId, request.PlayerId, excludeTemplateId: existing.Id, cancelToken);
+
+            if (nameConflict != null)
+            {
+                return nameConflict;
+            }
 
             ServiceResult<UnitTemplateAssembly.ResolvedAssembly> resolved = await UnitTemplateAssembly.ResolveAsync(
                 context, request.PlayerId, dto.DisplayName, dto.MapImagePath, dto.BaseCode, dto.SlotComponentCodes, cancelToken);
@@ -105,6 +128,57 @@ internal class UpdateUnitTemplateHandler(
             logger.LogError(ex, error);
             return ServiceResult<UnitTemplateView>.InternalServerError(ex, error);
         }
+    }
+
+    /// <summary>
+    /// Returns the conflict to answer with when the requested name is already taken by another design, or null when it is free.
+    /// </summary>
+    /// <remarks>
+    /// <para>Mirrors the check <see cref="CreateUnitTemplateHandler"/> applies, with the template being updated exempted from its own name so an
+    /// overwrite that keeps the existing name is not rejected as a clash with itself.</para>
+    /// <para>Both answers set <c>CanOverwrite</c> false: this endpoint already addresses one specific design by id, so there is nothing a confirmation
+    /// could resolve — a caller who means to replace the *other* design should save against that one instead.</para>
+    /// </remarks>
+    private async Task<ServiceResult<UnitTemplateView>?> CheckNameIsFreeAsync(
+        string displayName,
+        int gameId,
+        int playerId,
+        int excludeTemplateId,
+        CancellationToken cancelToken)
+    {
+        // A blank name is the shape validator's error to report, with the rest of the shape problems, rather than a conflict.
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            return null;
+        }
+
+        UnitTemplate? global = await UnitTemplateNameLookup.FindGlobalTemplateByNameAsync(context, displayName, cancelToken);
+
+        if (global != null)
+        {
+            return ServiceResult<UnitTemplateView>.Conflict(
+                $"A standard design is already called \"{global.DisplayName}\". Choose a different name.",
+                new TemplateNameConflict { CanOverwrite = false, ExistingDisplayName = global.DisplayName });
+        }
+
+        UnitTemplate? clash = await UnitTemplateNameLookup.FindPlayerTemplateByNameAsync(context, gameId, playerId, displayName, excludeTemplateId, cancelToken);
+
+        if (clash != null)
+        {
+            return ServiceResult<UnitTemplateView>.Conflict(
+                $"You already have a design called \"{clash.DisplayName}\". Choose a different name.",
+                new TemplateNameConflict { CanOverwrite = false, ExistingDisplayName = clash.DisplayName });
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Renders a troop count as the subject of a sentence, so the caller's message reads naturally at one troop as well as at many.
+    /// </summary>
+    private static string FormatTroopCount(int instanceCount)
+    {
+        return instanceCount == 1 ? "1 troop is" : $"{instanceCount} troops are";
     }
 
     /// <summary>

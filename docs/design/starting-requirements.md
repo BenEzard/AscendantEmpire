@@ -183,3 +183,7 @@ that template a hard requirement for every new game, so author the template firs
 
 Each starter must resolve to an **unled** organisation tag — the spawn size is the tag's `UnledDefaultSize`,
 and a commissioned template has no equivalent single default.
+
+Keeping this list in code rather than in data is a deliberate decision, with the reasoning and the trigger
+for revisiting it recorded in
+[player-unlocks.md](unit-design/player-unlocks.md#the-starter-set-stays-a-code-constant).

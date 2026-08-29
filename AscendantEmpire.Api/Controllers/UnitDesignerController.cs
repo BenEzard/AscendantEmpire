@@ -6,6 +6,7 @@ using AscendantEmpire.BackendContracts.UnitDesigns.GetPlayerTemplates;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetSlotCandidateComponents;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetUnlockedBodies;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveUnitTemplate;
+using AscendantEmpire.BackendContracts.UnitDesigns.Shared;
 using AscendantEmpire.FrontendContracts;
 
 using MediatR;
@@ -121,23 +122,32 @@ public class UnitDesignerController : ControllerBase
     }
 
     /// <summary>
-    /// Create a new custom (player-owned) unit template from an assembled design.
+    /// Save a custom (player-owned) unit template from an assembled design, creating it or — on confirmation — overwriting the caller's design that
+    /// already holds its name.
     /// </summary>
     /// <remarks>
-    /// The game and player are read from the caller's game token, not the request.
-    /// The template and its compiled stats snapshot are persisted together, so the compiled read is available immediately after saving.
+    /// <para>The game and player are read from the caller's game token, not the request.
+    /// The template and its compiled stats snapshot are persisted together, so the compiled read is available immediately after saving.</para>
+    /// <para>A name is a player's natural key for their own designs, so a taken name answers 409 with a <see cref="TemplateNameConflict"/>. Its
+    /// <c>CanOverwrite</c> says whether re-sending with <c>OverwriteExisting</c> set would help: it would not when the name belongs to a global/common
+    /// design, nor when the caller's own design already has troops in the field. The caller never needs the existing design's id — that is what
+    /// separates this from the by-id update below.</para>
     /// </remarks>
+    /// <response code="200">An existing design was overwritten (the request set OverwriteExisting); returns the updated template</response>
     /// <response code="201">The template was created; returns the created template</response>
     /// <response code="400">Validation error, or the assembled design fails slot-acceptance rules</response>
     /// <response code="403">No game entered, or a referenced component has not been unlocked by the player</response>
     /// <response code="404">The base or a fitted component code does not exist in the catalogue</response>
+    /// <response code="409">The name is already taken; the body's Detail says whether confirming an overwrite would resolve it</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [Authorize]
     [HttpPost("templates")]
+    [ProducesResponseType(typeof(UnitTemplateView), 200)]
     [ProducesResponseType(typeof(UnitTemplateView), 201)]
     [ProducesResponseType(typeof(IApiErrorResult), 400)]
     [ProducesResponseType(typeof(IApiErrorResult), 403)]
     [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(TemplateNameConflict), 409)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
     public async Task<IActionResult> CreateUnitTemplateAsync(
         [FromServices] IMediator mediator,
@@ -165,6 +175,7 @@ public class UnitDesignerController : ControllerBase
     /// <response code="400">Validation error, or the assembled design fails slot-acceptance rules</response>
     /// <response code="403">No game entered, or a referenced component has not been unlocked by the player</response>
     /// <response code="404">No custom template exists with the given id (owned by the caller), or a referenced component code does not exist</response>
+    /// <response code="409">Troops are already fielded from this design, or the requested name belongs to another design</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [Authorize]
     [HttpPut("templates/{templateId:int}")]
@@ -172,6 +183,7 @@ public class UnitDesignerController : ControllerBase
     [ProducesResponseType(typeof(IApiErrorResult), 400)]
     [ProducesResponseType(typeof(IApiErrorResult), 403)]
     [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(TemplateNameConflict), 409)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
     public async Task<IActionResult> UpdateUnitTemplateAsync(
         [FromServices] IMediator mediator,

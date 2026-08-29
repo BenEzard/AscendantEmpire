@@ -133,6 +133,8 @@ The arithmetic lives in **two places on purpose**:
 
 `PlayerUnlockedComponent` and `PlayerUnlockedTemplate` track which parts and templates a player has unlocked, each with an `ObsoleteOnTurn` field for soft obsolescence. There is **no** per-player slot locking — slots have no lock flag and no per-player unlock table (see Past Decisions).
 
+How rows get *written* — the granter, the component-to-template cascade, and the turn stamping — is designed in [player-unlocks.md](player-unlocks.md).
+
 ### Conventions
 
 * **Fixed-point (Scale 1,000).** Weight, detection, visibility, movement points, power, hitpoints, every `DamageProfile` value and weapon domain multipliers are stored as raw `long`s where 1,000 = 1.0 (`ScaledAmount`). Editors convert to/from human-friendly decimals at the edit boundary.

@@ -2,8 +2,12 @@
 // create/update endpoints of two different controllers: the player-owned custom flow on
 // UnitDesignerController (POST/PUT /unit-designer/templates), and the dev tool's global/common catalogue
 // flow on GlobalUnitTemplatesController (POST/PUT /global-unit-templates).
+//
+// Both create endpoints are upserts on their flow's natural key (the player's design name, the dev tool's
+// template Code): a taken key answers 409 with a TemplateNameConflict, and re-sending the same body with
+// overwriteExisting set performs the overwrite. That is why the designer never needs a template id.
 
-import { http } from "@/api/http";
+import { ApiError, http } from "@/api/http";
 
 /** The request body accepted by both the create and update save endpoints (mirrors SaveUnitTemplateDto). */
 export interface SaveUnitTemplatePayload {
@@ -18,6 +22,11 @@ export interface SaveUnitTemplatePayload {
    * appear — an absent slot code means that slot is empty.
    */
   slotComponentCodes: Record<string, string>;
+  /**
+   * Confirms that saving over an existing design of the player's with this name is intended. Read only by
+   * the create endpoint; the by-id update ignores it.
+   */
+  overwriteExisting?: boolean;
 }
 
 /** Server response shape (mirrors UnitTemplateView). */
@@ -52,6 +61,11 @@ export interface SaveGlobalUnitTemplatePayload {
   baseCode: string;
   /** The component fitted into each filled slot, keyed by the base body's slot code. */
   slotComponentCodes: Record<string, string>;
+  /**
+   * Confirms that saving over the existing catalogue template with this code is intended. Read only by the
+   * create endpoint; the by-id update ignores it.
+   */
+  overwriteExisting?: boolean;
 }
 
 /** Server response shape (mirrors GlobalUnitTemplateView). */
@@ -93,6 +107,45 @@ export interface RecompileAllUnitTemplatesResult {
 export async function recompileAllTemplates(): Promise<RecompileAllUnitTemplatesResult> {
   const { data } = await http.post<RecompileAllUnitTemplatesResult>("/global-unit-templates/recompile-all");
   return data;
+}
+
+// --- name clashes (the 409 both save endpoints answer with) ------------------------------------
+
+/** The `Detail` a save's 409 carries when the name is already taken (mirrors TemplateNameConflict). */
+export interface TemplateNameConflict {
+  /**
+   * True when re-sending the same save with `overwriteExisting` would succeed, so the caller should offer a confirmation. False means only a different
+   * name resolves it — a player using a standard design's name, or one of their own that already has troops in the field.
+   */
+  canOverwrite: boolean;
+  /** The existing design's stored name, so the confirmation names it as it is actually spelled. */
+  existingDisplayName: string;
+  /** How many troops are currently fielded from the existing design. */
+  instanceCount: number;
+}
+
+/**
+ * Reads a save failure as a name clash, or returns null when it was anything else.
+ *
+ * A 409 is the only status either save endpoint uses for a name clash, and the server always attaches the detail with it — so anything that fails both
+ * checks is an ordinary error the caller should just report.
+ */
+export function asTemplateNameConflict(error: unknown): TemplateNameConflict | null {
+  if (!(error instanceof ApiError) || error.status !== 409) {
+    return null;
+  }
+
+  const detail = error.detail as Partial<TemplateNameConflict> | null | undefined;
+
+  if (detail == null || typeof detail.existingDisplayName !== "string") {
+    return null;
+  }
+
+  return {
+    canOverwrite: detail.canOverwrite === true,
+    existingDisplayName: detail.existingDisplayName,
+    instanceCount: detail.instanceCount ?? 0,
+  };
 }
 
 // --- template listing (for the designer's "load a template" combo box) -------------------------

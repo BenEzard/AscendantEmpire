@@ -27,7 +27,34 @@ type ApiErrorBody = {
   // Array-of-errors shape returned by IApiErrorResult (PascalCase from ASP.NET)
   errors?: string[];
   Errors?: string[];
+  // Optional machine-readable detail some endpoints attach to a 4xx (DTApiErrorResult.Detail). Absent on
+  // the great majority of errors; its shape is per-endpoint, so callers narrow it themselves.
+  detail?: unknown;
+  Detail?: unknown;
 };
+
+/**
+ * A failed API request, carrying the response status and any structured `Detail` the endpoint attached
+ * alongside the message.
+ *
+ * Extends `Error` and keeps `message` as the joined server text, so the many call sites that do
+ * `err instanceof Error ? err.message : fallback` are unaffected. Only callers that must *branch* on a
+ * failure — rather than just display it — need to narrow to this.
+ */
+export class ApiError extends Error {
+  /** HTTP status of the response, or 0 when the request never got one (network error, timeout). */
+  readonly status: number;
+
+  /** The endpoint-specific `Detail` payload, when one was sent. Narrow it against that endpoint's contract. */
+  readonly detail: unknown;
+
+  constructor(message: string, status: number, detail: unknown) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.detail = detail;
+  }
+}
 
 // Mirrors the subset of IAuthTokenResult that /auth/refresh returns.
 type RefreshResult = {
@@ -125,6 +152,10 @@ http.interceptors.response.use(
         : (body?.message ?? body?.Message);
 
     const message = serverMessage ?? error.message ?? "Request failed";
-    return Promise.reject(new Error(message));
+
+    // Rejecting with an ApiError rather than a bare Error keeps the status and any structured Detail
+    // available to callers that have to act on the failure — e.g. a save that clashes on name answers 409
+    // either way, but the caller has to know whether to offer an overwrite or just report the refusal.
+    return Promise.reject(new ApiError(message, status ?? 0, body?.Detail ?? body?.detail));
   },
 );
