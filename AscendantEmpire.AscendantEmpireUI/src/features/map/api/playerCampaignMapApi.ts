@@ -1,7 +1,7 @@
 ﻿import { http } from "@/api/http";
 
 // gameId/playerId are client-side only: they scope the React Query cache, and are deliberately NOT sent to the server.
-// The API reads both from the game token, so a request cannot ask about â€” or clear â€” another player's map.
+// The API reads both from the game token, so a request cannot ask about — or clear — another player's map.
 export type LoadPlayerCampaignMapRequest = {
   gameId: number;
   playerId: number;
@@ -209,7 +209,7 @@ export async function postPlayerCampaignMap(req: LoadPlayerCampaignMapRequest): 
 
   console.log("[API] POST /campaign-map/player", { baseUrl, req });
 
-  // Only loadWholeMap goes over the wire â€” the server takes the game and player from the token.
+  // Only loadWholeMap goes over the wire — the server takes the game and player from the token.
   const { data } = await http.post<PlayerCampaignMapResponseWireDto>(
     "/campaign-map/player",
     { loadWholeMap: req.loadWholeMap ?? false },

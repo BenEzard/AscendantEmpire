@@ -5,8 +5,8 @@ namespace AscendantEmpire.BackendContracts.MatchMaking;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Unlike the anonymous open-games listing, this view includes every active slot â€” claimed or
-/// not â€” so the matchmaker can show which seats are taken and which are still free.
+/// Unlike the anonymous open-games listing, this view includes every active slot — claimed or
+/// not — so the matchmaker can show which seats are taken and which are still free.
 /// </para>
 /// </remarks>
 public record MatchMakingGame

@@ -142,7 +142,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
         behavior: "smooth",
       });
     } else {
-      // Container expands to its content (no internal scroll) â€” the window scrolls instead.
+      // Container expands to its content (no internal scroll) — the window scrolls instead.
       const rect = el.getBoundingClientRect();
       const absLeft = rect.left + window.scrollX + tileCenterX;
       const absTop = rect.top + window.scrollY + tileCenterY;
@@ -187,7 +187,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const toggleMilitaryAdvisor = useCallback(() => setShowMilitaryAdvisor((shown) => !shown), []);
   const closeMilitaryAdvisor = useCallback(() => setShowMilitaryAdvisor(false), []);
 
-  // Dismiss the Military Advisor when the game closes â€” its toolbar button is disabled without an
+  // Dismiss the Military Advisor when the game closes — its toolbar button is disabled without an
   // open game, so an already-open dialog would otherwise be left showing stale, unreopenable state.
   // Watching `gameSelection` rather than hooking `closeGame` covers any future path that clears it.
   useEffect(() => {
@@ -328,7 +328,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
             <div className="mt-3">
               {gameSelection == null ? (
                 <Alert variant="secondary" className="mb-0">
-                  No game opened. Use <strong>Game â†’ Open</strong>.
+                  No game opened. Use <strong>Game → Open</strong>.
                 </Alert>
               ) : (
                 <>
