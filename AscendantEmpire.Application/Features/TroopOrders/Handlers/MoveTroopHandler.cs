@@ -3,11 +3,11 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Turns.Handlers;
 using AscendantEmpire.Application.Features.Turns.Services;
-using AscendantEmpire.Application.Helpers;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
 using AscendantEmpire.BackendContracts.TroopOrders.MoveTroops;
 using AscendantEmpire.BackendContracts.Turns.GetCurrentCampaignTurn;
 using AscendantEmpire.BackendContracts.Turns.GetPlayerTurn;
+using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Units;
 
 using FluentValidation;
@@ -94,11 +94,26 @@ internal class MoveTroopHandler(
 
             OpenGame gameInfo = gameInfoResult.SuccessValue!.Single();
 
-            int targetCampaignMapTileId = MapMethods.GetDbId(
-                gameInfo.Players.Single().CampaignMapOffsetId,
-                gameInfo.MapWidth,
-                x: request.XCoord,
-                y: request.YCoord);
+            // Resolve the destination to this game's actual tile row. This used to derive an id from the
+            // coordinates using the *player's* offset, which addresses the per-player map rather than the
+            // world map the troop is stored against, so it named a row in the wrong table's id space
+            // entirely. Looking the tile up also rejects a coordinate that is off the map, which nothing
+            // else checks: the validator only requires the coordinates to be non-negative.
+            CampaignMap? targetTile = await context.CampaignMaps
+                .AsNoTracking()
+                .FirstOrDefaultAsync(cm => cm.GameId == request.GameId
+                        && cm.XCoord == request.XCoord
+                        && cm.YCoord == request.YCoord,
+                    cancelToken);
+
+            if (targetTile is null)
+            {
+                string error = $"Coordinate ({request.XCoord}, {request.YCoord}) is not on the campaign map for Game Id {request.GameId}.";
+                logger.LogWarning("{Error}", error);
+                return ServiceResult<MoveTroopResult>.NotFound(error);
+            }
+
+            int targetCampaignMapTileId = targetTile.CampaignMapId;
 
             // TODO Check who's turn it is
             ServiceResult<CurrentCampaignTurn> turnResult = await campaignTurnService.GetCurrentCampaignTurnAsync(request.GameId, cancelToken);

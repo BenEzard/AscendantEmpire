@@ -2,8 +2,8 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Units.Classes;
-using AscendantEmpire.Application.Helpers;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
 
@@ -105,11 +105,27 @@ internal class SpawnTroopHandler(
 
             cancelToken.ThrowIfCancellationRequested();
 
-            // Convert XCoord and YCoord to a single index based on the map size
-            // Set with a mapOffset of 1, so that it is the WORLD coordinates, not the Player's coordinates
-            int campaignMapTileId = MapMethods.GetDbId(1, gameInfo.MapWidth, request.XCoord, request.YCoord);
-
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+
+            // Resolve the coordinates to this game's actual tile row rather than calculating an id from
+            // them. Deriving it would usually agree, but nothing bounds the requested coordinates against
+            // the map size, and a coordinate past the edge still produces a perfectly valid id — one
+            // belonging to another game's block, which the foreign key would happily accept. Looking the
+            // tile up rejects the coordinate instead, and is what GameSetupService already does for start
+            // positions. UX_CampaignMap_Game_X_Y covers this lookup.
+            CampaignMap? targetTile = await context.CampaignMaps
+                .AsNoTracking()
+                .FirstOrDefaultAsync(cm => cm.GameId == gameInfo.GameId
+                        && cm.XCoord == request.XCoord
+                        && cm.YCoord == request.YCoord,
+                    cancelToken);
+
+            if (targetTile is null)
+            {
+                string error = $"Coordinate ({request.XCoord}, {request.YCoord}) is not on the campaign map for Game Id {gameInfo.GameId}.";
+                logger.LogWarning("{Error}", error);
+                return ServiceResultBase.NotFound(error);
+            }
 
             // The troop's stats are served from the template's compiled snapshot, so a template that has never
             // been compiled cannot be fielded. The snapshot also carries the organisation tag resolved from the
@@ -140,7 +156,7 @@ internal class SpawnTroopHandler(
             {
                 GameId = gameInfo.GameId,
                 PlayerId = thisPlayer.PlayerId,
-                CampaignMapTileId = campaignMapTileId,
+                CampaignMapTileId = targetTile.CampaignMapId,
                 UnitTemplateId = request.UnitTemplateId,
                 InitialStrength = request.InitialStrength,
                 HealthyCount = request.HealthyCount,
