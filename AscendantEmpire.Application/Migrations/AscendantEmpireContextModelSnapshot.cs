@@ -175,10 +175,7 @@ namespace AscendantEmpire.Application.Migrations
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.CampaignMap", b =>
                 {
                     b.Property<int>("CampaignMapId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CampaignMapId"));
 
                     b.Property<int>("BiomeTypeId")
                         .HasColumnType("int");
@@ -258,6 +255,9 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("CampaignMapIndexId")
                         .HasColumnType("int");
 
+                    b.Property<int>("CampaignMapOffsetId")
+                        .HasColumnType("int");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 
@@ -274,6 +274,12 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.Property<bool>("HorizontalWrap")
                         .HasColumnType("bit");
+
+                    b.Property<int>("MapHeight")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MapWidth")
+                        .HasColumnType("int");
 
                     b.Property<int>("NumberOfPlayers")
                         .HasColumnType("int");
@@ -339,10 +345,7 @@ namespace AscendantEmpire.Application.Migrations
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerCampaignMap", b =>
                 {
                     b.Property<int>("PlayerCampaignMapId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PlayerCampaignMapId"));
 
                     b.Property<int>("BiomeTypeId")
                         .HasColumnType("int");

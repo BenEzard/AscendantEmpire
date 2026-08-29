@@ -38,6 +38,40 @@ public class GameIndex
     public required int BattleMapSize { get; set; }
 
     /// <summary>
+    /// The <see cref="CampaignMap.CampaignMapId"/> of this game's tile at coordinate (0, 0).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Each game's campaign map occupies one contiguous block of ids, so any tile's id is
+    /// <c>CampaignMapOffsetId + XCoord + YCoord * MapWidth</c>. The application assigns those ids
+    /// during setup rather than leaving them to an IDENTITY column, so the relationship holds by
+    /// construction instead of depending on the order the rows happened to be inserted in.
+    /// </para>
+    /// <para>
+    /// This is the world-map counterpart of <see cref="Player.CampaignOffsetId"/>, which does the
+    /// same job for one player's <see cref="PlayerCampaignMap"/> block.
+    /// </para>
+    /// </remarks>
+    public int CampaignMapOffsetId { get; set; }
+
+    /// <summary>
+    /// Width (in tiles) of this game's campaign map.
+    /// </summary>
+    /// <remarks>
+    /// Snapshotted from the gallery map during setup rather than read back through
+    /// <see cref="CampaignMapIndexId"/>, because a single gallery row is shared by many games:
+    /// resizing it would otherwise silently change how every existing game's tile ids decode
+    /// back into coordinates.
+    /// </remarks>
+    public int MapWidth { get; set; }
+
+    /// <summary>
+    /// Height (in tiles) of this game's campaign map.
+    /// </summary>
+    /// <remarks>Snapshotted at setup for the same reason as <see cref="MapWidth"/>.</remarks>
+    public int MapHeight { get; set; }
+
+    /// <summary>
     /// Should the map in this game wrap horizontally?
     /// </summary>
     /// <remarks>When a game is created, the player who creates the game can override the map creator's recommendation.</remarks>

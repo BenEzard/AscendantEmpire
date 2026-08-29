@@ -505,6 +505,12 @@ public class AscendantEmpireContext : DbContext
         {
             entity.ToTable("CampaignMap", schema);
 
+            // Tile ids are assigned by the application during game setup (see GameSetupService),
+            // never by the database. A tile's id is GameIndex.CampaignMapOffsetId + X + Y * MapWidth,
+            // and that only holds if we choose the value ourselves: an IDENTITY column numbers rows in
+            // whatever order the query plan emits them, which is not the coordinate order we rely on.
+            entity.Property(x => x.CampaignMapId).ValueGeneratedNever();
+
             entity.HasOne(x => x.Game)
                 .WithMany()
                 .HasForeignKey(x => x.GameId)
@@ -567,6 +573,11 @@ public class AscendantEmpireContext : DbContext
         modelBuilder.Entity<PlayerCampaignMap>(entity =>
         {
             entity.ToTable("PlayerCampaignMap", schema);
+
+            // Assigned by the application for the same reason as CampaignMap.CampaignMapId above.
+            // Each player gets one contiguous block starting at Player.CampaignOffsetId, laid out in
+            // the same row-major order, so a player tile and its world tile share a coordinate offset.
+            entity.Property(x => x.PlayerCampaignMapId).ValueGeneratedNever();
 
             entity.HasOne(x => x.Game)
                 .WithMany()

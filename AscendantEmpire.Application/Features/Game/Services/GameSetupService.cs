@@ -78,7 +78,7 @@ internal class GameSetupService(
             await SeedPlayerMilitaryAsync(context, addedPlayers, cancellationToken);
 
             // Copy the 'global' view of the map gallery to the campaign map for this game.
-            var generateCampaignMapResult = await GenerateCampaignMapAsync(context, gameId, mapProperties.Id, cancellationToken);
+            var generateCampaignMapResult = await GenerateCampaignMapAsync(context, newGameIndex, mapProperties.Id, cancellationToken);
 
             int expectedRows = mapProperties.Width * mapProperties.Height;
             if (generateCampaignMapResult.HasSucceeded == false)
@@ -100,7 +100,7 @@ internal class GameSetupService(
 
             //  Then create the player-specific campaign map entries for each Player
             ServiceResult<(IReadOnlyCollection<DomainPlayer> AddedPlayers, int RecordsGenerated)> generatePlayerCampaignMapsResult = 
-                await GeneratePlayerCampaignMapsAsync(context, gameId, addedPlayers, cancellationToken);
+                await GeneratePlayerCampaignMapsAsync(context, newGameIndex, addedPlayers, cancellationToken);
 
             expectedRows = request.NumberOfPlayers * expectedRows;
             if (generatePlayerCampaignMapsResult.HasSucceeded == false)
@@ -272,18 +272,23 @@ internal class GameSetupService(
     {
         var newGame = new GameIndex
         {
-            GameName           = request.GameName,
+            GameName = request.GameName,
             CampaignMapIndexId = request.GalleryMapId,
-            NumberOfPlayers    = request.NumberOfPlayers,
-            CreationStatus     = GameCreationStatus.SetupInProgress,
-            PlayStatus         = GamePlayStatus.SetupInProgress,
-            CreatedAt          = DateTimeOffset.UtcNow,
-            HorizontalWrap     = mapProperties.HorizontalWrap,
-            VerticalWrap       = mapProperties.VerticalWrap,
+            NumberOfPlayers = request.NumberOfPlayers,
+            CreationStatus = GameCreationStatus.SetupInProgress,
+            PlayStatus = GamePlayStatus.SetupInProgress,
+            CreatedAt = DateTimeOffset.UtcNow,
+            HorizontalWrap = mapProperties.HorizontalWrap,
+            VerticalWrap = mapProperties.VerticalWrap,
             // Use the caller-supplied seed if provided; otherwise generate a random one
             // so the player can reproduce the same biome distribution later if desired.
-            GenerationSeed     = request.GenerationSeed ?? Random.Shared.NextInt64(),
-            BattleMapSize      = request.BattleMapSize,
+            GenerationSeed = request.GenerationSeed ?? Random.Shared.NextInt64(),
+            BattleMapSize = request.BattleMapSize,
+            // Snapshot the gallery map's dimensions onto the game. Tile ids decode back into
+            // coordinates using this width, so it has to stay fixed for the life of the game even
+            // if the shared gallery map it was copied from is later resized.
+            MapWidth = mapProperties.Width,
+            MapHeight = mapProperties.Height,
         };
 
         context.GameIndex.Add(newGame);
@@ -505,15 +510,30 @@ internal class GameSetupService(
     /// <summary>
     /// Generates the CampaignMap for the Game by copying the relevant data from the specified map in the Map Gallery. 
     /// </summary>
-    /// <remarks>This is done via a SQL statement to efficiently copy all of the necessary rows in a single query, rather than loading them into memory and then re-inserting them.
-    /// (The method is self-saving)</remarks>
+    /// <remarks>
+    /// <para>This is done via a SQL statement to efficiently copy all of the necessary rows in a single query, rather than loading them into memory and then re-inserting them.
+    /// (The method is self-saving)</para>
+    /// <para>
+    /// Each tile's id is calculated from its coordinates rather than left to an IDENTITY column, so
+    /// that <c>CampaignMapOffsetId + XCoord + YCoord * MapWidth</c> addresses a tile by construction.
+    /// Letting the database number the rows made that formula depend on the order the query plan
+    /// emitted them in, which is not the coordinate order the map code assumes.
+    /// </para>
+    /// <para>
+    /// The block of ids is reserved by reading the current maximum. Only one game is set up at a
+    /// time, and if that ever stops being true two overlapping setups collide on the primary key and
+    /// fail outright rather than quietly interleaving their tiles.
+    /// </para>
+    /// </remarks>
     /// <returns>The number of rows inserted into the CampaignMap table.</returns>
     private async Task<ServiceResult<int>> GenerateCampaignMapAsync(
         AscendantEmpireContext context,
-        int gameId,
+        GameIndex game,
         int campaignMapGalleryIndexId,
         CancellationToken cancellationToken)
     {
+        int gameId = game.Id;
+
         bool alreadyHasMap = await context.CampaignMaps.AnyAsync(x => x.GameId == gameId, cancellationToken);
 
         if (alreadyHasMap)
@@ -522,9 +542,15 @@ internal class GameSetupService(
             return ServiceResult<int>.Fail($"GameId {gameId} already has CampaignMap rows.");
         }
 
+        // Reserve this game's block of tile ids, starting immediately after every existing map.
+        int? highestExistingTileId = await context.CampaignMaps.MaxAsync(x => (int?)x.CampaignMapId, cancellationToken);
+        int campaignMapOffsetId = (highestExistingTileId ?? 0) + 1;
+        int mapWidth = game.MapWidth;
+
         int inserted = await context.Database.ExecuteSqlInterpolatedAsync($@"
             INSERT INTO [game].[CampaignMap]
             (
+                [CampaignMapId],
                 [GameId],
                 [XCoord],
                 [YCoord],
@@ -540,22 +566,28 @@ internal class GameSetupService(
                 [CampaignMapGeographyTypeId]
             )
             SELECT
-                {gameId}                        AS [GameId],
-                g.[XCoord]                      AS [XCoord],
-                g.[YCoord]                      AS [YCoord],
-                NULL                            AS [ForageAmount],
-                NULL                            AS [HuntAmount],
-                NULL                            AS [FishAmount],
-                NULL                            AS [FodderAmount],
-                NULL                            AS [FirstSeenOnTurnId],
-                NULL                            AS [FirstSeenByPlayerId],
-                NULL                            AS [LastVisitedOnTurnId],
-                NULL                            AS [LastVisitedByPlayerId],
-                g.BiomeTypeId                   AS [BiomeTypeId],
-                g.CampaignMapGeographyTypeId    AS [CampaignMapGeographyTypeId]
+                {campaignMapOffsetId} + g.[XCoord] + (g.[YCoord] * {mapWidth}),
+                {gameId},
+                g.[XCoord],
+                g.[YCoord],
+                NULL,
+                NULL,
+                NULL,
+                NULL,
+                NULL,
+                NULL,
+                NULL,
+                NULL,
+                g.[BiomeTypeId],
+                g.[CampaignMapGeographyTypeId]
             FROM [mapgallery].[CampaignMapGallery] g
             WHERE g.[CampaignMapGalleryIndexId] = {campaignMapGalleryIndexId};
             ", cancellationToken);
+
+        // Record where the block starts, so the map code can convert between a tile id and its
+        // coordinates without having to query for it.
+        game.CampaignMapOffsetId = campaignMapOffsetId;
+        await context.SaveChangesAsync(cancellationToken);
 
         return ServiceResult<int>.Succeed(inserted);
     }
@@ -563,14 +595,24 @@ internal class GameSetupService(
     /// <summary>
     /// Generates Player Campaign Map records for a specified Game and updates the provided Player collection with Campaign Offset identifiers.
     /// </summary>
-    /// <remarks>(The method is self-saving)</remarks>
+    /// <remarks>
+    /// <para>(The method is self-saving)</para>
+    /// <para>
+    /// Every player gets one contiguous block of ids laid out in the same row-major order as the
+    /// world map, so a player's tile and the world tile beneath it sit at the same offset within
+    /// their respective blocks. <c>ROW_NUMBER()</c> fixes each player's position in the sequence,
+    /// which keeps the block a player receives independent of the order the rows are inserted in.
+    /// </para>
+    /// </remarks>
     /// <returns>The collection of Players (with updated Campaign Offset identifiers) and the number of records generated.</returns>
     private async Task<ServiceResult<(IReadOnlyCollection<DomainPlayer> AddedPlayers, int RecordsGenerated)>> GeneratePlayerCampaignMapsAsync(
         AscendantEmpireContext context,
-        int gameId,
+        GameIndex game,
         IReadOnlyCollection<DomainPlayer> addedPlayers,
         CancellationToken cancellationToken)
     {
+        int gameId = game.Id;
+
         bool alreadyHasRows = await context.PlayerCampaignMaps.AnyAsync(x => x.GameId == gameId, cancellationToken);
 
         if (alreadyHasRows)
@@ -579,9 +621,17 @@ internal class GameSetupService(
             return ServiceResult<(IReadOnlyCollection<DomainPlayer>, int)>.Fail($"GameId {gameId} already has PlayerCampaignMap rows.");
         }
 
+        // Reserve a block per player, immediately after every existing player map. See the remarks on
+        // GenerateCampaignMapAsync for why these ids are calculated rather than left to the database.
+        int? highestExistingTileId = await context.PlayerCampaignMaps.MaxAsync(x => (int?)x.PlayerCampaignMapId, cancellationToken);
+        int playerMapOffsetId = (highestExistingTileId ?? 0) + 1;
+        int mapWidth = game.MapWidth;
+        int tilesPerPlayer = game.MapWidth * game.MapHeight;
+
         int inserted = await context.Database.ExecuteSqlInterpolatedAsync($@"
             INSERT INTO [game].[PlayerCampaignMap]
             (
+                [PlayerCampaignMapId],
                 [GameId],
                 [CampaignMapId],
                 [PlayerId],
@@ -593,18 +643,23 @@ internal class GameSetupService(
                 [LastSeenOnTurnId]
             )
             SELECT
-                cm.[GameId]             AS [GameId],
-                cm.[CampaignMapId]      AS [CampaignMapId],
-                p.[Id]                  AS [PlayerId],
-                cm.[XCoord]             AS [XCoord],
-                cm.[YCoord]             AS [YCoord],
-                CAST(0 AS INT)          AS [BiomeTypeId],
-                CAST(0 AS INT)          AS [CampaignMapGeographyTypeId],
-                NULL                    AS [FirstSeenOnTurnId],
-                NULL                    AS [LastSeenOnTurnId]
+                {playerMapOffsetId} + ((p.[PlayerOrdinal] - 1) * {tilesPerPlayer}) + cm.[XCoord] + (cm.[YCoord] * {mapWidth}),
+                cm.[GameId],
+                cm.[CampaignMapId],
+                p.[Id],
+                cm.[XCoord],
+                cm.[YCoord],
+                CAST(0 AS INT),
+                CAST(0 AS INT),
+                NULL,
+                NULL
             FROM [game].[CampaignMap] cm
-            INNER JOIN [game].[Player] p
-                ON p.[GameId] = cm.[GameId]
+            CROSS JOIN
+            (
+                SELECT [Id], ROW_NUMBER() OVER (ORDER BY [Id]) AS [PlayerOrdinal]
+                FROM [game].[Player]
+                WHERE [GameId] = {gameId}
+            ) p
             WHERE cm.[GameId] = {gameId};
             ", cancellationToken);
 
