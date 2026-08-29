@@ -38,9 +38,6 @@ internal sealed class GetOpenGamesHandler(
                 from gi in context.GameIndex.AsNoTracking()
                 where gi.CreationStatus == GameCreationStatus.SetupComplete
                    && gi.PlayStatus == GamePlayStatus.InProgress
-                join cmi in context.CampaignMapGalleryIndex.AsNoTracking()
-                    on gi.CampaignMapIndexId equals cmi.Id into cmiGroup
-                from cmi in cmiGroup.DefaultIfEmpty()
                 join p in context.Players.AsNoTracking()
                     on gi.Id equals p.GameId
                 where (request.GameId.HasValue == false || gi.Id == request.GameId)
@@ -51,8 +48,9 @@ internal sealed class GetOpenGamesHandler(
                     GameId = gi.Id,
                     gi.GameName,
                     gi.NumberOfPlayers,
-                    cmi.Width,
-                    cmi.Height,
+                    gi.MapWidth,
+                    gi.MapHeight,
+                    gi.CampaignMapOffsetId,
                     gi.HorizontalWrap,
                     gi.VerticalWrap,
 
@@ -71,8 +69,9 @@ internal sealed class GetOpenGamesHandler(
                     r.GameId,
                     r.GameName,
                     r.NumberOfPlayers,
-                    r.Width,
-                    r.Height,
+                    r.MapWidth,
+                    r.MapHeight,
+                    r.CampaignMapOffsetId,
                     r.HorizontalWrap,
                     r.VerticalWrap
                 })
@@ -81,8 +80,9 @@ internal sealed class GetOpenGamesHandler(
                     GameId = g.Key.GameId,
                     GameName = g.Key.GameName,
                     NumberOfPlayers = g.Key.NumberOfPlayers,
-                    MapWidth = g.Key.Width,
-                    MapHeight = g.Key.Height,
+                    MapWidth = g.Key.MapWidth,
+                    MapHeight = g.Key.MapHeight,
+                    CampaignMapOffsetId = g.Key.CampaignMapOffsetId,
                     HasHorizontalWrapping = g.Key.HorizontalWrap,
                     HasVerticalWrapping = g.Key.VerticalWrap,
                     Players = [.. g

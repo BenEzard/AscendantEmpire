@@ -49,11 +49,6 @@ internal class GetPlayerCampaignMapHandler(
     IServiceScopeFactory scopeFactory
     ) : IRequestHandler<GetPlayerCampaignMapRequest, ServiceResult<IReadOnlyCollection<ObserverSight>>>
 {
-    /// <summary>
-    /// Use this value when wanting to calculate the CampaignMapTileId (without a Player offset)
-    /// </summary>
-    private const int _NO_MAP_OFFSET = 1;
-
     public async Task<ServiceResult<IReadOnlyCollection<ObserverSight>>> Handle(GetPlayerCampaignMapRequest request, CancellationToken cancelToken)
     {
         List<ObserverSight> observers = [];
@@ -148,8 +143,11 @@ internal class GetPlayerCampaignMapHandler(
 
                 List<int> playerCampaignMapTileIds = mapSight.GetAllDbIds();
 
-                // Use the PlayerCampaignMapTileIds to calculate what the CampaignMapTileIds would be
-                List<int> campaignMapTileIds = [.. playerCampaignMapTileIds.Select(id => id - thisPlayer.CampaignMapOffsetId + _NO_MAP_OFFSET)];
+                // Translate the player's tile ids into world-map tile ids. Both maps are laid out in the
+                // same row-major order, so a tile sits at the same position in each block and the two
+                // offsets are all that separate them. Troops and structures are stored against the world
+                // map, which is why this conversion has to happen before looking them up.
+                List<int> campaignMapTileIds = [.. playerCampaignMapTileIds.Select(id => id - thisPlayer.CampaignMapOffsetId + gameInfo.CampaignMapOffsetId)];
 
                 // Get *ALL* Structures and Troops on the observed map (for any Player)
                 Task<ServiceResult<IReadOnlyCollection<PlayerStructure>>> fetchAllStructuresTask = mediator.Send(new GetStructuresByLocationRequest(request.GameId, campaignMapTileIds, IncludeBattleMapStructures: false), cancelToken);
@@ -209,7 +207,9 @@ internal class GetPlayerCampaignMapHandler(
                         Location = o.Location,
                         SeenTiles = [.. mapSightByObserverId[(o.Id, o.RecordType)].SeenTiles.Select(st =>
                         {
-                            int dbId = st.Coord.GetDbId(_NO_MAP_OFFSET, mapWidth);
+                            // structuresByTileId and troopsByTileId are keyed by world-map tile id, so the
+                            // seen tile's coordinates have to be resolved against the game's offset.
+                            int dbId = st.Coord.GetDbId(gameInfo.CampaignMapOffsetId, mapWidth);
                             structuresByTileId.TryGetValue(dbId, out List<PlayerStructure>? structuresAtTile);
                             troopsByTileId.TryGetValue(dbId, out List<PlayerTroop>? troopsAtTile);
 
@@ -258,23 +258,16 @@ internal class GetPlayerCampaignMapHandler(
                     [
                         .. fetchPlayerView
                         .Where(pt => alreadyObservedTiles.Contains((pt.XCoord, pt.YCoord)) == false) // Exclude Tiles which are already included from the Observers above
-                        .Select(masterTile =>
+                        .Select(masterTile => new ObservedCampaignTile
                         {
-                            int dbId = new Coord
-                            {
-                                X = masterTile.XCoord,
-                                Y = masterTile.YCoord
-                            }.GetDbId(thisPlayer.CampaignMapOffsetId, gameInfo.MapWidth);
-
-                            return new ObservedCampaignTile
-                            {
-                                XCoord = masterTile.XCoord,
-                                YCoord = masterTile.YCoord,
-                                BiomeTypeId = masterTile.BiomeTypeId,
-                                CampaignMapGeographyTypeId = masterTile.GeographyTypeId,
-                                Structures = [],
-                                Troops = []
-                            };
+                            XCoord = masterTile.XCoord,
+                            YCoord = masterTile.YCoord,
+                            BiomeTypeId = masterTile.BiomeTypeId,
+                            CampaignMapGeographyTypeId = masterTile.GeographyTypeId,
+                            // Tiles outside an observer's sight are terrain only: the player knows the
+                            // ground from having explored it, but not what is standing on it now.
+                            Structures = [],
+                            Troops = []
                         })
                     ]
                 };
@@ -531,7 +524,6 @@ internal class GetPlayerCampaignMapHandler(
                          PlayerId = mx.PlayerId,
                          Location = mx.Location,
                          PlayerCampaignMapTileId = mx.Location.GetDbId(mapOffset, mapWidth),
-                         CampaignMapTileId = mx.Location.GetDbId(_NO_MAP_OFFSET, mapWidth),
                          SightRange = mx.SightRange
                      })];
     }
@@ -559,7 +551,6 @@ internal class GetPlayerCampaignMapHandler(
             .Select(t => new
             {
                 t.PlayerCampaignMapId,
-                CampaignMapTileId = t.CampaignMapId,
                 // Get the Tiles where the Observers are. This must be from the WORLD map, not the Player map, because the Player may not have seen the Tile yet
                 // (e.g. at the start of the game).
                 t.CampaignMap.Biome.DoesBlockSight,
@@ -576,7 +567,6 @@ internal class GetPlayerCampaignMapHandler(
                         RecordType = eo.RecordType,
                         PlayerId = eo.PlayerId,
                         PlayerCampaignMapTileId = eo.PlayerCampaignMapTileId,
-                        CampaignMapTileId = eo.CampaignMapTileId,
                         Location = eo.Location,
                         SightRange = t.DoesBlockSight
                             ? 0 // if DoesBlockSight, apply the penalty (SightRange reduced to 0)
@@ -639,8 +629,15 @@ internal class GetPlayerCampaignMapHandler(
 
     private record EnhancedMapObserver : MapObserver
     {
+        /// <summary>
+        /// Where the observer stands, as a row in the player's own map.
+        /// </summary>
+        /// <remarks>
+        /// Only the player-map id is carried. The observer's world-map id was tracked alongside it but
+        /// never read, and it was derived with a hardcoded offset that only held for the first game
+        /// ever created, so it is not worth keeping until something actually needs it.
+        /// </remarks>
         public int PlayerCampaignMapTileId { get; set; }
-        public int CampaignMapTileId { get; set; }
     }
 
     private class InternalMasterObservedTile
