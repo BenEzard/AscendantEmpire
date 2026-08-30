@@ -17,8 +17,14 @@ namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 /// created (if its enum key is missing) or updated in place. Mirrors the campaign map biome upsert flow.
 /// </summary>
 /// <remarks>
+/// <para>
 /// The tag type set is fixed by the <see cref="TagType"/> enum, so there is no per-item create/delete —
 /// the manager loads the whole set, edits it, and saves it back in one request.
+/// </para>
+/// <para>
+/// Colours must be unique across the catalogue: the request is checked both against itself and against the
+/// tag types it does not mention. Uncoloured rows are exempt.
+/// </para>
 /// </remarks>
 public record UpsertTagTypesRequest(IReadOnlyCollection<UpsertTagTypeDto> TagTypes) : IRequest<ServiceResultBase>;
 
@@ -45,18 +51,60 @@ internal class UpsertTagTypesHandler(
                 errors.Add($"Tag type '{duplicate}' is specified multiple times in the request.");
             }
 
+            // A colour identifies a tag type at a glance wherever tags are presented, so two tag types sharing
+            // one would be ambiguous. Rows with no colour are exempt — any number of them may go uncoloured.
+            // Colours are compared as trimmed, case-insensitive strings: "#FF0000" and "#ff0000" collide, but
+            // equivalent notations of the same colour ("#ff0000" vs "red") are not resolved, as the backend has
+            // no CSS colour parser. The picker in the Tag Type Setup dialog always posts hex.
+            Dictionary<string, List<TagType>> requestedByColour = request.TagTypes
+                .Where(t => !string.IsNullOrWhiteSpace(t.Colour))
+                .GroupBy(t => t.Colour!.Trim(), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.Select(t => t.TagTypeId).ToList(), StringComparer.OrdinalIgnoreCase);
+
+            foreach ((string colour, List<TagType> claimants) in requestedByColour.Where(pair => pair.Value.Count > 1))
+            {
+                errors.Add($"Colour '{colour}' is used by more than one tag type in the request: {string.Join(", ", claimants)}.");
+            }
+
             if (errors.Count > 0)
             {
                 logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(UpsertTagTypesRequest), string.Join("; ", errors));
                 return ServiceResultBase.Fail(errors);
             }
 
-            // Pull the rows that already exist so we can update them; anything else is a fresh insert.
-            List<TagType> requestedKeys = [.. request.TagTypes.Select(t => t.TagTypeId)];
+            HashSet<TagType> requestedKeys = [.. request.TagTypes.Select(t => t.TagTypeId)];
 
-            Dictionary<TagType, TagTypeInfo> existingByKey = await context.TagTypeInfos
+            // The table is bounded by the TagType enum, so loading the whole catalogue costs nothing and lets the
+            // colour check below see rows this request does not mention. Requested rows are updated in place;
+            // anything else in the request is a fresh insert.
+            List<TagTypeInfo> allExisting = await context.TagTypeInfos.ToListAsync(cancelToken);
+
+            Dictionary<TagType, TagTypeInfo> existingByKey = allExisting
                 .Where(t => requestedKeys.Contains(t.TagTypeId))
-                .ToDictionaryAsync(t => t.TagTypeId, cancelToken);
+                .ToDictionary(t => t.TagTypeId);
+
+            // A colour held by a tag type the request leaves alone is still taken. Without this, a partial save
+            // could hand one tag type a colour another already owns.
+            foreach (TagTypeInfo untouched in allExisting.Where(t => !requestedKeys.Contains(t.TagTypeId)))
+            {
+                if (string.IsNullOrWhiteSpace(untouched.Colour))
+                {
+                    continue;
+                }
+
+                string existingColour = untouched.Colour.Trim();
+
+                if (requestedByColour.TryGetValue(existingColour, out List<TagType>? claimants))
+                {
+                    errors.Add($"Colour '{existingColour}' is already used by tag type '{untouched.TagTypeId}', so it cannot also be given to {string.Join(", ", claimants)}.");
+                }
+            }
+
+            if (errors.Count > 0)
+            {
+                logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(UpsertTagTypesRequest), string.Join("; ", errors));
+                return ServiceResultBase.Fail(errors);
+            }
 
             foreach (UpsertTagTypeDto dto in request.TagTypes)
             {

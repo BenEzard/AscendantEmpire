@@ -1525,6 +1525,15 @@ public class AscendantEmpireContext : DbContext
             entity.Property(e => e.Icon)
                 .HasMaxLength(TagTypeInfo.ICON_MAX_LENGTH);
 
+            // A colour is how a tag type is recognised at a glance, so no two may share one. Filtered to the
+            // rows that have a colour: any number of tag types may go uncoloured, and an unfiltered unique
+            // index would treat their NULLs as equal and allow only one. UpsertTagTypesHandler enforces the
+            // same rule up front so a clash surfaces as a validation error rather than a database exception.
+            entity.HasIndex(e => e.Colour)
+                .IsUnique()
+                .HasFilter("[Colour] IS NOT NULL")
+                .HasDatabaseName("UX_TagType_Colour");
+
             // Tag type rows are no longer seeded here via HasData — the database seed tool (EntitySetupTool
             // -> Database -> Seed) now owns the initial TagType catalogue. See TagTypeSeedData /
             // DatabaseSeedExecutor. A migration removes the previously HasData-seeded rows so this stays the

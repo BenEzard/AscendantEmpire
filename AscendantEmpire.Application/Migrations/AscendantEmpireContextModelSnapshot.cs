@@ -1709,6 +1709,11 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.HasKey("TagTypeId");
 
+                    b.HasIndex("Colour")
+                        .IsUnique()
+                        .HasDatabaseName("UX_TagType_Colour")
+                        .HasFilter("[Colour] IS NOT NULL");
+
                     b.ToTable("TagType", "unitdesigns");
                 });
 

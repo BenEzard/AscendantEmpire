@@ -8,9 +8,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { Alert, Button, PagedDialog, dialogTitle } from "@/components/ui";
+import { Alert, Button, ColorPicker, PagedDialog, dialogTitle, type UsedColor } from "@/components/ui";
 import { useValidatedCommit } from "@/hooks/useValidatedCommit";
-import { isValidColor, pickTextColorOnBg } from "@/util/color";
 
 import { FieldRow, inputClass } from "./componentSetupFields";
 import { errorClass } from "./fieldStyles";
@@ -88,7 +87,19 @@ export default function TagTypeSetupDialog({ open, onCancel, initialTagTypes, on
   const shownErrors: Partial<Record<"displayName" | "description", string>> =
     submitted && selected ? rowErrors(selected) : {};
 
-  const colour = selected?.colour ?? "";
+  const colour = selected?.colour ?? null;
+
+  // Colours already taken by the *other* tag types, so the picker can strike them out and name their owner.
+  // The selected row is left out deliberately: the picker exempts its own value anyway, which is what lets
+  // pre-existing data that already shares a colour keep showing its selection rather than looking blocked.
+  const usedColours = useMemo<UsedColor[]>(() => {
+    return draft
+      .filter((tagType) => tagType.tagTypeId !== selectedId && tagType.colour !== null && tagType.colour.trim() !== "")
+      .map((tagType) => ({
+        value: tagType.colour!,
+        usedBy: tagType.displayName.trim() !== "" ? tagType.displayName : tagType.tagTypeId,
+      }));
+  }, [draft, selectedId]);
 
   return (
     <PagedDialog
@@ -172,19 +183,17 @@ export default function TagTypeSetupDialog({ open, onCancel, initialTagTypes, on
                 </label>
               </FieldRow>
 
-              <FieldRow label="Colour" align="top">
-                {/* Free-text HTML colour; the input previews the colour as its own background. */}
-                <input
-                  className={inputClass}
+              <FieldRow label="Colour">
+                {/* Swatch popup over the Tailwind palette. Custom entry is kept on so any HTML colour is still
+                    reachable (as the free-text field it replaced allowed), and "No colour" clears back to null. */}
+                <ColorPicker
                   value={colour}
-                  placeholder="#3366cc"
+                  onChange={(next) => updateField("colour", next)}
+                  usedColors={usedColours}
+                  allowCustomColor
+                  allowClear
                   disabled={!selected}
-                  // Empty string clears the colour back to null rather than storing "".
-                  onChange={(e) => updateField("colour", e.target.value === "" ? null : e.target.value)}
-                  style={{
-                    backgroundColor: isValidColor(colour) ? colour : undefined,
-                    color: isValidColor(colour) ? pickTextColorOnBg(colour) : undefined,
-                  }}
+                  title="Tag type colour"
                 />
               </FieldRow>
 

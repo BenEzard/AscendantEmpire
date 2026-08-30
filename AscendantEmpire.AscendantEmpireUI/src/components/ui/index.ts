@@ -26,6 +26,8 @@ export { default as DeltaIndicator } from "./DeltaIndicator";
 export { default as ProgressBar } from "./ProgressBar";
 export { default as RangeSlider } from "./RangeSlider";
 export type { RangeSliderProps } from "./RangeSlider";
+export { ColorPicker, TailwindColors } from "./colorpicker";
+export type { ColorPickerProps, Color, ColorPalette, UsedColor } from "./colorpicker";
 export { Slider, SliderButton, SliderGroup } from "./slider";
 export type { SliderProps, SliderGroupProps } from "./slider";
 export { default as ToggleSwitch } from "./ToggleSwitch";
