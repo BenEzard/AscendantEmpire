@@ -64,7 +64,33 @@ What deviated from the plan, and why:
 - **`HealTroops` keeps its name.** It restores wounded soldiers, and soldiers are exactly what "troops" still
   means.
 
-Outstanding and Ben's to run: applying the two migrations, and the click-through. Note that
+### Verified against the applied database
+
+The first two migrations have since been applied, and the result was checked read-only against
+`sys.tables`, `sys.indexes`, `sys.columns`, `sys.objects` and `sys.default_constraints`:
+
+- The four tables are `units.UnitInstances`, `units.ForceOrders`, `units.ForceOrderMovementSteps` and
+  `units.ForceOrderParticipants`. The `troops` schema holds no tables.
+- **The data survived**: `units.UnitInstances` still holds its rows, which a `DropTable` would have zeroed. This
+  is the proof the hand-edited migrations were worth the trouble. The three order tables were empty beforehand,
+  so they prove nothing either way.
+- No stale index, no stale column, and all four primary keys renamed. `TroopName` → `Name` and
+  `TroopOrderId1` → `ForceOrderId1` both confirmed present under their new names.
+
+**It also found something the scaffolder and every grep had missed.** Two default constraints still carried the
+old spelling — `DF__TroopOrde__IsCom__…` and `DF__TroopOrde__WorkC__…`, created unnamed by `HasDefaultValue` and
+named by SQL Server after the tables of the day. `sp_rename` on a table does not cascade into them. Cosmetic
+only, since EF looks default constraints up by column rather than by name, but the database saying "Troop" after
+this work is exactly the residue that makes a rename untrustworthy. Fixed by
+`TM-6_RenameStaleDefaultConstraints`, which looks the names up rather than hard-coding them, because the
+trailing hash differs per database.
+
+That third migration had a bug of its own, caught by generating its SQL rather than by the compiler: both blocks
+land in one batch and each declared `@currentName`, which T-SQL rejects because `DECLARE` is batch-scoped.
+The variables are now suffixed per constraint. **Generate the script for any migration that writes raw
+T-SQL** — `dotnet ef migrations script <from> <to>` — because nothing else checks it.
+
+Outstanding and Ben's to run: applying `TM-6_RenameStaleDefaultConstraints`, and the click-through. Note that
 `MovementPointsRemaining` is still never written (TM-3), so the split action renders permanently disabled and a
 click-through cannot distinguish "renamed correctly" from "already broken".
 
