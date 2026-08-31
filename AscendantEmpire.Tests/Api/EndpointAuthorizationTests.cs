@@ -130,7 +130,7 @@ public sealed class EndpointAuthorizationTests
         "PUT /military/organisation-structures/{tagId}",
 
         "GET /player/structures",
-        "GET /player/troops",
+        "GET /player/forces",
 
         "GET /system/status",
 

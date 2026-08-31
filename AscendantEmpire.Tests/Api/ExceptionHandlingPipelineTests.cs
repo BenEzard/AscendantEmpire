@@ -37,10 +37,10 @@ public sealed class ExceptionHandlingPipelineTests
     /// A route that needs a token but no permission, takes no request body, and reaches the mediator immediately.
     /// </summary>
     /// <remarks>
-    /// It is in <c>EndpointAuthorizationTests.AuthenticatedOnlyEndpoints</c>, and <c>PlayerController.GetPlayerTroopsAsync</c> does nothing before
+    /// It is in <c>EndpointAuthorizationTests.AuthenticatedOnlyEndpoints</c>, and <c>PlayerController.GetPlayerForcesAsync</c> does nothing before
     /// <c>mediator.Send</c> but read the game context out of the token — so a failure here can only have come from the pipeline under test.
     /// </remarks>
-    private const string AuthenticatedRoute = "/player/troops";
+    private const string AuthenticatedRoute = "/player/forces";
 
     [Test]
     public async Task AnExceptionEscapingAHandler_IsAnsweredWithTheErrorContract_NotATornConnection()

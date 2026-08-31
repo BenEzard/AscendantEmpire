@@ -18,7 +18,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 namespace AscendantEmpire.Application.Features.Units.Handlers;
 
-public record SpawnTroopRequest(
+public record SpawnUnitRequest(
     int GameId,
     int PlayerId,
     int XCoord,
@@ -29,9 +29,9 @@ public record SpawnTroopRequest(
     int InjuredCount
 ) : IRequest<ServiceResultBase>;
 
-internal class SpawnTroopRequestValidator : AbstractValidator<SpawnTroopRequest>
+internal class SpawnUnitRequestValidator : AbstractValidator<SpawnUnitRequest>
 {
-    public SpawnTroopRequestValidator()
+    public SpawnUnitRequestValidator()
     {
         RuleFor(x => x.GameId)
             .GreaterThan(0).WithMessage("Game Id is required.");
@@ -62,22 +62,22 @@ internal class SpawnTroopRequestValidator : AbstractValidator<SpawnTroopRequest>
     }
 }
 
-internal class SpawnTroopHandler(
-    ILogger<SpawnTroopHandler> logger,
+internal class SpawnUnitHandler(
+    ILogger<SpawnUnitHandler> logger,
     IMediator mediator,
     IDbContextFactory<AscendantEmpireContext> dbFactory
-) : IRequestHandler<SpawnTroopRequest, ServiceResultBase>
+) : IRequestHandler<SpawnUnitRequest, ServiceResultBase>
 {
-    public async Task<ServiceResultBase> Handle(SpawnTroopRequest request, CancellationToken cancelToken)
+    public async Task<ServiceResultBase> Handle(SpawnUnitRequest request, CancellationToken cancelToken)
     {
         try
         {
             // Validate the request object
-            var validator = new SpawnTroopRequestValidator();
+            var validator = new SpawnUnitRequestValidator();
             if (validator.Validate(request) is not { IsValid: true })
             {
                 var errors = validator.Validate(request).Errors.Select(e => e.ErrorMessage);
-                string error = $"Validation failed for {nameof(SpawnTroopRequest)}.";
+                string error = $"Validation failed for {nameof(SpawnUnitRequest)}.";
                 logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
                 return ServiceResultBase.Fail(errors.Prepend(error));
             }
@@ -146,7 +146,7 @@ internal class SpawnTroopHandler(
 
             if (sizeErrors.Count > 0)
             {
-                logger.LogWarning("Unled size validation failed for {Request}. Errors: {Errors}", nameof(SpawnTroopRequest), string.Join("; ", sizeErrors));
+                logger.LogWarning("Unled size validation failed for {Request}. Errors: {Errors}", nameof(SpawnUnitRequest), string.Join("; ", sizeErrors));
                 return ServiceResultBase.Fail(sizeErrors);
             }
 
@@ -167,7 +167,7 @@ internal class SpawnTroopHandler(
         }
         catch (Exception ex)
         {
-            const string error = "An exception occurred while processing " + nameof(SpawnTroopHandler) + ".";
+            const string error = "An exception occurred while processing " + nameof(SpawnUnitHandler) + ".";
             logger.LogError(ex, error);
             return ServiceResultBase.Fail(error);
         }

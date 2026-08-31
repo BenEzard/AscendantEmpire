@@ -37,7 +37,7 @@ namespace AscendantEmpire.Tests.Features.Maps.CampaignMaps;
 /// </para>
 /// </remarks>
 [TestFixture]
-internal class PlayerCampaignMapTroopVisibilityTests : GameSqlServerTestBase
+internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
 {
     private const int _MAP_WIDTH = 4;
     private const int _MAP_HEIGHT = 3;

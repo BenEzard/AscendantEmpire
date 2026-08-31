@@ -1,5 +1,5 @@
 ﻿using AscendantEmpire.Application.Data;
-using AscendantEmpire.BackendContracts.Units.GetPlayerTroops;
+using AscendantEmpire.BackendContracts.Units.GetPlayerForces;
 using AscendantEmpire.Domain.Enums;
 
 using FluentValidation;
@@ -13,15 +13,15 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 namespace AscendantEmpire.Application.Features.Units.Handlers;
 
-public record GetTroopsByLocationRequest(
+public record GetForcesByLocationRequest(
     int GameId,
     IEnumerable<int> CampaignMapTileIds,
     bool IncludeBattleMapTroops = false
-) : IRequest<ServiceResult<IReadOnlyCollection<PlayerTroop>>>;
+) : IRequest<ServiceResult<IReadOnlyCollection<PlayerForce>>>;
 
-internal class GetTroopsByLocationRequestValidator : AbstractValidator<GetTroopsByLocationRequest>
+internal class GetForcesByLocationRequestValidator : AbstractValidator<GetForcesByLocationRequest>
 {
-    public GetTroopsByLocationRequestValidator()
+    public GetForcesByLocationRequestValidator()
     {
         RuleFor(x => x.GameId)
             .GreaterThan(0).WithMessage("Game Id is required.");
@@ -36,33 +36,33 @@ internal class GetTroopsByLocationRequestValidator : AbstractValidator<GetTroops
     }
 }
 
-internal class GetTroopsByLocationHandler(
-    ILogger<GetTroopsByLocationHandler> logger,
+internal class GetForcesByLocationHandler(
+    ILogger<GetForcesByLocationHandler> logger,
     IDbContextFactory<AscendantEmpireContext> dbFactory
-) : IRequestHandler<GetTroopsByLocationRequest, ServiceResult<IReadOnlyCollection<PlayerTroop>>>
+) : IRequestHandler<GetForcesByLocationRequest, ServiceResult<IReadOnlyCollection<PlayerForce>>>
 {
-    public async Task<ServiceResult<IReadOnlyCollection<PlayerTroop>>> Handle(GetTroopsByLocationRequest request, CancellationToken cancelToken)
+    public async Task<ServiceResult<IReadOnlyCollection<PlayerForce>>> Handle(GetForcesByLocationRequest request, CancellationToken cancelToken)
     {
         try
         {
             // Validate the request object
-            var validator = new GetTroopsByLocationRequestValidator();
+            var validator = new GetForcesByLocationRequestValidator();
             if (validator.Validate(request) is not { IsValid: true })
             {
                 var errors = validator.Validate(request).Errors.Select(e => e.ErrorMessage);
-                string error = $"Validation failed for {nameof(GetTroopsByLocationRequest)}.";
+                string error = $"Validation failed for {nameof(GetForcesByLocationRequest)}.";
                 logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
-                return ServiceResult<IReadOnlyCollection<PlayerTroop>>.Fail(errors.Prepend(error));
+                return ServiceResult<IReadOnlyCollection<PlayerForce>>.Fail(errors.Prepend(error));
             }
 
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            List<PlayerTroop> troops = await context.UnitInstances
+            List<PlayerForce> troops = await context.UnitInstances
                   .Where(pu => pu.GameId == request.GameId)
                   .Where(pu => pu.HealthyCount + pu.InjuredCount > 0) // Only include troops that are alive
                   .Where(pu => request.CampaignMapTileIds.Contains(pu.CampaignMapTileId))
                   .Where(pu => request.IncludeBattleMapTroops || pu.BattleMapTileId == null)
-                  .Select(pu => new PlayerTroop
+                  .Select(pu => new PlayerForce
                   {
                       UnitInstanceId = pu.Id,
                       RecordType = RecordType.Unit,
@@ -87,13 +87,13 @@ internal class GetTroopsByLocationHandler(
 
             logger.LogInformation("Retrieved {Count} troops for Game Id: {GameId} and Campaign Map Tile Ids: {CampaignMapTileIds}.", troops.Count, request.GameId, string.Join(", ", request.CampaignMapTileIds));
 
-            return ServiceResult<IReadOnlyCollection<PlayerTroop>>.Succeed(troops);
+            return ServiceResult<IReadOnlyCollection<PlayerForce>>.Succeed(troops);
         }
         catch (Exception ex)
         {
             string error = $"An error occurred while retrieving troops for Game Id: {request.GameId} and Campaign Map Tile Ids: {string.Join(", ", request.CampaignMapTileIds)}.";
             logger.LogError(ex, error);
-            return ServiceResult<IReadOnlyCollection<PlayerTroop>>.Fail(error);
+            return ServiceResult<IReadOnlyCollection<PlayerForce>>.Fail(error);
         }
     }
 }

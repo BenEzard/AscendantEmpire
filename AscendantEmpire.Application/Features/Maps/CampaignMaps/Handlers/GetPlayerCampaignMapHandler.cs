@@ -8,7 +8,7 @@ using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
 using AscendantEmpire.BackendContracts.Players.GetPlayerStructures;
-using AscendantEmpire.BackendContracts.Units.GetPlayerTroops;
+using AscendantEmpire.BackendContracts.Units.GetPlayerForces;
 using AscendantEmpire.Domain.Enums;
 using AscendantEmpire.Domain.Enums.Maps;
 
@@ -91,12 +91,12 @@ internal class GetPlayerCampaignMapHandler(
 
             // Load Structures and Troops for *THIS* Player, because they are the "Observers" of the Campaign Map and determine what can be seen.
             Task<ServiceResult<MapObserverCollection<PlayerStructure>>> fetchStructureObservers = GetStructureObserversAsync(request.GameId, request.PlayerId, cancelToken);
-            Task<ServiceResult<MapObserverCollection<PlayerTroop>>> fetchTroopObservers = GetTroopObserversAsync(request.GameId, request.PlayerId, cancelToken);
+            Task<ServiceResult<MapObserverCollection<PlayerForce>>> fetchTroopObservers = GetTroopObserversAsync(request.GameId, request.PlayerId, cancelToken);
 
             await Task.WhenAll(fetchStructureObservers, fetchTroopObservers);
 
             ServiceResult<MapObserverCollection<PlayerStructure>> structureObserversResult = fetchStructureObservers.Result;
-            ServiceResult<MapObserverCollection<PlayerTroop>> troopObserversResult = fetchTroopObservers.Result;
+            ServiceResult<MapObserverCollection<PlayerForce>> troopObserversResult = fetchTroopObservers.Result;
 
             if (structureObserversResult.HasSucceeded == false)
             {
@@ -113,7 +113,7 @@ internal class GetPlayerCampaignMapHandler(
             mapObservers.AddRange(troopObserversResult.SuccessValue.MapObservers);
 
             Dictionary<int, List<PlayerStructure>> structuresByTileId = [];
-            Dictionary<int, List<PlayerTroop>> troopsByTileId = [];
+            Dictionary<int, List<PlayerForce>> troopsByTileId = [];
 
             if (mapObservers.Count > 0)
             {
@@ -151,12 +151,12 @@ internal class GetPlayerCampaignMapHandler(
 
                 // Get *ALL* Structures and Troops on the observed map (for any Player)
                 Task<ServiceResult<IReadOnlyCollection<PlayerStructure>>> fetchAllStructuresTask = mediator.Send(new GetStructuresByLocationRequest(request.GameId, campaignMapTileIds, IncludeBattleMapStructures: false), cancelToken);
-                Task<ServiceResult<IReadOnlyCollection<PlayerTroop>>> fetchAllTroopsTask = mediator.Send(new GetTroopsByLocationRequest(request.GameId, campaignMapTileIds, IncludeBattleMapTroops: false), cancelToken);
+                Task<ServiceResult<IReadOnlyCollection<PlayerForce>>> fetchAllTroopsTask = mediator.Send(new GetForcesByLocationRequest(request.GameId, campaignMapTileIds, IncludeBattleMapTroops: false), cancelToken);
 
                 await Task.WhenAll(fetchAllStructuresTask, fetchAllTroopsTask);
 
                 ServiceResult<IReadOnlyCollection<PlayerStructure>> structureResult = await fetchAllStructuresTask;
-                ServiceResult<IReadOnlyCollection<PlayerTroop>> troopResult = await fetchAllTroopsTask;
+                ServiceResult<IReadOnlyCollection<PlayerForce>> troopResult = await fetchAllTroopsTask;
 
                 if (structureResult.HasSucceeded == false)
                 {
@@ -211,7 +211,7 @@ internal class GetPlayerCampaignMapHandler(
                             // seen tile's coordinates have to be resolved against the game's offset.
                             int dbId = st.Coord.GetDbId(gameInfo.CampaignMapOffsetId, mapWidth);
                             structuresByTileId.TryGetValue(dbId, out List<PlayerStructure>? structuresAtTile);
-                            troopsByTileId.TryGetValue(dbId, out List<PlayerTroop>? troopsAtTile);
+                            troopsByTileId.TryGetValue(dbId, out List<PlayerForce>? troopsAtTile);
 
                             return new ObservedCampaignTile
                             {
@@ -329,21 +329,21 @@ internal class GetPlayerCampaignMapHandler(
         });
     }
 
-    private async Task<ServiceResult<MapObserverCollection<PlayerTroop>>> GetTroopObserversAsync(int gameId, int playerId, CancellationToken cancelToken)
+    private async Task<ServiceResult<MapObserverCollection<PlayerForce>>> GetTroopObserversAsync(int gameId, int playerId, CancellationToken cancelToken)
     {
-        Task<ServiceResult<IReadOnlyCollection<PlayerTroop>>> fetchPlayerTroops = mediator.Send(new GetPlayerTroopsRequest(gameId, playerId), cancelToken);
+        Task<ServiceResult<IReadOnlyCollection<PlayerForce>>> fetchPlayerForces = mediator.Send(new GetPlayerForcesRequest(gameId, playerId), cancelToken);
 
-        ServiceResult<IReadOnlyCollection<PlayerTroop>> troopResult = fetchPlayerTroops.Result;
+        ServiceResult<IReadOnlyCollection<PlayerForce>> troopResult = fetchPlayerForces.Result;
 
         if (troopResult.HasSucceeded == false)
         {
             const string errorHeadLine = "Error getting troops while trying to get a Player's view of the Campaign Map";
             string error = string.Join(Environment.NewLine, troopResult.Errors);
             logger.LogWarning(errorHeadLine + " (Error: {err}).", error);
-            return ServiceResult<MapObserverCollection<PlayerTroop>>.Fail($"{errorHeadLine}{Environment.NewLine}{error}");
+            return ServiceResult<MapObserverCollection<PlayerForce>>.Fail($"{errorHeadLine}{Environment.NewLine}{error}");
         }
 
-        Dictionary<int, List<PlayerTroop>> troopsByTileId = troopResult.SuccessValue!
+        Dictionary<int, List<PlayerForce>> troopsByTileId = troopResult.SuccessValue!
             .GroupBy(s => s.CampaignMapTileId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
@@ -359,7 +359,7 @@ internal class GetPlayerCampaignMapHandler(
             SightDirection = DetectionDirection.FullRadius,
         }));
 
-        return ServiceResult<MapObserverCollection<PlayerTroop>>.Succeed(new MapObserverCollection<PlayerTroop>
+        return ServiceResult<MapObserverCollection<PlayerForce>>.Succeed(new MapObserverCollection<PlayerForce>
         {
             ObserversByTileId = troopsByTileId,
             MapObservers = mapObservers

@@ -2,11 +2,11 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Features.Units.Classes;
 using AscendantEmpire.Application.Features.Units.Handlers;
-using AscendantEmpire.BackendContracts.Units.GetTroopDisplayInfo;
+using AscendantEmpire.BackendContracts.Units.GetUnitDisplayInfo;
 using AscendantEmpire.BackendContracts.Units.Spawn;
 using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
-using AscendantEmpire.FrontendContracts.Units.GetTroopDisplayInfo;
+using AscendantEmpire.FrontendContracts.Units.GetUnitDisplayInfo;
 
 using MediatR;
 
@@ -41,12 +41,12 @@ public class UnitsController : ControllerBase
     [HttpPost("temporary-dev-only/spawn")]
     [ProducesResponseType(201)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> SpawnTroopAsync(
+    public async Task<IActionResult> SpawnUnitAsync(
         [FromServices] IMediator mediator,
         [FromBody] SpawnUnitDto request,
         CancellationToken cancelToken)
     {
-        ServiceResultBase response = await mediator.Send(new SpawnTroopRequest(request.GameId,
+        ServiceResultBase response = await mediator.Send(new SpawnUnitRequest(request.GameId,
             request.PlayerId,
             request.XCoord,
             request.YCoord,
@@ -67,7 +67,7 @@ public class UnitsController : ControllerBase
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [Authorize]
     [HttpGet("display")]
-    [ProducesResponseType(typeof(ITroopDisplayInfoCollection), 200)]
+    [ProducesResponseType(typeof(IUnitDisplayInfoCollection), 200)]
     [ProducesResponseType(typeof(IApiErrorResult), 403)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
     public async Task<IActionResult> GetUnitsAsync(
@@ -80,13 +80,13 @@ public class UnitsController : ControllerBase
             return contextError!;
         }
 
-        ServiceResult<IReadOnlyCollection<TroopDisplayInfo>> response = await mediator.Send(new GetTroopDisplayInfoRequest(gameId), cancelToken);
+        ServiceResult<IReadOnlyCollection<UnitDisplayInfo>> response = await mediator.Send(new GetUnitDisplayInfoRequest(gameId), cancelToken);
 
         return response.ToActionResult(contract =>
         {
-            return new DTTroopDisplayInfoCollection
+            return new DTUnitDisplayInfoCollection
             {
-                TroopDisplayInfo = contract.Select(t => new DTTroopDisplayInfo
+                UnitDisplayInfo = contract.Select(t => new DTUnitDisplayInfo
                 {
                     UnitTemplateId = t.UnitTemplateId,
                     MapImagePath = t.MapImagePath

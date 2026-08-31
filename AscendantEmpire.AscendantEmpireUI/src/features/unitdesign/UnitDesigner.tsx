@@ -371,15 +371,15 @@ export default function UnitDesigner({
     void reloadTemplates();
   };
 
-  /** Renders a troop count as the subject of a sentence, so messages read naturally at one troop as well as many. */
-  const troopCountPhrase = (instanceCount: number) => (instanceCount === 1 ? "1 troop is" : `${instanceCount} troops are`);
+  /** Renders a unit count as the subject of a sentence, so messages read naturally at one unit as well as many. */
+  const unitCountPhrase = (instanceCount: number) => (instanceCount === 1 ? "1 unit is" : `${instanceCount} units are`);
 
   /**
    * Sends a save to the endpoint matching the current flow.
    *
    * A name clash comes back as a 409 carrying a TemplateNameConflict. When it says the clash is the user's
    * to resolve, the payload is parked for the confirmation modal, which re-sends it with `overwriteExisting`
-   * set; when it isn't — a standard design's name, or one with troops already in the field — the server's
+   * set; when it isn't — a standard design's name, or one with units already in the field — the server's
    * message is reported as-is, since only a different name gets past it. Anything else is an ordinary error.
    */
   const submitSave = (payload: SaveUnitTemplatePayload | SaveGlobalUnitTemplatePayload, savedVerb: "Saved" | "Overwrote") => {
@@ -638,8 +638,8 @@ export default function UnitDesigner({
         </p>
         <p className="mt-2">
           {pendingOverwrite != null && pendingOverwrite.instanceCount > 0
-            ? `${troopCountPhrase(pendingOverwrite.instanceCount)} currently built from it and will be changed.`
-            : "No troops are currently built from it."}
+            ? `${unitCountPhrase(pendingOverwrite.instanceCount)} currently built from it and will be changed.`
+            : "No units are currently built from it."}
         </p>
       </Modal>
     </div>

@@ -122,7 +122,7 @@ public sealed class GlobalExceptionHandlerTests
         entry.Level.Should().Be(LogLevel.Error);
         entry.Exception.Should().BeSameAs(exception, "the log is the only place the stack trace survives now that the response does not carry it");
         entry.Message.Should().Contain(TestCorrelationId);
-        entry.Message.Should().Contain("/player/troops");
+        entry.Message.Should().Contain("/player/forces");
     }
 
     /// <remarks>
@@ -184,7 +184,7 @@ public sealed class GlobalExceptionHandlerTests
         };
 
         httpContext.Request.Method = HttpMethods.Get;
-        httpContext.Request.Path = "/player/troops";
+        httpContext.Request.Path = "/player/forces";
         httpContext.Response.Body = new MemoryStream();
 
         return httpContext;

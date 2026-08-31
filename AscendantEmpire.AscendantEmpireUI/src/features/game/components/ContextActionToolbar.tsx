@@ -12,7 +12,7 @@ export interface ContextActionToolbarAction {
   /**
    * Why the action can't be taken, shown in place of the label in the tooltip. Empty when enabled.
    *
-   * An action the troop could never take is not sent here at all — it simply isn't in the list — so anything
+   * An action the force could never take is not sent here at all — it simply isn't in the list — so anything
    * disabled is something the player could plausibly make available, and telling them how is the point.
    */
   disabledReasons: string[];

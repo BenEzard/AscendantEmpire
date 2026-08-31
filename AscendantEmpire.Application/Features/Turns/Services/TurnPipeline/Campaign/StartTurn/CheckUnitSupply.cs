@@ -1,6 +1,6 @@
 ﻿namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.StartTurn;
 
-internal class CheckTroopSupply : IStartCampaignTurnProcess
+internal class CheckUnitSupply : IStartCampaignTurnProcess
 {
     public string ItemName => "Check Troop Supply";
 

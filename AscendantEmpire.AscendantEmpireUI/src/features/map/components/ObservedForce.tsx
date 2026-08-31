@@ -1,10 +1,10 @@
 ﻿import type { ObservedForceTile } from "./TileTypes";
 
 export interface ObservedForceProps {
-  troop: ObservedForceTile;
+  force: ObservedForceTile;
   unitInstanceCount: number;
   isSelected?: boolean;
-  troopImageSrcByUnitTemplateId?: ReadonlyMap<number, string>;
+  unitImageSrcByUnitTemplateId?: ReadonlyMap<number, string>;
 }
 
 function clampPercent(value: number): number {
@@ -19,14 +19,14 @@ function getUnitMarkerCount(unitCount: number): number {
   return 4;
 }
 
-export default function ObservedForce({ troop, unitInstanceCount, isSelected = false, troopImageSrcByUnitTemplateId }: ObservedForceProps) {
-  const troopImageSrc = troopImageSrcByUnitTemplateId?.get(troop.unitTemplateId);
+export default function ObservedForce({ force, unitInstanceCount, isSelected = false, unitImageSrcByUnitTemplateId }: ObservedForceProps) {
+  const unitImageSrc = unitImageSrcByUnitTemplateId?.get(force.unitTemplateId);
 
-  if (!troopImageSrc) return null;
+  if (!unitImageSrc) return null;
 
-  const initialStrength = Math.max(0, troop.initialStrength);
-  const healthyTroops = Math.max(0, troop.healthyTroops);
-  const injuredTroops = Math.max(0, troop.injuredTroops);
+  const initialStrength = Math.max(0, force.initialStrength);
+  const healthyTroops = Math.max(0, force.healthyTroops);
+  const injuredTroops = Math.max(0, force.injuredTroops);
   const healthyPercent = initialStrength > 0 ? clampPercent((healthyTroops / initialStrength) * 100) : 0;
   const remainingAfterHealthy = Math.max(0, 100 - healthyPercent);
   const injuredPercent = initialStrength > 0 ? Math.min(clampPercent((injuredTroops / initialStrength) * 100), remainingAfterHealthy) : 0;
@@ -38,38 +38,38 @@ export default function ObservedForce({ troop, unitInstanceCount, isSelected = f
   const unitMarkerCount = getUnitMarkerCount(unitInstanceCount);
 
   return (
-    <div className={["observed-troop", isSelected ? "observed-troop--selected" : ""].filter(Boolean).join(" ")} aria-hidden>
-      <div className="observed-troop__health-bar">
+    <div className={["observed-force", isSelected ? "observed-force--selected" : ""].filter(Boolean).join(" ")} aria-hidden>
+      <div className="observed-force__health-bar">
         {showHealthySegment ? (
           <div
-            className="observed-troop__health-fill observed-troop__health-fill--healthy"
+            className="observed-force__health-fill observed-force__health-fill--healthy"
             style={{ width: `${isFullyHealthy ? 100 : healthyPercent}%` }}
           />
         ) : null}
         {showInjuredSegment ? (
-          <div className="observed-troop__health-fill observed-troop__health-fill--injured" style={{ width: `${injuredPercent}%` }} />
+          <div className="observed-force__health-fill observed-force__health-fill--injured" style={{ width: `${injuredPercent}%` }} />
         ) : null}
         {showDeadSegment ? (
-          <div className="observed-troop__health-fill observed-troop__health-fill--dead" style={{ width: `${deadPercent}%` }} />
+          <div className="observed-force__health-fill observed-force__health-fill--dead" style={{ width: `${deadPercent}%` }} />
         ) : null}
       </div>
-      <div className="observed-troop__body">
+      <div className="observed-force__body">
         {isSelected ? (
           <>
-            <span className="observed-troop__selection-corner observed-troop__selection-corner--top-left" />
-            <span className="observed-troop__selection-corner observed-troop__selection-corner--top-right" />
-            <span className="observed-troop__selection-corner observed-troop__selection-corner--bottom-left" />
-            <span className="observed-troop__selection-corner observed-troop__selection-corner--bottom-right" />
+            <span className="observed-force__selection-corner observed-force__selection-corner--top-left" />
+            <span className="observed-force__selection-corner observed-force__selection-corner--top-right" />
+            <span className="observed-force__selection-corner observed-force__selection-corner--bottom-left" />
+            <span className="observed-force__selection-corner observed-force__selection-corner--bottom-right" />
           </>
         ) : null}
         {unitMarkerCount > 0 ? (
-          <div className="observed-troop__marker-column">
+          <div className="observed-force__marker-column">
             {Array.from({ length: unitMarkerCount }, (_, index) => (
-              <span key={index} className="observed-troop__marker" />
+              <span key={index} className="observed-force__marker" />
             ))}
           </div>
         ) : null}
-        <img className="observed-troop__image" alt="" src={troopImageSrc} />
+        <img className="observed-force__image" alt="" src={unitImageSrc} />
       </div>
     </div>
   );

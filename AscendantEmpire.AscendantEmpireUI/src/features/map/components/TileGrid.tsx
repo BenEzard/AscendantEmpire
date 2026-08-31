@@ -14,9 +14,9 @@ export interface TileGridProps {
   tiles2d: TileCell[][];
   geographies: Geography[];
   containerRef?: React.Ref<HTMLDivElement>;
-  selectedTroopId?: number;
-  troopImageSrcByUnitTemplateId?: ReadonlyMap<number, string>;
-  getVisibleTroopId?: (tile: TileCell) => number | undefined;
+  selectedForceId?: number;
+  unitImageSrcByUnitTemplateId?: ReadonlyMap<number, string>;
+  getVisibleForceId?: (tile: TileCell) => number | undefined;
   onTileClick?: (tile: TileCell) => void;
   onTileHold?: (tile: TileCell) => void;
 
@@ -34,9 +34,9 @@ const TileGrid = React.memo(function TileGrid({
   tiles2d,
   geographies,
   containerRef,
-  selectedTroopId,
-  troopImageSrcByUnitTemplateId,
-  getVisibleTroopId,
+  selectedForceId,
+  unitImageSrcByUnitTemplateId,
+  getVisibleForceId,
   onTileClick,
   onTileHold,
   getTileTitle,
@@ -84,9 +84,9 @@ const TileGrid = React.memo(function TileGrid({
               tile={t}
               geography={g}
               sizePx={TILE_SIZE_PX}
-              selectedTroopId={selectedTroopId}
-              troopImageSrcByUnitTemplateId={troopImageSrcByUnitTemplateId}
-              visibleTroopId={getVisibleTroopId?.(t)}
+              selectedForceId={selectedForceId}
+              unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
+              visibleForceId={getVisibleForceId?.(t)}
               onClick={onTileClick}
               onHold={onTileHold}
               getTitle={getTileTitle}

@@ -40,7 +40,7 @@ namespace AscendantEmpire.Tests.Features.Units;
 /// </para>
 /// </remarks>
 [TestFixture]
-internal class TroopPlacementByCoordinateTests : GameSqlServerTestBase
+internal class UnitPlacementByCoordinateTests : GameSqlServerTestBase
 {
     private const int _MAP_WIDTH = 5;
     private const int _MAP_HEIGHT = 4;
@@ -112,7 +112,7 @@ internal class TroopPlacementByCoordinateTests : GameSqlServerTestBase
 
         int[] troopIdsBefore = await context.UnitInstances.Where(t => t.GameId == gameId).Select(t => t.Id).ToArrayAsync();
 
-        ServiceResultBase result = await _mediator.Send(new SpawnTroopRequest(
+        ServiceResultBase result = await _mediator.Send(new SpawnUnitRequest(
             GameId: gameId,
             PlayerId: player.Id,
             XCoord: xCoord,
@@ -158,7 +158,7 @@ internal class TroopPlacementByCoordinateTests : GameSqlServerTestBase
 
         // Nothing bounds the coordinates against the map size: the validator only requires them to be
         // non-negative, and the old arithmetic turned this into a valid id outside this game's block.
-        ServiceResultBase result = await _mediator.Send(new SpawnTroopRequest(
+        ServiceResultBase result = await _mediator.Send(new SpawnUnitRequest(
             GameId: gameId,
             PlayerId: player.Id,
             XCoord: _MAP_WIDTH + 4,

@@ -1,6 +1,6 @@
-﻿namespace AscendantEmpire.BackendContracts.Units.GetTroopDisplayInfo;
+﻿namespace AscendantEmpire.BackendContracts.Units.GetUnitDisplayInfo;
 
-public record TroopDisplayInfo
+public record UnitDisplayInfo
 {
     public int UnitTemplateId { get; init; }
     public string MapImagePath { get; init; } = null!;

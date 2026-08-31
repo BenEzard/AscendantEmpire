@@ -2,7 +2,7 @@
 using AscendantEmpire.Application.Features.Players.Classes;
 using AscendantEmpire.Application.Features.Players.Handlers;
 using AscendantEmpire.BackendContracts.Players.GetPlayerStructures;
-using AscendantEmpire.BackendContracts.Units.GetPlayerTroops;
+using AscendantEmpire.BackendContracts.Units.GetPlayerForces;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Player;
 using AscendantEmpire.FrontendContracts.Units;
@@ -65,15 +65,15 @@ public class PlayerController : ControllerBase
     }
 
     /// <summary>
-    /// Get a Player's current Troops
+    /// Get a Player's current Forces
     /// </summary>
     /// <response code="200">Player information for Campaign and Battle Maps</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [HttpGet("troops")]
-    [ProducesResponseType(typeof(IPlayerTroopCollection), 200)]
+    [HttpGet("forces")]
+    [ProducesResponseType(typeof(IPlayerForceCollection), 200)]
     [ProducesResponseType(typeof(IApiErrorResult), 403)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> GetPlayerTroopsAsync(
+    public async Task<IActionResult> GetPlayerForcesAsync(
         [FromServices] IMediator mediator,
         CancellationToken cancelToken)
     {
@@ -83,9 +83,9 @@ public class PlayerController : ControllerBase
             return contextError!;
         }
 
-        ServiceResult<IReadOnlyCollection<PlayerTroop>> response = await mediator.Send(new GetPlayerTroopsRequest(gameId, playerId), cancelToken);
+        ServiceResult<IReadOnlyCollection<PlayerForce>> response = await mediator.Send(new GetPlayerForcesRequest(gameId, playerId), cancelToken);
 
-        return response.ToActionResult(contract => response.SuccessValue?.Select(s => new DTPlayerTroop
+        return response.ToActionResult(contract => response.SuccessValue?.Select(s => new DTPlayerForce
         {
             CampaignMapTileId = s.CampaignMapTileId,
             BattleMapTileId = s.BattleMapTileId,

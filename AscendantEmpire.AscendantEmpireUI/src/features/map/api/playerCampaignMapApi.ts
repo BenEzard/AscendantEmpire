@@ -116,15 +116,15 @@ function normalizeObservedStructure(structure: ObservedStructureWireDto): Observ
   };
 }
 
-function normalizeObservedForce(troop: ObservedForceWireDto): ObservedForceDto {
+function normalizeObservedForce(force: ObservedForceWireDto): ObservedForceDto {
   return {
-    id: troop.id ?? 0,
-    recordType: troop.recordType ?? 0,
-    ownerPlayerId: troop.ownerPlayerId ?? 0,
-    unitTemplateId: troop.unitTemplateId ?? 0,
-    healthyTroops: troop.healthyTroops ?? 0,
-    injuredTroops: troop.injuredTroops ?? 0,
-    initialStrength: troop.initialStrength ?? 0,
+    id: force.id ?? 0,
+    recordType: force.recordType ?? 0,
+    ownerPlayerId: force.ownerPlayerId ?? 0,
+    unitTemplateId: force.unitTemplateId ?? 0,
+    healthyTroops: force.healthyTroops ?? 0,
+    injuredTroops: force.injuredTroops ?? 0,
+    initialStrength: force.initialStrength ?? 0,
   };
 }
 
@@ -182,26 +182,26 @@ function mergeTiles(tiles: CampaignMapTileDto[]): CampaignMapTileDto[] {
   return [...mergedByCoord.values()];
 }
 
-function logTroopTable(response: PlayerCampaignMapResponseDto): void {
-  const troopRows = response.observers.flatMap((observer) =>
+function logForceTable(response: PlayerCampaignMapResponseDto): void {
+  const forceRows = response.observers.flatMap((observer) =>
     observer.seenTiles.flatMap((tile) =>
-      (tile.forces ?? []).map((troop) => ({
+      (tile.forces ?? []).map((force) => ({
         observerId: observer.id,
         observerRecordType: observer.observerRecordType,
         xCoord: tile.xCoord,
         yCoord: tile.yCoord,
-        troopId: troop.id,
-        troopRecordType: troop.recordType,
-        unitTemplateId: troop.unitTemplateId,
-        healthyTroops: troop.healthyTroops,
-        injuredTroops: troop.injuredTroops,
-        initialStrength: troop.initialStrength,
+        forceId: force.id,
+        forceRecordType: force.recordType,
+        unitTemplateId: force.unitTemplateId,
+        healthyTroops: force.healthyTroops,
+        injuredTroops: force.injuredTroops,
+        initialStrength: force.initialStrength,
       })),
     ),
   );
 
-  console.log("[API] /campaign-map/player troop rows", troopRows.length);
-  console.table(troopRows);
+  console.log("[API] /campaign-map/player force rows", forceRows.length);
+  console.table(forceRows);
 }
 
 export async function postPlayerCampaignMap(req: LoadPlayerCampaignMapRequest): Promise<CampaignMapTilesResponse> {
@@ -217,7 +217,7 @@ export async function postPlayerCampaignMap(req: LoadPlayerCampaignMapRequest): 
   );
 
   const normalizedResponse = normalizeResponse(data);
-  logTroopTable(normalizedResponse);
+  logForceTable(normalizedResponse);
 
   // Normalize to the flat tile list the rest of the UI expects.
   const tilesFromObservers = normalizedResponse.observers.flatMap((observer) => observer.seenTiles ?? []);

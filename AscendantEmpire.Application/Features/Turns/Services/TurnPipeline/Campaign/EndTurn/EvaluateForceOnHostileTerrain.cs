@@ -1,6 +1,6 @@
 ﻿namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndTurn;
 
-internal class EvaluateTroopOnHostileTerrain : IEndCampaignTurnProcess
+internal class EvaluateForceOnHostileTerrain : IEndCampaignTurnProcess
 {
     public string ItemName => "Evaluate Troop on Hostile Terrain";
     public int ExecutionOrder => 100;

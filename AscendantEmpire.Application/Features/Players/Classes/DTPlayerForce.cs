@@ -2,7 +2,7 @@
 
 namespace AscendantEmpire.Application.Features.Players.Classes;
 
-public class DTPlayerTroop : IPlayerTroop
+public class DTPlayerForce : IPlayerForce
 {
     public int CampaignMapTileId { get; set; }
 

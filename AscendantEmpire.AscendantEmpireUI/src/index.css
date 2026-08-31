@@ -98,7 +98,7 @@ body {
   background: #facc15;
 }
 
-.observed-troop {
+.observed-force {
   position: absolute;
   inset: 8%;
   display: flex;
@@ -110,11 +110,11 @@ body {
   z-index: 2;
 }
 
-.observed-troop--selected {
+.observed-force--selected {
   filter: drop-shadow(0 0 2px rgba(250, 204, 21, 0.95));
 }
 
-.observed-troop__health-bar {
+.observed-force__health-bar {
   display: flex;
   width: 72%;
   height: 5px;
@@ -124,24 +124,24 @@ body {
   flex: 0 0 auto;
 }
 
-.observed-troop__health-fill {
+.observed-force__health-fill {
   height: 100%;
   flex: 0 0 auto;
 }
 
-.observed-troop__health-fill--healthy {
+.observed-force__health-fill--healthy {
   background: #22c55e;
 }
 
-.observed-troop__health-fill--injured {
+.observed-force__health-fill--injured {
   background: #facc15;
 }
 
-.observed-troop__health-fill--dead {
+.observed-force__health-fill--dead {
   background: #9ca3af;
 }
 
-.observed-troop__body {
+.observed-force__body {
   position: relative;
   display: flex;
   align-items: flex-end;
@@ -152,42 +152,42 @@ body {
   min-height: 0;
 }
 
-.observed-troop__selection-corner {
+.observed-force__selection-corner {
   position: absolute;
   width: 8px;
   height: 8px;
   pointer-events: none;
 }
 
-.observed-troop__selection-corner--top-left {
+.observed-force__selection-corner--top-left {
   top: -1px;
   left: -1px;
   border-top: 1px solid rgba(250, 204, 21, 0.95);
   border-left: 1px solid rgba(250, 204, 21, 0.95);
 }
 
-.observed-troop__selection-corner--top-right {
+.observed-force__selection-corner--top-right {
   top: -1px;
   right: -1px;
   border-top: 1px solid rgba(250, 204, 21, 0.95);
   border-right: 1px solid rgba(250, 204, 21, 0.95);
 }
 
-.observed-troop__selection-corner--bottom-left {
+.observed-force__selection-corner--bottom-left {
   bottom: -1px;
   left: -1px;
   border-bottom: 1px solid rgba(250, 204, 21, 0.95);
   border-left: 1px solid rgba(250, 204, 21, 0.95);
 }
 
-.observed-troop__selection-corner--bottom-right {
+.observed-force__selection-corner--bottom-right {
   right: -1px;
   bottom: -1px;
   border-right: 1px solid rgba(250, 204, 21, 0.95);
   border-bottom: 1px solid rgba(250, 204, 21, 0.95);
 }
 
-.observed-troop__marker-column {
+.observed-force__marker-column {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -196,7 +196,7 @@ body {
   flex: 0 0 auto;
 }
 
-.observed-troop__marker {
+.observed-force__marker {
   width: 4px;
   height: 4px;
   background: #facc15;
@@ -204,7 +204,7 @@ body {
   box-sizing: border-box;
 }
 
-.observed-troop__image {
+.observed-force__image {
   display: block;
   width: 80%;
   height: 100%;
@@ -253,8 +253,8 @@ body {
   border-color: rgba(234, 179, 8, 0.65);
 }
 
-/* An action the troop could take but currently can't. It keeps its slot in the toolbar so the buttons don't
-   shuffle about as a troop moves or takes losses — only its appearance changes.
+/* An action the force could take but currently can't. It keeps its slot in the toolbar so the buttons don't
+   shuffle about as a force moves or takes losses — only its appearance changes.
    pointer-events: none matters here. Browsers don't dispatch mouse events over a disabled button, which would
    also rob the Tooltip's wrapping span of the mouseenter it needs; making the button transparent to hit-testing
    lets that span receive the hover instead, so the reason the action is unavailable still shows. The wrapper

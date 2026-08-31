@@ -16,17 +16,17 @@ function getTileKey(x: number, y: number): string {
  * Returns the force with the highest number of healthy troops (the default
  * display-on-tile), or null if the array is empty.
  */
-function getTroopWithMaxHealthy(forces: ObservedForceTile[]): ObservedForceTile | null {
+function getForceWithMaxHealthy(forces: ObservedForceTile[]): ObservedForceTile | null {
   if (forces.length === 0) return null;
 
-  let strongestTroop = forces[0];
-  for (const troop of forces.slice(1)) {
-    if (troop.healthyTroops > strongestTroop.healthyTroops) {
-      strongestTroop = troop;
+  let strongestForce = forces[0];
+  for (const force of forces.slice(1)) {
+    if (force.healthyTroops > strongestForce.healthyTroops) {
+      strongestForce = force;
     }
   }
 
-  return strongestTroop;
+  return strongestForce;
 }
 
 interface UseForceSelectionOptions {
@@ -36,13 +36,13 @@ interface UseForceSelectionOptions {
 }
 
 /**
- * Owns the player's force (troop) selection: which force is selected, which troop is
- * shown per tile, and the multi-troop selection dialog. Also derives the context-action
+ * Owns the player's force (force) selection: which force is selected, which force is
+ * shown per tile, and the multi-force selection dialog. Also derives the context-action
  * toolbar actions for the selected force.
  */
 export function useForceSelection({ gameId, playerId, openToast }: UseForceSelectionOptions) {
   const [selectedForce, setSelectedForce] = useState<ObservedForceTile | null>(null);
-  const [visibleTroopIdsByTile, setVisibleTroopIdsByTile] = useState<Record<string, number>>({});
+  const [visibleForceIdsByTile, setVisibleForceIdsByTile] = useState<Record<string, number>>({});
   const [pendingForceSelectionTile, setPendingForceSelectionTile] = useState<ForceSelectionDialogTile | null>(null);
   const [forceSelectionTile, setForceSelectionTile] = useState<ForceSelectionDialogTile | null>(null);
 
@@ -50,29 +50,29 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
   useEffect(() => {
     if (gameId == null) {
       setSelectedForce(null);
-      setVisibleTroopIdsByTile({});
+      setVisibleForceIdsByTile({});
       setPendingForceSelectionTile(null);
       setForceSelectionTile(null);
     }
   }, [gameId]);
 
-  const getVisibleTroopForTile = useCallback(
+  const getVisibleForceForTile = useCallback(
     (tile: TileCell, options?: { forces?: ObservedForceTile[] }) => {
       const forces = options?.forces ?? tile.forces ?? [];
       if (forces.length === 0) return null;
 
-      const visibleTroopId = visibleTroopIdsByTile[getTileKey(tile.x, tile.y)];
-      if (visibleTroopId != null) {
-        const visibleTroop = forces.find((troop) => troop.id === visibleTroopId);
-        if (visibleTroop) return visibleTroop;
+      const visibleForceId = visibleForceIdsByTile[getTileKey(tile.x, tile.y)];
+      if (visibleForceId != null) {
+        const visibleForce = forces.find((force) => force.id === visibleForceId);
+        if (visibleForce) return visibleForce;
       }
 
-      return getTroopWithMaxHealthy(forces);
+      return getForceWithMaxHealthy(forces);
     },
-    [visibleTroopIdsByTile],
+    [visibleForceIdsByTile],
   );
 
-  const getVisibleTroopId = useCallback((tile: TileCell) => getVisibleTroopForTile(tile)?.id, [getVisibleTroopForTile]);
+  const getVisibleForceId = useCallback((tile: TileCell) => getVisibleForceForTile(tile)?.id, [getVisibleForceForTile]);
 
   const closeForceSelectionDialog = useCallback(() => {
     setForceSelectionTile(null);
@@ -84,12 +84,12 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
   }, [pendingForceSelectionTile]);
 
   const chooseForce = useCallback(
-    (troop: ObservedForceTile) => {
-      setSelectedForce(troop);
+    (force: ObservedForceTile) => {
+      setSelectedForce(force);
       if (forceSelectionTile) {
-        setVisibleTroopIdsByTile((current) => ({
+        setVisibleForceIdsByTile((current) => ({
           ...current,
-          [getTileKey(forceSelectionTile.x, forceSelectionTile.y)]: troop.id,
+          [getTileKey(forceSelectionTile.x, forceSelectionTile.y)]: force.id,
         }));
         setPendingForceSelectionTile(forceSelectionTile);
       }
@@ -98,7 +98,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
     [forceSelectionTile],
   );
 
-  // Press "t" to (re)open the multi-troop selection dialog for the pending tile.
+  // Press "t" to (re)open the multi-force selection dialog for the pending tile.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key.toLowerCase() !== "t") return;
@@ -121,12 +121,12 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
   const moveTo = useCallback(
     (tile: TileCell) => {
       if (!selectedForce) return;
-      openToast(`Move troop #${selectedForce.id} to [${tile.x}, ${tile.y}]`, "info");
+      openToast(`Move force #${selectedForce.id} to [${tile.x}, ${tile.y}]`, "info");
     },
     [openToast, selectedForce],
   );
 
-  // The backend decides which actions apply to the selected troop and whether each can be taken right now.
+  // The backend decides which actions apply to the selected force and whether each can be taken right now.
   const { data: forceContextActions } = useForceContextActionsQuery(selectedForce?.id);
 
   /**
@@ -135,7 +135,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
    * The backend deliberately doesn't know what a button *does* — only whether it's allowed — so the mapping from
    * action type to interaction lives here.
    */
-  const runTroopAction = useCallback(
+  const runForceAction = useCallback(
     (actionType: ForceActionType) => {
       if (!selectedForce) return;
 
@@ -143,8 +143,8 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
         case "SplitForce":
           // TODO: Splitting needs parameters (how many ways, and how big each part is), so this opens a dialog
           // rather than posting directly. The dialog and its execute endpoint are the next slice of this work —
-          // see docs/design/units/troop-context-action-toolbar.md, stage 5.
-          openToast(`Split troop #${selectedForce.id} — the split dialog isn't built yet.`, "info");
+          // see docs/design/units/force-context-action-toolbar.md, stage 5.
+          openToast(`Split force #${selectedForce.id} — the split dialog isn't built yet.`, "info");
           break;
       }
     },
@@ -154,36 +154,36 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
   const onTileHold = useCallback(
     (tile: TileCell) => {
       if (!selectedForce) return;
-      if ((tile.forces ?? []).some((troop) => troop.id === selectedForce.id)) return;
+      if ((tile.forces ?? []).some((force) => force.id === selectedForce.id)) return;
       moveTo(tile);
     },
     [moveTo, selectedForce],
   );
 
-  /** Selects the player's force on a clicked tile (single troop, multi-troop, or none). */
+  /** Selects the player's force on a clicked tile (single force, multi-force, or none). */
   const selectForceFromTile = useCallback(
     (t: TileCell) => {
       if (playerId == null) return;
 
-      const ownedTroops = (t.forces ?? []).filter((troop) => troop.ownerPlayerId === playerId);
+      const ownedForces = (t.forces ?? []).filter((force) => force.ownerPlayerId === playerId);
 
-      if (ownedTroops.length === 1) {
-        setSelectedForce(ownedTroops[0]);
-        setVisibleTroopIdsByTile((current) => ({
+      if (ownedForces.length === 1) {
+        setSelectedForce(ownedForces[0]);
+        setVisibleForceIdsByTile((current) => ({
           ...current,
-          [getTileKey(t.x, t.y)]: ownedTroops[0].id,
+          [getTileKey(t.x, t.y)]: ownedForces[0].id,
         }));
         setPendingForceSelectionTile(null);
         setForceSelectionTile(null);
-      } else if (ownedTroops.length > 1) {
-        const displayedOwnedTroop = getVisibleTroopForTile(t, { forces: ownedTroops }) ?? ownedTroops[0];
+      } else if (ownedForces.length > 1) {
+        const displayedOwnedForce = getVisibleForceForTile(t, { forces: ownedForces }) ?? ownedForces[0];
 
-        setSelectedForce(displayedOwnedTroop);
-        setVisibleTroopIdsByTile((current) => ({
+        setSelectedForce(displayedOwnedForce);
+        setVisibleForceIdsByTile((current) => ({
           ...current,
-          [getTileKey(t.x, t.y)]: displayedOwnedTroop.id,
+          [getTileKey(t.x, t.y)]: displayedOwnedForce.id,
         }));
-        setPendingForceSelectionTile({ x: t.x, y: t.y, forces: ownedTroops });
+        setPendingForceSelectionTile({ x: t.x, y: t.y, forces: ownedForces });
         setForceSelectionTile(null);
       } else {
         setSelectedForce(null);
@@ -191,7 +191,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
         setForceSelectionTile(null);
       }
     },
-    [playerId, getVisibleTroopForTile],
+    [playerId, getVisibleForceForTile],
   );
 
   const contextActionToolbarActions = useMemo<ContextActionToolbarAction[]>(() => {
@@ -207,7 +207,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
         key: "select-force",
         label: "Select Force",
         icon: <FaChessKnight />,
-        displayOrder: FRONTEND_ONLY_ACTION_ORDER.selectTroop,
+        displayOrder: FRONTEND_ONLY_ACTION_ORDER.selectForce,
         isEnabled: true,
         disabledReasons: [],
         onClick: openForceSelectionDialog,
@@ -224,17 +224,17 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
         displayOrder: action.displayOrder,
         isEnabled: action.isEnabled,
         disabledReasons: action.disabledReasons,
-        onClick: () => runTroopAction(action.actionType),
+        onClick: () => runForceAction(action.actionType),
       });
     }
 
     return actions;
-  }, [openForceSelectionDialog, pendingForceSelectionTile, runTroopAction, selectedForce, forceContextActions]);
+  }, [openForceSelectionDialog, pendingForceSelectionTile, runForceAction, selectedForce, forceContextActions]);
 
   return {
     selectedForce,
     forceSelectionTile,
-    getVisibleTroopId,
+    getVisibleForceId,
     closeForceSelectionDialog,
     chooseForce,
     onTileHold,

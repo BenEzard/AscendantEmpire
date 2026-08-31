@@ -1,8 +1,8 @@
 ﻿using AscendantEmpire.Domain.Enums;
 
-namespace AscendantEmpire.BackendContracts.Units.GetPlayerTroops;
+namespace AscendantEmpire.BackendContracts.Units.GetPlayerForces;
 
-public class PlayerTroop
+public class PlayerForce
 {
     public int UnitInstanceId { get; set; }
     public RecordType RecordType { get; set; }

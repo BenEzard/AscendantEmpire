@@ -3,7 +3,7 @@ import { BattleStats } from "./BattleStats";
 import { UpkeepStats } from "./UpkeepStats";
 import { TrainingCostStats } from "./TrainingCostStats";
 import { rawToScaled } from "./types/UnitComponent";
-import { resolveTroopMapImageSrc } from "@/features/map/util/troopDisplayImageResolver";
+import { resolveUnitMapImageSrc } from "@/features/map/util/unitDisplayImageResolver";
 import Tooltip from "@/components/ui/Tooltip";
 import { formatToOneDecimal } from "@/util/number";
 
@@ -53,7 +53,7 @@ function SummaryRow({ label, raw, tooltip }: { label: string; raw: number; toolt
  */
 function MapImageCard({ mapImagePath, onChange }: { mapImagePath: string; onChange: (next: string) => void }) {
   const trimmedPath = mapImagePath.trim();
-  const resolvedSrc = trimmedPath === "" ? undefined : resolveTroopMapImageSrc(trimmedPath);
+  const resolvedSrc = trimmedPath === "" ? undefined : resolveUnitMapImageSrc(trimmedPath);
 
   return (
     <div className="-mx-2 space-y-1 rounded-md border border-white/10 bg-sky-900/30 px-3 py-2">

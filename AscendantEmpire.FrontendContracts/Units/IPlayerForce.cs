@@ -1,6 +1,6 @@
 ﻿namespace AscendantEmpire.FrontendContracts.Units;
 
-public interface IPlayerTroop
+public interface IPlayerForce
 {
     int CampaignMapTileId { get; }
     int? BattleMapTileId { get; }

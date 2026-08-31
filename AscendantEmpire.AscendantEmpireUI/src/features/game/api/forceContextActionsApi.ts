@@ -1,4 +1,4 @@
-// API service for the context action toolbar: what a selected troop can do right now.
+// API service for the context action toolbar: what a selected force can do right now.
 //
 // The backend owns the decision — which actions apply, whether each can be taken, and the reasons it can't.
 // The frontend owns the presentation (icon, label, and what interaction the button starts); see
@@ -12,7 +12,7 @@ import { http } from "@/api/http";
  */
 export type ForceActionType = "SplitForce";
 
-/** One action offered for the selected troop (mirrors IForceContextAction). */
+/** One action offered for the selected force (mirrors IForceContextAction). */
 export interface ForceContextAction {
   actionType: ForceActionType;
   /** The backend's label. Used only as a fallback when the frontend registry doesn't know this action type. */
@@ -21,14 +21,14 @@ export interface ForceContextAction {
   displayOrder: number;
   isEnabled: boolean;
   /**
-   * Every reason the action is currently unavailable — empty when enabled. Actions the troop could *never*
+   * Every reason the action is currently unavailable — empty when enabled. Actions the force could *never*
    * take are absent from the response entirely, so anything here is worth showing even when disabled.
    */
   disabledReasons: string[];
 }
 
 /**
- * Get the context actions available to one troop, already in display order.
+ * Get the context actions available to one force, already in display order.
  *
  * The response is a rendering hint, never an authorisation: the backend re-checks the very same rules when
  * the action is actually executed.

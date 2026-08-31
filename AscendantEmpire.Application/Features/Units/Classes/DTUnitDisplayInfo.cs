@@ -1,8 +1,8 @@
-﻿using AscendantEmpire.FrontendContracts.Units.GetTroopDisplayInfo;
+﻿using AscendantEmpire.FrontendContracts.Units.GetUnitDisplayInfo;
 
 namespace AscendantEmpire.Application.Features.Units.Classes;
 
-public class DTTroopDisplayInfo : ITroopDisplayInfo
+public class DTUnitDisplayInfo : IUnitDisplayInfo
 {
     public int UnitTemplateId { get; set; }
 

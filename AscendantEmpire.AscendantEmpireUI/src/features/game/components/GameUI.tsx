@@ -6,7 +6,7 @@ import type { CampaignMapTileDto } from "@/features/map/api/playerCampaignMapApi
 import type { TileCell } from "@/features/map/components/TileTypes";
 import { useCampaignMapBiomesQuery } from "@/features/map/hooks/useCampaignMapBiomes";
 import { useCampaignMapGeographiesQuery } from "@/features/map/hooks/useCampaignMapGeographies";
-import { useTroopDisplayInfoQuery } from "@/features/map/hooks/useTroopDisplayInfo";
+import { useUnitDisplayInfoQuery } from "@/features/map/hooks/useUnitDisplayInfo";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Spinner } from "@/components/ui";
 import UnitDesigner from "@/features/unitdesign/UnitDesigner";
@@ -94,7 +94,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     sendVisionRequest,
   } = useVisionTool({ gameId, playerId, openToast });
 
-  const { selectedForce, forceSelectionTile, getVisibleTroopId, closeForceSelectionDialog, chooseForce, onTileHold, selectForceFromTile, contextActionToolbarActions } =
+  const { selectedForce, forceSelectionTile, getVisibleForceId, closeForceSelectionDialog, chooseForce, onTileHold, selectForceFromTile, contextActionToolbarActions } =
     useForceSelection({ gameId, playerId, openToast });
 
   const construction = useConstructionPanel();
@@ -112,7 +112,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     isLoading: tilesLoading,
     isFetching: tilesFetching,
   } = usePlayerCampaignMapTilesQuery(gameId, playerId, tilesEnabled);
-  const { data: troopImageSrcByUnitTemplateId } = useTroopDisplayInfoQuery(gameId, gameId != null);
+  const { data: unitImageSrcByUnitTemplateId } = useUnitDisplayInfoQuery(gameId, gameId != null);
 
   const tiles2d = useMemo(() => {
     if (!gameSelection || !tilesResponse) return null;
@@ -293,8 +293,8 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
         <ForceSelectionDialog
           open={forceSelectionTile != null}
           tile={forceSelectionTile}
-          selectedTroopId={selectedForce?.id}
-          troopImageSrcByUnitTemplateId={troopImageSrcByUnitTemplateId}
+          selectedForceId={selectedForce?.id}
+          unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
           onClose={closeForceSelectionDialog}
           onSelect={chooseForce}
         />
@@ -350,9 +350,9 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
                       tiles2d={tiles2d}
                       geographies={geographiesList}
                       containerRef={tileGridContainerRef}
-                      selectedTroopId={selectedForce?.id}
-                      troopImageSrcByUnitTemplateId={troopImageSrcByUnitTemplateId}
-                      getVisibleTroopId={getVisibleTroopId}
+                      selectedForceId={selectedForce?.id}
+                      unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
+                      getVisibleForceId={getVisibleForceId}
                       onTileClick={onTileClick}
                       onTileHold={onTileHold}
                       getTileStyle={getTileStyle}

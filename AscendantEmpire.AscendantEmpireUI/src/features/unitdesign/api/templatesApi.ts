@@ -115,12 +115,12 @@ export async function recompileAllTemplates(): Promise<RecompileAllUnitTemplates
 export interface TemplateNameConflict {
   /**
    * True when re-sending the same save with `overwriteExisting` would succeed, so the caller should offer a confirmation. False means only a different
-   * name resolves it — a player using a standard design's name, or one of their own that already has troops in the field.
+   * name resolves it — a player using a standard design's name, or one of their own that already has units in the field.
    */
   canOverwrite: boolean;
   /** The existing design's stored name, so the confirmation names it as it is actually spelled. */
   existingDisplayName: string;
-  /** How many troops are currently fielded from the existing design. */
+  /** How many units are currently fielded from the existing design. */
   instanceCount: number;
 }
 

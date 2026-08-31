@@ -11,9 +11,9 @@ export interface TileProps {
   tile: TileCell;
   sizePx: number;
   geography: Geography;
-  selectedTroopId?: number;
-  visibleTroopId?: number;
-  troopImageSrcByUnitTemplateId?: ReadonlyMap<number, string>;
+  selectedForceId?: number;
+  visibleForceId?: number;
+  unitImageSrcByUnitTemplateId?: ReadonlyMap<number, string>;
   onClick?: (tile: TileCell) => void;
   onHold?: (tile: TileCell) => void;
   className?: string;
@@ -30,9 +30,9 @@ const Tile = React.memo(function Tile({
   tile,
   sizePx,
   geography,
-  selectedTroopId,
-  visibleTroopId,
-  troopImageSrcByUnitTemplateId,
+  selectedForceId,
+  visibleForceId,
+  unitImageSrcByUnitTemplateId,
   onClick,
   onHold,
   className,
@@ -70,8 +70,8 @@ const Tile = React.memo(function Tile({
   const iconKey = geography?.mapEditorIcon ?? null;
   const Icon = iconKey ? iconMap[iconKey] : undefined;
   const visibleStructure = tile.structures?.find((structure) => structure.structureId === 1) ?? null;
-  const visibleTroop = tile.forces?.find((troop) => troop.id === visibleTroopId) ?? tile.forces?.[0] ?? null;
-  const visibleTroopCount = tile.forces?.length ?? 0;
+  const visibleForce = tile.forces?.find((force) => force.id === visibleForceId) ?? tile.forces?.[0] ?? null;
+  const visibleForceCount = tile.forces?.length ?? 0;
 
   const style = { ...baseStyle, ...(getStyle?.(tile) ?? {}) };
   const combinedClassName = ["tile", className].filter(Boolean).join(" ");
@@ -120,12 +120,12 @@ const Tile = React.memo(function Tile({
       style={style}>
       {Icon ? <Icon className="tile-icon-fill" aria-hidden style={{ color: iconColor }} /> : null}
       {visibleStructure ? <ObservedStructure structure={visibleStructure} /> : null}
-      {visibleTroop ? (
+      {visibleForce ? (
         <ObservedForce
-          troop={visibleTroop}
-          unitInstanceCount={visibleTroopCount}
-          isSelected={visibleTroop.id === selectedTroopId}
-          troopImageSrcByUnitTemplateId={troopImageSrcByUnitTemplateId}
+          force={visibleForce}
+          unitInstanceCount={visibleForceCount}
+          isSelected={visibleForce.id === selectedForceId}
+          unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
         />
       ) : null}
     </div>

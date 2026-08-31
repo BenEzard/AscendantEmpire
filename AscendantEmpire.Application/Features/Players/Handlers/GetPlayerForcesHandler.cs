@@ -1,7 +1,7 @@
 ﻿using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
-using AscendantEmpire.BackendContracts.Units.GetPlayerTroops;
+using AscendantEmpire.BackendContracts.Units.GetPlayerForces;
 using AscendantEmpire.Domain.Enums;
 
 using FluentValidation;
@@ -15,14 +15,14 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 namespace AscendantEmpire.Application.Features.Players.Handlers;
 
-public record GetPlayerTroopsRequest(
+public record GetPlayerForcesRequest(
     int GameId,
     int PlayerId
-) : IRequest<ServiceResult<IReadOnlyCollection<PlayerTroop>>>;
+) : IRequest<ServiceResult<IReadOnlyCollection<PlayerForce>>>;
 
-internal class GetPlayerTroopsRequestValidator : AbstractValidator<GetPlayerTroopsRequest>
+internal class GetPlayerForcesRequestValidator : AbstractValidator<GetPlayerForcesRequest>
 {
-    public GetPlayerTroopsRequestValidator()
+    public GetPlayerForcesRequestValidator()
     {
         RuleFor(x => x.GameId)
             .GreaterThan(0).WithMessage("Game Id is required.");
@@ -32,24 +32,24 @@ internal class GetPlayerTroopsRequestValidator : AbstractValidator<GetPlayerTroo
     }
 }
 
-internal class GetPlayerTroopsHandler(
-    ILogger<GetPlayerTroopsHandler> logger,
+internal class GetPlayerForcesHandler(
+    ILogger<GetPlayerForcesHandler> logger,
     IMediator mediator,
     IDbContextFactory<AscendantEmpireContext> dbFactory
-) : IRequestHandler<GetPlayerTroopsRequest, ServiceResult<IReadOnlyCollection<PlayerTroop>>>
+) : IRequestHandler<GetPlayerForcesRequest, ServiceResult<IReadOnlyCollection<PlayerForce>>>
 {
-    public async Task<ServiceResult<IReadOnlyCollection<PlayerTroop>>> Handle(GetPlayerTroopsRequest request, CancellationToken cancelToken)
+    public async Task<ServiceResult<IReadOnlyCollection<PlayerForce>>> Handle(GetPlayerForcesRequest request, CancellationToken cancelToken)
     {
         try
         {
             // Validate the request object
-            var validator = new GetPlayerTroopsRequestValidator();
+            var validator = new GetPlayerForcesRequestValidator();
             if (validator.Validate(request) is not { IsValid: true })
             {
                 var errors = validator.Validate(request).Errors.Select(e => e.ErrorMessage);
-                string error = $"Validation failed for {nameof(GetPlayerTroopsHandler)}.";
+                string error = $"Validation failed for {nameof(GetPlayerForcesHandler)}.";
                 logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
-                return ServiceResult<IReadOnlyCollection<PlayerTroop>>.Fail(errors.Prepend(error));
+                return ServiceResult<IReadOnlyCollection<PlayerForce>>.Fail(errors.Prepend(error));
             }
 
             ServiceResult<IReadOnlyCollection<OpenGame>> openGameResult = await mediator.Send(new GetOpenGamesRequest(request.GameId, request.PlayerId), cancelToken);
@@ -58,7 +58,7 @@ internal class GetPlayerTroopsHandler(
             {
                 string error = $"No open game found for Game Id: {request.GameId} and Player Id: {request.PlayerId}.";
                 logger.LogWarning("No open game found for Game Id: {gameId} and Player Id: {playerId}.", request.GameId, request.PlayerId);
-                return ServiceResult<IReadOnlyCollection<PlayerTroop>>.NotFound(error);
+                return ServiceResult<IReadOnlyCollection<PlayerForce>>.NotFound(error);
             }
 
             int gameId = openGames.First().GameId;
@@ -66,9 +66,9 @@ internal class GetPlayerTroopsHandler(
 
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            List<PlayerTroop> playerUnits = await context.UnitInstances
+            List<PlayerForce> playerUnits = await context.UnitInstances
                 .Where(pu => pu.GameId == gameId && pu.PlayerId == playerId)
-                .Select(pu => new PlayerTroop
+                .Select(pu => new PlayerForce
                 {
                     UnitInstanceId = pu.Id,
                     RecordType = RecordType.Unit,
@@ -91,12 +91,12 @@ internal class GetPlayerTroopsHandler(
                 })
                 .ToListAsync(cancelToken);
 
-            return ServiceResult<IReadOnlyCollection<PlayerTroop>>.Succeed(playerUnits);
+            return ServiceResult<IReadOnlyCollection<PlayerForce>>.Succeed(playerUnits);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "An error occurred while processing GetPlayerUnitsRequest.");
-            return ServiceResult<IReadOnlyCollection<PlayerTroop>>.Fail("An unexpected error occurred while retrieving player units.");
+            return ServiceResult<IReadOnlyCollection<PlayerForce>>.Fail("An unexpected error occurred while retrieving player units.");
         }
     }
 }
