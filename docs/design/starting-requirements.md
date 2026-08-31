@@ -142,7 +142,7 @@ old stats.
 
 ### The map image gotcha
 
-A troop with an unresolvable map image is **not drawn on the campaign map at all** — no placeholder, no
+A Unit with an unresolvable map image is **not drawn on the campaign map at all** — no placeholder, no
 marker. The Unit Designer takes a global template's map image from the **base body's designer image**, and
 the map resolves it only against the frontend's bundled `src/assets/units/*` files.
 

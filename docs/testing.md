@@ -66,7 +66,7 @@ several fixture remarks used to claim. The same spike confirmed that `UnitCompon
 extension picking up the principal's generated key.
 
 **Projecting only scalars off an entity that owns a complex type is *not* a tier-3 trigger either.**
-Measured while building `TroopActionContextBuilder` (TM-2): a query that navigates through
+Measured while building `ForceActionContextBuilder` (TM-2): a query that navigates through
 `CompiledUnitTemplate` and selects only plain columns from it — `CampaignMovementPoints`,
 `DisplayName`, and a nested projection of its `OrganisationTag` — runs fine on the in-memory provider,
 because it never pulls `Attack` or `Resistance` into the shape. The rule above still stands as
@@ -129,7 +129,7 @@ A test states in prose what it is proving, as an NUnit `Description`. Combine it
 attribute list rather than stacking two:
 
 ```csharp
-[Test, Description("A commissioned troop is not offered the unled split action at all, because no amount "
+[Test, Description("A commissioned Force is not offered the unled split action at all, because no amount "
     + "of reinforcing or resting could ever make it apply.")]
 public void ShouldHideTheActionWhenTheOrganisationIsCommissioned()
 ```

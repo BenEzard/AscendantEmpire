@@ -146,7 +146,7 @@ At the end of each round, each foodstuff is replenished:
 - **Scorched earth** sets all resource quantities on the tile to `0`. The unit on the tile is fed
   for that turn, but the extra resources are *not* added to the unit's supply.
 
-**Consumption per unit (within a formation):** if `[Food Required] > 0`,
+**Consumption per Unit (within a Force):** if `[Food Required] > 0`,
 `Σ([Number of individuals] × [Food requirements of Unit Base])`.
 
 ### End-of-turn calculation
@@ -227,14 +227,14 @@ Many resources are not automatically visible and must be **discovered**.
 
 ## Vision on the campaign map
 
-What a Formation or Building can see is determined by both **Sight** and **Detection**.
+What a Force or Building can see is determined by both **Sight** and **Detection**.
 
 ### Sight
 
 Sight is the ability to see the *geography of the land, buildings, and certain resources* from a
 distance. It is determined by:
 
-- the maximum Sight value of the base components in the Formation, or any Buildings on the same
+- the maximum Sight value of the base components in the Force, or any Buildings on the same
   tile;
 - the presence of specialists with a `SIGHT_PERK`;
 - the geography type of the occupied and surrounding tiles;
@@ -297,9 +297,9 @@ gives a radius of 2.
 
 Detection is a unit's ability to see **enemy units** on the campaign map. It is determined by:
 
-1. the Detection value of each unit in the Formation;
+1. the Detection value of each Unit in the Force;
 2. the size of the unit (more men = more eyes = greater detection);
-3. modifiers from any specialists in the Formation;
+3. modifiers from any Specialists in the Force;
 4. the **Disturbance** value of the enemy unit;
 5. terrain.
 

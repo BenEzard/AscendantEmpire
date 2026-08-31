@@ -3,7 +3,7 @@
 Battlefield maps are the tactical maps where battles play out. Most combat happens here — the
 exceptions (artillery bombardments, plane sorties, ICBMs) occur on the [campaign map](campaign-map.md).
 
-> In this document, **Unit** is used synonymously with **Formation**.
+> In this document, **Unit** means one fielded body of soldiers - the thing that is placed, moved and fought with on the battle map. Where several Units act under one commander, that is a **Command**; **Force** covers either. See [Terminology.md](../../Terminology.md).
 
 ## Triggering a battle
 
@@ -90,7 +90,7 @@ Some fortifications are **passive** (e.g. fence, tank trap) and block movement. 
 **active** and fire on the enemy — active fortifications get **1 turn per round** if visible enemy
 units are within range.
 
-> Open question: should active fortifications fire blindly? Defending formations with high enough
+> Open question: should active fortifications fire blindly? Defending Forces with high enough
 > **Discipline** can target specific enemies; lower-ranked soldiers fire at a random enemy in range.
 
 | Function | Sub-function | Examples | Notes |

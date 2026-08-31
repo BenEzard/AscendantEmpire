@@ -69,8 +69,8 @@ Implements the [Leadership model](military-organisation.md#leadership-model) add
 - A template's org tag is **derived from its components** at compile time (a non-body component's
   org tag beats the body's; two non-body org tags fail compilation) and snapshotted onto
   `CompiledUnitTemplate.OrganisationTagId`.
-- `TroopInstance` now references `UnitTemplateId` (the canonical template model) instead of the
-  legacy `UnitDesignId`; troop display and movement reads come from the compiled snapshot.
+- `UnitInstance` now references `UnitTemplateId` (the canonical template model) instead of the
+  legacy `UnitDesignId`; unit display and movement reads come from the compiled snapshot.
 - Spawn validates unled sizing (`n × Base`, `≤ Max`); `GameSetupService` unlocks the starter templates
   (`SETTLER`, `SCOUT`) and auto-spawns a settler (`UnledDefaultSize`) and scout (1) per player at their
   start position.
@@ -107,19 +107,19 @@ catalogue authored once can be moved to another database (see the note under Out
 Code matching is case-insensitive, so the lower-cased code the Unit Designer derives from a display name
 (`settler`) satisfies the `SETTLER` requirement.
 
-Carried debts from the `TroopInstance` FK swap (`UnitDesignId` → `UnitTemplateId`):
+Carried debts from the `UnitInstance` FK swap (`UnitDesignId` → `UnitTemplateId`):
 
-- **Movement modifiers are lost for template troops.** The legacy `CompiledDesignStats.ModifiersJson` has
+- **Movement modifiers are lost for template-built Units.** The legacy `CompiledDesignStats.ModifiersJson` has
   no compiled-template equivalent, so `MovementProfileFactory` currently builds an empty modifier list —
-  template troops move un-modified. The parsing is left wired so the JSON drops straight back in once it is
+  template-built Units move un-modified. The parsing is left wired so the JSON drops straight back in once it is
   compiled onto `CompiledUnitTemplate`.
-- **Sight range is derived, not compiled.** The troop read paths compute sight range from the snapshot's
+- **Sight range is derived, not compiled.** The Unit read paths compute sight range from the snapshot's
   aggregated `TotalDetection` (÷1,000) as a stand-in for the legacy `CompiledDesignStats.SightRange`.
 - **The Hunt action is disabled in the UI.** It was gated on legacy unit design id 2; re-enable it via a
   compiled capability tag once capability grants exist (`tags-and-modifiers.md`, concept 3).
 - **`UnitDesign` still exists** and is still referenced by `PlayerUnitDesignState` and `CompiledDesignStats`.
-  Only `TroopInstance` moved off it; retiring the entity is a separate cleanup.
-- **Migration `UD-30` deletes all existing `TroopInstance` rows** (and their orders/participants/movement
+  Only `UnitInstance` moved off it; retiring the entity is a separate cleanup.
+- **Migration `UD-30` deletes all existing `UnitInstance` rows** (and their orders/participants/movement
   steps) — the ids it carried were design ids with no meaning as template ids. Dev-only data, but the
   deletion is deliberate and irreversible.
 

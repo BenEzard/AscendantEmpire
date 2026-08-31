@@ -1,19 +1,19 @@
-# Troop Context Action Toolbar
+# Force Context Action Toolbar
 
-When a troop is selected on the campaign map, the toolbar shows the actions appropriate to that troop
+When a Force is selected on the campaign map, the toolbar shows the actions appropriate to that Force
 **in its current context**. The backend decides what is possible and why; the frontend decides how it
 looks and what interaction follows.
 
 This is the design for the toolbar as a whole. It is expected to accumulate many action types over
-time; **TM-2** is the first slice, delivering the pipeline plus a single action — **Split Troops**.
+time; **TM-2** is the first slice, delivering the pipeline plus a single action — **Split Force**.
 
 ## Status
 
 | Stage | Scope | Ticket | State |
 |---|---|---|---|
-| 1 | Rescale `TroopInstance.MovementPointsRemaining` to the Scale 1,000 fixed-point convention | TM-2 | **Done** — migration applied |
-| 2 | Backend pipeline — `TroopActionType`, context, strategy interface, `SplitTroopsStrategy`, DI | TM-2 | **Done** |
-| 3 | `GET /troop-orders/troops/{id}/actions` — contracts and endpoint | TM-2 | **Done** |
+| 1 | Rescale `UnitInstance.MovementPointsRemaining` to the Scale 1,000 fixed-point convention | TM-2 | **Done** — migration applied |
+| 2 | Backend pipeline — `ForceActionType`, context, strategy interface, `SplitForceStrategy`, DI | TM-2 | **Done** |
+| 3 | `GET /force-orders/units/{id}/actions` — contracts and endpoint | TM-2 | **Done** |
 | 4 | Frontend — api module, query hook, action registry, disabled rendering, `useForceSelection` wiring | TM-2 | **Done** |
 | 5 | Executing the split — split handler, options endpoint and parameter dialog | TM-4 | Not started |
 
@@ -23,21 +23,28 @@ button that opens the split dialog currently raises a toast saying the dialog is
 
 ## Terminology
 
-Per [Terminology.md](../../Terminology.md), a **Troop** is a group of one or more Units that moves as
-one on the campaign map. That is what `TroopInstance` models, what the player selects, and what this
-toolbar acts on — so everything here is named `Troop*`, even though the originating ticket and some
-older frontend wording say "unit".
+Per [Terminology.md](../../Terminology.md), a **Force** is whatever occupies a tile and moves as one:
+either a single `Unit` (modelled by `UnitInstance`) or a `Command` of several. That is what the player
+selects and what this toolbar acts on, so everything here is named `Force*`.
+
+Force is a category rather than a type — there is no Force entity — so the pipeline works on flat
+projections carrying a `RecordType` that says which kind it holds. Today only Units are ever fielded,
+so every Force the toolbar sees is a Unit; the naming is what lets Commands arrive without a second
+pipeline beside this one.
+
+This document and its ticket were originally written when "Troop" was the word for the group. The
+vocabulary was settled under **TM-6** and the names here follow it.
 
 ## Context: what exists today
 
 **Frontend.** [`ContextActionToolbar.tsx`](../../../AscendantEmpire.AscendantEmpireUI/src/features/game/components/ContextActionToolbar.tsx)
 is a presenter over `{key, label, icon, onClick}`. Every decision lives in
 [`useForceSelection.tsx`](../../../AscendantEmpire.AscendantEmpireUI/src/features/game/hooks/useForceSelection.tsx),
-which hard-codes two actions client-side: "Select Troop" (a pure UI affordance that reopens the
-multi-troop dialog) and "Hunt", parked behind `const canHunt = false`. There is no concept of a
+which hard-codes two actions client-side: "Select Force" (a pure UI affordance that reopens the
+multi-Force dialog) and "Hunt", parked behind `const canHunt = false`. There is no concept of a
 *disabled* action — the toolbar renders exactly what it is handed.
 
-**Backend.** No troop-action concept exists yet, but one foundation is already in place:
+**Backend.** No Force-action concept exists yet, but one foundation is already in place:
 `CompiledUnitTemplate.OrganisationTagId` resolves the military organisation tag at compile time
 precisely so that "spawn and sizing rules read this single column rather than re-deriving from
 components" — which is what the split rule needs.
@@ -54,7 +61,7 @@ recognisable idiom for "ask every subsystem what is possible", with two delibera
 ### Departure 1 — strategies do not touch the database
 
 Every end-turn check opens its own `DbContext`. That is fine when the pipeline runs once per turn; it
-is wrong here, where it runs on every troop click. Instead a `TroopActionContext` is built **once**
+is wrong here, where it runs on every Force click. Instead a `ForceActionContext` is built **once**
 per request and handed to every strategy, so the strategies are pure synchronous functions.
 
 Two queries total, regardless of how many action types exist. It also puts the entire rule layer in
@@ -73,58 +80,58 @@ changes. So a strategy exposes a single `Evaluate(context)`:
 The frontend never decides legality. It renders a decision and echoes back an intent.
 
 ```
-GET  /troop-orders/troops/{id}/actions ─┐
-                                        ├─► TroopActionContextBuilder ─► ITroopActionStrategy.Evaluate()
-POST /troop-orders/split ───────────────┘          (2 queries)              (pure, synchronous)
+GET  /force-orders/units/{id}/actions ─┐
+                                        ├─► ForceActionContextBuilder ─► IForceActionStrategy.Evaluate()
+POST /force-orders/split ───────────────┘          (2 queries)              (pure, synchronous)
 ```
 
 ## Backend design
 
-New folder `Features/TroopOrders/ContextActions/`, mirroring the end-turn folder's layout.
+New folder `Features/ForceOrders/ContextActions/`, mirroring the end-turn folder's layout.
 
-### `TroopActionType` — a new enum, deliberately not `TroopOrderType`
+### `ForceActionType` — a new enum, deliberately not `ForceOrderType`
 
-`TroopOrderType` describes **orders that span multiple turns** — a persisted `TroopOrder` row with
+`ForceOrderType` describes **orders that span multiple turns** — a persisted `ForceOrder` row with
 progress, movement steps and a status the turn processor advances. A context action is something the
-player does **now**. Executing one *may* raise a `TroopOrder` (choosing "Move" would), but it need not:
+player does **now**. Executing one *may* raise a `ForceOrder` (choosing "Move" would), but it need not:
 splitting resolves immediately and consumes the turn without ever becoming a standing order.
 
 Conflating the two would force every immediate action to invent a spurious order type, and would tie
-the toolbar's vocabulary to the turn processor's. So `TroopActionType` is its own enum in
-`Domain/Enums/Troops/`, alongside `TroopOrderType`. Where a correspondence exists it is a mapping the
+the toolbar's vocabulary to the turn processor's. So `ForceActionType` is its own enum in
+`Domain/Enums/Forces/`, alongside `ForceOrderType`. Where a correspondence exists it is a mapping the
 executing handler performs, not an identity — and the numeric values are deliberately *not* aligned
 between the two enums, so no one is tempted to cast one to the other.
 
-Values are spaced in hundreds, as `TroopOrderType`'s are, and **double as the static display order**
+Values are spaced in hundreds, as `ForceOrderType`'s are, and **double as the static display order**
 the ticket requires — so ordering cannot drift with DI registration order. A low band is reserved for
-frontend-only affordances such as "Select Troop", which the backend never emits but which still need a
+frontend-only affordances such as "Select Force", which the backend never emits but which still need a
 stable slot in the same sequence:
 
 ```
 None        = 0
 // 1–999 reserved for frontend-only affordances; the backend never emits these.
-SplitTroops = 1000
+SplitForce = 1000
 ```
 
-### `ITroopActionStrategy`
+### `IForceActionStrategy`
 
 ```
-TroopActionType ActionType { get; }
-TroopActionAvailability? Evaluate(TroopActionContext context);
+ForceActionType ActionType { get; }
+ForceActionAvailability? Evaluate(ForceActionContext context);
 ```
 
-### `TroopActionContext`
+### `ForceActionContext`
 
 An immutable snapshot carrying everything any strategy needs:
 
-- the selected troop — size (healthy + injured), movement points remaining, tile, owner;
+- the selected Force — size (healthy + injured), movement points remaining, tile, owner;
 - its `CompiledUnitTemplate` with the resolved `OrganisationTag` (leadership model, unled sizes) and
   its `CampaignMovementPoints`;
-- the **other troops on the same tile**, each with its compiled template and movement points — the
+- the **other Forces on the same tile**, each with its compiled template and movement points — the
   second factor the ticket names, and what Combine/Merge will need.
 
 Turn state is deliberately absent; see [open question 2](#2-should-the-toolbar-respect-whose-turn-it-is).
-So is anything about enemy troops — see [open question 3](#3-enemy-troops-on-the-tile-are-excluded-pending-vision-rules).
+So is anything about enemy Forces — see [open question 3](#3-enemy-forces-on-the-tile-are-excluded-pending-vision-rules).
 
 ### Three states, not two
 
@@ -132,27 +139,27 @@ The nullable return matters. There are three outcomes, not two:
 
 | Result | Meaning | Example |
 |---|---|---|
-| `null` | Structurally irrelevant — omit from the list entirely | A commissioned troop can never split as unled |
+| `null` | Structurally irrelevant — omit from the list entirely | A commissioned Force can never split as unled |
 | `IsEnabled: false` + reasons | Applicable, but blocked right now | "Unit has already moved this turn." |
 | `IsEnabled: true` | Available | — |
 
-Without the `null` case, every troop's toolbar becomes a wall of greyed-out buttons explaining actions
-it will never have. The distinction is roughly "could this ever be true for this troop?" — structural
+Without the `null` case, every Force's toolbar becomes a wall of greyed-out buttons explaining actions
+it will never have. The distinction is roughly "could this ever be true for this Force?" — structural
 facts hide the action, mutable state disables it.
 
-### `TroopActionAvailability`
+### `ForceActionAvailability`
 
-`IsEnabled` plus `DisabledReasons` — a **collection** of strings, so a troop failing both the size and
+`IsEnabled` plus `DisabledReasons` — a **collection** of strings, so a Force failing both the size and
 the movement rule is told both at once rather than fixing one to discover the other. A strategy
 evaluates all of its rules and returns every failure.
 
-## The Split Troops strategy
+## The Split Force strategy
 
 | Rule | Read from | Outcome when it fails |
 |---|---|---|
 | Organisation tag's `LeadershipModel` is `Unled` | `Compiled.OrganisationTag` | **Hidden** (`null`) — structural, cannot change this turn |
-| `Healthy + Injured >= 2 × UnledBaseSize` | tag + troop counts | Disabled: *"…is too small to split — splitting requires at least 50 troops (2 × 25)."* |
-| No campaign movement points spent this turn | troop vs. compiled template | Disabled: *"Unit has already moved this turn. Splitting requires a full turn."* |
+| `Healthy + Injured >= 2 × UnledBaseSize` | tag + soldier counts | Disabled: *"…is too small to split — splitting requires at least 50 troops (2 × 25)."* |
+| No campaign movement points spent this turn | Force vs. compiled template | Disabled: *"Unit has already moved this turn. Splitting requires a full turn."* |
 
 Note the third rule is *full* movement, not *any* movement — splitting costs the whole turn, so
 `MovementPointsRemaining` must still equal the template's `CampaignMovementPoints`. That comparison is
@@ -164,7 +171,7 @@ already treats it, rather than silently skipping the guardrail.
 
 ## Stage 1 — the movement point rescale (done)
 
-`TroopInstance.MovementPointsRemaining` was a `decimal` (1.0 = one point), while
+`UnitInstance.MovementPointsRemaining` was a `decimal` (1.0 = one point), while
 `CompiledUnitTemplate.CampaignMovementPoints` is a raw fixed-point `long` on the Scale 1,000
 convention of [`ScaledAmount`](../../../AscendantEmpire.Application/Helpers/ScaledNumerics/ScaledAmount.cs)
 (a stored `1000` means 1.0 MP). The split rule compares the two, so they had to share a representation.
@@ -175,13 +182,13 @@ Four call sites moved with it:
 
 | Site | Change |
 |---|---|
-| `MoveTroopHandler` secondary validation | Comment only — "none left" is zero at any scale |
+| `MoveForceHandler` secondary validation | Comment only — "none left" is zero at any scale |
 | `MovementProfileFactory.CreateState` | Now converts raw → decimal at the storage/engine boundary |
 | `MovementProfileFactory.Create` | Magic `1000m` replaced with `ScaledAmount.Scale` |
 | `BattleRemainingMovementCheck` | `>= 1m` → `>= ScaledAmount.Scale` |
 
 `MovementState` deliberately stays `decimal`. `MovementProfileFactory` is documented as the "central
-place for converting loaded troop and compiled design data into movement models", and it already
+place for converting loaded Force and compiled design data into movement models", and it already
 bridged scales for `BaseMovementPoints`, so the conversion belongs there — at one boundary — leaving
 the movement engine's own models in whole/fractional MP throughout.
 
@@ -191,8 +198,8 @@ ever written the column; the migration carries a comment saying so.
 
 ### Known gap, deliberately out of scope
 
-`MovementPointsRemaining` is **never written anywhere**: it is not set on spawn (`SpawnTroopHandler`
-omits it) and nothing replenishes it at turn rollover, so every troop reads `0`. Until that is fixed,
+`MovementPointsRemaining` is **never written anywhere**: it is not set on spawn (`SpawnUnitHandler`
+omits it) and nothing replenishes it at turn rollover, so every Force reads `0`. Until that is fixed,
 the third split rule cannot distinguish "fresh" from "spent". Initialising on spawn and resetting at
 end of turn are **deferred to a later ticket**; values are adjusted directly in the database for
 testing in the meantime.
@@ -201,20 +208,20 @@ testing in the meantime.
 
 ### Contract
 
-`GET /troop-orders/troops/{troopInstanceId}/actions`, game and player read from the token via
+`GET /force-orders/units/{unitInstanceId}/actions`, game and player read from the token via
 `TryGetGameContext`, returned under an `{ actions: [...] }` envelope to match the existing
 `{ ranks }` / `{ tags }` convention. Enums serialise as their string names.
 
 ```
-actionType:      "SplitTroops"
-label:           "Split Troops"
+actionType:      "SplitForce"
+label:           "Split Force"
 displayOrder:    1000
 isEnabled:       false
 disabledReasons: ["Unit has already moved this turn. Splitting requires a full turn."]
 ```
 
-Fetched **per troop** and cached by React Query on `["troopContextActions", troopInstanceId]`, invalidated
-after anything that changes a troop's size or movement.
+Fetched **per Force** and cached by React Query on `["forceContextActions", unitInstanceId]`, invalidated
+after anything that changes a Force's size or movement.
 
 ### Icons and labels are the frontend's job
 
@@ -232,7 +239,7 @@ button is non-interactive, its icon renders greyscale (`filter: grayscale(1)` pl
 and its tooltip shows the `disabledReasons` instead of the label. This is the whole point of the
 backend returning reasons — the player learns *why* an action is unavailable without having to guess.
 
-"Select Troop" stays frontend-only, holds a reserved value from the enum's low band, and is merged
+"Select Force" stays frontend-only, holds a reserved value from the enum's low band, and is merged
 into the same list at render time.
 
 ### Splitting needs parameters
@@ -248,9 +255,9 @@ That work is Stage 5 and is expected to become its own ticket.
 
 | Component | Tier | Count |
 |---|---|---|
-| `SplitTroopsStrategy` | 1 — no database | 11 |
-| `TroopContextActionService` | 1 — no database | 8 — fake strategies; ordering, omission, fault isolation, re-validation |
-| `TroopActionContextBuilder` | 2 — in-memory | 10 |
+| `SplitForceStrategy` | 1 — no database | 11 |
+| `ForceContextActionService` | 1 — no database | 8 — fake strategies; ordering, omission, fault isolation, re-validation |
+| `ForceActionContextBuilder` | 2 — in-memory | 10 |
 | `ContextActionToolbar` | Vitest | 5 — disabled rendering, reason text, ordering |
 
 Keeping the rules pure is what confined the tier question to a single class — and that class turned out
@@ -267,24 +274,24 @@ Raised during implementation and deliberately left open.
 
 ### 1. Nothing initialises or replenishes movement points — the split rule cannot fire yet
 
-`MovementPointsRemaining` is still never written: not on spawn, not at turn rollover. Every troop reads
+`MovementPointsRemaining` is still never written: not on spawn, not at turn rollover. Every Force reads
 `0`, so `HasFullMovement` is false and **Split always renders disabled** with "has already moved this
-turn", regardless of the troop. The rule and its plumbing are correct and tested; there is simply no
+turn", regardless of the Force. The rule and its plumbing are correct and tested; there is simply no
 data path feeding them yet. Setting the value directly in the database is the only way to see the
 enabled state today. Raised as **TM-3**, and it blocks stage 5 having anything meaningful to do.
 
 ### 2. Should the toolbar respect whose turn it is?
 
 Nothing in the pipeline checks the turn. That is consistent with the rest of the codebase — turn
-enforcement isn't implemented anywhere yet (`MoveTroopHandler` carries a `// TODO Check who's turn it
+enforcement isn't implemented anywhere yet (`MoveForceHandler` carries a `// TODO Check who's turn it
 is`) — so adding it here would have invented new behaviour in a corner of the system rather than
 solving it properly. When turn enforcement does land it belongs in the context, and probably as a
 blanket rule ahead of the per-action strategies rather than repeated in each one.
 
-### 3. Enemy troops on the tile are excluded, pending vision rules
+### 3. Enemy Forces on the tile are excluded, pending vision rules
 
-`TroopActionContextBuilder` gathers only the player's **own** troops from the selected tile. Including
-enemy troops would let the toolbar confirm what is standing on a tile the player cannot see, so it
+`ForceActionContextBuilder` gathers only the player's **own** Forces from the selected tile. Including
+enemy Forces would let the toolbar confirm what is standing on a tile the player cannot see, so it
 needs the vision rules applied first. Actions that turn on enemy presence (attack, ambush) will need
 that resolved.
 
@@ -292,12 +299,12 @@ that resolved.
 
 A 100-strong settler with `UnledBaseSize` 25 can split into 2, 3 or 4 parts, or peel off a single group
 of 25. The recommendation is a separate per-action detail endpoint fetched when the dialog opens
-(`GET …/actions/split-troops/options`), rather than a polymorphic `metadata` bag on the list endpoint —
+(`GET …/actions/split-force/options`), rather than a polymorphic `metadata` bag on the list endpoint —
 which would make every action's contract the union of every action's needs. Carried into **TM-4**.
 
-### 5. Does splitting produce a `TroopOrder`? (stage 5)
+### 5. Does splitting produce a `ForceOrder`? (stage 5)
 
-`TroopOrderType.SplitTroops` exists, but the design here says splitting resolves immediately and costs
+`ForceOrderType.SplitForce` exists, but the design here says splitting resolves immediately and costs
 the turn, which needs no standing order. Either the order type is written as a completed audit record,
 or it is unused and should be reconsidered. Worth settling deliberately rather than by accident; carried
 into **TM-4**.

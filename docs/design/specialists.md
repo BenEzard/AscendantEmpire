@@ -1,14 +1,14 @@
 # Specialists
 
-**Specialists** are special individuals attached to settlements or formations who provide bonuses.
+**Specialists** are special individuals attached to settlements or Forces who provide bonuses.
 
 - Must be **unlocked** via technology developments and/or buildings.
 - Can be **trained** (at the expense of resources and/or research points) or **developed over
   time**.
 - Cost an **upkeep** amount.
-- Provide benefits to the settlement or formation they are attached to.
-- Can be **captured or killed** via conquest of a settlement, or the capture/kill of a formation.
-- Can be **targeted by assassins** within a formation.
+- Provide benefits to the settlement or Force they are attached to.
+- Can be **captured or killed** via conquest of a settlement, or the capture/kill of a Force.
+- Can be **targeted by assassins** within a Force.
 
 On a settlement, a specialist is displayed as an icon with `x / y`, where `x` is the number
 currently existing and `y` is the total who can be hired. When the full amount is hired, just show
@@ -31,7 +31,7 @@ research points per turn, but the military academy may only spend 100 per turn; 
   the academy" via a button; a percentage then emerge at various ranks. Higher combat experience
   raises the likelihood of higher ranks. This doesn't necessarily *complete* their training, but
   greatly reduces it.
-- The commander a formation has determines **how many units** it can contain and **how many
+- The commander a Command has determines **how many Units** it can contain and **how many
   specialists** can be assigned to it. (A unit, therefore, does not itself have command experience.)
 
 | Rank | Max # of men | # of specialists |

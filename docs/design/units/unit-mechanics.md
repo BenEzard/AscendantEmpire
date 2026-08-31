@@ -1,6 +1,6 @@
 # Unit Mechanics
 
-Covers how units move, face, see, and attack. For how units are organised into formations, see
+Covers how units move, face, see, and attack. For how Units are grouped into Commands, see
 [military-organisation.md](military-organisation.md); for how a unit is designed from components, see
 [unit-design-system.md](../unit-design/unit-design-system.md).
 
@@ -21,9 +21,9 @@ Definitions:
 
 ### On the campaign map
 
-- A Formation moves at the speed of its **slowest** unit.
-- Where a member of a Formation cannot enter a given tile, the player can **separate** the incapable
-  units from the Formation.
+- A Command moves at the speed of its **slowest** Unit.
+- Where a member of a Command cannot enter a given tile, the player can **separate** the incapable
+  Units from the Command.
 - Health damage does **not** affect a unit's speed.
 
 ### On the battlefield map
@@ -95,8 +95,8 @@ unless land impedes the view.)
   (the whole battle map). As the enemy moves in, that vision is lost on those tiles — e.g. if a unit
   moves onto A1 then A2, the defender can't see what else subsequently moved onto those tiles unless
   within its normal field of vision.
-- Specialists attached to a formation can affect vision and other stats.
-- Units **in the same Formation share vision**. Units that aren't in a Formation see only their own
+- Specialists attached to a Force can affect vision and other stats.
+- Units **in the same Command share vision**. Units that are not in a Command see only their own
   vision. (E.g. an Egyptian cavalry unit on a hilltop sees two enemies in the valley; when the turn
   switches to an *unaffiliated* Egyptian infantry, that infantry can't see where those enemies were
   — the player may remember, but it's harder.)

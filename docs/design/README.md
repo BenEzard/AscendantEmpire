@@ -18,11 +18,11 @@ is settled, some of it is still a working sketch with open questions called out 
 | [starting-requirements.md](starting-requirements.md) | The catalogue content a database needs before a game can be created: the settler and scout tags, components and templates. |
 | [turn-structure.md](turn-structure.md) | The parallel "turn-based" model, rosters, and how battle rounds interleave with campaign turns. |
 | [production-and-assets.md](production-and-assets.md) | Assets, Material Classes, Material Preferences, luxury goods, and resources. |
-| [units/military-organisation.md](units/military-organisation.md) | Ranks and organisation hierarchies, the officer economy, and how formations are sized and led. Supersedes the former `units-and-formations.md`. |
+| [units/military-organisation.md](units/military-organisation.md) | Ranks and organisation hierarchies, the officer economy, and how Units and Commands are sized and led. Supersedes the former `units-and-formations.md`. |
 | [units/military-organisation-implementation-notes.md](units/military-organisation-implementation-notes.md) | The implementation notes and outstanding gaps behind the organisation model. |
 | [units/unit-support-and-supply.md](units/unit-support-and-supply.md) | Supply chains and the four support types: fuel, ammunition, food, and medical. |
 | [units/combat.md](units/combat.md) | How combat resolves between units. |
-| [units/troop-context-action-toolbar.md](units/troop-context-action-toolbar.md) | The context action toolbar: how the backend decides what a selected troop can do, and how the frontend renders it. |
+| [units/force-context-action-toolbar.md](units/force-context-action-toolbar.md) | The context action toolbar: how the backend decides what a selected Force can do, and how the frontend renders it. |
 | [campaign-map.md](campaign-map.md) | The campaign map, tile geography and biome, resource depletion/regeneration/discovery, vision (sight & detection), and infrastructure. |
 | [battlefield-maps.md](battlefield-maps.md) | How battlefield maps are generated, fortifications, battle flow, objectives, and manoeuvres. |
 | [units/unit-mechanics.md](units/unit-mechanics.md) | Movement, positioning/facing, tactics, fog of war, strength, and ranged attack. |
@@ -57,7 +57,11 @@ A few terms recur throughout these documents:
 - **Asset** — anything collectable or manufacturable in the game, excluding Units.
 - **Material Class** — a generic category of asset (e.g. `CONSTRUCTION_STONE`, `SWORD_MELEE`) that
   concrete assets belong to.
-- **Unit** — multiple soldiers with the same equipment, training, and nationality.
-- **Formation** — a group of Units combined under a command structure on a single campaign tile.
+- **Unit** — one fielded body of soldiers with the same equipment, training and nationality, built from
+  a single Unit Template.
+- **Command** — two or more Units combined under a shared command structure on a single campaign tile.
+- **Force** — the umbrella term for either a Unit or a Command: whatever occupies a tile and moves as
+  one. A category, not a type.
+- **troops** — individual soldiers. A Unit contains troops; it is not one.
 - **Campaign Map** — the strategic world map made up of tiles.
 - **Battlefield Map** — the tactical map generated when a battle occurs on a campaign tile.

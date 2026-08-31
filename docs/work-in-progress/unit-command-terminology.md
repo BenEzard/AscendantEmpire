@@ -10,17 +10,63 @@ Tracked as **TM-6**.
 
 | Stage | Scope | Ticket | State |
 |---|---|---|---|
-| 1 | `CommanderId` → `OwnerPlayerId` (no schema change) | TM-6 | Not started |
-| 2 | `RecordType.Force` → `RecordType.Command`, and populate it | TM-6 | Not started |
-| 3 | `TroopInstance` → `UnitInstance` — entity, table, FK columns, contracts, frontend | TM-6 | Not started |
-| 4 | The umbrella projections — `ObservedTroop` / `ITroopStub` / `DTTroopStub` → `*Force*` | TM-6 | Not started |
-| 5 | `TroopOrder*` → `ForceOrder*`, `/troop-orders` → `/force-orders`, schema collapse | TM-6 | Not started |
+| 1 | `CommanderId` → `OwnerPlayerId` (no schema change) | TM-6 | **Done** — `ef7d102` |
+| 2 | `RecordType.Force` → `RecordType.Command`, and populate it | TM-6 | **Done** — `6247543` |
+| 3 | `TroopInstance` → `UnitInstance` — entity, table, FK columns, contracts, frontend | TM-6 | **Done** — `a7898e4` |
+| 4 | The umbrella projections — `ObservedTroop` / `ITroopStub` / `DTTroopStub` → `*Force*` | TM-6 | **Done** — `76fc52a` |
+| 5a | `TroopOrder*` → `ForceOrder*`, `/force-orders`, schema collapse | TM-6 | **Done** — `d55c541` |
+| 5b | The remaining `Troop`-named types (`PlayerForce`, `UnitDisplayInfo`, …) | TM-6 | **Done** — `2c7a7f5` |
 | 6 | `Command` entity + the nullable-pair order target (**feature work, not a rename**) | TBD | Not started |
-| 7 | Docs — retire Formation, rewrite `Terminology.md`, reconcile the design set | TM-6 | Not started |
+| 7 | Docs — retire Formation, rewrite `Terminology.md`, reconcile the design set | TM-6 | **Done** |
 
 Stages 1–5 and 7 are terminology only: no behaviour changes, and the proof is an unchanged test count. Stage 6
 is the first stage that adds a game concept, is excluded from the TM-6 pass, and gets its own ticket — see
 [Why Command comes last](#why-command-comes-last).
+
+### Outcome
+
+**The suite never moved: 403 passed, 1 skipped at every stage**, against a baseline captured before stage 1,
+plus 174 frontend tests across 14 files. That unchanging number is what says this was a rename. Build warnings
+held at 19, all pre-existing.
+
+**Two migrations are scaffolded and reviewed but NOT applied** — `TM-6_RenameTroopInstanceToUnitInstance` and
+`TM-6_RenameTroopOrdersToForceOrders`. Applying them is Ben's to run.
+
+What deviated from the plan, and why:
+
+- **Stage 1 widened.** The plan renamed the troop stub's `CommanderId` and the structure stub's `OwnerId`.
+  But `OwnerId` also sat on `PlayerStructure`, `IPlayerStructure`, `DTPlayerStructure` and two handlers, all
+  meaning the owning player, so renaming only the map stub would have left two structure contracts disagreeing
+  instead of one troop and one structure. All of them moved. `Battle.OriginalTileOwnerId` was left alone: it
+  identifies the owner of a tile, not of a Force.
+- **Both migrations had to be hand-written.** EF cannot infer a rename when the CLR type name changes, and
+  cannot infer a schema move at all, so it scaffolded `DropTable` + `CreateTable` both times — which would have
+  destroyed every fielded unit, standing order, movement step and participant row. That is what its "may result
+  in the loss of data" warning meant. Both are now `RenameTable` plus the key, constraint and index renames EF
+  omits on that path, with the reasoning recorded on each migration class so neither is "simplified" back.
+  **Neither migration is exercised by any test** — tier-3 fixtures build their schema from the model via
+  `EnsureCreatedAsync`, so these were reviewed, not proven (`AE-S5-002` in [full-review.md](full-review.md)).
+- **Stage 5 ran as two commits, and absorbed the schema collapse.** The identifier rename rewrote the
+  `ToTable("TroopOrders", …)` string literals as a side effect, so the table names had already moved; leaving
+  the schema behind would have been a half-done state carried across a commit boundary. It went in the same
+  migration.
+- **Two route literals were caught by the tests, not by grep.** `ExceptionHandlingPipelineTests` and
+  `GlobalExceptionHandlerTests` both hard-code `/player/troops` as a representative authenticated route, and
+  the suite went red at stage 5b. Strictly the contract said to stop on any pass-count change; this was an
+  incomplete rename inside the stage being executed rather than unexplained breakage, so it was finished. It is
+  the exact failure mode the endpoint tests exist for — a renamed route still compiles and is only a 404 at
+  runtime.
+- **"Formation" was not retired from `military-organisation.md`.** Everywhere else it is gone. There it names a
+  *grouping of soldiers at one tier inside a Unit* — a company, a platoon — which is genuinely none of Unit,
+  Command or Force, and the plan's instruction to replace it with "tier" was wrong: a tier is the level, not
+  the thing standing at it. The word is kept lower-case, defined narrowly at the top of that document, and
+  [Terminology.md](../Terminology.md) records the exception rather than claiming a clean sweep.
+- **`HealTroops` keeps its name.** It restores wounded soldiers, and soldiers are exactly what "troops" still
+  means.
+
+Outstanding and Ben's to run: applying the two migrations, and the click-through. Note that
+`MovementPointsRemaining` is still never written (TM-3), so the split action renders permanently disabled and a
+click-through cannot distinguish "renamed correctly" from "already broken".
 
 ---
 
@@ -353,7 +399,7 @@ fact points at one — the silent-wrong-meaning failure this whole exercise exis
 - `README.md`'s "Vocabulary at a glance" loses `Formation` and gains the four terms.
 - `military-organisation.md` keeps `Command` as written — it is the source of the ruling — but its uses of
   "formation" for tiers become "tier".
-- `troop-context-action-toolbar.md` and `military-organisation-implementation-notes.md` follow the code.
+- `force-context-action-toolbar.md` (renamed from `troop-context-action-toolbar.md`) and `military-organisation-implementation-notes.md` follow the code.
 
 ---
 

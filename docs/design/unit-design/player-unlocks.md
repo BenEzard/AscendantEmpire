@@ -60,7 +60,7 @@ Three consequences follow, and they are what this design has to fix:
 The reason is atomicity, not fashion. Every realistic caller is already mid-transaction on a context it
 owns:
 
-- game setup writes unlock rows **and** `TroopInstance` rows in one `SaveChangesAsync`;
+- game setup writes unlock rows **and** `UnitInstance` rows in one `SaveChangesAsync`;
 - a future research handler will write research state **and** the unlocks it produces;
 - a conquest handler will transfer settlements **and** the technology that comes with them.
 
@@ -214,7 +214,7 @@ await PlayerUnlockGranter.GrantTemplatesWithComponentsAsync(
 ```
 
 Everything the method does either side of that — resolving the templates, validating that each is unled
-with an authored `UnledDefaultSize`, checking start positions, spawning the `TroopInstance` rows — is
+with an authored `UnledDefaultSize`, checking start positions, spawning the `UnitInstance` rows — is
 untouched, and so are the loud failures documented in
 [starting-requirements.md](../starting-requirements.md#verifying-the-setup). `StarterUnitSpawnTests` must
 pass unchanged; that is the proof the refactor was behaviour-preserving.

@@ -80,7 +80,7 @@ These need attacker/defender-relative conditions and secondary/triggered effects
 
 Examples: a blacksmith reducing weapon damage by 5%, a master forager increasing food foraging, an experienced scout reducing ambush chance, an accountant reducing upkeep by 5%, a medic with a range, a drill sergeant imputing a discipline bonus.
 
-These apply to a Formation, not a Unit Component — a different scope entity, and belong conceptually with [specialists.md](../specialists.md) rather than here. Not building now, but the
+These apply to a Force, not a Unit Component — a different scope entity, and belong conceptually with [specialists.md](../specialists.md) rather than here. Not building now, but the
 Structured Modifier shape (concept 2) should gain an optional `ApplyTo` field (self / attacker / allies / enemies) now, cheaply, so it can be reused here later without a rewrite.
 
 ## Decisions

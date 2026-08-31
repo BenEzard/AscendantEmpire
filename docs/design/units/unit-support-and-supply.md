@@ -9,7 +9,7 @@ General notes:
 - Some specialists (e.g. a fuel tanker) can supply units for a single turn when out of supply.
 - Some terrain improvements (e.g. a concealed fuel/ammunition dump) can supply.
 - When a unit lacks its requirements, this must be shown clearly on the UI.
-- An intelligent, simple way is needed to decide which units in a formation miss out on fuel and
+- An intelligent, simple way is needed to decide which Units in a Command miss out on fuel and
   ammunition. (Perhaps the player selects which units are resupplied in the event of a battle.)
 
 ## Supply chains
@@ -33,7 +33,7 @@ friendly territory.
   airplane fuel, nuclear.
 - A unit **out of fuel** cannot move on the campaign map, and moves only **30%** of its normal
   distance per round on battle maps.
-- When a formation has fuel for some but not all of its units, the formation can either stay put or
+- When a Command has fuel for some but not all of its Units, the Command can either stay put or
   leave behind the unsupplied units.
 
 ## Ammunition
@@ -50,7 +50,7 @@ friendly territory.
 - Food types: fodder (mounted units), food (men), ration packs (men).
 - A unit **out of food** injures **34%** of its initial force strength per turn. When the unit is
   100% wounded, 34% (or the remainder) dies. Weakening is spread evenly across all units in a
-  formation.
+  Command.
 - If a Unit Stack has **≤ 15 individuals** it is "free" from food requirements (the calculation is
   skipped).
 - With the **Mobile Scavenging** technology, a unit takes a percentage of a tile's food as it moves

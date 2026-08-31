@@ -127,7 +127,7 @@ The arithmetic lives in **two places on purpose**:
 * `BattleMovementCalculator` (`Features/UnitComponents/Services`) is authoritative. `CompileUnitTemplateHandler` calls it and writes the result into the snapshot, ignoring whatever sits on the body.
 * `calculateBattleMovementPoints` (`features/unitdesign/model/battleMovement.ts`) mirrors it, because the designer must show the figure live as components are dragged in and out, long before a save. `BattleMovementCalculatorTests.cs` and `battleMovement.test.ts` pin both to the same calibration cases; change one and you must change the other.
 
-> **A half tile does not currently buy half a move.** Battle-map movement costs a flat 1 MP per tile (`BattleRemainingMovementCheck`), so 6.5 spends as six tiles with 0.5 stranded. The fraction is precision in the stat, not a usable half-step; it starts to matter if fractional terrain costs or turn-to-turn carry-over arrive. Note also that nothing resets `TroopInstance.MovementPointsRemaining` per turn yet, so the compiled value is not yet spent on the battle map at all.
+> **A half tile does not currently buy half a move.** Battle-map movement costs a flat 1 MP per tile (`BattleRemainingMovementCheck`), so 6.5 spends as six tiles with 0.5 stranded. The fraction is precision in the stat, not a usable half-step; it starts to matter if fractional terrain costs or turn-to-turn carry-over arrive. Note also that nothing resets `UnitInstance.MovementPointsRemaining` per turn yet, so the compiled value is not yet spent on the battle map at all.
 
 ### Per-player unlock state
 

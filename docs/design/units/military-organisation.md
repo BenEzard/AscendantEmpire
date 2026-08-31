@@ -6,13 +6,20 @@ Military organisation is built from a few concepts that are **separate but assoc
 The two that are easy to conflate — *rank* and *organisation* — are deliberately kept
 apart and joined by a single positional rule:
 
-* **OrganisationStructure** — the *shape* of a formation: an ordered list of 1–5 tiers,
+> **A note on the word "formation".** Everywhere else in the design set it has been retired, because it
+> meant three different things across documents (see [Terminology.md](../../Terminology.md)). It survives
+> here, lower-case and with one narrow meaning: **a grouping of soldiers at one tier inside a Unit** — a
+> company, a platoon, a battalion. That is deliberately neither a `Unit`, a `Command` nor a `Force`; it is
+> the internal structure of a single Unit, and it needs a noun because "tier" names the level rather than
+> the thing sitting at it.
+
+* **OrganisationStructure** — the *shape* of a Unit: an ordered list of 1–5 tiers,
   each with an authored size. Reusable; owned by nothing in particular.
 * **MilitaryOrganisation tag** — a *pointer* to one OrganisationStructure. A tag is just a
   named handle; the structure it points at is the real definition.
 * **Leadership model** — authored *on the tag*: **Commissioned** (the ranked hierarchy this
   document mostly describes) or **Unled** (no officers at any tier — scouts, snipers, drones,
-  settlers). Unled formations sit entirely outside the officer economy.
+  settlers). Unled Units sit entirely outside the officer economy.
 * **Rank (OfficerClass)** — the *seniority* of an individual officer. Supplies a **hard
   ceiling** on formation size and a cap on attached specialists. It never defines a
   formation's size — it only limits it.
@@ -70,7 +77,7 @@ where player freedom lives, and the tag is where the limits on that freedom live
 
 ### Leadership model
 
-Not every formation is a military hierarchy. A settler caravan, a lone scout, a drone — these
+Not every Unit is a military hierarchy. A settler caravan, a lone scout, a drone — these
 have no officers, and pretending otherwise (free officers, hidden officers) creates entities
 that then need special-casing everywhere. Instead, each MilitaryOrganisation tag declares a
 **leadership model**:
@@ -84,7 +91,7 @@ that then need special-casing everywhere. Instead, each MilitaryOrganisation tag
 | Splitting | detach a whole formation; its officer goes with it | peel off quanta (see [Splitting and merging](#splitting-and-merging)) |
 | Officer economy | full participant | outside it entirely: no roster slots, no population-cap consumption, no Command Experience, no ascension |
 
-An unled tag is **not** officer suppression — it is a declaration that the formation is not a
+An unled tag is **not** officer suppression — it is a declaration that the Unit is not a
 commissioned hierarchy, so no officer entity is ever created and there is nothing to hide.
 
 Two alternatives were considered and rejected:
@@ -118,7 +125,7 @@ Rank is an attribute of an **individual officer** — their seniority — not of
   * **Max attached specialists** — how many specialists a formation led at this rank may hold.
 
 **Ladder height = (max tiers) + 1.** With a maximum of 5 tiers, the rank ladder must be 6
-tall: five ranks for the tiers of a maximally-deep formation, plus one more for the single
+tall: five ranks for the tiers of a maximally-deep Unit, plus one more for the single
 commander that sits above it (the `Command` layer). This is exactly why the table has 6 rows.
 
 #### OfficerClass table
@@ -216,7 +223,7 @@ exactly what promotes one of its sub-officers up into that slot. That resolves t
 chicken-and-egg: you never need an existing Rank-N officer to *start* growing one.
 
 Net effect: growing a Rank-5 general means sustaining a real, adequately-manned 5-tier
-formation in action long enough for an officer to climb all five rungs, backfilling at the
+Unit in action long enough for an officer to climb all five rungs, backfilling at the
 bottom each time.
 
 ### Command Experience accrual gate
@@ -262,7 +269,7 @@ slot at that rank frees up**. (Flagged for future review — see below.)
 
 ---
 
-## Formations, tiers and their labels
+## Structural concepts, tiers and their labels
 
 Two kinds of names are in play, and it matters which is which:
 
@@ -283,7 +290,7 @@ shape *is* the tiers of the OrganisationStructure the template points at.
 * **Current Strength** — falls with casualties.
 * **Initial Unit Strength** — *(Commissioned only)* the size at creation; the maximum the Unit
   can ever have. A Unit created with 1,000 men that loses 200 still has an Initial Unit
-  Strength of 1,000. This models a bloodied formation being reinforced back up to — but never
+  Strength of 1,000. This models a bloodied Unit being reinforced back up to — but never
   beyond — its authorised strength. **Unled units are not bound by it**: they are bounded by
   their tag's `Max` instead, so a split-off settler group can later merge back up to full size
   (see [Splitting and merging](#splitting-and-merging)).
@@ -369,7 +376,7 @@ sizes sit under their rank ceiling (leaving room to adjust up):
 | 4 | Regiment | 500 | 4 | 3,200 |
 | 5 | Division | 2,000 | 5 | 10,000 |
 
-**Officer requirement by formation depth** (tier-1 officers are free):
+**Officer requirement by Unit depth** (tier-1 officers are free):
 
 | Depth | Total men | Officers by tier (T1 → T5) | Total | Free (T1) | Earned |
 | --- | --- | --- | --- | --- | --- |
@@ -379,7 +386,7 @@ sizes sit under their rank ceiling (leaving room to adjust up):
 | Tier 4 | 500 | 50 + 10 + 5 + 1 | 66 | 50 | 16 |
 | Tier 5 | 2,000 | 200 + 40 + 20 + 4 + 1 | 265 | 200 | 65 |
 
-A maxed 5-tier Infantry formation therefore needs **265 officers**, of which **200 are free**
+A maxed 5-tier Infantry Unit therefore needs **265 officers**, of which **200 are free**
 (the bottom tier) and **65 must be earned** through combat and ascension.
 
 ### Settler (via a `camping-goods` component override) — Unled
