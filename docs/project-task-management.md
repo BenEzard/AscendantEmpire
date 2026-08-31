@@ -85,6 +85,7 @@ identities, not constants.
 | 15 | Resource System | `RS` |
 | 16 | Technology | `T` |
 | 17 | Unit Design | `UD` |
+| 22 | Troop Management | `TM` |
 
 Use **General (11)** when a task doesn't clearly belong to a specific component
 (cross-cutting refactors, tidy-ups, infrastructure).
