@@ -40,7 +40,7 @@ internal class TroopContextActionServiceTests
     {
         return new TroopActionContext
         {
-            SelectedTroop = new TroopActionTroop
+            SelectedForce = new ForceActionForce
             {
                 UnitInstanceId = _TROOP_INSTANCE_ID,
                 PlayerId = _PLAYER_ID,
@@ -52,7 +52,7 @@ internal class TroopContextActionServiceTests
                 CampaignMovementPoints = 1_000,
                 Organisation = null
             },
-            OtherTroopsOnTile = []
+            OtherForcesOnTile = []
         };
     }
 

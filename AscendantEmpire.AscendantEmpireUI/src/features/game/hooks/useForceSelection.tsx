@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FaChessKnight } from "react-icons/fa6";
-import type { ObservedTroopTile, TileCell } from "@/features/map/components/TileTypes";
+import type { ObservedForceTile, TileCell } from "@/features/map/components/TileTypes";
 import type { ForceSelectionDialogTile } from "../components/ForceSelectionDialog";
 import type { ContextActionToolbarAction } from "../components/ContextActionToolbar";
 import { FRONTEND_ONLY_ACTION_ORDER, getTroopActionIcon, getTroopActionLabel } from "../components/troopActionRegistry";
@@ -13,14 +13,14 @@ function getTileKey(x: number, y: number): string {
 }
 
 /**
- * Returns the troop with the highest number of healthy troops (the default
+ * Returns the force with the highest number of healthy troops (the default
  * display-on-tile), or null if the array is empty.
  */
-function getTroopWithMaxHealthy(troops: ObservedTroopTile[]): ObservedTroopTile | null {
-  if (troops.length === 0) return null;
+function getTroopWithMaxHealthy(forces: ObservedForceTile[]): ObservedForceTile | null {
+  if (forces.length === 0) return null;
 
-  let strongestTroop = troops[0];
-  for (const troop of troops.slice(1)) {
+  let strongestTroop = forces[0];
+  for (const troop of forces.slice(1)) {
     if (troop.healthyTroops > strongestTroop.healthyTroops) {
       strongestTroop = troop;
     }
@@ -41,7 +41,7 @@ interface UseForceSelectionOptions {
  * toolbar actions for the selected force.
  */
 export function useForceSelection({ gameId, playerId, openToast }: UseForceSelectionOptions) {
-  const [selectedForce, setSelectedForce] = useState<ObservedTroopTile | null>(null);
+  const [selectedForce, setSelectedForce] = useState<ObservedForceTile | null>(null);
   const [visibleTroopIdsByTile, setVisibleTroopIdsByTile] = useState<Record<string, number>>({});
   const [pendingForceSelectionTile, setPendingForceSelectionTile] = useState<ForceSelectionDialogTile | null>(null);
   const [forceSelectionTile, setForceSelectionTile] = useState<ForceSelectionDialogTile | null>(null);
@@ -57,17 +57,17 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
   }, [gameId]);
 
   const getVisibleTroopForTile = useCallback(
-    (tile: TileCell, options?: { troops?: ObservedTroopTile[] }) => {
-      const troops = options?.troops ?? tile.troops ?? [];
-      if (troops.length === 0) return null;
+    (tile: TileCell, options?: { forces?: ObservedForceTile[] }) => {
+      const forces = options?.forces ?? tile.forces ?? [];
+      if (forces.length === 0) return null;
 
       const visibleTroopId = visibleTroopIdsByTile[getTileKey(tile.x, tile.y)];
       if (visibleTroopId != null) {
-        const visibleTroop = troops.find((troop) => troop.id === visibleTroopId);
+        const visibleTroop = forces.find((troop) => troop.id === visibleTroopId);
         if (visibleTroop) return visibleTroop;
       }
 
-      return getTroopWithMaxHealthy(troops);
+      return getTroopWithMaxHealthy(forces);
     },
     [visibleTroopIdsByTile],
   );
@@ -84,7 +84,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
   }, [pendingForceSelectionTile]);
 
   const chooseForce = useCallback(
-    (troop: ObservedTroopTile) => {
+    (troop: ObservedForceTile) => {
       setSelectedForce(troop);
       if (forceSelectionTile) {
         setVisibleTroopIdsByTile((current) => ({
@@ -154,7 +154,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
   const onTileHold = useCallback(
     (tile: TileCell) => {
       if (!selectedForce) return;
-      if ((tile.troops ?? []).some((troop) => troop.id === selectedForce.id)) return;
+      if ((tile.forces ?? []).some((troop) => troop.id === selectedForce.id)) return;
       moveTo(tile);
     },
     [moveTo, selectedForce],
@@ -165,7 +165,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
     (t: TileCell) => {
       if (playerId == null) return;
 
-      const ownedTroops = (t.troops ?? []).filter((troop) => troop.ownerPlayerId === playerId);
+      const ownedTroops = (t.forces ?? []).filter((troop) => troop.ownerPlayerId === playerId);
 
       if (ownedTroops.length === 1) {
         setSelectedForce(ownedTroops[0]);
@@ -176,14 +176,14 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
         setPendingForceSelectionTile(null);
         setForceSelectionTile(null);
       } else if (ownedTroops.length > 1) {
-        const displayedOwnedTroop = getVisibleTroopForTile(t, { troops: ownedTroops }) ?? ownedTroops[0];
+        const displayedOwnedTroop = getVisibleTroopForTile(t, { forces: ownedTroops }) ?? ownedTroops[0];
 
         setSelectedForce(displayedOwnedTroop);
         setVisibleTroopIdsByTile((current) => ({
           ...current,
           [getTileKey(t.x, t.y)]: displayedOwnedTroop.id,
         }));
-        setPendingForceSelectionTile({ x: t.x, y: t.y, troops: ownedTroops });
+        setPendingForceSelectionTile({ x: t.x, y: t.y, forces: ownedTroops });
         setForceSelectionTile(null);
       } else {
         setSelectedForce(null);

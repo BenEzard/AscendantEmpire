@@ -1,11 +1,11 @@
 ﻿import { Button, Modal } from "@/components/ui";
-import ObservedTroop from "@/features/map/components/ObservedTroop";
-import type { ObservedTroopTile } from "@/features/map/components/TileTypes";
+import ObservedForce from "@/features/map/components/ObservedForce";
+import type { ObservedForceTile } from "@/features/map/components/TileTypes";
 
 export interface ForceSelectionDialogTile {
   x: number;
   y: number;
-  troops: ObservedTroopTile[];
+  forces: ObservedForceTile[];
 }
 
 export interface ForceSelectionDialogProps {
@@ -14,7 +14,7 @@ export interface ForceSelectionDialogProps {
   selectedTroopId?: number;
   troopImageSrcByUnitTemplateId?: ReadonlyMap<number, string>;
   onClose: () => void;
-  onSelect: (troop: ObservedTroopTile) => void;
+  onSelect: (troop: ObservedForceTile) => void;
 }
 
 export default function ForceSelectionDialog({
@@ -38,7 +38,7 @@ export default function ForceSelectionDialog({
       }>
       {tile ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {tile.troops.map((troop) => (
+          {tile.forces.map((troop) => (
             <button
               key={troop.id}
               type="button"
@@ -48,7 +48,7 @@ export default function ForceSelectionDialog({
               ].join(" ")}
               onClick={() => onSelect(troop)}>
               <div className="relative mx-auto mb-2 h-20 w-20">
-                <ObservedTroop
+                <ObservedForce
                   troop={troop}
                   unitInstanceCount={1}
                   isSelected={selectedTroopId === troop.id}

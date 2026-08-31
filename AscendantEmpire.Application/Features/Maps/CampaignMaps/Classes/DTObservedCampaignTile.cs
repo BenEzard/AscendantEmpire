@@ -12,9 +12,9 @@ public class DTObservedCampaignTile : IObservedCampaignTile
 
     public IReadOnlyCollection<DTStructureStub>? Structures { get; set; }
 
-    public IReadOnlyCollection<DTTroopStub>? Troops { get; set; }
+    public IReadOnlyCollection<DTForceStub>? Forces { get; set; }
 
     IReadOnlyCollection<IStructureStub>? IObservedCampaignTile.Structures => Structures;
 
-    IReadOnlyCollection<ITroopStub>? IObservedCampaignTile.Troops => Troops;
+    IReadOnlyCollection<IForceStub>? IObservedCampaignTile.Forces => Forces;
 }

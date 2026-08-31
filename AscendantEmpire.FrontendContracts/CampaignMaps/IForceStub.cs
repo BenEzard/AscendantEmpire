@@ -2,7 +2,7 @@
 
 namespace AscendantEmpire.FrontendContracts.CampaignMaps;
 
-public interface ITroopStub
+public interface IForceStub
 {
     public int Id { get; }
     public RecordType RecordType { get; }

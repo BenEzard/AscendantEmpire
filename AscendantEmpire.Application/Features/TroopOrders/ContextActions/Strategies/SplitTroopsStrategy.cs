@@ -27,7 +27,7 @@ internal sealed class SplitTroopsStrategy : ITroopActionStrategy
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        TroopActionTroop troop = context.SelectedTroop;
+        ForceActionForce troop = context.SelectedForce;
 
         // Structural: a troop whose template carries no organisation tag, or a commissioned one, can never split this way.
         // Hidden rather than disabled, because no amount of reinforcing or resting will change it.

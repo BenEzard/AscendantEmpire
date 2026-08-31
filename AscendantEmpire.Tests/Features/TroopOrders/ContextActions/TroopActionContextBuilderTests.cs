@@ -125,14 +125,14 @@ internal class TroopActionContextBuilderTests : InMemoryTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result!.SelectedTroop.UnitInstanceId, Is.EqualTo(5));
-            Assert.That(result.SelectedTroop.TotalStrength, Is.EqualTo(100));
-            Assert.That(result.SelectedTroop.CampaignMovementPoints, Is.EqualTo(_CAMPAIGN_MOVEMENT_POINTS),
+            Assert.That(result!.SelectedForce.UnitInstanceId, Is.EqualTo(5));
+            Assert.That(result.SelectedForce.TotalStrength, Is.EqualTo(100));
+            Assert.That(result.SelectedForce.CampaignMovementPoints, Is.EqualTo(_CAMPAIGN_MOVEMENT_POINTS),
                 "The per-turn allowance should come off the compiled snapshot.");
-            Assert.That(result.SelectedTroop.HasFullMovement, Is.True);
-            Assert.That(result.SelectedTroop.Organisation, Is.Not.Null);
-            Assert.That(result.SelectedTroop.Organisation!.IsUnled, Is.True);
-            Assert.That(result.SelectedTroop.Organisation.UnledBaseSize, Is.EqualTo(25));
+            Assert.That(result.SelectedForce.HasFullMovement, Is.True);
+            Assert.That(result.SelectedForce.Organisation, Is.Not.Null);
+            Assert.That(result.SelectedForce.Organisation!.IsUnled, Is.True);
+            Assert.That(result.SelectedForce.Organisation.UnledBaseSize, Is.EqualTo(25));
         }
     }
 
@@ -147,7 +147,7 @@ internal class TroopActionContextBuilderTests : InMemoryTestBase
 
         TroopActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
 
-        Assert.That(result!.SelectedTroop.DisplayName, Is.EqualTo("Settler"));
+        Assert.That(result!.SelectedForce.DisplayName, Is.EqualTo("Settler"));
     }
 
     [Test, Description("A troop the player has named should be referred to by that name, not the template's, so the fallback must not override a name "
@@ -161,7 +161,7 @@ internal class TroopActionContextBuilderTests : InMemoryTestBase
 
         TroopActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
 
-        Assert.That(result!.SelectedTroop.DisplayName, Is.EqualTo("First Wagon Train"));
+        Assert.That(result!.SelectedForce.DisplayName, Is.EqualTo("First Wagon Train"));
     }
 
     [Test, Description("Not every template carries an organisation tag, and that is legitimate rather than an error. The projection must yield a null "
@@ -175,7 +175,7 @@ internal class TroopActionContextBuilderTests : InMemoryTestBase
 
         TroopActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 6, CancellationToken.None);
 
-        Assert.That(result!.SelectedTroop.Organisation, Is.Null);
+        Assert.That(result!.SelectedForce.Organisation, Is.Null);
     }
 
     [Test, Description("Actions that combine or transfer between troops need to know what else the player has standing on the tile. The selection "
@@ -191,7 +191,7 @@ internal class TroopActionContextBuilderTests : InMemoryTestBase
 
         TroopActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
 
-        Assert.That(result!.OtherTroopsOnTile.Select(t => t.UnitInstanceId), Is.EquivalentTo(new[] { 6 }),
+        Assert.That(result!.OtherForcesOnTile.Select(t => t.UnitInstanceId), Is.EquivalentTo(new[] { 6 }),
             "Only the player's other troops on the same tile should be gathered.");
     }
 
@@ -207,7 +207,7 @@ internal class TroopActionContextBuilderTests : InMemoryTestBase
 
         TroopActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
 
-        Assert.That(result!.OtherTroopsOnTile, Is.Empty);
+        Assert.That(result!.OtherForcesOnTile, Is.Empty);
     }
 
     [Test, Description("A troop with no soldiers left is not really on the tile any more, and offering actions that involve it would let the player "
@@ -222,12 +222,12 @@ internal class TroopActionContextBuilderTests : InMemoryTestBase
 
         TroopActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
 
-        Assert.That(result!.OtherTroopsOnTile, Is.Empty);
+        Assert.That(result!.OtherForcesOnTile, Is.Empty);
     }
 
     [Test, Description("Asking about someone else's troop must not reveal that it exists, so it is reported exactly as a missing one. Any difference "
         + "in the response would let a player probe for enemy troop ids.")]
-    public async Task ShouldReturnNullWhenTheSelectedTroopBelongsToAnotherPlayerAsync()
+    public async Task ShouldReturnNullWhenTheSelectedForceBelongsToAnotherPlayerAsync()
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
@@ -240,7 +240,7 @@ internal class TroopActionContextBuilderTests : InMemoryTestBase
     }
 
     [Test, Description("A troop id that matches nothing yields no context, which the service turns into a 404 rather than an empty toolbar.")]
-    public async Task ShouldReturnNullWhenTheSelectedTroopDoesNotExistAsync()
+    public async Task ShouldReturnNullWhenTheSelectedForceDoesNotExistAsync()
     {
         TroopActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 999, CancellationToken.None);
 
@@ -260,8 +260,8 @@ internal class TroopActionContextBuilderTests : InMemoryTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result!.SelectedTroop.MovementPointsRemaining, Is.EqualTo(500));
-            Assert.That(result.SelectedTroop.HasFullMovement, Is.False);
+            Assert.That(result!.SelectedForce.MovementPointsRemaining, Is.EqualTo(500));
+            Assert.That(result.SelectedForce.HasFullMovement, Is.False);
         }
     }
 }

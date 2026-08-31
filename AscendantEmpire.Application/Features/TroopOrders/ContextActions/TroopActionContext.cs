@@ -15,20 +15,20 @@ namespace AscendantEmpire.Application.Features.TroopOrders.ContextActions;
 internal sealed record TroopActionContext
 {
     /// <summary>The troop the player has selected, and whose toolbar is being built.</summary>
-    public required TroopActionTroop SelectedTroop { get; init; }
+    public required ForceActionForce SelectedForce { get; init; }
 
     /// <summary>
     /// The other troops sharing the selected troop's campaign map tile, excluding the selection itself.
     /// </summary>
     /// <remarks>Empty when the troop stands alone. Carried for the actions which combine or transfer between troops.</remarks>
-    public required IReadOnlyCollection<TroopActionTroop> OtherTroopsOnTile { get; init; }
+    public required IReadOnlyCollection<ForceActionForce> OtherForcesOnTile { get; init; }
 }
 
 /// <summary>
 /// One troop as the context-action strategies see it: its current strength and movement, plus the parts of its compiled template that bear on
 /// what it may do.
 /// </summary>
-internal sealed record TroopActionTroop
+internal sealed record ForceActionForce
 {
     public required int UnitInstanceId { get; init; }
 

@@ -5,7 +5,7 @@ export type ObservedStructureTile = {
   completionPercent: number;
 };
 
-export type ObservedTroopTile = {
+export type ObservedForceTile = {
   id: number;
   recordType: number;
   ownerPlayerId: number;
@@ -22,5 +22,5 @@ export type TileCell = {
   biomeTypeId: number | null;
   geographyTypeId: number | null;
   structures?: ObservedStructureTile[];
-  troops?: ObservedTroopTile[];
+  forces?: ObservedForceTile[];
 };

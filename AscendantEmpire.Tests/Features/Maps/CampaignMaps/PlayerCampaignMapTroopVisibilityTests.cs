@@ -112,12 +112,12 @@ internal class PlayerCampaignMapTroopVisibilityTests : GameSqlServerTestBase
 
         Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
 
-        List<ObservedTroop> troopsOnStartTile =
+        List<ObservedForce> troopsOnStartTile =
         [
             .. result.SuccessValue!
                 .SelectMany(observer => observer.SeenTiles)
                 .Where(tile => tile.XCoord == startTile.XCoord && tile.YCoord == startTile.YCoord)
-                .SelectMany(tile => tile.Troops)
+                .SelectMany(tile => tile.Forces)
         ];
 
         using (Assert.EnterMultipleScope())
@@ -128,7 +128,7 @@ internal class PlayerCampaignMapTroopVisibilityTests : GameSqlServerTestBase
             Assert.That(troopsOnStartTile.Select(t => t.Id).Distinct(), Is.EquivalentTo(expectedTroops.Select(t => t.Id)),
                 "Every starting unit is reported on the tile it occupies.");
 
-            Assert.That(troopsOnStartTile, Has.All.Property(nameof(ObservedTroop.OwnerPlayerId)).EqualTo(player.Id));
+            Assert.That(troopsOnStartTile, Has.All.Property(nameof(ObservedForce.OwnerPlayerId)).EqualTo(player.Id));
         }
     }
 
@@ -150,11 +150,11 @@ internal class PlayerCampaignMapTroopVisibilityTests : GameSqlServerTestBase
 
         Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
 
-        List<ObservedTroop> reportedTroops =
+        List<ObservedForce> reportedTroops =
         [
             .. result.SuccessValue!
                 .SelectMany(observer => observer.SeenTiles)
-                .SelectMany(tile => tile.Troops)
+                .SelectMany(tile => tile.Forces)
                 .Where(troop => troopsById.ContainsKey(troop.Id))
         ];
 
@@ -162,7 +162,7 @@ internal class PlayerCampaignMapTroopVisibilityTests : GameSqlServerTestBase
         {
             Assert.That(reportedTroops, Is.Not.Empty);
 
-            foreach (ObservedTroop reported in reportedTroops.DistinctBy(t => t.Id))
+            foreach (ObservedForce reported in reportedTroops.DistinctBy(t => t.Id))
             {
                 UnitInstance expected = troopsById[reported.Id];
 
@@ -205,7 +205,7 @@ internal class PlayerCampaignMapTroopVisibilityTests : GameSqlServerTestBase
         // whatever comes back is on the right tile and credited to the right commander.
         var reported = result.SuccessValue!
             .SelectMany(observer => observer.SeenTiles)
-            .SelectMany(tile => tile.Troops.Select(troop => new { Troop = troop, tile.XCoord, tile.YCoord }))
+            .SelectMany(tile => tile.Forces.Select(troop => new { Troop = troop, tile.XCoord, tile.YCoord }))
             .ToList();
 
         using (Assert.EnterMultipleScope())

@@ -5,7 +5,7 @@ import type { TileCell } from "./TileTypes";
 import { iconMap } from "./mapEditorIcons";
 import { cssColorToRgba, pickTextColorOnBg } from "@/util/color";
 import ObservedStructure from "./ObservedStructure";
-import ObservedTroop from "./ObservedTroop";
+import ObservedForce from "./ObservedForce";
 
 export interface TileProps {
   tile: TileCell;
@@ -70,8 +70,8 @@ const Tile = React.memo(function Tile({
   const iconKey = geography?.mapEditorIcon ?? null;
   const Icon = iconKey ? iconMap[iconKey] : undefined;
   const visibleStructure = tile.structures?.find((structure) => structure.structureId === 1) ?? null;
-  const visibleTroop = tile.troops?.find((troop) => troop.id === visibleTroopId) ?? tile.troops?.[0] ?? null;
-  const visibleTroopCount = tile.troops?.length ?? 0;
+  const visibleTroop = tile.forces?.find((troop) => troop.id === visibleTroopId) ?? tile.forces?.[0] ?? null;
+  const visibleTroopCount = tile.forces?.length ?? 0;
 
   const style = { ...baseStyle, ...(getStyle?.(tile) ?? {}) };
   const combinedClassName = ["tile", className].filter(Boolean).join(" ");
@@ -121,7 +121,7 @@ const Tile = React.memo(function Tile({
       {Icon ? <Icon className="tile-icon-fill" aria-hidden style={{ color: iconColor }} /> : null}
       {visibleStructure ? <ObservedStructure structure={visibleStructure} /> : null}
       {visibleTroop ? (
-        <ObservedTroop
+        <ObservedForce
           troop={visibleTroop}
           unitInstanceCount={visibleTroopCount}
           isSelected={visibleTroop.id === selectedTroopId}

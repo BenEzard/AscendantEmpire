@@ -44,13 +44,13 @@ internal class SplitTroopsStrategyTests
     }
 
     /// <summary>Builds the selected troop, defaulting to a 100-strong settler that has not yet moved.</summary>
-    private static TroopActionTroop Troop(
+    private static ForceActionForce Troop(
         int healthyCount = 100,
         int injuredCount = 0,
         long movementPointsRemaining = _FULL_CAMPAIGN_MOVEMENT,
         TroopActionOrganisation? organisation = null)
     {
-        return new TroopActionTroop
+        return new ForceActionForce
         {
             UnitInstanceId = 5,
             PlayerId = 1,
@@ -64,9 +64,9 @@ internal class SplitTroopsStrategyTests
         };
     }
 
-    private static TroopActionContext Context(TroopActionTroop troop)
+    private static TroopActionContext Context(ForceActionForce troop)
     {
-        return new TroopActionContext { SelectedTroop = troop, OtherTroopsOnTile = [] };
+        return new TroopActionContext { SelectedForce = troop, OtherForcesOnTile = [] };
     }
 
     [Test, Description("The strategy answers for the SplitTroops action, which is also what fixes its position in the toolbar — the enum value doubles "

@@ -14,7 +14,7 @@ internal sealed class TroopActionContextBuilder(
 
         // The selected troop is fetched on its own rather than as part of the tile query, so that "no such troop" and "the troop is there but
         // it isn't yours" can be told apart from "the tile is empty" by the caller.
-        TroopActionTroop? selectedTroop = await ProjectTroops(context)
+        ForceActionForce? selectedTroop = await ProjectTroops(context)
             .Where(troop => troop.UnitInstanceId == unitInstanceId)
             .FirstOrDefaultAsync(cancelToken);
 
@@ -25,7 +25,7 @@ internal sealed class TroopActionContextBuilder(
 
         // Only the player's own troops are gathered. Including enemy troops would need the vision rules applied first, or the toolbar would
         // quietly confirm what is standing on a tile the player cannot see — see the design doc's open questions.
-        List<TroopActionTroop> otherTroopsOnTile = await ProjectTroops(context)
+        List<ForceActionForce> otherTroopsOnTile = await ProjectTroops(context)
             .Where(troop => troop.CampaignMapTileId == selectedTroop.CampaignMapTileId)
             .Where(troop => troop.PlayerId == playerId)
             .Where(troop => troop.UnitInstanceId != unitInstanceId)
@@ -33,19 +33,19 @@ internal sealed class TroopActionContextBuilder(
 
         return new TroopActionContext
         {
-            SelectedTroop = selectedTroop,
-            OtherTroopsOnTile = otherTroopsOnTile
+            SelectedForce = selectedTroop,
+            OtherForcesOnTile = otherTroopsOnTile
         };
 
         // Shared projection so the selected troop and its neighbours are always shaped identically.
         // Everything the strategies read is flattened off the compiled snapshot here, so no EF entity escapes into the pure rule layer.
-        IQueryable<TroopActionTroop> ProjectTroops(AscendantEmpireContext dbContext)
+        IQueryable<ForceActionForce> ProjectTroops(AscendantEmpireContext dbContext)
         {
             return dbContext.UnitInstances
                 .AsNoTracking()
                 .Where(troop => troop.GameId == gameId)
                 .Where(troop => troop.HealthyCount + troop.InjuredCount > 0) // A wiped-out troop has no actions to offer.
-                .Select(troop => new TroopActionTroop
+                .Select(troop => new ForceActionForce
                 {
                     UnitInstanceId = troop.Id,
                     PlayerId = troop.PlayerId,

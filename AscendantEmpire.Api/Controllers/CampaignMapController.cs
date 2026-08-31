@@ -76,7 +76,7 @@ public class CampaignMapController : ControllerBase
                             PositionOnTile = s.PositionOnTile,
                             CompletionPercent = s.CompletionPercent
                         }) ?? []],
-                        Troops = [.. tile.Troops?.Select(t => new DTTroopStub
+                        Forces = [.. tile.Forces?.Select(t => new DTForceStub
                         {
                             Id = t.Id,
                             RecordType = t.RecordType,

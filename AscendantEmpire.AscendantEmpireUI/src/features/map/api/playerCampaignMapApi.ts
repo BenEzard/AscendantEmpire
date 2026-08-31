@@ -19,7 +19,7 @@ export interface CampaignMapTileDto {
   biomeTypeId: number;
   campaignMapGeographyTypeId: number;
   structures?: ObservedStructureDto[];
-  troops?: ObservedTroopDto[];
+  forces?: ObservedForceDto[];
 }
 
 export type PlayerCampaignMapObserverResultDto = {
@@ -38,7 +38,7 @@ export type ObservedStructureDto = {
   completionPercent: number;
 };
 
-export type ObservedTroopDto = {
+export type ObservedForceDto = {
   id: number;
   recordType: number;
   ownerPlayerId: number;
@@ -57,7 +57,7 @@ type ObservedStructureWireDto = Partial<{
   completionPercent: number;
 }>;
 
-type ObservedTroopWireDto = Partial<{
+type ObservedForceWireDto = Partial<{
   id: number;
   recordType: number;
   ownerPlayerId: number;
@@ -73,7 +73,7 @@ type CampaignMapTileWireDto = Partial<{
   biomeTypeId: number;
   campaignMapGeographyTypeId: number;
   structures: ObservedStructureWireDto[];
-  troops: ObservedTroopWireDto[];
+  forces: ObservedForceWireDto[];
 }>;
 
 type PlayerCampaignMapObserverResultWireDto = Partial<{
@@ -116,7 +116,7 @@ function normalizeObservedStructure(structure: ObservedStructureWireDto): Observ
   };
 }
 
-function normalizeObservedTroop(troop: ObservedTroopWireDto): ObservedTroopDto {
+function normalizeObservedForce(troop: ObservedForceWireDto): ObservedForceDto {
   return {
     id: troop.id ?? 0,
     recordType: troop.recordType ?? 0,
@@ -130,7 +130,7 @@ function normalizeObservedTroop(troop: ObservedTroopWireDto): ObservedTroopDto {
 
 function normalizeCampaignMapTile(tile: CampaignMapTileWireDto): CampaignMapTileDto {
   const structures = (tile.structures ?? []).map(normalizeObservedStructure);
-  const troops = (tile.troops ?? []).map(normalizeObservedTroop);
+  const forces = (tile.forces ?? []).map(normalizeObservedForce);
 
   return {
     xCoord: tile.xCoord ?? 0,
@@ -138,7 +138,7 @@ function normalizeCampaignMapTile(tile: CampaignMapTileWireDto): CampaignMapTile
     biomeTypeId: tile.biomeTypeId ?? 0,
     campaignMapGeographyTypeId: tile.campaignMapGeographyTypeId ?? 0,
     ...(structures.length > 0 ? { structures } : {}),
-    ...(troops.length > 0 ? { troops } : {}),
+    ...(forces.length > 0 ? { forces } : {}),
   };
 }
 
@@ -175,7 +175,7 @@ function mergeTiles(tiles: CampaignMapTileDto[]): CampaignMapTileDto[] {
       ...existing,
       ...tile,
       structures: tile.structures && tile.structures.length > 0 ? tile.structures : existing.structures,
-      troops: tile.troops && tile.troops.length > 0 ? tile.troops : existing.troops,
+      forces: tile.forces && tile.forces.length > 0 ? tile.forces : existing.forces,
     });
   }
 
@@ -185,7 +185,7 @@ function mergeTiles(tiles: CampaignMapTileDto[]): CampaignMapTileDto[] {
 function logTroopTable(response: PlayerCampaignMapResponseDto): void {
   const troopRows = response.observers.flatMap((observer) =>
     observer.seenTiles.flatMap((tile) =>
-      (tile.troops ?? []).map((troop) => ({
+      (tile.forces ?? []).map((troop) => ({
         observerId: observer.id,
         observerRecordType: observer.observerRecordType,
         xCoord: tile.xCoord,

@@ -1,7 +1,7 @@
-﻿import type { ObservedTroopTile } from "./TileTypes";
+﻿import type { ObservedForceTile } from "./TileTypes";
 
-export interface ObservedTroopProps {
-  troop: ObservedTroopTile;
+export interface ObservedForceProps {
+  troop: ObservedForceTile;
   unitInstanceCount: number;
   isSelected?: boolean;
   troopImageSrcByUnitTemplateId?: ReadonlyMap<number, string>;
@@ -19,7 +19,7 @@ function getUnitMarkerCount(unitCount: number): number {
   return 4;
 }
 
-export default function ObservedTroop({ troop, unitInstanceCount, isSelected = false, troopImageSrcByUnitTemplateId }: ObservedTroopProps) {
+export default function ObservedForce({ troop, unitInstanceCount, isSelected = false, troopImageSrcByUnitTemplateId }: ObservedForceProps) {
   const troopImageSrc = troopImageSrcByUnitTemplateId?.get(troop.unitTemplateId);
 
   if (!troopImageSrc) return null;

@@ -40,7 +40,7 @@ function buildTiles2d(width: number, height: number, tiles: CampaignMapTileDto[]
       biomeTypeId: null,
       geographyTypeId: null,
       structures: undefined,
-      troops: undefined,
+      forces: undefined,
     })),
   );
 
@@ -54,7 +54,7 @@ function buildTiles2d(width: number, height: number, tiles: CampaignMapTileDto[]
       biomeTypeId: t.biomeTypeId,
       geographyTypeId: t.campaignMapGeographyTypeId,
       structures: t.structures,
-      troops: t.troops,
+      forces: t.forces,
     };
   }
 

@@ -2,7 +2,7 @@
 
 namespace AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 
-public record ObservedTroop
+public record ObservedForce
 {
     public int Id { get; init; }
     public RecordType RecordType { get; init; }

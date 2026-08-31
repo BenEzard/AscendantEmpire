@@ -9,5 +9,5 @@ public record class ObservedCampaignTile
     public BiomeType BiomeTypeId { get; init; }
     public CampaignMapGeographyType CampaignMapGeographyTypeId { get; init; }
     public IReadOnlyCollection<ObservedStructure> Structures { get; init; } = null!;
-    public IReadOnlyCollection<ObservedTroop> Troops { get; init; } = null!;
+    public IReadOnlyCollection<ObservedForce> Forces { get; init; } = null!;
 }

@@ -39,7 +39,7 @@ function mergeTiles(prev: CampaignMapTilesResponse | undefined, next: CampaignMa
         ...existing,
         ...t,
         structures: t.structures && t.structures.length > 0 ? t.structures : existing.structures,
-        troops: t.troops && t.troops.length > 0 ? t.troops : existing.troops,
+        forces: t.forces && t.forces.length > 0 ? t.forces : existing.forces,
       };
     } else {
       merged.push(t);

@@ -228,7 +228,7 @@ internal class GetPlayerCampaignMapHandler(
                                     CompletionPercent = os.CompletionPercent,
                                     PositionOnTile = os.Position
                                 }).ToList() ?? [],
-                                Troops = troopsAtTile?.Select(ot => new ObservedTroop
+                                Forces = troopsAtTile?.Select(ot => new ObservedForce
                                 {
                                     Id = ot.UnitInstanceId,
                                     RecordType = ot.RecordType,
@@ -267,7 +267,7 @@ internal class GetPlayerCampaignMapHandler(
                             // Tiles outside an observer's sight are terrain only: the player knows the
                             // ground from having explored it, but not what is standing on it now.
                             Structures = [],
-                            Troops = []
+                            Forces = []
                         })
                     ]
                 };
