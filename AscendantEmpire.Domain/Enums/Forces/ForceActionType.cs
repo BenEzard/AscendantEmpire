@@ -1,13 +1,13 @@
 namespace AscendantEmpire.Domain.Enums.Forces;
 
 /// <summary>
-/// An action the player can take against a selected troop <b>right now</b>, as offered by the context action toolbar.
+/// An action the player can take against a selected Force <b>right now</b>, as offered by the context action toolbar.
 /// </summary>
 /// <remarks>
 /// <para>
 /// Deliberately separate from <see cref="ForceOrderType"/>. That enum describes orders which <b>span multiple turns</b> — a persisted
 /// <c>ForceOrder</c> row carrying progress, movement steps and a status the turn processor advances. A context action is something the player
-/// does immediately. Executing one <i>may</i> raise a troop order (choosing to move would), but it need not: splitting resolves there and then
+/// does immediately. Executing one <i>may</i> raise a Force order (choosing to move would), but it need not: splitting resolves there and then
 /// and consumes the turn without ever becoming a standing order.
 /// </para>
 /// <para>
@@ -24,7 +24,7 @@ public enum ForceActionType
     None = 0,
 
     // 1–999 is reserved for frontend-only affordances which still need a stable slot in the display order but have no backend rule behind them
-    // (for example "Select Force", which reopens the multi-force selection dialog). The backend never emits a value from this band.
+    // (for example "Select Force", which reopens the multi-Force selection dialog). The backend never emits a value from this band.
 
     /// <summary>
     /// Divide the selected Force into two or more smaller ones. Costs it the entire turn.

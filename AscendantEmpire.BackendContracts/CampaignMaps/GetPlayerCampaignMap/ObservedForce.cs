@@ -8,7 +8,7 @@ public record ObservedForce
     public RecordType RecordType { get; init; }
 
     /// <summary>
-    /// The player who owns this troop.
+    /// The player who owns this Force.
     /// </summary>
     /// <remarks>
     /// Named for ownership, not command. It was previously <c>CommanderId</c>, which was misleading even then — it has only ever been populated
@@ -19,17 +19,17 @@ public record ObservedForce
     public int UnitTemplateId { get; init; }
 
     /// <summary>
-    /// The number of individual soldiers in this troop who are unwounded.
+    /// The number of individual soldiers in this Force who are unwounded.
     /// </summary>
     public int HealthyTroops { get; init; }
 
     /// <summary>
-    /// The number of individual soldiers in this troop who are wounded.
+    /// The number of individual soldiers in this Force who are wounded.
     /// </summary>
     public int InjuredTroops { get; init; }
 
     /// <summary>
-    /// The total number of troops when it was first created.
+    /// The total number of Forces when it was first created.
     /// </summary>
     public int InitialStrength { get; init; }
 }

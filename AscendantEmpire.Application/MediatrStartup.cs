@@ -36,7 +36,7 @@ public static class MediatrStartup
         services.AddScoped<IGameSetupService, GameSetupService>();
         services.AddScoped<IMovementProfileFactory, MovementProfileFactory>();
 
-        // Troop context action pipeline. Each IForceActionStrategy decides one toolbar action; the service builds the shared context once and
+        // Force context action pipeline. Each IForceActionStrategy decides one toolbar action; the service builds the shared context once and
         // judges every strategy against it. Display order comes from ForceActionType's value, so registration order here does not matter.
         services.AddScoped<IForceContextActionService, ForceContextActionService>();
         services.AddScoped<IForceActionContextBuilder, ForceActionContextBuilder>();

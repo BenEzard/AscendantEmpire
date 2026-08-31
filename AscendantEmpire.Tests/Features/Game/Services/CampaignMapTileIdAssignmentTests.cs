@@ -214,20 +214,20 @@ internal class CampaignMapTileIdAssignmentTests : GameSqlServerTestBase
         }
     }
 
-    [Test, Description("Starting troops are placed on real world-map tile rows, not on ids derived from coordinates with a hardcoded offset.")]
-    public async Task StarterTroopsReferenceRealWorldMapTilesAsync()
+    [Test, Description("Starting Units are placed on real world-map tile rows, not on ids derived from coordinates with a hardcoded offset.")]
+    public async Task StarterUnitsReferenceRealWorldMapTilesAsync()
     {
         await SeedGameAsync(mapWidth: _MAP_WIDTH, mapHeight: _MAP_HEIGHT, numberOfPlayers: 2);
 
         // Set a first game up so the game under test is not the one whose map starts at id 1.
         await SetupGameAsync("Throwaway First Game", numberOfPlayers: 2);
-        int gameId = await SetupGameAsync("Troop Placement Game", numberOfPlayers: 2);
+        int gameId = await SetupGameAsync("Unit Placement Game", numberOfPlayers: 2);
 
         await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
 
         GameIndex game = await verify.GameIndex.SingleAsync(g => g.Id == gameId);
 
-        List<int> troopTileIds = await verify.UnitInstances
+        List<int> unitTileIds = await verify.UnitInstances
             .Where(t => t.GameId == gameId)
             .Select(t => t.CampaignMapTileId)
             .ToListAsync();
@@ -239,13 +239,13 @@ internal class CampaignMapTileIdAssignmentTests : GameSqlServerTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(troopTileIds, Is.Not.Empty, "Setup spawns starting units.");
+            Assert.That(unitTileIds, Is.Not.Empty, "Setup spawns starting units.");
 
             // Distinct, because each player's settler and scout share a start tile and Is.SubsetOf counts duplicates.
-            Assert.That(troopTileIds.Distinct(), Is.SubsetOf(tileIdsForGame), "Every troop stands on a tile belonging to its own game.");
+            Assert.That(unitTileIds.Distinct(), Is.SubsetOf(tileIdsForGame), "Every Unit stands on a tile belonging to its own game.");
 
-            Assert.That(troopTileIds, Has.All.GreaterThanOrEqualTo(game.CampaignMapOffsetId),
-                "No troop is left on an id from an earlier game's block.");
+            Assert.That(unitTileIds, Has.All.GreaterThanOrEqualTo(game.CampaignMapOffsetId),
+                "No Unit is left on an id from an earlier game's block.");
         }
     }
 }

@@ -29,7 +29,7 @@ internal class GetForceOrdersRequestValidator : AbstractValidator<GetForceOrders
             .GreaterThan(0).WithMessage("Player Id is required.");
 
         RuleFor(x => x.UnitInstanceId)
-            .GreaterThan(0).WithMessage("Troop Instance Id is required.");
+            .GreaterThan(0).WithMessage("Unit Instance Id is required.");
     }
 }
 
@@ -55,16 +55,16 @@ internal class GetForceOrdersHandler(
 
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            bool troopExistsForPlayer = await context.UnitInstances.AnyAsync(t =>
+            bool unitExistsForPlayer = await context.UnitInstances.AnyAsync(t =>
                     t.Id == request.UnitInstanceId 
                     && t.GameId == request.GameId 
                     && t.PlayerId == request.PlayerId,
                     cancelToken);
 
-            if (!troopExistsForPlayer)
+            if (!unitExistsForPlayer)
             {
-                string error = $"Troop Instance Id {request.UnitInstanceId} was not found for Player Id {request.PlayerId} in Game Id {request.GameId}.";
-                logger.LogWarning("Troop Instance Id {UnitInstanceId} was not found for Player Id {PlayerId} in Game Id {GameId}.",
+                string error = $"Unit Instance Id {request.UnitInstanceId} was not found for Player Id {request.PlayerId} in Game Id {request.GameId}.";
+                logger.LogWarning("Unit Instance Id {UnitInstanceId} was not found for Player Id {PlayerId} in Game Id {GameId}.",
                     request.UnitInstanceId,
                     request.PlayerId,
                     request.GameId);
@@ -127,7 +127,7 @@ internal class GetForceOrdersHandler(
                 .ToListAsync(cancelToken);
 
             logger.LogInformation(
-                "Retrieved {Count} troop orders for Troop Instance Id {UnitInstanceId}, Player Id {PlayerId}, Game Id {GameId}.",
+                "Retrieved {Count} force orders for Unit Instance Id {UnitInstanceId}, Player Id {PlayerId}, Game Id {GameId}.",
                 orders.Count,
                 request.UnitInstanceId,
                 request.PlayerId,
@@ -137,8 +137,8 @@ internal class GetForceOrdersHandler(
         }
         catch (Exception ex)
         {
-            string error = $"An error occurred while retrieving troop orders for Troop Instance Id {request.UnitInstanceId}, Player Id {request.PlayerId}, Game Id {request.GameId}.";
-            logger.LogError(ex, "An error occurred while retrieving troop orders for Troop Instance Id {UnitInstanceId}, Player Id {PlayerId}, Game Id {GameId}.", 
+            string error = $"An error occurred while retrieving force orders for Unit Instance Id {request.UnitInstanceId}, Player Id {request.PlayerId}, Game Id {request.GameId}.";
+            logger.LogError(ex, "An error occurred while retrieving force orders for Unit Instance Id {UnitInstanceId}, Player Id {PlayerId}, Game Id {GameId}.", 
                 request.UnitInstanceId, 
                 request.PlayerId, 
                 request.GameId);

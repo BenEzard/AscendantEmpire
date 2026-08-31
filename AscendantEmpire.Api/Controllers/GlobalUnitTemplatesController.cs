@@ -39,7 +39,7 @@ public class GlobalUnitTemplatesController : ControllerBase
     /// <para>Gated behind <see cref="PermissionType.EntitySetupTool"/>, since it writes the shared template catalogue.
     /// Unlike the player-facing save endpoint, this template has no game/player, its Code is required and unique, and no unlock check is applied.</para>
     /// <para>Code is the natural key, so a taken code answers 409 with a <see cref="TemplateNameConflict"/> reporting the existing template and how many
-    /// troops are built from it. Re-sending the same body with <c>OverwriteExisting</c> set performs the overwrite and answers 200. The caller never
+    /// units are built from it. Re-sending the same body with <c>OverwriteExisting</c> set performs the overwrite and answers 200. The caller never
     /// needs the existing template's id — that is what separates this from the by-id update below.</para>
     /// </remarks>
     /// <response code="200">An existing template was overwritten (the request set OverwriteExisting); returns the updated template</response>

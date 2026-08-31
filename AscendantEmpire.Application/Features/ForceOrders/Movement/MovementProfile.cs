@@ -4,7 +4,7 @@ using AscendantEmpire.Domain.Enums.Modifiers;
 namespace AscendantEmpire.Application.Features.ForceOrders.Movement;
 
 /// <summary>
-/// Immutable movement characteristics of a troop's unit design.
+/// Immutable movement characteristics of a Unit's design.
 /// This model describes what the unit is capable of in general and is safe to reuse across
 /// multiple path evaluations.
 /// </summary>

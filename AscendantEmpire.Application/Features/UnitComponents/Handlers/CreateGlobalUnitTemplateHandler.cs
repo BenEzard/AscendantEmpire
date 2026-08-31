@@ -57,7 +57,7 @@ internal class CreateGlobalUnitTemplateHandler(
             {
                 if (!dto.OverwriteExisting)
                 {
-                    // The troop count never refuses the overwrite here — authoring the shared catalogue is this endpoint's purpose — but it is reported
+                    // The Unit count never refuses the overwrite here — authoring the shared catalogue is this endpoint's purpose — but it is reported
                     // so the caller's confirmation can say what the change will affect.
                     int instanceCount = await UnitTemplateNameLookup.CountUnitInstancesAsync(context, existing.Id, cancelToken);
 

@@ -34,7 +34,7 @@ public class BattleParticipant
     public string? PlayerBattleName { get; set; }
 
     /// <summary>
-    /// Was this Player's troops supplied at the end of last turn?
+    /// Were this Player's Units supplied at the end of last turn?
     /// </summary>
     public bool WasSupplied { get; set; }
 

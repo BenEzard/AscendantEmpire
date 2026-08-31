@@ -6,7 +6,7 @@ namespace AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 /// <remarks>
 /// <para>
 /// A strategy returning <see langword="null"/> instead of one of these means something different again — that the action is structurally
-/// irrelevant to the troop and should not appear in the toolbar at all. See <see cref="IForceActionStrategy.Evaluate"/>.
+/// irrelevant to the Force and should not appear in the toolbar at all. See <see cref="IForceActionStrategy.Evaluate"/>.
 /// </para>
 /// </remarks>
 internal sealed record ForceActionAvailability
@@ -30,7 +30,7 @@ internal sealed record ForceActionAvailability
     }
 
     /// <summary>
-    /// The action applies to this troop but is blocked, for the reasons given.
+    /// The action applies to this Force but is blocked, for the reasons given.
     /// </summary>
     /// <remarks>Falls back to <see cref="Available"/> when handed no reasons, so a rule set that finds no fault cannot produce a button that is
     /// disabled with no explanation.</remarks>

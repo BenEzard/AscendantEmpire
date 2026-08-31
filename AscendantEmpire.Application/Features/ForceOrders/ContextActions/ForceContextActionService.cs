@@ -22,8 +22,8 @@ internal sealed class ForceContextActionService(
 
         if (context is null)
         {
-            string error = $"Troop Instance Id {unitInstanceId} was not found for Player Id {playerId} in Game Id {gameId}.";
-            logger.LogWarning("Troop Instance Id {UnitInstanceId} was not found for Player Id {PlayerId} in Game Id {GameId}.",
+            string error = $"Unit Instance Id {unitInstanceId} was not found for Player Id {playerId} in Game Id {gameId}.";
+            logger.LogWarning("Unit Instance Id {UnitInstanceId} was not found for Player Id {PlayerId} in Game Id {GameId}.",
                 unitInstanceId, playerId, gameId);
 
             return ServiceResultBase.ServiceResult<IReadOnlyCollection<ForceContextAction>>.NotFound(error);
@@ -46,13 +46,13 @@ internal sealed class ForceContextActionService(
             {
                 // One broken strategy must not cost the player their whole toolbar; drop just that action and carry on. Mirrors how the
                 // end-turn possible-action pipeline isolates its checks.
-                logger.LogError(ex, "Troop action strategy '{ActionType}' threw for Troop Instance Id {UnitInstanceId} in Game Id {GameId}.",
+                logger.LogError(ex, "Force action strategy '{ActionType}' threw for Unit Instance Id {UnitInstanceId} in Game Id {GameId}.",
                     strategy.ActionType, unitInstanceId, gameId);
 
                 continue;
             }
 
-            // Null means the action is structurally irrelevant to this troop, so it is left out of the toolbar altogether.
+            // Null means the action is structurally irrelevant to this Force, so it is left out of the toolbar altogether.
             if (availability is null)
             {
                 continue;
@@ -68,7 +68,7 @@ internal sealed class ForceContextActionService(
             });
         }
 
-        logger.LogDebug("Resolved {Count} context action(s) for Troop Instance Id {UnitInstanceId} in Game Id {GameId}.",
+        logger.LogDebug("Resolved {Count} context action(s) for Unit Instance Id {UnitInstanceId} in Game Id {GameId}.",
             actions.Count, unitInstanceId, gameId);
 
         return ServiceResultBase.ServiceResult<IReadOnlyCollection<ForceContextAction>>.Succeed(actions);
@@ -85,8 +85,8 @@ internal sealed class ForceContextActionService(
 
         if (strategy is null)
         {
-            string error = $"No troop action strategy is registered for '{actionType}'.";
-            logger.LogWarning("No troop action strategy is registered for '{ActionType}'.", actionType);
+            string error = $"No force action strategy is registered for '{actionType}'.";
+            logger.LogWarning("No force action strategy is registered for '{ActionType}'.", actionType);
 
             return ServiceResultBase.ServiceResult<ForceActionAvailability>.NotFound(error);
         }
@@ -95,8 +95,8 @@ internal sealed class ForceContextActionService(
 
         if (context is null)
         {
-            string error = $"Troop Instance Id {unitInstanceId} was not found for Player Id {playerId} in Game Id {gameId}.";
-            logger.LogWarning("Troop Instance Id {UnitInstanceId} was not found for Player Id {PlayerId} in Game Id {GameId}.",
+            string error = $"Unit Instance Id {unitInstanceId} was not found for Player Id {playerId} in Game Id {gameId}.";
+            logger.LogWarning("Unit Instance Id {UnitInstanceId} was not found for Player Id {PlayerId} in Game Id {GameId}.",
                 unitInstanceId, playerId, gameId);
 
             return ServiceResultBase.ServiceResult<ForceActionAvailability>.NotFound(error);
@@ -105,7 +105,7 @@ internal sealed class ForceContextActionService(
         // A structurally irrelevant action (null) is a hard no at execution time, not merely an absent button — so it is reported as blocked
         // rather than allowed through.
         ForceActionAvailability availability = strategy.Evaluate(context)
-            ?? ForceActionAvailability.Blocked([$"'{strategy.Label}' does not apply to this troop."]);
+            ?? ForceActionAvailability.Blocked([$"'{strategy.Label}' does not apply to this force."]);
 
         return ServiceResultBase.ServiceResult<ForceActionAvailability>.Succeed(availability);
     }

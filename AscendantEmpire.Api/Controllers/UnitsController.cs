@@ -22,7 +22,7 @@ namespace AscendantEmpire.Api.Controllers;
 public class UnitsController : ControllerBase
 {
     /// <summary>
-    /// Spawn a troop into a game and location.
+    /// Spawn a Unit into a game and location.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -74,7 +74,7 @@ public class UnitsController : ControllerBase
         [FromServices] IMediator mediator,
         CancellationToken cancelToken)
     {
-        // The game comes from the token, so the caller can't read another game's troop display info.
+        // The game comes from the token, so the caller can't read another game's unit display info.
         if (!this.TryGetGameContext(out int gameId, out int _, out IActionResult? contextError))
         {
             return contextError!;

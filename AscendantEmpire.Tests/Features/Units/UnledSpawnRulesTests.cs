@@ -5,7 +5,7 @@ using AscendantEmpire.Domain.Enums.UnitDesigns;
 namespace AscendantEmpire.Tests.Features.Units;
 
 /// <summary>
-/// Unit tests for <see cref="UnledSpawnRules"/> — the sizing rules applied when a troop is created from a
+/// Unit tests for <see cref="UnledSpawnRules"/> — the sizing rules applied when a Unit is created from a
 /// template whose organisation tag is unled (size must be a whole multiple of the base quantum, capped at
 /// the tag's max). Pure logic over an in-memory <see cref="Tag"/>, so no database tier is needed.
 /// </summary>

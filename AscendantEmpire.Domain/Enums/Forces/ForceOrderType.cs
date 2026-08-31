@@ -5,7 +5,7 @@ public enum ForceOrderType
     None = 0,
 
     /// <summary>
-    /// Troop is moving to a specific destination tile. 
+    /// Force is moving to a specific destination tile. 
     /// </summary>
     /// <remarks>TargetCampaignMapTileId is the destination tile. 
     /// For movement orders, CurrentMovementStepIndex tracks progress along the path to the destination.
@@ -13,32 +13,32 @@ public enum ForceOrderType
     Move = 100,
 
     /// <summary>
-    /// Troop is building a Structure on a specific tile.
+    /// Force is building a Structure on a specific tile.
     /// </summary>
     Build = 200,
 
     /// <summary>
-    /// Troop is healing/repairing on a specific tile.
+    /// Force is healing/repairing on a specific tile.
     /// </summary>
     Heal = 300,
 
     /// <summary>
-    /// Troop is setting up an ambush on a specific tile, waiting for an enemy to enter.
+    /// Force is setting up an ambush on a specific tile, waiting for an enemy to enter.
     /// </summary>
     Ambush = 400,
 
     /// <summary>
-    /// Troop is building fortifications on a specific tile, improving its defensive capabilities.
+    /// Force is building fortifications on a specific tile, improving its defensive capabilities.
     /// </summary>
     Fortify = 500,
 
     /// <summary>
-    /// Troop is awaiting vision of an enemy unit, and will then "wake".
+    /// Force is awaiting vision of an enemy unit, and will then "wake".
     /// </summary>
     Sentry = 600,
 
     /// <summary>
-    /// Troop is gathering resources on a specific tile.
+    /// Force is gathering resources on a specific tile.
     /// </summary>
     Gather = 700,
 
@@ -48,32 +48,32 @@ public enum ForceOrderType
     SkipTurn = 800,
 
     /// <summary>
-    /// Troop is auto-exploring.
+    /// Force is auto-exploring.
     /// </summary>
     AutoExplore = 900,
 
     /// <summary>
-    /// Troops are spending movement points to combine forces.
+    /// Forces are spending movement points to combine Forces.
     /// </summary>
-    CombineTroops = 1000,
+    CombineForces = 1000,
 
     /// <summary>
-    /// Troops are spending movement points to split into separate forces.
+    /// Forces are spending movement points to split into separate Forces.
     /// </summary>
     SplitForce = 1100,
 
     /// <summary>
-    /// Troop is conducting a trade mission.
+    /// Force is conducting a trade mission.
     /// </summary>
     Trade = 1200,
 
     /// <summary>
-    /// Troop is taking part in a supply operation.
+    /// Force is taking part in a supply operation.
     /// </summary>
     Supply = 1300,
 
     /// <summary>
-    /// Troop is defending a specific target (troop or structure) against an attack.
+    /// Force is defending a specific target (Force or structure) against an attack.
     /// </summary>
     Defend = 1400,
 

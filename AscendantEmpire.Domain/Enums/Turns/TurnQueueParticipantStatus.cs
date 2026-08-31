@@ -32,13 +32,13 @@ public enum TurnQueueParticipantStatus
     Eliminated,
 
     /// <summary>
-    /// The Player has withdrawn from the Battle and no longer has Troops active in it.
+    /// The Player has withdrawn from the Battle and no longer has Forces active in it.
     /// </summary>
     /// <remarks>Battle Queue only.</remarks>
     Retreat,
 
     /// <summary>
-    /// The Player left the Battle because their Troops routed.
+    /// The Player left the Battle because their Forces routed.
     /// </summary>
     /// <remarks>Battle Queue only.</remarks>
     Routed,

@@ -81,8 +81,8 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         });
     }
 
-    /// <summary>Adds a troop, defaulting to the player's own full-strength, unmoved settler on the shared tile.</summary>
-    private static async Task AddTroopAsync(
+    /// <summary>Adds a Force, defaulting to the player's own full-strength, unmoved settler on the shared tile.</summary>
+    private static async Task AddForceAsync(
         AscendantEmpireContext context,
         int unitInstanceId,
         int playerId = _PLAYER_ID,
@@ -112,11 +112,11 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
 
     [Test, Description("Everything the strategies read is flattened off the compiled snapshot and its organisation tag here, so that no EF entity "
         + "reaches the pure rule layer. If the projection stopped carrying the tag's sizing, every split rule would silently misjudge.")]
-    public async Task ShouldFlattenTheTroopAndItsOrganisationTagWhenTheTroopIsLoadedAsync()
+    public async Task ShouldFlattenTheForceAndItsOrganisationTagWhenTheForceIsLoadedAsync()
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            await AddTroopAsync(context, unitInstanceId: 5);
+            await AddForceAsync(context, unitInstanceId: 5);
         }
 
         ForceActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
@@ -136,13 +136,13 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         }
     }
 
-    [Test, Description("Reasons shown to the player name the troop, so an unnamed one still needs something to be called. Falling back to the compiled "
+    [Test, Description("Reasons shown to the player name the force, so an unnamed one still needs something to be called. Falling back to the compiled "
         + "template's name keeps those messages readable instead of leaving a blank where the name should be.")]
-    public async Task ShouldFallBackToTheTemplateNameWhenTheTroopIsUnnamedAsync()
+    public async Task ShouldFallBackToTheTemplateNameWhenTheForceIsUnnamedAsync()
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            await AddTroopAsync(context, unitInstanceId: 5, name: null);
+            await AddForceAsync(context, unitInstanceId: 5, name: null);
         }
 
         ForceActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
@@ -150,13 +150,13 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         Assert.That(result!.SelectedForce.DisplayName, Is.EqualTo("Settler"));
     }
 
-    [Test, Description("A troop the player has named should be referred to by that name, not the template's, so the fallback must not override a name "
+    [Test, Description("A force the player has named should be referred to by that name, not the template's, so the fallback must not override a name "
         + "that is actually set.")]
-    public async Task ShouldUseTheTroopsOwnNameWhenItHasOneAsync()
+    public async Task ShouldUseTheForcesOwnNameWhenItHasOneAsync()
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            await AddTroopAsync(context, unitInstanceId: 5, name: "First Wagon Train");
+            await AddForceAsync(context, unitInstanceId: 5, name: "First Wagon Train");
         }
 
         ForceActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
@@ -170,7 +170,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            await AddTroopAsync(context, unitInstanceId: 6, unitTemplateId: _UNTAGGED_TEMPLATE_ID, healthyCount: 1);
+            await AddForceAsync(context, unitInstanceId: 6, unitTemplateId: _UNTAGGED_TEMPLATE_ID, healthyCount: 1);
         }
 
         ForceActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 6, CancellationToken.None);
@@ -178,31 +178,31 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         Assert.That(result!.SelectedForce.Organisation, Is.Null);
     }
 
-    [Test, Description("Actions that combine or transfer between troops need to know what else the player has standing on the tile. The selection "
-        + "itself is excluded so a strategy cannot mistake it for a partner, and troops elsewhere are not gathered.")]
-    public async Task ShouldGatherTheOwnersOtherTroopsWhenTheyShareTheTileAsync()
+    [Test, Description("Actions that combine or transfer between forces need to know what else the player has standing on the tile. The selection "
+        + "itself is excluded so a strategy cannot mistake it for a partner, and forces elsewhere are not gathered.")]
+    public async Task ShouldGatherTheOwnersOtherForcesWhenTheyShareTheTileAsync()
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            await AddTroopAsync(context, unitInstanceId: 5);
-            await AddTroopAsync(context, unitInstanceId: 6, unitTemplateId: _UNTAGGED_TEMPLATE_ID, healthyCount: 1);
-            await AddTroopAsync(context, unitInstanceId: 7, campaignMapTileId: _OTHER_TILE_ID);
+            await AddForceAsync(context, unitInstanceId: 5);
+            await AddForceAsync(context, unitInstanceId: 6, unitTemplateId: _UNTAGGED_TEMPLATE_ID, healthyCount: 1);
+            await AddForceAsync(context, unitInstanceId: 7, campaignMapTileId: _OTHER_TILE_ID);
         }
 
         ForceActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
 
         Assert.That(result!.OtherForcesOnTile.Select(t => t.UnitInstanceId), Is.EquivalentTo(new[] { 6 }),
-            "Only the player's other troops on the same tile should be gathered.");
+            "Only the player's other forces on the same tile should be gathered.");
     }
 
-    [Test, Description("Gathering enemy troops would let the toolbar confirm what is standing on a tile the player cannot actually see, leaking "
+    [Test, Description("Gathering enemy forces would let the toolbar confirm what is standing on a tile the player cannot actually see, leaking "
         + "information the vision rules are meant to withhold. They stay excluded until those rules are applied here.")]
-    public async Task ShouldExcludeTroopsWhenTheyBelongToAnotherPlayerAsync()
+    public async Task ShouldExcludeForcesWhenTheyBelongToAnotherPlayerAsync()
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            await AddTroopAsync(context, unitInstanceId: 5);
-            await AddTroopAsync(context, unitInstanceId: 8, playerId: _OTHER_PLAYER_ID);
+            await AddForceAsync(context, unitInstanceId: 5);
+            await AddForceAsync(context, unitInstanceId: 8, playerId: _OTHER_PLAYER_ID);
         }
 
         ForceActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
@@ -210,14 +210,14 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         Assert.That(result!.OtherForcesOnTile, Is.Empty);
     }
 
-    [Test, Description("A troop with no soldiers left is not really on the tile any more, and offering actions that involve it would let the player "
+    [Test, Description("A force with no soldiers left is not really on the tile any more, and offering actions that involve it would let the player "
         + "act through a formation that no longer exists.")]
-    public async Task ShouldExcludeTroopsWhenTheyHaveNoSoldiersLeftAsync()
+    public async Task ShouldExcludeForcesWhenTheyHaveNoSoldiersLeftAsync()
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            await AddTroopAsync(context, unitInstanceId: 5);
-            await AddTroopAsync(context, unitInstanceId: 9, healthyCount: 0, injuredCount: 0);
+            await AddForceAsync(context, unitInstanceId: 5);
+            await AddForceAsync(context, unitInstanceId: 9, healthyCount: 0, injuredCount: 0);
         }
 
         ForceActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
@@ -225,13 +225,13 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         Assert.That(result!.OtherForcesOnTile, Is.Empty);
     }
 
-    [Test, Description("Asking about someone else's troop must not reveal that it exists, so it is reported exactly as a missing one. Any difference "
-        + "in the response would let a player probe for enemy troop ids.")]
+    [Test, Description("Asking about someone else's force must not reveal that it exists, so it is reported exactly as a missing one. Any difference "
+        + "in the response would let a player probe for enemy force ids.")]
     public async Task ShouldReturnNullWhenTheSelectedForceBelongsToAnotherPlayerAsync()
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            await AddTroopAsync(context, unitInstanceId: 8, playerId: _OTHER_PLAYER_ID);
+            await AddForceAsync(context, unitInstanceId: 8, playerId: _OTHER_PLAYER_ID);
         }
 
         ForceActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 8, CancellationToken.None);
@@ -239,7 +239,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         Assert.That(result, Is.Null);
     }
 
-    [Test, Description("A troop id that matches nothing yields no context, which the service turns into a 404 rather than an empty toolbar.")]
+    [Test, Description("A force id that matches nothing yields no context, which the service turns into a 404 rather than an empty toolbar.")]
     public async Task ShouldReturnNullWhenTheSelectedForceDoesNotExistAsync()
     {
         ForceActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 999, CancellationToken.None);
@@ -247,13 +247,13 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         Assert.That(result, Is.Null);
     }
 
-    [Test, Description("The split rule turns entirely on whether any movement has been spent, so a partially spent troop must arrive with its real "
+    [Test, Description("The split rule turns entirely on whether any movement has been spent, so a partially spent force must arrive with its real "
         + "remaining points and report that its turn is no longer whole.")]
-    public async Task ShouldCarrySpentMovementThroughWhenTheTroopHasMovedAsync()
+    public async Task ShouldCarrySpentMovementThroughWhenTheForceHasMovedAsync()
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            await AddTroopAsync(context, unitInstanceId: 5, movementPointsRemaining: _CAMPAIGN_MOVEMENT_POINTS / 2);
+            await AddForceAsync(context, unitInstanceId: 5, movementPointsRemaining: _CAMPAIGN_MOVEMENT_POINTS / 2);
         }
 
         ForceActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);

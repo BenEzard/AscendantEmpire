@@ -125,7 +125,7 @@ internal class SpawnUnitHandler(
                 return ServiceResultBase.NotFound(error);
             }
 
-            // The troop's stats are served from the template's compiled snapshot, so a template that has never
+            // The Unit's stats are served from the template's compiled snapshot, so a template that has never
             // been compiled cannot be fielded. The snapshot also carries the organisation tag resolved from the
             // template's components, which decides whether the unled sizing rules apply.
             CompiledUnitTemplate? compiledTemplate = await context.CompiledUnitTemplates

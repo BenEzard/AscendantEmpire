@@ -14,7 +14,7 @@ public record OpenGame
     /// <remarks>
     /// A tile's id is <c>CampaignMapOffsetId + XCoord + YCoord * MapWidth</c>. This is the game-wide
     /// counterpart of <see cref="OpenGamePlayer.CampaignMapOffsetId"/>, which locates one player's
-    /// block in the per-player map; troops and structures are stored against the world map, so
+    /// block in the per-player map; Units and structures are stored against the world map, so
     /// translating between the two needs both.
     /// </remarks>
     public int CampaignMapOffsetId { get; init; }

@@ -190,9 +190,9 @@ internal class UnitTemplateOverwriteTests : SqlServerTestBase
     }
 
     /// <summary>
-    /// Fields one troop built from a template, seeding the map tile it has to stand on.
+    /// Fields one Unit built from a template, seeding the map tile it has to stand on.
     /// </summary>
-    private async Task SeedTroopAsync(int templateId)
+    private async Task SeedUnitAsync(int templateId)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
@@ -324,7 +324,7 @@ internal class UnitTemplateOverwriteTests : SqlServerTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(conflict.CanOverwrite, Is.True, "Their own design, with no troops fielded — theirs to replace.");
+            Assert.That(conflict.CanOverwrite, Is.True, "Their own design, with no Units fielded — theirs to replace.");
             Assert.That(conflict.ExistingDisplayName, Is.EqualTo("My Design"), "Reported as it is actually spelled.");
             Assert.That(conflict.InstanceCount, Is.Zero);
             Assert.That(count, Is.EqualTo(1), "The refused save wrote nothing.");
@@ -382,12 +382,12 @@ internal class UnitTemplateOverwriteTests : SqlServerTestBase
         }
     }
 
-    [Test, Description("A design with troops in the field can't be redrawn under them, and the confirmation flag does not get past that.")]
+    [Test, Description("A design with Units in the field can't be redrawn under them, and the confirmation flag does not get past that.")]
     public async Task SaveOntoAFieldedDesignIsRefusedEvenWhenConfirmedAsync()
     {
         await SeedAsync();
         int templateId = await CreateDesignAsync("My Design", "wpn");
-        await SeedTroopAsync(templateId);
+        await SeedUnitAsync(templateId);
 
         ServiceResult<UnitTemplateView> confirmed =
             await SendAsync(new CreateUnitTemplateRequest(_gameId, _playerId, Dto("My Design", "arm", overwriteExisting: true)));
@@ -399,7 +399,7 @@ internal class UnitTemplateOverwriteTests : SqlServerTestBase
         {
             Assert.That(conflict.CanOverwrite, Is.False, "Nothing the player confirms makes this one go through.");
             Assert.That(conflict.InstanceCount, Is.EqualTo(1));
-            Assert.That(confirmed.Errors.Single(), Does.Contain("1 troop is"), "The count reads naturally at one troop.");
+            Assert.That(confirmed.Errors.Single(), Does.Contain("1 unit is"), "The count reads naturally at one Unit.");
             Assert.That(confirmed.Errors.Single(), Does.Contain("disband"), "The message says how to get past it.");
             Assert.That(snapshot.TotalWeight, Is.EqualTo(110), "The refused save left the design exactly as it was.");
         }
@@ -426,8 +426,8 @@ internal class UnitTemplateOverwriteTests : SqlServerTestBase
         }
     }
 
-    [Test, Description("The dev flow reports the troops built from a catalogue template, but lets the overwrite through once confirmed.")]
-    public async Task GlobalSaveReportsTroopCountThenOverwritesOnConfirmationAsync()
+    [Test, Description("The dev flow reports the Units built from a catalogue template, but lets the overwrite through once confirmed.")]
+    public async Task GlobalSaveReportsUnitCountThenOverwritesOnConfirmationAsync()
     {
         await SeedAsync();
 
@@ -435,7 +435,7 @@ internal class UnitTemplateOverwriteTests : SqlServerTestBase
 
         Assert.That(created.HasSucceeded, Is.True, () => string.Join("; ", created.Errors));
 
-        await SeedTroopAsync(created.SuccessValue!.Id);
+        await SeedUnitAsync(created.SuccessValue!.Id);
 
         ServiceResult<GlobalUnitTemplateView> unconfirmed = await SendAsync(new CreateGlobalUnitTemplateRequest(GlobalDto("spearman", "Spearman", "arm")));
         TemplateNameConflict conflict = ConflictDetail(unconfirmed);

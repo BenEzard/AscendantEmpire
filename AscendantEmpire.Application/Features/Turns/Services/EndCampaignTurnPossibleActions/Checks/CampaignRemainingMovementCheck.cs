@@ -8,13 +8,13 @@ using Microsoft.EntityFrameworkCore;
 namespace AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions.Checks;
 
 /// <summary>
-/// Gets any troops belonging to the Player that still have movement points remaining on the Campaign <ap.
+/// Gets any Forces belonging to the Player that still have movement points remaining on the Campaign <ap.
 /// </summary>
 internal sealed class CampaignRemainingMovementCheck(
     IDbContextFactory<AscendantEmpireContext> dbFactory) : IPossibleActionCheck
 {
-    public string CheckName => "Campaign Troop Remaining Movement";
-    public int ExecutionOrder => (int)EndTurnPossibleActionOrder.TroopsWithRemainingCampaignMovements;
+    public string CheckName => "Campaign Force Remaining Movement";
+    public int ExecutionOrder => (int)EndTurnPossibleActionOrder.ForcesWithRemainingCampaignMovements;
 
     public async Task<IReadOnlyList<PossibleAction>> EvaluateAsync(
         PossibleActionContext actionContext,
@@ -22,8 +22,8 @@ internal sealed class CampaignRemainingMovementCheck(
     {
         await using AscendantEmpireContext db = await dbFactory.CreateDbContextAsync(cancellationToken);
 
-        // Find troops with remaining movement on the Campaign Map
-        var idleTroops = await db.UnitInstances
+        // Find Forces with remaining movement on the Campaign Map
+        var idleForces = await db.UnitInstances
             .Include(t => t.CampaignMap)
             .Where(t => t.GameId == actionContext.GameId)
             .Where(t => t.PlayerId == actionContext.PlayerId)
@@ -38,9 +38,9 @@ internal sealed class CampaignRemainingMovementCheck(
             })
             .ToListAsync(cancellationToken);
 
-        // TODO: Analyse the idle troops and surrounding radius to see if any of them can actually move anywhere.
+        // TODO: Analyse the idle Forces and surrounding radius to see if any of them can actually move anywhere.
 
-        return [.. idleTroops.Select(t =>
+        return [.. idleForces.Select(t =>
             new PossibleAction {
                 Category = InformationCategory.Military,
                 Description = $"{(string.IsNullOrWhiteSpace(t.Name) ? "Unnamed" : t.Name)} has movement remaining.",

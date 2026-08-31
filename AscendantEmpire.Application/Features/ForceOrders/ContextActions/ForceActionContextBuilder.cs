@@ -12,60 +12,60 @@ internal sealed class ForceActionContextBuilder(
     {
         await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-        // The selected troop is fetched on its own rather than as part of the tile query, so that "no such troop" and "the troop is there but
+        // The selected Force is fetched on its own rather than as part of the tile query, so that "no such Force" and "the Force is there but
         // it isn't yours" can be told apart from "the tile is empty" by the caller.
-        ForceActionForce? selectedTroop = await ProjectTroops(context)
-            .Where(troop => troop.UnitInstanceId == unitInstanceId)
+        ForceActionForce? selectedForce = await ProjectForces(context)
+            .Where(force => force.UnitInstanceId == unitInstanceId)
             .FirstOrDefaultAsync(cancelToken);
 
-        if (selectedTroop is null || selectedTroop.PlayerId != playerId)
+        if (selectedForce is null || selectedForce.PlayerId != playerId)
         {
             return null;
         }
 
-        // Only the player's own troops are gathered. Including enemy troops would need the vision rules applied first, or the toolbar would
+        // Only the player's own Forces are gathered. Including enemy Forces would need the vision rules applied first, or the toolbar would
         // quietly confirm what is standing on a tile the player cannot see — see the design doc's open questions.
-        List<ForceActionForce> otherTroopsOnTile = await ProjectTroops(context)
-            .Where(troop => troop.CampaignMapTileId == selectedTroop.CampaignMapTileId)
-            .Where(troop => troop.PlayerId == playerId)
-            .Where(troop => troop.UnitInstanceId != unitInstanceId)
+        List<ForceActionForce> otherForcesOnTile = await ProjectForces(context)
+            .Where(force => force.CampaignMapTileId == selectedForce.CampaignMapTileId)
+            .Where(force => force.PlayerId == playerId)
+            .Where(force => force.UnitInstanceId != unitInstanceId)
             .ToListAsync(cancelToken);
 
         return new ForceActionContext
         {
-            SelectedForce = selectedTroop,
-            OtherForcesOnTile = otherTroopsOnTile
+            SelectedForce = selectedForce,
+            OtherForcesOnTile = otherForcesOnTile
         };
 
-        // Shared projection so the selected troop and its neighbours are always shaped identically.
+        // Shared projection so the selected Force and its neighbours are always shaped identically.
         // Everything the strategies read is flattened off the compiled snapshot here, so no EF entity escapes into the pure rule layer.
-        IQueryable<ForceActionForce> ProjectTroops(AscendantEmpireContext dbContext)
+        IQueryable<ForceActionForce> ProjectForces(AscendantEmpireContext dbContext)
         {
             return dbContext.UnitInstances
                 .AsNoTracking()
-                .Where(troop => troop.GameId == gameId)
-                .Where(troop => troop.HealthyCount + troop.InjuredCount > 0) // A wiped-out troop has no actions to offer.
-                .Select(troop => new ForceActionForce
+                .Where(force => force.GameId == gameId)
+                .Where(force => force.HealthyCount + force.InjuredCount > 0) // A wiped-out force has no actions to offer.
+                .Select(force => new ForceActionForce
                 {
-                    UnitInstanceId = troop.Id,
-                    PlayerId = troop.PlayerId,
-                    CampaignMapTileId = troop.CampaignMapTileId,
-                    // The compiled snapshot always exists: a troop cannot be spawned from an uncompiled template.
-                    DisplayName = troop.Name ?? troop.UnitTemplate.Compiled!.DisplayName,
-                    HealthyCount = troop.HealthyCount,
-                    InjuredCount = troop.InjuredCount,
-                    MovementPointsRemaining = troop.MovementPointsRemaining,
-                    CampaignMovementPoints = troop.UnitTemplate.Compiled!.CampaignMovementPoints,
-                    Organisation = troop.UnitTemplate.Compiled!.OrganisationTag == null
+                    UnitInstanceId = force.Id,
+                    PlayerId = force.PlayerId,
+                    CampaignMapTileId = force.CampaignMapTileId,
+                    // The compiled snapshot always exists: a Force cannot be spawned from an uncompiled template.
+                    DisplayName = force.Name ?? force.UnitTemplate.Compiled!.DisplayName,
+                    HealthyCount = force.HealthyCount,
+                    InjuredCount = force.InjuredCount,
+                    MovementPointsRemaining = force.MovementPointsRemaining,
+                    CampaignMovementPoints = force.UnitTemplate.Compiled!.CampaignMovementPoints,
+                    Organisation = force.UnitTemplate.Compiled!.OrganisationTag == null
                         ? null
                         : new ForceActionOrganisation
                         {
-                            TagId = troop.UnitTemplate.Compiled!.OrganisationTag!.Id,
-                            Code = troop.UnitTemplate.Compiled!.OrganisationTag!.Code,
-                            DisplayName = troop.UnitTemplate.Compiled!.OrganisationTag!.DisplayName,
-                            LeadershipModel = troop.UnitTemplate.Compiled!.OrganisationTag!.LeadershipModel,
-                            UnledBaseSize = troop.UnitTemplate.Compiled!.OrganisationTag!.UnledBaseSize,
-                            UnledMaxSize = troop.UnitTemplate.Compiled!.OrganisationTag!.UnledMaxSize
+                            TagId = force.UnitTemplate.Compiled!.OrganisationTag!.Id,
+                            Code = force.UnitTemplate.Compiled!.OrganisationTag!.Code,
+                            DisplayName = force.UnitTemplate.Compiled!.OrganisationTag!.DisplayName,
+                            LeadershipModel = force.UnitTemplate.Compiled!.OrganisationTag!.LeadershipModel,
+                            UnledBaseSize = force.UnitTemplate.Compiled!.OrganisationTag!.UnledBaseSize,
+                            UnledMaxSize = force.UnitTemplate.Compiled!.OrganisationTag!.UnledMaxSize
                         }
                 });
         }

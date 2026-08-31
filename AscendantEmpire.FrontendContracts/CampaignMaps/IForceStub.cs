@@ -8,7 +8,7 @@ public interface IForceStub
     public RecordType RecordType { get; }
 
     /// <summary>
-    /// The player who owns this troop — ownership, not command.
+    /// The player who owns this Force — ownership, not command.
     /// </summary>
     public int OwnerPlayerId { get; init; }
 

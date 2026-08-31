@@ -118,7 +118,7 @@ internal class CreateUnitTemplateHandler(
     /// </summary>
     /// <remarks>
     /// <para>Three outcomes, distinguished by who can resolve the clash. A global/common design owning the name is terminal — the shared catalogue is
-    /// not a player's to overwrite. One of the player's own with troops already fielded is terminal too: those troops read their stats from the design's
+    /// not a player's to overwrite. One of the player's own with Units already fielded is terminal too: those Units read their stats from the design's
     /// compiled snapshot, so redrawing it would silently re-equip units standing on the map. Anything else is the player's to confirm.</para>
     /// <para><c>OverwriteExisting</c> confirms an intent rather than granting a permission, so it is only consulted once the terminal cases are out of
     /// the way — a caller that sets it on a clash they could never resolve is still refused.</para>
@@ -160,8 +160,8 @@ internal class CreateUnitTemplateHandler(
         if (instanceCount > 0)
         {
             return ServiceResult<UnitTemplateView>.Conflict(
-                $"\"{existing.DisplayName}\" cannot be changed while {FormatTroopCount(instanceCount)} built from it. "
-                + "Choose a different name, or disband those troops first.",
+                $"\"{existing.DisplayName}\" cannot be changed while {FormatUnitCount(instanceCount)} built from it. "
+                + "Choose a different name, or disband those Units first.",
                 new TemplateNameConflict { CanOverwrite = false, ExistingDisplayName = existing.DisplayName, InstanceCount = instanceCount });
         }
 
@@ -183,11 +183,11 @@ internal class CreateUnitTemplateHandler(
     }
 
     /// <summary>
-    /// Renders a troop count as the subject of a sentence, so the message reads naturally at one troop as well as at many.
+    /// Renders a Unit count as the subject of a sentence, so the message reads naturally at one Unit as well as at many.
     /// </summary>
-    private static string FormatTroopCount(int instanceCount)
+    private static string FormatUnitCount(int instanceCount)
     {
-        return instanceCount == 1 ? "1 troop is" : $"{instanceCount} troops are";
+        return instanceCount == 1 ? "1 unit is" : $"{instanceCount} units are";
     }
 
     /// <summary>

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace AscendantEmpire.Application.Features.UnitComponents.Classes;
 
 /// <summary>
-/// Locates the unit template a save would collide with by name, and counts the troops fielded from it.
+/// Locates the unit template a save would collide with by name, and counts the Units fielded from it.
 /// </summary>
 /// <remarks>
 /// <para>Shared by the player-owned and global/common save handlers, so the clash a create reports and the clash an update enforces are decided the
@@ -72,10 +72,10 @@ internal static class UnitTemplateNameLookup
     }
 
     /// <summary>
-    /// Counts the troops currently fielded from a template.
+    /// Counts the Units currently fielded from a template.
     /// </summary>
     /// <remarks>
-    /// <see cref="UnitTemplate"/> has no inverse collection for troops (the foreign key is configured <c>WithMany()</c>), so this has to go through the
+    /// <see cref="UnitTemplate"/> has no inverse collection for Units (the foreign key is configured <c>WithMany()</c>), so this has to go through the
     /// <c>UnitInstances</c> set rather than a navigation property.
     /// </remarks>
     public static async Task<int> CountUnitInstancesAsync(AscendantEmpireContext context, int templateId, CancellationToken cancelToken)

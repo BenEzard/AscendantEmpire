@@ -16,7 +16,7 @@ public record TemplateNameConflict
     /// </summary>
     /// <remarks>
     /// False means the clash is terminal and only a different name resolves it — a player naming a design after a global/common one, or after one of
-    /// their own that already has troops in the field.
+    /// their own that already has Units in the field.
     /// </remarks>
     public bool CanOverwrite { get; init; }
 
@@ -27,7 +27,7 @@ public record TemplateNameConflict
     public required string ExistingDisplayName { get; init; }
 
     /// <summary>
-    /// How many troops are currently fielded from the existing design.
+    /// How many Units are currently fielded from the existing design.
     /// </summary>
     /// <remarks>
     /// In the player flow anything above zero is why <see cref="CanOverwrite"/> is false. In the dev flow it never blocks the overwrite — it is reported

@@ -7,9 +7,9 @@
 /// </summary>
 public enum EndTurnPossibleActionOrder
 {
-    // Troop Movements
-    TroopsWithRemainingCampaignMovements = 10000,
-    TroopsWithRemainingBattleMovements = 10050,
+    // Force Movements
+    ForcesWithRemainingCampaignMovements = 10000,
+    ForcesWithRemainingBattleMovements = 10050,
 
     // Technology
     AreWeResearchingSomething = 20000,

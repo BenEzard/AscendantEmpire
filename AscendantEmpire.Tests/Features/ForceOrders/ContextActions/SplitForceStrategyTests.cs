@@ -43,8 +43,8 @@ internal class SplitForceStrategyTests
         };
     }
 
-    /// <summary>Builds the selected troop, defaulting to a 100-strong settler that has not yet moved.</summary>
-    private static ForceActionForce Troop(
+    /// <summary>Builds the selected Force, defaulting to a 100-strong settler that has not yet moved.</summary>
+    private static ForceActionForce Force(
         int healthyCount = 100,
         int injuredCount = 0,
         long movementPointsRemaining = _FULL_CAMPAIGN_MOVEMENT,
@@ -64,9 +64,9 @@ internal class SplitForceStrategyTests
         };
     }
 
-    private static ForceActionContext Context(ForceActionForce troop)
+    private static ForceActionContext Context(ForceActionForce force)
     {
-        return new ForceActionContext { SelectedForce = troop, OtherForcesOnTile = [] };
+        return new ForceActionContext { SelectedForce = force, OtherForcesOnTile = [] };
     }
 
     [Test, Description("The strategy answers for the SplitForce action, which is also what fixes its position in the toolbar — the enum value doubles "
@@ -78,70 +78,70 @@ internal class SplitForceStrategyTests
 
     [Test, Description("A template carrying no organisation tag has no unled base size to divide along, so there is no rule by which it could ever "
         + "split. The action is hidden rather than disabled, because nothing the player does this turn could make it apply.")]
-    public void ShouldHideTheActionWhenTheTroopHasNoOrganisationTag()
+    public void ShouldHideTheActionWhenTheForceHasNoOrganisationTag()
     {
         // The builder defaults to a settler organisation, so the tagless case is expressed by stripping it back off.
-        ForceActionAvailability? result = _strategy.Evaluate(Context(Troop() with { Organisation = null }));
+        ForceActionAvailability? result = _strategy.Evaluate(Context(Force() with { Organisation = null }));
 
-        Assert.That(result, Is.Null, "A troop with no organisation tag should not be offered the split action at all.");
+        Assert.That(result, Is.Null, "A force with no organisation tag should not be offered the split action at all.");
     }
 
     [Test, Description("Commissioned formations detach a sub-formation under a subordinate officer instead, which is a different action with different "
-        + "rules. Offering this one greyed out would imply the troop could eventually use it, which is never true.")]
+        + "rules. Offering this one greyed out would imply the force could eventually use it, which is never true.")]
     public void ShouldHideTheActionWhenTheOrganisationIsCommissioned()
     {
-        ForceActionAvailability? result = _strategy.Evaluate(Context(Troop(organisation: Organisation(LeadershipModel.Commissioned))));
+        ForceActionAvailability? result = _strategy.Evaluate(Context(Force(organisation: Organisation(LeadershipModel.Commissioned))));
 
-        Assert.That(result, Is.Null, "A commissioned troop should not be offered the unled split action.");
+        Assert.That(result, Is.Null, "A commissioned force should not be offered the unled split action.");
     }
 
     [Test, Description("An unspecified leadership model is treated as commissioned everywhere else in the system, so the split action must read it the "
         + "same way rather than treating the absence of a value as permission.")]
     public void ShouldHideTheActionWhenTheLeadershipModelIsUnspecified()
     {
-        ForceActionAvailability? result = _strategy.Evaluate(Context(Troop(organisation: Organisation(leadershipModel: null))));
+        ForceActionAvailability? result = _strategy.Evaluate(Context(Force(organisation: Organisation(leadershipModel: null))));
 
         Assert.That(result, Is.Null, "An unspecified leadership model should be treated as commissioned, and so hidden.");
     }
 
-    [Test, Description("The ordinary success case: an unled troop big enough to yield two whole groups, with its full turn still ahead of it, has "
+    [Test, Description("The ordinary success case: an unled force big enough to yield two whole groups, with its full turn still ahead of it, has "
         + "nothing standing in its way and must come back enabled with no reasons attached.")]
-    public void ShouldAllowTheSplitWhenTheTroopIsUnledLargeEnoughAndUnmoved()
+    public void ShouldAllowTheSplitWhenTheForceIsUnledLargeEnoughAndUnmoved()
     {
-        ForceActionAvailability? result = _strategy.Evaluate(Context(Troop()));
+        ForceActionAvailability? result = _strategy.Evaluate(Context(Force()));
 
         Assert.That(result, Is.Not.Null);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result!.IsEnabled, Is.True, "A full-strength, unmoved unled troop should be splittable.");
+            Assert.That(result!.IsEnabled, Is.True, "A full-strength, unmoved unled force should be splittable.");
             Assert.That(result.DisabledReasons, Is.Empty);
         }
     }
 
-    [Test, Description("Two whole groups is the floor, not something to exceed. A troop of exactly twice the base size can divide cleanly in two, so "
+    [Test, Description("Two whole groups is the floor, not something to exceed. A force of exactly twice the base size can divide cleanly in two, so "
         + "the boundary must be inclusive — an off-by-one here would block the most common split there is.")]
-    public void ShouldAllowTheSplitWhenTheTroopIsExactlyTwoWholeGroups()
+    public void ShouldAllowTheSplitWhenTheForceIsExactlyTwoWholeGroups()
     {
-        ForceActionAvailability? result = _strategy.Evaluate(Context(Troop(healthyCount: _UNLED_BASE_SIZE * 2)));
+        ForceActionAvailability? result = _strategy.Evaluate(Context(Force(healthyCount: _UNLED_BASE_SIZE * 2)));
 
-        Assert.That(result!.IsEnabled, Is.True, "A troop of exactly two whole groups is at the boundary and should be splittable.");
+        Assert.That(result!.IsEnabled, Is.True, "A force of exactly two whole groups is at the boundary and should be splittable.");
     }
 
-    [Test, Description("Injured soldiers are still with the troop and still move with it, so they count towards the size a split is measured against. "
-        + "Counting only the healthy would wrongly block a battered troop that is plainly large enough to divide.")]
+    [Test, Description("Injured soldiers are still with the force and still move with it, so they count towards the size a split is measured against. "
+        + "Counting only the healthy would wrongly block a battered force that is plainly large enough to divide.")]
     public void ShouldAllowTheSplitWhenHealthyAndInjuredTogetherMakeTwoGroups()
     {
-        ForceActionAvailability? result = _strategy.Evaluate(Context(Troop(healthyCount: _UNLED_BASE_SIZE, injuredCount: _UNLED_BASE_SIZE)));
+        ForceActionAvailability? result = _strategy.Evaluate(Context(Force(healthyCount: _UNLED_BASE_SIZE, injuredCount: _UNLED_BASE_SIZE)));
 
-        Assert.That(result!.IsEnabled, Is.True, "Healthy and injured together make two whole groups, so the troop should be splittable.");
+        Assert.That(result!.IsEnabled, Is.True, "Healthy and injured together make two whole groups, so the force should be splittable.");
     }
 
-    [Test, Description("A troop that cannot yield two whole groups has nothing to divide into. This is a state the player can change by reinforcing, "
+    [Test, Description("A force that cannot yield two whole groups has nothing to divide into. This is a state the player can change by reinforcing, "
         + "so the action is disabled with an explanation rather than hidden.")]
-    public void ShouldBlockTheSplitWhenTheTroopCannotYieldTwoWholeGroups()
+    public void ShouldBlockTheSplitWhenTheForceCannotYieldTwoWholeGroups()
     {
-        ForceActionAvailability? result = _strategy.Evaluate(Context(Troop(healthyCount: (_UNLED_BASE_SIZE * 2) - 1)));
+        ForceActionAvailability? result = _strategy.Evaluate(Context(Force(healthyCount: (_UNLED_BASE_SIZE * 2) - 1)));
 
         Assert.That(result, Is.Not.Null);
 
@@ -150,15 +150,15 @@ internal class SplitForceStrategyTests
             Assert.That(result!.IsEnabled, Is.False);
             Assert.That(result.DisabledReasons, Has.Exactly(1).Items);
             Assert.That(result.DisabledReasons.Single(), Does.Contain("too small to split").And.Contain("Settler"),
-                "The reason should name the troop it is about, so it still reads correctly with several troops on a tile.");
+                "The reason should name the force it is about, so it still reads correctly with several forces on a tile.");
         }
     }
 
-    [Test, Description("Splitting costs the troop its whole turn, so it needs a turn that has not been started — not merely one with movement left. A "
-        + "troop one point down has already gone somewhere, and must be refused.")]
+    [Test, Description("Splitting costs the force its whole turn, so it needs a turn that has not been started — not merely one with movement left. A "
+        + "force one point down has already gone somewhere, and must be refused.")]
     public void ShouldBlockTheSplitWhenAnyMovementHasAlreadyBeenSpent()
     {
-        ForceActionAvailability? result = _strategy.Evaluate(Context(Troop(movementPointsRemaining: _FULL_CAMPAIGN_MOVEMENT - 1)));
+        ForceActionAvailability? result = _strategy.Evaluate(Context(Force(movementPointsRemaining: _FULL_CAMPAIGN_MOVEMENT - 1)));
 
         Assert.That(result, Is.Not.Null);
 
@@ -174,7 +174,7 @@ internal class SplitForceStrategyTests
         + "Stopping at the first failure would make the toolbar feel like it was moving the goalposts.")]
     public void ShouldReportEveryFailingRuleWhenBothSizeAndMovementFail()
     {
-        ForceActionAvailability? result = _strategy.Evaluate(Context(Troop(healthyCount: 10, movementPointsRemaining: 0)));
+        ForceActionAvailability? result = _strategy.Evaluate(Context(Force(healthyCount: 10, movementPointsRemaining: 0)));
 
         Assert.That(result, Is.Not.Null);
 
@@ -188,10 +188,10 @@ internal class SplitForceStrategyTests
     }
 
     [Test, Description("An unled tag is authored with its base and max sizes together, so one lacking them is a configuration error. Surfacing it beats "
-        + "hiding the action as though the troop were commissioned, which would disguise bad data as a design decision.")]
+        + "hiding the action as though the force were commissioned, which would disguise bad data as a design decision.")]
     public void ShouldBlockTheSplitWhenAnUnledTagHasNoAuthoredBaseSize()
     {
-        ForceActionAvailability? result = _strategy.Evaluate(Context(Troop(organisation: Organisation(unledBaseSize: null))));
+        ForceActionAvailability? result = _strategy.Evaluate(Context(Force(organisation: Organisation(unledBaseSize: null))));
 
         Assert.That(result, Is.Not.Null, "A misconfigured unled tag should be reported, not hidden as though it were commissioned.");
 

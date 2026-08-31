@@ -3,7 +3,7 @@ using AscendantEmpire.Domain.Enums.Forces;
 namespace AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 
 /// <summary>
-/// Decides whether one kind of context action is offered for a selected troop, and whether it can be taken right now.
+/// Decides whether one kind of context action is offered for a selected Force, and whether it can be taken right now.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -27,16 +27,16 @@ internal interface IForceActionStrategy
     string Label { get; }
 
     /// <summary>
-    /// Judge the action against the selected troop's current situation.
+    /// Judge the action against the selected Force's current situation.
     /// </summary>
     /// <returns>
-    /// <see langword="null"/> when the action is <b>structurally irrelevant</b> to this troop and should be left out of the toolbar entirely —
-    /// something that could never become true for it, such as splitting a troop whose organisation is commissioned rather than unled.
+    /// <see langword="null"/> when the action is <b>structurally irrelevant</b> to this Force and should be left out of the toolbar entirely —
+    /// something that could never become true for it, such as splitting a Force whose organisation is commissioned rather than unled.
     /// Otherwise an availability describing whether it can be taken, and if not, why not.
     /// </returns>
     /// <remarks>
-    /// The distinction is roughly "could this ever be true for this troop?". Structural facts hide the action; mutable state — size, movement,
-    /// what else stands on the tile — disables it with an explanation. Without that split, every troop's toolbar would fill with greyed-out
+    /// The distinction is roughly "could this ever be true for this Force?". Structural facts hide the action; mutable state — size, movement,
+    /// what else stands on the tile — disables it with an explanation. Without that split, every Force's toolbar would fill with greyed-out
     /// buttons for actions it can never have.
     /// </remarks>
     ForceActionAvailability? Evaluate(ForceActionContext context);

@@ -130,7 +130,7 @@ public class UnitDesignerController : ControllerBase
     /// The template and its compiled stats snapshot are persisted together, so the compiled read is available immediately after saving.</para>
     /// <para>A name is a player's natural key for their own designs, so a taken name answers 409 with a <see cref="TemplateNameConflict"/>. Its
     /// <c>CanOverwrite</c> says whether re-sending with <c>OverwriteExisting</c> set would help: it would not when the name belongs to a global/common
-    /// design, nor when the caller's own design already has troops in the field. The caller never needs the existing design's id — that is what
+    /// design, nor when the caller's own design already has Units in the field. The caller never needs the existing design's id — that is what
     /// separates this from the by-id update below.</para>
     /// </remarks>
     /// <response code="200">An existing design was overwritten (the request set OverwriteExisting); returns the updated template</response>
@@ -175,7 +175,7 @@ public class UnitDesignerController : ControllerBase
     /// <response code="400">Validation error, or the assembled design fails slot-acceptance rules</response>
     /// <response code="403">No game entered, or a referenced component has not been unlocked by the player</response>
     /// <response code="404">No custom template exists with the given id (owned by the caller), or a referenced component code does not exist</response>
-    /// <response code="409">Troops are already fielded from this design, or the requested name belongs to another design</response>
+    /// <response code="409">Units are already fielded from this design, or the requested name belongs to another design</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [Authorize]
     [HttpPut("templates/{templateId:int}")]

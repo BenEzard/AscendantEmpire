@@ -79,7 +79,7 @@ internal class GetUnitDisplayInfoHandler(
         catch (Exception ex)
         {
             logger.LogError(ex, "An error occured while handling {RequestName}", nameof(GetUnitDisplayInfoRequest));
-            return ServiceResult<IReadOnlyCollection<UnitDisplayInfo>>.Fail("An unexpected error occurred while retrieving troop display information.");
+            return ServiceResult<IReadOnlyCollection<UnitDisplayInfo>>.Fail("An unexpected error occurred while retrieving unit display information.");
         }
     }
 }

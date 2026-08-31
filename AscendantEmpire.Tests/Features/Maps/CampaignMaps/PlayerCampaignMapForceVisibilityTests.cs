@@ -21,10 +21,10 @@ namespace AscendantEmpire.Tests.Features.Maps.CampaignMaps;
 /// </summary>
 /// <remarks>
 /// <para>
-/// This is the regression test for units being invisible on the map. Troops are stored against the
+/// This is the regression test for units being invisible on the map. Forces are stored against the
 /// world map, the sight pipeline works in the player's own map, and the handler converts between the
 /// two. That conversion used to add the constant 1 where it needed the game's world-map offset, so it
-/// asked for tile ids belonging to no game at all and every tile came back with an empty troop list.
+/// asked for tile ids belonging to no game at all and every tile came back with an empty Force list.
 /// It looked correct only for the very first game created, whose map does happen to start at id 1.
 /// </para>
 /// <para>
@@ -92,7 +92,7 @@ internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
     }
 
     [Test, Description("A player's own starting units come back on the tile they are standing on, in a game whose map does not start at tile id 1.")]
-    public async Task PlayerSeesTheirOwnStartingTroopsAsync()
+    public async Task PlayerSeesTheirOwnStartingForcesAsync()
     {
         int gameId = await SetupSecondGameAsync();
 
@@ -101,18 +101,18 @@ internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
         GameIndex game = await setup.GameIndex.SingleAsync(g => g.Id == gameId);
         Player player = await setup.Players.Where(p => p.GameId == gameId).OrderBy(p => p.Id).FirstAsync();
 
-        List<UnitInstance> expectedTroops = await setup.UnitInstances
+        List<UnitInstance> expectedForces = await setup.UnitInstances
             .Where(t => t.GameId == gameId && t.PlayerId == player.Id)
             .ToListAsync();
 
-        CampaignMap startTile = await setup.CampaignMaps.SingleAsync(cm => cm.CampaignMapId == expectedTroops[0].CampaignMapTileId);
+        CampaignMap startTile = await setup.CampaignMaps.SingleAsync(cm => cm.CampaignMapId == expectedForces[0].CampaignMapTileId);
 
         ServiceResultBase.ServiceResult<IReadOnlyCollection<ObserverSight>> result =
             await _mediator.Send(new GetPlayerCampaignMapRequest(gameId, player.Id, LoadWholeMap: true));
 
         Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
 
-        List<ObservedForce> troopsOnStartTile =
+        List<ObservedForce> forcesOnStartTile =
         [
             .. result.SuccessValue!
                 .SelectMany(observer => observer.SeenTiles)
@@ -123,17 +123,17 @@ internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(game.CampaignMapOffsetId, Is.GreaterThan(1), "The game under test must not be the one whose map starts at id 1.");
-            Assert.That(expectedTroops, Is.Not.Empty, "Game setup spawns starting units.");
+            Assert.That(expectedForces, Is.Not.Empty, "Game setup spawns starting units.");
 
-            Assert.That(troopsOnStartTile.Select(t => t.Id).Distinct(), Is.EquivalentTo(expectedTroops.Select(t => t.Id)),
+            Assert.That(forcesOnStartTile.Select(t => t.Id).Distinct(), Is.EquivalentTo(expectedForces.Select(t => t.Id)),
                 "Every starting unit is reported on the tile it occupies.");
 
-            Assert.That(troopsOnStartTile, Has.All.Property(nameof(ObservedForce.OwnerPlayerId)).EqualTo(player.Id));
+            Assert.That(forcesOnStartTile, Has.All.Property(nameof(ObservedForce.OwnerPlayerId)).EqualTo(player.Id));
         }
     }
 
-    [Test, Description("Troop strengths survive the trip to the client, so the units render with the counts they were spawned with.")]
-    public async Task ReportedTroopsCarryTheirStrengthAsync()
+    [Test, Description("Force strengths survive the trip to the client, so the units render with the counts they were spawned with.")]
+    public async Task ReportedForcesCarryTheirStrengthAsync()
     {
         int gameId = await SetupSecondGameAsync();
 
@@ -141,7 +141,7 @@ internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
 
         Player player = await setup.Players.Where(p => p.GameId == gameId).OrderBy(p => p.Id).FirstAsync();
 
-        Dictionary<int, UnitInstance> troopsById = await setup.UnitInstances
+        Dictionary<int, UnitInstance> forcesById = await setup.UnitInstances
             .Where(t => t.GameId == gameId && t.PlayerId == player.Id)
             .ToDictionaryAsync(t => t.Id);
 
@@ -150,21 +150,21 @@ internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
 
         Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
 
-        List<ObservedForce> reportedTroops =
+        List<ObservedForce> reportedForces =
         [
             .. result.SuccessValue!
                 .SelectMany(observer => observer.SeenTiles)
                 .SelectMany(tile => tile.Forces)
-                .Where(troop => troopsById.ContainsKey(troop.Id))
+                .Where(force => forcesById.ContainsKey(force.Id))
         ];
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(reportedTroops, Is.Not.Empty);
+            Assert.That(reportedForces, Is.Not.Empty);
 
-            foreach (ObservedForce reported in reportedTroops.DistinctBy(t => t.Id))
+            foreach (ObservedForce reported in reportedForces.DistinctBy(t => t.Id))
             {
-                UnitInstance expected = troopsById[reported.Id];
+                UnitInstance expected = forcesById[reported.Id];
 
                 Assert.That(reported.HealthyTroops, Is.EqualTo(expected.HealthyCount));
                 Assert.That(reported.InjuredTroops, Is.EqualTo(expected.InjuredCount));
@@ -175,7 +175,7 @@ internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
     }
 
     [Test, Description("Every reported unit, the viewer's own and any rival's in sight, is placed on the tile it actually occupies and credited to its real owner.")]
-    public async Task ReportedTroopsArePlacedOnTheirOwnTileAndOwnerAsync()
+    public async Task ReportedForcesArePlacedOnTheirOwnTileAndOwnerAsync()
     {
         int gameId = await SetupSecondGameAsync();
 
@@ -183,8 +183,8 @@ internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
 
         Player viewer = await setup.Players.Where(p => p.GameId == gameId).OrderBy(p => p.Id).FirstAsync();
 
-        // The whole troop roster, keyed by id, with the coordinates of the tile each one stands on.
-        var troopPlacements = await setup.UnitInstances
+        // The whole Force roster, keyed by id, with the coordinates of the tile each one stands on.
+        var forcePlacements = await setup.UnitInstances
             .Where(t => t.GameId == gameId)
             .Select(t => new
             {
@@ -200,12 +200,12 @@ internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
 
         Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
 
-        // Flatten to (troop, the tile it was reported on). The two players start adjacent on this map,
+        // Flatten to (Force, the tile it was reported on). The two players start adjacent on this map,
         // so a rival's units may legitimately fall inside the viewer's sight; what matters is that
         // whatever comes back is on the right tile and credited to the right commander.
         var reported = result.SuccessValue!
             .SelectMany(observer => observer.SeenTiles)
-            .SelectMany(tile => tile.Forces.Select(troop => new { Troop = troop, tile.XCoord, tile.YCoord }))
+            .SelectMany(tile => tile.Forces.Select(force => new { Force = force, tile.XCoord, tile.YCoord }))
             .ToList();
 
         using (Assert.EnterMultipleScope())
@@ -214,14 +214,14 @@ internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
 
             foreach (var entry in reported)
             {
-                Assert.That(troopPlacements.ContainsKey(entry.Troop.Id), Is.True,
-                    $"Troop {entry.Troop.Id} is a real unit in this game.");
+                Assert.That(forcePlacements.ContainsKey(entry.Force.Id), Is.True,
+                    $"Force {entry.Force.Id} is a real unit in this game.");
 
-                var placement = troopPlacements[entry.Troop.Id];
+                var placement = forcePlacements[entry.Force.Id];
 
-                Assert.That(entry.XCoord, Is.EqualTo(placement.XCoord), $"Troop {entry.Troop.Id} is reported on its own X coordinate.");
-                Assert.That(entry.YCoord, Is.EqualTo(placement.YCoord), $"Troop {entry.Troop.Id} is reported on its own Y coordinate.");
-                Assert.That(entry.Troop.OwnerPlayerId, Is.EqualTo(placement.PlayerId), $"Troop {entry.Troop.Id} is credited to its owner.");
+                Assert.That(entry.XCoord, Is.EqualTo(placement.XCoord), $"Force {entry.Force.Id} is reported on its own X coordinate.");
+                Assert.That(entry.YCoord, Is.EqualTo(placement.YCoord), $"Force {entry.Force.Id} is reported on its own Y coordinate.");
+                Assert.That(entry.Force.OwnerPlayerId, Is.EqualTo(placement.PlayerId), $"Force {entry.Force.Id} is credited to its owner.");
             }
         }
     }

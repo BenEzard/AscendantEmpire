@@ -43,7 +43,7 @@ internal class StarterUnitSpawnTests : GameSqlServerTestBase
         await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
 
         List<Player> players = await verify.Players.Where(p => p.GameId == gameId).ToListAsync();
-        List<UnitInstance> troops = await verify.UnitInstances.Where(t => t.GameId == gameId).ToListAsync();
+        List<UnitInstance> units = await verify.UnitInstances.Where(t => t.GameId == gameId).ToListAsync();
 
         // The seeded catalogue's template codes, resolved to ids for the assertions below.
         int settlerTemplateId = (await verify.UnitTemplates.SingleAsync(t => t.Code == "SETTLER")).Id;
@@ -51,16 +51,16 @@ internal class StarterUnitSpawnTests : GameSqlServerTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(troops, Has.Count.EqualTo(players.Count * 2), "One settler + one scout per player.");
+            Assert.That(units, Has.Count.EqualTo(players.Count * 2), "One settler + one scout per player.");
 
             foreach (Player player in players)
             {
-                List<UnitInstance> playerTroops = [.. troops.Where(t => t.PlayerId == player.Id)];
+                List<UnitInstance> playerUnits = [.. units.Where(t => t.PlayerId == player.Id)];
 
-                Assert.That(playerTroops, Has.Count.EqualTo(2), $"Player {player.Id} has a settler and a scout.");
+                Assert.That(playerUnits, Has.Count.EqualTo(2), $"Player {player.Id} has a settler and a scout.");
 
-                UnitInstance settler = playerTroops.Single(t => t.UnitTemplateId == settlerTemplateId);
-                UnitInstance scout = playerTroops.Single(t => t.UnitTemplateId == scoutTemplateId);
+                UnitInstance settler = playerUnits.Single(t => t.UnitTemplateId == settlerTemplateId);
+                UnitInstance scout = playerUnits.Single(t => t.UnitTemplateId == scoutTemplateId);
 
                 // Settler spawns at its unled tag's default size (200), the scout as a single individual.
                 Assert.That(settler.InitialStrength, Is.EqualTo(200));
@@ -74,7 +74,7 @@ internal class StarterUnitSpawnTests : GameSqlServerTestBase
             }
 
             // Each player got their own start position.
-            int[] distinctTiles = [.. troops.Select(t => t.CampaignMapTileId).Distinct()];
+            int[] distinctTiles = [.. units.Select(t => t.CampaignMapTileId).Distinct()];
             Assert.That(distinctTiles, Has.Length.EqualTo(players.Count), "Players start on distinct tiles.");
         }
     }

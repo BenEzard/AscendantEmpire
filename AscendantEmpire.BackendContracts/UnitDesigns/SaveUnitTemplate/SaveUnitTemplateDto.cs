@@ -39,7 +39,7 @@ public record SaveUnitTemplateDto
     /// <para>Read only by the create endpoint, which answers 409 with a <c>TemplateNameConflict</c> when the name is taken and this is false, and performs
     /// the overwrite when it is true. Ignored by the update endpoint, which is already addressing one specific design by id.</para>
     /// <para>It confirms an intent, it does not grant a permission: a clash the caller could never resolve — a global/common design's name, or one of
-    /// their own with troops already in the field — is still refused with this set.</para>
+    /// their own with Units already in the field — is still refused with this set.</para>
     /// </remarks>
     public bool OverwriteExisting { get; init; }
 }

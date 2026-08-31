@@ -11,9 +11,9 @@ public class ForceOrderParticipant
     public int UnitInstanceId { get; set; }
 
     /// <summary>
-    /// Primary = the troop the order is attached to.
-    /// Secondary = another troop involved in the order.
-    /// Result = optionally the troop created by the split/combine operation.
+    /// Primary = the Force the order is attached to.
+    /// Secondary = another Force involved in the order.
+    /// Result = optionally the Force created by the split/combine operation.
     /// </summary>
     public ForceOrderParticipantRole Role { get; set; }
 

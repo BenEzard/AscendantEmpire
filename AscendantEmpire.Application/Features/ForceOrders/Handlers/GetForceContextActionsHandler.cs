@@ -11,9 +11,9 @@ using Microsoft.Extensions.Logging;
 namespace AscendantEmpire.Application.Features.ForceOrders.Handlers;
 
 /// <summary>
-/// A request for the context actions available to a selected troop right now.
+/// A request for the context actions available to a selected Force right now.
 /// </summary>
-/// <remarks>The game and player come from the caller's token, so a player cannot enumerate the actions of someone else's troops.</remarks>
+/// <remarks>The game and player come from the caller's token, so a player cannot enumerate the actions of someone else's Forces.</remarks>
 public record GetForceContextActionsRequest(
     int GameId,
     int PlayerId,
@@ -31,7 +31,7 @@ internal class GetForceContextActionsRequestValidator : AbstractValidator<GetFor
             .GreaterThan(0).WithMessage("Player Id is required.");
 
         RuleFor(x => x.UnitInstanceId)
-            .GreaterThan(0).WithMessage("Troop Instance Id is required.");
+            .GreaterThan(0).WithMessage("Unit Instance Id is required.");
     }
 }
 
@@ -66,7 +66,7 @@ internal class GetForceContextActionsHandler(
         }
         catch (Exception ex)
         {
-            const string error = "An exception occurred while resolving the context actions for a Troop.";
+            const string error = "An exception occurred while resolving the context actions for a Force.";
 
             logger.LogError(ex, error + " GameId: {GameId}, PlayerId: {PlayerId}, UnitInstanceId: {UnitInstanceId}.",
                 request.GameId,

@@ -9,7 +9,7 @@ using AscendantEmpire.Domain.Enums.Modifiers;
 namespace AscendantEmpire.Application.Features.ForceOrders.Movement;
 
 /// <summary>
-/// Central place for converting loaded troop and compiled design data into movement models.
+/// Central place for converting loaded Unit and compiled design data into movement models.
 /// Keeping this mapping here prevents handlers and planners from needing to know how modifier
 /// JSON is shaped or how common bonuses are inferred from that JSON.
 /// </summary>
@@ -20,16 +20,16 @@ internal sealed class MovementProfileFactory : IMovementProfileFactory
         PropertyNameCaseInsensitive = true
     };
 
-    public MovementProfile Create(UnitInstance troop, DomainType domainType)
+    public MovementProfile Create(UnitInstance force, DomainType domainType)
     {
-        ArgumentNullException.ThrowIfNull(troop);
-        ArgumentNullException.ThrowIfNull(troop.UnitTemplate);
-        ArgumentNullException.ThrowIfNull(troop.UnitTemplate.Compiled);
+        ArgumentNullException.ThrowIfNull(force);
+        ArgumentNullException.ThrowIfNull(force.UnitTemplate);
+        ArgumentNullException.ThrowIfNull(force.UnitTemplate.Compiled);
 
-        var compiled = troop.UnitTemplate.Compiled;
+        var compiled = force.UnitTemplate.Compiled;
 
         // The compiled template snapshot does not carry movement-modifier JSON yet (the legacy
-        // CompiledDesignStats.ModifiersJson has no template-model equivalent), so template troops move
+        // CompiledDesignStats.ModifiersJson has no template-model equivalent), so template Forces move
         // un-modified for now. The parsing below is kept wired so the JSON slots straight back in when it
         // is compiled onto the snapshot — see the military-organisation implementation notes.
         string? modifiersJson = null;
@@ -47,16 +47,16 @@ internal sealed class MovementProfileFactory : IMovementProfileFactory
         };
     }
 
-    public MovementState CreateState(UnitInstance troop)
+    public MovementState CreateState(UnitInstance force)
     {
-        ArgumentNullException.ThrowIfNull(troop);
+        ArgumentNullException.ThrowIfNull(force);
 
         return new MovementState
         {
-            // The troop stores its remaining MP as raw fixed-point (Scale 1,000), the same convention as the compiled template's
+            // The Force stores its remaining MP as raw fixed-point (Scale 1,000), the same convention as the compiled template's
             // allowance above. Converted here, at the one boundary between storage and the movement engine, so the engine's models
             // stay in whole/fractional decimal MP throughout.
-            MovementPointsRemaining = troop.MovementPointsRemaining / (decimal)ScaledAmount.Scale
+            MovementPointsRemaining = force.MovementPointsRemaining / (decimal)ScaledAmount.Scale
         };
     }
 

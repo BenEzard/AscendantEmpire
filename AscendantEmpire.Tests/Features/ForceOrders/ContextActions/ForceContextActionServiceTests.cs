@@ -87,8 +87,8 @@ internal class ForceContextActionServiceTests
         }
     }
 
-    [Test, Description("A null verdict means the action is structurally irrelevant to this troop, so it must not reach the toolbar at all. Sending it "
-        + "disabled instead would fill the toolbar with buttons the troop could never use.")]
+    [Test, Description("A null verdict means the action is structurally irrelevant to this force, so it must not reach the toolbar at all. Sending it "
+        + "disabled instead would fill the toolbar with buttons the force could never use.")]
     public async Task ShouldOmitTheActionWhenItsStrategyReturnsNullAsync()
     {
         var hidden = new StubStrategy(ForceActionType.SplitForce, availability: null);
@@ -128,9 +128,9 @@ internal class ForceContextActionServiceTests
         }
     }
 
-    [Test, Description("A troop that doesn't exist, or isn't the caller's, yields no context. That is a 404 rather than an empty toolbar, because "
-        + "an empty list would read as 'this troop can do nothing' instead of 'there is no such troop'.")]
-    public async Task ShouldReturnNotFoundWhenTheTroopCannotBeLoadedAsync()
+    [Test, Description("A force that doesn't exist, or isn't the caller's, yields no context. That is a 404 rather than an empty toolbar, because "
+        + "an empty list would read as 'this force can do nothing' instead of 'there is no such force'.")]
+    public async Task ShouldReturnNotFoundWhenTheForceCannotBeLoadedAsync()
     {
         _contextBuilder.BuildAsync(_GAME_ID, _PLAYER_ID, _TROOP_INSTANCE_ID, Arg.Any<CancellationToken>())
             .Returns((ForceActionContext?)null);
@@ -163,7 +163,7 @@ internal class ForceContextActionServiceTests
     }
 
     [Test, Description("An action the toolbar would have hidden must be refused outright when someone posts it anyway. Treating 'no button existed' as "
-        + "'no rule objected' would let a crafted request perform an action the troop can never legitimately take.")]
+        + "'no rule objected' would let a crafted request perform an action the force can never legitimately take.")]
     public async Task ShouldBlockExecutionWhenTheStrategyHidesTheActionAsync()
     {
         var hidden = new StubStrategy(ForceActionType.SplitForce, availability: null);
@@ -180,7 +180,7 @@ internal class ForceContextActionServiceTests
     }
 
     [Test, Description("Asking to execute an action nothing implements is a programming error, not a refusal — reporting it as 'not found' rather than "
-        + "'blocked' keeps it distinguishable from a troop that merely fails the rules.")]
+        + "'blocked' keeps it distinguishable from a force that merely fails the rules.")]
     public async Task ShouldReturnNotFoundWhenNoStrategyIsRegisteredForTheActionAsync()
     {
         ServiceResultBase.ServiceResult<ForceActionAvailability> result = await BuildService()

@@ -3,10 +3,10 @@ using AscendantEmpire.Domain.Enums.Forces;
 namespace AscendantEmpire.BackendContracts.ForceOrders.GetForceContextActions;
 
 /// <summary>
-/// One action offered for a selected troop, and whether the player may take it right now.
+/// One action offered for a selected Force, and whether the player may take it right now.
 /// </summary>
 /// <remarks>
-/// Actions the troop could never take are absent entirely rather than present and disabled, so everything in a list of these is worth showing.
+/// Actions the Force could never take are absent entirely rather than present and disabled, so everything in a list of these is worth showing.
 /// </remarks>
 public record ForceContextAction
 {
@@ -14,7 +14,7 @@ public record ForceContextAction
     public ForceActionType ActionType { get; init; }
 
     /// <summary>
-    /// The action's display label, e.g. "Split Troops".
+    /// The action's display label, e.g. "Split Forces".
     /// </summary>
     /// <remarks>The frontend prefers its own label for action types it recognises; this is the fallback that lets a newly added action type
     /// render sensibly before the frontend knows about it.</remarks>

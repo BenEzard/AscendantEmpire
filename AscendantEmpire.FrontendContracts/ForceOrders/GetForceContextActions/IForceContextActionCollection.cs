@@ -1,7 +1,7 @@
 namespace AscendantEmpire.FrontendContracts.ForceOrders.GetForceContextActions;
 
 /// <summary>
-/// The context actions available for one selected troop.
+/// The context actions available for one selected Force.
 /// </summary>
 public interface IForceContextActionCollection
 {

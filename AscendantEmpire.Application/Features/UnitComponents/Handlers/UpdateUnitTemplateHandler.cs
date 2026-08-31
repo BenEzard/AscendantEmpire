@@ -50,15 +50,15 @@ internal class UpdateUnitTemplateHandler(
 
             SaveUnitTemplateDto dto = request.Template;
 
-            // A design that is already in the field can't be redrawn under the troops built from it: their stats are read from this template's compiled
+            // A design that is already in the field can't be redrawn under the Units built from it: their stats are read from this template's compiled
             // snapshot, so rewriting it would silently re-equip units already standing on the map. Renaming or disbanding is the way through.
             int instanceCount = await UnitTemplateNameLookup.CountUnitInstancesAsync(context, existing.Id, cancelToken);
 
             if (instanceCount > 0)
             {
                 return ServiceResult<UnitTemplateView>.Conflict(
-                    $"\"{existing.DisplayName}\" cannot be changed while {FormatTroopCount(instanceCount)} built from it. "
-                    + "Choose a different name, or disband those troops first.",
+                    $"\"{existing.DisplayName}\" cannot be changed while {FormatUnitCount(instanceCount)} built from it. "
+                    + "Choose a different name, or disband those Units first.",
                     new TemplateNameConflict { CanOverwrite = false, ExistingDisplayName = existing.DisplayName, InstanceCount = instanceCount });
             }
 
@@ -174,11 +174,11 @@ internal class UpdateUnitTemplateHandler(
     }
 
     /// <summary>
-    /// Renders a troop count as the subject of a sentence, so the caller's message reads naturally at one troop as well as at many.
+    /// Renders a Unit count as the subject of a sentence, so the caller's message reads naturally at one Unit as well as at many.
     /// </summary>
-    private static string FormatTroopCount(int instanceCount)
+    private static string FormatUnitCount(int instanceCount)
     {
-        return instanceCount == 1 ? "1 troop is" : $"{instanceCount} troops are";
+        return instanceCount == 1 ? "1 unit is" : $"{instanceCount} units are";
     }
 
     /// <summary>

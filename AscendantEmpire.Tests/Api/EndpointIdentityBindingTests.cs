@@ -18,7 +18,7 @@ namespace AscendantEmpire.Tests.Api;
 /// <para>
 /// A deny-by-default <c>FallbackPolicy</c> (see <see cref="EndpointAuthorizationTests"/>) stops an <i>anonymous</i> caller, but it does nothing about an
 /// authenticated one who simply puts another player's id in the body. That was AE-S3-016: five controllers took <c>GameId</c>/<c>PlayerId</c> straight from
-/// the request, so any logged-in player could end another player's turn, move their troops, or read their fog of war. The fix was to delete those parameters
+/// the request, so any logged-in player could end another player's turn, move their Forces, or read their fog of war. The fix was to delete those parameters
 /// and read <c>TryGetGameContext</c> instead — and this fixture is what stops them coming back, because re-adding one is a natural thing to do when a new
 /// action needs a game id and the token is not the obvious place to look.
 /// </para>

@@ -4,7 +4,7 @@ using AscendantEmpire.Domain.Enums.UnitDesigns;
 namespace AscendantEmpire.Application.Features.Units.Classes;
 
 /// <summary>
-/// The unled sizing rules applied when a troop is created: an unled unit's size must be a whole multiple of
+/// The unled sizing rules applied when a Unit is created: an unled unit's size must be a whole multiple of
 /// its organisation tag's base quantum, no larger than the tag's max.
 /// </summary>
 /// <remarks>
@@ -17,7 +17,7 @@ namespace AscendantEmpire.Application.Features.Units.Classes;
 internal static class UnledSpawnRules
 {
     /// <summary>
-    /// Returns every problem with creating a troop of <paramref name="size"/> under
+    /// Returns every problem with creating a Unit of <paramref name="size"/> under
     /// <paramref name="organisationTag"/>, or an empty list when the size is legal (or no unled rule applies).
     /// </summary>
     public static List<string> ValidateSize(Tag? organisationTag, int size)

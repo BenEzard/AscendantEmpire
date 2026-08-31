@@ -5,12 +5,12 @@ using AscendantEmpire.Domain.Enums.Forces;
 namespace AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 
 /// <summary>
-/// Aggregates the context actions available for a selected troop, and re-judges a single action when one is about to be executed.
+/// Aggregates the context actions available for a selected Force, and re-judges a single action when one is about to be executed.
 /// </summary>
 internal interface IForceContextActionService
 {
     /// <summary>
-    /// Every action worth showing for the selected troop, in the toolbar's fixed display order.
+    /// Every action worth showing for the selected Force, in the toolbar's fixed display order.
     /// </summary>
     Task<ServiceResultBase.ServiceResult<IReadOnlyCollection<ForceContextAction>>> GetAvailableActionsAsync(
         int gameId,
@@ -22,7 +22,7 @@ internal interface IForceContextActionService
     /// Re-judges one action immediately before it is executed, against freshly loaded state.
     /// </summary>
     /// <remarks>
-    /// Handlers which act on a troop must call this rather than trusting the client, and rather than re-implementing the rules: it runs the very
+    /// Handlers which act on a Force must call this rather than trusting the client, and rather than re-implementing the rules: it runs the very
     /// same strategy the toolbar rendered from, so the two cannot disagree.
     /// </remarks>
     Task<ServiceResultBase.ServiceResult<ForceActionAvailability>> EvaluateActionAsync(

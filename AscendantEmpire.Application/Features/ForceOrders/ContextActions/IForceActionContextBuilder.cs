@@ -10,7 +10,7 @@ namespace AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 internal interface IForceActionContextBuilder
 {
     /// <summary>
-    /// Builds the context for a selected troop, or returns null when the troop does not exist in this game or does not belong to this player.
+    /// Builds the context for a selected Force, or returns null when the Force does not exist in this game or does not belong to this player.
     /// </summary>
     Task<ForceActionContext?> BuildAsync(int gameId, int playerId, int unitInstanceId, CancellationToken cancelToken);
 }

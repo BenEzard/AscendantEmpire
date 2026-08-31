@@ -19,14 +19,14 @@ using NSubstitute;
 namespace AscendantEmpire.Tests.Features.Units;
 
 /// <summary>
-/// Tests that the handlers which place a troop by coordinate resolve that coordinate to the right
+/// Tests that the handlers which place a Unit by coordinate resolve that coordinate to the right
 /// campaign map tile.
 /// </summary>
 /// <remarks>
 /// <para>
 /// Both handlers used to calculate the tile id from the coordinates, and each got it wrong in its own
 /// way: the spawn endpoint assumed every map starts at tile id 1, and the move handler used the
-/// player's own map offset, which addresses the per-player map rather than the world map a troop is
+/// player's own map offset, which addresses the per-player map rather than the world map a Unit is
 /// stored against. Both now resolve the coordinate to a real <see cref="CampaignMap"/> row.
 /// </para>
 /// <para>
@@ -96,8 +96,8 @@ internal class UnitPlacementByCoordinateTests : GameSqlServerTestBase
         return await context.Players.Where(p => p.GameId == gameId).OrderBy(p => p.Id).FirstAsync();
     }
 
-    [Test, Description("A spawned troop is placed on the game's own map row for the requested coordinate, not on an id derived by assuming the map starts at 1.")]
-    public async Task SpawnPlacesTroopOnTheTileForTheRequestedCoordinateAsync()
+    [Test, Description("A spawned Unit is placed on the game's own map row for the requested coordinate, not on an id derived by assuming the map starts at 1.")]
+    public async Task SpawnPlacesUnitOnTheTileForTheRequestedCoordinateAsync()
     {
         const int xCoord = 3;
         const int yCoord = 2;
@@ -110,7 +110,7 @@ internal class UnitPlacementByCoordinateTests : GameSqlServerTestBase
         Player player = await FirstPlayerAsync(context, gameId);
         int settlerTemplateId = (await context.UnitTemplates.SingleAsync(t => t.Code == "SETTLER")).Id;
 
-        int[] troopIdsBefore = await context.UnitInstances.Where(t => t.GameId == gameId).Select(t => t.Id).ToArrayAsync();
+        int[] unitIdsBefore = await context.UnitInstances.Where(t => t.GameId == gameId).Select(t => t.Id).ToArrayAsync();
 
         ServiceResultBase result = await _mediator.Send(new SpawnUnitRequest(
             GameId: gameId,
@@ -127,7 +127,7 @@ internal class UnitPlacementByCoordinateTests : GameSqlServerTestBase
         await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
 
         UnitInstance spawned = await verify.UnitInstances
-            .Where(t => t.GameId == gameId && troopIdsBefore.Contains(t.Id) == false)
+            .Where(t => t.GameId == gameId && unitIdsBefore.Contains(t.Id) == false)
             .SingleAsync();
 
         CampaignMap tile = await verify.CampaignMaps.SingleAsync(cm => cm.CampaignMapId == spawned.CampaignMapTileId);
@@ -136,9 +136,9 @@ internal class UnitPlacementByCoordinateTests : GameSqlServerTestBase
         {
             Assert.That(game.CampaignMapOffsetId, Is.GreaterThan(1), "The game under test must not be the one whose map starts at id 1.");
 
-            Assert.That(tile.XCoord, Is.EqualTo(xCoord), "The tile the troop landed on carries the requested coordinate.");
+            Assert.That(tile.XCoord, Is.EqualTo(xCoord), "The tile the Unit landed on carries the requested coordinate.");
             Assert.That(tile.YCoord, Is.EqualTo(yCoord));
-            Assert.That(tile.GameId, Is.EqualTo(gameId), "The troop is on a tile belonging to its own game.");
+            Assert.That(tile.GameId, Is.EqualTo(gameId), "The Unit is on a tile belonging to its own game.");
 
             // Same thing stated as the addressing rule the rest of the map code relies on.
             Assert.That(spawned.CampaignMapTileId, Is.EqualTo(game.CampaignMapOffsetId + xCoord + (yCoord * game.MapWidth)));
@@ -154,7 +154,7 @@ internal class UnitPlacementByCoordinateTests : GameSqlServerTestBase
 
         Player player = await FirstPlayerAsync(context, gameId);
         int settlerTemplateId = (await context.UnitTemplates.SingleAsync(t => t.Code == "SETTLER")).Id;
-        int troopCountBefore = await context.UnitInstances.CountAsync(t => t.GameId == gameId);
+        int unitCountBefore = await context.UnitInstances.CountAsync(t => t.GameId == gameId);
 
         // Nothing bounds the coordinates against the map size: the validator only requires them to be
         // non-negative, and the old arithmetic turned this into a valid id outside this game's block.
@@ -170,12 +170,12 @@ internal class UnitPlacementByCoordinateTests : GameSqlServerTestBase
 
         await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
 
-        int troopCountAfter = await verify.UnitInstances.CountAsync(t => t.GameId == gameId);
+        int unitCountAfter = await verify.UnitInstances.CountAsync(t => t.GameId == gameId);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.HasSucceeded, Is.False);
-            Assert.That(troopCountAfter, Is.EqualTo(troopCountBefore), "No troop is created for an off-map coordinate.");
+            Assert.That(unitCountAfter, Is.EqualTo(unitCountBefore), "No Unit is created for an off-map coordinate.");
         }
     }
 
@@ -187,12 +187,12 @@ internal class UnitPlacementByCoordinateTests : GameSqlServerTestBase
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
         Player player = await FirstPlayerAsync(context, gameId);
-        UnitInstance troop = await context.UnitInstances.Where(t => t.GameId == gameId && t.PlayerId == player.Id).FirstAsync();
+        UnitInstance unit = await context.UnitInstances.Where(t => t.GameId == gameId && t.PlayerId == player.Id).FirstAsync();
 
         ServiceResultBase.ServiceResult<MoveForceResult> result = await _mediator.Send(new MoveForceRequest(
             GameId: gameId,
             PlayerId: player.Id,
-            UnitInstanceId: troop.Id,
+            UnitInstanceId: unit.Id,
             XCoord: _MAP_WIDTH + 4,
             YCoord: _MAP_HEIGHT + 4));
 

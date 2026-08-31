@@ -22,7 +22,7 @@ namespace AscendantEmpire.Api.Controllers;
 public class ForceOrdersController : ControllerBase
 {
     /// <summary>
-    /// Order the troops to move to a specific location on the map.
+    /// Order the Forces to move to a specific location on the map.
     /// </summary>
     /// <response code="201">Game successfully created</response>
     /// <response code="400">Validation error</response>
@@ -37,7 +37,7 @@ public class ForceOrdersController : ControllerBase
         [FromServices] IMediator mediator,
         [FromBody] MoveForcesDto request)
     {
-        // Game and player come from the token, so the caller can't order someone else's troops around. The body carries only which troop moves and where.
+        // Game and player come from the token, so the caller can't order someone else's Forces around. The body carries only which Force moves and where.
         if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
         {
             return contextError!;
@@ -54,16 +54,16 @@ public class ForceOrdersController : ControllerBase
     }
 
     /// <summary>
-    /// Get the context actions available to a selected troop right now — what the toolbar should offer, and why anything offered is unavailable.
+    /// Get the context actions available to a selected Force right now — what the toolbar should offer, and why anything offered is unavailable.
     /// </summary>
     /// <remarks>
-    /// Actions the troop could never take are omitted entirely; actions it could take but currently cannot come back disabled, with the reasons.
+    /// Actions the Force could never take are omitted entirely; actions it could take but currently cannot come back disabled, with the reasons.
     /// The same rules are re-checked when an action is actually executed, so the response is a rendering hint and never an authorisation.
     /// </remarks>
     /// <response code="200">The available actions, in their fixed display order</response>
     /// <response code="400">Validation error</response>
     /// <response code="403">The caller has not entered a game</response>
-    /// <response code="404">No such troop in this game for this player</response>
+    /// <response code="404">No such Force in this game for this player</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [HttpGet("units/{unitInstanceId:int}/actions")]
     [ProducesResponseType(typeof(IForceContextActionCollection), 200)]
@@ -76,7 +76,7 @@ public class ForceOrdersController : ControllerBase
         int unitInstanceId,
         CancellationToken cancelToken)
     {
-        // Game and player come from the token, so a caller can't enumerate the actions available to someone else's troops.
+        // Game and player come from the token, so a caller can't enumerate the actions available to someone else's Forces.
         if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
         {
             return contextError!;

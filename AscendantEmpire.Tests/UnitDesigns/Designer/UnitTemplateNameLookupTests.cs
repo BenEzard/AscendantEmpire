@@ -6,7 +6,7 @@ using AscendantEmpire.Domain.Entities.Units;
 namespace AscendantEmpire.Tests.UnitDesigns.Designer;
 
 /// <summary>
-/// Tests for the name-matching rules the unit-template save handlers share: which design a name belongs to, and how many troops are fielded from it.
+/// Tests for the name-matching rules the unit-template save handlers share: which design a name belongs to, and how many Units are fielded from it.
 /// </summary>
 /// <remarks>
 /// Tier 2 (see testing.md): the helper is plain LINQ over <c>UnitTemplate</c> and <c>UnitInstance</c> scalars — no transaction, no complex type and no
@@ -25,7 +25,7 @@ internal class UnitTemplateNameLookupTests : InMemoryTestBase
 
     /// <summary>
     /// Seeds three templates covering every distinction the lookups draw: the player's own "Spearman", a global "Legionary", and another player's
-    /// "Spearman". Two troops are fielded from the player's own template, and one from the global.
+    /// "Spearman". Two Units are fielded from the player's own template, and one from the global.
     /// </summary>
     private async Task SeedAsync()
     {
@@ -64,10 +64,10 @@ internal class UnitTemplateNameLookupTests : InMemoryTestBase
         await context.SaveChangesAsync();
 
         context.UnitInstances.AddRange(
-            BuildTroop(customTemplate.Id),
-            BuildTroop(customTemplate.Id),
-            // A troop on a different template, so a count can't accidentally be "every troop in the game".
-            BuildTroop(globalTemplate.Id));
+            BuildUnit(customTemplate.Id),
+            BuildUnit(customTemplate.Id),
+            // A Unit on a different template, so a count cannot accidentally be "every Unit in the game".
+            BuildUnit(globalTemplate.Id));
         await context.SaveChangesAsync();
 
         _customTemplateId = customTemplate.Id;
@@ -75,9 +75,9 @@ internal class UnitTemplateNameLookupTests : InMemoryTestBase
     }
 
     /// <summary>
-    /// Builds a minimal fielded troop for a template. Only the template link matters here; the rest is filler the entity requires.
+    /// Builds a minimal fielded Unit for a template. Only the template link matters here; the rest is filler the entity requires.
     /// </summary>
-    private static UnitInstance BuildTroop(int templateId) => new()
+    private static UnitInstance BuildUnit(int templateId) => new()
     {
         GameId = GAME_ID,
         PlayerId = PLAYER_ID,
@@ -171,8 +171,8 @@ internal class UnitTemplateNameLookupTests : InMemoryTestBase
         }
     }
 
-    [Test, Description("Troops are counted per template, not per game, so one design's troops never inflate another's count.")]
-    public async Task TroopCountIsScopedToTheTemplateAsync()
+    [Test, Description("Units are counted per template, not per game, so one design's Units never inflate another's count.")]
+    public async Task UnitCountIsScopedToTheTemplateAsync()
     {
         await SeedAsync();
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();

@@ -16,7 +16,7 @@ namespace AscendantEmpire.Application.Features.Units.Handlers;
 public record GetForcesByLocationRequest(
     int GameId,
     IEnumerable<int> CampaignMapTileIds,
-    bool IncludeBattleMapTroops = false
+    bool IncludeBattleMapForces = false
 ) : IRequest<ServiceResult<IReadOnlyCollection<PlayerForce>>>;
 
 internal class GetForcesByLocationRequestValidator : AbstractValidator<GetForcesByLocationRequest>
@@ -57,11 +57,11 @@ internal class GetForcesByLocationHandler(
 
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            List<PlayerForce> troops = await context.UnitInstances
+            List<PlayerForce> Forces = await context.UnitInstances
                   .Where(pu => pu.GameId == request.GameId)
-                  .Where(pu => pu.HealthyCount + pu.InjuredCount > 0) // Only include troops that are alive
+                  .Where(pu => pu.HealthyCount + pu.InjuredCount > 0) // Only include Forces that are alive
                   .Where(pu => request.CampaignMapTileIds.Contains(pu.CampaignMapTileId))
-                  .Where(pu => request.IncludeBattleMapTroops || pu.BattleMapTileId == null)
+                  .Where(pu => request.IncludeBattleMapForces || pu.BattleMapTileId == null)
                   .Select(pu => new PlayerForce
                   {
                       UnitInstanceId = pu.Id,
@@ -73,7 +73,7 @@ internal class GetForcesByLocationHandler(
                       CampaignYCoord = pu.CampaignMap.YCoord,
                       // Sight range in tiles, derived from the compiled snapshot's aggregated detection
                       // (fixed-point, Scale 1,000 — see the template compilation). Stand-in until a dedicated
-                      // sight-range stat is compiled. The snapshot always exists: a troop cannot be spawned
+                      // sight-range stat is compiled. The snapshot always exists: a Unit cannot be spawned
                       // from an uncompiled template.
                       SightRange = (int)(pu.UnitTemplate.Compiled!.TotalDetection / 1000),
                       MapImagePath = pu.UnitTemplate.Compiled!.MapImagePath,
@@ -85,13 +85,13 @@ internal class GetForcesByLocationHandler(
                   })
                   .ToListAsync(cancelToken);
 
-            logger.LogInformation("Retrieved {Count} troops for Game Id: {GameId} and Campaign Map Tile Ids: {CampaignMapTileIds}.", troops.Count, request.GameId, string.Join(", ", request.CampaignMapTileIds));
+            logger.LogInformation("Retrieved {Count} Forces for Game Id: {GameId} and Campaign Map Tile Ids: {CampaignMapTileIds}.", Forces.Count, request.GameId, string.Join(", ", request.CampaignMapTileIds));
 
-            return ServiceResult<IReadOnlyCollection<PlayerForce>>.Succeed(troops);
+            return ServiceResult<IReadOnlyCollection<PlayerForce>>.Succeed(Forces);
         }
         catch (Exception ex)
         {
-            string error = $"An error occurred while retrieving troops for Game Id: {request.GameId} and Campaign Map Tile Ids: {string.Join(", ", request.CampaignMapTileIds)}.";
+            string error = $"An error occurred while retrieving Forces for Game Id: {request.GameId} and Campaign Map Tile Ids: {string.Join(", ", request.CampaignMapTileIds)}.";
             logger.LogError(ex, error);
             return ServiceResult<IReadOnlyCollection<PlayerForce>>.Fail(error);
         }
