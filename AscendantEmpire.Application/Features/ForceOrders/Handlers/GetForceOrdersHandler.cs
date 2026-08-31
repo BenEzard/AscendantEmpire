@@ -83,6 +83,7 @@ internal class GetForceOrdersHandler(
                     Id = o.Id,
                     GameId = o.GameId,
                     UnitInstanceId = o.UnitInstanceId,
+                    CommandId = o.CommandId,
                     OrderType = o.OrderType,
                     OrderStatus = o.OrderStatus,
                     TargetCampaignMapTileId = o.TargetCampaignMapTileId,

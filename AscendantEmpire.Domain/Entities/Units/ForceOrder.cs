@@ -8,7 +8,26 @@ public class ForceOrder
 
     public int GameId { get; set; }
 
-    public int UnitInstanceId { get; set; }
+    /// <summary>
+    /// The <see cref="UnitInstance"/> this order was issued to, or null when it was issued to a <see cref="Units.Command"/> instead.
+    /// </summary>
+    /// <remarks>
+    /// Exactly one of <see cref="UnitInstanceId"/> and <see cref="CommandId"/> is populated, enforced by the database check constraint
+    /// <c>CK_ForceOrders_UnitOrCommandXor</c>. An order targets a <b>Force</b>, and a Force is either a Unit or a Command.
+    /// </remarks>
+    public int? UnitInstanceId { get; set; }
+
+    /// <summary>
+    /// The <see cref="Units.Command"/> this order was issued to, or null when it was issued to a single <see cref="UnitInstance"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The nullable pair was chosen over fanning a Command's order out to its member Units. "A Command moves as one" is a rule, and one order row
+    /// against the Command <i>states</i> it; fanning out would make it something that has to be kept true by hand across splits, casualties and
+    /// partial movement.
+    /// </para>
+    /// </remarks>
+    public int? CommandId { get; set; }
 
     public ForceOrderType OrderType { get; set; }
 
@@ -66,7 +85,9 @@ public class ForceOrder
     public string? FailureReason { get; set; }
     public string? CancellationReason { get; set; }
 
-    public virtual UnitInstance UnitInstance { get; set; } = null!;
+    public virtual UnitInstance? UnitInstance { get; set; }
+
+    public virtual Command? Command { get; set; }
 
     public virtual ICollection<ForceOrderMovementStep> MovementSteps { get; set; } = [];
     public virtual ICollection<ForceOrderParticipant> Participants { get; set; } = [];

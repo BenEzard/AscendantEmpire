@@ -120,6 +120,7 @@ public class AscendantEmpireContext : DbContext
     #region Units
 
     public DbSet<UnitInstance> UnitInstances { get; set; }
+    public DbSet<Command> Commands { get; set; }
     public DbSet<ForceOrder> ForceOrders { get; set; }
     public DbSet<ForceOrderMovementStep> ForceOrderMovementSteps { get; set; }
     public DbSet<ForceOrderParticipant> ForceOrderParticipants { get; set; }
@@ -1011,6 +1012,50 @@ public class AscendantEmpireContext : DbContext
                  .HasForeignKey(e => e.UnitTemplateId)
                  .OnDelete(DeleteBehavior.NoAction)
                  .HasConstraintName("FK_UnitInstances_UnitTemplate_UnitTemplateId");
+
+            // A Unit under no Command is the ordinary case, so this is nullable and its index is filtered.
+            entity.HasOne(e => e.Command)
+                .WithMany(c => c.Units)
+                .HasForeignKey(e => e.CommandId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitInstances_Commands_CommandId");
+
+            entity.HasIndex(e => e.CommandId)
+                .HasFilter("[CommandId] IS NOT NULL");
+        });
+
+        // --- Commands --------------------------------------------------------------
+        modelBuilder.Entity<Command>(entity =>
+        {
+            entity.ToTable("Commands", schema);
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Name).HasMaxLength(Command.NAME_MAX_LENGTH);
+
+            entity.Property(e => e.BattleMapTileId).IsRequired(false);
+
+            entity.HasOne(e => e.Game)
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_Commands_GameIndex_GameId");
+
+            entity.HasOne(e => e.Player)
+                .WithMany()
+                .HasForeignKey(e => e.OwnerPlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_Commands_Player_OwnerPlayerId");
+
+            entity.HasOne(e => e.CampaignMap)
+                .WithMany()
+                .HasForeignKey(e => e.CampaignMapTileId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_Commands_CampaignMap_CampaignMapTileId");
+
+            entity.HasIndex(e => e.GameId);
+            entity.HasIndex(e => e.OwnerPlayerId);
+            entity.HasIndex(e => e.CampaignMapTileId);
         });
 
         modelBuilder.Entity<ForceOrder>(entity =>
@@ -1041,6 +1086,18 @@ public class AscendantEmpireContext : DbContext
                 .HasForeignKey(e => e.UnitInstanceId)
                 .OnDelete(DeleteBehavior.NoAction);
 
+            entity.HasOne(e => e.Command)
+                .WithMany()
+                .HasForeignKey(e => e.CommandId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_ForceOrders_Commands_CommandId");
+
+            // An order targets a Force, which is either a Unit or a Command and never both or neither. The database is what guarantees that,
+            // because nothing else can: the two columns are nullable so that either may be absent, and only a constraint can say "exactly one".
+            entity.ToTable(table => table.HasCheckConstraint(
+                "CK_ForceOrders_UnitOrCommandXor",
+                "([UnitInstanceId] IS NOT NULL AND [CommandId] IS NULL) OR ([UnitInstanceId] IS NULL AND [CommandId] IS NOT NULL)"));
+
             entity.HasMany(e => e.MovementSteps)
                 .WithOne(e => e.ForceOrder)
                 .HasForeignKey(e => e.ForceOrderId)
@@ -1062,6 +1119,14 @@ public class AscendantEmpireContext : DbContext
             entity.HasIndex(e => e.DefendTargetUnitInstanceId);
             entity.HasIndex(e => e.DefendTargetStructureInstanceId);
             entity.HasIndex(x => new { x.UnitInstanceId, x.OrderStatus });
+
+            // Filtered, because exactly one half of the target pair is populated on any given row: an unfiltered index over CommandId would be
+            // mostly nulls for as long as Commands are rarer than lone Units, which the officer economy makes permanent rather than temporary.
+            entity.HasIndex(e => e.CommandId)
+                .HasFilter("[CommandId] IS NOT NULL");
+
+            entity.HasIndex(x => new { x.CommandId, x.OrderStatus })
+                .HasFilter("[CommandId] IS NOT NULL");
         });
 
         modelBuilder.Entity<ForceOrderMovementStep>(entity =>

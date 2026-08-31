@@ -2124,6 +2124,41 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("UnitTemplateComponent", "unitdesigns");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.Command", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("BattleMapTileId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CampaignMapTileId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("OwnerPlayerId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampaignMapTileId");
+
+                    b.HasIndex("GameId");
+
+                    b.HasIndex("OwnerPlayerId");
+
+                    b.ToTable("Commands", "units");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.ForceOrder", b =>
                 {
                     b.Property<int>("Id")
@@ -2135,6 +2170,9 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<string>("CancellationReason")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("CommandId")
+                        .HasColumnType("int");
 
                     b.Property<int?>("CompletedTurnNumber")
                         .HasColumnType("int");
@@ -2185,7 +2223,7 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int?>("TradeTargetStructureInstanceId")
                         .HasColumnType("int");
 
-                    b.Property<int>("UnitInstanceId")
+                    b.Property<int?>("UnitInstanceId")
                         .HasColumnType("int");
 
                     b.Property<decimal>("WorkCompleted")
@@ -2199,6 +2237,9 @@ namespace AscendantEmpire.Application.Migrations
                         .HasColumnType("decimal(18,3)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CommandId")
+                        .HasFilter("[CommandId] IS NOT NULL");
 
                     b.HasIndex("DefendTargetStructureInstanceId");
 
@@ -2218,6 +2259,9 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.HasIndex("UnitInstanceId");
 
+                    b.HasIndex("CommandId", "OrderStatus")
+                        .HasFilter("[CommandId] IS NOT NULL");
+
                     b.HasIndex("GameId", "OrderStatus");
 
                     b.HasIndex("UnitInstanceId", "OrderStatus");
@@ -2226,7 +2270,10 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.HasIndex("GameId", "UnitInstanceId", "OrderStatus");
 
-                    b.ToTable("ForceOrders", "units");
+                    b.ToTable("ForceOrders", "units", t =>
+                        {
+                            t.HasCheckConstraint("CK_ForceOrders_UnitOrCommandXor", "([UnitInstanceId] IS NOT NULL AND [CommandId] IS NULL) OR ([UnitInstanceId] IS NULL AND [CommandId] IS NOT NULL)");
+                        });
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.ForceOrderMovementStep", b =>
@@ -2318,6 +2365,9 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("CampaignMapTileId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("CommandId")
+                        .HasColumnType("int");
+
                     b.Property<int>("GameId")
                         .HasColumnType("int");
 
@@ -2345,6 +2395,9 @@ namespace AscendantEmpire.Application.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CampaignMapTileId");
+
+                    b.HasIndex("CommandId")
+                        .HasFilter("[CommandId] IS NOT NULL");
 
                     b.HasIndex("GameId");
 
@@ -3146,13 +3199,50 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("UnitTemplate");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.Command", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.CampaignMap", "CampaignMap")
+                        .WithMany()
+                        .HasForeignKey("CampaignMapTileId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_Commands_CampaignMap_CampaignMapTileId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", "Game")
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_Commands_GameIndex_GameId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("OwnerPlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_Commands_Player_OwnerPlayerId");
+
+                    b.Navigation("CampaignMap");
+
+                    b.Navigation("Game");
+
+                    b.Navigation("Player");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.ForceOrder", b =>
                 {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Units.Command", "Command")
+                        .WithMany()
+                        .HasForeignKey("CommandId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_ForceOrders_Commands_CommandId");
+
                     b.HasOne("AscendantEmpire.Domain.Entities.Units.UnitInstance", "UnitInstance")
                         .WithMany("Orders")
                         .HasForeignKey("UnitInstanceId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Command");
 
                     b.Navigation("UnitInstance");
                 });
@@ -3200,6 +3290,12 @@ namespace AscendantEmpire.Application.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_UnitInstances_CampaignMap_CampaignMapTileId");
 
+                    b.HasOne("AscendantEmpire.Domain.Entities.Units.Command", "Command")
+                        .WithMany("Units")
+                        .HasForeignKey("CommandId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_UnitInstances_Commands_CommandId");
+
                     b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", "Game")
                         .WithMany()
                         .HasForeignKey("GameId")
@@ -3222,6 +3318,8 @@ namespace AscendantEmpire.Application.Migrations
                         .HasConstraintName("FK_UnitInstances_UnitTemplate_UnitTemplateId");
 
                     b.Navigation("CampaignMap");
+
+                    b.Navigation("Command");
 
                     b.Navigation("Game");
 
@@ -3338,6 +3436,11 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("SupersededBy");
 
                     b.Navigation("Supersedes");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.Command", b =>
+                {
+                    b.Navigation("Units");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.ForceOrder", b =>

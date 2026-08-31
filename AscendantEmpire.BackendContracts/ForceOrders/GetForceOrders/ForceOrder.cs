@@ -8,7 +8,16 @@ public record ForceOrder
 
     public int GameId { get; init; }
 
-    public int UnitInstanceId { get; init; }
+    /// <summary>
+    /// The Unit this order was issued to, or null when it was issued to a Command.
+    /// </summary>
+    /// <remarks>Exactly one of <see cref="UnitInstanceId"/> and <see cref="CommandId"/> is populated: an order targets a Force.</remarks>
+    public int? UnitInstanceId { get; init; }
+
+    /// <summary>
+    /// The Command this order was issued to, or null when it was issued to a single Unit.
+    /// </summary>
+    public int? CommandId { get; init; }
 
     public int OrderSequence { get; init; }
 

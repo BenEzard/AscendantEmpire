@@ -59,7 +59,8 @@ A few terms recur throughout these documents:
   concrete assets belong to.
 - **Unit** — one fielded body of soldiers with the same equipment, training and nationality, built from
   a single Unit Template.
-- **Command** — two or more Units combined under a shared command structure on a single campaign tile.
+- **Command** — one or more Units combined under a shared command structure on a single campaign tile.
+  Always deliberate: a lone Unit is never automatically wrapped in one.
 - **Force** — the umbrella term for either a Unit or a Command: whatever occupies a tile and moves as
   one. A category, not a type.
 - **troops** — individual soldiers. A Unit contains troops; it is not one.

@@ -67,9 +67,20 @@ public class UnitInstance
     /// </remarks>
     public long MovementPointsRemaining { get; set; }
 
+    /// <summary>
+    /// The <see cref="Units.Command"/> this Unit serves under, or null when it is operating alone.
+    /// </summary>
+    /// <remarks>
+    /// Null is the ordinary case, not an exceptional one: forming a Command costs an officer from a deliberately scarce pool, so most Units are
+    /// never in one. Units sharing a tile with a null <c>CommandId</c> are a "unit stack" — together by circumstance rather than under one
+    /// commander — and get none of a Command's shared vision or bonuses.
+    /// </remarks>
+    public int? CommandId { get; set; }
+
     public GameIndex Game { get; set; } = null!;
     public Player Player { get; set; } = null!;
     public UnitTemplate UnitTemplate { get; set; } = null!;
     public CampaignMap CampaignMap { get; set; } = null!;
+    public Command? Command { get; set; }
     public virtual ICollection<ForceOrder> Orders { get; set; } = [];
 }

@@ -16,7 +16,7 @@ Tracked as **TM-6**.
 | 4 | The umbrella projections — `ObservedTroop` / `ITroopStub` / `DTTroopStub` → `*Force*` | TM-6 | **Done** — `76fc52a` |
 | 5a | `TroopOrder*` → `ForceOrder*`, `/force-orders`, schema collapse | TM-6 | **Done** — `d55c541` |
 | 5b | The remaining `Troop`-named types (`PlayerForce`, `UnitDisplayInfo`, …) | TM-6 | **Done** — `2c7a7f5` |
-| 6 | `Command` entity + the nullable-pair order target (**feature work, not a rename**) | TBD | Not started |
+| 6 | `Command` entity + the nullable-pair order target (**feature work, not a rename**) | TM-6 | **Done** — schema only |
 | 7 | Docs — retire Formation, rewrite `Terminology.md`, reconcile the design set | TM-6 | **Done** |
 
 Stages 1–5 and 7 are terminology only: no behaviour changes, and the proof is an unchanged test count. Stage 6
@@ -90,7 +90,46 @@ land in one batch and each declared `@currentName`, which T-SQL rejects because 
 The variables are now suffixed per constraint. **Generate the script for any migration that writes raw
 T-SQL** — `dotnet ef migrations script <from> <to>` — because nothing else checks it.
 
-Outstanding and Ben's to run: applying `TM-6_RenameStaleDefaultConstraints`, and the click-through. Note that
+### Stage 6 — done as schema only
+
+The suite moved to **409 passed, 1 skipped** here, and that is correct: stage 6 adds behaviour rather than
+renaming it, so the unchanged-count invariant that governed stages 1–5 no longer applies. The six new tests are
+the increase.
+
+Two things had to be settled before any of it could be written, and both changed the shape:
+
+- **There is no `Officer` entity, and no `Specialist` entity either** — only `PlayerOfficerRank`, which is
+  per-player rank *configuration* rather than a person. The design's defining property of a Command ("one
+  Command Commander, whose rank sets max total strength, max number of Units and max attached Specialists")
+  therefore has nothing to reference. **`Command` carries no commander field**, and its XML says why: adding a
+  bare rank column now would invent a shape the real relationship may not want, and none of those limits are
+  enforced anywhere regardless. It gains an officer reference when officers are modelled.
+- **The roadmap and `Terminology.md` said "two or more Units"; `military-organisation.md` says "one or more".**
+  The design doc wins. The "not wrapped in a Command of one" ruling was about *automatic* wrapping — a player
+  may still deliberately form a Command around a single Unit, it is just rarely worth the officer. Corrected in
+  both places.
+
+What landed: the `Command` entity (`units.Commands`), `UnitInstance.CommandId` nullable with a filtered index,
+and on `ForceOrder` a nullable `UnitInstanceId` beside a new nullable `CommandId`, with
+`CK_ForceOrders_UnitOrCommandXor` and two filtered indexes. Migration `TM-6_AddCommandAndForceOrderTarget` is
+purely additive — no drop, no data loss — and its `AlterColumn` to nullable is safe because every existing row
+has a Unit and no Command, so the XOR holds the moment the constraint is added.
+
+`CommandForceOrderTargetTests` is tier 3 and the fixture exists for its two rejection cases: both target columns
+are nullable, so nothing in the type system can express "exactly one", and the in-memory provider ignores
+constraints entirely and would pass while proving nothing. They confirmed the constraint is really created and
+really enforced, not merely scaffolded.
+
+**Deliberately not built**, because each needs a ruling the design has not made: forming, disbanding and joining
+a Command; whether unled Units may join one at all (`military-organisation.md` lists that as an uncommitted
+candidate lever); and any enforcement of the officer-derived limits. Nothing therefore creates a Command yet, so
+the map, vision and toolbar projections were **not** given Command arms — with nothing able to exist, those
+arms would be unreachable code rather than working code. They belong with the operation that first creates one.
+
+`ForceOrderParticipant.UnitInstanceId` is likewise still Unit-only. It wants the same nullable pair when
+Commands can combine and split, and that is the same decision deferred rather than a different one.
+
+Outstanding and Ben's to run: applying `TM-6_AddCommandAndForceOrderTarget`, and the click-through. Note that
 `MovementPointsRemaining` is still never written (TM-3), so the split action renders permanently disabled and a
 click-through cannot distinguish "renamed correctly" from "already broken".
 
