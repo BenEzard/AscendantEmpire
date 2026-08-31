@@ -120,9 +120,9 @@ public class AscendantEmpireContext : DbContext
     #region Units
 
     public DbSet<UnitInstance> UnitInstances { get; set; }
-    public DbSet<TroopOrder> TroopOrders { get; set; }
-    public DbSet<TroopOrderMovementStep> TroopOrderMovementSteps { get; set; }
-    public DbSet<TroopOrderParticipant> TroopOrderParticipants { get; set; }
+    public DbSet<ForceOrder> ForceOrders { get; set; }
+    public DbSet<ForceOrderMovementStep> ForceOrderMovementSteps { get; set; }
+    public DbSet<ForceOrderParticipant> ForceOrderParticipants { get; set; }
 
     #endregion
 
@@ -1013,9 +1013,9 @@ public class AscendantEmpireContext : DbContext
                  .HasConstraintName("FK_UnitInstances_UnitTemplate_UnitTemplateId");
         });
 
-        modelBuilder.Entity<TroopOrder>(entity =>
+        modelBuilder.Entity<ForceOrder>(entity =>
         {
-            entity.ToTable("TroopOrders", "troops");
+            entity.ToTable("ForceOrders", schema);
 
             entity.HasKey(e => e.Id);
 
@@ -1042,8 +1042,8 @@ public class AscendantEmpireContext : DbContext
                 .OnDelete(DeleteBehavior.NoAction);
 
             entity.HasMany(e => e.MovementSteps)
-                .WithOne(e => e.TroopOrder)
-                .HasForeignKey(e => e.TroopOrderId)
+                .WithOne(e => e.ForceOrder)
+                .HasForeignKey(e => e.ForceOrderId)
                 .OnDelete(DeleteBehavior.NoAction);
 
             entity.HasIndex(e => e.GameId);
@@ -1064,46 +1064,46 @@ public class AscendantEmpireContext : DbContext
             entity.HasIndex(x => new { x.UnitInstanceId, x.OrderStatus });
         });
 
-        modelBuilder.Entity<TroopOrderMovementStep>(entity =>
+        modelBuilder.Entity<ForceOrderMovementStep>(entity =>
         {
-            entity.ToTable("TroopOrderMovementSteps", "troops");
+            entity.ToTable("ForceOrderMovementSteps", schema);
 
             entity.HasKey(e => e.Id);
 
             entity.Property(e => e.IsCompleted)
                 .HasDefaultValue(false);
 
-            entity.HasOne(e => e.TroopOrder)
+            entity.HasOne(e => e.ForceOrder)
                 .WithMany(e => e.MovementSteps)
-                .HasForeignKey(e => e.TroopOrderId)
+                .HasForeignKey(e => e.ForceOrderId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            entity.HasIndex(e => e.TroopOrderId);
+            entity.HasIndex(e => e.ForceOrderId);
 
-            entity.HasIndex(e => new { e.TroopOrderId, e.StepIndex })
+            entity.HasIndex(e => new { e.ForceOrderId, e.StepIndex })
                 .IsUnique();
 
             entity.HasIndex(e => new { e.CampaignMapTileId, e.IsCompleted });
         });
 
-        modelBuilder.Entity<TroopOrderParticipant>(entity =>
+        modelBuilder.Entity<ForceOrderParticipant>(entity =>
         {
-            entity.ToTable("TroopOrderParticipants", "troops");
+            entity.ToTable("ForceOrderParticipants", schema);
 
             entity.Property(x => x.Role)
                 .HasConversion<int>()
                 .IsRequired();
 
-            entity.HasOne(e => e.TroopOrder)
+            entity.HasOne(e => e.ForceOrder)
                 .WithMany()
-                .HasForeignKey(e => e.TroopOrderId)
+                .HasForeignKey(e => e.ForceOrderId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            entity.HasIndex(x => x.TroopOrderId);
+            entity.HasIndex(x => x.ForceOrderId);
 
             entity.HasIndex(x => x.UnitInstanceId);
 
-            entity.HasIndex(x => new { x.TroopOrderId, x.UnitInstanceId })
+            entity.HasIndex(x => new { x.ForceOrderId, x.UnitInstanceId })
                 .IsUnique();
 
             entity.HasOne(x => x.UnitInstance)

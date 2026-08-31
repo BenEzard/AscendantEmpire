@@ -3,9 +3,9 @@ import { FaChessKnight } from "react-icons/fa6";
 import type { ObservedForceTile, TileCell } from "@/features/map/components/TileTypes";
 import type { ForceSelectionDialogTile } from "../components/ForceSelectionDialog";
 import type { ContextActionToolbarAction } from "../components/ContextActionToolbar";
-import { FRONTEND_ONLY_ACTION_ORDER, getTroopActionIcon, getTroopActionLabel } from "../components/troopActionRegistry";
-import { useTroopContextActionsQuery } from "./useTroopContextActions";
-import type { TroopActionType } from "../api/troopContextActionsApi";
+import { FRONTEND_ONLY_ACTION_ORDER, getForceActionIcon, getForceActionLabel } from "../components/forceActionRegistry";
+import { useForceContextActionsQuery } from "./useForceContextActions";
+import type { ForceActionType } from "../api/forceContextActionsApi";
 import type { ToastVariant } from "@/hooks/useToast";
 
 function getTileKey(x: number, y: number): string {
@@ -127,7 +127,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
   );
 
   // The backend decides which actions apply to the selected troop and whether each can be taken right now.
-  const { data: troopContextActions } = useTroopContextActionsQuery(selectedForce?.id);
+  const { data: forceContextActions } = useForceContextActionsQuery(selectedForce?.id);
 
   /**
    * Starts the interaction behind a backend-driven action.
@@ -136,11 +136,11 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
    * action type to interaction lives here.
    */
   const runTroopAction = useCallback(
-    (actionType: TroopActionType) => {
+    (actionType: ForceActionType) => {
       if (!selectedForce) return;
 
       switch (actionType) {
-        case "SplitTroops":
+        case "SplitForce":
           // TODO: Splitting needs parameters (how many ways, and how big each part is), so this opens a dialog
           // rather than posting directly. The dialog and its execute endpoint are the next slice of this work —
           // see docs/design/units/troop-context-action-toolbar.md, stage 5.
@@ -199,13 +199,13 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
 
     const actions: ContextActionToolbarAction[] = [];
 
-    // "Select Troop" is a pure UI affordance with no backend rule behind it, so it's added here rather than
+    // "Select Force" is a pure UI affordance with no backend rule behind it, so it's added here rather than
     // served by the API. Its display order comes from the band the backend's action enum reserves for exactly
     // this, so it sorts into the same sequence without ever colliding with a real action.
     if (pendingForceSelectionTile != null) {
       actions.push({
-        key: "select-troop",
-        label: "Select Troop",
+        key: "select-force",
+        label: "Select Force",
         icon: <FaChessKnight />,
         displayOrder: FRONTEND_ONLY_ACTION_ORDER.selectTroop,
         isEnabled: true,
@@ -216,11 +216,11 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
 
     // Everything else comes from the backend, including the actions it has judged unavailable — those render
     // greyed out with their reasons, rather than being filtered away, so the player learns why.
-    for (const action of troopContextActions ?? []) {
+    for (const action of forceContextActions ?? []) {
       actions.push({
         key: action.actionType,
-        label: getTroopActionLabel(action.actionType, action.label),
-        icon: getTroopActionIcon(action.actionType),
+        label: getForceActionLabel(action.actionType, action.label),
+        icon: getForceActionIcon(action.actionType),
         displayOrder: action.displayOrder,
         isEnabled: action.isEnabled,
         disabledReasons: action.disabledReasons,
@@ -229,7 +229,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
     }
 
     return actions;
-  }, [openForceSelectionDialog, pendingForceSelectionTile, runTroopAction, selectedForce, troopContextActions]);
+  }, [openForceSelectionDialog, pendingForceSelectionTile, runTroopAction, selectedForce, forceContextActions]);
 
   return {
     selectedForce,

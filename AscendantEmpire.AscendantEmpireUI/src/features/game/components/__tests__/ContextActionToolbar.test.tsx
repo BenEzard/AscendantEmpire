@@ -5,8 +5,8 @@ import ContextActionToolbar, { type ContextActionToolbarAction } from "../Contex
 /** Builds a toolbar action, defaulting to an enabled one. */
 function action(overrides: Partial<ContextActionToolbarAction> = {}): ContextActionToolbarAction {
   return {
-    key: "split-troops",
-    label: "Split Troops",
+    key: "split-force",
+    label: "Split Force",
     icon: <span aria-hidden="true" />,
     displayOrder: 1000,
     isEnabled: true,
@@ -29,7 +29,7 @@ describe("ContextActionToolbar", () => {
 
     render(<ContextActionToolbar visible actions={[action({ onClick })]} />);
 
-    await user.click(screen.getByRole("button", { name: "Split Troops" }));
+    await user.click(screen.getByRole("button", { name: "Split Force" }));
 
     expect(onClick).toHaveBeenCalledOnce();
   });
@@ -46,10 +46,10 @@ describe("ContextActionToolbar", () => {
       />,
     );
 
-    const button = screen.getByRole("button", { name: /Split Troops/ });
+    const button = screen.getByRole("button", { name: /Split Force/ });
 
     expect(button).toBeDisabled();
-    expect(button).toHaveAccessibleName("Split Troops — Unit has already moved this turn. It is too small.");
+    expect(button).toHaveAccessibleName("Split Force — Unit has already moved this turn. It is too small.");
   });
 
   it("does not fire onClick for an unavailable action", async () => {
@@ -58,7 +58,7 @@ describe("ContextActionToolbar", () => {
 
     render(<ContextActionToolbar visible actions={[action({ isEnabled: false, disabledReasons: ["Nope."], onClick })]} />);
 
-    await user.click(screen.getByRole("button", { name: /Split Troops/ }));
+    await user.click(screen.getByRole("button", { name: /Split Force/ }));
 
     expect(onClick).not.toHaveBeenCalled();
   });
@@ -72,14 +72,14 @@ describe("ContextActionToolbar", () => {
       <ContextActionToolbar
         visible
         actions={[
-          action({ key: "split-troops", label: "Split Troops", displayOrder: 1000 }),
-          action({ key: "select-troop", label: "Select Troop", displayOrder: 100 }),
+          action({ key: "split-force", label: "Split Force", displayOrder: 1000 }),
+          action({ key: "select-force", label: "Select Force", displayOrder: 100 }),
         ]}
       />,
     );
 
     const labels = screen.getAllByRole("button").map((button) => button.textContent);
 
-    expect(labels).toEqual(["Select Troop", "Split Troops"]);
+    expect(labels).toEqual(["Select Force", "Split Force"]);
   });
 });

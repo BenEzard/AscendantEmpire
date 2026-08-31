@@ -1,6 +1,6 @@
-﻿using AscendantEmpire.Application.Features.TroopOrders.Helpers;
+﻿using AscendantEmpire.Application.Features.ForceOrders.Helpers;
 
-namespace AscendantEmpire.Tests.Handlers.TroopOrders;
+namespace AscendantEmpire.Tests.Handlers.ForceOrders;
 
 [TestFixture]
 public class PathFinderTests

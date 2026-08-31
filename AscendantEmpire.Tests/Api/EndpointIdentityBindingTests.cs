@@ -173,7 +173,7 @@ public sealed class EndpointIdentityBindingTests
     }
 
     /// <summary>
-    /// The identities an action binds from the request, rendered for a failure message (e.g. <c>"gameId (route/query)"</c> or <c>"MoveTroopsDto.GameId"</c>).
+    /// The identities an action binds from the request, rendered for a failure message (e.g. <c>"gameId (route/query)"</c> or <c>"MoveForcesDto.GameId"</c>).
     /// </summary>
     /// <remarks>
     /// Services injected with <c>[FromServices]</c> and the cancellation token are skipped: they are supplied by the framework, not by the caller. Body models

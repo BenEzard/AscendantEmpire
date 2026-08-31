@@ -2124,7 +2124,7 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("UnitTemplateComponent", "unitdesigns");
                 });
 
-            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopOrder", b =>
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.ForceOrder", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -2226,10 +2226,10 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.HasIndex("GameId", "UnitInstanceId", "OrderStatus");
 
-                    b.ToTable("TroopOrders", "troops");
+                    b.ToTable("ForceOrders", "units");
                 });
 
-            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopOrderMovementStep", b =>
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.ForceOrderMovementStep", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -2241,6 +2241,9 @@ namespace AscendantEmpire.Application.Migrations
                         .HasColumnType("int");
 
                     b.Property<int?>("CompletedTurnNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ForceOrderId")
                         .HasColumnType("int");
 
                     b.Property<bool>("IsCompleted")
@@ -2255,22 +2258,19 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("StepIndex")
                         .HasColumnType("int");
 
-                    b.Property<int>("TroopOrderId")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("TroopOrderId");
+                    b.HasIndex("ForceOrderId");
 
                     b.HasIndex("CampaignMapTileId", "IsCompleted");
 
-                    b.HasIndex("TroopOrderId", "StepIndex")
+                    b.HasIndex("ForceOrderId", "StepIndex")
                         .IsUnique();
 
-                    b.ToTable("TroopOrderMovementSteps", "troops");
+                    b.ToTable("ForceOrderMovementSteps", "units");
                 });
 
-            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopOrderParticipant", b =>
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.ForceOrderParticipant", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -2278,13 +2278,13 @@ namespace AscendantEmpire.Application.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("ForceOrderId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ForceOrderId1")
+                        .HasColumnType("int");
+
                     b.Property<int>("Role")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TroopOrderId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("TroopOrderId1")
                         .HasColumnType("int");
 
                     b.Property<int>("UnitInstanceId")
@@ -2292,16 +2292,16 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TroopOrderId");
+                    b.HasIndex("ForceOrderId");
 
-                    b.HasIndex("TroopOrderId1");
+                    b.HasIndex("ForceOrderId1");
 
                     b.HasIndex("UnitInstanceId");
 
-                    b.HasIndex("TroopOrderId", "UnitInstanceId")
+                    b.HasIndex("ForceOrderId", "UnitInstanceId")
                         .IsUnique();
 
-                    b.ToTable("TroopOrderParticipants", "troops");
+                    b.ToTable("ForceOrderParticipants", "units");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.UnitInstance", b =>
@@ -3146,7 +3146,7 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("UnitTemplate");
                 });
 
-            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopOrder", b =>
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.ForceOrder", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.Units.UnitInstance", "UnitInstance")
                         .WithMany("Orders")
@@ -3157,28 +3157,28 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("UnitInstance");
                 });
 
-            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopOrderMovementStep", b =>
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.ForceOrderMovementStep", b =>
                 {
-                    b.HasOne("AscendantEmpire.Domain.Entities.Units.TroopOrder", "TroopOrder")
+                    b.HasOne("AscendantEmpire.Domain.Entities.Units.ForceOrder", "ForceOrder")
                         .WithMany("MovementSteps")
-                        .HasForeignKey("TroopOrderId")
+                        .HasForeignKey("ForceOrderId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
-                    b.Navigation("TroopOrder");
+                    b.Navigation("ForceOrder");
                 });
 
-            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopOrderParticipant", b =>
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.ForceOrderParticipant", b =>
                 {
-                    b.HasOne("AscendantEmpire.Domain.Entities.Units.TroopOrder", "TroopOrder")
+                    b.HasOne("AscendantEmpire.Domain.Entities.Units.ForceOrder", "ForceOrder")
                         .WithMany()
-                        .HasForeignKey("TroopOrderId")
+                        .HasForeignKey("ForceOrderId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
-                    b.HasOne("AscendantEmpire.Domain.Entities.Units.TroopOrder", null)
+                    b.HasOne("AscendantEmpire.Domain.Entities.Units.ForceOrder", null)
                         .WithMany("Participants")
-                        .HasForeignKey("TroopOrderId1");
+                        .HasForeignKey("ForceOrderId1");
 
                     b.HasOne("AscendantEmpire.Domain.Entities.Units.UnitInstance", "UnitInstance")
                         .WithMany()
@@ -3186,7 +3186,7 @@ namespace AscendantEmpire.Application.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
-                    b.Navigation("TroopOrder");
+                    b.Navigation("ForceOrder");
 
                     b.Navigation("UnitInstance");
                 });
@@ -3340,7 +3340,7 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Supersedes");
                 });
 
-            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.TroopOrder", b =>
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.ForceOrder", b =>
                 {
                     b.Navigation("MovementSteps");
 

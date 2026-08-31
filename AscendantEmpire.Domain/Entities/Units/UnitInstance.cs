@@ -71,5 +71,5 @@ public class UnitInstance
     public Player Player { get; set; } = null!;
     public UnitTemplate UnitTemplate { get; set; } = null!;
     public CampaignMap CampaignMap { get; set; } = null!;
-    public virtual ICollection<TroopOrder> Orders { get; set; } = [];
+    public virtual ICollection<ForceOrder> Orders { get; set; } = [];
 }

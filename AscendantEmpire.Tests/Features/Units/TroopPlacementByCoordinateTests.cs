@@ -2,10 +2,10 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Players.Handlers;
-using AscendantEmpire.Application.Features.TroopOrders.Handlers;
+using AscendantEmpire.Application.Features.ForceOrders.Handlers;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Units.Handlers;
-using AscendantEmpire.BackendContracts.TroopOrders.MoveTroops;
+using AscendantEmpire.BackendContracts.ForceOrders.MoveForces;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Units;
 
@@ -53,7 +53,7 @@ internal class TroopPlacementByCoordinateTests : GameSqlServerTestBase
     [SetUp]
     public void SetUpMediator()
     {
-        // MoveTroopHandler takes the turn service as a dependency. These tests are rejected on the
+        // MoveForceHandler takes the turn service as a dependency. These tests are rejected on the
         // destination coordinate before it is consulted, but DI still has to construct the handler.
         ICampaignTurnService campaignTurnService = Substitute.For<ICampaignTurnService>();
 
@@ -189,7 +189,7 @@ internal class TroopPlacementByCoordinateTests : GameSqlServerTestBase
         Player player = await FirstPlayerAsync(context, gameId);
         UnitInstance troop = await context.UnitInstances.Where(t => t.GameId == gameId && t.PlayerId == player.Id).FirstAsync();
 
-        ServiceResultBase.ServiceResult<MoveTroopResult> result = await _mediator.Send(new MoveTroopRequest(
+        ServiceResultBase.ServiceResult<MoveForceResult> result = await _mediator.Send(new MoveForceRequest(
             GameId: gameId,
             PlayerId: player.Id,
             UnitInstanceId: troop.Id,

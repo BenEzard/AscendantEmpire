@@ -18,7 +18,7 @@ internal class HealTroops(IDbContextFactory<AscendantEmpireContext> dbFactory) :
         // TODO: Code the Heal Troops logic.
         //      Consider things like entourage including medics, doctors, suregeries etc
         //      Consider if they are on friendly territory, in a city, in a camp, in the wild etc
-        //      TroopOrderType = Heal (3)
+        //      ForceOrderType = Heal (3)
 
 
         await using AscendantEmpireContext db = await dbFactory.CreateDbContextAsync();
