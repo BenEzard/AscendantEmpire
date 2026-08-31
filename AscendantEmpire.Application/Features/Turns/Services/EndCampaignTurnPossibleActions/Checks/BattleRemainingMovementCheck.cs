@@ -46,7 +46,7 @@ internal sealed class BattleRemainingMovementCheck(
                 Description = $"{(string.IsNullOrWhiteSpace(t.TroopName) ? "Unnamed" : t.TroopName)} has movement remaining.",
                 Id = t.Id,
                 Coord = t.Coord,
-                RecordTypeId = (int)RecordType.Unit // TODO: Determine if Unit or Force
+                RecordTypeId = (int)RecordType.Unit // TODO: Determine whether this is a Unit or a Command
             })];
     }
 }
