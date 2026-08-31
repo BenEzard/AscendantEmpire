@@ -233,6 +233,11 @@ _pkginfo.txt
 ClientBin/
 ~$*
 *~
+
+# Editor and in-place-edit backups. Note that Perl's -i requires a backup suffix on Windows and defaults
+# to .bak, so a sed/perl one-liner that edits in place cleanly on Unix leaves these behind here.
+*.bak
+*.orig
 *.dbmdl
 *.dbproj.schemaview
 *.jfm

@@ -28,7 +28,7 @@ them earlier.
 
 ### Support agreements
 
-Let a guest empire's [unit support](unit-support-and-supply.md) needs be met in a host empire's
+Let a guest empire's [unit support](units/unit-support-and-supply.md) needs be met in a host empire's
 territory without a supply chain.
 
 | Name | Function |

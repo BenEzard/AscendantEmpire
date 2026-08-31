@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FaChessKnight } from "react-icons/fa6";
-import { GiHuntingHorn } from "react-icons/gi";
 import type { ObservedTroopTile, TileCell } from "@/features/map/components/TileTypes";
 import type { ForceSelectionDialogTile } from "../components/ForceSelectionDialog";
 import type { ContextActionToolbarAction } from "../components/ContextActionToolbar";
+import { FRONTEND_ONLY_ACTION_ORDER, getTroopActionIcon, getTroopActionLabel } from "../components/troopActionRegistry";
+import { useTroopContextActionsQuery } from "./useTroopContextActions";
+import type { TroopActionType } from "../api/troopContextActionsApi";
 import type { ToastVariant } from "@/hooks/useToast";
 
 function getTileKey(x: number, y: number): string {
@@ -124,10 +126,30 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
     [openToast, selectedForce],
   );
 
-  const hunt = useCallback(() => {
-    if (!selectedForce) return;
-    openToast(`Hunt with troop #${selectedForce.id}`, "info");
-  }, [openToast, selectedForce]);
+  // The backend decides which actions apply to the selected troop and whether each can be taken right now.
+  const { data: troopContextActions } = useTroopContextActionsQuery(selectedForce?.id);
+
+  /**
+   * Starts the interaction behind a backend-driven action.
+   *
+   * The backend deliberately doesn't know what a button *does* — only whether it's allowed — so the mapping from
+   * action type to interaction lives here.
+   */
+  const runTroopAction = useCallback(
+    (actionType: TroopActionType) => {
+      if (!selectedForce) return;
+
+      switch (actionType) {
+        case "SplitTroops":
+          // TODO: Splitting needs parameters (how many ways, and how big each part is), so this opens a dialog
+          // rather than posting directly. The dialog and its execute endpoint are the next slice of this work —
+          // see docs/design/units/troop-context-action-toolbar.md, stage 5.
+          openToast(`Split troop #${selectedForce.id} — the split dialog isn't built yet.`, "info");
+          break;
+      }
+    },
+    [openToast, selectedForce],
+  );
 
   const onTileHold = useCallback(
     (tile: TileCell) => {
@@ -176,34 +198,38 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
     if (!selectedForce) return [];
 
     const actions: ContextActionToolbarAction[] = [];
-    const hasPendingMultiTroopSelection = pendingForceSelectionTile != null;
 
-    if (hasPendingMultiTroopSelection) {
+    // "Select Troop" is a pure UI affordance with no backend rule behind it, so it's added here rather than
+    // served by the API. Its display order comes from the band the backend's action enum reserves for exactly
+    // this, so it sorts into the same sequence without ever colliding with a real action.
+    if (pendingForceSelectionTile != null) {
       actions.push({
         key: "select-troop",
         label: "Select Troop",
         icon: <FaChessKnight />,
+        displayOrder: FRONTEND_ONLY_ACTION_ORDER.selectTroop,
+        isEnabled: true,
+        disabledReasons: [],
         onClick: openForceSelectionDialog,
       });
     }
 
-    // TODO: The Hunt action was gated on legacy unit design id 2, which no longer exists now that troops
-    // reference unit templates (whose ids are database-dependent, so a magic number can't stand in).
-    // Re-enable via a compiled capability tag (e.g. "hunting") once capability grants exist — see
-    // docs/design/unit-design/tags-and-modifiers.md, concept 3.
-    const canHunt = false;
-
-    if (!hasPendingMultiTroopSelection && canHunt) {
+    // Everything else comes from the backend, including the actions it has judged unavailable — those render
+    // greyed out with their reasons, rather than being filtered away, so the player learns why.
+    for (const action of troopContextActions ?? []) {
       actions.push({
-        key: "hunt",
-        label: "Hunt",
-        icon: <GiHuntingHorn />,
-        onClick: hunt,
+        key: action.actionType,
+        label: getTroopActionLabel(action.actionType, action.label),
+        icon: getTroopActionIcon(action.actionType),
+        displayOrder: action.displayOrder,
+        isEnabled: action.isEnabled,
+        disabledReasons: action.disabledReasons,
+        onClick: () => runTroopAction(action.actionType),
       });
     }
 
     return actions;
-  }, [hunt, openForceSelectionDialog, pendingForceSelectionTile, selectedForce]);
+  }, [openForceSelectionDialog, pendingForceSelectionTile, runTroopAction, selectedForce, troopContextActions]);
 
   return {
     selectedForce,

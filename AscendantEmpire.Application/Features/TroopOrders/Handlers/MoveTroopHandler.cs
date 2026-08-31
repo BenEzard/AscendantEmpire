@@ -300,6 +300,7 @@ internal class MoveTroopHandler(
             return Fail(error);
         }
 
+        // Remaining MP is raw fixed-point (Scale 1,000), but "none left" is zero at any scale, so this comparison is unaffected by the representation.
         if (troop.MovementPointsRemaining <= 0)
         {
             string error = $"Troop Instance Id {request.TroopInstanceId} has no remaining movement points and cannot move.";

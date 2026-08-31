@@ -1,4 +1,5 @@
 ﻿using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.Domain.Enums;
 using AscendantEmpire.Domain.Enums.Turns;
@@ -28,7 +29,8 @@ internal sealed class BattleRemainingMovementCheck(
             .Where(t => t.PlayerId == actionContext.PlayerId)
             .Where(t => t.BattleMapTileId != null)
             .Where(t => t.HealthyCount + t.InjuredCount > 0)
-            .Where(t => t.MovementPointsRemaining >= 1m) // Movement on a Battle Map always costs 1 MP.
+            // Movement on a Battle Map always costs 1 MP, which is one whole Scale 1,000 unit of the raw fixed-point value stored on the troop.
+            .Where(t => t.MovementPointsRemaining >= ScaledAmount.Scale)
             .Select(t => new 
             { 
                 t.Id, 

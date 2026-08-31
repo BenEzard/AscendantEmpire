@@ -2150,9 +2150,8 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("InjuredCount")
                         .HasColumnType("int");
 
-                    b.Property<decimal>("MovementPointsRemaining")
-                        .HasPrecision(18, 3)
-                        .HasColumnType("decimal(18,3)");
+                    b.Property<long>("MovementPointsRemaining")
+                        .HasColumnType("bigint");
 
                     b.Property<int>("PlayerId")
                         .HasColumnType("int");

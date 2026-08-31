@@ -1,5 +1,7 @@
 using System.Text.Json;
 
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
+
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Modifiers;
@@ -39,7 +41,7 @@ internal sealed class MovementProfileFactory : IMovementProfileFactory
         {
             DomainType = domainType,
             // Raw fixed-point (Scale 1,000; 1,000 = 1.0) converted to the decimal MP the movement engine uses.
-            BaseMovementPoints = compiled.CampaignMovementPoints / 1000m,
+            BaseMovementPoints = compiled.CampaignMovementPoints / (decimal)ScaledAmount.Scale,
             Bonuses = bonuses,
             Modifiers = modifiers
         };
@@ -51,7 +53,10 @@ internal sealed class MovementProfileFactory : IMovementProfileFactory
 
         return new MovementState
         {
-            MovementPointsRemaining = troop.MovementPointsRemaining
+            // The troop stores its remaining MP as raw fixed-point (Scale 1,000), the same convention as the compiled template's
+            // allowance above. Converted here, at the one boundary between storage and the movement engine, so the engine's models
+            // stay in whole/fractional decimal MP throughout.
+            MovementPointsRemaining = troop.MovementPointsRemaining / (decimal)ScaledAmount.Scale
         };
     }
 

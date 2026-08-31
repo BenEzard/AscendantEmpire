@@ -248,9 +248,31 @@ body {
   cursor: pointer;
 }
 
-.command-toolbox__action:hover {
+.command-toolbox__action:hover:not(:disabled) {
   background: linear-gradient(180deg, rgba(254, 249, 195, 0.98), rgba(253, 224, 71, 0.22));
   border-color: rgba(234, 179, 8, 0.65);
+}
+
+/* An action the troop could take but currently can't. It keeps its slot in the toolbar so the buttons don't
+   shuffle about as a troop moves or takes losses — only its appearance changes.
+   pointer-events: none matters here. Browsers don't dispatch mouse events over a disabled button, which would
+   also rob the Tooltip's wrapping span of the mouseenter it needs; making the button transparent to hit-testing
+   lets that span receive the hover instead, so the reason the action is unavailable still shows. The wrapper
+   below carries the cursor for the same reason. */
+.command-toolbox__action:disabled {
+  pointer-events: none;
+  opacity: 0.45;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.9), rgba(226, 232, 240, 0.8));
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+.command-toolbox__action-wrapper--disabled {
+  cursor: not-allowed;
+}
+
+/* Greyscale the icon itself as well as fading the button, so a colourful icon can't still read as "live". */
+.command-toolbox__action:disabled .command-toolbox__icon {
+  filter: grayscale(1);
 }
 
 .command-toolbox__icon {

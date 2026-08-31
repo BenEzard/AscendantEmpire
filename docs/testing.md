@@ -65,6 +65,15 @@ several fixture remarks used to claim. The same spike confirmed that `UnitCompon
 `UnitComponentId`, with a child collection — saves and reads back correctly in memory, including the
 extension picking up the principal's generated key.
 
+**Projecting only scalars off an entity that owns a complex type is *not* a tier-3 trigger either.**
+Measured while building `TroopActionContextBuilder` (TM-2): a query that navigates through
+`CompiledUnitTemplate` and selects only plain columns from it — `CampaignMovementPoints`,
+`DisplayName`, and a nested projection of its `OrganisationTag` — runs fine on the in-memory provider,
+because it never pulls `Attack` or `Resistance` into the shape. The rule above still stands as
+written: it is *reading the damage profile* that throws, not merely touching the entity that owns one.
+So check what a query actually projects before assuming tier 3, and if a change later makes such a
+query read a damage profile, it will start failing in the query shaper and must move.
+
 ### 3. Containerised SQL Server
 
 A containerised SQL Server database (Testcontainers, via `SqlServerTestBase`) should be used
@@ -109,3 +118,50 @@ Ask, in order:
 > provider cannot do `ExecuteUpdate`/`ExecuteDelete`, transactions, raw SQL, constraint
 > checking, or complex-type reads, which is why those behaviours push a test up to the
 > containerised tier.
+
+## Writing a test
+
+Beyond picking the right tier, every new test follows these.
+
+### Every test carries a `[Description]`
+
+A test states in prose what it is proving, as an NUnit `Description`. Combine it with `Test` in a single
+attribute list rather than stacking two:
+
+```csharp
+[Test, Description("A commissioned troop is not offered the unled split action at all, because no amount "
+    + "of reinforcing or resting could ever make it apply.")]
+public void ShouldHideTheActionWhenTheOrganisationIsCommissioned()
+```
+
+The description says **why the expected behaviour is correct**, not what the code does — a reader who
+disagrees with the test should be able to tell from the description alone whether the test or the code
+is wrong. It also surfaces in the runner's output, so a failure names the broken rule rather than a
+method name.
+
+### Test method names read `Should<Outcome>When<Condition>`
+
+```
+Should<Outcome>When<Condition>[Async]
+```
+
+- `<Outcome>` is what is expected to happen — `ShouldFail…`, `ShouldSucceed…`, `ShouldReturnNotFound…`,
+  `ShouldHideTheAction…`.
+- `<Condition>` is the circumstance that provokes it — `…WhenTheTroopBelongsToAnotherPlayer`.
+- Suffix `Async` when, and only when, the test method itself is `async`.
+
+Prefer naming the rule over naming the method under test: `ShouldBlockTheSplitWhenTheTroopHasAlreadyMoved`
+beats `Evaluate_ReturnsBlocked_ForSpentMovement`.
+
+Where there is no meaningful condition — a test asserting a fixed property rather than behaviour under
+some circumstance — `Should<Outcome>` on its own is fine; don't pad it with an empty `When`.
+
+> Plenty of existing tests predate both rules and use the older `Subject_Behaviour_Condition` style with
+> no description. Bring them into line when you're already editing them; a sweeping rename for its own
+> sake isn't worth the churn.
+
+### Naming inside the fixture
+
+The project-wide rules in [CLAUDE.md](../CLAUDE.md) apply to test code too: private fields start with an
+underscore (`_service`), constants are `UPPER_SNAKE_CASE`, and a private constant is both
+(`_UNLED_BASE_SIZE`).

@@ -2,8 +2,9 @@
 
 Covers how a single attack is resolved between an attacker and a defender: veterancy, the profiles
 fed into the calculation, and the damage/counter-attack maths. For how units move and take up
-position before combat, see [unit-mechanics.md](unit-mechanics.md); for how units are composed, see
-[units-and-formations.md](units-and-formations.md).
+position before combat, see [unit-mechanics.md](unit-mechanics.md); for how units are organised into
+formations, see [military-organisation.md](military-organisation.md), and for how a unit is designed
+from components, see [unit-design-system.md](../unit-design/unit-design-system.md).
 
 > This is a working sketch of the resolution model. Several numbers are provisional and some steps
 > still have open questions called out inline.

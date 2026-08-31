@@ -135,6 +135,7 @@ public sealed class EndpointAuthorizationTests
         "GET /system/status",
 
         "POST /troop-orders/move",
+        "GET /troop-orders/troops/{troopInstanceId}/actions",
 
         "GET /turn/campaign",
         "POST /turn/end-campaign",

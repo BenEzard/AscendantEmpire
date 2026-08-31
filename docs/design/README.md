@@ -18,11 +18,14 @@ is settled, some of it is still a working sketch with open questions called out 
 | [starting-requirements.md](starting-requirements.md) | The catalogue content a database needs before a game can be created: the settler and scout tags, components and templates. |
 | [turn-structure.md](turn-structure.md) | The parallel "turn-based" model, rosters, and how battle rounds interleave with campaign turns. |
 | [production-and-assets.md](production-and-assets.md) | Assets, Material Classes, Material Preferences, luxury goods, and resources. |
-| [units-and-formations.md](units-and-formations.md) | Units, Sub Units, Formations, Unit Stacks, unit design, components, and obsolescence. |
-| [unit-support-and-supply.md](unit-support-and-supply.md) | Supply chains and the four support types: fuel, ammunition, food, and medical. |
+| [units/military-organisation.md](units/military-organisation.md) | Ranks and organisation hierarchies, the officer economy, and how formations are sized and led. Supersedes the former `units-and-formations.md`. |
+| [units/military-organisation-implementation-notes.md](units/military-organisation-implementation-notes.md) | The implementation notes and outstanding gaps behind the organisation model. |
+| [units/unit-support-and-supply.md](units/unit-support-and-supply.md) | Supply chains and the four support types: fuel, ammunition, food, and medical. |
+| [units/combat.md](units/combat.md) | How combat resolves between units. |
+| [units/troop-context-action-toolbar.md](units/troop-context-action-toolbar.md) | The context action toolbar: how the backend decides what a selected troop can do, and how the frontend renders it. |
 | [campaign-map.md](campaign-map.md) | The campaign map, tile geography and biome, resource depletion/regeneration/discovery, vision (sight & detection), and infrastructure. |
 | [battlefield-maps.md](battlefield-maps.md) | How battlefield maps are generated, fortifications, battle flow, objectives, and manoeuvres. |
-| [unit-mechanics.md](unit-mechanics.md) | Movement, positioning/facing, tactics, fog of war, strength, and ranged attack. |
+| [units/unit-mechanics.md](units/unit-mechanics.md) | Movement, positioning/facing, tactics, fog of war, strength, and ranged attack. |
 | [settlements.md](settlements.md) | Settlement types, asset banks, and buildings. |
 | [specialists.md](specialists.md) | Specialists and military commanders. |
 | [technology.md](technology.md) | The three-bucket research model and the seven methods of technological advancement. |
@@ -32,6 +35,17 @@ is settled, some of it is still a working sketch with open questions called out 
 | [early-game.md](early-game.md) | The nomadic early game and the path to settling. |
 | [map-generation.md](map-generation.md) | Generating the campaign map from a source image. |
 | [open-questions.md](open-questions.md) | Cross-cutting unresolved design questions and "unorganised thoughts". |
+
+### Unit design
+
+The unit design system — how a unit template is assembled from components — has its own folder.
+
+| Document | Covers |
+| --- | --- |
+| [unit-design/unit-design-system.md](unit-design/unit-design-system.md) | Bodies, slots, components, and how a template is assembled. |
+| [unit-design/tags-and-modifiers.md](unit-design/tags-and-modifiers.md) | Tags, tag types, and the modifiers they carry. |
+| [unit-design/player-unlocks.md](unit-design/player-unlocks.md) | Which components and templates a player has access to. |
+| [unit-design/unit-design-supercessions.md](unit-design/unit-design-supercessions.md) | How a design supersedes an earlier one, and what happens to units built from it. |
 
 ---
 

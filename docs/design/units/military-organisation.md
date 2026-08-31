@@ -471,11 +471,11 @@ Consider whether settlement count or other factors should also feed it.
 
 <span style="color:orange;">TODO: Material Class. When designing a Unit you choose which **Class** of component to equip (e.g. you choose to give a
 soldier a sword). The *concrete* type of sword (broadsword, short sword, katana) is decided **at
-creation time** from available assets, ordered by the player's [Material Preference](production-and-assets.md).
+creation time** from available assets, ordered by the player's [Material Preference](../production-and-assets.md).
 
 <span style="color:orange;">TODO: Obsoleting a component check. When a component is made obsolete by a new technology discovery, it is no longer used in automatically generated unit designs. Existing units keep working and may upgrade. When **all**
 components of a unit are obsolete, the unit design itself is obsoleted.
 
 <span style="color:orange;">TODO: When a unit has multiple weapons, how is partial ammunition availability handled?
 
-TODO: Integrated design with [Infrastructure](campaign-map.md#infrastructure-terrain-improvements).</span>
+TODO: Integrated design with [Infrastructure](../campaign-map.md#infrastructure-terrain-improvements).</span>

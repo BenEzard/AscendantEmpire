@@ -41,9 +41,14 @@ public class TroopInstance
     public int HealthyCount { get; set; }
 
     /// <summary>
-    /// How many Movement Points (MP) this troop has remaining for the current turn. 
+    /// How many Movement Points (MP) this troop has remaining for the current turn.
     /// </summary>
-    public decimal MovementPointsRemaining { get; set; }
+    /// <remarks>
+    /// Stored as a raw fixed-point integer using the Scale 1,000 convention of <c>ScaledAmount</c> — a stored value of 1,000 represents 1.0 MP.
+    /// This matches <c>CompiledUnitTemplate.CampaignMovementPoints</c>, the per-turn allowance it is spent down from, so the two can be compared
+    /// directly rather than converting between representations at every call site.
+    /// </remarks>
+    public long MovementPointsRemaining { get; set; }
 
     public GameIndex Game { get; set; } = null!;
     public Player Player { get; set; } = null!;

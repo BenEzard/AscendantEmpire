@@ -2,9 +2,8 @@
 
 A catch-all for cross-cutting design questions and rough notes that don't yet belong to a settled
 area. Topic-specific open questions live at the bottom of their own documents (e.g.
-[units-and-formations.md](units-and-formations.md#open-questions),
 [technology.md](technology.md#open-questions),
-[unit-mechanics.md](unit-mechanics.md#open-questions)).
+[units/unit-mechanics.md](units/unit-mechanics.md#open-questions)).
 
 ## Biome classification
 

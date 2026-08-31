@@ -1,7 +1,8 @@
 # Unit Mechanics
 
-Covers how units move, face, see, and attack. For how units are composed and designed, see
-[units-and-formations.md](units-and-formations.md).
+Covers how units move, face, see, and attack. For how units are organised into formations, see
+[military-organisation.md](military-organisation.md); for how a unit is designed from components, see
+[unit-design-system.md](../unit-design/unit-design-system.md).
 
 ## Movement
 

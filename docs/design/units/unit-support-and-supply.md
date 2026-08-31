@@ -68,7 +68,7 @@ friendly territory.
    - **Yes** → is this territory owned, with a Support Agreement in place with the host empire?
      - **Yes** → deduct food from the asset banks of the appropriate empires.
 
-See [campaign-map.md](campaign-map.md#depletion-of-resources) for the full tile depletion and
+See [campaign-map.md](../campaign-map.md#depletion-of-resources) for the full tile depletion and
 regeneration mechanics.
 
 ## Medical supplies

@@ -8,6 +8,18 @@ This project contains a web API backend and a React frontend.
 - Always ask questions if there's any uncertainty — don't assume.
 - If I suggest an approach that isn't ideal, push back and offer the better alternative.
 
+## Naming conventions (C#)
+- **Private variables start with an underscore** — `_dbFactory`, `_service`, `_playerId`.
+- **Constants are UPPER_SNAKE_CASE**, whatever their accessibility — `CODE_MAX_LENGTH`.
+- The two rules compose, so a **private constant carries both**: `_MINIMUM_DIVISIONS`, `_MAX_TURN_TIME_HOURS`.
+- Locals and parameters are unaffected — they stay `camelCase` with no underscore.
+- This applies to test projects as well as production code.
+- Parts of the codebase predate these rules and don't follow them. Bring a file into line when you're
+  already changing it; don't raise a separate renaming pass for its own sake.
+
+These are C# rules. The React frontend keeps its own idiom — `camelCase` throughout, no underscore
+prefixes, and `SCREAMING_SNAKE_CASE` reserved for module-level constants.
+
 ## Testing
 - Follow the database-tier rules in [testing.md](docs/testing.md) when writing or reviewing tests
   (no database → in-memory → containerised SQL Server; always use the lightest tier that suffices).
