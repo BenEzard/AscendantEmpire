@@ -8,7 +8,8 @@ import { FaFileExport, FaFileImport } from "react-icons/fa6";
 
 import ToolBar from "@/components/ui/toolbar/Toolbar";
 import type { ToolBarGroup } from "@/components/ui/toolbar/Toolbar";
-import { Alert, ProgressOperationDialog } from "@/components/ui";
+import { Alert, HamburgerMenu, ProgressOperationDialog } from "@/components/ui";
+import { useAccountMenu } from "@/features/auth/hooks/useAccountMenu";
 
 import { getUsers, setUserInactive, setUserPermissions } from "../api/usersApi";
 import { INACTIVATION_REASONS } from "../types/User";
@@ -54,6 +55,9 @@ function progressStatus(phase: string): "active" | "done" | "error" {
 }
 
 export default function System() {
+  // The signed-in username and the Log out item, shared with every other page's hamburger menu.
+  const { headerLabel: accountHeader, group: accountGroup } = useAccountMenu();
+
   const [view, setView] = useState<SystemView>("none");
   const [users, setUsers] = useState<AuthUser[]>([]);
   const [loading, setLoading] = useState(false);
@@ -178,6 +182,19 @@ export default function System() {
   const toolBarGroups = useMemo<ToolBarGroup[]>(
     () => [
       {
+        // This page has no menu of its own, so the hamburger exists purely to host the account
+        // header and Log out, keeping them where they are on every other page.
+        caption: "Menu",
+        buttons: [
+          {
+            key: "system-menu",
+            render: () => (
+              <HamburgerMenu title="System menu" tooltip="Menu" header={accountHeader} groups={accountGroup ? [accountGroup] : []} />
+            ),
+          },
+        ],
+      },
+      {
         caption: "Users",
         buttons: [
           {
@@ -212,7 +229,7 @@ export default function System() {
         ],
       },
     ],
-    [view, handleOpenUsers],
+    [view, handleOpenUsers, accountHeader, accountGroup],
   );
 
   return (

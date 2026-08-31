@@ -12,19 +12,33 @@ export interface HamburgerMenuItem {
 }
 
 export interface HamburgerMenuGroup {
-  label: string;
+  /**
+   * Heading shown above the group's items. Omit it to render a plain divider instead — used for a
+   * trailing group (e.g. Log out) that should be set apart from what precedes it without earning a
+   * heading of its own.
+   */
+  label?: string;
   items: HamburgerMenuItem[];
 }
 
 interface HamburgerMenuProps {
   groups: HamburgerMenuGroup[];
+  /**
+   * Non-interactive text pinned to the top of the open menu, above the first group. Styled like a
+   * group heading but deliberately outside every group, so keyboard navigation skips it and screen
+   * readers don't announce an empty group.
+   */
+  header?: ReactNode;
   /** Accessible label for the trigger button (aria-label). */
   title?: string;
   /** Tooltip shown on hover. Defaults to `title` if not provided. */
   tooltip?: string;
 }
 
-export default function HamburgerMenu({ groups, title = "Menu", tooltip }: HamburgerMenuProps) {
+// Shared by the header and the group headings so the two read as the same kind of row.
+const HEADING_CLASSNAME = "border-b border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500";
+
+export default function HamburgerMenu({ groups, header, title = "Menu", tooltip }: HamburgerMenuProps) {
   const [open, setOpen] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
   const rootRef = useRef<HTMLSpanElement | null>(null);
@@ -43,8 +57,12 @@ export default function HamburgerMenu({ groups, title = "Menu", tooltip }: Hambu
 
     const onPointerDown = (e: PointerEvent) => {
       const el = rootRef.current;
-      if (!el) return;
-      if (e.target instanceof Node && el.contains(e.target)) return;
+      if (!el) {
+        return;
+      }
+      if (e.target instanceof Node && el.contains(e.target)) {
+        return;
+      }
       setOpen(false);
     };
 
@@ -93,9 +111,13 @@ export default function HamburgerMenu({ groups, title = "Menu", tooltip }: Hambu
 
   // Sync DOM focus to the focused item button.
   useEffect(() => {
-    if (!open || focusedIndex < 0) return;
+    if (!open || focusedIndex < 0) {
+      return;
+    }
     const menu = menuRef.current;
-    if (!menu) return;
+    if (!menu) {
+      return;
+    }
     const buttons = menu.querySelectorAll<HTMLButtonElement>("button[role='menuitem']:not([disabled])");
     // Map navigableItems index to the DOM button — iterate in order to match.
     const enabledItemKeys = navigableItems.map((i) => i.key);
@@ -124,9 +146,18 @@ export default function HamburgerMenu({ groups, title = "Menu", tooltip }: Hambu
           ref={menuRef}
           role="menu"
           className="absolute left-0 top-full z-50 mt-1 min-w-48 overflow-visible rounded-md border border-slate-200 bg-white shadow-sm">
-          {groups.map((group) => (
-            <div key={group.label} role="group" aria-label={group.label}>
-              <div className="border-b border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500">{group.label}</div>
+          {header && <div className={HEADING_CLASSNAME}>{header}</div>}
+
+          {/* Groups are static for a given render, so the index is a safe key fallback for an unlabelled group. */}
+          {groups.map((group, groupIndex) => (
+            <div key={group.label ?? `group-${groupIndex}`} role="group" aria-label={group.label}>
+              {/*
+                An unlabelled group is set apart by a divider, but not when it's the first one — there the
+                header's own bottom border, or the menu's top edge, already separates it and a divider would
+                just double the hairline.
+              */}
+              {group.label && <div className={HEADING_CLASSNAME}>{group.label}</div>}
+              {!group.label && groupIndex > 0 && <div className="border-t border-slate-200" />}
               {group.items.map((item) => {
                 const disabled = !!item.disabled;
                 const navIdx = navigableItems.findIndex((i) => i.key === item.key);
@@ -140,10 +171,14 @@ export default function HamburgerMenu({ groups, title = "Menu", tooltip }: Hambu
                       disabled={disabled}
                       tabIndex={isFocused ? 0 : -1}
                       onMouseEnter={() => {
-                        if (!disabled) setFocusedIndex(navIdx);
+                        if (!disabled) {
+                          setFocusedIndex(navIdx);
+                        }
                       }}
                       onClick={() => {
-                        if (disabled) return;
+                        if (disabled) {
+                          return;
+                        }
                         item.onClick();
                         setOpen(false);
                       }}

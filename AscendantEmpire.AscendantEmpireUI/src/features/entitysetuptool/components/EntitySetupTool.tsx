@@ -1,6 +1,7 @@
 // Stub for the developer-only "Entity Setup Tool", created alongside the landing-page split.
-// This is a standalone dev tool like the Map Editor (no AuthGate) and is intentionally separate
-// from the game-side `unitdesign` feature. The real functionality will be filled in later.
+// This is a standalone dev tool like the Map Editor — gated behind AuthGate and the EntitySetupTool
+// permission by its entry point — and is intentionally separate from the game-side `unitdesign`
+// feature. The real functionality will be filled in later.
 import { useEffect, useMemo, useState } from "react";
 import { FaDatabase, FaPlus, FaTags } from "react-icons/fa6";
 import { HiArrowPath, HiMagnifyingGlass, HiXMark } from "react-icons/hi2";
@@ -8,7 +9,8 @@ import { GiGearHammer } from "react-icons/gi";
 
 import ToolBar from "@/components/ui/toolbar/Toolbar";
 import type { ToolBarGroup } from "@/components/ui/toolbar/Toolbar";
-import { Button, ExportDialog, Modal, ProgressOperationDialog, SearchDrawer, SearchTable, Toast, ToastViewport } from "@/components/ui";
+import { Button, ExportDialog, HamburgerMenu, Modal, ProgressOperationDialog, SearchDrawer, SearchTable, Toast, ToastViewport } from "@/components/ui";
+import { useAccountMenu } from "@/features/auth/hooks/useAccountMenu";
 
 import { useDatabaseSeed } from "../hooks/useDatabaseSeed";
 
@@ -34,6 +36,9 @@ function errorMessage(err: unknown, fallback: string): string {
 }
 
 export default function EntitySetupTool() {
+  // The signed-in username and the Log out item, shared with every other page's hamburger menu.
+  const { headerLabel: accountHeader, group: accountGroup } = useAccountMenu();
+
   // Controls the ComponentSetupDialog opened by the toolbar's "Add" button.
   const [showComponentSetup, setShowComponentSetup] = useState(false);
 
@@ -220,6 +225,19 @@ export default function EntitySetupTool() {
   const toolBarGroups = useMemo<ToolBarGroup[]>(
     () => [
       {
+        // This page has no menu of its own, so the hamburger exists purely to host the account
+        // header and Log out, keeping them where they are on every other page.
+        caption: "Menu",
+        buttons: [
+          {
+            key: "entity-setup-menu",
+            render: () => (
+              <HamburgerMenu title="Entity Setup menu" tooltip="Menu" header={accountHeader} groups={accountGroup ? [accountGroup] : []} />
+            ),
+          },
+        ],
+      },
+      {
         caption: "Components",
         buttons: [
           {
@@ -346,7 +364,7 @@ export default function EntitySetupTool() {
       },
     ],
     // recompiling and seed.isActive each drive a button's disabled state, so the groups rebuild when they flip.
-    [recompiling, seed.isActive],
+    [recompiling, seed.isActive, accountHeader, accountGroup],
   );
 
   // Map the seed phase onto the two dialogs: the ProgressOperationDialog shows progress (active) and the

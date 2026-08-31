@@ -7,6 +7,7 @@ import { SlClose } from "react-icons/sl";
 import { VscNewFile } from "react-icons/vsc";
 import type { ToolBarGroup } from "@/components/ui/toolbar/Toolbar";
 import { HamburgerMenu } from "@/components/ui";
+import { useAccountMenu } from "@/features/auth/hooks/useAccountMenu";
 import { CONSTRUCTION_BUTTON_DOM_ID } from "../hooks/useConstructionPanel";
 
 interface UseGameToolbarArgs {
@@ -45,6 +46,9 @@ export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
     onToggleMilitaryAdvisor,
   } = args;
 
+  // The signed-in username and the Log out item, shared with every other page's hamburger menu.
+  const { headerLabel: accountHeader, group: accountGroup } = useAccountMenu();
+
   return useMemo<ToolBarGroup[]>(
     () => [
       {
@@ -56,6 +60,7 @@ export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
               <HamburgerMenu
                 title="Game menu"
                 tooltip="Game"
+                header={accountHeader}
                 groups={[
                   {
                     label: "Game",
@@ -71,6 +76,8 @@ export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
                       { key: "clear-vision", icon: <GoEyeClosed />, label: "Clear Vision", tooltip: "Clear Vision", disabled: !gameOpen, onClick: onClearVision },
                     ],
                   },
+                  // Log out last, separated from the page's own groups. Absent when logged out.
+                  ...(accountGroup ? [accountGroup] : []),
                 ]}
               />
             ),
@@ -133,6 +140,6 @@ export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
         ],
       },
     ],
-    [gameOpen, onNewGame, onOpenGame, onCloseGame, onClearVision, visionActive, onToggleVision, onOpenVisionSettings, onToggleConstruction, unitDesignActive, onToggleUnitDesign, onEndTurn, militaryAdvisorActive, onToggleMilitaryAdvisor],
+    [gameOpen, onNewGame, onOpenGame, onCloseGame, onClearVision, visionActive, onToggleVision, onOpenVisionSettings, onToggleConstruction, unitDesignActive, onToggleUnitDesign, onEndTurn, militaryAdvisorActive, onToggleMilitaryAdvisor, accountHeader, accountGroup],
   );
 }

@@ -14,6 +14,7 @@ import ToolbarExclusiveButtons from "@/components/ui/toolbar/ToolbarExclusiveBut
 import type { Biome } from "@/types/map/Biome";
 import type { Geography } from "@/types/map/Geography";
 import type { CampaignMapGalleryIndex } from "@/features/mapgallery/api/mapGalleryApi";
+import { useAccountMenu } from "@/features/auth/hooks/useAccountMenu";
 
 import BrushPreview from "@/features/mapgallery/components/BrushPreview";
 import type { BrushKind } from "@/features/mapgallery/tools/brush";
@@ -248,6 +249,9 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
     clampRadius,
   } = args;
 
+  // The signed-in username and the Log out item, shared with every other page's hamburger menu.
+  const { headerLabel: accountHeader, group: accountGroup } = useAccountMenu();
+
   // Each toolbar group is memoized independently with narrow deps so an unrelated
   // change (e.g. a brush resize) doesn't rebuild the whole toolbar object graph.
   const mapMenuGroup = useMemo<ToolBarGroup>(
@@ -260,6 +264,7 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
             <HamburgerMenu
               title="Map menu"
               tooltip="Map"
+              header={accountHeader}
               groups={[
                 {
                   label: "Map",
@@ -301,13 +306,15 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
                     },
                   ],
                 },
+                // Log out last, separated from the page's own groups. Absent when logged out.
+                ...(accountGroup ? [accountGroup] : []),
               ]}
             />
           ),
         },
       ],
     }),
-    [openMapIndex, closeMap, openPushOutMap, isPushingOutMap, setActiveDialog],
+    [openMapIndex, closeMap, openPushOutMap, isPushingOutMap, setActiveDialog, accountHeader, accountGroup],
   );
 
   const paletteGroup = useMemo<ToolBarGroup>(
