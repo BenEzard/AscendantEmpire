@@ -9,7 +9,7 @@ namespace AscendantEmpire.Tests.UnitDesigns.Designer;
 /// Tests for the name-matching rules the unit-template save handlers share: which design a name belongs to, and how many troops are fielded from it.
 /// </summary>
 /// <remarks>
-/// Tier 2 (see testing.md): the helper is plain LINQ over <c>UnitTemplate</c> and <c>TroopInstance</c> scalars — no transaction, no complex type and no
+/// Tier 2 (see testing.md): the helper is plain LINQ over <c>UnitTemplate</c> and <c>UnitInstance</c> scalars — no transaction, no complex type and no
 /// reliance on database-enforced constraints, so an in-memory store is enough. What the handlers then *do* with a match is covered by
 /// <see cref="UnitTemplateOverwriteTests"/>, which needs the containerised tier. Templates are seeded with bare foreign-key values rather than real
 /// components and players, since none of these lookups follow those navigations.
@@ -63,7 +63,7 @@ internal class UnitTemplateNameLookupTests : InMemoryTestBase
         context.UnitTemplates.AddRange(customTemplate, globalTemplate, otherPlayerTemplate);
         await context.SaveChangesAsync();
 
-        context.TroopInstances.AddRange(
+        context.UnitInstances.AddRange(
             BuildTroop(customTemplate.Id),
             BuildTroop(customTemplate.Id),
             // A troop on a different template, so a count can't accidentally be "every troop in the game".
@@ -77,7 +77,7 @@ internal class UnitTemplateNameLookupTests : InMemoryTestBase
     /// <summary>
     /// Builds a minimal fielded troop for a template. Only the template link matters here; the rest is filler the entity requires.
     /// </summary>
-    private static TroopInstance BuildTroop(int templateId) => new()
+    private static UnitInstance BuildTroop(int templateId) => new()
     {
         GameId = GAME_ID,
         PlayerId = PLAYER_ID,
@@ -177,8 +177,8 @@ internal class UnitTemplateNameLookupTests : InMemoryTestBase
         await SeedAsync();
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        int custom = await UnitTemplateNameLookup.CountTroopInstancesAsync(context, _customTemplateId, CancellationToken.None);
-        int global = await UnitTemplateNameLookup.CountTroopInstancesAsync(context, _globalTemplateId, CancellationToken.None);
+        int custom = await UnitTemplateNameLookup.CountUnitInstancesAsync(context, _customTemplateId, CancellationToken.None);
+        int global = await UnitTemplateNameLookup.CountUnitInstancesAsync(context, _globalTemplateId, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {

@@ -110,7 +110,7 @@ internal class TroopPlacementByCoordinateTests : GameSqlServerTestBase
         Player player = await FirstPlayerAsync(context, gameId);
         int settlerTemplateId = (await context.UnitTemplates.SingleAsync(t => t.Code == "SETTLER")).Id;
 
-        int[] troopIdsBefore = await context.TroopInstances.Where(t => t.GameId == gameId).Select(t => t.Id).ToArrayAsync();
+        int[] troopIdsBefore = await context.UnitInstances.Where(t => t.GameId == gameId).Select(t => t.Id).ToArrayAsync();
 
         ServiceResultBase result = await _mediator.Send(new SpawnTroopRequest(
             GameId: gameId,
@@ -126,7 +126,7 @@ internal class TroopPlacementByCoordinateTests : GameSqlServerTestBase
 
         await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
 
-        TroopInstance spawned = await verify.TroopInstances
+        UnitInstance spawned = await verify.UnitInstances
             .Where(t => t.GameId == gameId && troopIdsBefore.Contains(t.Id) == false)
             .SingleAsync();
 
@@ -154,7 +154,7 @@ internal class TroopPlacementByCoordinateTests : GameSqlServerTestBase
 
         Player player = await FirstPlayerAsync(context, gameId);
         int settlerTemplateId = (await context.UnitTemplates.SingleAsync(t => t.Code == "SETTLER")).Id;
-        int troopCountBefore = await context.TroopInstances.CountAsync(t => t.GameId == gameId);
+        int troopCountBefore = await context.UnitInstances.CountAsync(t => t.GameId == gameId);
 
         // Nothing bounds the coordinates against the map size: the validator only requires them to be
         // non-negative, and the old arithmetic turned this into a valid id outside this game's block.
@@ -170,7 +170,7 @@ internal class TroopPlacementByCoordinateTests : GameSqlServerTestBase
 
         await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
 
-        int troopCountAfter = await verify.TroopInstances.CountAsync(t => t.GameId == gameId);
+        int troopCountAfter = await verify.UnitInstances.CountAsync(t => t.GameId == gameId);
 
         using (Assert.EnterMultipleScope())
         {
@@ -187,12 +187,12 @@ internal class TroopPlacementByCoordinateTests : GameSqlServerTestBase
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
         Player player = await FirstPlayerAsync(context, gameId);
-        TroopInstance troop = await context.TroopInstances.Where(t => t.GameId == gameId && t.PlayerId == player.Id).FirstAsync();
+        UnitInstance troop = await context.UnitInstances.Where(t => t.GameId == gameId && t.PlayerId == player.Id).FirstAsync();
 
         ServiceResultBase.ServiceResult<MoveTroopResult> result = await _mediator.Send(new MoveTroopRequest(
             GameId: gameId,
             PlayerId: player.Id,
-            TroopInstanceId: troop.Id,
+            UnitInstanceId: troop.Id,
             XCoord: _MAP_WIDTH + 4,
             YCoord: _MAP_HEIGHT + 4));
 

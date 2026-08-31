@@ -76,11 +76,11 @@ internal static class UnitTemplateNameLookup
     /// </summary>
     /// <remarks>
     /// <see cref="UnitTemplate"/> has no inverse collection for troops (the foreign key is configured <c>WithMany()</c>), so this has to go through the
-    /// <c>TroopInstances</c> set rather than a navigation property.
+    /// <c>UnitInstances</c> set rather than a navigation property.
     /// </remarks>
-    public static async Task<int> CountTroopInstancesAsync(AscendantEmpireContext context, int templateId, CancellationToken cancelToken)
+    public static async Task<int> CountUnitInstancesAsync(AscendantEmpireContext context, int templateId, CancellationToken cancelToken)
     {
-        return await context.TroopInstances.CountAsync(t => t.UnitTemplateId == templateId, cancelToken);
+        return await context.UnitInstances.CountAsync(t => t.UnitTemplateId == templateId, cancelToken);
     }
 
     /// <summary>

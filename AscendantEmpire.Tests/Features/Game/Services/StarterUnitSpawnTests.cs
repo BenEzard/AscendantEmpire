@@ -43,7 +43,7 @@ internal class StarterUnitSpawnTests : GameSqlServerTestBase
         await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
 
         List<Player> players = await verify.Players.Where(p => p.GameId == gameId).ToListAsync();
-        List<TroopInstance> troops = await verify.TroopInstances.Where(t => t.GameId == gameId).ToListAsync();
+        List<UnitInstance> troops = await verify.UnitInstances.Where(t => t.GameId == gameId).ToListAsync();
 
         // The seeded catalogue's template codes, resolved to ids for the assertions below.
         int settlerTemplateId = (await verify.UnitTemplates.SingleAsync(t => t.Code == "SETTLER")).Id;
@@ -55,12 +55,12 @@ internal class StarterUnitSpawnTests : GameSqlServerTestBase
 
             foreach (Player player in players)
             {
-                List<TroopInstance> playerTroops = [.. troops.Where(t => t.PlayerId == player.Id)];
+                List<UnitInstance> playerTroops = [.. troops.Where(t => t.PlayerId == player.Id)];
 
                 Assert.That(playerTroops, Has.Count.EqualTo(2), $"Player {player.Id} has a settler and a scout.");
 
-                TroopInstance settler = playerTroops.Single(t => t.UnitTemplateId == settlerTemplateId);
-                TroopInstance scout = playerTroops.Single(t => t.UnitTemplateId == scoutTemplateId);
+                UnitInstance settler = playerTroops.Single(t => t.UnitTemplateId == settlerTemplateId);
+                UnitInstance scout = playerTroops.Single(t => t.UnitTemplateId == scoutTemplateId);
 
                 // Settler spawns at its unled tag's default size (200), the scout as a single individual.
                 Assert.That(settler.InitialStrength, Is.EqualTo(200));

@@ -66,11 +66,11 @@ internal class GetPlayerTroopsHandler(
 
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            List<PlayerTroop> playerUnits = await context.TroopInstances
+            List<PlayerTroop> playerUnits = await context.UnitInstances
                 .Where(pu => pu.GameId == gameId && pu.PlayerId == playerId)
                 .Select(pu => new PlayerTroop
                 {
-                    TroopInstanceId = pu.Id,
+                    UnitInstanceId = pu.Id,
                     RecordType = RecordType.Unit,
                     PlayerId = pu.PlayerId,
                     CampaignMapTileId = pu.CampaignMapTileId,

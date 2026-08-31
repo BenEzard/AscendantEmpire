@@ -15,7 +15,7 @@ internal interface ITroopContextActionService
     Task<ServiceResultBase.ServiceResult<IReadOnlyCollection<TroopContextAction>>> GetAvailableActionsAsync(
         int gameId,
         int playerId,
-        int troopInstanceId,
+        int unitInstanceId,
         CancellationToken cancelToken);
 
     /// <summary>
@@ -28,7 +28,7 @@ internal interface ITroopContextActionService
     Task<ServiceResultBase.ServiceResult<TroopActionAvailability>> EvaluateActionAsync(
         int gameId,
         int playerId,
-        int troopInstanceId,
+        int unitInstanceId,
         TroopActionType actionType,
         CancellationToken cancelToken);
 }

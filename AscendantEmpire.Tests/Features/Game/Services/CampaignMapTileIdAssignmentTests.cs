@@ -227,7 +227,7 @@ internal class CampaignMapTileIdAssignmentTests : GameSqlServerTestBase
 
         GameIndex game = await verify.GameIndex.SingleAsync(g => g.Id == gameId);
 
-        List<int> troopTileIds = await verify.TroopInstances
+        List<int> troopTileIds = await verify.UnitInstances
             .Where(t => t.GameId == gameId)
             .Select(t => t.CampaignMapTileId)
             .ToListAsync();

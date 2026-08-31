@@ -2,7 +2,7 @@
 
 export interface ObservedTroopProps {
   troop: ObservedTroopTile;
-  troopInstanceCount: number;
+  unitInstanceCount: number;
   isSelected?: boolean;
   troopImageSrcByUnitTemplateId?: ReadonlyMap<number, string>;
 }
@@ -19,7 +19,7 @@ function getUnitMarkerCount(unitCount: number): number {
   return 4;
 }
 
-export default function ObservedTroop({ troop, troopInstanceCount, isSelected = false, troopImageSrcByUnitTemplateId }: ObservedTroopProps) {
+export default function ObservedTroop({ troop, unitInstanceCount, isSelected = false, troopImageSrcByUnitTemplateId }: ObservedTroopProps) {
   const troopImageSrc = troopImageSrcByUnitTemplateId?.get(troop.unitTemplateId);
 
   if (!troopImageSrc) return null;
@@ -35,7 +35,7 @@ export default function ObservedTroop({ troop, troopInstanceCount, isSelected = 
   const showHealthySegment = healthyPercent > 0;
   const showInjuredSegment = !isFullyHealthy && injuredPercent > 0;
   const showDeadSegment = !isFullyHealthy && deadPercent > 0;
-  const unitMarkerCount = getUnitMarkerCount(troopInstanceCount);
+  const unitMarkerCount = getUnitMarkerCount(unitInstanceCount);
 
   return (
     <div className={["observed-troop", isSelected ? "observed-troop--selected" : ""].filter(Boolean).join(" ")} aria-hidden>

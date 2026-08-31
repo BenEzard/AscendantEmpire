@@ -101,7 +101,7 @@ internal class PlayerCampaignMapTroopVisibilityTests : GameSqlServerTestBase
         GameIndex game = await setup.GameIndex.SingleAsync(g => g.Id == gameId);
         Player player = await setup.Players.Where(p => p.GameId == gameId).OrderBy(p => p.Id).FirstAsync();
 
-        List<TroopInstance> expectedTroops = await setup.TroopInstances
+        List<UnitInstance> expectedTroops = await setup.UnitInstances
             .Where(t => t.GameId == gameId && t.PlayerId == player.Id)
             .ToListAsync();
 
@@ -141,7 +141,7 @@ internal class PlayerCampaignMapTroopVisibilityTests : GameSqlServerTestBase
 
         Player player = await setup.Players.Where(p => p.GameId == gameId).OrderBy(p => p.Id).FirstAsync();
 
-        Dictionary<int, TroopInstance> troopsById = await setup.TroopInstances
+        Dictionary<int, UnitInstance> troopsById = await setup.UnitInstances
             .Where(t => t.GameId == gameId && t.PlayerId == player.Id)
             .ToDictionaryAsync(t => t.Id);
 
@@ -164,7 +164,7 @@ internal class PlayerCampaignMapTroopVisibilityTests : GameSqlServerTestBase
 
             foreach (ObservedTroop reported in reportedTroops.DistinctBy(t => t.Id))
             {
-                TroopInstance expected = troopsById[reported.Id];
+                UnitInstance expected = troopsById[reported.Id];
 
                 Assert.That(reported.HealthyTroops, Is.EqualTo(expected.HealthyCount));
                 Assert.That(reported.InjuredTroops, Is.EqualTo(expected.InjuredCount));
@@ -184,7 +184,7 @@ internal class PlayerCampaignMapTroopVisibilityTests : GameSqlServerTestBase
         Player viewer = await setup.Players.Where(p => p.GameId == gameId).OrderBy(p => p.Id).FirstAsync();
 
         // The whole troop roster, keyed by id, with the coordinates of the tile each one stands on.
-        var troopPlacements = await setup.TroopInstances
+        var troopPlacements = await setup.UnitInstances
             .Where(t => t.GameId == gameId)
             .Select(t => new
             {

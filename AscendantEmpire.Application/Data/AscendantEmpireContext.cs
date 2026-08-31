@@ -119,7 +119,7 @@ public class AscendantEmpireContext : DbContext
 
     #region Units
 
-    public DbSet<TroopInstance> TroopInstances { get; set; }
+    public DbSet<UnitInstance> UnitInstances { get; set; }
     public DbSet<TroopOrder> TroopOrders { get; set; }
     public DbSet<TroopOrderMovementStep> TroopOrderMovementSteps { get; set; }
     public DbSet<TroopOrderParticipant> TroopOrderParticipants { get; set; }
@@ -977,40 +977,40 @@ public class AscendantEmpireContext : DbContext
     {
         const string schema = "units";
 
-        // --- TroopInstances --------------------------------------------------------
-        modelBuilder.Entity<TroopInstance>(entity =>
+        // --- UnitInstances --------------------------------------------------------
+        modelBuilder.Entity<UnitInstance>(entity =>
         {
-            entity.ToTable("TroopInstances", schema);
+            entity.ToTable("UnitInstances", schema);
 
             entity.HasKey(e => e.Id);
 
             entity.Property(e => e.BattleMapTileId).IsRequired(false);
 
-            // PlayerTroopSummary -> GameIndex (many summaries per game)
+            // UnitInstance -> GameIndex (many units per game)
             entity.HasOne(e => e.Game)
                 .WithMany()
                 .HasForeignKey(e => e.GameId)
                 .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_TroopInstances_GameIndex_GameId");
+                .HasConstraintName("FK_UnitInstances_GameIndex_GameId");
 
-            // PlayerTroopSummary -> Player (many summaries per player)
+            // UnitInstance -> Player (many units per player)
             entity.HasOne(e => e.Player)
                 .WithMany()
                 .HasForeignKey(e => e.PlayerId)
                 .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_TroopInstances_Player_PlayerId");
+                .HasConstraintName("FK_UnitInstances_Player_PlayerId");
 
             entity.HasOne(e => e.CampaignMap)
                 .WithMany()
                 .HasForeignKey(e => e.CampaignMapTileId)
                 .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_TroopInstances_CampaignMap_CampaignMapTileId");
+                .HasConstraintName("FK_UnitInstances_CampaignMap_CampaignMapTileId");
 
             entity.HasOne(e => e.UnitTemplate)
                  .WithMany()
                  .HasForeignKey(e => e.UnitTemplateId)
                  .OnDelete(DeleteBehavior.NoAction)
-                 .HasConstraintName("FK_TroopInstances_UnitTemplate_UnitTemplateId");
+                 .HasConstraintName("FK_UnitInstances_UnitTemplate_UnitTemplateId");
         });
 
         modelBuilder.Entity<TroopOrder>(entity =>
@@ -1036,9 +1036,9 @@ public class AscendantEmpireContext : DbContext
             entity.Property(t => t.CancellationReason)
                 .HasMaxLength(500);
 
-            entity.HasOne(e => e.TroopInstance)
+            entity.HasOne(e => e.UnitInstance)
                 .WithMany(t => t.Orders)
-                .HasForeignKey(e => e.TroopInstanceId)
+                .HasForeignKey(e => e.UnitInstanceId)
                 .OnDelete(DeleteBehavior.NoAction);
 
             entity.HasMany(e => e.MovementSteps)
@@ -1047,8 +1047,8 @@ public class AscendantEmpireContext : DbContext
                 .OnDelete(DeleteBehavior.NoAction);
 
             entity.HasIndex(e => e.GameId);
-            entity.HasIndex(e => e.TroopInstanceId);
-            entity.HasIndex(e => new { e.GameId, e.TroopInstanceId, e.OrderStatus });
+            entity.HasIndex(e => e.UnitInstanceId);
+            entity.HasIndex(e => new { e.GameId, e.UnitInstanceId, e.OrderStatus });
             entity.HasIndex(e => new { e.GameId, e.OrderStatus });
             entity.HasIndex(e => new { e.GameId, e.OrderType, e.OrderStatus });
             entity.HasIndex(e => e.TargetCampaignMapTileId);
@@ -1059,9 +1059,9 @@ public class AscendantEmpireContext : DbContext
             entity.HasIndex(e => e.TradeSourceStructureInstanceId);
             entity.HasIndex(e => e.TradeTargetStructureInstanceId);
 
-            entity.HasIndex(e => e.DefendTargetTroopInstanceId);
+            entity.HasIndex(e => e.DefendTargetUnitInstanceId);
             entity.HasIndex(e => e.DefendTargetStructureInstanceId);
-            entity.HasIndex(x => new { x.TroopInstanceId, x.OrderStatus });
+            entity.HasIndex(x => new { x.UnitInstanceId, x.OrderStatus });
         });
 
         modelBuilder.Entity<TroopOrderMovementStep>(entity =>
@@ -1101,14 +1101,14 @@ public class AscendantEmpireContext : DbContext
 
             entity.HasIndex(x => x.TroopOrderId);
 
-            entity.HasIndex(x => x.TroopInstanceId);
+            entity.HasIndex(x => x.UnitInstanceId);
 
-            entity.HasIndex(x => new { x.TroopOrderId, x.TroopInstanceId })
+            entity.HasIndex(x => new { x.TroopOrderId, x.UnitInstanceId })
                 .IsUnique();
 
-            entity.HasOne(x => x.TroopInstance)
+            entity.HasOne(x => x.UnitInstance)
                 .WithMany()
-                .HasForeignKey(x => x.TroopInstanceId)
+                .HasForeignKey(x => x.UnitInstanceId)
                 .OnDelete(DeleteBehavior.NoAction);
         });
     }

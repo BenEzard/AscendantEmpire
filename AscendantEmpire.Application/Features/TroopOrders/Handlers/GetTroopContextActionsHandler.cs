@@ -17,7 +17,7 @@ namespace AscendantEmpire.Application.Features.TroopOrders.Handlers;
 public record GetTroopContextActionsRequest(
     int GameId,
     int PlayerId,
-    int TroopInstanceId
+    int UnitInstanceId
 ) : IRequest<ServiceResultBase.ServiceResult<IReadOnlyCollection<TroopContextAction>>>;
 
 internal class GetTroopContextActionsRequestValidator : AbstractValidator<GetTroopContextActionsRequest>
@@ -30,7 +30,7 @@ internal class GetTroopContextActionsRequestValidator : AbstractValidator<GetTro
         RuleFor(x => x.PlayerId)
             .GreaterThan(0).WithMessage("Player Id is required.");
 
-        RuleFor(x => x.TroopInstanceId)
+        RuleFor(x => x.UnitInstanceId)
             .GreaterThan(0).WithMessage("Troop Instance Id is required.");
     }
 }
@@ -61,17 +61,17 @@ internal class GetTroopContextActionsHandler(
             return await contextActionService.GetAvailableActionsAsync(
                 request.GameId,
                 request.PlayerId,
-                request.TroopInstanceId,
+                request.UnitInstanceId,
                 cancelToken);
         }
         catch (Exception ex)
         {
             const string error = "An exception occurred while resolving the context actions for a Troop.";
 
-            logger.LogError(ex, error + " GameId: {GameId}, PlayerId: {PlayerId}, TroopInstanceId: {TroopInstanceId}.",
+            logger.LogError(ex, error + " GameId: {GameId}, PlayerId: {PlayerId}, UnitInstanceId: {UnitInstanceId}.",
                 request.GameId,
                 request.PlayerId,
-                request.TroopInstanceId);
+                request.UnitInstanceId);
 
             return ServiceResultBase.ServiceResult<IReadOnlyCollection<TroopContextAction>>.Fail(error);
         }

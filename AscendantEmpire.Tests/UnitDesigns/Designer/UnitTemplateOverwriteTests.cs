@@ -196,7 +196,7 @@ internal class UnitTemplateOverwriteTests : SqlServerTestBase
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        // TroopInstance's tile foreign key is enforced here (unlike the in-memory tier), so a real CampaignMap row and its lookup rows are needed.
+        // UnitInstance's tile foreign key is enforced here (unlike the in-memory tier), so a real CampaignMap row and its lookup rows are needed.
         context.CampaignBiomes.Add(new CampaignBiome
         {
             BiomeTypeId = BiomeType.Grassland,
@@ -241,7 +241,7 @@ internal class UnitTemplateOverwriteTests : SqlServerTestBase
         context.Add(tile);
         await context.SaveChangesAsync();
 
-        context.TroopInstances.Add(new TroopInstance
+        context.UnitInstances.Add(new UnitInstance
         {
             GameId = _gameId,
             PlayerId = _playerId,

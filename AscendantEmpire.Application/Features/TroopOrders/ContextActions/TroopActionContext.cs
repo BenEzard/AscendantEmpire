@@ -30,7 +30,7 @@ internal sealed record TroopActionContext
 /// </summary>
 internal sealed record TroopActionTroop
 {
-    public required int TroopInstanceId { get; init; }
+    public required int UnitInstanceId { get; init; }
 
     public required int PlayerId { get; init; }
 

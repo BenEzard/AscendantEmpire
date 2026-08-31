@@ -20,7 +20,7 @@ internal sealed class MovementProfileFactory : IMovementProfileFactory
         PropertyNameCaseInsensitive = true
     };
 
-    public MovementProfile Create(TroopInstance troop, DomainType domainType)
+    public MovementProfile Create(UnitInstance troop, DomainType domainType)
     {
         ArgumentNullException.ThrowIfNull(troop);
         ArgumentNullException.ThrowIfNull(troop.UnitTemplate);
@@ -47,7 +47,7 @@ internal sealed class MovementProfileFactory : IMovementProfileFactory
         };
     }
 
-    public MovementState CreateState(TroopInstance troop)
+    public MovementState CreateState(UnitInstance troop)
     {
         ArgumentNullException.ThrowIfNull(troop);
 

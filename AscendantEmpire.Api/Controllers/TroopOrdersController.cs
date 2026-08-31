@@ -46,7 +46,7 @@ public class TroopOrdersController : ControllerBase
         ServiceResultBase response = await mediator.Send(new MoveTroopRequest(
             gameId,
             playerId,
-            request.TroopInstanceId,
+            request.UnitInstanceId,
             request.XCoord,
             request.YCoord));
 
@@ -65,7 +65,7 @@ public class TroopOrdersController : ControllerBase
     /// <response code="403">The caller has not entered a game</response>
     /// <response code="404">No such troop in this game for this player</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [HttpGet("troops/{troopInstanceId:int}/actions")]
+    [HttpGet("units/{unitInstanceId:int}/actions")]
     [ProducesResponseType(typeof(ITroopContextActionCollection), 200)]
     [ProducesResponseType(typeof(IApiErrorResult), 400)]
     [ProducesResponseType(typeof(IApiErrorResult), 403)]
@@ -73,7 +73,7 @@ public class TroopOrdersController : ControllerBase
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
     public async Task<IActionResult> GetTroopContextActionsAsync(
         [FromServices] IMediator mediator,
-        int troopInstanceId,
+        int unitInstanceId,
         CancellationToken cancelToken)
     {
         // Game and player come from the token, so a caller can't enumerate the actions available to someone else's troops.
@@ -83,7 +83,7 @@ public class TroopOrdersController : ControllerBase
         }
 
         ServiceResultBase.ServiceResult<IReadOnlyCollection<TroopContextAction>> response = await mediator.Send(
-            new GetTroopContextActionsRequest(gameId, playerId, troopInstanceId),
+            new GetTroopContextActionsRequest(gameId, playerId, unitInstanceId),
             cancelToken);
 
         return response.ToActionResult(contract =>

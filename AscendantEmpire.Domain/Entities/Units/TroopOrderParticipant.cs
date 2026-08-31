@@ -8,7 +8,7 @@ public class TroopOrderParticipant
 
     public int TroopOrderId { get; set; }
 
-    public int TroopInstanceId { get; set; }
+    public int UnitInstanceId { get; set; }
 
     /// <summary>
     /// Primary = the troop the order is attached to.
@@ -19,5 +19,5 @@ public class TroopOrderParticipant
 
     public virtual TroopOrder TroopOrder { get; set; } = null!;
 
-    public virtual TroopInstance TroopInstance { get; set; } = null!;
+    public virtual UnitInstance UnitInstance { get; set; } = null!;
 }

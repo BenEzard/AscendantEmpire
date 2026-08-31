@@ -28,7 +28,7 @@ namespace AscendantEmpire.Application.Features.TroopOrders.Handlers;
 public record MoveTroopRequest(
     int GameId,
     int PlayerId,
-    int TroopInstanceId,
+    int UnitInstanceId,
     //int? BattleMapTileId,
     int XCoord,
     int YCoord
@@ -44,7 +44,7 @@ internal class MoveTroopRequestValidator : AbstractValidator<MoveTroopRequest>
         RuleFor(x => x.PlayerId)
             .GreaterThan(0).WithMessage("Player Id is required.");
 
-        RuleFor(x => x.TroopInstanceId)
+        RuleFor(x => x.UnitInstanceId)
             .GreaterThan(0).WithMessage("Troop Instance Id is required.");
 
         RuleFor(x => x.XCoord)
@@ -79,9 +79,9 @@ internal class MoveTroopHandler(
 
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            TroopInstance? troop = await context.TroopInstances
+            UnitInstance? troop = await context.UnitInstances
                 .Include(ti => ti.UnitTemplate.Compiled)
-                .FirstOrDefaultAsync(ti => ti.Id == request.TroopInstanceId && ti.GameId == request.GameId, cancelToken);
+                .FirstOrDefaultAsync(ti => ti.Id == request.UnitInstanceId && ti.GameId == request.GameId, cancelToken);
 
             ServiceResult<IReadOnlyCollection<OpenGame>> gameInfoResult = await mediator.Send(new GetOpenGamesRequest(request.GameId, request.PlayerId), cancelToken);
 
@@ -144,7 +144,7 @@ internal class MoveTroopHandler(
             /*            
              *            bool hasActiveOrder = await context.TroopOrders
                             .AnyAsync(to =>
-                                to.TroopInstanceId == request.TroopInstanceId 
+                                to.UnitInstanceId == request.UnitInstanceId 
                                 && (to.OrderStatus == TroopOrderStatus.Pending 
                                     || to.OrderStatus == TroopOrderStatus.InProgress 
                                     || to.OrderStatus == TroopOrderStatus.Paused),
@@ -152,7 +152,7 @@ internal class MoveTroopHandler(
 
                         if (hasActiveOrder)
                         {
-                            string error = $"Troop Instance Id {request.TroopInstanceId} already has an active order.";
+                            string error = $"Troop Instance Id {request.UnitInstanceId} already has an active order.";
                             logger.LogWarning(error);
                             return ServiceResult<MoveTroopResult>.Fail(error);
                         }*/
@@ -160,14 +160,14 @@ internal class MoveTroopHandler(
             /*CampaignPathResult? pathResult = await pathFinder.FindPathAsync(
                 context,
                 request.GameId,
-                request.TroopInstanceId,
+                request.UnitInstanceId,
                 troop.CampaignMapTileId,
                 targetCampaignMapTileId,
                 cancelToken);
 
             if (pathResult is null || !pathResult.Steps.Any())
             {
-                string error = $"No valid path could be found for Troop Instance Id {request.TroopInstanceId} to Campaign Map Tile Id {request.TargetCampaignMapTileId}.";
+                string error = $"No valid path could be found for Troop Instance Id {request.UnitInstanceId} to Campaign Map Tile Id {request.TargetCampaignMapTileId}.";
                 logger.LogWarning(error);
                 return ServiceResult<MoveTroopResult>.Fail(error);
             }
@@ -181,7 +181,7 @@ internal class MoveTroopHandler(
             var troopOrder = new TroopOrder
             {
                 GameId = request.GameId,
-                TroopInstanceId = request.TroopInstanceId,
+                UnitInstanceId = request.UnitInstanceId,
                 OrderType = TroopOrderType.Move,
                 OrderStatus = TroopOrderStatus.Pending,
                 TargetCampaignMapTileId = request.TargetCampaignMapTileId,
@@ -216,9 +216,9 @@ internal class MoveTroopHandler(
             await context.SaveChangesAsync(cancelToken);
 
             logger.LogInformation(
-                "Created move order {TroopOrderId} for Troop Instance Id {TroopInstanceId} in Game Id {GameId} to Campaign Map Tile Id {TargetCampaignMapTileId} with {PathStepCount} path steps.",
+                "Created move order {TroopOrderId} for Troop Instance Id {UnitInstanceId} in Game Id {GameId} to Campaign Map Tile Id {TargetCampaignMapTileId} with {PathStepCount} path steps.",
                 troopOrder.Id,
-                request.TroopInstanceId,
+                request.UnitInstanceId,
                 request.GameId,
                 request.TargetCampaignMapTileId,
                 movementSteps.Count);
@@ -226,7 +226,7 @@ internal class MoveTroopHandler(
             var result = new MoveTroopResult
             {
                 TroopOrderId = troopOrder.Id,
-                TroopInstanceId = troop.Id,
+                UnitInstanceId = troop.Id,
                 TargetCampaignMapTileId = request.TargetCampaignMapTileId,
                 PathStepCount = movementSteps.Count,
                 EstimatedTurns = pathResult.EstimatedTurns
@@ -238,9 +238,9 @@ internal class MoveTroopHandler(
         {
             const string error = "An exception occurred while trying to create a move order for Troop.";
             
-            logger.LogError(ex, error + " GameId: {request.GameId}, TroopInstanceId: {TroopInstanceId}, X: {X}, Y: {Y}.",
+            logger.LogError(ex, error + " GameId: {request.GameId}, UnitInstanceId: {UnitInstanceId}, X: {X}, Y: {Y}.",
                 request.GameId,
-                request.TroopInstanceId,
+                request.UnitInstanceId,
                 request.XCoord,
                 request.YCoord);
 
@@ -262,49 +262,49 @@ internal class MoveTroopHandler(
     /// <item>It is currently the Player's turn</item>
     /// </list>
     /// </remarks>
-    private ServiceResultBase ValidateObjects(MoveTroopRequest request, TroopInstance? troop, int targetCampaignMapTileId, IReadOnlyCollection<RosterEntry> rosterEntries)
+    private ServiceResultBase ValidateObjects(MoveTroopRequest request, UnitInstance? troop, int targetCampaignMapTileId, IReadOnlyCollection<RosterEntry> rosterEntries)
     {
         if (troop is null)
         {
-            string error = $"Troop Instance Id {request.TroopInstanceId} was not found for Game Id {request.GameId}.";
-            logger.LogWarning("Troop Instance Id {TroopInstanceId} was not found for Game Id {GameId}.", request.TroopInstanceId, request.GameId);
+            string error = $"Troop Instance Id {request.UnitInstanceId} was not found for Game Id {request.GameId}.";
+            logger.LogWarning("Troop Instance Id {UnitInstanceId} was not found for Game Id {GameId}.", request.UnitInstanceId, request.GameId);
             return Fail(error);
         }
 
         if (troop.PlayerId != request.PlayerId)
         {
-            string error = $"Troop Instance Id {request.TroopInstanceId} does not belong to Player Id {request.PlayerId}.";
-            logger.LogWarning("Troop Instance Id {TroopInstanceId} does not belong to Player Id {PlayerId}.", request.TroopInstanceId, request.PlayerId);
+            string error = $"Troop Instance Id {request.UnitInstanceId} does not belong to Player Id {request.PlayerId}.";
+            logger.LogWarning("Troop Instance Id {UnitInstanceId} does not belong to Player Id {PlayerId}.", request.UnitInstanceId, request.PlayerId);
             return Fail(error);
         }
 
         if (troop.HealthyCount + troop.InjuredCount <= 0)
         {
             // TODO: If this happens, we need to auto-delete the troops and any orders.
-            string error = $"Troop Instance Id {request.TroopInstanceId} has no remaining troops and cannot move.";
-            logger.LogWarning("Troop Instance Id {TroopInstanceId} has no remaining troops and cannot move.", request.TroopInstanceId);
+            string error = $"Troop Instance Id {request.UnitInstanceId} has no remaining troops and cannot move.";
+            logger.LogWarning("Troop Instance Id {UnitInstanceId} has no remaining troops and cannot move.", request.UnitInstanceId);
             return Fail(error);
         }
 
         if (troop.BattleMapTileId is not null)
         {
-            string error = $"Troop Instance Id {request.TroopInstanceId} is currently in battle and cannot receive a campaign move order.";
-            logger.LogWarning("Troop Instance Id {TroopInstanceId} is currently in battle and cannot receive a campaign move order.", request.TroopInstanceId);
+            string error = $"Troop Instance Id {request.UnitInstanceId} is currently in battle and cannot receive a campaign move order.";
+            logger.LogWarning("Troop Instance Id {UnitInstanceId} is currently in battle and cannot receive a campaign move order.", request.UnitInstanceId);
             return Fail(error);
         }
 
         if (troop.CampaignMapTileId == targetCampaignMapTileId)
         {
-            string error = $"Troop Instance Id {request.TroopInstanceId} is already on Campaign Map Tile Id {targetCampaignMapTileId}.";
-            logger.LogWarning("Troop Instance Id {TroopInstanceId} is already on Campaign Map Tile Id {TargetCampaignMapTileId}.", request.TroopInstanceId, targetCampaignMapTileId);
+            string error = $"Troop Instance Id {request.UnitInstanceId} is already on Campaign Map Tile Id {targetCampaignMapTileId}.";
+            logger.LogWarning("Troop Instance Id {UnitInstanceId} is already on Campaign Map Tile Id {TargetCampaignMapTileId}.", request.UnitInstanceId, targetCampaignMapTileId);
             return Fail(error);
         }
 
         // Remaining MP is raw fixed-point (Scale 1,000), but "none left" is zero at any scale, so this comparison is unaffected by the representation.
         if (troop.MovementPointsRemaining <= 0)
         {
-            string error = $"Troop Instance Id {request.TroopInstanceId} has no remaining movement points and cannot move.";
-            logger.LogWarning("Troop Instance Id {TroopInstanceId} has no remaining movement points and cannot move.", request.TroopInstanceId);
+            string error = $"Troop Instance Id {request.UnitInstanceId} has no remaining movement points and cannot move.";
+            logger.LogWarning("Troop Instance Id {UnitInstanceId} has no remaining movement points and cannot move.", request.UnitInstanceId);
             return Fail(error);
         }
 

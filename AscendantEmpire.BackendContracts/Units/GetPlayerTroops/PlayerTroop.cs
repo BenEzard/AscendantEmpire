@@ -4,7 +4,7 @@ namespace AscendantEmpire.BackendContracts.Units.GetPlayerTroops;
 
 public class PlayerTroop
 {
-    public int TroopInstanceId { get; set; }
+    public int UnitInstanceId { get; set; }
     public RecordType RecordType { get; set; }
     public int PlayerId { get; set; }
     public int CampaignMapTileId { get; set; }

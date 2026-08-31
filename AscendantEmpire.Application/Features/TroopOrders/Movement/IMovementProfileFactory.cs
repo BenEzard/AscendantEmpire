@@ -5,6 +5,6 @@ namespace AscendantEmpire.Application.Features.TroopOrders.Movement;
 
 public interface IMovementProfileFactory
 {
-    MovementProfile Create(TroopInstance troop, DomainType domainType);
-    MovementState CreateState(TroopInstance troop);
+    MovementProfile Create(UnitInstance troop, DomainType domainType);
+    MovementState CreateState(UnitInstance troop);
 }

@@ -443,7 +443,7 @@ internal class GameSetupService(
             return ServiceResultBase.Fail($"The map has {startPositions.Count} start position(s) but the game has {addedPlayers.Count} players — every player needs one.");
         }
 
-        // TroopInstance FKs the per-game CampaignMap rows (identity keys), so resolve each start coordinate to
+        // UnitInstance FKs the per-game CampaignMap rows (identity keys), so resolve each start coordinate to
         // its actual tile row for this game rather than deriving an id from the coordinates.
         List<CampaignMap> startTiles = [];
 
@@ -487,7 +487,7 @@ internal class GameSetupService(
             }));
 
             // One unit of each starter template, at the player's start tile, at its tag's default size, all healthy.
-            context.TroopInstances.AddRange(startersToSpawn.Select(starter => new TroopInstance
+            context.UnitInstances.AddRange(startersToSpawn.Select(starter => new UnitInstance
             {
                 GameId = gameId,
                 PlayerId = player.Id,

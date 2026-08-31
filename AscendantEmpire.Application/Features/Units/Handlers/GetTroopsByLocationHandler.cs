@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
-namespace AscendantEmpire.Application.Features.Troops.Handlers;
+namespace AscendantEmpire.Application.Features.Units.Handlers;
 
 public record GetTroopsByLocationRequest(
     int GameId,
@@ -57,14 +57,14 @@ internal class GetTroopsByLocationHandler(
 
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            List<PlayerTroop> troops = await context.TroopInstances
+            List<PlayerTroop> troops = await context.UnitInstances
                   .Where(pu => pu.GameId == request.GameId)
                   .Where(pu => pu.HealthyCount + pu.InjuredCount > 0) // Only include troops that are alive
                   .Where(pu => request.CampaignMapTileIds.Contains(pu.CampaignMapTileId))
                   .Where(pu => request.IncludeBattleMapTroops || pu.BattleMapTileId == null)
                   .Select(pu => new PlayerTroop
                   {
-                      TroopInstanceId = pu.Id,
+                      UnitInstanceId = pu.Id,
                       RecordType = RecordType.Unit,
                       PlayerId = pu.PlayerId,
                       CampaignMapTileId = pu.CampaignMapTileId,

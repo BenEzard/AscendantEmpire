@@ -155,7 +155,7 @@ internal class CreateUnitTemplateHandler(
             return null;
         }
 
-        int instanceCount = await UnitTemplateNameLookup.CountTroopInstancesAsync(context, existing.Id, cancelToken);
+        int instanceCount = await UnitTemplateNameLookup.CountUnitInstancesAsync(context, existing.Id, cancelToken);
 
         if (instanceCount > 0)
         {

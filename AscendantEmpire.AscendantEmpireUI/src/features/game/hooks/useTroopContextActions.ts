@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getTroopContextActions, type TroopContextAction } from "../api/troopContextActionsApi";
 
-export const troopContextActionsKey = (troopInstanceId: number | undefined) => ["troopContextActions", troopInstanceId] as const;
+export const troopContextActionsKey = (unitInstanceId: number | undefined) => ["troopContextActions", unitInstanceId] as const;
 
 /**
  * Fetches the context actions available to the selected troop.
@@ -10,15 +10,15 @@ export const troopContextActionsKey = (troopInstanceId: number | undefined) => [
  * The result reflects the troop's movement and strength at the time it was fetched, so anything that changes
  * either — a move, a split, ending the turn — must invalidate this key.
  */
-export function useTroopContextActionsQuery(troopInstanceId: number | undefined) {
+export function useTroopContextActionsQuery(unitInstanceId: number | undefined) {
   return useQuery<TroopContextAction[], Error>({
-    queryKey: troopContextActionsKey(troopInstanceId),
-    enabled: troopInstanceId != null,
+    queryKey: troopContextActionsKey(unitInstanceId),
+    enabled: unitInstanceId != null,
     refetchOnWindowFocus: false,
     queryFn: async () => {
-      if (troopInstanceId == null) throw new Error("troopInstanceId is null");
+      if (unitInstanceId == null) throw new Error("unitInstanceId is null");
 
-      return await getTroopContextActions(troopInstanceId);
+      return await getTroopContextActions(unitInstanceId);
     },
   });
 }

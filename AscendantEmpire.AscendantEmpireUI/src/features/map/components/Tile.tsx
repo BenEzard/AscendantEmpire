@@ -123,7 +123,7 @@ const Tile = React.memo(function Tile({
       {visibleTroop ? (
         <ObservedTroop
           troop={visibleTroop}
-          troopInstanceCount={visibleTroopCount}
+          unitInstanceCount={visibleTroopCount}
           isSelected={visibleTroop.id === selectedTroopId}
           troopImageSrcByUnitTemplateId={troopImageSrcByUnitTemplateId}
         />

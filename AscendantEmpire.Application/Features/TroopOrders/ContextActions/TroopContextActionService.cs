@@ -15,16 +15,16 @@ internal sealed class TroopContextActionService(
     public async Task<ServiceResultBase.ServiceResult<IReadOnlyCollection<TroopContextAction>>> GetAvailableActionsAsync(
         int gameId,
         int playerId,
-        int troopInstanceId,
+        int unitInstanceId,
         CancellationToken cancelToken)
     {
-        TroopActionContext? context = await contextBuilder.BuildAsync(gameId, playerId, troopInstanceId, cancelToken);
+        TroopActionContext? context = await contextBuilder.BuildAsync(gameId, playerId, unitInstanceId, cancelToken);
 
         if (context is null)
         {
-            string error = $"Troop Instance Id {troopInstanceId} was not found for Player Id {playerId} in Game Id {gameId}.";
-            logger.LogWarning("Troop Instance Id {TroopInstanceId} was not found for Player Id {PlayerId} in Game Id {GameId}.",
-                troopInstanceId, playerId, gameId);
+            string error = $"Troop Instance Id {unitInstanceId} was not found for Player Id {playerId} in Game Id {gameId}.";
+            logger.LogWarning("Troop Instance Id {UnitInstanceId} was not found for Player Id {PlayerId} in Game Id {GameId}.",
+                unitInstanceId, playerId, gameId);
 
             return ServiceResultBase.ServiceResult<IReadOnlyCollection<TroopContextAction>>.NotFound(error);
         }
@@ -46,8 +46,8 @@ internal sealed class TroopContextActionService(
             {
                 // One broken strategy must not cost the player their whole toolbar; drop just that action and carry on. Mirrors how the
                 // end-turn possible-action pipeline isolates its checks.
-                logger.LogError(ex, "Troop action strategy '{ActionType}' threw for Troop Instance Id {TroopInstanceId} in Game Id {GameId}.",
-                    strategy.ActionType, troopInstanceId, gameId);
+                logger.LogError(ex, "Troop action strategy '{ActionType}' threw for Troop Instance Id {UnitInstanceId} in Game Id {GameId}.",
+                    strategy.ActionType, unitInstanceId, gameId);
 
                 continue;
             }
@@ -68,8 +68,8 @@ internal sealed class TroopContextActionService(
             });
         }
 
-        logger.LogDebug("Resolved {Count} context action(s) for Troop Instance Id {TroopInstanceId} in Game Id {GameId}.",
-            actions.Count, troopInstanceId, gameId);
+        logger.LogDebug("Resolved {Count} context action(s) for Troop Instance Id {UnitInstanceId} in Game Id {GameId}.",
+            actions.Count, unitInstanceId, gameId);
 
         return ServiceResultBase.ServiceResult<IReadOnlyCollection<TroopContextAction>>.Succeed(actions);
     }
@@ -77,7 +77,7 @@ internal sealed class TroopContextActionService(
     public async Task<ServiceResultBase.ServiceResult<TroopActionAvailability>> EvaluateActionAsync(
         int gameId,
         int playerId,
-        int troopInstanceId,
+        int unitInstanceId,
         TroopActionType actionType,
         CancellationToken cancelToken)
     {
@@ -91,13 +91,13 @@ internal sealed class TroopContextActionService(
             return ServiceResultBase.ServiceResult<TroopActionAvailability>.NotFound(error);
         }
 
-        TroopActionContext? context = await contextBuilder.BuildAsync(gameId, playerId, troopInstanceId, cancelToken);
+        TroopActionContext? context = await contextBuilder.BuildAsync(gameId, playerId, unitInstanceId, cancelToken);
 
         if (context is null)
         {
-            string error = $"Troop Instance Id {troopInstanceId} was not found for Player Id {playerId} in Game Id {gameId}.";
-            logger.LogWarning("Troop Instance Id {TroopInstanceId} was not found for Player Id {PlayerId} in Game Id {GameId}.",
-                troopInstanceId, playerId, gameId);
+            string error = $"Troop Instance Id {unitInstanceId} was not found for Player Id {playerId} in Game Id {gameId}.";
+            logger.LogWarning("Troop Instance Id {UnitInstanceId} was not found for Player Id {PlayerId} in Game Id {GameId}.",
+                unitInstanceId, playerId, gameId);
 
             return ServiceResultBase.ServiceResult<TroopActionAvailability>.NotFound(error);
         }

@@ -23,7 +23,7 @@ internal sealed class CampaignRemainingMovementCheck(
         await using AscendantEmpireContext db = await dbFactory.CreateDbContextAsync(cancellationToken);
 
         // Find troops with remaining movement on the Campaign Map
-        var idleTroops = await db.TroopInstances
+        var idleTroops = await db.UnitInstances
             .Include(t => t.CampaignMap)
             .Where(t => t.GameId == actionContext.GameId)
             .Where(t => t.PlayerId == actionContext.PlayerId)
@@ -33,7 +33,7 @@ internal sealed class CampaignRemainingMovementCheck(
             .Select(t => new 
             { 
                 t.Id, 
-                t.TroopName,
+                t.Name,
                 Coord = new Coord(t.CampaignMap.XCoord, t.CampaignMap.YCoord),
             })
             .ToListAsync(cancellationToken);
@@ -43,7 +43,7 @@ internal sealed class CampaignRemainingMovementCheck(
         return [.. idleTroops.Select(t =>
             new PossibleAction {
                 Category = InformationCategory.Military,
-                Description = $"{(string.IsNullOrWhiteSpace(t.TroopName) ? "Unnamed" : t.TroopName)} has movement remaining.",
+                Description = $"{(string.IsNullOrWhiteSpace(t.Name) ? "Unnamed" : t.Name)} has movement remaining.",
                 Id = t.Id,
                 Coord = t.Coord,
                 RecordTypeId = (int)RecordType.Unit // TODO: Determine whether this is a Unit or a Command

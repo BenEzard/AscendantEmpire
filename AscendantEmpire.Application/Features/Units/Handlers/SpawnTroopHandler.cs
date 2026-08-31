@@ -150,7 +150,7 @@ internal class SpawnTroopHandler(
                 return ServiceResultBase.Fail(sizeErrors);
             }
 
-            context.TroopInstances.Add(new TroopInstance
+            context.UnitInstances.Add(new UnitInstance
             {
                 GameId = gameInfo.GameId,
                 PlayerId = thisPlayer.PlayerId,

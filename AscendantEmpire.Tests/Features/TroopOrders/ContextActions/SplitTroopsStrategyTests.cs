@@ -52,7 +52,7 @@ internal class SplitTroopsStrategyTests
     {
         return new TroopActionTroop
         {
-            TroopInstanceId = 5,
+            UnitInstanceId = 5,
             PlayerId = 1,
             CampaignMapTileId = 112,
             DisplayName = "Settler",

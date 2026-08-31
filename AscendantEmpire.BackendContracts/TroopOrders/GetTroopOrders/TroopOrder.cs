@@ -8,7 +8,7 @@ public record TroopOrder
 
     public int GameId { get; init; }
 
-    public int TroopInstanceId { get; init; }
+    public int UnitInstanceId { get; init; }
 
     public int OrderSequence { get; init; }
 
@@ -34,7 +34,7 @@ public record TroopOrder
 
     public int? TradeTargetStructureInstanceId { get; init; }
 
-    public int? DefendTargetTroopInstanceId { get; init; }
+    public int? DefendTargetUnitInstanceId { get; init; }
 
     public int? DefendTargetStructureInstanceId { get; init; }
 

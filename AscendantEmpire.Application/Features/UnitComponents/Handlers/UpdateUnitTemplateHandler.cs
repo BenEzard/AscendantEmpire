@@ -52,7 +52,7 @@ internal class UpdateUnitTemplateHandler(
 
             // A design that is already in the field can't be redrawn under the troops built from it: their stats are read from this template's compiled
             // snapshot, so rewriting it would silently re-equip units already standing on the map. Renaming or disbanding is the way through.
-            int instanceCount = await UnitTemplateNameLookup.CountTroopInstancesAsync(context, existing.Id, cancelToken);
+            int instanceCount = await UnitTemplateNameLookup.CountUnitInstancesAsync(context, existing.Id, cancelToken);
 
             if (instanceCount > 0)
             {

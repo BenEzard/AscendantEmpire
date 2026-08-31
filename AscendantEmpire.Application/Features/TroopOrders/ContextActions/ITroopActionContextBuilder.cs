@@ -12,5 +12,5 @@ internal interface ITroopActionContextBuilder
     /// <summary>
     /// Builds the context for a selected troop, or returns null when the troop does not exist in this game or does not belong to this player.
     /// </summary>
-    Task<TroopActionContext?> BuildAsync(int gameId, int playerId, int troopInstanceId, CancellationToken cancelToken);
+    Task<TroopActionContext?> BuildAsync(int gameId, int playerId, int unitInstanceId, CancellationToken cancelToken);
 }

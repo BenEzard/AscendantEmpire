@@ -4,7 +4,7 @@ public record MoveTroopResult
 {
     public int TroopOrderId { get; init; }
 
-    public int TroopInstanceId { get; init; }
+    public int UnitInstanceId { get; init; }
 
     public int TargetCampaignMapTileId { get; init; }
 

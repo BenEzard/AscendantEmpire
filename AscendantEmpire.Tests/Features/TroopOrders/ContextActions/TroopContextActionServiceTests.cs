@@ -42,7 +42,7 @@ internal class TroopContextActionServiceTests
         {
             SelectedTroop = new TroopActionTroop
             {
-                TroopInstanceId = _TROOP_INSTANCE_ID,
+                UnitInstanceId = _TROOP_INSTANCE_ID,
                 PlayerId = _PLAYER_ID,
                 CampaignMapTileId = 112,
                 DisplayName = "Settler",

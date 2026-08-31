@@ -33,7 +33,7 @@ export interface TroopContextAction {
  * The response is a rendering hint, never an authorisation: the backend re-checks the very same rules when
  * the action is actually executed.
  */
-export async function getTroopContextActions(troopInstanceId: number): Promise<TroopContextAction[]> {
-  const { data } = await http.get<{ actions: TroopContextAction[] }>(`/troop-orders/troops/${troopInstanceId}/actions`);
+export async function getTroopContextActions(unitInstanceId: number): Promise<TroopContextAction[]> {
+  const { data } = await http.get<{ actions: TroopContextAction[] }>(`/troop-orders/units/${unitInstanceId}/actions`);
   return data.actions;
 }

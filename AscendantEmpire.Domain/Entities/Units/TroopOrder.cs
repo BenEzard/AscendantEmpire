@@ -8,7 +8,7 @@ public class TroopOrder
 
     public int GameId { get; set; }
 
-    public int TroopInstanceId { get; set; }
+    public int UnitInstanceId { get; set; }
 
     public TroopOrderType OrderType { get; set; }
 
@@ -56,7 +56,7 @@ public class TroopOrder
     public int? TradeSourceStructureInstanceId { get; set; }
     public int? TradeTargetStructureInstanceId { get; set; }
 
-    public int? DefendTargetTroopInstanceId { get; set; }
+    public int? DefendTargetUnitInstanceId { get; set; }
     public int? DefendTargetStructureInstanceId { get; set; }
 
     // Debug fields
@@ -66,7 +66,7 @@ public class TroopOrder
     public string? FailureReason { get; set; }
     public string? CancellationReason { get; set; }
 
-    public virtual TroopInstance TroopInstance { get; set; } = null!;
+    public virtual UnitInstance UnitInstance { get; set; } = null!;
 
     public virtual ICollection<TroopOrderMovementStep> MovementSteps { get; set; } = [];
     public virtual ICollection<TroopOrderParticipant> Participants { get; set; } = [];

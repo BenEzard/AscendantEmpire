@@ -8,7 +8,7 @@
 /// </remarks>
 public interface IMoveTroopsDto
 {
-    int TroopInstanceId { get; }
+    int UnitInstanceId { get; }
     int XCoord { get; }
     int YCoord { get; }
 }

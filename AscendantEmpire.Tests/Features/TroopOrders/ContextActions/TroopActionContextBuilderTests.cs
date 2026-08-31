@@ -84,23 +84,23 @@ internal class TroopActionContextBuilderTests : InMemoryTestBase
     /// <summary>Adds a troop, defaulting to the player's own full-strength, unmoved settler on the shared tile.</summary>
     private static async Task AddTroopAsync(
         AscendantEmpireContext context,
-        int troopInstanceId,
+        int unitInstanceId,
         int playerId = _PLAYER_ID,
         int campaignMapTileId = _TILE_ID,
         int unitTemplateId = _UNLED_TEMPLATE_ID,
         int healthyCount = 100,
         int injuredCount = 0,
         long movementPointsRemaining = _CAMPAIGN_MOVEMENT_POINTS,
-        string? troopName = null)
+        string? name = null)
     {
-        context.TroopInstances.Add(new TroopInstance
+        context.UnitInstances.Add(new UnitInstance
         {
-            Id = troopInstanceId,
+            Id = unitInstanceId,
             GameId = _GAME_ID,
             PlayerId = playerId,
             CampaignMapTileId = campaignMapTileId,
             UnitTemplateId = unitTemplateId,
-            TroopName = troopName,
+            Name = name,
             InitialStrength = healthyCount + injuredCount,
             HealthyCount = healthyCount,
             InjuredCount = injuredCount,
@@ -116,7 +116,7 @@ internal class TroopActionContextBuilderTests : InMemoryTestBase
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            await AddTroopAsync(context, troopInstanceId: 5);
+            await AddTroopAsync(context, unitInstanceId: 5);
         }
 
         TroopActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
@@ -125,7 +125,7 @@ internal class TroopActionContextBuilderTests : InMemoryTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result!.SelectedTroop.TroopInstanceId, Is.EqualTo(5));
+            Assert.That(result!.SelectedTroop.UnitInstanceId, Is.EqualTo(5));
             Assert.That(result.SelectedTroop.TotalStrength, Is.EqualTo(100));
             Assert.That(result.SelectedTroop.CampaignMovementPoints, Is.EqualTo(_CAMPAIGN_MOVEMENT_POINTS),
                 "The per-turn allowance should come off the compiled snapshot.");
@@ -142,7 +142,7 @@ internal class TroopActionContextBuilderTests : InMemoryTestBase
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            await AddTroopAsync(context, troopInstanceId: 5, troopName: null);
+            await AddTroopAsync(context, unitInstanceId: 5, name: null);
         }
 
         TroopActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
@@ -156,7 +156,7 @@ internal class TroopActionContextBuilderTests : InMemoryTestBase
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            await AddTroopAsync(context, troopInstanceId: 5, troopName: "First Wagon Train");
+            await AddTroopAsync(context, unitInstanceId: 5, name: "First Wagon Train");
         }
 
         TroopActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
@@ -170,7 +170,7 @@ internal class TroopActionContextBuilderTests : InMemoryTestBase
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            await AddTroopAsync(context, troopInstanceId: 6, unitTemplateId: _UNTAGGED_TEMPLATE_ID, healthyCount: 1);
+            await AddTroopAsync(context, unitInstanceId: 6, unitTemplateId: _UNTAGGED_TEMPLATE_ID, healthyCount: 1);
         }
 
         TroopActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 6, CancellationToken.None);
@@ -184,14 +184,14 @@ internal class TroopActionContextBuilderTests : InMemoryTestBase
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            await AddTroopAsync(context, troopInstanceId: 5);
-            await AddTroopAsync(context, troopInstanceId: 6, unitTemplateId: _UNTAGGED_TEMPLATE_ID, healthyCount: 1);
-            await AddTroopAsync(context, troopInstanceId: 7, campaignMapTileId: _OTHER_TILE_ID);
+            await AddTroopAsync(context, unitInstanceId: 5);
+            await AddTroopAsync(context, unitInstanceId: 6, unitTemplateId: _UNTAGGED_TEMPLATE_ID, healthyCount: 1);
+            await AddTroopAsync(context, unitInstanceId: 7, campaignMapTileId: _OTHER_TILE_ID);
         }
 
         TroopActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
 
-        Assert.That(result!.OtherTroopsOnTile.Select(t => t.TroopInstanceId), Is.EquivalentTo(new[] { 6 }),
+        Assert.That(result!.OtherTroopsOnTile.Select(t => t.UnitInstanceId), Is.EquivalentTo(new[] { 6 }),
             "Only the player's other troops on the same tile should be gathered.");
     }
 
@@ -201,8 +201,8 @@ internal class TroopActionContextBuilderTests : InMemoryTestBase
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            await AddTroopAsync(context, troopInstanceId: 5);
-            await AddTroopAsync(context, troopInstanceId: 8, playerId: _OTHER_PLAYER_ID);
+            await AddTroopAsync(context, unitInstanceId: 5);
+            await AddTroopAsync(context, unitInstanceId: 8, playerId: _OTHER_PLAYER_ID);
         }
 
         TroopActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
@@ -216,8 +216,8 @@ internal class TroopActionContextBuilderTests : InMemoryTestBase
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            await AddTroopAsync(context, troopInstanceId: 5);
-            await AddTroopAsync(context, troopInstanceId: 9, healthyCount: 0, injuredCount: 0);
+            await AddTroopAsync(context, unitInstanceId: 5);
+            await AddTroopAsync(context, unitInstanceId: 9, healthyCount: 0, injuredCount: 0);
         }
 
         TroopActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
@@ -231,7 +231,7 @@ internal class TroopActionContextBuilderTests : InMemoryTestBase
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            await AddTroopAsync(context, troopInstanceId: 8, playerId: _OTHER_PLAYER_ID);
+            await AddTroopAsync(context, unitInstanceId: 8, playerId: _OTHER_PLAYER_ID);
         }
 
         TroopActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 8, CancellationToken.None);
@@ -253,7 +253,7 @@ internal class TroopActionContextBuilderTests : InMemoryTestBase
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            await AddTroopAsync(context, troopInstanceId: 5, movementPointsRemaining: _CAMPAIGN_MOVEMENT_POINTS / 2);
+            await AddTroopAsync(context, unitInstanceId: 5, movementPointsRemaining: _CAMPAIGN_MOVEMENT_POINTS / 2);
         }
 
         TroopActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);

@@ -50,7 +50,7 @@ export default function ForceSelectionDialog({
               <div className="relative mx-auto mb-2 h-20 w-20">
                 <ObservedTroop
                   troop={troop}
-                  troopInstanceCount={1}
+                  unitInstanceCount={1}
                   isSelected={selectedTroopId === troop.id}
                   troopImageSrcByUnitTemplateId={troopImageSrcByUnitTemplateId}
                 />

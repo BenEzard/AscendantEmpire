@@ -3,7 +3,7 @@ using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Extensions;
 using AscendantEmpire.Application.Features.Players.Handlers;
 using AscendantEmpire.Application.Features.Structures.Handlers;
-using AscendantEmpire.Application.Features.Troops.Handlers;
+using AscendantEmpire.Application.Features.Units.Handlers;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
@@ -230,7 +230,7 @@ internal class GetPlayerCampaignMapHandler(
                                 }).ToList() ?? [],
                                 Troops = troopsAtTile?.Select(ot => new ObservedTroop
                                 {
-                                    Id = ot.TroopInstanceId,
+                                    Id = ot.UnitInstanceId,
                                     RecordType = ot.RecordType,
                                     OwnerPlayerId = ot.PlayerId,
                                     UnitTemplateId = ot.UnitTemplateId,
@@ -351,7 +351,7 @@ internal class GetPlayerCampaignMapHandler(
         List<MapObserver> mapObservers = [];
         mapObservers.AddRange(troopResult.SuccessValue!.Select(t => new MapObserver
         {
-            Id = t.TroopInstanceId,
+            Id = t.UnitInstanceId,
             RecordType = t.RecordType,
             PlayerId = t.PlayerId,
             Location = new Coord { X = t.CampaignXCoord, Y = t.CampaignYCoord },
