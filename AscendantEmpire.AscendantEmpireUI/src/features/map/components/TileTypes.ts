@@ -8,7 +8,7 @@ export type ObservedStructureTile = {
 export type ObservedTroopTile = {
   id: number;
   recordType: number;
-  commanderId: number;
+  ownerPlayerId: number;
   unitTemplateId: number;
   healthyTroops: number;
   injuredTroops: number;

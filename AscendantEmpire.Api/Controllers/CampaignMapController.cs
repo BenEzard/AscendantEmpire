@@ -71,7 +71,7 @@ public class CampaignMapController : ControllerBase
                         {
                             Id = s.Id,
                             RecordType = s.RecordType,
-                            OwnerId = s.OwnerId,
+                            OwnerPlayerId = s.OwnerPlayerId,
                             StructureId = s.StructureId,
                             PositionOnTile = s.PositionOnTile,
                             CompletionPercent = s.CompletionPercent
@@ -80,7 +80,7 @@ public class CampaignMapController : ControllerBase
                         {
                             Id = t.Id,
                             RecordType = t.RecordType,
-                            CommanderId = t.CommanderId,
+                            OwnerPlayerId = t.OwnerPlayerId,
                             UnitTemplateId = t.UnitTemplateId,
                             HealthyTroops = t.HealthyTroops,
                             InjuredTroops = t.InjuredTroops,

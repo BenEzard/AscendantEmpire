@@ -7,7 +7,7 @@ public class DTTroopStub : ITroopStub
 {
     public int Id { get; set; }
     public RecordType RecordType { get; set; }
-    public int CommanderId { get; init; }
+    public int OwnerPlayerId { get; init; }
     public int HealthyTroops { get; set; }
     public int InjuredTroops { get; set; }
     public int InitialStrength { get; set; }

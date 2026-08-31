@@ -223,7 +223,7 @@ internal class GetPlayerCampaignMapHandler(
                                 {
                                     Id = os.StructureInstanceId,
                                     RecordType = os.RecordType,
-                                    OwnerId = os.OwnerId,
+                                    OwnerPlayerId = os.OwnerPlayerId,
                                     StructureId = os.StructureId,
                                     CompletionPercent = os.CompletionPercent,
                                     PositionOnTile = os.Position
@@ -232,7 +232,7 @@ internal class GetPlayerCampaignMapHandler(
                                 {
                                     Id = ot.TroopInstanceId,
                                     RecordType = ot.RecordType,
-                                    CommanderId = ot.PlayerId,
+                                    OwnerPlayerId = ot.PlayerId,
                                     UnitTemplateId = ot.UnitTemplateId,
                                     HealthyTroops = ot.HealthyTroops,
                                     InjuredTroops = ot.InjuredTroops,
@@ -316,7 +316,7 @@ internal class GetPlayerCampaignMapHandler(
         {
             Id = s.StructureInstanceId,
             RecordType = s.RecordType,
-            PlayerId = s.OwnerId,
+            PlayerId = s.OwnerPlayerId,
             Location = new Coord { X = s.XCoord, Y = s.YCoord },
             SightRange = s.SightRange,
             SightDirection = DetectionDirection.FullRadius

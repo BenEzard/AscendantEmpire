@@ -8,7 +8,7 @@ public class DTStructureStub : IStructureStub
 {
     public int Id { get; set; }
     public RecordType RecordType { get; set; }
-    public int OwnerId { get; init; }
+    public int OwnerPlayerId { get; init; }
     public int StructureId { get; set; }
 
     public PositionOnTile PositionOnTile { get; set; }

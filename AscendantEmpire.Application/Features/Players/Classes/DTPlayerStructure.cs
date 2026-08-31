@@ -12,6 +12,6 @@ public class DTPlayerStructure : IPlayerStructure
     public required string Name { get; set; }
     public required string Code { get; set; }
     public double CompletionPercent { get; set; }
-    public int OwnerId { get; set; }
+    public int OwnerPlayerId { get; set; }
     public int SightRange { get; set; }
 }

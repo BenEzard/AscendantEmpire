@@ -128,7 +128,7 @@ internal class PlayerCampaignMapTroopVisibilityTests : GameSqlServerTestBase
             Assert.That(troopsOnStartTile.Select(t => t.Id).Distinct(), Is.EquivalentTo(expectedTroops.Select(t => t.Id)),
                 "Every starting unit is reported on the tile it occupies.");
 
-            Assert.That(troopsOnStartTile, Has.All.Property(nameof(ObservedTroop.CommanderId)).EqualTo(player.Id));
+            Assert.That(troopsOnStartTile, Has.All.Property(nameof(ObservedTroop.OwnerPlayerId)).EqualTo(player.Id));
         }
     }
 
@@ -221,7 +221,7 @@ internal class PlayerCampaignMapTroopVisibilityTests : GameSqlServerTestBase
 
                 Assert.That(entry.XCoord, Is.EqualTo(placement.XCoord), $"Troop {entry.Troop.Id} is reported on its own X coordinate.");
                 Assert.That(entry.YCoord, Is.EqualTo(placement.YCoord), $"Troop {entry.Troop.Id} is reported on its own Y coordinate.");
-                Assert.That(entry.Troop.CommanderId, Is.EqualTo(placement.PlayerId), $"Troop {entry.Troop.Id} is credited to its owner.");
+                Assert.That(entry.Troop.OwnerPlayerId, Is.EqualTo(placement.PlayerId), $"Troop {entry.Troop.Id} is credited to its owner.");
             }
         }
     }

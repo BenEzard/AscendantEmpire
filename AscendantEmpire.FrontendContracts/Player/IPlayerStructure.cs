@@ -10,6 +10,6 @@ public interface IPlayerStructure
     string Name { get; }
     string Code { get; }
     double CompletionPercent { get; }
-    int OwnerId { get; }
+    int OwnerPlayerId { get; }
     int SightRange { get; }
 }

@@ -165,7 +165,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
     (t: TileCell) => {
       if (playerId == null) return;
 
-      const ownedTroops = (t.troops ?? []).filter((troop) => troop.commanderId === playerId);
+      const ownedTroops = (t.troops ?? []).filter((troop) => troop.ownerPlayerId === playerId);
 
       if (ownedTroops.length === 1) {
         setSelectedForce(ownedTroops[0]);

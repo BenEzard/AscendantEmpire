@@ -6,7 +6,12 @@ public interface ITroopStub
 {
     public int Id { get; }
     public RecordType RecordType { get; }
-    public int CommanderId { get; init; }
+
+    /// <summary>
+    /// The player who owns this troop — ownership, not command.
+    /// </summary>
+    public int OwnerPlayerId { get; init; }
+
     public int HealthyTroops { get; }
     public int InjuredTroops { get; }
     public int InitialStrength { get; set; }
