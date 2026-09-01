@@ -43,7 +43,7 @@ internal sealed class MapExportExecutorTests : InMemoryTestBase
         }
     }
 
-    [Test]
+    [Test, Description("Start positions are authored data, not regenerable from tiles, so they must survive into export.json.")]
     public async Task ExecuteAsync_ShouldIncludeStartPositionsInExportAsync()
     {
         int indexId = await SeedMapAsync();
@@ -84,7 +84,7 @@ internal sealed class MapExportExecutorTests : InMemoryTestBase
             }));
     }
 
-    [Test]
+    [Test, Description("Preview images are bundled under stable names, with bytes compared so a geography/biome mix-up would fail.")]
     public async Task ExecuteAsync_ShouldBundlePreviewImagesWhenPresentAsync()
     {
         int indexId = await SeedMapAsync();
@@ -135,7 +135,7 @@ internal sealed class MapExportExecutorTests : InMemoryTestBase
         Assert.That(await ReadEntryBytesAsync(biomeEntry!), Is.EqualTo(biomeBytes));
     }
 
-    [Test]
+    [Test, Description("Previews are optional, so a map exported before any render produces a smaller archive, not a failure.")]
     public async Task ExecuteAsync_ShouldSucceedWithoutPreviewEntriesWhenNoneRenderedAsync()
     {
         int indexId = await SeedMapAsync();

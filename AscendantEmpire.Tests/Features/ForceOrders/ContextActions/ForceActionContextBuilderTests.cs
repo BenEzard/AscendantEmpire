@@ -110,8 +110,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         await context.SaveChangesAsync();
     }
 
-    [Test, Description("Everything the strategies read is flattened off the compiled snapshot and its organisation tag here, so that no EF entity "
-        + "reaches the pure rule layer. If the projection stopped carrying the tag's sizing, every split rule would silently misjudge.")]
+    [Test, Description("The force and its organisation tag are flattened off the snapshot, so no EF entity reaches the pure rule layer.")]
     public async Task ShouldFlattenTheForceAndItsOrganisationTagWhenTheForceIsLoadedAsync()
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
@@ -136,8 +135,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         }
     }
 
-    [Test, Description("Reasons shown to the player name the force, so an unnamed one still needs something to be called. Falling back to the compiled "
-        + "template's name keeps those messages readable instead of leaving a blank where the name should be.")]
+    [Test, Description("An unnamed force falls back to its template's name, so player-facing reasons never show a blank.")]
     public async Task ShouldFallBackToTheTemplateNameWhenTheForceIsUnnamedAsync()
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
@@ -150,8 +148,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         Assert.That(result!.SelectedForce.DisplayName, Is.EqualTo("Settler"));
     }
 
-    [Test, Description("A force the player has named should be referred to by that name, not the template's, so the fallback must not override a name "
-        + "that is actually set.")]
+    [Test, Description("The template-name fallback must not override a name the player has actually set.")]
     public async Task ShouldUseTheForcesOwnNameWhenItHasOneAsync()
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
@@ -164,8 +161,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         Assert.That(result!.SelectedForce.DisplayName, Is.EqualTo("First Wagon Train"));
     }
 
-    [Test, Description("Not every template carries an organisation tag, and that is legitimate rather than an error. The projection must yield a null "
-        + "organisation so the strategies can hide themselves, instead of failing the whole query.")]
+    [Test, Description("A template with no organisation tag yields a null organisation, so strategies hide rather than the query failing.")]
     public async Task ShouldLeaveOrganisationNullWhenTheTemplateHasNoOrganisationTagAsync()
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
@@ -178,8 +174,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         Assert.That(result!.SelectedForce.Organisation, Is.Null);
     }
 
-    [Test, Description("Actions that combine or transfer between forces need to know what else the player has standing on the tile. The selection "
-        + "itself is excluded so a strategy cannot mistake it for a partner, and forces elsewhere are not gathered.")]
+    [Test, Description("Friendly forces on the tile are gathered, excluding the selection itself so it cannot be mistaken for a partner.")]
     public async Task ShouldGatherTheOwnersOtherForcesWhenTheyShareTheTileAsync()
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
@@ -195,8 +190,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
             "Only the player's other forces on the same tile should be gathered.");
     }
 
-    [Test, Description("Gathering enemy forces would let the toolbar confirm what is standing on a tile the player cannot actually see, leaking "
-        + "information the vision rules are meant to withhold. They stay excluded until those rules are applied here.")]
+    [Test, Description("Enemy forces stay excluded, since gathering them would leak what the vision rules are meant to withhold.")]
     public async Task ShouldExcludeForcesWhenTheyBelongToAnotherPlayerAsync()
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
@@ -210,8 +204,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         Assert.That(result!.OtherForcesOnTile, Is.Empty);
     }
 
-    [Test, Description("A force with no soldiers left is not really on the tile any more, and offering actions that involve it would let the player "
-        + "act through a formation that no longer exists.")]
+    [Test, Description("A force with no soldiers left is excluded, so the player cannot act through a formation that no longer exists.")]
     public async Task ShouldExcludeForcesWhenTheyHaveNoSoldiersLeftAsync()
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
@@ -225,8 +218,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         Assert.That(result!.OtherForcesOnTile, Is.Empty);
     }
 
-    [Test, Description("Asking about someone else's force must not reveal that it exists, so it is reported exactly as a missing one. Any difference "
-        + "in the response would let a player probe for enemy force ids.")]
+    [Test, Description("Another player's force reports exactly as a missing one, or the response would let ids be probed for.")]
     public async Task ShouldReturnNullWhenTheSelectedForceBelongsToAnotherPlayerAsync()
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
@@ -247,8 +239,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         Assert.That(result, Is.Null);
     }
 
-    [Test, Description("The split rule turns entirely on whether any movement has been spent, so a partially spent force must arrive with its real "
-        + "remaining points and report that its turn is no longer whole.")]
+    [Test, Description("The split rule turns on spent movement, so a partly spent force reports its real remaining points.")]
     public async Task ShouldCarrySpentMovementThroughWhenTheForceHasMovedAsync()
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())

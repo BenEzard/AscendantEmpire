@@ -39,7 +39,7 @@ public sealed class GlobalExceptionHandlerTests
     /// </summary>
     private const string SensitiveExceptionMessage = "Invalid column name 'PlayerSecretColumn' on table 'Game.Player'.";
 
-    [Test]
+    [Test, Description("An escaped exception answers with the API's own error contract and a 500, not a framework ProblemDetails body.")]
     public async Task TryHandleAsync_AnswersWithTheErrorContract_ForAnUnhandledException()
     {
         DefaultHttpContext httpContext = CreateHttpContext();
@@ -57,8 +57,8 @@ public sealed class GlobalExceptionHandlerTests
     }
 
     // Literals rather than Environments.Production: those are static readonly fields, which an attribute argument may not be.
-    [TestCase("Production")]
-    [TestCase("Testing")]
+    [TestCase("Production", Description = "In Production the exception text would reach real users, so only the correlation id may be returned.")]
+    [TestCase("Testing", Description = "Testing is the environment ApiTestFactory boots, so this is the case the over-HTTP pipeline test observes.")]
     public async Task TryHandleAsync_TellsTheCallerNothingAboutTheException_OutsideDevelopment(string environmentName)
     {
         DefaultHttpContext httpContext = CreateHttpContext();
@@ -78,7 +78,7 @@ public sealed class GlobalExceptionHandlerTests
     /// "Testing" is the environment <see cref="ApiTestFactory"/> boots, so the case above is what <see cref="ExceptionHandlingPipelineTests"/> asserts over
     /// HTTP. Development is the developer's own machine, where losing the stack-trace page entirely would be a step backwards and nothing is at risk.
     /// </remarks>
-    [Test]
+    [Test, Description("Development is the one environment that appends the exception detail, since nothing is at risk locally.")]
     public async Task TryHandleAsync_AddsTheExceptionDetail_InDevelopment()
     {
         DefaultHttpContext httpContext = CreateHttpContext();
@@ -93,7 +93,7 @@ public sealed class GlobalExceptionHandlerTests
         errors[1].Should().Be($"{nameof(InvalidOperationException)}: {SensitiveExceptionMessage}");
     }
 
-    [Test]
+    [Test, Description("The correlation id is in a header as well as the body, for callers and proxies that keep only headers.")]
     public async Task TryHandleAsync_PutsTheCorrelationIdInTheResponseHeader()
     {
         DefaultHttpContext httpContext = CreateHttpContext();
@@ -108,7 +108,7 @@ public sealed class GlobalExceptionHandlerTests
     /// The correlation id has to be in the rendered message, not merely attached as a property: the Serilog output template in <c>appsettings.json</c> writes
     /// <c>{Message:lj}{NewLine}{Exception}</c> and nothing else, so an id carried only as structured state would never reach the log file.
     /// </remarks>
-    [Test]
+    [Test, Description("The log is the only place the stack trace now survives, so it must be an Error quoting the correlation id.")]
     public async Task TryHandleAsync_LogsTheExceptionAsAnError_QuotingTheCorrelationId()
     {
         DefaultHttpContext httpContext = CreateHttpContext();
@@ -129,7 +129,7 @@ public sealed class GlobalExceptionHandlerTests
     /// A request the server could not read at all. The status and the message both come from the framework, so returning them leaks nothing, and the caller
     /// gets to know that the request was the problem rather than the server. Logged as a warning for the same reason.
     /// </remarks>
-    [Test]
+    [Test, Description("A malformed request keeps its framework status and message, and logs as a Warning rather than an Error.")]
     public async Task TryHandleAsync_HonoursTheStatusOnABadHttpRequestException()
     {
         const string frameworkMessage = "Request body too large. The max request body size is 30000000 bytes.";
@@ -148,7 +148,7 @@ public sealed class GlobalExceptionHandlerTests
     /// Unreachable in the running application, since <c>TryHandleAsync</c> handles everything. It is pinned anyway because it is what the caller would get if
     /// the handler were ever unregistered, and a fallback that answered in a different shape would be worse than no fallback at all.
     /// </remarks>
-    [Test]
+    [Test, Description("The fallback answers in the same shape, so unregistering the handler would not change the error contract.")]
     public async Task WriteFallbackResponseAsync_AnswersInTheSameShape()
     {
         DefaultHttpContext httpContext = CreateHttpContext();

@@ -82,7 +82,7 @@ public sealed class EndpointIdentityBindingTests
     /// Covers the identity arriving by any route: a route value, a query string parameter, or a property on the body model — all three appear in the
     /// original finding, and all three are equally attacker-controlled.
     /// </remarks>
-    [Test]
+    [Test, Description("Binding a game or player id from the request is impersonation, whether by route, query string or body.")]
     public void NoEndpoint_BindsTheCallersIdentity_FromTheRequest()
     {
         List<string> callerSuppliedIdentities = [];
@@ -115,7 +115,7 @@ public sealed class EndpointIdentityBindingTests
     /// Without this the allowlist rots quietly: a renamed route or a since-fixed endpoint would leave behind an exemption that silently covers nothing, and
     /// the next endpoint to land on that route would inherit it.
     /// </remarks>
-    [Test]
+    [Test, Description("A stale allowlist entry leaves an exemption the next endpoint on that route would silently inherit.")]
     public void EveryAllowlistedEndpoint_StillExists_AndStillBindsAnIdentity()
     {
         Dictionary<string, string[]> bindingsByDescription = GetActions()

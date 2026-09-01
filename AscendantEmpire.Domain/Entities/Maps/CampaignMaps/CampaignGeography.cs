@@ -11,6 +11,19 @@ public class CampaignGeography
     public const int MAP_EDITOR_ICON_MAX_LENGTH = 50;
 
     /// <summary>
+    /// The <see cref="MovementCost"/> at or above which a Geography is treated as impassable rather than merely expensive.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Mountainous is seeded at exactly this value, and it is the convention the authored map data follows for "you cannot walk here".
+    /// </para>
+    /// <para>
+    /// This gates where a start position may be placed, and which Geographies may be painted over an existing one.
+    /// </para>
+    /// </remarks>
+    public const decimal IMPASSABLE_MOVEMENT_COST = 999m;
+
+    /// <summary>
     /// Unique identifier for this Campaign Geography
     /// </summary>
     [Key, DatabaseGenerated(DatabaseGeneratedOption.None)]

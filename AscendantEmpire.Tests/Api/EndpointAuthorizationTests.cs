@@ -182,7 +182,7 @@ public sealed class EndpointAuthorizationTests
     /// This needs its own test because a fallback policy leaves <b>no trace on the endpoints</b>: it is consulted by the authorization middleware only for
     /// endpoints that carry no <c>IAuthorizeData</c> of their own, so inspecting endpoint metadata cannot tell you whether it is configured.
     /// </remarks>
-    [Test]
+    [Test, Description("The fallback policy must exist and deny anonymous callers; it leaves no trace on endpoint metadata.")]
     public async Task FallbackPolicy_RequiresAnAuthenticatedUser()
     {
         IAuthorizationPolicyProvider policyProvider = apiFactory.Services.GetRequiredService<IAuthorizationPolicyProvider>();
@@ -201,7 +201,7 @@ public sealed class EndpointAuthorizationTests
     /// The controllers reference these by <c>nameof(PermissionType.X)</c>, which the compiler checks — but only that the enum member exists, not that a
     /// policy was registered for it. A missing policy surfaces at runtime as a 500 on the first request, which is a poor way to find out.
     /// </remarks>
-    [Test]
+    [Test, Description("Every permission has a policy under its own name; a missing one is a runtime 500 the compiler cannot catch.")]
     public async Task EveryPermission_HasAPolicyRegisteredUnderItsOwnName()
     {
         IAuthorizationPolicyProvider policyProvider = apiFactory.Services.GetRequiredService<IAuthorizationPolicyProvider>();
@@ -221,7 +221,7 @@ public sealed class EndpointAuthorizationTests
     /// The test that actually stops a new controller shipping ungoverned. A route that appears in none of the three lists fails, so adding an endpoint
     /// forces a deliberate decision about who may call it; a route in a list that no longer exists fails too, so the lists cannot rot.
     /// </remarks>
-    [Test]
+    [Test, Description("Every endpoint is classified exactly once, so a new controller cannot ship ungoverned and the lists cannot rot.")]
     public void EveryEndpoint_IsClassifiedExactlyOnce()
     {
         string[] actualEndpoints = [.. GetRouteEndpoints().SelectMany(DescribeEndpoint).OrderBy(description => description, StringComparer.Ordinal)];
@@ -248,7 +248,7 @@ public sealed class EndpointAuthorizationTests
     /// authorization, with neither HTTPS redirection nor CORS swallowing the challenge. No request body is sent: authorization runs before model binding,
     /// so a bodyless POST is still rejected with 401 rather than 400.
     /// </remarks>
-    [Test]
+    [Test, Description("Every protected endpoint answers a tokenless request with 401, proving the pipeline is ordered correctly.")]
     public async Task EveryProtectedEndpoint_ReturnsUnauthorized_WithoutAToken()
     {
         using HttpClient anonymousClient = apiFactory.CreateAnonymousClient();
@@ -286,7 +286,7 @@ public sealed class EndpointAuthorizationTests
     /// the application permanently. These are sent without a body, so a 415 or 400 is the expected healthy answer — the only status that matters here is
     /// that it is not 401.
     /// </remarks>
-    [Test]
+    [Test, Description("Anonymous endpoints stay reachable without a token; gating login would lock every user out permanently.")]
     public async Task AnonymousEndpoints_AreStillReachable_WithoutAToken()
     {
         using HttpClient anonymousClient = apiFactory.CreateAnonymousClient();
@@ -316,7 +316,7 @@ public sealed class EndpointAuthorizationTests
     /// Authorization rejects these before model binding and before any handler, so no request in this test reaches the database.
     /// </para>
     /// </remarks>
-    [Test]
+    [Test, Description("Withholding exactly one permission catches an endpoint gated behind the wrong one, not just an ungated one.")]
     public async Task PermissionGatedEndpoints_Return403_ForATokenMissingThatPermission()
     {
         List<string> notGatedAsSpecified = [];
@@ -354,7 +354,7 @@ public sealed class EndpointAuthorizationTests
     /// call. A 403 is the failure; anything else — including the 500 that follows when a handler reaches for the unreachable test database — means
     /// authorization let the request through, which is all this asserts.
     /// </remarks>
-    [Test]
+    [Test, Description("An authenticated-only endpoint accepts a permissionless token, catching one quietly gated behind a permission.")]
     public async Task AuthenticatedOnlyEndpoints_AreReachable_WithATokenHoldingNoPermissions()
     {
         using HttpClient client = apiFactory.CreateClientWithPermissions();

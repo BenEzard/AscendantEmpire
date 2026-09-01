@@ -99,8 +99,7 @@ internal class CommandForceOrderTargetTests : GameSqlServerTestBase
         Assert.DoesNotThrowAsync(async () => await context.SaveChangesAsync());
     }
 
-    [Test, Description("An order issued to a Command must save with no Unit named, because a Command moves as one and that is the whole reason "
-        + "the order targets it rather than fanning out to its members.")]
+    [Test, Description("An order to a Command saves with no Unit named, because a Command moves as one rather than fanning out.")]
     public async Task ShouldSaveTheOrderWhenOnlyTheCommandIsTargetedAsync()
     {
         int gameId = await SetUpGameAsync();
@@ -114,8 +113,7 @@ internal class CommandForceOrderTargetTests : GameSqlServerTestBase
         Assert.DoesNotThrowAsync(async () => await context.SaveChangesAsync());
     }
 
-    [Test, Description("An order naming both a Unit and a Command is ambiguous about who is being ordered, so the database must refuse it rather "
-        + "than leave the turn processor to pick one.")]
+    [Test, Description("Naming both a Unit and a Command is ambiguous, so the database refuses it rather than letting one be picked.")]
     public async Task ShouldRejectTheOrderWhenBothTargetsAreSetAsync()
     {
         int gameId = await SetUpGameAsync();
@@ -132,8 +130,7 @@ internal class CommandForceOrderTargetTests : GameSqlServerTestBase
         Assert.That(exception!.GetBaseException().Message, Does.Contain(_CHECK_CONSTRAINT_NAME));
     }
 
-    [Test, Description("An order naming neither a Unit nor a Command is attached to nothing at all, so the database must refuse it rather than "
-        + "let an orphaned order sit in the queue forever.")]
+    [Test, Description("Naming neither is attached to nothing, so the database refuses it rather than orphaning it in the queue.")]
     public async Task ShouldRejectTheOrderWhenNeitherTargetIsSetAsync()
     {
         int gameId = await SetUpGameAsync();
@@ -147,8 +144,7 @@ internal class CommandForceOrderTargetTests : GameSqlServerTestBase
         Assert.That(exception!.GetBaseException().Message, Does.Contain(_CHECK_CONSTRAINT_NAME));
     }
 
-    [Test, Description("A Unit reads back under the Command it was attached to, and its siblings come with it, because shared vision and command "
-        + "bonuses are all defined in terms of that membership.")]
+    [Test, Description("A Unit reads back under its Command with its siblings, since vision and bonuses are defined by that membership.")]
     public async Task ShouldReadTheUnitBackUnderItsCommandWhenAttachedAsync()
     {
         int gameId = await SetUpGameAsync();
@@ -174,8 +170,7 @@ internal class CommandForceOrderTargetTests : GameSqlServerTestBase
         Assert.That(reloaded.Units.Single().CommandId, Is.EqualTo(commandId));
     }
 
-    [Test, Description("A Unit with no Command is the ordinary case, not an exceptional one, so the nullable membership must round-trip as null "
-        + "rather than being coerced to a default.")]
+    [Test, Description("A Unit with no Command is ordinary, so the membership round-trips as null rather than a coerced default.")]
     public async Task ShouldLeaveTheUnitUnattachedWhenNoCommandIsSetAsync()
     {
         int gameId = await SetUpGameAsync();

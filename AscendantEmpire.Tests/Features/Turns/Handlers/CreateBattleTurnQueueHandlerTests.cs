@@ -49,7 +49,7 @@ public class CreateBattleTurnQueueHandlerTests : GameSqlServerTestBase
         await SeedGameAsync(mapWidth, mapHeight, 2);
     }
 
-    [Test]
+    [Test, Description("A player id not in the game fails the whole request, and the error names the offending ids.")]
     public async Task ShouldFailIfPlayerIsNotInGameAsync()
     {
         // Setup the Game
@@ -74,7 +74,7 @@ public class CreateBattleTurnQueueHandlerTests : GameSqlServerTestBase
         }
     }
 
-    [Test]
+    [Test, Description("Starting a battle writes four tables at once, and a half-written set would leave it unplayable.")]
     public async Task ShouldSucceedAndPersistAllTablesCorrectlyAsync()
     {
         await SetupGameVariablesAsync(mapWidth: 2, mapHeight: 2);
@@ -163,7 +163,7 @@ public class CreateBattleTurnQueueHandlerTests : GameSqlServerTestBase
         }
     }
 
-    [Test]
+    [Test, Description("One tile may host only one unconcluded battle, so a second request for that tile is refused.")]
     public async Task ShouldFailIfActiveBattleExistsForCampaignMapTileIdAsync()
     {
         // Setup the Game

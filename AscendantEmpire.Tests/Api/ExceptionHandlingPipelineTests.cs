@@ -42,7 +42,7 @@ public sealed class ExceptionHandlingPipelineTests
     /// </remarks>
     private const string AuthenticatedRoute = "/player/forces";
 
-    [Test]
+    [Test, Description("The handler is wired into the real pipeline: an escaped exception returns the error contract, not a torn connection.")]
     public async Task AnExceptionEscapingAHandler_IsAnsweredWithTheErrorContract_NotATornConnection()
     {
         using ApiTestFactory apiFactory = new()

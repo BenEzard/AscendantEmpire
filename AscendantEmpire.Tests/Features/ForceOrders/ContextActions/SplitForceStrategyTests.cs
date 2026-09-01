@@ -69,15 +69,13 @@ internal class SplitForceStrategyTests
         return new ForceActionContext { SelectedForce = force, OtherForcesOnTile = [] };
     }
 
-    [Test, Description("The strategy answers for the SplitForce action, which is also what fixes its position in the toolbar — the enum value doubles "
-        + "as the display order, so an incorrect action type would silently move the button as well as mislabel it.")]
+    [Test, Description("The action type doubles as display order, so a wrong one would move the button as well as mislabel it.")]
     public void ShouldIdentifyItselfAsTheSplitForceAction()
     {
         Assert.That(_strategy.ActionType, Is.EqualTo(ForceActionType.SplitForce));
     }
 
-    [Test, Description("A template carrying no organisation tag has no unled base size to divide along, so there is no rule by which it could ever "
-        + "split. The action is hidden rather than disabled, because nothing the player does this turn could make it apply.")]
+    [Test, Description("With no organisation tag there is no base size to divide along, so the action is hidden rather than disabled.")]
     public void ShouldHideTheActionWhenTheForceHasNoOrganisationTag()
     {
         // The builder defaults to a settler organisation, so the tagless case is expressed by stripping it back off.
@@ -86,8 +84,7 @@ internal class SplitForceStrategyTests
         Assert.That(result, Is.Null, "A force with no organisation tag should not be offered the split action at all.");
     }
 
-    [Test, Description("Commissioned formations detach a sub-formation under a subordinate officer instead, which is a different action with different "
-        + "rules. Offering this one greyed out would imply the force could eventually use it, which is never true.")]
+    [Test, Description("Commissioned formations detach instead, a different action, so this one is hidden rather than greyed out.")]
     public void ShouldHideTheActionWhenTheOrganisationIsCommissioned()
     {
         ForceActionAvailability? result = _strategy.Evaluate(Context(Force(organisation: Organisation(LeadershipModel.Commissioned))));
@@ -95,8 +92,7 @@ internal class SplitForceStrategyTests
         Assert.That(result, Is.Null, "A commissioned force should not be offered the unled split action.");
     }
 
-    [Test, Description("An unspecified leadership model is treated as commissioned everywhere else in the system, so the split action must read it the "
-        + "same way rather than treating the absence of a value as permission.")]
+    [Test, Description("An unspecified leadership model reads as commissioned here too, not as permission by absence.")]
     public void ShouldHideTheActionWhenTheLeadershipModelIsUnspecified()
     {
         ForceActionAvailability? result = _strategy.Evaluate(Context(Force(organisation: Organisation(leadershipModel: null))));
@@ -104,8 +100,7 @@ internal class SplitForceStrategyTests
         Assert.That(result, Is.Null, "An unspecified leadership model should be treated as commissioned, and so hidden.");
     }
 
-    [Test, Description("The ordinary success case: an unled force big enough to yield two whole groups, with its full turn still ahead of it, has "
-        + "nothing standing in its way and must come back enabled with no reasons attached.")]
+    [Test, Description("The ordinary success case: an unled force of two whole groups with a full turn comes back enabled, no reasons.")]
     public void ShouldAllowTheSplitWhenTheForceIsUnledLargeEnoughAndUnmoved()
     {
         ForceActionAvailability? result = _strategy.Evaluate(Context(Force()));
@@ -119,8 +114,7 @@ internal class SplitForceStrategyTests
         }
     }
 
-    [Test, Description("Two whole groups is the floor, not something to exceed. A force of exactly twice the base size can divide cleanly in two, so "
-        + "the boundary must be inclusive — an off-by-one here would block the most common split there is.")]
+    [Test, Description("Two whole groups is the inclusive floor; an off-by-one would block the most common split there is.")]
     public void ShouldAllowTheSplitWhenTheForceIsExactlyTwoWholeGroups()
     {
         ForceActionAvailability? result = _strategy.Evaluate(Context(Force(healthyCount: _UNLED_BASE_SIZE * 2)));
@@ -128,8 +122,7 @@ internal class SplitForceStrategyTests
         Assert.That(result!.IsEnabled, Is.True, "A force of exactly two whole groups is at the boundary and should be splittable.");
     }
 
-    [Test, Description("Injured soldiers are still with the force and still move with it, so they count towards the size a split is measured against. "
-        + "Counting only the healthy would wrongly block a battered force that is plainly large enough to divide.")]
+    [Test, Description("Injured soldiers still move with the force, so they count towards the size a split is measured against.")]
     public void ShouldAllowTheSplitWhenHealthyAndInjuredTogetherMakeTwoGroups()
     {
         ForceActionAvailability? result = _strategy.Evaluate(Context(Force(healthyCount: _UNLED_BASE_SIZE, injuredCount: _UNLED_BASE_SIZE)));
@@ -137,8 +130,7 @@ internal class SplitForceStrategyTests
         Assert.That(result!.IsEnabled, Is.True, "Healthy and injured together make two whole groups, so the force should be splittable.");
     }
 
-    [Test, Description("A force that cannot yield two whole groups has nothing to divide into. This is a state the player can change by reinforcing, "
-        + "so the action is disabled with an explanation rather than hidden.")]
+    [Test, Description("Too small to yield two groups is fixable by reinforcing, so the action is disabled with a reason, not hidden.")]
     public void ShouldBlockTheSplitWhenTheForceCannotYieldTwoWholeGroups()
     {
         ForceActionAvailability? result = _strategy.Evaluate(Context(Force(healthyCount: (_UNLED_BASE_SIZE * 2) - 1)));
@@ -154,8 +146,7 @@ internal class SplitForceStrategyTests
         }
     }
 
-    [Test, Description("Splitting costs the force its whole turn, so it needs a turn that has not been started — not merely one with movement left. A "
-        + "force one point down has already gone somewhere, and must be refused.")]
+    [Test, Description("Splitting costs a whole turn, so a force even one movement point down has already gone somewhere.")]
     public void ShouldBlockTheSplitWhenAnyMovementHasAlreadyBeenSpent()
     {
         ForceActionAvailability? result = _strategy.Evaluate(Context(Force(movementPointsRemaining: _FULL_CAMPAIGN_MOVEMENT - 1)));
@@ -170,8 +161,7 @@ internal class SplitForceStrategyTests
         }
     }
 
-    [Test, Description("Every failing rule is reported at once, so a player who fixes the one problem they were told about doesn't discover a second. "
-        + "Stopping at the first failure would make the toolbar feel like it was moving the goalposts.")]
+    [Test, Description("Every failing rule is reported at once, so fixing one problem does not simply reveal the next.")]
     public void ShouldReportEveryFailingRuleWhenBothSizeAndMovementFail()
     {
         ForceActionAvailability? result = _strategy.Evaluate(Context(Force(healthyCount: 10, movementPointsRemaining: 0)));
@@ -187,8 +177,7 @@ internal class SplitForceStrategyTests
         }
     }
 
-    [Test, Description("An unled tag is authored with its base and max sizes together, so one lacking them is a configuration error. Surfacing it beats "
-        + "hiding the action as though the force were commissioned, which would disguise bad data as a design decision.")]
+    [Test, Description("An unled tag missing its sizes is bad data, surfaced rather than disguised as a commissioned force.")]
     public void ShouldBlockTheSplitWhenAnUnledTagHasNoAuthoredBaseSize()
     {
         ForceActionAvailability? result = _strategy.Evaluate(Context(Force(organisation: Organisation(unledBaseSize: null))));

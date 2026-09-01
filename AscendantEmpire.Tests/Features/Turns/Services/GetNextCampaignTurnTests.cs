@@ -37,7 +37,7 @@ public class GetNextCampaignTurnTests : CampaignTurnServiceTestBase
     /// <summary>
     /// When there is no Campaign TurnQueue for the game at all, the service should return <c>NotFound</c>.
     /// </summary>
-    [Test]
+    [Test, Description("No Campaign queue answers NotFound, so a game that never started cannot be advanced into a turn.")]
     public async Task ShouldReturnNotFoundWhenNoTurnQueueExists()
     {
         int gameId = await SeedGameWithPlayersAsync(_numberOfPlayers);
@@ -52,7 +52,7 @@ public class GetNextCampaignTurnTests : CampaignTurnServiceTestBase
     /// When all participants have <see cref="TurnQueueParticipantStatus.TakingTurn"/> status
     /// (none are Pending), the service should return <c>NotFound</c>.
     /// </summary>
-    [Test]
+    [Test, Description("Only a Pending participant can be advanced to, so NotFound is how the caller learns the round is exhausted.")]
     public async Task ShouldReturnNotFoundWhenNoPendingParticipantExistsAfterLastPlayer()
     {
         int gameId = await SeedGameWithPlayersAsync(_numberOfPlayers);
@@ -70,7 +70,7 @@ public class GetNextCampaignTurnTests : CampaignTurnServiceTestBase
     /// When a Pending participant exists but its TurnOrder is not greater than <paramref name="turnOrderOfLastPlayer"/>,
     /// the service should return <c>NotFound</c>.
     /// </summary>
-    [Test]
+    [Test, Description("The search is strictly forward, or the round would wrap back to an earlier player and never end.")]
     public async Task ShouldReturnNotFoundWhenPendingParticipantTurnOrderIsNotHigherThanLastPlayer()
     {
         int gameId = await SeedGameWithPlayersAsync(_numberOfPlayers);
@@ -92,7 +92,7 @@ public class GetNextCampaignTurnTests : CampaignTurnServiceTestBase
     /// <summary>
     /// When a Pending participant with a higher TurnOrder exists, the service should return its details.
     /// </summary>
-    [Test]
+    [Test, Description("The ordinary advance, and the positive control for the three NotFound cases above.")]
     public async Task ShouldReturnNextParticipantWhenPendingParticipantFollowsLastPlayer()
     {
         int gameId = await SeedGameWithPlayersAsync(_numberOfPlayers);
@@ -116,7 +116,7 @@ public class GetNextCampaignTurnTests : CampaignTurnServiceTestBase
     /// When the next participant has the highest TurnOrder among all active participants,
     /// <see cref="CurrentCampaignTurn.IsLastTurnInRound"/> should be <c>true</c>.
     /// </summary>
-    [Test]
+    [Test, Description("IsLastTurnInRound is true when the participant advanced to holds the highest active turn order.")]
     public async Task ShouldSetIsLastTurnInRoundTrueWhenNextParticipantHasHighestTurnOrder()
     {
         int gameId = await SeedGameWithPlayersAsync(_numberOfPlayers);
@@ -146,7 +146,7 @@ public class GetNextCampaignTurnTests : CampaignTurnServiceTestBase
     /// A third player is needed here because the service uses SingleOrDefaultAsync; only one Pending participant
     /// may match the filter, yet the max active TurnOrder must exceed the result.
     /// </remarks>
-    [Test]
+    [Test, Description("The flag stays false while a higher active turn order remains, or a round would close with a player still to move.")]
     public async Task ShouldSetIsLastTurnInRoundFalseWhenNextParticipantIsNotLast()
     {
         int gameId = await SeedGameWithPlayersAsync(3);

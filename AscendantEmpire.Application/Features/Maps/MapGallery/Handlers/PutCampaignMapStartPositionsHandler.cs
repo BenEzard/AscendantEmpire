@@ -26,7 +26,7 @@ internal class PutCampaignMapStartPositionsHandler(
     AscendantEmpireContext context)
     : IRequestHandler<PutCampaignMapStartPositionsRequest, ServiceResult<IReadOnlyCollection<DTCampaignMapStartPosition>>>
 {
-    private const int MAX_START_POSITIONS = 20;
+    private const int _MAX_START_POSITIONS = 20;
 
     public async Task<ServiceResult<IReadOnlyCollection<DTCampaignMapStartPosition>>> Handle(
         PutCampaignMapStartPositionsRequest request,
@@ -99,9 +99,9 @@ internal class PutCampaignMapStartPositionsHandler(
             return ServiceResult<LoadedStartPositionContext>.Fail("StartPositions is required.");
         }
 
-        if (request.StartPositions.Count > MAX_START_POSITIONS)
+        if (request.StartPositions.Count > _MAX_START_POSITIONS)
         {
-            return ServiceResult<LoadedStartPositionContext>.Fail($"A map cannot have more than {MAX_START_POSITIONS} start positions.");
+            return ServiceResult<LoadedStartPositionContext>.Fail($"A map cannot have more than {_MAX_START_POSITIONS} start positions.");
         }
 
         Domain.Entities.Maps.CampaignMaps.CampaignMapGalleryIndex? map = await context.CampaignMapGalleryIndex
@@ -135,7 +135,8 @@ internal class PutCampaignMapStartPositionsHandler(
         int[] xCoords = [.. seenCoordinates.Select(x => x.XCoord).Distinct()];
         int[] yCoords = [.. seenCoordinates.Select(x => x.YCoord).Distinct()];
 
-        // Load only the candidate tiles and their biome flags so each submitted coordinate can be checked deterministically.
+        // Load only the candidate tiles, with the biome flags and geography cost that gate placement, so each submitted coordinate can be checked
+        // deterministically.
         List<StartPositionTileCandidate> candidateTiles = await context.CampaignMapGallery
             .AsNoTracking()
             .Where(x => x.CampaignMapGalleryIndexId == request.CampaignMapGalleryIndexId)
@@ -144,7 +145,8 @@ internal class PutCampaignMapStartPositionsHandler(
                 x.XCoord,
                 x.YCoord,
                 x.Biome.IsWater,
-                x.Biome.IsTraversable))
+                x.Biome.IsTraversable,
+                x.Geography.MovementCost))
             .ToListAsync(cancellationToken);
 
         Dictionary<(int XCoord, int YCoord), StartPositionTileCandidate> tileLookup = candidateTiles
@@ -157,9 +159,16 @@ internal class PutCampaignMapStartPositionsHandler(
                 return ServiceResult<LoadedStartPositionContext>.Fail($"Start position ({xCoord}, {yCoord}) does not reference a valid campaign map tile.");
             }
 
-            if (tile.IsWater || !tile.IsTraversable)
+            if (tile.BiomeIsWater || !tile.BiomeIsTraversable)
             {
                 return ServiceResult<LoadedStartPositionContext>.Fail($"Start position ({xCoord}, {yCoord}) must be on a non-water traversable biome.");
+            }
+
+            // The biome can be perfectly habitable while the geography on top of it is not — a grassland mountain, for instance.
+            if (tile.GeographyMovementCost >= Domain.Entities.Maps.CampaignMaps.CampaignGeography.IMPASSABLE_MOVEMENT_COST)
+            {
+                return ServiceResult<LoadedStartPositionContext>.Fail(
+                    $"Start position ({xCoord}, {yCoord}) cannot be on impassable geography (movement cost {tile.GeographyMovementCost:0.##}).");
             }
         }
 
@@ -168,9 +177,16 @@ internal class PutCampaignMapStartPositionsHandler(
 
     private sealed record LoadedStartPositionContext(Domain.Entities.Maps.CampaignMaps.CampaignMapGalleryIndex Map);
 
+    /// <summary>
+    /// A single candidate Tile, flattened to just the Biome and Geography values that gate whether a start position may sit on it.
+    /// </summary>
+    /// <remarks>
+    /// The Biome and the Geography each carry their own Movement Cost, so the Geography one is named for its source to keep the two apart.
+    /// </remarks>
     private sealed record StartPositionTileCandidate(
         int XCoord,
         int YCoord,
-        bool IsWater,
-        bool IsTraversable);
+        bool BiomeIsWater,
+        bool BiomeIsTraversable,
+        decimal GeographyMovementCost);
 }

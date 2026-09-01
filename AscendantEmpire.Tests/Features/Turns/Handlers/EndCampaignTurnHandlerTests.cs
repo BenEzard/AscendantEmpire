@@ -198,7 +198,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
     // Handle — ValidateGameAndPlayerAsync
     // =========================================================================
 
-    [Test]
+    [Test, Description("A player with no claim on the game cannot end its turn, and is refused before any queue state is touched.")]
     public async Task ShouldFailWhenOpenGameServiceReturnsNoGame()
     {
         _openGameService
@@ -212,7 +212,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
         Assert.That(result.HasSucceeded, Is.False, "Should fail when the game is not found for the player.");
     }
 
-    [Test]
+    [Test, Description("Being in the game is not enough: a player may only end their own turn, not whoever's turn is currently active.")]
     public async Task ShouldFailWhenItIsNotThePlayersTurn()
     {
         // The game exists but the current turn belongs to player 2, not player 1.
@@ -236,7 +236,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
     // Handle — CheckForActions
     // =========================================================================
 
-    [Test]
+    [Test, Description("CheckForActions is a query, not a command: with moves still available it reports them and ends nothing.")]
     public async Task ShouldReturnPossibleActionsWithoutEndingTurnWhenActionsExist()
     {
         CurrentCampaignTurn currentTurn = Player1Turn();
@@ -260,7 +260,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
         }
     }
 
-    [Test]
+    [Test, Description("Documents current behaviour: with no actions left CheckForActions falls through and writes nothing.")]
     public async Task ShouldNotEndTurnWhenCheckForActionsAndNoPossibleActionsExist()
     {
         // When there are no possible actions, CheckForActions falls through the if-block and hits the final Fail("Invalid EndTurnMode.") — documenting current behaviour.
@@ -287,7 +287,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
     // Handle — ForceEnd, not last turn in round (player 1 of 2)
     // =========================================================================
 
-    [Test]
+    [Test, Description("Force-ending mid-round closes the turn but not the round, because another player is still to move.")]
     public async Task ShouldSucceedWithTurnEndedAndRoundNotEndedWhenForceEndNotLastTurn()
     {
         CurrentCampaignTurn currentTurn = Player1Turn();
@@ -311,7 +311,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
         }
     }
 
-    [Test]
+    [Test, Description("The persisted half of a mid-round hand-over: both participants and the queue's turn clock are updated.")]
     public async Task ShouldMarkParticipantTurnCompletedInDbWhenForceEndNotLastTurn()
     {
         CurrentCampaignTurn currentTurn = Player1Turn();
@@ -348,7 +348,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
         }
     }
 
-    [Test]
+    [Test, Description("If who-plays-next cannot be resolved the turn is left alone, rather than leaving the queue with nobody active.")]
     public async Task ShouldFailWhenGetNextCampaignTurnFailsDuringForceEnd()
     {
         CurrentCampaignTurn currentTurn = Player1Turn();
@@ -385,7 +385,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
             .ExecuteUpdateAsync(s => s.SetProperty(p => p.Status, TurnQueueParticipantStatus.TakingTurn));
     }
 
-    [Test]
+    [Test, Description("The last player force-ending closes the round too, rolling the queue over to a new one.")]
     public async Task ShouldSucceedWithRoundEndedWhenForceEndLastTurnInRound()
     {
         await ArrangePlayer2TakingTurnAsync();
@@ -415,7 +415,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
         }
     }
 
-    [Test]
+    [Test, Description("The persisted half of a round rollover: the new round's first player is active and the turn clock restarts.")]
     public async Task ShouldUpdateDbCorrectlyWhenForceEndLastTurnInRound()
     {
         await ArrangePlayer2TakingTurnAsync();
@@ -457,7 +457,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
         }
     }
 
-    [Test]
+    [Test, Description("A round is not rolled over when its opening player cannot be resolved, which would leave the game unplayable.")]
     public async Task ShouldFailWhenGetFirstCampaignTurnFailsDuringForceEndLastTurn()
     {
         await ArrangePlayer2TakingTurnAsync();
@@ -476,7 +476,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
         Assert.That(result.HasSucceeded, Is.False, "Should fail when GetFirstCampaignTurnAsync fails.");
     }
 
-    [Test]
+    [Test, Description("The second lookup in a rollover can fail after the first succeeded, so it is guarded separately.")]
     public async Task ShouldFailWhenGetNextCampaignTurnForNewRoundFailsDuringForceEndLastTurn()
     {
         await ArrangePlayer2TakingTurnAsync();

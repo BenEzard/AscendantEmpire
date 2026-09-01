@@ -20,7 +20,7 @@ public class GetCurrentRoundNumberTests : CampaignTurnServiceTestBase
     /// <summary>
     /// With no Campaign TurnQueue for the game at all, the lookup should yield the <c>0</c> sentinel rather than throw or fault.
     /// </summary>
-    [Test]
+    [Test, Description("No Campaign queue yields the 0 sentinel rather than throwing; callers treat this lookup as always-answerable.")]
     public async Task ShouldReturnZeroWhenNoCampaignTurnQueueExists()
     {
         int gameId = await SeedGameWithPlayersAsync(_numberOfPlayers);
@@ -35,7 +35,7 @@ public class GetCurrentRoundNumberTests : CampaignTurnServiceTestBase
     /// (both seeded as <see cref="TurnQueueParticipantStatus.Pending"/>) — this is exactly the case where
     /// <c>GetCurrentCampaignTurnAsync</c> would return NotFound.
     /// </summary>
-    [Test]
+    [Test, Description("The round number belongs to the queue, not to whoever is mid-turn, so all-Pending still answers it.")]
     public async Task ShouldReturnRoundNumberWhenActiveQueueExistsWithNoParticipantTakingTurn()
     {
         int gameId = await SeedGameWithPlayersAsync(_numberOfPlayers);
@@ -52,7 +52,7 @@ public class GetCurrentRoundNumberTests : CampaignTurnServiceTestBase
     /// A completed Campaign TurnQueue is not "active", so it should be excluded and the lookup fall back to <c>0</c> —
     /// this guards the <c>!q.IsCompleted</c> filter.
     /// </summary>
-    [Test]
+    [Test, Description("Guards the IsCompleted filter: a finished queue still holds a plausible round number that must not be reported.")]
     public async Task ShouldReturnZeroWhenOnlyQueueIsCompleted()
     {
         int gameId = await SeedGameWithPlayersAsync(_numberOfPlayers);

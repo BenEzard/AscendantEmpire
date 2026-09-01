@@ -63,6 +63,19 @@ internal class UpdateCampaignMapTilesHandler(
 
             DTCampaignMapGalleryIndex index = validationResult.SuccessValue.Index;
 
+            // A paint that would strand an authored start position on water, untraversable ground or impassable geography is refused outright rather
+            // than silently invalidating it. Checked here so it covers all three write paths below.
+            ServiceResultBase startPositionCheck = await ValidateStartPositionsRemainValidAsync(
+                request: request,
+                loaded: validationResult.SuccessValue,
+                mutatedGeographyType: mutatedGeographyType,
+                cancellationToken: cancellationToken);
+
+            if (startPositionCheck.HasSucceeded == false)
+            {
+                return ServiceResult<int, IReadOnlyCollection<TileUpdateFail>?>.Fail(startPositionCheck.Errors);
+            }
+
             EnhancedCoord[] enhancedCoordinates = MapMethods.EnhanceCoordinates(index.CampaignMapOffsetId, index.Width, request.Coordinates);
 
             int[] dbIds = [.. enhancedCoordinates.Select(ec => ec.DbId)];
@@ -331,6 +344,96 @@ internal class UpdateCampaignMapTilesHandler(
             Geographies = geographies
         });
     }
+
+    /// <summary>
+    /// Refuses a paint that would leave an authored start position sitting on terrain it is not allowed to occupy.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A start position must be on a non-water, traversable Biome whose Geography is passable — the same rule
+    /// <see cref="PutCampaignMapStartPositionsHandler"/> enforces when the position is first placed. Without this check the Map Editor could paint
+    /// Ocean or Mountainous straight over an existing start position and quietly invalidate it.
+    /// </para>
+    /// <para>
+    /// The whole request is rejected rather than the individual Tiles skipped, so a brush stroke never partially lands and leaves the author guessing
+    /// which Tiles took. The author moves the start position first, then paints.
+    /// </para>
+    /// <para>
+    /// The database is only queried when the incoming Biome or Geography is actually hostile to a start position, which is the uncommon case.
+    /// </para>
+    /// </remarks>
+    /// <returns>A success result when the paint is safe; otherwise a failure naming the start positions that block it.</returns>
+    private async Task<ServiceResultBase> ValidateStartPositionsRemainValidAsync(
+        UpdateCampaignMapTilesRequest request,
+        DTLoadedData loaded,
+        CampaignMapGeographyType? mutatedGeographyType,
+        CancellationToken cancellationToken)
+    {
+        List<string> reasons = [];
+
+        if (request.BiomeType is not null)
+        {
+            CampaignMapBiome requestBiome = loaded.Biomes.First(b => b.BiomeType == request.BiomeType);
+            if (requestBiome.IsWater || requestBiome.IsTraversable == false)
+            {
+                reasons.Add($"Biome '{requestBiome.Name}' cannot hold a start position");
+            }
+        }
+
+        if (mutatedGeographyType is not null)
+        {
+            CampaignMapGeography requestGeography = loaded.Geographies.First(g => g.CampaignMapGeographyType == mutatedGeographyType);
+            if (requestGeography.MovementCost >= CampaignGeography.IMPASSABLE_MOVEMENT_COST)
+            {
+                reasons.Add($"Geography '{requestGeography.Name}' is impassable and cannot hold a start position");
+            }
+        }
+
+        // Nothing being painted is hostile to a start position, so there is no need to load them.
+        if (reasons.Count == 0)
+        {
+            return SuccessNoContent();
+        }
+
+        HashSet<(int XCoord, int YCoord)> paintedCoordinates = [.. request.Coordinates.Select(c => (c.X, c.Y))];
+
+        int[] xCoords = [.. paintedCoordinates.Select(c => c.XCoord).Distinct()];
+        int[] yCoords = [.. paintedCoordinates.Select(c => c.YCoord).Distinct()];
+
+        // The x/y pair of IN clauses matches a bounding box rather than the brush shape, so the results are narrowed to the exact painted coordinates
+        // below.
+        List<StartPositionCoordinate> startPositionsInBoundingBox = await context.CampaignMapStartPositions
+            .AsNoTracking()
+            .Where(sp => sp.CampaignMapGalleryIndexId == request.CampaignMapGalleryIndexId)
+            .Where(sp => xCoords.Contains(sp.XCoord) && yCoords.Contains(sp.YCoord))
+            .Select(sp => new StartPositionCoordinate(sp.XCoord, sp.YCoord, sp.DisplayName))
+            .ToListAsync(cancellationToken);
+
+        StartPositionCoordinate[] blockingStartPositions = [.. startPositionsInBoundingBox
+            .Where(sp => paintedCoordinates.Contains((sp.XCoord, sp.YCoord)))
+            .OrderBy(sp => sp.YCoord)
+            .ThenBy(sp => sp.XCoord)];
+
+        if (blockingStartPositions.Length == 0)
+        {
+            return SuccessNoContent();
+        }
+
+        string affected = string.Join(", ", blockingStartPositions.Select(sp => string.IsNullOrWhiteSpace(sp.DisplayName)
+            ? $"({sp.XCoord}, {sp.YCoord})"
+            : $"{sp.DisplayName} ({sp.XCoord}, {sp.YCoord})"));
+
+        string reason = string.Join(" and ", reasons);
+
+        return ServiceResult.Fail(
+            $"{reason}, and this paint covers {(blockingStartPositions.Length == 1 ? "a start position" : "start positions")} at {affected}. " +
+            "Move or remove them before painting these tiles.");
+    }
+
+    /// <summary>
+    /// A start position reduced to the coordinate and label needed to report a paint clash.
+    /// </summary>
+    private sealed record StartPositionCoordinate(int XCoord, int YCoord, string? DisplayName);
 
     /// <summary>
     /// Validates whether the specified biome and geography can be combined for use on a Campaign Map.

@@ -58,7 +58,7 @@ public class CreateBattleTurnQueueRequestValidatorTests
         }
     }
 
-    [Test]
+    [Test, Description("An empty player list would build a turn queue that can never advance, so the validator rejects it.")]
     public void ShouldFailWhenPlayerIdsInTurnOrderIsEmpty()
     {
         CreateBattleTurnQueueRequest request = ValidRequest() with { PlayerIdsInTurnOrder = [] };
@@ -72,7 +72,7 @@ public class CreateBattleTurnQueueRequestValidatorTests
         }
     }
 
-    [Test]
+    [Test, Description("The list is a turn order, so a repeated player id would hand somebody two turns per round.")]
     public void ShouldFailWhenPlayerIdsInTurnOrderContainsDuplicates()
     {
         // Player Id 1 appears twice — violates the Distinct check.
@@ -87,7 +87,7 @@ public class CreateBattleTurnQueueRequestValidatorTests
         }
     }
 
-    [Test]
+    [Test, Description("The positive control: without it, a rule made accidentally unsatisfiable would still pass every test above.")]
     public void ShouldSucceedWhenRequestIsValid()
     {
         CreateBattleTurnQueueRequest request = ValidRequest();

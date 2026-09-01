@@ -35,7 +35,7 @@ public class GetCurrentCampaignTurnTests : CampaignTurnServiceTestBase
     /// <summary>
     /// When there is no Campaign TurnQueue for the game at all, the service should return <c>NotFound</c>.
     /// </summary>
-    [Test]
+    [Test, Description("No Campaign queue answers NotFound, not a default-valued turn a caller could mistake for round zero.")]
     public async Task ShouldReturnNotFoundWhenNoTurnQueueExists()
     {
         int gameId = await SeedGameWithPlayersAsync(_numberOfPlayers);
@@ -50,7 +50,7 @@ public class GetCurrentCampaignTurnTests : CampaignTurnServiceTestBase
     /// When a Campaign TurnQueue exists but no participant has <see cref="TurnQueueParticipantStatus.TakingTurn"/> status
     /// (e.g. all are still <see cref="TurnQueueParticipantStatus.Pending"/>), the service should return <c>NotFound</c>.
     /// </summary>
-    [Test]
+    [Test, Description("A queue with nobody yet TakingTurn is a resting state, but still has no current turn to report.")]
     public async Task ShouldReturnNotFoundWhenNoParticipantIsTakingTurn()
     {
         int gameId = await SeedGameWithPlayersAsync(_numberOfPlayers);
@@ -68,7 +68,7 @@ public class GetCurrentCampaignTurnTests : CampaignTurnServiceTestBase
     /// <summary>
     /// When exactly one participant has <see cref="TurnQueueParticipantStatus.TakingTurn"/> status and is active in the lane, the service should return its details.
     /// </summary>
-    [Test]
+    [Test, Description("The ordinary case, and the positive control for the NotFound tests above: one participant is TakingTurn.")]
     public async Task ShouldReturnCurrentTurnWhenOneParticipantIsTakingTurn()
     {
         int gameId = await SeedGameWithPlayersAsync(_numberOfPlayers);
@@ -89,7 +89,7 @@ public class GetCurrentCampaignTurnTests : CampaignTurnServiceTestBase
     /// When the active participant is the last in the round (highest TurnOrder among active participants),
     /// <see cref="CurrentCampaignTurn.IsLastTurnInRound"/> should be <c>true</c>.
     /// </summary>
-    [Test]
+    [Test, Description("IsLastTurnInRound decides whether ending this turn ends the round, so the highest active turn order sets it.")]
     public async Task ShouldSetIsLastTurnInRoundTrueForHighestTurnOrderParticipant()
     {
         int gameId = await SeedGameWithPlayersAsync(_numberOfPlayers);
@@ -109,7 +109,7 @@ public class GetCurrentCampaignTurnTests : CampaignTurnServiceTestBase
     /// <summary>
     /// When the active participant is not the last in the round, <see cref="CurrentCampaignTurn.IsLastTurnInRound"/> should be <c>false</c>.
     /// </summary>
-    [Test]
+    [Test, Description("The negative half of the flag, paired with the test above so one hard-coded either way is caught.")]
     public async Task ShouldSetIsLastTurnInRoundFalseForNonHighestTurnOrderParticipant()
     {
         int gameId = await SeedGameWithPlayersAsync(_numberOfPlayers);

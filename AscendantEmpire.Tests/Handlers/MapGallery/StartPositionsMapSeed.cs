@@ -16,7 +16,7 @@ namespace AscendantEmpire.Tests.Handlers.MapGallery;
 internal static class StartPositionsMapSeed
 {
     /// <summary>
-    /// Adds a Grassland and an Ocean biome, a Flat geography, and a complete 2×2 all-Grassland map.
+    /// Adds a Grassland and an Ocean biome, a Flat and a Mountainous geography, and a complete 2×2 all-Grassland, all-Flat map.
     /// </summary>
     /// <returns>The Id of the seeded <see cref="CampaignMapGalleryIndex"/>.</returns>
     public static async Task<int> SeedAsync(IDbContextFactory<AscendantEmpireContext> dbFactory)
@@ -52,15 +52,26 @@ internal static class StartPositionsMapSeed
                 CanBeElevated = false
             });
 
-        context.CampaignGeographies.Add(new CampaignGeography
-        {
-            CampaignMapGeographyTypeId = CampaignMapGeographyType.Flat,
-            Name = "Flat",
-            RelativeElevation = 0,
-            MovementCost = 1.0m,
-            MapEditorIcon = null,
-            IsPaintableOnCampaignMap = true
-        });
+        context.CampaignGeographies.AddRange(
+            new CampaignGeography
+            {
+                CampaignMapGeographyTypeId = CampaignMapGeographyType.Flat,
+                Name = "Flat",
+                RelativeElevation = 0,
+                MovementCost = 1.0m,
+                MapEditorIcon = null,
+                IsPaintableOnCampaignMap = true
+            },
+            // Present so a write test can flip a tile to impassable geography and prove the handler rejects it. 999 mirrors the seeded Mountainous cost.
+            new CampaignGeography
+            {
+                CampaignMapGeographyTypeId = CampaignMapGeographyType.Mountainous,
+                Name = "Mountainous",
+                RelativeElevation = 2,
+                MovementCost = 999m,
+                MapEditorIcon = "Mountain",
+                IsPaintableOnCampaignMap = true
+            });
 
         CampaignMapGalleryIndex map = new()
         {

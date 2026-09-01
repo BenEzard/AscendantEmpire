@@ -34,7 +34,7 @@ public class CreateCampaignTurnQueueTests : GameSqlServerTestBase
     /// A successful game setup must create exactly one Campaign <see cref="TurnQueue"/> with one <see cref="TurnQueueParticipant"/> per Player, 
     /// each assigned a unique, sequential <see cref="TurnQueueParticipant.TurnOrder"/> value starting at 1, all in <see cref="TurnQueueParticipantStatus.Pending"/> status and active in the lane.
     /// </summary>
-    [Test]
+    [Test, Description("Setup builds one queue with a Pending participant per player and TurnOrder 1..N, no gaps or duplicates.")]
     public async Task ShouldCreateCampaignTurnQueueSuccesfullyAsync()
     {
         SetupGameRequest request = new(GalleryMapId: _galleryIndexId, GameName: "Queue Test Game", NumberOfPlayers: _numberOfPlayers, BattleMapSize: 50, GenerationSeed: null);
@@ -80,7 +80,7 @@ public class CreateCampaignTurnQueueTests : GameSqlServerTestBase
     /// After a successful game setup, <c>CompleteGameSetupAsync</c> sets <see cref="TurnQueue.CurrentTurnStartAt"/> and <see cref="TurnQueue.CurrentScheduledTurnEndAt"/> on the queue, 
     /// confirming the queue returned by <c>CreateCampaignTurnQueueAsync</c> was persisted and then updated by the subsequent step.
     /// </summary>
-    [Test]
+    [Test, Description("Setup starts the first turn as well as building the queue, stamping a start and a later scheduled end.")]
     public async Task SuccessfulGameSetupShouldStartTheTurnAsync()
     {
         SetupGameRequest request = new(GalleryMapId: _galleryIndexId, GameName: "Queue Times Test", NumberOfPlayers: _numberOfPlayers, BattleMapSize: 50, GenerationSeed: null);
@@ -108,7 +108,7 @@ public class CreateCampaignTurnQueueTests : GameSqlServerTestBase
     /// <summary>
     /// The participant with <see cref="TurnQueueParticipant.TurnOrder"/> = 1 must correspond to an actual Player that was added to the game, confirming the player IDs are wired correctly in the queue.
     /// </summary>
-    [Test]
+    [Test, Description("TurnOrder 1 points at a Player of this game; participants and players are created in separate steps.")]
     public async Task ShouldWireFirstParticipantToPlayerCorrectlyAsync()
     {
         SetupGameRequest request = new(GalleryMapId: _galleryIndexId, GameName: "First Player Test", NumberOfPlayers: _numberOfPlayers, BattleMapSize: 50, GenerationSeed: null);
@@ -148,7 +148,7 @@ public class CreateCampaignTurnQueueTests : GameSqlServerTestBase
     /// A custom <see cref="IDbContextFactory{AscendantEmpireContext}"/> intercepts the second <c>CreateDbContextAsync</c> call (used by <c>SetupGameAsync</c> internally) to seed the 
     /// duplicate queue transparently mid-execution.
     /// </summary>
-    [Test]
+    [Test, Description("A game may hold only one Campaign queue, so a duplicate appearing mid-setup fails rather than adding a second.")]
     public async Task ShouldFailIfCampaignQueueAlreadyExistsAsync()
     {
         // Seed the GameIndex and Players that SetupGameAsync would normally create itself, so we have a valid gameId to attach the pre-existing TurnQueue to.

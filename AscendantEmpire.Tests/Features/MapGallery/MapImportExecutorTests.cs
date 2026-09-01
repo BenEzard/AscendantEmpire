@@ -43,7 +43,7 @@ internal sealed class MapImportExecutorTests : SqlServerTestBase
         }
     }
 
-    [Test]
+    [Test, Description("A full round trip through a real zip: the copy is renamed, tile ids reallocated, and a preview render queued.")]
     public async Task ExecuteAsync_RoundTrip_RecreatesMapUnderAUniqueNameAsync()
     {
         // Arrange: seed a source map and export it to a real zip via the exporter.
@@ -112,7 +112,7 @@ internal sealed class MapImportExecutorTests : SqlServerTestBase
         Assert.That(renderQueued, Is.True, "Import should enqueue a preview-render job for the new map.");
     }
 
-    [Test]
+    [Test, Description("An import brings its missing biomes with it, scaling the whole-number forage value the export carries.")]
     public async Task ExecuteAsync_InsertsMissingBiomeWithScaledBaseValuesAsync()
     {
         // Arrange: a hand-crafted export referencing a biome/geography absent from the (empty) database.
@@ -147,7 +147,7 @@ internal sealed class MapImportExecutorTests : SqlServerTestBase
         Assert.That(tiles.Any(t => t.XCoord == 1 && t.YCoord == 1), Is.True);
     }
 
-    [Test]
+    [Test, Description("Biomes are shared catalogue rows, so import fills gaps only and never overwrites a local definition.")]
     public async Task ExecuteAsync_LeavesExistingBiomeUntouchedAsync()
     {
         // Arrange: seed a Grassland biome whose forage value differs from the imported one.

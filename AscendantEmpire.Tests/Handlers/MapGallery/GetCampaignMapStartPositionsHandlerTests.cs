@@ -27,7 +27,7 @@ internal class GetCampaignMapStartPositionsHandlerTests : InMemoryTestBase
         _mapId = await StartPositionsMapSeed.SeedAsync(DbFactory);
     }
 
-    [Test]
+    [Test, Description("A missing map answers NotFound, so the caller can tell it apart from a map with no start positions yet.")]
     public async Task GetShouldReturnNotFoundForMissingMapAsync()
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
@@ -39,7 +39,7 @@ internal class GetCampaignMapStartPositionsHandlerTests : InMemoryTestBase
         Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.NotFound));
     }
 
-    [Test]
+    [Test, Description("Results come back in reading order; the rows are seeded out of order so insert order cannot supply it.")]
     public async Task GetShouldReturnOrderedResultsAsync()
     {
         await using (AscendantEmpireContext seedContext = await DbFactory.CreateDbContextAsync())
