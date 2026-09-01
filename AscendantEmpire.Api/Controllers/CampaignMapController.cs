@@ -84,7 +84,8 @@ public class CampaignMapController : ControllerBase
                             UnitTemplateId = t.UnitTemplateId,
                             HealthyTroops = t.HealthyTroops,
                             InjuredTroops = t.InjuredTroops,
-                            InitialStrength = t.InitialStrength
+                            InitialStrength = t.InitialStrength,
+                            HasMovementRemaining = t.HasMovementRemaining
                         }) ?? []]
                     }).ToList()
                 }).ToList()

@@ -1,5 +1,24 @@
 @import "tailwindcss";
 
+/* Selection — the identity colour of "this is the thing you have chosen", used app-wide.
+   See docs/look-and-feel.md.
+
+   Declared in @theme rather than :root because that is what makes Tailwind generate matching utilities
+   (border-selection, bg-selection-tint/18, accent-selection, ...) alongside the custom properties. The app styles in
+   both worlds — hand-written rules in this file, utilities in .tsx — and a token has to serve both.
+
+   Three steps rather than one because a selected surface needs an edge and a fill, and those want different weights
+   of the same hue. Density is chosen at the call site: a 50px tile and a full-width nav row need different amounts
+   of the same colour to read as equally selected.
+
+   Note these are Tailwind v3's yellow values, which is why the tokens exist. v4 renumbered the palette, so
+   `border-yellow-500` is NOT this colour — always reach for `selection`, never `yellow-*`. */
+@theme {
+  --color-selection: #eab308; /* Edges, rings, accents, checkboxes. */
+  --color-selection-tint: #fde047; /* The fill wash across a selected surface. */
+  --color-selection-wash: #fefce8; /* The near-white base a selected surface sits on. */
+}
+
 .nav-item-selected {
   background-color: var(--nav-selected-bg);
 }
@@ -216,16 +235,36 @@ body {
   overflow: hidden; /* optional, keeps icon inside */
 }
 
-.command-toolbox {
+/* The bottom-centre dock. The context action toolbar and the force selection bar stack in this column, so the bar
+   sits under the toolbar without either needing to know the other's height — the toolbar grows and shrinks with its
+   action count, so a hard-coded offset on the lower bar would drift.
+   pointer-events is lifted off the column itself and restored on its children, so the gap between the two bars
+   doesn't swallow clicks meant for the map underneath. */
+.command-dock {
   position: fixed;
   left: 50%;
   bottom: 16px;
   transform: translateX(-50%);
   z-index: 1060;
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.command-dock > * {
+  pointer-events: auto;
+}
+
+/* Positioned by .command-dock, not by itself — this rule is chrome only. */
+.command-toolbox {
+  display: flex;
   align-items: stretch;
   gap: 10px;
-  padding: 10px 14px;
+  /* Minimal all round, matching the force selection bar docked beneath it — the action buttons carry their own
+     padding and border, so the bar's own was mostly slack. */
+  padding: 2px;
   border: 1px solid rgba(15, 23, 42, 0.15);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.96);
@@ -233,14 +272,14 @@ body {
   backdrop-filter: blur(8px);
 }
 
+/* Icon only, so the button is a small square tile rather than the wide two-row slab it used to be. The name of the
+   action lives in the tooltip; keeping it off the button is what makes the bar short, and the bar's height comes
+   straight off the map. */
 .command-toolbox__action {
   display: inline-flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-width: 88px;
-  padding: 8px 10px;
+  padding: 4px 6px;
   border: 1px solid rgba(148, 163, 184, 0.45);
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(226, 232, 240, 0.92));
@@ -283,10 +322,109 @@ body {
   line-height: 1;
 }
 
-.command-toolbox__label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  white-space: nowrap;
+/* The bar of the player's forces on the selected tile, docked under the context action toolbar.
+   Shares the toolbar's chrome so the two read as one stacked unit. */
+.force-selection-toolbar {
+  display: flex;
+  /* One row, always. Wrapping would grow the dock upward over the map and shove the toolbar around as the force
+     count changed; scrolling keeps the dock a fixed height whatever the tile holds. */
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 8px;
+  /* Minimal all round. The two bars stack, so vertical pixels come off the map twice over, and each entry already
+     carries its own padding and border — the bar's own was mostly slack. Note this is less clearance than the
+     14px border radius, so the first and last entries sit close to the rounded corners by design. */
+  padding: 2px;
+  max-width: min(90vw, 900px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain; /* Don't chain the scroll out to the map behind once the bar hits its end. */
+  scrollbar-width: thin;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(8px);
+}
+
+.force-selection-toolbar__force {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px; /* Checkbox to button. */
+  flex: 0 0 auto; /* Entries keep their size rather than being squeezed as more forces arrive. */
+}
+
+.force-selection-toolbar__checkbox {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--color-selection);
+}
+
+.force-selection-toolbar__button {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px; /* Marker to troop count. The count reads as a caption on the image, so it wants to sit close to it. */
+  /* Asymmetric on purpose: the marker is already inset within its own box, so vertical padding here is mostly
+     wasted, while the horizontal padding is what keeps the border off the unit art. */
+  padding: 3px 6px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.98), rgba(226, 232, 240, 0.92));
+  color: #0f172a;
+  cursor: pointer;
+}
+
+/* The yellow is kept deliberately light here. The action toolbar's buttons hold a flat icon that a strong tint can
+   sit behind; these hold unit art, where the same strength reads as clutter and fights the art for attention.
+   Enough to pick the selected entry out, not enough to shout. */
+.force-selection-toolbar__button:hover {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-selection-wash) 98%, transparent),
+    color-mix(in srgb, var(--color-selection-tint) 12%, transparent)
+  );
+  border-color: color-mix(in srgb, var(--color-selection) 40%, transparent);
+}
+
+.force-selection-toolbar__button[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--color-selection) 55%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-selection-wash) 98%, transparent),
+    color-mix(in srgb, var(--color-selection-tint) 18%, transparent)
+  );
+}
+
+/* ObservedForce is position: absolute; inset: 8%, so it needs a sized, relative box to sit in. The box is sized
+   inline to TILE_SIZE_PX by the component — see the comment there for why. ObservedForce's own rules are
+   deliberately NOT overridden here: leaving them alone is what makes the unit render at map size. */
+.force-selection-toolbar__marker {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+}
+
+/* A force with no campaign movement left this turn.
+   This borrows the look of .command-toolbox__action:disabled but deliberately NOT its pointer-events: none. A spent
+   force is not disabled — the player still has to be able to click it to select it, not least to interrupt whatever
+   orders it is already carrying out. The fade says "can't move", not "can't touch". */
+.force-selection-toolbar__marker--spent {
+  filter: grayscale(1);
+  opacity: 0.5;
+}
+
+.force-selection-toolbar__troops {
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1;
+  color: #475569;
+  /* Pulled up into the marker box. Its bottom ~5px is transparent — ObservedForce's 8% inset plus the letterboxing
+     object-fit leaves under a square sprite — so without this the count floats away from the image it captions.
+     Overlapping into empty pixels rather than shrinking the box, because the box has to stay a tile for the unit
+     to render at map size. */
+  margin-top: -5px;
 }

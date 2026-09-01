@@ -32,4 +32,13 @@ public record ObservedForce
     /// The total number of Forces when it was first created.
     /// </summary>
     public int InitialStrength { get; init; }
+
+    /// <summary>
+    /// Whether this Force still has campaign movement left this turn, or <c>null</c> when the observing player does not own it.
+    /// </summary>
+    /// <remarks>
+    /// Masked for Forces the observer doesn't own. This projection covers every Force on a seen tile, so an unmasked value would tell the player how much
+    /// movement an enemy has left — intel the vision rules never granted. The context-action pipeline refuses enemy Forces for the same reason.
+    /// </remarks>
+    public bool? HasMovementRemaining { get; init; }
 }

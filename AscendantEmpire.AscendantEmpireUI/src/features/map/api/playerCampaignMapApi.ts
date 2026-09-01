@@ -46,6 +46,7 @@ export type ObservedForceDto = {
   injuredTroops: number;
   initialStrength: number;
   unitTemplateId: number;
+  hasMovementRemaining: boolean;
 };
 
 type ObservedStructureWireDto = Partial<{
@@ -65,6 +66,9 @@ type ObservedForceWireDto = Partial<{
   healthyTroops: number;
   injuredTroops: number;
   initialStrength: number;
+  // Nullable on the wire: the API masks it for forces the player doesn't own, rather than telling them how much
+  // movement an enemy has left.
+  hasMovementRemaining: boolean | null;
 }>;
 
 type CampaignMapTileWireDto = Partial<{
@@ -125,6 +129,9 @@ function normalizeObservedForce(force: ObservedForceWireDto): ObservedForceDto {
     healthyTroops: force.healthyTroops ?? 0,
     injuredTroops: force.injuredTroops ?? 0,
     initialStrength: force.initialStrength ?? 0,
+    // Defaults to true, unlike the zero-defaults above. A masked (or simply absent) value means "we aren't told",
+    // and the UI fades a force that has spent its movement — so guessing false would fade forces on no evidence.
+    hasMovementRemaining: force.hasMovementRemaining ?? true,
   };
 }
 
@@ -196,6 +203,7 @@ function logForceTable(response: PlayerCampaignMapResponseDto): void {
         healthyTroops: force.healthyTroops,
         injuredTroops: force.injuredTroops,
         initialStrength: force.initialStrength,
+        hasMovementRemaining: force.hasMovementRemaining,
       })),
     ),
   );

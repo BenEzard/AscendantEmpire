@@ -3,6 +3,7 @@ import Tooltip from "@/components/ui/Tooltip";
 
 export interface ContextActionToolbarAction {
   key: string;
+  /** The action's name. Not drawn on the button — it reaches the player through the tooltip and the aria-label. */
   label: string;
   icon: ReactNode;
   /** Where this action sits in the toolbar. The toolbar renders in ascending order. */
@@ -58,10 +59,11 @@ export default function ContextActionToolbar({ visible, actions }: ContextAction
             // full tooltip text keeps the explanation available to a screen reader too, not just on hover.
             aria-label={buildTooltip(action)}
           >
+            {/* Icon only. The label isn't rendered — it would double the toolbar's height for a caption the tooltip
+                and the aria-label already carry, and vertical pixels here come straight off the map. */}
             <span className="command-toolbox__icon" aria-hidden>
               {action.icon}
             </span>
-            <span className="command-toolbox__label">{action.label}</span>
           </button>
         </Tooltip>
       ))}

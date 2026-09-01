@@ -16,6 +16,7 @@ time; **TM-2** is the first slice, delivering the pipeline plus a single action 
 | 3 | `GET /force-orders/units/{id}/actions` — contracts and endpoint | TM-2 | **Done** |
 | 4 | Frontend — api module, query hook, action registry, disabled rendering, `useForceSelection` wiring | TM-2 | **Done** |
 | 5 | Executing the split — split handler, options endpoint and parameter dialog | TM-4 | Not started |
+| 6 | Replace the "Select Force" dialog with the always-visible force selection bar | TM-5 | **Done** — see [force-selection-toolbar.md](force-selection-toolbar.md) |
 
 Stage 5 is deliberately **not** part of TM-2. TM-2 delivers the toolbar and the pipeline behind it; the
 button that opens the split dialog currently raises a toast saying the dialog is not built yet. See
@@ -43,6 +44,11 @@ is a presenter over `{key, label, icon, onClick}`. Every decision lives in
 which hard-codes two actions client-side: "Select Force" (a pure UI affordance that reopens the
 multi-Force dialog) and "Hunt", parked behind `const canHunt = false`. There is no concept of a
 *disabled* action — the toolbar renders exactly what it is handed.
+
+> **Since TM-5:** the toolbar has no client-side actions left. "Select Force" was replaced by the
+> [force selection bar](force-selection-toolbar.md), which is always visible when a tile holds several
+> of the player's Forces, and "Hunt" was already gone. Every action on the toolbar now comes from the
+> backend.
 
 **Backend.** No Force-action concept exists yet, but one foundation is already in place:
 `CompiledUnitTemplate.OrganisationTagId` resolves the military organisation tag at compile time
@@ -104,8 +110,9 @@ between the two enums, so no one is tempted to cast one to the other.
 
 Values are spaced in hundreds, as `ForceOrderType`'s are, and **double as the static display order**
 the ticket requires — so ordering cannot drift with DI registration order. A low band is reserved for
-frontend-only affordances such as "Select Force", which the backend never emits but which still need a
-stable slot in the same sequence:
+frontend-only affordances — actions with no backend rule behind them that still need a stable slot in
+the same sequence. The backend never emits a value from it. (TM-5 removed the only occupant the band
+has ever had; the reservation stands for the next one.)
 
 ```
 None        = 0
@@ -201,8 +208,13 @@ ever written the column; the migration carries a comment saying so.
 `MovementPointsRemaining` is **never written anywhere**: it is not set on spawn (`SpawnUnitHandler`
 omits it) and nothing replenishes it at turn rollover, so every Force reads `0`. Until that is fixed,
 the third split rule cannot distinguish "fresh" from "spent". Initialising on spawn and resetting at
-end of turn are **deferred to a later ticket**; values are adjusted directly in the database for
+end of turn are **deferred to a later ticket** (TM-3); values are adjusted directly in the database for
 testing in the meantime.
+
+Since TM-5 this gap has a second, louder symptom. The
+[force selection bar](force-selection-toolbar.md) fades a Force with no movement left, and it reports
+the column honestly, so **every Force in the bar renders greyed out** until TM-3 lands. That was a
+deliberate choice over faking the value: the fade follows the data rather than hiding the gap.
 
 ## Frontend design
 
@@ -229,18 +241,35 @@ The frontend keeps **one registry keyed by `actionType`** holding the icon, the 
 interaction to run. All three are presentation concerns the backend would otherwise have to know
 about — including the fact that Split cannot simply fire a request.
 
-The backend still sends `label` as a fallback, so a newly added action type renders sensibly before
-the frontend registry knows about it.
+The backend still sends `label` as a fallback name for an action type the registry doesn't know about
+yet. Note what that fallback does and doesn't cover now the buttons are icon-only: such an action still
+gets a correct tooltip and accessible name, but no icon, so it renders as an empty button. A new action
+type is usable but not recognisable until the registry knows it.
+
+### Icon-only buttons
+
+The button draws **the icon alone**. The label is never rendered as text — it reaches the player through
+the `Tooltip` on hover and through the button's `aria-label`, which is also what a screen reader
+announces.
+
+The toolbar floats over the campaign map, so its height is map the player can't see. Captioning every
+button cost a second row of text for a name the tooltip was already giving, and made each button a wide
+slab; dropping it roughly halves the bar's height. The tooltip is what carries the name, and it has to
+be there regardless — it is the only place the `disabledReasons` can go.
 
 ### Disabled rendering
 
 `ContextActionToolbar` gains a disabled state rather than filtering unavailable actions out: the
 button is non-interactive, its icon renders greyscale (`filter: grayscale(1)` plus reduced opacity),
-and its tooltip shows the `disabledReasons` instead of the label. This is the whole point of the
-backend returning reasons — the player learns *why* an action is unavailable without having to guess.
+and its tooltip appends the `disabledReasons` to the label. This is the whole point of the backend
+returning reasons — the player learns *why* an action is unavailable without having to guess.
 
-"Select Force" stays frontend-only, holds a reserved value from the enum's low band, and is merged
-into the same list at render time.
+The disabled button carries `pointer-events: none`. That looks backwards but is what makes the reasons
+reachable: browsers don't dispatch mouse events over a disabled button, so without it the `Tooltip`'s
+wrapping span never receives the `mouseenter` that shows the tooltip. Making the button transparent to
+hit-testing lets the span take the hover instead; the span also carries the `not-allowed` cursor for the
+same reason. The full tooltip text is duplicated into the button's `aria-label` because a disabled
+button isn't focusable and so can't announce its own reason.
 
 ### Splitting needs parameters
 
@@ -258,7 +287,9 @@ That work is Stage 5 and is expected to become its own ticket.
 | `SplitForceStrategy` | 1 — no database | 11 |
 | `ForceContextActionService` | 1 — no database | 8 — fake strategies; ordering, omission, fault isolation, re-validation |
 | `ForceActionContextBuilder` | 2 — in-memory | 10 |
-| `ContextActionToolbar` | Vitest | 5 — disabled rendering, reason text, ordering |
+| `ContextActionToolbar` | Vitest | 6 — disabled rendering, reason text, ordering, icon-only rendering |
+| `ForceSelectionToolbar` | Vitest | 12 — ordering, troop count, fade, clickability when spent, checkbox channel |
+| `useForceSelection` | Vitest | 6 — own-forces-only filtering, default selection, checked-set clearing |
 
 Keeping the rules pure is what confined the tier question to a single class — and that class turned out
 to sit on the in-memory tier after all. `CompiledUnitTemplate` owns EF complex types

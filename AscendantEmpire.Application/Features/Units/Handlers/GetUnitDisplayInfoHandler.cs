@@ -70,7 +70,8 @@ internal class GetUnitDisplayInfoHandler(
                 .Select(c => new UnitDisplayInfo
                 {
                     UnitTemplateId = c.UnitTemplateId,
-                    MapImagePath = c.MapImagePath
+                    MapImagePath = c.MapImagePath,
+                    DisplayName = c.DisplayName
                 })
                 .ToListAsync(cancelToken);
 

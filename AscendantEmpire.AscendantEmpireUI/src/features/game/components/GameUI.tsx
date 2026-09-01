@@ -16,7 +16,7 @@ import VisionSettingsOffcanvas from "./VisionSettingsOffcanvas";
 import { http } from "@/api/http";
 import { enterGame } from "@/features/auth/api/authApi";
 import ContextActionToolbar from "./ContextActionToolbar";
-import ForceSelectionDialog from "./ForceSelectionDialog";
+import ForceSelectionToolbar from "./ForceSelectionToolbar";
 import NotificationsHost from "@/features/notifications/NotificationsHost";
 import { NotificationsProvider } from "@/features/notifications/useNotifications";
 import NewGameDialog from "./NewGameDialog";
@@ -94,8 +94,18 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     sendVisionRequest,
   } = useVisionTool({ gameId, playerId, openToast });
 
-  const { selectedForce, forceSelectionTile, getVisibleForceId, closeForceSelectionDialog, chooseForce, onTileHold, selectForceFromTile, contextActionToolbarActions } =
-    useForceSelection({ gameId, playerId, openToast });
+  const {
+    selectedForce,
+    multiForceTile,
+    getVisibleForceId,
+    chooseForce,
+    onTileHold,
+    selectForceFromTile,
+    contextActionToolbarActions,
+    forceSelectionRequired,
+    checkedForceIds,
+    toggleForceChecked,
+  } = useForceSelection({ gameId, playerId, openToast });
 
   const construction = useConstructionPanel();
 
@@ -112,7 +122,9 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     isLoading: tilesLoading,
     isFetching: tilesFetching,
   } = usePlayerCampaignMapTilesQuery(gameId, playerId, tilesEnabled);
-  const { data: unitImageSrcByUnitTemplateId } = useUnitDisplayInfoQuery(gameId, gameId != null);
+  const { data: unitDisplayLookup } = useUnitDisplayInfoQuery(gameId, gameId != null);
+  const unitImageSrcByUnitTemplateId = unitDisplayLookup?.imageSrcByUnitTemplateId;
+  const unitNameByUnitTemplateId = unitDisplayLookup?.nameByUnitTemplateId;
 
   const tiles2d = useMemo(() => {
     if (!gameSelection || !tilesResponse) return null;
@@ -290,15 +302,6 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
           }}
         />
 
-        <ForceSelectionDialog
-          open={forceSelectionTile != null}
-          tile={forceSelectionTile}
-          selectedForceId={selectedForce?.id}
-          unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
-          onClose={closeForceSelectionDialog}
-          onSelect={chooseForce}
-        />
-
         <ResourceManagerDialog
           show={construction.showResourceManager}
           onClose={() => construction.setShowResourceManager(false)}
@@ -313,7 +316,25 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
 
         <MilitaryAdvisorDialog show={showMilitaryAdvisor} onClose={closeMilitaryAdvisor} />
 
-        <ContextActionToolbar visible={selectedForce != null && contextActionToolbarActions.length > 0} actions={contextActionToolbarActions} />
+        {/* Both bars stack in one fixed column, so the selection bar sits under the action toolbar without either
+            needing to know the other's height. Mounted only with a force selected — neither has anything to say
+            otherwise. */}
+        {selectedForce != null && (
+          <div className="command-dock">
+            <ContextActionToolbar visible={contextActionToolbarActions.length > 0} actions={contextActionToolbarActions} />
+            <ForceSelectionToolbar
+              visible={multiForceTile != null}
+              tile={multiForceTile}
+              selectedForceId={selectedForce.id}
+              unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
+              unitNameByUnitTemplateId={unitNameByUnitTemplateId}
+              selectionRequired={forceSelectionRequired}
+              checkedForceIds={checkedForceIds}
+              onSelect={chooseForce}
+              onCheckedChange={toggleForceChecked}
+            />
+          </div>
+        )}
 
         {toastElement}
 

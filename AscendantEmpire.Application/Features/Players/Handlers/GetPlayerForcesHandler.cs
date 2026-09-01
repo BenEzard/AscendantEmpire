@@ -87,7 +87,9 @@ internal class GetPlayerForcesHandler(
                     InjuredTroops = pu.InjuredCount,
                     InitialStrength = pu.InitialStrength,
                     UnitTemplateId = pu.UnitTemplateId,
-
+                    // Set for the same reason as the by-location projection: every PlayerForce should describe the Force fully, so a future caller of this
+                    // handler doesn't silently inherit a default false. Nothing writes MovementPointsRemaining yet (TM-3), so it reads false today.
+                    HasMovementRemaining = pu.MovementPointsRemaining > 0,
                 })
                 .ToListAsync(cancelToken);
 

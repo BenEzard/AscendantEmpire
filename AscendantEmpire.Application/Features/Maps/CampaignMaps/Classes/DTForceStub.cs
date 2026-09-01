@@ -12,4 +12,5 @@ public class DTForceStub : IForceStub
     public int InjuredTroops { get; set; }
     public int InitialStrength { get; set; }
     public int UnitTemplateId { get; set; }
+    public bool? HasMovementRemaining { get; set; }
 }

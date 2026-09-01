@@ -81,7 +81,10 @@ internal class GetForcesByLocationHandler(
                       InjuredTroops = pu.InjuredCount,
                       InitialStrength = pu.InitialStrength,
                       UnitTemplateId = pu.UnitTemplateId,
-
+                      // Nothing writes MovementPointsRemaining yet — not on spawn, not at turn rollover (TM-3) — so this reads false for every Force
+                      // today. Reported honestly rather than defaulted to true: the campaign map fades a Force with no movement left, and that fade
+                      // should follow the data rather than hide the gap.
+                      HasMovementRemaining = pu.MovementPointsRemaining > 0,
                   })
                   .ToListAsync(cancelToken);
 

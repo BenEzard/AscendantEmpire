@@ -33,16 +33,9 @@ const FORCE_ACTION_PRESENTATION: Partial<Record<ForceActionType, ForceActionPres
 /** Shown for an action type this build doesn't recognise, alongside the backend's own label. */
 const UNKNOWN_ACTION_ICON = <FaCircleQuestion />;
 
-/**
- * Display-order slots for actions that exist only on the frontend and have no backend rule behind them.
- *
- * These come from the band the C# ForceActionType enum reserves (1–999) and which the backend never emits, so
- * frontend-only affordances sort into the same sequence as the backend-driven ones without ever colliding.
- */
-export const FRONTEND_ONLY_ACTION_ORDER = {
-  /** Reopens the multi-force selection dialog. Sorts ahead of everything the backend sends. */
-  selectForce: 100,
-} as const;
+// The C# ForceActionType enum reserves a 1–999 band the backend never emits, for actions that exist only on the
+// frontend. There are none right now — "Select Force" was the last, and TM-5 replaced it with the always-visible
+// force selection bar — so there is no order table here. The enum keeps its reservation for the next one.
 
 /** The icon for an action type, falling back to a generic one when the type isn't recognised. */
 export function getForceActionIcon(actionType: ForceActionType): ReactNode {

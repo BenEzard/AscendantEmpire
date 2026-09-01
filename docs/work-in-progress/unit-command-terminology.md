@@ -394,6 +394,11 @@ were always counting individual soldiers.
 kind it is". That is the umbrella, and the frontend got there first. What changes is their *types*
 (`ObservedTroopTile` → `ObservedForceTile`), not their names.
 
+> **Superseded in part by TM-5.** `ForceSelectionDialog` and its `"Select Force at (x, y)"` title no longer exist —
+> the dialog was replaced by the always-visible `ForceSelectionToolbar` (see
+> [force-selection-toolbar.md](../design/units/force-selection-toolbar.md)). The naming judgement above still
+> holds; only those two examples of it are gone.
+
 ## Stage 5 — `TroopOrder*` → `ForceOrder*`
 
 An order targets a Force, so the family takes the umbrella word:

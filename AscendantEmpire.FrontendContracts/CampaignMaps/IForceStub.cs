@@ -16,4 +16,9 @@ public interface IForceStub
     public int InjuredTroops { get; }
     public int InitialStrength { get; set; }
     public int UnitTemplateId { get; }
+
+    /// <summary>
+    /// Whether this Force still has campaign movement left this turn, or <c>null</c> when the observing player does not own it.
+    /// </summary>
+    public bool? HasMovementRemaining { get; }
 }

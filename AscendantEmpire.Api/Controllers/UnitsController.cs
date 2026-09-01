@@ -89,7 +89,8 @@ public class UnitsController : ControllerBase
                 UnitDisplayInfo = contract.Select(t => new DTUnitDisplayInfo
                 {
                     UnitTemplateId = t.UnitTemplateId,
-                    MapImagePath = t.MapImagePath
+                    MapImagePath = t.MapImagePath,
+                    DisplayName = t.DisplayName
                 }).ToList() ?? []
             };
         });

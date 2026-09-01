@@ -237,6 +237,9 @@ internal class GetPlayerCampaignMapHandler(
                                     HealthyTroops = ot.HealthyTroops,
                                     InjuredTroops = ot.InjuredTroops,
                                     InitialStrength = ot.InitialStrength,
+                                    // Masked for Forces this player doesn't own: how much movement an enemy has left is intel the vision rules never
+                                    // granted. Seeing that a Force is standing there is one thing; knowing whether it can still act is another.
+                                    HasMovementRemaining = ot.PlayerId == thisPlayer.PlayerId ? ot.HasMovementRemaining : null,
                                 }).ToList() ?? []
                             };
                         })]

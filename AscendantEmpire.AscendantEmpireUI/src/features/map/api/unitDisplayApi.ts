@@ -3,11 +3,14 @@ import { http } from "@/api/http";
 export interface UnitDisplayInfoDto {
   unitTemplateId: number;
   mapImagePath: string;
+  // The template's name — "Settler", "Warrior". Not a name for any individual unit built from it.
+  displayName: string;
 }
 
 type UnitDisplayInfoWireDto = Partial<{
   unitTemplateId: number;
   mapImagePath: string;
+  displayName: string;
 }>;
 
 type UnitDisplayResponseWireDto = Partial<{
@@ -18,6 +21,7 @@ function normalizeUnitDisplayInfo(info: UnitDisplayInfoWireDto): UnitDisplayInfo
   return {
     unitTemplateId: info.unitTemplateId ?? 0,
     mapImagePath: info.mapImagePath ?? "",
+    displayName: info.displayName ?? "",
   };
 }
 

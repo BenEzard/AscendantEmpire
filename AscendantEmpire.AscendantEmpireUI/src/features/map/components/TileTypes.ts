@@ -13,6 +13,10 @@ export type ObservedForceTile = {
   healthyTroops: number;
   injuredTroops: number;
   initialStrength: number;
+
+  // Whether the force can still move this turn. The API masks this for forces the player doesn't own, and the
+  // normalizer turns that absence into true — nothing we can't see the movement of should be shown as spent.
+  hasMovementRemaining: boolean;
 };
 
 export type TileCell = {

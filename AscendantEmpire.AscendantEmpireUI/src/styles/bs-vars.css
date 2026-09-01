@@ -6,5 +6,11 @@
   --bs-warning: #ffc107;
   --bs-danger: #dc3545;
 
-  --nav-selected-bg: #fed7aa; /* orange-200 */
+  /* Selection is one colour app-wide — see docs/look-and-feel.md. Drives PagedDialog's page nav (so the Military
+     Advisor's Officer Class / Military Organisation tabs) and OfficerClassPage's movement domain tabs.
+     Denser than the fill a map tile gets: a full-width nav row needs more of the colour to read as equally
+     selected. Was orange-200, which predated the token and matched nothing else.
+     The token is declared in index.css's @theme; custom properties resolve where they are used rather than where
+     they are declared, so it does not matter which of these two files loads first. */
+  --nav-selected-bg: color-mix(in srgb, var(--color-selection-tint) 35%, transparent);
 }
