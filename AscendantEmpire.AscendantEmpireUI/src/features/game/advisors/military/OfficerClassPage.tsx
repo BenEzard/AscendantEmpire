@@ -202,7 +202,7 @@ const OfficerClassPage = forwardRef<MilitaryPageHandle>(function OfficerClassPag
       {isLoading ? (
         <p className="text-sm text-slate-500">Loading…</p>
       ) : (
-        <OfficerClassTable rows={rows} onChangeRow={handleChangeRow} onToggleInUse={handleToggleInUse} />
+        <OfficerClassTable rows={rows} movementDomain={selectedDomain} onChangeRow={handleChangeRow} onToggleInUse={handleToggleInUse} />
       )}
     </div>
   );

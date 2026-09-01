@@ -241,6 +241,7 @@ const MilitaryOrganisationPage = forwardRef<MilitaryPageHandle>(function Militar
             rows={rows}
             maxTiers={maxTiers}
             rankTitles={rankTitles}
+            movementDomain={selectedTag.movementDomain}
             onChangeRow={handleChangeRow}
             onToggleInUse={handleToggleInUse}
           />

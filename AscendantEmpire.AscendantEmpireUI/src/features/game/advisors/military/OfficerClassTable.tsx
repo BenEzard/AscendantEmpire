@@ -1,3 +1,6 @@
+import { rankIcon, rankIconColourClass } from "@/components/game/rankIcons";
+import type { DomainType } from "@/features/unitdesign/types/UnitComponent";
+
 /**
  * A count field that may be temporarily empty while the user is editing.
  *
@@ -52,6 +55,8 @@ export function defaultOfficerTitle(rowIndex: number): string {
 interface OfficerClassTableProps {
   /** The rows to render (one per rank level). */
   rows: OfficerRow[];
+  /** The domain this ladder belongs to, used to pick each level's static rank insignia. */
+  movementDomain: DomainType;
   /** Called with a row index and a partial patch when an editable cell in that row changes. */
   onChangeRow: (rowIndex: number, patch: Partial<OfficerRow>) => void;
   /** Called when a row's In Use checkbox is toggled; the page owns the clear/cascade behaviour. */
@@ -86,12 +91,13 @@ function parseGrouped(value: string): CountValue {
  *
  * <remarks>
  * <para>
- * Columns: In Use (checkbox), Level (read-only 1..6), Rank (editable title), Max Soldiers (the hard soldier
- * ceiling; blank = no ceiling, for the top rank), and Max Specialists (the specialist attachment cap).
+ * Columns: In Use (checkbox), Level (read-only 1..6), Rank (the level's static insignia beside its editable
+ * title), Max Soldiers (the hard soldier ceiling; blank = no ceiling, for the top rank), and Max Specialists
+ * (the specialist attachment cap).
  * </para>
  * </remarks>
  */
-export default function OfficerClassTable({ rows, onChangeRow, onToggleInUse }: OfficerClassTableProps) {
+export default function OfficerClassTable({ rows, movementDomain, onChangeRow, onToggleInUse }: OfficerClassTableProps) {
   // The first not-in-use row. In-use rows form a contiguous prefix (unticking cascades down), so this is the
   // single "next" row we still show — as a checkbox only — to let the user turn that level on. -1 means every
   // row is in use, so nothing is hidden.
@@ -104,7 +110,8 @@ export default function OfficerClassTable({ rows, onChangeRow, onToggleInUse }: 
           <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
             <th className="w-20 whitespace-nowrap px-2 py-0.5 text-center font-medium">In Use</th>
             <th className="w-20 whitespace-nowrap px-2 py-0.5 text-center font-medium">Level</th>
-            <th className="w-56 whitespace-nowrap px-2 py-0.5 font-medium">Rank</th>
+            {/* Wide enough for the insignia plus the w-52 title field beside it. */}
+            <th className="w-64 whitespace-nowrap px-2 py-0.5 font-medium">Rank</th>
             <th className="w-48 whitespace-nowrap px-2 py-0.5 text-center font-medium">Max Soldiers</th>
             <th className="w-48 whitespace-nowrap px-2 py-0.5 text-center font-medium">Max Specialists</th>
             {/* Spacer column: soaks up all the leftover width so the real columns stay packed together on the
@@ -123,6 +130,9 @@ export default function OfficerClassTable({ rows, onChangeRow, onToggleInUse }: 
             // is fixed on. Everything below cascades as before.
             const isFirstRow = rowIndex === 0;
             const isInUse = isFirstRow || row.inUse;
+            // The static insignia for this level in this domain. Undefined (no icon drawn) if the level sits
+            // outside the domain's ladder.
+            const RankIcon = rankIcon(movementDomain, rowIndex + 1);
             // Fixed row height so the row doesn't jump when it collapses to just the In Use checkbox.
             return (
               <tr key={rowIndex} className="h-8 border-b border-slate-100 last:border-b-0">
@@ -152,16 +162,21 @@ export default function OfficerClassTable({ rows, onChangeRow, onToggleInUse }: 
                       <span className={readonlyClass}>{rowIndex + 1}</span>
                     </td>
 
-                    {/* Column 3 — Rank title, editable text. */}
+                    {/* Column 3 — the level's static insignia, then its editable rank title. The icon is
+                        decorative (it never changes with what the player types), so it's hidden from
+                        assistive tech — the field's own label carries the meaning. */}
                     <td className="px-1 py-0.5 align-middle">
-                      <input
-                        type="text"
-                        className={rankInputClass}
-                        value={row.title}
-                        placeholder="Rank title"
-                        aria-label={`Rank title, level ${rowIndex + 1}`}
-                        onChange={(event) => onChangeRow(rowIndex, { title: event.target.value })}
-                      />
+                      <span className="inline-flex items-center gap-2">
+                        {RankIcon && <RankIcon size={18} aria-hidden className={rankIconColourClass(movementDomain)} />}
+                        <input
+                          type="text"
+                          className={rankInputClass}
+                          value={row.title}
+                          placeholder="Rank title"
+                          aria-label={`Rank title, level ${rowIndex + 1}`}
+                          onChange={(event) => onChangeRow(rowIndex, { title: event.target.value })}
+                        />
+                      </span>
                     </td>
 
                     {/* Column 4 — Max Soldiers (hard ceiling), centred. Blank means "no ceiling" — the expected

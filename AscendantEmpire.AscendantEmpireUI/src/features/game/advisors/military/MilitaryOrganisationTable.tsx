@@ -1,3 +1,6 @@
+import { rankIcon, rankIconColourClass } from "@/components/game/rankIcons";
+import type { DomainType } from "@/features/unitdesign/types/UnitComponent";
+
 /**
  * A count field that may be temporarily empty while the user is editing (blank is coerced to 0 only in the
  * size calculation, so the maths never sees a NaN).
@@ -48,6 +51,8 @@ interface MilitaryOrganisationTableProps {
   maxTiers: number;
   /** In-use rank titles for the domain, in level order (index 0 = level 1); empty when the tag has no domain. */
   rankTitles: string[];
+  /** The tag's movement domain, used to pick each tier's static rank insignia. Null falls back to Land. */
+  movementDomain: DomainType | null;
   /** Called with a row index and a partial patch when an editable cell in that row changes. */
   onChangeRow: (rowIndex: number, patch: Partial<MilitaryOrganisationRow>) => void;
   /** Called when a row's In Use checkbox is toggled; the page owns the clear/cascade behaviour. */
@@ -96,13 +101,13 @@ function parseCount(value: string): CountValue {
  * <remarks>
  * <para>
  * Columns: In Use (checkbox), Tier (read-only 1..N — the positional rank level), Rank (the domain's rank title
- * for that level), Tier Name (editable), Base / Fan-out (tier 1 base soldiers, tiers above the sub-formation
- * count), and Soldiers (a read-only compounding calculation). The number of tiers that can be turned on is
- * capped at <c>maxTiers</c> (from the domain's rank ladder).
+ * for that level, with its static insignia), Tier Name (editable), Base / Fan-out (tier 1 base soldiers, tiers
+ * above the sub-formation count), and Soldiers (a read-only compounding calculation). The number of tiers that
+ * can be turned on is capped at <c>maxTiers</c> (from the domain's rank ladder).
  * </para>
  * </remarks>
  */
-export default function MilitaryOrganisationTable({ rows, maxTiers, rankTitles, onChangeRow, onToggleInUse }: MilitaryOrganisationTableProps) {
+export default function MilitaryOrganisationTable({ rows, maxTiers, rankTitles, movementDomain, onChangeRow, onToggleInUse }: MilitaryOrganisationTableProps) {
   const sizes = computeSizes(rows);
 
   // The first not-in-use tier. In-use tiers form a contiguous prefix (unticking cascades down), so this is the
@@ -139,6 +144,9 @@ export default function MilitaryOrganisationTable({ rows, maxTiers, rankTitles, 
             // The domain's rank title for this tier's level (tier k ↔ rank level k). Falls back to a dash when
             // the tag has no domain (no titles supplied).
             const rankTitle = rankTitles[rowIndex] ?? "—";
+            // The static insignia for that same level. Undefined (no icon drawn) if the level sits outside
+            // the domain's ladder.
+            const RankIcon = rankIcon(movementDomain, rowIndex + 1);
             return (
               <tr key={rowIndex} className="h-8 border-b border-slate-100 last:border-b-0">
                 {/* Column 1 — In Use checkbox. Always shown, even when the rest of the row is hidden. */}
@@ -168,9 +176,14 @@ export default function MilitaryOrganisationTable({ rows, maxTiers, rankTitles, 
                       <span className={readonlyClass}>{rowIndex + 1}</span>
                     </td>
 
-                    {/* Column 3 — Rank title for this tier's level (read-only, from the domain's ladder). */}
+                    {/* Column 3 — Rank insignia and title for this tier's level (read-only, from the domain's
+                        ladder). The icon is decorative — the title beside it is the accessible text. */}
                     <td className="px-2 py-0.5 align-middle">
-                      <span className={readonlyClass}>{rankTitle}</span>
+                      <span className={`inline-flex items-center gap-1.5 ${readonlyClass}`}>
+                        {/* The icon carries the domain's metal, so it doesn't inherit the muted title colour. */}
+                        {RankIcon && <RankIcon size={16} aria-hidden className={rankIconColourClass(movementDomain)} />}
+                        {rankTitle}
+                      </span>
                     </td>
 
                     {/* Column 4 — Tier Name, editable. */}
