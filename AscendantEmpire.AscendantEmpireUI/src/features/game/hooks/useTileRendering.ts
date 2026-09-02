@@ -65,7 +65,14 @@ export function useTileRendering(opts: UseTileRenderingOptions) {
       const biomeName = t.biomeTypeId != null ? (biomeNameByType.get(t.biomeTypeId) ?? "(unknown biome)") : "(no biome)";
       const geographyName = t.geographyTypeId != null ? (geographyNameByType.get(t.geographyTypeId) ?? "(unknown geography)") : "(no geography)";
       const label = biomeName === "Unknown" && geographyName === "Unknown" ? "Unknown" : `${biomeName}, ${geographyName}`;
-      return `(${t.x}, ${t.y}); ${label}`;
+
+      // Only forces whose movement we were actually told about. The API masks the numbers for forces the player
+      // doesn't own, so an enemy standing here contributes nothing to the tooltip rather than a blank or a guess.
+      const movementLines = (t.forces ?? [])
+        .filter((force) => force.movementPointsRemaining != null && force.campaignMovementPoints != null)
+        .map((force) => `Force #${force.id}: ${force.movementPointsRemaining} / ${force.campaignMovementPoints} MP`);
+
+      return [`(${t.x}, ${t.y}); ${label}`, ...movementLines].join("\n");
     },
     [biomeNameByType, geographyNameByType],
   );

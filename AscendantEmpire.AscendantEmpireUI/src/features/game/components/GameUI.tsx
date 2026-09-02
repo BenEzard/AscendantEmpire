@@ -2,8 +2,8 @@
 import ResourceManagerDialog from "@/features/game/resources/manager/ResourceManagerDialog";
 import { usePlayerCampaignMapTilesQuery } from "@/features/map/hooks/useCampaignMapTiles";
 import TileGrid, { TILE_SIZE_PX } from "@/features/map/components/TileGrid";
-import type { CampaignMapTileDto } from "@/features/map/api/playerCampaignMapApi";
 import type { TileCell } from "@/features/map/components/TileTypes";
+import { buildTiles2d, type TileCellSourceMap } from "@/features/map/util/buildTiles2d";
 import { useCampaignMapBiomesQuery } from "@/features/map/hooks/useCampaignMapBiomes";
 import { useCampaignMapGeographiesQuery } from "@/features/map/hooks/useCampaignMapGeographies";
 import { useUnitDisplayInfoQuery } from "@/features/map/hooks/useUnitDisplayInfo";
@@ -25,6 +25,9 @@ import { useElementBottomPx } from "@/hooks/useElementBottomPx";
 import { useGameSession } from "../hooks/useGameSession";
 import { useVisionTool } from "../hooks/useVisionTool";
 import { useForceSelection } from "../hooks/useForceSelection";
+import { useForceStepMutation } from "../hooks/useForceStep";
+import { useNumpadMovement } from "../hooks/useNumpadMovement";
+import type { MoveDirection } from "../api/forceMovementApi";
 import { useTileRendering } from "../hooks/useTileRendering";
 import { useConstructionPanel } from "../hooks/useConstructionPanel";
 import { useGameToolbar } from "./useGameToolbar";
@@ -32,34 +35,6 @@ import ConstructionPanel from "./ConstructionPanel";
 
 type ActivePanel = "unit-design" | null;
 
-function buildTiles2d(width: number, height: number, tiles: CampaignMapTileDto[]): TileCell[][] {
-  const grid: TileCell[][] = Array.from({ length: height }, (_, y) =>
-    Array.from({ length: width }, (_, x) => ({
-      x,
-      y,
-      biomeTypeId: null,
-      geographyTypeId: null,
-      structures: undefined,
-      forces: undefined,
-    })),
-  );
-
-  for (const t of tiles) {
-    if (t.xCoord < 0 || t.xCoord >= width) continue;
-    if (t.yCoord < 0 || t.yCoord >= height) continue;
-
-    grid[t.yCoord][t.xCoord] = {
-      x: t.xCoord,
-      y: t.yCoord,
-      biomeTypeId: t.biomeTypeId,
-      geographyTypeId: t.campaignMapGeographyTypeId,
-      structures: t.structures,
-      forces: t.forces,
-    };
-  }
-
-  return grid;
-}
 
 function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
@@ -92,6 +67,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     openVisionSettings,
     clearVision,
     sendVisionRequest,
+    applyObservers,
   } = useVisionTool({ gameId, playerId, openToast });
 
   const {
@@ -100,10 +76,81 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     multiForceTile,
     getVisibleForceId,
     chooseForce,
-    onTileHold,
     selectForceFromTile,
     contextActionToolbarActions,
+    getForceToStep,
+    getStepToTile,
+    onForceMoved,
   } = useForceSelection({ gameId, playerId, openToast });
+
+  // --- Movement (numpad, and hold-to-move on the map) ---
+  const stepForce = useForceStepMutation(gameId, playerId, {
+    onSuccess: (result) => {
+      // The whole result goes to the selection: it carries the destination tile and everything standing on it, which is what
+      // lets the selection bar re-point itself at where the force now is rather than where it set off from.
+      onForceMoved(result);
+
+      // A move changes what the player can see, and the fog overlay is drawn from the observer set rather than from the tile
+      // data — so patching the tiles cache alone leaves the ground the force just uncovered still greyed out.
+      applyObservers(result.observers);
+    },
+    // The API writes its refusals to be read as they stand — which tile, and why it can't be entered — so they go straight to
+    // the player rather than being reworded here.
+    onError: (err) => openToast(err instanceof Error ? err.message : "That force could not move.", "danger"),
+  });
+
+  const onNumpadStep = useCallback(
+    (direction: MoveDirection) => {
+      const force = getForceToStep();
+      if (force == null) return;
+
+      stepForce.mutate({ unitInstanceId: force.id, direction });
+    },
+    [getForceToStep, stepForce],
+  );
+
+  const onSingleForceOnly = useCallback(
+    () => openToast("Forces move one at a time for now. Select a single force to move it.", "warning"),
+    [openToast],
+  );
+
+  useNumpadMovement({
+    enabled: tilesEnabled,
+    selectedForceCount: selectedForces.length,
+    onStep: onNumpadStep,
+    onUnsupportedSelection: onSingleForceOnly,
+  });
+
+  /**
+   * Holding a tile orders the selected force onto it.
+   *
+   * The same single step the numpad makes, so only the eight tiles around the force are reachable. Holding anything further
+   * away says so rather than silently doing nothing — the gesture worked, the order didn't. Ordering a march across the map
+   * is a multi-turn move order, which is a separate mechanism.
+   */
+  const onTileHold = useCallback(
+    (tile: TileCell) => {
+      const plan = getStepToTile(tile);
+
+      switch (plan.kind) {
+        case "step":
+          stepForce.mutate({ unitInstanceId: plan.unitInstanceId, direction: plan.direction });
+          break;
+        case "multiple-selected":
+          onSingleForceOnly();
+          break;
+        case "too-far":
+          openToast("Forces can only be moved to a neighbouring tile for now.", "warning");
+          break;
+        // Holding with nothing selected, or holding the tile the force already stands on, is not a mistake worth
+        // interrupting the player over — it just isn't a move.
+        case "nothing-selected":
+        case "already-here":
+          break;
+      }
+    },
+    [getStepToTile, onSingleForceOnly, openToast, stepForce],
+  );
 
   const construction = useConstructionPanel();
 
@@ -124,9 +171,22 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const unitImageSrcByUnitTemplateId = unitDisplayLookup?.imageSrcByUnitTemplateId;
   const unitNameByUnitTemplateId = unitDisplayLookup?.nameByUnitTemplateId;
 
+  // Carries the last build's DTO-to-cell pairs across rebuilds so unchanged tiles keep their object identity. A ref rather
+  // than state: it is a memoisation detail of the line below and must never itself cause a render.
+  const tileCellSourcesRef = useRef<TileCellSourceMap>(new Map());
+
   const tiles2d = useMemo(() => {
     if (!gameSelection || !tilesResponse) return null;
-    return buildTiles2d(gameSelection.width, gameSelection.height, tilesResponse.tiles);
+
+    const { grid, sourceByKey } = buildTiles2d(
+      gameSelection.width,
+      gameSelection.height,
+      tilesResponse.tiles,
+      tileCellSourcesRef.current,
+    );
+    tileCellSourcesRef.current = sourceByKey;
+
+    return grid;
   }, [gameSelection, tilesResponse]);
 
   const { biomeNameByType, geographyNameByType, getTileStyle, getTileTitle } = useTileRendering({ biomes, geographies, selectedTile, observedTileKeys });

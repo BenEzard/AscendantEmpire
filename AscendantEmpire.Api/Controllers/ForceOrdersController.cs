@@ -2,10 +2,13 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Features.ForceOrders.Classes;
 using AscendantEmpire.Application.Features.ForceOrders.Handlers;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 using AscendantEmpire.BackendContracts.ForceOrders.GetForceContextActions;
 using AscendantEmpire.BackendContracts.ForceOrders.MoveForces;
+using AscendantEmpire.BackendContracts.ForceOrders.StepForce;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.ForceOrders.GetForceContextActions;
+using AscendantEmpire.FrontendContracts.ForceOrders.StepForce;
 
 using MediatR;
 
@@ -51,6 +54,58 @@ public class ForceOrdersController : ControllerBase
             request.YCoord));
 
         return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Step a Force one tile in one of the eight compass directions, and answer with what changed.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A single immediate move, not a standing order: it is validated, applied and paid for within the request, so no <c>ForceOrder</c> is raised.
+    /// The multi-turn pathfound order is <c>move</c> above.
+    /// </para>
+    /// <para>
+    /// The response carries the Force's new position and movement points together with the player's refreshed view of the map, so the client can
+    /// patch the tiles it already holds — the one the Force left, the one it arrived on, and any newly revealed by the move — rather than reloading.
+    /// </para>
+    /// <para>A refusal is a 400 whose message is written to be shown to the player as it stands: which tile, and why it cannot be entered.</para>
+    /// </remarks>
+    /// <response code="200">The Force moved. Returns its new position, its remaining movement, and the refreshed map view</response>
+    /// <response code="400">Validation error, or the step was refused — impassable terrain, the wrong movement domain, or not enough movement</response>
+    /// <response code="403">The caller has not entered a game, does not own the Force, or it is not their turn</response>
+    /// <response code="404">The Force is not in this game, or the destination is not a tile on the map</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpPost("step")]
+    [ProducesResponseType(typeof(IStepForceResult), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 403)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> StepForceAsync(
+        [FromServices] IMediator mediator,
+        [FromBody] StepForceDto request,
+        CancellationToken cancelToken)
+    {
+        // Game and player come from the token, so the caller can't step someone else's Forces. The body carries only which Force moves and which way.
+        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
+        {
+            return contextError!;
+        }
+
+        ServiceResultBase.ServiceResult<StepForceResult> response = await mediator.Send(
+            new StepForceRequest(gameId, playerId, request.UnitInstanceId, request.Direction),
+            cancelToken);
+
+        return response.ToActionResult(contract => new DTStepForceResult
+        {
+            UnitInstanceId = contract.UnitInstanceId,
+            XCoord = contract.XCoord,
+            YCoord = contract.YCoord,
+            MovementPointsRemaining = contract.MovementPointsRemaining,
+            CampaignMovementPoints = contract.CampaignMovementPoints,
+            // Shaped exactly as the fog-of-war read's response, so the client merges both with the same code.
+            Observers = contract.Observers.ToPresentation()
+        });
     }
 
     /// <summary>

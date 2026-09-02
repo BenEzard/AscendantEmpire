@@ -18,8 +18,11 @@ export interface CampaignMapTileDto {
   yCoord: number;
   biomeTypeId: number;
   campaignMapGeographyTypeId: number;
-  structures?: ObservedStructureDto[];
-  forces?: ObservedForceDto[];
+  // Always present, never omitted when empty. An empty array is the API telling us there is nothing on this tile, which is
+  // different from not having heard about the tile at all — and the merges below rely on being able to tell those apart, or a
+  // force that moved away would keep being drawn on the tile it left.
+  structures: ObservedStructureDto[];
+  forces: ObservedForceDto[];
 }
 
 export type PlayerCampaignMapObserverResultDto = {
@@ -47,6 +50,10 @@ export type ObservedForceDto = {
   initialStrength: number;
   unitTemplateId: number;
   hasMovementRemaining: boolean;
+  // Null when the API masked it — we only get numbers for our own forces. Can be negative: entering a tile takes half its
+  // movement cost but spends the whole of it, so a slow force crossing rough ground finishes the turn in debt.
+  movementPointsRemaining: number | null;
+  campaignMovementPoints: number | null;
 };
 
 type ObservedStructureWireDto = Partial<{
@@ -67,8 +74,11 @@ type ObservedForceWireDto = Partial<{
   injuredTroops: number;
   initialStrength: number;
   // Nullable on the wire: the API masks it for forces the player doesn't own, rather than telling them how much
-  // movement an enemy has left.
+  // movement an enemy has left. The two numbers below are masked by the same rule, and more sharply — they say
+  // exactly how far a force could still go.
   hasMovementRemaining: boolean | null;
+  movementPointsRemaining: number | null;
+  campaignMovementPoints: number | null;
 }>;
 
 type CampaignMapTileWireDto = Partial<{
@@ -132,24 +142,28 @@ function normalizeObservedForce(force: ObservedForceWireDto): ObservedForceDto {
     // Defaults to true, unlike the zero-defaults above. A masked (or simply absent) value means "we aren't told",
     // and the UI fades a force that has spent its movement — so guessing false would fade forces on no evidence.
     hasMovementRemaining: force.hasMovementRemaining ?? true,
+    // Null rather than 0, for the same "we aren't told" reason — and here there is no safe guess available: 0 would read as a
+    // spent force, and any other number would be a fabrication. The UI shows nothing at all when these are null.
+    movementPointsRemaining: force.movementPointsRemaining ?? null,
+    campaignMovementPoints: force.campaignMovementPoints ?? null,
   };
 }
 
-function normalizeCampaignMapTile(tile: CampaignMapTileWireDto): CampaignMapTileDto {
-  const structures = (tile.structures ?? []).map(normalizeObservedStructure);
-  const forces = (tile.forces ?? []).map(normalizeObservedForce);
-
+export function normalizeCampaignMapTile(tile: CampaignMapTileWireDto): CampaignMapTileDto {
   return {
     xCoord: tile.xCoord ?? 0,
     yCoord: tile.yCoord ?? 0,
     biomeTypeId: tile.biomeTypeId ?? 0,
     campaignMapGeographyTypeId: tile.campaignMapGeographyTypeId ?? 0,
-    ...(structures.length > 0 ? { structures } : {}),
-    ...(forces.length > 0 ? { forces } : {}),
+    // Always emitted, even when empty. These used to be dropped when empty, which made "this tile is clear" indistinguishable
+    // from "this tile wasn't reported" — and the merges then kept whatever was there before, so a force that stepped away would
+    // stay drawn on the tile it left.
+    structures: (tile.structures ?? []).map(normalizeObservedStructure),
+    forces: (tile.forces ?? []).map(normalizeObservedForce),
   };
 }
 
-function normalizeObserver(observer: PlayerCampaignMapObserverResultWireDto): PlayerCampaignMapObserverResultDto {
+export function normalizeObserver(observer: PlayerCampaignMapObserverResultWireDto): PlayerCampaignMapObserverResultDto {
   return {
     id: observer.id ?? observer.temporaryObserverId ?? 0,
     observerRecordType: observer.observerRecordType ?? 0,
@@ -166,7 +180,13 @@ function normalizeResponse(data: PlayerCampaignMapResponseWireDto): PlayerCampai
   };
 }
 
-function mergeTiles(tiles: CampaignMapTileDto[]): CampaignMapTileDto[] {
+/**
+ * Collapses a flat list of observed tiles so each coordinate appears once, merging what several observers saw of the same tile.
+ *
+ * Exported because a force step returns observers in the same shape and needs the same de-duplication before its tiles are
+ * merged into the cache.
+ */
+export function mergeTilesByCoord(tiles: CampaignMapTileDto[]): CampaignMapTileDto[] {
   const mergedByCoord = new Map<string, CampaignMapTileDto>();
 
   for (const tile of tiles) {
@@ -178,11 +198,13 @@ function mergeTiles(tiles: CampaignMapTileDto[]): CampaignMapTileDto[] {
       continue;
     }
 
+    // `??`, not a length check: an empty array is a real answer meaning the tile is clear, and it has to win over what we held
+    // before. Only a genuinely absent array falls back to the existing contents.
     mergedByCoord.set(key, {
       ...existing,
       ...tile,
-      structures: tile.structures && tile.structures.length > 0 ? tile.structures : existing.structures,
-      forces: tile.forces && tile.forces.length > 0 ? tile.forces : existing.forces,
+      structures: tile.structures ?? existing.structures,
+      forces: tile.forces ?? existing.forces,
     });
   }
 
@@ -229,7 +251,7 @@ export async function postPlayerCampaignMap(req: LoadPlayerCampaignMapRequest): 
 
   // Normalize to the flat tile list the rest of the UI expects.
   const tilesFromObservers = normalizedResponse.observers.flatMap((observer) => observer.seenTiles ?? []);
-  const tiles = mergeTiles([...(normalizedResponse.tiles ?? []), ...tilesFromObservers]);
+  const tiles = mergeTilesByCoord([...(normalizedResponse.tiles ?? []), ...tilesFromObservers]);
 
   return {
     tiles,

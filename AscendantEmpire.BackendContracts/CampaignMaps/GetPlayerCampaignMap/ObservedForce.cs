@@ -41,4 +41,23 @@ public record ObservedForce
     /// movement an enemy has left — intel the vision rules never granted. The context-action pipeline refuses enemy Forces for the same reason.
     /// </remarks>
     public bool? HasMovementRemaining { get; init; }
+
+    /// <summary>
+    /// The campaign movement points this Force has left this turn, or <c>null</c> when the observing player does not own it.
+    /// </summary>
+    /// <remarks>
+    /// Masked for the same reason as <see cref="HasMovementRemaining"/>, and more sharply so: a number tells an enemy exactly how far this Force can
+    /// still travel, where the boolean only told them whether it could move at all.
+    /// <para>
+    /// May be negative. Entering a tile requires half its movement cost but spends all of it, so a slow Force crossing expensive ground ends the turn
+    /// in debt — see <c>docs/design/units/unit-mechanics.md</c>, rule 2.
+    /// </para>
+    /// </remarks>
+    public decimal? MovementPointsRemaining { get; init; }
+
+    /// <summary>
+    /// This Force's full movement allowance for a turn, or <c>null</c> when the observing player does not own it.
+    /// </summary>
+    /// <remarks>Taken from the compiled template, and the denominator the client shows <see cref="MovementPointsRemaining"/> against.</remarks>
+    public decimal? CampaignMovementPoints { get; init; }
 }

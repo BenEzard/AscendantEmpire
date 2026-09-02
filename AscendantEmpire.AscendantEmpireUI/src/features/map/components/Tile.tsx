@@ -89,11 +89,16 @@ const Tile = React.memo(function Tile({
       className={combinedClassName}
       role={clickable ? "button" : undefined}
       title={getTitle?.(tile)}
-      onPointerDown={() => {
+      onPointerDown={(event) => {
         holdTriggeredRef.current = false;
         clearHoldTimer();
 
         if (!onHold) return;
+
+        // Primary button only. Touch and pen both report 0 here, so this costs them nothing — it is right- and
+        // middle-click that must not start the timer, now that a completed hold issues a move order rather than
+        // merely showing a toast.
+        if (event.button !== 0) return;
 
         holdTimerRef.current = window.setTimeout(() => {
           holdTriggeredRef.current = true;

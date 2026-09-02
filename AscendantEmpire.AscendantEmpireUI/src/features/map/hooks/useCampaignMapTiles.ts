@@ -25,7 +25,13 @@ export function usePlayerCampaignMapTilesQuery(gameId: number | undefined, playe
   });
 }
 
-function mergeTiles(prev: CampaignMapTilesResponse | undefined, next: CampaignMapTilesResponse): CampaignMapTilesResponse {
+/**
+ * Folds a freshly observed set of tiles into the ones already cached, leaving untouched tiles exactly as they were.
+ *
+ * Exported because a force step returns the same shape — the player's view from where the force now stands — and patching that
+ * in has to behave identically to a vision request, or the two paths would drift.
+ */
+export function mergeTiles(prev: CampaignMapTilesResponse | undefined, next: CampaignMapTilesResponse): CampaignMapTilesResponse {
   if (!prev) return next;
 
   const merged = prev.tiles.slice();
@@ -35,11 +41,13 @@ function mergeTiles(prev: CampaignMapTilesResponse | undefined, next: CampaignMa
     if (idx >= 0) {
       const existing = merged[idx];
 
+      // `??`, not a length check: an empty array is the API saying the tile is clear, and it has to overwrite what we held.
+      // A length check kept the old contents instead, which left a force still drawn on the tile it had just stepped off.
       merged[idx] = {
         ...existing,
         ...t,
-        structures: t.structures && t.structures.length > 0 ? t.structures : existing.structures,
-        forces: t.forces && t.forces.length > 0 ? t.forces : existing.forces,
+        structures: t.structures ?? existing.structures,
+        forces: t.forces ?? existing.forces,
       };
     } else {
       merged.push(t);

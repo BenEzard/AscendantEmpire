@@ -419,3 +419,14 @@ body {
      to render at map size. */
   margin-top: -5px;
 }
+
+/* The movement figure, sitting under the troop count. Deliberately quieter than the count: troop strength is what the
+   player scans the bar for, and movement is the detail they look at once they have found the force they want. */
+.force-selection-toolbar__movement {
+  font-size: 0.6rem;
+  font-weight: 500;
+  line-height: 1;
+  color: #94a3b8;
+  margin-top: 2px;
+  white-space: nowrap;
+}

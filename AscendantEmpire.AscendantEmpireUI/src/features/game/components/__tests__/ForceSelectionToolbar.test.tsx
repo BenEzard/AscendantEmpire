@@ -23,6 +23,8 @@ function force(overrides: Partial<ObservedForceTile> = {}): ObservedForceTile {
     injuredTroops: 20,
     initialStrength: 100,
     hasMovementRemaining: true,
+    movementPointsRemaining: 2,
+    campaignMovementPoints: 2,
     ...overrides,
   };
 }
@@ -76,10 +78,43 @@ describe("ForceSelectionToolbar", () => {
       ]),
     });
 
-    const counts = screen.getAllByRole("button").map((button) => button.textContent);
+    // The troop caption specifically, not the whole button: the button also carries the movement figure, and this
+    // test is about strength.
+    const counts = screen
+      .getAllByRole("button")
+      .map((button) => button.querySelector(".force-selection-toolbar__troops")?.textContent);
 
     // Healthy plus injured — the soldiers still standing, not the strength the force was created at.
     expect(counts).toEqual(["100", "25"]);
+  });
+
+  it("shows what movement each force has left, out of a full turn", () => {
+    renderToolbar({
+      tile: tile([force({ id: 1, movementPointsRemaining: 1.5, campaignMovementPoints: 2 })]),
+    });
+
+    const movement = screen.getByRole("button").querySelector(".force-selection-toolbar__movement");
+
+    // Whole numbers lose their trailing zero, so "2" rather than "2.0" — costs are authored to one decimal place.
+    expect(movement?.textContent).toBe("1.5 / 2 MP");
+  });
+
+  it("shows no movement figure for a force whose numbers the API masked", () => {
+    // Enemy forces come back with these nulled out rather than revealing how far they could still travel, and there
+    // is no honest placeholder to show in their place.
+    renderToolbar({
+      tile: tile([force({ id: 1, movementPointsRemaining: null, campaignMovementPoints: null })]),
+    });
+
+    expect(screen.getByRole("button").querySelector(".force-selection-toolbar__movement")).toBeNull();
+  });
+
+  it("puts the movement figure in the button's accessible name, where the visible caption is decorative", () => {
+    renderToolbar({
+      tile: tile([force({ id: 1, movementPointsRemaining: 1.5, campaignMovementPoints: 2 })]),
+    });
+
+    expect(screen.getByRole("button")).toHaveAccessibleName(expect.stringContaining("1.5 / 2 movement points"));
   });
 
   /**

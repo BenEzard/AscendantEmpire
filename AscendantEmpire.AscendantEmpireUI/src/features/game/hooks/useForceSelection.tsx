@@ -5,7 +5,26 @@ import type { ContextActionToolbarAction } from "../components/ContextActionTool
 import { getForceActionIcon, getForceActionLabel } from "../components/forceActionRegistry";
 import { useForceContextActionsQuery } from "./useForceContextActions";
 import type { ForceActionType } from "../api/forceContextActionsApi";
+import type { MoveDirection, StepForceResponse } from "../api/forceMovementApi";
+import { directionBetween } from "@/features/map/util/mapDirections";
 import type { ToastVariant } from "@/hooks/useToast";
+
+/**
+ * What holding a tile should do with the current selection.
+ *
+ * A verdict rather than an action, so the hook stays responsible for what is selected and where it stands, and the caller
+ * stays responsible for the request and for what to tell the player.
+ */
+export type StepPlan =
+  | { kind: "step"; unitInstanceId: number; direction: MoveDirection }
+  /** Nothing selected — the gesture means nothing, so say nothing. */
+  | { kind: "nothing-selected" }
+  /** The selection holds several forces, and moving an arbitrary one of them would be a surprise. */
+  | { kind: "multiple-selected" }
+  /** The held tile is where the force already stands. */
+  | { kind: "already-here" }
+  /** The held tile is not one of the eight neighbours. */
+  | { kind: "too-far" };
 
 function getTileKey(x: number, y: number): string {
   return `${x},${y}`;
@@ -45,6 +64,11 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
   const [selectedForces, setSelectedForces] = useState<ObservedForceTile[]>([]);
   const [visibleForceIdsByTile, setVisibleForceIdsByTile] = useState<Record<string, number>>({});
 
+  // Where each force we've seen selected is standing. ObservedForceTile carries no coordinates of its own — it is what was
+  // found *on* a tile — so working out which direction a held tile lies in needs the origin recorded separately. Written
+  // wherever a force is picked up (from the map or from the bar) and again when one moves.
+  const [tileByForceId, setTileByForceId] = useState<Record<number, { x: number; y: number }>>({});
+
   // The tile whose forces the selection bar is offering. Set only when the player has more than one force
   // standing on the clicked tile — with a single force there is nothing to choose between.
   const [multiForceTile, setMultiForceTile] = useState<ForceSelectionToolbarTile | null>(null);
@@ -54,6 +78,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
     if (gameId == null) {
       setSelectedForces([]);
       setVisibleForceIdsByTile({});
+      setTileByForceId({});
       setMultiForceTile(null);
     }
   }, [gameId]);
@@ -130,15 +155,96 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
     return selectedForces.map((force) => `#${force.id}`).join(", ");
   }, [selectedForces]);
 
-  const moveTo = useCallback(
-    (tile: TileCell) => {
-      if (selectedForces.length === 0) return;
+  /**
+   * Works out what holding a tile should do, given what is selected and where it stands.
+   *
+   * The caller decides what to say about each outcome and owns the request itself: this hook knows what is selected, not how
+   * to talk to the API. Deliberately the same shape of decision the numpad makes, so both gestures obey one rule.
+   */
+  const getStepToTile = useCallback(
+    (tile: TileCell): StepPlan => {
+      if (selectedForces.length === 0) return { kind: "nothing-selected" };
+      if (selectedForces.length > 1) return { kind: "multiple-selected" };
 
-      const noun = selectedForces.length === 1 ? "force" : "forces";
-      openToast(`Move ${noun} ${describeSelection()} to [${tile.x}, ${tile.y}]`, "info");
+      const force = selectedForces[0];
+      const origin = tileByForceId[force.id];
+
+      // No recorded origin means the force was never picked up from a tile we saw, which shouldn't happen — but guessing a
+      // direction from nothing would move it somewhere arbitrary, so do nothing instead.
+      if (origin == null) return { kind: "nothing-selected" };
+
+      if (origin.x === tile.x && origin.y === tile.y) return { kind: "already-here" };
+
+      const direction = directionBetween(origin, tile);
+      if (direction == null) return { kind: "too-far" };
+
+      return { kind: "step", unitInstanceId: force.id, direction };
     },
-    [describeSelection, openToast, selectedForces],
+    [selectedForces, tileByForceId],
   );
+
+  /**
+   * Brings the selection up to date after a force has stepped to a new tile.
+   *
+   * Everything here is read from the step's own response rather than from cached state. The response describes the map as it
+   * is *after* the move, including the destination tile and everything standing on it, so this needs no second read and
+   * cannot act on a view of the map from before the force set off.
+   */
+  const onForceMoved = useCallback(
+    (result: StepForceResponse) => {
+      const { unitInstanceId, xCoord, yCoord, movementPointsRemaining } = result;
+
+      const destinationTile = result.tiles.find((tile) => tile.xCoord === xCoord && tile.yCoord === yCoord);
+      const forcesOnDestination = destinationTile?.forces ?? [];
+
+      // The server's own account of the force after the step. Preferred over patching the snapshot we hold, because it is
+      // current in every field rather than just the one we happened to know had changed.
+      const movedForce = forcesOnDestination.find((force) => force.id === unitInstanceId);
+
+      setSelectedForces((current) =>
+        current.map((force) =>
+          force.id === unitInstanceId
+            ? // Falls back to patching movement only, for the case where refreshing the player's view of the map failed and
+              // the response carries no tiles. The step itself still happened, so the bar must still show it was paid for.
+              (movedForce ?? { ...force, movementPointsRemaining, hasMovementRemaining: movementPointsRemaining > 0 })
+            : force,
+        ),
+      );
+
+      // The tile pin follows the force to its destination so that tile draws it. The stale pin on the tile it left needs no
+      // clearing: getVisibleForceForTile falls back to the strongest force present when the pinned id isn't there any more.
+      setVisibleForceIdsByTile((current) => ({ ...current, [getTileKey(xCoord, yCoord)]: unitInstanceId }));
+
+      // Recorded origins have to follow the force, or a second hold would be judged against where it used to stand. Every
+      // owned force on the destination is recorded, not just the mover, so one picked from the bar can be moved straight on.
+      setTileByForceId((current) => {
+        const next = { ...current, [unitInstanceId]: { x: xCoord, y: yCoord } };
+        for (const force of forcesOnDestination) {
+          if (force.ownerPlayerId === playerId) {
+            next[force.id] = { x: xCoord, y: yCoord };
+          }
+        }
+        return next;
+      });
+
+      // The bar belongs to wherever the force now stands, not where it set off from — otherwise moving off a crowded tile
+      // leaves the bar offering that tile's forces, including the one that just left it. Same rule as selecting a tile by
+      // hand: it is only worth showing when there is more than one force to choose between.
+      const ownedOnDestination = forcesOnDestination.filter((force) => force.ownerPlayerId === playerId);
+      setMultiForceTile(ownedOnDestination.length > 1 ? { x: xCoord, y: yCoord, forces: ownedOnDestination } : null);
+    },
+    [playerId],
+  );
+
+  /**
+   * Steps the selected force one tile, when there is exactly one selected.
+   *
+   * Returns the force to move, or null when the press should be ignored. The caller owns the request itself: this hook knows
+   * what is selected, not how to talk to the API.
+   */
+  const getForceToStep = useCallback(() => {
+    return selectedForces.length === 1 ? selectedForces[0] : null;
+  }, [selectedForces]);
 
   // The backend decides which actions apply to the selection and whether each can be taken right now. With
   // several forces selected it judges every one of them: an action is enabled only when all of them can take it.
@@ -167,19 +273,6 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
     [describeSelection, openToast, selectedForces],
   );
 
-  const onTileHold = useCallback(
-    (tile: TileCell) => {
-      if (selectedForces.length === 0) return;
-
-      // Holding the tile the selection already stands on is not a move. Every selected force shares a tile today,
-      // so one match is enough to know the target is where they already are.
-      if ((tile.forces ?? []).some((force) => selectedForceIds.has(force.id))) return;
-
-      moveTo(tile);
-    },
-    [moveTo, selectedForceIds, selectedForces],
-  );
-
   /** Selects the player's force on a clicked tile (single force, multi-force, or none). */
   const selectForceFromTile = useCallback(
     (t: TileCell) => {
@@ -188,6 +281,19 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
       // Only the player's own forces are ever selectable, so an enemy or ally sharing the tile is drawn on the
       // map but never offered in the bar. This filter is what makes that true — the bar shows what it's given.
       const ownedForces = (t.forces ?? []).filter((force) => force.ownerPlayerId === playerId);
+
+      // Record where these forces stand. This is the only place the map tells us a force's position, and holding a tile
+      // later needs it to work out which direction that tile lies in. Recorded for every owned force on the tile, not just
+      // the one selected, so ctrl+clicking a different one in the bar finds an origin already waiting.
+      if (ownedForces.length > 0) {
+        setTileByForceId((current) => {
+          const next = { ...current };
+          for (const force of ownedForces) {
+            next[force.id] = { x: t.x, y: t.y };
+          }
+          return next;
+        });
+      }
 
       // Clicking the map always replaces the selection, however many forces were in it. Multi-select is the bar's
       // gesture; the map's click is what starts a fresh selection.
@@ -238,8 +344,10 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
     multiForceTile,
     getVisibleForceId,
     chooseForce,
-    onTileHold,
     selectForceFromTile,
     contextActionToolbarActions,
+    getForceToStep,
+    getStepToTile,
+    onForceMoved,
   };
 }

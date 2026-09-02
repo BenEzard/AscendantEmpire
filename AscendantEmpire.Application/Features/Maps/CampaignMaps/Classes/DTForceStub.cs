@@ -13,4 +13,6 @@ public class DTForceStub : IForceStub
     public int InitialStrength { get; set; }
     public int UnitTemplateId { get; set; }
     public bool? HasMovementRemaining { get; set; }
+    public decimal? MovementPointsRemaining { get; set; }
+    public decimal? CampaignMovementPoints { get; set; }
 }

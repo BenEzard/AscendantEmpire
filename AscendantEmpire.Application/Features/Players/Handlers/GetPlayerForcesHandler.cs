@@ -1,5 +1,6 @@
 ﻿using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
 using AscendantEmpire.BackendContracts.Units.GetPlayerForces;
 using AscendantEmpire.Domain.Enums;
@@ -91,6 +92,10 @@ internal class GetPlayerForcesHandler(
                     // handler doesn't silently inherit a default false. Spawning seeds MovementPointsRemaining (F-9); turn rollover does not yet
                     // replenish it (TM-3).
                     HasMovementRemaining = pu.MovementPointsRemaining > 0,
+                    // The raw fixed-point value converted to whole movement points. Divided inline rather than through ScaledAmount because this runs
+                    // as SQL; the scale constant is shared so the two representations cannot drift apart.
+                    MovementPointsRemaining = pu.MovementPointsRemaining / (decimal)ScaledAmount.Scale,
+                    CampaignMovementPoints = pu.UnitTemplate.Compiled!.CampaignMovementPoints / (decimal)ScaledAmount.Scale,
                 })
                 .ToListAsync(cancelToken);
 

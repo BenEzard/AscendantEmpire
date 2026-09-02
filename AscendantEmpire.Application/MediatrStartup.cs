@@ -8,6 +8,7 @@ using AscendantEmpire.Application.Features.UnitComponents.Executors;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strategies;
 using AscendantEmpire.Application.Features.ForceOrders.Movement;
+using AscendantEmpire.Application.Features.ForceOrders.Movement.Strategies;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions.Checks;
@@ -41,6 +42,15 @@ public static class MediatrStartup
         services.AddScoped<IForceContextActionService, ForceContextActionService>();
         services.AddScoped<IForceActionContextBuilder, ForceActionContextBuilder>();
         services.AddScoped<IForceActionStrategy, SplitForceStrategy>();
+
+        // Movement domain rules. One IMovementDomainStrategy per DomainType decides which terrain a Force of that domain may enter; the step handler
+        // resolves the one matching the Force's compiled template. Every DomainType needs an entry here — a domain with no strategy has no rule to be
+        // judged against, and its every move is refused.
+        services.AddScoped<IMovementDomainStrategy, LandMovementStrategy>();
+        services.AddScoped<IMovementDomainStrategy, WaterMovementStrategy>();
+        services.AddScoped<IMovementDomainStrategy, BelowWaterMovementStrategy>();
+        services.AddScoped<IMovementDomainStrategy, AirMovementStrategy>();
+        services.AddScoped<IMovementDomainStrategy, NearEarthOrbitMovementStrategy>();
 
         // Possible action pipeline
         services.AddScoped<IEndCampaignTurnPossibleActionService, EndCampaignTurnPossibleActionService>();

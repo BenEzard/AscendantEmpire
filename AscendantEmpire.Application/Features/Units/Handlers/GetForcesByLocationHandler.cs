@@ -1,4 +1,5 @@
 ﻿using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.Units.GetPlayerForces;
 using AscendantEmpire.Domain.Enums;
 
@@ -86,6 +87,10 @@ internal class GetForcesByLocationHandler(
                       // Reported honestly rather than defaulted to true: the campaign map fades a Force with no movement left, and that fade should
                       // follow the data rather than hide the gap.
                       HasMovementRemaining = pu.MovementPointsRemaining > 0,
+                      // The raw fixed-point value converted to whole movement points. Divided inline rather than through ScaledAmount because this runs
+                      // as SQL; the scale constant is shared so the two representations cannot drift apart.
+                      MovementPointsRemaining = pu.MovementPointsRemaining / (decimal)ScaledAmount.Scale,
+                      CampaignMovementPoints = pu.UnitTemplate.Compiled!.CampaignMovementPoints / (decimal)ScaledAmount.Scale,
                   })
                   .ToListAsync(cancelToken);
 

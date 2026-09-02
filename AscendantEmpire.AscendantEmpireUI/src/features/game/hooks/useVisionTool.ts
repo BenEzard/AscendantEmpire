@@ -53,6 +53,18 @@ export function useVisionTool({ gameId, playerId, openToast }: UseVisionToolOpti
     return next;
   }, [visionObservers]);
 
+  /**
+   * Replaces what the player is currently seeing, lifting the fog from those tiles and returning it everywhere else.
+   *
+   * Called with the observers any endpoint hands back that describes the player's view — the vision tool's own load, and a
+   * force step, which shifts what can be seen by moving one of the observers. A replacement rather than a merge, because the
+   * observers are the complete current picture: a tile that has dropped out of sight since the last one is explored ground
+   * the player can no longer watch, and should go back under fog.
+   */
+  const applyObservers = useCallback((observers: PlayerCampaignMapObserverResultDto[]) => {
+    setVisionObservers(observers);
+  }, []);
+
   const toggleVisionTool = useCallback(() => {
     setActiveTool((t) => (t === "vision" ? null : "vision"));
   }, []);
@@ -82,7 +94,7 @@ export function useVisionTool({ gameId, playerId, openToast }: UseVisionToolOpti
   const loadPlayerCampaignMap = useLoadPlayerCampaignMapMutation({
     onSuccess: (data) => {
       visionInFlightRef.current = false;
-      setVisionObservers(data.observers ?? []);
+      applyObservers(data.observers ?? []);
     },
     onError: (error) => {
       visionInFlightRef.current = false;
@@ -153,5 +165,6 @@ export function useVisionTool({ gameId, playerId, openToast }: UseVisionToolOpti
     openVisionSettings,
     clearVision,
     sendVisionRequest,
+    applyObservers,
   };
 }

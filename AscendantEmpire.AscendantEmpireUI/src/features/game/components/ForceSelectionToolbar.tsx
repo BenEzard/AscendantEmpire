@@ -41,9 +41,33 @@ export interface ForceSelectionToolbarProps {
   onSelect: (force: ObservedForceTile, append: boolean) => void;
 }
 
+/**
+ * Formats a movement-point value for display, trimming the trailing zero off whole numbers.
+ *
+ * Costs are authored to one decimal place (desert's 1.1), so "1.5" and "2" both need to read naturally.
+ */
+function formatMovementPoints(points: number): string {
+  return Number.isInteger(points) ? String(points) : points.toFixed(1);
+}
+
+/**
+ * Describes a force's remaining movement as a fraction of a full turn, or null when we aren't told.
+ *
+ * Null for forces the player doesn't own — the API masks the numbers rather than reveal how far an enemy could still
+ * travel — and the caller renders nothing at all in that case rather than inventing a figure.
+ */
+function describeMovement(force: ObservedForceTile): string | null {
+  if (force.movementPointsRemaining == null || force.campaignMovementPoints == null) return null;
+
+  return `${formatMovementPoints(force.movementPointsRemaining)} / ${formatMovementPoints(force.campaignMovementPoints)}`;
+}
+
 /** The accessible name for a force's button. */
 function buildForceLabel(force: ObservedForceTile): string {
-  return `Force #${force.id} — ${force.healthyTroops} healthy, ${force.injuredTroops} injured`;
+  const movement = describeMovement(force);
+  const movementSuffix = movement == null ? "" : `, ${movement} movement points`;
+
+  return `Force #${force.id} — ${force.healthyTroops} healthy, ${force.injuredTroops} injured${movementSuffix}`;
 }
 
 /**
@@ -141,6 +165,15 @@ export default function ForceSelectionToolbar({
                 </span>
 
                 <span className="force-selection-toolbar__troops">{force.healthyTroops + force.injuredTroops}</span>
+
+                {/* Omitted entirely when masked, rather than shown as a dash or a zero: for a force we don't own, how
+                    far it can still go is something we were deliberately not told. Already in the button's accessible
+                    name above, so this span is decorative. */}
+                {describeMovement(force) != null && (
+                  <span className="force-selection-toolbar__movement" aria-hidden="true">
+                    {describeMovement(force)} MP
+                  </span>
+                )}
               </button>
             </Tooltip>
           </div>

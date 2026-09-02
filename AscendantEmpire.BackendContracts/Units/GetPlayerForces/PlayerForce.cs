@@ -30,4 +30,20 @@ public class PlayerForce
     /// </para>
     /// </remarks>
     public bool HasMovementRemaining { get; set; }
+
+    /// <summary>
+    /// The campaign movement points this Force has left this turn.
+    /// </summary>
+    /// <remarks>
+    /// The same value <see cref="HasMovementRemaining"/> is derived from, converted out of the raw Scale 1,000 representation so the convention stays
+    /// behind the API. Unmasked here — this projection covers every Force on a tile, and it is the fog-of-war read that decides whose numbers the
+    /// observing player is allowed to see.
+    /// <para>May be negative: entering a tile costs half its movement cost but spends all of it.</para>
+    /// </remarks>
+    public decimal MovementPointsRemaining { get; set; }
+
+    /// <summary>
+    /// This Force's full movement allowance for a turn, from its compiled template.
+    /// </summary>
+    public decimal CampaignMovementPoints { get; set; }
 }

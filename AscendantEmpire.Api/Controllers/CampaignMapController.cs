@@ -51,45 +51,11 @@ public class CampaignMapController : ControllerBase
             playerId,
             request.LoadWholeMap));
 
-        return response.ToActionResult(contract =>
+        // The mapping is shared with the Force step endpoint, which answers with the same view of the map from where the Force now stands. Both
+        // responses are merged into the same client-side tile cache, so they have to be shaped identically.
+        return response.ToActionResult(contract => new DTObservers
         {
-            return new DTObservers
-            {
-                Observers = contract.Select(o => new DTObserver
-                {
-                    Id = o.Id,
-
-                    XCoord = o.Location.X,
-                    YCoord = o.Location.Y,
-                    SeenTiles = o.SeenTiles.Select(tile => new DTObservedCampaignTile
-                    {
-                        XCoord = tile.XCoord,
-                        YCoord = tile.YCoord,
-                        BiomeTypeId = tile.BiomeTypeId,
-                        CampaignMapGeographyTypeId = tile.CampaignMapGeographyTypeId,
-                        Structures = [.. tile.Structures?.Select(s => new DTStructureStub
-                        {
-                            Id = s.Id,
-                            RecordType = s.RecordType,
-                            OwnerPlayerId = s.OwnerPlayerId,
-                            StructureId = s.StructureId,
-                            PositionOnTile = s.PositionOnTile,
-                            CompletionPercent = s.CompletionPercent
-                        }) ?? []],
-                        Forces = [.. tile.Forces?.Select(t => new DTForceStub
-                        {
-                            Id = t.Id,
-                            RecordType = t.RecordType,
-                            OwnerPlayerId = t.OwnerPlayerId,
-                            UnitTemplateId = t.UnitTemplateId,
-                            HealthyTroops = t.HealthyTroops,
-                            InjuredTroops = t.InjuredTroops,
-                            InitialStrength = t.InitialStrength,
-                            HasMovementRemaining = t.HasMovementRemaining
-                        }) ?? []]
-                    }).ToList()
-                }).ToList()
-            };
+            Observers = contract.ToPresentation()
         });
     }
 

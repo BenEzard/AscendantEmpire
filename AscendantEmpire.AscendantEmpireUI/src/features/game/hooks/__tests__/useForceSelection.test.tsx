@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { act, renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ObservedForceTile, TileCell } from "@/features/map/components/TileTypes";
+import type { StepForceResponse } from "../../api/forceMovementApi";
 import { useForceSelection } from "../useForceSelection";
 
 // The hook queries the backend for the selection's context actions. Those are the toolbar's business, not
@@ -29,12 +30,47 @@ function force(overrides: Partial<ObservedForceTile> = {}): ObservedForceTile {
     injuredTroops: 0,
     initialStrength: 50,
     hasMovementRemaining: true,
+    movementPointsRemaining: 2,
+    campaignMovementPoints: 2,
     ...overrides,
   };
 }
 
 function tile(forces: ObservedForceTile[]): TileCell {
   return { x: 3, y: 4, biomeTypeId: 1, geographyTypeId: 1, forces };
+}
+
+/**
+ * Builds what the step endpoint answers with: where the force ended up, and the player's refreshed view of the map.
+ *
+ * `forcesOnDestination` is everything standing on the destination tile *after* the move — the mover included — which is what
+ * the hook reads to re-point the selection bar.
+ */
+function stepResult({
+  unitInstanceId = 1,
+  x,
+  y,
+  movementPointsRemaining = 1,
+  forcesOnDestination,
+}: {
+  unitInstanceId?: number;
+  x: number;
+  y: number;
+  movementPointsRemaining?: number;
+  forcesOnDestination?: ObservedForceTile[];
+}): StepForceResponse {
+  return {
+    unitInstanceId,
+    xCoord: x,
+    yCoord: y,
+    movementPointsRemaining,
+    campaignMovementPoints: 2,
+    tiles:
+      forcesOnDestination == null
+        ? []
+        : [{ xCoord: x, yCoord: y, biomeTypeId: 1, campaignMapGeographyTypeId: 3, structures: [], forces: forcesOnDestination }],
+    observers: [],
+  };
 }
 
 function renderForceSelection() {
@@ -256,5 +292,231 @@ describe("useForceSelection", () => {
     rerender();
 
     expect(result.current.selectedForceIds).toBe(firstSet);
+  });
+
+  /**
+   * Holding a tile orders the selected force onto it. The hook decides what the gesture *means* — the caller owns
+   * the request and the messaging — so these pin the verdict rather than any API call.
+   */
+  describe("getStepToTile", () => {
+    /** Puts a force on a tile at the given coordinate and selects it, returning the rendered hook. */
+    function selectForceAt(x: number, y: number, forceId = 1) {
+      const view = renderForceSelection();
+
+      act(() => {
+        view.result.current.selectForceFromTile({ ...tile([force({ id: forceId })]), x, y });
+      });
+
+      return view;
+    }
+
+    it("steps to a neighbouring tile, working out the direction from where the force stands", () => {
+      const { result } = selectForceAt(5, 4);
+
+      expect(result.current.getStepToTile({ ...tile([]), x: 6, y: 3 })).toEqual({
+        kind: "step",
+        unitInstanceId: 1,
+        direction: "NorthEast",
+      });
+    });
+
+    it("refuses a tile further than one step away", () => {
+      const { result } = selectForceAt(5, 4);
+
+      expect(result.current.getStepToTile({ ...tile([]), x: 9, y: 4 }).kind).toBe("too-far");
+    });
+
+    it("treats holding the tile the force already stands on as no move at all", () => {
+      const { result } = selectForceAt(5, 4);
+
+      expect(result.current.getStepToTile({ ...tile([]), x: 5, y: 4 }).kind).toBe("already-here");
+    });
+
+    it("does nothing when nothing is selected", () => {
+      const { result } = renderForceSelection();
+
+      expect(result.current.getStepToTile({ ...tile([]), x: 5, y: 4 }).kind).toBe("nothing-selected");
+    });
+
+    it("refuses to move an arbitrary one of several selected forces", () => {
+      const { result } = selectForceAt(5, 4);
+
+      act(() => {
+        result.current.chooseForce(force({ id: 2 }), true);
+      });
+
+      expect(result.current.getStepToTile({ ...tile([]), x: 6, y: 4 }).kind).toBe("multiple-selected");
+    });
+
+    /**
+     * The recorded origin has to follow the force, or the second hold of a two-tile walk would be judged against
+     * where it set off from and come out one tile short.
+     */
+    it("judges the next hold against where the force moved to, not where it started", () => {
+      const { result } = selectForceAt(5, 4);
+
+      act(() => {
+        result.current.onForceMoved(stepResult({ x: 6, y: 4, forcesOnDestination: [force({ id: 1 })] }));
+      });
+
+      expect(result.current.getStepToTile({ ...tile([]), x: 7, y: 4 })).toEqual({
+        kind: "step",
+        unitInstanceId: 1,
+        direction: "East",
+      });
+
+      // And the tile it set off from is now two steps away, so it is out of reach rather than still adjacent.
+      expect(result.current.getStepToTile({ ...tile([]), x: 4, y: 4 }).kind).toBe("too-far");
+    });
+
+    /**
+     * The bar's forces are all on one tile, so picking a different one there has to find an origin already
+     * recorded — selecting from the map stores every owned force on the tile, not just the one it selects.
+     */
+    it("can step a force chosen from the selection bar rather than the map", () => {
+      const { result } = renderForceSelection();
+
+      act(() => {
+        result.current.selectForceFromTile({ ...tile([force({ id: 1 }), force({ id: 2 })]), x: 5, y: 4 });
+      });
+
+      act(() => {
+        result.current.chooseForce(force({ id: 2 }));
+      });
+
+      expect(result.current.getStepToTile({ ...tile([]), x: 5, y: 5 })).toEqual({
+        kind: "step",
+        unitInstanceId: 2,
+        direction: "South",
+      });
+    });
+  });
+
+  /**
+   * The bar describes one tile's forces. When the selected force leaves that tile the bar has to follow it, or it goes on
+   * offering the tile it set off from — including the force that is no longer standing there.
+   */
+  describe("the selection bar after a move", () => {
+    /** Selects one of three forces sharing a tile, which is the case the bar exists for. */
+    function selectFromCrowdedTile() {
+      const view = renderForceSelection();
+
+      act(() => {
+        view.result.current.selectForceFromTile({
+          ...tile([force({ id: 1 }), force({ id: 2 }), force({ id: 3 })]),
+          x: 5,
+          y: 4,
+        });
+      });
+
+      return view;
+    }
+
+    it("re-points the bar at the destination tile when the force arrives among others", () => {
+      const { result } = selectFromCrowdedTile();
+
+      expect(result.current.multiForceTile).toMatchObject({ x: 5, y: 4 });
+
+      act(() => {
+        result.current.onForceMoved(
+          stepResult({ x: 6, y: 4, forcesOnDestination: [force({ id: 1 }), force({ id: 8 })] }),
+        );
+      });
+
+      expect(result.current.multiForceTile).toMatchObject({ x: 6, y: 4 });
+      expect(result.current.multiForceTile?.forces.map((f) => f.id)).toEqual([1, 8]);
+    });
+
+    it("hides the bar when the force moves somewhere it stands alone", () => {
+      const { result } = selectFromCrowdedTile();
+
+      act(() => {
+        result.current.onForceMoved(stepResult({ x: 6, y: 4, forcesOnDestination: [force({ id: 1 })] }));
+      });
+
+      // Nothing to choose between, which is the same rule that governs selecting a tile by hand.
+      expect(result.current.multiForceTile).toBeNull();
+    });
+
+    it("leaves the moved force selected so it can be moved again straight away", () => {
+      const { result } = selectFromCrowdedTile();
+
+      act(() => {
+        result.current.onForceMoved(
+          stepResult({ x: 6, y: 4, forcesOnDestination: [force({ id: 1 }), force({ id: 8 })] }),
+        );
+      });
+
+      expect(selectedIds(result)).toEqual([1]);
+    });
+
+    it("offers only the player's own forces on the destination, never an enemy sharing it", () => {
+      const { result } = selectFromCrowdedTile();
+
+      act(() => {
+        result.current.onForceMoved(
+          stepResult({
+            x: 6,
+            y: 4,
+            forcesOnDestination: [force({ id: 1 }), force({ id: 8 }), force({ id: 9, ownerPlayerId: OTHER_PLAYER_ID })],
+          }),
+        );
+      });
+
+      expect(result.current.multiForceTile?.forces.map((f) => f.id)).toEqual([1, 8]);
+    });
+
+    it("takes the moved force's fresh state from the response rather than patching the snapshot it held", () => {
+      const { result } = selectFromCrowdedTile();
+
+      act(() => {
+        result.current.onForceMoved(
+          stepResult({
+            x: 6,
+            y: 4,
+            forcesOnDestination: [force({ id: 1, movementPointsRemaining: 0.5, healthyTroops: 44 })],
+          }),
+        );
+      });
+
+      const moved = result.current.selectedForces[0];
+      expect(moved.movementPointsRemaining).toBe(0.5);
+      // Troop count too, not just movement: every field should be current, not only the one we knew had changed.
+      expect(moved.healthyTroops).toBe(44);
+    });
+
+    it("still records the movement spent when refreshing the map view returned nothing", () => {
+      const { result } = selectFromCrowdedTile();
+
+      // The step committed but the vision refresh failed, so the response carries no tiles at all.
+      act(() => {
+        result.current.onForceMoved(stepResult({ x: 6, y: 4, movementPointsRemaining: 0.5 }));
+      });
+
+      expect(result.current.selectedForces[0].movementPointsRemaining).toBe(0.5);
+      // The bar cannot describe the destination without data for it, and a bar for the tile the force left would be
+      // worse than none at all.
+      expect(result.current.multiForceTile).toBeNull();
+    });
+
+    it("lets a force picked up on the destination tile be moved without reselecting it from the map", () => {
+      const { result } = selectFromCrowdedTile();
+
+      act(() => {
+        result.current.onForceMoved(
+          stepResult({ x: 6, y: 4, forcesOnDestination: [force({ id: 1 }), force({ id: 8 })] }),
+        );
+      });
+
+      act(() => {
+        result.current.chooseForce(force({ id: 8 }));
+      });
+
+      expect(result.current.getStepToTile({ ...tile([]), x: 7, y: 4 })).toEqual({
+        kind: "step",
+        unitInstanceId: 8,
+        direction: "East",
+      });
+    });
   });
 });
