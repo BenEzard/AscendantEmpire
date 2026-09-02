@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, Modal, Spinner, Tooltip } from "@/components/ui";
-import type { OpenGameSelection } from "../types/OpenGameSelection";
 import type { OpenGamesResponse } from "../types/OpenGamesResponse";
 import type { OpenGame } from "../types/OpenGame";
 import { getOpenGames } from "../hooks/getOpenGames";
@@ -9,13 +8,26 @@ import { getOpenGames } from "../hooks/getOpenGames";
 export interface OpenGameDialogProps {
   show: boolean;
   onClose: () => void;
-  onSaveSuccess: (message?: string) => void;
-  onOpenMap?: (selection: OpenGameSelection) => void;
+  /**
+   * Hands back the game the user picked — the game only, never a player.
+   *
+   * Which player the user controls in it is the token's answer, not this dialog's: the caller enters
+   * the game and takes the player from what the server issues. This listing is a public lobby (it
+   * shows every active ruler in every in-progress game, whoever is asking), so a player chosen from
+   * it would be a player the user picked rather than one they hold.
+   */
+  onOpenGame: (game: OpenGame) => void;
 }
 
-export default function OpenGameDialog({ show, onClose, onSaveSuccess, onOpenMap }: OpenGameDialogProps) {
+/**
+ * Picks a game to open.
+ *
+ * The rulers are listed under each game because they are what tells one game from another — "the one
+ * I'm in against Jen" — but they are read-only detail. Clicking any row of a game selects that game.
+ */
+export default function OpenGameDialog({ show, onClose, onOpenGame }: OpenGameDialogProps) {
   const [filter, setFilter] = useState("");
-  const [selected, setSelected] = useState<{ gameId: number; playerId: number } | null>(null);
+  const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
 
   const { data, isLoading, isFetching, error, refetch } = useQuery<OpenGamesResponse, Error>({
     queryKey: ["games", "open"],
@@ -27,47 +39,42 @@ export default function OpenGameDialog({ show, onClose, onSaveSuccess, onOpenMap
   const games = useMemo<OpenGame[]>(() => data?.games ?? [], [data]);
 
   useEffect(() => {
-    if (!show) return;
+    if (!show) {
+      return;
+    }
+
     setFilter("");
-    setSelected(null);
+    setSelectedGameId(null);
   }, [show]);
 
   const filteredGames = useMemo(() => {
     const f = filter.trim().toLowerCase();
-    if (!f) return games;
+    if (!f) {
+      return games;
+    }
 
     return games.filter((g) => {
-      if (g.gameName.toLowerCase().includes(f)) return true;
+      if (g.gameName.toLowerCase().includes(f)) {
+        return true;
+      }
       return g.players.some((p) => p.rulerLabel.toLowerCase().includes(f));
     });
   }, [games, filter]);
 
-  const selectedSelection = useMemo<OpenGameSelection | null>(() => {
-    if (!selected) return null;
+  const selectedGame = useMemo<OpenGame | null>(() => {
+    if (selectedGameId == null) {
+      return null;
+    }
 
-    const g = games.find((x) => x.gameId === selected.gameId);
-    if (!g) return null;
-
-    const p = g.players.find((x) => x.playerId === selected.playerId);
-    if (!p) return null;
-
-    return {
-      gameId: g.gameId,
-      gameName: g.gameName,
-      width: g.mapWidth,
-      height: g.mapHeight,
-      playerId: p.playerId,
-      rulerLabel: p.rulerLabel,
-      campaignOffsetId: p.campaignOffsetId,
-    };
-  }, [selected, games]);
+    return games.find((g) => g.gameId === selectedGameId) ?? null;
+  }, [selectedGameId, games]);
 
   const handleOpen = () => {
-    if (!selectedSelection) return;
+    if (!selectedGame) {
+      return;
+    }
 
-    console.log("Opening selection:", selectedSelection);
-    onOpenMap?.(selectedSelection);
-    onSaveSuccess(`Opened "${selectedSelection.gameName}" as ${selectedSelection.rulerLabel}`);
+    onOpenGame(selectedGame);
     onClose();
   };
 
@@ -82,7 +89,7 @@ export default function OpenGameDialog({ show, onClose, onSaveSuccess, onOpenMap
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleOpen} disabled={!selectedSelection}>
+          <Button variant="primary" onClick={handleOpen} disabled={!selectedGame}>
             Open
           </Button>
         </>
@@ -121,7 +128,7 @@ export default function OpenGameDialog({ show, onClose, onSaveSuccess, onOpenMap
                 <th className="px-3 py-2" style={{ width: 120 }}>
                   Size
                 </th>
-                <th className="px-3 py-2">Player</th>
+                <th className="px-3 py-2">Rulers</th>
               </tr>
             </thead>
 
@@ -134,33 +141,31 @@ export default function OpenGameDialog({ show, onClose, onSaveSuccess, onOpenMap
                 </tr>
               ) : (
                 filteredGames.flatMap((g) => {
+                  // A game with no active players is still listed, so it can be seen to exist, but it can't be opened:
+                  // nobody holds a slot in it, so nobody can enter it.
                   const players = g.players.length ? g.players : [{ playerId: 0, rulerLabel: "(no players)", campaignOffsetId: 0 }];
+                  const isOpenable = g.players.length > 0;
+                  const isSelected = isOpenable && selectedGameId === g.gameId;
 
                   return players.map((p, idx) => {
                     const rowKey = `${g.gameId}-${p.playerId || "none"}-${idx}`;
-                    const isSelected = p.playerId > 0 && selected?.gameId === g.gameId && selected?.playerId === p.playerId;
 
+                    // Every row of a game selects the game itself. The ruler on the row is detail about the game, not
+                    // the identity being chosen — that comes back from the server when the game is entered.
                     const onClick = () => {
-                      if (p.playerId <= 0) return;
-                      setSelected({ gameId: g.gameId, playerId: p.playerId });
+                      if (!isOpenable) {
+                        return;
+                      }
+                      setSelectedGameId(g.gameId);
                     };
 
                     const onDoubleClick = () => {
-                      if (p.playerId <= 0) return;
+                      if (!isOpenable) {
+                        return;
+                      }
 
-                      setSelected({ gameId: g.gameId, playerId: p.playerId });
-                      const selection: OpenGameSelection = {
-                        gameId: g.gameId,
-                        gameName: g.gameName,
-                        width: g.mapWidth,
-                        height: g.mapHeight,
-                        playerId: p.playerId,
-                        rulerLabel: p.rulerLabel,
-                        campaignOffsetId: p.campaignOffsetId,
-                      };
-
-                      onOpenMap?.(selection);
-                      onSaveSuccess(`Opened "${selection.gameName}" as ${selection.rulerLabel}`);
+                      setSelectedGameId(g.gameId);
+                      onOpenGame(g);
                       onClose();
                     };
 
@@ -169,10 +174,10 @@ export default function OpenGameDialog({ show, onClose, onSaveSuccess, onOpenMap
                         key={rowKey}
                         className={[
                           "border-t border-slate-100",
-                          p.playerId > 0 ? "cursor-pointer hover:bg-slate-50" : "",
+                          isOpenable ? "cursor-pointer hover:bg-slate-50" : "",
                           isSelected ? "bg-slate-100" : "",
                         ].join(" ")}
-                        role={p.playerId > 0 ? "button" : undefined}
+                        role={isOpenable ? "button" : undefined}
                         onClick={onClick}
                         onDoubleClick={onDoubleClick}>
                         {idx === 0 && (
@@ -191,7 +196,7 @@ export default function OpenGameDialog({ show, onClose, onSaveSuccess, onOpenMap
                         )}
 
                         <td className="px-3 py-2">
-                          <Tooltip content={p.playerId > 0 ? "Double-click to open" : undefined}>
+                          <Tooltip content={isOpenable ? "Double-click to open this game" : undefined}>
                             <span>{p.rulerLabel}</span>
                           </Tooltip>
                         </td>

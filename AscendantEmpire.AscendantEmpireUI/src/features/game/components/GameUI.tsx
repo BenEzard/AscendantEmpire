@@ -386,14 +386,39 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
         <OpenGameDialog
           show={activeDialog === "openGame"}
           onClose={() => setActiveDialog(null)}
-          onSaveSuccess={(msg) => openToast(msg ?? "Undefined", "success")}
-          onOpenMap={async (selection) => {
+          onOpenGame={async (game) => {
             setActiveDialog(null);
             try {
               // Swap the user token for a game token before loading the game, so protected
               // endpoints read this game + player straight from the token.
-              await enterGame(selection.gameId);
-              setGameSelection(selection);
+              //
+              // That swap is also the only trustworthy answer to "which player am I here": the server
+              // resolved it from the account the token proved. The dialog's listing is a public lobby
+              // showing every ruler in the game, so taking the player from the row that was clicked
+              // would let whoever is logged in drive whichever ruler they happened to pick.
+              const entered = await enterGame(game.gameId);
+
+              const player = game.players.find((p) => p.playerId === entered.playerId);
+              if (entered.gameId == null || entered.playerId == null || player == null) {
+                // The token names a player this listing doesn't — an inactive slot, say — so there is no
+                // ruler label or campaign offset to draw the board with. Say so rather than opening the
+                // map under a guessed identity.
+                openToast("You do not hold an active player slot in that game.", "danger");
+                return;
+              }
+
+              // Identity (gameId, playerId) comes from the token; the rest is display detail off the listing.
+              setGameSelection({
+                gameId: entered.gameId,
+                gameName: game.gameName,
+                width: game.mapWidth,
+                height: game.mapHeight,
+                playerId: entered.playerId,
+                rulerLabel: player.rulerLabel,
+                campaignOffsetId: player.campaignOffsetId,
+              });
+
+              openToast(`Opened "${game.gameName}" as ${player.rulerLabel}`, "success");
             } catch (err) {
               openToast(err instanceof Error ? err.message : "Could not enter that game.", "danger");
             }
