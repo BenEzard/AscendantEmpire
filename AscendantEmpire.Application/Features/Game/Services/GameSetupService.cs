@@ -406,8 +406,8 @@ internal class GameSetupService(
             .Where(c => starterTemplateIds.Contains(c.UnitTemplateId))
             .ToListAsync(cancellationToken);
 
-        // Resolve each starter's spawn size up front so a misconfigured catalogue fails before anything is written.
-        List<(UnitTemplate Template, int SpawnSize)> startersToSpawn = [];
+        // Resolve each starter's spawn size and movement allowance up front so a misconfigured catalogue fails before anything is written.
+        List<(UnitTemplate Template, int SpawnSize, long CampaignMovementPoints)> startersToSpawn = [];
 
         foreach (UnitTemplate template in starterTemplates)
         {
@@ -428,7 +428,7 @@ internal class GameSetupService(
                 return ServiceResultBase.Fail($"Starter template '{template.Code}' resolves to unled tag '{organisationTag.Code}', which has no authored UnledDefaultSize.");
             }
 
-            startersToSpawn.Add((template, organisationTag.UnledDefaultSize.Value));
+            startersToSpawn.Add((template, organisationTag.UnledDefaultSize.Value, compiled.CampaignMovementPoints));
         }
 
         // One start position per player, best-scored first (unscored positions come last).
@@ -496,6 +496,10 @@ internal class GameSetupService(
                 InitialStrength = starter.SpawnSize,
                 HealthyCount = starter.SpawnSize,
                 InjuredCount = 0,
+
+                // Starting units are fielded with a full turn's movement, exactly as SpawnUnitHandler does — otherwise every player would open
+                // the game with two units frozen on their start tile until turn rollover replenishes them (TM-3).
+                MovementPointsRemaining = starter.CampaignMovementPoints,
             }));
         }
 

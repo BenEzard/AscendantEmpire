@@ -159,6 +159,12 @@ internal class SpawnUnitHandler(
                 InitialStrength = request.InitialStrength,
                 HealthyCount = request.HealthyCount,
                 InjuredCount = request.InjuredCount,
+
+                // A Unit is fielded with a full turn's movement, taken from its template's compiled snapshot.
+                // Left at the column default of 0 it could not move at all on the turn it was spawned: MoveForceHandler refuses a Force with no
+                // points left, and nothing else writes this field until turn rollover replenishes it (TM-3). Both sides are the same raw
+                // Scale-1,000 fixed point, so the allowance copies across with no conversion.
+                MovementPointsRemaining = compiledTemplate.CampaignMovementPoints,
             });
 
             await context.SaveChangesAsync(cancelToken);

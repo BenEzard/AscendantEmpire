@@ -62,8 +62,8 @@ internal sealed record ForceActionForce
 
     /// <summary>Whether the Force still holds every movement point it started the turn with.</summary>
     /// <remarks>
-    /// Actions which cost a whole turn require this rather than merely "some movement left". Note that nothing currently initialises or
-    /// replenishes <c>MovementPointsRemaining</c>, so in practice this reads false until that is implemented — see the design doc.
+    /// Actions which cost a whole turn require this rather than merely "some movement left". A Force is now spawned holding its template's full
+    /// campaign allowance (F-9), so this reads true until it moves; turn rollover does not yet replenish it (TM-3) — see the design doc.
     /// </remarks>
     public bool HasFullMovement => MovementPointsRemaining >= CampaignMovementPoints;
 }

@@ -196,8 +196,9 @@ internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
             .OrderBy(u => u.Id)
             .FirstAsync();
 
-        // Nothing writes MovementPointsRemaining yet (TM-3), so every Force in the database reads 0. Both states
-        // are set by hand here, otherwise the projection would look correct while simply always answering false.
+        // Setup spawns every Force holding its full campaign allowance (F-9), so left alone they would all report
+        // true. Both states are set by hand here, otherwise the projection would look correct while simply
+        // echoing whatever the spawn defaults happen to be.
         foreach (UnitInstance spentForce in viewerForces)
         {
             spentForce.MovementPointsRemaining = 0;

@@ -88,7 +88,8 @@ internal class GetPlayerForcesHandler(
                     InitialStrength = pu.InitialStrength,
                     UnitTemplateId = pu.UnitTemplateId,
                     // Set for the same reason as the by-location projection: every PlayerForce should describe the Force fully, so a future caller of this
-                    // handler doesn't silently inherit a default false. Nothing writes MovementPointsRemaining yet (TM-3), so it reads false today.
+                    // handler doesn't silently inherit a default false. Spawning seeds MovementPointsRemaining (F-9); turn rollover does not yet
+                    // replenish it (TM-3).
                     HasMovementRemaining = pu.MovementPointsRemaining > 0,
                 })
                 .ToListAsync(cancelToken);
