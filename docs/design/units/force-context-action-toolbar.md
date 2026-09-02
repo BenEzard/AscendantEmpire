@@ -17,6 +17,7 @@ time; **TM-2** is the first slice, delivering the pipeline plus a single action 
 | 4 | Frontend — api module, query hook, action registry, disabled rendering, `useForceSelection` wiring | TM-2 | **Done** |
 | 5 | Executing the split — split handler, options endpoint and parameter dialog | TM-4 | Not started |
 | 6 | Replace the "Select Force" dialog with the always-visible force selection bar | TM-5 | **Done** — see [force-selection-toolbar.md](force-selection-toolbar.md) |
+| 7 | Multi-Force selection — ctrl+click in the bar, and a toolbar that judges the whole selection | — | **Done** — see [Aggregating over a selection](#aggregating-over-a-selection) |
 
 Stage 5 is deliberately **not** part of TM-2. TM-2 delivers the toolbar and the pipeline behind it; the
 button that opens the split dialog currently raises a toast saying the dialog is not built yet. See
@@ -86,9 +87,10 @@ changes. So a strategy exposes a single `Evaluate(context)`:
 The frontend never decides legality. It renders a decision and echoes back an intent.
 
 ```
-GET  /force-orders/units/{id}/actions ─┐
-                                        ├─► ForceActionContextBuilder ─► IForceActionStrategy.Evaluate()
-POST /force-orders/split ───────────────┘          (2 queries)              (pure, synchronous)
+GET  /force-orders/actions?id=1&id=2 ─┐                                  ┌─► IForceActionStrategy.Evaluate()
+                                       ├─► ForceActionContextBuilder ────┤     (pure, per Force)
+POST /force-orders/split ──────────────┘   (2 queries, one ctx per Force)└─► ForceActionAggregator.Aggregate()
+                                                                               (folds them into one verdict)
 ```
 
 ## Backend design
@@ -153,6 +155,58 @@ The nullable return matters. There are three outcomes, not two:
 Without the `null` case, every Force's toolbar becomes a wall of greyed-out buttons explaining actions
 it will never have. The distinction is roughly "could this ever be true for this Force?" — structural
 facts hide the action, mutable state disables it.
+
+## Aggregating over a selection
+
+The player may have several Forces selected at once — see
+[the selection bar's multi-select](force-selection-toolbar.md#multi-select). An action offered over a
+selection is **one order covering all of them**, so each action is judged against every selected Force
+and the verdicts folded together.
+
+`IForceActionStrategy` stayed **per-Force**, deliberately. `Evaluate` still judges one
+`ForceActionContext` and knows nothing about selections; everything multi-Force lives in
+`ForceActionAggregator` instead. That is why widening the toolbar to a selection cost the rule layer no
+changes at all — `SplitForceStrategy` and its 11 tests were untouched — and why a new action type still
+only has to answer for one Force.
+
+| Every selected Force's verdict | Toolbar shows |
+|---|---|
+| all `null` | nothing — the action is omitted |
+| all available | enabled |
+| anything else | disabled, with the collected reasons |
+
+The three outcomes are not symmetrical, and each asymmetry is load-bearing:
+
+* **Hidden only when no Force could ever take it.** Hiding as soon as *one* Force could not would make
+  buttons vanish as the player adds Forces to the selection, with nothing said about why.
+* **Enabled only when every Force can take it.** Pressing the button is one order over the selection; a
+  partial order is not what the player asked for.
+* **Everything else disabled with reasons**, because that is the only state that can explain itself.
+
+A Force the action is structurally irrelevant to still contributes a reason —
+`'Split Force' does not apply to Warband.`, matching what `EvaluateActionAsync` already says for the
+single-Force case. Passing it over silently would leave the player looking at a disabled button whose
+listed reasons all name *other* Forces.
+
+Reasons are deduplicated. Most name their own Force ("Settler B is too small to split.") and so
+distinguish themselves, but a configuration error such as an Unled organisation with no authored base
+size is a fact about the **tag**, and every Force sharing that tag reports it word for word.
+
+The aggregator is pure and static, and both the list endpoint and the execute-time re-check go through
+it — the same reasoning as [Departure 2](#departure-2--one-strategy-serves-both-the-read-and-the-write).
+If the two folded differently, an action could render enabled and then be refused on execution.
+
+### The context builder is all-or-nothing
+
+`BuildAsync` takes the whole selection and returns `null` if **any** Force in it is missing, wiped out
+or another player's — which the service reports as a 404. Quietly dropping the bad id would render a
+toolbar that judged fewer Forces than the player has selected, which is worse than an error.
+
+It still costs **two queries** whatever the size of the selection: one for the selected Forces, one for
+every own Force standing on the distinct tiles they occupy, then grouped in memory. The fixed cost the
+pure-strategy design rests on is unchanged. The builder does *not* require the selection to share a
+tile, even though the bar can only produce same-tile selections today — grouping by tile costs nothing
+and leaves cross-tile selection free to arrive later.
 
 ### `ForceActionAvailability`
 
@@ -220,9 +274,15 @@ deliberate choice over faking the value: the fade follows the data rather than h
 
 ### Contract
 
-`GET /force-orders/units/{unitInstanceId}/actions`, game and player read from the token via
-`TryGetGameContext`, returned under an `{ actions: [...] }` envelope to match the existing
-`{ ranks }` / `{ tags }` convention. Enums serialise as their string names.
+`GET /force-orders/actions?id=1&id=2`, game and player read from the token via `TryGetGameContext`,
+returned under an `{ actions: [...] }` envelope to match the existing `{ ranks }` / `{ tags }`
+convention. Enums serialise as their string names.
+
+The query parameter is named simply **`id`**, and carries the whole selection as a repeated parameter.
+It is deliberately not `unitInstanceId`: a Force is a *category*, not a type (see
+[Terminology.md](../../Terminology.md)), so while every fielded Force is a Unit today and these are
+`UnitInstance` ids, a Command is equally a Force and will arrive through the same parameter without a
+rename. Read it throughout as a Force instance id.
 
 ```
 actionType:      "SplitForce"
@@ -232,8 +292,14 @@ isEnabled:       false
 disabledReasons: ["Unit has already moved this turn. Splitting requires a full turn."]
 ```
 
-Fetched **per Force** and cached by React Query on `["forceContextActions", unitInstanceId]`, invalidated
-after anything that changes a Force's size or movement.
+Fetched **per selection** and cached by React Query on `["forceContextActions", "1,2"]` — the ids
+sorted and joined, so selecting the same Forces in a different order hits the same entry and the key
+stays a primitive rather than a fresh array identity each render. Invalidated after anything that
+changes a Force's size or movement.
+
+The frontend builds the query string with `URLSearchParams` rather than axios's `params` option, which
+is the obvious thing to reach for and is wrong here: axios serialises an array as `id[]=1&id[]=2`, and
+`[FromQuery(Name = "id")]` binds only the repeated `id=1&id=2` form.
 
 ### Icons and labels are the frontend's job
 
@@ -284,12 +350,13 @@ That work is Stage 5 and is expected to become its own ticket.
 
 | Component | Tier | Count |
 |---|---|---|
-| `SplitForceStrategy` | 1 — no database | 11 |
-| `ForceContextActionService` | 1 — no database | 8 — fake strategies; ordering, omission, fault isolation, re-validation |
-| `ForceActionContextBuilder` | 2 — in-memory | 10 |
+| `SplitForceStrategy` | 1 — no database | 11 — **unchanged** by the multi-select work, which is the point of keeping strategies per-Force |
+| `ForceActionAggregator` | 1 — no database | 9 — the folding rules; hide/enable/disable, reason collection, dedupe, a selection of one |
+| `ForceContextActionService` | 1 — no database | 12 — fake strategies; ordering, omission, fault isolation, re-validation, every Force judged |
+| `ForceActionContextBuilder` | 2 — in-memory | 16 — the original 10 plus per-Force contexts, id ordering, tile-mates, all-or-nothing, duplicates |
 | `ContextActionToolbar` | Vitest | 6 — disabled rendering, reason text, ordering, icon-only rendering |
-| `ForceSelectionToolbar` | Vitest | 12 — ordering, troop count, fade, clickability when spent, checkbox channel |
-| `useForceSelection` | Vitest | 6 — own-forces-only filtering, default selection, checked-set clearing |
+| `ForceSelectionToolbar` | Vitest | 17 — ordering, troop count, fade, clickability when spent, ctrl/⌘+click, multiple pressed entries |
+| `useForceSelection` | Vitest | 10 — own-forces-only filtering, default selection, the gesture trace, pinning, id-set identity |
 
 Keeping the rules pure is what confined the tier question to a single class — and that class turned out
 to sit on the in-memory tier after all. `CompiledUnitTemplate` owns EF complex types

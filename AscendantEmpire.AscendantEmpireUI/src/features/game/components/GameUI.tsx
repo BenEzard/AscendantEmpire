@@ -95,16 +95,14 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   } = useVisionTool({ gameId, playerId, openToast });
 
   const {
-    selectedForce,
+    selectedForces,
+    selectedForceIds,
     multiForceTile,
     getVisibleForceId,
     chooseForce,
     onTileHold,
     selectForceFromTile,
     contextActionToolbarActions,
-    forceSelectionRequired,
-    checkedForceIds,
-    toggleForceChecked,
   } = useForceSelection({ gameId, playerId, openToast });
 
   const construction = useConstructionPanel();
@@ -317,21 +315,22 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
         <MilitaryAdvisorDialog show={showMilitaryAdvisor} onClose={closeMilitaryAdvisor} />
 
         {/* Both bars stack in one fixed column, so the selection bar sits under the action toolbar without either
-            needing to know the other's height. Mounted only with a force selected — neither has anything to say
-            otherwise. */}
-        {selectedForce != null && (
+            needing to know the other's height.
+
+            Mounted while anything is selected *or* the bar has a tile to offer. The second half matters: ctrl+
+            clicking the last selected force empties the selection, and if the dock unmounted on that the bar would
+            vanish out from under the cursor that was clicking in it, leaving the player to go back to the map to
+            recover it. With a tile still set, the bar stays and the action toolbar simply empties. */}
+        {(selectedForces.length > 0 || multiForceTile != null) && (
           <div className="command-dock">
             <ContextActionToolbar visible={contextActionToolbarActions.length > 0} actions={contextActionToolbarActions} />
             <ForceSelectionToolbar
               visible={multiForceTile != null}
               tile={multiForceTile}
-              selectedForceId={selectedForce.id}
+              selectedForceIds={selectedForceIds}
               unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
               unitNameByUnitTemplateId={unitNameByUnitTemplateId}
-              selectionRequired={forceSelectionRequired}
-              checkedForceIds={checkedForceIds}
               onSelect={chooseForce}
-              onCheckedChange={toggleForceChecked}
             />
           </div>
         )}
@@ -371,7 +370,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
                       tiles2d={tiles2d}
                       geographies={geographiesList}
                       containerRef={tileGridContainerRef}
-                      selectedForceId={selectedForce?.id}
+                      selectedForceIds={selectedForceIds}
                       unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
                       getVisibleForceId={getVisibleForceId}
                       onTileClick={onTileClick}

@@ -15,16 +15,16 @@ internal sealed class ForceContextActionService(
     public async Task<ServiceResultBase.ServiceResult<IReadOnlyCollection<ForceContextAction>>> GetAvailableActionsAsync(
         int gameId,
         int playerId,
-        int unitInstanceId,
+        IReadOnlyCollection<int> forceIds,
         CancellationToken cancelToken)
     {
-        ForceActionContext? context = await contextBuilder.BuildAsync(gameId, playerId, unitInstanceId, cancelToken);
+        IReadOnlyCollection<ForceActionContext>? contexts = await contextBuilder.BuildAsync(gameId, playerId, forceIds, cancelToken);
 
-        if (context is null)
+        if (contexts is null)
         {
-            string error = $"Unit Instance Id {unitInstanceId} was not found for Player Id {playerId} in Game Id {gameId}.";
-            logger.LogWarning("Unit Instance Id {UnitInstanceId} was not found for Player Id {PlayerId} in Game Id {GameId}.",
-                unitInstanceId, playerId, gameId);
+            string error = $"{DescribeSelection(forceIds)} was not found for Player Id {playerId} in Game Id {gameId}.";
+            logger.LogWarning("{Selection} was not found for Player Id {PlayerId} in Game Id {GameId}.",
+                DescribeSelection(forceIds), playerId, gameId);
 
             return ServiceResultBase.ServiceResult<IReadOnlyCollection<ForceContextAction>>.NotFound(error);
         }
@@ -36,23 +36,39 @@ internal sealed class ForceContextActionService(
         {
             cancelToken.ThrowIfCancellationRequested();
 
-            ForceActionAvailability? availability;
+            List<(ForceActionContext Context, ForceActionAvailability? Verdict)> verdicts = [];
+            bool strategyFaulted = false;
 
-            try
+            foreach (ForceActionContext context in contexts)
             {
-                availability = strategy.Evaluate(context);
+                try
+                {
+                    verdicts.Add((context, strategy.Evaluate(context)));
+                }
+                catch (Exception ex)
+                {
+                    // One broken strategy must not cost the player their whole toolbar; drop just that action and carry on. Mirrors how the
+                    // end-turn possible-action pipeline isolates its checks.
+                    //
+                    // A throw against any one Force drops the action for the entire selection rather than for that Force alone: a partial
+                    // aggregate would silently judge fewer Forces than are selected, which is worse than an absent button.
+                    logger.LogError(ex, "Force action strategy '{ActionType}' threw for Unit Instance Id {UnitInstanceId} in Game Id {GameId}.",
+                        strategy.ActionType, context.SelectedForce.UnitInstanceId, gameId);
+
+                    strategyFaulted = true;
+
+                    break;
+                }
             }
-            catch (Exception ex)
-            {
-                // One broken strategy must not cost the player their whole toolbar; drop just that action and carry on. Mirrors how the
-                // end-turn possible-action pipeline isolates its checks.
-                logger.LogError(ex, "Force action strategy '{ActionType}' threw for Unit Instance Id {UnitInstanceId} in Game Id {GameId}.",
-                    strategy.ActionType, unitInstanceId, gameId);
 
+            if (strategyFaulted)
+            {
                 continue;
             }
 
-            // Null means the action is structurally irrelevant to this Force, so it is left out of the toolbar altogether.
+            ForceActionAvailability? availability = ForceActionAggregator.Aggregate(strategy, verdicts);
+
+            // Null means the action is structurally irrelevant to every selected Force, so it is left out of the toolbar altogether.
             if (availability is null)
             {
                 continue;
@@ -68,8 +84,8 @@ internal sealed class ForceContextActionService(
             });
         }
 
-        logger.LogDebug("Resolved {Count} context action(s) for Unit Instance Id {UnitInstanceId} in Game Id {GameId}.",
-            actions.Count, unitInstanceId, gameId);
+        logger.LogDebug("Resolved {Count} context action(s) for {Selection} in Game Id {GameId}.",
+            actions.Count, DescribeSelection(forceIds), gameId);
 
         return ServiceResultBase.ServiceResult<IReadOnlyCollection<ForceContextAction>>.Succeed(actions);
     }
@@ -77,7 +93,7 @@ internal sealed class ForceContextActionService(
     public async Task<ServiceResultBase.ServiceResult<ForceActionAvailability>> EvaluateActionAsync(
         int gameId,
         int playerId,
-        int unitInstanceId,
+        IReadOnlyCollection<int> forceIds,
         ForceActionType actionType,
         CancellationToken cancelToken)
     {
@@ -91,22 +107,41 @@ internal sealed class ForceContextActionService(
             return ServiceResultBase.ServiceResult<ForceActionAvailability>.NotFound(error);
         }
 
-        ForceActionContext? context = await contextBuilder.BuildAsync(gameId, playerId, unitInstanceId, cancelToken);
+        IReadOnlyCollection<ForceActionContext>? contexts = await contextBuilder.BuildAsync(gameId, playerId, forceIds, cancelToken);
 
-        if (context is null)
+        if (contexts is null)
         {
-            string error = $"Unit Instance Id {unitInstanceId} was not found for Player Id {playerId} in Game Id {gameId}.";
-            logger.LogWarning("Unit Instance Id {UnitInstanceId} was not found for Player Id {PlayerId} in Game Id {GameId}.",
-                unitInstanceId, playerId, gameId);
+            string error = $"{DescribeSelection(forceIds)} was not found for Player Id {playerId} in Game Id {gameId}.";
+            logger.LogWarning("{Selection} was not found for Player Id {PlayerId} in Game Id {GameId}.",
+                DescribeSelection(forceIds), playerId, gameId);
 
             return ServiceResultBase.ServiceResult<ForceActionAvailability>.NotFound(error);
         }
 
-        // A structurally irrelevant action (null) is a hard no at execution time, not merely an absent button — so it is reported as blocked
-        // rather than allowed through.
-        ForceActionAvailability availability = strategy.Evaluate(context)
+        List<(ForceActionContext Context, ForceActionAvailability? Verdict)> verdicts =
+            [.. contexts.Select(context => (context, strategy.Evaluate(context)))];
+
+        // A structurally irrelevant action is a hard no at execution time, not merely an absent button — so an aggregate of nothing but nulls is
+        // reported as blocked rather than allowed through.
+        ForceActionAvailability availability = ForceActionAggregator.Aggregate(strategy, verdicts)
             ?? ForceActionAvailability.Blocked([$"'{strategy.Label}' does not apply to this force."]);
 
         return ServiceResultBase.ServiceResult<ForceActionAvailability>.Succeed(availability);
+    }
+
+    /// <summary>Names the selection for a log line or an error, reading naturally whether it holds one Force or several.</summary>
+    private static string DescribeSelection(IReadOnlyCollection<int> forceIds)
+    {
+        if (forceIds is null || forceIds.Count == 0)
+        {
+            return "An empty Force selection";
+        }
+
+        if (forceIds.Count == 1)
+        {
+            return $"Unit Instance Id {forceIds.First()}";
+        }
+
+        return $"Unit Instance Ids {string.Join(", ", forceIds.Order())}";
     }
 }

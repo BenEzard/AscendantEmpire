@@ -110,6 +110,16 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         await context.SaveChangesAsync();
     }
 
+    /// <summary>
+    /// Builds for a selection of one and unwraps it, since most of what this builder does is per-Force and reads better without the collection.
+    /// </summary>
+    private async Task<ForceActionContext?> BuildSingleAsync(int forceId)
+    {
+        IReadOnlyCollection<ForceActionContext>? contexts = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, [forceId], CancellationToken.None);
+
+        return contexts?.SingleOrDefault();
+    }
+
     [Test, Description("The force and its organisation tag are flattened off the snapshot, so no EF entity reaches the pure rule layer.")]
     public async Task ShouldFlattenTheForceAndItsOrganisationTagWhenTheForceIsLoadedAsync()
     {
@@ -118,7 +128,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
             await AddForceAsync(context, unitInstanceId: 5);
         }
 
-        ForceActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
+        ForceActionContext? result = await BuildSingleAsync(5);
 
         Assert.That(result, Is.Not.Null);
 
@@ -143,7 +153,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
             await AddForceAsync(context, unitInstanceId: 5, name: null);
         }
 
-        ForceActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
+        ForceActionContext? result = await BuildSingleAsync(5);
 
         Assert.That(result!.SelectedForce.DisplayName, Is.EqualTo("Settler"));
     }
@@ -156,7 +166,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
             await AddForceAsync(context, unitInstanceId: 5, name: "First Wagon Train");
         }
 
-        ForceActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
+        ForceActionContext? result = await BuildSingleAsync(5);
 
         Assert.That(result!.SelectedForce.DisplayName, Is.EqualTo("First Wagon Train"));
     }
@@ -169,7 +179,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
             await AddForceAsync(context, unitInstanceId: 6, unitTemplateId: _UNTAGGED_TEMPLATE_ID, healthyCount: 1);
         }
 
-        ForceActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 6, CancellationToken.None);
+        ForceActionContext? result = await BuildSingleAsync(6);
 
         Assert.That(result!.SelectedForce.Organisation, Is.Null);
     }
@@ -184,7 +194,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
             await AddForceAsync(context, unitInstanceId: 7, campaignMapTileId: _OTHER_TILE_ID);
         }
 
-        ForceActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
+        ForceActionContext? result = await BuildSingleAsync(5);
 
         Assert.That(result!.OtherForcesOnTile.Select(t => t.UnitInstanceId), Is.EquivalentTo(new[] { 6 }),
             "Only the player's other forces on the same tile should be gathered.");
@@ -199,7 +209,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
             await AddForceAsync(context, unitInstanceId: 8, playerId: _OTHER_PLAYER_ID);
         }
 
-        ForceActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
+        ForceActionContext? result = await BuildSingleAsync(5);
 
         Assert.That(result!.OtherForcesOnTile, Is.Empty);
     }
@@ -213,7 +223,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
             await AddForceAsync(context, unitInstanceId: 9, healthyCount: 0, injuredCount: 0);
         }
 
-        ForceActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
+        ForceActionContext? result = await BuildSingleAsync(5);
 
         Assert.That(result!.OtherForcesOnTile, Is.Empty);
     }
@@ -226,7 +236,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
             await AddForceAsync(context, unitInstanceId: 8, playerId: _OTHER_PLAYER_ID);
         }
 
-        ForceActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 8, CancellationToken.None);
+        ForceActionContext? result = await BuildSingleAsync(8);
 
         Assert.That(result, Is.Null);
     }
@@ -234,7 +244,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
     [Test, Description("A force id that matches nothing yields no context, which the service turns into a 404 rather than an empty toolbar.")]
     public async Task ShouldReturnNullWhenTheSelectedForceDoesNotExistAsync()
     {
-        ForceActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 999, CancellationToken.None);
+        ForceActionContext? result = await BuildSingleAsync(999);
 
         Assert.That(result, Is.Null);
     }
@@ -247,12 +257,112 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
             await AddForceAsync(context, unitInstanceId: 5, movementPointsRemaining: _CAMPAIGN_MOVEMENT_POINTS / 2);
         }
 
-        ForceActionContext? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, 5, CancellationToken.None);
+        ForceActionContext? result = await BuildSingleAsync(5);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result!.SelectedForce.MovementPointsRemaining, Is.EqualTo(500));
             Assert.That(result.SelectedForce.HasFullMovement, Is.False);
         }
+    }
+
+    [Test, Description("A selection yields one context per force, ordered by id so the disabled reasons cannot reshuffle between requests.")]
+    public async Task ShouldBuildOneContextPerForceInIdOrderWhenSeveralAreSelectedAsync()
+    {
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            await AddForceAsync(context, unitInstanceId: 5);
+            await AddForceAsync(context, unitInstanceId: 6);
+            await AddForceAsync(context, unitInstanceId: 7);
+        }
+
+        // Deliberately passed out of order: the ordering must come from the builder, not from however the client listed the ids.
+        IReadOnlyCollection<ForceActionContext>? result =
+            await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, [7, 5, 6], CancellationToken.None);
+
+        Assert.That(result!.Select(c => c.SelectedForce.UnitInstanceId), Is.EqualTo(new[] { 5, 6, 7 }));
+    }
+
+    [Test, Description("Each selected force sees its own tile-mates, including the other selected forces standing beside it.")]
+    public async Task ShouldGiveEachSelectedForceItsOwnTileMatesWhenSeveralAreSelectedAsync()
+    {
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            await AddForceAsync(context, unitInstanceId: 5);
+            await AddForceAsync(context, unitInstanceId: 6);
+            await AddForceAsync(context, unitInstanceId: 7, campaignMapTileId: _OTHER_TILE_ID);
+        }
+
+        List<ForceActionContext> result = [.. (await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, [5, 6], CancellationToken.None))!];
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result[0].OtherForcesOnTile.Select(f => f.UnitInstanceId), Is.EquivalentTo(new[] { 6 }),
+                "Being selected alongside a force does not remove it from the tile.");
+            Assert.That(result[1].OtherForcesOnTile.Select(f => f.UnitInstanceId), Is.EquivalentTo(new[] { 5 }));
+        }
+    }
+
+    [Test, Description("A selection spanning tiles still resolves, so nothing here has to change if cross-tile selection is ever allowed.")]
+    public async Task ShouldResolveEachForcesTileSeparatelyWhenTheSelectionSpansTilesAsync()
+    {
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            await AddForceAsync(context, unitInstanceId: 5);
+            await AddForceAsync(context, unitInstanceId: 6);
+            await AddForceAsync(context, unitInstanceId: 7, campaignMapTileId: _OTHER_TILE_ID);
+        }
+
+        List<ForceActionContext> result = [.. (await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, [5, 7], CancellationToken.None))!];
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result[0].OtherForcesOnTile.Select(f => f.UnitInstanceId), Is.EquivalentTo(new[] { 6 }));
+            Assert.That(result[1].OtherForcesOnTile, Is.Empty, "The force alone on its tile should see no tile-mates.");
+        }
+    }
+
+    [Test, Description("One bad id fails the whole selection, so the toolbar never judges fewer forces than the player has selected.")]
+    public async Task ShouldReturnNullWhenOnlyOneForceOfTheSelectionCannotBeLoadedAsync()
+    {
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            await AddForceAsync(context, unitInstanceId: 5);
+            await AddForceAsync(context, unitInstanceId: 8, playerId: _OTHER_PLAYER_ID);
+        }
+
+        IReadOnlyCollection<ForceActionContext>? missing =
+            await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, [5, 999], CancellationToken.None);
+
+        IReadOnlyCollection<ForceActionContext>? foreign =
+            await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, [5, 8], CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(missing, Is.Null, "A force id that matches nothing should fail the selection.");
+            Assert.That(foreign, Is.Null, "Another player's force should fail the selection just as a missing one does.");
+        }
+    }
+
+    [Test, Description("The same force listed twice is one force, so a repeated id does not read as an incomplete selection.")]
+    public async Task ShouldTreatARepeatedForceIdAsOneForceWhenTheSelectionContainsDuplicatesAsync()
+    {
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            await AddForceAsync(context, unitInstanceId: 5);
+        }
+
+        IReadOnlyCollection<ForceActionContext>? result =
+            await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, [5, 5], CancellationToken.None);
+
+        Assert.That(result!.Select(c => c.SelectedForce.UnitInstanceId), Is.EqualTo(new[] { 5 }));
+    }
+
+    [Test, Description("An empty selection yields no contexts, which the service reports as not-found rather than an empty toolbar.")]
+    public async Task ShouldReturnNullWhenNothingIsSelectedAsync()
+    {
+        IReadOnlyCollection<ForceActionContext>? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, [], CancellationToken.None);
+
+        Assert.That(result, Is.Null);
     }
 }

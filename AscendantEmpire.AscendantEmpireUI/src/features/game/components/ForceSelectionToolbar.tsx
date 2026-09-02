@@ -17,7 +17,12 @@ export interface ForceSelectionToolbarTile {
 export interface ForceSelectionToolbarProps {
   visible: boolean;
   tile: ForceSelectionToolbarTile | null;
-  selectedForceId?: number;
+
+  /**
+   * Every force currently selected. A set rather than a single id because the bar is a multi-select: several
+   * entries can be pressed at once, and an order taken from the action toolbar applies to all of them.
+   */
+  selectedForceIds?: ReadonlySet<number>;
   unitImageSrcByUnitTemplateId?: ReadonlyMap<number, string>;
 
   /**
@@ -27,16 +32,13 @@ export interface ForceSelectionToolbarProps {
   unitNameByUnitTemplateId?: ReadonlyMap<number, string>;
 
   /**
-   * Adds a checkbox above each force, turning the bar into a multi-select.
+   * Reports a click on a force, and whether it was modified.
    *
-   * The tick is a separate channel from the selection: checking a force must not change which force is selected.
-   * Nothing sets this yet — it is what split and join (TM-4) will drive.
+   * `append` is true for a ctrl (or ⌘) click. What that *means* is the caller's decision — the bar reports the
+   * gesture, not the intent — but it is what turns the click into "add this force to the selection, or take it
+   * out again" rather than "select only this force".
    */
-  selectionRequired?: boolean;
-  checkedForceIds?: ReadonlySet<number>;
-
-  onSelect: (force: ObservedForceTile) => void;
-  onCheckedChange?: (forceId: number, checked: boolean) => void;
+  onSelect: (force: ObservedForceTile, append: boolean) => void;
 }
 
 /** The accessible name for a force's button. */
@@ -46,27 +48,32 @@ function buildForceLabel(force: ObservedForceTile): string {
 
 /**
  * The bar of the player's forces on the selected tile, docked under the context action toolbar. Clicking a force
- * selects it; that is the whole selection mechanism, replacing the modal this used to be.
+ * selects it and ctrl+clicking adds or removes one; that is the whole selection mechanism, replacing the modal
+ * this used to be.
  */
 export default function ForceSelectionToolbar({
   visible,
   tile,
-  selectedForceId,
+  selectedForceIds,
   unitImageSrcByUnitTemplateId,
   unitNameByUnitTemplateId,
-  selectionRequired = false,
-  checkedForceIds,
   onSelect,
-  onCheckedChange,
 }: ForceSelectionToolbarProps) {
   const selectedEntryRef = useRef<HTMLDivElement | null>(null);
 
   // The bar scrolls horizontally, and the selection is usually set by clicking the tile rather than the bar, so the
   // highlighted entry can easily start out of view. "nearest" scrolls only when it actually is, and never moves the
   // page. Optional-called because jsdom doesn't implement scrollIntoView.
+  //
+  // The ref is on the first selected entry in render order, not on every one — the scroll matters when the
+  // selection was set by clicking the *tile*, where there is exactly one. A player ctrl+clicking is already
+  // looking at the bar. The key is joined so the effect re-runs when the selection changes rather than on every
+  // render, which a raw Set identity would cause.
+  const selectionKey = selectedForceIds == null ? "" : [...selectedForceIds].sort((a, b) => a - b).join(",");
+
   useEffect(() => {
     selectedEntryRef.current?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
-  }, [selectedForceId]);
+  }, [selectionKey]);
 
   if (!visible || tile == null || tile.forces.length === 0) return null;
 
@@ -78,25 +85,24 @@ export default function ForceSelectionToolbar({
     (a, b) => Number(b.hasMovementRemaining) - Number(a.hasMovementRemaining) || a.id - b.id,
   );
 
+  // Tracked while mapping so the scroll ref lands on the first selected entry without a second pass over the list.
+  let hasMarkedSelectedEntry = false;
+
   return (
     <div className="force-selection-toolbar" aria-label="Force selection toolbar">
       {orderedForces.map((force) => {
-        const isSelected = selectedForceId === force.id;
+        const isSelected = selectedForceIds?.has(force.id) ?? false;
+        const isScrollTarget = isSelected && !hasMarkedSelectedEntry;
+
+        if (isScrollTarget) {
+          hasMarkedSelectedEntry = true;
+        }
 
         return (
-          <div key={force.id} className="force-selection-toolbar__force" ref={isSelected ? selectedEntryRef : undefined}>
-            {/* Deliberately a sibling of the button, not a child: an input inside a button is invalid markup, and
-                clicking it would also fire onSelect — exactly wrong when the tick means "include in the split". */}
-            {selectionRequired ? (
-              <input
-                type="checkbox"
-                className="force-selection-toolbar__checkbox"
-                checked={checkedForceIds?.has(force.id) ?? false}
-                onChange={(event) => onCheckedChange?.(force.id, event.currentTarget.checked)}
-                aria-label={`Include ${buildForceLabel(force)}`}
-              />
-            ) : null}
-
+          <div
+            key={force.id}
+            className="force-selection-toolbar__force"
+            ref={isScrollTarget ? selectedEntryRef : undefined}>
             {/* Tooltip renders its children bare when content is undefined, so a template whose name hasn't
                 arrived (or resolved) simply gets no tooltip rather than an empty bubble. */}
             <Tooltip content={unitNameByUnitTemplateId?.get(force.unitTemplateId)}>
@@ -107,7 +113,10 @@ export default function ForceSelectionToolbar({
                 // ObservedForce is aria-hidden and the troop count alone says nothing, so without this the button
                 // has no accessible name at all.
                 aria-label={buildForceLabel(force)}
-                onClick={() => onSelect(force)}>
+                // metaKey as well as ctrlKey: on macOS ctrl+click is the system context-menu gesture, so ⌘ is what
+                // a Mac player will reach for. Both are read here rather than in the hook so the DOM event stays
+                // inside the presenter.
+                onClick={(event) => onSelect(force, event.ctrlKey || event.metaKey)}>
                 {/* ObservedForce is absolutely positioned within its parent, so this span has to be sized and
                     relative. Sized to a map tile, and from the same constant the grid uses: ObservedForce insets
                     and scales itself from whatever box it is given, so making that box a tile is what makes the

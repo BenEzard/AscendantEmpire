@@ -125,14 +125,69 @@ describe("ForceSelectionToolbar", () => {
 
     await user.click(screen.getByRole("button", { name: /Force #2/ }));
 
-    expect(onSelect).toHaveBeenCalledExactlyOnceWith(clicked);
+    // An unmodified click reports append: false, which is what makes it replace the selection rather than add to it.
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith(clicked, false);
+  });
+
+  /**
+   * The bar reports the gesture, not the intent: it says the click was modified and leaves the caller to decide
+   * that this means "add to the selection, or take it back out".
+   */
+  it("reports a ctrl+click as an appending click", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    const clicked = force({ id: 2 });
+
+    renderToolbar({ tile: tile([force({ id: 1 }), clicked]), onSelect });
+
+    await user.keyboard("{Control>}");
+    await user.click(screen.getByRole("button", { name: /Force #2/ }));
+    await user.keyboard("{/Control}");
+
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith(clicked, true);
+  });
+
+  /** On macOS ctrl+click is the system context-menu gesture, so ⌘ is what a Mac player reaches for instead. */
+  it("reports a meta+click as an appending click", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    const clicked = force({ id: 2 });
+
+    renderToolbar({ tile: tile([force({ id: 1 }), clicked]), onSelect });
+
+    await user.keyboard("{Meta>}");
+    await user.click(screen.getByRole("button", { name: /Force #2/ }));
+    await user.keyboard("{/Meta}");
+
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith(clicked, true);
   });
 
   it("marks the selected force", () => {
-    renderToolbar({ tile: tile([force({ id: 1 }), force({ id: 2 })]), selectedForceId: 2 });
+    renderToolbar({ tile: tile([force({ id: 1 }), force({ id: 2 })]), selectedForceIds: new Set([2]) });
 
     expect(screen.getByRole("button", { name: /Force #1/ })).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByRole("button", { name: /Force #2/ })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  /** Several forces can be selected at once, and every one of them has to read as pressed. */
+  it("marks every selected force when several are selected", () => {
+    renderToolbar({
+      tile: tile([force({ id: 1 }), force({ id: 2 }), force({ id: 3 })]),
+      selectedForceIds: new Set([1, 3]),
+    });
+
+    expect(screen.getByRole("button", { name: /Force #1/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /Force #2/ })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: /Force #3/ })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  /** Nothing selected is a real state now — ctrl+clicking the last force off leaves the bar showing exactly this. */
+  it("marks no force as pressed when the selection is empty", () => {
+    renderToolbar({ tile: tile([force({ id: 1 }), force({ id: 2 })]), selectedForceIds: new Set() });
+
+    for (const button of screen.getAllByRole("button")) {
+      expect(button).toHaveAttribute("aria-pressed", "false");
+    }
   });
 
   it("fades a force with no movement remaining", () => {
@@ -163,7 +218,7 @@ describe("ForceSelectionToolbar", () => {
 
     await user.click(button);
 
-    expect(onSelect).toHaveBeenCalledExactlyOnceWith(spentForce);
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith(spentForce, false);
   });
 
   it("names the unit in a tooltip on hover", async () => {
@@ -193,60 +248,13 @@ describe("ForceSelectionToolbar", () => {
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 
-  it("shows no checkboxes unless selection is required", () => {
-    renderToolbar({ tile: tile([force({ id: 1 }), force({ id: 2 })]) });
+  /**
+   * The bar once carried a checkbox per force as a second, separate channel for the forces an action should act
+   * on. Ctrl+click made it redundant — the selection *is* that list now — so there is nothing left to tick.
+   */
+  it("shows no checkboxes", () => {
+    renderToolbar({ tile: tile([force({ id: 1 }), force({ id: 2 })]), selectedForceIds: new Set([1]) });
 
     expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
-  });
-
-  it("shows a checkbox per force when selection is required, reflecting what is checked", () => {
-    renderToolbar({
-      tile: tile([force({ id: 1 }), force({ id: 2 })]),
-      selectionRequired: true,
-      checkedForceIds: new Set([2]),
-    });
-
-    const checkboxes = screen.getAllByRole("checkbox");
-
-    expect(checkboxes).toHaveLength(2);
-    expect(checkboxes[0]).not.toBeChecked();
-    expect(checkboxes[1]).toBeChecked();
-  });
-
-  it("reports a force being checked", async () => {
-    const user = userEvent.setup();
-    const onCheckedChange = vi.fn();
-
-    renderToolbar({
-      tile: tile([force({ id: 1 })]),
-      selectionRequired: true,
-      checkedForceIds: new Set(),
-      onCheckedChange,
-    });
-
-    await user.click(screen.getByRole("checkbox"));
-
-    expect(onCheckedChange).toHaveBeenCalledExactlyOnceWith(1, true);
-  });
-
-  /**
-   * The tick and the selection are separate channels. Split and join tick the forces they want to act on, which
-   * must not drag the selection around with them — hence the checkbox being a sibling of the button, not a child.
-   */
-  it("does not change the selection when a checkbox is clicked", async () => {
-    const user = userEvent.setup();
-    const onSelect = vi.fn();
-
-    renderToolbar({
-      tile: tile([force({ id: 1 })]),
-      selectionRequired: true,
-      checkedForceIds: new Set(),
-      onSelect,
-      onCheckedChange: () => {},
-    });
-
-    await user.click(screen.getByRole("checkbox"));
-
-    expect(onSelect).not.toHaveBeenCalled();
   });
 });

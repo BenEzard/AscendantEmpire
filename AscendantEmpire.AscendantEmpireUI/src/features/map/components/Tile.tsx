@@ -11,7 +11,8 @@ export interface TileProps {
   tile: TileCell;
   sizePx: number;
   geography: Geography;
-  selectedForceId?: number;
+  /** Every force currently selected. A set rather than a single id since selection is a multi-select. */
+  selectedForceIds?: ReadonlySet<number>;
   visibleForceId?: number;
   unitImageSrcByUnitTemplateId?: ReadonlyMap<number, string>;
   onClick?: (tile: TileCell) => void;
@@ -30,7 +31,7 @@ const Tile = React.memo(function Tile({
   tile,
   sizePx,
   geography,
-  selectedForceId,
+  selectedForceIds,
   visibleForceId,
   unitImageSrcByUnitTemplateId,
   onClick,
@@ -124,7 +125,7 @@ const Tile = React.memo(function Tile({
         <ObservedForce
           force={visibleForce}
           unitInstanceCount={visibleForceCount}
-          isSelected={visibleForce.id === selectedForceId}
+          isSelected={selectedForceIds?.has(visibleForce.id) ?? false}
           unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
         />
       ) : null}

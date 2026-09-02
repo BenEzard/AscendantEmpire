@@ -11,13 +11,19 @@ using Microsoft.Extensions.Logging;
 namespace AscendantEmpire.Application.Features.ForceOrders.Handlers;
 
 /// <summary>
-/// A request for the context actions available to a selected Force right now.
+/// A request for the context actions available to the player's current Force selection right now.
 /// </summary>
-/// <remarks>The game and player come from the caller's token, so a player cannot enumerate the actions of someone else's Forces.</remarks>
+/// <remarks>
+/// <para>The game and player come from the caller's token, so a player cannot enumerate the actions of someone else's Forces.</para>
+/// <para>
+/// <c>ForceIds</c> holds the whole selection: an action offered over several Forces is one order covering all of them, so it is judged against
+/// every one of them. Read the ids as Force ids — <c>UnitInstance</c> ids today, Command ids too once Commands are fielded.
+/// </para>
+/// </remarks>
 public record GetForceContextActionsRequest(
     int GameId,
     int PlayerId,
-    int UnitInstanceId
+    IReadOnlyCollection<int> ForceIds
 ) : IRequest<ServiceResultBase.ServiceResult<IReadOnlyCollection<ForceContextAction>>>;
 
 internal class GetForceContextActionsRequestValidator : AbstractValidator<GetForceContextActionsRequest>
@@ -30,8 +36,12 @@ internal class GetForceContextActionsRequestValidator : AbstractValidator<GetFor
         RuleFor(x => x.PlayerId)
             .GreaterThan(0).WithMessage("Player Id is required.");
 
-        RuleFor(x => x.UnitInstanceId)
-            .GreaterThan(0).WithMessage("Unit Instance Id is required.");
+        RuleFor(x => x.ForceIds)
+            .NotNull().WithMessage("At least one Force Id is required.")
+            .Must(forceIds => forceIds != null && forceIds.Count > 0).WithMessage("At least one Force Id is required.");
+
+        RuleForEach(x => x.ForceIds)
+            .GreaterThan(0).WithMessage("Force Id is required.");
     }
 }
 
@@ -61,17 +71,17 @@ internal class GetForceContextActionsHandler(
             return await contextActionService.GetAvailableActionsAsync(
                 request.GameId,
                 request.PlayerId,
-                request.UnitInstanceId,
+                request.ForceIds,
                 cancelToken);
         }
         catch (Exception ex)
         {
-            const string error = "An exception occurred while resolving the context actions for a Force.";
+            const string error = "An exception occurred while resolving the context actions for a Force selection.";
 
-            logger.LogError(ex, error + " GameId: {GameId}, PlayerId: {PlayerId}, UnitInstanceId: {UnitInstanceId}.",
+            logger.LogError(ex, error + " GameId: {GameId}, PlayerId: {PlayerId}, ForceIds: {ForceIds}.",
                 request.GameId,
                 request.PlayerId,
-                request.UnitInstanceId);
+                string.Join(", ", request.ForceIds ?? []));
 
             return ServiceResultBase.ServiceResult<IReadOnlyCollection<ForceContextAction>>.Fail(error);
         }

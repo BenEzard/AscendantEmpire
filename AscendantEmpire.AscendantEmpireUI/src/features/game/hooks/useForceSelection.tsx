@@ -35,34 +35,42 @@ interface UseForceSelectionOptions {
 }
 
 /**
- * Owns the player's force selection: which force is selected, which force is shown per tile, and the
+ * Owns the player's force selection: which forces are selected, which force is shown per tile, and the
  * force-selection bar shown when a tile holds several. Also derives the context-action toolbar actions
- * for the selected force.
+ * for the selection.
  */
 export function useForceSelection({ gameId, playerId, openToast }: UseForceSelectionOptions) {
-  const [selectedForce, setSelectedForce] = useState<ObservedForceTile | null>(null);
+  // A list rather than a single force: the selection bar is a multi-select (ctrl/⌘+click). Ordered by the
+  // click that added each one, which is what makes "the force just clicked" a meaningful notion below.
+  const [selectedForces, setSelectedForces] = useState<ObservedForceTile[]>([]);
   const [visibleForceIdsByTile, setVisibleForceIdsByTile] = useState<Record<string, number>>({});
 
   // The tile whose forces the selection bar is offering. Set only when the player has more than one force
   // standing on the clicked tile — with a single force there is nothing to choose between.
   const [multiForceTile, setMultiForceTile] = useState<ForceSelectionToolbarTile | null>(null);
 
-  // Multi-select mode for the bar. Nothing turns this on yet: it is the channel split and join (TM-4) will
-  // drive, and the checked set is what those will act on. Kept here rather than inside the bar so the bar
-  // stays a presenter and TM-4 can read the ticks without lifting state out of it first.
-  const [forceSelectionRequired, setForceSelectionRequired] = useState(false);
-  const [checkedForceIds, setCheckedForceIds] = useState<ReadonlySet<number>>(() => new Set());
-
   // Reset all force-selection state when the game closes.
   useEffect(() => {
     if (gameId == null) {
-      setSelectedForce(null);
+      setSelectedForces([]);
       setVisibleForceIdsByTile({});
       setMultiForceTile(null);
-      setForceSelectionRequired(false);
-      setCheckedForceIds(new Set());
     }
   }, [gameId]);
+
+  // Memoised because both the bar and every map tile take it, and Tile is memoised — a fresh Set each render
+  // would defeat that and re-render the whole grid on any unrelated state change.
+  const selectedForceIds = useMemo<ReadonlySet<number>>(
+    () => new Set(selectedForces.map((force) => force.id)),
+    [selectedForces],
+  );
+
+  // The ids the actions query is keyed on. Sorted here so the identity is stable while the selection's contents
+  // are, however the player reordered it by ctrl+clicking things off and on again.
+  const selectedForceIdList = useMemo(
+    () => [...selectedForceIds].sort((a, b) => a - b),
+    [selectedForceIds],
+  );
 
   const getVisibleForceForTile = useCallback(
     (tile: TileCell, options?: { forces?: ObservedForceTile[] }) => {
@@ -82,73 +90,94 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
 
   const getVisibleForceId = useCallback((tile: TileCell) => getVisibleForceForTile(tile)?.id, [getVisibleForceForTile]);
 
-  /** Picks a force from the selection bar. Also makes it the one drawn on its tile. */
+  /**
+   * Picks a force from the selection bar.
+   *
+   * A plain click clears the selection and sets it to this force alone. A ctrl/⌘+click appends it, or removes it
+   * again when it is already selected — including when it is the last one, which leaves nothing selected. That is
+   * why the dock stays mounted while the bar has a tile to show (see GameUI): the player has to be able to click
+   * again in the bar they just emptied.
+   */
   const chooseForce = useCallback(
-    (force: ObservedForceTile) => {
-      setSelectedForce(force);
+    (force: ObservedForceTile, append: boolean = false) => {
+      const wasSelected = selectedForces.some((selected) => selected.id === force.id);
+
+      if (!append) {
+        setSelectedForces([force]);
+      } else if (wasSelected) {
+        setSelectedForces((current) => current.filter((selected) => selected.id !== force.id));
+      } else {
+        setSelectedForces((current) => [...current, force]);
+      }
+
       if (multiForceTile == null) return;
+
+      // Pinned only when the click *selected* the force. Pinning on a removing ctrl+click would leave the tile
+      // drawing the very force the player just deselected.
+      const isNowSelected = !append || !wasSelected;
+      if (!isNowSelected) return;
 
       setVisibleForceIdsByTile((current) => ({
         ...current,
         [getTileKey(multiForceTile.x, multiForceTile.y)]: force.id,
       }));
     },
-    [multiForceTile],
+    [multiForceTile, selectedForces],
   );
 
-  const toggleForceChecked = useCallback((forceId: number, checked: boolean) => {
-    setCheckedForceIds((current) => {
-      const next = new Set(current);
-      if (checked) {
-        next.add(forceId);
-      } else {
-        next.delete(forceId);
-      }
-      return next;
-    });
-  }, []);
+  /** Names the selection for a toast, so a multi-force order reads as one rather than as a mystery. */
+  const describeSelection = useCallback(() => {
+    return selectedForces.map((force) => `#${force.id}`).join(", ");
+  }, [selectedForces]);
 
   const moveTo = useCallback(
     (tile: TileCell) => {
-      if (!selectedForce) return;
-      openToast(`Move force #${selectedForce.id} to [${tile.x}, ${tile.y}]`, "info");
+      if (selectedForces.length === 0) return;
+
+      const noun = selectedForces.length === 1 ? "force" : "forces";
+      openToast(`Move ${noun} ${describeSelection()} to [${tile.x}, ${tile.y}]`, "info");
     },
-    [openToast, selectedForce],
+    [describeSelection, openToast, selectedForces],
   );
 
-  // The backend decides which actions apply to the selected force and whether each can be taken right now.
-  const { data: forceContextActions } = useForceContextActionsQuery(selectedForce?.id);
+  // The backend decides which actions apply to the selection and whether each can be taken right now. With
+  // several forces selected it judges every one of them: an action is enabled only when all of them can take it.
+  const { data: forceContextActions } = useForceContextActionsQuery(selectedForceIdList);
 
   /**
    * Starts the interaction behind a backend-driven action.
    *
    * The backend deliberately doesn't know what a button *does* — only whether it's allowed — so the mapping from
-   * action type to interaction lives here.
+   * action type to interaction lives here. Whatever the interaction is, it acts on the whole selection.
    */
   const runForceAction = useCallback(
     (actionType: ForceActionType) => {
-      if (!selectedForce) return;
+      if (selectedForces.length === 0) return;
 
       switch (actionType) {
         case "SplitForce":
           // TODO: Splitting needs parameters (how many ways, and how big each part is), so this opens a dialog
           // rather than posting directly. The dialog and its execute endpoint are the next slice of this work —
-          // see docs/design/units/force-context-action-toolbar.md, stage 5. That work is also what will turn on
-          // forceSelectionRequired, putting checkboxes on the selection bar.
-          openToast(`Split force #${selectedForce.id} — the split dialog isn't built yet.`, "info");
+          // see docs/design/units/force-context-action-toolbar.md, stage 5. That work reads the selection below
+          // rather than the checkbox channel the bar used to carry, which ctrl+click replaced.
+          openToast(`Split force ${describeSelection()} — the split dialog isn't built yet.`, "info");
           break;
       }
     },
-    [openToast, selectedForce],
+    [describeSelection, openToast, selectedForces],
   );
 
   const onTileHold = useCallback(
     (tile: TileCell) => {
-      if (!selectedForce) return;
-      if ((tile.forces ?? []).some((force) => force.id === selectedForce.id)) return;
+      if (selectedForces.length === 0) return;
+
+      // Holding the tile the selection already stands on is not a move. Every selected force shares a tile today,
+      // so one match is enough to know the target is where they already are.
+      if ((tile.forces ?? []).some((force) => selectedForceIds.has(force.id))) return;
+
       moveTo(tile);
     },
-    [moveTo, selectedForce],
+    [moveTo, selectedForceIds, selectedForces],
   );
 
   /** Selects the player's force on a clicked tile (single force, multi-force, or none). */
@@ -160,13 +189,10 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
       // map but never offered in the bar. This filter is what makes that true — the bar shows what it's given.
       const ownedForces = (t.forces ?? []).filter((force) => force.ownerPlayerId === playerId);
 
-      // Cleared here rather than in an effect on multiForceTile: an effect would fire a second render pass and
-      // briefly show the previous tile's ticks against the new tile's forces.
-      setCheckedForceIds(new Set());
-      setForceSelectionRequired(false);
-
+      // Clicking the map always replaces the selection, however many forces were in it. Multi-select is the bar's
+      // gesture; the map's click is what starts a fresh selection.
       if (ownedForces.length === 1) {
-        setSelectedForce(ownedForces[0]);
+        setSelectedForces([ownedForces[0]]);
         setVisibleForceIdsByTile((current) => ({
           ...current,
           [getTileKey(t.x, t.y)]: ownedForces[0].id,
@@ -175,14 +201,14 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
       } else if (ownedForces.length > 1) {
         const displayedOwnedForce = getVisibleForceForTile(t, { forces: ownedForces }) ?? ownedForces[0];
 
-        setSelectedForce(displayedOwnedForce);
+        setSelectedForces([displayedOwnedForce]);
         setVisibleForceIdsByTile((current) => ({
           ...current,
           [getTileKey(t.x, t.y)]: displayedOwnedForce.id,
         }));
         setMultiForceTile({ x: t.x, y: t.y, forces: ownedForces });
       } else {
-        setSelectedForce(null);
+        setSelectedForces([]);
         setMultiForceTile(null);
       }
     },
@@ -190,7 +216,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
   );
 
   const contextActionToolbarActions = useMemo<ContextActionToolbarAction[]>(() => {
-    if (!selectedForce) return [];
+    if (selectedForces.length === 0) return [];
 
     // Every action comes from the backend now, including the ones it has judged unavailable — those render greyed
     // out with their reasons, rather than being filtered away, so the player learns why. Choosing between forces
@@ -204,18 +230,16 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
       disabledReasons: action.disabledReasons,
       onClick: () => runForceAction(action.actionType),
     }));
-  }, [runForceAction, selectedForce, forceContextActions]);
+  }, [runForceAction, selectedForces, forceContextActions]);
 
   return {
-    selectedForce,
+    selectedForces,
+    selectedForceIds,
     multiForceTile,
     getVisibleForceId,
     chooseForce,
     onTileHold,
     selectForceFromTile,
     contextActionToolbarActions,
-    forceSelectionRequired,
-    checkedForceIds,
-    toggleForceChecked,
   };
 }

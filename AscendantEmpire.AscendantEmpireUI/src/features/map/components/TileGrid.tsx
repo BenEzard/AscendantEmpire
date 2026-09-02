@@ -14,7 +14,8 @@ export interface TileGridProps {
   tiles2d: TileCell[][];
   geographies: Geography[];
   containerRef?: React.Ref<HTMLDivElement>;
-  selectedForceId?: number;
+  /** Every force currently selected. A set rather than a single id since selection is a multi-select. */
+  selectedForceIds?: ReadonlySet<number>;
   unitImageSrcByUnitTemplateId?: ReadonlyMap<number, string>;
   getVisibleForceId?: (tile: TileCell) => number | undefined;
   onTileClick?: (tile: TileCell) => void;
@@ -34,7 +35,7 @@ const TileGrid = React.memo(function TileGrid({
   tiles2d,
   geographies,
   containerRef,
-  selectedForceId,
+  selectedForceIds,
   unitImageSrcByUnitTemplateId,
   getVisibleForceId,
   onTileClick,
@@ -84,7 +85,7 @@ const TileGrid = React.memo(function TileGrid({
               tile={t}
               geography={g}
               sizePx={TILE_SIZE_PX}
-              selectedForceId={selectedForceId}
+              selectedForceIds={selectedForceIds}
               unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
               visibleForceId={getVisibleForceId?.(t)}
               onClick={onTileClick}

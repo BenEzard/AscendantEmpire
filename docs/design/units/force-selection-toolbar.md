@@ -1,10 +1,12 @@
 # Force Selection Toolbar
 
 When a campaign map tile holds more than one of the player's Forces, a bar of those Forces is docked
-under the [context action toolbar](force-context-action-toolbar.md). Clicking one selects it. That is
-the whole of the selection mechanism.
+under the [context action toolbar](force-context-action-toolbar.md). Clicking one selects it, and
+ctrl+clicking adds or removes one. That is the whole of the selection mechanism.
 
-Delivered by **TM-5**, replacing a "Select Force" button that opened a modal.
+Delivered by **TM-5**, replacing a "Select Force" button that opened a modal. Extended to a
+multi-select, and the dormant checkbox channel removed in favour of it, in the work described under
+[Multi-select](#multi-select).
 
 ## Why it is not a context action
 
@@ -44,20 +46,19 @@ only local machinery is the ref and effect that keep the selected entry scrolled
 interface ForceSelectionToolbarProps {
   visible: boolean;
   tile: ForceSelectionToolbarTile | null;      // { x, y, forces }
-  selectedForceId?: number;
+  selectedForceIds?: ReadonlySet<number>;      // a set: several entries can be pressed at once
   unitImageSrcByUnitTemplateId?: ReadonlyMap<number, string>;
-  selectionRequired?: boolean;                 // adds a checkbox per Force
-  checkedForceIds?: ReadonlySet<number>;
-  onSelect: (force: ObservedForceTile) => void;
-  onCheckedChange?: (forceId: number, checked: boolean) => void;
+  unitNameByUnitTemplateId?: ReadonlyMap<number, string>;
+  onSelect: (force: ObservedForceTile, append: boolean) => void;
 }
 ```
 
 All state lives in
 [`useForceSelection.tsx`](../../../AscendantEmpire.AscendantEmpireUI/src/features/game/hooks/useForceSelection.tsx),
-which already owned `selectedForce` and the per-tile visible Force. It gained `multiForceTile` (the
+which already owned the selection and the per-tile visible Force. It gained `multiForceTile` (the
 renamed `pendingForceSelectionTile` — no longer "the tile whose dialog can be reopened", now the bar's
-data source), plus `forceSelectionRequired` and `checkedForceIds`.
+data source), and its `selectedForce` became a `selectedForces` list with a memoised
+`selectedForceIds` set derived from it.
 
 Each entry reuses
 [`ObservedForce`](../../../AscendantEmpire.AscendantEmpireUI/src/features/map/components/ObservedForce.tsx),
@@ -139,25 +140,68 @@ action count, so a hard-coded offset on the lower bar would have drifted. The do
 `pointer-events: none` with `pointer-events: auto` on its children, so the gap between the bars doesn't
 swallow clicks meant for the map.
 
-### `selectionRequired` — built now, driven later
+## Multi-select
 
-`selectionRequired` puts a checkbox above each Force, turning the bar into a multi-select. Nothing sets
-it yet: it is the channel **TM-4** (executing a split) and the future join work will drive, specified
-now so the bar was built once rather than retrofitted.
+The bar is a multi-select. A plain left click sets the selection to the Force clicked; ctrl+click (⌘ on
+macOS, where ctrl+click is the system context-menu gesture) adds a Force to the selection, or removes it
+again when it is already in it.
 
-Two things it commits to:
+The full behaviour, as a trace over three Forces A, B and C. This table is the specification, and
+`useForceSelection.test.tsx` walks it gesture by gesture in one test — the rules are about
+*transitions*, so splitting it into a test per row would lose what makes them mean anything:
 
-* **The tick is a separate channel from the selection.** Checking a Force must not change which Force
-  is selected. The checkbox is therefore a *sibling* of the button, not a child — nesting an `<input>`
-  in a `<button>` is invalid markup anyway, and would have fired `onSelect` on every tick.
-* **The checked set lives in the hook, not the bar.** It costs one exported setter that nothing calls
-  until TM-4, which is a smaller and more honest amount of speculative surface than shipping a prop
-  that can never be true. TM-4 plugs in by turning `forceSelectionRequired` on where `runForceAction`
-  currently raises a toast, and reading `checkedForceIds` when its dialog confirms.
+| Gesture | Selection after |
+|---|---|
+| Left click A | `[A]` |
+| Left click B | `[B]` |
+| Ctrl+click B | `[]` — B was selected, so it is removed, leaving nothing selected |
+| Left click A | `[A]` |
+| Ctrl+click B | `[A, B]` |
+| Ctrl+click C | `[A, B, C]` |
+| Ctrl+click B | `[A, C]` — B was selected, so it is removed |
+| Left click B | `[B]` — a plain click always clears first |
 
-The checked set and the mode are both cleared inside `selectForceFromTile` rather than in an effect on
-`multiForceTile` — an effect would fire a second render pass and briefly show the previous tile's ticks
-against the new tile's Forces.
+Clicking a **tile** is unaffected: it always replaces the selection with that tile's default Force.
+Multi-select is the bar's gesture, and the map's click is what starts a fresh selection. Every selected
+Force therefore shares a tile, which is what lets the backend keep answering in two queries.
+
+### The bar reports the gesture, not the intent
+
+`onSelect` passes `append`, read from `event.ctrlKey || event.metaKey`. What that *means* — add, or
+remove if already present — is decided in `chooseForce`. Reading the modifier in the component keeps
+the DOM event inside the presenter; deciding what it means in the hook keeps the bar free of selection
+rules, exactly as it is free of availability rules.
+
+### The empty selection is a real state
+
+Row 3 above leaves nothing selected, and row 4 then clicks in the bar again. That round trip only works
+if the bar survives an empty selection, so the dock in `GameUI` mounts on
+`selectedForces.length > 0 || multiForceTile != null` rather than on a Force being selected. Without the
+second half, ctrl+clicking the last Force off would unmount the very bar the player was clicking in,
+leaving them to go back to the map to recover it. With it, the bar stays and the action toolbar simply
+empties — the honest rendering of a selection with nothing in it.
+
+### Pinning follows selection, not clicks
+
+`chooseForce` pins the clicked Force as the one its tile draws, but **only when the click selected it**.
+A ctrl+click that removes a Force deliberately leaves the tile's drawn Force alone: pinning there would
+leave the map showing the one Force the player had just taken out.
+
+### What the checkbox channel was, and why it went
+
+The bar used to carry `selectionRequired` / `checkedForceIds` / `onCheckedChange` — a checkbox above
+each Force, specified under TM-5 as the multi-select channel **TM-4** (executing a split) would drive.
+Nothing ever set it.
+
+Ctrl+click makes it redundant: the selection *is* the list of Forces an action applies to, and keeping
+both would leave the bar with two competing notions of "more than one Force". The checkbox markup, the
+three props, the `forceSelectionRequired` / `checkedForceIds` state, `toggleForceChecked` and the
+`.force-selection-toolbar__checkbox` rule are all gone. TM-4 now plugs in by reading `selectedForces`
+where `runForceAction` currently raises a toast.
+
+One commitment survives the removal, because it turned out to be the same one: **choosing Forces to act
+on must not need a second gesture**. The tick achieved that by being a separate channel; ctrl+click
+achieves it by making the selection itself hold more than one Force.
 
 ## Remaining movement over the wire
 
@@ -196,8 +240,8 @@ action already shows, and TM-3 fixes both at once.
 
 | Area | Tier | Tests |
 |---|---|---|
-| `ForceSelectionToolbar` | Vitest | 14 — visibility guards, troop count, both ordering keys, selection, fade, clickability when spent, name tooltip, checkbox channel |
-| `useForceSelection` | Vitest | 6 — own-Forces-only filtering, default selection, choosing, checked-set clearing |
+| `ForceSelectionToolbar` | Vitest | 17 — visibility guards, troop count, both ordering keys, selection, ctrl/⌘+click reporting, several entries pressed at once, the empty selection, fade, clickability when spent, name tooltip, no checkboxes |
+| `useForceSelection` | Vitest | 10 — own-Forces-only filtering, default selection, choosing, the whole gesture trace, emptying the selection, pinning on removal, resetting from the map, id-set identity |
 | `HasMovementRemaining` projection | SqlServer | 1 — reported for the viewer's own Force, `null` for a rival's standing on the same tile |
 
 Two things worth knowing when adding to these:
