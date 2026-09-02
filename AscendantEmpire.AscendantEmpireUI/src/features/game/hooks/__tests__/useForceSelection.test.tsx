@@ -37,7 +37,7 @@ function force(overrides: Partial<ObservedForceTile> = {}): ObservedForceTile {
 }
 
 function tile(forces: ObservedForceTile[]): TileCell {
-  return { x: 3, y: 4, biomeTypeId: 1, geographyTypeId: 1, forces };
+  return { x: 3, y: 4, biomeTypeId: 1, geographyTypeId: 1, isExplored: true, forces };
 }
 
 /**
@@ -68,7 +68,7 @@ function stepResult({
     tiles:
       forcesOnDestination == null
         ? []
-        : [{ xCoord: x, yCoord: y, biomeTypeId: 1, campaignMapGeographyTypeId: 3, structures: [], forces: forcesOnDestination }],
+        : [{ xCoord: x, yCoord: y, biomeTypeId: 1, campaignMapGeographyTypeId: 3, isExplored: true, structures: [], forces: forcesOnDestination }],
     observers: [],
   };
 }

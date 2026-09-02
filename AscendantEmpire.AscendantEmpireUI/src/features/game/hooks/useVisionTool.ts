@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useClearPlayerCampaignMapMutation, useLoadPlayerCampaignMapMutation } from "@/features/map/hooks/useCampaignMapTiles";
-import type { LoadPlayerCampaignMapRequest, PlayerCampaignMapObserverResultDto } from "@/features/map/api/playerCampaignMapApi";
+import type { LoadPlayerCampaignMapRequest } from "@/features/map/api/playerCampaignMapApi";
 import type { ToastVariant } from "@/hooks/useToast";
 
 type VisionActiveTool = "vision" | null;
@@ -13,15 +13,16 @@ interface UseVisionToolOptions {
 }
 
 /**
- * Owns the "check vision" dev tool: the active state, the selected tile, the observer
- * results (and the derived set of observed tile keys), the vision settings, and the
- * request/clear mutations. Requests are de-duplicated via refs so toggling the tool or
- * re-selecting the same tile doesn't refire an identical load.
+ * Owns the "check vision" dev tool: the active state, the selected tile, the vision settings, and the request/clear mutations.
+ * Requests are de-duplicated via refs so toggling the tool or re-selecting the same tile doesn't refire an identical load.
+ *
+ * It no longer owns the fog. The observers its load returns go into the tiles cache like any other view of the map, and the fog
+ * is derived from there by {@link useFogOfWar}. They used to be held here as tool state, which meant the map was only ever
+ * un-greyed by poking this dev tool: opening a game left the whole board under fog however much of it the player had explored.
  */
 export function useVisionTool({ gameId, playerId, openToast }: UseVisionToolOptions) {
   const [activeTool, setActiveTool] = useState<VisionActiveTool>(null);
   const [selectedTile, setSelectedTile] = useState<SelectedTile | null>(null);
-  const [visionObservers, setVisionObservers] = useState<PlayerCampaignMapObserverResultDto[]>([]);
   const [showVisionSettings, setShowVisionSettings] = useState(false);
   const [visionRadius, setVisionRadius] = useState<number>(0);
   const [visionLoadWholeMap, setVisionLoadWholeMap] = useState<boolean>(false);
@@ -36,7 +37,6 @@ export function useVisionTool({ gameId, playerId, openToast }: UseVisionToolOpti
     if (gameId == null) {
       setActiveTool(null);
       setSelectedTile(null);
-      setVisionObservers([]);
     }
   }, [gameId]);
 
@@ -44,26 +44,6 @@ export function useVisionTool({ gameId, playerId, openToast }: UseVisionToolOpti
   useEffect(() => {
     if (activeTool !== "vision") setSelectedTile(null);
   }, [activeTool]);
-
-  const observedTileKeys = useMemo(() => {
-    const next = new Set<string>();
-    for (const o of visionObservers) {
-      for (const t of o.seenTiles ?? []) next.add(`${t.xCoord},${t.yCoord}`);
-    }
-    return next;
-  }, [visionObservers]);
-
-  /**
-   * Replaces what the player is currently seeing, lifting the fog from those tiles and returning it everywhere else.
-   *
-   * Called with the observers any endpoint hands back that describes the player's view — the vision tool's own load, and a
-   * force step, which shifts what can be seen by moving one of the observers. A replacement rather than a merge, because the
-   * observers are the complete current picture: a tile that has dropped out of sight since the last one is explored ground
-   * the player can no longer watch, and should go back under fog.
-   */
-  const applyObservers = useCallback((observers: PlayerCampaignMapObserverResultDto[]) => {
-    setVisionObservers(observers);
-  }, []);
 
   const toggleVisionTool = useCallback(() => {
     setActiveTool((t) => (t === "vision" ? null : "vision"));
@@ -85,16 +65,18 @@ export function useVisionTool({ gameId, playerId, openToast }: UseVisionToolOpti
 
   const clearVision = useCallback(() => {
     setActiveTool(null);
-    setVisionObservers([]);
 
+    // Nothing to clear locally: the mutation invalidates the tiles query, and the refetch brings back a map on which the
+    // server has forgotten everything, with every tile unexplored and no observers on it.
     if (gameId == null || playerId == null) return;
     clearPlayerCampaignMap.mutate({ gameId, playerId });
   }, [clearPlayerCampaignMap, gameId, playerId]);
 
   const loadPlayerCampaignMap = useLoadPlayerCampaignMapMutation({
-    onSuccess: (data) => {
+    // The mutation has already merged the response into the tiles cache, observers and all, which is where the fog reads them
+    // from. There is nothing left to apply here.
+    onSuccess: () => {
       visionInFlightRef.current = false;
-      applyObservers(data.observers ?? []);
     },
     onError: (error) => {
       visionInFlightRef.current = false;
@@ -154,7 +136,6 @@ export function useVisionTool({ gameId, playerId, openToast }: UseVisionToolOpti
     activeTool,
     selectedTile,
     setSelectedTile,
-    observedTileKeys,
     visionRadius,
     setVisionRadius,
     visionLoadWholeMap,
@@ -165,6 +146,5 @@ export function useVisionTool({ gameId, playerId, openToast }: UseVisionToolOpti
     openVisionSettings,
     clearVision,
     sendVisionRequest,
-    applyObservers,
   };
 }

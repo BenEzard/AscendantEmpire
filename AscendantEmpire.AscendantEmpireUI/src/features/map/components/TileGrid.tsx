@@ -18,6 +18,11 @@ export interface TileGridProps {
   selectedForceIds?: ReadonlySet<number>;
   unitImageSrcByUnitTemplateId?: ReadonlyMap<number, string>;
   getVisibleForceId?: (tile: TileCell) => number | undefined;
+  /**
+   * Whether one of the player's observers can see the tile right now, which decides whether its structures and forces are drawn
+   * at all. Omitted means every tile is observed, which is what a grid with no fog of war wants.
+   */
+  isTileObserved?: (tile: TileCell) => boolean;
   onTileClick?: (tile: TileCell) => void;
   onTileHold?: (tile: TileCell) => void;
 
@@ -38,6 +43,7 @@ const TileGrid = React.memo(function TileGrid({
   selectedForceIds,
   unitImageSrcByUnitTemplateId,
   getVisibleForceId,
+  isTileObserved,
   onTileClick,
   onTileHold,
   getTileTitle,
@@ -88,6 +94,7 @@ const TileGrid = React.memo(function TileGrid({
               selectedForceIds={selectedForceIds}
               unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
               visibleForceId={getVisibleForceId?.(t)}
+              isObserved={isTileObserved?.(t) ?? true}
               onClick={onTileClick}
               onHold={onTileHold}
               getTitle={getTileTitle}

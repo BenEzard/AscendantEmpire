@@ -9,6 +9,9 @@ import type { CampaignMapTilesResponse } from "@/features/map/api/playerCampaign
  * The response carries the player's refreshed view along with the move, so this patches the tiles the server actually reported
  * — the one the force left, the one it arrived on, and anything newly revealed — rather than refetching the whole map. Every
  * other tile keeps its object identity, which is what lets the memoised grid leave them alone.
+ *
+ * The observers go into the cache alongside the tiles, because they are what the fog is drawn from: the step has moved one of
+ * them, so the ground it now watches has to be lit and the ground behind it dimmed back to explored-but-unwatched.
  */
 export function useForceStepMutation(
   gameId: number | undefined,
@@ -25,7 +28,7 @@ export function useForceStepMutation(
     onSuccess: (data) => {
       queryClient.setQueryData(
         playerCampaignTilesKey(gameId, playerId),
-        (prev: CampaignMapTilesResponse | undefined) => mergeTiles(prev, { tiles: data.tiles }),
+        (prev: CampaignMapTilesResponse | undefined) => mergeTiles(prev, { tiles: data.tiles, observers: data.observers }),
       );
 
       // The toolbar's verdicts are judged against movement and strength, so a step invalidates them — see the note on this key

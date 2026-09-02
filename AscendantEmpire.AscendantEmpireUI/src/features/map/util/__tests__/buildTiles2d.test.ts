@@ -1,8 +1,8 @@
 import { buildTiles2d, type TileCellSourceMap } from "@/features/map/util/buildTiles2d";
 import type { CampaignMapTileDto } from "@/features/map/api/playerCampaignMapApi";
 
-function tile(x: number, y: number): CampaignMapTileDto {
-  return { xCoord: x, yCoord: y, biomeTypeId: 1, campaignMapGeographyTypeId: 3, structures: [], forces: [] };
+function tile(x: number, y: number, isExplored = true): CampaignMapTileDto {
+  return { xCoord: x, yCoord: y, biomeTypeId: 1, campaignMapGeographyTypeId: 3, isExplored, structures: [], forces: [] };
 }
 
 describe("buildTiles2d", () => {

@@ -15,6 +15,11 @@ export interface TileProps {
   selectedForceIds?: ReadonlySet<number>;
   visibleForceId?: number;
   unitImageSrcByUnitTemplateId?: ReadonlyMap<number, string>;
+  /**
+   * Whether one of the player's observers can see this tile right now. Defaults to true, so a grid with no fog of war — the
+   * map editor's, say — draws everything as it always did.
+   */
+  isObserved?: boolean;
   onClick?: (tile: TileCell) => void;
   onHold?: (tile: TileCell) => void;
   className?: string;
@@ -34,6 +39,7 @@ const Tile = React.memo(function Tile({
   selectedForceIds,
   visibleForceId,
   unitImageSrcByUnitTemplateId,
+  isObserved = true,
   onClick,
   onHold,
   className,
@@ -70,9 +76,13 @@ const Tile = React.memo(function Tile({
 
   const iconKey = geography?.mapEditorIcon ?? null;
   const Icon = iconKey ? iconMap[iconKey] : undefined;
-  const visibleStructure = tile.structures?.find((structure) => structure.structureId === 1) ?? null;
-  const visibleForce = tile.forces?.find((force) => force.id === visibleForceId) ?? tile.forces?.[0] ?? null;
-  const visibleForceCount = tile.forces?.length ?? 0;
+
+  // Terrain survives losing sight of a tile; the things standing on it do not. The server stops reporting structures and forces
+  // once nothing is watching, and the tiles cache keeps whatever was last seen there rather than blanking it — so without this
+  // guard an enemy force would stay painted on ground the player can no longer see, long after it had marched off.
+  const visibleStructure = isObserved ? (tile.structures?.find((structure) => structure.structureId === 1) ?? null) : null;
+  const visibleForce = isObserved ? (tile.forces?.find((force) => force.id === visibleForceId) ?? tile.forces?.[0] ?? null) : null;
+  const visibleForceCount = isObserved ? (tile.forces?.length ?? 0) : 0;
 
   const style = { ...baseStyle, ...(getStyle?.(tile) ?? {}) };
   const combinedClassName = ["tile", className].filter(Boolean).join(" ");

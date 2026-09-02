@@ -66,6 +66,8 @@ Primary key: `CampaignMapId` (identity — not contiguous offset). Foreign key: 
 
 `game.PlayerCampaignMap` holds each player's personal fog-of-war view. One row per (player, tile). Initially all tiles are unknown; biome and geography are revealed as players explore.
 
+`FirstSeenOnTurnId` is what makes a tile explored: `NULL` until the player first sees it. See [Fog of War](fog-of-war.md) for how that reaches the screen, and why it is a different question from whether the tile is being watched right now.
+
 ---
 
 ## Game Index (`game.GameIndex`)

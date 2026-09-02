@@ -18,6 +18,10 @@ export interface CampaignMapTileDto {
   yCoord: number;
   biomeTypeId: number;
   campaignMapGeographyTypeId: number;
+  // Whether the player has ever seen this tile, and so knows the ground on it. The permanent half of the fog of war, and a
+  // different question from whether anything is watching the tile right now — which is answered by the observers, not here.
+  // Tiles reported by a real observer are always explored; only the whole-map read ever sends this false. See docs/fog-of-war.md.
+  isExplored: boolean;
   // Always present, never omitted when empty. An empty array is the API telling us there is nothing on this tile, which is
   // different from not having heard about the tile at all — and the merges below rely on being able to tell those apart, or a
   // force that moved away would keep being drawn on the tile it left.
@@ -86,6 +90,7 @@ type CampaignMapTileWireDto = Partial<{
   yCoord: number;
   biomeTypeId: number;
   campaignMapGeographyTypeId: number;
+  isExplored: boolean;
   structures: ObservedStructureWireDto[];
   forces: ObservedForceWireDto[];
 }>;
@@ -155,6 +160,9 @@ export function normalizeCampaignMapTile(tile: CampaignMapTileWireDto): Campaign
     yCoord: tile.yCoord ?? 0,
     biomeTypeId: tile.biomeTypeId ?? 0,
     campaignMapGeographyTypeId: tile.campaignMapGeographyTypeId ?? 0,
+    // Defaults to unexplored. An absent flag means the API told us nothing, and guessing "explored" would strip the fog off
+    // ground the player has never been to — the one failure mode this flag exists to prevent.
+    isExplored: tile.isExplored ?? false,
     // Always emitted, even when empty. These used to be dropped when empty, which made "this tile is clear" indistinguishable
     // from "this tile wasn't reported" — and the merges then kept whatever was there before, so a force that stepped away would
     // stay drawn on the tile it left.

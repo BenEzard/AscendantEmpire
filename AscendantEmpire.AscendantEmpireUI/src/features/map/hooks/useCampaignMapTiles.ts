@@ -30,6 +30,11 @@ export function usePlayerCampaignMapTilesQuery(gameId: number | undefined, playe
  *
  * Exported because a force step returns the same shape — the player's view from where the force now stands — and patching that
  * in has to behave identically to a vision request, or the two paths would drift.
+ *
+ * The two halves of the merge behave differently on purpose, because the two fog layers do. Tiles **accumulate**: what the
+ * player has explored is permanent, so a response says only what changed and everything else is left alone. Observers are
+ * **replaced** whenever a response carries any: they are the complete picture of what is being watched right now, so ground
+ * that has dropped out of the new set is ground nothing is looking at any more, and it has to fall back under haze.
  */
 export function mergeTiles(prev: CampaignMapTilesResponse | undefined, next: CampaignMapTilesResponse): CampaignMapTilesResponse {
   if (!prev) return next;
@@ -55,15 +60,14 @@ export function mergeTiles(prev: CampaignMapTilesResponse | undefined, next: Cam
   }
 
   return {
-    // Intentionally do NOT merge/persist observer results into the tiles cache.
-    // Vision observer data is UI-tool state and should be kept separate.
     ...prev,
-    ...(() => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { observers: _observers, ...rest } = next;
-      return rest;
-    })(),
+    ...next,
     tiles: merged,
+    // `??`, so a response that carries no observers at all leaves the live-sight layer as it was rather than blanking it.
+    // Observers used to be stripped out here deliberately, as UI state belonging to the vision dev tool. They are not that
+    // any more: they are the live half of the fog of war, and keeping them beside the tiles they describe is what stops the
+    // map load and a force step from each holding their own idea of what the player can see.
+    observers: next.observers ?? prev.observers,
   };
 }
 

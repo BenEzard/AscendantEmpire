@@ -16,7 +16,7 @@ function force(id: number): ObservedForceDto {
 }
 
 function tile(x: number, y: number, forces: ObservedForceDto[] = []): CampaignMapTileDto {
-  return { xCoord: x, yCoord: y, biomeTypeId: 1, campaignMapGeographyTypeId: 3, structures: [], forces };
+  return { xCoord: x, yCoord: y, biomeTypeId: 1, campaignMapGeographyTypeId: 3, isExplored: true, structures: [], forces };
 }
 
 describe("mergeTilesByCoord", () => {

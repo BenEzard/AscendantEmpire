@@ -1,4 +1,4 @@
-using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
+﻿using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.FrontendContracts.CampaignMaps;
 
 namespace AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
@@ -23,6 +23,9 @@ public static class ObserverSightPresentation
         return [.. observers.Select(IObserver (observer) => new DTObserver
         {
             Id = observer.Id,
+            // Was never mapped, so every observer reached the client as RecordType.None and the whole-map pseudo-observer could not be told apart
+            // from a Force that is genuinely watching. The client needs that distinction: only real observers light a tile as currently seen.
+            ObserverRecordType = (int)observer.RecordType,
             XCoord = observer.Location.X,
             YCoord = observer.Location.Y,
             SeenTiles = [.. observer.SeenTiles.Select(IObservedCampaignTile (tile) => new DTObservedCampaignTile
@@ -31,6 +34,7 @@ public static class ObserverSightPresentation
                 YCoord = tile.YCoord,
                 BiomeTypeId = tile.BiomeTypeId,
                 CampaignMapGeographyTypeId = tile.CampaignMapGeographyTypeId,
+                IsExplored = tile.IsExplored,
                 Structures = [.. tile.Structures?.Select(structure => new DTStructureStub
                 {
                     Id = structure.Id,

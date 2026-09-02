@@ -10,6 +10,8 @@ public class DTObservedCampaignTile : IObservedCampaignTile
     public BiomeType BiomeTypeId { get; set; }
     public CampaignMapGeographyType CampaignMapGeographyTypeId { get; set; }
 
+    public bool IsExplored { get; set; }
+
     public IReadOnlyCollection<DTStructureStub>? Structures { get; set; }
 
     public IReadOnlyCollection<DTForceStub>? Forces { get; set; }

@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/useToast";
 import { useElementBottomPx } from "@/hooks/useElementBottomPx";
 import { useGameSession } from "../hooks/useGameSession";
 import { useVisionTool } from "../hooks/useVisionTool";
+import { useFogOfWar } from "../hooks/useFogOfWar";
 import { useForceSelection } from "../hooks/useForceSelection";
 import { useForceStepMutation } from "../hooks/useForceStep";
 import { useNumpadMovement } from "../hooks/useNumpadMovement";
@@ -56,7 +57,6 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     activeTool: visionActiveTool,
     selectedTile,
     setSelectedTile,
-    observedTileKeys,
     visionRadius,
     setVisionRadius,
     visionLoadWholeMap,
@@ -67,7 +67,6 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     openVisionSettings,
     clearVision,
     sendVisionRequest,
-    applyObservers,
   } = useVisionTool({ gameId, playerId, openToast });
 
   const {
@@ -88,11 +87,10 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     onSuccess: (result) => {
       // The whole result goes to the selection: it carries the destination tile and everything standing on it, which is what
       // lets the selection bar re-point itself at where the force now is rather than where it set off from.
+      //
+      // The fog needs nothing here: the mutation has already written the step's tiles and observers into the tiles cache, and
+      // both fog layers are derived from that cache.
       onForceMoved(result);
-
-      // A move changes what the player can see, and the fog overlay is drawn from the observer set rather than from the tile
-      // data — so patching the tiles cache alone leaves the ground the force just uncovered still greyed out.
-      applyObservers(result.observers);
     },
     // The API writes its refusals to be read as they stand — which tile, and why it can't be entered — so they go straight to
     // the player rather than being reworded here.
@@ -189,7 +187,14 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     return grid;
   }, [gameSelection, tilesResponse]);
 
+  // The live half of the fog, derived from the observers the tiles cache is holding. Both the map load and a force step write
+  // them there, so the map is never left showing whichever of the two spoke last.
+  const { observedTileKeys } = useFogOfWar(tilesResponse?.observers);
+
   const { biomeNameByType, geographyNameByType, getTileStyle, getTileTitle } = useTileRendering({ biomes, geographies, selectedTile, observedTileKeys });
+
+  // Stable per-tile predicate for the grid, so its memoised tiles only re-render when what the player can see actually changes.
+  const isTileObserved = useCallback((tile: TileCell) => observedTileKeys.has(`${tile.x},${tile.y}`), [observedTileKeys]);
 
   // --- Map panning (used by the notifications panel) ---
   const panMapTo = useCallback((x: number, y: number) => {
@@ -433,6 +438,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
                       selectedForceIds={selectedForceIds}
                       unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
                       getVisibleForceId={getVisibleForceId}
+                      isTileObserved={isTileObserved}
                       onTileClick={onTileClick}
                       onTileHold={onTileHold}
                       getTileStyle={getTileStyle}

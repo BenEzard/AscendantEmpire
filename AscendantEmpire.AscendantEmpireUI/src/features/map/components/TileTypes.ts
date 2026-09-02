@@ -31,6 +31,12 @@ export type TileCell = {
 
   biomeTypeId: number | null;
   geographyTypeId: number | null;
+
+  // Whether the player has ever seen this tile. Carried on the cell rather than held in a separate set because it only ever
+  // changes when the tile's DTO changes, so it rides along with the identity check that keeps memoised tiles from re-rendering.
+  // Whether the tile is being watched *right now* is the other fog layer, and that one does live in a set — see useFogOfWar.
+  isExplored: boolean;
+
   structures?: ObservedStructureTile[];
   forces?: ObservedForceTile[];
 };

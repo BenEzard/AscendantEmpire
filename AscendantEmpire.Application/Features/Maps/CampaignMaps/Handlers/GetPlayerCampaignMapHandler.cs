@@ -219,6 +219,11 @@ internal class GetPlayerCampaignMapHandler(
                                 YCoord = st.Coord.Y,
                                 BiomeTypeId = st.BiomeType,
                                 CampaignMapGeographyTypeId = st.GeographyType,
+                                // Always explored. A Tile only reaches this branch because an Observer can see it, and seeing it is what explores
+                                // it — UpdatePlayerCampaignMapFromCampaignMapAsync above has already stamped FirstSeenOnTurnId on this very set
+                                // of Tiles. Reading the flag back off the Tile row instead would report the value from before that write, so a Tile
+                                // would come back unexplored on the very read that explored it.
+                                IsExplored = true,
                                 Structures = structuresAtTile?.Select(os => new ObservedStructure
                                 {
                                     Id = os.StructureInstanceId,
@@ -270,6 +275,10 @@ internal class GetPlayerCampaignMapHandler(
                             YCoord = masterTile.YCoord,
                             BiomeTypeId = masterTile.BiomeTypeId,
                             CampaignMapGeographyTypeId = masterTile.GeographyTypeId,
+                            // The Player's map holds a row for every Tile in the game from the moment it is set up, so this branch hands back the
+                            // whole board — the ground they remember and the ground they have never been to alike. FirstSeenOnTurnId is what
+                            // separates the two, and this is the only place in the response where the flag is ever false.
+                            IsExplored = masterTile.FirstSeenByPlayerOnTurnId != null,
                             // Tiles outside an observer's sight are terrain only: the player knows the
                             // ground from having explored it, but not what is standing on it now.
                             Structures = [],

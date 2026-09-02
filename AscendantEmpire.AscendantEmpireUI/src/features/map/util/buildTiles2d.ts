@@ -30,6 +30,9 @@ export function buildTiles2d(
       y,
       biomeTypeId: null,
       geographyTypeId: null,
+      // A cell the response said nothing about is ground the player has never been told about, which is unexplored by
+      // definition. The grid is built at the game's full size, so most of these exist before the first tile ever arrives.
+      isExplored: false,
       structures: undefined,
       forces: undefined,
     })),
@@ -54,6 +57,7 @@ export function buildTiles2d(
             y: t.yCoord,
             biomeTypeId: t.biomeTypeId,
             geographyTypeId: t.campaignMapGeographyTypeId,
+            isExplored: t.isExplored,
             structures: t.structures,
             forces: t.forces,
           };

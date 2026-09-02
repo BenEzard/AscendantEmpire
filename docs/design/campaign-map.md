@@ -229,6 +229,9 @@ Many resources are not automatically visible and must be **discovered**.
 
 What a Force or Building can see is determined by both **Sight** and **Detection**.
 
+> This section is the *design* of vision. For how it is stored, sent to the client and drawn —
+> explored ground versus ground currently watched — see [Fog of War](../fog-of-war.md).
+
 ### Sight
 
 Sight is the ability to see the *geography of the land, buildings, and certain resources* from a
