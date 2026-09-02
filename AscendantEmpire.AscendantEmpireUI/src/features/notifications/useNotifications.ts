@@ -1,48 +1,53 @@
-import { createContext, createElement, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
-import type { NotificationGroup, NotificationGroupType, NotificationItem } from "./types";
+﻿import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import type { PossibleAction } from "@/features/game/api/turnApi";
+import type { NotificationGroup, NotificationGroupType } from "./types";
 import { notificationGroupTypeMeta } from "./types";
-import { dummyNotificationGroups } from "./dummyNotifications";
-
-function groupUnhandedItems(group: NotificationGroup): NotificationItem[] {
-  return group.items.filter((i) => !i.isHandled);
-}
+import { buildEndTurnActionGroups } from "./endTurnActionNotifications";
 
 export interface UseNotificationsResult {
   groups: NotificationGroup[];
   totalCount: number;
+  /** Dismiss one item outright. */
   removeItem: (id: string) => void;
+  /** Mark one item dealt with. Handled and removed amount to the same thing here: the item leaves the panel. */
   markHandled: (id: string) => void;
   clearAll: () => void;
 }
 
 const NotificationsContext = createContext<UseNotificationsResult | null>(null);
 
-function useNotificationsState(): UseNotificationsResult {
-  const [groups, setGroups] = useState<NotificationGroup[]>(() => dummyNotificationGroups);
+export interface NotificationsProviderProps {
+  /**
+   * The actions the server last reported as outstanding when the player asked to end their turn.
+   *
+   * The provider derives its groups from this rather than owning them, so the caller that made the request stays the single source of truth for what
+   * the server said — and clearing it (an ended turn, a closed game) empties the panel with it.
+   */
+  endTurnActions: PossibleAction[];
+  children: ReactNode;
+}
+
+function useNotificationsState(endTurnActions: PossibleAction[]): UseNotificationsResult {
+  // Items the player has dealt with or waved away. Held apart from the groups because the groups are derived, so there is nowhere in them to record it.
+  const [dismissedIds, setDismissedIds] = useState<ReadonlySet<string>>(() => new Set());
+
+  // A fresh check makes previous dismissals meaningless: they were judgements about the last list, and anything still outstanding has just been
+  // reported again. Without this an item waved away once would stay invisible for the rest of the game.
+  useEffect(() => {
+    setDismissedIds(new Set());
+  }, [endTurnActions]);
 
   const removeItem = useCallback((id: string) => {
-    setGroups((prev) =>
-      prev
-        .map((g) => ({ ...g, items: g.items.filter((i) => i.id !== id) }))
-        .filter((g) => g.items.length > 0),
-    );
+    setDismissedIds((prev) => new Set(prev).add(id));
   }, []);
 
-  const markHandled = useCallback((id: string) => {
-    setGroups((prev) =>
-      prev
-        .map((g) => ({ ...g, items: g.items.map((i) => (i.id === id ? { ...i, isHandled: true } : i)) }))
-        .map((g) => ({ ...g, items: groupUnhandedItems(g) }))
-        .filter((g) => g.items.length > 0),
-    );
-  }, []);
-
-  const clearAll = useCallback(() => setGroups([]), []);
+  // Handling an item and removing it come to the same thing while every notification is an outstanding action: either way it stops asking.
+  const markHandled = removeItem;
 
   const normalizedGroups = useMemo(() => {
-    const filtered = groups
-      .map((g) => ({ ...g, items: groupUnhandedItems(g) }))
-      .filter((g) => g.items.length > 0);
+    const filtered = buildEndTurnActionGroups(endTurnActions)
+      .map((group) => ({ ...group, items: group.items.filter((item) => !item.isHandled && !dismissedIds.has(item.id)) }))
+      .filter((group) => group.items.length > 0);
 
     filtered.sort((a, b) => {
       const aMeta = notificationGroupTypeMeta[a.type];
@@ -53,15 +58,20 @@ function useNotificationsState(): UseNotificationsResult {
     });
 
     return filtered;
-  }, [groups]);
+  }, [endTurnActions, dismissedIds]);
 
-  const totalCount = useMemo(() => normalizedGroups.reduce((sum, g) => sum + g.items.length, 0), [normalizedGroups]);
+  const clearAll = useCallback(() => {
+    setDismissedIds(new Set(normalizedGroups.flatMap((group) => group.items.map((item) => item.id))));
+  }, [normalizedGroups]);
 
-  // Safety: ensure unique group types (your requirement: one group per type)
-  // If duplicates ever appear (e.g. bad API merge), later groups win.
+  const totalCount = useMemo(() => normalizedGroups.reduce((sum, group) => sum + group.items.length, 0), [normalizedGroups]);
+
+  // Safety: ensure unique group types (one group per type). If duplicates ever appear, later groups win.
   const uniqueByType = useMemo(() => {
     const byType = new Map<NotificationGroupType, NotificationGroup>();
-    for (const g of normalizedGroups) byType.set(g.type, g);
+    for (const group of normalizedGroups) {
+      byType.set(group.type, group);
+    }
     return Array.from(byType.values());
   }, [normalizedGroups]);
 
@@ -74,8 +84,8 @@ function useNotificationsState(): UseNotificationsResult {
   };
 }
 
-export function NotificationsProvider({ children }: { children: ReactNode }) {
-  const value = useNotificationsState();
+export function NotificationsProvider({ endTurnActions, children }: NotificationsProviderProps) {
+  const value = useNotificationsState(endTurnActions);
   return createElement(NotificationsContext.Provider, { value }, children);
 }
 

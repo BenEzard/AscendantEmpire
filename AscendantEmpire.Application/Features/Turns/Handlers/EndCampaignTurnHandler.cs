@@ -12,6 +12,7 @@ using AscendantEmpire.BackendContracts.Games.GetOpenGames;
 using AscendantEmpire.BackendContracts.Turns.GetCurrentCampaignTurn;
 using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Enums.Turns;
+using AscendantEmpire.FrontendContracts.Turns.EndCampaignTurnOrder;
 
 using FluentValidation;
 
@@ -28,10 +29,10 @@ public record EndCampaignTurnRequest(
     int GameId,
     int PlayerId,
     EndTurnMode EndTurnMode
-) : IRequest<ServiceResultBase>;
+) : IRequest<ServiceResult<EndCampaignTurnOutcome>>;
 
-public record EndCampaignTurnOutcome 
-{ 
+public record EndCampaignTurnOutcome : IEndCampaignTurnOutcome
+{
     public bool TurnEnded { get; set; }
     public bool RoundEnded { get; set; }
     public int? VictoryAchievedByPlayerId { get; set; }
@@ -40,7 +41,20 @@ public record EndCampaignTurnOutcome
     /// List of Pending Actions which the Player might want to do before the end of turn.
     /// e.g. Move units, select research.
     /// </summary>
-    public List<PossibleAction> PossibleActions = [];
+    /// <remarks>
+    /// A property rather than a field so that it actually reaches the client: System.Text.Json leaves public fields out of the payload altogether
+    /// unless the serializer is told to include them, and this API does not turn that on.
+    /// </remarks>
+    public List<PossibleAction> PossibleActions { get; set; } = [];
+
+    /// <summary>
+    /// The contract's view of <see cref="PossibleActions"/>.
+    /// </summary>
+    /// <remarks>
+    /// Implemented explicitly so the serialized payload keeps the concrete list above. The interface is here to describe the wire shape to callers,
+    /// not to reshape what goes over it.
+    /// </remarks>
+    IReadOnlyCollection<IPossibleAction> IEndCampaignTurnOutcome.PossibleActions => PossibleActions;
 }
 
 internal class EndCampaignTurnRequestValidator : AbstractValidator<EndCampaignTurnRequest>
@@ -67,7 +81,7 @@ internal class EndCampaignTurnHandler(
     ITurnServicePipeline<IStartCampaignRoundProcess> startCampaignRoundPipeline,
     ITurnServicePipeline<IStartCampaignTurnProcess> startCampaignTurnPipeline,
     ICampaignTurnService campaignTurnService,
-    IOpenGameService openGameService)
+    IOpenGameService openGameService) : IRequestHandler<EndCampaignTurnRequest, ServiceResult<EndCampaignTurnOutcome>>
 {
     private const int _MAX_TURN_TIME_HOURS = 48;
 
@@ -77,9 +91,11 @@ internal class EndCampaignTurnHandler(
         {
             // Validate the request object
             var validateRequest = new EndCampaignTurnRequestValidator();
-            if (validateRequest.Validate(request) is not { IsValid: true })
+            FluentValidation.Results.ValidationResult validationResult = validateRequest.Validate(request);
+
+            if (validationResult.IsValid == false)
             {
-                var errors = validateRequest.Validate(request).Errors.Select(e => e.ErrorMessage);
+                IEnumerable<string> errors = validationResult.Errors.Select(e => e.ErrorMessage);
                 string error = $"Validation failed for {nameof(EndCampaignTurnRequest)}.";
                 logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
 
@@ -87,9 +103,9 @@ internal class EndCampaignTurnHandler(
             }
 
             // Validate
-            //      ✔ the Game is active,
-            //      ✔ the Player is a part of it,
-            //      ✔ it's the Player's turn.
+            //      the Game is active,
+            //      the Player is a part of it,
+            //      it's the Player's turn.
             ServiceResult<CurrentCampaignTurn> currentTurnResult = await ValidateGameAndPlayerAsync(request.GameId, request.PlayerId, cancelToken);
             if (currentTurnResult.HasSucceeded == false || currentTurnResult.SuccessValue is null)
             {
@@ -106,21 +122,28 @@ internal class EndCampaignTurnHandler(
             {
                 return ServiceResult<EndCampaignTurnOutcome>.Fail(queueInfoResult.Errors);
             }
+
             DTQueueInfo queueInfo = queueInfoResult.SuccessValue;
 
-            // TODO: Implement logic to determine if the turn can be ended based on the EndTurnMode and the current game state.
-            // For example, if EndTurnMode is FirstRequest, check if the player has completed all required actions.
-            // If EndTurnMode is FinalRequest, then skip this check.
+            // Developer_AllAboutMe is meant to skip every other Player's Turn and come straight back round to this one. Nothing implements that yet, so
+            // say so plainly rather than quietly ending a single Turn, which is not what the caller asked for.
+            if (request.EndTurnMode == EndTurnMode.Developer_AllAboutMe)
+            {
+                const string error = "The developer end turn mode is not implemented.";
+                logger.LogWarning("{Error} Game Id {GameId}, Player Id {PlayerId}.", error, request.GameId, request.PlayerId);
 
-            // At this point the Turn can technically be ended...
-            //      but if this is the first request to end the turn, we want to check if there are any outstanding actions the Player *could* take.
-            //      if there are, we want to return them and give the Player a chance to complete them before actually ending the turn.
+                return ServiceResult<EndCampaignTurnOutcome>.Fail(error);
+            }
+
+            // At this point the Turn can technically be ended, but if this is the first request to end it we check whether there is anything outstanding
+            // the Player *could* still do. Finding something is not a refusal: it comes back so the client can offer the Player the chance to deal with
+            // it, and the Player ends the Turn for real by asking again with EndTurnMode.ForceEnd.
             if (request.EndTurnMode == EndTurnMode.CheckForActions)
             {
                 var possibleActionContext = new PossibleActionContext(request.GameId, request.PlayerId, currentTurn.CurrentRoundNumber);
                 IReadOnlyList<PossibleAction> possibleActions = await possibleActionService.GetPossibleActionsAsync(possibleActionContext, cancelToken);
 
-                if (possibleActions.Any())
+                if (possibleActions.Count > 0)
                 {
                     // Inform the player of outstanding actions without ending the turn.
                     return ServiceResult<EndCampaignTurnOutcome>.Succeed(new EndCampaignTurnOutcome
@@ -130,6 +153,9 @@ internal class EndCampaignTurnHandler(
                         PossibleActions = [.. possibleActions]
                     });
                 }
+
+                // Nothing outstanding, so there is nothing to prompt about and the check becomes the end of the Turn, which is exactly what
+                // EndTurnMode.CheckForActions promises. Fall through and end it.
             }
 
             // TODO: This needs a bit of a change. You might move some units,
@@ -137,116 +163,7 @@ internal class EndCampaignTurnHandler(
             //      then some of those units may have remaining movement points, so you have to let the user move them as well.
             //
             //      At the start of the turn you have a list of units to move. Then after the auto-actions, you might have more to move.
-            
-            else if (request.EndTurnMode == EndTurnMode.ForceEnd)
-            {
-                // Start the End Turn pipeline processing
-                ServiceResultBase endTurnResult = await EndTurnAsync(context, currentTurn);
-
-                if (endTurnResult.HasSucceeded == false)
-                {
-                    return ServiceResult<EndCampaignTurnOutcome>.Fail(endTurnResult.Errors);
-                }
-
-                bool lastTurnInRound = queueInfo.CurrentParticipant.TurnOrder == queueInfo.GreatestTurnOrder;
-                if (lastTurnInRound == false)
-                { // Not the last turn in the Round, so start the next Turn.
-                    ServiceResult<CurrentCampaignTurn> nextTurnResult = await campaignTurnService.GetNextCampaignTurnAsync(request.GameId, 
-                        turnOrderOfLastPlayer: queueInfo.CurrentParticipant.TurnOrder, 
-                        cancelToken);
-
-                    if (nextTurnResult.HasSucceeded == false) 
-                    {
-                        const string error = "An error occurred while retrieving the next Campaign turn.";
-                        logger.LogError(error + " Errors: {Error}", string.Join(Environment.NewLine, nextTurnResult.Errors));
-                        return ServiceResult<EndCampaignTurnOutcome>.Fail(error);
-                    }
-
-                    ServiceResultBase startNextTurnResult = await StartNextTurnAsync(context, nextTurnResult.SuccessValue!);
-
-                    if (startNextTurnResult.HasSucceeded == false)
-                    {
-                        const string error = "An error occurred while starting the next Campaign turn.";
-                        logger.LogError(error + " Errors: {Error}", string.Join(Environment.NewLine, startNextTurnResult.Errors));
-                        return ServiceResult<EndCampaignTurnOutcome>.Fail(startNextTurnResult.Errors);
-                    }
-
-                    return ServiceResult<EndCampaignTurnOutcome>.Succeed(new EndCampaignTurnOutcome
-                    {
-                        TurnEnded = true,
-                        RoundEnded = false,
-                        PossibleActions = []
-                    });
-                }
-                else // is the last turn in Round
-                {
-                    // End the Round
-                    ServiceResultBase endRoundResult = await EndRoundAsync(context, currentTurn);
-
-                    if (endRoundResult.HasSucceeded == false)
-                    {
-                        return ServiceResult<EndCampaignTurnOutcome>.Fail(endRoundResult.Errors);
-                    }
-
-                    // Start the next Round
-                    currentTurnResult = await campaignTurnService.GetFirstCampaignTurnAsync(request.GameId);
-
-                    if (currentTurnResult.HasSucceeded == false)
-                    {
-                        const string error = "An error occurred while retrieving the first Campaign turn of the next Round.";
-                        logger.LogError(error + " Errors: {Error}", string.Join(Environment.NewLine, currentTurnResult.Errors));
-                        return ServiceResult<EndCampaignTurnOutcome>.Fail(error);
-                    }
-
-                    currentTurn = currentTurnResult.SuccessValue!;
-
-                    // Increment the Round Number (because it only happens at the start of the round.
-                    currentTurn = currentTurnResult.SuccessValue! with
-                    {
-                        CurrentRoundNumber = currentTurnResult.SuccessValue!.CurrentRoundNumber + 1
-                    };
-
-                    ServiceResultBase startRoundResult = await StartRoundAsync(context, currentTurnResult.SuccessValue!);
-
-                    if (startRoundResult.HasSucceeded == false)
-                    {
-                        const string error = "An error occurred while starting the next Round.";
-                        logger.LogError(error + " Errors: {Error}", string.Join(Environment.NewLine, startRoundResult.Errors));
-                        return ServiceResult<EndCampaignTurnOutcome>.Fail(error);
-                    }
-
-                    // Start the first turn of the next round
-                    ServiceResult<CurrentCampaignTurn> nextTurnResult = await campaignTurnService.GetNextCampaignTurnAsync(request.GameId,
-                       turnOrderOfLastPlayer: queueInfo.CurrentParticipant.TurnOrder,
-                       cancelToken);
-
-                    if (nextTurnResult.HasSucceeded == false)
-                    {
-                        const string error = "An error occurred while retrieving the next Campaign turn.";
-                        logger.LogError(error + " Errors: {Error}", string.Join(Environment.NewLine, nextTurnResult.Errors));
-                        return ServiceResult<EndCampaignTurnOutcome>.Fail(error);
-                    }
-
-                    ServiceResultBase startNextTurnResult = await StartNextTurnAsync(context, nextTurnResult.SuccessValue!);
-
-                    if (startNextTurnResult.HasSucceeded == false)
-                    {
-                        const string error = "An error occurred while starting the next Campaign turn.";
-                        logger.LogError(error + " Errors: {Error}", string.Join(Environment.NewLine, startNextTurnResult.Errors));
-                        return ServiceResult<EndCampaignTurnOutcome>.Fail(startNextTurnResult.Errors);
-                    }
-
-                    return ServiceResult<EndCampaignTurnOutcome>.Succeed(new EndCampaignTurnOutcome
-                    {
-                        TurnEnded = true,
-                        RoundEnded = true,
-                        PossibleActions = [] // Return no items here because it's a different Players turn.
-                    });
-
-                }
-            }
-
-            return ServiceResult<EndCampaignTurnOutcome>.Fail("Invalid EndTurnMode.");
+            return await EndTurnAndStartNextAsync(context, currentTurn, queueInfo, cancelToken);
         }
         catch (Exception ex)
         {
@@ -257,7 +174,120 @@ internal class EndCampaignTurnHandler(
     }
 
     /// <summary>
-    /// Validate the Game is active, the Player is a part of it, and that it is currently the Player's turn. 
+    /// Ends the current Player's Turn and hands play on to whoever goes next.
+    /// </summary>
+    /// <remarks>
+    /// <para>Mid-Round that means starting the next Player's Turn. On the last Turn of a Round it means closing the Round, opening the next one, and
+    /// starting the Turn of whoever leads it.</para>
+    /// <para>Every step is guarded, because a half-applied hand-over is worse than a refused one: if the Turn cannot be closed, or the Player who
+    /// should play next cannot be resolved, the call fails rather than leaving the Queue with nobody active and the Game unplayable.</para>
+    /// </remarks>
+    /// <param name="context">The database context used to persist the hand-over.</param>
+    /// <param name="currentTurn">The Turn being ended.</param>
+    /// <param name="queueInfo">The Turn Queue and Participant records behind that Turn.</param>
+    /// <param name="cancelToken">Cancellation token.</param>
+    private async Task<ServiceResult<EndCampaignTurnOutcome>> EndTurnAndStartNextAsync(
+        AscendantEmpireContext context,
+        CurrentCampaignTurn currentTurn,
+        DTQueueInfo queueInfo,
+        CancellationToken cancelToken)
+    {
+        // Start the End Turn pipeline processing, then stamp the Participant and Queue records.
+        ServiceResultBase endTurnResult = await EndTurnAsync(context, currentTurn);
+
+        if (endTurnResult.HasSucceeded == false)
+        {
+            return ServiceResult<EndCampaignTurnOutcome>.Fail(endTurnResult.Errors);
+        }
+
+        bool lastTurnInRound = queueInfo.CurrentParticipant.TurnOrder == queueInfo.GreatestTurnOrder;
+
+        if (lastTurnInRound == false)
+        { // Not the last turn in the Round, so start the next Turn.
+            ServiceResult<CurrentCampaignTurn> nextTurnResult = await campaignTurnService.GetNextCampaignTurnAsync(currentTurn.GameId,
+                turnOrderOfLastPlayer: queueInfo.CurrentParticipant.TurnOrder,
+                cancelToken);
+
+            if (nextTurnResult.HasSucceeded == false || nextTurnResult.SuccessValue is null)
+            {
+                const string error = "An error occurred while retrieving the next Campaign turn.";
+                logger.LogError("{Error} Errors: {Errors}", error, string.Join(Environment.NewLine, nextTurnResult.Errors));
+
+                return ServiceResult<EndCampaignTurnOutcome>.Fail(error);
+            }
+
+            ServiceResultBase startNextTurnResult = await StartNextTurnAsync(context, nextTurnResult.SuccessValue);
+
+            if (startNextTurnResult.HasSucceeded == false)
+            {
+                const string error = "An error occurred while starting the next Campaign turn.";
+                logger.LogError("{Error} Errors: {Errors}", error, string.Join(Environment.NewLine, startNextTurnResult.Errors));
+
+                return ServiceResult<EndCampaignTurnOutcome>.Fail(startNextTurnResult.Errors);
+            }
+
+            return ServiceResult<EndCampaignTurnOutcome>.Succeed(new EndCampaignTurnOutcome
+            {
+                TurnEnded = true,
+                RoundEnded = false,
+                PossibleActions = []
+            });
+        }
+
+        // That was the last Turn in the Round, so the Round closes before anybody plays again.
+        ServiceResultBase endRoundResult = await EndRoundAsync(context, currentTurn);
+
+        if (endRoundResult.HasSucceeded == false)
+        {
+            return ServiceResult<EndCampaignTurnOutcome>.Fail(endRoundResult.Errors);
+        }
+
+        // Open the next Round *before* asking who leads it. Starting a Round is what puts every active Participant back to Pending, and
+        // GetFirstCampaignTurnAsync only ever considers Pending Participants: ask first and every one of them is still marked completed, so nobody
+        // would be found and the Game would stall on the Round boundary.
+        int nextRoundNumber = currentTurn.CurrentRoundNumber + 1;
+
+        ServiceResultBase startRoundResult = await StartRoundAsync(context, queueInfo.TurnQueue.Id, nextRoundNumber, currentTurn.GameId);
+
+        if (startRoundResult.HasSucceeded == false)
+        {
+            const string error = "An error occurred while starting the next Round.";
+            logger.LogError("{Error} Errors: {Errors}", error, string.Join(Environment.NewLine, startRoundResult.Errors));
+
+            return ServiceResult<EndCampaignTurnOutcome>.Fail(startRoundResult.Errors);
+        }
+
+        // With everybody Pending again, the lowest turn order leads the new Round.
+        ServiceResult<CurrentCampaignTurn> firstTurnResult = await campaignTurnService.GetFirstCampaignTurnAsync(currentTurn.GameId);
+
+        if (firstTurnResult.HasSucceeded == false || firstTurnResult.SuccessValue is null)
+        {
+            const string error = "An error occurred while retrieving the first Campaign turn of the next Round.";
+            logger.LogError("{Error} Errors: {Errors}", error, string.Join(Environment.NewLine, firstTurnResult.Errors));
+
+            return ServiceResult<EndCampaignTurnOutcome>.Fail(error);
+        }
+
+        ServiceResultBase startFirstTurnResult = await StartNextTurnAsync(context, firstTurnResult.SuccessValue);
+
+        if (startFirstTurnResult.HasSucceeded == false)
+        {
+            const string error = "An error occurred while starting the first Campaign turn of the next Round.";
+            logger.LogError("{Error} Errors: {Errors}", error, string.Join(Environment.NewLine, startFirstTurnResult.Errors));
+
+            return ServiceResult<EndCampaignTurnOutcome>.Fail(startFirstTurnResult.Errors);
+        }
+
+        return ServiceResult<EndCampaignTurnOutcome>.Succeed(new EndCampaignTurnOutcome
+        {
+            TurnEnded = true,
+            RoundEnded = true,
+            PossibleActions = [] // Return no items here because it's a different Players turn.
+        });
+    }
+
+    /// <summary>
+    /// Validate the Game is active, the Player is a part of it, and that it is currently the Player's turn.
     /// </summary>
     /// <returns>Returns the current turn information if all validations pass.</returns>
     private async Task<ServiceResult<CurrentCampaignTurn>> ValidateGameAndPlayerAsync(int gameId, int playerId, CancellationToken cancelToken)
@@ -289,7 +319,6 @@ internal class EndCampaignTurnHandler(
         }
 
         return turnResult;
-
     }
 
     private record DTQueueInfo
@@ -302,14 +331,14 @@ internal class EndCampaignTurnHandler(
     }
 
     private async Task<ServiceResult<DTQueueInfo>> GetQueueInformationAsync(
-        AscendantEmpireContext context, 
-        CurrentCampaignTurn currentTurn, 
+        AscendantEmpireContext context,
+        CurrentCampaignTurn currentTurn,
         CancellationToken cancelToken)
     {
         // Get the Turn Queue record, and the Participant record for the current Player.
         var models = await context.TurnQueues
             .Where(q => q.Id == currentTurn.TurnQueueId)
-            .Select(q => new 
+            .Select(q => new
             {
                 TurnQueue = q,
                 CurrentParticipant = q.TurnQueueParticipants.SingleOrDefault(p => p.Id == currentTurn.TurnQueueParticipantId),
@@ -327,13 +356,7 @@ internal class EndCampaignTurnHandler(
             return ServiceResult<DTQueueInfo>.NotFound("Current turn queue participant was not found.");
         }
 
-        if (models is null || models.TurnQueue is null || models.CurrentParticipant is null)
-        {
-            string error = $"Turn Queue or Participant record not found for Turn Queue Id {currentTurn.TurnQueueId} and Participant Id {currentTurn.TurnQueueParticipantId}.";
-            logger.LogError("{Error}", error);
-            return ServiceResult<DTQueueInfo>.NotFound(error);
-        }
-
+        // Every Turn Queue has at least the Participant we just found, so the aggregates below always have a row to work on.
         return ServiceResult<DTQueueInfo>.Succeed(new DTQueueInfo
         {
             TurnQueue = models.TurnQueue,
@@ -344,48 +367,66 @@ internal class EndCampaignTurnHandler(
         });
     }
 
-
-
-    private async Task<ServiceResultBase> StartRoundAsync(AscendantEmpireContext context, CurrentCampaignTurn currentTurn)
+    /// <summary>
+    /// Opens a new Round on the Turn Queue: every active Participant goes back to Pending, the Queue's round number moves on, and the start-of-round
+    /// processes run.
+    /// </summary>
+    /// <remarks>
+    /// Resetting *all* the Participants is what makes the next Round playable at all. Both <c>GetFirstCampaignTurnAsync</c> and
+    /// <c>GetNextCampaignTurnAsync</c> only ever look at Pending Participants, and by the time a Round closes every one of them has been marked
+    /// completed, so leaving any of them completed would drop that Player out of the Game for good.
+    /// </remarks>
+    /// <param name="context">The database context used to persist the Round change.</param>
+    /// <param name="turnQueueId">The Turn Queue whose next Round is being opened.</param>
+    /// <param name="newRoundNumber">The number of the Round being opened.</param>
+    /// <param name="gameId">The Game the Turn Queue belongs to, for the start-of-round pipeline context.</param>
+    private async Task<ServiceResultBase> StartRoundAsync(AscendantEmpireContext context, int turnQueueId, int newRoundNumber, int gameId)
     {
         try
         {
             // Update the Turn Queue Participant records to start the Round - all active participants to Pending status
-            DateTimeOffset now = DateTimeOffset.UtcNow;
             int updated = await context.TurnQueueParticipants
-                .Where(x => x.Id == currentTurn.TurnQueueParticipantId)
-                .Where(x => x.IsActiveInLane) 
+                .Where(x => x.TurnQueueId == turnQueueId)
+                .Where(x => x.IsActiveInLane)
                 .ExecuteUpdateAsync(setters => setters
                     .SetProperty(x => x.Status, TurnQueueParticipantStatus.Pending),
                     CancellationToken.None);
 
             if (updated == 0)
             {
-                logger.LogWarning("No Turn Queue Participant record was updated for Start of Round, Participant Id {ParticipantId}.", currentTurn.TurnQueueParticipantId);
-                return ServiceResult.Fail("Failed to update Turn Queue Participant record to start the Round.");
+                logger.LogWarning("No Turn Queue Participant records were updated for Start of Round, Turn Queue Id {TurnQueueId}.", turnQueueId);
+                return ServiceResult.Fail("Failed to update Turn Queue Participant records to start the Round.");
             }
 
-            // Update the Turn Queue record to start the Round - clear out the current turn info
+            // Update the Turn Queue record to start the Round - move it on to the new Round number
+            DateTimeOffset now = DateTimeOffset.UtcNow;
             updated = await context.TurnQueues
-                .Where(q => q.Id == currentTurn.TurnQueueId)
+                .Where(q => q.Id == turnQueueId)
                 .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(q => q.CurrentRoundNumber, currentTurn.CurrentRoundNumber)
+                    .SetProperty(q => q.CurrentRoundNumber, newRoundNumber)
                     .SetProperty(q => q.UpdatedAt, now),
                     CancellationToken.None);
 
             if (updated == 0)
             {
-                logger.LogWarning("No Turn Queue record was updated for Start of Round, Turn Queue Id {TurnQueueId}.", currentTurn.TurnQueueId);
+                logger.LogWarning("No Turn Queue record was updated for Start of Round, Turn Queue Id {TurnQueueId}.", turnQueueId);
                 return ServiceResult.Fail("Failed to update Turn Queue record to start the Round.");
             }
 
             // Then process the Start Round pipeline
-            var startRoundContext = new TurnPipelineContextData(TurnPipelineType.StartCampaignRound, currentTurn.GameId, currentTurn.CurrentRoundNumber);
+            var startRoundContext = new TurnPipelineContextData(TurnPipelineType.StartCampaignRound, gameId, newRoundNumber);
             ServiceResultBase startRoundResult = await startCampaignRoundPipeline.ProcessPipelineAsync(startRoundContext);
+
+            if (startRoundResult.HasSucceeded == false)
+            {
+                string error = $"An error occurred during start round pipeline processing. Errors: {string.Join("; ", startRoundResult.Errors)}";
+                logger.LogError("{Error}", error);
+                return ServiceResultBase.Fail(error);
+            }
         }
-        catch (Exception e) 
+        catch (Exception e)
         {
-            string error = $"An exception occurred during end round processing for Game Id {currentTurn.GameId}, Round Number {currentTurn.CurrentRoundNumber}.";
+            string error = $"An exception occurred during start round processing for Game Id {gameId}, Round Number {newRoundNumber}.";
             logger.LogError(e, "{Error}", error);
             return ServiceResultBase.Fail(error);
         }
@@ -418,6 +459,13 @@ internal class EndCampaignTurnHandler(
             // Then process the End Round pipeline
             var endRoundContext = new TurnPipelineContextData(TurnPipelineType.EndCampaignRound, currentTurn.GameId, currentTurn.CurrentRoundNumber);
             ServiceResultBase endRoundResult = await endCampaignRoundPipeline.ProcessPipelineAsync(endRoundContext);
+
+            if (endRoundResult.HasSucceeded == false)
+            {
+                string error = $"An error occurred during end round pipeline processing. Errors: {string.Join("; ", endRoundResult.Errors)}";
+                logger.LogError("{Error}", error);
+                return ServiceResultBase.Fail(error);
+            }
         }
         catch (Exception e)
         {
@@ -484,16 +532,13 @@ internal class EndCampaignTurnHandler(
         return ServiceResultBase.Succeed();
     }
 
-
-
     /// <summary>
     /// Processes the end-of-turn operations for the specified campaign turn asynchronously.
     /// </summary>
     /// <remarks>This method coordinates the end turn pipeline and updates the database accordingly. If any
     /// step fails, the result will indicate failure and include error details.</remarks>
-    /// <param name="currentTurn">The current campaign turn to be ended.</param>
     /// <param name="context">The database context used to persist changes related to the end of the turn.</param>
-    /// <param name="endTurnContext">The context data required for the end turn pipeline processing.</param>
+    /// <param name="currentTurn">The current campaign turn to be ended.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains a ServiceResultBase indicating
     /// whether the end turn process succeeded or failed, including any error information.</returns>
     private async Task<ServiceResultBase> EndTurnAsync(AscendantEmpireContext context, CurrentCampaignTurn currentTurn)
@@ -546,7 +591,7 @@ internal class EndCampaignTurnHandler(
         {
             string error = $"An exception occurred during end turn processing for Game Id {currentTurn.GameId}, Turn Queue Id {currentTurn.TurnQueueId}, Participant Id {currentTurn.TurnQueueParticipantId}.";
             logger.LogError(e, "{Error}", error);
-            
+
             return ServiceResultBase.Fail(error);
         }
 

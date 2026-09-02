@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+﻿import { useMemo } from "react";
 import { FaChessKnight, FaRegFolderOpen } from "react-icons/fa6";
 import { GoEye, GoEyeClosed } from "react-icons/go";
 import { GiRank3, GiWoodStick } from "react-icons/gi";
@@ -120,6 +120,8 @@ export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
             key: "end-turn",
             icon: <GrCaretNext />,
             tooltip: "End Turn",
+            // There is no turn to end without a game open, and the request would be refused for want of a game token.
+            disabled: !gameOpen,
             onClick: onEndTurn,
           },
         ],

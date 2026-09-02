@@ -19,7 +19,7 @@ internal sealed class WaterMovementStrategy : IMovementDomainStrategy
 
         if (!target.IsWater)
         {
-            return $"{target.Describe()} is dry land, and a water force cannot cross it.";
+            return "Cannot enter land.";
         }
 
         return null;

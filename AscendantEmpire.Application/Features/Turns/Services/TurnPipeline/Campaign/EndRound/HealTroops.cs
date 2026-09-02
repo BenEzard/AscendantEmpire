@@ -7,7 +7,7 @@ namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campa
 internal class HealTroops(IDbContextFactory<AscendantEmpireContext> dbFactory) : IEndCampaignRoundProcess
 {
     public string ItemName { get => "Heal Troops"; }
-    public int ExecutionOrder => 100; // After all the checks and possible actions, but before the final end turn processing.
+    public int ExecutionOrder => (int)EndCampaignRoundProcessOrder.HealTroops;
 
 
     public async Task<string> ProcessAsync(TurnPipelineContextData context)

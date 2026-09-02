@@ -1,4 +1,4 @@
-export type NotificationGroupType = "unit-needs-orders" | "trade-opportunity" | "city-under-siege";
+﻿export type NotificationGroupType = "unit-needs-orders" | "trade-opportunity" | "city-under-siege" | "research-selection";
 
 export interface NotificationGroupTypeMeta {
   label: string;
@@ -9,6 +9,7 @@ export const notificationGroupTypeMeta: Record<NotificationGroupType, Notificati
   "unit-needs-orders": { label: "Unit needs orders", displayOrder: 10 },
   "city-under-siege": { label: "City Under Siege", displayOrder: 20 },
   "trade-opportunity": { label: "Trade Opportunities", displayOrder: 30 },
+  "research-selection": { label: "Research", displayOrder: 40 },
 };
 
 export interface NotificationLocation {

@@ -4,7 +4,7 @@ internal class AlertSentries : IStartCampaignTurnProcess
 {
     public string ItemName => "Alert Sentries";
 
-    public int ExecutionOrder => 100;
+    public int ExecutionOrder => (int)StartCampaignTurnProcessOrder.AlertSentries;
 
     public Task<string> ProcessAsync(TurnPipelineContextData context)
     {

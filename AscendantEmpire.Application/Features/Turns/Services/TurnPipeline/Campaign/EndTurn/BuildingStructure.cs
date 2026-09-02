@@ -4,7 +4,7 @@ internal class BuildingStructure : IEndCampaignTurnProcess
 {
     public string ItemName => "Building Structure";
 
-    public int ExecutionOrder => 100;
+    public int ExecutionOrder => (int)EndCampaignTurnProcessOrder.BuildingStructure;
 
     public Task<string> ProcessAsync(TurnPipelineContextData context)
     {

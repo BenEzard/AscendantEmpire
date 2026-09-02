@@ -4,7 +4,7 @@ internal class CheckUnitSupply : IStartCampaignTurnProcess
 {
     public string ItemName => "Check Unit Supply";
 
-    public int ExecutionOrder => 100;
+    public int ExecutionOrder => (int)StartCampaignTurnProcessOrder.CheckUnitSupply;
 
     public Task<string> ProcessAsync(TurnPipelineContextData context)
     {

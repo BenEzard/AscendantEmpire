@@ -3,7 +3,7 @@
 internal class EvaluateForceOnHostileTerrain : IEndCampaignTurnProcess
 {
     public string ItemName => "Evaluate Force on Hostile Terrain";
-    public int ExecutionOrder => 100;
+    public int ExecutionOrder => (int)EndCampaignTurnProcessOrder.EvaluateForceOnHostileTerrain;
 
     public Task<string> ProcessAsync(TurnPipelineContextData context)
     {

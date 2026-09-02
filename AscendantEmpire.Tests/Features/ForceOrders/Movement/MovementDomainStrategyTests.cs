@@ -75,7 +75,7 @@ internal class MovementDomainStrategyTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(strategy.GetEntryRefusal(LandTile()), Is.Null);
-            Assert.That(strategy.GetEntryRefusal(WaterTile()), Does.Contain("water"));
+            Assert.That(strategy.GetEntryRefusal(WaterTile()), Is.EqualTo("Cannot enter water."));
         }
     }
 
@@ -87,7 +87,7 @@ internal class MovementDomainStrategyTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(strategy.GetEntryRefusal(WaterTile()), Is.Null);
-            Assert.That(strategy.GetEntryRefusal(LandTile()), Does.Contain("dry land"));
+            Assert.That(strategy.GetEntryRefusal(LandTile()), Is.EqualTo("Cannot enter land."));
         }
     }
 
@@ -99,7 +99,7 @@ internal class MovementDomainStrategyTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(strategy.GetEntryRefusal(WaterTile()), Is.Null);
-            Assert.That(strategy.GetEntryRefusal(LandTile()), Does.Contain("dry land"));
+            Assert.That(strategy.GetEntryRefusal(LandTile()), Is.EqualTo("Cannot enter land."));
         }
     }
 

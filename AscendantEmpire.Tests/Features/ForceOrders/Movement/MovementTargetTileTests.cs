@@ -66,6 +66,23 @@ internal class MovementTargetTileTests
         Assert.That(tile.IsImpassable, Is.True);
     }
 
+    [Test, Description("A refusal names the mountain only when the ground is the blocker, so an impassable biome must not be mistaken for one.")]
+    public void ShouldTellImpassableGroundApartFromAnImpassableBiome()
+    {
+        MovementTargetTile mountain = Tile(
+            geographyType: CampaignMapGeographyType.Mountainous,
+            geographyMovementCost: CampaignGeography.IMPASSABLE_MOVEMENT_COST);
+
+        MovementTargetTile voidTile = Tile(biomeMovementCost: 99m, biomeIsTraversable: false);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(mountain.GeographyIsImpassable, Is.True);
+            Assert.That(voidTile.GeographyIsImpassable, Is.False, "The Void is impassable through its biome, and has no mountain to name.");
+            Assert.That(Tile().GeographyIsImpassable, Is.False);
+        }
+    }
+
     [Test, Description("Ordinary ground must not be caught by either impassability marker, or nothing could move anywhere.")]
     public void ShouldTreatOrdinaryGroundAsPassable()
     {

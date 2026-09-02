@@ -4,7 +4,7 @@ internal class Fortifying : IEndCampaignTurnProcess
 {
     public string ItemName => "Fortifying";
 
-    public int ExecutionOrder => 100;
+    public int ExecutionOrder => (int)EndCampaignTurnProcessOrder.Fortifying;
 
     public Task<string> ProcessAsync(TurnPipelineContextData context)
     {

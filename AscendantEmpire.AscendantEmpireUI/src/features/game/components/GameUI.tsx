@@ -13,7 +13,6 @@ import UnitDesigner from "@/features/unitdesign/UnitDesigner";
 import MilitaryAdvisorDialog from "@/features/game/advisors/military/MilitaryAdvisorDialog";
 import OpenGameDialog from "./OpenGameDialog";
 import VisionSettingsOffcanvas from "./VisionSettingsOffcanvas";
-import { http } from "@/api/http";
 import { enterGame } from "@/features/auth/api/authApi";
 import ContextActionToolbar from "./ContextActionToolbar";
 import ForceSelectionToolbar from "./ForceSelectionToolbar";
@@ -27,8 +26,10 @@ import { useVisionTool } from "../hooks/useVisionTool";
 import { useFogOfWar } from "../hooks/useFogOfWar";
 import { useForceSelection } from "../hooks/useForceSelection";
 import { useForceStepMutation } from "../hooks/useForceStep";
+import { useEndTurnMutation } from "../hooks/useEndTurn";
 import { useNumpadMovement } from "../hooks/useNumpadMovement";
 import type { MoveDirection } from "../api/forceMovementApi";
+import type { PossibleAction } from "../api/turnApi";
 import { useTileRendering } from "../hooks/useTileRendering";
 import { useConstructionPanel } from "../hooks/useConstructionPanel";
 import { useGameToolbar } from "./useGameToolbar";
@@ -41,6 +42,14 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
   const [showMilitaryAdvisor, setShowMilitaryAdvisor] = useState(false);
+
+  // What the server reported as still outstanding when the player last asked to end their turn. This is what the notifications panel is built from,
+  // and the turn has not ended while it holds anything — nothing was written by the check that produced it.
+  const [endTurnActions, setEndTurnActions] = useState<PossibleAction[]>([]);
+
+  // Set once the player has been shown what they have outstanding, so the next press of End Turn ends the turn regardless. Disarmed again whenever
+  // the turn ends or the player moves a force, because either makes the list they were shown out of date.
+  const [endTurnArmed, setEndTurnArmed] = useState(false);
 
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const tileGridContainerRef = useRef<HTMLDivElement | null>(null);
@@ -91,6 +100,10 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
       // The fog needs nothing here: the mutation has already written the step's tiles and observers into the tiles cache, and
       // both fog layers are derived from that cache.
       onForceMoved(result);
+
+      // The player has just changed what they have outstanding, so the list they were shown no longer stands and the turn should not end on the
+      // strength of it. The notifications stay up — they are still the checklist being worked through — but End Turn goes back to checking first.
+      setEndTurnArmed(false);
     },
     // The API writes its refusals to be read as they stand — which tile, and why it can't be entered — so they go straight to
     // the player rather than being reworded here.
@@ -262,27 +275,49 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const toggleMilitaryAdvisor = useCallback(() => setShowMilitaryAdvisor((shown) => !shown), []);
   const closeMilitaryAdvisor = useCallback(() => setShowMilitaryAdvisor(false), []);
 
-  // Dismiss the Military Advisor when the game closes — its toolbar button is disabled without an
-  // open game, so an already-open dialog would otherwise be left showing stale, unreopenable state.
-  // Watching `gameSelection` rather than hooking `closeGame` covers any future path that clears it.
+  // Dismiss the Military Advisor and the end-turn prompt when the game closes — their toolbar buttons
+  // are disabled without an open game, so an already-open dialog would otherwise be left showing stale,
+  // unreopenable state. Watching `gameSelection` rather than hooking `closeGame` covers any future path
+  // that clears it.
   useEffect(() => {
     if (gameSelection == null) {
       setShowMilitaryAdvisor(false);
+      setEndTurnActions([]);
+      setEndTurnArmed(false);
     }
   }, [gameSelection]);
 
-  const onEndTurn = useCallback(async () => {
-    if (gameId == null || playerId == null) return;
+  // --- End turn ---
+  const endTurn = useEndTurnMutation(gameId, playerId, {
+    onSuccess: (outcome) => {
+      if (outcome.turnEnded) {
+        // Empty the panel and disarm, so nothing carries over into a turn where it was never checked.
+        setEndTurnActions([]);
+        setEndTurnArmed(false);
+        openToast(outcome.roundEnded ? "Turn ended. A new round has begun." : "Turn ended.", "success");
+        return;
+      }
 
-    // No payload: the server ends the turn of whoever the token says the caller is.
-    try {
-      await http.post("/turn/end-campaign");
-      // optional: only toggle after success
-      setActivePanel((p) => (p === "unit-design" ? null : "unit-design"));
-    } catch (err) {
-      console.error("POST /turn/end-campaign failed", err);
-    }
-  }, [gameId, playerId]);
+      // The turn is still running. The server is reporting what the player could still do, so it goes to the notifications panel and the next press
+      // of End Turn is the one that ends it.
+      setEndTurnActions(outcome.possibleActions);
+      setEndTurnArmed(true);
+
+      const count = outcome.possibleActions.length;
+      openToast(
+        count === 1
+          ? "One thing still needs your attention. Press End Turn again to end anyway."
+          : `${count} things still need your attention. Press End Turn again to end anyway.`,
+        "warning",
+      );
+    },
+    // The API writes its refusals to be read as they stand, so they go straight to the player rather than being reworded here.
+    onError: (err) => openToast(err instanceof Error ? err.message : "Your turn could not be ended.", "danger"),
+  });
+
+  // One button, two meanings. Unarmed it asks the server to check first, and anything outstanding comes back to fill the notifications panel; armed
+  // it means the player has read that list and wants the turn ended regardless.
+  const onEndTurn = useCallback(() => endTurn.mutate(endTurnArmed), [endTurn, endTurnArmed]);
 
   const toolBarGroups = useGameToolbar({
     gameOpen: gameSelection != null,
@@ -302,7 +337,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   });
 
   return (
-    <NotificationsProvider>
+    <NotificationsProvider endTurnActions={endTurnActions}>
       <div className="flex flex-col" style={{ minHeight: "100vh", paddingRight: notificationPanelOpen ? "20vw" : undefined }}>
         <div ref={toolbarRef} className="fixed left-0 right-0 z-[1070]" style={{ top: topOffset }}>
           <ToolBar groups={toolBarGroups} />

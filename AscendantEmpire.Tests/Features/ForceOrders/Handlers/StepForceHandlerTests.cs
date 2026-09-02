@@ -329,7 +329,7 @@ internal class StepForceHandlerTests : InMemoryTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(southEast.HasSucceeded, Is.False, "South-east is mountain, which nothing can cross.");
-            Assert.That(southEast.Errors.Single(), Does.Contain("cannot be crossed"));
+            Assert.That(southEast.Errors.Single(), Is.EqualTo("Mountain terrain cannot be entered."));
         }
     }
 
@@ -398,7 +398,7 @@ internal class StepForceHandlerTests : InMemoryTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.HasSucceeded, Is.False);
-            Assert.That(result.Errors.Single(), Does.Contain("cannot be crossed"));
+            Assert.That(result.Errors.Single(), Is.EqualTo("Mountain terrain cannot be entered."));
             Assert.That(unmoved.MovementPointsRemaining, Is.EqualTo(_CAMPAIGN_MOVEMENT_POINTS), "A refused step costs nothing.");
         }
     }

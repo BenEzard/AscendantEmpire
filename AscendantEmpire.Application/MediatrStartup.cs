@@ -12,6 +12,10 @@ using AscendantEmpire.Application.Features.ForceOrders.Movement.Strategies;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions.Checks;
+using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline;
+using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndRound;
+using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndTurn;
+using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.StartTurn;
 
 using AscendantEmpire.Domain.Entities.Identity;
 
@@ -35,6 +39,7 @@ public static class MediatrStartup
         services.AddScoped<ICampaignTurnService, CampaignTurnService>();
         services.AddScoped<ICampaignMapGalleryService, CampaignMapGalleryService>();
         services.AddScoped<IGameSetupService, GameSetupService>();
+        services.AddScoped<IOpenGameService, OpenGameService>();
         services.AddScoped<IMovementProfileFactory, MovementProfileFactory>();
 
         // Force context action pipeline. Each IForceActionStrategy decides one toolbar action; the service builds the shared context once and
@@ -58,6 +63,31 @@ public static class MediatrStartup
         services.AddScoped<IPossibleActionCheck, BattleRemainingMovementCheck>();
         services.AddScoped<IPossibleActionCheck, ResearchSelectionCheck>();
         services.AddScoped<IPossibleActionCheck, TradeExpiryCheck>();
+
+        // Turn pipelines. One open generic covers every pipeline: TurnServicePipeline<T> just collects the IEnumerable<T> registered below and runs
+        // them in ExecutionOrder, so a new pipeline needs no registration of its own — only its processes.
+        //
+        // A pipeline with no processes registered is legal: the IEnumerable resolves empty and the pipeline succeeds having done nothing. That is what
+        // IStartCampaignRoundProcess is today. It also means a process left unregistered fails silently rather than loudly, so anything added under
+        // TurnPipeline/ needs a line here to actually run.
+        //
+        // Registration order below does not matter. Each pipeline runs in ExecutionOrder, and every process reads that from its pipeline's order enum
+        // — EndCampaignTurnProcessOrder and its siblings — which is where the sequence is decided and changed.
+        services.AddScoped(typeof(ITurnServicePipeline<>), typeof(TurnServicePipeline<>));
+
+        // End of a Campaign Turn — runs for the Player whose turn is ending.
+        services.AddScoped<IEndCampaignTurnProcess, Gathering>();
+        services.AddScoped<IEndCampaignTurnProcess, BuildingStructure>();
+        services.AddScoped<IEndCampaignTurnProcess, Fortifying>();
+        services.AddScoped<IEndCampaignTurnProcess, EvaluateForceOnHostileTerrain>();
+
+        // End of a Campaign Round — runs once, after the last Player's turn in the Round.
+        services.AddScoped<IEndCampaignRoundProcess, HealTroops>();
+        services.AddScoped<IEndCampaignRoundProcess, EvaluateVictoryConditions>();
+
+        // Start of a Campaign Turn — runs for the Player whose turn is beginning.
+        services.AddScoped<IStartCampaignTurnProcess, AlertSentries>();
+        services.AddScoped<IStartCampaignTurnProcess, CheckUnitSupply>();
 
         // Generic background processing pipeline.
         // The channel is singleton so the same instance is shared between the handlers

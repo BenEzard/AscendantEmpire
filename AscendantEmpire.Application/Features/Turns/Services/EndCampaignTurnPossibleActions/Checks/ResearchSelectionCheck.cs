@@ -1,4 +1,6 @@
-﻿namespace AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions.Checks;
+﻿using AscendantEmpire.Domain.Enums.Turns;
+
+namespace AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions.Checks;
 
 /// <summary>
 /// Flags when the player has no active research project selected.
@@ -7,7 +9,7 @@
 internal sealed class ResearchSelectionCheck : IPossibleActionCheck
 {
     public string CheckName => "Research Selection";
-    public int ExecutionOrder => 200;
+    public int ExecutionOrder => (int)EndTurnPossibleActionOrder.AreWeResearchingSomething;
 
     public Task<IReadOnlyList<PossibleAction>> EvaluateAsync(
         PossibleActionContext context,

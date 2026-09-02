@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+﻿import { useMemo } from "react";
 import type { ComponentType } from "react";
 import type { NotificationGroup, NotificationGroupType, NotificationItem } from "../types";
 import { FaChevronDown, FaChevronRight } from "react-icons/fa6";
 import UnitNeedsOrdersItem from "./items/UnitNeedsOrdersItem";
 import CityUnderSiegeItem from "./items/CityUnderSiegeItem";
 import TradeOpportunityItem from "./items/TradeOpportunityItem";
+import ResearchSelectionItem from "./items/ResearchSelectionItem";
 
 interface NotificationItemProps {
   item: NotificationItem;
@@ -15,6 +16,7 @@ const itemComponentMap: Record<NotificationGroupType, ComponentType<Notification
   "unit-needs-orders": UnitNeedsOrdersItem,
   "city-under-siege": CityUnderSiegeItem,
   "trade-opportunity": TradeOpportunityItem,
+  "research-selection": ResearchSelectionItem,
 };
 
 export interface NotificationGroupProps {

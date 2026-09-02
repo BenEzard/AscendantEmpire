@@ -88,8 +88,7 @@ internal class StepForceHandler(
 
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            // Tracked, not AsNoTracking: this is the row the step writes back to. The current tile comes with it, because its coordinates are what
-            // the direction is applied to.
+            // Tracked, not AsNoTracking: this is the row the step writes back to. The current tile comes with it, because its coordinates are what the direction is applied to.
             UnitInstance? force = await context.UnitInstances
                 .Include(f => f.CampaignMap)
                 .FirstOrDefaultAsync(f => f.Id == request.UnitInstanceId && f.GameId == request.GameId, cancelToken);
@@ -343,8 +342,11 @@ internal class StepForceHandler(
         // Impassability holds for every domain alike, so it is settled before any strategy is consulted.
         if (target.IsImpassable)
         {
-            string error = $"{target.Describe()} cannot be crossed by anything.";
-            logger.LogInformation("{Error} Unit Instance Id {UnitInstanceId}.", error, force.Id);
+            // The two causes read differently to a player, so a mountain is named as one; anything else keeps the general wording.
+            string error = target.GeographyIsImpassable ? "Mountain terrain cannot be entered." : "This terrain cannot be entered.";
+
+            // The message no longer names the tile, so the log carries the description instead.
+            logger.LogInformation("{Error} {Tile}. Unit Instance Id {UnitInstanceId}.", error, target.Describe(), force.Id);
             return ServiceResult<StepForceResult>.Fail(error);
         }
 
@@ -362,7 +364,7 @@ internal class StepForceHandler(
 
         if (refusal is not null)
         {
-            logger.LogInformation("Unit Instance Id {UnitInstanceId} refused entry: {Refusal}", force.Id, refusal);
+            logger.LogInformation("Unit Instance Id {UnitInstanceId} refused entry to {Tile}: {Refusal}", force.Id, target.Describe(), refusal);
             return ServiceResult<StepForceResult>.Fail(refusal);
         }
 

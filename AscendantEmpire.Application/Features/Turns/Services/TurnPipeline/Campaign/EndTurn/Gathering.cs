@@ -4,7 +4,7 @@ internal class Gathering : IEndCampaignTurnProcess
 {
     public string ItemName => "Gathering";
 
-    public int ExecutionOrder => 100;
+    public int ExecutionOrder => (int)EndCampaignTurnProcessOrder.Gathering;
 
     public Task<string> ProcessAsync(TurnPipelineContextData context)
     {

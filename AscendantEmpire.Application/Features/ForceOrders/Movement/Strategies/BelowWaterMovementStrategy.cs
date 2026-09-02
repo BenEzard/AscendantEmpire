@@ -25,7 +25,7 @@ internal sealed class BelowWaterMovementStrategy : IMovementDomainStrategy
 
         if (!target.IsWater)
         {
-            return $"{target.Describe()} is dry land, and a submerged force cannot cross it.";
+            return "Cannot enter land.";
         }
 
         return null;

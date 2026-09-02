@@ -4,7 +4,7 @@ internal class EvaluateVictoryConditions : IEndCampaignRoundProcess
 {
     public string ItemName => "Evaluate Victory Conditions";
 
-    public int ExecutionOrder => throw new NotImplementedException();
+    public int ExecutionOrder => (int)EndCampaignRoundProcessOrder.EvaluateVictoryConditions;
 
     public async Task<string> ProcessAsync(TurnPipelineContextData context)
     {

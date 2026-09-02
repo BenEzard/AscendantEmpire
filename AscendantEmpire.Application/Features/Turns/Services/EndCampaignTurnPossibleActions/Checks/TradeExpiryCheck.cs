@@ -1,4 +1,6 @@
-﻿namespace AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions.Checks;
+﻿using AscendantEmpire.Domain.Enums.Turns;
+
+namespace AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions.Checks;
 
 /// <summary>
 /// Flags trade deals that will expire at end of this round if not renewed.
@@ -7,7 +9,7 @@
 internal sealed class TradeExpiryCheck : IPossibleActionCheck
 {
     public string CheckName => "Trade Deal Expiry";
-    public int ExecutionOrder => 300;
+    public int ExecutionOrder => (int)EndTurnPossibleActionOrder.HaveAnyTradeDealsExpired;
 
     public Task<IReadOnlyList<PossibleAction>> EvaluateAsync(
         PossibleActionContext context,
