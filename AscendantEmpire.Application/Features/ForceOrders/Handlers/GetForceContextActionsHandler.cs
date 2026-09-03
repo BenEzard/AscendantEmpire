@@ -1,8 +1,7 @@
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.BackendContracts.ForceOrders.GetForceContextActions;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -26,7 +25,7 @@ public record GetForceContextActionsRequest(
     IReadOnlyCollection<int> ForceIds
 ) : IRequest<ServiceResultBase.ServiceResult<IReadOnlyCollection<ForceContextAction>>>;
 
-internal class GetForceContextActionsRequestValidator : AbstractValidator<GetForceContextActionsRequest>
+internal class GetForceContextActionsRequestValidator : Validator<GetForceContextActionsRequest>
 {
     public GetForceContextActionsRequestValidator()
     {
@@ -57,7 +56,7 @@ internal class GetForceContextActionsHandler(
         try
         {
             var validator = new GetForceContextActionsRequestValidator();
-            FluentValidation.Results.ValidationResult validationResult = validator.Validate(request);
+            ValidationResult validationResult = validator.Validate(request);
 
             if (!validationResult.IsValid)
             {

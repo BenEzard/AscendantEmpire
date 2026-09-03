@@ -133,8 +133,8 @@ Conventions in force:
   folder. Handlers return `ServiceResult<T>`, which controllers translate to `IActionResult`.
 - **`IDbContextFactory` over injected `DbContext`.** Handlers and services create their own context
   per unit of work.
-- **FluentValidation** in a MediatR pipeline behaviour, converting failures into a `Fail` result
-  rather than throwing.
+- **An in-house validation system** (`Application/Common/Validation/`) run by a MediatR pipeline
+  behaviour, converting failures into a `Fail` result rather than throwing.
 - **Enums on the wire as string names** (`JsonStringEnumConverter`), matched by TS string unions.
 - **Two token kinds**: a *user token* (identity only) and a *game token* (identity + `gameId` +
   `playerId`), backed by a revocable DB-side refresh session.
@@ -398,6 +398,10 @@ runtime: the lookup returns null, control falls through, and the behaviour throw
 `typeof(ServiceResultBase.ServiceResult<>)` so the reference is checked by the compiler. (The root
 cause is AE-S3-005.)
 
+**Closed by G-135.** The rewritten behaviour constrains `TResponse` to `ServiceResultBase`, so a
+failure is an ordinary object initializer over the `StatusCode` and `Errors` properties every result
+shape shares. There is no lookup left to fail.
+
 **AE-S3-003 · Medium · Latent `InvalidCastException` in `ValidationBehaviour` for two-arg results.**
 When `TResponse` is `ServiceResult<TSuccess, TError>`, `GetGenericArguments()[0]` yields only
 `TSuccess`, so the reflected instance is a `ServiceResult<TSuccess>` — not assignable to
@@ -406,6 +410,9 @@ When `TResponse` is `ServiceResult<TSuccess, TError>`, `GetGenericArguments()[0]
 because `ServiceResultBase` is not a `ServiceResult<T,E>`. **Latent:** no handler currently returns
 the two-arg form (verified by search), so nothing reaches it today. It becomes live the moment one
 does — and would be resolved for free by AE-S3-004.
+
+**Closed by G-135.** With the reflection gone, `new TResponse { ... }` builds whichever closed type
+the response actually is, the two-arg form included. Pinned by a test.
 
 **AE-S3-004 · Medium · `ServiceResult<TSuccess, TError>` is dead code.**
 ~180 lines of `ServiceResultBase.cs` (lines 197-376) plus `ErrorValue`,
@@ -460,6 +467,9 @@ when the Api project composes the container. The test project doesn't reference 
 which is exactly why this behaviour has no tests. Move it to
 `AscendantEmpire.Application/Common/Behaviours/` and register it in `AddApplicationServices`. The
 folder name `Middleware` is also misleading — it isn't ASP.NET middleware.
+
+**Closed by G-135.** Moved to exactly that folder and registered there, and it has tests now that
+the test project can reach it.
 
 **AE-S3-012 · Low · Duplicated switch arms in both `ToActionResult` overloads.**
 The `PartialSuccess` arm is byte-identical to the success arm above it in both methods, and the six

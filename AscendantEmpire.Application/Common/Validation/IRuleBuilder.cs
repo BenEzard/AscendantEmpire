@@ -1,4 +1,4 @@
-namespace AscendantEmpire.Application.Common.Validation;
+﻿namespace AscendantEmpire.Application.Common.Validation;
 
 /// <summary>
 /// The fluent chain returned by <c>RuleFor</c> and <c>RuleForEach</c>, onto which checks are appended.

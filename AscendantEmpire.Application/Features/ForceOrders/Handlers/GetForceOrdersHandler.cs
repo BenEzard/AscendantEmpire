@@ -1,7 +1,6 @@
-﻿using AscendantEmpire.Application.Data;
+﻿using AscendantEmpire.Application.Common.Validation;
+using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.ForceOrders.GetForceOrders;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -18,7 +17,7 @@ public record GetForceOrdersRequest(
     int UnitInstanceId
 ) : IRequest<ServiceResult<IReadOnlyCollection<ForceOrder>>>;
 
-internal class GetForceOrdersRequestValidator : AbstractValidator<GetForceOrdersRequest>
+internal class GetForceOrdersRequestValidator : Validator<GetForceOrdersRequest>
 {
     public GetForceOrdersRequestValidator()
     {

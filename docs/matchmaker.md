@@ -107,8 +107,8 @@ Claims one unassigned slot for the logged-in user.
 | Frontend contracts | `AscendantEmpire.FrontendContracts/MatchMaking/` | `IMatchMakingGameCollection`, `IMatchMakingGame`, `IMatchMakingSlot`. |
 | DTOs | `AscendantEmpire.Application/Features/MatchMaking/Classes/` | `DTMatchMakingGameCollection` etc. — the serialized shapes. |
 
-Handlers are auto-registered by MediatR's assembly scan, and their FluentValidation validators by
-the existing validation pipeline — no DI wiring was added.
+Handlers are auto-registered by MediatR's assembly scan, and their validators by the existing
+validation pipeline — no DI wiring was added.
 
 > **Design note:** this mirrors the auth handlers — the handler returns a `ServiceResult` and the
 > controller maps it to an HTTP result. The claim handler returns `ServiceResult<Empty>`; the

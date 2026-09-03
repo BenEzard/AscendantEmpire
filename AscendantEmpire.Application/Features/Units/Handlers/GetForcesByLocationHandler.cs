@@ -1,9 +1,8 @@
-﻿using AscendantEmpire.Application.Data;
+﻿using AscendantEmpire.Application.Common.Validation;
+using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.Units.GetPlayerForces;
 using AscendantEmpire.Domain.Enums;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -20,7 +19,7 @@ public record GetForcesByLocationRequest(
     bool IncludeBattleMapForces = false
 ) : IRequest<ServiceResult<IReadOnlyCollection<PlayerForce>>>;
 
-internal class GetForcesByLocationRequestValidator : AbstractValidator<GetForcesByLocationRequest>
+internal class GetForcesByLocationRequestValidator : Validator<GetForcesByLocationRequest>
 {
     public GetForcesByLocationRequestValidator()
     {

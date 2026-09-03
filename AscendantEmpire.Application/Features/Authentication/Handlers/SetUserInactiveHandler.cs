@@ -1,9 +1,8 @@
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Domain.Entities.Identity;
 using AscendantEmpire.Domain.Enums.Authentication;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -19,7 +18,7 @@ public record SetUserInactiveRequest(
     InactiveReasonType InactiveReasonType
 ) : IRequest<ServiceResultBase>;
 
-internal class SetUserInactiveRequestValidator : AbstractValidator<SetUserInactiveRequest>
+internal class SetUserInactiveRequestValidator : Validator<SetUserInactiveRequest>
 {
     public SetUserInactiveRequestValidator()
     {

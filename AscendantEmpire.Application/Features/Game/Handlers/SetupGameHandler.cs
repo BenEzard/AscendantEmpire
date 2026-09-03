@@ -1,7 +1,6 @@
-﻿using AscendantEmpire.Application.Features.Game.Services;
+﻿using AscendantEmpire.Application.Common.Validation;
+using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Domain.Entities.Games;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -13,7 +12,7 @@ namespace AscendantEmpire.Application.Features.Game.Handlers;
 
 public record SetupGameRequest(int GalleryMapId, string GameName, int NumberOfPlayers, int BattleMapSize, long? GenerationSeed) : IRequest<ServiceResult<int>>;
 
-internal class SetupGameRequestValidator : AbstractValidator<SetupGameRequest>
+internal class SetupGameRequestValidator : Validator<SetupGameRequest>
 {
     public SetupGameRequestValidator()
     {

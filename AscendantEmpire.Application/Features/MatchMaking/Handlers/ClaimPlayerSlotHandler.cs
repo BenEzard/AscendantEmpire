@@ -1,9 +1,8 @@
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Enums.Games;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -29,7 +28,7 @@ namespace AscendantEmpire.Application.Features.MatchMaking.Handlers;
 /// </remarks>
 public record ClaimPlayerSlotRequest(int UserId, int GameId, int PlayerId) : IRequest<ServiceResult<ServiceResultBase.Empty>>;
 
-internal class ClaimPlayerSlotRequestValidator : AbstractValidator<ClaimPlayerSlotRequest>
+internal class ClaimPlayerSlotRequestValidator : Validator<ClaimPlayerSlotRequest>
 {
     public ClaimPlayerSlotRequestValidator()
     {

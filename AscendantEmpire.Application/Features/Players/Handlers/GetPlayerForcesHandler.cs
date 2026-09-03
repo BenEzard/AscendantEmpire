@@ -1,11 +1,10 @@
-﻿using AscendantEmpire.Application.Data;
+﻿using AscendantEmpire.Application.Common.Validation;
+using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
 using AscendantEmpire.BackendContracts.Units.GetPlayerForces;
 using AscendantEmpire.Domain.Enums;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -21,7 +20,7 @@ public record GetPlayerForcesRequest(
     int PlayerId
 ) : IRequest<ServiceResult<IReadOnlyCollection<PlayerForce>>>;
 
-internal class GetPlayerForcesRequestValidator : AbstractValidator<GetPlayerForcesRequest>
+internal class GetPlayerForcesRequestValidator : Validator<GetPlayerForcesRequest>
 {
     public GetPlayerForcesRequestValidator()
     {

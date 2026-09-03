@@ -1,4 +1,4 @@
-namespace AscendantEmpire.Application.Common.Validation;
+﻿namespace AscendantEmpire.Application.Common.Validation;
 
 /// <summary>
 /// Validates instances of <typeparamref name="T"/> against a set of declared rules.

@@ -1,4 +1,5 @@
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Units.Classes;
@@ -6,8 +7,6 @@ using AscendantEmpire.BackendContracts.Games.GetOpenGames;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -29,7 +28,7 @@ public record SpawnUnitRequest(
     int InjuredCount
 ) : IRequest<ServiceResultBase>;
 
-internal class SpawnUnitRequestValidator : AbstractValidator<SpawnUnitRequest>
+internal class SpawnUnitRequestValidator : Validator<SpawnUnitRequest>
 {
     public SpawnUnitRequestValidator()
     {

@@ -1,4 +1,4 @@
-namespace AscendantEmpire.Application.Common.Validation;
+﻿namespace AscendantEmpire.Application.Common.Validation;
 
 /// <summary>
 /// One <c>RuleFor</c> or <c>RuleForEach</c> chain, as the validator that owns it sees it.

@@ -37,6 +37,16 @@ internal class UpdateCampaignMapIndexHandler(
                 return NotFound($"Campaign Map with Id {request.Id!.Value} was not found.");
             }
 
+            // A map name is how a player tells one map from another in the gallery, so a duplicate makes the listing ambiguous. The record being renamed is
+            // excluded, since keeping its own name is not a clash. This check used to sit in the request validator, where it ran only for callers arriving
+            // through the request pipeline; here it holds for every caller.
+            bool nameIsTaken = await context.CampaignMapGalleryIndex.AnyAsync(x => x.MapName == mapName && x.Id != existing.Id, cancellationToken);
+
+            if (nameIsTaken)
+            {
+                return Fail("A campaign map with this name already exists.");
+            }
+
             // Only update name/description; all other fields (dimensions, engine, etc.) are immutable here.
             existing.MapName = mapName;
             existing.Description = description;

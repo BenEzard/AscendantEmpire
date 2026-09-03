@@ -1,4 +1,4 @@
-namespace AscendantEmpire.Application.Common.Validation;
+﻿namespace AscendantEmpire.Application.Common.Validation;
 
 /// <summary>
 /// The outcome of running an <see cref="IValidator{T}"/> over one instance.

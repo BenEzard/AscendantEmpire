@@ -1,4 +1,4 @@
-namespace AscendantEmpire.Application.Common.Validation;
+﻿namespace AscendantEmpire.Application.Common.Validation;
 
 /// <summary>
 /// Collects the failures raised while a validator runs, and is handed to <c>Custom</c> rules so they can add failures of their own.

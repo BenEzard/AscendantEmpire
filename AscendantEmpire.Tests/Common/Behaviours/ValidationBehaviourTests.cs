@@ -1,4 +1,4 @@
-using AscendantEmpire.Application.Common;
+﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Behaviours;
 using AscendantEmpire.Application.Common.Validation;
 

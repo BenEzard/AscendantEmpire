@@ -1,5 +1,4 @@
-﻿using FluentValidation;
-using AscendantEmpire.Application.Common;
+﻿using AscendantEmpire.Application.Common;
 
 using MediatR;
 using AscendantEmpire.Application.Data;

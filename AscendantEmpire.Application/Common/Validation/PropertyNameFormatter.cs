@@ -1,4 +1,4 @@
-using System.Linq.Expressions;
+﻿using System.Linq.Expressions;
 using System.Text;
 
 namespace AscendantEmpire.Application.Common.Validation;

@@ -1,4 +1,5 @@
 ﻿
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Players.Handlers;
 using AscendantEmpire.BackendContracts.Turns.CreateCampaignTurnQueue;
@@ -8,8 +9,6 @@ using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Enums.Battle;
 using AscendantEmpire.Domain.Enums.Games;
 using AscendantEmpire.Domain.Enums.Turns;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -25,7 +24,7 @@ public record CreateBattleTurnQueueRequest(
     IReadOnlyCollection<int> PlayerIdsInTurnOrder
 ) : IRequest<ServiceResult<FirstPlayerInRound>>;
 
-internal class CreateBattleTurnQueueRequestValidator : AbstractValidator<CreateBattleTurnQueueRequest>
+internal class CreateBattleTurnQueueRequestValidator : Validator<CreateBattleTurnQueueRequest>
 {
     public CreateBattleTurnQueueRequestValidator()
     {

@@ -1,8 +1,7 @@
-﻿using AscendantEmpire.Application.Data;
+﻿using AscendantEmpire.Application.Common.Validation;
+using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.Players.GetPlayers;
 using AscendantEmpire.Domain.Enums.Games;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -19,7 +18,7 @@ public record GetPlayersRequest(
     IEnumerable<int>? PlayerIds = null
 ) : IRequest<ServiceResult<IReadOnlyCollection<Player>>>;
 
-internal class GetPlayersRequestValidator : AbstractValidator<GetPlayersRequest>
+internal class GetPlayersRequestValidator : Validator<GetPlayersRequest>
 {
     public GetPlayersRequestValidator()
     {

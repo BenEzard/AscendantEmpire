@@ -1,4 +1,4 @@
-namespace AscendantEmpire.Application.Common.Validation;
+﻿namespace AscendantEmpire.Application.Common.Validation;
 
 /// <summary>
 /// One check within a rule chain — a single operator such as <c>GreaterThan(0)</c>, together with the message it fails with.

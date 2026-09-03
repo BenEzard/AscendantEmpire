@@ -1,9 +1,8 @@
 ﻿using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -14,7 +13,7 @@ namespace AscendantEmpire.Application.Features.Maps.Biomes.Handlers;
 
 public record DeleteCampaignMapBiomeRequest(int BiomeTypeId) : IRequest<ServiceResultBase>;
 
-internal class DeleteCampaignMapBiomeValidator : AbstractValidator<int>
+internal class DeleteCampaignMapBiomeValidator : Validator<int>
 {
     public DeleteCampaignMapBiomeValidator()
     {
@@ -35,7 +34,7 @@ internal class DeleteCampaignMapBiomeHandler(
         {
             var validator = new DeleteCampaignMapBiomeValidator();
 
-            var validationResult = await validator.ValidateAsync(request.BiomeTypeId, cancelToken);
+            var validationResult = validator.Validate(request.BiomeTypeId);
             if (validationResult.IsValid == false)
             {
                 return ServiceResultBase.Fail([.. validationResult.Errors.Select(e => e.ErrorMessage)]);

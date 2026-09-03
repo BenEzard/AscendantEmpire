@@ -1,8 +1,7 @@
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.MatchMaking;
 using AscendantEmpire.Domain.Enums.Games;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -24,7 +23,7 @@ namespace AscendantEmpire.Application.Features.MatchMaking.Handlers;
 /// </remarks>
 public record GetMatchMakingGamesRequest(int UserId) : IRequest<ServiceResult<IReadOnlyCollection<MatchMakingGame>>>;
 
-internal class GetMatchMakingGamesRequestValidator : AbstractValidator<GetMatchMakingGamesRequest>
+internal class GetMatchMakingGamesRequestValidator : Validator<GetMatchMakingGamesRequest>
 {
     public GetMatchMakingGamesRequestValidator()
     {

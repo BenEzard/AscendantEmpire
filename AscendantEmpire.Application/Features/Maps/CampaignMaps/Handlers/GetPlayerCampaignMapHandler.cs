@@ -1,4 +1,5 @@
-﻿using AscendantEmpire.Application.Data;
+﻿using AscendantEmpire.Application.Common.Validation;
+using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Extensions;
 using AscendantEmpire.Application.Features.Players.Handlers;
@@ -11,8 +12,6 @@ using AscendantEmpire.BackendContracts.Players.GetPlayerStructures;
 using AscendantEmpire.BackendContracts.Units.GetPlayerForces;
 using AscendantEmpire.Domain.Enums;
 using AscendantEmpire.Domain.Enums.Maps;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -31,7 +30,7 @@ namespace AscendantEmpire.Application.Features.Maps.CampaignMaps.Handlers;
 public record GetPlayerCampaignMapRequest(int GameId, int PlayerId, bool LoadWholeMap = false)
     : IRequest<ServiceResult<IReadOnlyCollection<ObserverSight>>>;
 
-internal class PlayerCampaignMapRequestValidator : AbstractValidator<GetPlayerCampaignMapRequest>
+internal class PlayerCampaignMapRequestValidator : Validator<GetPlayerCampaignMapRequest>
 {
     public PlayerCampaignMapRequestValidator()
     {

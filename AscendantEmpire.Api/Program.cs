@@ -1,12 +1,9 @@
 
 using AscendantEmpire.Api.Authentication;
 using AscendantEmpire.Api.Middleware.ExceptionHandling;
-using AscendantEmpire.Api.Middleware.Validators;
 using AscendantEmpire.Application;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Domain.Enums.Authentication;
-
-using FluentValidation;
 
 using Serilog;
 
@@ -93,13 +90,11 @@ namespace AscendantEmpire.Api
                     .WithExposedHeaders(GlobalExceptionHandler.CorrelationIdHeaderName));
             });
 
-            // Auto-register MediatR handlers 
+            // Auto-register MediatR handlers
             builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(MediatrStartup).Assembly));
 
-            // Auto-validate
-            builder.Services.AddValidatorsFromAssembly(typeof(MediatrStartup).Assembly, includeInternalTypes: true);
-
-            builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>));
+            // Request validators and the pipeline behaviour that runs them are registered by AddApplicationServices below, alongside the requests they
+            // validate.
 
             // Turns anything that escapes a handler into the { errors: [] } contract the frontend reads, instead of the framework default (a text/plain stack
             // trace in Development, an empty 500 in Production). Registered as a singleton by AddExceptionHandler, so it may only depend on singletons.

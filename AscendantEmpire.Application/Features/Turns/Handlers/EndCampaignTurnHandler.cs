@@ -1,4 +1,5 @@
 ﻿using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Turns.Services;
@@ -13,8 +14,6 @@ using AscendantEmpire.BackendContracts.Turns.GetCurrentCampaignTurn;
 using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Enums.Turns;
 using AscendantEmpire.FrontendContracts.Turns.EndCampaignTurnOrder;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -57,7 +56,7 @@ public record EndCampaignTurnOutcome : IEndCampaignTurnOutcome
     IReadOnlyCollection<IPossibleAction> IEndCampaignTurnOutcome.PossibleActions => PossibleActions;
 }
 
-internal class EndCampaignTurnRequestValidator : AbstractValidator<EndCampaignTurnRequest>
+internal class EndCampaignTurnRequestValidator : Validator<EndCampaignTurnRequest>
 {
     public EndCampaignTurnRequestValidator()
     {
@@ -91,7 +90,7 @@ internal class EndCampaignTurnHandler(
         {
             // Validate the request object
             var validateRequest = new EndCampaignTurnRequestValidator();
-            FluentValidation.Results.ValidationResult validationResult = validateRequest.Validate(request);
+            ValidationResult validationResult = validateRequest.Validate(request);
 
             if (validationResult.IsValid == false)
             {

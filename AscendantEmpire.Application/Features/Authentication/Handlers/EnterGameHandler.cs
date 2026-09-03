@@ -1,11 +1,10 @@
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Authentication.Classes;
 using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Enums.Authentication;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -26,7 +25,7 @@ public record EnterGameRequest(
     int GameId
 ) : IRequest<ServiceResult<GameContext>>;
 
-internal class EnterGameRequestValidator : AbstractValidator<EnterGameRequest>
+internal class EnterGameRequestValidator : Validator<EnterGameRequest>
 {
     public EnterGameRequestValidator()
     {

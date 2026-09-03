@@ -1,7 +1,6 @@
 ﻿using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.BackendContracts.Turns.AddCampaignTurnsToRoster;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -16,7 +15,7 @@ public record EndCampaignRoundRequest(
     int RoundNumberEnding
 ) : IRequest<ServiceResultBase>;
 
-internal class EndCampaignRoundRequestValidator : AbstractValidator<EndCampaignRoundRequest>
+internal class EndCampaignRoundRequestValidator : Validator<EndCampaignRoundRequest>
 {
     public EndCampaignRoundRequestValidator()
     {

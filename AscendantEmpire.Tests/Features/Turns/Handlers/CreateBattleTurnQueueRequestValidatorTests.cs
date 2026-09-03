@@ -1,7 +1,6 @@
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Features.Turns.Handlers;
 using AscendantEmpire.BackendContracts.Turns.CreateCampaignTurnQueue;
-
-using FluentValidation.Results;
 
 namespace AscendantEmpire.Tests.Features.Turns.Handlers;
 

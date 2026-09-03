@@ -111,8 +111,7 @@ internal class AddCampaignMapGalleryTests
         }
     }
 
-    [Test, Description("A non unique name should fail."), Ignore("ProductionBugSuspected")]
-    [Category("ProductionBugSuspected")]
+    [Test, Description("A duplicate map name makes the gallery listing ambiguous, and the handler now refuses it however the request arrived.")]
     public async Task NonUniqueNameShouldFailAsync()
     {
         const int ID = 1;

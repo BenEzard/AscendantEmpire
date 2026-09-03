@@ -1,4 +1,5 @@
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.ForceOrders.Movement;
 using AscendantEmpire.Application.Features.ForceOrders.Movement.Strategies;
@@ -15,8 +16,6 @@ using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums.Maps;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -45,7 +44,7 @@ public record StepForceRequest(
     MoveDirection Direction
 ) : IRequest<ServiceResult<StepForceResult>>;
 
-internal class StepForceRequestValidator : AbstractValidator<StepForceRequest>
+internal class StepForceRequestValidator : Validator<StepForceRequest>
 {
     public StepForceRequestValidator()
     {

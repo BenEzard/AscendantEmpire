@@ -57,6 +57,15 @@ internal class AddCampaignMapHandler(
                 ? JsonSerializer.Serialize(request.Parameters)
                 : string.Empty;
 
+            // A map name is how a player tells one map from another in the gallery, so a duplicate makes the listing ambiguous. This check used to sit in
+            // the request validator, where it ran only for callers arriving through the request pipeline; here it holds for every caller.
+            bool nameIsTaken = await context.CampaignMapGalleryIndex.AnyAsync(x => x.MapName == mapName, cancellationToken);
+
+            if (nameIsTaken)
+            {
+                return ServiceResult<AddCampaignMapResponse>.Fail("A campaign map with this name already exists.");
+            }
+
             int pendingMapsCount = await context.CampaignMapGalleryIndex.CountAsync(x => x.CreationStatus == MapCreationStatus.Pending, cancellationToken);
 
             var newIndexRecord = new CampaignMapGalleryIndex

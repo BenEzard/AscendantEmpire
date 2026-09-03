@@ -1,14 +1,12 @@
 ﻿using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.Geographies.AddCampaignMapGeography;
 using AscendantEmpire.Domain.Enums.Maps;
 
-using FluentValidation;
-using FluentValidation.Results;
-
 namespace AscendantEmpire.Application.Features.Maps.Geographies.Validators;
 
-internal class CampaignMapGeographyValidator : AbstractValidator<AddOrUpdateCampaignMapGeographyDto>
+internal class CampaignMapGeographyValidator : Validator<AddOrUpdateCampaignMapGeographyDto>
 {
     public CampaignMapGeographyValidator()
     {

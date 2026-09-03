@@ -1,10 +1,9 @@
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Authentication.Classes;
 using AscendantEmpire.Domain.Entities.Identity;
 using AscendantEmpire.Domain.Enums.Authentication;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -25,7 +24,7 @@ public record RegisterUserRequest(
     string? Email
 ) : IRequest<ServiceResult<AuthenticatedUser>>;
 
-internal class RegisterUserRequestValidator : AbstractValidator<RegisterUserRequest>
+internal class RegisterUserRequestValidator : Validator<RegisterUserRequest>
 {
     public RegisterUserRequestValidator()
     {

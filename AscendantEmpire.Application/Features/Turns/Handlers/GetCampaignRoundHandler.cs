@@ -1,8 +1,7 @@
-﻿using AscendantEmpire.Application.Data;
+﻿using AscendantEmpire.Application.Common.Validation;
+using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.Turns.GetCampaignRoundInfo;
 using AscendantEmpire.Domain.Enums.Turns;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -17,7 +16,7 @@ public record GetCampaignRoundRequest(
     int GameId
 ) : IRequest<ServiceResult<CampaignRound>>;
 
-internal class GetCampaignRoundInfoRequestValidator : AbstractValidator<GetCampaignRoundRequest>
+internal class GetCampaignRoundInfoRequestValidator : Validator<GetCampaignRoundRequest>
 {
     public GetCampaignRoundInfoRequestValidator()
     {

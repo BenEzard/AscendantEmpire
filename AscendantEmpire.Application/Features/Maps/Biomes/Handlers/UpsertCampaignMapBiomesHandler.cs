@@ -1,4 +1,5 @@
 ﻿using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.Biomes.Validators;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
@@ -6,9 +7,6 @@ using AscendantEmpire.BackendContracts.Biomes;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.FrontendContracts.Biomes;
-
-using FluentValidation;
-using FluentValidation.Results;
 
 using MediatR;
 

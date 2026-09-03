@@ -1,9 +1,8 @@
-﻿using AscendantEmpire.Application.Data;
+﻿using AscendantEmpire.Application.Common.Validation;
+using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
 using AscendantEmpire.BackendContracts.Players.GetPlayerStructures;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -19,7 +18,7 @@ public record GetPlayerStructuresRequest(
     int PlayerId
 ) : IRequest<ServiceResult<IReadOnlyCollection<PlayerStructure>>>;
 
-internal class GetPlayerStructuresRequestValidator : AbstractValidator<GetPlayerStructuresRequest>
+internal class GetPlayerStructuresRequestValidator : Validator<GetPlayerStructuresRequest>
 {
     public GetPlayerStructuresRequestValidator()
     {

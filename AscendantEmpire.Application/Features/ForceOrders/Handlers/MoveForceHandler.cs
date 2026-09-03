@@ -1,4 +1,5 @@
 ﻿using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Turns.Handlers;
@@ -9,8 +10,6 @@ using AscendantEmpire.BackendContracts.Turns.GetCurrentCampaignTurn;
 using AscendantEmpire.BackendContracts.Turns.GetPlayerTurn;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Units;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -34,7 +33,7 @@ public record MoveForceRequest(
     int YCoord
 ) : IRequest<ServiceResult<MoveForceResult>>;
 
-internal class MoveForceRequestValidator : AbstractValidator<MoveForceRequest>
+internal class MoveForceRequestValidator : Validator<MoveForceRequest>
 {
     public MoveForceRequestValidator()
     {

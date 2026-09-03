@@ -1,11 +1,10 @@
 ﻿using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
 using AscendantEmpire.Domain.Enums.Maps;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -19,7 +18,7 @@ namespace AscendantEmpire.Application.Features.Maps.CampaignMaps.Handlers;
 public record HidePlayerCampaignMapRequest(int GameId, int PlayerId)
     : IRequest<ServiceResultBase>;
 
-internal class HidePlayerCampaignMapRequestValidator : AbstractValidator<HidePlayerCampaignMapRequest>
+internal class HidePlayerCampaignMapRequestValidator : Validator<HidePlayerCampaignMapRequest>
 {
     public HidePlayerCampaignMapRequestValidator()
     {

@@ -1,9 +1,8 @@
-﻿using AscendantEmpire.Application.Data;
+﻿using AscendantEmpire.Application.Common.Validation;
+using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
 using AscendantEmpire.BackendContracts.Units.GetUnitDisplayInfo;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -18,7 +17,7 @@ public record GetUnitDisplayInfoRequest(
     int GameId
 ) : IRequest<ServiceResult<IReadOnlyCollection<UnitDisplayInfo>>>;
 
-internal class GetUnitDisplayInfoRequestValidator : AbstractValidator<GetUnitDisplayInfoRequest>
+internal class GetUnitDisplayInfoRequestValidator : Validator<GetUnitDisplayInfoRequest>
 {
     public GetUnitDisplayInfoRequestValidator()
     {

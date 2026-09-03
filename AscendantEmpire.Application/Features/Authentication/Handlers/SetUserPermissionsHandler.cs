@@ -1,9 +1,8 @@
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Domain.Entities.Identity;
 using AscendantEmpire.Domain.Enums.Authentication;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -26,7 +25,7 @@ public record SetUserPermissionsRequest(
     IReadOnlyCollection<PermissionType> Permissions
 ) : IRequest<ServiceResultBase>;
 
-internal class SetUserPermissionsRequestValidator : AbstractValidator<SetUserPermissionsRequest>
+internal class SetUserPermissionsRequestValidator : Validator<SetUserPermissionsRequest>
 {
     public SetUserPermissionsRequestValidator()
     {

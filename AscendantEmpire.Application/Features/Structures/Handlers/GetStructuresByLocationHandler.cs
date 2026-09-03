@@ -1,8 +1,7 @@
-﻿using AscendantEmpire.Application.Data;
+﻿using AscendantEmpire.Application.Common.Validation;
+using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.Players.GetPlayerStructures;
 using AscendantEmpire.Domain.Enums;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -19,7 +18,7 @@ public record GetStructuresByLocationRequest(
     bool IncludeBattleMapStructures = false
 ) : IRequest<ServiceResult<IReadOnlyCollection<PlayerStructure>>>;
 
-internal class GetStructuresByLocationRequestValidator : AbstractValidator<GetStructuresByLocationRequest>
+internal class GetStructuresByLocationRequestValidator : Validator<GetStructuresByLocationRequest>
 {
     public GetStructuresByLocationRequestValidator()
     {

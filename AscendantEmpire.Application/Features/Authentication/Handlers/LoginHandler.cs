@@ -1,11 +1,10 @@
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Authentication.Classes;
 using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.Domain.Entities.Identity;
 using AscendantEmpire.Domain.Enums.Authentication;
-
-using FluentValidation;
 
 using MediatR;
 
@@ -25,7 +24,7 @@ public record LoginRequest(
     string Password
 ) : IRequest<ServiceResult<AuthenticatedUser>>;
 
-internal class LoginRequestValidator : AbstractValidator<LoginRequest>
+internal class LoginRequestValidator : Validator<LoginRequest>
 {
     public LoginRequestValidator()
     {

@@ -1,11 +1,10 @@
-﻿using AscendantEmpire.Domain.Enums.Maps;
+﻿using AscendantEmpire.Application.Common.Validation;
+using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.FrontendContracts.Biomes;
-
-using FluentValidation;
 
 namespace AscendantEmpire.Application.Features.Maps.Biomes.Validators;
 
-internal class CampaignMapBiomeValidator : AbstractValidator<IAddOrUpdateCampaignMapBiomeDto>
+internal class CampaignMapBiomeValidator : Validator<IAddOrUpdateCampaignMapBiomeDto>
 {
     /// <summary>
     /// Validate each Campaign Map Biome

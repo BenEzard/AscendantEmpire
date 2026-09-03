@@ -1,4 +1,4 @@
-using AscendantEmpire.Application.Common.Validation;
+﻿using AscendantEmpire.Application.Common.Validation;
 
 namespace AscendantEmpire.Tests.Common.Validation;
 
