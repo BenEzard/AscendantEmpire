@@ -11,7 +11,7 @@ import { CodeField } from "@/components/ui";
 import { COMPONENT_TYPES, type ComponentType, type UnitComponent } from "@/features/unitdesign/types/UnitComponent";
 import ScaledNumberField from "../ScaledNumberField";
 import { componentTypeIcons } from "../componentTypeIcons";
-import { FieldRow, inputClass } from "../componentSetupFields";
+import { FieldRow, inputClass } from "@/components/ui/FieldRow";
 
 interface GeneralSectionProps {
   component: UnitComponent;

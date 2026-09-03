@@ -22,7 +22,7 @@ import { HiPlus, HiTrash } from "react-icons/hi2";
 import Tooltip from "@/components/ui/Tooltip";
 
 import { rawToScaled, type KeyValueRow } from "@/features/unitdesign/types/UnitComponent";
-import { inputClass } from "./componentSetupFields";
+import { inputClass } from "@/components/ui/FieldRow";
 import ScaledNumberField from "./ScaledNumberField";
 
 interface PillKeyValueEditorProps<TKey extends string> {

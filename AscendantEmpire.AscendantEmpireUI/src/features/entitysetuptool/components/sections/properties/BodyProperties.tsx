@@ -6,7 +6,7 @@
 import { rawToScaled, type UnitComponentBody } from "@/features/unitdesign/types/UnitComponent";
 import DomainSelection from "@/components/game/DomainSelection";
 import ScaledNumberField from "../../ScaledNumberField";
-import { FieldRow } from "../../componentSetupFields";
+import { FieldRow } from "@/components/ui/FieldRow";
 import { calculateBattleMovementPoints } from "@/features/unitdesign/model/battleMovement";
 
 interface BodyPropertiesProps {

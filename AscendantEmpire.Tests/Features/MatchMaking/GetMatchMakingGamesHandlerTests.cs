@@ -39,6 +39,9 @@ internal class GetMatchMakingGamesHandlerTests : InMemoryTestBase
 
     private const int _GALLERY_INDEX_ID = 2;
 
+    /// <summary>The colour held by the claimed seat, so the lobby can draw a chip beside it.</summary>
+    private const string _CLAIMED_FACTION_COLOUR = "#c800de";
+
     private GetMatchMakingGamesHandler _handler = null!;
 
     [SetUp]
@@ -82,7 +85,8 @@ internal class GetMatchMakingGamesHandlerTests : InMemoryTestBase
             CampaignMapOffsetId = 5_000,
         });
 
-        // One seat already taken by the caller, one still free.
+        // One seat already taken by the caller, one still free. The names are deliberately ordered
+        // the opposite way round to the ids, so a listing sorted by label rather than by id shows up.
         context.Players.Add(new Player
         {
             Id = 1,
@@ -91,6 +95,8 @@ internal class GetMatchMakingGamesHandlerTests : InMemoryTestBase
             RulerTitle = "Queen",
             RulerName = "Taken",
             FactionName = "Claimed Faction",
+            FactionColour = _CLAIMED_FACTION_COLOUR,
+            RulerGender = RulerGender.Female,
             Status = PlayerStatus.Active,
             CampaignOffsetId = 1,
         });
@@ -154,6 +160,38 @@ internal class GetMatchMakingGamesHandlerTests : InMemoryTestBase
             Assert.That(free.IsClaimed, Is.False);
             Assert.That(free.IsClaimedByCurrentUser, Is.False);
         }
+    }
+
+    [Test, Description("Each slot carries its faction colour, which is what the lobby draws its colour chips from.")]
+    public async Task ListingCarriesEachSlotsFactionColourAsync()
+    {
+        ServiceResultBase.ServiceResult<IReadOnlyCollection<MatchMakingGame>> result =
+            await _handler.Handle(new GetMatchMakingGamesRequest(_USER_ID), CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        MatchMakingGame game = result.SuccessValue!.Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(game.Slots.Single(s => s.PlayerId == 1).FactionColour, Is.EqualTo(_CLAIMED_FACTION_COLOUR));
+            Assert.That(game.Slots.Single(s => s.PlayerId == 2).FactionColour, Is.Null, "A slot nobody has defined has no colour to draw.");
+        }
+    }
+
+    [Test, Description("Slots are ordered by id, so renaming a ruler cannot make the seats jump about between refreshes while a lobby fills.")]
+    public async Task SlotsAreOrderedByIdRatherThanByLabelAsync()
+    {
+        ServiceResultBase.ServiceResult<IReadOnlyCollection<MatchMakingGame>> result =
+            await _handler.Handle(new GetMatchMakingGamesRequest(_USER_ID), CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        MatchMakingGame game = result.SuccessValue!.Single();
+
+        // Seat 1 labels as "Queen Taken (...)" and seat 2 as "King Free (...)", so ordering by label
+        // would put them the other way round.
+        Assert.That(game.Slots.Select(s => s.PlayerId), Is.EqualTo(new[] { 1, 2 }));
     }
 
     [Test, Description("A game whose gallery row has gone missing is still listed, where the old left join would have reported a zero-sized map.")]

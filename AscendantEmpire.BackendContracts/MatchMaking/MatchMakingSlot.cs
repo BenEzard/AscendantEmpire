@@ -16,6 +16,9 @@ public record MatchMakingSlot
     public required string RulerName { get; init; }
     public required string FactionName { get; init; }
 
+    /// <summary>The faction's colour, or null while the player holding the slot has not picked one.</summary>
+    public string? FactionColour { get; init; }
+
     /// <summary>A friendly one-line label, e.g. "King Player 1 (Faction 1)".</summary>
     public required string RulerLabel { get; init; }
 

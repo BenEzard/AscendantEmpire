@@ -310,7 +310,7 @@ internal class GameSetupService(
             {
                 GameId = gameId,
                 UserId = null,
-                RulerTitle = GetRandomRulerTitle(),
+                RulerTitle = DomainPlayer.DEFAULT_RULER_TITLE,
                 RulerName = $"Player {i}",
                 FactionName = $"Faction {i}",
                 Status = PlayerStatus.Active,

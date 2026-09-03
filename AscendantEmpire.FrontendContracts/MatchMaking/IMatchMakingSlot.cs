@@ -17,6 +17,9 @@ public interface IMatchMakingSlot
     /// <summary>The faction name, e.g. "Faction 1".</summary>
     string FactionName { get; }
 
+    /// <summary>The faction's colour as an "#rrggbb" string, or null while nobody has picked one for this slot.</summary>
+    string? FactionColour { get; }
+
     /// <summary>A friendly one-line label combining the title, name and faction.</summary>
     string RulerLabel { get; }
 

@@ -306,12 +306,19 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("CampaignOffsetId")
                         .HasColumnType("int");
 
+                    b.Property<string>("FactionColour")
+                        .HasMaxLength(9)
+                        .HasColumnType("nvarchar(9)");
+
                     b.Property<string>("FactionName")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
                     b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("RulerGender")
                         .HasColumnType("int");
 
                     b.Property<string>("RulerName")
@@ -333,6 +340,11 @@ namespace AscendantEmpire.Application.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("GameId", "FactionColour")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Player_Game_FactionColour")
+                        .HasFilter("[FactionColour] IS NOT NULL");
 
                     b.HasIndex("GameId", "UserId")
                         .IsUnique()

@@ -11,8 +11,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Alert, Button, ColorPicker, PagedDialog, dialogTitle, type UsedColor } from "@/components/ui";
 import { useValidatedCommit } from "@/hooks/useValidatedCommit";
 
-import { FieldRow, inputClass } from "./componentSetupFields";
-import { errorClass } from "./fieldStyles";
+import { FieldRow, inputClass } from "@/components/ui/FieldRow";
+import { errorClass } from "@/components/ui/fieldStyles";
 import type { TagType } from "@/features/unitdesign/types/Tag";
 import type { TagTypeInfo } from "@/features/unitdesign/types/TagType";
 

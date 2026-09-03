@@ -25,7 +25,8 @@ import {
   type UnitComponentSlot,
   type UnitComponentSlotRule,
 } from "@/features/unitdesign/types/UnitComponent";
-import { FieldRow, NumberField, inputClass } from "../componentSetupFields";
+import { FieldRow, inputClass } from "@/components/ui/FieldRow";
+import { NumberField } from "../componentSetupFields";
 
 // A smaller-text, tighter-left-padding variant of the shared inputClass, scoped to the rules table's
 // Match/Operator/Value cells only — they sit in a dense three-column row where the normal text-sm reads

@@ -17,6 +17,9 @@ public class DTMatchMakingSlot : IMatchMakingSlot
     public required string FactionName { get; set; }
 
     /// <inheritdoc />
+    public string? FactionColour { get; set; }
+
+    /// <inheritdoc />
     public required string RulerLabel { get; set; }
 
     /// <inheritdoc />

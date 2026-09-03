@@ -1,0 +1,156 @@
+using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.MatchMaking.Handlers;
+using AscendantEmpire.BackendContracts.MatchMaking;
+using AscendantEmpire.Domain.Entities.Games;
+using AscendantEmpire.Domain.Enums.Games;
+
+using Microsoft.Extensions.Logging.Abstractions;
+
+namespace AscendantEmpire.Tests.Features.MatchMaking;
+
+/// <summary>
+/// Tests for reading back the caller's own player definition, and the rival colours that travel with it.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The used-colour list is what the setup dialog disables swatches from, so the two things worth pinning are that it names every rival holding a
+/// colour and that it never names the caller. Including the caller would strike through the colour they are already using and make it look taken.
+/// </para>
+/// <para>
+/// Runs at the in-memory tier: one LINQ query with the splitting done client-side after materialising, so nothing here needs a real database.
+/// </para>
+/// </remarks>
+internal class GetPlayerDefinitionHandlerTests : InMemoryTestBase
+{
+    private const int _USER_ID = 11;
+    private const int _GAME_ID = 4;
+    private const int _GAME_WITHOUT_THE_CALLER = 5;
+
+    private const int _OWN_PLAYER_ID = 1;
+
+    private const string _OWN_COLOUR = "#c800de";
+    private const string _RIVAL_COLOUR = "#c10007";
+
+    private GetPlayerDefinitionHandler _handler = null!;
+
+    [SetUp]
+    public async Task SeedPlayersAsync()
+    {
+        _handler = new GetPlayerDefinitionHandler(NullLogger<GetPlayerDefinitionHandler>.Instance, DbFactory);
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        // The caller's own slot: defined apart from its gender, which stands in for a slot whose
+        // owner has not opened the setup dialog yet.
+        context.Players.Add(new Player
+        {
+            Id = _OWN_PLAYER_ID,
+            GameId = _GAME_ID,
+            UserId = _USER_ID,
+            RulerTitle = Player.DEFAULT_RULER_TITLE,
+            RulerName = "Player 1",
+            FactionName = "Faction 1",
+            FactionColour = _OWN_COLOUR,
+            RulerGender = null,
+            Status = PlayerStatus.Active,
+            CampaignOffsetId = 1,
+        });
+
+        // A rival holding a colour, and one who has picked none yet.
+        context.Players.Add(new Player
+        {
+            Id = 2,
+            GameId = _GAME_ID,
+            UserId = 12,
+            RulerTitle = "Queen",
+            RulerName = "Rival",
+            FactionName = "Rival Faction",
+            FactionColour = _RIVAL_COLOUR,
+            RulerGender = RulerGender.Female,
+            Status = PlayerStatus.Active,
+            CampaignOffsetId = 2,
+        });
+
+        context.Players.Add(new Player
+        {
+            Id = 3,
+            GameId = _GAME_ID,
+            UserId = null,
+            RulerTitle = Player.DEFAULT_RULER_TITLE,
+            RulerName = "Player 3",
+            FactionName = "Faction 3",
+            Status = PlayerStatus.Active,
+            CampaignOffsetId = 3,
+        });
+
+        // A game the caller holds no slot in.
+        context.Players.Add(new Player
+        {
+            Id = 4,
+            GameId = _GAME_WITHOUT_THE_CALLER,
+            UserId = 12,
+            RulerTitle = "King",
+            RulerName = "Elsewhere",
+            FactionName = "Other Faction",
+            Status = PlayerStatus.Active,
+            CampaignOffsetId = 4,
+        });
+
+        await context.SaveChangesAsync();
+    }
+
+    [Test, Description("The definition describes the caller's own slot, reporting a null gender rather than a default for one nobody has defined.")]
+    public async Task DefinitionDescribesTheCallersOwnSlotAsync()
+    {
+        ServiceResultBase.ServiceResult<PlayerDefinition> result =
+            await _handler.Handle(new GetPlayerDefinitionRequest(_USER_ID, _GAME_ID), CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        PlayerDefinition definition = result.SuccessValue!;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(definition.PlayerId, Is.EqualTo(_OWN_PLAYER_ID));
+            Assert.That(definition.GameId, Is.EqualTo(_GAME_ID));
+            Assert.That(definition.RulerTitle, Is.EqualTo(Player.DEFAULT_RULER_TITLE));
+            Assert.That(definition.RulerName, Is.EqualTo("Player 1"));
+            Assert.That(definition.RulerGender, Is.Null, "An undefined slot asserts no gender at all.");
+            Assert.That(definition.FactionName, Is.EqualTo("Faction 1"));
+            Assert.That(definition.FactionColour, Is.EqualTo(_OWN_COLOUR));
+        }
+    }
+
+    [Test, Description("The used-colour list names every rival holding a colour and never the caller, whose own colour must stay pickable.")]
+    public async Task UsedColoursCoverTheRivalsButNotTheCallerAsync()
+    {
+        ServiceResultBase.ServiceResult<PlayerDefinition> result =
+            await _handler.Handle(new GetPlayerDefinitionRequest(_USER_ID, _GAME_ID), CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        IReadOnlyCollection<UsedFactionColour> usedColours = result.SuccessValue!.UsedFactionColours;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(usedColours, Has.Count.EqualTo(1), "Only the one rival that has picked a colour is listed.");
+            Assert.That(usedColours.Single().Value, Is.EqualTo(_RIVAL_COLOUR));
+            Assert.That(usedColours.Single().UsedBy, Is.EqualTo("Rival Faction"), "The faction is named so the picker can say who holds the colour.");
+            Assert.That(usedColours.Select(c => c.Value), Does.Not.Contain(_OWN_COLOUR));
+        }
+    }
+
+    [Test, Description("Asking about a game the caller holds no slot in is a 404, not an empty definition that the dialog would try to save.")]
+    public async Task GameTheCallerHoldsNoSlotInIsNotFoundAsync()
+    {
+        ServiceResultBase.ServiceResult<PlayerDefinition> result =
+            await _handler.Handle(new GetPlayerDefinitionRequest(_USER_ID, _GAME_WITHOUT_THE_CALLER), CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.NotFound));
+        }
+    }
+}

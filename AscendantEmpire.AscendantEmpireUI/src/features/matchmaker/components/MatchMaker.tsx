@@ -4,6 +4,7 @@ import { Alert, Badge, Button, Spinner, Toast, ToastViewport, Tooltip } from "@/
 import { enterGame } from "@/features/auth/api/authApi";
 import { getMatchMakingGames } from "../api/matchMakingApi";
 import { claimPlayerSlot } from "../api/matchMakingApi";
+import DefinePlayerDialog from "./DefinePlayerDialog";
 import type { MatchMakingGamesResponse } from "../types/MatchMakingGamesResponse";
 import type { MatchMakingGame } from "../types/MatchMakingGame";
 import type { MatchMakingSlot } from "../types/MatchMakingSlot";
@@ -27,6 +28,9 @@ export default function MatchMaker() {
   const [toast, setToast] = useState<ToastState | null>(null);
   // Tracks which slot is mid-claim / mid-enter so we can show a per-row spinner and disable it.
   const [busyPlayerId, setBusyPlayerId] = useState<number | null>(null);
+  // The game whose slot is being defined, or null when the setup dialog is closed. Only the game is
+  // needed: the server resolves which slot in it is ours from the token.
+  const [definingGameId, setDefiningGameId] = useState<number | null>(null);
 
   const { data, isLoading, isFetching, error, refetch } = useQuery<MatchMakingGamesResponse, Error>({
     queryKey: GAMES_QUERY_KEY,
@@ -62,6 +66,8 @@ export default function MatchMaker() {
       const game = games.find((g) => g.gameId === variables.gameId);
       const slot = game?.slots.find((s) => s.playerId === variables.playerId);
       setToast({ message: `Claimed ${slot?.rulerLabel ?? "the slot"}. You're in!`, variant: "success" });
+      // The seat is yours either way; now offer the chance to say who you are in it.
+      setDefiningGameId(variables.gameId);
     },
     onError: (err: Error) => {
       setToast({ message: err.message, variant: "danger" });
@@ -129,11 +135,33 @@ export default function MatchMaker() {
                 busyPlayerId={busyPlayerId}
                 onClaim={(playerId) => claimMutation.mutate({ gameId: game.gameId, playerId })}
                 onPlay={(playerId) => handlePlay(game.gameId, playerId)}
+                onEdit={() => setDefiningGameId(game.gameId)}
               />
             ))}
           </div>
         )}
       </div>
+
+      {definingGameId !== null && (
+        <DefinePlayerDialog
+          open
+          gameId={definingGameId}
+          onCancel={() => {
+            setDefiningGameId(null);
+            // Cancelling keeps the slot; say so, and point at the way back in.
+            setToast({
+              message: "Slot kept. Use Edit on your slot to set your ruler up whenever you like.",
+              variant: "success",
+            });
+          }}
+          onSaved={async () => {
+            setDefiningGameId(null);
+            // The lobby shows the ruler label and the faction colour, so both need re-reading.
+            await queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
+            setToast({ message: "Your ruler is set up.", variant: "success" });
+          }}
+        />
+      )}
 
       <ToastViewport>
         {toast && (
@@ -149,10 +177,11 @@ interface GameCardProps {
   busyPlayerId: number | null;
   onClaim: (playerId: number) => void;
   onPlay: (playerId: number) => void;
+  onEdit: () => void;
 }
 
 /** A single game with its slots laid out as claimable / taken / "your slot" rows. */
-function GameCard({ game, busyPlayerId, onClaim, onPlay }: GameCardProps) {
+function GameCard({ game, busyPlayerId, onClaim, onPlay, onEdit }: GameCardProps) {
   // A user may hold only one slot per game, so once they've claimed one here, the rest lock.
   const userHasSlotHere = game.slots.some((slot) => slot.isClaimedByCurrentUser);
   const claimedCount = game.slots.filter((slot) => slot.isClaimed).length;
@@ -175,6 +204,7 @@ function GameCard({ game, busyPlayerId, onClaim, onPlay }: GameCardProps) {
             isBusy={busyPlayerId === slot.playerId}
             onClaim={() => onClaim(slot.playerId)}
             onPlay={() => onPlay(slot.playerId)}
+            onEdit={onEdit}
           />
         ))}
       </ul>
@@ -188,17 +218,30 @@ interface SlotRowProps {
   isBusy: boolean;
   onClaim: () => void;
   onPlay: () => void;
+  onEdit: () => void;
 }
 
-function SlotRow({ slot, userHasSlotHere, isBusy, onClaim, onPlay }: SlotRowProps) {
+function SlotRow({ slot, userHasSlotHere, isBusy, onClaim, onPlay, onEdit }: SlotRowProps) {
   return (
     <li className="flex items-center justify-between gap-3 py-2">
-      <span className="text-sm text-slate-700">{slot.rulerLabel}</span>
+      <span className="flex items-center gap-2 text-sm text-slate-700">
+        {/* A dot in the faction's colour, or a hollow one while nobody has picked. */}
+        <span
+          className="inline-block size-3 shrink-0 rounded-full border border-slate-300"
+          style={slot.factionColour ? { backgroundColor: slot.factionColour } : undefined}
+          title={slot.factionColour ? `Faction colour ${slot.factionColour}` : "No faction colour picked yet"}
+        />
+        {slot.rulerLabel}
+      </span>
 
       {slot.isClaimedByCurrentUser ? (
-        // The user's own seat: badge it and offer to jump straight in.
+        // The user's own seat: badge it, offer the way back into setup, and offer to jump straight in.
         <div className="flex items-center gap-2">
           <Badge label="Your slot" textColor="#fff" backgroundColor="var(--bs-success)" />
+          {/* Without this, cancelling the setup dialog would strand the player as "Nobody Player 3". */}
+          <Button variant="outline-secondary" className="px-3 py-1 text-xs" onClick={onEdit} disabled={isBusy}>
+            Edit
+          </Button>
           <Button variant="primary" className="px-3 py-1 text-xs" onClick={onPlay} disabled={isBusy}>
             {isBusy ? <Spinner size="sm" /> : "Play now"}
           </Button>

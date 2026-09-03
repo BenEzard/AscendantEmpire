@@ -568,6 +568,14 @@ public class AscendantEmpireContext : DbContext
                 .WithMany(g => g.Players)
                 .HasForeignKey(p => p.GameId)
                 .OnDelete(DeleteBehavior.NoAction);
+
+            // One colour per faction per game, so two factions can never be drawn the same. Filtered
+            // because most slots have no colour yet, and NULLs must be free to coexist - the same
+            // reasoning as UX_TagType_Colour and UX_Player_Game_User.
+            entity.HasIndex(p => new { p.GameId, p.FactionColour })
+                .IsUnique()
+                .HasFilter("[FactionColour] IS NOT NULL")
+                .HasDatabaseName("UX_Player_Game_FactionColour");
         });
 
         // --- PlayerCampaignMap ---------------------------------------------------------

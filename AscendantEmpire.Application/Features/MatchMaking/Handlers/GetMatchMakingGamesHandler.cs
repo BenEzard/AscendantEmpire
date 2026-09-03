@@ -64,6 +64,7 @@ internal sealed class GetMatchMakingGamesHandler(
                     p.RulerTitle,
                     p.RulerName,
                     p.FactionName,
+                    p.FactionColour,
                     p.UserId
                 }
             ).ToListAsync(cancelToken);
@@ -92,12 +93,16 @@ internal sealed class GetMatchMakingGamesHandler(
                             RulerTitle = s.RulerTitle,
                             RulerName = s.RulerName,
                             FactionName = s.FactionName,
+                            FactionColour = s.FactionColour,
                             RulerLabel = $"{s.RulerTitle} {s.RulerName} ({s.FactionName})",
                             // A slot with a UserId is taken; if that UserId is ours, it's our seat.
                             IsClaimed = s.UserId != null,
                             IsClaimedByCurrentUser = s.UserId == request.UserId
                         })
-                        .OrderBy(s => s.RulerLabel)]
+                        // Ordered by id, not by label: players rename themselves once they claim a
+                        // seat, and ordering by the label would make the rows jump about between
+                        // refreshes while a lobby fills.
+                        .OrderBy(s => s.PlayerId)]
                 })
                 .OrderBy(g => g.GameName)];
 

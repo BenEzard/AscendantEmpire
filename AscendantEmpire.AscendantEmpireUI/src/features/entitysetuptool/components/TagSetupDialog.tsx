@@ -12,8 +12,8 @@ import { useEffect, useState } from "react";
 import { Alert, Button, CodeField, PagedDialog, dialogTitle } from "@/components/ui";
 import { useValidatedCommit } from "@/hooks/useValidatedCommit";
 
-import { FieldRow, inputClass } from "./componentSetupFields";
-import { errorClass } from "./fieldStyles";
+import { FieldRow, inputClass } from "@/components/ui/FieldRow";
+import { errorClass } from "@/components/ui/fieldStyles";
 import {
   createEmptyTag,
   LEADERSHIP_MODELS,

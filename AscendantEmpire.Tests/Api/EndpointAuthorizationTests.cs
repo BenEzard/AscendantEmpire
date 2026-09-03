@@ -56,6 +56,7 @@ public sealed class EndpointAuthorizationTests
         // Player capabilities.
         ["POST /games/setup"] = PermissionType.CreateGame,
         ["POST /match-making/claim"] = PermissionType.JoinGame,
+        ["PUT /match-making/games/{gameId}/my-player"] = PermissionType.JoinGame,
 
         // System panel: user administration and catalogue transfer.
         ["GET /auth/users"] = PermissionType.SystemPanel,
@@ -116,6 +117,7 @@ public sealed class EndpointAuthorizationTests
 
         "POST /games/open",
         "GET /match-making/games",
+        "GET /match-making/games/{gameId}/my-player",
 
         "GET /map-gallery/search",
         "GET /map-gallery/{id}/campaign-map",
