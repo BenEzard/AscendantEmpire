@@ -35,13 +35,12 @@ internal class RuleBuilderExtensionsTests
     /// <summary>
     /// A validator whose rules the test supplies, so an operator can be exercised without a bespoke subclass per case.
     /// </summary>
+    /// <remarks>
+    /// <para>Constructed empty and given its rules afterwards, rather than taking them as a constructor argument, so it stays constructible without
+    /// arguments — the assembly scan in <c>AddValidatorsFromAssembly</c> refuses a validator that is not, and it sweeps this assembly too.</para>
+    /// </remarks>
     private sealed class TestValidator : Validator<SampleModel>
     {
-        public TestValidator(Action<TestValidator> declareRules)
-        {
-            declareRules(this);
-        }
-
         /// <summary>Exposes the protected <c>RuleFor</c> so a test can declare a rule inline.</summary>
         public IRuleBuilder<SampleModel, TProperty> On<TProperty>(Expression<Func<SampleModel, TProperty>> selector)
         {
@@ -54,7 +53,11 @@ internal class RuleBuilderExtensionsTests
     /// </summary>
     private static string[] MessagesFrom(Action<TestValidator> declareRules, SampleModel model)
     {
-        return [.. new TestValidator(declareRules).Validate(model).Errors.Select(failure => failure.ErrorMessage)];
+        TestValidator validator = new();
+
+        declareRules(validator);
+
+        return [.. validator.Validate(model).Errors.Select(failure => failure.ErrorMessage)];
     }
 
     [TestCase(null, false, Description = "A null string is null, so NotNull rejects it.")]
