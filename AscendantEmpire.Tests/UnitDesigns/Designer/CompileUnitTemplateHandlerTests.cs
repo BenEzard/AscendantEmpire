@@ -40,6 +40,9 @@ internal class CompileUnitTemplateHandlerTests : SqlServerTestBase
             DisplayName = "Test Body",
             ComponentType = ComponentType.Body,
             Weight = 100,
+            // Deliberately different from Detection: the campaign map reads sight, so equal values would let a
+            // handler read the wrong column and still pass.
+            Sight = 2000,
             Detection = 1000,
             Visibility = 2000,
             Tags = [new UnitComponentTag { Tag = amphibious }],
@@ -76,6 +79,7 @@ internal class CompileUnitTemplateHandlerTests : SqlServerTestBase
             DisplayName = "Test Weapon",
             ComponentType = ComponentType.Weapon,
             Weight = 10,
+            Sight = 250,
             Detection = 500,
             Visibility = 700,
             Weapon = new UnitComponentWeapon
@@ -153,8 +157,10 @@ internal class CompileUnitTemplateHandlerTests : SqlServerTestBase
         {
             Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Success));
 
-            // Aggregates: weights/detection/visibility summed across body + 3 fitted.
+            // Aggregates: weights/sight/detection/visibility summed across body + 3 fitted.
             Assert.That(snapshot.TotalWeight, Is.EqualTo(145), "100 + 10 + 30 + 5.");
+            Assert.That(snapshot.TotalSight, Is.EqualTo(2250), "Body 2000 + weapon 250; the armour's and equipment's null Sight contribute nothing.");
+            Assert.That(snapshot.TotalSight, Is.Not.EqualTo(snapshot.TotalDetection), "Sight is its own stat, not a copy of detection.");
             Assert.That(snapshot.TotalDetection, Is.EqualTo(1500), "1000 + 500.");
             Assert.That(snapshot.TotalVisibility, Is.EqualTo(2700), "2000 + 700.");
 
@@ -179,6 +185,36 @@ internal class CompileUnitTemplateHandlerTests : SqlServerTestBase
 
             // Capabilities: the union of the body's and equipment's tags.
             Assert.That(snapshot.Capabilities.Select(c => c.TagCode), Is.EquivalentTo(new[] { "amphibious", "settler" }));
+        }
+    }
+
+    [Test, Description("A template whose components all carry a null Sight compiles to a TotalSight of zero, which the campaign map reads as blind.")]
+    public async Task CompileWithNoSightValuesWritesZeroTotalSightAsync()
+    {
+        await SeedAsync();
+
+        // Sight is nullable and has no default, so an un-authored catalogue is the normal state of every
+        // component until someone sets a value in the Entity Setup Tool. Strip the seeded values to reproduce it.
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            List<UnitComponent> components = await context.UnitComponents.ToListAsync();
+            foreach (UnitComponent component in components)
+            {
+                component.Sight = null;
+            }
+
+            await context.SaveChangesAsync();
+        }
+
+        await CompileAsync(compiledOnTurn: 1);
+
+        await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
+        CompiledUnitTemplate snapshot = await verify.CompiledUnitTemplates.SingleAsync(c => c.UnitTemplateId == _templateId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(snapshot.TotalSight, Is.Zero, "Null Sight contributes nothing, so the sum stays at zero rather than falling back to another stat.");
+            Assert.That(snapshot.TotalDetection, Is.EqualTo(1500), "Detection is untouched by the absence of Sight.");
         }
     }
 

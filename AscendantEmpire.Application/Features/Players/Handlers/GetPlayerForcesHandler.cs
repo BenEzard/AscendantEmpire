@@ -77,11 +77,7 @@ internal class GetPlayerForcesHandler(
                     BattleMapTileId = pu.BattleMapTileId,
                     CampaignXCoord = pu.CampaignMap.XCoord,
                     CampaignYCoord = pu.CampaignMap.YCoord,
-                    // Sight range in tiles, derived from the compiled snapshot's aggregated detection
-                    // (fixed-point, Scale 1,000 — see the template compilation). Stand-in until a dedicated
-                    // sight-range stat is compiled. The snapshot always exists: a Unit cannot be spawned
-                    // from an uncompiled template.
-                    SightRange = (int)(pu.UnitTemplate.Compiled!.TotalDetection / 1000),
+                    SightRange = (int)(pu.UnitTemplate.Compiled!.TotalSight / ScaledAmount.Scale),
                     MapImagePath = pu.UnitTemplate.Compiled!.MapImagePath,
                     HealthyTroops = pu.HealthyCount,
                     InjuredTroops = pu.InjuredCount,

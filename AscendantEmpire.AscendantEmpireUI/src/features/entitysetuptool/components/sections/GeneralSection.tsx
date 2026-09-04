@@ -1,5 +1,5 @@
 // GeneralSection — the dialog's "General" page: the fields common to every component (Code,
-// DisplayName, Description, ComponentType, Weight, Detection, Visibility).
+// DisplayName, Description, ComponentType, Weight, Sight, Detection, Visibility).
 //
 // Controlled component: it edits the passed-in component and emits the whole updated component via
 // onChange. Component-type changes are delegated to the orchestrator (onComponentTypeChange), because
@@ -64,6 +64,12 @@ export default function GeneralSection({ component, onChange, onComponentTypeCha
 
       <FieldRow label="Weight">
         <ScaledNumberField rawValue={component.weight} onChange={(next) => patch("weight", next ?? 0)} />
+      </FieldRow>
+
+      {/* Sight drives how far a Unit reveals the campaign map; Detection below is the separate stat for
+          spotting enemy Units. Nullable, so an empty box means this component adds no sight at all. */}
+      <FieldRow label="Sight">
+        <ScaledNumberField rawValue={component.sight} nullable onChange={(next) => patch("sight", next)} />
       </FieldRow>
 
       <FieldRow label="Detection">

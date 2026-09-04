@@ -48,6 +48,8 @@ export interface DesignSummary {
   battleMovementPoints: number;
   /** The base body's hitpoints (components don't contribute HP). */
   hitpoints: number;
+  /** Summed sight contribution across base + fitted components — the design's campaign-map reveal radius. */
+  sight: number;
   /** Summed detection contribution across base + fitted components. */
   detection: number;
   /** Summed visibility contribution across base + fitted components. */
@@ -86,11 +88,14 @@ export function aggregateDesign(base: UnitComponent | null, fitted: UnitComponen
 
   let weight = 0;
   let fittedWeight = 0;
+  let sight = 0;
   let detection = 0;
   let visibility = 0;
 
   for (const component of all) {
     weight += component.weight;
+    // Mirrors the server's compile step: null contributes nothing rather than defaulting to a value.
+    sight += component.sight ?? 0;
     detection += component.detection ?? 0;
     visibility += component.visibility ?? 0;
 
@@ -118,6 +123,7 @@ export function aggregateDesign(base: UnitComponent | null, fitted: UnitComponen
     // power already accounts for.
     battleMovementPoints: calculateBattleMovementPoints(base?.body?.power ?? 0, fittedWeight),
     hitpoints: base?.body?.hitpoints ?? 0,
+    sight,
     detection,
     visibility,
   };

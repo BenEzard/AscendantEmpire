@@ -253,6 +253,9 @@ public class GameSqlServerTestBase : SqlServerTestBase
             DisplayName = "Human",
             ComponentType = ComponentType.Body,
             Weight = 0,
+            // Sight mirrors Detection here so the hand-built snapshots below stay consistent with what a real
+            // compile of these components would produce.
+            Sight = 1000,
             Detection = 1000,
             Body = new UnitComponentBody
             {
@@ -279,6 +282,7 @@ public class GameSqlServerTestBase : SqlServerTestBase
             DisplayName = "Scout Training",
             ComponentType = ComponentType.Training,
             Weight = 0,
+            Sight = 2000,
             Detection = 2000,
             Tags = [new UnitComponentTag { Tag = scoutTag }],
         };
@@ -322,6 +326,9 @@ public class GameSqlServerTestBase : SqlServerTestBase
                 Power = 1000,
                 Hitpoints = 1000,
                 TotalWeight = 2000,
+                // The campaign map turns TotalSight into whole tiles of sight range, so 1,000 gives the Settler a
+                // radius of 1. TotalDetection no longer affects visibility and is kept only as its own stat.
+                TotalSight = 1000,
                 TotalDetection = 1000,
             },
             new CompiledUnitTemplate
@@ -337,6 +344,8 @@ public class GameSqlServerTestBase : SqlServerTestBase
                 Power = 1000,
                 Hitpoints = 1000,
                 TotalWeight = 0,
+                // 3,000 gives the Scout a radius of 3 — the wider view the visibility tests rely on.
+                TotalSight = 3000,
                 TotalDetection = 3000,
             });
 

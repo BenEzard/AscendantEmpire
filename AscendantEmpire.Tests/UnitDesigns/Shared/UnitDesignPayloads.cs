@@ -105,8 +105,8 @@ internal static class UnitDesignPayloads
     /// A standalone weapon component with the given code, a fixed attack profile and one Land modifier.
     /// </summary>
     /// <remarks>
-    /// Deliberately the fuller of the two shapes this replaced: it populates the main-table Detection and
-    /// Visibility columns and a domain modifier as well as the attack profile, because the catalogue graph
+    /// Deliberately the fuller of the two shapes this replaced: it populates the main-table Sight, Detection
+    /// and Visibility columns and a domain modifier as well as the attack profile, because the catalogue graph
     /// tests assert that all of them round-trip. Tests that only need "some weapon" are unaffected by the
     /// extra fields.
     /// </remarks>
@@ -118,6 +118,9 @@ internal static class UnitDesignPayloads
             DisplayName = "Test Weapon",
             ComponentType = ComponentType.Weapon,
             Weight = 10,
+            // Raw fixed-point (Scale 1,000): Sight 500 = 0.5 tiles, deliberately different from Detection so a
+            // handler reading the wrong one is caught rather than passing on a coincidentally equal value.
+            Sight = 500,
             Detection = 2000,
             Visibility = 3000,
             Weapon = new UnitComponentWeaponDto

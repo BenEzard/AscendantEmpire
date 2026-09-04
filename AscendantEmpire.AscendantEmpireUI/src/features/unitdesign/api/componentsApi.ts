@@ -126,6 +126,7 @@ function mapComponent(component: UnitComponent) {
     designerImagePath: component.designerImagePath,
     componentType: component.componentType,
     weight: component.weight,
+    sight: component.sight,
     detection: component.detection,
     visibility: component.visibility,
     body: component.body != null ? mapBody(component.body) : null,
@@ -243,6 +244,7 @@ interface ComponentWire {
   designerImagePath: string | null;
   componentType: ComponentType;
   weight: number;
+  sight: number | null;
   detection: number | null;
   visibility: number | null;
   body: BodyWire | null;
@@ -336,6 +338,7 @@ export function mapEditableComponentToModel(wire: EditableComponentWire): UnitCo
     designerImagePath: component.designerImagePath,
     componentType: component.componentType,
     weight: component.weight,
+    sight: component.sight,
     detection: component.detection,
     visibility: component.visibility,
     body: component.body != null ? mapBodyFromWire(component.body) : null,

@@ -44,6 +44,7 @@ internal class GetComponentHandler(
                         DesignerImagePath = c.DesignerImagePath,
                         ComponentType = c.ComponentType,
                         Weight = c.Weight,
+                        Sight = c.Sight,
                         Detection = c.Detection,
                         Visibility = c.Visibility,
                         Body = c.Body == null

@@ -8,6 +8,7 @@ using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Units;
+using AscendantEmpire.Domain.Enums;
 
 using MediatR;
 
@@ -130,6 +131,47 @@ internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
                 "Every starting unit is reported on the tile it occupies.");
 
             Assert.That(forcesOnStartTile, Has.All.Property(nameof(ObservedForce.OwnerPlayerId)).EqualTo(player.Id));
+        }
+    }
+
+    [Test, Description("A Force whose template compiles to no Sight at all reveals only the tile it occupies, rather than falling back to another stat.")]
+    public async Task ForceWithNoCompiledSightSeesOnlyItsOwnTileAsync()
+    {
+        int gameId = await SetupSecondGameAsync();
+
+        // Sight is nullable with no default and no backfill, so an un-authored catalogue compiles to a
+        // TotalSight of zero. That is the state of every existing Unit until someone sets a Sight value in the
+        // Entity Setup Tool, so it is worth pinning what the map does with it.
+        await using (AscendantEmpireContext blind = await DbFactory.CreateDbContextAsync())
+        {
+            await blind.CompiledUnitTemplates.ExecuteUpdateAsync(setters => setters.SetProperty(c => c.TotalSight, 0));
+        }
+
+        await using AscendantEmpireContext setup = await DbFactory.CreateDbContextAsync();
+        Player player = await setup.Players.Where(p => p.GameId == gameId).OrderBy(p => p.Id).FirstAsync();
+
+        // LoadWholeMap would add a terrain-only pseudo-observer covering the entire map, which would drown out
+        // the very thing under test.
+        ServiceResultBase.ServiceResult<IReadOnlyCollection<ObserverSight>> result =
+            await _mediator.Send(new GetPlayerCampaignMapRequest(gameId, player.Id, LoadWholeMap: false));
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        List<ObserverSight> unitObservers = [.. result.SuccessValue!.Where(observer => observer.RecordType == RecordType.Unit)];
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(unitObservers, Is.Not.Empty, "The player's starting units should still be observers, just blind ones.");
+
+            // The seeded map is uniformly Flat grassland, so no elevation bonus can lift a zero range off the floor.
+            Assert.That(unitObservers, Has.All.Property(nameof(ObserverSight.SeenTiles)).Count.EqualTo(1),
+                "A Unit with no Sight still sees the tile it stands on, and nothing beyond it.");
+
+            Assert.That(
+                unitObservers.All(observer => observer.SeenTiles.Single().XCoord == observer.Location.X
+                    && observer.SeenTiles.Single().YCoord == observer.Location.Y),
+                Is.True,
+                "The single seen tile is the occupied one.");
         }
     }
 

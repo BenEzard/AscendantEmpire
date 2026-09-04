@@ -34,6 +34,13 @@ public class CompiledUnitTemplate
     /// <summary>Sum of every fitted component's weight (body included).</summary>
     public long TotalWeight { get; set; }
 
+    /// <summary>Aggregated sight across the unit's components (fixed-point, Scale 1,000).</summary>
+    /// <remarks>
+    /// Divided by the scale to give the Unit's campaign-map reveal radius in whole tiles, so a unit whose
+    /// components carry no Sight at all sees only the tile it occupies.
+    /// </remarks>
+    public long TotalSight { get; set; }
+
     /// <summary>Aggregated detection across the unit's components (fixed-point, Scale 1,000).</summary>
     public long TotalDetection { get; set; }
 

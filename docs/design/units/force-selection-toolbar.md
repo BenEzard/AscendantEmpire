@@ -217,7 +217,7 @@ Two decisions about the contract:
 1,000 convention. Shipping it would make every consumer responsible for knowing that, and would leave
 the frontend guessing which threshold applies — the codebase already has two (`> 0` for "any movement
 left", `>= CampaignMovementPoints` for "a whole turn's worth"). The boundary converts, exactly as the
-same handler already does turning `TotalDetection` into whole tiles of sight range.
+same handler already does turning `TotalSight` into whole tiles of sight range.
 
 **Masked for Forces the player does not own.** `ObservedForce` covers every Force on a seen tile, not
 just the player's own, so the field is `bool?` and comes back `null` for a rival's. How much movement

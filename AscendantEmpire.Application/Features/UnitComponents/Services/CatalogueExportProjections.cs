@@ -28,6 +28,7 @@ internal static class CatalogueExportProjections
             DesignerImagePath = component.DesignerImagePath,
             ComponentType = component.ComponentType,
             Weight = component.Weight,
+            Sight = component.Sight,
             Detection = component.Detection,
             Visibility = component.Visibility,
             Body = component.Body is { } body ? ToBodyDto(body) : null,

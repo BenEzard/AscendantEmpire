@@ -1418,6 +1418,9 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<long>("TotalDetection")
                         .HasColumnType("bigint");
 
+                    b.Property<long>("TotalSight")
+                        .HasColumnType("bigint");
+
                     b.Property<long>("TotalVisibility")
                         .HasColumnType("bigint");
 
@@ -1778,6 +1781,9 @@ namespace AscendantEmpire.Application.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<long?>("Sight")
+                        .HasColumnType("bigint");
 
                     b.Property<long?>("Visibility")
                         .HasColumnType("bigint");

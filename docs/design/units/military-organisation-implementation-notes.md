@@ -113,8 +113,6 @@ Carried debts from the `UnitInstance` FK swap (`UnitDesignId` → `UnitTemplateI
   no compiled-template equivalent, so `MovementProfileFactory` currently builds an empty modifier list —
   template-built Units move un-modified. The parsing is left wired so the JSON drops straight back in once it is
   compiled onto `CompiledUnitTemplate`.
-- **Sight range is derived, not compiled.** The Unit read paths compute sight range from the snapshot's
-  aggregated `TotalDetection` (÷1,000) as a stand-in for the legacy `CompiledDesignStats.SightRange`.
 - **The Hunt action is disabled in the UI.** It was gated on legacy unit design id 2; re-enable it via a
   compiled capability tag once capability grants exist (`tags-and-modifiers.md`, concept 3).
 - **`UnitDesign` still exists** and is still referenced by `PlayerUnitDesignState` and `CompiledDesignStats`.

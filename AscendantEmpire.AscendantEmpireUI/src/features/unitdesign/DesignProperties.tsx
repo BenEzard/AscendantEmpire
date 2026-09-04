@@ -116,6 +116,13 @@ export default function DesignProperties({ aggregate, mapImagePath = "", onMapIm
                 tooltip="Tiles per battle turn: the body's Power less the weight of everything fitted to it."
               />
               <SummaryRow label="Hitpoints" raw={summary.hitpoints} />
+              {/* Sight is what the campaign map turns into a reveal radius, so it is worth seeing while
+                  building — a design with no Sight at all can only see the tile it stands on. */}
+              <SummaryRow
+                label="Sight"
+                raw={summary.sight}
+                tooltip="Tiles revealed on the campaign map, summed across the base and everything fitted to it."
+              />
               <SummaryRow label="Detection" raw={summary.detection} />
               <SummaryRow label="Visibility" raw={summary.visibility} />
             </div>

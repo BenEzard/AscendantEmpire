@@ -303,7 +303,11 @@ the same Campaign Tile. This is the layer that consumes the **(max tiers)+1** to
 
 * Has one Command Commander, whose rank sets the **max total strength**, **max number of
   Units**, and **max attached Specialists**.
-* Units in a Command share `Detection` and `Sight` information.
+* A Command's `Sight` is the **maximum** `Sight` of the Units within it — the best-placed pair of eyes
+  sees for the whole Command, rather than their ranges being added together. See
+  [Vision on the campaign map](../campaign-map.md#vision-on-the-campaign-map) for the full set of rules.
+* `Detection` sharing within a Command is designed but **not yet implemented** — Detection currently
+  plays no part in what a player can see.
 
 **Unit Stack** — multiple `Units` on the same Campaign Tile that are **not** combined into a
 `Command`.

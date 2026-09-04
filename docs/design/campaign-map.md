@@ -237,8 +237,7 @@ What a Force or Building can see is determined by both **Sight** and **Detection
 Sight is the ability to see the *geography of the land, buildings, and certain resources* from a
 distance. It is determined by:
 
-- the maximum Sight value of the base components in the Force, or any Buildings on the same
-  tile;
+- the Sight value of the observer, worked out by the rules below;
 - the presence of specialists with a `SIGHT_PERK`;
 - the geography type of the occupied and surrounding tiles;
 - the biome type of the occupied and surrounding tiles;
@@ -246,6 +245,23 @@ distance. It is determined by:
 
 A unit automatically sees the tile it occupies. For every additional point of unit sight it may see
 one more tile, provided nothing impedes the line of sight.
+
+#### How an observer's Sight is worked out
+
+- A **Unit's** Sight is the **sum** of the Sight values of its components — the base and everything
+  fitted to it. Sight is authored per component and is optional: a component with no Sight value
+  contributes nothing, so a Unit built entirely from such components sees only the tile it stands on.
+- A **Command's** Sight is the **maximum** Sight of the Units within it. A Command does not add its
+  members' Sight together.
+- A Unit or Command standing on a tile with a **Structure** sees `MAX(own Sight, Structure Sight)`.
+- Two Units, or a Unit and a Command, standing on the same tile **do not** share Sight or Detection.
+  They observe independently; neither lends the other its range.
+
+> **Implementation note.** Every Unit and every Structure is emitted as its own map observer, and the
+> revealed map is the union of what they each see. A union of ranges radiating from the same tile is
+> arithmetically the maximum of those ranges, so the Command and Structure rules above already hold
+> without being special-cased anywhere in the sight pipeline. Only the per-Unit sum is computed
+> explicitly, at template compile time into `CompiledUnitTemplate.TotalSight`.
 
 | Geography | Relative elevation | | Biome | Blocks sight |
 | --- | --- | --- | --- | --- |

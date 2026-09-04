@@ -73,6 +73,7 @@ export default function ComponentProperty({ selectedComponent, existingSelection
             <div className="space-y-1">
               <div className="text-base font-semibold text-white">{selectedComponent.displayName}</div>
               <StatRow label="Weight" raw={selectedComponent.weight} />
+              <StatRow label="Sight" raw={selectedComponent.sight} />
               <StatRow label="Detection" raw={selectedComponent.detection} />
               <StatRow label="Visibility" raw={selectedComponent.visibility} />
             </div>

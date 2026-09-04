@@ -15,6 +15,7 @@ public record CompiledUnitTemplateView
     public required DomainType MovementDomain { get; init; }
 
     public required long TotalWeight { get; init; }
+    public required long TotalSight { get; init; }
     public required long TotalDetection { get; init; }
     public required long TotalVisibility { get; init; }
 

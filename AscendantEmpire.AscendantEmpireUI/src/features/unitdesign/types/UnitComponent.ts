@@ -194,6 +194,8 @@ export interface UnitComponent {
   designerImagePath: string | null;
   componentType: ComponentType;
   weight: number;
+  /** Raw Scale-1,000; null means the component contributes no sight. Summed across a design to give its map reveal radius. */
+  sight: number | null;
   /** Raw Scale-1,000; null means the component contributes no detection. */
   detection: number | null;
   /** Raw Scale-1,000; null means the component contributes no visibility. */
@@ -374,6 +376,7 @@ export function createEmptyComponent(): UnitComponent {
     designerImagePath: null,
     componentType: "Body",
     weight: 0,
+    sight: null,
     detection: null,
     visibility: null,
     body: createEmptyBody(),

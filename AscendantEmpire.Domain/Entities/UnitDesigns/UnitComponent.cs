@@ -47,11 +47,21 @@ public class UnitComponent
     public long Weight { get; set; }
 
     /// <summary>
+    /// How far this component lets a Unit see terrain, buildings and resources. Null means the component contributes no sight.
+    /// </summary>
+    /// <remarks>
+    /// Raw fixed-point (Scale 1,000) like weapon damage — a stored value of 1,000 represents 1.0.
+    /// Sight values from a Unit's body and fitted components are summed into the compiled snapshot's
+    /// <c>TotalSight</c>, which the campaign map divides by the scale to get the Unit's reveal radius in whole tiles.
+    /// </remarks>
+    public long? Sight { get; set; }
+
+    /// <summary>
     /// How well this component detects other Units. Null means the component contributes no detection.
     /// </summary>
     /// <remarks>
     /// Raw fixed-point (Scale 1,000) like weapon damage — a stored value of 1,000 represents 1.0.
-    /// Detection values from a Unit's fitted components are aggregated to the Unit's overall sight.
+    /// Detection values from a Unit's fitted components are aggregated to the Unit's overall detection.
     /// </remarks>
     public long? Detection { get; set; }
 

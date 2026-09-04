@@ -269,6 +269,7 @@ internal static class UnitComponentReconciler
             DesignerImagePath = dto.DesignerImagePath,
             ComponentType = dto.ComponentType,
             Weight = dto.Weight,
+            Sight = dto.Sight,
             Detection = dto.Detection,
             Visibility = dto.Visibility,
             Body = dto.Body is { } bodyDto ? BuildBody(bodyDto) : null,
@@ -374,6 +375,7 @@ internal static class UnitComponentReconciler
         existing.Description = dto.Description;
         existing.DesignerImagePath = dto.DesignerImagePath;
         existing.Weight = dto.Weight;
+        existing.Sight = dto.Sight;
         existing.Detection = dto.Detection;
         existing.Visibility = dto.Visibility;
 

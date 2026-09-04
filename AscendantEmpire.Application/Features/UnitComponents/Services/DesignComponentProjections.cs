@@ -8,8 +8,7 @@ using AscendantEmpire.Domain.Entities.UnitDesigns;
 namespace AscendantEmpire.Application.Features.UnitComponents.Services;
 
 /// <summary>
-/// Shared EF projections from <see cref="UnitComponent"/> to the design read contracts, so the
-/// unlock-filtered endpoints and the dev god-view produce identical shapes from one definition.
+/// Shared EF projections from <see cref="UnitComponent"/> to the design read contracts, so the unlock-filtered endpoints and the dev god-view produce identical shapes from one definition.
 /// </summary>
 public static class DesignComponentProjections
 {
@@ -21,6 +20,7 @@ public static class DesignComponentProjections
         DisplayName = c.DisplayName,
         Description = c.Description,
         Weight = c.Weight,
+        Sight = c.Sight,
         Detection = c.Detection,
         Visibility = c.Visibility,
         MovementDomain = c.Body!.MovementDomain,
@@ -60,6 +60,7 @@ public static class DesignComponentProjections
         Description = c.Description,
         ComponentType = c.ComponentType,
         Weight = c.Weight,
+        Sight = c.Sight,
         Detection = c.Detection,
         Visibility = c.Visibility,
         Weapon = c.Weapon == null

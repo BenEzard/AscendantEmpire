@@ -71,23 +71,13 @@ internal class GetForcesByLocationHandler(
                       BattleMapTileId = pu.BattleMapTileId,
                       CampaignXCoord = pu.CampaignMap.XCoord,
                       CampaignYCoord = pu.CampaignMap.YCoord,
-                      // Sight range in tiles, derived from the compiled snapshot's aggregated detection
-                      // (fixed-point, Scale 1,000 — see the template compilation). Stand-in until a dedicated
-                      // sight-range stat is compiled. The snapshot always exists: a Unit cannot be spawned
-                      // from an uncompiled template.
-                      SightRange = (int)(pu.UnitTemplate.Compiled!.TotalDetection / 1000),
+                      SightRange = (int)(pu.UnitTemplate.Compiled!.TotalSight / ScaledAmount.Scale),
                       MapImagePath = pu.UnitTemplate.Compiled!.MapImagePath,
                       HealthyTroops = pu.HealthyCount,
                       InjuredTroops = pu.InjuredCount,
                       InitialStrength = pu.InitialStrength,
                       UnitTemplateId = pu.UnitTemplateId,
-                      // Spawning now seeds MovementPointsRemaining from the compiled template (F-9), so this reads true for a freshly fielded Force and
-                      // goes false as it moves. Turn rollover still does not replenish it (TM-3), so a Force that spends its allowance stays spent.
-                      // Reported honestly rather than defaulted to true: the campaign map fades a Force with no movement left, and that fade should
-                      // follow the data rather than hide the gap.
                       HasMovementRemaining = pu.MovementPointsRemaining > 0,
-                      // The raw fixed-point value converted to whole movement points. Divided inline rather than through ScaledAmount because this runs
-                      // as SQL; the scale constant is shared so the two representations cannot drift apart.
                       MovementPointsRemaining = pu.MovementPointsRemaining / (decimal)ScaledAmount.Scale,
                       CampaignMovementPoints = pu.UnitTemplate.Compiled!.CampaignMovementPoints / (decimal)ScaledAmount.Scale,
                   })

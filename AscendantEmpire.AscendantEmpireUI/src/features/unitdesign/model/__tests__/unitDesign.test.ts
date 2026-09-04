@@ -21,6 +21,7 @@ function carriedComponent(code: string, weight: number): UnitComponent {
     designerImagePath: null,
     componentType: "Equipment",
     weight,
+    sight: null,
     detection: null,
     visibility: null,
     body: null,
@@ -84,5 +85,27 @@ describe("aggregateDesign — battle movement", () => {
     const { summary } = aggregateDesign(null, []);
 
     expect(summary.battleMovementPoints).toBe(0);
+  });
+});
+
+describe("aggregateDesign — sight", () => {
+  /** A component carrying a sight value, so the sum can be told apart from the base's own contribution. */
+  function seeingComponent(code: string, sight: number): UnitComponent {
+    return { ...carriedComponent(code, 0), sight };
+  }
+
+  it("sums sight across the base and everything fitted to it", () => {
+    const base = { ...humanBody(), sight: 2_000 };
+    const { summary } = aggregateDesign(base, [seeingComponent("spyglass", 1_500), seeingComponent("scout_training", 500)]);
+
+    expect(summary.sight).toBe(4_000);
+  });
+
+  it("treats a null sight as no contribution rather than a default", () => {
+    // Sight is nullable end to end: an un-authored component adds nothing, so a design built entirely from
+    // them totals zero and sees only the tile it occupies.
+    const { summary } = aggregateDesign(humanBody(), [carriedComponent("spear", SPEAR_WEIGHT)]);
+
+    expect(summary.sight).toBe(0);
   });
 });

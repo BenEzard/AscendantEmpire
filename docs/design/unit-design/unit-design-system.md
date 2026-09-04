@@ -42,7 +42,7 @@ The interesting decisions live in how the parts play off each other:
 
 * **Weight vs. mobility & power.** Heavier loadouts cost movement and power budget. Concretely, a body's battle-map movement is its **Power less the weight of everything fitted to it**: a man carrying a knife crosses 6.5 tiles a turn, the same man with a sword or spear 6, and in armour with a spear and shield 5. Every piece of kit is therefore paid for in tiles. See [Battle-map movement points](#battle-map-movement-points) for the arithmetic.
 
-* **Detection vs. visibility.** Detection is how well the unit spots others; visibility is how easily it is spotted. A scout wants high detection and low visibility.
+* **Sight vs. detection vs. visibility.** Sight is how far the unit sees terrain, buildings and resources — summed across its components, it is what sets the unit's reveal radius on the campaign map. Detection is how well it spots *other units*; visibility is how easily it is spotted. A scout wants high sight and detection, and low visibility. All three are optional per component: leaving one empty means that component contributes nothing to it.
 
 * **Weapons.** Damage is split across five types — crush, pierce, burn, slash and poison — and a weapon has a range band, may be dual-wielded, and can only engage the Domains it is built to hit.
 
@@ -137,7 +137,7 @@ How rows get *written* — the granter, the component-to-template cascade, and t
 
 ### Conventions
 
-* **Fixed-point (Scale 1,000).** Weight, detection, visibility, movement points, power, hitpoints, every `DamageProfile` value and weapon domain multipliers are stored as raw `long`s where 1,000 = 1.0 (`ScaledAmount`). Editors convert to/from human-friendly decimals at the edit boundary.
+* **Fixed-point (Scale 1,000).** Weight, sight, detection, visibility, movement points, power, hitpoints, every `DamageProfile` value and weapon domain multipliers are stored as raw `long`s where 1,000 = 1.0 (`ScaledAmount`). Editors convert to/from human-friendly decimals at the edit boundary.
 
 * **Enums serialize as their string names** over the API — `Program.cs` registers a `JsonStringEnumConverter` — so the frontend TypeScript contracts use string unions matching the C# member names, not numbers.
 

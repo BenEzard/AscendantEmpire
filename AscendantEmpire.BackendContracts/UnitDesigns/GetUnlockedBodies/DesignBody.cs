@@ -15,6 +15,9 @@ public record DesignBody
     public string? Description { get; init; }
     public required long Weight { get; init; }
 
+    /// <summary>How far the body lets a Unit see terrain and buildings (fixed-point, Scale 1,000). Null = no contribution.</summary>
+    public long? Sight { get; init; }
+
     /// <summary>How well the body detects other Units (fixed-point, Scale 1,000). Null = no contribution.</summary>
     public long? Detection { get; init; }
 

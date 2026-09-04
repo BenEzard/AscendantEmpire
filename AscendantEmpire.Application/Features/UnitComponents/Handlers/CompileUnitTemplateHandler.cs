@@ -79,6 +79,7 @@ internal class CompileUnitTemplateHandler(
             var resistance = new DamageProfile();
 
             long totalWeight = bodyComponent.Weight;
+            long totalSight = bodyComponent.Sight ?? 0;
             long totalDetection = bodyComponent.Detection ?? 0;
             long totalVisibility = bodyComponent.Visibility ?? 0;
 
@@ -103,6 +104,7 @@ internal class CompileUnitTemplateHandler(
 
                 totalWeight += component.Weight;
                 carriedWeight += component.Weight;
+                totalSight += component.Sight ?? 0;
                 totalDetection += component.Detection ?? 0;
                 totalVisibility += component.Visibility ?? 0;
 
@@ -170,9 +172,9 @@ internal class CompileUnitTemplateHandler(
             // Battle-map movement is derived here rather than authored on the body: power minus what the unit is carrying, floored at zero.
             long battlefieldMovementPoints = BattleMovementCalculator.CalculateBattlefieldMovementPoints(body.Power, carriedWeight);
 
-            await UpsertSnapshotAsync(template, body, totalWeight: totalWeight, totalDetection: totalDetection, totalVisibility: totalVisibility,
-                battlefieldMovementPoints: battlefieldMovementPoints, attack, resistance, snapshotComponents, snapshotCapabilities,
-                organisationTagResult.SuccessValue, request.CompiledOnTurn, cancelToken);
+            await UpsertSnapshotAsync(template, body, totalWeight: totalWeight, totalSight: totalSight, totalDetection: totalDetection,
+                totalVisibility: totalVisibility, battlefieldMovementPoints: battlefieldMovementPoints, attack, resistance, snapshotComponents,
+                snapshotCapabilities, organisationTagResult.SuccessValue, request.CompiledOnTurn, cancelToken);
 
             return ServiceResult<int>.Succeed(template.Id);
         }
@@ -229,6 +231,7 @@ internal class CompileUnitTemplateHandler(
         UnitTemplate template,
         UnitComponentBody body,
         long totalWeight,
+        long totalSight,
         long totalDetection,
         long totalVisibility,
         long battlefieldMovementPoints,
@@ -256,6 +259,7 @@ internal class CompileUnitTemplateHandler(
                 MovementDomain = body.MovementDomain,
                 OrganisationTagId = organisationTagId,
                 TotalWeight = totalWeight,
+                TotalSight = totalSight,
                 TotalDetection = totalDetection,
                 TotalVisibility = totalVisibility,
                 // Campaign movement/power/hitpoints are raw fixed-point longs (Scale 1,000) copied straight from the body. Battle-map movement is
@@ -279,6 +283,7 @@ internal class CompileUnitTemplateHandler(
             existing.MovementDomain = body.MovementDomain;
             existing.OrganisationTagId = organisationTagId;
             existing.TotalWeight = totalWeight;
+            existing.TotalSight = totalSight;
             existing.TotalDetection = totalDetection;
             existing.TotalVisibility = totalVisibility;
             // Campaign movement/power/hitpoints are raw fixed-point longs (Scale 1,000) copied straight from the body. Battle-map movement is

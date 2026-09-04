@@ -36,6 +36,11 @@ public record UnitComponentDto
     public long Weight { get; init; }
 
     /// <summary>
+    /// How far this component lets a Unit see terrain and buildings (fixed-point, Scale 1,000). Null = no contribution.
+    /// </summary>
+    public long? Sight { get; init; }
+
+    /// <summary>
     /// How well this component detects other Units (fixed-point, Scale 1,000). Null = no contribution.
     /// </summary>
     public long? Detection { get; init; }

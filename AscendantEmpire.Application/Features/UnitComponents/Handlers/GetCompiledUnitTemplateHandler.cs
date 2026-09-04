@@ -42,6 +42,7 @@ internal class GetCompiledUnitTemplateHandler(
                     BodyComponentId = c.BodyComponentId,
                     MovementDomain = c.MovementDomain,
                     TotalWeight = c.TotalWeight,
+                    TotalSight = c.TotalSight,
                     TotalDetection = c.TotalDetection,
                     TotalVisibility = c.TotalVisibility,
                     CampaignMovementPoints = c.CampaignMovementPoints,

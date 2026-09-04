@@ -66,6 +66,7 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
         public const string DESCRIPTION = "The body under test.";
         public const string DESIGNER_IMAGE_PATH = "body.png";
         public const long WEIGHT = 100;
+        public const long SIGHT = 1100;
         public const long DETECTION = 2100;
         public const long VISIBILITY = 3100;
 
@@ -106,6 +107,7 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
         public const string DISPLAY_NAME = "Test Weapon";
         public const string DESCRIPTION = "The weapon under test.";
         public const long WEIGHT = 10;
+        public const long SIGHT = 1200;
         public const long DETECTION = 2200;
         public const long VISIBILITY = 3200;
         public const long ATTACK_SLASH = 1000;
@@ -253,6 +255,7 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
             DesignerImagePath = SeededBody.DESIGNER_IMAGE_PATH,
             ComponentType = ComponentType.Body,
             Weight = SeededBody.WEIGHT,
+            Sight = SeededBody.SIGHT,
             Detection = SeededBody.DETECTION,
             Visibility = SeededBody.VISIBILITY,
             Tags = [new UnitComponentTag { Tag = combatTag }],
@@ -276,6 +279,7 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
             Description = SeededWeapon.DESCRIPTION,
             ComponentType = ComponentType.Weapon,
             Weight = SeededWeapon.WEIGHT,
+            Sight = SeededWeapon.SIGHT,
             Detection = SeededWeapon.DETECTION,
             Visibility = SeededWeapon.VISIBILITY,
             Tags = [new UnitComponentTag { Tag = abilityTag }],
@@ -441,6 +445,7 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
             Assert.That(projectedBody.DisplayName, Is.EqualTo(SeededBody.DISPLAY_NAME));
             Assert.That(projectedBody.Description, Is.EqualTo(SeededBody.DESCRIPTION));
             Assert.That(projectedBody.Weight, Is.EqualTo(SeededBody.WEIGHT));
+            Assert.That(projectedBody.Sight, Is.EqualTo(SeededBody.SIGHT));
             Assert.That(projectedBody.Detection, Is.EqualTo(SeededBody.DETECTION));
             Assert.That(projectedBody.Visibility, Is.EqualTo(SeededBody.VISIBILITY));
             Assert.That(projectedBody.MovementDomain, Is.EqualTo(SeededBody.MOVEMENT_DOMAIN), "Seeded as Water rather than the default Land, so a hard-coded default would fail.");
@@ -511,6 +516,7 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
             Assert.That(projectedWeapon.Description, Is.EqualTo(SeededWeapon.DESCRIPTION));
             Assert.That(projectedWeapon.ComponentType, Is.EqualTo(ComponentType.Weapon));
             Assert.That(projectedWeapon.Weight, Is.EqualTo(SeededWeapon.WEIGHT));
+            Assert.That(projectedWeapon.Sight, Is.EqualTo(SeededWeapon.SIGHT));
             Assert.That(projectedWeapon.Detection, Is.EqualTo(SeededWeapon.DETECTION));
             Assert.That(projectedWeapon.Visibility, Is.EqualTo(SeededWeapon.VISIBILITY));
             Assert.That(projectedWeapon.TagCodes, Is.EquivalentTo([SeededAbilityTag.CODE]));
@@ -554,6 +560,7 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
 
             Assert.That(projectedArmour.Weapon, Is.Null, "An armour has no weapon extension.");
             Assert.That(projectedArmour.Description, Is.Null, "An unset description projects as null rather than empty.");
+            Assert.That(projectedArmour.Sight, Is.Null);
             Assert.That(projectedArmour.Detection, Is.Null);
             Assert.That(projectedArmour.Visibility, Is.Null);
             Assert.That(projectedArmour.TagCodes, Is.Empty, "An untagged component gets an empty collection, not null.");

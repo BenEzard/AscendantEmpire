@@ -85,7 +85,8 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
             // --- Tag join ---
             Assert.That(body.Tags, Has.Count.EqualTo(1), "Body should carry one tag join.");
 
-            // --- Main-table Detection/Visibility round-trip ---
+            // --- Main-table Sight/Detection/Visibility round-trip ---
+            Assert.That(weapon.Sight, Is.EqualTo(500), "Sight should round-trip on insert.");
             Assert.That(weapon.Detection, Is.EqualTo(2000), "Detection should round-trip on insert.");
             Assert.That(weapon.Visibility, Is.EqualTo(3000), "Visibility should round-trip on insert.");
 
@@ -127,6 +128,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
         UnitComponentDto changedWeapon = changed.Components.Single(c => c.Code == WEAPON_CODE) with
         {
             DisplayName = "Upgraded Weapon",
+            Sight = 4000,
             Detection = 5000,
             Visibility = 6000,
             Weapon = new UnitComponentWeaponDto
@@ -171,6 +173,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
 
             // --- The weapon's scalars and children reflect the new payload. ---
             Assert.That(weapon.DisplayName, Is.EqualTo("Upgraded Weapon"), "Scalar field should be overwritten.");
+            Assert.That(weapon.Sight, Is.EqualTo(4000), "Sight should be overwritten on update.");
             Assert.That(weapon.Detection, Is.EqualTo(5000), "Detection should be overwritten on update.");
             Assert.That(weapon.Visibility, Is.EqualTo(6000), "Visibility should be overwritten on update.");
             Assert.That(weapon.Weapon!.Attack.Slash, Is.EqualTo(7777), "Complex attack profile should be overwritten.");
