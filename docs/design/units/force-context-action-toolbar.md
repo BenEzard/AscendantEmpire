@@ -11,7 +11,7 @@ time; **TM-2** is the first slice, delivering the pipeline plus a single action 
 
 | Stage | Scope | Ticket | State |
 |---|---|---|---|
-| 1 | Rescale `UnitInstance.MovementPointsRemaining` to the Scale 1,000 fixed-point convention | TM-2 | **Done** — migration applied |
+| 1 | Rescale `UnitInstance.CampaignMovementRemaining` to the Scale 1,000 fixed-point convention | TM-2 | **Done** — migration applied |
 | 2 | Backend pipeline — `ForceActionType`, context, strategy interface, `SplitForceStrategy`, DI | TM-2 | **Done** |
 | 3 | `GET /force-orders/units/{id}/actions` — contracts and endpoint | TM-2 | **Done** |
 | 4 | Frontend — api module, query hook, action registry, disabled rendering, `useForceSelection` wiring | TM-2 | **Done** |
@@ -223,8 +223,14 @@ evaluates all of its rules and returns every failure.
 | No campaign movement points spent this turn | Force vs. compiled template | Disabled: *"Unit has already moved this turn. Splitting requires a full turn."* |
 
 Note the third rule is *full* movement, not *any* movement — splitting costs the whole turn, so
-`MovementPointsRemaining` must still equal the template's `CampaignMovementPoints`. That comparison is
-what forced Stage 1.
+`CampaignMovementRemaining` must still be **at least** the template's `CampaignMovementPoints`. That
+comparison is what forced Stage 1.
+
+> **The comparison loosened in F-14.** It used to be an equality in all but name, because remaining could
+> never exceed the allowance. Now that unspent movement is carried into the next turn and added on top of
+> the allowance, a Force can open its turn above it — and, having moved, still sit at or above it. So
+> `HasFullMovement` no longer proves the Force has not moved. Tightening it needs the total actually
+> granted this turn, which is not stored, so it is knowingly left loose and pinned by a test.
 
 A tag that is `Unled` but has no authored base/max sizes is a configuration error, matching how
 [`UnledSpawnRules`](../../../AscendantEmpire.Application/Features/Units/Classes/UnledSpawnRules.cs)
@@ -232,12 +238,12 @@ already treats it, rather than silently skipping the guardrail.
 
 ## Stage 1 — the movement point rescale (done)
 
-`UnitInstance.MovementPointsRemaining` was a `decimal` (1.0 = one point), while
+`UnitInstance.CampaignMovementRemaining` was a `decimal` (1.0 = one point), while
 `CompiledUnitTemplate.CampaignMovementPoints` is a raw fixed-point `long` on the Scale 1,000
 convention of [`ScaledAmount`](../../../AscendantEmpire.Application/Helpers/ScaledNumerics/ScaledAmount.cs)
 (a stored `1000` means 1.0 MP). The split rule compares the two, so they had to share a representation.
 
-`MovementPointsRemaining` is now a raw fixed-point `long`, matching every other movement, power and
+`CampaignMovementRemaining` is now a raw fixed-point `long`, matching every other movement, power and
 hitpoint value in the system. Migration `TM-2_ScaleTroopMovementPointsRemaining` has been **applied**.
 Four call sites moved with it:
 
@@ -257,13 +263,13 @@ The migration's `ALTER` **truncates** rather than rescales (SQL Server drops the
 decimal to bigint, so `1.500` would arrive as `1`, not `1500`). That is safe only because nothing has
 ever written the column; the migration carries a comment saying so.
 
-### Known gap, deliberately out of scope
+### Known gap, since closed
 
-`MovementPointsRemaining` is **never written anywhere**: it is not set on spawn (`SpawnUnitHandler`
-omits it) and nothing replenishes it at turn rollover, so every Force reads `0`. Until that is fixed,
-the third split rule cannot distinguish "fresh" from "spent". Initialising on spawn and resetting at
-end of turn are **deferred to a later ticket** (TM-3); values are adjusted directly in the database for
-testing in the meantime.
+`CampaignMovementRemaining` was **never written anywhere**: not set on spawn (`SpawnUnitHandler` omitted
+it) and not replenished at turn rollover, so every Force read `0` and the third split rule could not
+distinguish "fresh" from "spent". Initialising on spawn landed as **F-9**, and replenishing at the start
+of the owning player's turn as **F-14** (the ticket that was TM-3). Values no longer have to be adjusted
+directly in the database to see the enabled state.
 
 Since TM-5 this gap has a second, louder symptom. The
 [force selection bar](force-selection-toolbar.md) fades a Force with no movement left, and it reports
@@ -370,13 +376,16 @@ tier 3.
 
 Raised during implementation and deliberately left open.
 
-### 1. Nothing initialises or replenishes movement points — the split rule cannot fire yet
+### 1. ~~Nothing initialises or replenishes movement points — the split rule cannot fire yet~~ — CLOSED
 
-`MovementPointsRemaining` is still never written: not on spawn, not at turn rollover. Every Force reads
-`0`, so `HasFullMovement` is false and **Split always renders disabled** with "has already moved this
-turn", regardless of the Force. The rule and its plumbing are correct and tested; there is simply no
-data path feeding them yet. Setting the value directly in the database is the only way to see the
-enabled state today. Raised as **TM-3**, and it blocks stage 5 having anything meaningful to do.
+`CampaignMovementRemaining` used to be written nowhere: not on spawn, not at turn rollover. Every Force
+read `0`, so `HasFullMovement` was false and **Split always rendered disabled** with "has already moved
+this turn", regardless of the Force. The rule and its plumbing were correct and tested; there was simply
+no data path feeding them. Raised as **TM-3** and delivered as **F-9** (spawn) and **F-14** (start-of-turn
+replenishment).
+
+What replaced it is a smaller, subtler issue, recorded above: with carry, `HasFullMovement` is no longer
+proof that the Force has not moved.
 
 ### 2. Should the toolbar respect whose turn it is?
 

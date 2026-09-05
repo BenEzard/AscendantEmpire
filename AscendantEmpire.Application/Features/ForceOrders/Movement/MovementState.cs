@@ -7,5 +7,5 @@ namespace AscendantEmpire.Application.Features.ForceOrders.Movement;
 /// </summary>
 public sealed record MovementState
 {
-    public required decimal MovementPointsRemaining { get; init; }
+    public required decimal CampaignMovementRemaining { get; init; }
 }

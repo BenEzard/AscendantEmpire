@@ -57,7 +57,7 @@ internal class ForceContextActionServiceTests
                 DisplayName = $"Settler #{forceId}",
                 HealthyCount = 100,
                 InjuredCount = 0,
-                MovementPointsRemaining = 1_000,
+                CampaignMovementRemaining = 1_000,
                 CampaignMovementPoints = 1_000,
                 Organisation = null
             },

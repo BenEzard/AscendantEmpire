@@ -32,7 +32,7 @@ internal sealed class CampaignRemainingMovementCheck(
             // Strictly positive, and no threshold beyond that. Campaign movement costs vary by terrain and a Force needs only half a tile's cost to
             // enter it, so any movement at all might be enough to go somewhere — while a Force sitting on zero, or in debt after crossing expensive
             // ground, certainly cannot. This is still a first filter: it says the Force *has* movement, not that anywhere is open to it.
-            .Where(t => t.MovementPointsRemaining > 0)
+            .Where(t => t.CampaignMovementRemaining > 0)
             .Select(t => new
             {
                 t.Id,

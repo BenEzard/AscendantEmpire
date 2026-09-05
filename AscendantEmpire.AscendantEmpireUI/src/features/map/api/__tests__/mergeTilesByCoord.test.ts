@@ -9,8 +9,8 @@ function force(id: number): ObservedForceDto {
     healthyTroops: 50,
     injuredTroops: 0,
     initialStrength: 50,
-    hasMovementRemaining: true,
-    movementPointsRemaining: 2,
+    hasCampaignMovementRemaining: true,
+    campaignMovementRemaining: 2,
     campaignMovementPoints: 2,
   };
 }

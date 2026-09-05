@@ -206,14 +206,14 @@ achieves it by making the selection itself hold more than one Force.
 ## Remaining movement over the wire
 
 The fade needs to know whether a Force can still move, which the client had no way to see. Added
-through the existing projection chain — no migration; `UnitInstance.MovementPointsRemaining` already
+through the existing projection chain — no migration; `UnitInstance.CampaignMovementRemaining` already
 exists, rescaled to `bigint` under TM-2.
 
 `PlayerForce` → `ObservedForce` → `IForceStub` / `DTForceStub` → `ObservedForceDto` → `ObservedForceTile`.
 
 Two decisions about the contract:
 
-**A derived boolean, not the raw value.** `MovementPointsRemaining` is raw fixed-point on the Scale
+**A derived boolean, not the raw value.** `CampaignMovementRemaining` is raw fixed-point on the Scale
 1,000 convention. Shipping it would make every consumer responsible for knowing that, and would leave
 the frontend guessing which threshold applies — the codebase already has two (`> 0` for "any movement
 left", `>= CampaignMovementPoints` for "a whole turn's worth"). The boundary converts, exactly as the
@@ -226,15 +226,18 @@ one thing, knowing whether it can still act is another. The context action pipel
 Forces for the same reason. The client normalizer defaults `null` to `true`, so nothing is ever faded
 on no evidence.
 
-## Known gap: everything is greyed out
+## Closed gap: everything used to be greyed out
 
-`MovementPointsRemaining` is not written by any production code — not on spawn, not at turn rollover.
-That is **TM-3**, not started, and it means every Force reads `0`, so **every entry in the bar renders
-faded** today.
+`CampaignMovementRemaining` was written by no production code — not on spawn, not at turn rollover — so
+every Force read `0` and **every entry in the bar rendered faded**. That was **TM-3**, and it is now done:
+F-9 seeded the value at spawn and **F-14** replenishes it at the start of the owning player's turn.
 
-This was chosen deliberately over projecting a temporary `true`. The fade follows the data; faking it
-would have hidden the gap behind a UI that looked finished. It is the same symptom the Split Force
-action already shows, and TM-3 fixes both at once.
+The fade was left following the data rather than projecting a temporary `true`, so the gap stayed visible
+instead of hiding behind a UI that looked finished. It was the same symptom the Split Force action showed,
+and the replenishment fixed both at once.
+
+One consequence worth knowing when reading the `X / Y` figure: unspent movement is carried into the next
+turn on top of the allowance, so the numerator can legitimately exceed the denominator (`3.2 / 2.2`).
 
 ## Testing
 
@@ -254,5 +257,6 @@ Two things worth knowing when adding to these:
 
 The backend test parks the rival Force on the viewer's own tile before asserting the mask. Left where
 it spawned, the assertion would pass vacuously on any map where the rival happened to start out of
-sight. It also sets `MovementPointsRemaining` by hand for both states, since nothing writes the column:
-without that, the projection would look correct while simply always answering `false`.
+sight. It also sets `CampaignMovementRemaining` by hand for both states rather than relying on spawn or
+replenishment to produce them: without that, the projection would look correct while simply always
+answering the same thing.

@@ -90,7 +90,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         int unitTemplateId = _UNLED_TEMPLATE_ID,
         int healthyCount = 100,
         int injuredCount = 0,
-        long movementPointsRemaining = _CAMPAIGN_MOVEMENT_POINTS,
+        long campaignMovementRemaining = _CAMPAIGN_MOVEMENT_POINTS,
         string? name = null)
     {
         context.UnitInstances.Add(new UnitInstance
@@ -104,7 +104,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
             InitialStrength = healthyCount + injuredCount,
             HealthyCount = healthyCount,
             InjuredCount = injuredCount,
-            MovementPointsRemaining = movementPointsRemaining
+            CampaignMovementRemaining = campaignMovementRemaining
         });
 
         await context.SaveChangesAsync();
@@ -254,14 +254,14 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            await AddForceAsync(context, unitInstanceId: 5, movementPointsRemaining: _CAMPAIGN_MOVEMENT_POINTS / 2);
+            await AddForceAsync(context, unitInstanceId: 5, campaignMovementRemaining: _CAMPAIGN_MOVEMENT_POINTS / 2);
         }
 
         ForceActionContext? result = await BuildSingleAsync(5);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result!.SelectedForce.MovementPointsRemaining, Is.EqualTo(500));
+            Assert.That(result!.SelectedForce.CampaignMovementRemaining, Is.EqualTo(500));
             Assert.That(result.SelectedForce.HasFullMovement, Is.False);
         }
     }

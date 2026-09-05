@@ -30,7 +30,10 @@ internal sealed class BattleRemainingMovementCheck(
             .Where(t => t.BattleMapTileId != null)
             .Where(t => t.HealthyCount + t.InjuredCount > 0)
             // Movement on a Battle Map always costs 1 MP, which is one whole Scale 1,000 unit of the raw fixed-point value stored on the Force.
-            .Where(t => t.MovementPointsRemaining >= ScaledAmount.Scale)
+            //
+            // TODO: Nothing spends or replenishes BattleMovementRemaining yet — it is granted once, when the Unit is fielded.
+            //       Until the battle turn pipeline exists to refresh it, this check reports every Force standing on a Battle Map as still having movement, for as long as the Battle lasts.
+            .Where(t => t.BattleMovementRemaining >= ScaledAmount.Scale)
             .Select(t => new 
             { 
                 t.Id, 

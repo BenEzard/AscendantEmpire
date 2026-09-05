@@ -185,16 +185,16 @@ internal class StepForceHandler(
             long entryCost = ScaledAmount.FromDecimal(target.MovementCost).RawValue;
             long requiredToEnter = entryCost / 2;
 
-            if (force.MovementPointsRemaining < requiredToEnter)
+            if (force.CampaignMovementRemaining < requiredToEnter)
             {
                 string error = $"{DescribeForce(force)} needs {ScaledAmount.FromRaw(requiredToEnter)} movement points to enter {target.Describe()}, "
-                    + $"and has {ScaledAmount.FromRaw(force.MovementPointsRemaining)}.";
+                    + $"and has {ScaledAmount.FromRaw(force.CampaignMovementRemaining)}.";
                 logger.LogInformation("{Error}", error);
                 return ServiceResult<StepForceResult>.Fail(error);
             }
 
             force.CampaignMapTileId = targetTile.CampaignMapId;
-            force.MovementPointsRemaining -= entryCost;
+            force.CampaignMovementRemaining -= entryCost;
 
             await context.SaveChangesAsync(cancelToken);
 
@@ -207,7 +207,7 @@ internal class StepForceHandler(
                 target.XCoord,
                 target.YCoord,
                 ScaledAmount.FromRaw(entryCost),
-                ScaledAmount.FromRaw(force.MovementPointsRemaining));
+                ScaledAmount.FromRaw(force.CampaignMovementRemaining));
 
             IReadOnlyCollection<ObserverSight> observers = await GetRefreshedVisionAsync(request, cancelToken);
 
@@ -216,7 +216,7 @@ internal class StepForceHandler(
                 UnitInstanceId = force.Id,
                 XCoord = target.XCoord,
                 YCoord = target.YCoord,
-                MovementPointsRemaining = ScaledAmount.FromRaw(force.MovementPointsRemaining).ToDecimal(),
+                CampaignMovementRemaining = ScaledAmount.FromRaw(force.CampaignMovementRemaining).ToDecimal(),
                 CampaignMovementPoints = ScaledAmount.FromRaw(movementProfile.CampaignMovementPoints).ToDecimal(),
                 Observers = observers
             });
@@ -277,7 +277,7 @@ internal class StepForceHandler(
         // Remaining movement is raw fixed-point, but "none left" is zero at any scale. Checked separately from the per-tile threshold below so a Force
         // that is spent — or in debt from an expensive crossing — is told so plainly, rather than being quoted arithmetic about a tile it was never
         // going to reach.
-        if (force.MovementPointsRemaining <= 0)
+        if (force.CampaignMovementRemaining <= 0)
         {
             string error = $"{DescribeForce(force)} has no movement points left this turn.";
             logger.LogInformation("Unit Instance Id {UnitInstanceId} has no remaining movement points.", force.Id);

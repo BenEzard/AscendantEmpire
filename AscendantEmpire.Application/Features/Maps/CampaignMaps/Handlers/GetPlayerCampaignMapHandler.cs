@@ -244,9 +244,10 @@ internal class GetPlayerCampaignMapHandler(
                                     // Masked for Forces this player doesn't own: how much movement an enemy has left is intel the vision rules never
                                     // granted. Seeing that a Force is standing there is one thing; knowing whether it can still act is another.
                                     // The numbers below are masked by the same test and more sharply so — they say exactly how far it could go.
-                                    HasMovementRemaining = ot.PlayerId == thisPlayer.PlayerId ? ot.HasMovementRemaining : null,
-                                    MovementPointsRemaining = ot.PlayerId == thisPlayer.PlayerId ? ot.MovementPointsRemaining : null,
+                                    HasCampaignMovementRemaining = ot.PlayerId == thisPlayer.PlayerId ? ot.HasCampaignMovementRemaining : null,
+                                    CampaignMovementRemaining = ot.PlayerId == thisPlayer.PlayerId ? ot.CampaignMovementRemaining : null,
                                     CampaignMovementPoints = ot.PlayerId == thisPlayer.PlayerId ? ot.CampaignMovementPoints : null,
+                                    BattleMovementRemaining = ot.PlayerId == thisPlayer.PlayerId ? ot.BattleMovementRemaining : null,
                                 }).ToList() ?? []
                             };
                         })]

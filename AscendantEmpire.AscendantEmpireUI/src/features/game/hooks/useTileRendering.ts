@@ -99,8 +99,8 @@ export function useTileRendering(opts: UseTileRenderingOptions) {
       // Only forces whose movement we were actually told about. The API masks the numbers for forces the player
       // doesn't own, so an enemy standing here contributes nothing to the tooltip rather than a blank or a guess.
       const movementLines = (t.forces ?? [])
-        .filter((force) => force.movementPointsRemaining != null && force.campaignMovementPoints != null)
-        .map((force) => `Force #${force.id}: ${force.movementPointsRemaining} / ${force.campaignMovementPoints} MP`);
+        .filter((force) => force.campaignMovementRemaining != null && force.campaignMovementPoints != null)
+        .map((force) => `Force #${force.id}: ${force.campaignMovementRemaining} / ${force.campaignMovementPoints} MP`);
 
       return [`(${t.x}, ${t.y}); ${label}`, ...movementLines].join("\n");
     },

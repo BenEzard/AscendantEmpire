@@ -192,7 +192,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
    */
   const onForceMoved = useCallback(
     (result: StepForceResponse) => {
-      const { unitInstanceId, xCoord, yCoord, movementPointsRemaining } = result;
+      const { unitInstanceId, xCoord, yCoord, campaignMovementRemaining } = result;
 
       const destinationTile = result.tiles.find((tile) => tile.xCoord === xCoord && tile.yCoord === yCoord);
       const forcesOnDestination = destinationTile?.forces ?? [];
@@ -206,7 +206,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
           force.id === unitInstanceId
             ? // Falls back to patching movement only, for the case where refreshing the player's view of the map failed and
               // the response carries no tiles. The step itself still happened, so the bar must still show it was paid for.
-              (movedForce ?? { ...force, movementPointsRemaining, hasMovementRemaining: movementPointsRemaining > 0 })
+              (movedForce ?? { ...force, campaignMovementRemaining, hasCampaignMovementRemaining: campaignMovementRemaining > 0 })
             : force,
         ),
       );

@@ -22,8 +22,8 @@ function force(overrides: Partial<ObservedForceTile> = {}): ObservedForceTile {
     healthyTroops: 80,
     injuredTroops: 20,
     initialStrength: 100,
-    hasMovementRemaining: true,
-    movementPointsRemaining: 2,
+    hasCampaignMovementRemaining: true,
+    campaignMovementRemaining: 2,
     campaignMovementPoints: 2,
     ...overrides,
   };
@@ -90,7 +90,7 @@ describe("ForceSelectionToolbar", () => {
 
   it("shows what movement each force has left, out of a full turn", () => {
     renderToolbar({
-      tile: tile([force({ id: 1, movementPointsRemaining: 1.5, campaignMovementPoints: 2 })]),
+      tile: tile([force({ id: 1, campaignMovementRemaining: 1.5, campaignMovementPoints: 2 })]),
     });
 
     const movement = screen.getByRole("button").querySelector(".force-selection-toolbar__movement");
@@ -103,7 +103,7 @@ describe("ForceSelectionToolbar", () => {
     // Enemy forces come back with these nulled out rather than revealing how far they could still travel, and there
     // is no honest placeholder to show in their place.
     renderToolbar({
-      tile: tile([force({ id: 1, movementPointsRemaining: null, campaignMovementPoints: null })]),
+      tile: tile([force({ id: 1, campaignMovementRemaining: null, campaignMovementPoints: null })]),
     });
 
     expect(screen.getByRole("button").querySelector(".force-selection-toolbar__movement")).toBeNull();
@@ -111,7 +111,7 @@ describe("ForceSelectionToolbar", () => {
 
   it("puts the movement figure in the button's accessible name, where the visible caption is decorative", () => {
     renderToolbar({
-      tile: tile([force({ id: 1, movementPointsRemaining: 1.5, campaignMovementPoints: 2 })]),
+      tile: tile([force({ id: 1, campaignMovementRemaining: 1.5, campaignMovementPoints: 2 })]),
     });
 
     expect(screen.getByRole("button")).toHaveAccessibleName(expect.stringContaining("1.5 / 2 movement points"));
@@ -123,8 +123,8 @@ describe("ForceSelectionToolbar", () => {
   it("orders forces with movement remaining ahead of those without", () => {
     renderToolbar({
       tile: tile([
-        force({ id: 1, hasMovementRemaining: false }),
-        force({ id: 2, hasMovementRemaining: true }),
+        force({ id: 1, hasCampaignMovementRemaining: false }),
+        force({ id: 2, hasCampaignMovementRemaining: true }),
       ]),
     });
 
@@ -227,7 +227,7 @@ describe("ForceSelectionToolbar", () => {
 
   it("fades a force with no movement remaining", () => {
     renderToolbar({
-      tile: tile([force({ id: 1, hasMovementRemaining: true }), force({ id: 2, hasMovementRemaining: false })]),
+      tile: tile([force({ id: 1, hasCampaignMovementRemaining: true }), force({ id: 2, hasCampaignMovementRemaining: false })]),
     });
 
     // Asserted on the class, not the computed style: jsdom loads no stylesheet, so filter would never compute.
@@ -242,7 +242,7 @@ describe("ForceSelectionToolbar", () => {
   it("still selects a force that has no movement remaining", async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
-    const spentForce = force({ id: 1, hasMovementRemaining: false });
+    const spentForce = force({ id: 1, hasCampaignMovementRemaining: false });
 
     renderToolbar({ tile: tile([spentForce]), onSelect });
 

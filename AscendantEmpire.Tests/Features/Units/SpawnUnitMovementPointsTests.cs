@@ -12,20 +12,19 @@ using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-
-using NSubstitute;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AscendantEmpire.Tests.Features.Units;
 
 /// <summary>
-/// Tests that a newly spawned Unit is fielded holding its template's full campaign movement allowance.
+/// Tests that a newly spawned Unit is fielded holding its template's full movement allowance on both maps.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <c>MovementPointsRemaining</c> used to be left at its column default of 0, which made a Unit immobile
+/// <c>CampaignMovementRemaining</c> used to be left at its column default of 0, which made a Unit immobile
 /// from the moment it was created: <c>MoveForceHandler</c> refuses a Force with nothing left to spend, and
-/// nothing replenishes the field at turn rollover yet. The allowance is now copied from the template's
-/// <see cref="CompiledUnitTemplate"/> snapshot at spawn time.
+/// the start-of-Turn replenishment will not reach it until its owner's next Turn. Both allowances are copied
+/// from the template's <see cref="CompiledUnitTemplate"/> snapshot at spawn time.
 /// </para>
 /// <para>
 /// Runs at the SqlServer tier for the same reasons as <see cref="UnitPlacementByCoordinateTests"/>: game
@@ -47,9 +46,9 @@ internal class SpawnUnitMovementPointsTests : GameSqlServerTestBase
     [SetUp]
     public void SetUpMediator()
     {
-        // Only the spawn path is exercised, but MediatR scans the whole assembly and DI still has to be able
-        // to construct whatever it resolves, so the turn service other handlers depend on is stubbed out.
-        ICampaignTurnService campaignTurnService = Substitute.For<ICampaignTurnService>();
+        // The real turn service, not a substitute: the spawn handler reads the current Round through it to stamp the Unit, so stubbing it would
+        // leave that stamp pinned to a default rather than to the Round the Game is actually on.
+        ICampaignTurnService campaignTurnService = new CampaignTurnService(NullLogger<CampaignTurnService>.Instance, DbFactory);
 
         ServiceProvider provider = new ServiceCollection()
             .AddSingleton(DbFactory)
@@ -79,8 +78,8 @@ internal class SpawnUnitMovementPointsTests : GameSqlServerTestBase
         return result.SuccessValue;
     }
 
-    [Test, Description("A spawned Unit starts with the campaign movement points of its template's compiled snapshot, rather than the column default of zero.")]
-    public async Task SpawnGivesTheUnitItsTemplatesFullCampaignMovementAsync()
+    [Test, Description("A spawned Unit starts with the campaign and battle movement of its template's compiled snapshot and is stamped for the current Round, rather than sitting at the column defaults of zero.")]
+    public async Task SpawnGivesTheUnitItsTemplatesFullMovementAsync()
     {
         int gameId = await SetupGameAsync();
 
@@ -89,11 +88,17 @@ internal class SpawnUnitMovementPointsTests : GameSqlServerTestBase
         Player player = await context.Players.Where(p => p.GameId == gameId).OrderBy(p => p.Id).FirstAsync();
         int settlerTemplateId = (await context.UnitTemplates.SingleAsync(t => t.Code == "SETTLER")).Id;
 
-        // The allowance the spawned Unit is expected to carry. Read from the database rather than hard-coded so
+        // The allowances the spawned Unit is expected to carry. Read from the database rather than hard-coded so
         // the test pins the handler's behaviour, not the seed's numbers.
-        long templateMovementPoints = await context.CompiledUnitTemplates
+        var templateMovement = await context.CompiledUnitTemplates
             .Where(c => c.UnitTemplateId == settlerTemplateId)
-            .Select(c => c.CampaignMovementPoints)
+            .Select(c => new { c.CampaignMovementPoints, c.BattlefieldMovementPoints })
+            .SingleAsync();
+
+        // The Game was started above, so its campaign Queue is open on a Round the spawned Unit should be stamped with.
+        int currentRoundNumber = await context.TurnQueues
+            .Where(q => q.GameId == gameId && q.IsCompleted == false)
+            .Select(q => q.CurrentRoundNumber)
             .SingleAsync();
 
         int[] unitIdsBefore = await context.UnitInstances.Where(u => u.GameId == gameId).Select(u => u.Id).ToArrayAsync();
@@ -118,12 +123,20 @@ internal class SpawnUnitMovementPointsTests : GameSqlServerTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            // Without this the assertion below would pass on a template compiled to zero movement, which is the
+            // Without these the assertions below would pass on a template compiled to zero movement, which is the
             // exact bug being guarded against.
-            Assert.That(templateMovementPoints, Is.GreaterThan(0), "The seeded template must have movement points for this test to mean anything.");
+            Assert.That(templateMovement.CampaignMovementPoints, Is.GreaterThan(0), "The seeded template must have campaign movement for this test to mean anything.");
+            Assert.That(templateMovement.BattlefieldMovementPoints, Is.GreaterThan(0), "The seeded template must have battlefield movement for this test to mean anything.");
+            Assert.That(currentRoundNumber, Is.GreaterThan(0), "The Game must be on an open Round for the stamp assertion to mean anything.");
 
-            Assert.That(spawned.MovementPointsRemaining, Is.EqualTo(templateMovementPoints),
-                "The Unit is fielded holding a full turn's movement, copied from its compiled template.");
+            Assert.That(spawned.CampaignMovementRemaining, Is.EqualTo(templateMovement.CampaignMovementPoints),
+                "The Unit is fielded holding a full turn's campaign movement, copied from its compiled template.");
+
+            Assert.That(spawned.BattleMovementRemaining, Is.EqualTo(templateMovement.BattlefieldMovementPoints),
+                "The Unit is fielded holding a full battle allowance too — a separate pool, and the only place it is ever written.");
+
+            Assert.That(spawned.CampaignMovementReplenishedOnRound, Is.EqualTo(currentRoundNumber),
+                "Stamped as already granted for this Round, so the next start-of-Turn run cannot hand it a second allowance.");
         }
     }
 }

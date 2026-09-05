@@ -2380,7 +2380,16 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int?>("BattleMapTileId")
                         .HasColumnType("int");
 
+                    b.Property<long>("BattleMovementRemaining")
+                        .HasColumnType("bigint");
+
                     b.Property<int>("CampaignMapTileId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("CampaignMovementRemaining")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("CampaignMovementReplenishedOnRound")
                         .HasColumnType("int");
 
                     b.Property<int?>("CommandId")
@@ -2397,9 +2406,6 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.Property<int>("InjuredCount")
                         .HasColumnType("int");
-
-                    b.Property<long>("MovementPointsRemaining")
-                        .HasColumnType("bigint");
 
                     b.Property<string>("Name")
                         .HasColumnType("nvarchar(max)");

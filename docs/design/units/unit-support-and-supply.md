@@ -36,6 +36,26 @@ friendly territory.
 - When a Command has fuel for some but not all of its Units, the Command can either stay put or
   leave behind the unsupplied units.
 
+### Fuel and the turn cycle
+
+Supply is reckoned at the **start of the owning player's turn**, by `CheckUnitSupply`, and deliberately
+**before** `ReplenishMovementPoints` hands out the movement allowance — see
+[turn-structure.md](../turn-structure.md). A unit whose body requires fuel it does not have receives **no
+campaign movement at all** that turn: its remaining movement is set to zero, not to the allowance and not to
+the carry, because an unfuelled unit cannot move whatever the terrain or its bonuses.
+
+Battle fuel runs on its own clock:
+
+- A unit that **enters a battle unsupplied** carries **two battle rounds'** worth of fuel, and cannot move
+  for the rest of that battle.
+- A unit that **enters a battle supplied** keeps that supply until the **end of that player's next campaign
+  turn**.
+
+> **None of this is enforced yet.** `CheckUnitSupply` is a stub and there is no resource system for it to
+> read, so no unit is currently denied movement for want of fuel. The ordering that makes the rule
+> implementable is in place and pinned by a test; the rule itself is recorded as a `TODO` on
+> `ReplenishMovementPoints`.
+
 ## Ammunition
 
 - A weapon component requires **0 or 1** ammunition type to attack and defend.

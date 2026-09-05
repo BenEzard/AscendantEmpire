@@ -300,7 +300,7 @@ internal class MoveForceHandler(
         }
 
         // Remaining MP is raw fixed-point (Scale 1,000), but "none left" is zero at any scale, so this comparison is unaffected by the representation.
-        if (force.MovementPointsRemaining <= 0)
+        if (force.CampaignMovementRemaining <= 0)
         {
             string error = $"Unit Instance Id {request.UnitInstanceId} has no remaining movement points and cannot move.";
             logger.LogWarning("Unit Instance Id {UnitInstanceId} has no remaining movement points and cannot move.", request.UnitInstanceId);

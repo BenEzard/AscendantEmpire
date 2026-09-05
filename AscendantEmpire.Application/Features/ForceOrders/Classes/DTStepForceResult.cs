@@ -9,7 +9,7 @@ public class DTStepForceResult : IStepForceResult
     public int UnitInstanceId { get; set; }
     public int XCoord { get; set; }
     public int YCoord { get; set; }
-    public decimal MovementPointsRemaining { get; set; }
+    public decimal CampaignMovementRemaining { get; set; }
     public decimal CampaignMovementPoints { get; set; }
     public required IReadOnlyCollection<IObserver> Observers { get; set; }
 }

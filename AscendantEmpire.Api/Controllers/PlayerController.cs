@@ -92,7 +92,11 @@ public class PlayerController : ControllerBase
             CampaignXCoord = s.CampaignXCoord,
             CampaignYCoord = s.CampaignYCoord,
             SightRange = s.SightRange,
-            MapImagePath = s.MapImagePath
+            MapImagePath = s.MapImagePath,
+            HasCampaignMovementRemaining = s.HasCampaignMovementRemaining,
+            CampaignMovementRemaining = s.CampaignMovementRemaining,
+            CampaignMovementPoints = s.CampaignMovementPoints,
+            BattleMovementRemaining = s.BattleMovementRemaining
         }).ToList() ?? []);
     }
 }

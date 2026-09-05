@@ -49,11 +49,21 @@ internal class StarterUnitSpawnTests : GameSqlServerTestBase
         int settlerTemplateId = (await verify.UnitTemplates.SingleAsync(t => t.Code == "SETTLER")).Id;
         int scoutTemplateId = (await verify.UnitTemplates.SingleAsync(t => t.Code == "SCOUT")).Id;
 
-        // The movement allowance each starter is expected to be fielded with, read from the compiled snapshots
-        // rather than hard-coded so the assertion pins the setup service's behaviour, not the seed's numbers.
+        // The movement allowances each starter is expected to be fielded with, read from the compiled snapshots
+        // rather than hard-coded so the assertions pin the setup service's behaviour, not the seed's numbers.
         Dictionary<int, long> movementPointsByTemplate = await verify.CompiledUnitTemplates
             .Where(c => c.UnitTemplateId == settlerTemplateId || c.UnitTemplateId == scoutTemplateId)
             .ToDictionaryAsync(c => c.UnitTemplateId, c => c.CampaignMovementPoints);
+
+        Dictionary<int, long> battlefieldMovementByTemplate = await verify.CompiledUnitTemplates
+            .Where(c => c.UnitTemplateId == settlerTemplateId || c.UnitTemplateId == scoutTemplateId)
+            .ToDictionaryAsync(c => c.UnitTemplateId, c => c.BattlefieldMovementPoints);
+
+        // Setup opens the campaign Queue on this Round, and the starters must be stamped with it.
+        int firstRoundNumber = await verify.TurnQueues
+            .Where(q => q.GameId == gameId && q.IsCompleted == false)
+            .Select(q => q.CurrentRoundNumber)
+            .SingleAsync();
 
         using (Assert.EnterMultipleScope())
         {
@@ -75,11 +85,18 @@ internal class StarterUnitSpawnTests : GameSqlServerTestBase
                 Assert.That(scout.InitialStrength, Is.EqualTo(1));
                 Assert.That(scout.HealthyCount, Is.EqualTo(1));
 
-                // Starting units are fielded with a full turn's movement (F-9). Left at the column default of 0
-                // both would be frozen on the start tile, since nothing replenishes the field at rollover yet.
+                // Starting units are fielded with a full turn's movement on both maps. Left at the column default of 0
+                // both would be frozen on the start tile until their owner's first Turn opened.
                 Assert.That(movementPointsByTemplate[settlerTemplateId], Is.GreaterThan(0), "The seeded settler template must have movement points for the assertion below to mean anything.");
-                Assert.That(settler.MovementPointsRemaining, Is.EqualTo(movementPointsByTemplate[settlerTemplateId]), "The settler starts with its template's full campaign movement.");
-                Assert.That(scout.MovementPointsRemaining, Is.EqualTo(movementPointsByTemplate[scoutTemplateId]), "The scout starts with its template's full campaign movement.");
+                Assert.That(settler.CampaignMovementRemaining, Is.EqualTo(movementPointsByTemplate[settlerTemplateId]), "The settler starts with its template's full campaign movement.");
+                Assert.That(scout.CampaignMovementRemaining, Is.EqualTo(movementPointsByTemplate[scoutTemplateId]), "The scout starts with its template's full campaign movement.");
+                Assert.That(settler.BattleMovementRemaining, Is.EqualTo(battlefieldMovementByTemplate[settlerTemplateId]), "The settler starts with its template's full battle movement.");
+                Assert.That(scout.BattleMovementRemaining, Is.EqualTo(battlefieldMovementByTemplate[scoutTemplateId]), "The scout starts with its template's full battle movement.");
+
+                // Stamped for the Round the Queue is opened on, so that opening it does not hand them a second allowance
+                // on top of the one they were just fielded with.
+                Assert.That(settler.CampaignMovementReplenishedOnRound, Is.EqualTo(firstRoundNumber), "The settler is recorded as already granted for the Game's first Round.");
+                Assert.That(scout.CampaignMovementReplenishedOnRound, Is.EqualTo(firstRoundNumber), "The scout is recorded as already granted for the Game's first Round.");
 
                 // Both units share the player's single start tile.
                 Assert.That(scout.CampaignMapTileId, Is.EqualTo(settler.CampaignMapTileId), "Both starting units spawn on the player's start tile.");

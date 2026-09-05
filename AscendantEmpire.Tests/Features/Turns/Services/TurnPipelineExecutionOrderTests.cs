@@ -8,6 +8,7 @@ using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.
 using AscendantEmpire.Domain.Enums.Turns;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 using NSubstitute;
 
@@ -31,7 +32,7 @@ public class TurnPipelineExecutionOrderTests
     [SetUp]
     public void SetUp()
     {
-        // Two of the types below take a context factory, but none of them touch it to answer ExecutionOrder or its name.
+        // Several of the types below take a context factory, but none of them touch it to answer ExecutionOrder or its name.
         _dbFactory = Substitute.For<IDbContextFactory<AscendantEmpireContext>>();
     }
 
@@ -43,8 +44,8 @@ public class TurnPipelineExecutionOrderTests
     private IPipelineProcess[] EndCampaignRoundProcesses() =>
         [new HealTroops(_dbFactory), new EvaluateVictoryConditions()];
 
-    private static IPipelineProcess[] StartCampaignTurnProcesses() =>
-        [new AlertSentries(), new CheckUnitSupply()];
+    private IPipelineProcess[] StartCampaignTurnProcesses() =>
+        [new AlertSentries(), new CheckUnitSupply(), new ReplenishMovementPoints(_dbFactory, NullLogger<ReplenishMovementPoints>.Instance)];
 
     private IPossibleActionCheck[] PossibleActionChecks() =>
         [new CampaignRemainingMovementCheck(_dbFactory), new BattleRemainingMovementCheck(_dbFactory), new ResearchSelectionCheck(), new TradeExpiryCheck()];
@@ -70,12 +71,24 @@ public class TurnPipelineExecutionOrderTests
         Assert.That(RunOrderOf(EndCampaignRoundProcesses()), Is.EqualTo(expected));
     }
 
-    [Test, Description("Starting a turn reports what the sentries see before supply is reckoned against the Forces in the field.")]
+    [Test, Description("Starting a turn reports what the sentries see, then reckons supply, and only then hands out the movement allowance.")]
     public void ShouldRunStartCampaignTurnProcessesInDeclaredOrder()
     {
-        string[] expected = ["Alert Sentries", "Check Unit Supply"];
+        string[] expected = ["Alert Sentries", "Check Unit Supply", "Replenish Movement Points"];
 
         Assert.That(RunOrderOf(StartCampaignTurnProcesses()), Is.EqualTo(expected));
+    }
+
+    [Test, Description("Supply resolves before the movement allowance is granted: a fuel-requiring Unit with no fuel must receive no campaign movement at all, which cannot be decided once the allowance has already been handed out.")]
+    public void ShouldReckonUnitSupplyBeforeReplenishingMovementPoints()
+    {
+        int supplyOrder = (int)StartCampaignTurnProcessOrder.CheckUnitSupply;
+        int replenishOrder = (int)StartCampaignTurnProcessOrder.ReplenishMovementPoints;
+
+        // Stated separately from the sequence assertion above, which is rewritten every time a process is inserted. This constraint is the reason the
+        // two values are where they are, and it has to survive that rewriting.
+        Assert.That(supplyOrder, Is.LessThan(replenishOrder),
+            "The roadmap originally specified ReplenishMovementPoints at 5,000, ahead of supply. An allowance granted before supply is reckoned would have to be taken back.");
     }
 
     [Test, Description("Outstanding movement is reported before research and trade, as EndTurnPossibleActionOrder declares — not after, as hard-coded numbers once made it.")]

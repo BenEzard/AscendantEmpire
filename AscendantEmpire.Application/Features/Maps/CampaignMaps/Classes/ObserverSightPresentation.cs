@@ -53,9 +53,10 @@ public static class ObserverSightPresentation
                     HealthyTroops = force.HealthyTroops,
                     InjuredTroops = force.InjuredTroops,
                     InitialStrength = force.InitialStrength,
-                    HasMovementRemaining = force.HasMovementRemaining,
-                    MovementPointsRemaining = force.MovementPointsRemaining,
-                    CampaignMovementPoints = force.CampaignMovementPoints
+                    HasCampaignMovementRemaining = force.HasCampaignMovementRemaining,
+                    CampaignMovementRemaining = force.CampaignMovementRemaining,
+                    CampaignMovementPoints = force.CampaignMovementPoints,
+                    BattleMovementRemaining = force.BattleMovementRemaining
                 }) ?? []]
             })]
         })];

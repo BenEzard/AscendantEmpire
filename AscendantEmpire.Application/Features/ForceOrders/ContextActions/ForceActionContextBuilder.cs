@@ -89,7 +89,7 @@ internal sealed class ForceActionContextBuilder(
                     DisplayName = force.Name ?? force.UnitTemplate.Compiled!.DisplayName,
                     HealthyCount = force.HealthyCount,
                     InjuredCount = force.InjuredCount,
-                    MovementPointsRemaining = force.MovementPointsRemaining,
+                    CampaignMovementRemaining = force.CampaignMovementRemaining,
                     CampaignMovementPoints = force.UnitTemplate.Compiled!.CampaignMovementPoints,
                     Organisation = force.UnitTemplate.Compiled!.OrganisationTag == null
                         ? null

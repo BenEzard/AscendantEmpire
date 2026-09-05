@@ -47,7 +47,7 @@ internal class SplitForceStrategyTests
     private static ForceActionForce Force(
         int healthyCount = 100,
         int injuredCount = 0,
-        long movementPointsRemaining = _FULL_CAMPAIGN_MOVEMENT,
+        long campaignMovementRemaining = _FULL_CAMPAIGN_MOVEMENT,
         ForceActionOrganisation? organisation = null)
     {
         return new ForceActionForce
@@ -58,7 +58,7 @@ internal class SplitForceStrategyTests
             DisplayName = "Settler",
             HealthyCount = healthyCount,
             InjuredCount = injuredCount,
-            MovementPointsRemaining = movementPointsRemaining,
+            CampaignMovementRemaining = campaignMovementRemaining,
             CampaignMovementPoints = _FULL_CAMPAIGN_MOVEMENT,
             Organisation = organisation ?? Organisation()
         };
@@ -149,7 +149,7 @@ internal class SplitForceStrategyTests
     [Test, Description("Splitting costs a whole turn, so a force even one movement point down has already gone somewhere.")]
     public void ShouldBlockTheSplitWhenAnyMovementHasAlreadyBeenSpent()
     {
-        ForceActionAvailability? result = _strategy.Evaluate(Context(Force(movementPointsRemaining: _FULL_CAMPAIGN_MOVEMENT - 1)));
+        ForceActionAvailability? result = _strategy.Evaluate(Context(Force(campaignMovementRemaining: _FULL_CAMPAIGN_MOVEMENT - 1)));
 
         Assert.That(result, Is.Not.Null);
 
@@ -161,10 +161,23 @@ internal class SplitForceStrategyTests
         }
     }
 
+    [Test, Description("A Force carrying more than a full allowance still counts as having full movement, which is what the Split gate asks for — it is no longer proof the Force has not moved this turn.")]
+    public void ShouldAllowTheSplitWhenAForceIsCarryingMoreThanAFullAllowance()
+    {
+        // Movement left unspent is carried into the next turn on top of the allowance, so a Force can open its turn
+        // above it — and, having moved, still sit at or above it. The Split gate cannot tell the two apart without
+        // knowing what was actually granted this turn, which is not stored. Pinned here so the loosening is visible
+        // rather than discovered later.
+        ForceActionAvailability? result = _strategy.Evaluate(Context(Force(campaignMovementRemaining: _FULL_CAMPAIGN_MOVEMENT + 1_000)));
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.IsEnabled, Is.True);
+    }
+
     [Test, Description("Every failing rule is reported at once, so fixing one problem does not simply reveal the next.")]
     public void ShouldReportEveryFailingRuleWhenBothSizeAndMovementFail()
     {
-        ForceActionAvailability? result = _strategy.Evaluate(Context(Force(healthyCount: 10, movementPointsRemaining: 0)));
+        ForceActionAvailability? result = _strategy.Evaluate(Context(Force(healthyCount: 10, campaignMovementRemaining: 0)));
 
         Assert.That(result, Is.Not.Null);
 

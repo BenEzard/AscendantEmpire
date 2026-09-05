@@ -112,7 +112,12 @@ Carried debts from the `UnitInstance` FK swap (`UnitDesignId` → `UnitTemplateI
 - **Movement modifiers are lost for template-built Units.** The legacy `CompiledDesignStats.ModifiersJson` has
   no compiled-template equivalent, so `MovementProfileFactory` currently builds an empty modifier list —
   template-built Units move un-modified. The parsing is left wired so the JSON drops straight back in once it is
-  compiled onto `CompiledUnitTemplate`.
+  compiled onto `CompiledUnitTemplate`. **Still open**, and it now bites slightly harder: F-14 made the
+  per-turn allowance real, so an un-modified allowance is one a player can actually see being handed out.
+- **Movement replenishment — done (TM-3, delivered as F-14).** `UnitInstance.CampaignMovementRemaining` is
+  granted at the start of the owning player's turn, after supply is reckoned, with unspent movement carried up
+  to one point. Battle movement moved to its own column, `BattleMovementRemaining`, which is granted at spawn
+  and **not** replenished — battle rounds are not campaign rounds and the battle turn pipeline has no processes.
 - **The Hunt action is disabled in the UI.** It was gated on legacy unit design id 2; re-enable it via a
   compiled capability tag once capability grants exist (`tags-and-modifiers.md`, concept 3).
 - **`UnitDesign` still exists** and is still referenced by `PlayerUnitDesignState` and `CompiledDesignStats`.

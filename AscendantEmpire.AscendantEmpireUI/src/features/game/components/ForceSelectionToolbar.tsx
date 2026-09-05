@@ -57,9 +57,9 @@ function formatMovementPoints(points: number): string {
  * travel — and the caller renders nothing at all in that case rather than inventing a figure.
  */
 function describeMovement(force: ObservedForceTile): string | null {
-  if (force.movementPointsRemaining == null || force.campaignMovementPoints == null) return null;
+  if (force.campaignMovementRemaining == null || force.campaignMovementPoints == null) return null;
 
-  return `${formatMovementPoints(force.movementPointsRemaining)} / ${formatMovementPoints(force.campaignMovementPoints)}`;
+  return `${formatMovementPoints(force.campaignMovementRemaining)} / ${formatMovementPoints(force.campaignMovementPoints)}`;
 }
 
 /** The accessible name for a force's button. */
@@ -106,7 +106,7 @@ export default function ForceSelectionToolbar({
   // and without a second key the buttons would shuffle under the cursor on every refetch. Ordering does shift as
   // forces spend their movement during a turn — that is the point of the first key.
   const orderedForces = [...tile.forces].sort(
-    (a, b) => Number(b.hasMovementRemaining) - Number(a.hasMovementRemaining) || a.id - b.id,
+    (a, b) => Number(b.hasCampaignMovementRemaining) - Number(a.hasCampaignMovementRemaining) || a.id - b.id,
   );
 
   // Tracked while mapping so the scroll ref lands on the first selected entry without a second pass over the list.
@@ -150,7 +150,7 @@ export default function ForceSelectionToolbar({
                   style={{ width: TILE_SIZE_PX, height: TILE_SIZE_PX }}
                   className={[
                     "force-selection-toolbar__marker",
-                    force.hasMovementRemaining ? "" : "force-selection-toolbar__marker--spent",
+                    force.hasCampaignMovementRemaining ? "" : "force-selection-toolbar__marker--spent",
                   ]
                     .filter(Boolean)
                     .join(" ")}>

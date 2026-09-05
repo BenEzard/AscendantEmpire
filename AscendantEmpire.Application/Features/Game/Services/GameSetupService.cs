@@ -34,6 +34,14 @@ internal class GameSetupService(
     public const int MAX_NUMBER_OF_PLAYERS = 8; // TODO: Make this configurable as AppSettings.
 
     /// <summary>
+    /// The Round the campaign Turn Queue is opened on when a Game is set up.
+    /// </summary>
+    /// <remarks>
+    /// Shared by the Queue itself and by the movement stamp on the starting Units, because the two have to agree.
+    /// </remarks>
+    private const int _FIRST_ROUND_NUMBER = 1;
+
+    /// <summary>
     /// The global template codes every player starts the game with — unlocked, and spawned once each at the
     /// player's start position. Each must resolve to an unled organisation tag (see
     /// <see cref="SeedStarterUnitsAsync"/>).
@@ -189,7 +197,7 @@ internal class GameSetupService(
                 GameId = gameId,
                 QueueType = TurnQueueType.Campaign,
                 BattleId = null,
-                CurrentRoundNumber = 1,
+                CurrentRoundNumber = _FIRST_ROUND_NUMBER,
                 CurrentTurnStartAt = null,
                 CurrentScheduledTurnEndAt = null,
                 CurrentActualTurnEndAt = null,
@@ -393,7 +401,7 @@ internal class GameSetupService(
             .ToListAsync(cancellationToken);
 
         // Resolve each starter's spawn size and movement allowance up front so a misconfigured catalogue fails before anything is written.
-        List<(UnitTemplate Template, int SpawnSize, long CampaignMovementPoints)> startersToSpawn = [];
+        List<(UnitTemplate Template, int SpawnSize, long CampaignMovementPoints, long BattlefieldMovementPoints)> startersToSpawn = [];
 
         foreach (UnitTemplate template in starterTemplates)
         {
@@ -414,7 +422,7 @@ internal class GameSetupService(
                 return ServiceResultBase.Fail($"Starter template '{template.Code}' resolves to unled tag '{organisationTag.Code}', which has no authored UnledDefaultSize.");
             }
 
-            startersToSpawn.Add((template, organisationTag.UnledDefaultSize.Value, compiled.CampaignMovementPoints));
+            startersToSpawn.Add((template, organisationTag.UnledDefaultSize.Value, compiled.CampaignMovementPoints, compiled.BattlefieldMovementPoints));
         }
 
         // One start position per player, best-scored first (unscored positions come last).
@@ -482,10 +490,12 @@ internal class GameSetupService(
                 InitialStrength = starter.SpawnSize,
                 HealthyCount = starter.SpawnSize,
                 InjuredCount = 0,
+                CampaignMovementRemaining = starter.CampaignMovementPoints,
+                BattleMovementRemaining = starter.BattlefieldMovementPoints,
 
-                // Starting units are fielded with a full turn's movement, exactly as SpawnUnitHandler does — otherwise every player would open
-                // the game with two units frozen on their start tile until turn rollover replenishes them (TM-3).
-                MovementPointsRemaining = starter.CampaignMovementPoints,
+                // Setup opens the Queue on the first Round and StartGameAsync runs that Round's start-of-Turn pipeline straight afterwards.
+                // Stamping the starters as already granted for it is what stops them being handed a second allowance before anybody has played.
+                CampaignMovementReplenishedOnRound = _FIRST_ROUND_NUMBER,
             }));
         }
 

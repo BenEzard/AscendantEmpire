@@ -244,7 +244,7 @@ internal class StepForceHandlerTests : InMemoryTestBase
     /// <summary>Fields the test Force, defaulting to the player's own healthy warrior standing in the middle of the open row.</summary>
     private async Task AddForceAsync(
         int playerId = _PLAYER_ID,
-        long movementPointsRemaining = _CAMPAIGN_MOVEMENT_POINTS,
+        long campaignMovementRemaining = _CAMPAIGN_MOVEMENT_POINTS,
         int healthyCount = 100,
         int? battleMapTileId = null,
         int x = _START_X,
@@ -264,17 +264,17 @@ internal class StepForceHandlerTests : InMemoryTestBase
             InitialStrength = 100,
             HealthyCount = healthyCount,
             InjuredCount = 0,
-            MovementPointsRemaining = movementPointsRemaining
+            CampaignMovementRemaining = campaignMovementRemaining
         });
 
         await context.SaveChangesAsync();
     }
 
     /// <summary>Sets up a land Force in the default position, which is what most of these tests start from.</summary>
-    private async Task GivenALandForceAsync(long movementPointsRemaining = _CAMPAIGN_MOVEMENT_POINTS)
+    private async Task GivenALandForceAsync(long campaignMovementRemaining = _CAMPAIGN_MOVEMENT_POINTS)
     {
         await CompileTemplateAsync();
-        await AddForceAsync(movementPointsRemaining: movementPointsRemaining);
+        await AddForceAsync(campaignMovementRemaining: campaignMovementRemaining);
     }
 
     private async Task<ServiceResult<StepForceResult>> StepAsync(MoveDirection direction, int playerId = _PLAYER_ID)
@@ -302,10 +302,10 @@ internal class StepForceHandlerTests : InMemoryTestBase
         {
             Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
             Assert.That(moved.CampaignMapTileId, Is.EqualTo(TileId(_START_X + 1, _START_Y)), "The force should be standing on the tile to its east.");
-            Assert.That(moved.MovementPointsRemaining, Is.EqualTo(1_000), "Flat grassland costs 1.0, so 2.0 becomes 1.0.");
+            Assert.That(moved.CampaignMovementRemaining, Is.EqualTo(1_000), "Flat grassland costs 1.0, so 2.0 becomes 1.0.");
             Assert.That(result.SuccessValue!.XCoord, Is.EqualTo(_START_X + 1));
             Assert.That(result.SuccessValue.YCoord, Is.EqualTo(_START_Y));
-            Assert.That(result.SuccessValue.MovementPointsRemaining, Is.EqualTo(1.0m), "The response reports points as decimals, not the raw scaled value.");
+            Assert.That(result.SuccessValue.CampaignMovementRemaining, Is.EqualTo(1.0m), "The response reports points as decimals, not the raw scaled value.");
             Assert.That(result.SuccessValue.CampaignMovementPoints, Is.EqualTo(2.0m), "The full allowance travels too, so the client can show what is left of a turn.");
         }
     }
@@ -338,7 +338,7 @@ internal class StepForceHandlerTests : InMemoryTestBase
     {
         // 1.0 movement point against the hilly tile east of the start, which costs 2.0 to cross.
         await CompileTemplateAsync();
-        await AddForceAsync(movementPointsRemaining: 1_000, x: 3, y: _START_Y);
+        await AddForceAsync(campaignMovementRemaining: 1_000, x: 3, y: _START_Y);
 
         ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
 
@@ -348,7 +348,7 @@ internal class StepForceHandlerTests : InMemoryTestBase
         {
             Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
             Assert.That(moved.CampaignMapTileId, Is.EqualTo(TileId(4, _START_Y)), "1.0 point is exactly half of the hill's 2.0 cost, which is enough to enter.");
-            Assert.That(moved.MovementPointsRemaining, Is.EqualTo(-1_000), "Entering costs half but spends the whole 2.0, leaving the force a point in debt.");
+            Assert.That(moved.CampaignMovementRemaining, Is.EqualTo(-1_000), "Entering costs half but spends the whole 2.0, leaving the force a point in debt.");
         }
     }
 
@@ -357,7 +357,7 @@ internal class StepForceHandlerTests : InMemoryTestBase
     {
         // 0.4 of a point against a hilly tile costing 2.0, which needs 1.0 to enter.
         await CompileTemplateAsync();
-        await AddForceAsync(movementPointsRemaining: 400, x: 3, y: _START_Y);
+        await AddForceAsync(campaignMovementRemaining: 400, x: 3, y: _START_Y);
 
         ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
 
@@ -368,14 +368,14 @@ internal class StepForceHandlerTests : InMemoryTestBase
             Assert.That(result.HasSucceeded, Is.False);
             Assert.That(result.Errors.Single(), Does.Contain("movement points"));
             Assert.That(unmoved.CampaignMapTileId, Is.EqualTo(TileId(3, _START_Y)));
-            Assert.That(unmoved.MovementPointsRemaining, Is.EqualTo(400));
+            Assert.That(unmoved.CampaignMovementRemaining, Is.EqualTo(400));
         }
     }
 
     [Test, Description("A force with nothing left is told so plainly, rather than being quoted arithmetic about a tile it was never going to reach.")]
     public async Task ShouldRefuseAStepByASpentForceAsync()
     {
-        await GivenALandForceAsync(movementPointsRemaining: 0);
+        await GivenALandForceAsync(campaignMovementRemaining: 0);
 
         ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
 
@@ -399,7 +399,7 @@ internal class StepForceHandlerTests : InMemoryTestBase
         {
             Assert.That(result.HasSucceeded, Is.False);
             Assert.That(result.Errors.Single(), Is.EqualTo("Mountain terrain cannot be entered."));
-            Assert.That(unmoved.MovementPointsRemaining, Is.EqualTo(_CAMPAIGN_MOVEMENT_POINTS), "A refused step costs nothing.");
+            Assert.That(unmoved.CampaignMovementRemaining, Is.EqualTo(_CAMPAIGN_MOVEMENT_POINTS), "A refused step costs nothing.");
         }
     }
 

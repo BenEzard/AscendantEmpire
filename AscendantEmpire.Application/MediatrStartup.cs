@@ -102,6 +102,7 @@ public static class MediatrStartup
         // Start of a Campaign Turn — runs for the Player whose turn is beginning.
         services.AddScoped<IStartCampaignTurnProcess, AlertSentries>();
         services.AddScoped<IStartCampaignTurnProcess, CheckUnitSupply>();
+        services.AddScoped<IStartCampaignTurnProcess, ReplenishMovementPoints>();
 
         // Generic background processing pipeline.
         // The channel is singleton so the same instance is shared between the handlers

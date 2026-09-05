@@ -29,8 +29,8 @@ function force(overrides: Partial<ObservedForceTile> = {}): ObservedForceTile {
     healthyTroops: 50,
     injuredTroops: 0,
     initialStrength: 50,
-    hasMovementRemaining: true,
-    movementPointsRemaining: 2,
+    hasCampaignMovementRemaining: true,
+    campaignMovementRemaining: 2,
     campaignMovementPoints: 2,
     ...overrides,
   };
@@ -50,20 +50,20 @@ function stepResult({
   unitInstanceId = 1,
   x,
   y,
-  movementPointsRemaining = 1,
+  campaignMovementRemaining = 1,
   forcesOnDestination,
 }: {
   unitInstanceId?: number;
   x: number;
   y: number;
-  movementPointsRemaining?: number;
+  campaignMovementRemaining?: number;
   forcesOnDestination?: ObservedForceTile[];
 }): StepForceResponse {
   return {
     unitInstanceId,
     xCoord: x,
     yCoord: y,
-    movementPointsRemaining,
+    campaignMovementRemaining,
     campaignMovementPoints: 2,
     tiles:
       forcesOnDestination == null
@@ -474,13 +474,13 @@ describe("useForceSelection", () => {
           stepResult({
             x: 6,
             y: 4,
-            forcesOnDestination: [force({ id: 1, movementPointsRemaining: 0.5, healthyTroops: 44 })],
+            forcesOnDestination: [force({ id: 1, campaignMovementRemaining: 0.5, healthyTroops: 44 })],
           }),
         );
       });
 
       const moved = result.current.selectedForces[0];
-      expect(moved.movementPointsRemaining).toBe(0.5);
+      expect(moved.campaignMovementRemaining).toBe(0.5);
       // Troop count too, not just movement: every field should be current, not only the one we knew had changed.
       expect(moved.healthyTroops).toBe(44);
     });
@@ -490,10 +490,10 @@ describe("useForceSelection", () => {
 
       // The step committed but the vision refresh failed, so the response carries no tiles at all.
       act(() => {
-        result.current.onForceMoved(stepResult({ x: 6, y: 4, movementPointsRemaining: 0.5 }));
+        result.current.onForceMoved(stepResult({ x: 6, y: 4, campaignMovementRemaining: 0.5 }));
       });
 
-      expect(result.current.selectedForces[0].movementPointsRemaining).toBe(0.5);
+      expect(result.current.selectedForces[0].campaignMovementRemaining).toBe(0.5);
       // The bar cannot describe the destination without data for it, and a bar for the tile the force left would be
       // worse than none at all.
       expect(result.current.multiForceTile).toBeNull();

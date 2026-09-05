@@ -77,9 +77,10 @@ internal class GetForcesByLocationHandler(
                       InjuredTroops = pu.InjuredCount,
                       InitialStrength = pu.InitialStrength,
                       UnitTemplateId = pu.UnitTemplateId,
-                      HasMovementRemaining = pu.MovementPointsRemaining > 0,
-                      MovementPointsRemaining = pu.MovementPointsRemaining / (decimal)ScaledAmount.Scale,
+                      HasCampaignMovementRemaining = pu.CampaignMovementRemaining > 0,
+                      CampaignMovementRemaining = pu.CampaignMovementRemaining / (decimal)ScaledAmount.Scale,
                       CampaignMovementPoints = pu.UnitTemplate.Compiled!.CampaignMovementPoints / (decimal)ScaledAmount.Scale,
+                      BattleMovementRemaining = pu.BattleMovementRemaining / (decimal)ScaledAmount.Scale,
                   })
                   .ToListAsync(cancelToken);
 

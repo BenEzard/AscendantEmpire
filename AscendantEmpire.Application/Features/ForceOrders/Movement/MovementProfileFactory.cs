@@ -56,7 +56,7 @@ internal sealed class MovementProfileFactory : IMovementProfileFactory
             // The Force stores its remaining MP as raw fixed-point (Scale 1,000), the same convention as the compiled template's
             // allowance above. Converted here, at the one boundary between storage and the movement engine, so the engine's models
             // stay in whole/fractional decimal MP throughout.
-            MovementPointsRemaining = force.MovementPointsRemaining / (decimal)ScaledAmount.Scale
+            CampaignMovementRemaining = force.CampaignMovementRemaining / (decimal)ScaledAmount.Scale
         };
     }
 

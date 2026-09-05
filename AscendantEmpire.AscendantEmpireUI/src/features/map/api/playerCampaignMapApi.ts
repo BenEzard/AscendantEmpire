@@ -53,11 +53,14 @@ export type ObservedForceDto = {
   injuredTroops: number;
   initialStrength: number;
   unitTemplateId: number;
-  hasMovementRemaining: boolean;
+  hasCampaignMovementRemaining: boolean;
   // Null when the API masked it — we only get numbers for our own forces. Can be negative: entering a tile takes half its
-  // movement cost but spends the whole of it, so a slow force crossing rough ground finishes the turn in debt.
-  movementPointsRemaining: number | null;
+  // movement cost but spends the whole of it, so a slow force crossing rough ground finishes the turn in debt. Can also
+  // exceed the allowance, because movement left unspent is carried into the next turn on top of it.
+  campaignMovementRemaining: number | null;
   campaignMovementPoints: number | null;
+  // A separate pool from the campaign figures, masked the same way. Nothing spends or replenishes it yet.
+  battleMovementRemaining: number | null;
 };
 
 type ObservedStructureWireDto = Partial<{
@@ -80,9 +83,10 @@ type ObservedForceWireDto = Partial<{
   // Nullable on the wire: the API masks it for forces the player doesn't own, rather than telling them how much
   // movement an enemy has left. The two numbers below are masked by the same rule, and more sharply — they say
   // exactly how far a force could still go.
-  hasMovementRemaining: boolean | null;
-  movementPointsRemaining: number | null;
+  hasCampaignMovementRemaining: boolean | null;
+  campaignMovementRemaining: number | null;
   campaignMovementPoints: number | null;
+  battleMovementRemaining: number | null;
 }>;
 
 type CampaignMapTileWireDto = Partial<{
@@ -146,11 +150,12 @@ function normalizeObservedForce(force: ObservedForceWireDto): ObservedForceDto {
     initialStrength: force.initialStrength ?? 0,
     // Defaults to true, unlike the zero-defaults above. A masked (or simply absent) value means "we aren't told",
     // and the UI fades a force that has spent its movement — so guessing false would fade forces on no evidence.
-    hasMovementRemaining: force.hasMovementRemaining ?? true,
+    hasCampaignMovementRemaining: force.hasCampaignMovementRemaining ?? true,
     // Null rather than 0, for the same "we aren't told" reason — and here there is no safe guess available: 0 would read as a
     // spent force, and any other number would be a fabrication. The UI shows nothing at all when these are null.
-    movementPointsRemaining: force.movementPointsRemaining ?? null,
+    campaignMovementRemaining: force.campaignMovementRemaining ?? null,
     campaignMovementPoints: force.campaignMovementPoints ?? null,
+    battleMovementRemaining: force.battleMovementRemaining ?? null,
   };
 }
 
@@ -233,7 +238,7 @@ function logForceTable(response: PlayerCampaignMapResponseDto): void {
         healthyTroops: force.healthyTroops,
         injuredTroops: force.injuredTroops,
         initialStrength: force.initialStrength,
-        hasMovementRemaining: force.hasMovementRemaining,
+        hasCampaignMovementRemaining: force.hasCampaignMovementRemaining,
       })),
     ),
   );

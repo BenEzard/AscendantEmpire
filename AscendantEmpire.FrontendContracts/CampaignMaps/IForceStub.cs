@@ -20,20 +20,27 @@ public interface IForceStub
     /// <summary>
     /// Whether this Force still has campaign movement left this turn, or <c>null</c> when the observing player does not own it.
     /// </summary>
-    public bool? HasMovementRemaining { get; }
+    public bool? HasCampaignMovementRemaining { get; }
 
     /// <summary>
     /// The campaign movement points this Force has left this turn, or <c>null</c> when the observing player does not own it.
     /// </summary>
     /// <remarks>
     /// May be negative: a Force needs only half a tile's cost to enter it but pays the whole cost once there, so it can finish a step in debt.
-    /// Masked for the same reason as <see cref="HasMovementRemaining"/> — how far an enemy can still move is intel the vision rules never granted.
+    /// May also exceed <see cref="CampaignMovementPoints"/>, because unspent movement is carried into the next turn on top of the allowance.
+    /// Masked for the same reason as <see cref="HasCampaignMovementRemaining"/> — how far an enemy can still move is intel the vision rules never granted.
     /// </remarks>
-    public decimal? MovementPointsRemaining { get; }
+    public decimal? CampaignMovementRemaining { get; }
 
     /// <summary>
     /// This Force's full movement allowance for a turn, or <c>null</c> when the observing player does not own it.
     /// </summary>
-    /// <remarks>The denominator for <see cref="MovementPointsRemaining"/>, so the client can show what is left as a proportion of a full turn.</remarks>
+    /// <remarks>The denominator for <see cref="CampaignMovementRemaining"/>, so the client can show what is left as a proportion of a full turn.</remarks>
     public decimal? CampaignMovementPoints { get; }
+
+    /// <summary>
+    /// The battle movement points this Force has left in its current Battle, or <c>null</c> when the observing player does not own it.
+    /// </summary>
+    /// <remarks>A separate pool from <see cref="CampaignMovementRemaining"/>, masked for the same reason.</remarks>
+    public decimal? BattleMovementRemaining { get; }
 }

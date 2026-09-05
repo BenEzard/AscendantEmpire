@@ -80,7 +80,7 @@ carrying that unit's organisation tag.
 | Component Type | Body |
 | Movement Domain | Land |
 | Campaign Movement Points | 1000 *(fixed-point: 1,000 = 1.0)* |
-| Battlefield Movement Points | 2000 *(battle-map movement is double the campaign map)* |
+| Battlefield Movement Points | *derived, not authored* — `MAX(0, Power − SUM(weight of fitted components))`, computed at compile time (UD-52). For an unloaded human body that lands at 1000; it is **not** double the campaign figure, whatever older text says. |
 | Power / Hitpoints | 1000 each |
 | Detection | 1000 |
 | Tags | `infantry`, if you authored it |

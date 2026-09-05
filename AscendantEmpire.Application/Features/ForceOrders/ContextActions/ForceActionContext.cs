@@ -44,11 +44,11 @@ internal sealed record ForceActionForce
     public required int InjuredCount { get; init; }
 
     /// <summary>Movement points left this turn, raw fixed-point on the Scale 1,000 convention.</summary>
-    public required long MovementPointsRemaining { get; init; }
+    public required long CampaignMovementRemaining { get; init; }
 
     /// <summary>
     /// The Force's full per-turn movement allowance, copied from its compiled template. Raw fixed-point on the same Scale 1,000 convention as
-    /// <see cref="MovementPointsRemaining"/>, so the two compare directly.
+    /// <see cref="CampaignMovementRemaining"/>, so the two compare directly.
     /// </summary>
     public required long CampaignMovementPoints { get; init; }
 
@@ -60,12 +60,19 @@ internal sealed record ForceActionForce
     /// <summary>The Force's current size — every soldier still standing, hurt or not.</summary>
     public int TotalStrength => HealthyCount + InjuredCount;
 
-    /// <summary>Whether the Force still holds every movement point it started the turn with.</summary>
+    /// <summary>Whether the Force is holding at least a full Turn's movement allowance.</summary>
     /// <remarks>
-    /// Actions which cost a whole turn require this rather than merely "some movement left". A Force is now spawned holding its template's full
-    /// campaign allowance (F-9), so this reads true until it moves; turn rollover does not yet replenish it (TM-3) — see the design doc.
+    /// <para>
+    /// Actions which cost a whole Turn require this rather than merely "some movement left".
+    /// </para>
+    /// <para>
+    /// <b>This is no longer proof that the Force has not moved this Turn.</b> It used to be: before F-14 the remaining value could never exceed the
+    /// allowance, so the comparison was an equality in all but name. Now that unspent movement is carried into the next Turn and added on top of the
+    /// allowance, a Force can open its Turn above it — and having moved, still sit at or above it. Tightening this needs the total the Force was
+    /// actually granted this Turn, which is not stored, so it is knowingly left loose. See the F-14 follow-up.
+    /// </para>
     /// </remarks>
-    public bool HasFullMovement => MovementPointsRemaining >= CampaignMovementPoints;
+    public bool HasFullMovement => CampaignMovementRemaining >= CampaignMovementPoints;
 }
 
 /// <summary>

@@ -2,6 +2,7 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
+using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Units.Classes;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
 using AscendantEmpire.Domain.Entities.Games;
@@ -64,7 +65,8 @@ internal class SpawnUnitRequestValidator : Validator<SpawnUnitRequest>
 internal class SpawnUnitHandler(
     ILogger<SpawnUnitHandler> logger,
     IMediator mediator,
-    IDbContextFactory<AscendantEmpireContext> dbFactory
+    IDbContextFactory<AscendantEmpireContext> dbFactory,
+    ICampaignTurnService campaignTurnService
 ) : IRequestHandler<SpawnUnitRequest, ServiceResultBase>
 {
     public async Task<ServiceResultBase> Handle(SpawnUnitRequest request, CancellationToken cancelToken)
@@ -149,6 +151,8 @@ internal class SpawnUnitHandler(
                 return ServiceResultBase.Fail(sizeErrors);
             }
 
+            int currentRoundNumber = await campaignTurnService.GetCurrentRoundNumberAsync(gameInfo.GameId, cancelToken);
+
             context.UnitInstances.Add(new UnitInstance
             {
                 GameId = gameInfo.GameId,
@@ -159,11 +163,11 @@ internal class SpawnUnitHandler(
                 HealthyCount = request.HealthyCount,
                 InjuredCount = request.InjuredCount,
 
-                // A Unit is fielded with a full turn's movement, taken from its template's compiled snapshot.
-                // Left at the column default of 0 it could not move at all on the turn it was spawned: MoveForceHandler refuses a Force with no
-                // points left, and nothing else writes this field until turn rollover replenishes it (TM-3). Both sides are the same raw
-                // Scale-1,000 fixed point, so the allowance copies across with no conversion.
-                MovementPointsRemaining = compiledTemplate.CampaignMovementPoints,
+                // A Unit is fielded with a full turn's movement on both maps, taken from its template's compiled snapshot.
+                CampaignMovementRemaining = compiledTemplate.CampaignMovementPoints,
+                BattleMovementRemaining = compiledTemplate.BattlefieldMovementPoints,
+
+                CampaignMovementReplenishedOnRound = currentRoundNumber,
             });
 
             await context.SaveChangesAsync(cancelToken);

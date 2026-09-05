@@ -43,7 +43,9 @@ CombatantProfile {
   Veterancy VeterancyLevel
   int      VeterancyExperiencePoints
   Domain   MovementDomain               // the domain the unit occupies/moves in
-  float    MovementPoints
+  long     CampaignMovementRemaining    // raw Scale 1,000 fixed point, not a float; may be negative, and may
+                                        // exceed the template allowance because unspent movement carries
+  long     BattleMovementRemaining      // the battle pool, held separately
   Tag[]    Tags
   int      HealthyCount
   int      InjuredCount

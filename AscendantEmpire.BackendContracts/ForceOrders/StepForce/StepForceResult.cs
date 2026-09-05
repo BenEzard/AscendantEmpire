@@ -24,7 +24,7 @@ public record StepForceResult
     /// Entering a tile requires only half its movement cost but spends all of it, so a Force can finish a step in debt. See
     /// <c>docs/design/units/unit-mechanics.md</c>, rule 2.
     /// </remarks>
-    public decimal MovementPointsRemaining { get; init; }
+    public decimal CampaignMovementRemaining { get; init; }
 
     /// <summary>The Force's full movement allowance for a turn, taken from its compiled template.</summary>
     public decimal CampaignMovementPoints { get; init; }

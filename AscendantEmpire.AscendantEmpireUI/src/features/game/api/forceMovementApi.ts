@@ -32,7 +32,7 @@ export type StepForceResponse = {
   xCoord: number;
   yCoord: number;
   /** May be negative — entering a tile takes half its movement cost but spends all of it. */
-  movementPointsRemaining: number;
+  campaignMovementRemaining: number;
   campaignMovementPoints: number;
   /** Every tile the player can now see, including the one the force just left, which comes back without it. */
   tiles: CampaignMapTileDto[];
@@ -43,7 +43,7 @@ type StepForceWireDto = Partial<{
   unitInstanceId: number;
   xCoord: number;
   yCoord: number;
-  movementPointsRemaining: number;
+  campaignMovementRemaining: number;
   campaignMovementPoints: number;
   observers: Parameters<typeof normalizeObserver>[0][];
 }>;
@@ -69,7 +69,7 @@ export async function postStepForce(req: StepForceRequest): Promise<StepForceRes
     unitInstanceId: data.unitInstanceId ?? req.unitInstanceId,
     xCoord: data.xCoord ?? 0,
     yCoord: data.yCoord ?? 0,
-    movementPointsRemaining: data.movementPointsRemaining ?? 0,
+    campaignMovementRemaining: data.campaignMovementRemaining ?? 0,
     campaignMovementPoints: data.campaignMovementPoints ?? 0,
     // Several observers can see the same tile, so collapse them the way the map read does before anything merges them in.
     tiles: mergeTilesByCoord(observers.flatMap((observer) => observer.seenTiles)),

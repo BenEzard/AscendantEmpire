@@ -247,16 +247,16 @@ internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
         // echoing whatever the spawn defaults happen to be.
         foreach (UnitInstance spentForce in viewerForces)
         {
-            spentForce.MovementPointsRemaining = 0;
+            spentForce.CampaignMovementRemaining = 0;
         }
 
         UnitInstance movingForce = viewerForces[0];
-        movingForce.MovementPointsRemaining = ScaledAmount.Scale;
+        movingForce.CampaignMovementRemaining = ScaledAmount.Scale;
 
         // Park the rival on the viewer's own tile so it is certainly observed. Left where it spawned, the masking
         // assertion would pass vacuously on any map where the rival happened to start out of sight.
         rivalForce.CampaignMapTileId = movingForce.CampaignMapTileId;
-        rivalForce.MovementPointsRemaining = ScaledAmount.Scale;
+        rivalForce.CampaignMovementRemaining = ScaledAmount.Scale;
 
         await setup.SaveChangesAsync();
 
@@ -279,15 +279,15 @@ internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(reportedMovingForce, Is.Not.Null, "The viewer sees their own Force.");
-            Assert.That(reportedMovingForce!.HasMovementRemaining, Is.True, "The viewer is told their own Force can still move.");
+            Assert.That(reportedMovingForce!.HasCampaignMovementRemaining, Is.True, "The viewer is told their own Force can still move.");
 
             foreach (ObservedForce reported in reportedForces.Where(f => f.OwnerPlayerId == viewer.Id && f.Id != movingForce.Id))
             {
-                Assert.That(reported.HasMovementRemaining, Is.False, $"Force {reported.Id} has spent its movement and is reported as such.");
+                Assert.That(reported.HasCampaignMovementRemaining, Is.False, $"Force {reported.Id} has spent its movement and is reported as such.");
             }
 
             Assert.That(reportedRivalForce, Is.Not.Null, "The rival Force is standing on the viewer's own tile, so it is in sight.");
-            Assert.That(reportedRivalForce!.HasMovementRemaining, Is.Null,
+            Assert.That(reportedRivalForce!.HasCampaignMovementRemaining, Is.Null,
                 "A rival's remaining movement is masked — seeing a Force is not the same as knowing whether it can still act.");
         }
     }

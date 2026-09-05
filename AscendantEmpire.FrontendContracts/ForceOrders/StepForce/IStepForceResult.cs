@@ -33,7 +33,7 @@ public interface IStepForceResult
     /// May be negative. A Force needs only half a tile's cost to enter it but pays the whole cost once there, so a slow Force crossing expensive
     /// ground ends the turn in debt and spends the next one paying it off. See <c>docs/design/units/unit-mechanics.md</c>.
     /// </remarks>
-    decimal MovementPointsRemaining { get; }
+    decimal CampaignMovementRemaining { get; }
 
     /// <summary>The Force's full movement allowance for a turn, so the client can show what remains as a proportion of it.</summary>
     decimal CampaignMovementPoints { get; }
