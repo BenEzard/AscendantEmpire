@@ -108,7 +108,7 @@ public class CampaignTurnService(
                     CurrentRoundNumber = p.TurnQueue.CurrentRoundNumber,
                     FactionName = p.Player.FactionName
                 })
-                .SingleOrDefaultAsync(cancellationToken);
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (currentTurn is null)
             {
@@ -118,13 +118,6 @@ public class CampaignTurnService(
             }
 
             return ServiceResult<CurrentCampaignTurn>.Succeed(currentTurn);
-        }
-        catch (InvalidOperationException ex)
-        {
-            const string error = "Multiple active Campaign Turn Queues or current players were found for the Game.";
-            logger.LogError(ex, "{Error} Game Id: {GameId}", error, gameId);
-
-            return ServiceResult<CurrentCampaignTurn>.Fail(error);
         }
         catch (Exception ex)
         {
