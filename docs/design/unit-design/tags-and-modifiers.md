@@ -56,11 +56,13 @@ The original discussion (kept below) was treating classification, passive bonuse
 - Values support both flat and percentage amounts via an explicit `ValueType` (Flat/Percent) enum next to `Value`, rather than a bare, ambiguous number.
 - Before adding new modifier categories, finish wiring the remaining `MoveModifier` cases (`ForestWalker`, `Amphibious`, `RoadAffinity`, `RailAffinity`, `MagTubeAffinity`) through the existing `Effect`/`Conditions` JSON shape — it already looks expressive enough for them.
 
-### 3. Capability Grants — tag unlocks an action (not yet designed)
+### 3. Capability Grants — tag unlocks an action (first use landed in UD-56)
 
 Examples from the original discussion:
 
-- `camp-goods` (equipment) enables building a camp, if contextual conditions are met.
+- ~~`camp-goods` (equipment) enables building a camp, if contextual conditions are met.~~ **Delivered** in
+  UD-56, as two `TagType.Ability` tags rather than one: `found-settlement` and `found-camp`, both authored
+  onto the `camping-materials` equipment component. See below.
 - ~~`self-organised` (training) enables a unit to split without a Leader, if conditions are
   met.~~ **Superseded** by the Unled leadership model on MilitaryOrganisation tags — splitting
   without a leader is now intrinsic to unled structures, not a training grant. See
@@ -68,6 +70,22 @@ Examples from the original discussion:
 - `stealth-observation` (training, sniper) enables a toggleable special movement mode.
 
 These aren't modifiers — they don't change a number, they unlock a player-facing action. Model as a lookup (`TagCode → CapabilityCode`) checked by game/UI logic when the action is attempted, rather than folding this into the modifier shape.
+
+**How the first one actually works (UD-56).** No separate lookup table was needed: `CompileUnitTemplateHandler`
+already unions every tag carried by a template's components into `CompiledUnitTemplateCapability` rows keyed by
+`TagCode`, so the capability *is* the tag code. `ForceActionContextBuilder` flattens those codes onto the Force,
+and each context-action strategy asks for the one it needs — `found-settlement` for Create Village,
+`found-camp` for Establish Camp. A Force whose template grants nothing matching is not offered the action at all.
+See [force-context-action-toolbar.md](../units/force-context-action-toolbar.md#the-settlement-strategies--create-village-and-establish-camp-ud-56).
+
+Two consequences worth carrying into the next capability:
+
+- **One ability per action, not one per component.** Splitting camping into `found-settlement` and `found-camp`
+  is what lets a future component grant camping without granting settlement. Naming a tag after the component
+  that happens to carry it today would have thrown that away.
+- **These tags are catalogue data, not seed data.** They are authored through the Entity Setup Tool and are
+  absent from `Features/DatabaseSeeding/SeedData/`, so on a database where nobody has authored them the gated
+  action simply never appears. Correct, but the first place to look when a capability seems not to work.
 
 ### 4. Combat Trigger Effects — deferred
 
@@ -97,5 +115,8 @@ Structured Modifier shape (concept 2) should gain an optional `ApplyTo` field (s
 
 - Wire the remaining `MoveModifier` cases (`ForestWalker`, `Amphibious`, `RoadAffinity`, `RailAffinity`, `MagTubeAffinity`) through the existing JSON `Effect`/`Conditions` shape.
 - Build an authoring UI for movement modifiers (none exists today — they're compiled server-side only).
-- Design Capability Grants (concept 3) once a first concrete use case is prioritized.
+- ~~Design Capability Grants (concept 3) once a first concrete use case is prioritized.~~ **Done** in UD-56 —
+  `found-settlement` and `found-camp` on the `camping-materials` component. The remaining gap is an authoring
+  affordance: nothing warns a designer that a capability tag no code reads is inert, or that a strategy's code is
+  missing from the catalogue.
 - Combat Trigger Effects (concept 4) and Force/Specialist-Scoped Bonuses (concept 5) are parked pending combat-resolution design and `specialists.md` work, respectively.

@@ -101,7 +101,14 @@ internal sealed class ForceActionContextBuilder(
                             LeadershipModel = force.UnitTemplate.Compiled!.OrganisationTag!.LeadershipModel,
                             UnledBaseSize = force.UnitTemplate.Compiled!.OrganisationTag!.UnledBaseSize,
                             UnledMaxSize = force.UnitTemplate.Compiled!.OrganisationTag!.UnledMaxSize
-                        }
+                        },
+                    // Flattened to a list of codes rather than the capability rows themselves, for the same reason the organisation tag is
+                    // flattened: the rule layer asks "does this Force carry X", and nothing about the snapshot row helps it answer that.
+                    CapabilityTagCodes = force.UnitTemplate.Compiled!.Capabilities.Select(capability => capability.TagCode).ToList(),
+                    // The tile the Force is standing on. Two scalars rather than the tile itself, which keeps the strategies pure and keeps this a
+                    // projection the in-memory provider can still shape.
+                    TileIsWater = force.CampaignMap.Biome.IsWater,
+                    TileGeographyType = force.CampaignMap.CampaignMapGeographyTypeId
                 });
         }
     }

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { FaCircleQuestion } from "react-icons/fa6";
-import { GiSplitArrows } from "react-icons/gi";
+import { GiCampingTent, GiSplitArrows, GiVillage } from "react-icons/gi";
 import type { ForceActionType } from "../api/forceContextActionsApi";
 
 /**
@@ -23,6 +23,12 @@ interface ForceActionPresentation {
  */
 const FORCE_ACTION_PRESENTATION: Partial<Record<ForceActionType, ForceActionPresentation>> = {
   SplitForce: { icon: <GiSplitArrows />, label: "Split Force" },
+
+  // Both are offered only to a force whose compiled template grants the matching capability (found-settlement /
+  // found-camp, carried by the camping-materials component), so they simply won't be in the list for anything
+  // else. Nothing here needs to know that — the backend has already decided.
+  CreateVillage: { icon: <GiVillage />, label: "Create Village" },
+  EstablishCamp: { icon: <GiCampingTent />, label: "Establish Camp" },
 
   // TODO: Hunt used to live in the toolbar, gated on legacy unit design id 2, which no longer exists now that
   // forces reference unit templates (whose ids are database-dependent, so a magic number can't stand in). It now

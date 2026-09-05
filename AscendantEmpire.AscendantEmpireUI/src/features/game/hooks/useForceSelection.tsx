@@ -268,6 +268,20 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
           // rather than the checkbox channel the bar used to carry, which ctrl+click replaced.
           openToast(`Split force ${describeSelection()} — the split dialog isn't built yet.`, "info");
           break;
+
+        case "CreateVillage":
+          // TODO: There is no Settlement entity in the model at all yet — settlements.md names the tiers and
+          // nothing more — so there is nothing to post to. The backend already judges whether the action is
+          // allowed; what's missing is the thing it would create. See docs/plans/force-instances-roadmap.md,
+          // Phase 10 (POST /force-orders/settle).
+          openToast(`Create a village with ${describeSelection()} — settlements aren't built yet.`, "info");
+          break;
+
+        case "EstablishCamp":
+          // TODO: Same gap as CreateVillage above — a camp is the smallest settlement tier, and the tier itself
+          // doesn't exist yet.
+          openToast(`Establish a camp with ${describeSelection()} — settlements aren't built yet.`, "info");
+          break;
       }
     },
     [describeSelection, openToast, selectedForces],

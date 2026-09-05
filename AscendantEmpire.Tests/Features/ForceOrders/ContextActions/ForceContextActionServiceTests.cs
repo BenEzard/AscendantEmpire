@@ -1,7 +1,8 @@
-using AscendantEmpire.Application.Common;
+﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.BackendContracts.ForceOrders.GetForceContextActions;
 using AscendantEmpire.Domain.Enums.Forces;
+using AscendantEmpire.Domain.Enums.Maps;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -59,7 +60,10 @@ internal class ForceContextActionServiceTests
                 InjuredCount = 0,
                 CampaignMovementRemaining = 1_000,
                 CampaignMovementPoints = 1_000,
-                Organisation = null
+                Organisation = null,
+                CapabilityTagCodes = [],
+                TileIsWater = false,
+                TileGeographyType = CampaignMapGeographyType.Flat
             },
             OtherForcesOnTile = []
         };

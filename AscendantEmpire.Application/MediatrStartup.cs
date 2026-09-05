@@ -61,6 +61,8 @@ public static class MediatrStartup
         services.AddScoped<IForceContextActionService, ForceContextActionService>();
         services.AddScoped<IForceActionContextBuilder, ForceActionContextBuilder>();
         services.AddScoped<IForceActionStrategy, SplitForceStrategy>();
+        services.AddScoped<IForceActionStrategy, CreateVillageStrategy>();
+        services.AddScoped<IForceActionStrategy, EstablishCampStrategy>();
 
         // Movement domain rules. One IMovementDomainStrategy per DomainType decides which terrain a Force of that domain may enter; the step handler
         // resolves the one matching the Force's compiled template. Every DomainType needs an entry here — a domain with no strategy has no rule to be

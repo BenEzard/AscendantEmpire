@@ -1,6 +1,7 @@
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strategies;
 using AscendantEmpire.Domain.Enums.Forces;
+using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 
 namespace AscendantEmpire.Tests.Features.ForceOrders.ContextActions;
@@ -60,7 +61,11 @@ internal class SplitForceStrategyTests
             InjuredCount = injuredCount,
             CampaignMovementRemaining = campaignMovementRemaining,
             CampaignMovementPoints = _FULL_CAMPAIGN_MOVEMENT,
-            Organisation = organisation ?? Organisation()
+            Organisation = organisation ?? Organisation(),
+            // Splitting reads none of these; they are here because the record requires them. The settlement strategies are what exercise them.
+            CapabilityTagCodes = [],
+            TileIsWater = false,
+            TileGeographyType = CampaignMapGeographyType.Flat
         };
     }
 

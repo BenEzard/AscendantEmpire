@@ -1,3 +1,4 @@
+using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 
 namespace AscendantEmpire.Application.Features.ForceOrders.ContextActions;
@@ -57,8 +58,41 @@ internal sealed record ForceActionForce
     /// </summary>
     public required ForceActionOrganisation? Organisation { get; init; }
 
+    /// <summary>
+    /// The capability tag codes the Force's compiled template grants, unioned across its components.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is how an action tied to a piece of equipment finds out whether the Force is carrying it — <c>found-camp</c> from the settler's camping
+    /// materials, for example. Matching a capability rather than a component code or a template id means a second component granting the same
+    /// ability, or a rename of the one that does today, costs no code change.
+    /// </para>
+    /// <para>
+    /// Empty rather than null when the template grants nothing, so a strategy never has to null-check before asking.
+    /// </para>
+    /// </remarks>
+    public required IReadOnlyCollection<string> CapabilityTagCodes { get; init; }
+
+    /// <summary>Whether the biome of the tile the Force stands on is water.</summary>
+    /// <remarks>
+    /// Only the biome's own flag, deliberately not the broader "is this tile water" used by movement, which also counts the DeepWater and
+    /// ShallowWater geographies. The two questions are different — whether a Force may <i>enter</i> a tile, versus whether it may <i>settle</i> it —
+    /// so they are kept apart rather than sharing one definition that a later movement change could silently widen.
+    /// </remarks>
+    public required bool TileIsWater { get; init; }
+
+    /// <summary>The geography of the tile the Force stands on.</summary>
+    public required CampaignMapGeographyType TileGeographyType { get; init; }
+
     /// <summary>The Force's current size — every soldier still standing, hurt or not.</summary>
     public int TotalStrength => HealthyCount + InjuredCount;
+
+    /// <summary>Whether the Force's compiled template grants the named capability.</summary>
+    /// <remarks>Ordinal comparison: these are stable authored codes, not display text, so culture must play no part in matching them.</remarks>
+    public bool HasCapability(string tagCode)
+    {
+        return CapabilityTagCodes.Contains(tagCode, StringComparer.Ordinal);
+    }
 
     /// <summary>Whether the Force is holding at least a full Turn's movement allowance.</summary>
     /// <remarks>

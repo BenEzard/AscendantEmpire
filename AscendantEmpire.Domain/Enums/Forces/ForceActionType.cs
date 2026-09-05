@@ -41,5 +41,32 @@ public enum ForceActionType
     /// second strategy claiming <see cref="SplitForce"/> would break both the ordering and the aggregation.
     /// </para>
     /// </remarks>
-    SplitForce = 1000
+    SplitForce = 1000,
+
+    /// <summary>
+    /// Found a village on the tile the selected Force stands on.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Offered only to a Force whose compiled template grants the <c>found-settlement</c> capability, which the settler's
+    /// <c>camping-materials</c> equipment component carries. Gating on a <b>capability tag</b> rather than on a component code or a template id is
+    /// deliberate: it is the first concrete case of the Capability Grants concept in <c>tags-and-modifiers.md</c>, and it means a second component
+    /// granting the same ability lights the action up with no code change at all.
+    /// </para>
+    /// <para>
+    /// Sits above <see cref="EstablishCamp"/> in the toolbar because that is the order the ticket names them, not because a village outranks a camp.
+    /// </para>
+    /// </remarks>
+    CreateVillage = 1100,
+
+    /// <summary>
+    /// Establish a camp on the tile the selected Force stands on.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The smaller sibling of <see cref="CreateVillage"/>, gated on the <c>found-camp</c> capability and a much lower troop requirement. The two are
+    /// separate action types rather than one parameterised action because the player is choosing between two outcomes, not configuring one.
+    /// </para>
+    /// </remarks>
+    EstablishCamp = 1200
 }

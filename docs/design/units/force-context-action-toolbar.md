@@ -18,6 +18,8 @@ time; **TM-2** is the first slice, delivering the pipeline plus a single action 
 | 5 | Executing the split — split handler, options endpoint and parameter dialog | TM-4 | Not started |
 | 6 | Replace the "Select Force" dialog with the always-visible force selection bar | TM-5 | **Done** — see [force-selection-toolbar.md](force-selection-toolbar.md) |
 | 7 | Multi-Force selection — ctrl+click in the bar, and a toolbar that judges the whole selection | — | **Done** — see [Aggregating over a selection](#aggregating-over-a-selection) |
+| 8 | Create Village and Establish Camp — availability only, gated on capability tags | UD-56 | **Done** — see [The settlement strategies](#the-settlement-strategies--create-village-and-establish-camp-ud-56) |
+| 9 | Executing a settlement founding — needs a Settlement entity to create | — | Not started — [force-instances-roadmap.md](../../plans/force-instances-roadmap.md) Phase 10 |
 
 Stage 5 is deliberately **not** part of TM-2. TM-2 delivers the toolbar and the pipeline behind it; the
 button that opens the split dialog currently raises a toast saying the dialog is not built yet. See
@@ -137,7 +139,11 @@ An immutable snapshot carrying everything any strategy needs:
 - its `CompiledUnitTemplate` with the resolved `OrganisationTag` (leadership model, unled sizes) and
   its `CampaignMovementPoints`;
 - the **other Forces on the same tile**, each with its compiled template and movement points — the
-  second factor the ticket names, and what Combine/Merge will need.
+  second factor the ticket names, and what Combine/Merge will need;
+- the **capability tag codes** the compiled template grants, unioned across its components, so an action
+  tied to a piece of equipment can ask whether the Force is carrying it (added in UD-56);
+- the **tile's terrain** — its biome's water flag and its geography type — so an action can judge where
+  the Force is standing without a second query (added in UD-56).
 
 Turn state is deliberately absent; see [open question 2](#2-should-the-toolbar-respect-whose-turn-it-is).
 So is anything about enemy Forces — see [open question 3](#3-enemy-forces-on-the-tile-are-excluded-pending-vision-rules).
@@ -235,6 +241,64 @@ comparison is what forced Stage 1.
 A tag that is `Unled` but has no authored base/max sizes is a configuration error, matching how
 [`UnledSpawnRules`](../../../AscendantEmpire.Application/Features/Units/Classes/UnledSpawnRules.cs)
 already treats it, rather than silently skipping the guardrail.
+
+## The settlement strategies — Create Village and Establish Camp (UD-56)
+
+Two actions, one for each settlement tier the player can reach at the start of the game. They are separate
+`ForceActionType` members rather than one parameterised action, because the player is choosing between two
+outcomes rather than configuring one.
+
+| | Create Village | Establish Camp |
+|---|---|---|
+| Enum value / display order | `CreateVillage = 1100` | `EstablishCamp = 1200` |
+| Capability that unlocks it | `found-settlement` | `found-camp` |
+| Minimum troops | 100 — four settler base groups | 25 — one settler base group |
+
+### Rules
+
+| Rule | Read from | Outcome when it fails |
+|---|---|---|
+| Compiled template grants the capability | `Compiled.Capabilities` | **Hidden** (`null`) — a fielded Force cannot pick up camping gear |
+| Tile's biome is not water | tile's `Biome.IsWater` | Disabled: *"…is on water, and a village must be founded on land."* |
+| Tile's geography is not `Mountainous` | tile's `CampaignMapGeographyTypeId` | Disabled: *"…is in mountainous terrain, which cannot be settled."* |
+| `CampaignMovementRemaining > 0` | Force | Disabled: *"…has no campaign movement left this turn."* |
+| `Healthy + Injured >= minimum` | soldier counts | Disabled: *"…has 24 troops, and a camp needs at least 25."* |
+
+The last three are shared, and live in `SettlementFoundingRules` rather than being written twice.
+
+Three points worth keeping straight:
+
+- **Water is the biome's flag only**, deliberately narrower than the movement layer's `MovementTargetTile.IsWater`,
+  which also counts the DeepWater and ShallowWater geographies. Entering a tile and settling it are different
+  questions, and sharing one definition would mean a later change to the movement rules quietly moved this one.
+- **The mountain rule cannot currently fire.** `Mountainous` is seeded at
+  `CampaignGeography.IMPASSABLE_MOVEMENT_COST`, so no Force can stand on one to be refused. It is written anyway,
+  because the rule is about settling rather than walking and should already be right the day mountains become
+  passable.
+- **Movement is *any* remaining, not a full turn** — unlike Split Force. Note the value can legitimately be
+  negative after F-14 (entering a tile costs half its price but spends all of it), so a Force in movement debt is
+  correctly refused.
+
+### Gated on capabilities, not on a component
+
+Both read `CompiledUnitTemplateCapability.TagCode`, not a component code and not a template id. The two tags are
+`TagType.Ability` rows authored onto the `camping-materials` equipment component — the first concrete use of the
+Capability Grants concept in [tags-and-modifiers.md](../unit-design/tags-and-modifiers.md). A second component
+granting the same ability lights the action up with no code change, and the settler's organisation tag stays what
+it is: a statement about how the formation is led, not about what it is carrying.
+
+The consequence to remember: **these tags are catalogue data, not seed data.** They are authored through the
+Entity Setup Tool and are absent from `Features/DatabaseSeeding/SeedData/`. On a fresh database nobody has
+authored them on, no template compiles with them and both actions simply never appear. That is correct, not a
+fault — but it is the first place to look if the buttons are missing.
+
+### Executing them is out of scope
+
+There is no Settlement, Village or Camp entity anywhere in the model — [settlements.md](../settlements.md) names
+the tiers and nothing more, and nothing in the codebase even creates a `StructureInstance`. So UD-56 delivers
+**availability only**: the buttons appear, correctly enabled or correctly disabled with reasons, and clicking one
+raises a "not built yet" toast exactly as Split Force does. Founding the settlement is
+[force-instances-roadmap.md](../../plans/force-instances-roadmap.md) Phase 10 (`POST /force-orders/settle`).
 
 ## Stage 1 — the movement point rescale (done)
 
@@ -357,10 +421,14 @@ That work is Stage 5 and is expected to become its own ticket.
 | Component | Tier | Count |
 |---|---|---|
 | `SplitForceStrategy` | 1 — no database | 11 — **unchanged** by the multi-select work, which is the point of keeping strategies per-Force |
+| `SettlementFoundingRules` | 1 — no database | 11 — the shared boundaries: exactly at the troop minimum, movement at zero and in debt, hills allowed |
+| `CreateVillageStrategy` | 1 — no database | 8 — hidden without the capability, the 100-troop threshold, each rule's reason |
+| `EstablishCampStrategy` | 1 — no database | 10 — the same, at 25 troops, plus that camp and village unlock separately |
 | `ForceActionAggregator` | 1 — no database | 9 — the folding rules; hide/enable/disable, reason collection, dedupe, a selection of one |
 | `ForceContextActionService` | 1 — no database | 12 — fake strategies; ordering, omission, fault isolation, re-validation, every Force judged |
-| `ForceActionContextBuilder` | 2 — in-memory | 16 — the original 10 plus per-Force contexts, id ordering, tile-mates, all-or-nothing, duplicates |
+| `ForceActionContextBuilder` | 2 — in-memory | 19 — the original 16 plus capability codes, an empty capability set, and the tile's terrain |
 | `ContextActionToolbar` | Vitest | 6 — disabled rendering, reason text, ordering, icon-only rendering |
+| `forceActionRegistry` | Vitest | 4 — every known type gets its own distinct icon and this build's label; unknown types fall back |
 | `ForceSelectionToolbar` | Vitest | 17 — ordering, troop count, fade, clickability when spent, ctrl/⌘+click, multiple pressed entries |
 | `useForceSelection` | Vitest | 10 — own-forces-only filtering, default selection, the gesture trace, pinning, id-set identity |
 

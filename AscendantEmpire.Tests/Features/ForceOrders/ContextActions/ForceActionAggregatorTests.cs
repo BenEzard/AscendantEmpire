@@ -1,5 +1,6 @@
-using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
+﻿using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.Domain.Enums.Forces;
+using AscendantEmpire.Domain.Enums.Maps;
 
 namespace AscendantEmpire.Tests.Features.ForceOrders.ContextActions;
 
@@ -35,7 +36,10 @@ internal class ForceActionAggregatorTests
                 InjuredCount = 0,
                 CampaignMovementRemaining = 1_000,
                 CampaignMovementPoints = 1_000,
-                Organisation = null
+                Organisation = null,
+                CapabilityTagCodes = [],
+                TileIsWater = false,
+                TileGeographyType = CampaignMapGeographyType.Flat
             },
             OtherForcesOnTile = []
         };

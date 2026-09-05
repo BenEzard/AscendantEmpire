@@ -1,7 +1,10 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
+using AscendantEmpire.Domain.Entities.Games;
+using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
+using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 
 namespace AscendantEmpire.Tests.Features.ForceOrders.ContextActions;
@@ -26,6 +29,8 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
     private const int _OTHER_PLAYER_ID = 2;
     private const int _TILE_ID = 112;
     private const int _OTHER_TILE_ID = 113;
+    private const int _WATER_TILE_ID = 114;
+    private const int _MOUNTAIN_TILE_ID = 115;
     private const int _UNLED_TEMPLATE_ID = 1;
     private const int _UNTAGGED_TEMPLATE_ID = 7;
     private const int _ORGANISATION_TAG_ID = 9;
@@ -53,14 +58,97 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
             UnledMaxSize = 200
         });
 
-        AddTemplate(context, _UNLED_TEMPLATE_ID, "Settler", _ORGANISATION_TAG_ID);
+        AddTemplate(context, _UNLED_TEMPLATE_ID, "Settler", _ORGANISATION_TAG_ID, "found-settlement", "found-camp");
         AddTemplate(context, _UNTAGGED_TEMPLATE_ID, "Scout", organisationTagId: null);
+
+        AddTiles(context);
 
         await context.SaveChangesAsync();
     }
 
-    /// <summary>Adds a template plus the compiled snapshot every runtime read goes through.</summary>
-    private static void AddTemplate(AscendantEmpireContext context, int templateId, string displayName, int? organisationTagId)
+    /// <summary>
+    /// Adds the handful of tiles the Forces stand on, plus the biomes and geographies they draw on.
+    /// </summary>
+    /// <remarks>
+    /// Real tiles are needed now that the builder projects the tile's water flag and geography off the Force's <c>CampaignMap</c> navigation — a
+    /// Force pointing at a tile row that does not exist is a shape the game can never produce, and leaving it that way here would only test the
+    /// provider's tolerance for it. Costs and flags are copied from the seeded catalogue.
+    /// </remarks>
+    private static void AddTiles(AscendantEmpireContext context)
+    {
+        var flat = new CampaignGeography
+        {
+            CampaignMapGeographyTypeId = CampaignMapGeographyType.Flat,
+            Name = "Flat",
+            MovementCost = 1m,
+            MapEditorIcon = null,
+            IsPaintableOnCampaignMap = true
+        };
+
+        var mountainous = new CampaignGeography
+        {
+            CampaignMapGeographyTypeId = CampaignMapGeographyType.Mountainous,
+            Name = "Mountainous",
+            MovementCost = CampaignGeography.IMPASSABLE_MOVEMENT_COST,
+            MapEditorIcon = null,
+            IsPaintableOnCampaignMap = true
+        };
+
+        var grassland = new CampaignBiome
+        {
+            BiomeTypeId = BiomeType.Grassland,
+            Name = "Grassland",
+            MovementCost = 1m,
+            IsWater = false,
+            IsTraversable = true,
+            MapEditorHtmlColor = "#7cb342"
+        };
+
+        var ocean = new CampaignBiome
+        {
+            BiomeTypeId = BiomeType.Ocean,
+            Name = "Ocean",
+            MovementCost = 1m,
+            IsWater = true,
+            IsTraversable = true,
+            MapEditorHtmlColor = "#1565c0"
+        };
+
+        context.CampaignGeographies.AddRange(flat, mountainous);
+        context.CampaignBiomes.AddRange(grassland, ocean);
+
+        AddTile(_TILE_ID, xCoord: 1, flat, grassland);
+        AddTile(_OTHER_TILE_ID, xCoord: 2, flat, grassland);
+        AddTile(_WATER_TILE_ID, xCoord: 3, flat, ocean);
+        AddTile(_MOUNTAIN_TILE_ID, xCoord: 4, mountainous, grassland);
+
+        void AddTile(int tileId, int xCoord, CampaignGeography geography, CampaignBiome biome)
+        {
+            context.CampaignMaps.Add(new CampaignMap
+            {
+                CampaignMapId = tileId,
+                GameId = _GAME_ID,
+                XCoord = xCoord,
+                YCoord = 1,
+                BiomeTypeId = biome.BiomeTypeId,
+                CampaignMapGeographyTypeId = geography.CampaignMapGeographyTypeId,
+                Biome = biome,
+                Geography = geography,
+                Game = null!,
+                FirstVisitor = null,
+                LastVisitor = null,
+                ControlledBy = null
+            });
+        }
+    }
+
+    /// <summary>Adds a template plus the compiled snapshot every runtime read goes through, optionally granting capabilities.</summary>
+    private static void AddTemplate(
+        AscendantEmpireContext context,
+        int templateId,
+        string displayName,
+        int? organisationTagId,
+        params string[] capabilityTagCodes)
     {
         context.UnitTemplates.Add(new UnitTemplate
         {
@@ -77,7 +165,12 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
             MapImagePath = $"{displayName.ToLowerInvariant()}.png",
             BodyComponentId = 1,
             CampaignMovementPoints = _CAMPAIGN_MOVEMENT_POINTS,
-            OrganisationTagId = organisationTagId
+            OrganisationTagId = organisationTagId,
+            Capabilities = [.. capabilityTagCodes.Select(code => new CompiledUnitTemplateCapability
+            {
+                TagCode = code,
+                DisplayName = code
+            })]
         });
     }
 
@@ -142,6 +235,74 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
             Assert.That(result.SelectedForce.Organisation, Is.Not.Null);
             Assert.That(result.SelectedForce.Organisation!.IsUnled, Is.True);
             Assert.That(result.SelectedForce.Organisation.UnledBaseSize, Is.EqualTo(25));
+        }
+    }
+
+    [Test, Description("An action gated on a piece of equipment can only be judged if the template's capabilities reach the rule layer at all.")]
+    public async Task ShouldFlattenTheTemplatesCapabilitiesWhenTheForceIsLoadedAsync()
+    {
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            await AddForceAsync(context, unitInstanceId: 5);
+        }
+
+        ForceActionContext? result = await BuildSingleAsync(5);
+
+        Assert.That(result, Is.Not.Null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result!.SelectedForce.CapabilityTagCodes, Is.EquivalentTo(new[] { "found-settlement", "found-camp" }));
+            Assert.That(result.SelectedForce.HasCapability("found-camp"), Is.True);
+            Assert.That(result.SelectedForce.HasCapability("hunting"), Is.False,
+                "A capability the template does not grant must not be reported, however many others it has.");
+        }
+    }
+
+    [Test, Description("A template granting nothing must arrive as an empty collection, so a strategy can ask about a capability without null-checking first.")]
+    public async Task ShouldReportNoCapabilitiesWhenTheTemplateGrantsNoneAsync()
+    {
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            await AddForceAsync(context, unitInstanceId: 5, unitTemplateId: _UNTAGGED_TEMPLATE_ID);
+        }
+
+        ForceActionContext? result = await BuildSingleAsync(5);
+
+        Assert.That(result, Is.Not.Null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result!.SelectedForce.CapabilityTagCodes, Is.Empty);
+            Assert.That(result.SelectedForce.HasCapability("found-camp"), Is.False);
+        }
+    }
+
+    [Test, Description("Terrain rules are judged against the tile the Force is standing on, so its water flag and geography have to be projected onto the Force.")]
+    public async Task ShouldFlattenTheTilesTerrainWhenTheForceIsLoadedAsync()
+    {
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            await AddForceAsync(context, unitInstanceId: 5);
+            await AddForceAsync(context, unitInstanceId: 6, campaignMapTileId: _WATER_TILE_ID);
+            await AddForceAsync(context, unitInstanceId: 7, campaignMapTileId: _MOUNTAIN_TILE_ID);
+        }
+
+        ForceActionContext? onLand = await BuildSingleAsync(5);
+        ForceActionContext? onWater = await BuildSingleAsync(6);
+        ForceActionContext? onMountain = await BuildSingleAsync(7);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(onLand!.SelectedForce.TileIsWater, Is.False);
+            Assert.That(onLand.SelectedForce.TileGeographyType, Is.EqualTo(CampaignMapGeographyType.Flat));
+
+            Assert.That(onWater!.SelectedForce.TileIsWater, Is.True,
+                "The flag comes off the biome, so an ocean tile over flat geography still counts as water.");
+            Assert.That(onWater.SelectedForce.TileGeographyType, Is.EqualTo(CampaignMapGeographyType.Flat));
+
+            Assert.That(onMountain!.SelectedForce.TileIsWater, Is.False);
+            Assert.That(onMountain.SelectedForce.TileGeographyType, Is.EqualTo(CampaignMapGeographyType.Mountainous));
         }
     }
 
