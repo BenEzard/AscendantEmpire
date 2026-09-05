@@ -1,4 +1,4 @@
-using AscendantEmpire.Application.Common;
+﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
@@ -32,7 +32,6 @@ internal class GameSetupService(
 {
     public const int MIN_NUMBER_OF_PLAYERS = 2; // TODO: Make this configurable as AppSettings.
     public const int MAX_NUMBER_OF_PLAYERS = 8; // TODO: Make this configurable as AppSettings.
-    public const int TURN_MAX_DURATION_HOURS = 24; // TODO: Make this configurable as a property of the Game.
 
     /// <summary>
     /// The global template codes every player starts the game with — unlocked, and spawned once each at the
@@ -236,31 +235,20 @@ internal class GameSetupService(
     }
 
     /// <summary>
-    /// Finalizes the setup process for a game and transitions it to the in-progress state, enabling the first Player's turn to begin.
+    /// Finalizes the setup process for a Game and opens its lobby, so Players can find it and claim a slot.
     /// </summary>
-    /// <remarks>This method:
-    /// <list type="bullet">
-    /// <item>Sets the initial turn start and end times for the campaign turn queue.</item>
-    /// <item>Updates the game's status to indicate that setup is complete and play is in progress.</item>
-    /// </list></remarks>
+    /// <remarks>
+    /// This does <b>not</b> start the Game. Setup finishes with every slot unclaimed and every Turn Queue Participant Pending, so there is
+    /// nobody to take the first Turn and the Turn clock is deliberately left unset. Claiming the last free slot is what starts play - see
+    /// <c>ClaimPlayerSlotHandler</c> and <c>ICampaignRoundService.StartGameAsync</c>.
+    /// </remarks>
     private static async Task CompleteGameSetupAsync(AscendantEmpireContext context, int gameId, CancellationToken cancellationToken)
     {
-        DateTimeOffset now = DateTimeOffset.UtcNow;
-
-        // Set the first Player's turn to start immediately, so that the game can begin as soon as setup is complete.
-        await context.TurnQueues
-            .Where(tq => tq.GameId == gameId)
-            .Where(tq => tq.QueueType == TurnQueueType.Campaign)
-            .ExecuteUpdateAsync(tq => tq
-                .SetProperty(tq => tq.CurrentTurnStartAt, now)
-                .SetProperty(tq => tq.CurrentScheduledTurnEndAt, now.AddHours(24)), // TODO: Make the turn time configurable as a property of the Game.
-                cancellationToken);
-
         await context.GameIndex
             .Where(g => g.Id == gameId)
             .ExecuteUpdateAsync(g => g
                 .SetProperty(g => g.CreationStatus, GameCreationStatus.SetupComplete)
-                .SetProperty(g => g.PlayStatus, GamePlayStatus.InProgress),
+                .SetProperty(g => g.PlayStatus, GamePlayStatus.AwaitingPlayers),
                 cancellationToken);
     }
 
@@ -280,12 +268,10 @@ internal class GameSetupService(
             CreatedAt = DateTimeOffset.UtcNow,
             HorizontalWrap = mapProperties.HorizontalWrap,
             VerticalWrap = mapProperties.VerticalWrap,
-            // Use the caller-supplied seed if provided; otherwise generate a random one
-            // so the player can reproduce the same biome distribution later if desired.
+            // Use the caller-supplied seed if provided; otherwise generate a random one so the player can reproduce the same biome distribution later if desired.
             GenerationSeed = request.GenerationSeed ?? Random.Shared.NextInt64(),
             BattleMapSize = request.BattleMapSize,
-            // Snapshot the gallery map's dimensions onto the game. Tile ids decode back into
-            // coordinates using this width, so it has to stay fixed for the life of the game even
+            // Snapshot the gallery map's dimensions onto the game. Tile ids decode back into coordinates using this width, so it has to stay fixed for the life of the game even
             // if the shared gallery map it was copied from is later resized.
             MapWidth = mapProperties.Width,
             MapHeight = mapProperties.Height,

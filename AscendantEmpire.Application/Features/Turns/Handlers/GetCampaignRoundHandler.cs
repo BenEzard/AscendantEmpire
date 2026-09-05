@@ -64,16 +64,22 @@ internal class GetCampaignRoundHandler(
 
                     CurrentRoundNumber = x.CurrentRoundNumber,
 
+                    // The current Player is the one *taking* their Turn, not the next one waiting: a Round leaves everybody Pending
+                    // except the Player whose Turn it is, so reading Pending here would name whoever plays next. Every other reader of
+                    // "whose turn is it" - GetCurrentCampaignTurnAsync in particular - agrees on TakingTurn, and they must not disagree.
+                    //
+                    // Exactly one Participant should ever hold that status, so the ordering below is a defensive tiebreak rather than a
+                    // selection: it keeps the answer stable rather than arbitrary if a half-applied hand-over ever leaves two.
                     CurrentPlayerId = x.TurnQueueParticipants
                         .Where(p => p.IsActiveInLane)
-                        .Where(p => p.Status == TurnQueueParticipantStatus.Pending)
+                        .Where(p => p.Status == TurnQueueParticipantStatus.TakingTurn)
                         .OrderBy(p => p.TurnOrder)
                         .Select(p => (int?)p.PlayerId)
                         .FirstOrDefault(),
 
                     CurrentPlayerTurnOrder = x.TurnQueueParticipants
                         .Where(p => p.IsActiveInLane)
-                        .Where(p => p.Status == TurnQueueParticipantStatus.Pending)
+                        .Where(p => p.Status == TurnQueueParticipantStatus.TakingTurn)
                         .OrderBy(p => p.TurnOrder)
                         .Select(p => (int?)p.TurnOrder)
                         .FirstOrDefault(),

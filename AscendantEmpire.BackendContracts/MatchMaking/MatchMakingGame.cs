@@ -1,4 +1,4 @@
-namespace AscendantEmpire.BackendContracts.MatchMaking;
+﻿namespace AscendantEmpire.BackendContracts.MatchMaking;
 
 /// <summary>
 /// A joinable game and its player slots, as seen by a specific user during matchmaking.
@@ -16,5 +16,15 @@ public record MatchMakingGame
     public int NumberOfPlayers { get; init; }
     public int MapWidth { get; init; }
     public int MapHeight { get; init; }
+
+    /// <summary>
+    /// Whether play has begun, which it does the moment the last free slot is claimed.
+    /// </summary>
+    /// <remarks>
+    /// A game that has not started cannot be entered - the API refuses it - so the client uses this to keep the Play button out of reach
+    /// while the lobby is still filling, rather than offering a button that can only fail.
+    /// </remarks>
+    public bool HasStarted { get; init; }
+
     public required IReadOnlyCollection<MatchMakingSlot> Slots { get; init; }
 }

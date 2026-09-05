@@ -9,6 +9,8 @@ using AscendantEmpire.Domain.Enums.Games;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 
+using Microsoft.EntityFrameworkCore;
+
 using NSubstitute;
 
 namespace AscendantEmpire.Tests;
@@ -391,5 +393,29 @@ public class GameSqlServerTestBase : SqlServerTestBase
         await ctx.SaveChangesAsync();
 
         return game.Id;
+    }
+
+    /// <summary>
+    /// Moves a Game that has finished setup into play, standing in for the slot claim that would normally start it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="GameSetupService.SetupGameAsync"/> leaves a Game on <see cref="GamePlayStatus.AwaitingPlayers"/>: setup builds the Game,
+    /// but play only begins when the last Player slot is claimed. Anything that happens during a Game - spawning a unit, reading a Player's
+    /// view of the map, ending a Turn - looks the Game up through a filter that requires it to be in progress, so a fixture that sets a Game
+    /// up and then plays with it has to start it too.
+    /// </para>
+    /// <para>
+    /// Use this where the Game starting is scaffolding rather than the thing under test. Where it <i>is</i> the thing under test, claim the
+    /// slots for real instead - see <c>StartOfGameTests</c>.
+    /// </para>
+    /// </remarks>
+    public async Task StartGameAsync(int gameId)
+    {
+        await using AscendantEmpireContext ctx = await DbFactory.CreateDbContextAsync();
+
+        await ctx.GameIndex
+            .Where(g => g.Id == gameId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(g => g.PlayStatus, GamePlayStatus.InProgress));
     }
 }

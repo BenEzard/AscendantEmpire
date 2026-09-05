@@ -1,4 +1,4 @@
-using AscendantEmpire.Application.Common.Validation;
+﻿using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.MatchMaking;
 using AscendantEmpire.Domain.Enums.Games;
@@ -17,8 +17,7 @@ namespace AscendantEmpire.Application.Features.MatchMaking.Handlers;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <paramref name="UserId"/> comes from the caller's bearer token, not the request body. It is
-/// only used to mark which slots the caller already controls; it does not filter the results.
+/// <paramref name="UserId"/> comes from the caller's bearer token, not the request body. It is only used to mark which slots the caller already controls; it does not filter the results.
 /// </para>
 /// </remarks>
 public record GetMatchMakingGamesRequest(int UserId) : IRequest<ServiceResult<IReadOnlyCollection<MatchMakingGame>>>;
@@ -43,12 +42,13 @@ internal sealed class GetMatchMakingGamesHandler(
         {
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            // Only games that have finished setup and are in progress are joinable. Every active
-            // slot is returned (claimed and unclaimed) so the UI can show taken vs free seats.
+            // Games that have finished setup, whether they are still filling up or already under way.
+            // Started games have to stay in this list.
+            // Every active slot is returned (claimed and unclaimed) so the UI can show taken vs free seats.
             var rows = await (
                 from gi in context.GameIndex.AsNoTracking()
                 where gi.CreationStatus == GameCreationStatus.SetupComplete
-                   && gi.PlayStatus == GamePlayStatus.InProgress
+                   && (gi.PlayStatus == GamePlayStatus.AwaitingPlayers || gi.PlayStatus == GamePlayStatus.InProgress)
                 join p in context.Players.AsNoTracking()
                     on gi.Id equals p.GameId
                 where p.Status == PlayerStatus.Active
@@ -59,6 +59,7 @@ internal sealed class GetMatchMakingGamesHandler(
                     gi.NumberOfPlayers,
                     gi.MapWidth,
                     gi.MapHeight,
+                    gi.PlayStatus,
 
                     PlayerId = p.Id,
                     p.RulerTitle,
@@ -77,7 +78,8 @@ internal sealed class GetMatchMakingGamesHandler(
                     r.GameName,
                     r.NumberOfPlayers,
                     r.MapWidth,
-                    r.MapHeight
+                    r.MapHeight,
+                    r.PlayStatus
                 })
                 .Select(g => new MatchMakingGame
                 {
@@ -86,6 +88,8 @@ internal sealed class GetMatchMakingGamesHandler(
                     NumberOfPlayers = g.Key.NumberOfPlayers,
                     MapWidth = g.Key.MapWidth,
                     MapHeight = g.Key.MapHeight,
+                    // Play can only be entered once the lobby has filled, so the UI knows to offer the Play button rather than have it fail.
+                    HasStarted = g.Key.PlayStatus == GamePlayStatus.InProgress,
                     Slots = [.. g
                         .Select(s => new MatchMakingSlot
                         {
@@ -99,9 +103,7 @@ internal sealed class GetMatchMakingGamesHandler(
                             IsClaimed = s.UserId != null,
                             IsClaimedByCurrentUser = s.UserId == request.UserId
                         })
-                        // Ordered by id, not by label: players rename themselves once they claim a
-                        // seat, and ordering by the label would make the rows jump about between
-                        // refreshes while a lobby fills.
+                        // Ordered by id, not by label: players rename themselves once they claim a seat, and ordering by the label would make the rows jump about between refreshes while a lobby fills.
                         .OrderBy(s => s.PlayerId)]
                 })
                 .OrderBy(g => g.GameName)];

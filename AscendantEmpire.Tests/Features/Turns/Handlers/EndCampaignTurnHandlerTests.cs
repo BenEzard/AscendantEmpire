@@ -42,6 +42,9 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
     private ITurnServicePipeline<IStartCampaignRoundProcess> _startCampaignRoundPipeline = null!;
     private ITurnServicePipeline<IStartCampaignTurnProcess> _startCampaignTurnPipeline = null!;
 
+    // Real, not mocked: the round-boundary tests assert on the participant and queue rows this service writes.
+    private ICampaignRoundService _campaignRoundService = null!;
+
     private EndCampaignTurnHandler _handler = null!;
 
     // ── seeded IDs populated by SetUp ────────────────────────────────────────
@@ -93,15 +96,21 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
             .GetPossibleActionsAsync(Arg.Any<PossibleActionContext>(), Arg.Any<CancellationToken>())
             .Returns([]);
 
+        // The round service does the real writing, so it is built for real over the mocked pipelines and turn lookups.
+        _campaignRoundService = new CampaignRoundService(
+            new NullLogger<CampaignRoundService>(),
+            _campaignTurnService,
+            _startCampaignRoundPipeline,
+            _startCampaignTurnPipeline);
+
         _handler = new EndCampaignTurnHandler(
             new NullLogger<EndCampaignTurnHandler>(),
             DbFactory,
             _possibleActionService,
             _endCampaignTurnPipeline,
             _endCampaignRoundPipeline,
-            _startCampaignRoundPipeline,
-            _startCampaignTurnPipeline,
             _campaignTurnService,
+            _campaignRoundService,
             _openGameService);
     }
 
@@ -425,7 +434,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
         // Opening the round puts everyone back to Pending; player 1 holds the lowest turn order, so they lead the new round.
         CurrentCampaignTurn nextRoundFirstTurn = Player1Turn() with { CurrentRoundNumber = 2 };
         _campaignTurnService
-            .GetFirstCampaignTurnAsync(_gameId)
+            .GetFirstCampaignTurnAsync(Arg.Any<AscendantEmpireContext>(), _gameId, Arg.Any<CancellationToken>())
             .Returns(ServiceResult<CurrentCampaignTurn>.Succeed(nextRoundFirstTurn));
 
         EndCampaignTurnRequest request = new EndCampaignTurnRequest(_gameId, _player2Id, EndTurnMode.ForceEnd);
@@ -451,7 +460,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
 
         CurrentCampaignTurn nextRoundFirstTurn = Player1Turn() with { CurrentRoundNumber = 2 };
         _campaignTurnService
-            .GetFirstCampaignTurnAsync(_gameId)
+            .GetFirstCampaignTurnAsync(Arg.Any<AscendantEmpireContext>(), _gameId, Arg.Any<CancellationToken>())
             .Returns(ServiceResult<CurrentCampaignTurn>.Succeed(nextRoundFirstTurn));
 
         EndCampaignTurnRequest request = new EndCampaignTurnRequest(_gameId, _player2Id, EndTurnMode.ForceEnd);
@@ -489,7 +498,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
         ArrangeValidPlayer(currentTurn);
 
         _campaignTurnService
-            .GetFirstCampaignTurnAsync(_gameId)
+            .GetFirstCampaignTurnAsync(Arg.Any<AscendantEmpireContext>(), _gameId, Arg.Any<CancellationToken>())
             .Returns(ServiceResult<CurrentCampaignTurn>.Fail("first turn lookup failed"));
 
         EndCampaignTurnRequest request = new EndCampaignTurnRequest(_gameId, _player2Id, EndTurnMode.ForceEnd);
@@ -509,7 +518,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
 
         CurrentCampaignTurn nextRoundFirstTurn = Player1Turn() with { CurrentRoundNumber = 2 };
         _campaignTurnService
-            .GetFirstCampaignTurnAsync(_gameId)
+            .GetFirstCampaignTurnAsync(Arg.Any<AscendantEmpireContext>(), _gameId, Arg.Any<CancellationToken>())
             .Returns(ServiceResult<CurrentCampaignTurn>.Succeed(nextRoundFirstTurn));
 
         EndCampaignTurnRequest request = new EndCampaignTurnRequest(_gameId, _player2Id, EndTurnMode.ForceEnd);

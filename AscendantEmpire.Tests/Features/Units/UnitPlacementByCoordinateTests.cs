@@ -76,6 +76,10 @@ internal class UnitPlacementByCoordinateTests : GameSqlServerTestBase
 
         Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
 
+        // Setup leaves the Game waiting for its slots to be claimed. These tests are about what happens *during* a Game, and the queries
+        // they exercise only look at Games in progress, so start it rather than claiming seats that are beside the point here.
+        await StartGameAsync(result.SuccessValue);
+
         return result.SuccessValue;
     }
 

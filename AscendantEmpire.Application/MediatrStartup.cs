@@ -50,6 +50,7 @@ public static class MediatrStartup
         services.AddScoped<IRefreshSessionService, RefreshSessionService>();
 
         services.AddScoped<ICampaignTurnService, CampaignTurnService>();
+        services.AddScoped<ICampaignRoundService, CampaignRoundService>();
         services.AddScoped<ICampaignMapGalleryService, CampaignMapGalleryService>();
         services.AddScoped<IGameSetupService, GameSetupService>();
         services.AddScoped<IOpenGameService, OpenGameService>();

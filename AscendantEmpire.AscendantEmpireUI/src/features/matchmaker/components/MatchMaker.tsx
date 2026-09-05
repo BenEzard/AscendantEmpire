@@ -192,6 +192,8 @@ function GameCard({ game, busyPlayerId, onClaim, onPlay, onEdit }: GameCardProps
         <h2 className="text-lg font-semibold text-slate-800">{game.gameName}</h2>
         <span className="text-xs text-slate-500">
           {game.mapWidth}×{game.mapHeight} • {claimedCount}/{game.slots.length} slots taken
+          {/* Says out loud why the Play buttons below are disabled, rather than leaving it to the tooltip alone. */}
+          {!game.hasStarted && " • waiting to start"}
         </span>
       </div>
 
@@ -201,6 +203,7 @@ function GameCard({ game, busyPlayerId, onClaim, onPlay, onEdit }: GameCardProps
             key={slot.playerId}
             slot={slot}
             userHasSlotHere={userHasSlotHere}
+            hasStarted={game.hasStarted}
             isBusy={busyPlayerId === slot.playerId}
             onClaim={() => onClaim(slot.playerId)}
             onPlay={() => onPlay(slot.playerId)}
@@ -215,13 +218,15 @@ function GameCard({ game, busyPlayerId, onClaim, onPlay, onEdit }: GameCardProps
 interface SlotRowProps {
   slot: MatchMakingSlot;
   userHasSlotHere: boolean;
+  // A game only starts once its last slot is claimed, so until then there is nothing to enter.
+  hasStarted: boolean;
   isBusy: boolean;
   onClaim: () => void;
   onPlay: () => void;
   onEdit: () => void;
 }
 
-function SlotRow({ slot, userHasSlotHere, isBusy, onClaim, onPlay, onEdit }: SlotRowProps) {
+function SlotRow({ slot, userHasSlotHere, hasStarted, isBusy, onClaim, onPlay, onEdit }: SlotRowProps) {
   return (
     <li className="flex items-center justify-between gap-3 py-2">
       <span className="flex items-center gap-2 text-sm text-slate-700">
@@ -242,9 +247,18 @@ function SlotRow({ slot, userHasSlotHere, isBusy, onClaim, onPlay, onEdit }: Slo
           <Button variant="outline-secondary" className="px-3 py-1 text-xs" onClick={onEdit} disabled={isBusy}>
             Edit
           </Button>
-          <Button variant="primary" className="px-3 py-1 text-xs" onClick={onPlay} disabled={isBusy}>
-            {isBusy ? <Spinner size="sm" /> : "Play now"}
-          </Button>
+          {/* The API refuses entry to a game that hasn't started, so don't offer a button that could only fail. */}
+          <Tooltip content={hasStarted ? undefined : "The game starts once every slot has been claimed"}>
+            <span>
+              <Button
+                variant="primary"
+                className="px-3 py-1 text-xs"
+                onClick={onPlay}
+                disabled={isBusy || hasStarted === false}>
+                {isBusy ? <Spinner size="sm" /> : "Play now"}
+              </Button>
+            </span>
+          </Tooltip>
         </div>
       ) : slot.isClaimed ? (
         // Someone else holds it — shown as unavailable without revealing who.

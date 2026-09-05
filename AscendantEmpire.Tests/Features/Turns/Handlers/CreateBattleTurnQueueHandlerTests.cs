@@ -1,4 +1,4 @@
-using AscendantEmpire.Application.Common;
+﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Players.Handlers;
@@ -62,6 +62,7 @@ public class CreateBattleTurnQueueHandlerTests : GameSqlServerTestBase
         Assert.That(result.HasSucceeded, Is.True, $"SetupGameAsync failed: {string.Join(", ", result.Errors)}\nLogged exception: {_capturingLogger.LastException}");
 
         int gameId = result.SuccessValue;
+        await StartGameAsync(gameId);
 
         // Attempt to create a Battle Turn Queue with an invalid Player Id (3, which is not in the game).
         CreateBattleTurnQueueRequest createQueueRequest = new(GameId: gameId, CampaignMapTileId: 1, PlayerIdsInTurnOrder: [1, 3]);
@@ -86,6 +87,8 @@ public class CreateBattleTurnQueueHandlerTests : GameSqlServerTestBase
         Assert.That(setupResult.HasSucceeded, Is.True, $"SetupGameAsync failed: {string.Join(", ", setupResult.Errors)}\nLogged exception: {_capturingLogger.LastException}");
 
         int gameId = setupResult.SuccessValue;
+        await StartGameAsync(gameId);
+
         const int campaignMapTileId = 1;
 
         int[] playerIds = [1, 2];
@@ -176,6 +179,7 @@ public class CreateBattleTurnQueueHandlerTests : GameSqlServerTestBase
         Assert.That(result.HasSucceeded, Is.True, $"SetupGameAsync failed: {string.Join(", ", result.Errors)}\nLogged exception: {_capturingLogger.LastException}");
 
         int gameId = result.SuccessValue;
+        await StartGameAsync(gameId);
 
         // Insert an active Battle row directly so the handler sees an existing active Battle for the // tile without going through a second handler call
         // (which would use a separate context and risk FK constraint failures from partially-committed state).

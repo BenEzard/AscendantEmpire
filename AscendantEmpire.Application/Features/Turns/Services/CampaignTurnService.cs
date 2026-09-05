@@ -138,6 +138,14 @@ public class CampaignTurnService(
     /// <inheritdoc />
     public async Task<ServiceResult<CurrentCampaignTurn>> GetFirstCampaignTurnAsync(int gameId)
     {
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync();
+
+        return await GetFirstCampaignTurnAsync(context, gameId);
+    }
+
+    /// <inheritdoc />
+    public async Task<ServiceResult<CurrentCampaignTurn>> GetFirstCampaignTurnAsync(AscendantEmpireContext context, int gameId, CancellationToken cancellationToken = default)
+    {
         try
         {
             if (gameId <= 0)
@@ -146,8 +154,6 @@ public class CampaignTurnService(
 
                 return ServiceResult<CurrentCampaignTurn>.Fail("Game Id must be greater than 0.");
             }
-
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync();
 
             CurrentCampaignTurn? currentTurn = await context.TurnQueueParticipants
                 .Where(p => p.TurnQueue.GameId == gameId)
@@ -170,7 +176,7 @@ public class CampaignTurnService(
                     CurrentRoundNumber = p.TurnQueue.CurrentRoundNumber,
                     FactionName = p.Player.FactionName
                 })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (currentTurn is null)
             {

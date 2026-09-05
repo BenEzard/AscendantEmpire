@@ -5,6 +5,7 @@ using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Turns;
+using AscendantEmpire.Domain.Enums.Games;
 using AscendantEmpire.Domain.Enums.Turns;
 
 namespace AscendantEmpire.Tests.Features.Game.Services;
@@ -77,11 +78,11 @@ public class CreateCampaignTurnQueueTests : GameSqlServerTestBase
     }
 
     /// <summary>
-    /// After a successful game setup, <c>CompleteGameSetupAsync</c> sets <see cref="TurnQueue.CurrentTurnStartAt"/> and <see cref="TurnQueue.CurrentScheduledTurnEndAt"/> on the queue, 
-    /// confirming the queue returned by <c>CreateCampaignTurnQueueAsync</c> was persisted and then updated by the subsequent step.
+    /// Setup builds the queue but deliberately leaves its clock unset: play does not begin until the last Player slot has been claimed, and a
+    /// Turn clock ticking down against an empty lobby would be counting nobody's time.
     /// </summary>
-    [Test, Description("Setup starts the first turn as well as building the queue, stamping a start and a later scheduled end.")]
-    public async Task SuccessfulGameSetupShouldStartTheTurnAsync()
+    [Test, Description("Setup builds the queue without starting a turn, because nobody has claimed a slot yet for the clock to be running against.")]
+    public async Task ShouldLeaveTheTurnClockUnsetWhenSetupCompletesAsync()
     {
         SetupGameRequest request = new(GalleryMapId: _galleryIndexId, GameName: "Queue Times Test", NumberOfPlayers: _numberOfPlayers, BattleMapSize: 50, GenerationSeed: null);
 
@@ -97,11 +98,37 @@ public class CreateCampaignTurnQueueTests : GameSqlServerTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(queue.CurrentTurnStartAt, Is.Not.Null, "CurrentTurnStartAt should be set by CompleteGameSetupAsync.");
+            Assert.That(queue.CurrentTurnStartAt, Is.Null, "No Turn has started, so nothing should have stamped a start time.");
 
-            Assert.That(queue.CurrentScheduledTurnEndAt, Is.Not.Null, "CurrentScheduledTurnEndAt should be set by CompleteGameSetupAsync.");
+            Assert.That(queue.CurrentScheduledTurnEndAt, Is.Null, "A Turn that has not started cannot be scheduled to end.");
 
-            Assert.That(queue.CurrentScheduledTurnEndAt!.Value, Is.GreaterThan(queue.CurrentTurnStartAt!.Value), "Scheduled end must be after the turn start time.");
+            Assert.That(queue.CurrentActualTurnEndAt, Is.Null, "No Turn has been played, let alone finished.");
+        }
+    }
+
+    /// <summary>
+    /// Setup leaves the Game in the lobby rather than in progress. It used to mark it in progress here, which left every new Game unplayable:
+    /// no Participant was ever given the Turn, so the current-turn lookup found nobody and the first Turn could never be ended.
+    /// </summary>
+    [Test, Description("Setup opens the lobby rather than starting play, so the Game waits for its slots to be claimed before anybody can take a Turn.")]
+    public async Task ShouldLeaveTheGameAwaitingPlayersWhenSetupCompletesAsync()
+    {
+        SetupGameRequest request = new(GalleryMapId: _galleryIndexId, GameName: "Lobby State Test", NumberOfPlayers: _numberOfPlayers, BattleMapSize: 50, GenerationSeed: null);
+
+        ServiceResultBase.ServiceResult<int> result = await _service.SetupGameAsync(request, CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.True,
+            $"SetupGameAsync failed: {string.Join(", ", result.Errors)}\nLogged exception: {_capturingLogger.LastException}");
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+
+        GameIndex game = verifyContext.GameIndex.First(g => g.Id == result.SuccessValue);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(game.CreationStatus, Is.EqualTo(GameCreationStatus.SetupComplete), "The Game's data is fully built, so its setup is complete.");
+
+            Assert.That(game.PlayStatus, Is.EqualTo(GamePlayStatus.AwaitingPlayers), "Every slot is still free, so the Game has not begun.");
         }
     }
 

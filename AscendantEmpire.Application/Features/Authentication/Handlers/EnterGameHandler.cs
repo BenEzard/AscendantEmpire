@@ -1,10 +1,11 @@
-using AscendantEmpire.Application.Common;
+﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Authentication.Classes;
 using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Enums.Authentication;
+using AscendantEmpire.Domain.Enums.Games;
 
 using MediatR;
 
@@ -58,6 +59,19 @@ internal class EnterGameHandler(
             {
                 logger.LogInformation("User {UserId} attempted to enter game {GameId} but controls no player there.", request.UserId, request.GameId);
                 return ServiceResult<GameContext>.Forbidden("You are not a player in that game.");
+            }
+
+            // A game still filling its slots has nobody taking a turn and no turn clock running, so there is nothing to enter yet. Refusing
+            // here rather than issuing a token keeps the player in the Match Maker, where they can watch the remaining seats fill.
+            GamePlayStatus playStatus = await context.GameIndex
+                .Where(g => g.Id == request.GameId)
+                .Select(g => g.PlayStatus)
+                .FirstAsync(cancelToken);
+
+            if (playStatus == GamePlayStatus.AwaitingPlayers)
+            {
+                logger.LogInformation("User {UserId} attempted to enter game {GameId}, which has not started yet.", request.UserId, request.GameId);
+                return ServiceResult<GameContext>.Conflict("That game hasn't started yet - it's still waiting for players.");
             }
 
             // RulerName is a reasonable display label; the username is what the token cares about.
