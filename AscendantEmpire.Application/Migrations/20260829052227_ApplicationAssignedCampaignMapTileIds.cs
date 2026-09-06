@@ -20,8 +20,11 @@ namespace AscendantEmpire.Application.Migrations
     /// restored around the rebuild.
     /// </para>
     /// <para>
-    /// Run <c>scripts/CM-25-reset-games.sql</c> first. The guard at the top of <c>Up</c> stops the
-    /// migration if that has not happened, rather than dropping live game data.
+    /// This expected every game to have been cleared out first, and the guard at the top of <c>Up</c> stops the
+    /// migration if that has not happened rather than dropping live game data. It named a
+    /// <c>scripts/CM-25-reset-games.sql</c> that no longer exists — the script was a one-shot for this migration
+    /// and went stale as tables were renamed around it. <c>DELETE /games/{gameId}</c> does the same job properly,
+    /// one game at a time. The <c>Up</c> body is left exactly as it was applied; only this note has changed.
     /// </para>
     /// </remarks>
     public partial class ApplicationAssignedCampaignMapTileIds : Migration

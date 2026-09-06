@@ -35,5 +35,14 @@ public enum ProcessType
     /// <summary>
     /// Seed the database with its initial reference/catalogue values (biomes, geographies, tag types, etc.).
     /// </summary>
-    SeedDatabase = 7
+    SeedDatabase = 7,
+
+    /// <summary>
+    /// Permanently delete one Game and every row scoped to it (players, maps, units, orders, battles, turn queues and per-player design state).
+    /// </summary>
+    /// <remarks>
+    /// Runs in the background because nothing cascades — every game-scoped foreign key is mapped <c>NoAction</c>, so the purge is a long ordered
+    /// sequence of bulk deletes across roughly thirty tables, and a fully played game's campaign map alone runs to hundreds of thousands of rows.
+    /// </remarks>
+    DeleteGame = 8
 }

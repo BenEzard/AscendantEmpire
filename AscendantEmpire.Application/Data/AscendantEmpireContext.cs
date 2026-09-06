@@ -1167,8 +1167,10 @@ public class AscendantEmpireContext : DbContext
                 .HasConversion<int>()
                 .IsRequired();
 
+            // Wired to ForceOrder.Participants explicitly. Left as a bare WithMany(), EF treated that collection as a second, separate relationship and
+            // invented a shadow ForceOrderId1 foreign key column alongside this one.
             entity.HasOne(e => e.ForceOrder)
-                .WithMany()
+                .WithMany(o => o.Participants)
                 .HasForeignKey(e => e.ForceOrderId)
                 .OnDelete(DeleteBehavior.NoAction);
 

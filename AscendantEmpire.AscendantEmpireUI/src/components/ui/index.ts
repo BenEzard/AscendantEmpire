@@ -1,6 +1,8 @@
 export { default as Button } from "./Button";
 export type { ButtonVariant } from "./Button";
 export { default as Modal } from "./Modal";
+export { default as ConfirmDialog } from "./ConfirmDialog";
+export type { ConfirmDialogProps } from "./ConfirmDialog";
 export { default as ExportDialog } from "./ExportDialog";
 export { default as PagedDialog } from "./PagedDialog";
 export type { PagedDialogProps, PagedDialogSection } from "./PagedDialog";

@@ -60,6 +60,9 @@ public sealed class EndpointIdentityBindingTests
 
         ["POST /units/temporary-dev-only/spawn"] =
             "a developer tool behind the EntitySetupTool permission, whose purpose is placing a unit into an arbitrary game for an arbitrary player",
+
+        ["DELETE /games/{gameId}"] =
+            "a developer tool behind the DeleteGame permission, whose purpose is destroying an arbitrary game; the id names the target, not the caller, and the caller need not be a player in it at all",
     };
 
     /// <summary>

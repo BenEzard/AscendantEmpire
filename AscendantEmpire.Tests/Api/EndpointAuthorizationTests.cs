@@ -66,6 +66,11 @@ public sealed class EndpointAuthorizationTests
         ["GET /unit-design-transfer/export/download"] = PermissionType.SystemPanel,
         ["POST /unit-design-transfer/import"] = PermissionType.SystemPanel,
 
+        // Deleting a game. Deliberately its own permission rather than SystemPanel: reaching the panel is a far smaller thing to grant than being able to
+        // destroy a game other people are playing, so the listing that feeds the delete page is gated the same way.
+        ["GET /games"] = PermissionType.DeleteGame,
+        ["DELETE /games/{gameId}"] = PermissionType.DeleteGame,
+
         // Entity setup tool: everything that writes to the shared catalogues, plus the dev-only actions.
         ["POST /system/seed"] = PermissionType.EntitySetupTool,
         ["POST /unit-design-catalogue/bulk"] = PermissionType.EntitySetupTool,

@@ -1,0 +1,425 @@
+using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Authentication.Services;
+using AscendantEmpire.Application.Features.Game.Executors;
+using AscendantEmpire.Application.Features.Game.Handlers;
+using AscendantEmpire.Domain.Entities.BackgroundProcessing;
+using AscendantEmpire.Domain.Entities.Games;
+using AscendantEmpire.Domain.Entities.Identity;
+using AscendantEmpire.Domain.Entities.UnitDesigns;
+using AscendantEmpire.Domain.Enums.Authentication;
+using AscendantEmpire.Domain.Enums.Games;
+using AscendantEmpire.Domain.Enums.Processing;
+using AscendantEmpire.Domain.Enums.System;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+
+using System.Text.Json;
+
+using static AscendantEmpire.Application.Common.ServiceResultBase;
+
+namespace AscendantEmpire.Tests.Features.Game;
+
+/// <summary>
+/// Cover for the purge itself: that deleting one game removes everything scoped to it, and nothing else.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Tier 3, on all four counts <c>testing.md</c> names: the ordering the purge depends on is only real when the database is enforcing the foreign keys, every
+/// step is an <c>ExecuteDeleteAsync</c>, the whole thing runs in an explicit transaction, and the identity reseed is raw <c>DBCC</c>.
+/// </para>
+/// <para>
+/// Games are built by the real <c>GameSetupService</c> rather than by hand-seeded rows, because a hand-seeded game would only contain the tables someone
+/// remembered to seed — and the failure this fixture guards against is precisely a table nobody remembered.
+/// </para>
+/// </remarks>
+[TestFixture]
+public class GameDeleteExecutorTests : GameSqlServerTestBase
+{
+    [SetUp]
+    public async Task SetUp()
+    {
+        await SeedGameAsync(2, 2, 2);
+    }
+
+    [Test, Description("Every row scoped to the game goes, across all of the tables game setup populates, not just the ones it is obvious to remember.")]
+    public async Task ShouldRemoveEveryRowScopedToTheGameWhenItIsDeletedAsync()
+    {
+        int gameId = await SetupGameAsync("Doomed");
+
+        await ExecuteDeleteAsync(gameId);
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await context.GameIndex.AnyAsync(g => g.Id == gameId), Is.False, "The game itself should be gone.");
+            Assert.That(await context.Players.AnyAsync(p => p.GameId == gameId), Is.False);
+            Assert.That(await context.CampaignMaps.AnyAsync(t => t.GameId == gameId), Is.False);
+            Assert.That(await context.PlayerCampaignMaps.AnyAsync(t => t.GameId == gameId), Is.False);
+            Assert.That(await context.UnitInstances.AnyAsync(u => u.GameId == gameId), Is.False);
+            Assert.That(await context.TurnQueues.AnyAsync(q => q.GameId == gameId), Is.False);
+            Assert.That(await context.TurnQueueParticipants.AnyAsync(), Is.False, "The only turn queue in the database belonged to the deleted game.");
+            Assert.That(await context.PlayerUnlockedTemplates.AnyAsync(), Is.False, "Unlock rows are player-scoped, even when the template they name survives.");
+            Assert.That(await context.PlayerUnlockedComponents.AnyAsync(), Is.False);
+            Assert.That(await context.PlayerOfficerRanks.AnyAsync(), Is.False);
+        }
+    }
+
+    [Test, Description("The job is marked complete rather than being left in progress, because the page polls that status to know when to refresh the list.")]
+    public async Task ShouldMarkTheJobCompleteWhenThePurgeSucceedsAsync()
+    {
+        int gameId = await SetupGameAsync("Doomed");
+
+        Processing job = await ExecuteDeleteAsync(gameId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(job.Status, Is.EqualTo(ProcessingStatus.Complete), job.ErrorMessage);
+            Assert.That(job.ProgressPercent, Is.EqualTo(100));
+            Assert.That(job.CompletedAt, Is.Not.Null);
+        }
+    }
+
+    [Test, Description("A second game is left completely intact, because a purge that reached past its own game would take live games down with it.")]
+    public async Task ShouldLeaveOtherGamesUntouchedWhenOneIsDeletedAsync()
+    {
+        int doomedGameId = await SetupGameAsync("Doomed");
+        int survivingGameId = await SetupGameAsync("Survivor");
+
+        int tilesBefore = await CountAsync(c => c.CampaignMaps.CountAsync(t => t.GameId == survivingGameId));
+        int unitsBefore = await CountAsync(c => c.UnitInstances.CountAsync(u => u.GameId == survivingGameId));
+        int playersBefore = await CountAsync(c => c.Players.CountAsync(p => p.GameId == survivingGameId));
+
+        await ExecuteDeleteAsync(doomedGameId);
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await context.GameIndex.AnyAsync(g => g.Id == survivingGameId), Is.True);
+            Assert.That(await context.CampaignMaps.CountAsync(t => t.GameId == survivingGameId), Is.EqualTo(tilesBefore));
+            Assert.That(await context.UnitInstances.CountAsync(u => u.GameId == survivingGameId), Is.EqualTo(unitsBefore));
+            Assert.That(await context.Players.CountAsync(p => p.GameId == survivingGameId), Is.EqualTo(playersBefore));
+        }
+    }
+
+    [Test, Description("Catalogue and reference data survives, since it is shared by every game and re-authoring it would be the real cost of a delete.")]
+    public async Task ShouldKeepTheSharedCatalogueWhenAGameIsDeletedAsync()
+    {
+        int gameId = await SetupGameAsync("Doomed");
+
+        // Setup leaves every slot unclaimed, so there is no account in the database unless one is put there.
+        await SeedUserAsync();
+
+        int componentsBefore = await CountAsync(c => c.UnitComponents.CountAsync());
+        int tagsBefore = await CountAsync(c => c.Tags.CountAsync());
+        int biomesBefore = await CountAsync(c => c.CampaignBiomes.CountAsync());
+        int galleryTilesBefore = await CountAsync(c => c.CampaignMapGallery.CountAsync());
+        int startPositionsBefore = await CountAsync(c => c.CampaignMapStartPositions.CountAsync());
+
+        await ExecuteDeleteAsync(gameId);
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await context.UnitComponents.CountAsync(), Is.EqualTo(componentsBefore));
+            Assert.That(await context.Tags.CountAsync(), Is.EqualTo(tagsBefore));
+            Assert.That(await context.CampaignBiomes.CountAsync(), Is.EqualTo(biomesBefore));
+            Assert.That(await context.CampaignMapGallery.CountAsync(), Is.EqualTo(galleryTilesBefore));
+            Assert.That(await context.CampaignMapStartPositions.CountAsync(), Is.EqualTo(startPositionsBefore),
+                "Start positions belong to the gallery map, not to any one game played on it.");
+            Assert.That(await context.Users.AnyAsync(), Is.True, "Accounts outlive the games they played.");
+        }
+    }
+
+    [Test, Description("Global unit templates survive while the deleted game's own custom ones go, and another game's custom ones are left alone — the distinction the old wipe-everything script got wrong.")]
+    public async Task ShouldDeleteOnlyTheDeletedGamesCustomTemplatesAsync()
+    {
+        int doomedGameId = await SetupGameAsync("Doomed");
+        int survivingGameId = await SetupGameAsync("Survivor");
+
+        int doomedTemplateId = await SeedCustomTemplateAsync(doomedGameId, "Doomed Levy");
+        int survivingTemplateId = await SeedCustomTemplateAsync(survivingGameId, "Surviving Levy");
+
+        int globalTemplatesBefore = await CountAsync(c => c.UnitTemplates.CountAsync(t => t.GameId == null && t.PlayerId == null));
+
+        await ExecuteDeleteAsync(doomedGameId);
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await context.UnitTemplates.AnyAsync(t => t.Id == doomedTemplateId), Is.False);
+            Assert.That(await context.UnitTemplateComponents.AnyAsync(c => c.UnitTemplateId == doomedTemplateId), Is.False);
+            Assert.That(await context.UnitTemplates.AnyAsync(t => t.Id == survivingTemplateId), Is.True,
+                "Another game's custom template has nothing to do with this purge.");
+            Assert.That(await context.UnitTemplates.CountAsync(t => t.GameId == null && t.PlayerId == null), Is.EqualTo(globalTemplatesBefore),
+                "A global template has no GameId and no PlayerId, so no game owns it.");
+        }
+    }
+
+    [Test, Description("A session scoped to the deleted game is revoked and has its game context cleared, because nothing else would ever clear columns that carry no foreign key.")]
+    public async Task ShouldRevokeAndClearSessionsScopedToTheGameAsync()
+    {
+        int gameId = await SetupGameAsync("Doomed");
+
+        int playerId = await FirstPlayerIdAsync(gameId);
+        int sessionId = await SeedSessionAsync(gameId, playerId);
+
+        await ExecuteDeleteAsync(gameId);
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+        RefreshSession session = await context.RefreshSessions.SingleAsync(s => s.Id == sessionId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(session.RevokedAt, Is.Not.Null, "Anyone still in the game should be turned out of it.");
+            Assert.That(session.GameId, Is.Null);
+            Assert.That(session.PlayerId, Is.Null);
+        }
+    }
+
+    [Test, Description("Deleting the last game resets the id counters, so a fresh start numbers from 1 instead of carrying on from whatever the abandoned games reached.")]
+    public async Task ShouldResetIdentityCountersWhenTheLastGameIsDeletedAsync()
+    {
+        int gameId = await SetupGameAsync("The only game");
+
+        await ExecuteDeleteAsync(gameId);
+
+        int nextGameId = await InsertBareGameAsync("Next");
+
+        Assert.That(nextGameId, Is.EqualTo(1));
+    }
+
+    [Test, Description("Deleting one of several games leaves the counters alone, because reseeding while rows survive would hand out ids that collide with them.")]
+    public async Task ShouldNotResetIdentityCountersWhileAnotherGameRemainsAsync()
+    {
+        int doomedGameId = await SetupGameAsync("Doomed");
+        int survivingGameId = await SetupGameAsync("Survivor");
+
+        await ExecuteDeleteAsync(doomedGameId);
+
+        int nextGameId = await InsertBareGameAsync("Next");
+
+        Assert.That(nextGameId, Is.GreaterThan(survivingGameId));
+    }
+
+    [Test, Description("A job whose metadata names no game fails loudly rather than quietly doing nothing, because a purge that silently no-ops looks identical to one that worked.")]
+    public async Task ShouldMarkTheJobFailedWhenTheMetadataNamesNoGameAsync()
+    {
+        int gameId = await SetupGameAsync("Untouched");
+
+        Processing job = await ExecuteDeleteAsync(metadataJson: "{}");
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(job.Status, Is.EqualTo(ProcessingStatus.Failed));
+            Assert.That(job.ErrorMessage, Is.Not.Null);
+            Assert.That(await context.GameIndex.AnyAsync(g => g.Id == gameId), Is.True, "Nothing should have been deleted.");
+        }
+    }
+
+    // ---------------------------------------------------------------------
+
+    /// <summary>Runs the real game setup and returns the new Game's Id.</summary>
+    private async Task<int> SetupGameAsync(string gameName)
+    {
+        SetupGameRequest request = new(GalleryMapId: _galleryIndexId, GameName: gameName, NumberOfPlayers: _numberOfPlayers, BattleMapSize: 50, GenerationSeed: null);
+
+        ServiceResult<int> result = await _service.SetupGameAsync(request, CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.True,
+            $"SetupGameAsync failed: {string.Join(", ", result.Errors)}\nLogged exception: {_capturingLogger.LastException}");
+
+        return result.SuccessValue;
+    }
+
+    /// <summary>Runs the executor against a delete job for one game, and returns the job as it was left.</summary>
+    private Task<Processing> ExecuteDeleteAsync(int gameId)
+    {
+        return ExecuteDeleteAsync(JsonSerializer.Serialize(new Dictionary<string, int> { ["gameId"] = gameId }));
+    }
+
+    /// <summary>
+    /// Runs the executor against a delete job carrying the given metadata.
+    /// </summary>
+    /// <remarks>
+    /// The job is tracked by its own context, exactly as the dispatcher hands it over, so the executor's progress writes go somewhere separate from the
+    /// transaction its purge runs in.
+    /// </remarks>
+    private async Task<Processing> ExecuteDeleteAsync(string metadataJson)
+    {
+        await using AscendantEmpireContext jobContext = await DbFactory.CreateDbContextAsync();
+
+        var job = new Processing
+        {
+            ProcessType = ProcessType.DeleteGame,
+            Status = ProcessingStatus.Pending,
+            StartedAt = DateTime.UtcNow,
+            MetadataJson = metadataJson
+        };
+
+        jobContext.Processing.Add(job);
+        await jobContext.SaveChangesAsync();
+
+        var executor = new GameDeleteExecutor(
+            jobContext,
+            DbFactory,
+            new RefreshSessionService(new NullLogger<RefreshSessionService>(), DbFactory),
+            new NullLogger<GameDeleteExecutor>());
+
+        await executor.ExecuteAsync(job, CancellationToken.None);
+
+        return job;
+    }
+
+    /// <summary>Runs a count against a fresh context, so a "before" figure is read from the database rather than from a stale one.</summary>
+    private async Task<int> CountAsync(Func<AscendantEmpireContext, Task<int>> count)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        return await count(context);
+    }
+
+    private async Task<int> FirstPlayerIdAsync(int gameId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        return await context.Players.Where(p => p.GameId == gameId).Select(p => p.Id).OrderBy(id => id).FirstAsync();
+    }
+
+    /// <summary>Seeds a player-owned unit template in the given game, with one component row hanging off it.</summary>
+    private async Task<int> SeedCustomTemplateAsync(int gameId, string displayName)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        int playerId = await context.Players.Where(p => p.GameId == gameId).Select(p => p.Id).OrderBy(id => id).FirstAsync();
+        UnitComponent body = await context.UnitComponents.FirstAsync(c => c.Code == "human-body");
+        UnitComponentSlot slot = await GetOrAddSlotAsync(context, body.Id);
+
+        var template = new UnitTemplate
+        {
+            // A custom template carries both ids; a global one carries neither. That is the whole distinction the purge turns on.
+            GameId = gameId,
+            PlayerId = playerId,
+            DisplayName = displayName,
+            BodyComponentId = body.Id,
+            MapImagePath = "test.png"
+        };
+
+        context.UnitTemplates.Add(template);
+        await context.SaveChangesAsync();
+
+        context.UnitTemplateComponents.Add(new UnitTemplateComponent
+        {
+            UnitTemplateId = template.Id,
+            UnitComponentSlotId = slot.Id,
+            UnitComponentId = body.Id
+        });
+
+        await context.SaveChangesAsync();
+
+        return template.Id;
+    }
+
+    /// <summary>
+    /// Returns a component slot on the given body, creating one if the starter catalogue has none.
+    /// </summary>
+    /// <remarks>
+    /// The base fixture's catalogue stops short of slots, but a template component row needs one, and that row is what proves the purge reaches a custom
+    /// template's children as well as the template itself.
+    /// </remarks>
+    private static async Task<UnitComponentSlot> GetOrAddSlotAsync(AscendantEmpireContext context, int bodyComponentId)
+    {
+        UnitComponentSlot? existing = await context.UnitComponentSlots.FirstOrDefaultAsync();
+
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var slot = new UnitComponentSlot
+        {
+            Code = "test-slot",
+            DisplayName = "Test Slot",
+            UnitComponentBodyId = bodyComponentId,
+            IsVisible = true
+        };
+
+        context.UnitComponentSlots.Add(slot);
+        await context.SaveChangesAsync();
+
+        return slot;
+    }
+
+    private async Task<int> SeedUserAsync()
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        var user = new User
+        {
+            Username = $"account-{Guid.NewGuid():N}",
+            PasswordHash = "hash",
+            CreatedAt = DateTimeOffset.UtcNow,
+            InactiveReasonType = InactiveReasonType.Active
+        };
+
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+
+        return user.Id;
+    }
+
+    private async Task<int> SeedSessionAsync(int gameId, int playerId)
+    {
+        int userId = await SeedUserAsync();
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        var session = new RefreshSession
+        {
+            UserId = userId,
+            TokenHash = "hash",
+            CreatedAt = DateTimeOffset.UtcNow,
+            ExpiresAt = DateTimeOffset.UtcNow.AddDays(1),
+            GameId = gameId,
+            PlayerId = playerId
+        };
+
+        context.RefreshSessions.Add(session);
+        await context.SaveChangesAsync();
+
+        return session.Id;
+    }
+
+    /// <summary>
+    /// Inserts a bare GameIndex row and returns the id the database assigned it, which is how the identity counter is observed.
+    /// </summary>
+    private async Task<int> InsertBareGameAsync(string gameName)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        var game = new GameIndex
+        {
+            CampaignMapIndexId = _galleryIndexId,
+            GameName = gameName,
+            NumberOfPlayers = 2,
+            CreationStatus = GameCreationStatus.SetupPending,
+            PlayStatus = GamePlayStatus.SetupInProgress,
+            CreatedAt = DateTimeOffset.UtcNow,
+            GenerationSeed = 1,
+            BattleMapSize = 30,
+            MapWidth = 2,
+            MapHeight = 2
+        };
+
+        context.GameIndex.Add(game);
+        await context.SaveChangesAsync();
+
+        return game.Id;
+    }
+}

@@ -29,4 +29,11 @@ public enum PermissionType
 
     /// <summary>Use the Map Editor, including creating, editing and publishing campaign maps and editing the biome and geography catalogues.</summary>
     MapEditor = 5,
+
+    /// <summary>Permanently delete a Game and everything scoped to it, from the System panel's Games page.</summary>
+    /// <remarks>
+    /// Deliberately not part of the default grant a new account receives, and deliberately separate from <see cref="SystemPanel"/>: reaching the System
+    /// panel is a much smaller thing to hand out than being able to destroy a game other people are playing.
+    /// </remarks>
+    DeleteGame = 6,
 }

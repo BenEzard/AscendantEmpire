@@ -2346,9 +2346,6 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("ForceOrderId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("ForceOrderId1")
-                        .HasColumnType("int");
-
                     b.Property<int>("Role")
                         .HasColumnType("int");
 
@@ -2358,8 +2355,6 @@ namespace AscendantEmpire.Application.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ForceOrderId");
-
-                    b.HasIndex("ForceOrderId1");
 
                     b.HasIndex("UnitInstanceId");
 
@@ -3285,14 +3280,10 @@ namespace AscendantEmpire.Application.Migrations
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Units.ForceOrderParticipant", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.Units.ForceOrder", "ForceOrder")
-                        .WithMany()
+                        .WithMany("Participants")
                         .HasForeignKey("ForceOrderId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
-
-                    b.HasOne("AscendantEmpire.Domain.Entities.Units.ForceOrder", null)
-                        .WithMany("Participants")
-                        .HasForeignKey("ForceOrderId1");
 
                     b.HasOne("AscendantEmpire.Domain.Entities.Units.UnitInstance", "UnitInstance")
                         .WithMany()

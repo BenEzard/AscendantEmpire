@@ -1,29 +1,34 @@
 // Developer-only "System" tool (a standalone dev tool like the Map Editor), gated behind login via
 // AuthGate since its user-administration endpoints require an authenticated bearer token. Its first
 // feature is user administration: a toolbar "Users" button loads every user into a table where each
-// account can be inactivated for a reason (Quit/Banned/Deleted) or reactivated.
-import { useCallback, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { HiUsers } from "react-icons/hi2";
+// account can be inactivated for a reason (Quit/Banned/Deleted) or reactivated. A "Games" button lists
+// every game and offers a confirmed, permanent delete of one.
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { HiUsers, HiRectangleStack } from "react-icons/hi2";
 import { FaFileExport, FaFileImport } from "react-icons/fa6";
 
 import ToolBar from "@/components/ui/toolbar/Toolbar";
 import type { ToolBarGroup } from "@/components/ui/toolbar/Toolbar";
-import { Alert, HamburgerMenu, ProgressOperationDialog } from "@/components/ui";
+import { Alert, ConfirmDialog, HamburgerMenu, ProgressOperationDialog } from "@/components/ui";
+import { hasPermission } from "@/api/authToken";
 import { useAccountMenu } from "@/features/auth/hooks/useAccountMenu";
 
 import { getUsers, setUserInactive, setUserPermissions } from "../api/usersApi";
+import { getGames } from "../api/gamesApi";
 import { INACTIVATION_REASONS } from "../types/User";
 import type { AuthUser, InactiveReasonType } from "../types/User";
+import type { GameSummary } from "../types/Game";
 import type { PermissionType } from "../types/Permission";
 import UsersTable from "./UsersTable";
+import GamesTable from "./GamesTable";
 import UserPermissionsDialog from "./UserPermissionsDialog";
 import ExportSelectionDialog from "./ExportSelectionDialog";
 import { useCatalogueExport, type CatalogueExportPhase } from "../hooks/useCatalogueExport";
 import { useCatalogueImport, type CatalogueImportPhase } from "../hooks/useCatalogueImport";
+import { useGameDelete, type GameDeletePhase } from "../hooks/useGameDelete";
 
-// Which panel the page is currently showing. Only the Users view exists for now, but this leaves room
-// for more System tools (each toolbar group can flip to its own view).
-type SystemView = "none" | "users";
+// Which panel the page is currently showing. Each toolbar group flips to its own view.
+type SystemView = "none" | "users" | "games";
 
 // Short status labels shown under the progress bar for each phase of the export/import state machines.
 const EXPORT_PHASE_LABELS: Record<CatalogueExportPhase["phase"], string> = {
@@ -39,6 +44,14 @@ const IMPORT_PHASE_LABELS: Record<CatalogueImportPhase["phase"], string> = {
   idle: "",
   starting: "Starting import…",
   polling: "Import in progress…",
+  done: "",
+  error: "",
+};
+
+const DELETE_PHASE_LABELS: Record<GameDeletePhase["phase"], string> = {
+  idle: "",
+  starting: "Starting deletion…",
+  polling: "Deleting game data…",
   done: "",
   error: "",
 };
@@ -69,6 +82,24 @@ export default function System() {
   const [permissionsUser, setPermissionsUser] = useState<AuthUser | null>(null);
   const [permissionsError, setPermissionsError] = useState<string | null>(null);
   const [savingPermissions, setSavingPermissions] = useState(false);
+
+  // --- Games state ------------------------------------------------------------------------------
+  // The games list has its own loading and error state rather than sharing the users one, so switching
+  // between the two views never shows one view's error over the other's data.
+  const [games, setGames] = useState<GameSummary[]>([]);
+  const [gamesLoading, setGamesLoading] = useState(false);
+  const [gamesError, setGamesError] = useState<string | null>(null);
+
+  // The game awaiting confirmation of its delete, or null when the confirmation dialog is closed.
+  const [gameToDelete, setGameToDelete] = useState<GameSummary | null>(null);
+
+  // Deleting a game is a background job: the endpoint queues it and this state machine polls it to completion.
+  const gameDelete = useGameDelete();
+
+  // The System panel itself only needs SystemPanel, so a user can be standing here without being allowed to
+  // delete anything. Reading the claim once matches how PermissionGate does it — permissions only change on
+  // login or a token refresh, both of which reload the page.
+  const canDeleteGames = useMemo(() => hasPermission("DeleteGame"), []);
 
   // --- Files (catalogue export / import) state --------------------------------------------------
   // Controls the ExportSelectionDialog opened by the Files group's "Export" button, plus its error banner.
@@ -102,11 +133,41 @@ export default function System() {
     }
   }, []);
 
+  // Loads (or reloads) the full games list. Called when opening the Games view and again once a delete
+  // finishes, so the deleted game drops out of the table.
+  const loadGames = useCallback(async () => {
+    setGamesLoading(true);
+    setGamesError(null);
+    try {
+      const fetched = await getGames();
+      setGames(fetched);
+    } catch (err) {
+      console.error("Failed to load games.", err);
+      setGamesError("Failed to load games. See the console for details.");
+    } finally {
+      setGamesLoading(false);
+    }
+  }, []);
+
   // Opens the Users view and kicks off a load.
   const handleOpenUsers = useCallback(() => {
     setView("users");
     loadUsers();
   }, [loadUsers]);
+
+  // Opens the Games view and kicks off a load.
+  const handleOpenGames = useCallback(() => {
+    setView("games");
+    loadGames();
+  }, [loadGames]);
+
+  // Refresh the list the moment the purge reports complete, so the row disappears without waiting for the
+  // developer to close the progress dialog.
+  useEffect(() => {
+    if (gameDelete.deletePhase.phase === "done") {
+      loadGames();
+    }
+  }, [gameDelete.deletePhase.phase, loadGames]);
 
   // Applies a new reason to a user. Destructive reasons (Banned/Deleted) confirm first; everything
   // else applies immediately. On success we re-fetch so the table mirrors the server exactly.
@@ -129,6 +190,18 @@ export default function System() {
       console.error("Failed to update user status.", err);
       setError("Failed to update user status. See the console for details.");
     }
+  };
+
+  // Confirming the delete closes the dialog and hands the game to the background state machine, which owns
+  // everything from here on: the DELETE call, the polling, and the progress dialog.
+  const handleConfirmDelete = () => {
+    if (gameToDelete == null) {
+      return;
+    }
+
+    const gameId = gameToDelete.gameId;
+    setGameToDelete(null);
+    gameDelete.startDelete(gameId);
   };
 
   // Saving permissions re-loads the list so the row's summary reflects what was actually persisted, then
@@ -177,8 +250,9 @@ export default function System() {
     catalogueImport.startImport(file);
   };
 
-  // A "Users" group plus a "Files" group for catalogue export/import. The Users button opens the
-  // user-management table; the Files buttons drive the background export/import state machines.
+  // A "Users" group, a "Games" group and a "Files" group for catalogue export/import. The Games group is
+  // omitted entirely without the DeleteGame permission, since deleting is the only thing that page does and
+  // the API would refuse even the listing.
   const toolBarGroups = useMemo<ToolBarGroup[]>(
     () => [
       {
@@ -206,6 +280,22 @@ export default function System() {
           },
         ],
       },
+      ...(canDeleteGames
+        ? [
+            {
+              caption: "Games",
+              buttons: [
+                {
+                  key: "games",
+                  icon: <HiRectangleStack />,
+                  tooltip: "Manage Games",
+                  active: view === "games",
+                  onClick: handleOpenGames,
+                },
+              ],
+            },
+          ]
+        : []),
       {
         caption: "Files",
         buttons: [
@@ -229,7 +319,7 @@ export default function System() {
         ],
       },
     ],
-    [view, handleOpenUsers, accountHeader, accountGroup],
+    [view, handleOpenUsers, handleOpenGames, canDeleteGames, accountHeader, accountGroup],
   );
 
   return (
@@ -239,7 +329,7 @@ export default function System() {
         containerClassName="toolbar flex justify-start border-b border-slate-200 bg-stone-100 sticky top-0 z-10"
       />
 
-      {view === "users" ? (
+      {view === "users" && (
         <div className="flex flex-1 flex-col gap-4 p-6">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-semibold">Users</h1>
@@ -258,7 +348,27 @@ export default function System() {
             }}
           />
         </div>
-      ) : (
+      )}
+
+      {view === "games" && (
+        <div className="flex flex-1 flex-col gap-4 p-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-semibold">Games</h1>
+            <span className="text-sm text-slate-400">{games.length} total</span>
+          </div>
+
+          {gamesError != null && <Alert variant="danger">{gamesError}</Alert>}
+
+          <GamesTable
+            games={games}
+            loading={gamesLoading}
+            deletingGameId={gameDelete.deletingGameId}
+            onDelete={(game) => setGameToDelete(game)}
+          />
+        </div>
+      )}
+
+      {view === "none" && (
         <div className="flex flex-1 flex-col items-center justify-center gap-2">
           <h1 className="text-2xl font-semibold">System</h1>
           <p className="text-sm text-slate-400">Pick a tool from the toolbar to get started.</p>
@@ -278,6 +388,38 @@ export default function System() {
           setPermissionsError(null);
         }}
         onCommit={handlePermissionsCommit}
+      />
+
+      {/* Deleting a game is irreversible and takes the whole world with it, so it is spelled out before it runs. */}
+      <ConfirmDialog
+        open={gameToDelete != null}
+        title="Delete game"
+        confirmLabel="Delete"
+        message={
+          <>
+            <p>
+              Permanently delete <strong>{gameToDelete?.gameName}</strong>?
+            </p>
+            <p className="mt-2">
+              Its players, campaign and battle maps, units, orders, structures, battles and turn queues all go with it.
+              This cannot be undone.
+            </p>
+          </>
+        }
+        onCancel={() => setGameToDelete(null)}
+        onConfirm={handleConfirmDelete}
+      />
+
+      {/* Delete progress. Driven by the delete state machine; closing resets it to idle. */}
+      <ProgressOperationDialog
+        open={gameDelete.isActive}
+        title="Deleting game"
+        operationLabel={DELETE_PHASE_LABELS[gameDelete.deletePhase.phase]}
+        progressPercent={gameDelete.progressPercent}
+        status={progressStatus(gameDelete.deletePhase.phase)}
+        successMessage="The game and everything in it has been deleted."
+        errorMessage={gameDelete.deletePhase.phase === "error" ? gameDelete.deletePhase.message : undefined}
+        onClose={gameDelete.resetDelete}
       />
 
       <ExportSelectionDialog
