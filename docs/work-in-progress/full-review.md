@@ -83,7 +83,7 @@ Frontend: ~23k lines of TS/TSX.
 
 | # | Slice | Scope | Size | Status | Session |
 | --- | --- | --- | --- | --- | --- |
-| S1 | API host, composition root & config | `Api/Program.cs`, `MediatrStartup.cs`, `Application/Options/*`, `appsettings*.json`, Serilog/CORS/Swagger setup | ~0.5k | **Done** | 1 |
+| S1 | API host, composition root & config | `Api/Program.cs`, `ApplicationStartup.cs`, `Application/Options/*`, `appsettings*.json`, Serilog/CORS/Swagger setup | ~0.5k | **Done** | 1 |
 | S2 | Authentication & authorisation | `Api/Authentication/*`, `Api/Utilities/{ClaimsPrincipal,GameToken}Extensions`, `Features/Authentication/**`, endpoint protection across all controllers | ~1.2k | **Done** | 1 |
 | S3 | API surface — controllers & result mapping | all 15 controllers, `Common/ServiceResultBase.cs`, `Api/Utilities/ServiceResultExtensions.cs`, `DTApiErrorResult`, `ValidationBehaviour`, BackendContracts / FrontendContracts | ~6.1k | **Done** | 1–2 |
 | S4 | Application layer conventions | MediatR request/handler conventions across `Features/*`, validator coverage, error/logging patterns, `Helpers/*`, `Common/*` | ~1k + cross-cutting | **Done** | 3 |

@@ -9,7 +9,7 @@ namespace AscendantEmpire.Tests.Features.ForceOrders.Movement;
 [TestFixture]
 internal class MovementDomainStrategyTests
 {
-    /// <summary>Every registered strategy, in the order they are wired up in <c>MediatrStartup</c>.</summary>
+    /// <summary>Every registered strategy, in the order they are wired up in <c>ApplicationStartup</c>.</summary>
     private static IReadOnlyCollection<IMovementDomainStrategy> AllStrategies =>
     [
         new LandMovementStrategy(),

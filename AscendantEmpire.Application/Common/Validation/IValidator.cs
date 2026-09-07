@@ -7,7 +7,7 @@
 /// <para>Validation is synchronous by design. A rule that needs the database — an existence or a uniqueness check — belongs in the handler, which is where
 /// every other such check in this codebase already lives and where it can be written as an ordinary EF query.</para>
 /// <para>Implementations are expected to be pure and parameterless, so a validator can be constructed wherever it is needed as well as resolved from the
-/// container for the MediatR pipeline.</para>
+/// container for the request pipeline.</para>
 /// </remarks>
 /// <typeparam name="T">The type being validated. May be a request, a DTO, an interface, or a bare primitive.</typeparam>
 public interface IValidator<in T>

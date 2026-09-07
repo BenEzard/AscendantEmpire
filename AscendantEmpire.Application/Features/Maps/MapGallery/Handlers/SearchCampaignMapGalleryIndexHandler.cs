@@ -1,7 +1,6 @@
-﻿using AscendantEmpire.Application.Data;
+﻿using AscendantEmpire.Application.Common.Messaging;
+using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.MapGallery.SearchCampaignMap;
-
-using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

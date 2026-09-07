@@ -1,13 +1,12 @@
 using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Features.MatchMaking.Classes;
 using AscendantEmpire.Application.Features.MatchMaking.Handlers;
 using AscendantEmpire.BackendContracts.MatchMaking;
 using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.MatchMaking;
-
-using MediatR;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

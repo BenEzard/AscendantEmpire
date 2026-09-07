@@ -1,10 +1,9 @@
 ﻿using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Enums.Games;
 using AscendantEmpire.Domain.Enums.Maps;
-
-using MediatR;
 
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;

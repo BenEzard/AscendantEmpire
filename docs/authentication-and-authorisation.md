@@ -128,7 +128,7 @@ if (!TryGetGameContext(out int gameId, out int playerId, out IActionResult? cont
 var response = await mediator.Send(new GetPlayerStructuresRequest(gameId, playerId), cancelToken);
 ```
 
-The MediatR request/handler signatures are unchanged — only the *source* of the ids changed.
+The request/handler signatures are unchanged — only the *source* of the ids changed.
 This is the pattern to apply to other controllers.
 
 ### Status codes
@@ -148,7 +148,7 @@ This is the pattern to apply to other controllers.
 | `User` entity | `AscendantEmpire.Domain/Entities/Identity/User.cs` | The account record. |
 | Schema config | `AscendantEmpire.Application/Data/AscendantEmpireContext.cs` (`ConfigureAuthSchema`) | `auth.Users`, unique username, `Player→User` FK, `UX_Player_Game_User`. |
 | Register/Login/EnterGame handlers | `AscendantEmpire.Application/Features/Authentication/Handlers/` | Business logic; return identity data, **not** tokens. |
-| `PasswordHasher<User>` | registered in `MediatrStartup.cs` | Hashes & verifies passwords (from `Microsoft.Extensions.Identity.Core`; the full ASP.NET Identity stack is **not** used). |
+| `PasswordHasher<User>` | registered in `ApplicationStartup.cs` | Hashes & verifies passwords (from `Microsoft.Extensions.Identity.Core`; the full ASP.NET Identity stack is **not** used). |
 | `ITokenService` / `JwtTokenService` | `AscendantEmpire.Api/Authentication/` | Builds the signed JWTs. API-layer concern. |
 | `AuthController` | `AscendantEmpire.Api/Controllers/AuthController.cs` | The endpoints; turns handler results into tokens. |
 | `ClaimsPrincipalExtensions` | `AscendantEmpire.Api/Utilities/` | `GetUserId()`, `GetGameId()`, `GetPlayerId()`. |
@@ -288,6 +288,6 @@ To apply the pattern to a new controller:
 2. Remove `gameId`/`playerId` from the action parameters.
 3. Read them from the token via `User.GetGameId()` / `User.GetPlayerId()` (guard for the
    user-token-only case and return `403`, as `PlayerController` does).
-4. Build the existing MediatR request with those values.
+4. Build the existing request with those values.
 
 No handler or Application-layer changes are needed — the request/handler contracts stay the same.

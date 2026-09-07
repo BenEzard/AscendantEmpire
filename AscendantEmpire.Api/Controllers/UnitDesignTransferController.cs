@@ -1,5 +1,6 @@
 using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
 using AscendantEmpire.Application.Options;
@@ -8,8 +9,6 @@ using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.Domain.Enums.Processing;
 using AscendantEmpire.Domain.Enums.System;
 using AscendantEmpire.FrontendContracts;
-
-using MediatR;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -28,7 +27,7 @@ namespace AscendantEmpire.Api.Controllers;
 /// Export and import both run asynchronously as background processes rather than completing on the request, so every action here returns a processId and the caller polls <c>GET /system/status?processId=X</c> for progress.
 /// </para>
 /// <para>
-/// Two architectural styles live here deliberately: the job-initiating actions go through MediatR, while the download reads the process row directly through an <see cref="IDbContextFactory{TContext}"/> and streams a file off disk. That mix is the reason transfer is its own controller rather than part of the catalogue.
+/// Two architectural styles live here deliberately: the job-initiating actions go through the mediator, while the download reads the process row directly through an <see cref="IDbContextFactory{TContext}"/> and streams a file off disk. That mix is the reason transfer is its own controller rather than part of the catalogue.
 /// </para>
 /// </remarks>
 [ApiController]

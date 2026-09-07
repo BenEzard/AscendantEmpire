@@ -1,5 +1,6 @@
 ﻿using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Features.Maps.Geographies.Classes;
 using AscendantEmpire.Application.Features.Maps.Geographies.Handlers;
 using AscendantEmpire.BackendContracts.Geographies;
@@ -7,8 +8,6 @@ using AscendantEmpire.BackendContracts.Geographies.AddCampaignMapGeography;
 using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Geographies.GetCampaignMapGeographies;
-
-using MediatR;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

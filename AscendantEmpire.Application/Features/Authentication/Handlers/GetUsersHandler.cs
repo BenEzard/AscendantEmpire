@@ -1,8 +1,7 @@
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.Authentication.GetUsers;
 using AscendantEmpire.Domain.Enums.Authentication;
-
-using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

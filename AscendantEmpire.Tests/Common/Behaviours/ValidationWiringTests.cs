@@ -1,8 +1,7 @@
 ﻿using AscendantEmpire.Application;
 using AscendantEmpire.Application.Common.Behaviours;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Common.Validation;
-
-using MediatR;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -86,12 +85,12 @@ internal class ValidationWiringTests
         ServiceCollection services = new();
 
         // The same two calls Program.cs makes, in the same order, so this pins what the running API actually composes.
-        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(MediatrStartup).Assembly));
+        services.AddMediator(typeof(ApplicationStartup).Assembly);
         services.AddApplicationServices();
 
         using ServiceProvider provider = services.BuildServiceProvider();
 
-        IPipelineBehavior<ProbeRequest, ServiceResult<int>>[] behaviours = [.. provider.GetServices<IPipelineBehavior<ProbeRequest, ServiceResult<int>>>()];
+        IPipelineBehaviour<ProbeRequest, ServiceResult<int>>[] behaviours = [.. provider.GetServices<IPipelineBehaviour<ProbeRequest, ServiceResult<int>>>()];
 
         using (Assert.EnterMultipleScope())
         {
@@ -104,12 +103,12 @@ internal class ValidationWiringTests
     public void ShouldNotApplyTheBehaviourToAResponseThatCannotCarryAFailure()
     {
         ServiceCollection services = new();
-        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>));
+        services.AddTransient(typeof(IPipelineBehaviour<,>), typeof(ValidationBehaviour<,>));
 
         using ServiceProvider provider = services.BuildServiceProvider();
 
         // int is not a ServiceResultBase, so the container should decline to close the behaviour's generics over it rather than throw.
-        Assert.That(provider.GetServices<IPipelineBehavior<ProbeRequest, int>>(), Is.Empty);
+        Assert.That(provider.GetServices<IPipelineBehaviour<ProbeRequest, int>>(), Is.Empty);
     }
 
     [Test, Description("The behaviour resolved from the container really does stop an invalid request, so the wiring and the behaviour agree end to end.")]
@@ -117,11 +116,11 @@ internal class ValidationWiringTests
     {
         ServiceCollection services = new();
         services.AddValidatorsFromAssembly(typeof(ProbeRequestValidator).Assembly);
-        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>));
+        services.AddTransient(typeof(IPipelineBehaviour<,>), typeof(ValidationBehaviour<,>));
 
         using ServiceProvider provider = services.BuildServiceProvider();
 
-        IPipelineBehavior<ProbeRequest, ServiceResult<int>> behaviour = provider.GetRequiredService<IPipelineBehavior<ProbeRequest, ServiceResult<int>>>();
+        IPipelineBehaviour<ProbeRequest, ServiceResult<int>> behaviour = provider.GetRequiredService<IPipelineBehaviour<ProbeRequest, ServiceResult<int>>>();
 
         bool handlerWasCalled = false;
 

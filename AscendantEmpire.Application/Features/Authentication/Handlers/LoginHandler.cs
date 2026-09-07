@@ -1,12 +1,11 @@
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Authentication.Classes;
 using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.Domain.Entities.Identity;
 using AscendantEmpire.Domain.Enums.Authentication;
-
-using MediatR;
 
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

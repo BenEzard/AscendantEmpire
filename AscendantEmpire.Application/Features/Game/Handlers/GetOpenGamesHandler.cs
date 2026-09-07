@@ -1,8 +1,7 @@
-﻿using AscendantEmpire.Application.Data;
+﻿using AscendantEmpire.Application.Common.Messaging;
+using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.Games.GetOpenGames;
 using AscendantEmpire.Domain.Enums.Games;
-
-using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

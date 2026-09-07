@@ -65,7 +65,7 @@ table `RefreshSessions` in `auth` schema; **unique** index on `TokenHash`; non-u
 - Add `string? RefreshToken`. Populated on register/login/refresh; left null on `enter-game`
   (same session — the client keeps its existing refresh token).
 
-### 5. Endpoints — `AuthController.cs` (+ MediatR handlers under `Features\Authentication`)
+### 5. Endpoints — `AuthController.cs` (+ request handlers under `Features\Authentication`)
 
 - **register / login**: create a `RefreshSession` (GameId null), return access token (with
   `sessionId` claim) + raw refresh token. New handler/service to create the session row.
@@ -80,7 +80,7 @@ table `RefreshSessions` in `auth` schema; **unique** index on `TokenHash`; non-u
 
 ### 6. Revocation service (Application layer)
 
-A `SessionRevoker` service / MediatR commands the rest of the app calls:
+A `SessionRevoker` service / requests the rest of the app calls:
 
 - `RevokeByGame(gameId)` — revoke active sessions where `GameId == gameId` (**the delete-game /
   kick-all hook**).

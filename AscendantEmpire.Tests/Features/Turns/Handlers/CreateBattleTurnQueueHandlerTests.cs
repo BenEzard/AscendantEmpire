@@ -1,4 +1,5 @@
 ﻿using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Players.Handlers;
@@ -8,8 +9,6 @@ using AscendantEmpire.Domain.Entities.Battles;
 using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Turns;
-
-using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,7 +35,7 @@ public class CreateBattleTurnQueueHandlerTests : GameSqlServerTestBase
         // DbFactory is initialised by SqlServerTestBase before this SetUp runs.
         ServiceProvider sp = new ServiceCollection()
             .AddSingleton(DbFactory)
-            .AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<GetPlayersHandler>())
+            .AddMediator(typeof(GetPlayersHandler).Assembly)
             .AddLogging()
             .BuildServiceProvider();
 

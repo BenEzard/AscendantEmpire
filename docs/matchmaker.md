@@ -184,7 +184,7 @@ own.
 | Frontend contracts | `AscendantEmpire.FrontendContracts/MatchMaking/` | `IMatchMakingGameCollection`, `IMatchMakingGame`, `IMatchMakingSlot`, `IPlayerDefinition`, `IUsedFactionColour`. |
 | DTOs | `AscendantEmpire.Application/Features/MatchMaking/Classes/` | `DTMatchMakingGameCollection` etc. — the serialized shapes. |
 
-Handlers are auto-registered by MediatR's assembly scan, and their validators by the existing
+Handlers are auto-registered by the mediator's assembly scan, and their validators by the existing
 validation pipeline — no DI wiring was added.
 
 > **Design note:** this mirrors the auth handlers — the handler returns a `ServiceResult` and the

@@ -1,5 +1,6 @@
 using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetCompiledUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetPlayerTemplates;
@@ -8,8 +9,6 @@ using AscendantEmpire.BackendContracts.UnitDesigns.GetUnlockedBodies;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.Shared;
 using AscendantEmpire.FrontendContracts;
-
-using MediatR;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

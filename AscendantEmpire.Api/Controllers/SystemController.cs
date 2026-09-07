@@ -1,11 +1,10 @@
 using AscendantEmpire.Api.Utilities;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Features.DatabaseSeeding.Handlers;
 using AscendantEmpire.Application.Features.SystemMonitoring.Classes;
 using AscendantEmpire.Application.Features.SystemMonitoring.Handlers;
 using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
-
-using MediatR;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

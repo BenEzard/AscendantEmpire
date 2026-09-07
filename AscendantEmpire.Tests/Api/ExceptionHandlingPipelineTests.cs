@@ -1,8 +1,7 @@
 using AscendantEmpire.Api.Middleware.ExceptionHandling;
+using AscendantEmpire.Application.Common.Messaging;
 
 using FluentAssertions;
-
-using MediatR;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -48,9 +47,9 @@ public sealed class ExceptionHandlingPipelineTests
         using ApiTestFactory apiFactory = new()
         {
             // Registered after the application's own behaviours, so validation still runs first and this throws in its place of the real handler. Throwing
-            // from inside the MediatR pipeline reproduces the ticket's scenario exactly: no controller wraps mediator.Send in a try/catch.
+            // from inside the request pipeline reproduces the ticket's scenario exactly: no controller wraps mediator.Send in a try/catch.
             ConfigureAdditionalTestServices = services =>
-                services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ThrowingBehaviour<,>)),
+                services.AddTransient(typeof(IPipelineBehaviour<,>), typeof(ThrowingBehaviour<,>)),
         };
 
         using HttpClient client = apiFactory.CreateClientWithPermissions();
@@ -74,13 +73,13 @@ public sealed class ExceptionHandlingPipelineTests
     }
 
     /// <summary>
-    /// A MediatR behaviour that always throws, standing in for any handler that fails in a way nobody anticipated.
+    /// A pipeline behaviour that always throws, standing in for any handler that fails in a way nobody anticipated.
     /// </summary>
     /// <remarks>
     /// Deliberately a behaviour rather than a substitute for <c>IMediator</c>: it throws from inside the pipeline, after routing, authorization and model
     /// binding have all succeeded, which is the only place the global handler is the thing that catches it.
     /// </remarks>
-    private sealed class ThrowingBehaviour<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+    private sealed class ThrowingBehaviour<TRequest, TResponse> : IPipelineBehaviour<TRequest, TResponse>
         where TRequest : notnull
     {
         public Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancel)

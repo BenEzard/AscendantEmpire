@@ -1,4 +1,5 @@
 ﻿using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Handlers;
@@ -9,8 +10,6 @@ using AscendantEmpire.BackendContracts.Games.GetOpenGames;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums;
-
-using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -54,7 +53,7 @@ internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
         ServiceProvider provider = new ServiceCollection()
             .AddSingleton(DbFactory)
             .AddScoped(_ => DbFactory.CreateDbContext())
-            .AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<GetPlayersHandler>())
+            .AddMediator(typeof(GetPlayersHandler).Assembly)
             .AddLogging()
             .BuildServiceProvider();
 

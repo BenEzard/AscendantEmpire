@@ -1,5 +1,6 @@
 ﻿using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Options;
 using AscendantEmpire.Application.Features.Maps;
@@ -22,8 +23,6 @@ using AscendantEmpire.FrontendContracts.MapGallery.GetCampaignMapTiles;
 using AscendantEmpire.FrontendContracts.MapGallery.PutCampaignMapStartPositions;
 using AscendantEmpire.FrontendContracts.MapGallery.SearchCampaignMapIndex;
 using AscendantEmpire.FrontendContracts.MapGallery.UpdateCampaignMapTiles;
-
-using MediatR;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

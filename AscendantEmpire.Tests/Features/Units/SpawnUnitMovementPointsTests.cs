@@ -1,4 +1,5 @@
 ﻿using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Players.Handlers;
@@ -7,8 +8,6 @@ using AscendantEmpire.Application.Features.Units.Handlers;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
-
-using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -54,7 +53,7 @@ internal class SpawnUnitMovementPointsTests : GameSqlServerTestBase
             .AddSingleton(DbFactory)
             .AddScoped(_ => DbFactory.CreateDbContext())
             .AddSingleton(campaignTurnService)
-            .AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<GetPlayersHandler>())
+            .AddMediator(typeof(GetPlayersHandler).Assembly)
             .AddLogging()
             .BuildServiceProvider();
 

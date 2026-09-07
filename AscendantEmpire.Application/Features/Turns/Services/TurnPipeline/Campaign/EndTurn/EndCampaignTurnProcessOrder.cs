@@ -8,7 +8,7 @@
 /// sequence can be read and reordered here instead of being reconstructed by opening each process in turn.</para>
 /// <para>Values are spaced in bands of ten thousand so a process can be slipped between two others without renumbering anything below it. Two
 /// processes must never share a value: <c>OrderBy</c> is stable, so a tie silently falls through to the order they happen to be registered in
-/// <c>MediatrStartup</c>, and the sequence stops being decided here at all.</para>
+/// <c>ApplicationStartup</c>, and the sequence stops being decided here at all.</para>
 /// </remarks>
 internal enum EndCampaignTurnProcessOrder
 {

@@ -1,12 +1,11 @@
 using System.Text.RegularExpressions;
 
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.Resources;
 using AscendantEmpire.Domain.Entities.Resources;
 using AscendantEmpire.Domain.Enums.Resources;
-
-using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

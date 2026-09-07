@@ -1,8 +1,7 @@
 ﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Behaviours;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Common.Validation;
-
-using MediatR;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 

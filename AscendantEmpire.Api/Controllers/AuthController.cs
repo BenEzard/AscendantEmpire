@@ -1,6 +1,7 @@
 using AscendantEmpire.Api.Authentication;
 using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Features.Authentication.Classes;
 using AscendantEmpire.Application.Features.Authentication.Handlers;
 using AscendantEmpire.Application.Features.Authentication.Services;
@@ -9,8 +10,6 @@ using AscendantEmpire.BackendContracts.Authentication.GetUsers;
 using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Authentication;
-
-using MediatR;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

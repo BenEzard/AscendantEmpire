@@ -2,12 +2,11 @@
 using AscendantEmpire.Api.Authentication;
 using AscendantEmpire.Api.Middleware.ExceptionHandling;
 using AscendantEmpire.Application;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Domain.Enums.Authentication;
 
 using Serilog;
-
-using MediatR;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -90,8 +89,8 @@ namespace AscendantEmpire.Api
                     .WithExposedHeaders(GlobalExceptionHandler.CorrelationIdHeaderName));
             });
 
-            // Auto-register MediatR handlers
-            builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(MediatrStartup).Assembly));
+            // Auto-registers every request handler in the Application assembly, plus the mediator that dispatches to them.
+            builder.Services.AddMediator(typeof(ApplicationStartup).Assembly);
 
             // Request validators and the pipeline behaviour that runs them are registered by AddApplicationServices below, alongside the requests they
             // validate.

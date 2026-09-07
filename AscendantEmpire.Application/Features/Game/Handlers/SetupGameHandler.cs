@@ -1,8 +1,7 @@
-﻿using AscendantEmpire.Application.Common.Validation;
+﻿using AscendantEmpire.Application.Common.Messaging;
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Domain.Entities.Games;
-
-using MediatR;
 
 using Microsoft.Extensions.Logging;
 

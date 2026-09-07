@@ -1,4 +1,5 @@
 ﻿using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.Biomes.Handlers;
 using AscendantEmpire.Application.Features.Maps.Geographies.Handlers;
@@ -10,8 +11,6 @@ using AscendantEmpire.BackendContracts.Geographies;
 using AscendantEmpire.BackendContracts.MapGallery.UpdateCampaignMapTiles;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
-
-using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

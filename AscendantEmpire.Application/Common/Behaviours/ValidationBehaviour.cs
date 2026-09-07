@@ -1,6 +1,5 @@
-﻿using AscendantEmpire.Application.Common.Validation;
-
-using MediatR;
+﻿using AscendantEmpire.Application.Common.Messaging;
+using AscendantEmpire.Application.Common.Validation;
 
 namespace AscendantEmpire.Application.Common.Behaviours;
 
@@ -22,7 +21,7 @@ namespace AscendantEmpire.Application.Common.Behaviours;
 /// <typeparam name="TRequest">The request being validated.</typeparam>
 /// <typeparam name="TResponse">The request's response, which must be a service result so a failure can be expressed in it.</typeparam>
 public sealed class ValidationBehaviour<TRequest, TResponse>(IEnumerable<IValidator<TRequest>> validators)
-    : IPipelineBehavior<TRequest, TResponse>
+    : IPipelineBehaviour<TRequest, TResponse>
     where TRequest : notnull
     where TResponse : ServiceResultBase, new()
 {

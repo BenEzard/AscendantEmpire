@@ -1,6 +1,6 @@
 ﻿using AscendantEmpire.Application.Common;
 
-using MediatR;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using Microsoft.Extensions.Logging;
 using static AscendantEmpire.Application.Common.ServiceResultBase;

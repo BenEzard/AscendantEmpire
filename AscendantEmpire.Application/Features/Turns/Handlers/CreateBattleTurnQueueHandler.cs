@@ -1,4 +1,5 @@
 ﻿
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Players.Handlers;
@@ -9,8 +10,6 @@ using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Enums.Battle;
 using AscendantEmpire.Domain.Enums.Games;
 using AscendantEmpire.Domain.Enums.Turns;
-
-using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

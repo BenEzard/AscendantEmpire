@@ -1,4 +1,5 @@
 using AscendantEmpire.Application.BackgroundServices;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
@@ -6,8 +7,6 @@ using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Processing;
 using AscendantEmpire.Domain.Enums.System;
 using AscendantEmpire.FrontendContracts.MapGallery;
-
-using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

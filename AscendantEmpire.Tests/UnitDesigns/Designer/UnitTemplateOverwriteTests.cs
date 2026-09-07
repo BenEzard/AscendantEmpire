@@ -1,4 +1,5 @@
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
@@ -12,8 +13,6 @@ using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums.Games;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
-
-using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,7 +42,7 @@ internal class UnitTemplateOverwriteTests : SqlServerTestBase
     private int _playerId;
 
     /// <summary>
-    /// Builds a real MediatR pipeline over a scoped context, mirroring production: within one send, the save handler and the compile handler resolve the
+    /// Builds a real request pipeline over a scoped context, mirroring production: within one send, the save handler and the compile handler resolve the
     /// same scoped <see cref="AscendantEmpireContext"/>, so the save handler's transaction covers the compile too.
     /// </summary>
     [SetUp]
@@ -55,10 +54,10 @@ internal class UnitTemplateOverwriteTests : SqlServerTestBase
 
         var services = new ServiceCollection();
         services.AddDbContext<AscendantEmpireContext>(o => o.UseSqlServer(connectionString));
-        services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<CreateUnitTemplateHandler>());
+        services.AddMediator(typeof(CreateUnitTemplateHandler).Assembly);
         services.AddLogging();
 
-        // The save handlers stamp each snapshot with the game's current campaign round via ICampaignTurnService, so it has to be resolvable or MediatR
+        // The save handlers stamp each snapshot with the game's current campaign round via ICampaignTurnService, so it has to be resolvable or the mediator
         // cannot activate them. CampaignTurnService opens its own contexts through a factory, so the base class's DbFactory is handed straight over.
         services.AddSingleton(DbFactory);
         services.AddScoped<ICampaignTurnService, CampaignTurnService>();

@@ -1,4 +1,5 @@
 ﻿using AscendantEmpire.Api.Utilities;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Features.Players.Classes;
 using AscendantEmpire.Application.Features.Players.Handlers;
 using AscendantEmpire.BackendContracts.Players.GetPlayerStructures;
@@ -6,8 +7,6 @@ using AscendantEmpire.BackendContracts.Units.GetPlayerForces;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Player;
 using AscendantEmpire.FrontendContracts.Units;
-
-using MediatR;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

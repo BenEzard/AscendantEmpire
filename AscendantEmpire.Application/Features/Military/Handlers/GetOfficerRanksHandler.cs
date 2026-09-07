@@ -1,9 +1,8 @@
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.Military.GetOfficerRanks;
 using AscendantEmpire.Domain.Enums.Maps;
-
-using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

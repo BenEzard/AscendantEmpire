@@ -1,5 +1,6 @@
 using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Features.Military.Handlers;
 using AscendantEmpire.BackendContracts.Military.GetOfficerRanks;
 using AscendantEmpire.BackendContracts.Military.GetOrganisationStructure;
@@ -7,8 +8,6 @@ using AscendantEmpire.BackendContracts.Military.GetOrganisationTags;
 using AscendantEmpire.BackendContracts.Military.SaveOfficerRanks;
 using AscendantEmpire.BackendContracts.Military.SaveOrganisationStructure;
 using AscendantEmpire.FrontendContracts;
-
-using MediatR;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

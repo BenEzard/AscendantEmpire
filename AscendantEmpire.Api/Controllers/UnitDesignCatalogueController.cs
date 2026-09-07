@@ -1,4 +1,5 @@
 using AscendantEmpire.Api.Utilities;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Features.UnitComponents.Classes;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
 using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
@@ -8,8 +9,6 @@ using AscendantEmpire.BackendContracts.UnitDesigns.UpsertUnitComponent;
 using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.UnitDesigns.BulkUpsertUnitComponents;
-
-using MediatR;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

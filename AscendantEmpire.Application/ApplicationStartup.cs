@@ -19,18 +19,17 @@ using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.StartTurn;
 
 using AscendantEmpire.Application.Common.Behaviours;
+using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Common.Validation;
 
 using AscendantEmpire.Domain.Entities.Identity;
-
-using MediatR;
 
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AscendantEmpire.Application;
 
-public static class MediatrStartup
+public static class ApplicationStartup
 {
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
@@ -38,11 +37,11 @@ public static class MediatrStartup
 
         // Request validation. Every validator in this assembly is discovered and registered, so a new one needs no line here — only a rule body beside the
         // request it validates.
-        services.AddValidatorsFromAssembly(typeof(MediatrStartup).Assembly);
+        services.AddValidatorsFromAssembly(typeof(ApplicationStartup).Assembly);
 
         // Runs those validators ahead of the handler, answering a 400 failure result rather than letting an invalid request through. Constrained to
         // responses that are a ServiceResultBase, so the container closes it only for requests that can carry a failure result.
-        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehaviour<,>));
+        services.AddTransient(typeof(IPipelineBehaviour<,>), typeof(ValidationBehaviour<,>));
 
         // Hashes and verifies user passwords. Stateless, so a singleton is fine.
         services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();

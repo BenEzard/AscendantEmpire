@@ -1,8 +1,7 @@
-﻿using AscendantEmpire.Application.Common.Validation;
+﻿using AscendantEmpire.Application.Common.Messaging;
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.ForceOrders.GetForceOrders;
-
-using MediatR;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

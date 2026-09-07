@@ -1,4 +1,5 @@
-﻿using AscendantEmpire.Application.Common.Validation;
+﻿using AscendantEmpire.Application.Common.Messaging;
+using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Extensions;
@@ -12,8 +13,6 @@ using AscendantEmpire.BackendContracts.Players.GetPlayerStructures;
 using AscendantEmpire.BackendContracts.Units.GetPlayerForces;
 using AscendantEmpire.Domain.Enums;
 using AscendantEmpire.Domain.Enums.Maps;
-
-using MediatR;
 
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
