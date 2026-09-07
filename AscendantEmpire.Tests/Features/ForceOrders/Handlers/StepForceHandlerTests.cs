@@ -8,7 +8,7 @@ using AscendantEmpire.Application.Features.Maps.CampaignMaps.Handlers;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.BackendContracts.ForceOrders.StepForce;
-using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.BackendContracts.Turns.GetCurrentCampaignTurn;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
@@ -68,8 +68,8 @@ internal class StepForceHandlerTests : InMemoryTestBase
         _mediator = Substitute.For<IMediator>();
         _campaignTurnService = Substitute.For<ICampaignTurnService>();
 
-        _mediator.Send(Arg.Any<GetOpenGamesRequest>(), Arg.Any<CancellationToken>())
-            .Returns(ServiceResult<IReadOnlyCollection<OpenGame>>.Succeed([OpenGameInfo()]));
+        _mediator.Send(Arg.Any<GetGameContextRequest>(), Arg.Any<CancellationToken>())
+            .Returns(ServiceResult<IReadOnlyCollection<GameContext>>.Succeed([GameContextInfo()]));
 
         // The step commits before this runs, so an empty refresh is a valid answer: the player simply gets no new terrain with the response.
         _mediator.Send(Arg.Any<GetPlayerCampaignMapRequest>(), Arg.Any<CancellationToken>())
@@ -101,9 +101,9 @@ internal class StepForceHandlerTests : InMemoryTestBase
         ];
     }
 
-    private static OpenGame OpenGameInfo()
+    private static GameContext GameContextInfo()
     {
-        return new OpenGame
+        return new GameContext
         {
             GameId = _GAME_ID,
             GameName = "Test Game",
@@ -115,7 +115,7 @@ internal class StepForceHandlerTests : InMemoryTestBase
             HasVerticalWrapping = false,
             Players =
             [
-                new OpenGamePlayer
+                new GameContextPlayer
                 {
                     PlayerId = _PLAYER_ID,
                     RulerTitle = "King",

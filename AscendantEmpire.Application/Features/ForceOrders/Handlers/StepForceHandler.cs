@@ -11,7 +11,7 @@ using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.BackendContracts.ForceOrders.StepForce;
-using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.BackendContracts.Turns.GetCurrentCampaignTurn;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
@@ -114,7 +114,7 @@ internal class StepForceHandler(
                 return turnRefusal;
             }
 
-            ServiceResult<IReadOnlyCollection<OpenGame>> gameInfoResult = await mediator.Send(new GetOpenGamesRequest(request.GameId, request.PlayerId), cancelToken);
+            ServiceResult<IReadOnlyCollection<GameContext>> gameInfoResult = await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancelToken);
 
             if (gameInfoResult.HasSucceeded == false || gameInfoResult.SuccessValue is not { Count: > 0 })
             {
@@ -123,7 +123,7 @@ internal class StepForceHandler(
                 return ServiceResult<StepForceResult>.Fail(gameInfoResult.Errors.Prepend(error));
             }
 
-            OpenGame gameInfo = gameInfoResult.SuccessValue!.First();
+            GameContext gameInfo = gameInfoResult.SuccessValue!.First();
 
             var origin = new Coord(force.CampaignMap.XCoord, force.CampaignMap.YCoord);
 

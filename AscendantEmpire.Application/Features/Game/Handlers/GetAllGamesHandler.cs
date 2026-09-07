@@ -15,7 +15,7 @@ namespace AscendantEmpire.Application.Features.Game.Handlers;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Deliberately unfiltered, and deliberately separate from <c>GetMatchMakingGamesRequest</c> and <c>GetOpenGamesRequest</c>. Those two answer "what can I
+/// Deliberately unfiltered, and deliberately separate from <c>GetMatchMakingGamesRequest</c> and <c>GetGameContextRequest</c>. Those two answer "what can I
 /// join?" and so hide games that failed setup, are still being built, or have been abandoned. Those are precisely the games an administrator wants to see,
 /// because they are the ones most likely to want deleting.
 /// </para>

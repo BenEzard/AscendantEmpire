@@ -5,7 +5,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Units.Classes;
-using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
@@ -83,7 +83,7 @@ internal class SpawnUnitHandler(
             }
 
             // Load the game info
-            ServiceResult<IReadOnlyCollection<OpenGame>> gameInfoResult = await mediator.Send(new GetOpenGamesRequest(request.GameId, request.PlayerId), cancelToken);
+            ServiceResult<IReadOnlyCollection<GameContext>> gameInfoResult = await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancelToken);
 
             if (gameInfoResult.HasSucceeded == false)
             {
@@ -92,7 +92,7 @@ internal class SpawnUnitHandler(
                 return ServiceResultBase.Fail(gameInfoResult.Errors.Prepend(error));
             }
 
-            OpenGame? gameInfo = gameInfoResult.SuccessValue!.SingleOrDefault();
+            GameContext? gameInfo = gameInfoResult.SuccessValue!.SingleOrDefault();
 
             if (gameInfo == null)
             {
@@ -101,7 +101,7 @@ internal class SpawnUnitHandler(
                 return ServiceResultBase.NotFound(error);
             }
 
-            OpenGamePlayer thisPlayer = gameInfo.Players.Single();
+            GameContextPlayer thisPlayer = gameInfo.Players.Single();
 
             cancelToken.ThrowIfCancellationRequested();
 

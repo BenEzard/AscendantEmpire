@@ -3,7 +3,7 @@ using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Handlers;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
-using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.Domain.Enums;
 
 using Microsoft.Extensions.Logging.Abstractions;
@@ -47,7 +47,7 @@ internal class GetCampaignMapTileRadiusTests
     [TestCase(3, 5, 3, Description = "D - Radius 3")]
     public async Task Test1_RadiusInCentre_NoWrap(int originX, int originY, int radius)
     {
-        ArrangeOpenGame(horizontalWrap: false, verticalWrap: false);
+        ArrangeGameContext(horizontalWrap: false, verticalWrap: false);
 
         var occupied = new Coord { X = originX, Y = originY };
 
@@ -121,7 +121,7 @@ internal class GetCampaignMapTileRadiusTests
     [TestCase(2, Description = "B - At top of map, Radius 2")]
     public async Task Test2_VerticalWrap_Top(int radius)
     {
-        ArrangeOpenGame(horizontalWrap: false, verticalWrap: true);
+        ArrangeGameContext(horizontalWrap: false, verticalWrap: true);
 
         int originX = 3;
         int originY = 0;
@@ -181,7 +181,7 @@ internal class GetCampaignMapTileRadiusTests
     [TestCase(2, Description = "A - At bottom of map, Radius 2")]
     public async Task Test3_VerticalWrap_Bottom(int radius)
     {
-        ArrangeOpenGame(horizontalWrap: false, verticalWrap: true);
+        ArrangeGameContext(horizontalWrap: false, verticalWrap: true);
 
         int originX = 3;
         int originY = MapHeight - 1; // 9
@@ -240,7 +240,7 @@ internal class GetCampaignMapTileRadiusTests
     [TestCase(2, Description = "A - At left of map, Radius 2")]
     public async Task Test4_HorizontalWrap_Left(int radius)
     {
-        ArrangeOpenGame(horizontalWrap: true, verticalWrap: false);
+        ArrangeGameContext(horizontalWrap: true, verticalWrap: false);
 
         int originX = 0;
         int originY = 4;
@@ -299,7 +299,7 @@ internal class GetCampaignMapTileRadiusTests
     [TestCase(2, Description = "A - At right of map, Radius 2")]
     public async Task Test5_HorizontalWrap_Right(int radius)
     {
-        ArrangeOpenGame(horizontalWrap: true, verticalWrap: false);
+        ArrangeGameContext(horizontalWrap: true, verticalWrap: false);
 
         int originX = MapWidth - 1; // 7
         int originY = 4;
@@ -358,7 +358,7 @@ internal class GetCampaignMapTileRadiusTests
     [TestCase(1, Description = "A - In top left corner, Radius 1")]
     public async Task Test6_BothWraps_TopLeft(int radius)
     {
-        ArrangeOpenGame(horizontalWrap: true, verticalWrap: true);
+        ArrangeGameContext(horizontalWrap: true, verticalWrap: true);
 
         int originX = 0;
         int originY = 0;
@@ -415,7 +415,7 @@ internal class GetCampaignMapTileRadiusTests
     [TestCase(0, 0, 1, Description = "Radius 1")]
     public async Task Test7_TopLeft_NoWrap(int originX, int originY, int radius)
     {
-        ArrangeOpenGame(horizontalWrap: false, verticalWrap: false);
+        ArrangeGameContext(horizontalWrap: false, verticalWrap: false);
 
         var occupied = new Coord { X = originX, Y = originY };
 
@@ -459,9 +459,9 @@ internal class GetCampaignMapTileRadiusTests
     // ----------------------------
     // Helpers
     // ----------------------------
-    private void ArrangeOpenGame(bool horizontalWrap, bool verticalWrap)
+    private void ArrangeGameContext(bool horizontalWrap, bool verticalWrap)
     {
-        var openGame = new OpenGame
+        var gameContext = new GameContext
         {
             GameId = 1,
             GameName = "Test Game",
@@ -472,7 +472,7 @@ internal class GetCampaignMapTileRadiusTests
             HasVerticalWrapping = verticalWrap,
             Players =
             [
-                new OpenGamePlayer
+                new GameContextPlayer
                 {
                     PlayerId = 1,
                     RulerTitle = "King",
@@ -484,8 +484,8 @@ internal class GetCampaignMapTileRadiusTests
             ]
         };
 
-        _mediator.Send(Arg.Any<GetOpenGamesRequest>(), Arg.Any<CancellationToken>())
-            .Returns(_ => Task.FromResult(ServiceResult<IReadOnlyCollection<OpenGame>>.Succeed([openGame])));
+        _mediator.Send(Arg.Any<GetGameContextRequest>(), Arg.Any<CancellationToken>())
+            .Returns(_ => Task.FromResult(ServiceResult<IReadOnlyCollection<GameContext>>.Succeed([gameContext])));
     }
 
     private static int Wrap(int value, int size) => ((value % size) + size) % size;

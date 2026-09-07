@@ -9,7 +9,7 @@ using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndTurn;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.StartRound;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.StartTurn;
-using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.BackendContracts.Turns.GetCurrentCampaignTurn;
 using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Enums.Turns;
@@ -34,7 +34,7 @@ namespace AscendantEmpire.Tests.Features.Turns.Handlers;
 public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
 {
     // ── mocked services ──────────────────────────────────────────────────────
-    private IOpenGameService _openGameService = null!;
+    private IGameContextService _gameContextService = null!;
     private ICampaignTurnService _campaignTurnService = null!;
     private IEndCampaignTurnPossibleActionService _possibleActionService = null!;
     private ITurnServicePipeline<IEndCampaignTurnProcess> _endCampaignTurnPipeline = null!;
@@ -77,7 +77,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
             await SeedTurnQueueAsync(_gameId, _player1Id, _player2Id);
 
         // ── mock services ────────────────────────────────────────────────────
-        _openGameService              = Substitute.For<IOpenGameService>();
+        _gameContextService              = Substitute.For<IGameContextService>();
         _campaignTurnService          = Substitute.For<ICampaignTurnService>();
         _possibleActionService        = Substitute.For<IEndCampaignTurnPossibleActionService>();
         _endCampaignTurnPipeline      = Substitute.For<ITurnServicePipeline<IEndCampaignTurnProcess>>();
@@ -111,7 +111,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
             _endCampaignRoundPipeline,
             _campaignTurnService,
             _campaignRoundService,
-            _openGameService);
+            _gameContextService);
     }
 
     // ── seed helper ──────────────────────────────────────────────────────────
@@ -193,10 +193,10 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
     /// <summary>Configures the two services that ValidateGameAndPlayerAsync calls so they succeed for the given player.</summary>
     private void ArrangeValidPlayer(CurrentCampaignTurn currentTurn)
     {
-        _openGameService
-            .GetOpenGames(_gameId, currentTurn.PlayerId, Arg.Any<CancellationToken>())
-            .Returns(ServiceResult<IReadOnlyCollection<OpenGame>>.Succeed(
-                [new OpenGame { GameId = _gameId, GameName = "Test", NumberOfPlayers = 2, MapWidth = 2, MapHeight = 2, Players = [] }]));
+        _gameContextService
+            .GetGameContexts(_gameId, currentTurn.PlayerId, Arg.Any<CancellationToken>())
+            .Returns(ServiceResult<IReadOnlyCollection<GameContext>>.Succeed(
+                [new GameContext { GameId = _gameId, GameName = "Test", NumberOfPlayers = 2, MapWidth = 2, MapHeight = 2, Players = [] }]));
 
         _campaignTurnService
             .GetCurrentCampaignTurnAsync(_gameId, Arg.Any<CancellationToken>())
@@ -208,11 +208,11 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
     // =========================================================================
 
     [Test, Description("A player with no claim on the game cannot end its turn, and is refused before any queue state is touched.")]
-    public async Task ShouldFailWhenOpenGameServiceReturnsNoGame()
+    public async Task ShouldFailWhenGameContextServiceReturnsNoGame()
     {
-        _openGameService
-            .GetOpenGames(Arg.Any<int?>(), Arg.Any<int?>(), Arg.Any<CancellationToken>())
-            .Returns(ServiceResult<IReadOnlyCollection<OpenGame>>.Succeed([]));
+        _gameContextService
+            .GetGameContexts(Arg.Any<int?>(), Arg.Any<int?>(), Arg.Any<CancellationToken>())
+            .Returns(ServiceResult<IReadOnlyCollection<GameContext>>.Succeed([]));
 
         EndCampaignTurnRequest request = new EndCampaignTurnRequest(_gameId, _player1Id, EndTurnMode.ForceEnd);
 
@@ -225,10 +225,10 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
     public async Task ShouldFailWhenItIsNotThePlayersTurn()
     {
         // The game exists but the current turn belongs to player 2, not player 1.
-        _openGameService
-            .GetOpenGames(_gameId, _player1Id, Arg.Any<CancellationToken>())
-            .Returns(ServiceResult<IReadOnlyCollection<OpenGame>>.Succeed(
-                [new OpenGame { GameId = _gameId, GameName = "Test", NumberOfPlayers = 2, MapWidth = 2, MapHeight = 2, Players = [] }]));
+        _gameContextService
+            .GetGameContexts(_gameId, _player1Id, Arg.Any<CancellationToken>())
+            .Returns(ServiceResult<IReadOnlyCollection<GameContext>>.Succeed(
+                [new GameContext { GameId = _gameId, GameName = "Test", NumberOfPlayers = 2, MapWidth = 2, MapHeight = 2, Players = [] }]));
 
         _campaignTurnService
             .GetCurrentCampaignTurnAsync(_gameId, Arg.Any<CancellationToken>())

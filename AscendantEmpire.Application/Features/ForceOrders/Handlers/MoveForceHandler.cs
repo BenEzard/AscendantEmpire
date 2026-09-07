@@ -5,7 +5,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Turns.Handlers;
 using AscendantEmpire.Application.Features.Turns.Services;
-using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.BackendContracts.ForceOrders.MoveForces;
 using AscendantEmpire.BackendContracts.Turns.GetCurrentCampaignTurn;
 using AscendantEmpire.BackendContracts.Turns.GetPlayerTurn;
@@ -81,7 +81,7 @@ internal class MoveForceHandler(
                 .Include(ti => ti.UnitTemplate.Compiled)
                 .FirstOrDefaultAsync(ti => ti.Id == request.UnitInstanceId && ti.GameId == request.GameId, cancelToken);
 
-            ServiceResult<IReadOnlyCollection<OpenGame>> gameInfoResult = await mediator.Send(new GetOpenGamesRequest(request.GameId, request.PlayerId), cancelToken);
+            ServiceResult<IReadOnlyCollection<GameContext>> gameInfoResult = await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancelToken);
 
             if (gameInfoResult.HasSucceeded == false || gameInfoResult.SuccessValue is null || !gameInfoResult.SuccessValue.Any())
             {
@@ -90,7 +90,7 @@ internal class MoveForceHandler(
                 return ServiceResult<MoveForceResult>.Fail(gameInfoResult.Errors.Prepend(error));
             }
 
-            OpenGame gameInfo = gameInfoResult.SuccessValue!.Single();
+            GameContext gameInfo = gameInfoResult.SuccessValue!.Single();
 
             // Resolve the destination to this game's actual tile row. This used to derive an id from the
             // coordinates using the *player's* offset, which addresses the per-player map rather than the

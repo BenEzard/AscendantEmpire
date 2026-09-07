@@ -1,5 +1,5 @@
-﻿using AscendantEmpire.Application.Data;
-using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.Application.Data;
+using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.Domain.Enums.Games;
 
 using Microsoft.EntityFrameworkCore;
@@ -9,22 +9,22 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 namespace AscendantEmpire.Application.Features.Game.Services;
 
-internal class OpenGameService(
-    ILogger<OpenGameService> logger,
-    IDbContextFactory<AscendantEmpireContext> dbFactory) : IOpenGameService
+internal class GameContextService(
+    ILogger<GameContextService> logger,
+    IDbContextFactory<AscendantEmpireContext> dbFactory) : IGameContextService
 {
     /// <inheritdoc />
-    public async Task<ServiceResult<IReadOnlyCollection<OpenGame>>> GetOpenGames(int? gameId, int? playerId, CancellationToken cancelToken)
+    public async Task<ServiceResult<IReadOnlyCollection<GameContext>>> GetGameContexts(int? gameId, int? playerId, CancellationToken cancelToken)
     {
         try
         {
             if (gameId.HasValue && gameId <= 0)
             {
-                return ServiceResult<IReadOnlyCollection<OpenGame>>.Fail("The specified Game Id is not valid.");
+                return ServiceResult<IReadOnlyCollection<GameContext>>.Fail("The specified Game Id is not valid.");
             }
             if (playerId.HasValue && playerId <= 0)
             {
-                return ServiceResult<IReadOnlyCollection<OpenGame>>.Fail("The specified Player Id is not valid.");
+                return ServiceResult<IReadOnlyCollection<GameContext>>.Fail("The specified Player Id is not valid.");
             }
 
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
@@ -58,7 +58,7 @@ internal class OpenGameService(
             ).ToListAsync(cancelToken);
 
             // Group into "game -> players"
-            List<OpenGame> openGames = [.. rows
+            List<GameContext> gameContexts = [.. rows
                 .GroupBy(r => new
                 {
                     r.GameId,
@@ -70,7 +70,7 @@ internal class OpenGameService(
                     r.HorizontalWrap,
                     r.VerticalWrap
                 })
-                .Select(g => new OpenGame
+                .Select(g => new GameContext
                 {
                     GameId = g.Key.GameId,
                     GameName = g.Key.GameName,
@@ -81,7 +81,7 @@ internal class OpenGameService(
                     HasHorizontalWrapping = g.Key.HorizontalWrap,
                     HasVerticalWrapping = g.Key.VerticalWrap,
                     Players = [.. g
-                        .Select(p => new OpenGamePlayer
+                        .Select(p => new GameContextPlayer
                         {
                             PlayerId = p.PlayerId,
                             RulerTitle = p.RulerTitle,
@@ -94,13 +94,13 @@ internal class OpenGameService(
                 })
                 .OrderBy(g => g.GameName)];
 
-            return ServiceResult<IReadOnlyCollection<OpenGame>>.Succeed(openGames);
+            return ServiceResult<IReadOnlyCollection<GameContext>>.Succeed(gameContexts);
         }
         catch (Exception ex)
         {
-            const string error = "An error occurred while fetching open games.";
+            const string error = "An error occurred while fetching game contexts.";
             logger.LogError(ex, error);
-            return ServiceResult<IReadOnlyCollection<OpenGame>>.Fail(error);
+            return ServiceResult<IReadOnlyCollection<GameContext>>.Fail(error);
         }
     }
 }

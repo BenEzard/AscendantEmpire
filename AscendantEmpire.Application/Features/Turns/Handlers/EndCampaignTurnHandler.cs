@@ -8,7 +8,7 @@ using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibl
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndRound;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndTurn;
-using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.BackendContracts.Turns.GetCurrentCampaignTurn;
 using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Enums.Turns;
@@ -76,7 +76,7 @@ internal class EndCampaignTurnHandler(
     ITurnServicePipeline<IEndCampaignRoundProcess> endCampaignRoundPipeline,
     ICampaignTurnService campaignTurnService,
     ICampaignRoundService campaignRoundService,
-    IOpenGameService openGameService) : IRequestHandler<EndCampaignTurnRequest, ServiceResult<EndCampaignTurnOutcome>>
+    IGameContextService gameContextService) : IRequestHandler<EndCampaignTurnRequest, ServiceResult<EndCampaignTurnOutcome>>
 {
 
     public async Task<ServiceResult<EndCampaignTurnOutcome>> Handle(EndCampaignTurnRequest request, CancellationToken cancelToken)
@@ -265,9 +265,9 @@ internal class EndCampaignTurnHandler(
     private async Task<ServiceResult<CurrentCampaignTurn>> ValidateGameAndPlayerAsync(int gameId, int playerId, CancellationToken cancelToken)
     {
         // Confirm the Game is active, and the Player is a part of it.
-        ServiceResult<IReadOnlyCollection<OpenGame>> openGameResult = await openGameService.GetOpenGames(gameId, playerId, cancelToken);
+        ServiceResult<IReadOnlyCollection<GameContext>> gameContextResult = await gameContextService.GetGameContexts(gameId, playerId, cancelToken);
 
-        if (openGameResult.HasSucceeded == false || openGameResult.SuccessValue is null || openGameResult.SuccessValue.Count == 0)
+        if (gameContextResult.HasSucceeded == false || gameContextResult.SuccessValue is null || gameContextResult.SuccessValue.Count == 0)
         {
             string error = $"Game Id {gameId} was not found or Player Id {playerId} is not part of the game.";
             logger.LogWarning("{Error}", error);

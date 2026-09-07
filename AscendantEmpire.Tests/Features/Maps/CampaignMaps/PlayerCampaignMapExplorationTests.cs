@@ -2,6 +2,7 @@
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
+using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Handlers;
 using AscendantEmpire.Application.Features.Players.Handlers;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
@@ -47,10 +48,12 @@ internal class PlayerCampaignMapExplorationTests : GameSqlServerTestBase
     public void SetUpMediator()
     {
         // A real mediator, so the request goes through the same handler chain the API uses.
-        // GetOpenGamesHandler takes a context directly rather than a factory, hence both registrations.
+        // The campaign-map handlers take a context directly rather than a factory, hence both registrations.
+        // GetGameContextHandler delegates its query to IGameContextService, which AddMediator does not register, so that goes in by hand.
         ServiceProvider provider = new ServiceCollection()
             .AddSingleton(DbFactory)
             .AddScoped(_ => DbFactory.CreateDbContext())
+            .AddScoped<IGameContextService, GameContextService>()
             .AddMediator(typeof(GetPlayersHandler).Assembly)
             .AddLogging()
             .BuildServiceProvider();

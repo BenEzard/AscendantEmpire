@@ -3,7 +3,7 @@ using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
-using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.BackendContracts.Units.GetPlayerForces;
 using AscendantEmpire.Domain.Enums;
 
@@ -51,17 +51,17 @@ internal class GetPlayerForcesHandler(
                 return ServiceResult<IReadOnlyCollection<PlayerForce>>.Fail(errors.Prepend(error));
             }
 
-            ServiceResult<IReadOnlyCollection<OpenGame>> openGameResult = await mediator.Send(new GetOpenGamesRequest(request.GameId, request.PlayerId), cancelToken);
+            ServiceResult<IReadOnlyCollection<GameContext>> gameContextResult = await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancelToken);
 
-            if (openGameResult.SuccessValue is not { Count: > 0 } openGames)
+            if (gameContextResult.SuccessValue is not { Count: > 0 } gameContexts)
             {
-                string error = $"No open game found for Game Id: {request.GameId} and Player Id: {request.PlayerId}.";
-                logger.LogWarning("No open game found for Game Id: {gameId} and Player Id: {playerId}.", request.GameId, request.PlayerId);
+                string error = $"No in-progress game found for Game Id: {request.GameId} and Player Id: {request.PlayerId}.";
+                logger.LogWarning("No in-progress game found for Game Id: {gameId} and Player Id: {playerId}.", request.GameId, request.PlayerId);
                 return ServiceResult<IReadOnlyCollection<PlayerForce>>.NotFound(error);
             }
 
-            int gameId = openGames.First().GameId;
-            int playerId = openGames.First().Players.First().PlayerId;
+            int gameId = gameContexts.First().GameId;
+            int playerId = gameContexts.First().Players.First().PlayerId;
 
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 

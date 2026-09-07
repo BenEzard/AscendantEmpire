@@ -2,11 +2,12 @@
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
+using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Handlers;
 using AscendantEmpire.Application.Features.Players.Handlers;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
-using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums;
@@ -49,10 +50,12 @@ internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
     public void SetUpMediator()
     {
         // A real mediator, so the request goes through the same handler chain the API uses.
-        // GetOpenGamesHandler takes a context directly rather than a factory, hence both registrations.
+        // The campaign-map handlers take a context directly rather than a factory, hence both registrations.
+        // GetGameContextHandler delegates its query to IGameContextService, which AddMediator does not register, so that goes in by hand.
         ServiceProvider provider = new ServiceCollection()
             .AddSingleton(DbFactory)
             .AddScoped(_ => DbFactory.CreateDbContext())
+            .AddScoped<IGameContextService, GameContextService>()
             .AddMediator(typeof(GetPlayersHandler).Assembly)
             .AddLogging()
             .BuildServiceProvider();
@@ -343,8 +346,8 @@ internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
         }
     }
 
-    [Test, Description("Open game details carry the game's own map offset and dimensions, rather than the shared gallery row's.")]
-    public async Task OpenGameCarriesTheGamesOwnMapOffsetAndDimensionsAsync()
+    [Test, Description("Game context carries the game's own map offset and dimensions, rather than the shared gallery row's.")]
+    public async Task GameContextCarriesTheGamesOwnMapOffsetAndDimensionsAsync()
     {
         int gameId = await SetupSecondGameAsync();
 
@@ -352,18 +355,18 @@ internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
 
         GameIndex game = await setup.GameIndex.SingleAsync(g => g.Id == gameId);
 
-        ServiceResultBase.ServiceResult<IReadOnlyCollection<OpenGame>> result =
-            await _mediator.Send(new GetOpenGamesRequest(gameId, null));
+        ServiceResultBase.ServiceResult<IReadOnlyCollection<GameContext>> result =
+            await _mediator.Send(new GetGameContextRequest(gameId, null));
 
         Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
 
-        OpenGame openGame = result.SuccessValue!.Single();
+        GameContext gameContext = result.SuccessValue!.Single();
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(openGame.CampaignMapOffsetId, Is.EqualTo(game.CampaignMapOffsetId));
-            Assert.That(openGame.MapWidth, Is.EqualTo(_MAP_WIDTH));
-            Assert.That(openGame.MapHeight, Is.EqualTo(_MAP_HEIGHT));
+            Assert.That(gameContext.CampaignMapOffsetId, Is.EqualTo(game.CampaignMapOffsetId));
+            Assert.That(gameContext.MapWidth, Is.EqualTo(_MAP_WIDTH));
+            Assert.That(gameContext.MapHeight, Is.EqualTo(_MAP_HEIGHT));
         }
     }
 }

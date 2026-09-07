@@ -8,7 +8,7 @@ using AscendantEmpire.Application.Features.Structures.Handlers;
 using AscendantEmpire.Application.Features.Units.Handlers;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
-using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.BackendContracts.Players.GetPlayerStructures;
 using AscendantEmpire.BackendContracts.Units.GetPlayerForces;
 using AscendantEmpire.Domain.Enums;
@@ -66,7 +66,7 @@ internal class GetPlayerCampaignMapHandler(
             }
 
             // Load the game info
-            ServiceResult<IReadOnlyCollection<OpenGame>> gameInfoResult = await mediator.Send(new GetOpenGamesRequest(request.GameId, request.PlayerId), cancelToken);
+            ServiceResult<IReadOnlyCollection<GameContext>> gameInfoResult = await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancelToken);
 
             if (gameInfoResult.HasSucceeded == false)
             {
@@ -75,7 +75,7 @@ internal class GetPlayerCampaignMapHandler(
                 return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(gameInfoResult.Errors.Prepend(error));
             }
 
-            OpenGame? gameInfo = gameInfoResult.SuccessValue!.SingleOrDefault();
+            GameContext? gameInfo = gameInfoResult.SuccessValue!.SingleOrDefault();
 
             if (gameInfo == null)
             {
@@ -84,7 +84,7 @@ internal class GetPlayerCampaignMapHandler(
                 return ServiceResult<IReadOnlyCollection<ObserverSight>>.NotFound(error);
             }
 
-            OpenGamePlayer thisPlayer = gameInfo.Players.Single();
+            GameContextPlayer thisPlayer = gameInfo.Players.Single();
             int mapWidth = gameInfo.MapWidth;
 
             // Load Structures and Forces for *THIS* Player, because they are the "Observers" of the Campaign Map and determine what can be seen.
@@ -504,7 +504,7 @@ internal class GetPlayerCampaignMapHandler(
                 cancelToken);
     }
 
-    private async Task<List<InternalPlayerObservedTile>> GetPlayerTilesInScopeAsync(OpenGame gameInfo, int playerId, CancellationToken cancelToken)
+    private async Task<List<InternalPlayerObservedTile>> GetPlayerTilesInScopeAsync(GameContext gameInfo, int playerId, CancellationToken cancelToken)
     {
         using var scope = scopeFactory.CreateScope();
         using var newContext = scope.ServiceProvider.GetRequiredService<AscendantEmpireContext>();

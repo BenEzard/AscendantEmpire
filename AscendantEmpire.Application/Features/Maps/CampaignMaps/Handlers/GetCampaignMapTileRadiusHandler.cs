@@ -3,7 +3,7 @@ using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Helpers;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
-using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.Domain.Enums;
 using AscendantEmpire.Domain.Enums.Maps;
 
@@ -31,7 +31,7 @@ internal class GetCampaignMapTileRadiusHandler(
         GetCampaignMapTileRadiusRequest request,
         CancellationToken cancelToken)
     {
-        ServiceResult<IReadOnlyCollection<OpenGame>> gameInfoResult = await mediator.Send(new GetOpenGamesRequest(request.GameId, request.PlayerId), cancelToken);
+        ServiceResult<IReadOnlyCollection<GameContext>> gameInfoResult = await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancelToken);
 
         if (gameInfoResult.HasSucceeded == false)
         {
@@ -40,7 +40,7 @@ internal class GetCampaignMapTileRadiusHandler(
             return ServiceResult<IDictionary<(int, RecordType), MapObserverOriginLocation>>.Fail(gameInfoResult.Errors.Prepend(error));
         }
 
-        OpenGame? gameInfo = gameInfoResult.SuccessValue!.SingleOrDefault();
+        GameContext? gameInfo = gameInfoResult.SuccessValue!.SingleOrDefault();
 
         // Pull out wrapping and dimensions
         int mapOffset = gameInfo.Players.Single().CampaignMapOffsetId;

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Button, Modal, Spinner, Tooltip } from "@/components/ui";
-import type { OpenGamesResponse } from "../types/OpenGamesResponse";
-import type { OpenGame } from "../types/OpenGame";
-import { getOpenGames } from "../hooks/getOpenGames";
+import type { MyGamesResponse } from "../types/MyGamesResponse";
+import type { MyGame } from "../types/MyGame";
+import { getMyGames } from "../hooks/getMyGames";
 
 export interface OpenGameDialogProps {
   show: boolean;
@@ -12,31 +12,32 @@ export interface OpenGameDialogProps {
    * Hands back the game the user picked — the game only, never a player.
    *
    * Which player the user controls in it is the token's answer, not this dialog's: the caller enters
-   * the game and takes the player from what the server issues. This listing is a public lobby (it
-   * shows every active ruler in every in-progress game, whoever is asking), so a player chosen from
-   * it would be a player the user picked rather than one they hold.
+   * the game and takes the player from what the server issues. The row does carry the caller's own slot,
+   * but only as display detail to draw the board with once the token has agreed it is the same player.
    */
-  onOpenGame: (game: OpenGame) => void;
+  onOpenGame: (game: MyGame) => void;
 }
 
 /**
- * Picks a game to open.
+ * Picks one of the user's own games to open.
  *
- * The rulers are listed under each game because they are what tells one game from another — "the one
- * I'm in against Jen" — but they are read-only detail. Clicking any row of a game selects that game.
+ * The listing is scoped to the logged-in account, so every row is a game they hold an active player slot
+ * in — there is no lobby of other people's games to wade through. Each game is a single row, and the
+ * Campaign Turn column names whoever the campaign queue is currently waiting on, which is the one thing
+ * that actually distinguishes "the game I can play now" from "the game I'm waiting on".
  */
 export default function OpenGameDialog({ show, onClose, onOpenGame }: OpenGameDialogProps) {
   const [filter, setFilter] = useState("");
   const [selectedGameId, setSelectedGameId] = useState<number | null>(null);
 
-  const { data, isLoading, isFetching, error, refetch } = useQuery<OpenGamesResponse, Error>({
-    queryKey: ["games", "open"],
-    queryFn: getOpenGames,
+  const { data, isLoading, isFetching, error, refetch } = useQuery<MyGamesResponse, Error>({
+    queryKey: ["games", "mine"],
+    queryFn: getMyGames,
     enabled: show,
     refetchOnWindowFocus: false,
   });
 
-  const games = useMemo<OpenGame[]>(() => data?.games ?? [], [data]);
+  const games = useMemo<MyGame[]>(() => data?.games ?? [], [data]);
 
   useEffect(() => {
     if (!show) {
@@ -57,11 +58,11 @@ export default function OpenGameDialog({ show, onClose, onOpenGame }: OpenGameDi
       if (g.gameName.toLowerCase().includes(f)) {
         return true;
       }
-      return g.players.some((p) => p.rulerLabel.toLowerCase().includes(f));
+      return g.currentTurnRulerLabel?.toLowerCase().includes(f) ?? false;
     });
   }, [games, filter]);
 
-  const selectedGame = useMemo<OpenGame | null>(() => {
+  const selectedGame = useMemo<MyGame | null>(() => {
     if (selectedGameId == null) {
       return null;
     }
@@ -97,7 +98,7 @@ export default function OpenGameDialog({ show, onClose, onOpenGame }: OpenGameDi
       <div className="flex items-center gap-2 mb-3">
         <input
           className="w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
-          placeholder="Filter by game or player..."
+          placeholder="Filter by game or ruler..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />
@@ -128,7 +129,7 @@ export default function OpenGameDialog({ show, onClose, onOpenGame }: OpenGameDi
                 <th className="px-3 py-2" style={{ width: 120 }}>
                   Size
                 </th>
-                <th className="px-3 py-2">Rulers</th>
+                <th className="px-3 py-2">Campaign Turn</th>
               </tr>
             </thead>
 
@@ -136,73 +137,66 @@ export default function OpenGameDialog({ show, onClose, onOpenGame }: OpenGameDi
               {filteredGames.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="px-3 py-3 text-slate-500">
-                    No games found.
+                    You are not currently in any games.
                   </td>
                 </tr>
               ) : (
-                filteredGames.flatMap((g) => {
-                  // A game with no active players is still listed, so it can be seen to exist, but it can't be opened:
-                  // nobody holds a slot in it, so nobody can enter it.
-                  const players = g.players.length ? g.players : [{ playerId: 0, rulerLabel: "(no players)", campaignOffsetId: 0 }];
-                  const isOpenable = g.players.length > 0;
-                  const isSelected = isOpenable && selectedGameId === g.gameId;
+                filteredGames.map((g) => {
+                  const isSelected = selectedGameId === g.gameId;
 
-                  return players.map((p, idx) => {
-                    const rowKey = `${g.gameId}-${p.playerId || "none"}-${idx}`;
+                  // Every row is a game this account holds an active slot in, so every row can be opened.
+                  // The player it opens as still comes back from the server on entering, not from here.
+                  const onClick = () => {
+                    setSelectedGameId(g.gameId);
+                  };
 
-                    // Every row of a game selects the game itself. The ruler on the row is detail about the game, not
-                    // the identity being chosen — that comes back from the server when the game is entered.
-                    const onClick = () => {
-                      if (!isOpenable) {
-                        return;
-                      }
-                      setSelectedGameId(g.gameId);
-                    };
+                  const onDoubleClick = () => {
+                    setSelectedGameId(g.gameId);
+                    onOpenGame(g);
+                    onClose();
+                  };
 
-                    const onDoubleClick = () => {
-                      if (!isOpenable) {
-                        return;
-                      }
+                  return (
+                    <tr
+                      key={g.gameId}
+                      className={[
+                        "border-t border-slate-100",
+                        "cursor-pointer hover:bg-slate-50",
+                        isSelected ? "bg-slate-100" : "",
+                      ].join(" ")}
+                      role="button"
+                      onClick={onClick}
+                      onDoubleClick={onDoubleClick}>
+                      <td className="px-3 py-2 align-top">
+                        <div className="font-semibold">{g.gameName}</div>
+                      </td>
 
-                      setSelectedGameId(g.gameId);
-                      onOpenGame(g);
-                      onClose();
-                    };
+                      <td className="px-3 py-2 align-top">
+                        {g.mapWidth}×{g.mapHeight}
+                      </td>
 
-                    return (
-                      <tr
-                        key={rowKey}
-                        className={[
-                          "border-t border-slate-100",
-                          isOpenable ? "cursor-pointer hover:bg-slate-50" : "",
-                          isSelected ? "bg-slate-100" : "",
-                        ].join(" ")}
-                        role={isOpenable ? "button" : undefined}
-                        onClick={onClick}
-                        onDoubleClick={onDoubleClick}>
-                        {idx === 0 && (
-                          <>
-                            <td rowSpan={players.length} className="px-3 py-2 align-top">
-                              <div className="font-semibold">{g.gameName}</div>
-                              <div className="text-slate-500" style={{ fontSize: "0.85rem" }}>
-                                Players: {g.numberOfPlayers} • ID {g.gameId}
-                              </div>
-                            </td>
+                      <td className="px-3 py-2">
+                        <Tooltip content="Double-click to open this game">
+                          <span className="inline-flex items-center gap-2">
+                            {/* No ruler to name means nobody is taking a turn right now — a game between turns, or
+                                one whose campaign queue has yet to start. Both are normal, so this reads as a state
+                                rather than as missing data. */}
+                            {g.currentTurnRulerLabel ? (
+                              <span>{g.currentTurnRulerLabel}</span>
+                            ) : (
+                              <span className="text-slate-400 italic">Awaiting turn start</span>
+                            )}
 
-                            <td rowSpan={players.length} className="px-3 py-2 align-top">
-                              {g.mapWidth ?? "?"}×{g.mapHeight ?? "?"}
-                            </td>
-                          </>
-                        )}
-
-                        <td className="px-3 py-2">
-                          <Tooltip content={isOpenable ? "Double-click to open this game" : undefined}>
-                            <span>{p.rulerLabel}</span>
-                          </Tooltip>
-                        </td>
-                      </tr>
-                    );
-                  });
+                            {g.isYourTurn && (
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                                Your turn
+                              </span>
+                            )}
+                          </span>
+                        </Tooltip>
+                      </td>
+                    </tr>
+                  );
                 })
               )}
             </tbody>

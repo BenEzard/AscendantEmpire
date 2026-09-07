@@ -398,27 +398,27 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
               // would let whoever is logged in drive whichever ruler they happened to pick.
               const entered = await enterGame(game.gameId);
 
-              const player = game.players.find((p) => p.playerId === entered.playerId);
-              if (entered.gameId == null || entered.playerId == null || player == null) {
-                // The token names a player this listing doesn't — an inactive slot, say — so there is no
-                // ruler label or campaign offset to draw the board with. Say so rather than opening the
-                // map under a guessed identity.
+              if (entered.gameId == null || entered.playerId == null || entered.playerId !== game.yourPlayerId) {
+                // The token names a player the row doesn't — an inactive slot, say — so there is no ruler
+                // label or campaign offset to draw the board with. Say so rather than opening the map
+                // under a guessed identity.
                 openToast("You do not hold an active player slot in that game.", "danger");
                 return;
               }
 
-              // Identity (gameId, playerId) comes from the token; the rest is display detail off the listing.
+              // Identity (gameId, playerId) comes from the token; the rest is display detail off the listing,
+              // trusted only because the token has just agreed it names the same player.
               setGameSelection({
                 gameId: entered.gameId,
                 gameName: game.gameName,
                 width: game.mapWidth,
                 height: game.mapHeight,
                 playerId: entered.playerId,
-                rulerLabel: player.rulerLabel,
-                campaignOffsetId: player.campaignOffsetId,
+                rulerLabel: game.yourRulerLabel,
+                campaignOffsetId: game.yourCampaignOffsetId,
               });
 
-              openToast(`Opened "${game.gameName}" as ${player.rulerLabel}`, "success");
+              openToast(`Opened "${game.gameName}" as ${game.yourRulerLabel}`, "success");
             } catch (err) {
               openToast(err instanceof Error ? err.message : "Could not enter that game.", "danger");
             }

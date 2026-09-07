@@ -2,7 +2,7 @@
 using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
-using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.BackendContracts.Units.GetUnitDisplayInfo;
 
 using Microsoft.EntityFrameworkCore;
@@ -45,11 +45,11 @@ internal class GetUnitDisplayInfoHandler(
                 return ServiceResult<IReadOnlyCollection<UnitDisplayInfo>>.Fail(errors.Prepend(error));
             }
 
-            ServiceResult<IReadOnlyCollection<OpenGame>> openGameResult = await mediator.Send(new GetOpenGamesRequest(request.GameId, null), cancelToken);
+            ServiceResult<IReadOnlyCollection<GameContext>> gameContextResult = await mediator.Send(new GetGameContextRequest(request.GameId, null), cancelToken);
 
-            if (openGameResult.SuccessValue is not { Count: > 0 } openGames)
+            if (gameContextResult.SuccessValue is not { Count: > 0 } gameContexts)
             {
-                string error = $"No open game found for Game Id: {request.GameId}.";
+                string error = $"No in-progress game found for Game Id: {request.GameId}.";
                 logger.LogWarning(error);
                 return ServiceResult<IReadOnlyCollection<UnitDisplayInfo>>.NotFound(error);
             }

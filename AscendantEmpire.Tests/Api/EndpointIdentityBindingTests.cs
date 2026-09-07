@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Abstractions;
@@ -54,9 +54,6 @@ public sealed class EndpointIdentityBindingTests
 
         ["PUT /match-making/games/{gameId}/my-player"] =
             "the game being configured, reached from the lobby before a game token exists; the slot within it is resolved from the token's user id, so the request names no player and there is nothing to impersonate",
-
-        ["POST /games/open"] =
-            "optional lobby filters on a listing reached before a game token exists, returning only lobby-visible data",
 
         ["POST /units/temporary-dev-only/spawn"] =
             "a developer tool behind the EntitySetupTool permission, whose purpose is placing a unit into an arbitrary game for an arbitrary player",

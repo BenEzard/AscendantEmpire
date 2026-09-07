@@ -4,7 +4,7 @@ using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
-using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.Domain.Enums.Maps;
 
 using Microsoft.EntityFrameworkCore;
@@ -52,7 +52,7 @@ internal class HidePlayerCampaignMapHandler(
             }
 
             // Load the game info
-            ServiceResult<IReadOnlyCollection<OpenGame>> gameInfoResult = await mediator.Send(new GetOpenGamesRequest(request.GameId, request.PlayerId), cancelToken);
+            ServiceResult<IReadOnlyCollection<GameContext>> gameInfoResult = await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancelToken);
 
             if (gameInfoResult.HasSucceeded == false)
             {
@@ -61,7 +61,7 @@ internal class HidePlayerCampaignMapHandler(
                 return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(gameInfoResult.Errors.Prepend(error));
             }
 
-            OpenGame? gameInfo = gameInfoResult.SuccessValue!.SingleOrDefault();
+            GameContext? gameInfo = gameInfoResult.SuccessValue!.SingleOrDefault();
 
             if (gameInfo == null)
             {
@@ -70,7 +70,7 @@ internal class HidePlayerCampaignMapHandler(
                 return ServiceResult<IReadOnlyCollection<ObserverSight>>.NotFound(error);
             }
 
-            OpenGamePlayer thisPlayer = gameInfo.Players.Single();
+            GameContextPlayer thisPlayer = gameInfo.Players.Single();
 
             // Update the PlayerCampaignMap entries to hide the map details
             await context.PlayerCampaignMaps

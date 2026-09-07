@@ -53,7 +53,7 @@ public static class ApplicationStartup
         services.AddScoped<ICampaignRoundService, CampaignRoundService>();
         services.AddScoped<ICampaignMapGalleryService, CampaignMapGalleryService>();
         services.AddScoped<IGameSetupService, GameSetupService>();
-        services.AddScoped<IOpenGameService, OpenGameService>();
+        services.AddScoped<IGameContextService, GameContextService>();
         services.AddScoped<IMovementProfileFactory, MovementProfileFactory>();
 
         // Force context action pipeline. Each IForceActionStrategy decides one toolbar action; the service builds the shared context once and

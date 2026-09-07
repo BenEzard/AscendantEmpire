@@ -1,6 +1,9 @@
-﻿namespace AscendantEmpire.BackendContracts.Games.GetOpenGames;
+namespace AscendantEmpire.BackendContracts.Games.GetGameContext;
 
-public record OpenGamePlayer
+/// <summary>
+/// One active Player within a <see cref="GameContext"/>.
+/// </summary>
+public record GameContextPlayer
 {
     public int PlayerId { get; init; }
     public required string RulerTitle { get; init; }

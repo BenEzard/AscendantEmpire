@@ -5,11 +5,11 @@ using AscendantEmpire.Application.Features.Game.Classes;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.BackendContracts.Games.AddGame;
 using AscendantEmpire.BackendContracts.Games.GetGames;
-using AscendantEmpire.BackendContracts.Games.GetOpenGames;
+using AscendantEmpire.BackendContracts.Games.GetMyGames;
 using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Games.GetGames;
-using AscendantEmpire.FrontendContracts.Games.GetOpenGames;
+using AscendantEmpire.FrontendContracts.Games.GetMyGames;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -43,55 +43,54 @@ public class GamesController : ControllerBase
     }
 
     /// <summary>
-    /// Get a list of Open Games, or a specific one.
+    /// List the in-progress Games the calling account holds an active Player slot in, for the Open Game dialog.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The <c>GameId</c> and <c>PlayerId</c> in the body are optional <i>filters</i>, not an identity claim, and they are not a pattern to copy. This is a
-    /// lobby listing reached <b>before</b> the caller has entered a game, so there is no game token to read them from, and it returns only what a lobby
-    /// shows anyway: game name, map size and the ruler labels of the active slots.
+    /// The account comes from the bearer token and the request carries nothing, so there is no filter to impersonate anyone with. Two accounts calling this
+    /// get two different lists, and neither can see the other's games.
     /// </para>
     /// <para>
-    /// Every game-scoped action elsewhere reads its identity from the token via <c>TryGetGameContext</c>. See <c>EndpointIdentityBindingTests</c>, which
-    /// enforces that and names this endpoint as one of a handful of justified exceptions.
+    /// One row per Game, not per Player. Alongside the caller's own slot each row names whoever the campaign queue is currently waiting on, which is what
+    /// the dialog shows in place of the old lobby's list of every ruler in every game.
     /// </para>
     /// </remarks>
-    /// <response code="200">List of Open Games</response>
-    /// <response code="400">Validation error</response>
-    /// <response code="404">Game or Player not found</response>
+    /// <response code="200">The caller's games</response>
+    /// <response code="401">Missing or invalid token</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [HttpPost("open")]
-    [ProducesResponseType(typeof(IOpenGameCollection), 200)]
-    [ProducesResponseType(typeof(IApiErrorResult), 400)]
-    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [Authorize]
+    [HttpGet("mine")]
+    [ProducesResponseType(typeof(IMyGameCollection), 200)]
+    [ProducesResponseType(401)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> LoadGameAsync(
+    public async Task<IActionResult> GetMyGamesAsync(
         [FromServices] IMediator mediator,
-        [FromBody] GetOpenGamesDto request)
+        CancellationToken cancelToken)
     {
-        ServiceResult<IReadOnlyCollection<OpenGame>> response = await mediator.Send(new GetOpenGamesRequest(request.GameId, request.PlayerId));
-
-        return response.ToActionResult(contract =>
+        // The user id comes from the proven token, never the request.
+        int? userId = User.GetUserId();
+        if (userId is null)
         {
-            return new DTOpenGameCollection
+            return Unauthorized();
+        }
+
+        ServiceResult<IReadOnlyCollection<MyGame>> response = await mediator.Send(new GetMyGamesRequest(userId.Value), cancelToken);
+
+        return response.ToActionResult(contract => new DTMyGameCollection
+        {
+            Games = response.SuccessValue?.Select(IMyGame (g) => new DTMyGame
             {
-                Games = response.SuccessValue?.Select(g => new DTOpenGame
-                {
-                    GameId = g.GameId,
-                    GameName = g.GameName,
-                    MapWidth = g.MapWidth,
-                    MapHeight = g.MapHeight,
-                    Players = g.Players.Select(p => new DTOpenGamePlayer
-                    {
-                        PlayerId = p.PlayerId,
-                        RulerTitle = p.RulerTitle,
-                        RulerName = p.RulerName,
-                        FactionName = p.FactionName,
-                        RulerLabel = p.RulerLabel,
-                        CampaignOffsetId = p.CampaignMapOffsetId,
-                    }).ToList() ?? []
-                }).ToList() ?? []
-            };
+                GameId = g.GameId,
+                GameName = g.GameName,
+                MapWidth = g.MapWidth,
+                MapHeight = g.MapHeight,
+                YourPlayerId = g.YourPlayerId,
+                YourRulerLabel = g.YourRulerLabel,
+                YourCampaignOffsetId = g.YourCampaignOffsetId,
+                CurrentTurnPlayerId = g.CurrentTurnPlayerId,
+                CurrentTurnRulerLabel = g.CurrentTurnRulerLabel,
+                IsYourTurn = g.IsYourTurn,
+            }).ToList() ?? []
         });
     }
 
@@ -99,7 +98,7 @@ public class GamesController : ControllerBase
     /// Dev tool: list every Game, whatever state it is in, for the System panel's Games page.
     /// </summary>
     /// <remarks>
-    /// Deliberately unfiltered, unlike the matchmaking and open-game listings — a Game that failed setup or has been abandoned is exactly the kind an
+    /// Deliberately unfiltered, unlike the matchmaking and my-games listings — a Game that failed setup or has been abandoned is exactly the kind an
     /// administrator has come here to find. It is gated on <c>DeleteGame</c> rather than on <c>SystemPanel</c> because deleting is the only thing the page
     /// it feeds does.
     /// </remarks>
