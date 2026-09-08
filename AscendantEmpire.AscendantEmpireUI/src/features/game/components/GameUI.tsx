@@ -27,6 +27,8 @@ import { useFogOfWar } from "../hooks/useFogOfWar";
 import { useForceSelection } from "../hooks/useForceSelection";
 import { useForceStepMutation } from "../hooks/useForceStep";
 import { useEndTurnMutation } from "../hooks/useEndTurn";
+// Remove in F-18. Temporary developer hot-seat switching.
+import { useDevEndTurnSwitch } from "../hooks/useDevEndTurnSwitch";
 import { useNumpadMovement } from "../hooks/useNumpadMovement";
 import type { MoveDirection } from "../api/forceMovementApi";
 import type { PossibleAction } from "../api/turnApi";
@@ -319,6 +321,9 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   // it means the player has read that list and wants the turn ended regardless.
   const onEndTurn = useCallback(() => endTurn.mutate(endTurnArmed), [endTurn, endTurnArmed]);
 
+  // Remove in F-18. Ends the turn and brings the client back up as the next player, so one developer can play every seat.
+  const { endTurnAndSwitchPlayer, endRoundAndReturnToPlayer, isSwitching } = useDevEndTurnSwitch({ openToast });
+
   const toolBarGroups = useGameToolbar({
     gameOpen: gameSelection != null,
     onNewGame: openNewGame,
@@ -334,6 +339,10 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     onEndTurn,
     militaryAdvisorActive: showMilitaryAdvisor,
     onToggleMilitaryAdvisor: toggleMilitaryAdvisor,
+    // Remove in F-18.
+    onEndTurnAndSwitchPlayer: endTurnAndSwitchPlayer,
+    onEndRoundAndReturnToPlayer: endRoundAndReturnToPlayer,
+    devSwitchInProgress: isSwitching,
   });
 
   return (

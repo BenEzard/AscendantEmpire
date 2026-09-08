@@ -1,8 +1,8 @@
 ﻿import { useMemo } from "react";
-import { FaChessKnight, FaRegFolderOpen } from "react-icons/fa6";
+import { FaChessKnight, FaPersonWalkingArrowRight, FaRegFolderOpen } from "react-icons/fa6";
 import { GoEye, GoEyeClosed } from "react-icons/go";
 import { GiRank3, GiWoodStick } from "react-icons/gi";
-import { GrCaretNext } from "react-icons/gr";
+import { GrCaretNext, GrPowerCycle } from "react-icons/gr";
 import { SlClose } from "react-icons/sl";
 import { VscNewFile } from "react-icons/vsc";
 import type { ToolBarGroup } from "@/components/ui/toolbar/Toolbar";
@@ -25,7 +25,21 @@ interface UseGameToolbarArgs {
   onEndTurn: () => void;
   militaryAdvisorActive: boolean;
   onToggleMilitaryAdvisor: () => void;
+  /** Remove in F-18. Ends this player's turn and continues as whoever plays next. */
+  onEndTurnAndSwitchPlayer: () => void;
+  /** Remove in F-18. Ends every turn until it is this player's turn again, and continues as them. */
+  onEndRoundAndReturnToPlayer: () => void;
+  /** Remove in F-18. True while a developer switch is in flight, so neither button can be pressed twice. */
+  devSwitchInProgress: boolean;
 }
+
+/**
+ * Remove in F-18. Whether the temporary developer hot-seat buttons are offered at all.
+ *
+ * They call an endpoint that only exists when the API runs in Development, so showing them in a production build would offer two buttons that could do
+ * nothing but 404.
+ */
+const SHOW_DEV_HOT_SEAT_BUTTONS = import.meta.env.DEV;
 
 /** Builds the game screen's toolbar groups (Game menu, Dev Tools, Structures, Advisors). */
 export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
@@ -44,6 +58,9 @@ export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
     onEndTurn,
     militaryAdvisorActive,
     onToggleMilitaryAdvisor,
+    onEndTurnAndSwitchPlayer,
+    onEndRoundAndReturnToPlayer,
+    devSwitchInProgress,
   } = args;
 
   // The signed-in username and the Log out item, shared with every other page's hamburger menu.
@@ -97,6 +114,26 @@ export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
             onMiddleClick: onOpenVisionSettings,
             middleClickHint: "settings",
           },
+          // Remove in F-18. Both hot-seat buttons, and the spread that conditionally includes them, go with the endpoint they call.
+          ...(SHOW_DEV_HOT_SEAT_BUTTONS
+            ? [
+                {
+                  key: "end-turn-with-logout",
+                  icon: <FaPersonWalkingArrowRight />,
+                  tooltip: "End turn with logout",
+                  // No turn to end without a game open, and the request would be refused for want of a game token.
+                  disabled: !gameOpen || devSwitchInProgress,
+                  onClick: onEndTurnAndSwitchPlayer,
+                },
+                {
+                  key: "end-round-back-to-player",
+                  icon: <GrPowerCycle />,
+                  tooltip: "End round, back to this player",
+                  disabled: !gameOpen || devSwitchInProgress,
+                  onClick: onEndRoundAndReturnToPlayer,
+                },
+              ]
+            : []),
         ],
       },
       {
@@ -142,6 +179,7 @@ export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
         ],
       },
     ],
-    [gameOpen, onNewGame, onOpenGame, onCloseGame, onClearVision, visionActive, onToggleVision, onOpenVisionSettings, onToggleConstruction, unitDesignActive, onToggleUnitDesign, onEndTurn, militaryAdvisorActive, onToggleMilitaryAdvisor, accountHeader, accountGroup],
+    // onEndTurnAndSwitchPlayer, onEndRoundAndReturnToPlayer and devSwitchInProgress: remove in F-18.
+    [gameOpen, onNewGame, onOpenGame, onCloseGame, onClearVision, visionActive, onToggleVision, onOpenVisionSettings, onToggleConstruction, unitDesignActive, onToggleUnitDesign, onEndTurn, militaryAdvisorActive, onToggleMilitaryAdvisor, onEndTurnAndSwitchPlayer, onEndRoundAndReturnToPlayer, devSwitchInProgress, accountHeader, accountGroup],
   );
 }

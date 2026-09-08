@@ -1,6 +1,7 @@
 
 using AscendantEmpire.Api.Authentication;
 using AscendantEmpire.Api.Middleware.ExceptionHandling;
+using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application;
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
@@ -36,6 +37,13 @@ namespace AscendantEmpire.Api
             {
                 // Use kebab-case for route parameters
                 options.Conventions.Add(new RouteTokenTransformerConvention(new KebabCaseParameterTransformer()));
+
+                // Remove in F-18. Drops the [DevelopmentOnly] controllers — currently just DevController — from the application model outside Development,
+                // so their routes do not exist rather than merely refusing callers.
+                if (builder.Environment.IsDevelopment() == false)
+                {
+                    options.Conventions.Add(new DevelopmentOnlyControllerConvention());
+                }
             })
             .AddJsonOptions(options =>
             {
