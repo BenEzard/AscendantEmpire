@@ -280,11 +280,51 @@ one more tile, provided nothing impedes the line of sight.
 | | | | Void | True |
 | | | | Woodland | True |
 
+#### Standing in dense terrain
+
+A sight-blocking biome takes an observer's sight away outright: it reports the tile it occupies and
+nothing else. That beats the elevation bonus — a hilly jungle is still a jungle, and the extra height
+buys nothing through the canopy.
+
+There is one addition, and it is not a weakening of the blindness. A blinded observer also reveals
+each **adjacent tile its own movement domain could not enter**:
+
+| Observer | Reveals | Stays dark |
+|---|---|---|
+| A land force | Water, mountains, void | Every ordinary land neighbour |
+| A ship | Land, mountains, void | Open water |
+| A flier | Mountains, void | Everything passable |
+| A **structure** | Judged as a land force | — |
+
+Deep in a jungle every neighbour is ordinary land, so a land force reveals **nothing at all** and the
+biome is exactly as concealing as it looks. On a jungle coast it reveals the sea and not the shoreline
+beside it.
+
+> **Why the addition exists.** With no sight, the only way left to uncover a neighbouring tile is to
+> walk onto it. That works for land — step out of the jungle and look back — but not for anything the
+> observer is barred from. A jungle-covered coastline could otherwise never reveal the sea beyond it,
+> by any legal action in the game, and the same held for a mountain or void tile beside a jungle. The
+> reveal is therefore not really *sight*; it is the map conceding what the player could never have
+> gone to find out.
+
+The rule asks the movement rules themselves, so "revealed" and "refused a step" are the same
+question with the same answer. The map can never show water it would then let a force sail into, nor
+refuse a step onto ground it had never revealed.
+
+A **structure** has no movement domain of its own and is judged as a land force. Without that, a
+settlement founded on a coastal jungle would sit beside sea nothing could ever uncover — the force
+that founded it was standing on the same blocking tile, so it revealed nothing either.
+
+This is all a rule about the *occupied* tile. A sight-blocking tile further out still stops vision
+dead at itself, exactly as before, and is what the sight path below is walking to find.
+
 #### Technical implementation of sight
 
 For a unit at (40, 40) with a Sight value of 4:
 
-1. If the occupied tile has a sight-blocking biome, the unit can see no further.
+1. If the occupied tile has a sight-blocking biome, the unit can see no further — sight is zero and the
+   walk below never starts. It still reveals the neighbours it could not have reached; see
+   [Standing in dense terrain](#standing-in-dense-terrain).
 2. Calculate the coordinates of tiles surrounding the occupied tile in a rectangle.
 3. For each, compute a **relative (focal-offset) grid** — how many x/y values return to the occupied
    tile — and note whether the tile is diagonal, on the same horizontal/vertical, and its radius.

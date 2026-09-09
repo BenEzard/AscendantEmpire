@@ -1,4 +1,5 @@
 ﻿using AscendantEmpire.Domain.Enums;
+using AscendantEmpire.Domain.Enums.Maps;
 
 namespace AscendantEmpire.BackendContracts.Units.GetPlayerForces;
 
@@ -13,6 +14,16 @@ public class PlayerForce
     public int CampaignYCoord { get; set; }
     public int UnitTemplateId { get; set; }
     public int SightRange { get; set; }
+
+    /// <summary>
+    /// Which terrain this Force can cross, from its compiled template.
+    /// </summary>
+    /// <remarks>
+    /// Carried for the fog-of-war read as well as for movement: an Observer blinded by dense terrain reveals the adjacent Tiles its domain could
+    /// never have entered, so the sight pipeline has to know which those are. Defaults to <see cref="DomainType.Land"/> so a projection that forgets
+    /// to set it describes a foot soldier rather than something that goes anywhere.
+    /// </remarks>
+    public DomainType MovementDomain { get; set; } = DomainType.Land;
     public int HealthyTroops { get; set; }
     public int InjuredTroops { get; set; }
     public int InitialStrength { get; set; }

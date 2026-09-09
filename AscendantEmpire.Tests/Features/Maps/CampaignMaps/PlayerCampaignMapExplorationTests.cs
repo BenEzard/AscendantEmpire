@@ -1,14 +1,17 @@
 ﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.ForceOrders.Movement.Strategies;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Handlers;
 using AscendantEmpire.Application.Features.Players.Handlers;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.Domain.Entities.Games;
+using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums;
+using AscendantEmpire.Domain.Enums.Maps;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -42,6 +45,10 @@ internal class PlayerCampaignMapExplorationTests : GameSqlServerTestBase
     /// <summary>The record type of the whole-map pseudo-observer, which carries remembered terrain rather than live sight.</summary>
     private const RecordType _WHOLE_MAP_OBSERVER = RecordType.None;
 
+    /// <summary>An interior Tile, far enough from every edge that the ring of eight around it is whole.</summary>
+    private const int _BLOCKED_TILE_X = 4;
+    private const int _BLOCKED_TILE_Y = 4;
+
     private IMediator _mediator = null!;
 
     [SetUp]
@@ -50,10 +57,17 @@ internal class PlayerCampaignMapExplorationTests : GameSqlServerTestBase
         // A real mediator, so the request goes through the same handler chain the API uses.
         // The campaign-map handlers take a context directly rather than a factory, hence both registrations.
         // GetGameContextHandler delegates its query to IGameContextService, which AddMediator does not register, so that goes in by hand.
+        // The movement domain strategies likewise: the map read asks them what a blinded Observer could not have walked onto. They arrive as an
+        // IEnumerable, so leaving them out gives the handler an empty set rather than a resolution failure — it would silently reveal nothing.
         ServiceProvider provider = new ServiceCollection()
             .AddSingleton(DbFactory)
             .AddScoped(_ => DbFactory.CreateDbContext())
             .AddScoped<IGameContextService, GameContextService>()
+            .AddScoped<IMovementDomainStrategy, LandMovementStrategy>()
+            .AddScoped<IMovementDomainStrategy, WaterMovementStrategy>()
+            .AddScoped<IMovementDomainStrategy, BelowWaterMovementStrategy>()
+            .AddScoped<IMovementDomainStrategy, AirMovementStrategy>()
+            .AddScoped<IMovementDomainStrategy, NearEarthOrbitMovementStrategy>()
             .AddMediator(typeof(GetPlayersHandler).Assembly)
             .AddLogging()
             .BuildServiceProvider();
@@ -201,22 +215,97 @@ internal class PlayerCampaignMapExplorationTests : GameSqlServerTestBase
         }
     }
 
+    [Test, Description("The reported bug: a Force blinded in a coastal Jungle uncovers the water beside it, which it could never have stepped onto to discover.")]
+    public async Task AForceBlindedInAJungleUncoversOnlyTheWaterItCannotEnterAsync()
+    {
+        int gameId = await SetupGameAsync();
+        Player player = await GetFirstPlayerAsync(gameId);
+
+        // An interior Tile, so all eight neighbours exist and the seven that stay dark are a real assertion rather than an edge of the map.
+        await MovePlayerForcesToTileAsync(gameId, player.Id, _BLOCKED_TILE_X, _BLOCKED_TILE_Y);
+        await PaintWorldMapTileAsync(gameId, _BLOCKED_TILE_X, _BLOCKED_TILE_Y, BiomeType.Jungle);
+        await PaintWorldMapTileAsync(gameId, _BLOCKED_TILE_X + 1, _BLOCKED_TILE_Y, BiomeType.Ocean);
+
+        IReadOnlyCollection<ObserverSight> observers = await ReadWholeMapAsync(gameId, player.Id);
+
+        // Every Force is standing on the blocked Tile, so each is judged on its own. The Settler has one tile of Sight and the Scout three, and the
+        // Jungle must leave both with exactly the same two Tiles — the one they occupy, and the sea they are barred from.
+        List<ObserverSight> forceObservers = [.. observers.Where(observer => observer.RecordType != _WHOLE_MAP_OBSERVER)];
+
+        Assert.That(forceObservers, Is.Not.Empty, "The Player's Forces are all standing on the blocked Tile and must still report as Observers.");
+
+        (int X, int Y)[] expected =
+        [
+            (_BLOCKED_TILE_X, _BLOCKED_TILE_Y),
+            (_BLOCKED_TILE_X + 1, _BLOCKED_TILE_Y)
+        ];
+
+        using (Assert.EnterMultipleScope())
+        {
+            foreach (ObserverSight observer in forceObservers)
+            {
+                Assert.That(
+                    observer.SeenTiles.Select(tile => (tile.XCoord, tile.YCoord)),
+                    Is.EquivalentTo(expected),
+                    $"Observer {observer.RecordType} {observer.Id} must uncover the water and nothing else — the seven land neighbours stay dark, because it could walk out of the Jungle onto any of them and look back.");
+
+                Assert.That(observer.SeenTiles.All(tile => tile.IsExplored), Is.True, "Watching a Tile is what explores it.");
+            }
+        }
+    }
+
+    [Test, Description("The mechanic being protected: a Force blinded deep in a Jungle, with only land around it, still uncovers nothing at all.")]
+    public async Task AForceBlindedInlandUncoversNothingAsync()
+    {
+        int gameId = await SetupGameAsync();
+        Player player = await GetFirstPlayerAsync(gameId);
+
+        // The stock test map is Grassland throughout, so painting only the occupied Tile leaves every neighbour dry land the Force could step onto.
+        await MovePlayerForcesToTileAsync(gameId, player.Id, _BLOCKED_TILE_X, _BLOCKED_TILE_Y);
+        await PaintWorldMapTileAsync(gameId, _BLOCKED_TILE_X, _BLOCKED_TILE_Y, BiomeType.Jungle);
+
+        IReadOnlyCollection<ObserverSight> observers = await ReadWholeMapAsync(gameId, player.Id);
+
+        List<ObserverSight> forceObservers = [.. observers.Where(observer => observer.RecordType != _WHOLE_MAP_OBSERVER)];
+
+        Assert.That(forceObservers, Is.Not.Empty, "The Player's Forces are all standing on the blocked Tile and must still report as Observers.");
+
+        using (Assert.EnterMultipleScope())
+        {
+            foreach (ObserverSight observer in forceObservers)
+            {
+                Assert.That(
+                    observer.SeenTiles.Select(tile => (tile.XCoord, tile.YCoord)),
+                    Is.EquivalentTo(new[] { (_BLOCKED_TILE_X, _BLOCKED_TILE_Y) }),
+                    $"Observer {observer.RecordType} {observer.Id} must see only the Tile it occupies, or the Jungle stops being worth hiding in.");
+            }
+        }
+    }
+
     /// <summary>
     /// Marches every one of the Player's Forces to the opposite corner of the map, so the ground they were watching falls out of
     /// sight.
+    /// </summary>
+    private Task MovePlayerForcesToFarCornerAsync(int gameId, int playerId)
+    {
+        return MovePlayerForcesToTileAsync(gameId, playerId, _MAP_WIDTH - 1, _MAP_HEIGHT - 1);
+    }
+
+    /// <summary>
+    /// Puts every one of the Player's Forces on the given Tile.
     /// </summary>
     /// <remarks>
     /// A direct write rather than a step order: this fixture is about what the map read reports, not about how a Force gets
     /// anywhere, and a step would drag movement costs and terrain rules into a test that has no opinion on either.
     /// </remarks>
-    private async Task MovePlayerForcesToFarCornerAsync(int gameId, int playerId)
+    private async Task MovePlayerForcesToTileAsync(int gameId, int playerId, int xCoord, int yCoord)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
         GameIndex game = await context.GameIndex.SingleAsync(g => g.Id == gameId);
 
         // Both maps are laid out row-major from their own offset, so a coordinate is the offset plus its position in the block.
-        int farCornerTileId = game.CampaignMapOffsetId + (_MAP_WIDTH - 1) + ((_MAP_HEIGHT - 1) * _MAP_WIDTH);
+        int tileId = game.CampaignMapOffsetId + xCoord + (yCoord * _MAP_WIDTH);
 
         List<UnitInstance> forces = await context.UnitInstances.Where(u => u.GameId == gameId && u.PlayerId == playerId).ToListAsync();
 
@@ -224,9 +313,79 @@ internal class PlayerCampaignMapExplorationTests : GameSqlServerTestBase
 
         foreach (UnitInstance force in forces)
         {
-            force.CampaignMapTileId = farCornerTileId;
+            force.CampaignMapTileId = tileId;
         }
 
         await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Repaints one Tile of the world map, seeding the Biome first if this is the first test to ask for it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>GameSqlServerTestBase</c> seeds only Unknown and Grassland — neither of which blocks sight and neither of which is water — and paints the
+    /// whole gallery map Grassland, so a stock test map cannot express either half of this rule.
+    /// </para>
+    /// <para>
+    /// The world map is the one to paint. The sight pipeline reads <c>DoesBlockSight</c> and the entry rules from there rather than from the Player's
+    /// own copy, precisely so a Player who has never seen a Tile is still judged on what is really on it.
+    /// </para>
+    /// </remarks>
+    private async Task PaintWorldMapTileAsync(int gameId, int xCoord, int yCoord, BiomeType biomeType)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        if (await context.CampaignBiomes.AnyAsync(biome => biome.BiomeTypeId == biomeType) == false)
+        {
+            context.CampaignBiomes.Add(BuildBiome(biomeType));
+            await context.SaveChangesAsync();
+        }
+
+        CampaignMap tile = await context.CampaignMaps.SingleAsync(t => t.GameId == gameId && t.XCoord == xCoord && t.YCoord == yCoord);
+        tile.BiomeTypeId = biomeType;
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// The seed row for a Biome these tests need and the shared base does not provide.
+    /// </summary>
+    /// <remarks>
+    /// Only the two flags the rule turns on are meaningful here — <c>DoesBlockSight</c> and <c>IsWater</c>. Everything else is filled in plausibly so
+    /// the row is valid.
+    /// </remarks>
+    private static CampaignBiome BuildBiome(BiomeType biomeType)
+    {
+        return biomeType switch
+        {
+            BiomeType.Jungle => new CampaignBiome
+            {
+                BiomeTypeId = BiomeType.Jungle,
+                Name = "Jungle",
+                MapEditorHtmlColor = "#006400",
+                MovementCost = 2.0m,
+                DoesBlockSight = true,
+                IsWater = false,
+                IsTraversable = true,
+                RegenerationRate = 1.1m,
+                IsPaintableOnCampaignMap = true,
+                CanBeElevated = true
+            },
+            BiomeType.Ocean => new CampaignBiome
+            {
+                BiomeTypeId = BiomeType.Ocean,
+                Name = "Ocean",
+                MapEditorHtmlColor = "#1e90ff",
+                MovementCost = 1.0m,
+                DoesBlockSight = false,
+                IsWater = true,
+                IsTraversable = true,
+                RegenerationRate = 1.0m,
+                IsPaintableOnCampaignMap = true,
+                CanBeElevated = false
+            },
+            _ => throw new ArgumentOutOfRangeException(nameof(biomeType), biomeType, "This fixture only seeds the Biomes its own rules need.")
+        };
     }
 }

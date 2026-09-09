@@ -96,6 +96,45 @@ internal static class MapDirections
     }
 
     /// <summary>
+    /// Every tile adjacent to <paramref name="origin"/> — the eight-way ring, honouring the map's wrapping.
+    /// </summary>
+    /// <param name="origin">The tile to find the neighbours of.</param>
+    /// <param name="mapWidth">The map's width in tiles.</param>
+    /// <param name="mapHeight">The map's height in tiles.</param>
+    /// <param name="wrapsHorizontally">Whether the map's east and west edges join.</param>
+    /// <param name="wrapsVertically">Whether the map's north and south edges join.</param>
+    /// <returns>
+    /// Between three and eight coordinates. Directions that run off a non-wrapping edge are simply absent, so a tile in a corner returns three.
+    /// </returns>
+    /// <remarks>
+    /// Built from <see cref="TryGetNeighbour"/> rather than from the delta table directly, so the wrapping arithmetic has exactly one home. The
+    /// fog-of-war read uses this for the ring around an Observer that dense terrain has blinded.
+    /// </remarks>
+    internal static IReadOnlyCollection<Coord> GetNeighbours(
+        Coord origin,
+        int mapWidth,
+        int mapHeight,
+        bool wrapsHorizontally,
+        bool wrapsVertically)
+    {
+        ArgumentNullException.ThrowIfNull(origin);
+
+        List<Coord> neighbours = [];
+
+        foreach (MoveDirection direction in _DELTAS_BY_DIRECTION.Keys)
+        {
+            if (TryGetNeighbour(origin, direction, mapWidth, mapHeight, wrapsHorizontally, wrapsVertically, out Coord? neighbour))
+            {
+                neighbours.Add(neighbour!);
+            }
+        }
+
+        // A map that wraps on an axis one tile wide would fold a direction back onto the origin, and a two-wide one would fold two directions onto
+        // the same tile. Neither is a real map, but the caller gets a set either way rather than a duplicate it has to notice.
+        return [.. neighbours.Distinct()];
+    }
+
+    /// <summary>
     /// A modulo that returns a non-negative result, so stepping west off column 0 lands on the far east column.
     /// </summary>
     private static int Modulo(int value, int modulo)

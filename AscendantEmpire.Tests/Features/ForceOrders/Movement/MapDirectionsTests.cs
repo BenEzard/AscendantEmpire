@@ -135,6 +135,64 @@ internal class MapDirectionsTests
         }
     }
 
+    [Test, Description("An interior tile has all eight neighbours, which is the ring the fog-of-war read hands a blinded observer.")]
+    public void ShouldReturnAllEightNeighboursOfAnInteriorTile()
+    {
+        IReadOnlyCollection<Coord> neighbours = MapDirections.GetNeighbours(
+            new Coord(5, 4),
+            _MAP_WIDTH,
+            _MAP_HEIGHT,
+            wrapsHorizontally: false,
+            wrapsVertically: false);
+
+        Assert.That(neighbours, Is.EquivalentTo(new[]
+        {
+            new Coord(4, 3), new Coord(5, 3), new Coord(6, 3),
+            new Coord(4, 4),                  new Coord(6, 4),
+            new Coord(4, 5), new Coord(5, 5), new Coord(6, 5)
+        }));
+    }
+
+    [Test, Description("Directions that leave a non-wrapping map are absent rather than null, so a corner tile has three neighbours and an edge five.")]
+    [TestCase(0, 0, 3, Description = "The north-west corner keeps only east, south-east and south.")]
+    [TestCase(9, 7, 3, Description = "The south-east corner, the other extreme of the same arithmetic.")]
+    [TestCase(0, 4, 5, Description = "A western edge tile loses the three neighbours to its west.")]
+    [TestCase(5, 0, 5, Description = "A northern edge tile loses the three to its north.")]
+    public void ShouldOmitNeighboursThatFallOffANonWrappingEdge(int x, int y, int expectedCount)
+    {
+        IReadOnlyCollection<Coord> neighbours = MapDirections.GetNeighbours(
+            new Coord(x, y),
+            _MAP_WIDTH,
+            _MAP_HEIGHT,
+            wrapsHorizontally: false,
+            wrapsVertically: false);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(neighbours, Has.Count.EqualTo(expectedCount));
+            Assert.That(neighbours.Any(neighbour => neighbour.Equals(new Coord(x, y))), Is.False, "A tile is never its own neighbour.");
+        }
+    }
+
+    [Test, Description("A corner on a map wrapping both ways still has eight neighbours, three of them on the far side of the board.")]
+    public void ShouldReturnAllEightNeighboursOfACornerWhenTheMapWraps()
+    {
+        IReadOnlyCollection<Coord> neighbours = MapDirections.GetNeighbours(
+            new Coord(0, 0),
+            _MAP_WIDTH,
+            _MAP_HEIGHT,
+            wrapsHorizontally: true,
+            wrapsVertically: true);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(neighbours, Has.Count.EqualTo(8));
+            Assert.That(neighbours, Does.Contain(new Coord(9, 7)), "North-west of the origin wraps on both axes at once.");
+            Assert.That(neighbours, Does.Contain(new Coord(9, 0)), "West wraps to the far east column.");
+            Assert.That(neighbours, Does.Contain(new Coord(0, 7)), "North wraps to the bottom row.");
+        }
+    }
+
     [Test, Description("A direction outside the enum is a wiring fault, not a move to be refused, so it throws rather than reading as off-map.")]
     public void ShouldThrowForADirectionThatIsNotOneOfTheEight()
     {

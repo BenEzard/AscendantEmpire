@@ -334,39 +334,31 @@ internal class StepForceHandler(
     /// <summary>
     /// Checks that the target tile can be entered at all, and that this Force's movement domain permits it.
     /// </summary>
+    /// <remarks>
+    /// The decision itself belongs to <see cref="MovementEntryRules"/>, which the fog-of-war read also asks — a blinded Observer reveals exactly the
+    /// adjacent tiles it could not have stepped onto, so the two must never disagree. Only the wording and logging are this handler's.
+    /// </remarks>
     /// <returns><see langword="null"/> when the Force may enter the tile; otherwise the failure to answer with.</returns>
     private ServiceResult<StepForceResult>? ValidateTerrain(UnitInstance force, ForceMovementProfile movementProfile, MovementTargetTile target)
     {
-        // Impassability holds for every domain alike, so it is settled before any strategy is consulted.
-        if (target.IsImpassable)
-        {
-            // The two causes read differently to a player, so a mountain is named as one; anything else keeps the general wording.
-            string error = target.GeographyIsImpassable ? "Mountain terrain cannot be entered." : "This terrain cannot be entered.";
+        MovementEntryRefusal? refusal = MovementEntryRules.GetEntryRefusal(movementDomainStrategies, movementProfile.MovementDomain, target);
 
-            // The message no longer names the tile, so the log carries the description instead.
-            logger.LogInformation("{Error} {Tile}. Unit Instance Id {UnitInstanceId}.", error, target.Describe(), force.Id);
-            return ServiceResult<StepForceResult>.Fail(error);
+        if (refusal is null)
+        {
+            return null;
         }
 
-        IMovementDomainStrategy? strategy = movementDomainStrategies.SingleOrDefault(s => s.MovementDomain == movementProfile.MovementDomain);
-
-        if (strategy is null)
+        if (refusal.IsRuleFault)
         {
-            // Every DomainType has a registered strategy, so this is a wiring fault rather than anything the player did.
-            string error = $"No movement rules are registered for the {movementProfile.MovementDomain} domain.";
-            logger.LogError("{Error} Unit Instance Id {UnitInstanceId}.", error, force.Id);
-            return ServiceResult<StepForceResult>.Fail(error);
+            logger.LogError("{Error} Unit Instance Id {UnitInstanceId}.", refusal.Reason, force.Id);
+        }
+        else
+        {
+            // The message never names the tile, so the log carries the description instead.
+            logger.LogInformation("Unit Instance Id {UnitInstanceId} refused entry to {Tile}: {Refusal}", force.Id, target.Describe(), refusal.Reason);
         }
 
-        string? refusal = strategy.GetEntryRefusal(target);
-
-        if (refusal is not null)
-        {
-            logger.LogInformation("Unit Instance Id {UnitInstanceId} refused entry to {Tile}: {Refusal}", force.Id, target.Describe(), refusal);
-            return ServiceResult<StepForceResult>.Fail(refusal);
-        }
-
-        return null;
+        return ServiceResult<StepForceResult>.Fail(refusal.Reason);
     }
 
     /// <summary>

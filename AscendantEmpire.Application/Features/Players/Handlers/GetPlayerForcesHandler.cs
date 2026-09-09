@@ -77,6 +77,7 @@ internal class GetPlayerForcesHandler(
                     CampaignXCoord = pu.CampaignMap.XCoord,
                     CampaignYCoord = pu.CampaignMap.YCoord,
                     SightRange = (int)(pu.UnitTemplate.Compiled!.TotalSight / ScaledAmount.Scale),
+                    MovementDomain = pu.UnitTemplate.Compiled!.MovementDomain,
                     MapImagePath = pu.UnitTemplate.Compiled!.MapImagePath,
                     HealthyTroops = pu.HealthyCount,
                     InjuredTroops = pu.InjuredCount,

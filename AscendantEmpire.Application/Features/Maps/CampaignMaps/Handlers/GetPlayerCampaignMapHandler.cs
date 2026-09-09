@@ -1,7 +1,10 @@
 ﻿using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.ForceOrders.Movement;
+using AscendantEmpire.Application.Features.ForceOrders.Movement.Strategies;
 using AscendantEmpire.Application.Features.Game.Handlers;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Extensions;
 using AscendantEmpire.Application.Features.Players.Handlers;
 using AscendantEmpire.Application.Features.Structures.Handlers;
@@ -44,7 +47,8 @@ internal class GetPlayerCampaignMapHandler(
     ILogger<GetPlayerCampaignMapHandler> logger,
     IMediator mediator,
     IDbContextFactory<AscendantEmpireContext> dbFactory,
-    IServiceScopeFactory scopeFactory
+    IServiceScopeFactory scopeFactory,
+    IEnumerable<IMovementDomainStrategy> movementDomainStrategies
     ) : IRequestHandler<GetPlayerCampaignMapRequest, ServiceResult<IReadOnlyCollection<ObserverSight>>>
 {
     public async Task<ServiceResult<IReadOnlyCollection<ObserverSight>>> Handle(GetPlayerCampaignMapRequest request, CancellationToken cancelToken)
@@ -138,6 +142,15 @@ internal class GetPlayerCampaignMapHandler(
                 // Filter down the Tiles based on those that CAN be seen; excluding those from the radius which are blocked by Geography or Biome features
                 List<MapObserverSight> mapSight = DetermineMapSight(radiusDetails.SuccessValue, tiles.ToDictionary(t => t.PlayerCampaignMapId));
                 mapSightByObserverId = mapSight.ToDictionary(ms => (ms.Id, ms.RecordType));
+
+                // Dense terrain leaves an Observer seeing only its own Tile, which would make the ground it cannot walk to permanently unknowable.
+                // This adds back exactly that ground, and must run before the ids are collected below so the Tiles are stamped explored with the rest.
+                await RevealGroundBlindedObserversCannotReachAsync(
+                    enhancedObservers,
+                    mapSightByObserverId,
+                    gameInfo,
+                    thisPlayer.CampaignMapOffsetId,
+                    cancelToken);
 
                 List<int> playerCampaignMapTileIds = mapSight.GetAllDbIds();
 
@@ -333,7 +346,11 @@ internal class GetPlayerCampaignMapHandler(
             PlayerId = s.OwnerPlayerId,
             Location = new Coord { X = s.XCoord, Y = s.YCoord },
             SightRange = s.SightRange,
-            SightDirection = DetectionDirection.FullRadius
+            SightDirection = DetectionDirection.FullRadius,
+            // A Structure has no movement domain of its own — it cannot move at all — so it is judged as a land Force when dense terrain blinds it.
+            // Without an answer here, a settlement founded in a coastal Jungle would sit beside sea that nothing could ever uncover: the Force that
+            // founded it was standing on the same blocking Tile, so it revealed nothing either.
+            MovementDomain = DomainType.Land
         }));
 
         return ServiceResult<MapObserverCollection<PlayerStructure>>.Succeed(new MapObserverCollection<PlayerStructure>
@@ -371,6 +388,7 @@ internal class GetPlayerCampaignMapHandler(
             Location = new Coord { X = t.CampaignXCoord, Y = t.CampaignYCoord },
             SightRange = t.SightRange,
             SightDirection = DetectionDirection.FullRadius,
+            MovementDomain = t.MovementDomain,
         }));
 
         return ServiceResult<MapObserverCollection<PlayerForce>>.Succeed(new MapObserverCollection<PlayerForce>
@@ -537,6 +555,7 @@ internal class GetPlayerCampaignMapHandler(
                          RecordType = mx.RecordType,
                          PlayerId = mx.PlayerId,
                          Location = mx.Location,
+                         MovementDomain = mx.MovementDomain,
                          PlayerCampaignMapTileId = mx.Location.GetDbId(mapOffset, mapWidth),
                          SightRange = mx.SightRange
                      })];
@@ -546,6 +565,10 @@ internal class GetPlayerCampaignMapHandler(
     /// <summary>
     /// Update the Observer Sight values based on the occupied Tiles bonuses or penalties.
     /// </summary>
+    /// <remarks>
+    /// This method's job is the read; the arithmetic it applies belongs to <see cref="ObserverSightRules"/>, which is a pure static so the rules can
+    /// be tested without a database.
+    /// </remarks>
     /// <returns>The Observer collection, updated</returns>
     private async Task<List<EnhancedMapObserver>> UpdateObserverSightValuesAsync(
         List<EnhancedMapObserver> enhancedObservers,
@@ -582,15 +605,169 @@ internal class GetPlayerCampaignMapHandler(
                         PlayerId = eo.PlayerId,
                         PlayerCampaignMapTileId = eo.PlayerCampaignMapTileId,
                         Location = eo.Location,
-                        SightRange = t.DoesBlockSight
-                            ? 0 // if DoesBlockSight, apply the penalty (SightRange reduced to 0)
-                            : t.RelativeElevation <= 0
-                                ? eo.SightRange // if RelativeElevation <= 0, no change
-                                : eo.SightRange + t.RelativeElevation // otherwise add the bonus
+                        MovementDomain = eo.MovementDomain,
+                        IsSightBlocked = t.DoesBlockSight,
+                        SightRange = ObserverSightRules.ResolveSightRange(
+                            baseSightRange: eo.SightRange,
+                            occupiedTileBlocksSight: t.DoesBlockSight,
+                            occupiedTileRelativeElevation: t.RelativeElevation)
                    })];
 
         return data;
     }
+
+    /// <summary>
+    /// Adds back the ground a blinded Observer could never have walked onto to discover, which is otherwise unknowable.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A sight-blocking Biome takes an Observer's sight away entirely, so the only way left to learn what is next to it is to step there. That works
+    /// for ordinary land — walk out of the Jungle and look back — but not for anything the Observer's movement domain refuses. A land Force in a
+    /// coastal Jungle can never enter the sea, and nothing at all can enter a mountain, so that ground would stay unknown for the rest of the game.
+    /// Each blinded Observer therefore reveals the adjacent Tiles it is barred from, and only those; every neighbour it could have walked to is left
+    /// dark, which is what keeps dense terrain worth hiding in.
+    /// </para>
+    /// <para>
+    /// Deliberately its own pass and its own query rather than widening <see cref="GetTilesForSightBigRequestAsync"/>. That fetch runs for every Tile
+    /// in every Observer's radius on the hottest read path in the game; blinded Observers are rare, need at most eight Tiles each, and this does not
+    /// touch the database at all when there are none.
+    /// </para>
+    /// </remarks>
+    private async Task RevealGroundBlindedObserversCannotReachAsync(
+        IReadOnlyCollection<EnhancedMapObserver> observers,
+        Dictionary<(int, RecordType), MapObserverSight> mapSightByObserverId,
+        GameContext gameInfo,
+        int mapOffset,
+        CancellationToken cancelToken)
+    {
+        List<EnhancedMapObserver> blindedObservers = [.. observers.Where(observer => observer.IsSightBlocked)];
+
+        if (blindedObservers.Count == 0)
+        {
+            return;
+        }
+
+        // Worked out once per Observer and kept, because the terrain read below needs every id at once but the reveal needs to know whose is whose.
+        Dictionary<(int, RecordType), IReadOnlyCollection<Coord>> neighboursByObserver = blindedObservers.ToDictionary(
+            observer => (observer.Id, observer.RecordType),
+            observer => MapDirections.GetNeighbours(
+                observer.Location,
+                gameInfo.MapWidth,
+                gameInfo.MapHeight,
+                gameInfo.HasHorizontalWrapping,
+                gameInfo.HasVerticalWrapping));
+
+        IEnumerable<int> neighbourTileIds = neighboursByObserver.Values
+            .SelectMany(coords => coords)
+            .Select(coord => coord.GetDbId(mapOffset, gameInfo.MapWidth))
+            .Distinct();
+
+        IReadOnlyDictionary<int, AdjacentTile> adjacentTiles = await GetAdjacentTerrainAsync(neighbourTileIds, cancelToken);
+
+        foreach (EnhancedMapObserver observer in blindedObservers)
+        {
+            if (mapSightByObserverId.TryGetValue((observer.Id, observer.RecordType), out MapObserverSight? sight) == false)
+            {
+                // An Observer with no sight entry at all was skipped upstream for having a negative Sight Range; there is nothing to add to.
+                continue;
+            }
+
+            List<AdjacentTile> candidates =
+            [
+                .. neighboursByObserver[(observer.Id, observer.RecordType)]
+                    .Select(coord => coord.GetDbId(mapOffset, gameInfo.MapWidth))
+                    .Where(adjacentTiles.ContainsKey)
+                    .Select(dbId => adjacentTiles[dbId])
+            ];
+
+            IReadOnlyCollection<MovementTargetTile> revealed = BlockedSightReveal.SelectRevealedTiles(
+                movementDomainStrategies,
+                observer.MovementDomain,
+                candidates.Select(candidate => candidate.Terrain));
+
+            HashSet<int> alreadySeen = [.. sight.SeenTiles.Select(seen => seen.Id)];
+
+            foreach (AdjacentTile candidate in candidates.Where(candidate => revealed.Contains(candidate.Terrain)))
+            {
+                if (alreadySeen.Add(candidate.PlayerCampaignMapId) == false)
+                {
+                    continue;
+                }
+
+                sight.SeenTiles.Add(new SeenTile
+                {
+                    Id = candidate.PlayerCampaignMapId,
+                    Coord = new Coord { X = candidate.Terrain.XCoord, Y = candidate.Terrain.YCoord },
+                    BiomeType = candidate.BiomeType,
+                    GeographyType = candidate.Terrain.GeographyType
+                });
+            }
+        }
+    }
+
+    /// <summary>
+    /// Reads the terrain facts the movement rules need about a handful of Tiles, so the reveal can ask whether each could have been entered.
+    /// </summary>
+    /// <remarks>
+    /// Read from the <b>world</b> map rather than the Player's own, exactly as the sight fetch does. A Player who has never seen the Tile has
+    /// <c>Unknown</c> on their copy of it, and judging entry against that would let them walk onto ground the real map refuses.
+    /// </remarks>
+    private async Task<IReadOnlyDictionary<int, AdjacentTile>> GetAdjacentTerrainAsync(IEnumerable<int> playerCampaignMapIds, CancellationToken cancelToken)
+    {
+        int[] tileIds = [.. playerCampaignMapIds];
+
+        if (tileIds.Length == 0)
+        {
+            return new Dictionary<int, AdjacentTile>();
+        }
+
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+
+        var rows = await context.PlayerCampaignMaps
+            .AsNoTracking()
+            .Where(tile => tileIds.Contains(tile.PlayerCampaignMapId))
+            .Select(tile => new
+            {
+                tile.PlayerCampaignMapId,
+                tile.XCoord,
+                tile.YCoord,
+                BiomeType = tile.CampaignMap.BiomeTypeId,
+                GeographyType = tile.CampaignMap.CampaignMapGeographyTypeId,
+                GeographyName = tile.CampaignMap.Geography.Name,
+                GeographyMovementCost = tile.CampaignMap.Geography.MovementCost,
+                BiomeName = tile.CampaignMap.Biome.Name,
+                BiomeMovementCost = tile.CampaignMap.Biome.MovementCost,
+                BiomeIsWater = tile.CampaignMap.Biome.IsWater,
+                BiomeIsTraversable = tile.CampaignMap.Biome.IsTraversable
+            })
+            .ToListAsync(cancelToken);
+
+        return rows.ToDictionary(
+            row => row.PlayerCampaignMapId,
+            row => new AdjacentTile(
+                row.PlayerCampaignMapId,
+                row.BiomeType,
+                new MovementTargetTile
+                {
+                    XCoord = row.XCoord,
+                    YCoord = row.YCoord,
+                    GeographyType = row.GeographyType,
+                    GeographyName = row.GeographyName,
+                    GeographyMovementCost = row.GeographyMovementCost,
+                    BiomeName = row.BiomeName,
+                    BiomeMovementCost = row.BiomeMovementCost,
+                    BiomeIsWater = row.BiomeIsWater,
+                    BiomeIsTraversable = row.BiomeIsTraversable
+                }));
+    }
+
+    /// <summary>
+    /// A Tile next to a blinded Observer, carrying both what the movement rules judge and what a seen Tile has to report.
+    /// </summary>
+    /// <param name="PlayerCampaignMapId">The row on the Player's own map, which is what the rest of the read is keyed on.</param>
+    /// <param name="BiomeType">The world map's Biome, needed for the response and not for the entry decision.</param>
+    /// <param name="Terrain">The same Tile in the shape the movement rules take.</param>
+    private sealed record AdjacentTile(int PlayerCampaignMapId, BiomeType BiomeType, MovementTargetTile Terrain);
 
     private async Task<IReadOnlyCollection<PlayerCampaignMapTileForSight>> GetTilesForSightBigRequestAsync(
        IEnumerable<int> tileIds,
@@ -652,6 +829,17 @@ internal class GetPlayerCampaignMapHandler(
         /// ever created, so it is not worth keeping until something actually needs it.
         /// </remarks>
         public int PlayerCampaignMapTileId { get; set; }
+
+        /// <summary>
+        /// Whether the Biome under this Observer is what took its sight away, rather than it simply having none.
+        /// </summary>
+        /// <remarks>
+        /// The distinction cannot be recovered from <see cref="MapObserver.SightRange"/> afterwards, because both cases arrive at zero. A Unit built
+        /// entirely from components carrying no Sight value has none anywhere and reveals nothing; a Unit blinded by a Jungle still reveals the
+        /// adjacent Tiles it could never have walked onto. Kept private to this handler: the reveal runs as its own pass rather than inside the
+        /// sight walk, so nothing downstream needs to know.
+        /// </remarks>
+        public bool IsSightBlocked { get; set; }
     }
 
     private class InternalMasterObservedTile

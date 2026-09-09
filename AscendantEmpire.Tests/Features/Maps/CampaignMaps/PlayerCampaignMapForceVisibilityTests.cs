@@ -1,6 +1,7 @@
 ﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.ForceOrders.Movement.Strategies;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Handlers;
@@ -52,10 +53,17 @@ internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
         // A real mediator, so the request goes through the same handler chain the API uses.
         // The campaign-map handlers take a context directly rather than a factory, hence both registrations.
         // GetGameContextHandler delegates its query to IGameContextService, which AddMediator does not register, so that goes in by hand.
+        // The movement domain strategies are registered for the same reason as in PlayerCampaignMapExplorationTests: the map read consults them for
+        // any Observer dense terrain has blinded, and an IEnumerable dependency resolves to an empty set rather than failing when they are missing.
         ServiceProvider provider = new ServiceCollection()
             .AddSingleton(DbFactory)
             .AddScoped(_ => DbFactory.CreateDbContext())
             .AddScoped<IGameContextService, GameContextService>()
+            .AddScoped<IMovementDomainStrategy, LandMovementStrategy>()
+            .AddScoped<IMovementDomainStrategy, WaterMovementStrategy>()
+            .AddScoped<IMovementDomainStrategy, BelowWaterMovementStrategy>()
+            .AddScoped<IMovementDomainStrategy, AirMovementStrategy>()
+            .AddScoped<IMovementDomainStrategy, NearEarthOrbitMovementStrategy>()
             .AddMediator(typeof(GetPlayersHandler).Assembly)
             .AddLogging()
             .BuildServiceProvider();
