@@ -164,7 +164,7 @@ internal static class BiomeSeedData
             {
                 BiomeType = BiomeType.Forest,
                 Name = "Forest",
-                MovementCost = 1m,
+                MovementCost = 2m,
                 DoesBlockSight = true,
                 IsWater = false,
                 IsTraversable = true,
@@ -183,7 +183,7 @@ internal static class BiomeSeedData
             {
                 BiomeType = BiomeType.Jungle,
                 Name = "Jungle",
-                MovementCost = 1m,
+                MovementCost = 3m,
                 DoesBlockSight = true,
                 IsWater = false,
                 IsTraversable = true,
