@@ -7,8 +7,8 @@ when their turn opens.
 > versus ground currently watched — see [Fog of War](../fog-of-war.md). For the sight and detection
 > rules themselves, see [Vision on the campaign map](campaign-map.md#vision-on-the-campaign-map).
 >
-> **Status: proposed.** Nothing described here is built. Existing entities are called out where the
-> design leans on them.
+> **Status: proposed.** The `turns.PlayerTurn` foundation landed in F-21; nothing else described here is
+> built. Existing entities are called out where the design leans on them.
 
 ---
 
@@ -420,9 +420,11 @@ removing it.
 This design rests on three things that do not exist yet, and each is a prerequisite rather than a
 parallel workstream:
 
-1. **First-class `turns.PlayerTurn`,** carrying the sequence counter. Turn ids are currently stubbed
-   to `1` — a known gap already recorded in [Fog of War](../fog-of-war.md) — so nothing in the design
-   can be stamped correctly until this lands.
+1. ~~**First-class `turns.PlayerTurn`,** carrying the sequence counter.~~ **Landed in F-21.** The table
+   exists, is opened before the start-of-turn pipeline and closed after the end-of-turn pipeline, and
+   carries `LastAllocatedSequence`. `IPlayerTurnService.AllocateSequenceAsync` hands out the
+   `TurnSequence` values every raw feed row is to be stamped with, atomically. Nothing writes a feed row
+   yet — that is dependency 2.
 2. **A single writer for Force position and lifecycle.** Movement is written from more than one place
    today: immediate steps, pathfound order execution, retreats, spawns, and the context actions that
    found settlements. If history is appended at each call site, one will be missed — and a missing

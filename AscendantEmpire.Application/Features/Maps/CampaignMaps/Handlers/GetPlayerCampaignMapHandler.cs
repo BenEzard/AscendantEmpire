@@ -8,6 +8,7 @@ using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Extensions;
 using AscendantEmpire.Application.Features.Players.Handlers;
 using AscendantEmpire.Application.Features.Structures.Handlers;
+using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Units.Handlers;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
@@ -48,6 +49,7 @@ internal class GetPlayerCampaignMapHandler(
     IMediator mediator,
     IDbContextFactory<AscendantEmpireContext> dbFactory,
     IServiceScopeFactory scopeFactory,
+    ICampaignTurnService campaignTurnService,
     IEnumerable<IMovementDomainStrategy> movementDomainStrategies
     ) : IRequestHandler<GetPlayerCampaignMapRequest, ServiceResult<IReadOnlyCollection<ObserverSight>>>
 {
@@ -194,7 +196,24 @@ internal class GetPlayerCampaignMapHandler(
                     // TODO: Use this data to add Biome expertise points to the Player's Faction
                     IReadOnlyCollection<PlayerDiscoveredTileSummary> newlyDiscoveredTilesForPlayer = await CountNewlyDiscoveredTilesByBiomeAsync(context, playerCampaignMapTileIds, cancelToken);
 
-                    int turnId = 1; // TODO replace/update when turn system is in place
+                    // The Turn to stamp on what this Player just saw.
+                    //
+                    // Resolved once, and handed to both updates below - they run on separate contexts and must agree about which Turn this read was.
+                    //
+                    // TODO: Note this is still a side effect of the *read* rather than of movement. That is the pre-existing shape, not something introduced here;
+                    // relocating the stamp onto the movement path is the witness service extraction, and its own piece of work.
+                    ServiceResult<int> observationTurnResult = await campaignTurnService.GetObservationTurnIdAsync(context, request.GameId, thisPlayer.PlayerId, cancelToken);
+
+                    if (observationTurnResult.HasSucceeded == false)
+                    {
+                        // Refused before either update below runs, so a Game with no Turn to stamp against gets nothing written to its map rather than a Turn id
+                        // that means nothing.
+                        const string error = "Error resolving the Turn to stamp a Player's view of the Campaign Map with";
+                        logger.LogWarning(error);
+                        return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(observationTurnResult.Errors.Prepend(error));
+                    }
+
+                    int turnId = observationTurnResult.SuccessValue;
 
                     // Update the PlayerCampaignMap with Biome/Geography info, and FirstSeen/LastSeen turn info
                     Task updatePlayerMapTask = UpdatePlayerCampaignMapFromCampaignMapAsync(playerCampaignMapTileIds, turnId, cancelToken);

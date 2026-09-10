@@ -1,4 +1,4 @@
-using AscendantEmpire.Application.Common;
+﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.MatchMaking.Handlers;
@@ -57,6 +57,7 @@ public class StartOfGameTests : GameSqlServerTestBase
         var campaignRoundService = new CampaignRoundService(
             new NullLogger<CampaignRoundService>(),
             _campaignTurnService,
+            new PlayerTurnService(new NullLogger<PlayerTurnService>(), DbFactory),
             startCampaignRoundPipeline,
             startCampaignTurnPipeline);
 

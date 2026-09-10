@@ -26,6 +26,25 @@ a **round** has occurred.
   adverse changes are detected, the pre-programmed moves are actioned automatically, speeding up the
   turn.
 
+### The turn as a record
+
+Each campaign turn is a row in `turns.PlayerTurn`: the queue it belongs to, the round, the player, when
+it opened and when it closed. The row is opened **before** the start-of-turn pipeline runs and closed
+**after** the end-of-turn pipeline finishes, so everything that happens during a turn happens inside it.
+
+It carries a monotonic counter. Every raw activity record written during the turn — movement, structure
+lifecycle, combat — draws a `TurnSequence` from that counter, which is what lets three separate feeds
+interleave into a single order across the turn: "rode past the village, then razed it" and "razed the
+village, then rode past" are different intelligence, and only a shared counter can tell them apart. See
+[intelligence-and-sightings.md](intelligence-and-sightings.md).
+
+The row hangs off the turn queue rather than off the game, so battle lanes get turn records on the same
+terms whenever something opens them. Nothing does yet.
+
+A lane may have **at most one open turn**, enforced by a filtered unique index. Opening a turn is
+idempotent and will close a stale open turn rather than refuse: a lane that could not hand the turn on
+would be a game nobody could finish.
+
 ### What happens when a campaign turn opens
 
 The start-of-turn pipeline runs, in this order:

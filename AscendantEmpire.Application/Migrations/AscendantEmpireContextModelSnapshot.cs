@@ -1238,6 +1238,50 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("Structures", "structure");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Turns.PlayerTurn", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset?>("EndedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("LastAllocatedSequence")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RoundNumber")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("TurnQueueId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerId");
+
+                    b.HasIndex("TurnQueueId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_PlayerTurn_OpenTurnPerQueue")
+                        .HasFilter("[EndedAt] IS NULL");
+
+                    b.HasIndex("TurnQueueId", "PlayerId")
+                        .HasDatabaseName("IX_PlayerTurn_Queue_Player");
+
+                    b.HasIndex("TurnQueueId", "RoundNumber")
+                        .HasDatabaseName("IX_PlayerTurn_Queue_Round");
+
+                    b.ToTable("PlayerTurn", "turns");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Turns.TurnQueue", b =>
                 {
                     b.Property<int>("Id")
@@ -2838,6 +2882,27 @@ namespace AscendantEmpire.Application.Migrations
                         .IsRequired();
 
                     b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Turns.PlayerTurn", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerTurn_Player_PlayerId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Turns.TurnQueue", "TurnQueue")
+                        .WithMany()
+                        .HasForeignKey("TurnQueueId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerTurn_TurnQueue_TurnQueueId");
+
+                    b.Navigation("Player");
+
+                    b.Navigation("TurnQueue");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Turns.TurnQueue", b =>

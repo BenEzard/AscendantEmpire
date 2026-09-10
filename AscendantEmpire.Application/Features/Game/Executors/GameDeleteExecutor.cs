@@ -69,6 +69,7 @@ internal sealed class GameDeleteExecutor(
         "[units].[Commands]",
         "[game].[PlayerKnownStructures]",
         "[game].[StructureInstances]",
+        "[turns].[PlayerTurn]",
         "[turns].[TurnQueueParticipant]",
         "[turns].[TurnQueue]",
         "[battle].[Battle]",
@@ -212,6 +213,13 @@ internal sealed class GameDeleteExecutor(
                 .ExecuteDeleteAsync(cancellationToken)),
 
             // Turn queues carry a BattleId, so they go before the battles.
+            //
+            // Player turns hang off the queue rather than the game, so they are scoped through it - the same shape as the participants below, and for the
+            // same reason.
+            ("player turns", () => purge.PlayerTurns
+                .Where(t => purge.TurnQueues.Any(q => q.GameId == gameId && q.Id == t.TurnQueueId))
+                .ExecuteDeleteAsync(cancellationToken)),
+
             ("turn queue participants", () => purge.TurnQueueParticipants
                 .Where(p => purge.TurnQueues.Any(q => q.GameId == gameId && q.Id == p.TurnQueueId))
                 .ExecuteDeleteAsync(cancellationToken)),

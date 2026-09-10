@@ -115,6 +115,11 @@ public class AscendantEmpireContext : DbContext
     #region Turn Schema
     public DbSet<TurnQueue> TurnQueues { get; set; }
     public DbSet<TurnQueueParticipant> TurnQueueParticipants { get; set; }
+
+    /// <summary>
+    /// One row per Player Turn taken in any lane, carrying the sequence counter the raw activity feeds draw from.
+    /// </summary>
+    public DbSet<PlayerTurn> PlayerTurns { get; set; }
     #endregion
 
     #region Units
@@ -979,6 +984,50 @@ public class AscendantEmpireContext : DbContext
             entity.HasIndex(x => new { x.TurnQueueId, x.Status });
             entity.HasIndex(x => new { x.TurnQueueId, x.IsActiveInLane, x.TurnOrder });
             entity.HasIndex(x => x.PlayerId);
+        });
+
+        modelBuilder.Entity<PlayerTurn>(entity =>
+        {
+            entity.ToTable("PlayerTurn", schema);
+
+            entity.HasKey(x => x.Id);
+
+            // Deliberately no HasDefaultValue on LastAllocatedSequence. A database default arrives as an unnamed DF__ constraint, which is exactly what
+            // migration TM-6_RenameStaleDefaultConstraints had to go back and clean up; the C# default of 0 is written on insert and says the same thing.
+
+            entity.HasOne(x => x.TurnQueue)
+                .WithMany()
+                .HasForeignKey(x => x.TurnQueueId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerTurn_TurnQueue_TurnQueueId");
+
+            entity.HasOne(x => x.Player)
+                .WithMany()
+                .HasForeignKey(x => x.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerTurn_Player_PlayerId");
+
+            // A lane hands the Turn to exactly one Player at a time, so at most one row in it may be open.
+            //
+            // Enforced by the database rather than only in code because the consequence of a second open Turn is silent: sequence numbers would be handed
+            // out from two counters, and the feeds would interleave into an order that never happened. Nothing downstream could tell.
+            entity.HasIndex(x => x.TurnQueueId)
+                .IsUnique()
+                .HasFilter("[EndedAt] IS NULL")
+                .HasDatabaseName("UX_PlayerTurn_OpenTurnPerQueue");
+
+            // "This Player's most recent Turn in this lane" - the map read's stamp lookup today, and the intelligence feed's "since my last Turn began"
+            // later.
+            //
+            // Deliberately not unique on (TurnQueueId, RoundNumber, PlayerId). That looks equally true today, but it is a rule about the campaign pipeline
+            // rather than about this table: Battle lanes run Rounds outside the campaign order, and EndTurnMode.Developer_AllAboutMe is specified to hand
+            // one Player repeated Turns.
+            entity.HasIndex(x => new { x.TurnQueueId, x.PlayerId })
+                .HasDatabaseName("IX_PlayerTurn_Queue_Player");
+
+            // "Every Turn of Round N", which is how the end-of-turn fold and any Round-level audit read the table.
+            entity.HasIndex(x => new { x.TurnQueueId, x.RoundNumber })
+                .HasDatabaseName("IX_PlayerTurn_Queue_Round");
         });
     }
 

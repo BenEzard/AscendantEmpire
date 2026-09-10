@@ -109,7 +109,7 @@ Use **General (11)** when a task doesn't clearly belong to a specific component
 
 ## 4. Enumerations
 
-Both are sent and returned as **integers**, not strings.
+All three are sent and returned as **integers**, not strings.
 
 ### `status` — `ProjectTaskStatus`
 
@@ -185,9 +185,9 @@ curl -k -X POST https://localhost:7207/tasks \
 |---|---|---|
 | `projectComponentId` | **yes** | Must be an existing, live component. `404` otherwise. |
 | `title` | **yes** | Non-empty, **max 200 characters**. |
-| `description` | **yes** | Must be present, but **may be an empty string**. No length cap — free-form text; multi-line and Markdown-style content is normal and expected. |
+| `description` | no | Omitted, `null`, empty and whitespace-only are all treated alike and stored as `null`. Otherwise stored exactly as sent — **not trimmed**, because leading whitespace is meaningful in Markdown. No length cap; multi-line and Markdown-style content is normal and expected. |
 | `taskOrdering` | no | Manual ordering within the component. Must be `>= 0`. Defaults to `0`. |
-| `taskGroupId` | no | Put the new task straight into a group. Must be a live group **of the same component**, or it's a `400`. `null` (the default) creates it loose. The task is appended to the end of the group. **Ignored by `/tasks/bulk`** — see below. |
+| `taskGroupId` | no | Put the new task straight into a group. An unknown or soft-deleted group is a `404`; a live group belonging to a **different component** is a `400`. `null` (the default) creates it loose. The task is appended to the end of the group. **Ignored by `/tasks/bulk`** — see below. |
 | `status` | no | Defaults to `0` (Not Started). |
 | `priority` | no | Defaults to `1` (Medium). |
 | `colour` | no | `"#rrggbb"` or `null`. |
@@ -267,21 +267,34 @@ Routes are kebab-cased from the controller names.
 
 | Method | Route | Purpose |
 |---|---|---|
-| `GET` | `/project-components?projectId=4` | All components of a project (empty array, not 404, when there are none). |
-| `GET` | `/project-components/{id}` | One component. |
+| `GET` | `/project-components?projectId=4` | All components of a project (empty array, not 404, when there are none). Optional `&includeDeleted=true`. |
+| `GET` | `/project-components/{id}` | One component. Optional `?includeDeleted=true`. |
 | `POST` | `/project-components` | Create (`projectId`, `name`, `abbreviation`, `componentOrdering`). |
 | `PUT` | `/project-components/{id}` | Full replacement (`name`, `abbreviation`, `componentOrdering`). Cannot move between projects. |
 | `DELETE` | `/project-components/{id}` | Soft-delete. → 204 |
 
-`abbreviation` is **required**, **uppercase letters and digits only**, and **unique across
-all components** (DB-enforced; a clash is a `409`). Renaming it **re-labels every task in the
-component immediately**, since codes are composed at read time.
+`abbreviation` is **required**, **uppercase letters and digits only**, and **unique within its
+project** — two different projects may each have a component abbreviated `API`, but one project
+may not have two. The uniqueness is DB-enforced across **every** row, soft-deleted ones
+included, so a deleted component's abbreviation cannot be reused in the same project. A clash
+is a `409`. Renaming an abbreviation **re-labels every task in the component immediately**,
+since codes are composed at read time.
 
-> There is also a `ProjectSettingsController` in the Planner source, serving
-> `GET /project-settings?projectId={id}`, `PUT /project-settings/{projectId}` and
-> `DELETE /project-settings/{projectId}`. It is **not** in the currently running build — the
-> routes answer `404` and are absent from the OpenAPI document — so the deployed API is behind
-> the source. Nothing here needs it.
+### Project settings — `/project-settings`
+
+The defaults a project's board opens with in the Planner UI — its saved filter state. **Nothing
+in the task workflow needs these**; they are listed for completeness. Addressed by project id,
+since a project has at most one set.
+
+| Method | Route | Purpose |
+|---|---|---|
+| `GET` | `/project-settings?projectId=4` | The project's settings. A project that has never saved any gets the built-in defaults with `isSaved: false` — a `200`, not a `404`. A `404` means the *project* doesn't exist. |
+| `PUT` | `/project-settings/{projectId}` | Save the settings. `201` on the first save, `200` thereafter. |
+| `DELETE` | `/project-settings/{projectId}` | Discard the saved settings, so the project falls back to the defaults. → 204 |
+
+The body mirrors the `GET /tasks` filters: `filterStatuses`, `filterPriorities`,
+`filterColours`, `filterNoColour`, `filterCreatedWithin`, `filterSearchTitle`,
+`filterSearchDescription`, plus `filterShowEmptyComponents` and `filterApplyOtherFilters`.
 
 ### Tasks — `/tasks`
 
@@ -459,9 +472,10 @@ timestamp is stamped and the row stays. They're excluded from reads by default; 
 - Don't invent or send `taskNumber` / `taskCode` — the server assigns them.
 - Don't use `PUT /tasks/{id}` to change one field; use the `/status`, `/priority` or
   `/colour` endpoints.
-- Don't create a new component to hold a task without asking. Abbreviations are globally
-  unique and prefix every task code in the component — that's not a reversible decision to
-  take unilaterally.
+- Don't create a new component to hold a task without asking. An abbreviation is unique
+  within the project, can never be reused once taken (even after the component is deleted),
+  and prefixes every task code in the component — that's not a reversible decision to take
+  unilaterally.
 - Don't create a new task group without asking either. Putting tasks into an *existing* group
   that clearly fits is fine and reversible; inventing the organising scheme is not your call.
 - Don't send `taskGroupId` to `/tasks/bulk` and assume it took. It is accepted and ignored.

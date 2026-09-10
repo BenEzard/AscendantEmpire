@@ -34,13 +34,8 @@ public record EndCampaignTurnOutcome : IEndCampaignTurnOutcome
     public int? VictoryAchievedByPlayerId { get; set; }
 
     /// <summary>
-    /// List of Pending Actions which the Player might want to do before the end of turn.
-    /// e.g. Move units, select research.
+    /// List of Pending Actions which the Player might want to do before the end of turn. e.g. Move units, select research.
     /// </summary>
-    /// <remarks>
-    /// A property rather than a field so that it actually reaches the client: System.Text.Json leaves public fields out of the payload altogether
-    /// unless the serializer is told to include them, and this API does not turn that on.
-    /// </remarks>
     public List<PossibleAction> PossibleActions { get; set; } = [];
 
     /// <summary>
@@ -76,6 +71,7 @@ internal class EndCampaignTurnHandler(
     ITurnServicePipeline<IEndCampaignRoundProcess> endCampaignRoundPipeline,
     ICampaignTurnService campaignTurnService,
     ICampaignRoundService campaignRoundService,
+    IPlayerTurnService playerTurnService,
     IGameContextService gameContextService) : IRequestHandler<EndCampaignTurnRequest, ServiceResult<EndCampaignTurnOutcome>>
 {
 
@@ -395,8 +391,22 @@ internal class EndCampaignTurnHandler(
     {
         try
         {
+            // Every Turn is opened before its start-of-turn pipeline runs, so the Turn being ended always has a row. Refuse before anything is written if it does
+            // not: the end-of-turn pipeline and the close below both act on that row, and ending the Turn without it would lose it from the record.
+            if (currentTurn.PlayerTurnId is not int playerTurnId)
+            {
+                string missingTurnError = $"Turn Queue Id {currentTurn.TurnQueueId} in Game Id {currentTurn.GameId} has no open Player Turn for Player Id {currentTurn.PlayerId}, so the Turn cannot be ended.";
+                logger.LogError("{Error}", missingTurnError);
+
+                return ServiceResultBase.Fail(missingTurnError);
+            }
+
             // Start the End Turn pipeline processing
-            var endTurnContext = new TurnPipelineContextData(TurnPipelineType.EndCampaignTurn, currentTurn.GameId, currentTurn.PlayerId, currentTurn.CurrentRoundNumber);
+            var endTurnContext = new TurnPipelineContextData(TurnPipelineType.EndCampaignTurn, currentTurn.GameId, currentTurn.PlayerId, currentTurn.CurrentRoundNumber)
+            {
+                PlayerTurnId = playerTurnId
+            };
+
             ServiceResultBase endTurnResult = await endCampaignTurnPipeline.ProcessPipelineAsync(endTurnContext);
 
             if (endTurnResult.HasSucceeded == false)
@@ -435,6 +445,17 @@ internal class EndCampaignTurnHandler(
             {
                 logger.LogWarning("No Turn Queue record was updated for Turn Queue Id {TurnQueueId}.", currentTurn.TurnQueueId);
                 return ServiceResult.Fail("Failed to update Turn Queue record to end the turn.");
+            }
+
+            // Closed last, after the pipeline and after the Queue clock.
+            ServiceResultBase closeTurnResult = await playerTurnService.ClosePlayerTurnAsync(context, currentTurn.TurnQueueId, currentTurn.PlayerId);
+
+            if (closeTurnResult.HasSucceeded == false)
+            {
+                string closeError = $"Failed to close the Player Turn for Turn Queue Id {currentTurn.TurnQueueId}, Player Id {currentTurn.PlayerId}.";
+                logger.LogError("{Error} Errors: {Errors}", closeError, string.Join(Environment.NewLine, closeTurnResult.Errors));
+
+                return ServiceResultBase.Fail(closeTurnResult.Errors);
             }
         }
         catch (Exception e)

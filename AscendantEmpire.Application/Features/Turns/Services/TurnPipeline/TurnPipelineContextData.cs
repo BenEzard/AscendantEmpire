@@ -14,6 +14,14 @@ public sealed record TurnPipelineContextData
 
     public int CurrentRoundNumber { get; init; }
 
+    /// <summary>
+    /// The <c>turns.PlayerTurn</c> the pipeline is running inside, when the pipeline is Turn-scoped.
+    /// </summary>
+    /// <remarks>
+    /// <c>Null</c> for the Round-scoped pipelines, which are not inside anybody's Turn.
+    /// </remarks>
+    public int? PlayerTurnId { get; init; }
+
     public TurnPipelineContextData(TurnPipelineType pipelineType, int gameId, int currentRoundNumber)
     {
         PipelineType = pipelineType;

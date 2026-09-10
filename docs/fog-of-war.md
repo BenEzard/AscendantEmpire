@@ -42,8 +42,8 @@ That makes `FirstSeenOnTurnId` the exploration flag:
 
 | Column | Meaning |
 |---|---|
-| `FirstSeenOnTurnId` | `NULL` until the player first sees the tile; the turn they did, thereafter. **This is `IsExplored`.** |
-| `LastSeenOnTurnId` | Stamped every time the tile is seen again. Not yet used by the client. |
+| `FirstSeenOnTurnId` | `NULL` until the player first sees the tile; the `turns.PlayerTurn` they did, thereafter. **This is `IsExplored`.** |
+| `LastSeenOnTurnId` | The `turns.PlayerTurn` of the most recent sighting, stamped every time the tile is seen again. Not yet used by the client. |
 | `BiomeTypeId`, `CampaignMapGeographyTypeId` | Copied from the world map when the tile is first seen. `Unknown` until then. |
 
 There is no stored "watched" column, and there should not be: it is derived from where the player's
@@ -160,8 +160,10 @@ document is describing.
 * **`LoadWholeMap` needs an observer.** The whole-map branch is nested inside `if (mapObservers.Count
   > 0)`, so a player with no surviving forces or structures gets an empty response rather than the
   map they explored. Not reachable in normal play today, since every player starts with units.
-* **Turn ids are stubbed.** The read stamps `turnId = 1` — there is a `TODO` in the handler — so
-  `LastSeenOnTurnId` cannot yet drive anything like "last seen 6 turns ago".
+* **The stamp is still a side effect of the *read*, not of movement.** A tile is stamped the next time
+  its owner opens the map, not when a unit walks past. Relocating it onto the movement path is the
+  witness service extraction described in
+  [intelligence-and-sightings.md](design/intelligence-and-sightings.md), and is its own piece of work.
 * **`Vision cleared` is asymmetric.** The dev tool's clear wipes the player's map server-side and the
   refetch brings back a fully unexplored board. That is the intent, but it is a developer action and
   has no in-game equivalent.

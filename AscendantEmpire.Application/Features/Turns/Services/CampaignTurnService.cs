@@ -44,7 +44,14 @@ public class CampaignTurnService(
                         .Where(x => x.IsActiveInLane)
                         .Max(x => x.TurnOrder),
                     CurrentRoundNumber = p.TurnQueue.CurrentRoundNumber,
-                    FactionName = p.Player.FactionName
+                    FactionName = p.Player.FactionName,
+
+                    // Intentionally a correlated subquery rather than a navigation, due to volume - a lane accumulates a row per Player per Round for the life of the Game.
+                    PlayerTurnId = context.PlayerTurns
+                        .Where(t => t.TurnQueueId == p.TurnQueueId)
+                        .Where(t => t.EndedAt == null)
+                        .Select(t => (int?)t.Id)
+                        .FirstOrDefault()
                 })
                 .SingleOrDefaultAsync(cancellationToken);
 
@@ -203,5 +210,61 @@ public class CampaignTurnService(
             .Where(q => !q.IsCompleted)
             .Select(q => q.CurrentRoundNumber)
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<ServiceResult<int>> GetObservationTurnIdAsync(AscendantEmpireContext context, int gameId, int playerId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // The reader's own most recent Turn in this Game's Campaign lane.
+            //
+            // Ordered by Id rather than StartedAt: the identity is monotonic within a lane, and two Turns can share a timestamp where two ids never can.
+            //
+            // Deliberately not filtered on IsCompleted - a finished lane's Turns are still that Player's history, and the stamp is about when they saw
+            // something, not about whether the Game is still running.
+            int? ownTurnId = await context.PlayerTurns
+                .Where(t => t.TurnQueue.GameId == gameId)
+                .Where(t => t.TurnQueue.QueueType == TurnQueueType.Campaign)
+                .Where(t => t.TurnQueue.BattleId == null)
+                .Where(t => t.PlayerId == playerId)
+                .OrderByDescending(t => t.Id)
+                .Select(t => (int?)t.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (ownTurnId is int ownId)
+            {
+                return ServiceResult<int>.Succeed(ownId);
+            }
+
+            // They have never acted. The lane's open Turn is the only honest "when" for the ground their starting Forces can already see.
+            int? openTurnId = await context.PlayerTurns
+                .Where(t => t.TurnQueue.GameId == gameId)
+                .Where(t => t.TurnQueue.QueueType == TurnQueueType.Campaign)
+                .Where(t => t.TurnQueue.BattleId == null)
+                .Where(t => t.EndedAt == null)
+                .OrderByDescending(t => t.Id)
+                .Select(t => (int?)t.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (openTurnId is int openId)
+            {
+                return ServiceResult<int>.Succeed(openId);
+            }
+
+            // No Turns at all. The map read only runs for a Game in progress, and a Game becomes in progress in the same transaction that opens its first Turn,
+            // so this is a broken invariant rather than an early read. Refuse it, rather than stamp a Turn id that means nothing.
+            string error = $"Game Id {gameId} has no Campaign Player Turns to stamp Player Id {playerId}'s observations with.";
+            logger.LogError("{Error}", error);
+
+            return ServiceResult<int>.Fail(error);
+        }
+        catch (Exception ex)
+        {
+            string error = $"An error occurred while resolving the observation Turn for Game Id {gameId}, Player Id {playerId}.";
+            logger.LogError(ex, "{Error}", error);
+
+            return ServiceResult<int>.Fail(error);
+        }
     }
 }

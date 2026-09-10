@@ -51,6 +51,11 @@ public static class ApplicationStartup
 
         services.AddScoped<ICampaignTurnService, CampaignTurnService>();
         services.AddScoped<ICampaignRoundService, CampaignRoundService>();
+
+        // Opens and closes PlayerTurn rows, and hands out the sequence numbers the raw activity feeds order themselves by. Lane-agnostic, so the Battle
+        // pipeline can use it unchanged once it exists.
+        services.AddScoped<IPlayerTurnService, PlayerTurnService>();
+
         services.AddScoped<ICampaignMapGalleryService, CampaignMapGalleryService>();
         services.AddScoped<IGameSetupService, GameSetupService>();
         services.AddScoped<IGameContextService, GameContextService>();

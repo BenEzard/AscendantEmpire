@@ -44,4 +44,25 @@ public interface ICampaignTurnService
     /// so it is safe to call from flows that can run outside a player's turn (e.g. saving a unit template).
     /// </remarks>
     Task<int> GetCurrentRoundNumberAsync(int gameId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The Turn id to stamp on what a Player observes: their own current or most recent Campaign Turn, falling back to the lane's open Turn for a Player
+    /// who has never taken one.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The reader's own Turn, not the acting Player's, because "when did <i>I</i> last see this tile" is the question the stamp answers. A Player looking
+    /// at the map out of turn is looking with the eyes they had when they last acted, and their Forces have not moved since.
+    /// </para>
+    /// <para>
+    /// The fallback matters for the first Round: a Player who has not yet taken a Turn still explores ground simply by opening the map, and the lane's open
+    /// Turn is the only honest answer to "when".
+    /// </para>
+    /// <para>
+    /// Fails when the lane has no Turns at all. That is not reachable in play: the map can only be read for a Game in progress, and a Game is marked in
+    /// progress in the same transaction that opens its first Turn. Failing rather than stamping a placeholder stops a broken invariant from quietly writing a
+    /// Turn id that means nothing onto every Tile the Player looks at.
+    /// </para>
+    /// </remarks>
+    Task<ServiceResult<int>> GetObservationTurnIdAsync(AscendantEmpireContext context, int gameId, int playerId, CancellationToken cancellationToken = default);
 }

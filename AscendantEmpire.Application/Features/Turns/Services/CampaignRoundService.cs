@@ -18,6 +18,7 @@ namespace AscendantEmpire.Application.Features.Turns.Services;
 internal class CampaignRoundService(
     ILogger<CampaignRoundService> logger,
     ICampaignTurnService campaignTurnService,
+    IPlayerTurnService playerTurnService,
     ITurnServicePipeline<IStartCampaignRoundProcess> startCampaignRoundPipeline,
     ITurnServicePipeline<IStartCampaignTurnProcess> startCampaignTurnPipeline) : ICampaignRoundService
 {
@@ -25,8 +26,7 @@ internal class CampaignRoundService(
     /// How long a Player has to take their Turn before it is scheduled to end.
     /// </summary>
     /// <remarks>
-    /// The single source of truth for the Turn clock. Nothing enforces it yet - no code writes
-    /// <see cref="TurnQueueParticipantStatus.TurnCompleted_Timeout"/> - so today it only drives what the client displays.
+    /// The single source of truth for the Turn clock. Nothing enforces it yet - no code writes <see cref="TurnQueueParticipantStatus.TurnCompleted_Timeout"/> .
     /// </remarks>
     private const int _TURN_MAX_DURATION_HOURS = 24; // TODO: Make the turn time configurable as a property of the Game.
 
@@ -120,7 +120,25 @@ internal class CampaignRoundService(
     {
         try
         {
-            var startTurnContext = new TurnPipelineContextData(TurnPipelineType.StartCampaignTurn, newTurn.GameId, newTurn.PlayerId, newTurn.CurrentRoundNumber);
+            // Open the Turn before anything runs inside it.
+            ServiceResult<int> openTurnResult = await playerTurnService.OpenPlayerTurnAsync(
+                context, newTurn.TurnQueueId, newTurn.PlayerId, newTurn.CurrentRoundNumber);
+
+            if (openTurnResult.HasSucceeded == false)
+            {
+                string error = $"An error occurred while opening the Player Turn for Game Id {newTurn.GameId}, Player Id {newTurn.PlayerId}.";
+                logger.LogError("{Error} Errors: {Errors}", error, string.Join(Environment.NewLine, openTurnResult.Errors));
+
+                return ServiceResultBase.Fail(openTurnResult.Errors);
+            }
+
+            int playerTurnId = openTurnResult.SuccessValue;
+
+            var startTurnContext = new TurnPipelineContextData(TurnPipelineType.StartCampaignTurn, newTurn.GameId, newTurn.PlayerId, newTurn.CurrentRoundNumber)
+            {
+                PlayerTurnId = playerTurnId
+            };
+
             ServiceResultBase startTurnResult = await startCampaignTurnPipeline.ProcessPipelineAsync(startTurnContext);
 
             if (startTurnResult.HasSucceeded == false)

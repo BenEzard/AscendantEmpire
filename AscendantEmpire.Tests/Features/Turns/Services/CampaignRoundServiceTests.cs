@@ -1,4 +1,4 @@
-using AscendantEmpire.Application.Common;
+﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline;
@@ -38,6 +38,8 @@ public class CampaignRoundServiceTests : GameSqlServerTestBase
     private int _participant1Id; // TurnOrder 1
     private int _participant2Id; // TurnOrder 2
 
+    private IPlayerTurnService _playerTurnService = null!;
+
     [SetUp]
     public async Task SetUp()
     {
@@ -64,9 +66,12 @@ public class CampaignRoundServiceTests : GameSqlServerTestBase
 
         _campaignTurnService = new CampaignTurnService(new NullLogger<CampaignTurnService>(), DbFactory);
 
+        _playerTurnService = new PlayerTurnService(new NullLogger<PlayerTurnService>(), DbFactory);
+
         _service = new CampaignRoundService(
             new NullLogger<CampaignRoundService>(),
             _campaignTurnService,
+            _playerTurnService,
             _startCampaignRoundPipeline,
             _startCampaignTurnPipeline);
     }

@@ -44,6 +44,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
 
     // Real, not mocked: the round-boundary tests assert on the participant and queue rows this service writes.
     private ICampaignRoundService _campaignRoundService = null!;
+    private IPlayerTurnService _playerTurnService = null!;
 
     private EndCampaignTurnHandler _handler = null!;
 
@@ -54,6 +55,11 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
     private int _queueId;
     private int _participant1Id; // TurnOrder 1
     private int _participant2Id; // TurnOrder 2
+
+    // The open Player Turn rows behind those participants. Player 2's stays null until ArrangePlayer2TakingTurnAsync hands the Turn to them, which is also
+    // what the real "next" lookup returns for a Turn that has not opened yet.
+    private int _player1TurnId;
+    private int? _player2TurnId;
 
     [SetUp]
     public async Task SetUp()
@@ -96,10 +102,24 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
             .GetPossibleActionsAsync(Arg.Any<PossibleActionContext>(), Arg.Any<CancellationToken>())
             .Returns([]);
 
+        // Real, like the round service below: the handler refuses to end a Turn with no open Player Turn row, so the rows it closes and the round service opens
+        // have to genuinely exist.
+        _playerTurnService = new PlayerTurnService(new NullLogger<PlayerTurnService>(), DbFactory);
+
+        // Player 1 is seeded as TakingTurn, so they get the open Player Turn that normal play would have opened before their Turn began.
+        await using (AscendantEmpireContext playerTurnContext = await DbFactory.CreateDbContextAsync())
+        {
+            ServiceResult<int> openPlayer1TurnResult = await _playerTurnService.OpenPlayerTurnAsync(playerTurnContext, turnQueueId: _queueId, playerId: _player1Id, roundNumber: 1);
+            Assert.That(openPlayer1TurnResult.HasSucceeded, Is.True, () => string.Join("; ", openPlayer1TurnResult.Errors));
+
+            _player1TurnId = openPlayer1TurnResult.SuccessValue;
+        }
+
         // The round service does the real writing, so it is built for real over the mocked pipelines and turn lookups.
         _campaignRoundService = new CampaignRoundService(
             new NullLogger<CampaignRoundService>(),
             _campaignTurnService,
+            _playerTurnService,
             _startCampaignRoundPipeline,
             _startCampaignTurnPipeline);
 
@@ -111,6 +131,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
             _endCampaignRoundPipeline,
             _campaignTurnService,
             _campaignRoundService,
+            _playerTurnService,
             _gameContextService);
     }
 
@@ -168,7 +189,13 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
 
     // ── shared arrange helpers ────────────────────────────────────────────────
 
-    /// <summary>Returns a CurrentCampaignTurn representing player 1's turn (TurnOrder 1, not last in round).</summary>
+    /// <summary>
+    /// Returns a CurrentCampaignTurn representing player 1's turn (TurnOrder 1, not last in round).
+    /// </summary>
+    /// <remarks>
+    /// Carries player 1's open Player Turn, as the real "current" lookup does. Mocks of the "first" lookup clear it, because that describes a Turn that has not
+    /// opened yet.
+    /// </remarks>
     private CurrentCampaignTurn Player1Turn() => new()
     {
         GameId = _gameId,
@@ -176,10 +203,17 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
         TurnQueueParticipantId = _participant1Id,
         PlayerId = _player1Id,
         TurnOrder = 1,
-        CurrentRoundNumber = 1
+        CurrentRoundNumber = 1,
+        PlayerTurnId = _player1TurnId
     };
 
-    /// <summary>Returns a CurrentCampaignTurn representing player 2's turn (TurnOrder 2, last in round).</summary>
+    /// <summary>
+    /// Returns a CurrentCampaignTurn representing player 2's turn (TurnOrder 2, last in round).
+    /// </summary>
+    /// <remarks>
+    /// Its Player Turn is null until <see cref="ArrangePlayer2TakingTurnAsync"/> opens one, so the same helper serves both as the "next" lookup and, once
+    /// arranged, as the "current" one.
+    /// </remarks>
     private CurrentCampaignTurn Player2Turn() => new()
     {
         GameId = _gameId,
@@ -187,7 +221,8 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
         TurnQueueParticipantId = _participant2Id,
         PlayerId = _player2Id,
         TurnOrder = 2,
-        CurrentRoundNumber = 1
+        CurrentRoundNumber = 1,
+        PlayerTurnId = _player2TurnId
     };
 
     /// <summary>Configures the two services that ValidateGameAndPlayerAsync calls so they succeed for the given player.</summary>
@@ -403,6 +438,30 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
         Assert.That(result.HasSucceeded, Is.False, "Should fail when GetNextCampaignTurnAsync fails.");
     }
 
+    [Test, Description("A Turn with no open Player Turn row is refused before anything is written, because ending it would lose that Turn from the record.")]
+    public async Task ShouldFailWithoutWritingWhenTheTurnHasNoPlayerTurn()
+    {
+        // Everything is in order except the row every Turn is opened with.
+        CurrentCampaignTurn currentTurn = Player1Turn() with { PlayerTurnId = null };
+        ArrangeValidPlayer(currentTurn);
+
+        EndCampaignTurnRequest request = new EndCampaignTurnRequest(_gameId, _player1Id, EndTurnMode.ForceEnd);
+
+        ServiceResult<EndCampaignTurnOutcome> result = await _handler.Handle(request, CancellationToken.None);
+
+        await using AscendantEmpireContext verifyCtx = await DbFactory.CreateDbContextAsync();
+        TurnQueueParticipant participant = verifyCtx.TurnQueueParticipants.First(p => p.Id == _participant1Id);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False, "A Turn with no Player Turn row should not be ended.");
+            Assert.That(participant.Status, Is.EqualTo(TurnQueueParticipantStatus.TakingTurn), "The refusal should come before any end-of-turn write.");
+        }
+
+        // The end-of-turn processes act on the Turn's row, so they must not have been run without one.
+        await _endCampaignTurnPipeline.DidNotReceive().ProcessPipelineAsync(Arg.Any<TurnPipelineContextData>());
+    }
+
     // =========================================================================
     // Handle — ForceEnd, last turn in round (player 2 of 2)
     // =========================================================================
@@ -421,6 +480,14 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
         await ctx.TurnQueueParticipants
             .Where(p => p.Id == _participant2Id)
             .ExecuteUpdateAsync(s => s.SetProperty(p => p.Status, TurnQueueParticipantStatus.TakingTurn));
+
+        // Hand the Player Turn over as well, exactly as ending player 1's Turn would have: close theirs, then open player 2's.
+        ServiceResultBase closePlayer1TurnResult = await _playerTurnService.ClosePlayerTurnAsync(ctx, turnQueueId: _queueId, expectedPlayerId: _player1Id);
+        ServiceResult<int> openPlayer2TurnResult = await _playerTurnService.OpenPlayerTurnAsync(ctx, turnQueueId: _queueId, playerId: _player2Id, roundNumber: 1);
+
+        Assert.That(closePlayer1TurnResult.HasSucceeded && openPlayer2TurnResult.HasSucceeded, Is.True, "Player 2's Turn should have been handed over for the test.");
+
+        _player2TurnId = openPlayer2TurnResult.SuccessValue;
     }
 
     [Test, Description("The last player force-ending closes the round too, rolling the queue over to a new one.")]
@@ -432,7 +499,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
         ArrangeValidPlayer(currentTurn);
 
         // Opening the round puts everyone back to Pending; player 1 holds the lowest turn order, so they lead the new round.
-        CurrentCampaignTurn nextRoundFirstTurn = Player1Turn() with { CurrentRoundNumber = 2 };
+        CurrentCampaignTurn nextRoundFirstTurn = Player1Turn() with { CurrentRoundNumber = 2, PlayerTurnId = null };
         _campaignTurnService
             .GetFirstCampaignTurnAsync(Arg.Any<AscendantEmpireContext>(), _gameId, Arg.Any<CancellationToken>())
             .Returns(ServiceResult<CurrentCampaignTurn>.Succeed(nextRoundFirstTurn));
@@ -458,7 +525,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
         CurrentCampaignTurn currentTurn = Player2Turn();
         ArrangeValidPlayer(currentTurn);
 
-        CurrentCampaignTurn nextRoundFirstTurn = Player1Turn() with { CurrentRoundNumber = 2 };
+        CurrentCampaignTurn nextRoundFirstTurn = Player1Turn() with { CurrentRoundNumber = 2, PlayerTurnId = null };
         _campaignTurnService
             .GetFirstCampaignTurnAsync(Arg.Any<AscendantEmpireContext>(), _gameId, Arg.Any<CancellationToken>())
             .Returns(ServiceResult<CurrentCampaignTurn>.Succeed(nextRoundFirstTurn));
@@ -516,7 +583,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
         CurrentCampaignTurn currentTurn = Player2Turn();
         ArrangeValidPlayer(currentTurn);
 
-        CurrentCampaignTurn nextRoundFirstTurn = Player1Turn() with { CurrentRoundNumber = 2 };
+        CurrentCampaignTurn nextRoundFirstTurn = Player1Turn() with { CurrentRoundNumber = 2, PlayerTurnId = null };
         _campaignTurnService
             .GetFirstCampaignTurnAsync(Arg.Any<AscendantEmpireContext>(), _gameId, Arg.Any<CancellationToken>())
             .Returns(ServiceResult<CurrentCampaignTurn>.Succeed(nextRoundFirstTurn));
