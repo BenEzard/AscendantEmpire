@@ -18,7 +18,7 @@ namespace AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strate
 internal sealed class EstablishCampStrategy : IForceActionStrategy
 {
     /// <summary>The capability that unlocks the action. Stable authored code; a rename in the catalogue is a rename here.</summary>
-    private const string _CAPABILITY_TAG_CODE = "found-camp";
+    private const string _CAPABILITY_TAG_CODE = "create-early-camp";
 
     /// <summary>What is being founded, for the message text.</summary>
     private const string _SETTLEMENT_NOUN = "camp";

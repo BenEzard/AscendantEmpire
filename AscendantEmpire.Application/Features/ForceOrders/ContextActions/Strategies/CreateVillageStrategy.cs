@@ -23,7 +23,7 @@ namespace AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strate
 internal sealed class CreateVillageStrategy : IForceActionStrategy
 {
     /// <summary>The capability that unlocks the action. Stable authored code; a rename in the catalogue is a rename here.</summary>
-    private const string _CAPABILITY_TAG_CODE = "found-settlement";
+    private const string _CAPABILITY_TAG_CODE = "create-settlement";
 
     /// <summary>What is being founded, for the message text.</summary>
     private const string _SETTLEMENT_NOUN = "village";
