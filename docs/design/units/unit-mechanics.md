@@ -40,7 +40,22 @@ Definitions:
 
 1. A unit cannot move without a supply of **FUEL** (if applicable). Fuel used is the same regardless
    of movement bonuses, penalties, or terrain.
-2. A unit cannot enter a tile until it has **≥ 50%** of the movement points required to cross it.
+2. A unit may enter any tile its movement domain permits **whenever it holds any movement points at
+   all**. The tile's cost is what the unit *pays*, not what it must be holding first: the whole cost
+   comes off on entry and the balance is allowed to go negative. A slow unit therefore crosses
+   expensive ground by going into debt and waiting it out, rather than being permanently barred from
+   ground whose cost exceeds its whole allowance.
+   - How long a tile holds a unit is
+     `TurnsHeld = cost ≥ remaining ? floor((cost − remaining) ÷ allowance) + 1 : 0` — the number of
+     turn-ends it spends standing there before it can leave. It is not strict on `remaining`, because
+     landing on exactly 0 strands the unit for a turn just as debt does. This is the single count the
+     step preview and the supply projection are both meant to read.
+   - The one bound on the above is **stranding**: a step is refused when `TurnsHeld` would exceed
+     `MAX_STRANDED_TURNS` (currently 6). That is the honest form of what the old ≥ 50% threshold was
+     reaching for — a limit expressed in turns, which is the cost the player actually bears, rather
+     than as a proportion of the tile that a slow unit could never reach whatever it did. It refuses
+     nothing under the authored terrain, where the dearest tile is Hilly Jungle at 4, and exists to
+     bound a future high-cost biome.
 3. Movement points left over at the end of a turn are **carried** into the next one, up to a maximum of
    **1** point. There is no separate variable holding the carry: what the unit is still holding when its
    turn opens *is* the carry.
@@ -60,17 +75,23 @@ Definitions:
 
 `MP` = unit movement points, `MC` = movement cost of the geography.
 
+`Held` = the `TurnsHeld` count from rule 2.
+
 | Scenario | Walkthrough |
 | --- | --- |
-| Warrior onto Plain (MP=1, MC=1) | T1: required to enter `MC×0.5 = 0.5` (enter); MP after `= 0`. T2: MP `= 1` (allowance + nothing carried). |
-| Warrior onto Plain+Forest (MP=1, MC=2) | T1: required `1` (enter); MP after `= −1`. T2: MP `= 0`, no move. T3: MP `= 1`, moves. |
-| Cavalry onto Plain (MP=2, MC=1) | T1: required `0.5` (enter); MP after `= 1` — can move another tile. T2: MP `= 2`. |
-| Cavalry onto Forest (MP=2, MC=2) | T1: required `1` (enter); MP after `= 0`. T2: MP `= 2`, can move. |
+| Warrior onto Plain (MP=1, MC=1) | T1: enters on whatever it holds; MP after `= 0`. T2: MP `= 1` (allowance + nothing carried) and it moves. **Held 1.** |
+| Warrior onto Plain+Forest (MP=1, MC=2) | T1: MP after `= −1`. T2: MP `= 0`, no move. T3: MP `= 1`, moves. **Held 2.** |
+| Warrior onto Flat Jungle (MP=1, MC=3) | T1: MP after `= −2`. Moves again on T4. **Held 3.** The old ≥ 50% rule wanted 1.5 points, which a 1 MP unit could never be holding, so this tile was unreachable for ever. |
+| Warrior onto Hilly Jungle (MP=1, MC=4) | T1: MP after `= −3`, then `−2`, `−1`, `0`; moves again on T5. **Held 4.** The dearest tile the authored terrain can produce, and refused outright under the old rule. |
+| Cavalry onto Plain (MP=2, MC=1) | T1: MP after `= 1` — can move another tile, so the tile costs it no time. **Held 0.** T2: MP `= 2`. |
+| Cavalry onto Forest (MP=2, MC=2) | T1: MP after `= 0`. **Held 1.** T2: MP `= 2`, can move. |
+| Cavalry (MP=2.2) into Hilly Jungle from a full allowance | T1: MP after `= −1.8`. T2 opens on `0.4` and it may move. **Held 1.** |
+| The same Cavalry, but holding only 0.2 when it enters | T1: MP after `= −3.8`. T2 opens on `−1.6` and cannot move; T3 opens on `0.6`. **Held 2** — the price of a permissive gate. |
 | Cavalry +10% bonus (MP=2.2) spending two whole tiles a turn | The 0.2 it cannot spend carries, so the unit opens on 2.2, 2.4, 2.6, 2.8, then **3.0** — a third move on turn 5 — and starts over at 2.2. This is what makes a fractional allowance worth having; it demonstrates rules 3–4 across several turns. |
 | The same Cavalry, but it skips a turn | It ends the turn holding all 2.2, which is at its allowance, so it banks nothing and simply opens the next turn on 2.2. Sitting still does not accumulate movement. |
 | The same Cavalry, stranded on 1.5 by a tile it cannot afford | The carry is capped at 1, so it opens the next turn on `2.2 + 1 = 3.2`, not 3.7. |
 | A unit that ended the turn 1.0 in debt | Debt is uncapped and carries in full: it opens on `allowance − 1.0`. |
-| Warrior on Plain with road (MP=1, MC=1) | Road halves MC to `0.5`. Required to enter `0.25`; the unit makes two moves in one turn (MP after move 1 `= 0.5`, after move 2 `= 0`). |
+| Warrior on Plain with road (MP=1, MC=1) | Road halves MC to `0.5`, so the unit makes two moves in one turn (MP after move 1 `= 0.5`, after move 2 `= 0`). The first move holds it not at all; the second lands it on 0. **Held 0, then 1.** |
 
 ### Preserving movement points
 

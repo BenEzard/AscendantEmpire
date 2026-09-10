@@ -222,8 +222,8 @@ internal class StepForceHandlerTests : InMemoryTestBase
         await context.SaveChangesAsync();
     }
 
-    /// <summary>Compiles the template with a movement domain, defaulting to a land Force with a full turn's movement.</summary>
-    private async Task CompileTemplateAsync(DomainType movementDomain = DomainType.Land)
+    /// <summary>Compiles the template with a movement domain and allowance, defaulting to a land Force with a full turn's movement.</summary>
+    private async Task CompileTemplateAsync(DomainType movementDomain = DomainType.Land, long campaignMovementPoints = _CAMPAIGN_MOVEMENT_POINTS)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
@@ -234,7 +234,7 @@ internal class StepForceHandlerTests : InMemoryTestBase
             MapImagePath = "warrior.png",
             BodyComponentId = 1,
             MovementDomain = movementDomain,
-            CampaignMovementPoints = _CAMPAIGN_MOVEMENT_POINTS
+            CampaignMovementPoints = campaignMovementPoints
         });
 
         await context.SaveChangesAsync();
@@ -288,7 +288,7 @@ internal class StepForceHandlerTests : InMemoryTestBase
         return context.UnitInstances.Single(force => force.Id == _FORCE_ID);
     }
 
-    [Test, Description("The happy path: the force lands on the neighbouring tile and pays the whole cost of entering it, not half.")]
+    [Test, Description("The happy path: the force lands on the neighbouring tile and pays the whole cost of entering it.")]
     public async Task ShouldMoveTheForceAndSpendTheFullTileCostAsync()
     {
         await GivenALandForceAsync();
@@ -332,8 +332,8 @@ internal class StepForceHandlerTests : InMemoryTestBase
         }
     }
 
-    [Test, Description("Pins rule 2 of unit-mechanics.md: half the cost gets a force in, the whole cost is what it pays, and the balance may go negative.")]
-    public async Task ShouldLetAForceEnterOnHalfTheCostAndFinishInDebtAsync()
+    [Test, Description("Pins rule 2 of unit-mechanics.md: any movement at all gets a force in, the whole cost is what it pays, and the balance may go negative.")]
+    public async Task ShouldLetAForceEnterOnAnythingItHoldsAndFinishInDebtAsync()
     {
         // 1.0 movement point against the hilly tile east of the start, which costs 2.0 to cross.
         await CompileTemplateAsync();
@@ -346,17 +346,36 @@ internal class StepForceHandlerTests : InMemoryTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
-            Assert.That(moved.CampaignMapTileId, Is.EqualTo(TileId(4, _START_Y)), "1.0 point is exactly half of the hill's 2.0 cost, which is enough to enter.");
-            Assert.That(moved.CampaignMovementRemaining, Is.EqualTo(-1_000), "Entering costs half but spends the whole 2.0, leaving the force a point in debt.");
+            Assert.That(moved.CampaignMapTileId, Is.EqualTo(TileId(4, _START_Y)), "The hill costs more than the force is holding, which is no longer a reason to refuse it.");
+            Assert.That(moved.CampaignMovementRemaining, Is.EqualTo(-1_000), "The whole 2.0 is spent, leaving the force a point in debt to work off.");
         }
     }
 
-    [Test, Description("Below the half-cost threshold the force stays put; a refused step must not move it or take its remaining points.")]
-    public async Task ShouldRefuseAStepTheForceCannotAffordAsync()
+    [Test, Description("A fractional remainder buys a tile worth several times as much, which is exactly the step the old proportional threshold refused outright.")]
+    public async Task ShouldLetARemainderBuyATileWorthSeveralTimesItAsync()
     {
-        // 0.4 of a point against a hilly tile costing 2.0, which needs 1.0 to enter.
+        // 0.4 of a point against a hilly tile costing 2.0. The old rule wanted 1.0 up front and would have left the force standing.
         await CompileTemplateAsync();
         await AddForceAsync(campaignMovementRemaining: 400, x: 3, y: _START_Y);
+
+        ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
+
+        UnitInstance moved = await ReloadForceAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
+            Assert.That(moved.CampaignMapTileId, Is.EqualTo(TileId(4, _START_Y)));
+            Assert.That(moved.CampaignMovementRemaining, Is.EqualTo(-1_600), "0.4 against a 2.0 tile is 1.6 of debt, which the turns that follow pay down.");
+        }
+    }
+
+    [Test, Description("The stranding guardrail refuses a step that would hold the force for more turns than the limit, and a refused step must not move it or take its points.")]
+    public async Task ShouldRefuseAStepThatWouldStrandTheForceAsync()
+    {
+        // A 0.2 allowance holding 0.1 against the hilly tile east of the start: 1.9 of debt at 0.2 a turn holds it for ten turns, past the limit of six.
+        await CompileTemplateAsync(campaignMovementPoints: 200);
+        await AddForceAsync(campaignMovementRemaining: 100, x: 3, y: _START_Y);
 
         ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
 
@@ -365,9 +384,9 @@ internal class StepForceHandlerTests : InMemoryTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.HasSucceeded, Is.False);
-            Assert.That(result.Errors.Single(), Does.Contain("movement points"));
+            Assert.That(result.Errors.Single(), Does.Contain("10 turns"), "The refusal quotes the count, because that is the thing the player is being asked to weigh.");
             Assert.That(unmoved.CampaignMapTileId, Is.EqualTo(TileId(3, _START_Y)));
-            Assert.That(unmoved.CampaignMovementRemaining, Is.EqualTo(400));
+            Assert.That(unmoved.CampaignMovementRemaining, Is.EqualTo(100));
         }
     }
 

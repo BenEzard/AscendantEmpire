@@ -1,3 +1,4 @@
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
 
@@ -75,6 +76,52 @@ internal sealed record MovementTargetTile
     /// Meaningless when <see cref="IsImpassable"/> is set, so check that first.
     /// </remarks>
     public decimal MovementCost => GeographyMovementCost + (BiomeMovementCost - 1m);
+
+    /// <summary>
+    /// How many Turn-ends a Force is pinned on this tile by the cost of entering it, before it holds enough movement to leave again.
+    /// </summary>
+    /// <param name="allowanceRaw">The Force's full per-Turn allowance from its compiled template, raw Scale 1,000.</param>
+    /// <param name="remainingRaw">What the Force is holding immediately <i>before</i> the step, raw Scale 1,000.</param>
+    /// <returns>Zero when the Force can still move on after entering; otherwise the number of Turn-ends it spends standing here.</returns>
+    /// <remarks>
+    /// <para>
+    /// Entering costs the tile's whole price and the balance is allowed to go negative, so the question worth answering is not "can this Force
+    /// afford the tile?" but "how long will the tile cost it?". That is this number, and it is the single quantity the step preview and the supply
+    /// projection are both meant to read, so the two cannot end up disagreeing about how long a Force will be sitting there.
+    /// </para>
+    /// <para>
+    /// The arithmetic is <c>floor((cost - remaining) / allowance) + 1</c>, which is exactly the Turn on which
+    /// <c>MovementReplenishment.ReplenishCampaignMovement</c> brings the balance back above zero: debt is uncapped and carries in full, so the Force
+    /// opens each following Turn one whole allowance better off than the last.
+    /// </para>
+    /// <para>
+    /// The comparison against the remaining points is deliberately <b>not</b> strict. A step that lands a Force on precisely zero has stranded it
+    /// for a Turn just as surely as debt would, because the entry gate asks for more than nothing rather than for nothing.
+    /// </para>
+    /// <para>Meaningless when <see cref="IsImpassable"/> is set, so check that first.</para>
+    /// </remarks>
+    public int TurnsHeld(long allowanceRaw, long remainingRaw)
+    {
+        long costRaw = ScaledAmount.FromDecimal(MovementCost).RawValue;
+
+        if (costRaw < remainingRaw)
+        {
+            // Something is still left over after paying, so the Force may step straight on and this tile holds it for no time at all.
+            return 0;
+        }
+
+        if (allowanceRaw <= 0)
+        {
+            // A Force with no allowance never recovers, so the tile holds it for ever. Answering with the largest count keeps every caller's
+            // comparison honest rather than making each of them special-case the division.
+            return int.MaxValue;
+        }
+
+        // Both operands are non-negative by the check above, so the truncating division is the floor the rule asks for.
+        long shortfallRaw = costRaw - remainingRaw;
+
+        return (int)(shortfallRaw / allowanceRaw) + 1;
+    }
 
     /// <summary>
     /// Names the tile for a refusal message, for example "Hilly Forest at (12, 7)".

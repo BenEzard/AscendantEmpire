@@ -69,6 +69,22 @@ internal class StepForceHandler(
     IEnumerable<IMovementDomainStrategy> movementDomainStrategies
 ) : IRequestHandler<StepForceRequest, ServiceResult<StepForceResult>>
 {
+    /// <summary>
+    /// The most Turn-ends a single step is allowed to cost a Force before the step is refused outright.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Movement debt is uncapped, so without a bound one step onto a sufficiently expensive tile could park a Force for an arbitrary stretch of the
+    /// game. This is the honest form of the gate the old 50% threshold was reaching for: a limit expressed in Turns, which is the cost the player
+    /// actually pays, rather than as a proportion of the tile that a slow Force could never reach whatever it did.
+    /// </para>
+    /// <para>
+    /// It refuses nothing under the authored terrain — the most expensive tile on the map is Hilly Jungle at 4, which holds even a 1 point Force for
+    /// 4 Turns — and exists to bound a future high-cost biome rather than to shape play today.
+    /// </para>
+    /// </remarks>
+    private const int _MAX_STRANDED_TURNS = 6;
+
     public async Task<ServiceResult<StepForceResult>> Handle(StepForceRequest request, CancellationToken cancelToken)
     {
         try
@@ -178,19 +194,18 @@ internal class StepForceHandler(
                 return terrainRefusal;
             }
 
-            // Rule 2 of docs/design/units/unit-mechanics.md: half the tile's cost is what it takes to *enter*, but the whole cost is what it *spends*.
-            // A Force can therefore finish a step in debt and skip a turn paying it off, which is exactly what the worked scenarios in that document
-            // describe. Both values stay in the raw Scale 1,000 representation, so the halving is exact for every authored cost.
-            long entryCost = ScaledAmount.FromDecimal(target.MovementCost).RawValue;
-            long requiredToEnter = entryCost / 2;
-
-            if (force.CampaignMovementRemaining < requiredToEnter)
+            // The last of the refusals, and the only one that weighs what the Force is still holding against the tile standing in front of it.
+            ServiceResult<StepForceResult>? strandingRefusal = ValidateItWouldNotBeStranded(force, movementProfile, target);
+            if (strandingRefusal is not null)
             {
-                string error = $"{DescribeForce(force)} needs {ScaledAmount.FromRaw(requiredToEnter)} movement points to enter {target.Describe()}, "
-                    + $"and has {ScaledAmount.FromRaw(force.CampaignMovementRemaining)}.";
-                logger.LogInformation("{Error}", error);
-                return ServiceResult<StepForceResult>.Fail(error);
+                return strandingRefusal;
             }
+
+            // Rule 2 of docs/design/units/unit-mechanics.md: entry is gated on having movement left at all, not on holding some proportion of the
+            // tile's cost — ValidateForce settled that already, so no affordability check is left to make here. What remains is the payment: the
+            // whole cost comes off and the balance is allowed to go negative, so a Force dives into expensive ground and waits the debt out rather
+            // than the ground being permanently out of its reach.
+            long entryCost = ScaledAmount.FromDecimal(target.MovementCost).RawValue;
 
             force.CampaignMapTileId = targetTile.CampaignMapId;
             force.CampaignMovementRemaining -= entryCost;
@@ -273,9 +288,9 @@ internal class StepForceHandler(
             return ServiceResult<StepForceResult>.Fail(error);
         }
 
-        // Remaining movement is raw fixed-point, but "none left" is zero at any scale. Checked separately from the per-tile threshold below so a Force
-        // that is spent — or in debt from an expensive crossing — is told so plainly, rather than being quoted arithmetic about a tile it was never
-        // going to reach.
+        // Remaining movement is raw fixed-point, but "none left" is zero at any scale. This is the whole of the entry gate: a Force holding anything
+        // at all may enter any tile its domain permits, however expensive, and a Force that is spent — or still in debt from an expensive crossing —
+        // may enter nothing. Note that it is deliberately not the tile's cost being tested; that cost is paid, not required up front.
         if (force.CampaignMovementRemaining <= 0)
         {
             string error = $"{DescribeForce(force)} has no movement points left this turn.";
@@ -359,6 +374,42 @@ internal class StepForceHandler(
         }
 
         return ServiceResult<StepForceResult>.Fail(refusal.Reason);
+    }
+
+    /// <summary>
+    /// Refuses a step that would leave the Force standing on the target tile for longer than <see cref="_MAX_STRANDED_TURNS"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Kept here, alongside the movement points it depends on, and deliberately <b>not</b> folded into <see cref="MovementEntryRules"/>. That class
+    /// is shared with the fog-of-war read, which asks it what a blinded Observer could never have walked onto; a rule that varied with how much
+    /// movement a Force happened to be holding would make revealed terrain appear and disappear from the map as the Force tired.
+    /// </para>
+    /// <para>The refusal quotes the count rather than the arithmetic behind it, because the count is the thing the player is being asked to weigh.</para>
+    /// </remarks>
+    /// <returns><see langword="null"/> when the step is within the limit; otherwise the failure to answer with.</returns>
+    private ServiceResult<StepForceResult>? ValidateItWouldNotBeStranded(UnitInstance force, ForceMovementProfile movementProfile, MovementTargetTile target)
+    {
+        int turnsHeld = target.TurnsHeld(movementProfile.CampaignMovementPoints, force.CampaignMovementRemaining);
+
+        if (turnsHeld <= _MAX_STRANDED_TURNS)
+        {
+            return null;
+        }
+
+        string error = $"{DescribeForce(force)} would be held on {target.Describe()} for {turnsHeld} turns, and no step may cost more than "
+            + $"{_MAX_STRANDED_TURNS}.";
+
+        logger.LogInformation(
+            "Unit Instance Id {UnitInstanceId} refused entry to {Tile}: it would be held there for {TurnsHeld} turns on an allowance of {Allowance} "
+            + "with {Remaining} remaining.",
+            force.Id,
+            target.Describe(),
+            turnsHeld,
+            ScaledAmount.FromRaw(movementProfile.CampaignMovementPoints),
+            ScaledAmount.FromRaw(force.CampaignMovementRemaining));
+
+        return ServiceResult<StepForceResult>.Fail(error);
     }
 
     /// <summary>
