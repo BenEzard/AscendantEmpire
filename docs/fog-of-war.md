@@ -51,8 +51,9 @@ observers are standing at the moment of the read.
 
 ## The read
 
-`GetPlayerCampaignMapHandler` is the only place fog of war is computed. Both endpoints that describe a
-player's view go through it, so the two cannot drift:
+`GetPlayerCampaignMapHandler` is the only read that turns sight into a player's map. The sight rules themselves live in one pure class, `FieldOfView`, reached through `IFieldOfViewService`; the intelligence witness service uses the same service, so live vision and intelligence cannot drift apart either. The handler owns only the exploration stamp, the lookup of what is standing on the seen tiles, and the response.
+
+Both endpoints that describe a player's view go through the handler, so the two cannot drift:
 
 * `POST /campaign-map/player` — the map read, sent with `loadWholeMap: true` by the game UI.
 * `POST /force-orders/step` — a force step, which re-runs the same read (with `LoadWholeMap: false`)
@@ -157,13 +158,7 @@ document is describing.
 
 ## Known gaps
 
-* **`LoadWholeMap` needs an observer.** The whole-map branch is nested inside `if (mapObservers.Count
-  > 0)`, so a player with no surviving forces or structures gets an empty response rather than the
-  map they explored. Not reachable in normal play today, since every player starts with units.
-* **The stamp is still a side effect of the *read*, not of movement.** A tile is stamped the next time
-  its owner opens the map, not when a unit walks past. Relocating it onto the movement path is the
-  witness service extraction described in
-  [intelligence-and-sightings.md](design/intelligence-and-sightings.md), and is its own piece of work.
+* **The stamp is still a side effect of the *read*, not of movement.** A tile is stamped the next time its owner opens the map, not when a unit walks past. The witness service extraction (F-23) moved the sight rules out of the read but deliberately left the stamp behind: relocating it onto the movement path changes when ground becomes explored, and is its own piece of work. See [intelligence-and-sightings.md](design/intelligence-and-sightings.md).
 * **`Vision cleared` is asymmetric.** The dev tool's clear wipes the player's map server-side and the
   refetch brings back a fully unexplored board. That is the intent, but it is a developer action and
   has no in-game equivalent.

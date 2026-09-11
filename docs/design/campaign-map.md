@@ -262,6 +262,8 @@ one more tile, provided nothing impedes the line of sight.
 > arithmetically the maximum of those ranges, so the Command and Structure rules above already hold
 > without being special-cased anywhere in the sight pipeline. Only the per-Unit sum is computed
 > explicitly, at template compile time into `CompiledUnitTemplate.TotalSight`.
+>
+> The rules in this section are computed in exactly one place, the pure `FieldOfView` class, which both the live map read and the intelligence witness service use. See [intelligence-and-sightings.md](intelligence-and-sightings.md#the-witness-service).
 
 | Geography | Relative elevation | | Biome | Blocks sight |
 | --- | --- | --- | --- | --- |

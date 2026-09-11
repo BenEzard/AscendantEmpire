@@ -7,7 +7,7 @@ when their turn opens.
 > versus ground currently watched — see [Fog of War](../fog-of-war.md). For the sight and detection
 > rules themselves, see [Vision on the campaign map](campaign-map.md#vision-on-the-campaign-map).
 >
-> **Status: proposed.** The `turns.PlayerTurn` foundation landed in F-21, and `units.MovementHistory` with its single writer in F-22; nothing else described here is built. Existing entities are called out where the design leans on them.
+> **Status: proposed.** The `turns.PlayerTurn` foundation landed in F-21, `units.MovementHistory` with its single writer in F-22, and the witness service with its coalition seam in F-23; nothing else described here is built. Existing entities are called out where the design leans on them.
 
 ---
 
@@ -133,8 +133,9 @@ One service, one question:
 
 > Which coalitions could see tile `T` at sequence `N`, and at what fidelity?
 
-Everything else is a producer that asks it. It is the only place the answer is computed, in the same
-way that `GetPlayerCampaignMapHandler` is today the only place fog of war is computed.
+Everything else is a producer that asks it. It is the only place the answer is computed.
+
+**Landed in F-23** as `IWitnessService`. It takes a batch of probes — a tile, a sequence, and optionally the Force the probe is about — for one Turn, and answers each with the coalitions that saw it and every one of their witnesses, nearest first, each with a distance and a fidelity. It has no production caller until the fold exists.
 
 ### It must be inverted
 
@@ -147,6 +148,8 @@ observers within the maximum sight radius, then run the existing sight rules ove
 cost then scales with path length and local observer density rather than with map size and player
 count.
 
+As built, the maximum sight radius is worked out per query: the best base Sight among the observing Players' Units, standing Structures and Units destroyed that Turn, plus the highest elevation bonus on any Geography a Force can enter. Mountains are left out — nothing stands on one to take the bonus — so the Void's elevation of ten cannot balloon every box. Each candidate Observer's field of view is then computed once and reused for every probe it covers.
+
 ### It requires an extraction first
 
 The sight rules currently live inside `GetPlayerCampaignMapHandler`, entangled with the database
@@ -157,6 +160,10 @@ pattern: pure rules, no database, testable without a container.
 The turn pipeline needs to ask "can B see this tile" without the read, without the projection, and
 emphatically without the side effect. That extraction is a prerequisite, not a refactor to be done
 afterwards.
+
+**Landed in F-23.** The sight rules now live in one pure, database-free class, `FieldOfView`, over flat `SightObserver` and `SightTerrain` snapshots; `SightRadius` builds the sight tree it walks. Every query they depend on is in `ISightDataReader`, and `IFieldOfViewService` puts the two together. The live map read and `IWitnessService` both go through that service, so live vision and intelligence cannot drift apart.
+
+The exploration stamp was deliberately **not** moved. `GetPlayerCampaignMapHandler` still stamps `FirstSeenOnTurnId` as a side effect of the read; the services it now calls have no side effects at all. Moving the stamp onto the movement path changes when ground becomes explored, and is its own piece of work.
 
 ### Observers destroyed mid-turn
 
@@ -171,6 +178,8 @@ The design therefore evaluates witnesses **as at the sequence of the event**, no
 Observers destroyed during a turn are marked with the sequence at which they died, and count as
 witnesses for every sequence before it. A tower that saw something and was then destroyed still files
 its report.
+
+As built, a Unit destroyed during the Turn has no `UnitInstances` row left, so it is rebuilt from its `MovementHistory` `Destroyed` row — owner, template, tile — with that row's sequence as its `DestroyedAtSequence`. It counts for sequences strictly before that one. Nothing razes a Structure yet; `SightObserver.DestroyedAtSequence` is the seam its history feed will set, with nothing downstream to change.
 
 > The alternative — "a dead observer files no report" — is simpler and is defensible as a game rule,
 > since it rewards decapitation strikes. It is rejected because it makes intelligence silently
@@ -253,6 +262,8 @@ already computed and stored, and are currently used by nothing; this is where th
 Fidelity is a function of the observer's detection against the target's visibility, modified by
 distance and by the terrain the target was standing in. The precise curve is an open question; the
 *shape* is not.
+
+As built in F-23, seeing a **tile** — its terrain and the Structures on it — is always *Detail*. Seeing a **Force** goes through `SightingFidelityRules.ForForce`, which is a deliberate stub returning *Detail*, the same as the live map already shows of any Force in sight. Its inputs are already carried in full: both sides' troops, the Force's template, the Biome and Geography it stands on, the Observer's Detection and distance, and the Turn, sequence, Observer and subject a deterministic random component would be seeded from. A Structure has no Detection stat yet and watches with a fixed `STRUCTURE_DETECTION`.
 
 ### Fidelity is a projection rule, not a storage rule
 
@@ -350,6 +361,8 @@ is design only. So this design calls for the **seam, not the model**: a coalitio
 returns each player as a coalition of one, and later consults foreign relations. Building the seam now
 makes shared vision a wiring exercise rather than a rework of the fold.
 
+**The seam landed in F-23** as `ICoalitionResolver`, implemented by `SoloCoalitionResolver`: every active Player is a coalition of one. The witness service widens an excluded Player to their whole coalition, so an ally sharing the acting Player's vision is never told what they watched on the same screen.
+
 ---
 
 ## What each producer emits
@@ -435,4 +448,4 @@ parallel workstream:
    `TurnSequence` values every raw feed row is to be stamped with, atomically. Nothing writes a feed row
    yet — that is dependency 2.
 2. ~~**A single writer for Force position and lifecycle.**~~ **Landed in F-22.** `IForceLifecycleWriter` is the only way a Force is created, moved or destroyed, and each change is written together with its `units.MovementHistory` row: if the Turn's sequence cannot be allocated, the change is not made. The step handler, the developer spawn and game setup all go through it. Pathfound order execution, retreats and settlement founding do not exist yet, and nothing destroys a Force yet; each of them must go through the writer when it is built.
-3. **The witness service extraction** described above.
+3. ~~**The witness service extraction** described above.~~ **Landed in F-23.** `FieldOfView` holds the sight rules, shared by the live map read and `IWitnessService`; see [The witness service](#the-witness-service).

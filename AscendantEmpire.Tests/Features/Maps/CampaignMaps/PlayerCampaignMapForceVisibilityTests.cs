@@ -5,6 +5,7 @@ using AscendantEmpire.Application.Features.ForceOrders.Movement.Strategies;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Handlers;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Players.Handlers;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
@@ -37,8 +38,8 @@ namespace AscendantEmpire.Tests.Features.Maps.CampaignMaps;
 /// sitting at offset 1.
 /// </para>
 /// <para>
-/// Runs at the SqlServer tier: game setup writes both maps with raw SQL, and the sight query uses
-/// OPENJSON, neither of which an in-memory provider can execute.
+/// Runs at the SqlServer tier: game setup writes both maps with raw SQL, and the exploration stamp uses
+/// <c>ExecuteUpdateAsync</c>, neither of which an in-memory provider can execute.
 /// </para>
 /// </remarks>
 [TestFixture]
@@ -58,11 +59,14 @@ internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
         // The movement domain strategies are registered for the same reason as in PlayerCampaignMapExplorationTests: the map read consults them for
         // any Observer dense terrain has blinded, and an IEnumerable dependency resolves to an empty set rather than failing when they are missing.
         // The real turn service, because the map read stamps what the Player saw with a Turn it resolves through it; a substitute would hand back a Turn id no row has.
+        // The real field-of-view service and its reader, because which Tiles an Observer sees decides which Forces come back.
         ServiceProvider provider = new ServiceCollection()
             .AddSingleton(DbFactory)
             .AddScoped(_ => DbFactory.CreateDbContext())
             .AddScoped<IGameContextService, GameContextService>()
             .AddSingleton<ICampaignTurnService>(new CampaignTurnService(NullLogger<CampaignTurnService>.Instance, DbFactory))
+            .AddScoped<ISightDataReader, SightDataReader>()
+            .AddScoped<IFieldOfViewService, FieldOfViewService>()
             .AddScoped<IMovementDomainStrategy, LandMovementStrategy>()
             .AddScoped<IMovementDomainStrategy, WaterMovementStrategy>()
             .AddScoped<IMovementDomainStrategy, BelowWaterMovementStrategy>()

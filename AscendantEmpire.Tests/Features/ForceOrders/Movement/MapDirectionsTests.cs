@@ -193,6 +193,35 @@ internal class MapDirectionsTests
         }
     }
 
+    [Test, Description("Sight is measured in Chebyshev distance, so a diagonal step counts as one tile, the same as a straight one.")]
+    [TestCase(7, 6, 2, Description = "Two diagonal steps.")]
+    [TestCase(8, 5, 3, Description = "Three east and one south is three steps, not four.")]
+    [TestCase(5, 4, 0, Description = "A tile is no distance from itself.")]
+    public void ShouldCountADiagonalStepAsOneTile(int toX, int toY, int expectedDistance)
+    {
+        int distance = MapDirections.GetDistance(new Coord(5, 4), new Coord(toX, toY), _MAP_WIDTH, _MAP_HEIGHT, wrapsHorizontally: false, wrapsVertically: false);
+
+        Assert.That(distance, Is.EqualTo(expectedDistance));
+    }
+
+    [Test, Description("On a wrapping map the distance goes the shorter way round the edge, and on a flat one there is no other way round.")]
+    [TestCase(true, 1, Description = "Column 9 is one step west of column 0 when the edges join.")]
+    [TestCase(false, 9, Description = "Without wrapping it is the whole width of the map away.")]
+    public void ShouldMeasureTheShorterWayRoundOnlyWhenTheMapWraps(bool wrapsHorizontally, int expectedDistance)
+    {
+        int distance = MapDirections.GetDistance(new Coord(0, 4), new Coord(9, 4), _MAP_WIDTH, _MAP_HEIGHT, wrapsHorizontally, wrapsVertically: false);
+
+        Assert.That(distance, Is.EqualTo(expectedDistance));
+    }
+
+    [Test, Description("An axis delta is folded the short way round only when the axis wraps, or a narrow map's sight tree points off its own edge.")]
+    [TestCase(true, -1, Description = "On a wrapping axis four wide, three east is one west.")]
+    [TestCase(false, 3, Description = "On an axis that does not wrap, three east is three east.")]
+    public void ShouldFoldTheAxisDeltaOnlyWhenTheAxisWraps(bool wraps, int expectedDelta)
+    {
+        Assert.That(MapDirections.GetAxisDelta(from: 0, to: 3, size: 4, wraps), Is.EqualTo(expectedDelta));
+    }
+
     [Test, Description("A direction outside the enum is a wiring fault, not a move to be refused, so it throws rather than reading as off-map.")]
     public void ShouldThrowForADirectionThatIsNotOneOfTheEight()
     {

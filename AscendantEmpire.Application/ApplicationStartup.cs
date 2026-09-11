@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.Application.Features.DatabaseSeeding.Executors;
 using AscendantEmpire.Application.Features.Game.Executors;
 using AscendantEmpire.Application.Features.Game.Services;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Executors;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
 using AscendantEmpire.Application.Features.UnitComponents.Executors;
@@ -60,6 +61,16 @@ public static class ApplicationStartup
         // The single writer for where a Force stands and whether it exists. Every create, move and destroy goes through it so that each one is recorded in MovementHistory, stamped with a
         // sequence from the Turn it happened in.
         services.AddScoped<IForceLifecycleWriter, ForceLifecycleWriter>();
+
+        // Campaign map vision. The sight rules themselves are pure (FieldOfView); these are the services around them. ISightDataReader holds every query the
+        // rules need; IFieldOfViewService answers "what can these Observers see", for the live map read; IWitnessService answers the inverted question
+        // intelligence asks, "who could see this tile at this point in the Turn", through the same field-of-view service so the two cannot drift apart.
+        services.AddScoped<ISightDataReader, SightDataReader>();
+        services.AddScoped<IFieldOfViewService, FieldOfViewService>();
+        services.AddScoped<IWitnessService, WitnessService>();
+
+        // Which Players share vision. Every Player is a coalition of one until a foreign relations model exists to say otherwise.
+        services.AddScoped<ICoalitionResolver, SoloCoalitionResolver>();
 
         services.AddScoped<ICampaignMapGalleryService, CampaignMapGalleryService>();
         services.AddScoped<IGameSetupService, GameSetupService>();

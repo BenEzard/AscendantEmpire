@@ -12,7 +12,7 @@
 /// </para>
 /// <para>
 /// <see cref="Structure"/> is a record type but is <b>not</b> a Force, which is why this enum is the broader concept and why
-/// <c>MapObserver</c> can flatten structures and forces into one shape. See <c>docs/work-in-progress/unit-command-terminology.md</c>.
+/// the campaign map's <c>SightObserver</c> can flatten structures and forces into one shape. See <c>docs/work-in-progress/unit-command-terminology.md</c>.
 /// </para>
 /// <para>
 /// The numeric values are load-bearing: <c>structure.Structures.RecordTypeId</c> persists them, so a member may be renamed but never renumbered.

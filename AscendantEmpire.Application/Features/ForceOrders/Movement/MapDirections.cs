@@ -135,9 +135,71 @@ internal static class MapDirections
     }
 
     /// <summary>
+    /// How many tiles apart two coordinates are, counting a diagonal step as one and taking the shorter way round any edge that wraps.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The Chebyshev distance, which is the metric sight is measured in: an Observer with a Sight of 2 sees the whole five-by-five square around it, corners
+    /// included, subject to what blocks the view.
+    /// </para>
+    /// <para>
+    /// Both coordinates must already be on the map. Nothing here wraps them first.
+    /// </para>
+    /// </remarks>
+    internal static int GetDistance(
+        Coord from,
+        Coord to,
+        int mapWidth,
+        int mapHeight,
+        bool wrapsHorizontally,
+        bool wrapsVertically)
+    {
+        ArgumentNullException.ThrowIfNull(from);
+        ArgumentNullException.ThrowIfNull(to);
+
+        int deltaX = GetAxisDelta(from.X, to.X, mapWidth, wrapsHorizontally);
+        int deltaY = GetAxisDelta(from.Y, to.Y, mapHeight, wrapsVertically);
+
+        return Math.Max(Math.Abs(deltaX), Math.Abs(deltaY));
+    }
+
+    /// <summary>
+    /// The signed step count from <paramref name="from"/> to <paramref name="to"/> along one axis, going the shorter way round when that axis wraps.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// On a wrapping axis a difference of more than half the map is quicker the other way, so it is folded back: on a map ten wide, column 9 is one step
+    /// <i>west</i> of column 0, not nine steps east.
+    /// </para>
+    /// <para>
+    /// On an axis that does not wrap there is no other way round, so the plain difference is returned. Folding it anyway sends the answer the wrong way
+    /// on a map narrower than twice the distance involved — the sight tree used to do exactly that, and pointed tiles at parents off the edge of the map.
+    /// </para>
+    /// </remarks>
+    /// <param name="from">A position along the axis, already on the map.</param>
+    /// <param name="to">A position along the axis, already on the map.</param>
+    /// <param name="size">The map's extent along this axis, in tiles.</param>
+    internal static int GetAxisDelta(int from, int to, int size, bool wraps)
+    {
+        int difference = to - from;
+
+        if (wraps == false)
+        {
+            return difference;
+        }
+
+        if (Math.Abs(difference) > size / 2)
+        {
+            difference = difference > 0 ? difference - size : difference + size;
+        }
+
+        return difference;
+    }
+
+    /// <summary>
     /// A modulo that returns a non-negative result, so stepping west off column 0 lands on the far east column.
     /// </summary>
-    private static int Modulo(int value, int modulo)
+    internal static int Modulo(int value, int modulo)
     {
         return ((value % modulo) + modulo) % modulo;
     }
