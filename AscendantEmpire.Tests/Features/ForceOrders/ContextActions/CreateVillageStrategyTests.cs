@@ -15,7 +15,7 @@ namespace AscendantEmpire.Tests.Features.ForceOrders.ContextActions;
 [TestFixture]
 internal class CreateVillageStrategyTests
 {
-    private const string _CAPABILITY_TAG_CODE = "found-settlement";
+    private const string _CAPABILITY_TAG_CODE = "create-settlement";
     private const int _MINIMUM_TROOPS = 100;
     private const long _FULL_CAMPAIGN_MOVEMENT = 1_000;
 

@@ -15,7 +15,7 @@ namespace AscendantEmpire.Tests.Features.ForceOrders.ContextActions;
 [TestFixture]
 internal class EstablishCampStrategyTests
 {
-    private const string _CAPABILITY_TAG_CODE = "found-camp";
+    private const string _CAPABILITY_TAG_CODE = "create-early-camp";
     private const int _MINIMUM_TROOPS = 25;
     private const long _FULL_CAMPAIGN_MOVEMENT = 1_000;
 
