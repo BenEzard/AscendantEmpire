@@ -25,6 +25,8 @@ function force(overrides: Partial<ObservedForceTile> = {}): ObservedForceTile {
     hasCampaignMovementRemaining: true,
     campaignMovementRemaining: 2,
     campaignMovementPoints: 2,
+    // Nothing spends battle movement yet, so the bar never shows it; null is its masked value.
+    battleMovementRemaining: null,
     ...overrides,
   };
 }

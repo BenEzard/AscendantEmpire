@@ -12,6 +12,8 @@ function force(id: number): ObservedForceDto {
     hasCampaignMovementRemaining: true,
     campaignMovementRemaining: 2,
     campaignMovementPoints: 2,
+    // Nothing spends battle movement yet, so it's irrelevant to merging; null is its masked value.
+    battleMovementRemaining: null,
   };
 }
 

@@ -49,8 +49,9 @@ function slot(overrides: Partial<MatchMakingSlot> & Pick<MatchMakingSlot, "playe
 }
 
 function lobby(slots: MatchMakingSlot[]): MatchMakingGamesResponse {
+  // Not started: these lobbies are still filling, and nothing here goes near the Play button that flag gates.
   return {
-    games: [{ gameId: GAME_ID, gameName: "First Blood", numberOfPlayers: slots.length, mapWidth: 64, mapHeight: 64, slots }],
+    games: [{ gameId: GAME_ID, gameName: "First Blood", numberOfPlayers: slots.length, mapWidth: 64, mapHeight: 64, hasStarted: false, slots }],
   };
 }
 
