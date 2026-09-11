@@ -6,6 +6,7 @@ import UnitNeedsOrdersItem from "./items/UnitNeedsOrdersItem";
 import CityUnderSiegeItem from "./items/CityUnderSiegeItem";
 import TradeOpportunityItem from "./items/TradeOpportunityItem";
 import ResearchSelectionItem from "./items/ResearchSelectionItem";
+import SightingReportItem from "./items/SightingReportItem";
 
 interface NotificationItemProps {
   item: NotificationItem;
@@ -14,6 +15,7 @@ interface NotificationItemProps {
 
 const itemComponentMap: Record<NotificationGroupType, ComponentType<NotificationItemProps>> = {
   "unit-needs-orders": UnitNeedsOrdersItem,
+  "sighting-reports": SightingReportItem,
   "city-under-siege": CityUnderSiegeItem,
   "trade-opportunity": TradeOpportunityItem,
   "research-selection": ResearchSelectionItem,

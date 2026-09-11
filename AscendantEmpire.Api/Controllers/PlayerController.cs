@@ -2,6 +2,7 @@
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Features.Players.Classes;
 using AscendantEmpire.Application.Features.Players.Handlers;
+using AscendantEmpire.BackendContracts.Players.GetPlayers;
 using AscendantEmpire.BackendContracts.Players.GetPlayerStructures;
 using AscendantEmpire.BackendContracts.Units.GetPlayerForces;
 using AscendantEmpire.FrontendContracts;
@@ -60,6 +61,48 @@ public class PlayerController : ControllerBase
                     SightRange = s.SightRange,
                 }).ToList() ?? []
             };
+        });
+    }
+
+    /// <summary>
+    /// Get every Player in the Game the caller has entered: who they are, and the colour they fly.
+    /// </summary>
+    /// <remarks>
+    /// Public identity only, so any Player in the Game may read it. The client uses it to name the owner of a Force in an intelligence report. Every status is
+    /// included, since a report can be about a Player who has since been eliminated.
+    /// </remarks>
+    /// <response code="200">Every Player in the Game</response>
+    /// <response code="403">The caller has not entered a game</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpGet("game-players")]
+    [ProducesResponseType(typeof(IGamePlayerCollection), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 403)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetGamePlayersAsync(
+        [FromServices] IMediator mediator,
+        CancellationToken cancelToken)
+    {
+        // Only the game comes from the token: the list is the same for every Player in it.
+        if (!this.TryGetGameContext(out int gameId, out int _, out IActionResult? contextError))
+        {
+            return contextError!;
+        }
+
+        ServiceResult<IReadOnlyCollection<Player>> response = await mediator.Send(new GetPlayersRequest(gameId), cancelToken);
+
+        return response.ToActionResult(players => new DTGamePlayerCollection
+        {
+            Players =
+            [
+                .. (players ?? []).OrderBy(p => p.Id).Select(p => new DTGamePlayer
+                {
+                    PlayerId = p.Id,
+                    RulerLabel = $"{p.RulerTitle} {p.RulerName} ({p.FactionName})",
+                    FactionName = p.FactionName,
+                    FactionColour = p.FactionColour,
+                    Status = p.Status
+                })
+            ]
         });
     }
 

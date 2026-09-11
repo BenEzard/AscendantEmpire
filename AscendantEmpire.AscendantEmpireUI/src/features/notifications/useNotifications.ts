@@ -1,8 +1,11 @@
-﻿import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { PossibleAction } from "@/features/game/api/turnApi";
+import type { SightingReport } from "@/features/intelligence/api/intelligenceApi";
+import type { SightingDescriptionContext } from "@/features/intelligence/describeSightingReport";
 import type { NotificationGroup, NotificationGroupType } from "./types";
 import { notificationGroupTypeMeta } from "./types";
 import { buildEndTurnActionGroups } from "./endTurnActionNotifications";
+import { buildSightingReportGroups } from "./sightingReportNotifications";
 
 export interface UseNotificationsResult {
   groups: NotificationGroup[];
@@ -16,6 +19,9 @@ export interface UseNotificationsResult {
 
 const NotificationsContext = createContext<UseNotificationsResult | null>(null);
 
+/** The id prefix end-turn items carry, so their dismissals can be reset without touching anything else's. See `buildEndTurnActionGroups`. */
+const END_TURN_ITEM_ID_PREFIX = "end-turn:";
+
 export interface NotificationsProviderProps {
   /**
    * The actions the server last reported as outstanding when the player asked to end their turn.
@@ -24,28 +30,39 @@ export interface NotificationsProviderProps {
    * the server said — and clearing it (an ended turn, a closed game) empties the panel with it.
    */
   endTurnActions: PossibleAction[];
+  /** The player's intelligence feed, as the API last reported it. Derived from in the same way as the end-turn actions. */
+  sightingReports: SightingReport[];
+  /** Names for the ids a report carries. Should be memoised by the caller, since a fresh object re-derives every group. */
+  sightingDescriptionContext: SightingDescriptionContext;
   children: ReactNode;
 }
 
-function useNotificationsState(endTurnActions: PossibleAction[]): UseNotificationsResult {
+function useNotificationsState(
+  endTurnActions: PossibleAction[],
+  sightingReports: SightingReport[],
+  sightingDescriptionContext: SightingDescriptionContext,
+): UseNotificationsResult {
   // Items the player has dealt with or waved away. Held apart from the groups because the groups are derived, so there is nowhere in them to record it.
   const [dismissedIds, setDismissedIds] = useState<ReadonlySet<string>>(() => new Set());
 
-  // A fresh check makes previous dismissals meaningless: they were judgements about the last list, and anything still outstanding has just been
+  // A fresh check makes previous end-turn dismissals meaningless: they were judgements about the last list, and anything still outstanding has just been
   // reported again. Without this an item waved away once would stay invisible for the rest of the game.
+  //
+  // Only the end-turn dismissals, though. A sighting the player has read and dismissed is a statement about that report, which has not changed just because
+  // they pressed End Turn again, and it would be irritating to have it come back.
   useEffect(() => {
-    setDismissedIds(new Set());
+    setDismissedIds((prev) => new Set([...prev].filter((id) => !id.startsWith(END_TURN_ITEM_ID_PREFIX))));
   }, [endTurnActions]);
 
   const removeItem = useCallback((id: string) => {
     setDismissedIds((prev) => new Set(prev).add(id));
   }, []);
 
-  // Handling an item and removing it come to the same thing while every notification is an outstanding action: either way it stops asking.
+  // Handling an item and removing it come to the same thing while every notification is an outstanding action or a report: either way it stops asking.
   const markHandled = removeItem;
 
   const normalizedGroups = useMemo(() => {
-    const filtered = buildEndTurnActionGroups(endTurnActions)
+    const filtered = [...buildEndTurnActionGroups(endTurnActions), ...buildSightingReportGroups(sightingReports, sightingDescriptionContext)]
       .map((group) => ({ ...group, items: group.items.filter((item) => !item.isHandled && !dismissedIds.has(item.id)) }))
       .filter((group) => group.items.length > 0);
 
@@ -58,7 +75,7 @@ function useNotificationsState(endTurnActions: PossibleAction[]): UseNotificatio
     });
 
     return filtered;
-  }, [endTurnActions, dismissedIds]);
+  }, [endTurnActions, sightingReports, sightingDescriptionContext, dismissedIds]);
 
   const clearAll = useCallback(() => {
     setDismissedIds(new Set(normalizedGroups.flatMap((group) => group.items.map((item) => item.id))));
@@ -84,8 +101,8 @@ function useNotificationsState(endTurnActions: PossibleAction[]): UseNotificatio
   };
 }
 
-export function NotificationsProvider({ endTurnActions, children }: NotificationsProviderProps) {
-  const value = useNotificationsState(endTurnActions);
+export function NotificationsProvider({ endTurnActions, sightingReports, sightingDescriptionContext, children }: NotificationsProviderProps) {
+  const value = useNotificationsState(endTurnActions, sightingReports, sightingDescriptionContext);
   return createElement(NotificationsContext.Provider, { value }, children);
 }
 

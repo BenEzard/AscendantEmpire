@@ -71,6 +71,7 @@ internal class GetPlayersHandler(
                     RulerTitle = p.RulerTitle,
                     RulerName = p.RulerName,
                     FactionName = p.FactionName,
+                    FactionColour = p.FactionColour,
                     Status = p.Status,
                     CampaignOffsetId = p.CampaignOffsetId
                 });

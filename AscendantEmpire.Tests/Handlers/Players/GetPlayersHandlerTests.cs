@@ -197,6 +197,7 @@ internal class GetPlayersHandlerTests
             Assert.That(player.RulerTitle, Is.EqualTo("Title 42"));
             Assert.That(player.RulerName, Is.EqualTo("Ruler 42"));
             Assert.That(player.FactionName, Is.EqualTo("Faction 42"));
+            Assert.That(player.FactionColour, Is.EqualTo("#00002a"), "The colour is what lets the client draw a faction the way its player chose.");
             Assert.That(player.Status, Is.EqualTo(PlayerStatus.Active));
             Assert.That(player.CampaignOffsetId, Is.EqualTo(999));
         }
@@ -233,6 +234,8 @@ internal class GetPlayersHandlerTests
                 RulerName = $"Ruler {id}",
                 RulerTitle = $"Title {id}",
                 FactionName = $"Faction {id}",
+                // Derived from the id so each player's colour is distinct, as the per-game unique index requires.
+                FactionColour = $"#{id:x6}",
                 CampaignOffsetId = campaignOffsetId
             });
         }

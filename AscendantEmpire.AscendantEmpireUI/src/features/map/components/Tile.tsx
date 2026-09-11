@@ -6,6 +6,8 @@ import { iconMap } from "./mapEditorIcons";
 import { cssColorToRgba, pickTextColorOnBg } from "@/util/color";
 import ObservedStructure from "./ObservedStructure";
 import ObservedForce from "./ObservedForce";
+import KnownForceMarker from "./KnownForceMarker";
+import type { KnownForce } from "@/features/intelligence/api/intelligenceApi";
 
 export interface TileProps {
   tile: TileCell;
@@ -20,6 +22,13 @@ export interface TileProps {
    * map editor's, say — draws everything as it always did.
    */
   isObserved?: boolean;
+  /**
+   * Forces the player last saw on this tile, freshest first. Drawn as a fading marker, and only while the tile is not observed — under live sight the map
+   * already shows what is really there.
+   */
+  knownForces?: readonly KnownForce[];
+  /** The round being played now, which known-force markers fade against. */
+  currentRoundNumber?: number | null;
   onClick?: (tile: TileCell) => void;
   onHold?: (tile: TileCell) => void;
   className?: string;
@@ -40,6 +49,8 @@ const Tile = React.memo(function Tile({
   visibleForceId,
   unitImageSrcByUnitTemplateId,
   isObserved = true,
+  knownForces,
+  currentRoundNumber = null,
   onClick,
   onHold,
   className,
@@ -83,6 +94,9 @@ const Tile = React.memo(function Tile({
   const visibleStructure = isObserved ? (tile.structures?.find((structure) => structure.structureId === 1) ?? null) : null;
   const visibleForce = isObserved ? (tile.forces?.find((force) => force.id === visibleForceId) ?? tile.forces?.[0] ?? null) : null;
   const visibleForceCount = isObserved ? (tile.forces?.length ?? 0) : 0;
+
+  // The other side of the same guard: a memory of a force is only drawn where there is no live sight to contradict it.
+  const knownForcesToDraw = !isObserved && knownForces != null && knownForces.length > 0 ? knownForces : null;
 
   const style = { ...baseStyle, ...(getStyle?.(tile) ?? {}) };
   const combinedClassName = ["tile", className].filter(Boolean).join(" ");
@@ -143,6 +157,9 @@ const Tile = React.memo(function Tile({
           isSelected={selectedForceIds?.has(visibleForce.id) ?? false}
           unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
         />
+      ) : null}
+      {knownForcesToDraw ? (
+        <KnownForceMarker knownForces={knownForcesToDraw} currentRoundNumber={currentRoundNumber} unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId} />
       ) : null}
     </div>
   );

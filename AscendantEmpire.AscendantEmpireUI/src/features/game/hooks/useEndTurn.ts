@@ -2,6 +2,8 @@
 import { postEndCampaignTurn, type EndCampaignTurnOutcome } from "@/features/game/api/turnApi";
 import { playerCampaignTilesKey } from "@/features/map/hooks/useCampaignMapTiles";
 import { unitDisplayInfoKey } from "@/features/map/hooks/useUnitDisplayInfo";
+import { knownForcesKey, sightingReportsKey } from "@/features/intelligence/hooks/useIntelligenceQueries";
+import { currentCampaignTurnKey } from "./useCurrentCampaignTurn";
 
 /**
  * Ends the current player's campaign turn.
@@ -33,6 +35,12 @@ export function useEndTurnMutation(
         // The toolbar's verdicts are judged against movement and strength, both of which the end of a turn can change. The bare prefix rather than a
         // built key: each selection is cached separately, and any of those entries may hold a force the turn's processes touched.
         queryClient.invalidateQueries({ queryKey: ["forceContextActions"] });
+
+        // The feed's window is measured from the player's last ended turn, which has just moved, and the round may have moved with it. Their own sightings
+        // step raised nothing for them, but a feed read before now still holds the reports from before this turn, and those are no longer new.
+        queryClient.invalidateQueries({ queryKey: sightingReportsKey(gameId, playerId) });
+        queryClient.invalidateQueries({ queryKey: knownForcesKey(gameId, playerId) });
+        queryClient.invalidateQueries({ queryKey: currentCampaignTurnKey(gameId) });
       }
 
       opts?.onSuccess?.(outcome);

@@ -11,6 +11,11 @@ public record class Player
     public required string RulerName { get; init; }
     public required string FactionName { get; init; }
 
+    /// <summary>
+    /// The HTML colour the faction is drawn in, or null while the player has not picked one.
+    /// </summary>
+    public string? FactionColour { get; init; }
+
     public PlayerStatus Status { get; init; }
 
     public int CampaignOffsetId { get; init; }

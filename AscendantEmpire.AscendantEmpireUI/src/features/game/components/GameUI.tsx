@@ -36,8 +36,17 @@ import { useTileRendering } from "../hooks/useTileRendering";
 import { useConstructionPanel } from "../hooks/useConstructionPanel";
 import { useGameToolbar } from "./useGameToolbar";
 import ConstructionPanel from "./ConstructionPanel";
+import { useKnownForcesQuery, useSightingReportsQuery } from "@/features/intelligence/hooks/useIntelligenceQueries";
+import { groupKnownForcesByUnobservedTile } from "@/features/intelligence/knownForceMarkers";
+import type { SightingReport } from "@/features/intelligence/api/intelligenceApi";
+import type { SightingDescriptionContext } from "@/features/intelligence/describeSightingReport";
+import { useCurrentCampaignTurnQuery } from "../hooks/useCurrentCampaignTurn";
+import { useGamePlayersQuery } from "../hooks/useGamePlayers";
 
 type ActivePanel = "unit-design" | null;
+
+// One shared empty feed, so the notifications provider is not handed a fresh array — and made to rebuild its groups — on every render before the feed loads.
+const NO_SIGHTING_REPORTS: SightingReport[] = [];
 
 
 function GameUI({ topOffset = 0 }: { topOffset?: number }) {
@@ -184,6 +193,23 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const unitImageSrcByUnitTemplateId = unitDisplayLookup?.imageSrcByUnitTemplateId;
   const unitNameByUnitTemplateId = unitDisplayLookup?.nameByUnitTemplateId;
 
+  // --- Intelligence: what the player learned while they were not looking ---
+  const { data: sightingReports } = useSightingReportsQuery(gameId, playerId, tilesEnabled);
+  const { data: knownForces } = useKnownForcesQuery(gameId, playerId, tilesEnabled);
+  const { data: currentCampaignTurn } = useCurrentCampaignTurnQuery(gameId, tilesEnabled);
+  const { data: gamePlayers } = useGamePlayersQuery(gameId, tilesEnabled);
+
+  // Reports carry ids, not names. Both lookups are resolved here, at read time, so a renamed faction reads correctly in reports raised before the rename.
+  const factionNameByPlayerId = useMemo(() => new Map((gamePlayers ?? []).map((player) => [player.playerId, player.factionName])), [gamePlayers]);
+
+  const sightingDescriptionContext = useMemo<SightingDescriptionContext>(
+    () => ({ unitNameByUnitTemplateId, factionNameByPlayerId }),
+    [unitNameByUnitTemplateId, factionNameByPlayerId],
+  );
+
+  // Null while nobody is taking a turn, which draws every known-force marker fresh rather than fading them on a guess.
+  const currentRoundNumber = currentCampaignTurn?.currentRoundNumber ?? null;
+
   // Carries the last build's DTO-to-cell pairs across rebuilds so unchanged tiles keep their object identity. A ref rather
   // than state: it is a memoisation detail of the line below and must never itself cause a render.
   const tileCellSourcesRef = useRef<TileCellSourceMap>(new Map());
@@ -210,6 +236,13 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
 
   // Stable per-tile predicate for the grid, so its memoised tiles only re-render when what the player can see actually changes.
   const isTileObserved = useCallback((tile: TileCell) => observedTileKeys.has(`${tile.x},${tile.y}`), [observedTileKeys]);
+
+  // Last-known-position markers, grouped by tile once per change rather than searched per tile. Tiles under live sight are left out, so a marker is never
+  // drawn beside what the player can plainly see is really there. Each tile's array keeps its identity until the known forces or the sight change, which is
+  // what lets the memoised tiles skip re-rendering.
+  const knownForcesByTileKey = useMemo(() => groupKnownForcesByUnobservedTile(knownForces ?? [], observedTileKeys), [knownForces, observedTileKeys]);
+
+  const getKnownForces = useCallback((tile: TileCell) => knownForcesByTileKey.get(`${tile.x},${tile.y}`), [knownForcesByTileKey]);
 
   // --- Map panning (used by the notifications panel) ---
   const panMapTo = useCallback((x: number, y: number) => {
@@ -346,7 +379,10 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   });
 
   return (
-    <NotificationsProvider endTurnActions={endTurnActions}>
+    <NotificationsProvider
+      endTurnActions={endTurnActions}
+      sightingReports={sightingReports ?? NO_SIGHTING_REPORTS}
+      sightingDescriptionContext={sightingDescriptionContext}>
       <div className="flex flex-col" style={{ minHeight: "100vh", paddingRight: notificationPanelOpen ? "20vw" : undefined }}>
         <div ref={toolbarRef} className="fixed left-0 right-0 z-[1070]" style={{ top: topOffset }}>
           <ToolBar groups={toolBarGroups} />
@@ -508,6 +544,8 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
                       unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
                       getVisibleForceId={getVisibleForceId}
                       isTileObserved={isTileObserved}
+                      getKnownForces={getKnownForces}
+                      currentRoundNumber={currentRoundNumber}
                       onTileClick={onTileClick}
                       onTileHold={onTileHold}
                       getTileStyle={getTileStyle}

@@ -31,6 +31,36 @@ export type EndCampaignTurnOutcome = {
   possibleActions: PossibleAction[];
 };
 
+/**
+ * Whose campaign turn it is right now, and in which round.
+ *
+ * Read for the round number, which is what last-known force markers age against.
+ */
+export type CurrentCampaignTurn = {
+  playerId: number;
+  currentRoundNumber: number;
+  isLastTurnInRound: boolean;
+  factionName: string;
+};
+
+type CurrentCampaignTurnWireDto = Partial<CurrentCampaignTurn>;
+
+/**
+ * Reads the game's current campaign turn. The API reads the game from the game token.
+ *
+ * Rejects (a 404) when nobody is taking a turn, which callers should treat as "the round is not known" rather than as a failure worth reporting.
+ */
+export async function getCurrentCampaignTurn(): Promise<CurrentCampaignTurn> {
+  const { data } = await http.get<CurrentCampaignTurnWireDto>("/turn/campaign");
+
+  return {
+    playerId: data.playerId ?? 0,
+    currentRoundNumber: data.currentRoundNumber ?? 0,
+    isLastTurnInRound: data.isLastTurnInRound ?? false,
+    factionName: data.factionName ?? "",
+  };
+}
+
 type EndCampaignTurnWireDto = Partial<{
   turnEnded: boolean;
   roundEnded: boolean;

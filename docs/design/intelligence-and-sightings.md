@@ -7,7 +7,7 @@ when their turn opens.
 > versus ground currently watched — see [Fog of War](../fog-of-war.md). For the sight and detection
 > rules themselves, see [Vision on the campaign map](campaign-map.md#vision-on-the-campaign-map).
 >
-> **Status: partly built.** The `turns.PlayerTurn` foundation landed in F-21, `units.MovementHistory` with its single writer in F-22, the witness service with its coalition seam in F-23, and the Forces producer in F-24: tracks, `game.PlayerReport`, `game.PlayerKnownForce`, the redaction layer and the two read endpoints. The fidelity curve (F-31), the structure and combat producers, and the client's feed and map markers are not built yet. Existing entities are called out where the design leans on them.
+> **Status: partly built.** The `turns.PlayerTurn` foundation landed in F-21, `units.MovementHistory` with its single writer in F-22, the witness service with its coalition seam in F-23, and the Forces producer in F-24: tracks, `game.PlayerReport`, `game.PlayerKnownForce`, the redaction layer, the two read endpoints, and on the client a "Sightings" group in the notifications panel and fading last-known-position markers on the campaign map. The fidelity curve (F-31) and the structure and combat producers are not built yet. Existing entities are called out where the design leans on them.
 
 ---
 
@@ -330,6 +330,8 @@ start-of-turn pipeline, which exists for exactly this and is currently a stub.
 `StartTurnNotificationsOrder.SentryAlerts` and `InformationCategory` are the matching scaffolding.
 
 **Changed in F-24.** Reports are raised by the `RaiseSightingReports` end-of-turn process, and surfaced by a read instead of by `AlertSentries`: `GET /intelligence/reports` for the feed and `GET /intelligence/known-forces` for the map layer, both taking the game and player from the game token. A start-of-turn process can only return an error string, so it has no way to show the player anything, and "reports since my last Turn" needs no work at turn start. `AlertSentries` stays a stub, for its own open question below: whether Forces on a sentry stance get a bonus.
+
+On the client, the feed appears as a "Sightings" group in the notifications panel, newest first; clicking a report pans to where the Force was last seen. The sentence is built only from the subject fields the server disclosed, so a glimpse reads "Something seen at (4, 1)". Owners are named through `GET /player/game-players`, looked up when the feed is read. Known Forces are drawn only on tiles the player cannot currently see. The marker fades from fresh to a floor over five Rounds and then stays at the floor, since whether markers should ever retire is still open. Dismissing a report is remembered only in the browser, because the feed has no read state.
 
 ---
 

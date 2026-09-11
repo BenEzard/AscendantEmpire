@@ -2,6 +2,7 @@
 import type { Geography } from "@/types/map/Geography";
 import type { TileCell } from "./TileTypes";
 import Tile from "./Tile";
+import type { KnownForce } from "@/features/intelligence/api/intelligenceApi";
 
 export const TILE_SIZE_PX = 50;
 
@@ -23,6 +24,13 @@ export interface TileGridProps {
    * at all. Omitted means every tile is observed, which is what a grid with no fog of war wants.
    */
   isTileObserved?: (tile: TileCell) => boolean;
+  /**
+   * The forces the player last saw on a tile, freshest first, for last-known-position markers. Should return the same array for an unchanged tile, or every
+   * memoised tile re-renders. Omitted means no markers at all.
+   */
+  getKnownForces?: (tile: TileCell) => readonly KnownForce[] | undefined;
+  /** The round being played now, which markers fade against. */
+  currentRoundNumber?: number | null;
   onTileClick?: (tile: TileCell) => void;
   onTileHold?: (tile: TileCell) => void;
 
@@ -44,6 +52,8 @@ const TileGrid = React.memo(function TileGrid({
   unitImageSrcByUnitTemplateId,
   getVisibleForceId,
   isTileObserved,
+  getKnownForces,
+  currentRoundNumber,
   onTileClick,
   onTileHold,
   getTileTitle,
@@ -95,6 +105,8 @@ const TileGrid = React.memo(function TileGrid({
               unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
               visibleForceId={getVisibleForceId?.(t)}
               isObserved={isTileObserved?.(t) ?? true}
+              knownForces={getKnownForces?.(t)}
+              currentRoundNumber={currentRoundNumber}
               onClick={onTileClick}
               onHold={onTileHold}
               getTitle={getTileTitle}
