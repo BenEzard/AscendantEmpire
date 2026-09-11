@@ -2,6 +2,8 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
+using AscendantEmpire.Application.Features.Turns.Services;
+using AscendantEmpire.Application.Features.Units.Services;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
@@ -10,6 +12,7 @@ using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 using NSubstitute;
 
@@ -61,10 +64,14 @@ public class GameSqlServerTestBase : SqlServerTestBase
             .Returns(ServiceResultBase.ServiceResult<CampaignMapGalleryProperties>.Succeed(_completedMapProperties));
 
         _capturingLogger = new CapturingLogger<GameSetupService>();
-        _service = new GameSetupService(
-            _capturingLogger,
-            DbFactory,
-            _mapGalleryService);
+
+        // The real writer over the real turn service. Setup places its starting Forces with no Turn, so the turn service is never actually asked for a sequence here; it is real rather than
+        // substituted so that fixtures building on this base, which do open Turns, get the genuine allocator.
+        var forceLifecycleWriter = new ForceLifecycleWriter(
+            NullLogger<ForceLifecycleWriter>.Instance,
+            new PlayerTurnService(NullLogger<PlayerTurnService>.Instance, DbFactory));
+
+        _service = new GameSetupService(_capturingLogger, DbFactory, _mapGalleryService, forceLifecycleWriter);
     }
 
     /// <summary>

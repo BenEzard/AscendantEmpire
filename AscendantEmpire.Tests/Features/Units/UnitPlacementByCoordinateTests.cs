@@ -2,10 +2,12 @@
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
+using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Players.Handlers;
 using AscendantEmpire.Application.Features.ForceOrders.Handlers;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Units.Handlers;
+using AscendantEmpire.Application.Features.Units.Services;
 using AscendantEmpire.BackendContracts.ForceOrders.MoveForces;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Units;
@@ -56,10 +58,15 @@ internal class UnitPlacementByCoordinateTests : GameSqlServerTestBase
         // destination coordinate before it is consulted, but DI still has to construct the handler.
         ICampaignTurnService campaignTurnService = Substitute.For<ICampaignTurnService>();
 
+        // The spawn handler places its Unit through the lifecycle writer. The substituted turn service reports no open Turn, so the writer records nothing and never allocates a sequence.
+        // GetGameContextHandler delegates its query to IGameContextService, which AddMediator does not register, so that goes in by hand.
         ServiceProvider provider = new ServiceCollection()
             .AddSingleton(DbFactory)
             .AddScoped(_ => DbFactory.CreateDbContext())
+            .AddScoped<IGameContextService, GameContextService>()
             .AddSingleton(campaignTurnService)
+            .AddScoped<IPlayerTurnService, PlayerTurnService>()
+            .AddScoped<IForceLifecycleWriter, ForceLifecycleWriter>()
             .AddMediator(typeof(GetPlayersHandler).Assembly)
             .AddLogging()
             .BuildServiceProvider();

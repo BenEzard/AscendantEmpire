@@ -5,11 +5,15 @@ using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Identity;
+using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
+using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums.Authentication;
+using AscendantEmpire.Domain.Enums.Forces;
 using AscendantEmpire.Domain.Enums.Games;
 using AscendantEmpire.Domain.Enums.Processing;
 using AscendantEmpire.Domain.Enums.System;
+using AscendantEmpire.Domain.Enums.Turns;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -63,6 +67,24 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             Assert.That(await context.PlayerUnlockedTemplates.AnyAsync(), Is.False, "Unlock rows are player-scoped, even when the template they name survives.");
             Assert.That(await context.PlayerUnlockedComponents.AnyAsync(), Is.False);
             Assert.That(await context.PlayerOfficerRanks.AnyAsync(), Is.False);
+        }
+    }
+
+    [Test, Description("Movement history is purged with its game, and first, because its rows name the tiles, players, templates and turns later steps delete.")]
+    public async Task ShouldRemoveTheGamesMovementHistoryWhenItIsDeletedAsync()
+    {
+        int gameId = await SetupGameAsync("Doomed");
+
+        await SeedMovementHistoryAsync(gameId);
+
+        Processing job = await ExecuteDeleteAsync(gameId);
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(job.Status, Is.EqualTo(ProcessingStatus.Complete), job.ErrorMessage);
+            Assert.That(await context.MovementHistory.AnyAsync(h => h.GameId == gameId), Is.False);
         }
     }
 
@@ -290,6 +312,64 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
         return await context.Players.Where(p => p.GameId == gameId).Select(p => p.Id).OrderBy(id => id).FirstAsync();
+    }
+
+    /// <summary>
+    /// Opens a Turn in the game's campaign lane and records a Created and a Moved row against it for one of the starting Units.
+    /// </summary>
+    /// <remarks>
+    /// Written straight to the table rather than through the lifecycle writer: setup places its starting armies with no history, and this fixture is about the purge reaching the rows rather than
+    /// how they got there. The Moved row matters as well as the Created one, because it is the only kind that names a second tile.
+    /// </remarks>
+    private async Task SeedMovementHistoryAsync(int gameId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        TurnQueue campaignQueue = await context.TurnQueues.SingleAsync(q => q.GameId == gameId && q.QueueType == TurnQueueType.Campaign && q.BattleId == null);
+        UnitInstance unit = await context.UnitInstances.Where(u => u.GameId == gameId).OrderBy(u => u.Id).FirstAsync();
+
+        int otherTileId = await context.CampaignMaps
+            .Where(t => t.GameId == gameId && t.CampaignMapId != unit.CampaignMapTileId)
+            .Select(t => t.CampaignMapId)
+            .FirstAsync();
+
+        var turn = new PlayerTurn
+        {
+            TurnQueueId = campaignQueue.Id,
+            PlayerId = unit.PlayerId,
+            RoundNumber = campaignQueue.CurrentRoundNumber,
+            StartedAt = DateTimeOffset.UtcNow
+        };
+
+        context.PlayerTurns.Add(turn);
+        await context.SaveChangesAsync();
+
+        context.MovementHistory.AddRange(
+            new MovementHistory
+            {
+                GameId = gameId,
+                UnitInstanceId = unit.Id,
+                PlayerId = unit.PlayerId,
+                UnitTemplateId = unit.UnitTemplateId,
+                EventType = ForceHistoryEventType.Created,
+                CampaignMapTileId = unit.CampaignMapTileId,
+                PlayerTurnId = turn.Id,
+                TurnSequence = 1
+            },
+            new MovementHistory
+            {
+                GameId = gameId,
+                UnitInstanceId = unit.Id,
+                PlayerId = unit.PlayerId,
+                UnitTemplateId = unit.UnitTemplateId,
+                EventType = ForceHistoryEventType.Moved,
+                FromCampaignMapTileId = unit.CampaignMapTileId,
+                CampaignMapTileId = otherTileId,
+                PlayerTurnId = turn.Id,
+                TurnSequence = 2
+            });
+
+        await context.SaveChangesAsync();
     }
 
     /// <summary>Seeds a player-owned unit template in the given game, with one component row hanging off it.</summary>

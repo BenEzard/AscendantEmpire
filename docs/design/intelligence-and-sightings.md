@@ -7,8 +7,7 @@ when their turn opens.
 > versus ground currently watched — see [Fog of War](../fog-of-war.md). For the sight and detection
 > rules themselves, see [Vision on the campaign map](campaign-map.md#vision-on-the-campaign-map).
 >
-> **Status: proposed.** The `turns.PlayerTurn` foundation landed in F-21; nothing else described here is
-> built. Existing entities are called out where the design leans on them.
+> **Status: proposed.** The `turns.PlayerTurn` foundation landed in F-21, and `units.MovementHistory` with its single writer in F-22; nothing else described here is built. Existing entities are called out where the design leans on them.
 
 ---
 
@@ -106,7 +105,17 @@ table.
 
 ### `units.MovementHistory`
 
-One row per position change: the Unit, the tile entered, the turn, and the sequence.
+One row per position change: the Unit, the tile entered, the turn, and the sequence. **Landed in F-22.**
+
+Each row is one of three events — `Created`, `Moved` or `Destroyed` — so a Force's whole life during a Turn sits in one ordered feed. It also carries a copy of the Force's owner and template, so the row still says what the Force was after the Force has gone.
+
+A `Moved` row also carries the tile the Force stepped **off**, and a check constraint makes that true of `Moved` rows and no others. The fold therefore only ever reads the current Turn's rows: without it, the first step a Force takes in a Turn would need that Force's last row from some earlier Turn, which may be many Turns back, or may not exist at all.
+
+Every row belongs to a Turn. A Force placed **outside** any Turn gets no row — the starting armies at game setup, or a developer spawn into a Game not yet started. Nobody could have watched it appear, and there is no Turn to stamp it with. Its first move still says where it started.
+
+`UnitInstanceId` is deliberately **not** a foreign key. A destroyed Force is hard-deleted, and the fold runs after attrition, so a Force watched and then killed in the same Turn reaches the fold with its `UnitInstances` row already gone. A foreign key would either block that delete or clear the column, and a cleared column would leave the fold unable to tell one dead Force's path from another's. Unit ids are never reused while any of these rows survive: the identity counter is only reseeded once the last Game has been deleted.
+
+Rows are written only through `IForceLifecycleWriter`, and `UnitInstance.CampaignMapTileId` is init-only, so code that moves a Force any other way does not compile.
 
 Deliberately **not** carrying a health or strength snapshot. Health is redundant with `UnitInstance`,
 it bloats the highest-volume table in the design, and it is the wrong layer: what matters is what an
@@ -425,8 +434,5 @@ parallel workstream:
    carries `LastAllocatedSequence`. `IPlayerTurnService.AllocateSequenceAsync` hands out the
    `TurnSequence` values every raw feed row is to be stamped with, atomically. Nothing writes a feed row
    yet — that is dependency 2.
-2. **A single writer for Force position and lifecycle.** Movement is written from more than one place
-   today: immediate steps, pathfound order execution, retreats, spawns, and the context actions that
-   found settlements. If history is appended at each call site, one will be missed — and a missing
-   path fails *silently*, as intelligence that simply never arrives.
+2. ~~**A single writer for Force position and lifecycle.**~~ **Landed in F-22.** `IForceLifecycleWriter` is the only way a Force is created, moved or destroyed, and each change is written together with its `units.MovementHistory` row: if the Turn's sequence cannot be allocated, the change is not made. The step handler, the developer spawn and game setup all go through it. Pathfound order execution, retreats and settlement founding do not exist yet, and nothing destroys a Force yet; each of them must go through the writer when it is built.
 3. **The witness service extraction** described above.

@@ -313,7 +313,8 @@ internal class PlayerCampaignMapExplorationTests : GameSqlServerTestBase
 
         foreach (UnitInstance force in forces)
         {
-            force.CampaignMapTileId = tileId;
+            // Through the change tracker, because the property is init-only - the lifecycle writer is the only production code allowed to move a Force.
+            context.Entry(force).Property(f => f.CampaignMapTileId).CurrentValue = tileId;
         }
 
         await context.SaveChangesAsync();

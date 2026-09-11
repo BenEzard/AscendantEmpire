@@ -265,7 +265,9 @@ internal class PlayerCampaignMapForceVisibilityTests : GameSqlServerTestBase
 
         // Park the rival on the viewer's own tile so it is certainly observed. Left where it spawned, the masking
         // assertion would pass vacuously on any map where the rival happened to start out of sight.
-        rivalForce.CampaignMapTileId = movingForce.CampaignMapTileId;
+        // Through the change tracker, because the property is init-only - the lifecycle writer is the only production code allowed to move a Force. This fixture is about what the map read
+        // reports, not about how the rival got there, so it places the rival directly rather than stepping it.
+        setup.Entry(rivalForce).Property(f => f.CampaignMapTileId).CurrentValue = movingForce.CampaignMapTileId;
         rivalForce.CampaignMovementRemaining = ScaledAmount.Scale;
 
         await setup.SaveChangesAsync();

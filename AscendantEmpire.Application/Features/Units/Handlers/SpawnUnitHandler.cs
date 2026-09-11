@@ -5,6 +5,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Units.Classes;
+using AscendantEmpire.Application.Features.Units.Services;
 using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
@@ -65,7 +66,8 @@ internal class SpawnUnitHandler(
     ILogger<SpawnUnitHandler> logger,
     IMediator mediator,
     IDbContextFactory<AscendantEmpireContext> dbFactory,
-    ICampaignTurnService campaignTurnService
+    ICampaignTurnService campaignTurnService,
+    IForceLifecycleWriter forceLifecycleWriter
 ) : IRequestHandler<SpawnUnitRequest, ServiceResultBase>
 {
     public async Task<ServiceResultBase> Handle(SpawnUnitRequest request, CancellationToken cancelToken)
@@ -152,7 +154,7 @@ internal class SpawnUnitHandler(
 
             int currentRoundNumber = await campaignTurnService.GetCurrentRoundNumberAsync(gameInfo.GameId, cancelToken);
 
-            context.UnitInstances.Add(new UnitInstance
+            var spawnedUnit = new UnitInstance
             {
                 GameId = gameInfo.GameId,
                 PlayerId = thisPlayer.PlayerId,
@@ -167,9 +169,21 @@ internal class SpawnUnitHandler(
                 BattleMovementRemaining = compiledTemplate.BattlefieldMovementPoints,
 
                 CampaignMovementReplenishedOnRound = currentRoundNumber,
-            });
+            };
 
-            await context.SaveChangesAsync(cancelToken);
+            // Recorded against whichever Turn is open, whoever's it is: a Unit spawned mid-game appears in the intelligence feeds like any other Force coming into existence. A Game with no open
+            // Turn - set up but not yet started - gets no record, exactly as the starting armies do.
+            int? openPlayerTurnId = await campaignTurnService.GetOpenPlayerTurnIdAsync(context, gameInfo.GameId, cancelToken);
+
+            // The writer saves, rather than this handler: the Unit's Created row needs the id it only gets on insert, so the writer commits the two together.
+            ServiceResultBase createResult = await forceLifecycleWriter.CreateAsync(context, [spawnedUnit], openPlayerTurnId, cancelToken);
+
+            if (createResult.HasSucceeded == false)
+            {
+                const string error = "The Unit could not be spawned.";
+                logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", createResult.Errors));
+                return ServiceResultBase.Fail(createResult.Errors.Prepend(error));
+            }
 
             return ServiceResultBase.Created();
         }

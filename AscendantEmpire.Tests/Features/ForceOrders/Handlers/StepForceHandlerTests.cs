@@ -6,6 +6,7 @@ using AscendantEmpire.Application.Features.ForceOrders.Movement.Strategies;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Handlers;
 using AscendantEmpire.Application.Features.Turns.Services;
+using AscendantEmpire.Application.Features.Units.Services;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.BackendContracts.ForceOrders.StepForce;
 using AscendantEmpire.BackendContracts.Games.GetGameContext;
@@ -14,6 +15,7 @@ using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
+using AscendantEmpire.Domain.Enums.Forces;
 using AscendantEmpire.Domain.Enums.Maps;
 
 using Microsoft.Extensions.Logging.Abstractions;
@@ -32,6 +34,10 @@ namespace AscendantEmpire.Tests.Features.ForceOrders.Handlers;
 /// On the in-memory tier. The handler's own database work is an ordinary query, an update and a <c>SaveChanges</c>, and although it reads
 /// <see cref="CompiledUnitTemplate"/> — which owns EF complex types the in-memory provider cannot materialise — it only ever touches that entity's
 /// scalar columns, which <c>testing.md</c> records as safe. The fog-of-war refresh is the part that needs raw SQL, and it is mocked out here.
+/// </para>
+/// <para>
+/// The lifecycle writer is the real one, so a step's <see cref="MovementHistory"/> row is genuinely written and read back. Only the sequence allocator under it is substituted, because
+/// allocation is a raw SQL statement - covered on the containerised tier by the Player Turn fixtures.
 /// </para>
 /// <para>
 /// The map is a 5 x 5 grid that does not wrap. Row 2 is flat grassland, row 1 is ocean, row 3 is mountain, so a Force starting in the middle of
@@ -58,8 +64,15 @@ internal class StepForceHandlerTests : InMemoryTestBase
     /// <summary>A full turn's movement for the test template — 2.0 points on the Scale 1,000 convention.</summary>
     private const long _CAMPAIGN_MOVEMENT_POINTS = 2_000;
 
+    /// <summary>The open Turn the current campaign turn reports, which every recorded step is stamped with.</summary>
+    private const int _PLAYER_TURN_ID = 7;
+
+    /// <summary>The sequence number the substituted allocator hands out. Deliberately not 1, so a row stamped with a default would not pass by coincidence.</summary>
+    private const int _TURN_SEQUENCE = 3;
+
     private IMediator _mediator = null!;
     private ICampaignTurnService _campaignTurnService = null!;
+    private IPlayerTurnService _playerTurnService = null!;
     private StepForceHandler _handler = null!;
 
     [SetUp]
@@ -67,6 +80,11 @@ internal class StepForceHandlerTests : InMemoryTestBase
     {
         _mediator = Substitute.For<IMediator>();
         _campaignTurnService = Substitute.For<ICampaignTurnService>();
+        _playerTurnService = Substitute.For<IPlayerTurnService>();
+
+        // The Turn is open by default and hands out one number, so a step can be recorded unless a test says otherwise.
+        _playerTurnService.AllocateSequenceAsync(Arg.Any<AscendantEmpireContext>(), _PLAYER_TURN_ID, 1, Arg.Any<CancellationToken>())
+            .Returns(ServiceResult<TurnSequenceBlock>.Succeed(new TurnSequenceBlock(_TURN_SEQUENCE, _TURN_SEQUENCE)));
 
         _mediator.Send(Arg.Any<GetGameContextRequest>(), Arg.Any<CancellationToken>())
             .Returns(ServiceResult<IReadOnlyCollection<GameContext>>.Succeed([GameContextInfo()]));
@@ -84,7 +102,8 @@ internal class StepForceHandlerTests : InMemoryTestBase
             DbFactory,
             _mediator,
             _campaignTurnService,
-            AllMovementDomainStrategies());
+            AllMovementDomainStrategies(),
+            new ForceLifecycleWriter(NullLogger<ForceLifecycleWriter>.Instance, _playerTurnService));
 
         await SeedMapAndTemplateAsync();
     }
@@ -139,7 +158,8 @@ internal class StepForceHandlerTests : InMemoryTestBase
             TurnOrder = 1,
             IsLastTurnInRound = false,
             CurrentRoundNumber = 1,
-            FactionName = playerId == _PLAYER_ID ? "Faction 1" : "Faction 2"
+            FactionName = playerId == _PLAYER_ID ? "Faction 1" : "Faction 2",
+            PlayerTurnId = _PLAYER_TURN_ID
         };
     }
 
@@ -286,6 +306,13 @@ internal class StepForceHandlerTests : InMemoryTestBase
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
         return context.UnitInstances.Single(force => force.Id == _FORCE_ID);
+    }
+
+    private async Task<List<MovementHistory>> LoadHistoryAsync()
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        return [.. context.MovementHistory.OrderBy(row => row.Id)];
     }
 
     [Test, Description("The happy path: the force lands on the neighbouring tile and pays the whole cost of entering it.")]
@@ -544,8 +571,8 @@ internal class StepForceHandlerTests : InMemoryTestBase
         }
     }
 
-    [Test, Description("Game setup leaves the turn queue unstarted, so a game with no current turn must still allow movement rather than freezing every force.")]
-    public async Task ShouldAllowAStepWhenTheGameHasNoCurrentTurnYetAsync()
+    [Test, Description("A started game always has a current turn, so having none is a broken invariant - and with no Turn to stamp, the step could not be recorded.")]
+    public async Task ShouldRefuseAStepWhenTheGameHasNoCurrentTurnAsync()
     {
         await GivenALandForceAsync();
 
@@ -554,7 +581,99 @@ internal class StepForceHandlerTests : InMemoryTestBase
 
         ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
 
+        UnitInstance unmoved = await ReloadForceAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors.Single(), Does.Contain("No turn is in progress"));
+            Assert.That(unmoved.CampaignMapTileId, Is.EqualTo(TileId(_START_X, _START_Y)));
+        }
+    }
+
+    [Test, Description("A current turn with no open PlayerTurn row has nothing to record the step against, so the step is refused rather than made unrecorded.")]
+    public async Task ShouldRefuseAStepWhenTheCurrentTurnHasNotBeenOpenedAsync()
+    {
+        await GivenALandForceAsync();
+
+        _campaignTurnService.GetCurrentCampaignTurnAsync(_GAME_ID, Arg.Any<CancellationToken>())
+            .Returns(ServiceResult<CurrentCampaignTurn>.Succeed(CurrentTurn(_PLAYER_ID) with { PlayerTurnId = null }));
+
+        ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
+
+        UnitInstance unmoved = await ReloadForceAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(unmoved.CampaignMapTileId, Is.EqualTo(TileId(_START_X, _START_Y)));
+            Assert.That(await LoadHistoryAsync(), Is.Empty);
+        }
+    }
+
+    [Test, Description("A step is recorded as one Moved row naming both tiles and the Turn's sequence, which is what the intelligence fold reads a path from.")]
+    public async Task ShouldRecordTheStepAsAMovedRowStampedWithTheTurnAsync()
+    {
+        await GivenALandForceAsync();
+
+        ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
+
+        List<MovementHistory> history = await LoadHistoryAsync();
+
         Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
+        Assert.That(history, Has.Count.EqualTo(1), "One step, one row.");
+
+        MovementHistory row = history.Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(row.EventType, Is.EqualTo(ForceHistoryEventType.Moved));
+            Assert.That(row.UnitInstanceId, Is.EqualTo(_FORCE_ID));
+            Assert.That(row.FromCampaignMapTileId, Is.EqualTo(TileId(_START_X, _START_Y)));
+            Assert.That(row.CampaignMapTileId, Is.EqualTo(TileId(_START_X + 1, _START_Y)));
+            Assert.That(row.PlayerTurnId, Is.EqualTo(_PLAYER_TURN_ID));
+            Assert.That(row.TurnSequence, Is.EqualTo(_TURN_SEQUENCE));
+            Assert.That(row.PlayerId, Is.EqualTo(_PLAYER_ID));
+            Assert.That(row.UnitTemplateId, Is.EqualTo(_TEMPLATE_ID));
+            Assert.That(row.GameId, Is.EqualTo(_GAME_ID));
+        }
+    }
+
+    [Test, Description("A step that cannot be recorded is not made at all, so a Force never moves without the intelligence feeds knowing about it.")]
+    public async Task ShouldNotMoveTheForceWhenTheStepCannotBeRecordedAsync()
+    {
+        await GivenALandForceAsync();
+
+        _playerTurnService.AllocateSequenceAsync(Arg.Any<AscendantEmpireContext>(), _PLAYER_TURN_ID, 1, Arg.Any<CancellationToken>())
+            .Returns(ServiceResult<TurnSequenceBlock>.Fail("Player Turn Id 7 does not exist or has already ended."));
+
+        ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
+
+        UnitInstance unmoved = await ReloadForceAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Has.Some.Contains("could not be recorded"));
+            Assert.That(unmoved.CampaignMapTileId, Is.EqualTo(TileId(_START_X, _START_Y)));
+            Assert.That(unmoved.CampaignMovementRemaining, Is.EqualTo(_CAMPAIGN_MOVEMENT_POINTS), "An unrecorded step costs nothing either.");
+            Assert.That(await LoadHistoryAsync(), Is.Empty);
+        }
+    }
+
+    [Test, Description("A refused step changed nothing, so it records nothing and does not spend a sequence number on the Turn.")]
+    public async Task ShouldNotRecordARefusedStepAsync()
+    {
+        await GivenALandForceAsync();
+
+        // South of the start is mountain, which nothing can enter.
+        await StepAsync(MoveDirection.South);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await LoadHistoryAsync(), Is.Empty);
+            await _playerTurnService.DidNotReceive().AllocateSequenceAsync(Arg.Any<AscendantEmpireContext>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+        }
     }
 
     [Test, Description("The move is committed before vision is refreshed, so a failure to refresh must not report the step itself as failed.")]

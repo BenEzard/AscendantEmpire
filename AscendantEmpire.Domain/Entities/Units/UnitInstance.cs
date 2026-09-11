@@ -24,7 +24,21 @@ public class UnitInstance
     public int GameId { get; set; }
     public int PlayerId { get; set; }
 
-    public int CampaignMapTileId { get; set; }
+    /// <summary>
+    /// The campaign map tile the Unit is standing on.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>init</c> rather than <c>set</c>, on purpose. A Unit is placed on a tile when it is created, and after that it only ever moves through <c>IForceLifecycleWriter</c>, which records the
+    /// move in <see cref="MovementHistory"/> as part of the same save. An init-only setter turns a second writer into a compile error, instead of a move that silently never reaches anybody's
+    /// intelligence.
+    /// </para>
+    /// <para>
+    /// It guards the ordinary path rather than every path. The writer itself reaches the property through the change tracker, and so could anything else; a bulk <c>ExecuteUpdateAsync</c> or a
+    /// new Unit added straight to the context would get past it too. Those stay conventions rather than compile errors.
+    /// </para>
+    /// </remarks>
+    public int CampaignMapTileId { get; init; }
 
     /// <summary>
     /// The player's own name for this Unit, or null when it has not been named.

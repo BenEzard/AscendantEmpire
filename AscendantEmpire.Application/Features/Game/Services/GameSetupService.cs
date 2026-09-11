@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
 using AscendantEmpire.Application.Features.Military;
+using AscendantEmpire.Application.Features.Units.Services;
 using AscendantEmpire.BackendContracts.Turns.CreateCampaignTurnQueue;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
@@ -27,7 +28,8 @@ namespace AscendantEmpire.Application.Features.Game.Services;
 internal class GameSetupService(
     ILogger<GameSetupService> logger,
     IDbContextFactory<AscendantEmpireContext> dbFactory,
-    ICampaignMapGalleryService campaignMapGalleryService
+    ICampaignMapGalleryService campaignMapGalleryService,
+    IForceLifecycleWriter forceLifecycleWriter
 ) : IGameSetupService
 {
     public const int MIN_NUMBER_OF_PLAYERS = 2; // TODO: Make this configurable as AppSettings.
@@ -461,6 +463,9 @@ internal class GameSetupService(
 
         List<DomainPlayer> playersInOrder = [.. addedPlayers.OrderBy(p => p.Id)];
 
+        // Collected across every player and handed to the lifecycle writer in one go below, rather than added to the context as they are built.
+        List<UnitInstance> startingForces = [];
+
         for (int playerIndex = 0; playerIndex < playersInOrder.Count; playerIndex++)
         {
             DomainPlayer player = playersInOrder[playerIndex];
@@ -481,7 +486,7 @@ internal class GameSetupService(
             }));
 
             // One unit of each starter template, at the player's start tile, at its tag's default size, all healthy.
-            context.UnitInstances.AddRange(startersToSpawn.Select(starter => new UnitInstance
+            startingForces.AddRange(startersToSpawn.Select(starter => new UnitInstance
             {
                 GameId = gameId,
                 PlayerId = player.Id,
@@ -499,7 +504,16 @@ internal class GameSetupService(
             }));
         }
 
-        await context.SaveChangesAsync(cancellationToken);
+        // Through the lifecycle writer like every other Force coming into existence, but with no Turn. None is open until StartGameAsync runs, and nobody could have watched an army that was
+        // standing there before the Game began, so the starting Forces are placed with no MovementHistory rows. Their first step records where they started.
+        //
+        // The writer saves, which also flushes the unlock rows added above - this method was already self-saving, so nothing changes for the caller.
+        ServiceResultBase placeResult = await forceLifecycleWriter.CreateAsync(context, startingForces, playerTurnId: null, cancellationToken);
+
+        if (placeResult.HasSucceeded == false)
+        {
+            return ServiceResultBase.Fail(placeResult.Errors);
+        }
 
         logger.LogInformation("Spawned {UnitCount} starting unit(s) for each of {PlayerCount} player(s) in game {GameId}.",
             startersToSpawn.Count, playersInOrder.Count, gameId);

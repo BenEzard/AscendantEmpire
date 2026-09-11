@@ -65,4 +65,18 @@ public interface ICampaignTurnService
     /// </para>
     /// </remarks>
     Task<ServiceResult<int>> GetObservationTurnIdAsync(AscendantEmpireContext context, int gameId, int playerId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The id of the Game's open Campaign Turn, whoever's it is, or <see langword="null"/> when no Turn is open.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Null is an ordinary answer rather than a failure. A Game that has been set up but not yet started has a Queue and no Turns, and the callers - a developer spawn, and the observation stamp's
+    /// fallback - each have a sensible thing to do without one.
+    /// </para>
+    /// <para>
+    /// Reads through the caller's context, so it sees their uncommitted writes and joins their transaction.
+    /// </para>
+    /// </remarks>
+    Task<int?> GetOpenPlayerTurnIdAsync(AscendantEmpireContext context, int gameId, CancellationToken cancellationToken = default);
 }

@@ -238,14 +238,7 @@ public class CampaignTurnService(
             }
 
             // They have never acted. The lane's open Turn is the only honest "when" for the ground their starting Forces can already see.
-            int? openTurnId = await context.PlayerTurns
-                .Where(t => t.TurnQueue.GameId == gameId)
-                .Where(t => t.TurnQueue.QueueType == TurnQueueType.Campaign)
-                .Where(t => t.TurnQueue.BattleId == null)
-                .Where(t => t.EndedAt == null)
-                .OrderByDescending(t => t.Id)
-                .Select(t => (int?)t.Id)
-                .FirstOrDefaultAsync(cancellationToken);
+            int? openTurnId = await GetOpenPlayerTurnIdAsync(context, gameId, cancellationToken);
 
             if (openTurnId is int openId)
             {
@@ -266,5 +259,20 @@ public class CampaignTurnService(
 
             return ServiceResult<int>.Fail(error);
         }
+    }
+
+    /// <inheritdoc />
+    public async Task<int?> GetOpenPlayerTurnIdAsync(AscendantEmpireContext context, int gameId, CancellationToken cancellationToken = default)
+    {
+        // UX_PlayerTurn_OpenTurnPerQueue allows one open Turn per lane, so this is normally a single row. Ordered newest first anyway, so that a Game somehow holding two campaign lanes answers
+        // with the most recent Turn rather than an arbitrary one.
+        return await context.PlayerTurns
+            .Where(t => t.TurnQueue.GameId == gameId)
+            .Where(t => t.TurnQueue.QueueType == TurnQueueType.Campaign)
+            .Where(t => t.TurnQueue.BattleId == null)
+            .Where(t => t.EndedAt == null)
+            .OrderByDescending(t => t.Id)
+            .Select(t => (int?)t.Id)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 }

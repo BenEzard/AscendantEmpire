@@ -7,6 +7,7 @@ using AscendantEmpire.Application.Features.ForceOrders.Movement.Strategies;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Handlers;
 using AscendantEmpire.Application.Features.Turns.Services;
+using AscendantEmpire.Application.Features.Units.Services;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
@@ -66,7 +67,8 @@ internal class StepForceHandler(
     IDbContextFactory<AscendantEmpireContext> dbFactory,
     IMediator mediator,
     ICampaignTurnService campaignTurnService,
-    IEnumerable<IMovementDomainStrategy> movementDomainStrategies
+    IEnumerable<IMovementDomainStrategy> movementDomainStrategies,
+    IForceLifecycleWriter forceLifecycleWriter
 ) : IRequestHandler<StepForceRequest, ServiceResult<StepForceResult>>
 {
     /// <summary>
@@ -124,7 +126,8 @@ internal class StepForceHandler(
                 return ServiceResult<StepForceResult>.Fail(error);
             }
 
-            ServiceResult<StepForceResult>? turnRefusal = await ValidateItIsThisPlayersTurnAsync(request, cancelToken);
+            // The Turn id comes back with the verdict, because the step is recorded against it.
+            (int playerTurnId, ServiceResult<StepForceResult>? turnRefusal) = await ValidateItIsThisPlayersTurnAsync(request, cancelToken);
             if (turnRefusal is not null)
             {
                 return turnRefusal;
@@ -207,7 +210,17 @@ internal class StepForceHandler(
             // than the ground being permanently out of its reach.
             long entryCost = ScaledAmount.FromDecimal(target.MovementCost).RawValue;
 
-            force.CampaignMapTileId = targetTile.CampaignMapId;
+            // The position goes through the lifecycle writer rather than onto the Force directly - the property is init-only, so nothing else can set it. The writer stages the new tile and the
+            // Moved row together, so the save below commits both or neither. When it refuses, nothing has been staged, and the step is refused rather than made without a record.
+            ServiceResultBase moveResult = await forceLifecycleWriter.MoveAsync(context, force, targetTile.CampaignMapId, playerTurnId, cancelToken);
+
+            if (moveResult.HasSucceeded == false)
+            {
+                string error = $"{DescribeForce(force)} could not be moved, because the step could not be recorded.";
+                logger.LogWarning("{Error} Unit Instance Id {UnitInstanceId}. Errors: {Errors}", error, force.Id, string.Join("; ", moveResult.Errors));
+                return ServiceResult<StepForceResult>.Fail(moveResult.Errors.Prepend(error));
+            }
+
             force.CampaignMovementRemaining -= entryCost;
 
             await context.SaveChangesAsync(cancelToken);
@@ -302,48 +315,61 @@ internal class StepForceHandler(
     }
 
     /// <summary>
-    /// Refuses the step when it is another player's turn.
+    /// Refuses the step unless it is this player's turn, and hands back the open Turn the step will be recorded against.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Game setup builds the campaign turn queue but leaves every participant <c>Pending</c> — nothing promotes the first player to
-    /// <c>TakingTurn</c> until someone ends a turn. So a game that has never had a turn ended has no current turn at all, and enforcing this
-    /// strictly would make every Force in a new game immovable.
+    /// A Game with no current turn at all is refused too. That used to be let through, loudly, because game setup once left every participant <c>Pending</c> until somebody ended a turn. It no
+    /// longer does: a Game is marked in progress in the same transaction that opens its first Turn. Reaching here with no current turn is therefore a broken invariant rather than a new Game - and
+    /// the step could not be recorded in any case, with no Turn to stamp it with.
     /// </para>
     /// <para>
-    /// The rule is therefore applied wherever the data can answer it and skipped, loudly, where it cannot. Once the turn queue is started at setup
-    /// (TM-3 territory) the "no current turn" branch becomes dead and should be replaced with a refusal.
+    /// A current turn with no open <c>PlayerTurn</c> row is refused for the same reason, and logged as an error, since every Turn is opened before its start-of-turn pipeline runs.
     /// </para>
     /// </remarks>
-    /// <returns><see langword="null"/> when the step may proceed; otherwise the failure to answer with.</returns>
-    private async Task<ServiceResult<StepForceResult>?> ValidateItIsThisPlayersTurnAsync(StepForceRequest request, CancellationToken cancelToken)
+    /// <returns>The open Turn's id and no refusal when the step may proceed; otherwise the failure to answer with, alongside an id that means nothing.</returns>
+    private async Task<(int PlayerTurnId, ServiceResult<StepForceResult>? Refusal)> ValidateItIsThisPlayersTurnAsync(StepForceRequest request, CancellationToken cancelToken)
     {
         ServiceResult<CurrentCampaignTurn> turnResult = await campaignTurnService.GetCurrentCampaignTurnAsync(request.GameId, cancelToken);
 
         if (turnResult.HasSucceeded == false || turnResult.SuccessValue is null)
         {
+            const string error = "No turn is in progress in this game, so no forces can move.";
             logger.LogWarning(
-                "No current campaign turn for Game Id {GameId}, so the turn check was skipped for the step by Player Id {PlayerId}. "
-                + "The turn queue is not started until a turn is ended.",
+                "No current campaign turn for Game Id {GameId}, so the step by Player Id {PlayerId} was refused. Errors: {Errors}",
                 request.GameId,
-                request.PlayerId);
+                request.PlayerId,
+                string.Join("; ", turnResult.Errors));
 
-            return null;
+            return (0, ServiceResult<StepForceResult>.Fail(error));
         }
 
-        if (turnResult.SuccessValue.PlayerId != request.PlayerId)
+        CurrentCampaignTurn currentTurn = turnResult.SuccessValue;
+
+        if (currentTurn.PlayerId != request.PlayerId)
         {
-            string error = $"It is {turnResult.SuccessValue.FactionName}'s turn, so your forces cannot move yet.";
+            string error = $"It is {currentTurn.FactionName}'s turn, so your forces cannot move yet.";
             logger.LogInformation(
                 "Player Id {PlayerId} tried to step a Force during Player Id {CurrentPlayerId}'s turn in Game Id {GameId}.",
                 request.PlayerId,
-                turnResult.SuccessValue.PlayerId,
+                currentTurn.PlayerId,
                 request.GameId);
 
-            return ServiceResult<StepForceResult>.Forbidden(error);
+            return (0, ServiceResult<StepForceResult>.Forbidden(error));
         }
 
-        return null;
+        if (currentTurn.PlayerTurnId is not int playerTurnId)
+        {
+            const string error = "Your turn has not been opened properly, so the step cannot be recorded.";
+            logger.LogError(
+                "Game Id {GameId} has a current campaign turn for Player Id {PlayerId} but no open Player Turn to record a step against.",
+                request.GameId,
+                request.PlayerId);
+
+            return (0, ServiceResult<StepForceResult>.Fail(error));
+        }
+
+        return (playerTurnId, null);
     }
 
     /// <summary>

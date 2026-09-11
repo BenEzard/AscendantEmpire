@@ -62,6 +62,7 @@ internal sealed class GameDeleteExecutor(
     /// </remarks>
     private static readonly string[] _IDENTITY_TABLES_TO_RESEED =
     [
+        "[units].[MovementHistory]",
         "[units].[ForceOrderParticipants]",
         "[units].[ForceOrderMovementSteps]",
         "[units].[ForceOrders]",
@@ -192,6 +193,12 @@ internal sealed class GameDeleteExecutor(
 
             ("force orders", () => purge.ForceOrders
                 .Where(o => o.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            // Movement history names tiles, players, templates and player turns, so it goes before every one of them. It carries its own GameId and so needs no scoping through a parent. Its
+            // UnitInstanceId is deliberately not a foreign key, so its place relative to the units themselves does not matter to the database.
+            ("movement history", () => purge.MovementHistory
+                .Where(h => h.GameId == gameId)
                 .ExecuteDeleteAsync(cancellationToken)),
 
             // Units carry a CommandId, so they go before the commands.

@@ -11,6 +11,7 @@ using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Entities.Util;
+using AscendantEmpire.Domain.Enums.Forces;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -129,6 +130,11 @@ public class AscendantEmpireContext : DbContext
     public DbSet<ForceOrder> ForceOrders { get; set; }
     public DbSet<ForceOrderMovementStep> ForceOrderMovementSteps { get; set; }
     public DbSet<ForceOrderParticipant> ForceOrderParticipants { get; set; }
+
+    /// <summary>
+    /// The raw movement feed: one append-only row per Force created, moved or destroyed during a Turn. Written only through <c>IForceLifecycleWriter</c>.
+    /// </summary>
+    public DbSet<MovementHistory> MovementHistory { get; set; }
 
     #endregion
 
@@ -1079,6 +1085,72 @@ public class AscendantEmpireContext : DbContext
 
             entity.HasIndex(e => e.CommandId)
                 .HasFilter("[CommandId] IS NOT NULL");
+        });
+
+        // --- MovementHistory -------------------------------------------------------
+        // The raw movement feed of docs/design/intelligence-and-sightings.md, and the highest-volume table in that design. Append-only, so it carries no RowVersion.
+        modelBuilder.Entity<MovementHistory>(entity =>
+        {
+            // A Moved row says where the Force came from, and no other row does. Enforced by the database because the fold computes exit directions from it, and a Moved row without it would
+            // quietly compute no direction at all rather than fail.
+            entity.ToTable("MovementHistory", schema, table => table.HasCheckConstraint(
+                "CK_MovementHistory_FromTileOnlyWhenMoved",
+                $"([EventType] = {(int)ForceHistoryEventType.Moved} AND [FromCampaignMapTileId] IS NOT NULL) OR ([EventType] <> {(int)ForceHistoryEventType.Moved} AND [FromCampaignMapTileId] IS NULL)"));
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.EventType)
+                .HasConversion<int>()
+                .IsRequired();
+
+            // No navigations on either side of these. Nothing reads the feed through an entity graph, and a collection of every step a Force ever took is not something anyone should be able to
+            // Include by accident.
+            entity.HasOne<GameIndex>()
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MovementHistory_GameIndex_GameId");
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MovementHistory_Player_PlayerId");
+
+            entity.HasOne<UnitTemplate>()
+                .WithMany()
+                .HasForeignKey(e => e.UnitTemplateId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MovementHistory_UnitTemplate_UnitTemplateId");
+
+            entity.HasOne<CampaignMap>()
+                .WithMany()
+                .HasForeignKey(e => e.CampaignMapTileId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MovementHistory_CampaignMap_CampaignMapTileId");
+
+            entity.HasOne<CampaignMap>()
+                .WithMany()
+                .HasForeignKey(e => e.FromCampaignMapTileId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MovementHistory_CampaignMap_FromCampaignMapTileId");
+
+            entity.HasOne<PlayerTurn>()
+                .WithMany()
+                .HasForeignKey(e => e.PlayerTurnId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MovementHistory_PlayerTurn_PlayerTurnId");
+
+            // Deliberately no relationship for UnitInstanceId. A destroyed Force is hard-deleted before the end-of-turn fold reads its rows, and a foreign key would either block that delete or
+            // clear the column the fold groups a Force's path by. See the property's remarks.
+
+            // Every row of one Turn, in order - the shape the end-of-turn fold reads the table in.
+            entity.HasIndex(e => new { e.PlayerTurnId, e.TurnSequence })
+                .HasDatabaseName("IX_MovementHistory_Turn_Sequence");
+
+            // One Force's path through a Turn, in order - the shape tracks are folded from.
+            entity.HasIndex(e => new { e.UnitInstanceId, e.PlayerTurnId, e.TurnSequence })
+                .HasDatabaseName("IX_MovementHistory_Unit_Turn_Sequence");
         });
 
         // --- Commands --------------------------------------------------------------

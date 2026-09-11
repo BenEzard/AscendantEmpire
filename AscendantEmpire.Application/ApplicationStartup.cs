@@ -17,6 +17,7 @@ using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndRound;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndTurn;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.StartTurn;
+using AscendantEmpire.Application.Features.Units.Services;
 
 using AscendantEmpire.Application.Common.Behaviours;
 using AscendantEmpire.Application.Common.Messaging;
@@ -55,6 +56,10 @@ public static class ApplicationStartup
         // Opens and closes PlayerTurn rows, and hands out the sequence numbers the raw activity feeds order themselves by. Lane-agnostic, so the Battle
         // pipeline can use it unchanged once it exists.
         services.AddScoped<IPlayerTurnService, PlayerTurnService>();
+
+        // The single writer for where a Force stands and whether it exists. Every create, move and destroy goes through it so that each one is recorded in MovementHistory, stamped with a
+        // sequence from the Turn it happened in.
+        services.AddScoped<IForceLifecycleWriter, ForceLifecycleWriter>();
 
         services.AddScoped<ICampaignMapGalleryService, CampaignMapGalleryService>();
         services.AddScoped<IGameSetupService, GameSetupService>();

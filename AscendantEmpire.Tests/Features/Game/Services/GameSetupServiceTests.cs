@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
+using AscendantEmpire.Application.Features.Units.Services;
 using AscendantEmpire.Domain.Enums.Maps;
 
 using FluentAssertions;
@@ -32,7 +33,7 @@ public partial class GameSetupServiceTests
         _logger = NullLogger<GameSetupService>.Instance;
         _dbFactory = Substitute.For<IDbContextFactory<AscendantEmpireContext>>();
         _campaignMapGalleryService = Substitute.For<ICampaignMapGalleryService>();
-        _service = new GameSetupService(_logger, _dbFactory, _campaignMapGalleryService);
+        _service = new GameSetupService(_logger, _dbFactory, _campaignMapGalleryService, Substitute.For<IForceLifecycleWriter>());
     }
 
     /// <summary>
