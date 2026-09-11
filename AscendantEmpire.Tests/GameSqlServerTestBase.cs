@@ -9,6 +9,7 @@ using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Enums.Games;
 using AscendantEmpire.Domain.Enums.Maps;
+using AscendantEmpire.Domain.Enums.Turns;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 
 using Microsoft.EntityFrameworkCore;
@@ -424,5 +425,41 @@ public class GameSqlServerTestBase : SqlServerTestBase
         await ctx.GameIndex
             .Where(g => g.Id == gameId)
             .ExecuteUpdateAsync(setters => setters.SetProperty(g => g.PlayStatus, GamePlayStatus.InProgress));
+    }
+
+    /// <summary>
+    /// Opens the first Player's Turn in a Game's campaign lane, on the Round its Queue is currently on, and returns the new Turn's id.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="StartGameAsync"/> only changes the play status, so a Game started through it has a Turn Queue but no Player Turn. Play never reaches that state - a Game goes in progress in
+    /// the same transaction that opens its first Turn - and anything that stamps its writes with a Turn, such as the Player's campaign map read, refuses a Game without one.
+    /// </para>
+    /// <para>
+    /// Kept apart from <see cref="StartGameAsync"/> rather than folded into it, because some fixtures rely on there being no open Turn: with none, a spawn places its Unit without writing any
+    /// movement history.
+    /// </para>
+    /// </remarks>
+    public async Task<int> OpenFirstPlayerTurnAsync(int gameId)
+    {
+        await using AscendantEmpireContext ctx = await DbFactory.CreateDbContextAsync();
+
+        // The Game's own campaign lane rather than a battle's, and the Round game setup left it on, so the Turn agrees with its Queue.
+        var campaignQueue = await ctx.TurnQueues
+            .Where(q => q.GameId == gameId && q.QueueType == TurnQueueType.Campaign && q.BattleId == null)
+            .Select(q => new { q.Id, q.CurrentRoundNumber })
+            .SingleAsync();
+
+        int firstPlayerId = await ctx.Players.Where(p => p.GameId == gameId).OrderBy(p => p.Id).Select(p => p.Id).FirstAsync();
+
+        // The real service, so the row is exactly the one play would open.
+        var playerTurnService = new PlayerTurnService(NullLogger<PlayerTurnService>.Instance, DbFactory);
+
+        ServiceResultBase.ServiceResult<int> result = await playerTurnService.OpenPlayerTurnAsync(ctx, campaignQueue.Id, firstPlayerId, campaignQueue.CurrentRoundNumber);
+
+        // Failing here names the real problem, rather than leaving a later read to fail with a refusal about a missing Turn.
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        return result.SuccessValue;
     }
 }

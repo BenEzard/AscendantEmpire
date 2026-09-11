@@ -6,6 +6,7 @@ using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Handlers;
 using AscendantEmpire.Application.Features.Players.Handlers;
+using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
@@ -15,6 +16,7 @@ using AscendantEmpire.Domain.Enums.Maps;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AscendantEmpire.Tests.Features.Maps.CampaignMaps;
 
@@ -59,10 +61,12 @@ internal class PlayerCampaignMapExplorationTests : GameSqlServerTestBase
         // GetGameContextHandler delegates its query to IGameContextService, which AddMediator does not register, so that goes in by hand.
         // The movement domain strategies likewise: the map read asks them what a blinded Observer could not have walked onto. They arrive as an
         // IEnumerable, so leaving them out gives the handler an empty set rather than a resolution failure — it would silently reveal nothing.
+        // The real turn service, because the map read stamps what the Player saw with a Turn it resolves through it; a substitute would hand back a Turn id no row has.
         ServiceProvider provider = new ServiceCollection()
             .AddSingleton(DbFactory)
             .AddScoped(_ => DbFactory.CreateDbContext())
             .AddScoped<IGameContextService, GameContextService>()
+            .AddSingleton<ICampaignTurnService>(new CampaignTurnService(NullLogger<CampaignTurnService>.Instance, DbFactory))
             .AddScoped<IMovementDomainStrategy, LandMovementStrategy>()
             .AddScoped<IMovementDomainStrategy, WaterMovementStrategy>()
             .AddScoped<IMovementDomainStrategy, BelowWaterMovementStrategy>()
@@ -94,6 +98,9 @@ internal class PlayerCampaignMapExplorationTests : GameSqlServerTestBase
         // Setup leaves the Game waiting for its slots to be claimed. These tests are about what happens *during* a Game, and the queries
         // they exercise only look at Games in progress, so start it rather than claiming seats that are beside the point here.
         await StartGameAsync(result.SuccessValue);
+
+        // The map read stamps what the Player saw with a Turn and refuses a Game that has none, so open the first Player's Turn as play would have.
+        await OpenFirstPlayerTurnAsync(result.SuccessValue);
 
         return result.SuccessValue;
     }

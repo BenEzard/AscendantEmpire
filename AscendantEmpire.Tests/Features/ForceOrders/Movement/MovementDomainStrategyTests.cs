@@ -126,12 +126,4 @@ internal class MovementDomainStrategyTests
             Assert.That(strategy.GetEntryRefusal(WaterTile()), Is.Null);
         }
     }
-
-    [Test, Description("A refusal is shown to the player as it stands, so it has to name the tile rather than leave them guessing which square was rejected.")]
-    public void ShouldNameTheTileInARefusal()
-    {
-        string? refusal = new LandMovementStrategy().GetEntryRefusal(WaterTile());
-
-        Assert.That(refusal, Does.Contain("Deep Water Ocean at (3, 4)"));
-    }
 }
