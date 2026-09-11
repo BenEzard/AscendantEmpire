@@ -1,6 +1,7 @@
 using AscendantEmpire.Application.Features.ForceOrders.Movement;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.BackendContracts.Games.GetGameContext;
+using AscendantEmpire.Domain.Enums.Maps;
 
 namespace AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 
@@ -51,10 +52,39 @@ internal sealed record CampaignMapGeometry(int CampaignMapOffsetId, int Width, i
     }
 
     /// <summary>
+    /// The coordinate of the world-map tile with id <paramref name="campaignMapId"/> — the inverse of <see cref="GetCampaignMapId"/>.
+    /// </summary>
+    /// <remarks>
+    /// Pure arithmetic over the row-major layout, so a read that only holds tile ids can place them without joining the map table. The id must belong to this Game's block.
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">The id falls outside this Game's block of tile ids.</exception>
+    internal Coord GetCoord(int campaignMapId)
+    {
+        int positionInBlock = campaignMapId - CampaignMapOffsetId;
+
+        // Refused rather than wrapped: an id from another Game's block would otherwise land on a plausible-looking tile of this one.
+        if (positionInBlock < 0 || positionInBlock >= Width * Height)
+        {
+            throw new ArgumentOutOfRangeException(nameof(campaignMapId), campaignMapId, $"Tile id {campaignMapId} is not on a {Width} x {Height} map starting at id {CampaignMapOffsetId}.");
+        }
+
+        return new Coord(positionInBlock % Width, positionInBlock / Width);
+    }
+
+    /// <summary>
     /// How many tiles apart two coordinates are, taking the shorter way round any edge that wraps.
     /// </summary>
     internal int GetDistance(Coord from, Coord to)
     {
         return MapDirections.GetDistance(from, to, Width, Height, WrapsHorizontally, WrapsVertically);
+    }
+
+    /// <summary>
+    /// The direction of a single step between two adjacent tiles, taking the shorter way round any edge that wraps.
+    /// </summary>
+    /// <returns><see langword="false"/> when the tiles are not neighbours, or are the same tile.</returns>
+    internal bool TryGetStepDirection(Coord from, Coord to, out MoveDirection direction)
+    {
+        return MapDirections.TryGetStepDirection(from, to, Width, Height, WrapsHorizontally, WrapsVertically, out direction);
     }
 }

@@ -8,9 +8,12 @@ using AscendantEmpire.Domain.Entities.Identity;
 using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
+using AscendantEmpire.Domain.Enums;
 using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.Domain.Enums.Forces;
 using AscendantEmpire.Domain.Enums.Games;
+using AscendantEmpire.Domain.Enums.Intelligence;
+using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Processing;
 using AscendantEmpire.Domain.Enums.System;
 using AscendantEmpire.Domain.Enums.Turns;
@@ -85,6 +88,26 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
         {
             Assert.That(job.Status, Is.EqualTo(ProcessingStatus.Complete), job.ErrorMessage);
             Assert.That(await context.MovementHistory.AnyAsync(h => h.GameId == gameId), Is.False);
+        }
+    }
+
+    [Test, Description("Sighting reports, their paths and known Forces go with their game, and before the turns, tiles, templates and players they name.")]
+    public async Task ShouldRemoveTheGamesSightingReportsAndKnownForcesWhenItIsDeletedAsync()
+    {
+        int gameId = await SetupGameAsync("Doomed");
+
+        await SeedSightingsAsync(gameId);
+
+        Processing job = await ExecuteDeleteAsync(gameId);
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(job.Status, Is.EqualTo(ProcessingStatus.Complete), job.ErrorMessage);
+            Assert.That(await context.PlayerReports.AnyAsync(r => r.GameId == gameId), Is.False);
+            Assert.That(await context.PlayerReportPathTiles.AnyAsync(), Is.False, "The only reports in the database belonged to the deleted game.");
+            Assert.That(await context.PlayerKnownForces.AnyAsync(k => k.GameId == gameId), Is.False);
         }
     }
 
@@ -368,6 +391,70 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
                 PlayerTurnId = turn.Id,
                 TurnSequence = 2
             });
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Opens a Turn and records one sighting of a starting Unit by the other player: a report with a path tile, and a known Force.
+    /// </summary>
+    /// <remarks>
+    /// Written straight to the tables rather than through the sightings step, for the same reason as <see cref="SeedMovementHistoryAsync"/>: this fixture is about the purge reaching the rows.
+    /// </remarks>
+    private async Task SeedSightingsAsync(int gameId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        TurnQueue campaignQueue = await context.TurnQueues.SingleAsync(q => q.GameId == gameId && q.QueueType == TurnQueueType.Campaign && q.BattleId == null);
+        UnitInstance unit = await context.UnitInstances.Where(u => u.GameId == gameId).OrderBy(u => u.Id).FirstAsync();
+        int watcherId = await context.Players.Where(p => p.GameId == gameId && p.Id != unit.PlayerId).Select(p => p.Id).FirstAsync();
+
+        var turn = new PlayerTurn
+        {
+            TurnQueueId = campaignQueue.Id,
+            PlayerId = unit.PlayerId,
+            RoundNumber = campaignQueue.CurrentRoundNumber,
+            StartedAt = DateTimeOffset.UtcNow
+        };
+
+        context.PlayerTurns.Add(turn);
+        await context.SaveChangesAsync();
+
+        context.PlayerReports.Add(new PlayerReport
+        {
+            GameId = gameId,
+            RecipientPlayerId = watcherId,
+            RaisedDuringPlayerTurnId = turn.Id,
+            ReportType = PlayerReportType.ForceSighted,
+            SubjectUnitInstanceId = unit.Id,
+            SubjectOwnerPlayerId = unit.PlayerId,
+            SubjectUnitTemplateId = unit.UnitTemplateId,
+            Fidelity = SightingFidelity.Detail,
+            FirstCampaignMapTileId = unit.CampaignMapTileId,
+            LastCampaignMapTileId = unit.CampaignMapTileId,
+            FirstTurnSequence = 1,
+            LastTurnSequence = 1,
+            StillVisible = true,
+            FirstWitnessId = 1,
+            FirstWitnessRecordType = RecordType.Unit,
+            FirstWitnessOwnerPlayerId = watcherId,
+            PathTiles = [new PlayerReportPathTile { Ordinal = 0, CampaignMapTileId = unit.CampaignMapTileId }]
+        });
+
+        context.PlayerKnownForces.Add(new PlayerKnownForce
+        {
+            GameId = gameId,
+            PlayerId = watcherId,
+            UnitInstanceId = unit.Id,
+            OwnerPlayerId = unit.PlayerId,
+            UnitTemplateId = unit.UnitTemplateId,
+            Status = KnownForceStatus.Sighted,
+            Fidelity = SightingFidelity.Detail,
+            LastSeenCampaignMapTileId = unit.CampaignMapTileId,
+            LastSeenPlayerTurnId = turn.Id,
+            LastSeenTurnSequence = 1,
+            StillVisible = true
+        });
 
         await context.SaveChangesAsync();
     }

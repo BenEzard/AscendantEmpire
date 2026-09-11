@@ -7,7 +7,7 @@ when their turn opens.
 > versus ground currently watched — see [Fog of War](../fog-of-war.md). For the sight and detection
 > rules themselves, see [Vision on the campaign map](campaign-map.md#vision-on-the-campaign-map).
 >
-> **Status: proposed.** The `turns.PlayerTurn` foundation landed in F-21, `units.MovementHistory` with its single writer in F-22, and the witness service with its coalition seam in F-23; nothing else described here is built. Existing entities are called out where the design leans on them.
+> **Status: partly built.** The `turns.PlayerTurn` foundation landed in F-21, `units.MovementHistory` with its single writer in F-22, the witness service with its coalition seam in F-23, and the Forces producer in F-24: tracks, `game.PlayerReport`, `game.PlayerKnownForce`, the redaction layer and the two read endpoints. The fidelity curve (F-31), the structure and combat producers, and the client's feed and map markers are not built yet. Existing entities are called out where the design leans on them.
 
 ---
 
@@ -196,6 +196,8 @@ Sightings therefore hold a **nullable** reference to the Unit with no cascade de
 denormalised snapshot of what was perceived. Intelligence about a Force that no longer exists is
 still intelligence — and knowing you watched something die is among the most valuable kinds.
 
+As built in F-24, the reference is a plain column rather than a foreign key, on both `PlayerReport.SubjectUnitInstanceId` and `PlayerKnownForce.UnitInstanceId`. The reason is the same as for `MovementHistory.UnitInstanceId`: a destroyed Force is hard-deleted, so a NoAction foreign key would block the delete and a SetNull one would erase which Force the row is about. The report column is nullable only because structure and combat reports will have no Force.
+
 ---
 
 ## Tracks
@@ -205,6 +207,10 @@ maximal contiguous run of sequences during which it was visible to the coalition
 
 For each coalition, take the subsequence of the Force's steps that the witness service says they
 could see, then split it wherever the sequence is not contiguous. Each resulting run carries:
+
+> As built in F-24, "contiguous" means consecutive steps **of that Force**, not consecutive `TurnSequence` values. Every Force in a Turn draws from the one counter, so a Force watched the whole way still has gaps in its own sequence numbers, and splitting on them would cut every track apart.
+>
+> When a Force's first row in the Turn is a move, the tile it stepped off becomes an extra **origin step** at sequence 0. Without it, a Force parked in a Player's view since last Round that leaves this Turn would never be reported, and that Player could never be told which way it went.
 
 | Field | Meaning |
 | --- | --- |
@@ -245,6 +251,8 @@ allowed to be stale; it is not allowed to be omniscient.
 Tracks per Force, per coalition, per turn are capped — three is a reasonable starting figure — so that
 a scout circling a watchtower cannot flood the feed.
 
+As built, the cap is three and keeps the first two tracks and the last one, so the Force's final exit or still-visible state always survives. The known-Force row is refreshed from that last track, so the cap never makes a Player's memory stale.
+
 ---
 
 ## Fidelity
@@ -281,6 +289,8 @@ layer**. That layer is security-relevant: a leak there hands a player the identi
 only glimpsed. It gets its own tests, testing the redaction directly rather than testing it through a
 handler.
 
+As built in F-24, that layer is `SightingDisclosure`, and both reads go through it. Movement discloses where and when: the path, heading, still-visible, appeared and destroyed. Type adds the template, Owner adds the owner and the Force's id, and Detail adds its strength. A fidelity that is not a defined level discloses nothing about the subject. A known Force's row id is never sent, because a stable id would link sightings of one Force whatever fidelity they earned. Two questions are left to the curve task, F-31, since neither can arise while every sighting is Detail: templates are player-owned, so a template at Type can give the owner away; and it is not yet decided how a low-fidelity sighting should update a known Force that was identified earlier.
+
 ---
 
 ## Reports
@@ -308,6 +318,8 @@ That makes first-class `turns.PlayerTurn` load-bearing rather than merely tidy �
 thing that can answer the question. It also means a player who reads their feed, leaves, and returns
 mid-round sees the same list again, which is accepted.
 
+As built, the window is the reports raised during Turns after the reader's most recent **ended** Campaign Turn, compared by Turn id. No report is ever raised for a Player during their own Turn, so this gives the same reports as "since my last turn began". It is measured from the ended Turn because, while a Player is taking their Turn, their most recent Turn is the open one, and a window starting there would hide everything raised since their previous Turn. A Player who has never finished a Turn sees every report raised for them.
+
 ### Delivery
 
 Reports are raised at the end of the *acting* player's turn, so they exist as soon as they are true —
@@ -316,6 +328,8 @@ a player planning moves mid-round sees fresh intelligence without waiting for th
 They are *surfaced* when the recipient's turn opens, through the `AlertSentries` slot in the
 start-of-turn pipeline, which exists for exactly this and is currently a stub.
 `StartTurnNotificationsOrder.SentryAlerts` and `InformationCategory` are the matching scaffolding.
+
+**Changed in F-24.** Reports are raised by the `RaiseSightingReports` end-of-turn process, and surfaced by a read instead of by `AlertSentries`: `GET /intelligence/reports` for the feed and `GET /intelligence/known-forces` for the map layer, both taking the game and player from the game token. A start-of-turn process can only return an error string, so it has no way to show the player anything, and "reports since my last Turn" needs no work at turn start. `AlertSentries` stays a stub, for its own open question below: whether Forces on a sentry stance get a bonus.
 
 ---
 
@@ -340,6 +354,8 @@ last-known-position marker on the map, ageing visibly, is a thing a player can p
 
 `PlayerKnownStructure.ObservedCompletionPercent` is already the right shape for a fidelity-gated
 snapshot, and stops being dead weight the moment the structure producer exists.
+
+**`game.PlayerKnownForce` landed in F-24.** There is one row per Player per Force, upserted by the sightings step from the last track that Player's coalition saw. A sighting replaces the row only when it is at least as recent, compared on Turn id and then sequence, so an older Turn never rolls a memory back, and re-running the same Turn replaces the row with itself. `PlayerKnownStructure` is still unused; it waits for the structure producer.
 
 ---
 
@@ -407,7 +423,7 @@ removing it.
 | Phase | What happens |
 | --- | --- |
 | During a player's turn | Producers append raw rows, each stamped with the turn and a sequence from the turn's counter. |
-| End of campaign turn, last | The fold: witness service over the raw rows, then reports and known-object rows written. Placed after attrition, so a Force destroyed by hostile terrain is still reported as seen. |
+| End of campaign turn, last | The fold: witness service over the raw rows, then reports and known-object rows written. Placed after attrition, so a Force destroyed by hostile terrain is still reported as seen. As built, this is `RaiseSightingReports` over `IForceSightingFoldService`. If it fails, the Turn does not end, because ending it would lose those sightings for good. It is idempotent (a re-run replaces the Turn's reports in one transaction), so retrying is safe. |
 | End of battle turn | The same fold, for the combat producer only. |
 | Start of the recipient's turn | `AlertSentries` surfaces the feed. |
 

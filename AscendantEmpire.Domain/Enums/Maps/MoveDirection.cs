@@ -12,6 +12,9 @@ namespace AscendantEmpire.Domain.Enums.Maps;
 /// A single-tile step is expressed as a direction rather than a destination coordinate so the server, which already knows where the Force stands,
 /// owns the neighbour and wrapping arithmetic. See <c>MapDirections</c> for the deltas.
 /// </para>
+/// <para>
+/// <b>Persisted</b>, as the exit direction on <c>PlayerReport</c> and <c>PlayerKnownForce</c>, so a member may be renamed but never reordered or renumbered.
+/// </para>
 /// </remarks>
 public enum MoveDirection
 {

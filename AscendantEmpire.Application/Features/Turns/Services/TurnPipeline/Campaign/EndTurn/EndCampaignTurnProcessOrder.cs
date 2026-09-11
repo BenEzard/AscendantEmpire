@@ -21,6 +21,13 @@ internal enum EndCampaignTurnProcessOrder
     /// <summary>Forces dig in where they stand.</summary>
     Fortifying = 30000,
 
-    /// <summary>Attrition is applied last, judged on everything the Force did this Turn — fortifying included.</summary>
+    /// <summary>Attrition is applied, judged on everything the Force did this Turn — fortifying included.</summary>
     EvaluateForceOnHostileTerrain = 40000,
+
+    /// <summary>What other Players watched during the Turn is written down last of all.</summary>
+    /// <remarks>
+    /// Deliberately after <see cref="EvaluateForceOnHostileTerrain"/>. A Force seen at sequence 3 and then destroyed by attrition was still seen, and its history rows survive the delete, so it is
+    /// reported - and the reports see every destruction the Turn is going to have.
+    /// </remarks>
+    RaiseSightingReports = 50000,
 }

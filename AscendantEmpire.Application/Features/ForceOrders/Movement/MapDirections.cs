@@ -164,6 +164,54 @@ internal static class MapDirections
     }
 
     /// <summary>
+    /// Works out which of the eight directions leads from one tile to an adjacent one, taking the shorter way round any edge that wraps.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The inverse of <see cref="TryGetNeighbour"/>, and built on the same delta table and <see cref="GetAxisDelta"/>, so a step and its direction can never disagree. The intelligence fold
+    /// uses it for the direction a watched Force left in.
+    /// </para>
+    /// <para>
+    /// A "try" rather than a throw: a pair that is not adjacent is a history the fold cannot name a direction for, and that is reported as no direction rather than as a failure that would stop a
+    /// Turn from ending.
+    /// </para>
+    /// </remarks>
+    /// <param name="from">The tile stepped off, already on the map.</param>
+    /// <param name="to">The tile stepped onto, already on the map.</param>
+    /// <param name="mapWidth">The map's width in tiles.</param>
+    /// <param name="mapHeight">The map's height in tiles.</param>
+    /// <param name="direction">The direction of the step, or <see cref="MoveDirection.North"/> when there is none.</param>
+    /// <returns><see langword="false"/> when the tiles are not neighbours, including when they are the same tile.</returns>
+    internal static bool TryGetStepDirection(
+        Coord from,
+        Coord to,
+        int mapWidth,
+        int mapHeight,
+        bool wrapsHorizontally,
+        bool wrapsVertically,
+        out MoveDirection direction)
+    {
+        ArgumentNullException.ThrowIfNull(from);
+        ArgumentNullException.ThrowIfNull(to);
+
+        int deltaX = GetAxisDelta(from.X, to.X, mapWidth, wrapsHorizontally);
+        int deltaY = GetAxisDelta(from.Y, to.Y, mapHeight, wrapsVertically);
+
+        foreach ((MoveDirection candidate, (int DeltaX, int DeltaY) candidateDelta) in _DELTAS_BY_DIRECTION)
+        {
+            if (candidateDelta.DeltaX == deltaX && candidateDelta.DeltaY == deltaY)
+            {
+                direction = candidate;
+                return true;
+            }
+        }
+
+        // Not one of the eight single steps - the same tile, or further away than one step.
+        direction = default;
+        return false;
+    }
+
+    /// <summary>
     /// The signed step count from <paramref name="from"/> to <paramref name="to"/> along one axis, going the shorter way round when that axis wraps.
     /// </summary>
     /// <remarks>

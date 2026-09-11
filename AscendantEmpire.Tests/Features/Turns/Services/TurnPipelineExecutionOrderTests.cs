@@ -1,4 +1,5 @@
 ﻿using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Intelligence.Services;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions.Checks;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline;
@@ -39,7 +40,13 @@ public class TurnPipelineExecutionOrderTests
     // ── the pipelines under test ──────────────────────────────────────────────
 
     private static IPipelineProcess[] EndCampaignTurnProcesses() =>
-        [new Gathering(), new BuildingStructure(), new Fortifying(), new EvaluateForceOnHostileTerrain()];
+    [
+        new Gathering(),
+        new BuildingStructure(),
+        new Fortifying(),
+        new EvaluateForceOnHostileTerrain(),
+        new RaiseSightingReports(Substitute.For<IForceSightingFoldService>(), NullLogger<RaiseSightingReports>.Instance)
+    ];
 
     private IPipelineProcess[] EndCampaignRoundProcesses() =>
         [new HealTroops(_dbFactory), new EvaluateVictoryConditions()];
@@ -55,12 +62,22 @@ public class TurnPipelineExecutionOrderTests
 
     // ── declared run order ────────────────────────────────────────────────────
 
-    [Test, Description("Ending a turn gathers, builds and fortifies before attrition is judged on what the Force did with the turn.")]
+    [Test, Description("Ending a turn gathers, builds and fortifies before attrition is judged on what the Force did with the turn, and writes down what others watched last of all.")]
     public void ShouldRunEndCampaignTurnProcessesInDeclaredOrder()
     {
-        string[] expected = ["Gathering", "Building Structure", "Fortifying", "Evaluate Force on Hostile Terrain"];
+        string[] expected = ["Gathering", "Building Structure", "Fortifying", "Evaluate Force on Hostile Terrain", "Raise Sighting Reports"];
 
         Assert.That(RunOrderOf(EndCampaignTurnProcesses()), Is.EqualTo(expected));
+    }
+
+    [Test, Description("Sightings are raised after attrition, so a Force seen and then destroyed by hostile terrain in the same Turn is still reported as seen.")]
+    public void ShouldRaiseSightingReportsAfterAttrition()
+    {
+        int attritionOrder = (int)EndCampaignTurnProcessOrder.EvaluateForceOnHostileTerrain;
+        int sightingsOrder = (int)EndCampaignTurnProcessOrder.RaiseSightingReports;
+
+        // Stated separately from the sequence assertion above, which is rewritten every time a process is inserted. This constraint is the reason the two values are where they are.
+        Assert.That(attritionOrder, Is.LessThan(sightingsOrder));
     }
 
     [Test, Description("Victory is judged last, on the state the rest of the end-of-round processing leaves behind.")]

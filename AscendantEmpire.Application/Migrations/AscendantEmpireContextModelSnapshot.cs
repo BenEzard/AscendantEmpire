@@ -401,6 +401,72 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("PlayerCampaignMap", "game");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerKnownForce", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ExitDirection")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Fidelity")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("HealthyTroops")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LastSeenCampaignMapTileId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LastSeenPlayerTurnId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LastSeenTurnSequence")
+                        .HasColumnType("int");
+
+                    b.Property<int>("OwnerPlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("StillVisible")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("UnitInstanceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UnitTemplateId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LastSeenCampaignMapTileId");
+
+                    b.HasIndex("LastSeenPlayerTurnId");
+
+                    b.HasIndex("OwnerPlayerId");
+
+                    b.HasIndex("PlayerId");
+
+                    b.HasIndex("UnitTemplateId");
+
+                    b.HasIndex("GameId", "PlayerId", "UnitInstanceId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_PlayerKnownForce_Game_Player_Unit");
+
+                    b.ToTable("PlayerKnownForce", "game");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerKnownStructure", b =>
                 {
                     b.Property<int>("Id")
@@ -446,6 +512,120 @@ namespace AscendantEmpire.Application.Migrations
                         .HasDatabaseName("UX_PlayerKnownStructures_Game_Player_Instance");
 
                     b.ToTable("PlayerKnownStructures", "game");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerReport", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("AppearedInView")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("DestroyedInView")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("ExitDirection")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Fidelity")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FirstCampaignMapTileId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FirstTurnSequence")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FirstWitnessId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FirstWitnessOwnerPlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FirstWitnessRecordType")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LastCampaignMapTileId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LastTurnSequence")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RaisedDuringPlayerTurnId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RecipientPlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ReportType")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("StillVisible")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("SubjectHealthyTroops")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SubjectOwnerPlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SubjectUnitInstanceId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SubjectUnitTemplateId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TrackOrdinal")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FirstCampaignMapTileId");
+
+                    b.HasIndex("FirstWitnessOwnerPlayerId");
+
+                    b.HasIndex("LastCampaignMapTileId");
+
+                    b.HasIndex("RecipientPlayerId");
+
+                    b.HasIndex("SubjectOwnerPlayerId");
+
+                    b.HasIndex("SubjectUnitTemplateId");
+
+                    b.HasIndex("GameId", "RecipientPlayerId", "RaisedDuringPlayerTurnId")
+                        .HasDatabaseName("IX_PlayerReport_Recipient_Turn");
+
+                    b.HasIndex("RaisedDuringPlayerTurnId", "RecipientPlayerId", "SubjectUnitInstanceId", "TrackOrdinal")
+                        .IsUnique()
+                        .HasDatabaseName("UX_PlayerReport_Turn_Recipient_Subject_Track")
+                        .HasFilter("[SubjectUnitInstanceId] IS NOT NULL");
+
+                    b.ToTable("PlayerReport", "game");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerReportPathTile", b =>
+                {
+                    b.Property<long>("PlayerReportId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Ordinal")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CampaignMapTileId")
+                        .HasColumnType("int");
+
+                    b.HasKey("PlayerReportId", "Ordinal");
+
+                    b.HasIndex("CampaignMapTileId");
+
+                    b.ToTable("PlayerReportPathTile", "game");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.StructureInstance", b =>
@@ -2688,6 +2868,51 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Player");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerKnownForce", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", null)
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerKnownForce_GameIndex_GameId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.CampaignMap", null)
+                        .WithMany()
+                        .HasForeignKey("LastSeenCampaignMapTileId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerKnownForce_CampaignMap_LastSeenCampaignMapTileId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Turns.PlayerTurn", null)
+                        .WithMany()
+                        .HasForeignKey("LastSeenPlayerTurnId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerKnownForce_PlayerTurn_LastSeenPlayerTurnId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerPlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerKnownForce_Player_OwnerPlayerId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", null)
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerKnownForce_Player_PlayerId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitTemplate", null)
+                        .WithMany()
+                        .HasForeignKey("UnitTemplateId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerKnownForce_UnitTemplate_UnitTemplateId");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerKnownStructure", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.Games.CampaignMap", "CampaignMap")
@@ -2724,6 +2949,82 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Player");
 
                     b.Navigation("StructureInstance");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerReport", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.CampaignMap", null)
+                        .WithMany()
+                        .HasForeignKey("FirstCampaignMapTileId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerReport_CampaignMap_FirstCampaignMapTileId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", null)
+                        .WithMany()
+                        .HasForeignKey("FirstWitnessOwnerPlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerReport_Player_FirstWitnessOwnerPlayerId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", null)
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerReport_GameIndex_GameId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.CampaignMap", null)
+                        .WithMany()
+                        .HasForeignKey("LastCampaignMapTileId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerReport_CampaignMap_LastCampaignMapTileId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Turns.PlayerTurn", null)
+                        .WithMany()
+                        .HasForeignKey("RaisedDuringPlayerTurnId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerReport_PlayerTurn_RaisedDuringPlayerTurnId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", null)
+                        .WithMany()
+                        .HasForeignKey("RecipientPlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerReport_Player_RecipientPlayerId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", null)
+                        .WithMany()
+                        .HasForeignKey("SubjectOwnerPlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_PlayerReport_Player_SubjectOwnerPlayerId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitTemplate", null)
+                        .WithMany()
+                        .HasForeignKey("SubjectUnitTemplateId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_PlayerReport_UnitTemplate_SubjectUnitTemplateId");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerReportPathTile", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.CampaignMap", null)
+                        .WithMany()
+                        .HasForeignKey("CampaignMapTileId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerReportPathTile_CampaignMap_CampaignMapTileId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.PlayerReport", "PlayerReport")
+                        .WithMany("PathTiles")
+                        .HasForeignKey("PlayerReportId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerReportPathTile_PlayerReport_PlayerReportId");
+
+                    b.Navigation("PlayerReport");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.StructureInstance", b =>
@@ -3519,6 +3820,11 @@ namespace AscendantEmpire.Application.Migrations
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.GameIndex", b =>
                 {
                     b.Navigation("Players");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerReport", b =>
+                {
+                    b.Navigation("PathTiles");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Identity.User", b =>

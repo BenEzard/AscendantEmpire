@@ -222,6 +222,51 @@ internal class MapDirectionsTests
         Assert.That(MapDirections.GetAxisDelta(from: 0, to: 3, size: 4, wraps), Is.EqualTo(expectedDelta));
     }
 
+    [Test, Description("Naming a step's direction is the inverse of taking the step, so an exit direction in a sighting report can never disagree with the move that made it.")]
+    [TestCase(MoveDirection.North)]
+    [TestCase(MoveDirection.NorthEast)]
+    [TestCase(MoveDirection.East)]
+    [TestCase(MoveDirection.SouthEast)]
+    [TestCase(MoveDirection.South)]
+    [TestCase(MoveDirection.SouthWest)]
+    [TestCase(MoveDirection.West)]
+    [TestCase(MoveDirection.NorthWest)]
+    public void ShouldNameTheDirectionOfEveryNeighbouringStep(MoveDirection direction)
+    {
+        (bool _, Coord? target) = StepWithoutWrapping(5, 4, direction);
+
+        bool found = MapDirections.TryGetStepDirection(new Coord(5, 4), target!, _MAP_WIDTH, _MAP_HEIGHT, wrapsHorizontally: false, wrapsVertically: false, out MoveDirection actual);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(found, Is.True);
+            Assert.That(actual, Is.EqualTo(direction));
+        }
+    }
+
+    [Test, Description("A step across a wrapped edge is still one tile, so leaving off the last column reads as East rather than as nine tiles west.")]
+    public void ShouldNameTheDirectionOfAStepAcrossAWrappedEdge()
+    {
+        bool found = MapDirections.TryGetStepDirection(new Coord(9, 4), new Coord(0, 4), _MAP_WIDTH, _MAP_HEIGHT, wrapsHorizontally: true, wrapsVertically: false, out MoveDirection actual);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(found, Is.True);
+            Assert.That(actual, Is.EqualTo(MoveDirection.East));
+        }
+    }
+
+    [Test, Description("Tiles that are not neighbours have no single-step direction, and say so rather than inventing one.")]
+    [TestCase(9, 4, Description = "A tile is not a step away from itself.")]
+    [TestCase(7, 4, Description = "Two tiles west is not a single step.")]
+    [TestCase(0, 4, Description = "Without wrapping, the far edge is the whole map away rather than one step east.")]
+    public void ShouldFindNoDirectionBetweenTilesThatAreNotNeighbours(int toX, int toY)
+    {
+        bool found = MapDirections.TryGetStepDirection(new Coord(9, 4), new Coord(toX, toY), _MAP_WIDTH, _MAP_HEIGHT, wrapsHorizontally: false, wrapsVertically: false, out _);
+
+        Assert.That(found, Is.False);
+    }
+
     [Test, Description("A direction outside the enum is a wiring fault, not a move to be refused, so it throws rather than reading as off-map.")]
     public void ShouldThrowForADirectionThatIsNotOneOfTheEight()
     {

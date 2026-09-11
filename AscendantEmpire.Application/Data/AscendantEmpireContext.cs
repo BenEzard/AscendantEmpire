@@ -87,6 +87,21 @@ public class AscendantEmpireContext : DbContext
 
     public DbSet<PlayerKnownStructure> PlayerStructures { get; set; }
     public DbSet<StructureInstance> StructureInstances { get; set; }
+
+    /// <summary>
+    /// The intelligence feed: one row per thing a Player learned while they were not looking. Raised by the end-of-turn sightings step.
+    /// </summary>
+    public DbSet<PlayerReport> PlayerReports { get; set; }
+
+    /// <summary>
+    /// The ordered tiles each <see cref="PlayerReport"/> saw its subject take.
+    /// </summary>
+    public DbSet<PlayerReportPathTile> PlayerReportPathTiles { get; set; }
+
+    /// <summary>
+    /// Each Player's last observed position and state for every Force they have watched.
+    /// </summary>
+    public DbSet<PlayerKnownForce> PlayerKnownForces { get; set; }
     #endregion
 
     #region Auth Schema
@@ -660,6 +675,152 @@ public class AscendantEmpireContext : DbContext
 
             entity.HasIndex(e => new { e.GameId, e.PlayerId, e.LastSeenOnTurnId })
                 .HasDatabaseName("IX_PlayerKnownStructures_Game_Player_LastSeen");
+        });
+
+        // --- PlayerReport --------------------------------------------------------------
+        // The intelligence feed of docs/design/intelligence-and-sightings.md. Written only by the end-of-turn sightings step, which replaces a Turn's reports wholesale when it re-runs.
+        modelBuilder.Entity<PlayerReport>(entity =>
+        {
+            entity.ToTable("PlayerReport", schema);
+
+            entity.HasKey(e => e.Id);
+
+            // No navigations to the referenced rows, the same as MovementHistory: nothing reads the feed through an entity graph.
+            entity.HasOne<GameIndex>()
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerReport_GameIndex_GameId");
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.RecipientPlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerReport_Player_RecipientPlayerId");
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.SubjectOwnerPlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerReport_Player_SubjectOwnerPlayerId");
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.FirstWitnessOwnerPlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerReport_Player_FirstWitnessOwnerPlayerId");
+
+            entity.HasOne<PlayerTurn>()
+                .WithMany()
+                .HasForeignKey(e => e.RaisedDuringPlayerTurnId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerReport_PlayerTurn_RaisedDuringPlayerTurnId");
+
+            entity.HasOne<UnitTemplate>()
+                .WithMany()
+                .HasForeignKey(e => e.SubjectUnitTemplateId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerReport_UnitTemplate_SubjectUnitTemplateId");
+
+            entity.HasOne<CampaignMap>()
+                .WithMany()
+                .HasForeignKey(e => e.FirstCampaignMapTileId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerReport_CampaignMap_FirstCampaignMapTileId");
+
+            entity.HasOne<CampaignMap>()
+                .WithMany()
+                .HasForeignKey(e => e.LastCampaignMapTileId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerReport_CampaignMap_LastCampaignMapTileId");
+
+            // Deliberately no relationship for SubjectUnitInstanceId. A destroyed Force is hard-deleted, and a foreign key would either block that delete or clear the column that says which Force
+            // the report is about. See the property's remarks.
+
+            // A backstop for the sightings step's idempotency: re-running a Turn replaces its reports rather than adding to them, and this makes a slip there fail loudly instead of doubling the
+            // feed. Filtered because a report with no Force subject has no track to be unique within.
+            entity.HasIndex(e => new { e.RaisedDuringPlayerTurnId, e.RecipientPlayerId, e.SubjectUnitInstanceId, e.TrackOrdinal })
+                .IsUnique()
+                .HasFilter("[SubjectUnitInstanceId] IS NOT NULL")
+                .HasDatabaseName("UX_PlayerReport_Turn_Recipient_Subject_Track");
+
+            // "My reports since my last Turn ended" - the shape the feed is read in.
+            entity.HasIndex(e => new { e.GameId, e.RecipientPlayerId, e.RaisedDuringPlayerTurnId })
+                .HasDatabaseName("IX_PlayerReport_Recipient_Turn");
+        });
+
+        // --- PlayerReportPathTile ------------------------------------------------------
+        modelBuilder.Entity<PlayerReportPathTile>(entity =>
+        {
+            entity.ToTable("PlayerReportPathTile", schema);
+
+            // Keyed on the report and the tile's position along its path, so a path cannot hold two tiles at one position.
+            entity.HasKey(e => new { e.PlayerReportId, e.Ordinal });
+
+            // NoAction rather than Cascade, like every other game-scoped relationship: the sightings step and the game purge both delete these before their reports, explicitly.
+            entity.HasOne(e => e.PlayerReport)
+                .WithMany(report => report.PathTiles)
+                .HasForeignKey(e => e.PlayerReportId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerReportPathTile_PlayerReport_PlayerReportId");
+
+            entity.HasOne<CampaignMap>()
+                .WithMany()
+                .HasForeignKey(e => e.CampaignMapTileId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerReportPathTile_CampaignMap_CampaignMapTileId");
+        });
+
+        // --- PlayerKnownForce ----------------------------------------------------------
+        // The sibling of PlayerKnownStructure: a Player's last-known position and state for a Force. Upserted by the sightings step, never deleted by play.
+        modelBuilder.Entity<PlayerKnownForce>(entity =>
+        {
+            entity.ToTable("PlayerKnownForce", schema);
+
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne<GameIndex>()
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerKnownForce_GameIndex_GameId");
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerKnownForce_Player_PlayerId");
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.OwnerPlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerKnownForce_Player_OwnerPlayerId");
+
+            entity.HasOne<UnitTemplate>()
+                .WithMany()
+                .HasForeignKey(e => e.UnitTemplateId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerKnownForce_UnitTemplate_UnitTemplateId");
+
+            entity.HasOne<CampaignMap>()
+                .WithMany()
+                .HasForeignKey(e => e.LastSeenCampaignMapTileId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerKnownForce_CampaignMap_LastSeenCampaignMapTileId");
+
+            entity.HasOne<PlayerTurn>()
+                .WithMany()
+                .HasForeignKey(e => e.LastSeenPlayerTurnId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerKnownForce_PlayerTurn_LastSeenPlayerTurnId");
+
+            // Deliberately no relationship for UnitInstanceId: the row has to outlive the Force it describes. See the property's remarks.
+
+            // One memory per Player per Force, which is what makes the sightings step an upsert.
+            entity.HasIndex(e => new { e.GameId, e.PlayerId, e.UnitInstanceId })
+                .IsUnique()
+                .HasDatabaseName("UX_PlayerKnownForce_Game_Player_Unit");
         });
 
         // --- StructureInstance ---------------------------------------------------------

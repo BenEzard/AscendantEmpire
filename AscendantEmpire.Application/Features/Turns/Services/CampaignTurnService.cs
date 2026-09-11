@@ -275,4 +275,19 @@ public class CampaignTurnService(
             .Select(t => (int?)t.Id)
             .FirstOrDefaultAsync(cancellationToken);
     }
+
+    /// <inheritdoc />
+    public async Task<int?> GetLastEndedOwnTurnIdAsync(AscendantEmpireContext context, int gameId, int playerId, CancellationToken cancellationToken = default)
+    {
+        // Ordered by Id rather than EndedAt, for the same reason as GetObservationTurnIdAsync: the identity is monotonic, and two Turns can share a timestamp where two ids never can.
+        return await context.PlayerTurns
+            .Where(t => t.TurnQueue.GameId == gameId)
+            .Where(t => t.TurnQueue.QueueType == TurnQueueType.Campaign)
+            .Where(t => t.TurnQueue.BattleId == null)
+            .Where(t => t.PlayerId == playerId)
+            .Where(t => t.EndedAt != null)
+            .OrderByDescending(t => t.Id)
+            .Select(t => (int?)t.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
 }

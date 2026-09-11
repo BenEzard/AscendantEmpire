@@ -79,4 +79,22 @@ public interface ICampaignTurnService
     /// </para>
     /// </remarks>
     Task<int?> GetOpenPlayerTurnIdAsync(AscendantEmpireContext context, int gameId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The id of the most recent Campaign Turn this Player has finished, or <see langword="null"/> when they have never finished one.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The start of the intelligence feed's window: a Player is shown the reports raised during Turns after this one. Nothing is ever raised for a Player during their own Turn, since they are the
+    /// one acting, so "since my last Turn ended" and the design's "since my last Turn began" describe the same reports.
+    /// </para>
+    /// <para>
+    /// A finished Turn rather than the most recent one, because while a Player is taking their Turn the most recent is the open one - and a window starting there would hide every report raised since
+    /// the Turn before it.
+    /// </para>
+    /// <para>
+    /// Reads through the caller's context.
+    /// </para>
+    /// </remarks>
+    Task<int?> GetLastEndedOwnTurnIdAsync(AscendantEmpireContext context, int gameId, int playerId, CancellationToken cancellationToken = default);
 }

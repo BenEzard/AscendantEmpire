@@ -68,6 +68,8 @@ internal sealed class GameDeleteExecutor(
         "[units].[ForceOrders]",
         "[units].[UnitInstances]",
         "[units].[Commands]",
+        "[game].[PlayerReport]",
+        "[game].[PlayerKnownForce]",
         "[game].[PlayerKnownStructures]",
         "[game].[StructureInstances]",
         "[turns].[PlayerTurn]",
@@ -199,6 +201,20 @@ internal sealed class GameDeleteExecutor(
             // UnitInstanceId is deliberately not a foreign key, so its place relative to the units themselves does not matter to the database.
             ("movement history", () => purge.MovementHistory
                 .Where(h => h.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            // The intelligence feed names tiles, players, templates and player turns just as movement history does, so it goes at the same point. Path tiles before their reports, since that
+            // relationship is NoAction too; like the history, neither table's Force id is a foreign key.
+            ("player report path tiles", () => purge.PlayerReportPathTiles
+                .Where(t => purge.PlayerReports.Any(r => r.GameId == gameId && r.Id == t.PlayerReportId))
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            ("player reports", () => purge.PlayerReports
+                .Where(r => r.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            ("player known forces", () => purge.PlayerKnownForces
+                .Where(k => k.GameId == gameId)
                 .ExecuteDeleteAsync(cancellationToken)),
 
             // Units carry a CommandId, so they go before the commands.

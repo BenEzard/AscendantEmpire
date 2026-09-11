@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.Application.Features.DatabaseSeeding.Executors;
 using AscendantEmpire.Application.Features.Game.Executors;
 using AscendantEmpire.Application.Features.Game.Services;
+using AscendantEmpire.Application.Features.Intelligence.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Executors;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
@@ -72,6 +73,10 @@ public static class ApplicationStartup
         // Which Players share vision. Every Player is a coalition of one until a foreign relations model exists to say otherwise.
         services.AddScoped<ICoalitionResolver, SoloCoalitionResolver>();
 
+        // The sightings step: folds a Turn's movement history through the witness service into reports and known-Force memories for the Players who watched. Run by the RaiseSightingReports
+        // end-of-turn process below.
+        services.AddScoped<IForceSightingFoldService, ForceSightingFoldService>();
+
         services.AddScoped<ICampaignMapGalleryService, CampaignMapGalleryService>();
         services.AddScoped<IGameSetupService, GameSetupService>();
         services.AddScoped<IGameContextService, GameContextService>();
@@ -117,6 +122,7 @@ public static class ApplicationStartup
         services.AddScoped<IEndCampaignTurnProcess, BuildingStructure>();
         services.AddScoped<IEndCampaignTurnProcess, Fortifying>();
         services.AddScoped<IEndCampaignTurnProcess, EvaluateForceOnHostileTerrain>();
+        services.AddScoped<IEndCampaignTurnProcess, RaiseSightingReports>();
 
         // End of a Campaign Round — runs once, after the last Player's turn in the Round.
         services.AddScoped<IEndCampaignRoundProcess, HealTroops>();
