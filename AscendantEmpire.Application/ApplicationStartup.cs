@@ -1,5 +1,6 @@
-﻿using AscendantEmpire.Application.BackgroundServices;
+using AscendantEmpire.Application.BackgroundServices;
 using AscendantEmpire.Application.Features.Authentication.Services;
+using AscendantEmpire.Application.Features.Battles.Services;
 using AscendantEmpire.Application.Features.DatabaseSeeding.Executors;
 using AscendantEmpire.Application.Features.Game.Executors;
 using AscendantEmpire.Application.Features.Game.Services;
@@ -67,6 +68,10 @@ public static class ApplicationStartup
         // Its Structure sibling: the single writer for founding, construction, capture and razing, recording each in StructureHistory against the same Turn counter. Nothing in play calls it yet.
         services.AddScoped<IStructureLifecycleWriter, StructureLifecycleWriter>();
 
+        // Its Battle sibling: the single writer for an engagement commencing, gaining or losing a side, and concluding, recording each in BattleHistory against the same Turn counter. Nothing in
+        // play calls it yet either - there is no combat subsystem at all.
+        services.AddScoped<IBattleLifecycleWriter, BattleLifecycleWriter>();
+
         // Campaign map vision. The sight rules themselves are pure (FieldOfView); these are the services around them. ISightDataReader holds every query the
         // rules need; IFieldOfViewService answers "what can these Observers see", for the live map read; IWitnessService answers the inverted question
         // intelligence asks, "who could see this tile at this point in the Turn", through the same field-of-view service so the two cannot drift apart.
@@ -83,6 +88,10 @@ public static class ApplicationStartup
 
         // Its Structure half: folds the Turn's structure history the same way into structure reports and known-Structure memories. Run by the same process, straight after the Force step.
         services.AddScoped<IStructureSightingFoldService, StructureSightingFoldService>();
+
+        // Its combat half: folds the Turn's battle history into combat reports, and no memories - an engagement is an event, not a thing to remember the position of. Run by the same process after
+        // the Structure step. A service rather than pipeline logic because the design gives it a second host, end of battle Turn, which is not built yet.
+        services.AddScoped<ICombatSightingFoldService, CombatSightingFoldService>();
 
         services.AddScoped<ICampaignMapGalleryService, CampaignMapGalleryService>();
         services.AddScoped<IGameSetupService, GameSetupService>();

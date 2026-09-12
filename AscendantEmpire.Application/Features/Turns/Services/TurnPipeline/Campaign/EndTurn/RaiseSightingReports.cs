@@ -10,21 +10,26 @@ namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campa
 /// </summary>
 /// <remarks>
 /// <para>
-/// The orchestration only: the work is <see cref="IForceSightingFoldService"/> and then <see cref="IStructureSightingFoldService"/>. Runs last, after attrition, so a Force destroyed by hostile
-/// terrain is still reported as seen. See "Where it runs" in <c>docs/design/intelligence-and-sightings.md</c>.
+/// The orchestration only: the work is <see cref="IForceSightingFoldService"/>, then <see cref="IStructureSightingFoldService"/>, then <see cref="ICombatSightingFoldService"/>. Runs last, after
+/// attrition, so a Force destroyed by hostile terrain is still reported as seen. See "Where it runs" in <c>docs/design/intelligence-and-sightings.md</c>.
 /// </para>
 /// <para>
-/// <b>A failure of either refuses the end of the Turn.</b> The pipeline stops at the first error and the Player can try again; both steps are idempotent, so the retry is safe. Ending the Turn
-/// anyway would lose the sightings for good, with nothing to raise them later.
+/// <b>A failure of any of them refuses the end of the Turn.</b> The pipeline stops at the first error and the Player can try again; all three steps are idempotent, so the retry is safe. Ending
+/// the Turn anyway would lose the sightings for good, with nothing to raise them later.
 /// </para>
 /// <para>
-/// Forces first, then Structures. The two write different report types and different memories, so the order decides nothing about the result - only which failure is reported when both would
-/// fail.
+/// Forces, then Structures, then engagements. Each writes a different report type, and only the first two write memories, so the order decides nothing about the result - only which failure is
+/// reported when more than one would fail.
+/// </para>
+/// <para>
+/// This is the <b>campaign</b> host. The combat fold has a second one in the design, end of battle Turn, since a battle may resolve outside any campaign Turn; that host does not exist yet, which
+/// is why the fold is a service rather than logic this process owns.
 /// </para>
 /// </remarks>
 internal class RaiseSightingReports(
     IForceSightingFoldService forceSightingFoldService,
     IStructureSightingFoldService structureSightingFoldService,
+    ICombatSightingFoldService combatSightingFoldService,
     ILogger<RaiseSightingReports> logger) : IEndCampaignTurnProcess
 {
     public string ItemName => "Raise Sighting Reports";
@@ -58,6 +63,16 @@ internal class RaiseSightingReports(
         if (structureResult.HasSucceeded == false)
         {
             string error = $"Structure sighting reports could not be raised for Player Turn Id {playerTurnId}, so the Turn has not ended. Errors: {string.Join("; ", structureResult.Errors)}";
+            logger.LogWarning("{Error}", error);
+
+            return error;
+        }
+
+        ServiceResultBase combatResult = await combatSightingFoldService.FoldTurnAsync(context.GameId, playerTurnId, playerId);
+
+        if (combatResult.HasSucceeded == false)
+        {
+            string error = $"Combat sighting reports could not be raised for Player Turn Id {playerTurnId}, so the Turn has not ended. Errors: {string.Join("; ", combatResult.Errors)}";
             logger.LogWarning("{Error}", error);
 
             return error;

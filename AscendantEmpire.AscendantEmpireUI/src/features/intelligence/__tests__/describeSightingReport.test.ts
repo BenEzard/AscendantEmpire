@@ -29,6 +29,11 @@ function report(overrides: Partial<SightingReport> = {}): SightingReport {
     structureId: null,
     previousOwnerPlayerId: null,
     completionPercent: null,
+    sideJoinedInView: null,
+    sideLeftInView: null,
+    battleId: null,
+    groundHeldByPlayerId: null,
+    troopsLost: null,
     ...overrides,
   };
 }
@@ -45,6 +50,23 @@ function structureReport(overrides: Partial<SightingReport> = {}): SightingRepor
     structureInstanceId: 60,
     structureId: 1,
     completionPercent: 30,
+    ...overrides,
+  });
+}
+
+/** A report about fighting at (4, 1) seen in full detail, with no event flagged unless a test flags one. */
+function combatReport(overrides: Partial<SightingReport> = {}): SightingReport {
+  return report({
+    reportType: "CombatSighted",
+    stillVisible: false,
+    completedInView: null,
+    capturedInView: null,
+    unitTemplateId: null,
+    unitInstanceId: null,
+    ownerPlayerId: null,
+    sideJoinedInView: false,
+    sideLeftInView: false,
+    battleId: 70,
     ...overrides,
   });
 }
@@ -159,5 +181,55 @@ describe("describeSightingReport for a structure", () => {
   it("falls back to a generic name for a kind the lookup does not know, and uses the right article", () => {
     expect(describeSightingReport(structureReport({ appearedInView: true, structureId: 77 }), CONTEXT)).toBe("Red Empire started construction on a Structure at (4, 1).");
     expect(describeSightingReport(structureReport({ appearedInView: true, structureId: 4 }), CONTEXT)).toBe("Red Empire started construction on an Outpost at (4, 1).");
+  });
+});
+
+/**
+ * Only what a campaign-map watcher could perceive: that fighting broke out, that a side arrived or gave way, that it ended, and whose banners were left behind.
+ */
+describe("describeSightingReport, for combat", () => {
+  it("says fighting broke out when the start was seen, and only that it was seen otherwise", () => {
+    expect(describeSightingReport(combatReport({ appearedInView: true }), CONTEXT)).toBe("Fighting broke out at (4, 1).");
+    expect(describeSightingReport(combatReport({ sideJoinedInView: true }), CONTEXT)).toBe("Fighting seen at (4, 1), and more forces joined.");
+  });
+
+  it("says a force withdrew while the fighting went on, and drops the clause once it has ended", () => {
+    expect(describeSightingReport(combatReport({ appearedInView: true, sideLeftInView: true }), CONTEXT)).toBe("Fighting broke out at (4, 1), and a force withdrew.");
+    expect(describeSightingReport(combatReport({ appearedInView: true, sideLeftInView: true, destroyedInView: true }), CONTEXT)).toBe(
+      "Fighting broke out at (4, 1), and the fighting ended.",
+    );
+  });
+
+  it("names who was left holding the ground once the ground-holder was disclosed", () => {
+    expect(describeSightingReport(combatReport({ appearedInView: true, destroyedInView: true }), CONTEXT)).toBe("Fighting broke out at (4, 1), and the fighting ended.");
+    expect(describeSightingReport(combatReport({ appearedInView: true, destroyedInView: true, groundHeldByPlayerId: 1 }), CONTEXT)).toBe(
+      "Fighting broke out at (4, 1), and ended with Red Empire holding the ground.",
+    );
+  });
+
+  it("says the fighting was still going on when it had not ended and was still in view", () => {
+    expect(describeSightingReport(combatReport({ appearedInView: true, stillVisible: true }), CONTEXT)).toBe("Fighting broke out at (4, 1), and was still going on.");
+  });
+
+  /** The same engagement, read at each fidelity: the sentence grows only as the server discloses more. */
+  it("says only as much as the fidelity disclosed", () => {
+    const seen = { appearedInView: true, destroyedInView: true };
+
+    expect(describeSightingReport(combatReport({ ...seen, fidelity: "Movement" }), CONTEXT)).toBe("Fighting broke out at (4, 1), and the fighting ended.");
+    expect(describeSightingReport(combatReport({ ...seen, fidelity: "Type" }), CONTEXT)).toBe("Fighting broke out at (4, 1), and the fighting ended.");
+    expect(describeSightingReport(combatReport({ ...seen, fidelity: "Owner", groundHeldByPlayerId: 1 }), CONTEXT)).toBe(
+      "Fighting broke out at (4, 1), and ended with Red Empire holding the ground.",
+    );
+    expect(describeSightingReport(combatReport({ ...seen, fidelity: "Detail", groundHeldByPlayerId: 1, troopsLost: 120 }), CONTEXT)).toBe(
+      "Fighting broke out at (4, 1), and ended with Red Empire holding the ground, with around 120 troops lost.",
+    );
+  });
+
+  it("names a ground-holder the players list does not know by number rather than dropping them", () => {
+    expect(describeSightingReport(combatReport({ destroyedInView: true, groundHeldByPlayerId: 7 }), CONTEXT)).toBe("Fighting seen at (4, 1), and ended with Player 7 holding the ground.");
+  });
+
+  it("falls back to the safe sentence when a malformed report flags nothing at all", () => {
+    expect(describeSightingReport(combatReport(), CONTEXT)).toBe("Fighting seen at (4, 1).");
   });
 });

@@ -7,7 +7,14 @@ when their turn opens.
 > versus ground currently watched — see [Fog of War](../fog-of-war.md). For the sight and detection
 > rules themselves, see [Vision on the campaign map](campaign-map.md#vision-on-the-campaign-map).
 >
-> **Status: partly built.** The `turns.PlayerTurn` foundation landed in F-21, `units.MovementHistory` with its single writer in F-22, the witness service with its coalition seam in F-23, the Forces producer in F-24, and the Structures producer in F-25: `structure.StructureHistory` with its own single writer, structure reports and `game.PlayerKnownStructure`, lost Structures as witnesses, the known-structures read and its map markers. The fidelity curve (F-31) and the combat producer are not built yet, and **nothing in play writes a structure event**: founding, construction, capture and razing are all still to be built, and each must go through `IStructureLifecycleWriter` when it is. Existing entities are called out where the design leans on them.
+> **Status: partly built.** The `turns.PlayerTurn` foundation landed in F-21, `units.MovementHistory` with its single writer in F-22, the witness service with its coalition seam in F-23, the Forces producer in F-24, the Structures producer in F-25, and the combat producer in F-26: `battle.BattleHistory` with its own single writer, combat reports, and the fold wired into the campaign end-of-turn step. All three producers now exist. The fidelity curve (F-31) is not built.
+>
+> Two gaps are worth naming, because both leave a producer with no production input:
+>
+> - **Nothing in play writes a structure event.** Founding, construction, capture and razing are all still to be built, and each must go through `IStructureLifecycleWriter` when it is.
+> - **Nothing in play writes a battle event, because there is no combat subsystem at all.** Nothing starts a battle, reinforces one, resolves one, damages a Unit or destroys a Force. Each must go through `IBattleLifecycleWriter` when it is built. The combat fold's **second host, end of battle turn, is not built either** - there is no battle turn pipeline and battle lanes open no Turns; the fold is a service precisely so that host can call it unchanged.
+>
+> Existing entities are called out where the design leans on them.
 
 ---
 
@@ -61,7 +68,7 @@ stateless. Intelligence is written down when it is witnessed, and is never taken
 Raw feeds — written as the acting player acts, each row stamped (PlayerTurn, TurnSequence)
     units.MovementHistory          position changes
     structure.StructureHistory     founded / progressed / completed / captured / razed
-    battles.* engagement records   combat outcomes visible from the campaign map
+    battle.BattleHistory           commenced / joined / left / concluded
           │
           ▼
     Witness service ── "which coalitions could see tile T at sequence N, and at what fidelity?"
@@ -433,7 +440,48 @@ Two wrinkles:
    Not the battle-map blow-by-blow, which a distant observer has no way of perceiving.
 
 A Force destroyed in view updates the observer's known-force record to *destroyed* rather than
-removing it.
+removing it. That is the **Force** producer's job, not this one's: it follows from the `Destroyed` row
+`IForceLifecycleWriter` writes, and works the moment combat calls it. Nothing calls it yet.
+
+**Landed in F-26.** `battle.BattleHistory` records `Commenced`, `ParticipantJoined`, `ParticipantLeft`
+and `Concluded`, each stamped with the Turn and a sequence from its counter, and written only through
+`IBattleLifecycleWriter` - the Battle sibling of the other two writers, keeping the same "no record, no
+change" rule. Four rules are worth keeping in mind.
+
+- **Losses sit per side, on that side's own `ParticipantLeft` row**, never as a battle-wide total on the
+  conclusion. The fold then sums only the departures a coalition actually watched, so a watcher who saw
+  one side break and then lost sight of the field is told that side's losses and no more. A column pair
+  on the conclusion was rejected outright: a tile can host a battle with more than two sides, and a pair
+  would silently produce a false sentence for a three-way fight. It is also what earns the four-event
+  feed its keep - concluding writes a `ParticipantLeft` row per still-in side *and then* the `Concluded`
+  row, so "the battle ended" and "this is what each side lost" are separate facts on separate sequences
+  with separate witness answers.
+- **Ground held is snapshotted** on the `Concluded` row rather than read from
+  `CampaignMap.ControlledByPlayerId` at fold time. That column is the position *now*, and the fold is
+  re-runnable, so a re-run after the tile changed hands again would answer the same question differently
+  - the same reason `StructureHistory.CompletionPercent` is snapshotted. It is deliberately not the
+  victor either: a victor may withdraw, and what a watcher on the next hill sees is whose banners are on
+  the ground afterwards.
+- **Participants are excluded from witnessing their own battle,** alongside the acting Player. This is
+  the opposite of the Structure rule, and for a reason: a Structure is an object *acted upon*, so its
+  owner watching it taken is real intelligence, while a combatant is an *actor* who is already in the
+  fight with a roster place and a battle lane of their own. Crucially a participant need not be the
+  acting Player - a battle between A and C during A's Turn leaves C non-acting - so the acting-Player
+  exclusion does not already cover it. Because the excluded set differs from battle to battle, the
+  combat fold issues **one witness query per engagement**, the way the Force fold issues one per owner.
+  A single query excluding every combatant would silence a side in one battle from witnessing another
+  halfway across the map.
+- **An engagement still being fought gets the end-of-turn probe and a concluded one does not,** exactly
+  as a razed Structure does not, so `StillVisible` on a combat report means the fighting was still going
+  on and still in view when the Turn ended.
+
+**No known-object row.** There is no `PlayerKnownBattle` and no map marker: an engagement is a
+point-in-time event, not a thing standing somewhere whose position a Player goes on remembering. What a
+watcher is left holding is the report.
+
+**The roster is deliberately not disclosed.** "Red Empire and Blue Empire were seen fighting" is not on
+the campaign-map-visible list above, and a flat report row cannot hold an N-sided roster without a child
+table. Adding one is a follow-up, not an omission.
 
 ---
 
@@ -442,8 +490,8 @@ removing it.
 | Phase | What happens |
 | --- | --- |
 | During a player's turn | Producers append raw rows, each stamped with the turn and a sequence from the turn's counter. |
-| End of campaign turn, last | The fold: witness service over the raw rows, then reports and known-object rows written. Placed after attrition, so a Force destroyed by hostile terrain is still reported as seen. As built, this is `RaiseSightingReports` over `IForceSightingFoldService`. If it fails, the Turn does not end, because ending it would lose those sightings for good. It is idempotent (a re-run replaces the Turn's reports in one transaction), so retrying is safe. |
-| End of battle turn | The same fold, for the combat producer only. |
+| End of campaign turn, last | The fold: witness service over the raw rows, then reports and known-object rows written. Placed after attrition, so a Force destroyed by hostile terrain is still reported as seen. As built, this is `RaiseSightingReports` over `IForceSightingFoldService`, then `IStructureSightingFoldService`, then `ICombatSightingFoldService`. If any of them fails, the Turn does not end, because ending it would lose those sightings for good. All three are idempotent (a re-run replaces the Turn's reports of that type in one transaction), so retrying is safe. |
+| End of battle turn | The same fold, for the combat producer only. **Not built.** There is no battle turn pipeline - the four `I*BattleProcess` marker interfaces are empty, with no ordering enum and no handler - and battle lanes have no `PlayerTurn` rows. `ICombatSightingFoldService` is keyed on a Turn rather than on a Game so that host can call it unchanged when it exists. |
 | Start of the recipient's turn | `AlertSentries` surfaces the feed. |
 
 ---
@@ -485,4 +533,6 @@ parallel workstream:
 2. ~~**A single writer for Force position and lifecycle.**~~ **Landed in F-22.** `IForceLifecycleWriter` is the only way a Force is created, moved or destroyed, and each change is written together with its `units.MovementHistory` row: if the Turn's sequence cannot be allocated, the change is not made. The step handler, the developer spawn and game setup all go through it. Pathfound order execution, retreats and settlement founding do not exist yet, and nothing destroys a Force yet; each of them must go through the writer when it is built.
 
    **F-25 added the Structure half,** `IStructureLifecycleWriter`, on the same terms. Nothing calls it yet either: settlement founding, the `BuildingStructure` construction step, and siege must each go through it when they are built.
+
+   **F-26 added the Battle half,** `IBattleLifecycleWriter`, again on the same terms. Nothing calls it yet: starting a battle, reinforcement, retreat and resolution must each go through it when combat is built - including `CreateBattleTurnQueueHandler`, which builds a `Battle` and its roster directly today. That handler has no production caller and no route, so it is harmless as it stands, but it is a live bypass of the writer and must not gain one.
 3. ~~**The witness service extraction** described above.~~ **Landed in F-23.** `FieldOfView` holds the sight rules, shared by the live map read and `IWitnessService`; see [The witness service](#the-witness-service).

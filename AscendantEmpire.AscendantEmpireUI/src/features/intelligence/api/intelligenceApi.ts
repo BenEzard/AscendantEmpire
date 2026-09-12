@@ -9,7 +9,7 @@ import type { MoveDirection } from "@/features/game/api/forceMovementApi";
 export type SightingFidelity = "Movement" | "Type" | "Owner" | "Detail";
 
 /** What a report is about. One member per producer, not one per sentence — the sentence is composed here, from the fields. */
-export type PlayerReportType = "ForceSighted" | "StructureSighted";
+export type PlayerReportType = "ForceSighted" | "StructureSighted" | "CombatSighted";
 
 /** What a player last knew to be true of a force they watched. A force watched dying is remembered as destroyed, never forgotten. */
 export type KnownForceStatus = "Sighted" | "Destroyed";
@@ -28,9 +28,9 @@ export interface MapCoord {
 /**
  * One entry in the player's intelligence feed, already stripped by the server to the fidelity its sighting earned.
  *
- * A force report fills the unit subject fields and a structure report the structure ones; the other set is null. Subject fields are also null whenever the
- * fidelity did not earn them, so null means "not made out" or "not this kind of report" — never "zero". See "Reports" and "Fidelity" in
- * docs/design/intelligence-and-sightings.md.
+ * A force report fills the unit subject fields, a structure report the structure ones and a combat report the battle ones; the other sets are null. Subject
+ * fields are also null whenever the fidelity did not earn them, so null means "not made out" or "not this kind of report" — never "zero". See "Reports" and
+ * "Fidelity" in docs/design/intelligence-and-sightings.md.
  */
 export interface SightingReport {
   reportId: number;
@@ -47,14 +47,29 @@ export interface SightingReport {
   /** The direction it was seen leaving in, or null when it never left view. Always null for a structure. */
   exitDirection: MoveDirection | null;
   stillVisible: boolean;
-  /** A force seen being created — or, on a structure report, a structure seen being founded. */
+  /** A force seen being created — a structure seen being founded, or an engagement seen breaking out. */
   appearedInView: boolean;
-  /** A force seen being destroyed — or, on a structure report, a structure seen being razed. */
+  /** A force seen being destroyed — a structure seen being razed, or an engagement seen ending. */
   destroyedInView: boolean;
-  /** On a structure report, whether it was seen being finished. Null on a force report. */
+  /** On a structure report, whether it was seen being finished. Null on any other report. */
   completedInView: boolean | null;
-  /** On a structure report, whether it was seen changing hands. Null on a force report. */
+  /** On a structure report, whether it was seen changing hands. Null on any other report. */
   capturedInView: boolean | null;
+  /** On a combat report, whether a side was seen joining the engagement. Null on any other report. */
+  sideJoinedInView: boolean | null;
+  /** On a combat report, whether a side was seen leaving it. Null on any other report. */
+  sideLeftInView: boolean | null;
+  /**
+   * Which engagement — disclosed from Owner.
+   *
+   * Nothing is disclosed at Type for an engagement: unlike a force or a structure it has no kind to make out, so a glimpse of a battle stays "fighting happened
+   * here" until Owner names the ground-holder.
+   */
+  battleId: number | null;
+  /** Who was left holding the ground once the fighting ended — disclosed from Owner. Null when the reader did not see it end, or nobody held it. */
+  groundHeldByPlayerId: number | null;
+  /** Troops lost across the departures the reader witnessed — disclosed only at Detail. */
+  troopsLost: number | null;
   firstTurnSequence: number;
   lastTurnSequence: number;
   /** The reader's own (or an ally's) observer that picked the subject up. */
@@ -140,7 +155,12 @@ type NullableReportFields =
   | "structureInstanceId"
   | "structureId"
   | "previousOwnerPlayerId"
-  | "completionPercent";
+  | "completionPercent"
+  | "sideJoinedInView"
+  | "sideLeftInView"
+  | "battleId"
+  | "groundHeldByPlayerId"
+  | "troopsLost";
 
 type SightingReportWireDto = Partial<Omit<SightingReport, "path" | "reportType" | NullableReportFields>> & {
   path?: MapCoordWireDto[] | null;
@@ -173,7 +193,7 @@ type KnownStructureCollectionWireDto = Partial<{ knownStructures: KnownStructure
 
 const SIGHTING_FIDELITIES: readonly SightingFidelity[] = ["Movement", "Type", "Owner", "Detail"];
 
-const PLAYER_REPORT_TYPES: readonly PlayerReportType[] = ["ForceSighted", "StructureSighted"];
+const PLAYER_REPORT_TYPES: readonly PlayerReportType[] = ["ForceSighted", "StructureSighted", "CombatSighted"];
 
 /**
  * Reads a fidelity off the wire, treating anything unrecognised as the lowest level.
@@ -243,6 +263,11 @@ export function normalizeSightingReport(report: SightingReportWireDto): Sighting
     structureId: report.structureId ?? null,
     previousOwnerPlayerId: report.previousOwnerPlayerId ?? null,
     completionPercent: report.completionPercent ?? null,
+    sideJoinedInView: report.sideJoinedInView ?? null,
+    sideLeftInView: report.sideLeftInView ?? null,
+    battleId: report.battleId ?? null,
+    groundHeldByPlayerId: report.groundHeldByPlayerId ?? null,
+    troopsLost: report.troopsLost ?? null,
   };
 }
 

@@ -229,6 +229,45 @@ internal class ForceSightingFoldServiceTests : GameSqlServerTestBase
         }
     }
 
+    /// <remarks>
+    /// Today every row in a Turn belongs to the acting Player, so the step issues one witness query. It becomes several the moment combat can destroy another Player's Forces during somebody
+    /// else's Turn, and this pins that branch before anything relies on it: the two owners' rows are written straight to the table, since nothing in play produces them yet.
+    /// </remarks>
+    [Test, Description("Each owner is excluded from witnessing only their own Forces, so a Turn carrying two owners' rows still reports the other owner's Force to the watcher.")]
+    public async Task ShouldExcludeEachOwnerOnlyFromTheirOwnForcesAsync()
+    {
+        int watcherForceId;
+
+        await using (AscendantEmpireContext setupContext = await DbFactory.CreateDbContextAsync())
+        {
+            watcherForceId = await setupContext.UnitInstances.Where(u => u.GameId == _gameId && u.PlayerId == _watchingPlayerId).Select(u => u.Id).FirstAsync();
+        }
+
+        await SeedWanderIntoViewAndOutAsync();
+
+        // The watcher's own Force moves across the tile their whole stack is standing on, so they could hardly see it better - and must still be told nothing about it.
+        await SeedHistoryAsync(
+            watcherForceId,
+            _watchingPlayerId,
+            (ForceHistoryEventType.Moved, From: (8, 1), To: (7, 1), Sequence: 6));
+
+        await FoldAsync();
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        List<PlayerReport> reports = await context.PlayerReports.Where(r => r.GameId == _gameId).ToListAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(reports.Select(report => report.SubjectUnitInstanceId), Is.EqualTo(new int?[] { _settlerId }), "Nobody is told about a Force of their own.");
+            Assert.That(reports.Select(report => report.RecipientPlayerId), Is.All.EqualTo(_watchingPlayerId));
+            Assert.That(
+                reports,
+                Has.Count.EqualTo(1),
+                "One query excluding every owner at once would have silenced the watcher from witnessing anything, including the acting Player's Force.");
+        }
+    }
+
     // ---------------------------------------------------------------------
 
     private int TileId(int x, int y)
@@ -257,8 +296,17 @@ internal class ForceSightingFoldServiceTests : GameSqlServerTestBase
             (ForceHistoryEventType.Moved, From: (5, 1), To: (4, 1), Sequence: 5));
     }
 
-    /// <summary>Writes history rows for one of the acting Player's settler-template Forces against the open Turn.</summary>
-    private async Task SeedHistoryAsync(int unitInstanceId, params (ForceHistoryEventType EventType, (int X, int Y)? From, (int X, int Y) To, int Sequence)[] events)
+    /// <summary>Writes history rows for one settler-template Force against the open Turn.</summary>
+    private Task SeedHistoryAsync(int unitInstanceId, params (ForceHistoryEventType EventType, (int X, int Y)? From, (int X, int Y) To, int Sequence)[] events)
+    {
+        return SeedHistoryAsync(unitInstanceId, _actingPlayerId, events);
+    }
+
+    /// <summary>Writes history rows for one settler-template Force belonging to a named owner, for the rare case that is not the acting Player.</summary>
+    private async Task SeedHistoryAsync(
+        int unitInstanceId,
+        int ownerPlayerId,
+        params (ForceHistoryEventType EventType, (int X, int Y)? From, (int X, int Y) To, int Sequence)[] events)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
@@ -266,7 +314,7 @@ internal class ForceSightingFoldServiceTests : GameSqlServerTestBase
         {
             GameId = _gameId,
             UnitInstanceId = unitInstanceId,
-            PlayerId = _actingPlayerId,
+            PlayerId = ownerPlayerId,
             UnitTemplateId = _settlerTemplateId,
             EventType = historyEvent.EventType,
             FromCampaignMapTileId = historyEvent.From is (int X, int Y) from ? TileId(from.X, from.Y) : null,

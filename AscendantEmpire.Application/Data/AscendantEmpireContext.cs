@@ -1,4 +1,4 @@
-﻿using AscendantEmpire.Domain.Entities.Battles;
+using AscendantEmpire.Domain.Entities.Battles;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Identity;
 using AscendantEmpire.Domain.Entities.Maps.BattleMaps;
@@ -11,6 +11,7 @@ using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Entities.Util;
+using AscendantEmpire.Domain.Enums.Battle;
 using AscendantEmpire.Domain.Enums.Forces;
 using AscendantEmpire.Domain.Enums.Structures;
 
@@ -24,6 +25,11 @@ public class AscendantEmpireContext : DbContext
     #region Battle Schema
     public DbSet<Battle> Battles { get; set; }
     public DbSet<BattleParticipant> BattleParticipants { get; set; }
+
+    /// <summary>
+    /// The raw combat feed: one append-only row per engagement commencing, gaining or losing a side, or concluding during a Turn. Written only through <c>IBattleLifecycleWriter</c>.
+    /// </summary>
+    public DbSet<BattleHistory> BattleHistory { get; set; }
     #endregion
 
     #region Battle Map Schema
@@ -482,6 +488,96 @@ public class AscendantEmpireContext : DbContext
             entity.HasIndex(x => new { x.PlayerId, x.IsStillInBattle });
         });
 
+        // --- BattleHistory ---------------------------------------------------------------
+        // The raw combat feed of docs/design/intelligence-and-sightings.md, the third sibling of units.MovementHistory and structure.StructureHistory. Append-only, so it carries no RowVersion.
+        modelBuilder.Entity<BattleHistory>(entity =>
+        {
+            // Each rule is its own constraint so that a violation names the column it is about rather than pointing at one catch-all. They are enforced by the database because the fold reads the
+            // nullable columns per event type without re-checking, and a malformed row would quietly produce a false sentence instead of failing.
+            entity.ToTable(
+                "BattleHistory",
+                schema,
+                table =>
+                {
+                    // Only a join or a departure is about one side; every other row is about the engagement as a whole.
+                    table.HasCheckConstraint(
+                        "CK_BattleHistory_ParticipantOnlyOnParticipantEvents",
+                        $"([EventType] IN ({(int)BattleHistoryEventType.ParticipantJoined}, {(int)BattleHistoryEventType.ParticipantLeft}) AND [ParticipantPlayerId] IS NOT NULL) OR ([EventType] NOT IN ({(int)BattleHistoryEventType.ParticipantJoined}, {(int)BattleHistoryEventType.ParticipantLeft}) AND [ParticipantPlayerId] IS NULL)");
+
+                    // Nullable rather than defaulted, because BattleExitReason.NotApplicable is a real member on zero, so the column has no spare value to mean "not set".
+                    table.HasCheckConstraint(
+                        "CK_BattleHistory_ExitReasonOnlyWhenParticipantLeft",
+                        $"([EventType] = {(int)BattleHistoryEventType.ParticipantLeft} AND [ExitReason] IS NOT NULL) OR ([EventType] <> {(int)BattleHistoryEventType.ParticipantLeft} AND [ExitReason] IS NULL)");
+
+                    // Losses are per side, on the row for that side leaving, never a battle-wide total: a coalition only learns the losses it watched happen.
+                    table.HasCheckConstraint(
+                        "CK_BattleHistory_TroopsLostOnlyWhenParticipantLeft",
+                        $"([EventType] = {(int)BattleHistoryEventType.ParticipantLeft} AND [TroopsLost] IS NOT NULL) OR ([EventType] <> {(int)BattleHistoryEventType.ParticipantLeft} AND [TroopsLost] IS NULL)");
+
+                    // One-sided rather than an "if and only if": a Battle can end with nobody left holding the ground, so a Concluded row is allowed a null.
+                    table.HasCheckConstraint(
+                        "CK_BattleHistory_GroundHeldOnlyWhenConcluded",
+                        $"[EventType] = {(int)BattleHistoryEventType.Concluded} OR [GroundHeldByPlayerId] IS NULL");
+
+                    table.HasCheckConstraint("CK_BattleHistory_TroopsLostNotNegative", "[TroopsLost] IS NULL OR [TroopsLost] >= 0");
+                });
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.EventType)
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.Property(e => e.ExitReason)
+                .HasConversion<int>();
+
+            // No navigations on either side, the same as the other two feeds: nothing reads the feed through an entity graph.
+            entity.HasOne<GameIndex>()
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_BattleHistory_GameIndex_GameId");
+
+            // A real foreign key, unlike MovementHistory.UnitInstanceId: a Battle is never hard-deleted, so the constraint never has a delete to refuse.
+            entity.HasOne<Battle>()
+                .WithMany()
+                .HasForeignKey(e => e.BattleId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_BattleHistory_Battle_BattleId");
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.ParticipantPlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_BattleHistory_Player_ParticipantPlayerId");
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.GroundHeldByPlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_BattleHistory_Player_GroundHeldByPlayerId");
+
+            entity.HasOne<CampaignMap>()
+                .WithMany()
+                .HasForeignKey(e => e.CampaignMapTileId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_BattleHistory_CampaignMap_CampaignMapTileId");
+
+            entity.HasOne<PlayerTurn>()
+                .WithMany()
+                .HasForeignKey(e => e.PlayerTurnId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_BattleHistory_PlayerTurn_PlayerTurnId");
+
+            // Every row of one Turn, in order - the shape the fold reads the table in.
+            entity.HasIndex(e => new { e.PlayerTurnId, e.TurnSequence })
+                .HasDatabaseName("IX_BattleHistory_Turn_Sequence");
+
+            // One engagement's events through a Turn, in order.
+            entity.HasIndex(e => new { e.BattleId, e.PlayerTurnId, e.TurnSequence })
+                .HasDatabaseName("IX_BattleHistory_Battle_Turn_Sequence");
+        });
+
         // --- BattleMapIndex ---------------------------------------------------------------
         modelBuilder.Entity<BattleMapIndex>(entity =>
         {
@@ -718,11 +814,14 @@ public class AscendantEmpireContext : DbContext
         // The intelligence feed of docs/design/intelligence-and-sightings.md. Written only by the end-of-turn sightings step, which replaces a Turn's reports wholesale when it re-runs.
         modelBuilder.Entity<PlayerReport>(entity =>
         {
-            // A report is about a Force or about a Structure, never both. Enforced by the database because the read projection discloses whichever subject it finds, and a row carrying both would
-            // have it describe one thing with the other's identity attached.
+            // A report is about a Force, a Structure or an engagement, never more than one. Enforced by the database because the read projection discloses whichever subject it finds, and a row
+            // carrying two would have it describe one thing with the other's identity attached. Counted rather than paired off, because three families no longer fit an "either or" expression.
+            //
+            // At most one rather than exactly one: the constraint has always permitted a subjectless row, every producer sets exactly one anyway, and tightening it is a behaviour change of its
+            // own rather than a consequence of adding a third family.
             entity.ToTable("PlayerReport", schema, table => table.HasCheckConstraint(
                 "CK_PlayerReport_OneSubject",
-                "[SubjectUnitInstanceId] IS NULL OR [SubjectStructureInstanceId] IS NULL"));
+                "(CASE WHEN [SubjectUnitInstanceId] IS NULL THEN 0 ELSE 1 END + CASE WHEN [SubjectStructureInstanceId] IS NULL THEN 0 ELSE 1 END + CASE WHEN [SubjectBattleId] IS NULL THEN 0 ELSE 1 END) <= 1"));
 
             entity.HasKey(e => e.Id);
 
@@ -797,6 +896,19 @@ public class AscendantEmpireContext : DbContext
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_PlayerReport_Player_SubjectPreviousOwnerPlayerId");
 
+            // A combat subject gets one for the same reason a Structure subject does: a Battle is never hard-deleted, so it outlives every report about it.
+            entity.HasOne<Battle>()
+                .WithMany()
+                .HasForeignKey(e => e.SubjectBattleId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerReport_Battle_SubjectBattleId");
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.SubjectGroundHeldByPlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerReport_Player_SubjectGroundHeldByPlayerId");
+
             // A backstop for the sightings step's idempotency: re-running a Turn replaces its reports rather than adding to them, and this makes a slip there fail loudly instead of doubling the
             // feed. Filtered because a report with no Force subject has no track to be unique within.
             entity.HasIndex(e => new { e.RaisedDuringPlayerTurnId, e.RecipientPlayerId, e.SubjectUnitInstanceId, e.TrackOrdinal })
@@ -809,6 +921,12 @@ public class AscendantEmpireContext : DbContext
                 .IsUnique()
                 .HasFilter("[SubjectStructureInstanceId] IS NOT NULL")
                 .HasDatabaseName("UX_PlayerReport_Turn_Recipient_Structure");
+
+            // And for combat reports, which both indexes above filter out. An engagement folds into one report per recipient per Turn, so there is no ordinal here either.
+            entity.HasIndex(e => new { e.RaisedDuringPlayerTurnId, e.RecipientPlayerId, e.SubjectBattleId })
+                .IsUnique()
+                .HasFilter("[SubjectBattleId] IS NOT NULL")
+                .HasDatabaseName("UX_PlayerReport_Turn_Recipient_Battle");
 
             // "My reports since my last Turn ended" - the shape the feed is read in.
             entity.HasIndex(e => new { e.GameId, e.RecipientPlayerId, e.RaisedDuringPlayerTurnId })

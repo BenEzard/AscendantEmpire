@@ -1,4 +1,4 @@
-﻿using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Intelligence.Services;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions.Checks;
@@ -45,7 +45,11 @@ public class TurnPipelineExecutionOrderTests
         new BuildingStructure(),
         new Fortifying(),
         new EvaluateForceOnHostileTerrain(),
-        new RaiseSightingReports(Substitute.For<IForceSightingFoldService>(), Substitute.For<IStructureSightingFoldService>(), NullLogger<RaiseSightingReports>.Instance)
+        new RaiseSightingReports(
+            Substitute.For<IForceSightingFoldService>(),
+            Substitute.For<IStructureSightingFoldService>(),
+            Substitute.For<ICombatSightingFoldService>(),
+            NullLogger<RaiseSightingReports>.Instance)
     ];
 
     private IPipelineProcess[] EndCampaignRoundProcesses() =>

@@ -183,6 +183,74 @@ internal class SightingDisclosureTests
         }
     }
 
+    private static readonly SightingSubject _COMBAT_TRUTH = new() { BattleId = 70, GroundHeldByPlayerId = 1, TroopsLost = 120 };
+
+    [Test, Description("An engagement's identity and ground-holder wait for Owner and its losses for Detail, so a distant watcher learns only that fighting happened there.")]
+    [TestCase(SightingFidelity.Movement, false, false, Description = "Movement is only that fighting happened there.")]
+    [TestCase(SightingFidelity.Type, false, false, Description = "Type adds nothing at all: an engagement has no kind to make out.")]
+    [TestCase(SightingFidelity.Owner, true, false, Description = "Owner adds which engagement it was and who was left holding the ground.")]
+    [TestCase(SightingFidelity.Detail, true, true, Description = "Detail adds what it cost.")]
+    public void ShouldDiscloseOnlyWhatTheFidelityEarnedOfAnEngagement(SightingFidelity fidelity, bool expectsIdentityAndGroundHolder, bool expectsLosses)
+    {
+        SightingSubject disclosed = SightingDisclosure.DiscloseSubject(fidelity, _COMBAT_TRUTH);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(disclosed.BattleId, expectsIdentityAndGroundHolder ? Is.EqualTo(_COMBAT_TRUTH.BattleId) : Is.Null);
+            Assert.That(disclosed.GroundHeldByPlayerId, expectsIdentityAndGroundHolder ? Is.EqualTo(_COMBAT_TRUTH.GroundHeldByPlayerId) : Is.Null);
+            Assert.That(disclosed.TroopsLost, expectsLosses ? Is.EqualTo(_COMBAT_TRUTH.TroopsLost) : Is.Null);
+        }
+    }
+
+    [Test, Description("A fidelity that is not a defined level discloses nothing of an engagement either, so the fail-closed guard covers the combat fields as well.")]
+    [TestCase((SightingFidelity)0, Description = "An unset value.")]
+    [TestCase((SightingFidelity)99, Description = "A value above Detail, which would otherwise pass every ordinal comparison.")]
+    public void ShouldDiscloseNothingOfAnEngagementWhenTheFidelityIsNotADefinedLevel(SightingFidelity fidelity)
+    {
+        SightingSubject disclosed = SightingDisclosure.DiscloseSubject(fidelity, _COMBAT_TRUTH);
+
+        Assert.That(disclosed, Is.EqualTo(new SightingSubject()));
+    }
+
+    [Test, Description("A combat report is stripped of which engagement and whose ground at low fidelity, but keeps every event seen, since watching a battle break out is a real observation.")]
+    public void ShouldStripACombatReportButKeepTheEventsSeen()
+    {
+        var stored = new StoredSightingReport
+        {
+            ReportId = 9,
+            ReportType = PlayerReportType.CombatSighted,
+            RaisedDuringPlayerTurnId = 40,
+            RoundNumber = 2,
+            Fidelity = SightingFidelity.Movement,
+            Path = [new Coord(4, 1)],
+            ExitDirection = null,
+            StillVisible = false,
+            AppearedInView = true,
+            DestroyedInView = true,
+            SideJoinedInView = true,
+            SideLeftInView = true,
+            FirstTurnSequence = 3,
+            LastTurnSequence = 9,
+            FirstWitnessId = 10,
+            FirstWitnessRecordType = RecordType.Unit,
+            FirstWitnessOwnerPlayerId = 2,
+            Subject = _COMBAT_TRUTH
+        };
+
+        SightingReport report = SightingDisclosure.Disclose(stored);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.BattleId, Is.Null);
+            Assert.That(report.GroundHeldByPlayerId, Is.Null);
+            Assert.That(report.TroopsLost, Is.Null);
+            Assert.That(report.AppearedInView, Is.True, "The engagement was seen commencing.");
+            Assert.That(report.DestroyedInView, Is.True, "The engagement was seen concluding.");
+            Assert.That(report.SideJoinedInView, Is.True);
+            Assert.That(report.SideLeftInView, Is.True);
+        }
+    }
+
     [Test, Description("A known Structure goes through the same rule as a report, or the map layer would leak what the feed withholds.")]
     public void ShouldStripAKnownStructureDownToItsFidelity()
     {

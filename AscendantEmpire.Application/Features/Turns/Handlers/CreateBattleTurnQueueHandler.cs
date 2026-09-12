@@ -1,4 +1,4 @@
-﻿
+
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
@@ -156,6 +156,9 @@ internal class CreateBattleTurnQueueHandler(
 
             DateTimeOffset now = DateTimeOffset.UtcNow;
 
+            // TODO: route this through IBattleLifecycleWriter.CommenceAsync. Building the Battle and its roster here bypasses the single writer, so the engagement starts with no BattleHistory
+            // rows and nobody watching the tile is ever told the fighting broke out. Harmless today - this handler has no production caller and no route - but it must not gain one as it stands.
+            // See docs/design/intelligence-and-sightings.md.
             var battle = new Battle
             {
                 GameId = request.GameId,

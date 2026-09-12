@@ -34,4 +34,9 @@ public record SightingReport : ISightingReport
     public int? StructureId { get; init; }
     public int? PreviousOwnerPlayerId { get; init; }
     public double? CompletionPercent { get; init; }
+    public bool? SideJoinedInView { get; init; }
+    public bool? SideLeftInView { get; init; }
+    public int? BattleId { get; init; }
+    public int? GroundHeldByPlayerId { get; init; }
+    public int? TroopsLost { get; init; }
 }

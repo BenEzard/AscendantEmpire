@@ -81,15 +81,16 @@ public interface ISightingReport
     int? HealthyTroops { get; }
 
     /// <summary>
-    /// On a Structure report, whether the Structure was seen being finished; null on a Force report.
+    /// On a Structure report, whether the Structure was seen being finished; null on any other report.
     /// </summary>
     /// <remarks>
-    /// On a Structure report <see cref="AppearedInView"/> means it was seen being founded and <see cref="DestroyedInView"/> that it was seen being razed.
+    /// On a Structure report <see cref="AppearedInView"/> means it was seen being founded and <see cref="DestroyedInView"/> that it was seen being razed; on a combat report they mean the
+    /// engagement was seen commencing and concluding.
     /// </remarks>
     bool? CompletedInView { get; }
 
     /// <summary>
-    /// On a Structure report, whether the Structure was seen changing hands; null on a Force report.
+    /// On a Structure report, whether the Structure was seen changing hands; null on any other report.
     /// </summary>
     bool? CapturedInView { get; }
 
@@ -112,4 +113,32 @@ public interface ISightingReport
     /// How far built the Structure was, from 0 to 100. Disclosed only at <see cref="SightingFidelity.Detail"/>.
     /// </summary>
     double? CompletionPercent { get; }
+
+    /// <summary>
+    /// On a combat report, whether a side was seen joining the engagement; null on any other report.
+    /// </summary>
+    bool? SideJoinedInView { get; }
+
+    /// <summary>
+    /// On a combat report, whether a side was seen leaving it; null on any other report.
+    /// </summary>
+    bool? SideLeftInView { get; }
+
+    /// <summary>
+    /// Which engagement it was, stable across sightings. Disclosed from <see cref="SightingFidelity.Owner"/>.
+    /// </summary>
+    /// <remarks>
+    /// There is deliberately nothing disclosed at <see cref="SightingFidelity.Type"/> for an engagement: unlike a Force or a Structure it has no kind to make out.
+    /// </remarks>
+    int? BattleId { get; }
+
+    /// <summary>
+    /// Who was left holding the ground once the fighting ended, or null when the reader did not see it end - or nobody held it. Disclosed from <see cref="SightingFidelity.Owner"/>.
+    /// </summary>
+    int? GroundHeldByPlayerId { get; }
+
+    /// <summary>
+    /// Troops lost across the departures the reader witnessed. Disclosed only at <see cref="SightingFidelity.Detail"/>.
+    /// </summary>
+    int? TroopsLost { get; }
 }

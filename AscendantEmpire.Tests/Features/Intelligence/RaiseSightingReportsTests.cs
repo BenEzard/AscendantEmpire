@@ -11,10 +11,10 @@ using NSubstitute;
 namespace AscendantEmpire.Tests.Features.Intelligence;
 
 /// <summary>
-/// Tests for <see cref="RaiseSightingReports"/>, the end-of-turn process that runs the Force and Structure sightings steps.
+/// Tests for <see cref="RaiseSightingReports"/>, the end-of-turn process that runs the Force, Structure and combat sightings steps.
 /// </summary>
 /// <remarks>
-/// No database: both sightings steps are substituted, because what is pinned here is only how their outcomes decide whether the Turn may end.
+/// No database: all three sightings steps are substituted, because what is pinned here is only how their outcomes decide whether the Turn may end.
 /// </remarks>
 [TestFixture]
 internal class RaiseSightingReportsTests
@@ -25,6 +25,7 @@ internal class RaiseSightingReportsTests
 
     private IForceSightingFoldService _forceSightingFoldService = null!;
     private IStructureSightingFoldService _structureSightingFoldService = null!;
+    private ICombatSightingFoldService _combatSightingFoldService = null!;
     private RaiseSightingReports _process = null!;
 
     [SetUp]
@@ -32,12 +33,14 @@ internal class RaiseSightingReportsTests
     {
         _forceSightingFoldService = Substitute.For<IForceSightingFoldService>();
         _structureSightingFoldService = Substitute.For<IStructureSightingFoldService>();
+        _combatSightingFoldService = Substitute.For<ICombatSightingFoldService>();
 
-        // Both steps succeed unless a test says otherwise.
+        // Every step succeeds unless a test says otherwise.
         _forceSightingFoldService.FoldTurnAsync(_GAME_ID, _PLAYER_TURN_ID, _PLAYER_ID, Arg.Any<CancellationToken>()).Returns(ServiceResultBase.Succeed());
         _structureSightingFoldService.FoldTurnAsync(_GAME_ID, _PLAYER_TURN_ID, _PLAYER_ID, Arg.Any<CancellationToken>()).Returns(ServiceResultBase.Succeed());
+        _combatSightingFoldService.FoldTurnAsync(_GAME_ID, _PLAYER_TURN_ID, _PLAYER_ID, Arg.Any<CancellationToken>()).Returns(ServiceResultBase.Succeed());
 
-        _process = new RaiseSightingReports(_forceSightingFoldService, _structureSightingFoldService, NullLogger<RaiseSightingReports>.Instance);
+        _process = new RaiseSightingReports(_forceSightingFoldService, _structureSightingFoldService, _combatSightingFoldService, NullLogger<RaiseSightingReports>.Instance);
     }
 
     private static TurnPipelineContextData EndOfTurn(int? playerTurnId)
@@ -55,6 +58,7 @@ internal class RaiseSightingReportsTests
             Assert.That(error, Is.Not.Empty);
             await _forceSightingFoldService.DidNotReceiveWithAnyArgs().FoldTurnAsync(default, default, default, default);
             await _structureSightingFoldService.DidNotReceiveWithAnyArgs().FoldTurnAsync(default, default, default, default);
+            await _combatSightingFoldService.DidNotReceiveWithAnyArgs().FoldTurnAsync(default, default, default, default);
         }
     }
 
@@ -85,10 +89,26 @@ internal class RaiseSightingReportsTests
             Assert.That(error, Does.Contain("Structure sighting reports"));
             Assert.That(error, Does.Contain("has not ended"));
             Assert.That(error, Does.Contain("The database went away."));
+            await _combatSightingFoldService.DidNotReceiveWithAnyArgs().FoldTurnAsync(default, default, default, default);
         }
     }
 
-    [Test, Description("Once both kinds of sighting are raised for the ending Turn, on behalf of the Player whose Turn it is, the Turn is free to end.")]
+    [Test, Description("If the combat sightings cannot be raised the Turn does not end either, even though the Force and Structure sightings were raised.")]
+    public async Task ShouldRefuseToEndTheTurnWhenTheCombatSightingsCannotBeRaisedAsync()
+    {
+        _combatSightingFoldService.FoldTurnAsync(_GAME_ID, _PLAYER_TURN_ID, _PLAYER_ID, Arg.Any<CancellationToken>()).Returns(ServiceResultBase.Fail("The database went away."));
+
+        string error = await _process.ProcessAsync(EndOfTurn(_PLAYER_TURN_ID));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(error, Does.Contain("Combat sighting reports"));
+            Assert.That(error, Does.Contain("has not ended"));
+            Assert.That(error, Does.Contain("The database went away."));
+        }
+    }
+
+    [Test, Description("Once all three kinds of sighting are raised for the ending Turn, on behalf of the Player whose Turn it is, the Turn is free to end.")]
     public async Task ShouldLetTheTurnEndWhenTheSightingsAreRaisedAsync()
     {
         string error = await _process.ProcessAsync(EndOfTurn(_PLAYER_TURN_ID));
@@ -98,6 +118,7 @@ internal class RaiseSightingReportsTests
             Assert.That(error, Is.Empty);
             await _forceSightingFoldService.Received(1).FoldTurnAsync(_GAME_ID, _PLAYER_TURN_ID, _PLAYER_ID, Arg.Any<CancellationToken>());
             await _structureSightingFoldService.Received(1).FoldTurnAsync(_GAME_ID, _PLAYER_TURN_ID, _PLAYER_ID, Arg.Any<CancellationToken>());
+            await _combatSightingFoldService.Received(1).FoldTurnAsync(_GAME_ID, _PLAYER_TURN_ID, _PLAYER_ID, Arg.Any<CancellationToken>());
         }
     }
 }

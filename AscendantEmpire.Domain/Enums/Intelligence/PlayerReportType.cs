@@ -23,4 +23,9 @@ public enum PlayerReportType
     /// A Structure was watched being founded, finished, captured or razed: every such event one coalition saw happen to it in one Turn, folded into one record.
     /// </summary>
     StructureSighted = 2,
+
+    /// <summary>
+    /// An engagement was watched commencing, gaining or losing a side, or concluding: every such event one coalition saw happen at one Battle in one Turn, folded into one record.
+    /// </summary>
+    CombatSighted = 3,
 }

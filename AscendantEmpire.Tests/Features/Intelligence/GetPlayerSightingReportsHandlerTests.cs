@@ -145,6 +145,47 @@ internal class GetPlayerSightingReportsHandlerTests : InMemoryTestBase
         }
     }
 
+    [Test, Description("A combat report reaches the feed on the tile fought over, carrying the engagement, the ground-holder, the losses and every event seen.")]
+    public async Task ShouldReturnACombatReportOnItsTileWithWhatWasSeenAsync()
+    {
+        await AddAsync(DbFactory, CombatReport(601, READER_PLAYER_ID, ROUND_TWO_ACTING_TURN_ID, SightingFidelity.Detail, (6, 3)));
+
+        SightingReport report = (await ReadFeedAsync(READER_PLAYER_ID)).Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.ReportType, Is.EqualTo(Domain.Enums.Intelligence.PlayerReportType.CombatSighted));
+            Assert.That(report.Path.Select(coord => (coord.X, coord.Y)), Is.EqualTo(new[] { (6, 3) }), "The first and last tile are the same, so the path is that one tile.");
+            Assert.That(report.BattleId, Is.EqualTo(70));
+            Assert.That(report.GroundHeldByPlayerId, Is.EqualTo(ACTING_PLAYER_ID));
+            Assert.That(report.TroopsLost, Is.EqualTo(120));
+            Assert.That(report.AppearedInView, Is.True);
+            Assert.That(report.DestroyedInView, Is.True);
+            Assert.That(report.SideLeftInView, Is.True);
+            Assert.That(report.SideJoinedInView, Is.False);
+            Assert.That(report.UnitInstanceId, Is.Null, "A combat report has no Force subject.");
+            Assert.That(report.StructureInstanceId, Is.Null, "Nor a Structure one.");
+        }
+    }
+
+    [Test, Description("A combat report goes through the redaction layer too, so a glimpse says fighting happened there and nothing of which engagement, whose ground or what it cost.")]
+    public async Task ShouldStripACombatReportDownToItsFidelityAsync()
+    {
+        await AddAsync(DbFactory, CombatReport(602, READER_PLAYER_ID, ROUND_TWO_ACTING_TURN_ID, SightingFidelity.Movement, (6, 3)));
+
+        SightingReport report = (await ReadFeedAsync(READER_PLAYER_ID)).Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.BattleId, Is.Null);
+            Assert.That(report.GroundHeldByPlayerId, Is.Null);
+            Assert.That(report.TroopsLost, Is.Null);
+            Assert.That(report.AppearedInView, Is.True, "What the watcher saw happen survives at every level.");
+            Assert.That(report.DestroyedInView, Is.True);
+            Assert.That(report.SideLeftInView, Is.True);
+        }
+    }
+
     [Test, Description("A Player that is not in the Game is a request for nothing, and is answered as not found rather than with an empty feed that looks like a quiet Round.")]
     public async Task ShouldReturnNotFoundWhenThePlayerIsNotInTheGameAsync()
     {

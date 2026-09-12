@@ -190,6 +190,38 @@ internal static class IntelligenceReadTestData
         };
     }
 
+    /// <summary>
+    /// A combat report about Battle 70 - fought to a finish, with the acting Player left holding the ground at a cost of 120 troops - on one tile.
+    /// </summary>
+    internal static PlayerReport CombatReport(long id, int recipientPlayerId, int raisedDuringTurnId, SightingFidelity fidelity, (int X, int Y) tile)
+    {
+        return new PlayerReport
+        {
+            Id = id,
+            GameId = GAME_ID,
+            RecipientPlayerId = recipientPlayerId,
+            RaisedDuringPlayerTurnId = raisedDuringTurnId,
+            ReportType = PlayerReportType.CombatSighted,
+            SubjectBattleId = 70,
+            SubjectGroundHeldByPlayerId = ACTING_PLAYER_ID,
+            SubjectTroopsLost = 120,
+            Fidelity = fidelity,
+            FirstCampaignMapTileId = TileId(tile.X, tile.Y),
+            LastCampaignMapTileId = TileId(tile.X, tile.Y),
+            FirstTurnSequence = 3,
+            LastTurnSequence = 9,
+            ExitDirection = null,
+            StillVisible = false,
+            AppearedInView = true,
+            DestroyedInView = true,
+            SideJoinedInView = false,
+            SideLeftInView = true,
+            FirstWitnessId = 50,
+            FirstWitnessRecordType = RecordType.Unit,
+            FirstWitnessOwnerPlayerId = recipientPlayerId
+        };
+    }
+
     /// <summary>A memory of the acting Player's kind-7 Structure, 80% built.</summary>
     internal static PlayerKnownStructure KnownStructure(
         int id,

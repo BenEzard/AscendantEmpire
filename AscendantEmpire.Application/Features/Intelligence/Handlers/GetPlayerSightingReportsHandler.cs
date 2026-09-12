@@ -152,12 +152,14 @@ internal class GetPlayerSightingReportsHandler(
                     DestroyedInView = report.DestroyedInView,
                     CompletedInView = report.CompletedInView,
                     CapturedInView = report.CapturedInView,
+                    SideJoinedInView = report.SideJoinedInView,
+                    SideLeftInView = report.SideLeftInView,
                     FirstTurnSequence = report.FirstTurnSequence,
                     LastTurnSequence = report.LastTurnSequence,
                     FirstWitnessId = report.FirstWitnessId,
                     FirstWitnessRecordType = report.FirstWitnessRecordType,
                     FirstWitnessOwnerPlayerId = report.FirstWitnessOwnerPlayerId,
-                    // A Force report fills the Unit fields and a Structure report the Structure ones; the rest stay null, so the one projection serves both.
+                    // A Force report fills the Unit fields, a Structure report the Structure ones and a combat report the Battle ones; the rest stay null, so the one projection serves all three.
                     Subject = new SightingSubject
                     {
                         UnitInstanceId = report.SubjectUnitInstanceId,
@@ -167,7 +169,10 @@ internal class GetPlayerSightingReportsHandler(
                         StructureInstanceId = report.SubjectStructureInstanceId,
                         StructureId = report.SubjectStructureId,
                         PreviousOwnerPlayerId = report.SubjectPreviousOwnerPlayerId,
-                        CompletionPercent = report.SubjectCompletionPercent
+                        CompletionPercent = report.SubjectCompletionPercent,
+                        BattleId = report.SubjectBattleId,
+                        GroundHeldByPlayerId = report.SubjectGroundHeldByPlayerId,
+                        TroopsLost = report.SubjectTroopsLost
                     }
                 }));
             }

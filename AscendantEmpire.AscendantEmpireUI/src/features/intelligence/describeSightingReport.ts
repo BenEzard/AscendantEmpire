@@ -77,8 +77,8 @@ export function describeSubject(report: Pick<SightingReport, "unitTemplateId" | 
 /**
  * Composes the sentence for one report.
  *
- * A structure report reads quite differently from a force report and is handed to `describeStructureReport`. Every form the design lists for a force is a
- * rendering of the same record:
+ * A structure report reads quite differently from a force report and is handed to `describeStructureReport`; a combat report to `describeCombatReport`. Every
+ * form the design lists for a force is a rendering of the same record:
  * - one tile, still in view — "Settler seen at (4, 1)."
  * - one tile, walked out of view — "Settler seen at (4, 1), heading north-east."
  * - several tiles — "Settler seen passing through (4, 1), (5, 1)", with a heading when it left.
@@ -88,6 +88,10 @@ export function describeSubject(report: Pick<SightingReport, "unitTemplateId" | 
 export function describeSightingReport(report: SightingReport, context: SightingDescriptionContext): string {
   if (report.reportType === "StructureSighted") {
     return describeStructureReport(report, context);
+  }
+
+  if (report.reportType === "CombatSighted") {
+    return describeCombatReport(report, context);
   }
 
   const subject = describeSubject(report, context);
@@ -178,6 +182,51 @@ export function describeStructureReport(report: SightingReport, context: Sightin
   // No reported event was flagged. The server never raises a structure report for construction progress alone, so this only guards against a malformed one.
   if (sentence == null) {
     sentence = `${capitalise(withIndefiniteArticle(kind))} seen at ${at}`;
+  }
+
+  return `${sentence}.`;
+}
+
+/**
+ * Composes the sentence for a combat report: everything the reader watched happen at one engagement in one turn, in the order it can happen.
+ *
+ * Only what a campaign-map watcher could perceive, never the battle-map blow-by-blow — that fighting broke out here, that a side arrived or gave way, that it
+ * ended, and whose banners were left on the ground:
+ * - broke out — "Fighting broke out at (4, 1)."
+ * - joined into — "Fighting seen at (4, 1), and more forces joined."
+ * - a withdrawal — "Fighting broke out at (4, 1), and a force withdrew."
+ * - ended — "Fighting broke out at (4, 1), and ended with Red Empire holding the ground."
+ * - still going — "Fighting seen at (4, 1), and was still going on."
+ *
+ * As with the other two, the wording is built from which fields were disclosed rather than from the fidelity level, so the same engagement reads as "the
+ * fighting ended" to a distant watcher and "ended with Red Empire holding the ground, with around 120 troops lost" to a close one.
+ */
+export function describeCombatReport(report: SightingReport, context: SightingDescriptionContext): string {
+  // An engagement is fought over one tile, so its path is that tile.
+  const at = formatCoord(report.path[0]);
+
+  const groundHolder = nameOfPlayer(report.groundHeldByPlayerId, context);
+
+  let sentence = report.appearedInView ? `Fighting broke out at ${at}` : `Fighting seen at ${at}`;
+
+  if (report.sideJoinedInView) {
+    sentence += ", and more forces joined";
+  }
+
+  // A withdrawal is only worth its own clause while the fighting went on; once it has ended, every side left, and saying so twice adds nothing.
+  if (report.sideLeftInView && !report.destroyedInView) {
+    sentence += ", and a force withdrew";
+  }
+
+  if (report.destroyedInView) {
+    sentence += groundHolder != null ? `, and ended with ${groundHolder} holding the ground` : ", and the fighting ended";
+  } else if (report.stillVisible) {
+    sentence += ", and was still going on";
+  }
+
+  // Approximate on purpose: this is what a watcher on the next hill made out, not a casualty return.
+  if (report.troopsLost != null) {
+    sentence += `, with around ${report.troopsLost} troops lost`;
   }
 
   return `${sentence}.`;

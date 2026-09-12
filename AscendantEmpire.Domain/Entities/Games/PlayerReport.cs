@@ -51,7 +51,7 @@ public class PlayerReport
     public PlayerReportType ReportType { get; set; }
 
     /// <summary>
-    /// The Force the report is about, or null for a report with no Force subject — a structure report, and combat reports once they exist.
+    /// The Force the report is about, or null for a report with no Force subject — a Structure report or a combat report.
     /// </summary>
     /// <remarks>
     /// Deliberately <b>not</b> a foreign key, for the same reason as <c>MovementHistory.UnitInstanceId</c>: a destroyed Force is hard-deleted, and a foreign key would either refuse that delete or
@@ -112,17 +112,19 @@ public class PlayerReport
     public MoveDirection? ExitDirection { get; set; }
 
     /// <summary>
-    /// Whether the subject was still in view when the Turn ended - for a Structure, still standing as well.
+    /// Whether the subject was still in view when the Turn ended - for a Structure, still standing as well; for an engagement, still being fought.
     /// </summary>
     public bool StillVisible { get; set; }
 
     /// <summary>
-    /// Whether the track began with the Force being created in view. On a Structure report, whether the Structure was seen being <b>founded</b>.
+    /// Whether the track began with the Force being created in view. On a Structure report, whether the Structure was seen being <b>founded</b>; on a combat report, whether the engagement was
+    /// seen <b>commencing</b>.
     /// </summary>
     public bool AppearedInView { get; set; }
 
     /// <summary>
-    /// Whether the track ended with the Force being destroyed in view. On a Structure report, whether the Structure was seen being <b>razed</b>.
+    /// Whether the track ended with the Force being destroyed in view. On a Structure report, whether the Structure was seen being <b>razed</b>; on a combat report, whether the engagement was
+    /// seen <b>concluding</b>.
     /// </summary>
     public bool DestroyedInView { get; set; }
 
@@ -130,7 +132,7 @@ public class PlayerReport
     /// The Structure a <see cref="PlayerReportType.StructureSighted"/> report is about, or null on any other report.
     /// </summary>
     /// <remarks>
-    /// A real foreign key, unlike <see cref="SubjectUnitInstanceId"/>: a razed Structure is soft-deleted, so the row outlives it. A check constraint allows at most one of the two subjects.
+    /// A real foreign key, unlike <see cref="SubjectUnitInstanceId"/>: a razed Structure is soft-deleted, so the row outlives it. A check constraint allows at most one of the three subjects.
     /// </remarks>
     public int? SubjectStructureInstanceId { get; set; }
 
@@ -164,6 +166,43 @@ public class PlayerReport
     /// Whether the Structure was seen changing hands, or null on a report with no Structure subject. Nullable for the same reason as <see cref="CompletedInView"/>.
     /// </summary>
     public bool? CapturedInView { get; set; }
+
+    /// <summary>
+    /// The engagement a <see cref="PlayerReportType.CombatSighted"/> report is about, or null on any other report.
+    /// </summary>
+    /// <remarks>
+    /// A real foreign key, for the same reason as <see cref="SubjectStructureInstanceId"/>: a Battle is never hard-deleted, so the constraint never has a delete to refuse. Disclosed no earlier
+    /// than <see cref="SightingFidelity.Owner"/>, because it is identity - it is what ties this sighting to every other sighting of the same engagement.
+    /// </remarks>
+    public int? SubjectBattleId { get; set; }
+
+    /// <summary>
+    /// Who was left holding the ground after the conclusion the coalition witnessed, or null when they did not see it end - or saw it end with nobody holding it.
+    /// </summary>
+    public int? SubjectGroundHeldByPlayerId { get; set; }
+
+    /// <summary>
+    /// How many troops were lost across the departures the coalition witnessed, or null when it witnessed none.
+    /// </summary>
+    /// <remarks>
+    /// Summed over only the sides the coalition actually watched leave, so a watcher who saw one side break and then lost sight of the field is told about that side's losses and no more.
+    /// Disclosed only at <see cref="SightingFidelity.Detail"/>.
+    /// </remarks>
+    public int? SubjectTroopsLost { get; set; }
+
+    /// <summary>
+    /// Whether a side was seen joining the engagement, or null on a report with no combat subject.
+    /// </summary>
+    /// <remarks>
+    /// Nullable for the same reason as <see cref="CompletedInView"/>: adding it to a table of Force and Structure reports needed no default constraint, and neither of those has an engagement for a
+    /// side to have joined.
+    /// </remarks>
+    public bool? SideJoinedInView { get; set; }
+
+    /// <summary>
+    /// Whether a side was seen leaving the engagement, or null on a report with no combat subject. Nullable for the same reason as <see cref="SideJoinedInView"/>.
+    /// </summary>
+    public bool? SideLeftInView { get; set; }
 
     /// <summary>
     /// Which of the Force's tracks this is, for this recipient in this Turn, counting from 0 after the track cap has been applied.

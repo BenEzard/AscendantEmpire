@@ -12,8 +12,8 @@ namespace AscendantEmpire.Application.Features.Intelligence.Classes;
 /// The truth about a sighting's subject, as stored — or, once disclosed, as much of it as the fidelity earned.
 /// </summary>
 /// <remarks>
-/// One shape for both kinds of subject. A Force sighting fills the Unit fields and a Structure sighting the Structure fields; <see cref="OwnerPlayerId"/> is shared, and whatever does not apply
-/// stays null.
+/// One shape for all three kinds of subject. A Force sighting fills the Unit fields, a Structure sighting the Structure fields and a combat sighting the Battle fields;
+/// <see cref="OwnerPlayerId"/> is shared between the first two, and whatever does not apply stays null.
 /// </remarks>
 internal sealed record SightingSubject
 {
@@ -41,6 +41,21 @@ internal sealed record SightingSubject
     /// How far built the Structure was.
     /// </summary>
     public double? CompletionPercent { get; init; }
+
+    /// <summary>
+    /// Which engagement it was.
+    /// </summary>
+    public int? BattleId { get; init; }
+
+    /// <summary>
+    /// Who was left holding the ground after a conclusion that was seen.
+    /// </summary>
+    public int? GroundHeldByPlayerId { get; init; }
+
+    /// <summary>
+    /// What was lost across the departures that were seen.
+    /// </summary>
+    public int? TroopsLost { get; init; }
 }
 
 /// <summary>
@@ -77,6 +92,16 @@ internal sealed record StoredSightingReport
     /// Whether a Structure was seen changing hands; null on a report with no Structure subject.
     /// </summary>
     public bool? CapturedInView { get; init; }
+
+    /// <summary>
+    /// Whether a side was seen joining an engagement; null on a report with no combat subject.
+    /// </summary>
+    public bool? SideJoinedInView { get; init; }
+
+    /// <summary>
+    /// Whether a side was seen leaving one; null on a report with no combat subject.
+    /// </summary>
+    public bool? SideLeftInView { get; init; }
 
     public required int FirstTurnSequence { get; init; }
 
@@ -151,12 +176,21 @@ internal sealed record StoredKnownStructure
 /// <list type="table">
 ///   <item><term><see cref="SightingFidelity.Movement"/></term><description>where and when: the path or tile, the exit direction, still-visible, and which events were seen.</description></item>
 ///   <item><term><see cref="SightingFidelity.Type"/></term><description>what kind: a Force's template, or a Structure's kind.</description></item>
-///   <item><term><see cref="SightingFidelity.Owner"/></term><description>whose it was and which one it was - for a Structure, who held it before a capture too.</description></item>
-///   <item><term><see cref="SightingFidelity.Detail"/></term><description>its condition: a Force's strength, or how far a Structure is built.</description></item>
+///   <item><term><see cref="SightingFidelity.Owner"/></term><description>whose it was and which one it was - for a Structure, who held it before a capture; for an engagement, which
+///   Battle it was and who was left holding the ground.</description></item>
+///   <item><term><see cref="SightingFidelity.Detail"/></term><description>its condition: a Force's strength, how far a Structure is built, or what an engagement cost.</description></item>
 /// </list>
 /// </para>
 /// <para>
 /// A Structure's kind is disclosed at Type without the owner risk a Force's template carries: Structure kinds are a global catalogue, not something one Player owns.
+/// </para>
+/// <para>
+/// <b>Type adds nothing to a combat report,</b> and that is deliberate rather than an omission: an engagement has no kind. A Force has a template and a Structure a catalogue entry; there is no
+/// third thing here to identify. A glimpse of a battle is "fighting happened at (X, Y)", and stays that until Owner names the ground-holder.
+/// </para>
+/// <para>
+/// <b>Who fought is not disclosed at all.</b> The campaign-map-visible list in the design is began, ended, who held the ground, and at Detail the losses - the roster is not on it, and a flat
+/// report row could not hold an N-sided one without lying about a three-way battle.
 /// </para>
 /// <para>
 /// <b>Fails closed.</b> A fidelity that is not one of the defined levels discloses nothing about the subject at all.
@@ -191,8 +225,12 @@ internal static class SightingDisclosure
             StructureInstanceId = earnsOwner ? truth.StructureInstanceId : null,
             // Who it was taken from is ownership just as much as who holds it now.
             PreviousOwnerPlayerId = earnsOwner ? truth.PreviousOwnerPlayerId : null,
+            BattleId = earnsOwner ? truth.BattleId : null,
+            // Who holds the ground afterwards names a Player, which is ownership disclosure whatever else it is.
+            GroundHeldByPlayerId = earnsOwner ? truth.GroundHeldByPlayerId : null,
             HealthyTroops = earnsDetail ? truth.HealthyTroops : null,
-            CompletionPercent = earnsDetail ? truth.CompletionPercent : null
+            CompletionPercent = earnsDetail ? truth.CompletionPercent : null,
+            TroopsLost = earnsDetail ? truth.TroopsLost : null
         };
     }
 
@@ -220,6 +258,8 @@ internal static class SightingDisclosure
             DestroyedInView = stored.DestroyedInView,
             CompletedInView = stored.CompletedInView,
             CapturedInView = stored.CapturedInView,
+            SideJoinedInView = stored.SideJoinedInView,
+            SideLeftInView = stored.SideLeftInView,
             FirstTurnSequence = stored.FirstTurnSequence,
             LastTurnSequence = stored.LastTurnSequence,
             // The witness is the reader's own Observer, or an ally's they share vision with, so there is nothing about it to withhold.
@@ -233,7 +273,10 @@ internal static class SightingDisclosure
             StructureInstanceId = disclosed.StructureInstanceId,
             StructureId = disclosed.StructureId,
             PreviousOwnerPlayerId = disclosed.PreviousOwnerPlayerId,
-            CompletionPercent = disclosed.CompletionPercent
+            CompletionPercent = disclosed.CompletionPercent,
+            BattleId = disclosed.BattleId,
+            GroundHeldByPlayerId = disclosed.GroundHeldByPlayerId,
+            TroopsLost = disclosed.TroopsLost
         };
     }
 

@@ -77,6 +77,40 @@ describe("intelligenceApi normalisers", () => {
     });
   });
 
+  it("keeps a combat report's engagement, ground-holder, losses and the events seen", () => {
+    const report = normalizeSightingReport({
+      reportId: 12,
+      reportType: "CombatSighted",
+      fidelity: "Detail",
+      path: [{ x: 4, y: 1 }],
+      appearedInView: true,
+      destroyedInView: true,
+      sideJoinedInView: false,
+      sideLeftInView: true,
+      battleId: 70,
+      groundHeldByPlayerId: 1,
+      troopsLost: 120,
+    });
+
+    expect(report).toMatchObject({
+      reportType: "CombatSighted",
+      appearedInView: true,
+      destroyedInView: true,
+      sideJoinedInView: false,
+      sideLeftInView: true,
+      battleId: 70,
+      groundHeldByPlayerId: 1,
+      troopsLost: 120,
+    });
+  });
+
+  /** A withheld field is the server redacting it, so it stays null rather than defaulting to a value that would be a leak. */
+  it("leaves a combat report's withheld fields null rather than defaulting them", () => {
+    const report = normalizeSightingReport({ reportId: 13, reportType: "CombatSighted", fidelity: "Movement", path: [{ x: 4, y: 1 }], appearedInView: true });
+
+    expect(report).toMatchObject({ battleId: null, groundHeldByPlayerId: null, troopsLost: null, sideJoinedInView: null, sideLeftInView: null });
+  });
+
   /**
    * A missing type is what older servers sent for every report, so it still reads as a force report. A type this client has never heard of cannot be described
    * truthfully, and is dropped rather than rendered as a force.
