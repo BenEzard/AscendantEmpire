@@ -45,7 +45,7 @@ public class TurnPipelineExecutionOrderTests
         new BuildingStructure(),
         new Fortifying(),
         new EvaluateForceOnHostileTerrain(),
-        new RaiseSightingReports(Substitute.For<IForceSightingFoldService>(), NullLogger<RaiseSightingReports>.Instance)
+        new RaiseSightingReports(Substitute.For<IForceSightingFoldService>(), Substitute.For<IStructureSightingFoldService>(), NullLogger<RaiseSightingReports>.Instance)
     ];
 
     private IPipelineProcess[] EndCampaignRoundProcesses() =>

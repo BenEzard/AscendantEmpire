@@ -12,6 +12,7 @@ using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strategies;
 using AscendantEmpire.Application.Features.ForceOrders.Movement;
 using AscendantEmpire.Application.Features.ForceOrders.Movement.Strategies;
+using AscendantEmpire.Application.Features.Structures.Services;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions.Checks;
@@ -63,6 +64,9 @@ public static class ApplicationStartup
         // sequence from the Turn it happened in.
         services.AddScoped<IForceLifecycleWriter, ForceLifecycleWriter>();
 
+        // Its Structure sibling: the single writer for founding, construction, capture and razing, recording each in StructureHistory against the same Turn counter. Nothing in play calls it yet.
+        services.AddScoped<IStructureLifecycleWriter, StructureLifecycleWriter>();
+
         // Campaign map vision. The sight rules themselves are pure (FieldOfView); these are the services around them. ISightDataReader holds every query the
         // rules need; IFieldOfViewService answers "what can these Observers see", for the live map read; IWitnessService answers the inverted question
         // intelligence asks, "who could see this tile at this point in the Turn", through the same field-of-view service so the two cannot drift apart.
@@ -76,6 +80,9 @@ public static class ApplicationStartup
         // The sightings step: folds a Turn's movement history through the witness service into reports and known-Force memories for the Players who watched. Run by the RaiseSightingReports
         // end-of-turn process below.
         services.AddScoped<IForceSightingFoldService, ForceSightingFoldService>();
+
+        // Its Structure half: folds the Turn's structure history the same way into structure reports and known-Structure memories. Run by the same process, straight after the Force step.
+        services.AddScoped<IStructureSightingFoldService, StructureSightingFoldService>();
 
         services.AddScoped<ICampaignMapGalleryService, CampaignMapGalleryService>();
         services.AddScoped<IGameSetupService, GameSetupService>();

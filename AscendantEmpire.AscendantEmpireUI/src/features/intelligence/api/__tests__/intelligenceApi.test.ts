@@ -1,4 +1,4 @@
-import { normalizeFidelity, normalizeKnownForce, normalizeSightingReport } from "../intelligenceApi";
+import { normalizeFidelity, normalizeKnownForce, normalizeKnownStructure, normalizeSightingReport } from "../intelligenceApi";
 
 /**
  * The wire normalisers sit between the redaction layer on the server and everything the player sees, so their one job beyond filling defaults is never to
@@ -26,6 +26,11 @@ describe("intelligenceApi normalisers", () => {
     expect(report!.ownerPlayerId).toBeNull();
     expect(report!.unitInstanceId).toBeNull();
     expect(report!.healthyTroops).toBeNull();
+    expect(report!.structureId).toBeNull();
+    expect(report!.previousOwnerPlayerId).toBeNull();
+    expect(report!.completionPercent).toBeNull();
+    expect(report!.completedInView).toBeNull();
+    expect(report!.capturedInView).toBeNull();
   });
 
   /**
@@ -41,8 +46,56 @@ describe("intelligenceApi normalisers", () => {
     expect(report!.path).toEqual([{ x: 4, y: 1 }]);
   });
 
+  it("keeps a structure report's structure, owners, progress and the events seen", () => {
+    const report = normalizeSightingReport({
+      reportId: 9,
+      reportType: "StructureSighted",
+      fidelity: "Detail",
+      path: [{ x: 6, y: 3 }],
+      appearedInView: true,
+      destroyedInView: true,
+      completedInView: false,
+      capturedInView: true,
+      structureInstanceId: 60,
+      structureId: 1,
+      ownerPlayerId: 1,
+      previousOwnerPlayerId: 2,
+      completionPercent: 80,
+    });
+
+    expect(report).toMatchObject({
+      reportType: "StructureSighted",
+      appearedInView: true,
+      destroyedInView: true,
+      completedInView: false,
+      capturedInView: true,
+      structureInstanceId: 60,
+      structureId: 1,
+      ownerPlayerId: 1,
+      previousOwnerPlayerId: 2,
+      completionPercent: 80,
+    });
+  });
+
+  /**
+   * A missing type is what older servers sent for every report, so it still reads as a force report. A type this client has never heard of cannot be described
+   * truthfully, and is dropped rather than rendered as a force.
+   */
+  it("reads a missing report type as a force report and drops one it does not know", () => {
+    expect(normalizeSightingReport({ reportId: 10, path: [{ x: 1, y: 1 }] })?.reportType).toBe("ForceSighted");
+    expect(normalizeSightingReport({ reportId: 11, reportType: "CombatWitnessed", path: [{ x: 1, y: 1 }] })).toBeNull();
+  });
+
   it("drops a known force with nowhere to draw it", () => {
     expect(normalizeKnownForce({ status: "Sighted", lastSeenLocation: null })).toBeNull();
     expect(normalizeKnownForce({ status: "Destroyed", lastSeenLocation: { x: 2, y: 5 } })?.lastSeenLocation).toEqual({ x: 2, y: 5 });
+  });
+
+  it("drops a known structure with nowhere to draw it, and keeps what it withheld null", () => {
+    expect(normalizeKnownStructure({ status: "Razed", location: null })).toBeNull();
+
+    const knownStructure = normalizeKnownStructure({ status: "Razed", fidelity: "Movement", location: { x: 6, y: 3 } });
+
+    expect(knownStructure).toMatchObject({ status: "Razed", location: { x: 6, y: 3 }, structureId: null, ownerPlayerId: null, structureInstanceId: null, completionPercent: null });
   });
 });

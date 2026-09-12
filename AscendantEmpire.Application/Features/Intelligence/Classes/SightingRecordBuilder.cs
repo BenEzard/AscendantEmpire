@@ -114,25 +114,18 @@ internal static class SightingRecordBuilder
     /// Whether a new sighting should replace what a Player already knows of a Force.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// Compared on (Turn, sequence). Turn ids only ever increase, the same ordering <c>CampaignTurnService</c> relies on for "most recent", so a later Turn always wins and an older one never
-    /// overwrites newer knowledge.
-    /// </para>
-    /// <para>
-    /// An <b>equal</b> sighting also wins. That is a re-run of the same Turn, and replacing it with itself is what makes the sightings step safe to retry.
-    /// </para>
+    /// The rule itself is <see cref="SightingRecency"/>, shared with known Structures so the two memories can never disagree about what "more recent" means.
     /// </remarks>
     internal static bool Supersedes(PlayerKnownForce candidate, PlayerKnownForce existing)
     {
         ArgumentNullException.ThrowIfNull(candidate);
         ArgumentNullException.ThrowIfNull(existing);
 
-        if (candidate.LastSeenPlayerTurnId != existing.LastSeenPlayerTurnId)
-        {
-            return candidate.LastSeenPlayerTurnId > existing.LastSeenPlayerTurnId;
-        }
-
-        return candidate.LastSeenTurnSequence >= existing.LastSeenTurnSequence;
+        return SightingRecency.Supersedes(
+            candidatePlayerTurnId: candidate.LastSeenPlayerTurnId,
+            candidateTurnSequence: candidate.LastSeenTurnSequence,
+            existingPlayerTurnId: existing.LastSeenPlayerTurnId,
+            existingTurnSequence: existing.LastSeenTurnSequence);
     }
 
     /// <summary>

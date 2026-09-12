@@ -53,12 +53,12 @@ internal interface ISightDataReader
     /// is never considered, however far it can see — but the tighter it is, the less is loaded.
     /// </para>
     /// <para>
-    /// The largest base Sight among the Players' Units, standing Structures and Units destroyed during <paramref name="playerTurnId"/>, plus the
-    /// greatest elevation bonus on any Geography that can be <b>entered</b>. Nothing stands on a Mountain, and counting the Void's elevation of ten would
+    /// The largest base Sight among the Players' Units, standing Structures, Units destroyed during <paramref name="playerTurnId"/> and Structures they lost during it - razed, or captured
+    /// from them - plus the greatest elevation bonus on any Geography that can be <b>entered</b>. Nothing stands on a Mountain, and counting the Void's elevation of ten would
     /// balloon every box for ground no Observer can occupy.
     /// </para>
     /// </remarks>
-    /// <param name="playerTurnId">The Turn whose destroyed Units still count.</param>
+    /// <param name="playerTurnId">The Turn whose destroyed Units and lost Structures still count.</param>
     Task<int> GetMaxSightReachAsync(AscendantEmpireContext context, int gameId, IReadOnlyCollection<int> observingPlayerIds, int playerTurnId, CancellationToken cancelToken = default);
 
     /// <summary>

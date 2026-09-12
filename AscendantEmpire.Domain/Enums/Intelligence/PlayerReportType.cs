@@ -18,4 +18,9 @@ public enum PlayerReportType
     /// A Force was watched moving, appearing or being destroyed: one contiguous track of it, as one coalition saw it.
     /// </summary>
     ForceSighted = 1,
+
+    /// <summary>
+    /// A Structure was watched being founded, finished, captured or razed: every such event one coalition saw happen to it in one Turn, folded into one record.
+    /// </summary>
+    StructureSighted = 2,
 }

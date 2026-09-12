@@ -80,8 +80,8 @@ internal sealed record SightObserver
     /// onwards. See "Observers destroyed mid-turn" in <c>docs/design/intelligence-and-sightings.md</c>.
     /// </para>
     /// <para>
-    /// Set for Units from their <c>MovementHistory</c> <c>Destroyed</c> row. Nothing razes a Structure yet; when something does, its history feed sets this
-    /// too, and nothing downstream needs to change.
+    /// Set for Units from their <c>MovementHistory</c> <c>Destroyed</c> row, and for Structures from the first <c>Captured</c> or <c>Razed</c> row of their <c>StructureHistory</c>. A capture
+    /// counts because it takes the Structure away from the Player whose Observer it was, and such a Structure is rebuilt as that earlier owner's.
     /// </para>
     /// </remarks>
     public int? DestroyedAtSequence { get; init; }

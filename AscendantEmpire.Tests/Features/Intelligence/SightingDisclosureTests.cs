@@ -120,4 +120,94 @@ internal class SightingDisclosureTests
             Assert.That(knownForce.LastSeenRoundNumber, Is.EqualTo(2));
         }
     }
+
+    private static readonly SightingSubject _STRUCTURE_TRUTH = new() { StructureInstanceId = 60, StructureId = 7, OwnerPlayerId = 1, PreviousOwnerPlayerId = 2, CompletionPercent = 80 };
+
+    [Test, Description("A Structure's kind, owners, identity and progress each wait for the level that earns them, so a glimpse of a village reveals neither whose it is nor who held it before.")]
+    [TestCase(SightingFidelity.Movement, false, false, false, Description = "Movement is only that something happened there: not what, not whose, not how far built.")]
+    [TestCase(SightingFidelity.Type, true, false, false, Description = "Type adds what kind of Structure it was.")]
+    [TestCase(SightingFidelity.Owner, true, true, false, Description = "Owner adds whose it was, who held it before, and which one it was.")]
+    [TestCase(SightingFidelity.Detail, true, true, true, Description = "Detail adds how far built it was.")]
+    public void ShouldDiscloseOnlyWhatTheFidelityEarnedOfAStructure(SightingFidelity fidelity, bool expectsKind, bool expectsOwnersAndIdentity, bool expectsCompletion)
+    {
+        SightingSubject disclosed = SightingDisclosure.DiscloseSubject(fidelity, _STRUCTURE_TRUTH);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(disclosed.StructureId, expectsKind ? Is.EqualTo(_STRUCTURE_TRUTH.StructureId) : Is.Null);
+            Assert.That(disclosed.OwnerPlayerId, expectsOwnersAndIdentity ? Is.EqualTo(_STRUCTURE_TRUTH.OwnerPlayerId) : Is.Null);
+            Assert.That(disclosed.PreviousOwnerPlayerId, expectsOwnersAndIdentity ? Is.EqualTo(_STRUCTURE_TRUTH.PreviousOwnerPlayerId) : Is.Null);
+            Assert.That(disclosed.StructureInstanceId, expectsOwnersAndIdentity ? Is.EqualTo(_STRUCTURE_TRUTH.StructureInstanceId) : Is.Null);
+            Assert.That(disclosed.CompletionPercent, expectsCompletion ? Is.EqualTo(_STRUCTURE_TRUTH.CompletionPercent) : Is.Null);
+        }
+    }
+
+    [Test, Description("A Structure report is stripped of whose and which at low fidelity, but keeps which events were seen, since seeing a village razed is what the glimpse genuinely saw.")]
+    public void ShouldStripAStructureReportButKeepTheEventsSeen()
+    {
+        var stored = new StoredSightingReport
+        {
+            ReportId = 8,
+            ReportType = PlayerReportType.StructureSighted,
+            RaisedDuringPlayerTurnId = 40,
+            RoundNumber = 2,
+            Fidelity = SightingFidelity.Movement,
+            Path = [new Coord(6, 3)],
+            ExitDirection = null,
+            StillVisible = false,
+            AppearedInView = true,
+            DestroyedInView = true,
+            CompletedInView = false,
+            CapturedInView = true,
+            FirstTurnSequence = 2,
+            LastTurnSequence = 9,
+            FirstWitnessId = 10,
+            FirstWitnessRecordType = RecordType.Unit,
+            FirstWitnessOwnerPlayerId = 2,
+            Subject = _STRUCTURE_TRUTH
+        };
+
+        SightingReport report = SightingDisclosure.Disclose(stored);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.StructureId, Is.Null);
+            Assert.That(report.OwnerPlayerId, Is.Null);
+            Assert.That(report.PreviousOwnerPlayerId, Is.Null);
+            Assert.That(report.StructureInstanceId, Is.Null);
+            Assert.That(report.CompletionPercent, Is.Null);
+            Assert.That(report.AppearedInView, Is.True);
+            Assert.That(report.DestroyedInView, Is.True);
+            Assert.That(report.CapturedInView, Is.True);
+            Assert.That(report.CompletedInView, Is.False);
+        }
+    }
+
+    [Test, Description("A known Structure goes through the same rule as a report, or the map layer would leak what the feed withholds.")]
+    public void ShouldStripAKnownStructureDownToItsFidelity()
+    {
+        var stored = new StoredKnownStructure
+        {
+            Status = KnownStructureStatus.Razed,
+            Fidelity = SightingFidelity.Type,
+            Location = new Coord(6, 3),
+            LastSeenPlayerTurnId = 40,
+            LastSeenRoundNumber = 2,
+            LastSeenTurnSequence = 9,
+            StillVisible = false,
+            Subject = _STRUCTURE_TRUTH
+        };
+
+        BackendContracts.Intelligence.GetPlayerKnownStructures.KnownStructure knownStructure = SightingDisclosure.Disclose(stored);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(knownStructure.StructureId, Is.EqualTo(_STRUCTURE_TRUTH.StructureId));
+            Assert.That(knownStructure.OwnerPlayerId, Is.Null);
+            Assert.That(knownStructure.StructureInstanceId, Is.Null);
+            Assert.That(knownStructure.CompletionPercent, Is.Null);
+            Assert.That(knownStructure.Status, Is.EqualTo(KnownStructureStatus.Razed), "That it was razed is what was seen, at any level.");
+            Assert.That((knownStructure.Location.X, knownStructure.Location.Y), Is.EqualTo((6, 3)));
+        }
+    }
 }

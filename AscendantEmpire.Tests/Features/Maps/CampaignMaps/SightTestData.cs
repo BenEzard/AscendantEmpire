@@ -126,6 +126,22 @@ internal static class SightTestData
         };
     }
 
+    /// <summary>A Structure Observer with the stand-in Structure Detection, still standing unless told the sequence it was lost at.</summary>
+    internal static SightObserver Structure(int id, int playerId, int x, int y, int sightRange, int? destroyedAtSequence = null)
+    {
+        return new SightObserver
+        {
+            Id = id,
+            RecordType = RecordType.Structure,
+            PlayerId = playerId,
+            Location = new Coord(x, y),
+            BaseSightRange = sightRange,
+            MovementDomain = DomainType.Land,
+            Detection = SightingFidelityRules.STRUCTURE_DETECTION,
+            DestroyedAtSequence = destroyedAtSequence
+        };
+    }
+
     /// <summary>The fields of view of the given Observers over the grid, computed by the real rules.</summary>
     internal static IReadOnlyCollection<ObserverFieldOfView> ViewsOf(SightTerrainGrid grid, params SightObserver[] observers)
     {

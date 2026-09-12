@@ -111,6 +111,27 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
         }
     }
 
+    [Test, Description("Structure history, structure reports and known Structures go with their game, and before the Structures, turns, tiles and players they name.")]
+    public async Task ShouldRemoveTheGamesStructureHistoryAndStructureSightingsWhenItIsDeletedAsync()
+    {
+        int gameId = await SetupGameAsync("Doomed");
+
+        await SeedStructureSightingsAsync(gameId);
+
+        Processing job = await ExecuteDeleteAsync(gameId);
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(job.Status, Is.EqualTo(ProcessingStatus.Complete), job.ErrorMessage);
+            Assert.That(await context.StructureHistory.AnyAsync(h => h.GameId == gameId), Is.False);
+            Assert.That(await context.PlayerReports.AnyAsync(r => r.GameId == gameId), Is.False);
+            Assert.That(await context.PlayerKnownStructures.AnyAsync(k => k.GameId == gameId), Is.False);
+            Assert.That(await context.StructureInstances.AnyAsync(s => s.GameId == gameId), Is.False);
+        }
+    }
+
     [Test, Description("The job is marked complete rather than being left in progress, because the page polls that status to know when to refresh the list.")]
     public async Task ShouldMarkTheJobCompleteWhenThePurgeSucceedsAsync()
     {
@@ -453,6 +474,136 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             LastSeenCampaignMapTileId = unit.CampaignMapTileId,
             LastSeenPlayerTurnId = turn.Id,
             LastSeenTurnSequence = 1,
+            StillVisible = true
+        });
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Opens a Turn and records one Structure's life in it - founded, then captured - with a structure report and a known Structure for the player it was taken from.
+    /// </summary>
+    /// <remarks>
+    /// Written straight to the tables, for the same reason as <see cref="SeedSightingsAsync"/>. The watchtower catalogue row is not game-scoped and survives the purge, as catalogue data does.
+    /// </remarks>
+    private async Task SeedStructureSightingsAsync(int gameId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        TurnQueue campaignQueue = await context.TurnQueues.SingleAsync(q => q.GameId == gameId && q.QueueType == TurnQueueType.Campaign && q.BattleId == null);
+        int[] playerIds = await context.Players.Where(p => p.GameId == gameId).OrderBy(p => p.Id).Select(p => p.Id).ToArrayAsync();
+        int captorId = playerIds[0];
+        int formerOwnerId = playerIds[1];
+        int tileId = await context.CampaignMaps.Where(t => t.GameId == gameId).OrderBy(t => t.CampaignMapId).Select(t => t.CampaignMapId).FirstAsync();
+
+        var turn = new PlayerTurn
+        {
+            TurnQueueId = campaignQueue.Id,
+            PlayerId = captorId,
+            RoundNumber = campaignQueue.CurrentRoundNumber,
+            StartedAt = DateTimeOffset.UtcNow
+        };
+
+        var watchtower = new Domain.Entities.Structures.Structure
+        {
+            Code = "watchtower",
+            Name = "Watchtower",
+            RequiresSlotType = Domain.Enums.Structures.TileSlotType.Primary,
+            AllowedPositions = Domain.Enums.Structures.PositionOnTile.WholeTile,
+            CanBeBuiltOnCampaignMap = true,
+            CanBeBuiltOnBattleMap = false,
+            DualMapBuildTrigger = false,
+            SightRange = 2,
+            SightDirection = DetectionDirection.FullRadius,
+            MapImagePath = "watchtower.png",
+            FullImagePath = "watchtower-full.png"
+        };
+
+        context.PlayerTurns.Add(turn);
+        context.Set<Domain.Entities.Structures.Structure>().Add(watchtower);
+        await context.SaveChangesAsync();
+
+        var structure = new StructureInstance
+        {
+            GameId = gameId,
+            CampaignMapTileId = tileId,
+            StructureId = watchtower.Id,
+            SlotType = Domain.Enums.Structures.TileSlotType.Primary,
+            Position = Domain.Enums.Structures.PositionOnTile.WholeTile,
+            OwnedByPlayerId = captorId,
+            CreatedOnTurnId = turn.Id,
+            CompletionPercent = 100
+        };
+
+        context.StructureInstances.Add(structure);
+        await context.SaveChangesAsync();
+
+        context.StructureHistory.AddRange(
+            new Domain.Entities.Structures.StructureHistory
+            {
+                GameId = gameId,
+                StructureInstanceId = structure.Id,
+                StructureId = watchtower.Id,
+                PlayerId = formerOwnerId,
+                EventType = Domain.Enums.Structures.StructureHistoryEventType.Founded,
+                CompletionPercent = 100,
+                CampaignMapTileId = tileId,
+                PlayerTurnId = turn.Id,
+                TurnSequence = 1
+            },
+            new Domain.Entities.Structures.StructureHistory
+            {
+                GameId = gameId,
+                StructureInstanceId = structure.Id,
+                StructureId = watchtower.Id,
+                PlayerId = captorId,
+                PreviousOwnerPlayerId = formerOwnerId,
+                EventType = Domain.Enums.Structures.StructureHistoryEventType.Captured,
+                CompletionPercent = 100,
+                CampaignMapTileId = tileId,
+                PlayerTurnId = turn.Id,
+                TurnSequence = 2
+            });
+
+        context.PlayerReports.Add(new PlayerReport
+        {
+            GameId = gameId,
+            RecipientPlayerId = formerOwnerId,
+            RaisedDuringPlayerTurnId = turn.Id,
+            ReportType = PlayerReportType.StructureSighted,
+            SubjectStructureInstanceId = structure.Id,
+            SubjectStructureId = watchtower.Id,
+            SubjectOwnerPlayerId = captorId,
+            SubjectPreviousOwnerPlayerId = formerOwnerId,
+            SubjectCompletionPercent = 100,
+            Fidelity = SightingFidelity.Detail,
+            FirstCampaignMapTileId = tileId,
+            LastCampaignMapTileId = tileId,
+            FirstTurnSequence = 1,
+            LastTurnSequence = 2,
+            StillVisible = true,
+            AppearedInView = true,
+            DestroyedInView = false,
+            CompletedInView = true,
+            CapturedInView = true,
+            FirstWitnessId = 1,
+            FirstWitnessRecordType = RecordType.Unit,
+            FirstWitnessOwnerPlayerId = formerOwnerId
+        });
+
+        context.PlayerKnownStructures.Add(new PlayerKnownStructure
+        {
+            GameId = gameId,
+            PlayerId = formerOwnerId,
+            StructureInstanceId = structure.Id,
+            StructureId = watchtower.Id,
+            OwnerPlayerId = captorId,
+            ObservedCompletionPercent = 100,
+            Status = KnownStructureStatus.Standing,
+            Fidelity = SightingFidelity.Detail,
+            CampaignMapTileId = tileId,
+            LastSeenPlayerTurnId = turn.Id,
+            LastSeenTurnSequence = 2,
             StillVisible = true
         });
 

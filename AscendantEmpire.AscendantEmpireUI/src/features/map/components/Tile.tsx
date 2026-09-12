@@ -1,4 +1,4 @@
-﻿// src/features/map-gallery/components/Tile.tsx
+// src/features/map-gallery/components/Tile.tsx
 import React from "react";
 import type { Geography } from "@/types/map/Geography";
 import type { TileCell } from "./TileTypes";
@@ -7,7 +7,8 @@ import { cssColorToRgba, pickTextColorOnBg } from "@/util/color";
 import ObservedStructure from "./ObservedStructure";
 import ObservedForce from "./ObservedForce";
 import KnownForceMarker from "./KnownForceMarker";
-import type { KnownForce } from "@/features/intelligence/api/intelligenceApi";
+import KnownStructureMarker from "./KnownStructureMarker";
+import type { KnownForce, KnownStructure } from "@/features/intelligence/api/intelligenceApi";
 
 export interface TileProps {
   tile: TileCell;
@@ -27,7 +28,9 @@ export interface TileProps {
    * already shows what is really there.
    */
   knownForces?: readonly KnownForce[];
-  /** The round being played now, which known-force markers fade against. */
+  /** Structures the player last saw change on this tile, freshest first. Drawn the same way as known forces, beneath them, and only while unobserved. */
+  knownStructures?: readonly KnownStructure[];
+  /** The round being played now, which known-force and known-structure markers fade against. */
   currentRoundNumber?: number | null;
   onClick?: (tile: TileCell) => void;
   onHold?: (tile: TileCell) => void;
@@ -50,6 +53,7 @@ const Tile = React.memo(function Tile({
   unitImageSrcByUnitTemplateId,
   isObserved = true,
   knownForces,
+  knownStructures,
   currentRoundNumber = null,
   onClick,
   onHold,
@@ -95,8 +99,9 @@ const Tile = React.memo(function Tile({
   const visibleForce = isObserved ? (tile.forces?.find((force) => force.id === visibleForceId) ?? tile.forces?.[0] ?? null) : null;
   const visibleForceCount = isObserved ? (tile.forces?.length ?? 0) : 0;
 
-  // The other side of the same guard: a memory of a force is only drawn where there is no live sight to contradict it.
+  // The other side of the same guard: a memory of a force or a structure is only drawn where there is no live sight to contradict it.
   const knownForcesToDraw = !isObserved && knownForces != null && knownForces.length > 0 ? knownForces : null;
+  const knownStructuresToDraw = !isObserved && knownStructures != null && knownStructures.length > 0 ? knownStructures : null;
 
   const style = { ...baseStyle, ...(getStyle?.(tile) ?? {}) };
   const combinedClassName = ["tile", className].filter(Boolean).join(" ");
@@ -158,6 +163,8 @@ const Tile = React.memo(function Tile({
           unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
         />
       ) : null}
+      {/* Before the force marker, so a force remembered on a tile is drawn over the structure remembered there. */}
+      {knownStructuresToDraw ? <KnownStructureMarker knownStructures={knownStructuresToDraw} currentRoundNumber={currentRoundNumber} /> : null}
       {knownForcesToDraw ? (
         <KnownForceMarker knownForces={knownForcesToDraw} currentRoundNumber={currentRoundNumber} unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId} />
       ) : null}

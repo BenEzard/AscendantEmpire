@@ -6,20 +6,25 @@ using Microsoft.Extensions.Logging;
 namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndTurn;
 
 /// <summary>
-/// Writes down what every other Player watched the acting Player do this Turn, as reports and known-Force memories.
+/// Writes down what every other Player watched the acting Player do this Turn, as reports and known-Force and known-Structure memories.
 /// </summary>
 /// <remarks>
 /// <para>
-/// The orchestration only: the work is <see cref="IForceSightingFoldService"/>. Runs last, after attrition, so a Force destroyed by hostile terrain is still reported as seen. See "Where it runs" in
-/// <c>docs/design/intelligence-and-sightings.md</c>.
+/// The orchestration only: the work is <see cref="IForceSightingFoldService"/> and then <see cref="IStructureSightingFoldService"/>. Runs last, after attrition, so a Force destroyed by hostile
+/// terrain is still reported as seen. See "Where it runs" in <c>docs/design/intelligence-and-sightings.md</c>.
 /// </para>
 /// <para>
-/// <b>A failure refuses the end of the Turn.</b> The pipeline stops at the first error and the Player can try again; the sightings step is idempotent, so the retry is safe. Ending the Turn anyway
-/// would lose the sightings for good, with nothing to raise them later.
+/// <b>A failure of either refuses the end of the Turn.</b> The pipeline stops at the first error and the Player can try again; both steps are idempotent, so the retry is safe. Ending the Turn
+/// anyway would lose the sightings for good, with nothing to raise them later.
+/// </para>
+/// <para>
+/// Forces first, then Structures. The two write different report types and different memories, so the order decides nothing about the result - only which failure is reported when both would
+/// fail.
 /// </para>
 /// </remarks>
 internal class RaiseSightingReports(
-    IForceSightingFoldService sightingFoldService,
+    IForceSightingFoldService forceSightingFoldService,
+    IStructureSightingFoldService structureSightingFoldService,
     ILogger<RaiseSightingReports> logger) : IEndCampaignTurnProcess
 {
     public string ItemName => "Raise Sighting Reports";
@@ -38,11 +43,21 @@ internal class RaiseSightingReports(
             return error;
         }
 
-        ServiceResultBase result = await sightingFoldService.FoldTurnAsync(context.GameId, playerTurnId, playerId);
+        ServiceResultBase forceResult = await forceSightingFoldService.FoldTurnAsync(context.GameId, playerTurnId, playerId);
 
-        if (result.HasSucceeded == false)
+        if (forceResult.HasSucceeded == false)
         {
-            string error = $"Sighting reports could not be raised for Player Turn Id {playerTurnId}, so the Turn has not ended. Errors: {string.Join("; ", result.Errors)}";
+            string error = $"Force sighting reports could not be raised for Player Turn Id {playerTurnId}, so the Turn has not ended. Errors: {string.Join("; ", forceResult.Errors)}";
+            logger.LogWarning("{Error}", error);
+
+            return error;
+        }
+
+        ServiceResultBase structureResult = await structureSightingFoldService.FoldTurnAsync(context.GameId, playerTurnId, playerId);
+
+        if (structureResult.HasSucceeded == false)
+        {
+            string error = $"Structure sighting reports could not be raised for Player Turn Id {playerTurnId}, so the Turn has not ended. Errors: {string.Join("; ", structureResult.Errors)}";
             logger.LogWarning("{Error}", error);
 
             return error;

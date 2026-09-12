@@ -11,10 +11,10 @@ using NSubstitute;
 namespace AscendantEmpire.Tests.Features.Intelligence;
 
 /// <summary>
-/// Tests for <see cref="RaiseSightingReports"/>, the end-of-turn process that runs the sightings step.
+/// Tests for <see cref="RaiseSightingReports"/>, the end-of-turn process that runs the Force and Structure sightings steps.
 /// </summary>
 /// <remarks>
-/// No database: the sightings step itself is substituted, because what is pinned here is only how its outcome decides whether the Turn may end.
+/// No database: both sightings steps are substituted, because what is pinned here is only how their outcomes decide whether the Turn may end.
 /// </remarks>
 [TestFixture]
 internal class RaiseSightingReportsTests
@@ -23,14 +23,21 @@ internal class RaiseSightingReportsTests
     private const int _PLAYER_ID = 2;
     private const int _PLAYER_TURN_ID = 40;
 
-    private IForceSightingFoldService _sightingFoldService = null!;
+    private IForceSightingFoldService _forceSightingFoldService = null!;
+    private IStructureSightingFoldService _structureSightingFoldService = null!;
     private RaiseSightingReports _process = null!;
 
     [SetUp]
     public void SetUpProcess()
     {
-        _sightingFoldService = Substitute.For<IForceSightingFoldService>();
-        _process = new RaiseSightingReports(_sightingFoldService, NullLogger<RaiseSightingReports>.Instance);
+        _forceSightingFoldService = Substitute.For<IForceSightingFoldService>();
+        _structureSightingFoldService = Substitute.For<IStructureSightingFoldService>();
+
+        // Both steps succeed unless a test says otherwise.
+        _forceSightingFoldService.FoldTurnAsync(_GAME_ID, _PLAYER_TURN_ID, _PLAYER_ID, Arg.Any<CancellationToken>()).Returns(ServiceResultBase.Succeed());
+        _structureSightingFoldService.FoldTurnAsync(_GAME_ID, _PLAYER_TURN_ID, _PLAYER_ID, Arg.Any<CancellationToken>()).Returns(ServiceResultBase.Succeed());
+
+        _process = new RaiseSightingReports(_forceSightingFoldService, _structureSightingFoldService, NullLogger<RaiseSightingReports>.Instance);
     }
 
     private static TurnPipelineContextData EndOfTurn(int? playerTurnId)
@@ -46,14 +53,15 @@ internal class RaiseSightingReportsTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(error, Is.Not.Empty);
-            await _sightingFoldService.DidNotReceiveWithAnyArgs().FoldTurnAsync(default, default, default, default);
+            await _forceSightingFoldService.DidNotReceiveWithAnyArgs().FoldTurnAsync(default, default, default, default);
+            await _structureSightingFoldService.DidNotReceiveWithAnyArgs().FoldTurnAsync(default, default, default, default);
         }
     }
 
-    [Test, Description("If the sightings cannot be raised the Turn does not end, because ending it anyway would lose them for good with nothing to raise them later.")]
-    public async Task ShouldRefuseToEndTheTurnWhenTheSightingsCannotBeRaisedAsync()
+    [Test, Description("If the Force sightings cannot be raised the Turn does not end, because ending it anyway would lose them for good with nothing to raise them later.")]
+    public async Task ShouldRefuseToEndTheTurnWhenTheForceSightingsCannotBeRaisedAsync()
     {
-        _sightingFoldService.FoldTurnAsync(_GAME_ID, _PLAYER_TURN_ID, _PLAYER_ID, Arg.Any<CancellationToken>()).Returns(ServiceResultBase.Fail("The database went away."));
+        _forceSightingFoldService.FoldTurnAsync(_GAME_ID, _PLAYER_TURN_ID, _PLAYER_ID, Arg.Any<CancellationToken>()).Returns(ServiceResultBase.Fail("The database went away."));
 
         string error = await _process.ProcessAsync(EndOfTurn(_PLAYER_TURN_ID));
 
@@ -61,20 +69,35 @@ internal class RaiseSightingReportsTests
         {
             Assert.That(error, Does.Contain("has not ended"));
             Assert.That(error, Does.Contain("The database went away."), "The step's own reason travels with the refusal.");
+            await _structureSightingFoldService.DidNotReceiveWithAnyArgs().FoldTurnAsync(default, default, default, default);
         }
     }
 
-    [Test, Description("Once the sightings are raised for the ending Turn, on behalf of the Player whose Turn it is, the Turn is free to end.")]
-    public async Task ShouldLetTheTurnEndWhenTheSightingsAreRaisedAsync()
+    [Test, Description("If the Structure sightings cannot be raised the Turn does not end either, for the same reason, even though the Force sightings were raised.")]
+    public async Task ShouldRefuseToEndTheTurnWhenTheStructureSightingsCannotBeRaisedAsync()
     {
-        _sightingFoldService.FoldTurnAsync(_GAME_ID, _PLAYER_TURN_ID, _PLAYER_ID, Arg.Any<CancellationToken>()).Returns(ServiceResultBase.Succeed());
+        _structureSightingFoldService.FoldTurnAsync(_GAME_ID, _PLAYER_TURN_ID, _PLAYER_ID, Arg.Any<CancellationToken>()).Returns(ServiceResultBase.Fail("The database went away."));
 
         string error = await _process.ProcessAsync(EndOfTurn(_PLAYER_TURN_ID));
 
         using (Assert.EnterMultipleScope())
         {
+            Assert.That(error, Does.Contain("Structure sighting reports"));
+            Assert.That(error, Does.Contain("has not ended"));
+            Assert.That(error, Does.Contain("The database went away."));
+        }
+    }
+
+    [Test, Description("Once both kinds of sighting are raised for the ending Turn, on behalf of the Player whose Turn it is, the Turn is free to end.")]
+    public async Task ShouldLetTheTurnEndWhenTheSightingsAreRaisedAsync()
+    {
+        string error = await _process.ProcessAsync(EndOfTurn(_PLAYER_TURN_ID));
+
+        using (Assert.EnterMultipleScope())
+        {
             Assert.That(error, Is.Empty);
-            await _sightingFoldService.Received(1).FoldTurnAsync(_GAME_ID, _PLAYER_TURN_ID, _PLAYER_ID, Arg.Any<CancellationToken>());
+            await _forceSightingFoldService.Received(1).FoldTurnAsync(_GAME_ID, _PLAYER_TURN_ID, _PLAYER_ID, Arg.Any<CancellationToken>());
+            await _structureSightingFoldService.Received(1).FoldTurnAsync(_GAME_ID, _PLAYER_TURN_ID, _PLAYER_ID, Arg.Any<CancellationToken>());
         }
     }
 }

@@ -156,6 +156,68 @@ internal static class IntelligenceReadTestData
         };
     }
 
+    /// <summary>
+    /// A Structure report about the reader's Structure 60 - a kind-7 Structure, 80% built - seen captured by the acting Player and then razed, on one tile.
+    /// </summary>
+    internal static PlayerReport StructureReport(long id, int recipientPlayerId, int raisedDuringTurnId, SightingFidelity fidelity, (int X, int Y) tile)
+    {
+        return new PlayerReport
+        {
+            Id = id,
+            GameId = GAME_ID,
+            RecipientPlayerId = recipientPlayerId,
+            RaisedDuringPlayerTurnId = raisedDuringTurnId,
+            ReportType = PlayerReportType.StructureSighted,
+            SubjectStructureInstanceId = 60,
+            SubjectStructureId = 7,
+            SubjectOwnerPlayerId = ACTING_PLAYER_ID,
+            SubjectPreviousOwnerPlayerId = READER_PLAYER_ID,
+            SubjectCompletionPercent = 80,
+            Fidelity = fidelity,
+            FirstCampaignMapTileId = TileId(tile.X, tile.Y),
+            LastCampaignMapTileId = TileId(tile.X, tile.Y),
+            FirstTurnSequence = 2,
+            LastTurnSequence = 5,
+            ExitDirection = null,
+            StillVisible = false,
+            AppearedInView = false,
+            DestroyedInView = true,
+            CompletedInView = false,
+            CapturedInView = true,
+            FirstWitnessId = 50,
+            FirstWitnessRecordType = RecordType.Unit,
+            FirstWitnessOwnerPlayerId = recipientPlayerId
+        };
+    }
+
+    /// <summary>A memory of the acting Player's kind-7 Structure, 80% built.</summary>
+    internal static PlayerKnownStructure KnownStructure(
+        int id,
+        int playerId,
+        int structureInstanceId,
+        int lastSeenTurnId,
+        (int X, int Y) tile,
+        SightingFidelity fidelity,
+        KnownStructureStatus status = KnownStructureStatus.Standing)
+    {
+        return new PlayerKnownStructure
+        {
+            Id = id,
+            GameId = GAME_ID,
+            PlayerId = playerId,
+            StructureInstanceId = structureInstanceId,
+            StructureId = 7,
+            OwnerPlayerId = ACTING_PLAYER_ID,
+            ObservedCompletionPercent = 80,
+            Status = status,
+            Fidelity = fidelity,
+            CampaignMapTileId = TileId(tile.X, tile.Y),
+            LastSeenPlayerTurnId = lastSeenTurnId,
+            LastSeenTurnSequence = 4,
+            StillVisible = false
+        };
+    }
+
     private static Player NewPlayer(int id, int gameId)
     {
         return new Player

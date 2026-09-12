@@ -79,4 +79,37 @@ public interface ISightingReport
     /// Its unwounded soldiers. Disclosed only at <see cref="SightingFidelity.Detail"/>.
     /// </summary>
     int? HealthyTroops { get; }
+
+    /// <summary>
+    /// On a Structure report, whether the Structure was seen being finished; null on a Force report.
+    /// </summary>
+    /// <remarks>
+    /// On a Structure report <see cref="AppearedInView"/> means it was seen being founded and <see cref="DestroyedInView"/> that it was seen being razed.
+    /// </remarks>
+    bool? CompletedInView { get; }
+
+    /// <summary>
+    /// On a Structure report, whether the Structure was seen changing hands; null on a Force report.
+    /// </summary>
+    bool? CapturedInView { get; }
+
+    /// <summary>
+    /// Which Structure it was, stable across sightings. Disclosed from <see cref="SightingFidelity.Owner"/>.
+    /// </summary>
+    int? StructureInstanceId { get; }
+
+    /// <summary>
+    /// What kind of Structure it was. Disclosed from <see cref="SightingFidelity.Type"/>.
+    /// </summary>
+    int? StructureId { get; }
+
+    /// <summary>
+    /// Who held the Structure before the capture that was seen. Disclosed from <see cref="SightingFidelity.Owner"/>.
+    /// </summary>
+    int? PreviousOwnerPlayerId { get; }
+
+    /// <summary>
+    /// How far built the Structure was, from 0 to 100. Disclosed only at <see cref="SightingFidelity.Detail"/>.
+    /// </summary>
+    double? CompletionPercent { get; }
 }

@@ -36,8 +36,10 @@ import { useTileRendering } from "../hooks/useTileRendering";
 import { useConstructionPanel } from "../hooks/useConstructionPanel";
 import { useGameToolbar } from "./useGameToolbar";
 import ConstructionPanel from "./ConstructionPanel";
-import { useKnownForcesQuery, useSightingReportsQuery } from "@/features/intelligence/hooks/useIntelligenceQueries";
+import { useKnownForcesQuery, useKnownStructuresQuery, useSightingReportsQuery } from "@/features/intelligence/hooks/useIntelligenceQueries";
 import { groupKnownForcesByUnobservedTile } from "@/features/intelligence/knownForceMarkers";
+import { groupKnownStructuresByUnobservedTile } from "@/features/intelligence/knownStructureMarkers";
+import { useStructureDisplayInfoQuery } from "@/features/map/hooks/useStructureDisplayInfo";
 import type { SightingReport } from "@/features/intelligence/api/intelligenceApi";
 import type { SightingDescriptionContext } from "@/features/intelligence/describeSightingReport";
 import { useCurrentCampaignTurnQuery } from "../hooks/useCurrentCampaignTurn";
@@ -196,15 +198,18 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   // --- Intelligence: what the player learned while they were not looking ---
   const { data: sightingReports } = useSightingReportsQuery(gameId, playerId, tilesEnabled);
   const { data: knownForces } = useKnownForcesQuery(gameId, playerId, tilesEnabled);
+  const { data: knownStructures } = useKnownStructuresQuery(gameId, playerId, tilesEnabled);
   const { data: currentCampaignTurn } = useCurrentCampaignTurnQuery(gameId, tilesEnabled);
   const { data: gamePlayers } = useGamePlayersQuery(gameId, tilesEnabled);
+  const { data: structureDisplayLookup } = useStructureDisplayInfoQuery(tilesEnabled);
+  const structureNameByStructureId = structureDisplayLookup?.nameByStructureId;
 
-  // Reports carry ids, not names. Both lookups are resolved here, at read time, so a renamed faction reads correctly in reports raised before the rename.
+  // Reports carry ids, not names. The lookups are resolved here, at read time, so a renamed faction reads correctly in reports raised before the rename.
   const factionNameByPlayerId = useMemo(() => new Map((gamePlayers ?? []).map((player) => [player.playerId, player.factionName])), [gamePlayers]);
 
   const sightingDescriptionContext = useMemo<SightingDescriptionContext>(
-    () => ({ unitNameByUnitTemplateId, factionNameByPlayerId }),
-    [unitNameByUnitTemplateId, factionNameByPlayerId],
+    () => ({ unitNameByUnitTemplateId, factionNameByPlayerId, structureNameByStructureId }),
+    [unitNameByUnitTemplateId, factionNameByPlayerId, structureNameByStructureId],
   );
 
   // Null while nobody is taking a turn, which draws every known-force marker fresh rather than fading them on a guess.
@@ -243,6 +248,12 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const knownForcesByTileKey = useMemo(() => groupKnownForcesByUnobservedTile(knownForces ?? [], observedTileKeys), [knownForces, observedTileKeys]);
 
   const getKnownForces = useCallback((tile: TileCell) => knownForcesByTileKey.get(`${tile.x},${tile.y}`), [knownForcesByTileKey]);
+
+  // The same, for what the player last saw standing on a tile. Grouped separately from the forces so a tile whose remembered force changes does not also
+  // re-render its remembered structure.
+  const knownStructuresByTileKey = useMemo(() => groupKnownStructuresByUnobservedTile(knownStructures ?? [], observedTileKeys), [knownStructures, observedTileKeys]);
+
+  const getKnownStructures = useCallback((tile: TileCell) => knownStructuresByTileKey.get(`${tile.x},${tile.y}`), [knownStructuresByTileKey]);
 
   // --- Map panning (used by the notifications panel) ---
   const panMapTo = useCallback((x: number, y: number) => {
@@ -545,6 +556,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
                       getVisibleForceId={getVisibleForceId}
                       isTileObserved={isTileObserved}
                       getKnownForces={getKnownForces}
+                      getKnownStructures={getKnownStructures}
                       currentRoundNumber={currentRoundNumber}
                       onTileClick={onTileClick}
                       onTileHold={onTileHold}

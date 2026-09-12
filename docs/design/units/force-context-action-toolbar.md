@@ -300,6 +300,11 @@ the tiers and nothing more, and nothing in the codebase even creates a `Structur
 raises a "not built yet" toast exactly as Split Force does. Founding the settlement is
 [force-instances-roadmap.md](../../plans/force-instances-roadmap.md) Phase 10 (`POST /force-orders/settle`).
 
+When that is built it must found the `StructureInstance` through `IStructureLifecycleWriter` rather than adding the row itself.
+That writer records the founding in `structure.StructureHistory` as it makes it, which is what lets another player watching the
+ground be told a village went up there — see [intelligence-and-sightings.md](../intelligence-and-sightings.md). A founding
+written any other way is invisible to every other player, silently.
+
 ## Stage 1 — the movement point rescale (done)
 
 `UnitInstance.CampaignMovementRemaining` was a `decimal` (1.0 = one point), while

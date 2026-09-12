@@ -4,10 +4,12 @@ using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
+using AscendantEmpire.Domain.Entities.Structures;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums;
 using AscendantEmpire.Domain.Enums.Forces;
 using AscendantEmpire.Domain.Enums.Maps;
+using AscendantEmpire.Domain.Enums.Structures;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -73,6 +75,13 @@ internal class SightDataReader : ISightDataReader
         MovementDomain = DomainType.Land,
         Detection = SightingFidelityRules.STRUCTURE_DETECTION
     };
+
+    /// <summary>
+    /// A Structure a Player lost during a Turn - razed, or captured from them - reduced to what is needed to rebuild it as that Player's Observer until the moment it was lost.
+    /// </summary>
+    /// <param name="OwnerBeforePlayerId">Who held the Structure before the loss, and so whose Observer it was.</param>
+    /// <param name="LostAtSequence">The sequence of the first capture or razing, which becomes <see cref="SightObserver.DestroyedAtSequence"/>.</param>
+    private sealed record LostStructure(int StructureInstanceId, int OwnerBeforePlayerId, int LostAtSequence, Coord Location, int SightRange);
 
     /// <inheritdoc />
     public async Task<CampaignMapGeometry?> GetGeometryAsync(AscendantEmpireContext context, int gameId, CancellationToken cancelToken = default)
@@ -189,6 +198,12 @@ internal class SightDataReader : ISightDataReader
                 .MaxAsync(cancelToken);
         }
 
+        // Structures these Players lost this Turn watched until they were lost. A razed one no longer stands and a captured one belongs to someone else now, so neither is in the standing
+        // maximum above, and each has to be counted here or an Observer that saw something could fall outside the box.
+        IReadOnlyCollection<LostStructure> lostStructures = await GetStructuresLostThisTurnAsync(context, gameId, playerIds, playerTurnId, tileIds: null, cancelToken);
+
+        int maxLostStructureSight = lostStructures.Count == 0 ? 0 : lostStructures.Max(structure => structure.SightRange);
+
         // High ground adds its elevation to an Observer's range. Only Geographies a Force can enter count: nothing stands on a Mountain to take the bonus.
         int? maxEnterableElevation = await context.CampaignGeographies
             .AsNoTracking()
@@ -196,7 +211,7 @@ internal class SightDataReader : ISightDataReader
             .Select(geography => (int?)geography.RelativeElevation)
             .MaxAsync(cancelToken);
 
-        int maxBaseSight = Math.Max(Math.Max(ToWholeTiles(maxUnitSight), maxStructureSight ?? 0), ToWholeTiles(maxDestroyedUnitSight));
+        int maxBaseSight = new[] { ToWholeTiles(maxUnitSight), maxStructureSight ?? 0, ToWholeTiles(maxDestroyedUnitSight), maxLostStructureSight }.Max();
 
         // Sea-level and lower ground is never a penalty, so a negative maximum adds nothing rather than shrinking the box.
         return maxBaseSight + Math.Max(0, maxEnterableElevation ?? 0);
@@ -223,7 +238,7 @@ internal class SightDataReader : ISightDataReader
             return [];
         }
 
-        List<SightObserver> structures = await context.StructureInstances
+        List<SightObserver> standingStructures = await context.StructureInstances
             .AsNoTracking()
             .Where(structure => structure.GameId == gameId
                 && playerIds.Contains(structure.OwnedByPlayerId)
@@ -241,9 +256,33 @@ internal class SightDataReader : ISightDataReader
 
         IReadOnlyCollection<SightObserver> destroyedUnits = await GetUnitsDestroyedOnTilesAsync(context, gameId, playerIds, playerTurnId, tileIds, cancelToken);
 
-        HashSet<int> destroyedUnitIds = [.. destroyedUnits.Select(unit => unit.Id)];
+        IReadOnlyCollection<LostStructure> lostStructures = await GetStructuresLostThisTurnAsync(context, gameId, playerIds, playerTurnId, tileIds, cancelToken);
 
-        return [.. structures, .. standingUnits.Where(unit => destroyedUnitIds.Contains(unit.Id) == false), .. destroyedUnits];
+        // A lost Structure watches for the Player who held it before the loss, from where it stands, up to - and not including - the sequence it was lost at.
+        IEnumerable<SightObserver> lostStructureObservers = lostStructures.Select(structure => new SightObserver
+        {
+            Id = structure.StructureInstanceId,
+            RecordType = RecordType.Structure,
+            PlayerId = structure.OwnerBeforePlayerId,
+            Location = structure.Location,
+            BaseSightRange = structure.SightRange,
+            MovementDomain = DomainType.Land,
+            Detection = SightingFidelityRules.STRUCTURE_DETECTION,
+            DestroyedAtSequence = structure.LostAtSequence
+        });
+
+        List<SightObserver> lostObservers = [.. destroyedUnits, .. lostStructureObservers];
+
+        // Where an Observer somehow has both a standing record and a lost one, the lost one wins, so it is never counted for sequences after the loss. Keyed on the record type as well as the
+        // id: a Unit and a Structure are numbered independently, and a bare id would let one knock the other out.
+        HashSet<(RecordType RecordType, int Id)> lostObserverKeys = [.. lostObservers.Select(observer => (observer.RecordType, observer.Id))];
+
+        return
+        [
+            .. standingStructures.Where(observer => lostObserverKeys.Contains((observer.RecordType, observer.Id)) == false),
+            .. standingUnits.Where(observer => lostObserverKeys.Contains((observer.RecordType, observer.Id)) == false),
+            .. lostObservers
+        ];
     }
 
     /// <inheritdoc />
@@ -343,6 +382,75 @@ internal class SightDataReader : ISightDataReader
         }
 
         return observers;
+    }
+
+    /// <summary>
+    /// The Structures the given Players lost during one Turn - razed, or captured from them - with the sequence each was first lost at.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A capture counts as a loss exactly as a razing does. It flips the Structure's owner to the acting Player, who is never an observing Player, so without this the Structure would stop
+    /// witnessing everything its real owner's tower saw before it was taken - the same hole razing would leave.
+    /// </para>
+    /// <para>
+    /// <b>Only the first loss matters.</b> During a Turn only the acting Player acts, so whoever held the Structure after its first capture was the acting Player, and is excluded anyway. The
+    /// owner before that first loss is read off the row: the previous owner of a <c>Captured</c> row, or the owner of a <c>Razed</c> one.
+    /// </para>
+    /// <para>
+    /// The history rows are filtered in the query and the first loss picked and filtered by owner in memory, since the owner before the loss lives in a different column for each event type.
+    /// A Turn's losses are a handful of rows at most.
+    /// </para>
+    /// </remarks>
+    /// <param name="tileIds">The tiles to search, or <see langword="null"/> for the whole map.</param>
+    private static async Task<IReadOnlyCollection<LostStructure>> GetStructuresLostThisTurnAsync(
+        AscendantEmpireContext context,
+        int gameId,
+        int[] playerIds,
+        int playerTurnId,
+        int[]? tileIds,
+        CancellationToken cancelToken)
+    {
+        IQueryable<StructureHistory> losses = context.StructureHistory
+            .AsNoTracking()
+            .Where(row => row.GameId == gameId
+                && row.PlayerTurnId == playerTurnId
+                && (row.EventType == StructureHistoryEventType.Captured || row.EventType == StructureHistoryEventType.Razed));
+
+        if (tileIds is not null)
+        {
+            losses = losses.Where(row => tileIds.Contains(row.CampaignMapTileId));
+        }
+
+        var lossRows = await (from row in losses
+                              join structure in context.StructureInstances.AsNoTracking()
+                                  on row.StructureInstanceId equals structure.Id
+                              select new
+                              {
+                                  row.Id,
+                                  row.StructureInstanceId,
+                                  row.EventType,
+                                  row.PlayerId,
+                                  row.PreviousOwnerPlayerId,
+                                  row.TurnSequence,
+                                  structure.CampaignMap.XCoord,
+                                  structure.CampaignMap.YCoord,
+                                  structure.Structure.SightRange
+                              }).ToListAsync(cancelToken);
+
+        return
+        [
+            .. lossRows
+                .GroupBy(row => row.StructureInstanceId)
+                .Select(structureRows => structureRows.OrderBy(row => row.TurnSequence).ThenBy(row => row.Id).First())
+                .Select(firstLoss => new LostStructure(
+                    firstLoss.StructureInstanceId,
+                    // A Captured row always carries its previous owner - a check constraint makes sure of it - so the fallback is never taken in practice.
+                    OwnerBeforePlayerId: firstLoss.EventType == StructureHistoryEventType.Captured ? firstLoss.PreviousOwnerPlayerId ?? firstLoss.PlayerId : firstLoss.PlayerId,
+                    LostAtSequence: firstLoss.TurnSequence,
+                    Location: new Coord(firstLoss.XCoord, firstLoss.YCoord),
+                    SightRange: firstLoss.SightRange))
+                .Where(structure => playerIds.Contains(structure.OwnerBeforePlayerId))
+        ];
     }
 
     /// <summary>

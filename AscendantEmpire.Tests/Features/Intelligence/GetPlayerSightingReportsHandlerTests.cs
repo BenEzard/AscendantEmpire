@@ -105,6 +105,46 @@ internal class GetPlayerSightingReportsHandlerTests : InMemoryTestBase
         }
     }
 
+    [Test, Description("A Structure report reaches the feed on its one tile, with its Structure, owners, progress and the events seen, since a Structure has no path of its own.")]
+    public async Task ShouldReturnAStructureReportOnItsTileWithWhatWasSeenAsync()
+    {
+        await AddAsync(DbFactory, StructureReport(501, READER_PLAYER_ID, ROUND_TWO_ACTING_TURN_ID, SightingFidelity.Detail, (6, 3)));
+
+        SightingReport report = (await ReadFeedAsync(READER_PLAYER_ID)).Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.ReportType, Is.EqualTo(Domain.Enums.Intelligence.PlayerReportType.StructureSighted));
+            Assert.That(report.Path.Select(coord => (coord.X, coord.Y)), Is.EqualTo(new[] { (6, 3) }), "The first and last tile are the same, so the path is that one tile.");
+            Assert.That(report.StructureInstanceId, Is.EqualTo(60));
+            Assert.That(report.StructureId, Is.EqualTo(7));
+            Assert.That(report.OwnerPlayerId, Is.EqualTo(ACTING_PLAYER_ID));
+            Assert.That(report.PreviousOwnerPlayerId, Is.EqualTo(READER_PLAYER_ID));
+            Assert.That(report.CompletionPercent, Is.EqualTo(80));
+            Assert.That(report.CapturedInView, Is.True);
+            Assert.That(report.DestroyedInView, Is.True);
+            Assert.That(report.CompletedInView, Is.False);
+            Assert.That(report.UnitInstanceId, Is.Null, "A Structure report has no Force subject.");
+        }
+    }
+
+    [Test, Description("A Structure report goes through the redaction layer too, so one earned at Type names the kind of Structure but not whose it was.")]
+    public async Task ShouldStripAStructureReportDownToItsFidelityAsync()
+    {
+        await AddAsync(DbFactory, StructureReport(502, READER_PLAYER_ID, ROUND_TWO_ACTING_TURN_ID, SightingFidelity.Type, (6, 3)));
+
+        SightingReport report = (await ReadFeedAsync(READER_PLAYER_ID)).Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.StructureId, Is.EqualTo(7));
+            Assert.That(report.OwnerPlayerId, Is.Null);
+            Assert.That(report.PreviousOwnerPlayerId, Is.Null);
+            Assert.That(report.StructureInstanceId, Is.Null);
+            Assert.That(report.CompletionPercent, Is.Null);
+        }
+    }
+
     [Test, Description("A Player that is not in the Game is a request for nothing, and is answered as not found rather than with an empty feed that looks like a quiet Round.")]
     public async Task ShouldReturnNotFoundWhenThePlayerIsNotInTheGameAsync()
     {

@@ -1,8 +1,8 @@
-﻿import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { postEndCampaignTurn, type EndCampaignTurnOutcome } from "@/features/game/api/turnApi";
 import { playerCampaignTilesKey } from "@/features/map/hooks/useCampaignMapTiles";
 import { unitDisplayInfoKey } from "@/features/map/hooks/useUnitDisplayInfo";
-import { knownForcesKey, sightingReportsKey } from "@/features/intelligence/hooks/useIntelligenceQueries";
+import { knownForcesKey, knownStructuresKey, sightingReportsKey } from "@/features/intelligence/hooks/useIntelligenceQueries";
 import { currentCampaignTurnKey } from "./useCurrentCampaignTurn";
 
 /**
@@ -40,6 +40,7 @@ export function useEndTurnMutation(
         // step raised nothing for them, but a feed read before now still holds the reports from before this turn, and those are no longer new.
         queryClient.invalidateQueries({ queryKey: sightingReportsKey(gameId, playerId) });
         queryClient.invalidateQueries({ queryKey: knownForcesKey(gameId, playerId) });
+        queryClient.invalidateQueries({ queryKey: knownStructuresKey(gameId, playerId) });
         queryClient.invalidateQueries({ queryKey: currentCampaignTurnKey(gameId) });
       }
 

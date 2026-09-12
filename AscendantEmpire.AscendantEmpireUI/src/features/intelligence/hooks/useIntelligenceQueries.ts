@@ -1,9 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
-import { getKnownForces, getSightingReports, type KnownForce, type SightingReport } from "@/features/intelligence/api/intelligenceApi";
+import {
+  getKnownForces,
+  getKnownStructures,
+  getSightingReports,
+  type KnownForce,
+  type KnownStructure,
+  type SightingReport,
+} from "@/features/intelligence/api/intelligenceApi";
 
 export const sightingReportsKey = (gameId: number | undefined, playerId: number | undefined) => ["sightingReports", gameId, playerId] as const;
 
 export const knownForcesKey = (gameId: number | undefined, playerId: number | undefined) => ["knownForces", gameId, playerId] as const;
+
+export const knownStructuresKey = (gameId: number | undefined, playerId: number | undefined) => ["knownStructures", gameId, playerId] as const;
 
 /**
  * The player's intelligence feed: reports raised since their last turn ended.
@@ -28,5 +37,15 @@ export function useKnownForcesQuery(gameId: number | undefined, playerId: number
     enabled: enabled && gameId != null && playerId != null,
     refetchOnWindowFocus: true,
     queryFn: () => getKnownForces(),
+  });
+}
+
+/** Every structure the player has watched change, as last seen. Refetched on focus for the same reason as the feed. */
+export function useKnownStructuresQuery(gameId: number | undefined, playerId: number | undefined, enabled: boolean) {
+  return useQuery<KnownStructure[], Error>({
+    queryKey: knownStructuresKey(gameId, playerId),
+    enabled: enabled && gameId != null && playerId != null,
+    refetchOnWindowFocus: true,
+    queryFn: () => getKnownStructures(),
   });
 }

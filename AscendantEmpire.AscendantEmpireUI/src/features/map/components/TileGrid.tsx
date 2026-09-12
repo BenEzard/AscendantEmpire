@@ -1,8 +1,8 @@
-﻿import React from "react";
+import React from "react";
 import type { Geography } from "@/types/map/Geography";
 import type { TileCell } from "./TileTypes";
 import Tile from "./Tile";
-import type { KnownForce } from "@/features/intelligence/api/intelligenceApi";
+import type { KnownForce, KnownStructure } from "@/features/intelligence/api/intelligenceApi";
 
 export const TILE_SIZE_PX = 50;
 
@@ -29,6 +29,8 @@ export interface TileGridProps {
    * memoised tile re-renders. Omitted means no markers at all.
    */
   getKnownForces?: (tile: TileCell) => readonly KnownForce[] | undefined;
+  /** The structures the player last saw change on a tile, freshest first. The same stability rule as `getKnownForces` applies. */
+  getKnownStructures?: (tile: TileCell) => readonly KnownStructure[] | undefined;
   /** The round being played now, which markers fade against. */
   currentRoundNumber?: number | null;
   onTileClick?: (tile: TileCell) => void;
@@ -53,6 +55,7 @@ const TileGrid = React.memo(function TileGrid({
   getVisibleForceId,
   isTileObserved,
   getKnownForces,
+  getKnownStructures,
   currentRoundNumber,
   onTileClick,
   onTileHold,
@@ -106,6 +109,7 @@ const TileGrid = React.memo(function TileGrid({
               visibleForceId={getVisibleForceId?.(t)}
               isObserved={isTileObserved?.(t) ?? true}
               knownForces={getKnownForces?.(t)}
+              knownStructures={getKnownStructures?.(t)}
               currentRoundNumber={currentRoundNumber}
               onClick={onTileClick}
               onHold={onTileHold}

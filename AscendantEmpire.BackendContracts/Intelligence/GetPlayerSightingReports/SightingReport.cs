@@ -28,4 +28,10 @@ public record SightingReport : ISightingReport
     public int? OwnerPlayerId { get; init; }
     public int? UnitInstanceId { get; init; }
     public int? HealthyTroops { get; init; }
+    public bool? CompletedInView { get; init; }
+    public bool? CapturedInView { get; init; }
+    public int? StructureInstanceId { get; init; }
+    public int? StructureId { get; init; }
+    public int? PreviousOwnerPlayerId { get; init; }
+    public double? CompletionPercent { get; init; }
 }

@@ -63,6 +63,7 @@ internal sealed class GameDeleteExecutor(
     private static readonly string[] _IDENTITY_TABLES_TO_RESEED =
     [
         "[units].[MovementHistory]",
+        "[structure].[StructureHistory]",
         "[units].[ForceOrderParticipants]",
         "[units].[ForceOrderMovementSteps]",
         "[units].[ForceOrders]",
@@ -70,7 +71,7 @@ internal sealed class GameDeleteExecutor(
         "[units].[Commands]",
         "[game].[PlayerReport]",
         "[game].[PlayerKnownForce]",
-        "[game].[PlayerKnownStructures]",
+        "[game].[PlayerKnownStructure]",
         "[game].[StructureInstances]",
         "[turns].[PlayerTurn]",
         "[turns].[TurnQueueParticipant]",
@@ -203,6 +204,12 @@ internal sealed class GameDeleteExecutor(
                 .Where(h => h.GameId == gameId)
                 .ExecuteDeleteAsync(cancellationToken)),
 
+            // Structure history names structures, tiles, players and player turns, so it goes before all of them too. Unlike movement history its instance id is a real foreign key, which this
+            // position already satisfies: structures are purged well below.
+            ("structure history", () => purge.StructureHistory
+                .Where(h => h.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
             // The intelligence feed names tiles, players, templates and player turns just as movement history does, so it goes at the same point. Path tiles before their reports, since that
             // relationship is NoAction too; like the history, neither table's Force id is a foreign key.
             ("player report path tiles", () => purge.PlayerReportPathTiles
@@ -226,8 +233,8 @@ internal sealed class GameDeleteExecutor(
                 .Where(c => c.GameId == gameId)
                 .ExecuteDeleteAsync(cancellationToken)),
 
-            // What players have seen of a structure goes before the structure itself.
-            ("player known structures", () => purge.PlayerStructures
+            // What players have seen of a structure goes before the structure itself. So do the structure reports above, whose subject is a real foreign key to it.
+            ("player known structures", () => purge.PlayerKnownStructures
                 .Where(s => s.GameId == gameId)
                 .ExecuteDeleteAsync(cancellationToken)),
 

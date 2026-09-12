@@ -46,10 +46,21 @@ internal class SightDataReaderTests : InMemoryTestBase
     /// <summary>A template that sees three tiles, over water, with a Detection and Visibility no default could match by accident.</summary>
     private const int _TEMPLATE_ID = 7;
 
+    /// <summary>The watchtower, which sees two tiles.</summary>
+    private const int _WATCHTOWER_STRUCTURE_ID = 1;
+
+    /// <summary>A fortress, which sees five tiles - further than anything else the Players have, so a reach that counts it can only have counted it.</summary>
+    private const int _FORTRESS_STRUCTURE_ID = 2;
+
     private const int _STANDING_STRUCTURE_ID = 20;
     private const int _REMOVED_STRUCTURE_ID = 21;
     private const int _BATTLE_MAP_STRUCTURE_ID = 22;
     private const int _OTHER_PLAYERS_STRUCTURE_ID = 23;
+
+    private const int _RAZED_THIS_TURN_STRUCTURE_ID = 24;
+    private const int _CAPTURED_THIS_TURN_STRUCTURE_ID = 25;
+    private const int _RAZED_IN_OTHER_TURN_STRUCTURE_ID = 26;
+    private const int _CAPTURED_THEN_RAZED_STRUCTURE_ID = 27;
 
     private const int _UNIT_IN_JUNGLE_ID = 30;
     private const int _OTHER_PLAYERS_UNIT_ID = 31;
@@ -60,6 +71,8 @@ internal class SightDataReaderTests : InMemoryTestBase
     private const int _OTHER_PLAYERS_DESTROYED_UNIT_ID = 52;
 
     private const int _DESTROYED_AT_SEQUENCE = 9;
+    private const int _RAZED_AT_SEQUENCE = 7;
+    private const int _CAPTURED_AT_SEQUENCE = 5;
 
     private readonly SightDataReader _reader = new();
 
@@ -140,21 +153,7 @@ internal class SightDataReaderTests : InMemoryTestBase
             TotalVisibility = 700
         });
 
-        context.Set<Structure>().Add(new Structure
-        {
-            Id = 1,
-            Code = "watchtower",
-            Name = "Watchtower",
-            RequiresSlotType = TileSlotType.Primary,
-            AllowedPositions = PositionOnTile.WholeTile,
-            CanBeBuiltOnCampaignMap = true,
-            CanBeBuiltOnBattleMap = false,
-            DualMapBuildTrigger = false,
-            SightRange = 2,
-            SightDirection = DetectionDirection.FullRadius,
-            MapImagePath = "watchtower.png",
-            FullImagePath = "watchtower-full.png"
-        });
+        context.Set<Structure>().AddRange(NewStructureType(_WATCHTOWER_STRUCTURE_ID, "watchtower", sightRange: 2), NewStructureType(_FORTRESS_STRUCTURE_ID, "fortress", sightRange: 5));
 
         context.StructureInstances.AddRange(
             NewStructure(_STANDING_STRUCTURE_ID, _PLAYER_ID, x: 0, y: 0),
@@ -294,6 +293,86 @@ internal class SightDataReaderTests : InMemoryTestBase
         Assert.That(unit.DestroyedAtSequence, Is.EqualTo(6));
     }
 
+    [Test, Description("A Structure razed or captured this Turn still watches for the Player who held it, until the sequence it was lost at, so its earlier sightings are not lost with it.")]
+    public async Task ShouldFindStructuresLostThisTurnAsTheirFormerOwnersObserversAsync()
+    {
+        await SeedLostStructuresAsync();
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        IReadOnlyCollection<SightObserver> observers = await _reader.GetObserversOnTilesAsync(context, _GAME_ID, [_PLAYER_ID], _PLAYER_TURN_ID, TilesAround(1, 1));
+
+        SightObserver razed = observers.Single(observer => observer.Id == _RAZED_THIS_TURN_STRUCTURE_ID);
+        SightObserver captured = observers.Single(observer => observer.Id == _CAPTURED_THIS_TURN_STRUCTURE_ID);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(observers.Select(observer => observer.Id), Is.EquivalentTo(new[]
+            {
+                _STANDING_STRUCTURE_ID,
+                _UNIT_IN_JUNGLE_ID,
+                _DESTROYED_UNIT_ID,
+                _RAZED_THIS_TURN_STRUCTURE_ID,
+                _CAPTURED_THIS_TURN_STRUCTURE_ID,
+                _CAPTURED_THEN_RAZED_STRUCTURE_ID
+            }), "Not a Structure razed in some other Turn, which the Player had already lost before this one began.");
+
+            Assert.That(razed.RecordType, Is.EqualTo(RecordType.Structure));
+            Assert.That(razed.PlayerId, Is.EqualTo(_PLAYER_ID));
+            Assert.That(razed.DestroyedAtSequence, Is.EqualTo(_RAZED_AT_SEQUENCE));
+            Assert.That(razed.Location, Is.EqualTo(new Coord(0, 2)), "A razed Structure watched from where it stood.");
+            Assert.That(razed.BaseSightRange, Is.EqualTo(2), "Its Sight comes from its kind of Structure.");
+            Assert.That(razed.Detection, Is.EqualTo(SightingFidelityRules.STRUCTURE_DETECTION));
+
+            Assert.That(captured.PlayerId, Is.EqualTo(_PLAYER_ID), "A captured Structure watches for the Player it was taken from, not the one who holds it now.");
+            Assert.That(captured.DestroyedAtSequence, Is.EqualTo(_CAPTURED_AT_SEQUENCE));
+
+            Assert.That(observers.Single(observer => observer.Id == _CAPTURED_THEN_RAZED_STRUCTURE_ID).DestroyedAtSequence, Is.EqualTo(3),
+                "Taken at 3 and razed at 8, it was lost to this Player at the capture: only the first loss counts.");
+        }
+    }
+
+    [Test, Description("A Structure lost this Turn is only its former owner's Observer, so the Player who took it does not gain its earlier sight, and nor does a later owner.")]
+    public async Task ShouldNotCountALostStructureForAnyoneButItsFormerOwnerAsync()
+    {
+        await SeedLostStructuresAsync();
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        IReadOnlyCollection<SightObserver> observers = await _reader.GetObserversOnTilesAsync(context, _GAME_ID, [_OTHER_PLAYER_ID], _PLAYER_TURN_ID, TilesAround(1, 1));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(observers.Select(observer => observer.Id), Does.Not.Contain(_RAZED_THIS_TURN_STRUCTURE_ID));
+            Assert.That(observers.Select(observer => observer.Id), Does.Not.Contain(_CAPTURED_THEN_RAZED_STRUCTURE_ID), "Razed by its captor, it stands for nobody now, and was never theirs before.");
+
+            SightObserver captured = observers.Single(observer => observer.Id == _CAPTURED_THIS_TURN_STRUCTURE_ID);
+
+            Assert.That(captured.PlayerId, Is.EqualTo(_OTHER_PLAYER_ID), "To its captor it is simply a standing Structure.");
+            Assert.That(captured.DestroyedAtSequence, Is.Null);
+        }
+    }
+
+    [Test, Description("A Structure and a Unit that happen to share an id are both Observers, since the two are numbered independently and one must never hide the other.")]
+    public async Task ShouldKeepAStandingUnitThatSharesAnIdWithALostStructureAsync()
+    {
+        await SeedLostStructuresAsync();
+
+        await using (AscendantEmpireContext seedContext = await DbFactory.CreateDbContextAsync())
+        {
+            seedContext.UnitInstances.Add(NewUnit(_RAZED_THIS_TURN_STRUCTURE_ID, _PLAYER_ID, x: 2, y: 2, healthyCount: 10));
+            await seedContext.SaveChangesAsync();
+        }
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        IReadOnlyCollection<SightObserver> observers = await _reader.GetObserversOnTilesAsync(context, _GAME_ID, [_PLAYER_ID], _PLAYER_TURN_ID, TilesAround(1, 1));
+
+        IEnumerable<RecordType> sharingTheId = observers.Where(observer => observer.Id == _RAZED_THIS_TURN_STRUCTURE_ID).Select(observer => observer.RecordType);
+
+        Assert.That(sharingTheId, Is.EquivalentTo(new[] { RecordType.Structure, RecordType.Unit }));
+    }
+
     [Test, Description("The search box reaches the best Sight among the Players' Observers plus the highest ground a Force can stand on, never a Mountain.")]
     public async Task ShouldReachTheBestSightPlusTheHighestEnterableGroundAsync()
     {
@@ -305,6 +384,24 @@ internal class SightDataReaderTests : InMemoryTestBase
         Assert.That(reach, Is.EqualTo(4));
     }
 
+    [Test, Description("A Structure lost this Turn counts towards the search box, or an Observer that watched before it fell could stand outside the box and never be asked.")]
+    public async Task ShouldReachTheSightOfAStructureLostThisTurnAsync()
+    {
+        await using (AscendantEmpireContext seedContext = await DbFactory.CreateDbContextAsync())
+        {
+            seedContext.StructureInstances.Add(NewStructure(40, _PLAYER_ID, x: 3, y: 3, removedOnTurnId: _PLAYER_TURN_ID, structureId: _FORTRESS_STRUCTURE_ID));
+            seedContext.StructureHistory.Add(NewStructureRow(40, StructureHistoryEventType.Razed, _PLAYER_ID, previousOwnerPlayerId: null, x: 3, y: 3, _PLAYER_TURN_ID, turnSequence: 4, structureId: _FORTRESS_STRUCTURE_ID));
+            await seedContext.SaveChangesAsync();
+        }
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        int reach = await _reader.GetMaxSightReachAsync(context, _GAME_ID, [_PLAYER_ID], _PLAYER_TURN_ID);
+
+        // The razed fortress's five tiles, plus Hilly's one.
+        Assert.That(reach, Is.EqualTo(6));
+    }
+
     [Test, Description("A Force probe's Visibility is the compiled template's, and a template with no snapshot is simply absent.")]
     public async Task ShouldReadTheCompiledVisibilityOfEachTemplateAsync()
     {
@@ -313,6 +410,31 @@ internal class SightDataReaderTests : InMemoryTestBase
         IReadOnlyDictionary<int, long> visibility = await _reader.GetTemplateVisibilityAsync(context, [_TEMPLATE_ID, 999]);
 
         Assert.That(visibility, Is.EquivalentTo(new Dictionary<int, long> { [_TEMPLATE_ID] = 700 }));
+    }
+
+    /// <summary>
+    /// Seeds the Structures lost around (1, 1): one of Player 2's razed this Turn, one captured from Player 2 this Turn, one of Player 2's razed in another Turn, and one captured from Player 2
+    /// at 3 and then razed by its captor at 8.
+    /// </summary>
+    private async Task SeedLostStructuresAsync()
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        context.StructureInstances.AddRange(
+            NewStructure(_RAZED_THIS_TURN_STRUCTURE_ID, _PLAYER_ID, x: 0, y: 2, removedOnTurnId: _PLAYER_TURN_ID),
+            NewStructure(_CAPTURED_THIS_TURN_STRUCTURE_ID, _OTHER_PLAYER_ID, x: 2, y: 2),
+            NewStructure(_RAZED_IN_OTHER_TURN_STRUCTURE_ID, _PLAYER_ID, x: 1, y: 2, removedOnTurnId: _OTHER_PLAYER_TURN_ID),
+            NewStructure(_CAPTURED_THEN_RAZED_STRUCTURE_ID, _OTHER_PLAYER_ID, x: 1, y: 0, removedOnTurnId: _PLAYER_TURN_ID));
+
+        context.StructureHistory.AddRange(
+            NewStructureRow(_RAZED_THIS_TURN_STRUCTURE_ID, StructureHistoryEventType.Razed, _PLAYER_ID, previousOwnerPlayerId: null, x: 0, y: 2, _PLAYER_TURN_ID, _RAZED_AT_SEQUENCE),
+            NewStructureRow(_CAPTURED_THIS_TURN_STRUCTURE_ID, StructureHistoryEventType.Captured, _OTHER_PLAYER_ID, previousOwnerPlayerId: _PLAYER_ID, x: 2, y: 2, _PLAYER_TURN_ID, _CAPTURED_AT_SEQUENCE),
+            NewStructureRow(_RAZED_IN_OTHER_TURN_STRUCTURE_ID, StructureHistoryEventType.Razed, _PLAYER_ID, previousOwnerPlayerId: null, x: 1, y: 2, _OTHER_PLAYER_TURN_ID, turnSequence: 2),
+            // Listed razing first, so the test proves the first loss is chosen by sequence rather than by the order rows happen to come back in.
+            NewStructureRow(_CAPTURED_THEN_RAZED_STRUCTURE_ID, StructureHistoryEventType.Razed, _OTHER_PLAYER_ID, previousOwnerPlayerId: null, x: 1, y: 0, _PLAYER_TURN_ID, turnSequence: 8),
+            NewStructureRow(_CAPTURED_THEN_RAZED_STRUCTURE_ID, StructureHistoryEventType.Captured, _OTHER_PLAYER_ID, previousOwnerPlayerId: _PLAYER_ID, x: 1, y: 0, _PLAYER_TURN_ID, turnSequence: 3));
+
+        await context.SaveChangesAsync();
     }
 
     private static int TileId(int x, int y)
@@ -332,7 +454,26 @@ internal class SightDataReaderTests : InMemoryTestBase
         }
     }
 
-    private static StructureInstance NewStructure(int id, int ownerPlayerId, int x, int y, int? removedOnTurnId = null, int? battleMapTileId = null)
+    private static Structure NewStructureType(int id, string code, int sightRange)
+    {
+        return new Structure
+        {
+            Id = id,
+            Code = code,
+            Name = code,
+            RequiresSlotType = TileSlotType.Primary,
+            AllowedPositions = PositionOnTile.WholeTile,
+            CanBeBuiltOnCampaignMap = true,
+            CanBeBuiltOnBattleMap = false,
+            DualMapBuildTrigger = false,
+            SightRange = sightRange,
+            SightDirection = DetectionDirection.FullRadius,
+            MapImagePath = $"{code}.png",
+            FullImagePath = $"{code}-full.png"
+        };
+    }
+
+    private static StructureInstance NewStructure(int id, int ownerPlayerId, int x, int y, int? removedOnTurnId = null, int? battleMapTileId = null, int structureId = _WATCHTOWER_STRUCTURE_ID)
     {
         return new StructureInstance
         {
@@ -340,13 +481,39 @@ internal class SightDataReaderTests : InMemoryTestBase
             GameId = _GAME_ID,
             CampaignMapTileId = TileId(x, y),
             BattleMapTileId = battleMapTileId,
-            StructureId = 1,
+            StructureId = structureId,
             SlotType = TileSlotType.Primary,
             Position = PositionOnTile.WholeTile,
             OwnedByPlayerId = ownerPlayerId,
             CreatedOnTurnId = 1,
             CompletionPercent = 100,
             RemovedOnTurnId = removedOnTurnId
+        };
+    }
+
+    private static StructureHistory NewStructureRow(
+        int structureInstanceId,
+        StructureHistoryEventType eventType,
+        int playerId,
+        int? previousOwnerPlayerId,
+        int x,
+        int y,
+        int playerTurnId,
+        int turnSequence,
+        int structureId = _WATCHTOWER_STRUCTURE_ID)
+    {
+        return new StructureHistory
+        {
+            GameId = _GAME_ID,
+            StructureInstanceId = structureInstanceId,
+            StructureId = structureId,
+            PlayerId = playerId,
+            PreviousOwnerPlayerId = previousOwnerPlayerId,
+            EventType = eventType,
+            CompletionPercent = 100,
+            CampaignMapTileId = TileId(x, y),
+            PlayerTurnId = playerTurnId,
+            TurnSequence = turnSequence
         };
     }
 

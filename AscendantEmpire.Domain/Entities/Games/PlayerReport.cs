@@ -51,7 +51,7 @@ public class PlayerReport
     public PlayerReportType ReportType { get; set; }
 
     /// <summary>
-    /// The Force the report is about, or null for a report with no Force subject — structure and combat reports, once they exist.
+    /// The Force the report is about, or null for a report with no Force subject — a structure report, and combat reports once they exist.
     /// </summary>
     /// <remarks>
     /// Deliberately <b>not</b> a foreign key, for the same reason as <c>MovementHistory.UnitInstanceId</c>: a destroyed Force is hard-deleted, and a foreign key would either refuse that delete or
@@ -112,19 +112,58 @@ public class PlayerReport
     public MoveDirection? ExitDirection { get; set; }
 
     /// <summary>
-    /// Whether the Force was still in view when the Turn ended.
+    /// Whether the subject was still in view when the Turn ended - for a Structure, still standing as well.
     /// </summary>
     public bool StillVisible { get; set; }
 
     /// <summary>
-    /// Whether the track began with the Force being created in view.
+    /// Whether the track began with the Force being created in view. On a Structure report, whether the Structure was seen being <b>founded</b>.
     /// </summary>
     public bool AppearedInView { get; set; }
 
     /// <summary>
-    /// Whether the track ended with the Force being destroyed in view.
+    /// Whether the track ended with the Force being destroyed in view. On a Structure report, whether the Structure was seen being <b>razed</b>.
     /// </summary>
     public bool DestroyedInView { get; set; }
+
+    /// <summary>
+    /// The Structure a <see cref="PlayerReportType.StructureSighted"/> report is about, or null on any other report.
+    /// </summary>
+    /// <remarks>
+    /// A real foreign key, unlike <see cref="SubjectUnitInstanceId"/>: a razed Structure is soft-deleted, so the row outlives it. A check constraint allows at most one of the two subjects.
+    /// </remarks>
+    public int? SubjectStructureInstanceId { get; set; }
+
+    /// <summary>
+    /// What kind of Structure it was, or null on a report with no Structure subject.
+    /// </summary>
+    public int? SubjectStructureId { get; set; }
+
+    /// <summary>
+    /// How far built the Structure was at the last event the recipient's coalition witnessed, or null on a report with no Structure subject.
+    /// </summary>
+    public double? SubjectCompletionPercent { get; set; }
+
+    /// <summary>
+    /// Who held the Structure before the first capture the coalition witnessed, or null when no capture was witnessed.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="SubjectOwnerPlayerId"/> is the owner at the last witnessed event, so on a captured Structure the pair says who took it from whom.
+    /// </remarks>
+    public int? SubjectPreviousOwnerPlayerId { get; set; }
+
+    /// <summary>
+    /// Whether the Structure was seen being finished, or null on a report with no Structure subject.
+    /// </summary>
+    /// <remarks>
+    /// Nullable rather than defaulting to false, so adding it to a table of Force reports needed no default constraint - and a Force report has no construction to have seen finish.
+    /// </remarks>
+    public bool? CompletedInView { get; set; }
+
+    /// <summary>
+    /// Whether the Structure was seen changing hands, or null on a report with no Structure subject. Nullable for the same reason as <see cref="CompletedInView"/>.
+    /// </summary>
+    public bool? CapturedInView { get; set; }
 
     /// <summary>
     /// Which of the Force's tracks this is, for this recipient in this Turn, counting from 0 after the track cap has been applied.

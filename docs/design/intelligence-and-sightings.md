@@ -7,7 +7,7 @@ when their turn opens.
 > versus ground currently watched — see [Fog of War](../fog-of-war.md). For the sight and detection
 > rules themselves, see [Vision on the campaign map](campaign-map.md#vision-on-the-campaign-map).
 >
-> **Status: partly built.** The `turns.PlayerTurn` foundation landed in F-21, `units.MovementHistory` with its single writer in F-22, the witness service with its coalition seam in F-23, and the Forces producer in F-24: tracks, `game.PlayerReport`, `game.PlayerKnownForce`, the redaction layer, the two read endpoints, and on the client a "Sightings" group in the notifications panel and fading last-known-position markers on the campaign map. The fidelity curve (F-31) and the structure and combat producers are not built yet. Existing entities are called out where the design leans on them.
+> **Status: partly built.** The `turns.PlayerTurn` foundation landed in F-21, `units.MovementHistory` with its single writer in F-22, the witness service with its coalition seam in F-23, the Forces producer in F-24, and the Structures producer in F-25: `structure.StructureHistory` with its own single writer, structure reports and `game.PlayerKnownStructure`, lost Structures as witnesses, the known-structures read and its map markers. The fidelity curve (F-31) and the combat producer are not built yet, and **nothing in play writes a structure event**: founding, construction, capture and razing are all still to be built, and each must go through `IStructureLifecycleWriter` when it is. Existing entities are called out where the design leans on them.
 
 ---
 
@@ -60,7 +60,7 @@ stateless. Intelligence is written down when it is witnessed, and is never taken
 ```
 Raw feeds — written as the acting player acts, each row stamped (PlayerTurn, TurnSequence)
     units.MovementHistory          position changes
-    structures.StructureHistory    founded / progressed / damaged / razed / captured
+    structure.StructureHistory     founded / progressed / completed / captured / razed
     battles.* engagement records   combat outcomes visible from the campaign map
           │
           ▼
@@ -179,7 +179,9 @@ Observers destroyed during a turn are marked with the sequence at which they die
 witnesses for every sequence before it. A tower that saw something and was then destroyed still files
 its report.
 
-As built, a Unit destroyed during the Turn has no `UnitInstances` row left, so it is rebuilt from its `MovementHistory` `Destroyed` row — owner, template, tile — with that row's sequence as its `DestroyedAtSequence`. It counts for sequences strictly before that one. Nothing razes a Structure yet; `SightObserver.DestroyedAtSequence` is the seam its history feed will set, with nothing downstream to change.
+As built, a Unit destroyed during the Turn has no `UnitInstances` row left, so it is rebuilt from its `MovementHistory` `Destroyed` row — owner, template, tile — with that row's sequence as its `DestroyedAtSequence`. It counts for sequences strictly before that one.
+
+**F-25 does the same for Structures, and counts a capture as a loss.** A Structure razed during the Turn no longer stands, and one captured during it belongs to the acting Player, who is never an observing Player — so either way its owner's tower would stop witnessing everything it saw beforehand. `SightDataReader` therefore rebuilds any Structure with a `Captured` or `Razed` row this Turn as an Observer of **the Player who held it before that first loss**, with that row's sequence as its `DestroyedAtSequence`, and counts its Sight towards the search box. Only the first loss matters: every later owner within the Turn is the acting Player.
 
 > The alternative — "a dead observer files no report" — is simpler and is defensible as a game rule,
 > since it rewards decapitation strikes. It is rejected because it makes intelligence silently
@@ -297,6 +299,8 @@ As built in F-24, that layer is `SightingDisclosure`, and both reads go through 
 
 `game.PlayerReport` is the feed: one row per thing a player learned.
 
+**One table, two kinds of subject, since F-25.** A report names a Force or a Structure, never both — a check constraint says so — and the Structure columns are nullable, so they cost a Force report nothing. A structure report reuses the record rather than extending it: its first and last tile are the Structure's one tile, it has no path tiles and no exit direction, `AppearedInView` means *founded in view* and `DestroyedInView` *razed in view*, and `CompletedInView` and `CapturedInView` carry the two events a Force has no equivalent of.
+
 Reports are **typed and structured** — report type, subject, tile ids, direction, fidelity, round,
 first witness — and carry **no pre-rendered text**. The sentence is composed in the frontend.
 
@@ -357,7 +361,11 @@ last-known-position marker on the map, ageing visibly, is a thing a player can p
 `PlayerKnownStructure.ObservedCompletionPercent` is already the right shape for a fidelity-gated
 snapshot, and stops being dead weight the moment the structure producer exists.
 
-**`game.PlayerKnownForce` landed in F-24.** There is one row per Player per Force, upserted by the sightings step from the last track that Player's coalition saw. A sighting replaces the row only when it is at least as recent, compared on Turn id and then sequence, so an older Turn never rolls a memory back, and re-running the same Turn replaces the row with itself. `PlayerKnownStructure` is still unused; it waits for the structure producer.
+**`game.PlayerKnownForce` landed in F-24.** There is one row per Player per Force, upserted by the sightings step from the last track that Player's coalition saw. A sighting replaces the row only when it is at least as recent, compared on Turn id and then sequence, so an older Turn never rolls a memory back, and re-running the same Turn replaces the row with itself.
+
+**`game.PlayerKnownStructure` was rebuilt in F-25** and now carries what its sibling does: the kind, the owner as last observed, the observed completion, a status of Standing or Razed, the fidelity, and the Turn and sequence it was last seen at. The recency rule is literally the same one, shared as `SightingRecency`. It is refreshed by every Structure sighting, including one that saw nothing but construction progress — that raises no report, but still moves the marker's progress on.
+
+It only ever learns from **witnessed events**, though. A Structure a Player has looked at live for Rounds but never watched change has no row, so it still vanishes from explored ground the moment they lose sight of it. Remembering what live sight showed belongs with the exploration stamp, F-28.
 
 ---
 
@@ -400,6 +408,15 @@ at sequence 3 and razes it at sequence 9, and B, watching, currently learns noth
 persistent case is just as real: A founds a village in B's view and it is still standing at turn end,
 so B *can* see it — with nothing whatever to indicate it is new. On a large map that is a change the
 player will simply miss.
+
+**Landed in F-25.** `structure.StructureHistory` records `Founded`, `Progressed`, `Completed`, `Captured` and `Razed`, each stamped with the Turn and a sequence from its counter, and written only through `IStructureLifecycleWriter` — the Structure sibling of `IForceLifecycleWriter`, keeping the same "no record, no change" rule. There is **no `Damaged` event**: a Structure has no health to lose until it gains a column for it. Razing is a soft delete, which is what lets the history and known-structure rows keep real foreign keys to the Structure.
+
+Instead of tracks, the fold gathers **everything one coalition saw happen to one Structure in one Turn into a single sighting**, so founding a village and razing it in view is one entry in the feed rather than two. A Structure still standing is probed once more as at the end of the Turn, which is what `StillVisible` answers.
+
+Two rules worth keeping in mind:
+
+- **Construction progress raises no report.** Only a founding, a completion, a capture or a razing does; a witnessed `Progressed` step refreshes the known Structure and nothing more. A Structure founded *and* finished within one Turn reads only as "completed construction" — the start is not news once the finish is in the same sentence.
+- **Only the acting Player is excluded from witnessing.** The Force fold also excludes the Force's owner, because only the acting Player's Forces move during their Turn. A Structure event happens to *somebody's* Structure, and that somebody watching their own tower taken or razed is intelligence they legitimately hold.
 
 ### Combat
 
@@ -466,4 +483,6 @@ parallel workstream:
    `TurnSequence` values every raw feed row is to be stamped with, atomically. Nothing writes a feed row
    yet — that is dependency 2.
 2. ~~**A single writer for Force position and lifecycle.**~~ **Landed in F-22.** `IForceLifecycleWriter` is the only way a Force is created, moved or destroyed, and each change is written together with its `units.MovementHistory` row: if the Turn's sequence cannot be allocated, the change is not made. The step handler, the developer spawn and game setup all go through it. Pathfound order execution, retreats and settlement founding do not exist yet, and nothing destroys a Force yet; each of them must go through the writer when it is built.
+
+   **F-25 added the Structure half,** `IStructureLifecycleWriter`, on the same terms. Nothing calls it yet either: settlement founding, the `BuildingStructure` construction step, and siege must each go through it when they are built.
 3. ~~**The witness service extraction** described above.~~ **Landed in F-23.** `FieldOfView` holds the sight rules, shared by the live map read and `IWitnessService`; see [The witness service](#the-witness-service).

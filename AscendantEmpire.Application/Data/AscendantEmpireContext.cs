@@ -12,6 +12,7 @@ using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Entities.Util;
 using AscendantEmpire.Domain.Enums.Forces;
+using AscendantEmpire.Domain.Enums.Structures;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -85,8 +86,18 @@ public class AscendantEmpireContext : DbContext
     /// </summary>
     public DbSet<PlayerCampaignMap> PlayerCampaignMaps { get; set; }
 
-    public DbSet<PlayerKnownStructure> PlayerStructures { get; set; }
+    /// <summary>
+    /// Each Player's last observed owner, progress and state for every Structure they have watched change.
+    /// </summary>
+    public DbSet<PlayerKnownStructure> PlayerKnownStructures { get; set; }
+
     public DbSet<StructureInstance> StructureInstances { get; set; }
+
+    /// <summary>
+    /// The raw structure feed: one append-only row per Structure founded, built, captured or razed during a Turn. Lives in the <c>structure</c> schema; written only through
+    /// <c>IStructureLifecycleWriter</c>.
+    /// </summary>
+    public DbSet<StructureHistory> StructureHistory { get; set; }
 
     /// <summary>
     /// The intelligence feed: one row per thing a Player learned while they were not looking. Raised by the end-of-turn sightings step.
@@ -642,46 +653,76 @@ public class AscendantEmpireContext : DbContext
         });
 
         // --- PlayerKnownStructure ------------------------------------------------------
+        // The sibling of PlayerKnownForce: a Player's last-known owner, progress and state for a Structure. Upserted by the sightings step, never deleted by play.
+        //
+        // Recreated in F-25 rather than altered. The table it replaces, PlayerKnownStructures, came from InitialCreate and had never been written, and adding its new non-null columns to it
+        // would have left unnamed DF__ default constraints behind.
         modelBuilder.Entity<PlayerKnownStructure>(entity =>
         {
-            entity.ToTable("PlayerKnownStructures", schema);
+            entity.ToTable("PlayerKnownStructure", schema);
 
-            // PlayerKnownStructures -> GameIndex (many Structures per game)
-            entity.HasOne(e => e.Game)
+            entity.HasKey(e => e.Id);
+
+            // No navigations, the same as PlayerKnownForce: nothing reads the memory through an entity graph.
+            entity.HasOne<GameIndex>()
                 .WithMany()
                 .HasForeignKey(e => e.GameId)
                 .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_PlayerKnownStructures_GameIndex_GameId");
+                .HasConstraintName("FK_PlayerKnownStructure_GameIndex_GameId");
 
-            // PlayerKnownStructures -> Player (many Structures per player)
-            entity.HasOne(e => e.Player)
+            entity.HasOne<Player>()
                 .WithMany()
                 .HasForeignKey(e => e.PlayerId)
                 .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_PlayerKnownStructures_Player_PlayerId");
+                .HasConstraintName("FK_PlayerKnownStructure_Player_PlayerId");
 
-            entity.HasOne(e => e.StructureInstance)
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.OwnerPlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerKnownStructure_Player_OwnerPlayerId");
+
+            // A real foreign key, unlike PlayerKnownForce.UnitInstanceId: razing is a soft delete, so the Structure's row is never removed out from under this one.
+            entity.HasOne<StructureInstance>()
                 .WithMany()
                 .HasForeignKey(e => e.StructureInstanceId)
                 .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_PlayerKnownStructures_StructureInstances_StructureInstanceId");
+                .HasConstraintName("FK_PlayerKnownStructure_StructureInstances_StructureInstanceId");
 
+            entity.HasOne<Structure>()
+                .WithMany()
+                .HasForeignKey(e => e.StructureId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerKnownStructure_Structures_StructureId");
+
+            // NoAction with a name, where the table it replaces had an attribute-only Cascade: the game purge deletes these explicitly, before the tiles.
+            entity.HasOne<CampaignMap>()
+                .WithMany()
+                .HasForeignKey(e => e.CampaignMapTileId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerKnownStructure_CampaignMap_CampaignMapTileId");
+
+            entity.HasOne<PlayerTurn>()
+                .WithMany()
+                .HasForeignKey(e => e.LastSeenPlayerTurnId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerKnownStructure_PlayerTurn_LastSeenPlayerTurnId");
+
+            // One memory per Player per Structure, which is what makes the sightings step an upsert.
             entity.HasIndex(e => new { e.GameId, e.PlayerId, e.StructureInstanceId })
                 .IsUnique()
-                .HasDatabaseName("UX_PlayerKnownStructures_Game_Player_Instance");
-
-            entity.HasIndex(e => new { e.GameId, e.PlayerId, e.CampaignMapId })
-                .HasDatabaseName("IX_PlayerKnownStructures_Game_Player_Tile");
-
-            entity.HasIndex(e => new { e.GameId, e.PlayerId, e.LastSeenOnTurnId })
-                .HasDatabaseName("IX_PlayerKnownStructures_Game_Player_LastSeen");
+                .HasDatabaseName("UX_PlayerKnownStructure_Game_Player_Structure");
         });
 
         // --- PlayerReport --------------------------------------------------------------
         // The intelligence feed of docs/design/intelligence-and-sightings.md. Written only by the end-of-turn sightings step, which replaces a Turn's reports wholesale when it re-runs.
         modelBuilder.Entity<PlayerReport>(entity =>
         {
-            entity.ToTable("PlayerReport", schema);
+            // A report is about a Force or about a Structure, never both. Enforced by the database because the read projection discloses whichever subject it finds, and a row carrying both would
+            // have it describe one thing with the other's identity attached.
+            entity.ToTable("PlayerReport", schema, table => table.HasCheckConstraint(
+                "CK_PlayerReport_OneSubject",
+                "[SubjectUnitInstanceId] IS NULL OR [SubjectStructureInstanceId] IS NULL"));
 
             entity.HasKey(e => e.Id);
 
@@ -737,12 +778,37 @@ public class AscendantEmpireContext : DbContext
             // Deliberately no relationship for SubjectUnitInstanceId. A destroyed Force is hard-deleted, and a foreign key would either block that delete or clear the column that says which Force
             // the report is about. See the property's remarks.
 
+            // A Structure subject does get one: razing is a soft delete, so the Structure's row outlives every report about it.
+            entity.HasOne<StructureInstance>()
+                .WithMany()
+                .HasForeignKey(e => e.SubjectStructureInstanceId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerReport_StructureInstances_SubjectStructureInstanceId");
+
+            entity.HasOne<Structure>()
+                .WithMany()
+                .HasForeignKey(e => e.SubjectStructureId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerReport_Structures_SubjectStructureId");
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.SubjectPreviousOwnerPlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerReport_Player_SubjectPreviousOwnerPlayerId");
+
             // A backstop for the sightings step's idempotency: re-running a Turn replaces its reports rather than adding to them, and this makes a slip there fail loudly instead of doubling the
             // feed. Filtered because a report with no Force subject has no track to be unique within.
             entity.HasIndex(e => new { e.RaisedDuringPlayerTurnId, e.RecipientPlayerId, e.SubjectUnitInstanceId, e.TrackOrdinal })
                 .IsUnique()
                 .HasFilter("[SubjectUnitInstanceId] IS NOT NULL")
                 .HasDatabaseName("UX_PlayerReport_Turn_Recipient_Subject_Track");
+
+            // The same backstop for Structure reports, which the index above filters out. A Structure folds into one report per recipient per Turn, so there is no ordinal in the key.
+            entity.HasIndex(e => new { e.RaisedDuringPlayerTurnId, e.RecipientPlayerId, e.SubjectStructureInstanceId })
+                .IsUnique()
+                .HasFilter("[SubjectStructureInstanceId] IS NOT NULL")
+                .HasDatabaseName("UX_PlayerReport_Turn_Recipient_Structure");
 
             // "My reports since my last Turn ended" - the shape the feed is read in.
             entity.HasIndex(e => new { e.GameId, e.RecipientPlayerId, e.RaisedDuringPlayerTurnId })
@@ -1042,6 +1108,75 @@ public class AscendantEmpireContext : DbContext
         modelBuilder.Entity<Structure>(entity =>
         {
             entity.ToTable("Structures", schema);
+        });
+
+        // --- StructureHistory ----------------------------------------------------------
+        // The raw structure feed of docs/design/intelligence-and-sightings.md, the sibling of units.MovementHistory. Append-only, so it carries no RowVersion.
+        modelBuilder.Entity<StructureHistory>(entity =>
+        {
+            // A Captured row says who held the Structure before, and no other row does. Enforced by the database because the vision seam reads the pre-capture owner from it, and a Captured row
+            // without one would quietly lose that owner's observer rather than fail.
+            entity.ToTable("StructureHistory", schema, table => table.HasCheckConstraint(
+                "CK_StructureHistory_PreviousOwnerOnlyWhenCaptured",
+                $"([EventType] = {(int)StructureHistoryEventType.Captured} AND [PreviousOwnerPlayerId] IS NOT NULL) OR ([EventType] <> {(int)StructureHistoryEventType.Captured} AND [PreviousOwnerPlayerId] IS NULL)"));
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.EventType)
+                .HasConversion<int>()
+                .IsRequired();
+
+            // No navigations on either side, the same as MovementHistory: nothing reads the feed through an entity graph.
+            entity.HasOne<GameIndex>()
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_StructureHistory_GameIndex_GameId");
+
+            // A real foreign key, unlike MovementHistory.UnitInstanceId: razing is a soft delete, so a Structure's row is never removed while its history survives.
+            entity.HasOne<StructureInstance>()
+                .WithMany()
+                .HasForeignKey(e => e.StructureInstanceId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_StructureHistory_StructureInstances_StructureInstanceId");
+
+            entity.HasOne<Structure>()
+                .WithMany()
+                .HasForeignKey(e => e.StructureId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_StructureHistory_Structures_StructureId");
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_StructureHistory_Player_PlayerId");
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.PreviousOwnerPlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_StructureHistory_Player_PreviousOwnerPlayerId");
+
+            entity.HasOne<CampaignMap>()
+                .WithMany()
+                .HasForeignKey(e => e.CampaignMapTileId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_StructureHistory_CampaignMap_CampaignMapTileId");
+
+            entity.HasOne<PlayerTurn>()
+                .WithMany()
+                .HasForeignKey(e => e.PlayerTurnId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_StructureHistory_PlayerTurn_PlayerTurnId");
+
+            // Every row of one Turn, in order - the shape the end-of-turn fold and the vision seam read the table in.
+            entity.HasIndex(e => new { e.PlayerTurnId, e.TurnSequence })
+                .HasDatabaseName("IX_StructureHistory_Turn_Sequence");
+
+            // One Structure's events through a Turn, in order.
+            entity.HasIndex(e => new { e.StructureInstanceId, e.PlayerTurnId, e.TurnSequence })
+                .HasDatabaseName("IX_StructureHistory_Structure_Turn_Sequence");
         });
     }
 

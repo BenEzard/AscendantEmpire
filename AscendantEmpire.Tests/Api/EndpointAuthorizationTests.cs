@@ -138,6 +138,7 @@ public sealed class EndpointAuthorizationTests
 
         "GET /player/structures",
         "GET /player/forces",
+        "GET /player/game-players",
 
         "GET /system/status",
 
@@ -147,6 +148,12 @@ public sealed class EndpointAuthorizationTests
 
         "GET /turn/campaign",
         "POST /turn/end-campaign",
+
+        "GET /intelligence/reports",
+        "GET /intelligence/known-forces",
+        "GET /intelligence/known-structures",
+
+        "GET /structures/display",
 
         "GET /units/display",
 

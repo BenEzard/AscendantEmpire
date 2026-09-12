@@ -161,6 +161,26 @@ internal class WitnessServiceTests
         }
     }
 
+    [Test, Description("A watchtower razed or captured later in the Turn still witnesses, as a Structure, what passed it before it was lost, and nothing from then on.")]
+    public async Task ShouldReportAStructureLostLaterInTheTurnForWhatItSawBeforeAsync()
+    {
+        _reader.SightReach = 2;
+        _reader.Observers.Add(SightTestData.Structure(10, _WATCHING_PLAYER_ID, 5, 4, 2, destroyedAtSequence: 9));
+
+        ServiceResult<IReadOnlyDictionary<long, IReadOnlyCollection<WitnessingCoalition>>> result = await FindAsync(Probe(1, 6, 4, 3), Probe(2, 6, 4, 9));
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Witness witness = result.SuccessValue![1].Single().Witnesses.Single();
+
+            Assert.That(witness.ObserverId, Is.EqualTo(10), "At sequence 3 the tower still stood and saw the tile.");
+            Assert.That(witness.RecordType, Is.EqualTo(Domain.Enums.RecordType.Structure));
+            Assert.That(result.SuccessValue[2], Is.Empty, "At sequence 9 it had been lost.");
+        }
+    }
+
     [Test, Description("The acting Player's own Observers are never searched for, so they can never witness their own Turn.")]
     public async Task ShouldNeverReportTheActingPlayerAsAWitnessAsync()
     {

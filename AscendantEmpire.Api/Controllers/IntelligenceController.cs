@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Features.Intelligence.Classes;
 using AscendantEmpire.Application.Features.Intelligence.Handlers;
 using AscendantEmpire.BackendContracts.Intelligence.GetPlayerKnownForces;
+using AscendantEmpire.BackendContracts.Intelligence.GetPlayerKnownStructures;
 using AscendantEmpire.BackendContracts.Intelligence.GetPlayerSightingReports;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Intelligence;
@@ -82,6 +83,38 @@ public class IntelligenceController : ControllerBase
         return response.ToActionResult(contract => new DTKnownForceCollection
         {
             KnownForces = [.. contract ?? []]
+        });
+    }
+
+    /// <summary>
+    /// Get every Structure the calling Player has watched change, as they last saw it.
+    /// </summary>
+    /// <remarks>
+    /// Each is already stripped down to the fidelity its last sighting earned. Structures the Player can currently see are included; the client decides which markers to hide.
+    /// </remarks>
+    /// <response code="200">The Player's known Structures, oldest sighting first</response>
+    /// <response code="403">The caller has not entered a game</response>
+    /// <response code="404">Game or Player not found</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpGet("known-structures")]
+    [ProducesResponseType(typeof(IKnownStructureCollection), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 403)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetKnownStructuresAsync(
+        [FromServices] IMediator mediator,
+        CancellationToken cancelToken)
+    {
+        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
+        {
+            return contextError!;
+        }
+
+        ServiceResult<IReadOnlyCollection<KnownStructure>> response = await mediator.Send(new GetPlayerKnownStructuresRequest(gameId, playerId), cancelToken);
+
+        return response.ToActionResult(contract => new DTKnownStructureCollection
+        {
+            KnownStructures = [.. contract ?? []]
         });
     }
 }
