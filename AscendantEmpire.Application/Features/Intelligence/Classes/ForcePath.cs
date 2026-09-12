@@ -40,7 +40,8 @@ internal sealed record ForceStep
     /// The witness probe key for this step, unique across a whole Turn.
     /// </summary>
     /// <remarks>
-    /// The history row's id for a real step, and the negated id of the Force's first move for its <see cref="ForceStepKind.Origin"/>. Row ids start at 1, so the two ranges never meet.
+    /// The history row's id for a real step, and the complement (<c>~id</c>, which is <c>-id - 1</c>) of the Force's first move for its <see cref="ForceStepKind.Origin"/>. A real step's key is
+    /// never negative and a synthesised one always is, so the two ranges cannot meet - not even for a row that somehow carries id 0, where a plain negation would collide with itself.
     /// </remarks>
     public required long ProbeKey { get; init; }
 
@@ -128,7 +129,8 @@ internal sealed record ForcePath
         {
             steps.Add(new ForceStep
             {
-                ProbeKey = -firstRow.Id,
+                // The complement rather than the negation: it is negative for every row id, id 0 included, so it can never be mistaken for a real step's key.
+                ProbeKey = ~firstRow.Id,
                 Kind = ForceStepKind.Origin,
                 CampaignMapTileId = originTileId,
                 Location = geometry.GetCoord(originTileId),

@@ -71,9 +71,12 @@ internal sealed record BattleTimeline
     public bool HasConcluded => Events.Any(engagementEvent => engagementEvent.EventType == BattleHistoryEventType.Concluded);
 
     /// <summary>
-    /// The probe key for "could this still be seen as the Turn ended": the Battle's id negated, which can never collide with a row id.
+    /// The probe key for "could this still be seen as the Turn ended": the complement of the Battle's id (<c>~id</c>, which is <c>-id - 1</c>), which can never collide with a row id.
     /// </summary>
-    public long EndOfTurnProbeKey => -BattleId;
+    /// <remarks>
+    /// The complement rather than the negation, so the key is negative for every Battle id - including 0, where a plain negation would collide with a row id of 0.
+    /// </remarks>
+    public long EndOfTurnProbeKey => ~BattleId;
 
     /// <summary>
     /// Builds one timeline per engagement from a Turn's history rows, ordered by Battle id so the same rows always fold in the same order.

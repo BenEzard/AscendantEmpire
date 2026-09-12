@@ -83,8 +83,18 @@ internal class StructureTimelineTests
         {
             Assert.That(timelines[0].IsRazed, Is.True);
             Assert.That(timelines[1].IsRazed, Is.False);
-            Assert.That(timelines[1].EndOfTurnProbeKey, Is.EqualTo(-6));
+            Assert.That(timelines[1].EndOfTurnProbeKey, Is.EqualTo(-7), "The complement of the Structure id, which is negative for every id and so never a row's key.");
             Assert.That(timelines[1].Events.Single().PreviousOwnerPlayerId, Is.EqualTo(3), "A capture's previous owner comes through from its row.");
         }
+    }
+
+    [Test, Description("A Structure with id 0 still gets an end-of-turn key of its own, because a negated 0 would be the key of a row with id 0 and the two answers would collide.")]
+    public void ShouldKeepTheEndOfTurnKeyDistinctWhenTheStructureIdIsZero()
+    {
+        StructureTimeline timeline = StructureTimeline
+            .BuildAll([Row(id: 0, structureInstanceId: 0, StructureHistoryEventType.Founded, turnSequence: 1)], _GEOMETRY)
+            .Single();
+
+        Assert.That(timeline.EndOfTurnProbeKey, Is.Not.EqualTo(timeline.Events.Single().ProbeKey));
     }
 }

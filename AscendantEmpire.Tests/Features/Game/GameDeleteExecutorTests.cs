@@ -259,6 +259,21 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
         Assert.That(nextGameId, Is.EqualTo(1));
     }
 
+    [Test, Description("A table nothing has ever been inserted into keeps its untouched counter, because SQL Server gives a reseed value straight to the first row and would start it at id 0.")]
+    public async Task ShouldLeaveTheCounterOfATableThatHasNeverBeenInsertedIntoAloneAsync()
+    {
+        int gameId = await SetupGameAsync("The only game");
+
+        // TRUNCATE puts the identity back into the never-used state a table has when a migration has just created it, which is how the history tables met their first game.
+        await ExecuteSqlAsync("TRUNCATE TABLE [units].[MovementHistory];");
+
+        await ExecuteDeleteAsync(gameId);
+
+        long? lastValue = await IdentityLastValueAsync("[units].[MovementHistory]");
+
+        Assert.That(lastValue, Is.Null, "A reseed here would leave the counter set, and the next row inserted would be id 0.");
+    }
+
     [Test, Description("Deleting one of several games leaves the counters alone, because reseeding while rows survive would hand out ids that collide with them.")]
     public async Task ShouldNotResetIdentityCountersWhileAnotherGameRemainsAsync()
     {
@@ -712,6 +727,29 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
         await context.SaveChangesAsync();
 
         return session.Id;
+    }
+
+    /// <summary>
+    /// Runs one raw statement against the test database, for the identity state the model has no way to express.
+    /// </summary>
+    private async Task ExecuteSqlAsync(string sql)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        await context.Database.ExecuteSqlRawAsync(sql);
+    }
+
+    /// <summary>
+    /// The last identity value a table has handed out, or null when its identity has never been used.
+    /// </summary>
+    private async Task<long?> IdentityLastValueAsync(string table)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        // Interpolated into SqlQuery rather than SqlQueryRaw, so the table name travels as a parameter to OBJECT_ID rather than as text spliced into the statement.
+        return await context.Database
+            .SqlQuery<long?>($"SELECT CAST(last_value AS bigint) AS Value FROM sys.identity_columns WHERE object_id = OBJECT_ID({table})")
+            .SingleAsync();
     }
 
     /// <summary>

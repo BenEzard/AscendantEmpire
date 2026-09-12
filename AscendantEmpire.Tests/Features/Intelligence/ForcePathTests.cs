@@ -67,8 +67,20 @@ internal class ForcePathTests
             Assert.That(origin.CampaignMapTileId, Is.EqualTo(TileId(2, 2)));
             Assert.That(origin.Location, Is.EqualTo(new Coord(2, 2)), "The origin is placed from its tile id with the Game's geometry.");
             Assert.That(origin.TurnSequence, Is.Zero);
-            Assert.That(origin.ProbeKey, Is.EqualTo(-11), "The negated id of the move, so it can never collide with a real row's key.");
+            Assert.That(origin.ProbeKey, Is.EqualTo(-12), "The complement of the move's id, so it can never collide with a real row's key.");
             Assert.That(path.Steps[1].ProbeKey, Is.EqualTo(11));
+        }
+    }
+
+    [Test, Description("A move whose row id is 0 still gives its origin a key of its own, because a negated 0 is 0 and one of the two answers would be lost.")]
+    public void ShouldKeepTheOriginKeyDistinctWhenTheMovesRowIdIsZero()
+    {
+        ForcePath path = ForcePath.Build([Moved(0, from: (2, 2), to: (3, 2), sequence: 1)], _GEOMETRY);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(path.Steps[0].ProbeKey, Is.EqualTo(-1));
+            Assert.That(path.Steps[1].ProbeKey, Is.Zero);
         }
     }
 
@@ -94,7 +106,7 @@ internal class ForcePathTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(path.Steps.Select(step => step.TurnSequence), Is.EqualTo(new[] { 0, 1, 5, 9 }));
-            Assert.That(path.Steps[0].ProbeKey, Is.EqualTo(-11), "The origin comes from the first move in sequence, not the first row read.");
+            Assert.That(path.Steps[0].ProbeKey, Is.EqualTo(-12), "The origin comes from the first move in sequence, not the first row read.");
         }
     }
 

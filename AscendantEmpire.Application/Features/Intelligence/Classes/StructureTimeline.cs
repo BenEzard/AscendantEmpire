@@ -71,9 +71,12 @@ internal sealed record StructureTimeline
     public bool IsRazed => Events.Any(structureEvent => structureEvent.EventType == StructureHistoryEventType.Razed);
 
     /// <summary>
-    /// The probe key for "could this still be seen as the Turn ended": the Structure's id negated, which can never collide with a row id.
+    /// The probe key for "could this still be seen as the Turn ended": the complement of the Structure's id (<c>~id</c>, which is <c>-id - 1</c>), which can never collide with a row id.
     /// </summary>
-    public long EndOfTurnProbeKey => -StructureInstanceId;
+    /// <remarks>
+    /// The complement rather than the negation, so the key is negative for every Structure id - including 0, where a plain negation would collide with a row id of 0.
+    /// </remarks>
+    public long EndOfTurnProbeKey => ~StructureInstanceId;
 
     /// <summary>
     /// Builds one timeline per Structure from a Turn's history rows, ordered by Structure id so the same rows always fold in the same order.

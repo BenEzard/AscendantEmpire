@@ -84,8 +84,18 @@ internal class BattleTimelineTests
         {
             Assert.That(timelines[0].HasConcluded, Is.True);
             Assert.That(timelines[1].HasConcluded, Is.False, "An engagement whose only row this Turn is a join is still being fought.");
-            Assert.That(timelines[1].EndOfTurnProbeKey, Is.EqualTo(-6));
+            Assert.That(timelines[1].EndOfTurnProbeKey, Is.EqualTo(-7), "The complement of the Battle id, which is negative for every id and so never a row's key.");
         }
+    }
+
+    [Test, Description("An engagement with id 0 still gets an end-of-turn key of its own, because a negated 0 would be the key of a row with id 0 and the two answers would collide.")]
+    public void ShouldKeepTheEndOfTurnKeyDistinctWhenTheBattleIdIsZero()
+    {
+        BattleTimeline timeline = BattleTimeline
+            .BuildAll([Row(id: 0, battleId: 0, BattleHistoryEventType.ParticipantJoined, turnSequence: 1)], _GEOMETRY)
+            .Single();
+
+        Assert.That(timeline.EndOfTurnProbeKey, Is.Not.EqualTo(timeline.Events.Single().ProbeKey));
     }
 
     [Test, Description("A departure's reason and losses, and a conclusion's ground-holder, come through onto the event so the fold never re-reads the history rows.")]

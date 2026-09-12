@@ -389,10 +389,17 @@ internal sealed class GameDeleteExecutor(
     /// Resets the IDENTITY counter of every wholly game-scoped table that is now empty, so the next game starts numbering from 1.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Called only when the deleted Game was the last one. Each statement carries its own guards rather than relying on that call site: a table that somehow
     /// still holds rows is skipped instead of being handed ids that clash with them, and one whose key has since stopped being an identity is skipped rather
     /// than failing the whole job. Runs after the purge transaction has committed — a reseed is not something to leave sitting inside a transaction that
     /// might yet roll back.
+    /// </para>
+    /// <para>
+    /// <b>A table nothing has ever been inserted into is left alone.</b> <c>DBCC CHECKIDENT(..., RESEED, 0)</c> normally means "the next row gets 1", but on a
+    /// table whose identity has never been used SQL Server hands the reseed value itself to the next row — so reseeding one of those would deal out id 0. A
+    /// table in that state already numbers from its seed, so there is nothing to reset.
+    /// </para>
     /// </remarks>
     private async Task ReseedIdentityCountersAsync(CancellationToken cancellationToken)
     {
@@ -401,9 +408,13 @@ internal sealed class GameDeleteExecutor(
         foreach (string table in _IDENTITY_TABLES_TO_RESEED)
         {
             // The table names are compile-time constants from the array above, never user input.
+            //
+            // The last_value test is both guards in one: a row in sys.identity_columns means the table still has an identity to reset, and a non-null
+            // last_value means that identity has actually handed out a value. A null one - a table created by a migration and never inserted into - must be
+            // left alone, because SQL Server gives the reseed value itself to the first row of a table in that state, which would start it at id 0.
             string sql = $"""
                 IF NOT EXISTS (SELECT 1 FROM {table})
-                   AND OBJECTPROPERTY(OBJECT_ID('{table}'), 'TableHasIdentity') = 1
+                   AND EXISTS (SELECT 1 FROM sys.identity_columns WHERE object_id = OBJECT_ID('{table}') AND last_value IS NOT NULL)
                 BEGIN
                     DBCC CHECKIDENT('{table}', RESEED, 0) WITH NO_INFOMSGS;
                 END
