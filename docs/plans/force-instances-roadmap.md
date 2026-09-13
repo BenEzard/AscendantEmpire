@@ -115,7 +115,8 @@ by accident, because it is a foreign key and retargeting one is a migration with
 
 ### Turn pipeline
 
-**Delivered as F-14.** A new `IStartCampaignTurnProcess`, ordered **last**:
+**Delivered as F-14.** The rules as they now stand are in
+[unit-movement.md](../design/units/unit-movement.md#campaign-movement). A new `IStartCampaignTurnProcess`, ordered **last**:
 
 ```
 AlertSentries           = 10_000

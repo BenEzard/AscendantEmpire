@@ -49,7 +49,7 @@ public class PlayerForce
     /// The same value <see cref="HasCampaignMovementRemaining"/> is derived from, converted out of the raw Scale 1,000 representation so the convention stays
     /// behind the API. Unmasked here — this projection covers every Force on a tile, and it is the fog-of-war read that decides whose numbers the
     /// observing player is allowed to see.
-    /// <para>May be negative: entering a tile costs half its movement cost but spends all of it.</para>
+    /// <para>May be negative: a Force holding any movement at all may enter a tile and pays its whole cost.</para>
     /// <para>May also exceed <see cref="CampaignMovementPoints"/>: unspent movement is carried into the next turn and added on top of the allowance.</para>
     /// </remarks>
     public decimal CampaignMovementRemaining { get; set; }

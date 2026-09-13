@@ -26,7 +26,8 @@ is settled, some of it is still a working sketch with open questions called out 
 | [campaign-map.md](campaign-map.md) | The campaign map, tile geography and biome, resource depletion/regeneration/discovery, vision (sight & detection), and infrastructure. |
 | [intelligence-and-sightings.md](intelligence-and-sightings.md) | What a player learns while they are not looking: witnesses, tracks, fidelity, the report feed, and last-known-position intel. |
 | [battlefield-maps.md](battlefield-maps.md) | How battlefield maps are generated, fortifications, battle flow, objectives, and manoeuvres. |
-| [units/unit-mechanics.md](units/unit-mechanics.md) | Movement, positioning/facing, tactics, fog of war, strength, and ranged attack. |
+| [units/unit-movement.md](units/unit-movement.md) | The source of truth for unit movement: campaign stepping, tile costs, carry and replenishment, and battle movement. |
+| [units/unit-mechanics.md](units/unit-mechanics.md) | Positioning/facing, tactics, fog of war, strength, and ranged attack. |
 | [settlements.md](settlements.md) | Settlement types, asset banks, and buildings. |
 | [specialists.md](specialists.md) | Specialists and military commanders. |
 | [technology.md](technology.md) | The three-bucket research model and the seven methods of technological advancement. |

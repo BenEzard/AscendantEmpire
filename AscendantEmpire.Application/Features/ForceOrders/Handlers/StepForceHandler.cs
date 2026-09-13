@@ -204,7 +204,7 @@ internal class StepForceHandler(
                 return strandingRefusal;
             }
 
-            // Rule 2 of docs/design/units/unit-mechanics.md: entry is gated on having movement left at all, not on holding some proportion of the
+            // The entry gate in docs/design/units/unit-movement.md: entry is gated on having movement left at all, not on holding some proportion of the
             // tile's cost — ValidateForce settled that already, so no affordability check is left to make here. What remains is the payment: the
             // whole cost comes off and the balance is allowed to go negative, so a Force dives into expensive ground and waits the debt out rather
             // than the ground being permanently out of its reach.

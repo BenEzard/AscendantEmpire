@@ -30,8 +30,8 @@ public interface IStepForceResult
     /// The movement points the Force has left after paying for the step.
     /// </summary>
     /// <remarks>
-    /// May be negative. A Force needs only half a tile's cost to enter it but pays the whole cost once there, so a slow Force crossing expensive
-    /// ground ends the turn in debt and spends the next one paying it off. See <c>docs/design/units/unit-mechanics.md</c>.
+    /// May be negative. A Force holding any movement at all may enter a tile and pays its whole cost, so a slow Force crossing expensive ground ends
+    /// the turn in debt and spends the next one paying it off. See <c>docs/design/units/unit-movement.md</c>.
     /// </remarks>
     decimal CampaignMovementRemaining { get; }
 

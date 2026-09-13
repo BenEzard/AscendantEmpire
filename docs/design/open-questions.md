@@ -52,7 +52,7 @@ Units have a **morale** and a **discipline** stat:
 
 A cluster of unresolved questions around how attacks work across domains and across a turn:
 
-- How far can a unit move on the battle map?
+- How far a unit moves on the battle map is settled — see [unit-movement.md](units/unit-movement.md#battle-movement).
 - Can a unit attack **and** move in the same turn? Some units (velites with a throwing spear) should
   attack once and move once; some (artillery) should move *or* fire, not both. How many times can a
   unit attack per turn?

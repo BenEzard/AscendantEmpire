@@ -34,10 +34,7 @@ There's no single `Modifier` entity — it splits into two unrelated mechanisms:
 1. **Weapon domain damage modifiers** (most developed):
    - Backend: `UnitComponentWeaponDomainModifier.cs` — per-weapon, per-`DomainType` fixed-point `DamageMultiplier`; also gates which domains a weapon can target.
    - Frontend: `WeaponDomainModifiers = Partial<Record<DomainType, number>>` (in both `entitysetuptool` and `unitdesign` feature type files); sparse key/value table UI in Weapon properties, with `domainModifiersToRows()`/`rowsToDomainModifiers()` helpers in `componentsApi.ts`.
-2. **Movement modifiers** (data-driven, compiled server-side):
-   - `MovementModifier.cs` — parsed record (`Category`, `Effect`, `Value`, `DomainType?`, `Conditions`) decoded from `CompiledDesignStats.ModifiersJson`.
-   - `CompiledDesignStats.cs` stores the raw JSON alongside compiled movement points/sight range.
-   - `MoveModifier.cs` enum — named bonuses: `JungleCrasher`, `ForestWalker`, `RiverRunner`, `Amphibious`, `IgnoreHillsPenalty`, `RoadAffinity`, `RailAffinity`, `MagTubeAffinity`. Only `JungleCrasher`, `RiverRunner`, and `IgnoreHillsPenalty` are actually wired up in `MovementProfileFactory.cs`; the rest are unused stubs. No frontend authoring UI exists for this yet.
+2. **Movement modifiers** — see [unit-movement.md](../units/unit-movement.md#movement-modifiers).
 
 ## Concepts
 
@@ -54,7 +51,7 @@ The original discussion (kept below) was treating classification, passive bonuse
 - Weapon domain damage modifiers and movement modifiers (see above) are the two existing instances.
 - Modifiers always carry data (a `Value`, optional `DomainType`/`Conditions`) — this is the dividing line from Tags, which never do.
 - Values support both flat and percentage amounts via an explicit `ValueType` (Flat/Percent) enum next to `Value`, rather than a bare, ambiguous number.
-- Before adding new modifier categories, finish wiring the remaining `MoveModifier` cases (`ForestWalker`, `Amphibious`, `RoadAffinity`, `RailAffinity`, `MagTubeAffinity`) through the existing `Effect`/`Conditions` JSON shape — it already looks expressive enough for them.
+- Movement modifiers are not yet applied to movement — see [unit-movement.md](../units/unit-movement.md#movement-modifiers). The existing `Effect`/`Conditions` JSON shape looks expressive enough for every `MoveModifier` case.
 
 ### 3. Capability Grants — tag unlocks an action (first use landed in UD-56)
 

@@ -19,7 +19,7 @@ export type ObservedForceTile = {
   hasCampaignMovementRemaining: boolean;
 
   // How much movement is left, and out of how much. Null for forces we don't own, where the API masks both rather than telling us how far an enemy could still travel. 
-  // Remaining can be negative: entering a tile takes half its movement cost but spends all of it, so a slow force on rough ground finishes the turn owing points. 
+  // Remaining can be negative: a force holding any movement at all may enter a tile and pays its whole cost, so a slow force on rough ground finishes the turn owing points.
   // It can also exceed the allowance, because movement left unspent is carried into the next turn on top of it.
   campaignMovementRemaining: number | null;
   campaignMovementPoints: number | null;

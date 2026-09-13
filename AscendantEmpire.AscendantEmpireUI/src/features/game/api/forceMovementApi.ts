@@ -31,7 +31,7 @@ export type StepForceResponse = {
   unitInstanceId: number;
   xCoord: number;
   yCoord: number;
-  /** May be negative — entering a tile takes half its movement cost but spends all of it. */
+  /** May be negative — a force holding any movement at all may enter a tile, and pays its whole cost. */
   campaignMovementRemaining: number;
   campaignMovementPoints: number;
   /** Every tile the player can now see, including the one the force just left, which comes back without it. */

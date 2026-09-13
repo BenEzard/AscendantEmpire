@@ -21,8 +21,8 @@ public record StepForceResult
     /// The movement points remaining after the step, which may be negative.
     /// </summary>
     /// <remarks>
-    /// Entering a tile requires only half its movement cost but spends all of it, so a Force can finish a step in debt. See
-    /// <c>docs/design/units/unit-mechanics.md</c>, rule 2.
+    /// A Force holding any movement at all may enter a tile and pays its whole cost, so it can finish a step in debt. See the entry gate in
+    /// <c>docs/design/units/unit-movement.md</c>.
     /// </remarks>
     public decimal CampaignMovementRemaining { get; init; }
 

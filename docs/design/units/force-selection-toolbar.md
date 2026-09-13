@@ -100,7 +100,8 @@ The bar never lists an enemy or ally sharing the tile. That filtering happens in
 which builds the bar's tile from `ownedForces` alone — the bar shows what it is given. A rival Force is
 still drawn on the tile itself; it is simply not something this player can select.
 
-This is also why masking `HasMovementRemaining` for unowned Forces (below) costs the bar nothing.
+This is also why masking movement for unowned Forces (see
+[unit-movement.md](unit-movement.md#what-the-client-is-told--built)) costs the bar nothing.
 
 ### Ordering: movement first, then id
 
@@ -203,41 +204,12 @@ One commitment survives the removal, because it turned out to be the same one: *
 on must not need a second gesture**. The tick achieved that by being a separate channel; ctrl+click
 achieves it by making the selection itself hold more than one Force.
 
-## Remaining movement over the wire
+## Remaining movement
 
-The fade needs to know whether a Force can still move, which the client had no way to see. Added
-through the existing projection chain — no migration; `UnitInstance.CampaignMovementRemaining` already
-exists, rescaled to `bigint` under TM-2.
-
-`PlayerForce` → `ObservedForce` → `IForceStub` / `DTForceStub` → `ObservedForceDto` → `ObservedForceTile`.
-
-Two decisions about the contract:
-
-**A derived boolean, not the raw value.** `CampaignMovementRemaining` is raw fixed-point on the Scale
-1,000 convention. Shipping it would make every consumer responsible for knowing that, and would leave
-the frontend guessing which threshold applies — the codebase already has two (`> 0` for "any movement
-left", `>= CampaignMovementPoints` for "a whole turn's worth"). The boundary converts, exactly as the
-same handler already does turning `TotalSight` into whole tiles of sight range.
-
-**Masked for Forces the player does not own.** `ObservedForce` covers every Force on a seen tile, not
-just the player's own, so the field is `bool?` and comes back `null` for a rival's. How much movement
-an enemy has left is intel the vision rules never granted — seeing that a Force is standing there is
-one thing, knowing whether it can still act is another. The context action pipeline refuses enemy
-Forces for the same reason. The client normalizer defaults `null` to `true`, so nothing is ever faded
-on no evidence.
-
-## Closed gap: everything used to be greyed out
-
-`CampaignMovementRemaining` was written by no production code — not on spawn, not at turn rollover — so
-every Force read `0` and **every entry in the bar rendered faded**. That was **TM-3**, and it is now done:
-F-9 seeded the value at spawn and **F-14** replenishes it at the start of the owning player's turn.
-
-The fade was left following the data rather than projecting a temporary `true`, so the gap stayed visible
-instead of hiding behind a UI that looked finished. It was the same symptom the Split Force action showed,
-and the replenishment fixed both at once.
-
-One consequence worth knowing when reading the `X / Y` figure: unspent movement is carried into the next
-turn on top of the allowance, so the numerator can legitimately exceed the denominator (`3.2 / 2.2`).
+The fade, the ordering and the `X / Y` figure read `hasCampaignMovementRemaining`,
+`campaignMovementRemaining` and `campaignMovementPoints` off each Force. What those fields carry, and why
+they are masked for Forces the player does not own, is in
+[unit-movement.md](unit-movement.md#what-the-client-is-told--built).
 
 ## Testing
 

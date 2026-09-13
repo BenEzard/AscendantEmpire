@@ -11,7 +11,6 @@ using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
 using AscendantEmpire.Application.Features.UnitComponents.Executors;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strategies;
-using AscendantEmpire.Application.Features.ForceOrders.Movement;
 using AscendantEmpire.Application.Features.ForceOrders.Movement.Strategies;
 using AscendantEmpire.Application.Features.Structures.Services;
 using AscendantEmpire.Application.Features.Turns.Services;
@@ -96,7 +95,6 @@ public static class ApplicationStartup
         services.AddScoped<ICampaignMapGalleryService, CampaignMapGalleryService>();
         services.AddScoped<IGameSetupService, GameSetupService>();
         services.AddScoped<IGameContextService, GameContextService>();
-        services.AddScoped<IMovementProfileFactory, MovementProfileFactory>();
 
         // Force context action pipeline. Each IForceActionStrategy decides one toolbar action; the service builds the shared context once and
         // judges every strategy against it. Display order comes from ForceActionType's value, so registration order here does not matter.

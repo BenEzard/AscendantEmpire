@@ -45,16 +45,12 @@ tiles. For the battle map of tile **E**:
 This makes fortifications impactful as enemies approach — especially on the coast (e.g. cannon vs
 ships). At the corners are 2×2 voids that cannot be entered (tiles A, C, G, I).
 
-- Units placed within a boundary (from tiles B, D, F, H) **can attack into tile E** but may move
-  only within their boundary.
-- Defenders within E **cannot move out** of E.
-- The **assaulting** empire *can* move into the boundary area, killing units and destroying
-  fortifications.
+- Units placed within a boundary (from tiles B, D, F, H) **can attack into tile E**.
+- The **assaulting** empire can kill units and destroy fortifications in the boundary area.
 
-If the attacker enters from the south, the opposite (north) side has a **safe-zone line**. A unit
-that reaches this red line is considered to have safely crossed the campaign tile and is added to a
-**safe list**. Once safe, it cannot attack or be attacked — unless it re-enters the tile from the
-northern side.
+If the attacker enters from the south, the opposite (north) side has a **safe-zone line**, and a unit
+that reaches it is added to a **safe list**. Who may move where within the boundaries, and what being safe
+means, is in [unit-movement.md](units/unit-movement.md#boundaries-and-the-safe-zone).
 
 ### Geography type
 
@@ -65,8 +61,7 @@ movement and sight penalties.
 ### Altitude
 
 Altitude is the average altitude of the tile; the difference between adjacent battle tiles sets the
-incline steepness. Harsh inclines may be impassable for some units (sheer inclines are impossible
-for men; harder still for horses; impossible for chariots).
+incline steepness, which affects movement — see [unit-movement.md](units/unit-movement.md#terrain).
 
 Even a **plain** is generated with small tree outcrops, rocks, or other features to make battle more
 interesting. Coastal waters may have reefs, sandbanks, tiny islands, or occasional shipwrecks.
@@ -147,9 +142,8 @@ The battle is divided into **rounds**, executed in real time:
 
 - A round is where a player moves all their units. Players alternate, **starting with the
   defender**, moving one unit at a time.
-- A unit can be moved **once per round**, or can **pass**. Passing can **increase the unit's
-  strength**.
-- When the round ends, all units' movement points are restored.
+- How often a unit moves in a round, and when its movement is restored, is in
+  [unit-movement.md](units/unit-movement.md#rounds).
 - A battle lasts at most **X rounds** (suggested: 2× the turns it takes the slowest unit to cross
   the map). At round `X − 3`, the **defender is given perfect vision** of all enemy units.
 

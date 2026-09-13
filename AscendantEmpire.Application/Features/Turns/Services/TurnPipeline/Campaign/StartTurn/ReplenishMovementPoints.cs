@@ -10,10 +10,8 @@ namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campa
 /// Hands every one of the Player's Forces its campaign movement allowance for the Turn that is opening.
 /// </summary>
 /// <remarks>
-/// <para>
 /// The arithmetic itself lives in <see cref="MovementReplenishment"/>, so the turn-by-turn table can be pinned without a database. 
 /// This class is the orchestration around it: which Forces are entitled to a grant, which template the allowance comes from, and once per Round.
-/// </para>
 /// <para>
 /// Loads and saves through the change tracker rather than <c>ExecuteUpdateAsync</c>. The rule is a three-way branch against an allowance that lives on a different table, 
 /// so pushing it into an expression tree would mean a second copy of the rule in SQL — one the unit tests could not reach — for a query that touches tens of rows once a Turn.

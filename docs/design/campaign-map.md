@@ -16,7 +16,8 @@ combat are covered separately in [battlefield-maps.md](battlefield-maps.md).)
 
 The "shape" of the land — Plain (flat), Hilly, Mountainous, Ice, Ocean (water), Coastal (water).
 Geography affects movement speed and confers sight advantages or disadvantages. **Geography values
-are the same for all empires.**
+are the same for all empires.** How geography and biome combine into a tile's movement cost is in
+[unit-movement.md](units/unit-movement.md#tile-cost--built).
 
 | Code | Name | SightBarrier | SightAdvantage | MovementCost | DomainType |
 | --- | --- | --- | --- | --- | --- |

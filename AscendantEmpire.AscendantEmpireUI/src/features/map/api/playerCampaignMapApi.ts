@@ -54,8 +54,8 @@ export type ObservedForceDto = {
   initialStrength: number;
   unitTemplateId: number;
   hasCampaignMovementRemaining: boolean;
-  // Null when the API masked it — we only get numbers for our own forces. Can be negative: entering a tile takes half its
-  // movement cost but spends the whole of it, so a slow force crossing rough ground finishes the turn in debt. Can also
+  // Null when the API masked it — we only get numbers for our own forces. Can be negative: a force holding any movement at
+  // all may enter a tile and pays its whole cost, so a slow force crossing rough ground finishes the turn in debt. Can also
   // exceed the allowance, because movement left unspent is carried into the next turn on top of it.
   campaignMovementRemaining: number | null;
   campaignMovementPoints: number | null;

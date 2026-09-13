@@ -359,7 +359,7 @@ internal class StepForceHandlerTests : InMemoryTestBase
         }
     }
 
-    [Test, Description("Pins rule 2 of unit-mechanics.md: any movement at all gets a force in, the whole cost is what it pays, and the balance may go negative.")]
+    [Test, Description("Pins the entry gate in unit-movement.md: any movement at all gets a force in, the whole cost is what it pays, and the balance may go negative.")]
     public async Task ShouldLetAForceEnterOnAnythingItHoldsAndFinishInDebtAsync()
     {
         // 1.0 movement point against the hilly tile east of the start, which costs 2.0 to cross.

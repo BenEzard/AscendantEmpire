@@ -49,8 +49,8 @@ public record ObservedForce
     /// Masked for the same reason as <see cref="HasCampaignMovementRemaining"/>, and more sharply so: a number tells an enemy exactly how far this Force can
     /// still travel, where the boolean only told them whether it could move at all.
     /// <para>
-    /// May be negative. Entering a tile requires half its movement cost but spends all of it, so a slow Force crossing expensive ground ends the turn
-    /// in debt — see <c>docs/design/units/unit-mechanics.md</c>, rule 2.
+    /// May be negative. A Force holding any movement at all may enter a tile and pays its whole cost, so a slow Force crossing expensive ground ends
+    /// the turn in debt — see the entry gate in <c>docs/design/units/unit-movement.md</c>.
     /// </para>
     /// <para>
     /// May also exceed <see cref="CampaignMovementPoints"/>. Movement left unspent is carried into the next turn and added on top of the allowance, so

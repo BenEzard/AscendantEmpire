@@ -129,12 +129,7 @@ arms would be unreachable code rather than working code. They belong with the op
 `ForceOrderParticipant.UnitInstanceId` is likewise still Unit-only. It wants the same nullable pair when
 Commands can combine and split, and that is the same decision deferred rather than a different one.
 
-Outstanding and Ben's to run: applying `TM-6_AddCommandAndForceOrderTarget`, and the click-through. Note that
-`CampaignMovementRemaining` is still never written (TM-3), so the split action renders permanently disabled and a
-click-through cannot distinguish "renamed correctly" from "already broken".
-
-> *Since closed.* F-9 seeds the value at spawn and F-14 replenishes it at the start of the owning player's turn, so
-> a click-through can now tell the two apart.
+Outstanding and Ben's to run: applying `TM-6_AddCommandAndForceOrderTarget`, and the click-through.
 
 ---
 
@@ -511,10 +506,7 @@ one, and open the context toolbar.
    mechanism, until analyzers exist (`AE-S15-002`).
 2. **`Features/Troops/` vs `Features/Units/` vs `Features/TroopOrders/`** is three folders for one family, and
    `Features/Troops/` holds a single handler. Collapsed at stage 3; noted here so it is not "fixed" earlier.
-3. **`CampaignMovementRemaining` is still never written** — not on spawn, not at turn rollover (TM-3). Unrelated to
-   this work, but it means the split action renders permanently disabled throughout, so a click-through cannot
-   distinguish "renamed correctly" from "still broken". *Since closed by F-9 and F-14.*
-4. **`UnitDesign`, `CompiledDesignStats` and `PlayerUnitDesignState` are legacy** and unrelated to this rename
+3. **`UnitDesign`, `CompiledDesignStats` and `PlayerUnitDesignState` are legacy** and unrelated to this rename
    despite carrying `Unit`. Retiring them is its own task.
-5. **`full-review.md` is a dated snapshot** and is deliberately left naming the old terms — the same call UD-32
+4. **`full-review.md` is a dated snapshot** and is deliberately left naming the old terms — the same call UD-32
    made about it.

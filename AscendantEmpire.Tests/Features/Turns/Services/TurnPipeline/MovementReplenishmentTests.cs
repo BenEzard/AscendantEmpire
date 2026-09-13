@@ -3,7 +3,7 @@ using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.
 namespace AscendantEmpire.Tests.Features.Turns.Services.TurnPipeline;
 
 /// <summary>
-/// Pins the start-of-Turn campaign movement rule from <c>docs/design/units/unit-mechanics.md</c>, rules 3 and 4.
+/// Pins the start-of-Turn campaign movement rule — Carry and Replenishment in <c>docs/design/units/unit-movement.md</c>.
 /// </summary>
 /// <remarks>
 /// No database at all. The rule is a pure function of the template's allowance and what the Force is still holding, which is exactly why it was pulled
@@ -18,7 +18,7 @@ public class MovementReplenishmentTests
     /// <summary>One whole Movement Point, raw.</summary>
     private const long _ONE_POINT = 1_000;
 
-    [Test, Description("A Cavalry on 2.2 spending two whole tiles a Turn accrues the leftover until the fifth Turn, when it can afford a third move and starts over — the worked table in unit-mechanics.md.")]
+    [Test, Description("A Cavalry on 2.2 spending two whole tiles a Turn accrues the leftover until the fifth Turn, when it can afford a third move and starts over — the Scenarios table in unit-movement.md.")]
     public void ShouldAccrueTheFractionalRemainderUntilItBuysAnExtraMove()
     {
         // Turn 1 opens with nothing carried over.

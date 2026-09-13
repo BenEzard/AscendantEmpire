@@ -75,14 +75,12 @@ public class UnitInstance
     /// How many campaign-map Movement Points (MP) this Unit has remaining for the current Turn.
     /// </summary>
     /// <remarks>
-    /// <para>
     /// Stored as a raw fixed-point integer using the Scale 1,000 convention of <c>ScaledAmount</c> — a stored value of 1,000 represents 1.0 MP.
     /// This matches <c>CompiledUnitTemplate.CampaignMovementPoints</c>, the per-Turn allowance it is replenished from, so the two can be compared
     /// directly rather than converting between representations at every call site.
-    /// </para>
     /// <para>
     /// May legitimately sit <b>above</b> that allowance, because unspent movement is carried into the next Turn and added on top of it, and may sit
-    /// <b>below zero</b>, because entering a tile needs only half its cost but spends the whole of it. Neither is an error state — see
+    /// <b>below zero</b>, because a Unit holding any movement at all may enter a tile and pays its whole cost. Neither is an error state — see
     /// <c>MovementReplenishment</c> for the rule that reconciles both.
     /// </para>
     /// </remarks>
@@ -92,11 +90,9 @@ public class UnitInstance
     /// How many battle-map Movement Points (MP) this Unit has remaining in its current Battle.
     /// </summary>
     /// <remarks>
-    /// <para>
     /// The same raw Scale 1,000 convention as <see cref="CampaignMovementRemaining"/>, matching <c>CompiledUnitTemplate.BattlefieldMovementPoints</c>.
     /// Held apart from the campaign figure because the two are spent on different maps against different costs, and a Unit drawn into a Battle still
     /// holds the campaign movement it will need once the Battle releases it.
-    /// </para>
     /// <para>
     /// Granted when the Unit is fielded. <b>Nothing replenishes it yet</b>: Battle Rounds are not Campaign Rounds, and the battle turn pipeline has no
     /// processes and no ordering enum to hang one on.
@@ -108,10 +104,8 @@ public class UnitInstance
     /// The Campaign Round in which this Unit was last granted its campaign movement allowance. Zero means it never has been.
     /// </summary>
     /// <remarks>
-    /// <para>
     /// The idempotency stamp for the start-of-Turn replenishment. A Player takes exactly one Turn per Campaign Round, so (Unit, Round) is the grant
     /// key: the process only touches Units whose stamp is strictly below the Round being opened, and stamps every Unit it grants.
-    /// </para>
     /// <para>
     /// This is load-bearing rather than defensive, because replenishment is <b>not</b> naturally idempotent. A second run within one Round sees a
     /// leftover at or above the allowance, banks nothing, and so silently destroys the carry the first run just granted.

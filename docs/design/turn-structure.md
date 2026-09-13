@@ -53,17 +53,8 @@ The start-of-turn pipeline runs, in this order:
 2. **Check Unit Supply** — supply is reckoned against the forces in the field. *(Still a stub.)*
 3. **Replenish Movement Points** — every one of that player's forces is given its movement allowance.
 
-Movement is replenished **per player, when their own turn opens** — not once for everybody at the start of
-the round. A force therefore holds its movement only while its owner is acting, which keeps the banked
-carry (see [unit-mechanics.md](units/unit-mechanics.md)) alive through the other players' turns, and lets
-the allowance be computed against state that is true at the moment it is spent.
-
-Supply runs **before** replenishment on purpose: a unit whose body requires fuel it does not have gets no
-campaign movement at all that turn, and that verdict has to exist before the allowance is handed out rather
-than being unpicked afterwards.
-
-Battle movement is a separate pool and is **not** replenished by any of this — battle rounds are not campaign
-rounds, and the battle turn pipeline has no processes yet.
+For why replenishment is per player and runs after supply, see
+[unit-movement.md](units/unit-movement.md#replenishment--built).
 
 ## Battle turns
 

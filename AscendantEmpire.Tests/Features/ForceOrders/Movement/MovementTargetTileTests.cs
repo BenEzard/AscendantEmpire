@@ -116,7 +116,7 @@ internal class MovementTargetTileTests
         Assert.That(tile.IsWater, Is.EqualTo(expectedIsWater));
     }
 
-    [Test, Description("Walks the scenario table in unit-mechanics.md: entry costs the tile's whole price and the balance is allowed to go as far negative as that takes it.")]
+    [Test, Description("Walks the Scenarios table in unit-movement.md: entry costs the tile's whole price and the balance is allowed to go as far negative as that takes it.")]
     [TestCase(1.0, 1.0, 0.0, Description = "Warrior onto Flat Grassland: pays its whole point and finishes level.")]
     [TestCase(1.0, 2.0, -1.0, Description = "Warrior onto Flat Forest: a point of debt to work off.")]
     [TestCase(1.0, 3.0, -2.0, Description = "Warrior onto Flat Jungle: the old rule asked for 1.5, which a 1 point Force could never be holding.")]

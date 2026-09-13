@@ -4,26 +4,24 @@ When a Force is selected on the campaign map, the toolbar shows the actions appr
 **in its current context**. The backend decides what is possible and why; the frontend decides how it
 looks and what interaction follows.
 
-This is the design for the toolbar as a whole. It is expected to accumulate many action types over
-time; **TM-2** is the first slice, delivering the pipeline plus a single action — **Split Force**.
+This is the design for the toolbar as a whole. It offers three actions — **Split Force**, **Create
+Village** and **Establish Camp** — and is built to take more.
 
 ## Status
 
-| Stage | Scope | Ticket | State |
-|---|---|---|---|
-| 1 | Rescale `UnitInstance.CampaignMovementRemaining` to the Scale 1,000 fixed-point convention | TM-2 | **Done** — migration applied |
-| 2 | Backend pipeline — `ForceActionType`, context, strategy interface, `SplitForceStrategy`, DI | TM-2 | **Done** |
-| 3 | `GET /force-orders/units/{id}/actions` — contracts and endpoint | TM-2 | **Done** |
-| 4 | Frontend — api module, query hook, action registry, disabled rendering, `useForceSelection` wiring | TM-2 | **Done** |
-| 5 | Executing the split — split handler, options endpoint and parameter dialog | TM-4 | Not started |
-| 6 | Replace the "Select Force" dialog with the always-visible force selection bar | TM-5 | **Done** — see [force-selection-toolbar.md](force-selection-toolbar.md) |
-| 7 | Multi-Force selection — ctrl+click in the bar, and a toolbar that judges the whole selection | — | **Done** — see [Aggregating over a selection](#aggregating-over-a-selection) |
-| 8 | Create Village and Establish Camp — availability only, gated on capability tags | UD-56 | **Done** — see [The settlement strategies](#the-settlement-strategies--create-village-and-establish-camp-ud-56) |
-| 9 | Executing a settlement founding — needs a Settlement entity to create | — | Not started — [force-instances-roadmap.md](../../plans/force-instances-roadmap.md) Phase 10 |
+| Part | State |
+|---|---|
+| Backend pipeline — `ForceActionType`, context, strategy interface, aggregator, DI | Built |
+| `GET /force-orders/actions` — contracts and endpoint | Built |
+| Frontend — api module, query hook, action registry, disabled rendering, `useForceSelection` wiring | Built |
+| Multi-Force selection — a toolbar that judges the whole selection | Built — see [Aggregating over a selection](#aggregating-over-a-selection) |
+| Split Force — availability | Built — see [The Split Force strategy](#the-split-force-strategy) |
+| Create Village and Establish Camp — availability, gated on capability tags | Built — see [The settlement strategies](#the-settlement-strategies--create-village-and-establish-camp-ud-56) |
+| Executing a split — split handler, options endpoint and parameter dialog | Not built — **TM-4** |
+| Executing a settlement founding — needs a Settlement entity to create | Not built — [force-instances-roadmap.md](../../plans/force-instances-roadmap.md) Phase 10 |
 
-Stage 5 is deliberately **not** part of TM-2. TM-2 delivers the toolbar and the pipeline behind it; the
-button that opens the split dialog currently raises a toast saying the dialog is not built yet. See
-[Open questions](#open-questions) for what stage 5 has to settle first.
+Clicking an action whose execution is not built raises a toast saying so. See
+[Open questions](#open-questions) for what executing a split has to settle first.
 
 ## Terminology
 
@@ -36,27 +34,17 @@ projections carrying a `RecordType` that says which kind it holds. Today only Un
 so every Force the toolbar sees is a Unit; the naming is what lets Commands arrive without a second
 pipeline beside this one.
 
-This document and its ticket were originally written when "Troop" was the word for the group. The
-vocabulary was settled under **TM-6** and the names here follow it.
-
-## Context: what exists today
+## Context: the surrounding code
 
 **Frontend.** [`ContextActionToolbar.tsx`](../../../AscendantEmpire.AscendantEmpireUI/src/features/game/components/ContextActionToolbar.tsx)
-is a presenter over `{key, label, icon, onClick}`. Every decision lives in
-[`useForceSelection.tsx`](../../../AscendantEmpire.AscendantEmpireUI/src/features/game/hooks/useForceSelection.tsx),
-which hard-codes two actions client-side: "Select Force" (a pure UI affordance that reopens the
-multi-Force dialog) and "Hunt", parked behind `const canHunt = false`. There is no concept of a
-*disabled* action — the toolbar renders exactly what it is handed.
+is a presenter over `{key, label, icon, onClick}`, and the decisions live in
+[`useForceSelection.tsx`](../../../AscendantEmpire.AscendantEmpireUI/src/features/game/hooks/useForceSelection.tsx).
+Every action on the toolbar comes from the backend; there are no client-side actions. Choosing between
+stacked Forces is the [force selection bar](force-selection-toolbar.md)'s job, not an action's.
 
-> **Since TM-5:** the toolbar has no client-side actions left. "Select Force" was replaced by the
-> [force selection bar](force-selection-toolbar.md), which is always visible when a tile holds several
-> of the player's Forces, and "Hunt" was already gone. Every action on the toolbar now comes from the
-> backend.
-
-**Backend.** No Force-action concept exists yet, but one foundation is already in place:
-`CompiledUnitTemplate.OrganisationTagId` resolves the military organisation tag at compile time
-precisely so that "spawn and sizing rules read this single column rather than re-deriving from
-components" — which is what the split rule needs.
+**Backend.** `CompiledUnitTemplate.OrganisationTagId` resolves the military organisation tag at compile
+time precisely so that "spawn and sizing rules read this single column rather than re-deriving from
+components" — which is what the split rule reads.
 
 ## The pattern
 
@@ -97,7 +85,7 @@ POST /force-orders/split ──────────────┘   (2 quer
 
 ## Backend design
 
-New folder `Features/ForceOrders/ContextActions/`, mirroring the end-turn folder's layout.
+Lives in `Features/ForceOrders/ContextActions/`, mirroring the end-turn folder's layout.
 
 ### `ForceActionType` — a new enum, deliberately not `ForceOrderType`
 
@@ -115,8 +103,7 @@ between the two enums, so no one is tempted to cast one to the other.
 Values are spaced in hundreds, as `ForceOrderType`'s are, and **double as the static display order**
 the ticket requires — so ordering cannot drift with DI registration order. A low band is reserved for
 frontend-only affordances — actions with no backend rule behind them that still need a stable slot in
-the same sequence. The backend never emits a value from it. (TM-5 removed the only occupant the band
-has ever had; the reservation stands for the next one.)
+the same sequence. The backend never emits a value from it. The band is currently empty.
 
 ```
 None        = 0
@@ -145,8 +132,8 @@ An immutable snapshot carrying everything any strategy needs:
 - the **tile's terrain** — its biome's water flag and its geography type — so an action can judge where
   the Force is standing without a second query (added in UD-56).
 
-Turn state is deliberately absent; see [open question 2](#2-should-the-toolbar-respect-whose-turn-it-is).
-So is anything about enemy Forces — see [open question 3](#3-enemy-forces-on-the-tile-are-excluded-pending-vision-rules).
+Turn state is deliberately absent; see [open question 1](#1-should-the-toolbar-respect-whose-turn-it-is).
+So is anything about enemy Forces — see [open question 2](#2-enemy-forces-on-the-tile-are-excluded-pending-vision-rules).
 
 ### Three states, not two
 
@@ -169,11 +156,9 @@ The player may have several Forces selected at once — see
 selection is **one order covering all of them**, so each action is judged against every selected Force
 and the verdicts folded together.
 
-`IForceActionStrategy` stayed **per-Force**, deliberately. `Evaluate` still judges one
-`ForceActionContext` and knows nothing about selections; everything multi-Force lives in
-`ForceActionAggregator` instead. That is why widening the toolbar to a selection cost the rule layer no
-changes at all — `SplitForceStrategy` and its 11 tests were untouched — and why a new action type still
-only has to answer for one Force.
+`IForceActionStrategy` is **per-Force**, deliberately. `Evaluate` judges one `ForceActionContext` and
+knows nothing about selections; everything multi-Force lives in `ForceActionAggregator` instead, so a new
+action type only has to answer for one Force.
 
 | Every selected Force's verdict | Toolbar shows |
 |---|---|
@@ -229,14 +214,9 @@ evaluates all of its rules and returns every failure.
 | No campaign movement points spent this turn | Force vs. compiled template | Disabled: *"Unit has already moved this turn. Splitting requires a full turn."* |
 
 Note the third rule is *full* movement, not *any* movement — splitting costs the whole turn, so
-`CampaignMovementRemaining` must still be **at least** the template's `CampaignMovementPoints`. That
-comparison is what forced Stage 1.
-
-> **The comparison loosened in F-14.** It used to be an equality in all but name, because remaining could
-> never exceed the allowance. Now that unspent movement is carried into the next turn and added on top of
-> the allowance, a Force can open its turn above it — and, having moved, still sit at or above it. So
-> `HasFullMovement` no longer proves the Force has not moved. Tightening it needs the total actually
-> granted this turn, which is not stored, so it is knowingly left loose and pinned by a test.
+`CampaignMovementRemaining` must still be **at least** the template's `CampaignMovementPoints`. Because
+unspent movement carries, that does not prove the Force has not moved — see
+[unit-movement.md](unit-movement.md#movement-in-context-actions).
 
 A tag that is `Unled` but has no authored base/max sizes is a configuration error, matching how
 [`UnledSpawnRules`](../../../AscendantEmpire.Application/Features/Units/Classes/UnledSpawnRules.cs)
@@ -275,9 +255,9 @@ Three points worth keeping straight:
   `CampaignGeography.IMPASSABLE_MOVEMENT_COST`, so no Force can stand on one to be refused. It is written anyway,
   because the rule is about settling rather than walking and should already be right the day mountains become
   passable.
-- **Movement is *any* remaining, not a full turn** — unlike Split Force. Note the value can legitimately be
-  negative after F-14 (entering a tile costs half its price but spends all of it), so a Force in movement debt is
-  correctly refused.
+- **Movement is *any* remaining, not a full turn** — unlike Split Force. The value can legitimately be negative
+  (a Force pays a tile's whole cost on entry and may go into debt), so a Force in movement debt is correctly
+  refused.
 
 ### Gated on capabilities, not on a component
 
@@ -304,46 +284,6 @@ When that is built it must found the `StructureInstance` through `IStructureLife
 That writer records the founding in `structure.StructureHistory` as it makes it, which is what lets another player watching the
 ground be told a village went up there — see [intelligence-and-sightings.md](../intelligence-and-sightings.md). A founding
 written any other way is invisible to every other player, silently.
-
-## Stage 1 — the movement point rescale (done)
-
-`UnitInstance.CampaignMovementRemaining` was a `decimal` (1.0 = one point), while
-`CompiledUnitTemplate.CampaignMovementPoints` is a raw fixed-point `long` on the Scale 1,000
-convention of [`ScaledAmount`](../../../AscendantEmpire.Application/Helpers/ScaledNumerics/ScaledAmount.cs)
-(a stored `1000` means 1.0 MP). The split rule compares the two, so they had to share a representation.
-
-`CampaignMovementRemaining` is now a raw fixed-point `long`, matching every other movement, power and
-hitpoint value in the system. Migration `TM-2_ScaleTroopMovementPointsRemaining` has been **applied**.
-Four call sites moved with it:
-
-| Site | Change |
-|---|---|
-| `MoveForceHandler` secondary validation | Comment only — "none left" is zero at any scale |
-| `MovementProfileFactory.CreateState` | Now converts raw → decimal at the storage/engine boundary |
-| `MovementProfileFactory.Create` | Magic `1000m` replaced with `ScaledAmount.Scale` |
-| `BattleRemainingMovementCheck` | `>= 1m` → `>= ScaledAmount.Scale` |
-
-`MovementState` deliberately stays `decimal`. `MovementProfileFactory` is documented as the "central
-place for converting loaded Force and compiled design data into movement models", and it already
-bridged scales for `BaseMovementPoints`, so the conversion belongs there — at one boundary — leaving
-the movement engine's own models in whole/fractional MP throughout.
-
-The migration's `ALTER` **truncates** rather than rescales (SQL Server drops the fraction converting
-decimal to bigint, so `1.500` would arrive as `1`, not `1500`). That is safe only because nothing has
-ever written the column; the migration carries a comment saying so.
-
-### Known gap, since closed
-
-`CampaignMovementRemaining` was **never written anywhere**: not set on spawn (`SpawnUnitHandler` omitted
-it) and not replenished at turn rollover, so every Force read `0` and the third split rule could not
-distinguish "fresh" from "spent". Initialising on spawn landed as **F-9**, and replenishing at the start
-of the owning player's turn as **F-14** (the ticket that was TM-3). Values no longer have to be adjusted
-directly in the database to see the enabled state.
-
-Since TM-5 this gap has a second, louder symptom. The
-[force selection bar](force-selection-toolbar.md) fades a Force with no movement left, and it reports
-the column honestly, so **every Force in the bar renders greyed out** until TM-3 lands. That was a
-deliberate choice over faking the value: the fade follows the data rather than hiding the gap.
 
 ## Frontend design
 
@@ -419,29 +359,28 @@ group of 25. So the button opens a dialog and only the dialog posts. The backend
 knowing a dialog exists, but it does own the numbers the dialog needs — fetched separately when the
 dialog opens, rather than bloating the list endpoint with a per-action polymorphic payload.
 
-That work is Stage 5 and is expected to become its own ticket.
+That work is **TM-4**.
 
 ## Testing
 
 | Component | Tier | Count |
 |---|---|---|
-| `SplitForceStrategy` | 1 — no database | 11 — **unchanged** by the multi-select work, which is the point of keeping strategies per-Force |
+| `SplitForceStrategy` | 1 — no database | 11 — per-Force only; selections are the aggregator's concern |
 | `SettlementFoundingRules` | 1 — no database | 11 — the shared boundaries: exactly at the troop minimum, movement at zero and in debt, hills allowed |
 | `CreateVillageStrategy` | 1 — no database | 8 — hidden without the capability, the 100-troop threshold, each rule's reason |
 | `EstablishCampStrategy` | 1 — no database | 10 — the same, at 25 troops, plus that camp and village unlock separately |
 | `ForceActionAggregator` | 1 — no database | 9 — the folding rules; hide/enable/disable, reason collection, dedupe, a selection of one |
 | `ForceContextActionService` | 1 — no database | 12 — fake strategies; ordering, omission, fault isolation, re-validation, every Force judged |
-| `ForceActionContextBuilder` | 2 — in-memory | 19 — the original 16 plus capability codes, an empty capability set, and the tile's terrain |
+| `ForceActionContextBuilder` | 2 — in-memory | 19 — including capability codes, an empty capability set, and the tile's terrain |
 | `ContextActionToolbar` | Vitest | 6 — disabled rendering, reason text, ordering, icon-only rendering |
 | `forceActionRegistry` | Vitest | 4 — every known type gets its own distinct icon and this build's label; unknown types fall back |
 | `ForceSelectionToolbar` | Vitest | 17 — ordering, troop count, fade, clickability when spent, ctrl/⌘+click, multiple pressed entries |
 | `useForceSelection` | Vitest | 10 — own-forces-only filtering, default selection, the gesture trace, pinning, id-set identity |
 
-Keeping the rules pure is what confined the tier question to a single class — and that class turned out
-to sit on the in-memory tier after all. `CompiledUnitTemplate` owns EF complex types
-(`Attack`/`Resistance`) which the in-memory provider cannot materialise, but the builder only ever
-projects **scalars** off it and never reads a damage profile, so the provider is untroubled. That was
-measured rather than assumed, and is now recorded in [testing.md](../../testing.md). If a later change
+Keeping the rules pure confines the tier question to a single class, and that class sits on the
+in-memory tier. `CompiledUnitTemplate` owns EF complex types (`Attack`/`Resistance`) which the in-memory
+provider cannot materialise, but the builder only ever projects **scalars** off it and never reads a
+damage profile, so the provider is untroubled. This is recorded in [testing.md](../../testing.md). If a later change
 makes the builder read a damage profile, those tests will fail in the query shaper and must move to
 tier 3.
 
@@ -449,49 +388,35 @@ tier 3.
 
 Raised during implementation and deliberately left open.
 
-### 1. ~~Nothing initialises or replenishes movement points — the split rule cannot fire yet~~ — CLOSED
+### 1. Should the toolbar respect whose turn it is?
 
-`CampaignMovementRemaining` used to be written nowhere: not on spawn, not at turn rollover. Every Force
-read `0`, so `HasFullMovement` was false and **Split always rendered disabled** with "has already moved
-this turn", regardless of the Force. The rule and its plumbing were correct and tested; there was simply
-no data path feeding them. Raised as **TM-3** and delivered as **F-9** (spawn) and **F-14** (start-of-turn
-replenishment).
+Nothing in the pipeline checks the turn, so the toolbar offers actions to a player outside their own
+turn — while stepping a Force (`StepForceHandler`) does refuse out of turn. Turn enforcement belongs in the
+context, probably as a blanket rule ahead of the per-action strategies rather than repeated in each one.
 
-What replaced it is a smaller, subtler issue, recorded above: with carry, `HasFullMovement` is no longer
-proof that the Force has not moved.
-
-### 2. Should the toolbar respect whose turn it is?
-
-Nothing in the pipeline checks the turn. That is consistent with the rest of the codebase — turn
-enforcement isn't implemented anywhere yet (`MoveForceHandler` carries a `// TODO Check who's turn it
-is`) — so adding it here would have invented new behaviour in a corner of the system rather than
-solving it properly. When turn enforcement does land it belongs in the context, and probably as a
-blanket rule ahead of the per-action strategies rather than repeated in each one.
-
-### 3. Enemy Forces on the tile are excluded, pending vision rules
+### 2. Enemy Forces on the tile are excluded, pending vision rules
 
 `ForceActionContextBuilder` gathers only the player's **own** Forces from the selected tile. Including
 enemy Forces would let the toolbar confirm what is standing on a tile the player cannot see, so it
 needs the vision rules applied first. Actions that turn on enemy presence (attack, ambush) will need
 that resolved.
 
-### 4. How does the split dialog learn its parameters? (stage 5)
+### 3. How does the split dialog learn its parameters? (TM-4)
 
 A 100-strong settler with `UnledBaseSize` 25 can split into 2, 3 or 4 parts, or peel off a single group
 of 25. The recommendation is a separate per-action detail endpoint fetched when the dialog opens
 (`GET …/actions/split-force/options`), rather than a polymorphic `metadata` bag on the list endpoint —
 which would make every action's contract the union of every action's needs. Carried into **TM-4**.
 
-### 5. Does splitting produce a `ForceOrder`? (stage 5)
+### 4. Does splitting produce a `ForceOrder`? (TM-4)
 
 `ForceOrderType.SplitForce` exists, but the design here says splitting resolves immediately and costs
 the turn, which needs no standing order. Either the order type is written as a completed audit record,
 or it is unused and should be reconsidered. Worth settling deliberately rather than by accident; carried
 into **TM-4**.
 
-### 6. Hunt is still parked
+### 5. Hunt is parked
 
-The Hunt action was removed from the toolbar before this work (it was gated on a legacy unit design id
-that no longer exists). It now wants to come back as its own strategy gated on a compiled capability tag
+Hunt is not on the toolbar. It wants to come back as its own strategy gated on a compiled capability tag
 — see [tags-and-modifiers.md](../unit-design/tags-and-modifiers.md), concept 3. The registry carries a
 `TODO` marking the spot.

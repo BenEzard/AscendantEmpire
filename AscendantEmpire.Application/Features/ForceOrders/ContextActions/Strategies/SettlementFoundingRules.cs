@@ -50,7 +50,7 @@ internal static class SettlementFoundingRules
         }
 
         // Any movement left will do; this is not one of the actions that demands a whole untouched turn. Note the value can legitimately be
-        // negative — entering a tile needs only half its cost but spends all of it — so a Force in movement debt is refused here, as it should be.
+        // negative — a Force holding any movement at all may enter a tile and pays its whole cost — so a Force in movement debt is refused here, as it should be.
         if (force.CampaignMovementRemaining <= 0)
         {
             reasons.Add($"{force.DisplayName} has no campaign movement left this turn.");
