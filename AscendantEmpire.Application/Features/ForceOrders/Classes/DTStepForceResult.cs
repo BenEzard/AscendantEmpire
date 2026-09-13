@@ -11,5 +11,6 @@ public class DTStepForceResult : IStepForceResult
     public int YCoord { get; set; }
     public decimal CampaignMovementRemaining { get; set; }
     public decimal CampaignMovementPoints { get; set; }
+    public bool StartedBattle { get; set; }
     public required IReadOnlyCollection<IObserver> Observers { get; set; }
 }

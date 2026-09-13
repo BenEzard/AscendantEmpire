@@ -48,7 +48,8 @@ internal class EstablishCampStrategyTests
             Organisation = null,
             CapabilityTagCodes = capabilityTagCodes.Length > 0 ? capabilityTagCodes : [_CAPABILITY_TAG_CODE],
             TileIsWater = tileIsWater,
-            TileGeographyType = tileGeographyType
+            TileGeographyType = tileGeographyType,
+            IsInBattle = false
         };
     }
 

@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Spinner } from "@/components/ui";
 import UnitDesigner from "@/features/unitdesign/UnitDesigner";
 import MilitaryAdvisorDialog from "@/features/game/advisors/military/MilitaryAdvisorDialog";
+import BattleDialog from "./BattleDialog";
 import OpenGameDialog from "./OpenGameDialog";
 import VisionSettingsOffcanvas from "./VisionSettingsOffcanvas";
 import { enterGame } from "@/features/auth/api/authApi";
@@ -102,6 +103,8 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     getForceToStep,
     getStepToTile,
     onForceMoved,
+    battleDialogForceId,
+    closeBattleDialog,
   } = useForceSelection({ gameId, playerId, openToast });
 
   // --- Movement (numpad, and hold-to-move on the map) ---
@@ -113,6 +116,13 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
       // The fog needs nothing here: the mutation has already written the step's tiles and observers into the tiles cache, and
       // both fog layers are derived from that cache.
       onForceMoved(result);
+
+      // A step onto another player's forces starts a battle. The force can't move again until it's over, so say so now rather
+      // than leaving the player to discover it from a refused step. The Battle button arrives on its own: the mutation has
+      // already invalidated the toolbar's actions.
+      if (result.startedBattle) {
+        openToast("Battle has begun!", "warning");
+      }
 
       // The player has just changed what they have outstanding, so the list they were shown no longer stands and the turn should not end on the
       // strength of it. The notifications stay up — they are still the checklist being worked through — but End Turn goes back to checking first.
@@ -494,6 +504,9 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
         />
 
         <MilitaryAdvisorDialog show={showMilitaryAdvisor} onClose={closeMilitaryAdvisor} />
+
+        {/* Opened from a force's Battle button on the context action toolbar. */}
+        <BattleDialog show={battleDialogForceId != null} forceId={battleDialogForceId} onClose={closeBattleDialog} />
 
         {/* Both bars stack in one fixed column, so the selection bar sits under the action toolbar without either
             needing to know the other's height.

@@ -123,7 +123,10 @@ internal class GetPlayerCampaignMapHandler(
             {
                 // Get *ALL* Structures and Forces on the observed map (for any Player)
                 Task<ServiceResult<IReadOnlyCollection<PlayerStructure>>> fetchAllStructuresTask = mediator.Send(new GetStructuresByLocationRequest(request.GameId, campaignMapTileIds, IncludeBattleMapStructures: false), cancelToken);
-                Task<ServiceResult<IReadOnlyCollection<PlayerForce>>> fetchAllForcesTask = mediator.Send(new GetForcesByLocationRequest(request.GameId, campaignMapTileIds, IncludeBattleMapForces: false), cancelToken);
+
+                // Forces in battle are included. A Force fighting on a battle map is still standing on its campaign tile - the Battle is fought over that tile - so it is still seen there,
+                // and its owner has to be able to click it to reach its Battle button.
+                Task<ServiceResult<IReadOnlyCollection<PlayerForce>>> fetchAllForcesTask = mediator.Send(new GetForcesByLocationRequest(request.GameId, campaignMapTileIds, IncludeBattleMapForces: true), cancelToken);
 
                 await Task.WhenAll(fetchAllStructuresTask, fetchAllForcesTask);
 

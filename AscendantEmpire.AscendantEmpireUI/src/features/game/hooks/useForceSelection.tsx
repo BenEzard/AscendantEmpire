@@ -73,6 +73,10 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
   // standing on the clicked tile — with a single force there is nothing to choose between.
   const [multiForceTile, setMultiForceTile] = useState<ForceSelectionToolbarTile | null>(null);
 
+  // The force whose battle the Battle dialog is showing, or null while the dialog is closed. Held here rather than in GameUI
+  // because it is opened by a toolbar action, and this hook is what turns those actions into interactions.
+  const [battleDialogForceId, setBattleDialogForceId] = useState<number | null>(null);
+
   // Reset all force-selection state when the game closes.
   useEffect(() => {
     if (gameId == null) {
@@ -80,8 +84,12 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
       setVisibleForceIdsByTile({});
       setTileByForceId({});
       setMultiForceTile(null);
+      setBattleDialogForceId(null);
     }
   }, [gameId]);
+
+  /** Closes the Battle dialog. */
+  const closeBattleDialog = useCallback(() => setBattleDialogForceId(null), []);
 
   // Memoised because both the bar and every map tile take it, and Tile is memoised — a fresh Set each render
   // would defeat that and re-render the whole grid on any unrelated state change.
@@ -282,6 +290,12 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
           // doesn't exist yet.
           openToast(`Establish a camp with ${describeSelection()} — settlements aren't built yet.`, "info");
           break;
+
+        case "Battle":
+          // One dialog shows one battle, so it opens for the first force in the selection. The backend only enables the
+          // button when every selected force is in battle, and the dialog itself is still a placeholder (COMM-1).
+          setBattleDialogForceId(selectedForces[0].id);
+          break;
       }
     },
     [describeSelection, openToast, selectedForces],
@@ -363,5 +377,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
     getForceToStep,
     getStepToTile,
     onForceMoved,
+    battleDialogForceId,
+    closeBattleDialog,
   };
 }

@@ -8,7 +8,7 @@ import type { ForceActionType } from "../../api/forceContextActionsApi";
  * newer backend still renders rather than crashing or vanishing.
  */
 describe("forceActionRegistry", () => {
-  const knownTypes: ForceActionType[] = ["SplitForce", "CreateVillage", "EstablishCamp"];
+  const knownTypes: ForceActionType[] = ["SplitForce", "CreateVillage", "EstablishCamp", "Battle"];
 
   it.each(knownTypes)("gives %s its own icon", (actionType) => {
     expect(isValidElement(getForceActionIcon(actionType))).toBe(true);

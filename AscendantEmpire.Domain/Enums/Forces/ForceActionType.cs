@@ -68,5 +68,19 @@ public enum ForceActionType
     /// separate action types rather than one parameterised action because the player is choosing between two outcomes, not configuring one.
     /// </para>
     /// </remarks>
-    EstablishCamp = 1200
+    EstablishCamp = 1200,
+
+    /// <summary>
+    /// Open the Battle the selected Force is fighting in.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Offered only to a Force that is currently engaged in a Battle, which is to say one standing on a battle map tile. A Force out of battle is hidden the button rather than shown
+    /// it greyed out, because there is nothing it could ever do to make the button work other than be attacked.
+    /// </para>
+    /// <para>
+    /// What the button opens is still to be designed; today it is a placeholder dialog. See COMM-1.
+    /// </para>
+    /// </remarks>
+    Battle = 1300
 }

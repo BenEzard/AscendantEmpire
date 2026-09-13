@@ -37,7 +37,8 @@ internal class SettlementFoundingRulesTests
             Organisation = null,
             CapabilityTagCodes = ["found-camp"],
             TileIsWater = tileIsWater,
-            TileGeographyType = tileGeographyType
+            TileGeographyType = tileGeographyType,
+            IsInBattle = false
         };
     }
 

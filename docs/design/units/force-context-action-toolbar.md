@@ -4,8 +4,8 @@ When a Force is selected on the campaign map, the toolbar shows the actions appr
 **in its current context**. The backend decides what is possible and why; the frontend decides how it
 looks and what interaction follows.
 
-This is the design for the toolbar as a whole. It offers three actions — **Split Force**, **Create
-Village** and **Establish Camp** — and is built to take more.
+This is the design for the toolbar as a whole. It offers four actions — **Split Force**, **Create
+Village**, **Establish Camp** and **Battle** — and is built to take more.
 
 ## Status
 
@@ -17,6 +17,7 @@ Village** and **Establish Camp** — and is built to take more.
 | Multi-Force selection — a toolbar that judges the whole selection | Built — see [Aggregating over a selection](#aggregating-over-a-selection) |
 | Split Force — availability | Built — see [The Split Force strategy](#the-split-force-strategy) |
 | Create Village and Establish Camp — availability, gated on capability tags | Built — see [The settlement strategies](#the-settlement-strategies--create-village-and-establish-camp-ud-56) |
+| Battle — availability, and a placeholder dialog | Built — see [The Battle strategy](#the-battle-strategy-comm-1) |
 | Executing a split — split handler, options endpoint and parameter dialog | Not built — **TM-4** |
 | Executing a settlement founding — needs a Settlement entity to create | Not built — [force-instances-roadmap.md](../../plans/force-instances-roadmap.md) Phase 10 |
 
@@ -285,6 +286,27 @@ That writer records the founding in `structure.StructureHistory` as it makes it,
 ground be told a village went up there — see [intelligence-and-sightings.md](../intelligence-and-sightings.md). A founding
 written any other way is invisible to every other player, silently.
 
+## The Battle strategy (COMM-1)
+
+Offers a **Battle** button to a Force that is fighting in a battle. `Battle = 1300`, so it sits after the
+settlement actions.
+
+| Rule | Read from | Outcome when it fails |
+|---|---|---|
+| The Force is in battle | `ForceActionForce.IsInBattle`, projected as `BattleMapTileId != null` | **Hidden** (`null`) |
+
+There is no disabled state: a Force in battle always has a battle to open. "In battle" is read off the
+Force's battle map tile rather than by looking for an open `Battle` on its campaign tile, because the tile is
+also what refuses the Force a campaign step, and the two must never disagree. With several Forces selected,
+the aggregator's usual rules apply: the button is enabled only when every selected Force is in battle.
+
+Clicking it opens `BattleDialog` for the first selected Force. What that dialog shows is still to be
+designed, so today it is a placeholder.
+
+A Force only has a battle map tile once a campaign step has started a battle — see
+[unit-movement.md](unit-movement.md#battles-on-entry). A Force in battle stays on the campaign map
+(`GetPlayerCampaignMapHandler` includes battle-map Forces), which is what lets it be clicked at all.
+
 ## Frontend design
 
 ### Contract
@@ -369,9 +391,10 @@ That work is **TM-4**.
 | `SettlementFoundingRules` | 1 — no database | 11 — the shared boundaries: exactly at the troop minimum, movement at zero and in debt, hills allowed |
 | `CreateVillageStrategy` | 1 — no database | 8 — hidden without the capability, the 100-troop threshold, each rule's reason |
 | `EstablishCampStrategy` | 1 — no database | 10 — the same, at 25 troops, plus that camp and village unlock separately |
+| `BattleStrategy` | 1 — no database | 3 — its type and label, hidden out of battle, enabled in battle whatever its movement |
 | `ForceActionAggregator` | 1 — no database | 9 — the folding rules; hide/enable/disable, reason collection, dedupe, a selection of one |
 | `ForceContextActionService` | 1 — no database | 12 — fake strategies; ordering, omission, fault isolation, re-validation, every Force judged |
-| `ForceActionContextBuilder` | 2 — in-memory | 19 — including capability codes, an empty capability set, and the tile's terrain |
+| `ForceActionContextBuilder` | 2 — in-memory | 20 — including capability codes, an empty capability set, the tile's terrain, and whether the Force is in battle |
 | `ContextActionToolbar` | Vitest | 6 — disabled rendering, reason text, ordering, icon-only rendering |
 | `forceActionRegistry` | Vitest | 4 — every known type gets its own distinct icon and this build's label; unknown types fall back |
 | `ForceSelectionToolbar` | Vitest | 17 — ordering, troop count, fade, clickability when spent, ctrl/⌘+click, multiple pressed entries |

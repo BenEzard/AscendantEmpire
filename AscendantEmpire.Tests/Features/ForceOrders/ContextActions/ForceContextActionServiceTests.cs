@@ -63,7 +63,8 @@ internal class ForceContextActionServiceTests
                 Organisation = null,
                 CapabilityTagCodes = [],
                 TileIsWater = false,
-                TileGeographyType = CampaignMapGeographyType.Flat
+                TileGeographyType = CampaignMapGeographyType.Flat,
+                IsInBattle = false
             },
             OtherForcesOnTile = []
         };

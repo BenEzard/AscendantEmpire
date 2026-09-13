@@ -57,9 +57,33 @@ internal sealed class GenerateBattleMapHandler(
                     bmi => bmi.CampaignMapId == request.CampaignMapId,
                     cancellationToken);
 
-            if (existing is not null && existing.GenerationStatus == MapCreationStatus.Complete)
+            if (existing is not null)
             {
-                return ServiceResult<int>.Succeed(existing.Id);
+                if (existing.GenerationStatus == MapCreationStatus.Complete)
+                {
+                    return ServiceResult<int>.Succeed(existing.Id);
+                }
+
+                // An unfinished row is what a generation that failed part-way leaves behind: the index row is inserted as Creating before its tiles are written, and only marked Complete
+                // after. Left in place it would make every later attempt collide with the unique index on CampaignMapId, so the tile could never have a battle map at all. Its tiles go
+                // first (they may have been written before the Complete update failed), then the row, and the map is generated afresh below.
+                //
+                // This assumes nothing else is generating the same tile at this moment. Battles only start on the moving player's own step, so two generations of one tile at once is
+                // not something play can produce today.
+                logger.LogWarning(
+                    "Battle Map Index Id {BattleMapIndexId} for Campaign Map Id {CampaignMapId} in game {GameId} was left {GenerationStatus}; clearing it and generating again.",
+                    existing.Id,
+                    request.CampaignMapId,
+                    request.GameId,
+                    existing.GenerationStatus);
+
+                await context.BattleMap
+                    .Where(tile => tile.BattleMapIndexId == existing.Id)
+                    .ExecuteDeleteAsync(cancellationToken);
+
+                await context.BattleMapIndex
+                    .Where(index => index.Id == existing.Id)
+                    .ExecuteDeleteAsync(cancellationToken);
             }
 
             // ── Load the game index ───────────────────────────────────────────

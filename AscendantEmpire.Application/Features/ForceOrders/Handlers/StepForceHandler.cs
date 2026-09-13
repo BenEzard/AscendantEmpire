@@ -2,6 +2,7 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Battles.Services;
 using AscendantEmpire.Application.Features.ForceOrders.Movement;
 using AscendantEmpire.Application.Features.ForceOrders.Movement.Strategies;
 using AscendantEmpire.Application.Features.Game.Handlers;
@@ -68,7 +69,8 @@ internal class StepForceHandler(
     IMediator mediator,
     ICampaignTurnService campaignTurnService,
     IEnumerable<IMovementDomainStrategy> movementDomainStrategies,
-    IForceLifecycleWriter forceLifecycleWriter
+    IForceLifecycleWriter forceLifecycleWriter,
+    IBattleEngagementService battleEngagementService
 ) : IRequestHandler<StepForceRequest, ServiceResult<StepForceResult>>
 {
     /// <summary>
@@ -126,8 +128,8 @@ internal class StepForceHandler(
                 return ServiceResult<StepForceResult>.Fail(error);
             }
 
-            // The Turn id comes back with the verdict, because the step is recorded against it.
-            (int playerTurnId, ServiceResult<StepForceResult>? turnRefusal) = await ValidateItIsThisPlayersTurnAsync(request, cancelToken);
+            // The Turn id comes back with the verdict, because the step is recorded against it. The Round comes too, because a step that starts a Battle records the Round it began in.
+            (int playerTurnId, int roundNumber, ServiceResult<StepForceResult>? turnRefusal) = await ValidateItIsThisPlayersTurnAsync(request, cancelToken);
             if (turnRefusal is not null)
             {
                 return turnRefusal;
@@ -204,6 +206,17 @@ internal class StepForceHandler(
                 return strandingRefusal;
             }
 
+            // Who is already standing on the tile decides whether this is a move or an attack. Both reads come before anything is staged, so refusing here leaves nothing to undo.
+            ServiceResult<StepForceResult>? battleRefusal = await ValidateNoBattleIsUnderWayAsync(context, request, force, targetTile.CampaignMapId, target, cancelToken);
+            if (battleRefusal is not null)
+            {
+                return battleRefusal;
+            }
+
+            // Every other Player's Force on the tile. Any at all means the step is an attack and starts a Battle; none means it is an ordinary move. Tracked, because each of them is placed on
+            // the battle map if it comes to a fight.
+            List<UnitInstance> defenders = await GetEnemyForcesOnTileAsync(context, request, targetTile.CampaignMapId, cancelToken);
+
             // The entry gate in docs/design/units/unit-movement.md: entry is gated on having movement left at all, not on holding some proportion of the
             // tile's cost — ValidateForce settled that already, so no affordability check is left to make here. What remains is the payment: the
             // whole cost comes off and the balance is allowed to go negative, so a Force dives into expensive ground and waits the debt out rather
@@ -223,7 +236,47 @@ internal class StepForceHandler(
 
             force.CampaignMovementRemaining -= entryCost;
 
-            await context.SaveChangesAsync(cancelToken);
+            // An attack pays for the step and moves onto the tile exactly as an ordinary step does; what differs is how it is saved.
+            bool startedBattle = defenders.Count > 0;
+
+            if (startedBattle)
+            {
+                // The engagement service saves, rather than this handler: the move and movement payment staged above are flushed inside the same transaction as the Battle, each Force's
+                // starting battle tile and the history rows, so the Force is never standing on the tile without the Battle having begun, nor the Battle begun without it. On failure nothing
+                // has been committed, and the context is thrown away with this handler.
+                ServiceResult<int> battleResult = await battleEngagementService.CommenceAsync(
+                    context,
+                    new BattleEngagement
+                    {
+                        GameId = request.GameId,
+                        Attacker = force,
+                        Defenders = defenders,
+                        CampaignMapTileId = targetTile.CampaignMapId,
+                        StepDirection = request.Direction,
+                        RoundNumber = roundNumber,
+                        PlayerTurnId = playerTurnId
+                    },
+                    cancelToken);
+
+                if (battleResult.HasSucceeded == false)
+                {
+                    string error = $"{DescribeForce(force)} could not attack {target.Describe()}.";
+                    logger.LogWarning("{Error} Unit Instance Id {UnitInstanceId}. Errors: {Errors}", error, force.Id, string.Join("; ", battleResult.Errors));
+                    return ServiceResult<StepForceResult>.Fail(battleResult.Errors.Prepend(error));
+                }
+
+                logger.LogInformation(
+                    "Unit Instance Id {UnitInstanceId} attacked {DefenderCount} enemy Force(s) on ({TargetX}, {TargetY}), starting Battle Id {BattleId}.",
+                    force.Id,
+                    defenders.Count,
+                    target.XCoord,
+                    target.YCoord,
+                    battleResult.SuccessValue);
+            }
+            else
+            {
+                await context.SaveChangesAsync(cancelToken);
+            }
 
             logger.LogInformation(
                 "Unit Instance Id {UnitInstanceId} stepped {Direction} from ({OriginX}, {OriginY}) to ({TargetX}, {TargetY}) for {Cost} movement points, leaving {Remaining}.",
@@ -245,6 +298,7 @@ internal class StepForceHandler(
                 YCoord = target.YCoord,
                 CampaignMovementRemaining = ScaledAmount.FromRaw(force.CampaignMovementRemaining).ToDecimal(),
                 CampaignMovementPoints = ScaledAmount.FromRaw(movementProfile.CampaignMovementPoints).ToDecimal(),
+                StartedBattle = startedBattle,
                 Observers = observers
             });
         }
@@ -327,8 +381,10 @@ internal class StepForceHandler(
     /// A current turn with no open <c>PlayerTurn</c> row is refused for the same reason, and logged as an error, since every Turn is opened before its start-of-turn pipeline runs.
     /// </para>
     /// </remarks>
-    /// <returns>The open Turn's id and no refusal when the step may proceed; otherwise the failure to answer with, alongside an id that means nothing.</returns>
-    private async Task<(int PlayerTurnId, ServiceResult<StepForceResult>? Refusal)> ValidateItIsThisPlayersTurnAsync(StepForceRequest request, CancellationToken cancelToken)
+    /// <returns>
+    /// The open Turn's id and the current Round, with no refusal, when the step may proceed; otherwise the failure to answer with, alongside an id and Round that mean nothing.
+    /// </returns>
+    private async Task<(int PlayerTurnId, int RoundNumber, ServiceResult<StepForceResult>? Refusal)> ValidateItIsThisPlayersTurnAsync(StepForceRequest request, CancellationToken cancelToken)
     {
         ServiceResult<CurrentCampaignTurn> turnResult = await campaignTurnService.GetCurrentCampaignTurnAsync(request.GameId, cancelToken);
 
@@ -341,7 +397,7 @@ internal class StepForceHandler(
                 request.PlayerId,
                 string.Join("; ", turnResult.Errors));
 
-            return (0, ServiceResult<StepForceResult>.Fail(error));
+            return (0, 0, ServiceResult<StepForceResult>.Fail(error));
         }
 
         CurrentCampaignTurn currentTurn = turnResult.SuccessValue;
@@ -355,7 +411,7 @@ internal class StepForceHandler(
                 currentTurn.PlayerId,
                 request.GameId);
 
-            return (0, ServiceResult<StepForceResult>.Forbidden(error));
+            return (0, 0, ServiceResult<StepForceResult>.Forbidden(error));
         }
 
         if (currentTurn.PlayerTurnId is not int playerTurnId)
@@ -366,10 +422,75 @@ internal class StepForceHandler(
                 request.GameId,
                 request.PlayerId);
 
-            return (0, ServiceResult<StepForceResult>.Fail(error));
+            return (0, 0, ServiceResult<StepForceResult>.Fail(error));
         }
 
-        return (playerTurnId, null);
+        return (playerTurnId, currentTurn.CurrentRoundNumber, null);
+    }
+
+    /// <summary>
+    /// Refuses a step onto a tile where a Battle is already being fought.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A stop-gap. The intent is that the Force joins the Battle instead - reinforcing its own side if its Player is already fighting there, or entering as a new side on the edge matching its
+    /// step if not. Until that is built, refusing keeps the tile to the one Battle the unique index on <c>battle.Battle</c> allows, rather than letting a Force walk into the middle of a fight
+    /// untouched by it.
+    /// </para>
+    /// </remarks>
+    /// <returns><see langword="null"/> when no Battle is under way on the tile; otherwise the failure to answer with.</returns>
+    private async Task<ServiceResult<StepForceResult>?> ValidateNoBattleIsUnderWayAsync(
+        AscendantEmpireContext context,
+        StepForceRequest request,
+        UnitInstance force,
+        int targetTileId,
+        MovementTargetTile target,
+        CancellationToken cancelToken)
+    {
+        bool battleUnderWay = await context.Battles
+            .AsNoTracking()
+            .AnyAsync(battle => battle.GameId == request.GameId && battle.CampaignMapTileId == targetTileId && battle.ConcludedAtRoundNumber == null, cancelToken);
+
+        if (!battleUnderWay)
+        {
+            return null;
+        }
+
+        // TODO COMM-4: Join the Battle through IBattleLifecycleWriter.JoinAsync rather than refusing the step. A Player already fighting there reinforces their side; one allied with neither
+        // side enters as a new one, placed on the battle map edge matching their step direction.
+        string error = $"A battle is already under way on {target.Describe()}, so {DescribeForce(force)} cannot enter it yet.";
+        logger.LogInformation("Unit Instance Id {UnitInstanceId} refused entry to {Tile}: a Battle is already under way there.", force.Id, target.Describe());
+
+        return ServiceResult<StepForceResult>.Fail(error);
+    }
+
+    /// <summary>
+    /// Finds every other Player's Force standing on the tile, which the stepping Force would be attacking.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Any other Player counts as an enemy, since there is no alliance model yet, and every Force is assumed to be seen - detection, ambush and hiding are not modelled. Only Forces with troops
+    /// left are counted, because a wiped-out Force is not something to fight.
+    /// </para>
+    /// <para>
+    /// A Force already on a battle map is left out. With no open Battle on the tile (which <see cref="ValidateNoBattleIsUnderWayAsync"/> has already established) there should be none, and a
+    /// Force that somehow is must not be placed a second time.
+    /// </para>
+    /// <para>
+    /// Tracked, and ordered by id: tracked because each one's starting battle tile is written onto it if the step goes ahead, and ordered so the Battle that results is the same however the
+    /// database happened to return the rows.
+    /// </para>
+    /// </remarks>
+    private static async Task<List<UnitInstance>> GetEnemyForcesOnTileAsync(AscendantEmpireContext context, StepForceRequest request, int targetTileId, CancellationToken cancelToken)
+    {
+        return await context.UnitInstances
+            .Where(other => other.GameId == request.GameId
+                && other.CampaignMapTileId == targetTileId
+                && other.PlayerId != request.PlayerId
+                && other.HealthyCount + other.InjuredCount > 0
+                && other.BattleMapTileId == null)
+            .OrderBy(other => other.Id)
+            .ToListAsync(cancelToken);
     }
 
     /// <summary>

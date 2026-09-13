@@ -39,7 +39,8 @@ internal class ForceActionAggregatorTests
                 Organisation = null,
                 CapabilityTagCodes = [],
                 TileIsWater = false,
-                TileGeographyType = CampaignMapGeographyType.Flat
+                TileGeographyType = CampaignMapGeographyType.Flat,
+                IsInBattle = false
             },
             OtherForcesOnTile = []
         };

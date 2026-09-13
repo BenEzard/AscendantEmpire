@@ -233,4 +233,40 @@ internal class BattleMapTileIdAllocationTests : GameSqlServerTestBase
             Assert.That(totalTiles, Is.EqualTo(_BATTLE_MAP_SIZE * _BATTLE_MAP_SIZE), "No second set of tiles was written.");
         }
     }
+
+    [Test, Description("A generation that failed part-way leaves its index row unfinished; the next request clears it and generates afresh, rather than colliding with it forever.")]
+    public async Task ShouldClearAnUnfinishedBattleMapAndGenerateAgainAsync()
+    {
+        int gameId = await SetupGameWithSeededGalleryAsync();
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        CampaignMap campaignTile = await context.CampaignMaps.Where(cm => cm.GameId == gameId).OrderBy(cm => cm.CampaignMapId).FirstAsync();
+
+        // What an interrupted generation leaves behind: the index row inserted as Creating, never marked Complete.
+        var unfinished = new BattleMapIndex
+        {
+            CampaignMapId = campaignTile.CampaignMapId,
+            GenerationStatus = MapCreationStatus.Creating,
+            Status = "Generation in progress",
+            BattleMapOffsetId = 0
+        };
+
+        context.BattleMapIndex.Add(unfinished);
+        await context.SaveChangesAsync();
+
+        int regeneratedIndexId = await GenerateBattleMapAsync(gameId, campaignTile.CampaignMapId);
+
+        await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
+
+        List<BattleMapIndex> indexes = await verify.BattleMapIndex.Where(bmi => bmi.CampaignMapId == campaignTile.CampaignMapId).ToListAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(indexes, Has.Count.EqualTo(1), "The unfinished row was replaced, not joined by a second.");
+            Assert.That(indexes.Single().Id, Is.EqualTo(regeneratedIndexId));
+            Assert.That(indexes.Single().GenerationStatus, Is.EqualTo(MapCreationStatus.Complete));
+            Assert.That(await verify.BattleMap.CountAsync(bm => bm.BattleMapIndexId == regeneratedIndexId), Is.EqualTo(_BATTLE_MAP_SIZE * _BATTLE_MAP_SIZE));
+        }
+    }
 }

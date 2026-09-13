@@ -30,6 +30,14 @@ public record StepForceResult
     public decimal CampaignMovementPoints { get; init; }
 
     /// <summary>
+    /// Whether the step took the Force onto a tile held by another Player's Forces, and so started a Battle.
+    /// </summary>
+    /// <remarks>
+    /// When it did, the Force and every enemy Force on the tile are now in battle, and none of them can take a campaign step until it is over.
+    /// </remarks>
+    public bool StartedBattle { get; init; }
+
+    /// <summary>
     /// The player's refreshed view of the map from where their observers now stand.
     /// </summary>
     /// <remarks>

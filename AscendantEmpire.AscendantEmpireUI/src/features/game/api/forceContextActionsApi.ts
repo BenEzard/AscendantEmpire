@@ -10,7 +10,7 @@ import { http } from "@/api/http";
  * Which action a toolbar entry is. Mirrors the C# ForceActionType enum by member name — the API registers a
  * JsonStringEnumConverter, so these arrive as strings rather than numbers.
  */
-export type ForceActionType = "SplitForce" | "CreateVillage" | "EstablishCamp";
+export type ForceActionType = "SplitForce" | "CreateVillage" | "EstablishCamp" | "Battle";
 
 /** One action offered for the selection (mirrors IForceContextAction). */
 export interface ForceContextAction {

@@ -184,7 +184,8 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         int healthyCount = 100,
         int injuredCount = 0,
         long campaignMovementRemaining = _CAMPAIGN_MOVEMENT_POINTS,
-        string? name = null)
+        string? name = null,
+        int? battleMapTileId = null)
     {
         context.UnitInstances.Add(new UnitInstance
         {
@@ -192,6 +193,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
             GameId = _GAME_ID,
             PlayerId = playerId,
             CampaignMapTileId = campaignMapTileId,
+            BattleMapTileId = battleMapTileId,
             UnitTemplateId = unitTemplateId,
             Name = name,
             InitialStrength = healthyCount + injuredCount,
@@ -235,6 +237,26 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
             Assert.That(result.SelectedForce.Organisation, Is.Not.Null);
             Assert.That(result.SelectedForce.Organisation!.IsUnled, Is.True);
             Assert.That(result.SelectedForce.Organisation.UnledBaseSize, Is.EqualTo(25));
+        }
+    }
+
+    [Test, Description("A Force on a battle map tile is in battle and one without is not, which is what shows or hides its Battle button.")]
+    public async Task ShouldReportWhetherEachForceIsInBattleAsync()
+    {
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            await AddForceAsync(context, unitInstanceId: 5, battleMapTileId: 42);
+            await AddForceAsync(context, unitInstanceId: 6);
+        }
+
+        IReadOnlyCollection<ForceActionContext>? result = await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, [5, 6], CancellationToken.None);
+
+        Assert.That(result, Is.Not.Null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result!.Single(context => context.SelectedForce.UnitInstanceId == 5).SelectedForce.IsInBattle, Is.True);
+            Assert.That(result!.Single(context => context.SelectedForce.UnitInstanceId == 6).SelectedForce.IsInBattle, Is.False);
         }
     }
 

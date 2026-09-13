@@ -84,6 +84,13 @@ internal sealed record ForceActionForce
     /// <summary>The geography of the tile the Force stands on.</summary>
     public required CampaignMapGeographyType TileGeographyType { get; init; }
 
+    /// <summary>Whether the Force is fighting in a Battle, which is to say standing on a battle map tile.</summary>
+    /// <remarks>
+    /// Read off the Force's battle map tile rather than by looking for an open Battle on its campaign tile, because the tile is what every other part of the game treats as "in battle" - it is
+    /// what refuses the Force a campaign step - and the two must never disagree about the same Force.
+    /// </remarks>
+    public required bool IsInBattle { get; init; }
+
     /// <summary>The Force's current size — every soldier still standing, hurt or not.</summary>
     public int TotalStrength => HealthyCount + InjuredCount;
 

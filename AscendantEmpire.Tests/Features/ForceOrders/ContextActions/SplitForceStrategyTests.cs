@@ -65,7 +65,8 @@ internal class SplitForceStrategyTests
             // Splitting reads none of these; they are here because the record requires them. The settlement strategies are what exercise them.
             CapabilityTagCodes = [],
             TileIsWater = false,
-            TileGeographyType = CampaignMapGeographyType.Flat
+            TileGeographyType = CampaignMapGeographyType.Flat,
+            IsInBattle = false
         };
     }
 

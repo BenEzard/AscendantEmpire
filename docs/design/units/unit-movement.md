@@ -281,9 +281,22 @@ sap in the early game.
 
 ### Battles on entry
 
-**Design, not built.** If a campaign tile holds a detected enemy Unit, or fortifications that would damage or
-fully block movement, a battlefield map is triggered when a Unit attempts to enter. A step today enters the tile
-regardless of who is standing on it. See [battlefield-maps.md](../battlefield-maps.md#triggering-a-battle).
+**Partly built.** A step onto a campaign tile holding another player's Forces starts a Battle
+(`StepForceHandler`, through `IBattleEngagementService`):
+
+- The Force pays for the step and moves onto the tile exactly as an ordinary step would.
+- The tile's battle map is generated if it has never had one, and reused if it has. If it can't be generated, the
+  step is refused and nothing moves.
+- The attacker and every enemy Force on the tile are placed on battle map tiles (`BattleMapTileId`), which is
+  what marks them as in battle — a Force in battle is refused any further campaign step. See
+  [battlefield-maps.md](../battlefield-maps.md#starting-positions--interim-placement) for where they are placed.
+- A `battle.Battle` is commenced with one participant per player, attacker first, and its history is recorded,
+  all in the same transaction as the move.
+- A step onto a tile that already has an open Battle is refused. Joining it instead is COMM-4.
+
+Not built: every Force is assumed to see every other, so detection, ambush and hiding play no part; there is no
+alliance model, so any other player's Force is an enemy; fortifications don't trigger anything; and no battle
+turn queue is created (COMM-3). See [battlefield-maps.md](../battlefield-maps.md#triggering-a-battle).
 
 ### Multi-turn move orders
 

@@ -63,12 +63,13 @@ public sealed record BattleConclusion
 /// Only what a <b>campaign map</b> observer could perceive is recorded. The battle map's blow-by-blow has no place in the feed, because a watcher on the next hill has no way of seeing it.
 /// </para>
 /// <para>
-/// <b>Nothing calls this yet.</b> There is no combat subsystem: nothing in play starts a battle, reinforces one, resolves one, damages a Unit or destroys a Force. Each of these must go through it
-/// when it is built:
+/// <b>Only <see cref="CommenceAsync"/> is called in play.</b> A Force stepping onto a tile held by another Player's Forces starts a battle through <c>IBattleEngagementService</c>, which
+/// commences it here. There is no combat subsystem beyond that: nothing reinforces a battle, resolves one, damages a Unit or destroys a Force. Each of these must go through this writer when it
+/// is built:
 /// <list type="bullet">
-///   <item><description>starting a battle - <see cref="CommenceAsync"/>. <c>CreateBattleTurnQueueHandler</c> builds a <see cref="Battle"/> and its roster directly today; it has no production
-///   caller and no route, but it is a bypass of this writer and must be routed through it;</description></item>
-///   <item><description>a Force moving onto a tile with an open battle, and reinforcements arriving on a Player's campaign Turn - <see cref="JoinAsync"/>;</description></item>
+///   <item><description>starting a battle - <see cref="CommenceAsync"/>. <c>CreateBattleTurnQueueHandler</c> still builds a <see cref="Battle"/> and its roster directly; it has no production
+///   caller and no route, but it is a bypass of this writer and must be routed through it (COMM-3);</description></item>
+///   <item><description>a Force moving onto a tile with an open battle (COMM-4; the step refuses it today), and reinforcements arriving on a Player's campaign Turn - <see cref="JoinAsync"/>;</description></item>
 ///   <item><description>a retreat, a rout, and a Force destroyed in battle - <see cref="LeaveAsync"/>, paired with <c>IForceLifecycleWriter.DestroyAsync</c> so that the observer's known Force is
 ///   restatused rather than forgotten;</description></item>
 ///   <item><description>battle resolution - <see cref="ConcludeAsync"/>, which is also the only thing that will ever write <see cref="Battle.VictorId"/>.</description></item>

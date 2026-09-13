@@ -102,6 +102,7 @@ public class ForceOrdersController : ControllerBase
             YCoord = contract.YCoord,
             CampaignMovementRemaining = contract.CampaignMovementRemaining,
             CampaignMovementPoints = contract.CampaignMovementPoints,
+            StartedBattle = contract.StartedBattle,
             // Shaped exactly as the fog-of-war read's response, so the client merges both with the same code.
             Observers = contract.Observers.ToPresentation()
         });

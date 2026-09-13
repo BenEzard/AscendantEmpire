@@ -67,9 +67,12 @@ public static class ApplicationStartup
         // Its Structure sibling: the single writer for founding, construction, capture and razing, recording each in StructureHistory against the same Turn counter. Nothing in play calls it yet.
         services.AddScoped<IStructureLifecycleWriter, StructureLifecycleWriter>();
 
-        // Its Battle sibling: the single writer for an engagement commencing, gaining or losing a side, and concluding, recording each in BattleHistory against the same Turn counter. Nothing in
-        // play calls it yet either - there is no combat subsystem at all.
+        // Its Battle sibling: the single writer for an engagement commencing, gaining or losing a side, and concluding, recording each in BattleHistory against the same Turn counter. Only
+        // commencing is called in play so far - a campaign step onto an enemy-held tile starts a Battle - and there is no combat subsystem to join, leave or conclude one.
         services.AddScoped<IBattleLifecycleWriter, BattleLifecycleWriter>();
+
+        // Starts a Battle when a Force steps onto another Player's Forces: generates or reuses the battle map, places both sides on it, and commences the engagement through the writer above.
+        services.AddScoped<IBattleEngagementService, BattleEngagementService>();
 
         // Campaign map vision. The sight rules themselves are pure (FieldOfView); these are the services around them. ISightDataReader holds every query the
         // rules need; IFieldOfViewService answers "what can these Observers see", for the live map read; IWitnessService answers the inverted question
@@ -103,6 +106,7 @@ public static class ApplicationStartup
         services.AddScoped<IForceActionStrategy, SplitForceStrategy>();
         services.AddScoped<IForceActionStrategy, CreateVillageStrategy>();
         services.AddScoped<IForceActionStrategy, EstablishCampStrategy>();
+        services.AddScoped<IForceActionStrategy, BattleStrategy>();
 
         // Movement domain rules. One IMovementDomainStrategy per DomainType decides which terrain a Force of that domain may enter; the step handler
         // resolves the one matching the Force's compiled template. Every DomainType needs an entry here — a domain with no strategy has no rule to be

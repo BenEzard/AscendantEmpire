@@ -38,6 +38,15 @@ public interface IStepForceResult
     /// <summary>The Force's full movement allowance for a turn, so the client can show what remains as a proportion of it.</summary>
     decimal CampaignMovementPoints { get; }
 
+    /// <summary>
+    /// Whether the step took the Force onto a tile held by another Player's Forces, and so started a Battle.
+    /// </summary>
+    /// <remarks>
+    /// When it did, the Force is now in battle and cannot take another campaign step, so the client can tell the player the fighting has begun rather than leaving them to find out from a
+    /// refused move.
+    /// </remarks>
+    bool StartedBattle { get; }
+
     /// <summary>Everything the player can see from where their Forces and structures now stand.</summary>
     IReadOnlyCollection<IObserver> Observers { get; }
 }

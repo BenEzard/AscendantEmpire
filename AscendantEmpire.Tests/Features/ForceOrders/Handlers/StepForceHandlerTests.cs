@@ -1,6 +1,7 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Battles.Services;
 using AscendantEmpire.Application.Features.ForceOrders.Handlers;
 using AscendantEmpire.Application.Features.ForceOrders.Movement.Strategies;
 using AscendantEmpire.Application.Features.Game.Handlers;
@@ -11,6 +12,7 @@ using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.BackendContracts.ForceOrders.StepForce;
 using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.BackendContracts.Turns.GetCurrentCampaignTurn;
+using AscendantEmpire.Domain.Entities.Battles;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
@@ -70,9 +72,16 @@ internal class StepForceHandlerTests : InMemoryTestBase
     /// <summary>The sequence number the substituted allocator hands out. Deliberately not 1, so a row stamped with a default would not pass by coincidence.</summary>
     private const int _TURN_SEQUENCE = 3;
 
+    /// <summary>The id the substituted engagement service reports for a Battle it started.</summary>
+    private const int _BATTLE_ID = 11;
+
+    /// <summary>An enemy Force's id, distinct from the stepping Force's.</summary>
+    private const int _ENEMY_FORCE_ID = 6;
+
     private IMediator _mediator = null!;
     private ICampaignTurnService _campaignTurnService = null!;
     private IPlayerTurnService _playerTurnService = null!;
+    private IBattleEngagementService _battleEngagementService = null!;
     private StepForceHandler _handler = null!;
 
     [SetUp]
@@ -81,6 +90,13 @@ internal class StepForceHandlerTests : InMemoryTestBase
         _mediator = Substitute.For<IMediator>();
         _campaignTurnService = Substitute.For<ICampaignTurnService>();
         _playerTurnService = Substitute.For<IPlayerTurnService>();
+
+        // Starting a Battle saves inside a transaction and allocates sequences with raw SQL, neither of which this tier can do, so the engagement itself is substituted. What is under
+        // test here is the handler's decision to start one and what it does with the answer; the engagement is proven on the containerised tier by BattleEngagementServicePersistenceTests.
+        _battleEngagementService = Substitute.For<IBattleEngagementService>();
+
+        _battleEngagementService.CommenceAsync(Arg.Any<AscendantEmpireContext>(), Arg.Any<BattleEngagement>(), Arg.Any<CancellationToken>())
+            .Returns(ServiceResult<int>.Succeed(_BATTLE_ID));
 
         // The Turn is open by default and hands out one number, so a step can be recorded unless a test says otherwise.
         _playerTurnService.AllocateSequenceAsync(Arg.Any<AscendantEmpireContext>(), _PLAYER_TURN_ID, 1, Arg.Any<CancellationToken>())
@@ -103,7 +119,8 @@ internal class StepForceHandlerTests : InMemoryTestBase
             _mediator,
             _campaignTurnService,
             AllMovementDomainStrategies(),
-            new ForceLifecycleWriter(NullLogger<ForceLifecycleWriter>.Instance, _playerTurnService));
+            new ForceLifecycleWriter(NullLogger<ForceLifecycleWriter>.Instance, _playerTurnService),
+            _battleEngagementService);
 
         await SeedMapAndTemplateAsync();
     }
@@ -260,20 +277,21 @@ internal class StepForceHandlerTests : InMemoryTestBase
         await context.SaveChangesAsync();
     }
 
-    /// <summary>Fields the test Force, defaulting to the player's own healthy warrior standing in the middle of the open row.</summary>
+    /// <summary>Fields a Force, defaulting to the test Force: the player's own healthy warrior standing in the middle of the open row.</summary>
     private async Task AddForceAsync(
         int playerId = _PLAYER_ID,
         long campaignMovementRemaining = _CAMPAIGN_MOVEMENT_POINTS,
         int healthyCount = 100,
         int? battleMapTileId = null,
         int x = _START_X,
-        int y = _START_Y)
+        int y = _START_Y,
+        int unitInstanceId = _FORCE_ID)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
         context.UnitInstances.Add(new UnitInstance
         {
-            Id = _FORCE_ID,
+            Id = unitInstanceId,
             GameId = _GAME_ID,
             PlayerId = playerId,
             CampaignMapTileId = TileId(x, y),
@@ -511,7 +529,7 @@ internal class StepForceHandlerTests : InMemoryTestBase
         }
     }
 
-    [Test, Description("A force in battle is off the campaign map for the moment, so a campaign step has to be refused.")]
+    [Test, Description("A force in battle is committed to the fight over its tile, so a campaign step has to be refused.")]
     public async Task ShouldRefuseToStepAForceThatIsInBattleAsync()
     {
         await CompileTemplateAsync();
@@ -704,6 +722,153 @@ internal class StepForceHandlerTests : InMemoryTestBase
         await StepAsync(MoveDirection.South);
 
         await _mediator.DidNotReceive().Send(Arg.Any<GetPlayerCampaignMapRequest>(), Arg.Any<CancellationToken>());
+    }
+
+    [Test, Description("A step onto another player's Force is an attack, so the engagement service is handed the attacker with its move and payment staged, and every enemy on the tile.")]
+    public async Task ShouldStartABattleWhenTheTileHoldsAnEnemyForceAsync()
+    {
+        await GivenALandForceAsync();
+        await AddForceAsync(playerId: _OTHER_PLAYER_ID, x: _START_X + 1, unitInstanceId: _ENEMY_FORCE_ID);
+
+        ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
+
+        Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
+
+        // The one call's engagement, read back off the substitute so each part of it can be checked and reported on its own.
+        BattleEngagement engagement = (BattleEngagement)_battleEngagementService.ReceivedCalls().Single().GetArguments()[1]!;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.SuccessValue!.StartedBattle, Is.True, "The response tells the client a battle has begun.");
+
+            Assert.That(engagement.GameId, Is.EqualTo(_GAME_ID));
+            Assert.That(engagement.CampaignMapTileId, Is.EqualTo(TileId(_START_X + 1, _START_Y)));
+            Assert.That(engagement.StepDirection, Is.EqualTo(MoveDirection.East), "The direction decides which edge the attacker starts on.");
+            Assert.That(engagement.RoundNumber, Is.EqualTo(1), "The current turn's Round.");
+            Assert.That(engagement.PlayerTurnId, Is.EqualTo(_PLAYER_TURN_ID));
+
+            Assert.That(engagement.Attacker.Id, Is.EqualTo(_FORCE_ID));
+            Assert.That(engagement.Attacker.CampaignMapTileId, Is.EqualTo(TileId(_START_X + 1, _START_Y)), "The move is staged before the Battle is commenced, so the two save together.");
+            Assert.That(engagement.Attacker.CampaignMovementRemaining, Is.EqualTo(1_000), "And so is the payment for the step.");
+
+            Assert.That(engagement.Defenders.Select(defender => defender.Id), Is.EqualTo(new[] { _ENEMY_FORCE_ID }));
+        }
+    }
+
+    [Test, Description("When the Battle cannot be started the step is refused outright, so the Force never stands on an enemy's tile without the fight having begun.")]
+    public async Task ShouldRefuseTheStepWhenTheBattleCannotBeStartedAsync()
+    {
+        await GivenALandForceAsync();
+        await AddForceAsync(playerId: _OTHER_PLAYER_ID, x: _START_X + 1, unitInstanceId: _ENEMY_FORCE_ID);
+
+        _battleEngagementService.CommenceAsync(Arg.Any<AscendantEmpireContext>(), Arg.Any<BattleEngagement>(), Arg.Any<CancellationToken>())
+            .Returns(ServiceResult<int>.Fail("The battlefield could not be prepared, so the battle cannot begin."));
+
+        ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
+
+        UnitInstance unmoved = await ReloadForceAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Has.Some.Contains("could not attack"));
+            Assert.That(result.Errors, Has.Some.Contains("battlefield could not be prepared"), "The underlying reason reaches the player too.");
+            Assert.That(unmoved.CampaignMapTileId, Is.EqualTo(TileId(_START_X, _START_Y)));
+            Assert.That(unmoved.CampaignMovementRemaining, Is.EqualTo(_CAMPAIGN_MOVEMENT_POINTS), "A refused attack costs nothing.");
+            Assert.That(await LoadHistoryAsync(), Is.Empty);
+            await _mediator.DidNotReceive().Send(Arg.Any<GetPlayerCampaignMapRequest>(), Arg.Any<CancellationToken>());
+        }
+    }
+
+    [Test, Description("Only another player's Force is an enemy, so stepping onto a tile shared with the player's own Force is an ordinary move.")]
+    public async Task ShouldMoveWithoutABattleOntoATileHoldingOnlyTheirOwnForceAsync()
+    {
+        await GivenALandForceAsync();
+        await AddForceAsync(x: _START_X + 1, unitInstanceId: _ENEMY_FORCE_ID);
+
+        ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
+
+        UnitInstance moved = await ReloadForceAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
+            Assert.That(result.SuccessValue!.StartedBattle, Is.False);
+            Assert.That(moved.CampaignMapTileId, Is.EqualTo(TileId(_START_X + 1, _START_Y)), "Saved by the handler itself, as every ordinary step is.");
+            await _battleEngagementService.DidNotReceive().CommenceAsync(Arg.Any<AscendantEmpireContext>(), Arg.Any<BattleEngagement>(), Arg.Any<CancellationToken>());
+        }
+    }
+
+    [Test, Description("A wiped-out enemy Force has nobody left to fight, so it does not turn the step into a battle.")]
+    public async Task ShouldMoveWithoutABattleOntoATileHoldingOnlyAWipedOutEnemyAsync()
+    {
+        await GivenALandForceAsync();
+        await AddForceAsync(playerId: _OTHER_PLAYER_ID, healthyCount: 0, x: _START_X + 1, unitInstanceId: _ENEMY_FORCE_ID);
+
+        ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
+            Assert.That(result.SuccessValue!.StartedBattle, Is.False);
+            await _battleEngagementService.DidNotReceive().CommenceAsync(Arg.Any<AscendantEmpireContext>(), Arg.Any<BattleEngagement>(), Arg.Any<CancellationToken>());
+        }
+    }
+
+    [Test, Description("Joining a battle already under way is not built yet (COMM-4), so entering its tile is refused rather than walking into the fight untouched by it.")]
+    public async Task ShouldRefuseAStepOntoATileWithABattleUnderWayAsync()
+    {
+        await GivenALandForceAsync();
+        await AddBattleAsync(x: _START_X + 1, y: _START_Y);
+
+        ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
+
+        UnitInstance unmoved = await ReloadForceAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors.Single(), Does.Contain("already under way"));
+            Assert.That(unmoved.CampaignMapTileId, Is.EqualTo(TileId(_START_X, _START_Y)));
+            await _battleEngagementService.DidNotReceive().CommenceAsync(Arg.Any<AscendantEmpireContext>(), Arg.Any<BattleEngagement>(), Arg.Any<CancellationToken>());
+            await _playerTurnService.DidNotReceive().AllocateSequenceAsync(Arg.Any<AscendantEmpireContext>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>());
+        }
+    }
+
+    [Test, Description("A battle that has ended no longer holds its tile, so it must not go on refusing entry to it.")]
+    public async Task ShouldLetAForceEnterATileWhoseBattleHasEndedAsync()
+    {
+        await GivenALandForceAsync();
+        await AddBattleAsync(x: _START_X + 1, y: _START_Y, concludedAtRoundNumber: 1);
+
+        ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
+
+        UnitInstance moved = await ReloadForceAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
+            Assert.That(moved.CampaignMapTileId, Is.EqualTo(TileId(_START_X + 1, _START_Y)));
+        }
+    }
+
+    /// <summary>Records a Battle on a tile, open unless a Round it concluded in is given.</summary>
+    private async Task AddBattleAsync(int x, int y, int? concludedAtRoundNumber = null)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        context.Battles.Add(new Battle
+        {
+            Id = _BATTLE_ID,
+            GameId = _GAME_ID,
+            CampaignMapTileId = TileId(x, y),
+            CommencedAtRoundNumber = 1,
+            ConcludedAtRoundNumber = concludedAtRoundNumber,
+            OriginalTileStatus = TileOwnershipStatus.Unclaimed,
+            RowVersion = []
+        });
+
+        await context.SaveChangesAsync();
     }
 
     [Test, Description("A direction outside the eight is rejected by validation rather than reaching the neighbour arithmetic and throwing.")]

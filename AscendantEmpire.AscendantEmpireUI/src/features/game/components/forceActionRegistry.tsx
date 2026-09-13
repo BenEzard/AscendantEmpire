@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { FaCircleQuestion } from "react-icons/fa6";
-import { GiCampingTent, GiSplitArrows, GiVillage } from "react-icons/gi";
+import { GiCampingTent, GiCrossedSwords, GiSplitArrows, GiVillage } from "react-icons/gi";
 import type { ForceActionType } from "../api/forceContextActionsApi";
 
 /**
@@ -29,6 +29,9 @@ const FORCE_ACTION_PRESENTATION: Partial<Record<ForceActionType, ForceActionPres
   // else. Nothing here needs to know that — the backend has already decided.
   CreateVillage: { icon: <GiVillage />, label: "Create Village" },
   EstablishCamp: { icon: <GiCampingTent />, label: "Establish Camp" },
+
+  // Offered only to a force that is fighting in a battle, and opens that battle's dialog.
+  Battle: { icon: <GiCrossedSwords />, label: "Battle" },
 
   // TODO: Hunt used to live in the toolbar, gated on legacy unit design id 2, which no longer exists now that
   // forces reference unit templates (whose ids are database-dependent, so a magic number can't stand in). It now

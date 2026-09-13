@@ -136,6 +136,22 @@ Placed in a zone along the side of the battle map they entered the campaign tile
 big enough for every unit. Certain advances/settings let a player shuffle units along their edge
 before the battle begins.
 
+### Starting positions — interim placement
+
+What is built today (`BattleDeploymentPlanner`), standing in for the two sections above until a
+placement step exists. The defender's stance isn't modelled, and nobody chooses where their units go.
+
+- The **attacker** starts on the edge it entered from: the edge behind the direction it stepped.
+  Stepping North means it starts on the south edge.
+- The **defenders** start on the opposite edge.
+- A **diagonal** step came in through a corner. The attacker fills the north or south edge next to
+  that corner, starting from the corner end, and the defenders fill the opposite edge from the
+  diagonally opposite corner.
+- Along a cardinal edge, units spread **outwards from the centre**.
+- One unit per tile. The 2×2 corner voids are never used, and when an edge fills up the zone moves
+  one row further in. A zone never reaches the middle of the map, so the two sides can't share a tile.
+- Whether a tile can actually be stood on (a land unit on a lake, say) isn't considered yet.
+
 ### Battle flow
 
 The battle is divided into **rounds**, executed in real time:

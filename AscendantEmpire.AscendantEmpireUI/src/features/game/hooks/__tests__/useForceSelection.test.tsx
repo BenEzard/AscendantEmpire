@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ObservedForceTile, TileCell } from "@/features/map/components/TileTypes";
+import { getForceContextActions } from "../../api/forceContextActionsApi";
 import type { StepForceResponse } from "../../api/forceMovementApi";
 import { useForceSelection } from "../useForceSelection";
 
@@ -67,6 +68,7 @@ function stepResult({
     yCoord: y,
     campaignMovementRemaining,
     campaignMovementPoints: 2,
+    startedBattle: false,
     tiles:
       forcesOnDestination == null
         ? []
@@ -519,6 +521,38 @@ describe("useForceSelection", () => {
         unitInstanceId: 8,
         direction: "East",
       });
+    });
+  });
+
+  /**
+   * The Battle button is backend-driven like every other action; what the hook owns is turning a press into the dialog opening
+   * for the right force, and closing it again.
+   */
+  describe("the Battle action", () => {
+    it("opens the battle dialog for the selected force, and closes it again", async () => {
+      // Only this test's selection is in battle, so the backend offers the Battle action for it.
+      vi.mocked(getForceContextActions).mockResolvedValueOnce([
+        { actionType: "Battle", label: "Battle", displayOrder: 1300, isEnabled: true, disabledReasons: [] },
+      ]);
+
+      const { result } = renderForceSelection();
+
+      act(() => {
+        result.current.selectForceFromTile(tile([force({ id: 7 })]));
+      });
+
+      // The actions arrive asynchronously from the (mocked) query.
+      await waitFor(() => expect(result.current.contextActionToolbarActions.map((action) => action.key)).toEqual(["Battle"]));
+
+      expect(result.current.battleDialogForceId).toBeNull();
+
+      act(() => result.current.contextActionToolbarActions[0].onClick());
+
+      expect(result.current.battleDialogForceId).toBe(7);
+
+      act(() => result.current.closeBattleDialog());
+
+      expect(result.current.battleDialogForceId).toBeNull();
     });
   });
 });
