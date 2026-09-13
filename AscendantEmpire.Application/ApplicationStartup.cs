@@ -5,6 +5,7 @@ using AscendantEmpire.Application.Features.DatabaseSeeding.Executors;
 using AscendantEmpire.Application.Features.Game.Executors;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Intelligence.Services;
+using AscendantEmpire.Application.Features.Maps.BattleMaps.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Executors;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
@@ -73,6 +74,9 @@ public static class ApplicationStartup
 
         // Starts a Battle when a Force steps onto another Player's Forces: generates or reuses the battle map, places both sides on it, and commences the engagement through the writer above.
         services.AddScoped<IBattleEngagementService, BattleEngagementService>();
+
+        // Each battle participant's view of the battle map (game.PlayerBattleMap): initialises their rows when a Battle commences, and explores the map for whoever is given vision of it.
+        services.AddScoped<IPlayerBattleMapService, PlayerBattleMapService>();
 
         // Campaign map vision. The sight rules themselves are pure (FieldOfView); these are the services around them. ISightDataReader holds every query the
         // rules need; IFieldOfViewService answers "what can these Observers see", for the live map read; IWitnessService answers the inverted question

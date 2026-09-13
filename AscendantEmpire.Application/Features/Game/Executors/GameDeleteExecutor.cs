@@ -55,7 +55,7 @@ internal sealed class GameDeleteExecutor(
     /// </para>
     /// <para>
     /// Deliberately absent: <c>unitdesigns</c> tables, which keep their global catalogue rows and so are never empty; <c>battle.BattleParticipant</c>, which
-    /// is keyed on its battle and player rather than on an identity; and <c>game.CampaignMap</c>, <c>game.PlayerCampaignMap</c> and
+    /// is keyed on its battle and player rather than on an identity; <c>game.PlayerBattleMap</c>, which is keyed on its player and battle map tile; and <c>game.CampaignMap</c>, <c>game.PlayerCampaignMap</c> and
     /// <c>battle.BattleMap</c>, whose ids are assigned by the application rather than by an IDENTITY column. Those last three allocate each new block as
     /// <c>MAX(id) + 1</c>, so an empty table restarts at 1 with no help from us.
     /// </para>
@@ -222,6 +222,12 @@ internal sealed class GameDeleteExecutor(
 
             ("player known forces", () => purge.PlayerKnownForces
                 .Where(k => k.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            // Each battle participant's view of a battle map names the players, the player turns they first and last saw a tile in, and the battle map tiles and indexes, so it goes before all
+            // of them. It carries its own GameId, so needs no scoping through the campaign map the way the battle maps themselves do.
+            ("player battle map views", () => purge.PlayerBattleMaps
+                .Where(v => v.GameId == gameId)
                 .ExecuteDeleteAsync(cancellationToken)),
 
             // Units carry a CommandId, so they go before the commands.

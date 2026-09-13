@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Battles.Services;
 using AscendantEmpire.Application.Features.Game.Handlers;
+using AscendantEmpire.Application.Features.Maps.BattleMaps.Services;
 using AscendantEmpire.Application.Features.Players.Handlers;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Units.Services;
@@ -43,12 +44,18 @@ namespace AscendantEmpire.Tests.Features.Battles.Services;
 /// The attacker stands at (1, 2) and steps East onto the defender at (2, 2), on a 30 x 30 battle map, so the attacker starts centred on the west edge at (0, 14) and the defender on the east
 /// edge at (29, 14).
 /// </para>
+/// <para>
+/// The game has a third Player who takes no part, so that it can be shown a bystander gets no view of the battle map.
+/// </para>
 /// </remarks>
 [TestFixture]
 internal class BattleEngagementServicePersistenceTests : GameSqlServerTestBase
 {
     private const int _MAP_WIDTH = 4;
     private const int _MAP_HEIGHT = 4;
+
+    /// <summary>An attacker, a defender and a bystander.</summary>
+    private const int _NUMBER_OF_PLAYERS = 3;
 
     /// <summary>The smallest the request validator allows, so each generated map is 900 tiles rather than 2,500.</summary>
     private const int _BATTLE_MAP_SIZE = 30;
@@ -66,6 +73,7 @@ internal class BattleEngagementServicePersistenceTests : GameSqlServerTestBase
     private int _gameId;
     private int _attackingPlayerId;
     private int _defendingPlayerId;
+    private int _bystandingPlayerId;
     private int _playerTurnId;
     private int _roundNumber;
     private int _originTileId;
@@ -75,10 +83,16 @@ internal class BattleEngagementServicePersistenceTests : GameSqlServerTestBase
 
     private IMediator _mediator = null!;
 
+    /// <summary>Captures what the service logs, so a failed commence can report the exception behind it.</summary>
+    /// <remarks>Replaced in every set-up, so an exception logged by one test is never reported against the next.</remarks>
+    private CapturingLogger<BattleEngagementService> _engagementLogger = null!;
+
     [SetUp]
     public async Task SetUpGameAsync()
     {
-        await SeedGameAsync(mapWidth: _MAP_WIDTH, mapHeight: _MAP_HEIGHT, numberOfPlayers: 2);
+        _engagementLogger = new CapturingLogger<BattleEngagementService>();
+
+        await SeedGameAsync(mapWidth: _MAP_WIDTH, mapHeight: _MAP_HEIGHT, numberOfPlayers: _NUMBER_OF_PLAYERS);
 
         // The shared fixture seeds the gallery with no master seed, which the campaign map is fine without but the battle map generator is not.
         await using (AscendantEmpireContext seed = await DbFactory.CreateDbContextAsync())
@@ -86,11 +100,33 @@ internal class BattleEngagementServicePersistenceTests : GameSqlServerTestBase
             CampaignMapGalleryIndex galleryIndex = await seed.CampaignMapGalleryIndex.SingleAsync(cmi => cmi.Id == _galleryIndexId);
             galleryIndex.PropertiesJson = """{"seed":"123456789"}""";
 
+            // The shared fixture seeds only the Unknown and Grassland biomes, but the generator scatters variants (Woodland, Arid, ...) across a battle map. Its bulk copy skips constraint
+            // checks, so those tiles are written regardless; copying their biomes into a player's view is a checked update, and would break the foreign key without the catalogue rows a real
+            // database seeds for every BiomeType.
+            HashSet<BiomeType> seededBiomes = [.. await seed.CampaignBiomes.Select(b => b.BiomeTypeId).ToListAsync()];
+
+            foreach (BiomeType biomeType in Enum.GetValues<BiomeType>().Where(biomeType => seededBiomes.Contains(biomeType) == false))
+            {
+                seed.CampaignBiomes.Add(new CampaignBiome
+                {
+                    BiomeTypeId = biomeType,
+                    Name = biomeType.ToString(),
+                    MapEditorHtmlColor = "#808080",
+                    MovementCost = 1.0m,
+                    DoesBlockSight = false,
+                    IsWater = false,
+                    IsTraversable = true,
+                    RegenerationRate = 1.0m,
+                    IsPaintableOnCampaignMap = false,
+                    CanBeElevated = true
+                });
+            }
+
             await seed.SaveChangesAsync();
         }
 
         ServiceResult<int> setupResult = await _service.SetupGameAsync(
-            new SetupGameRequest(GalleryMapId: _galleryIndexId, GameName: "Engagement Game", NumberOfPlayers: 2, BattleMapSize: _BATTLE_MAP_SIZE, GenerationSeed: 42),
+            new SetupGameRequest(GalleryMapId: _galleryIndexId, GameName: "Engagement Game", NumberOfPlayers: _NUMBER_OF_PLAYERS, BattleMapSize: _BATTLE_MAP_SIZE, GenerationSeed: 42),
             CancellationToken.None);
 
         Assert.That(setupResult.HasSucceeded, Is.True, () => string.Join("; ", setupResult.Errors));
@@ -106,6 +142,7 @@ internal class BattleEngagementServicePersistenceTests : GameSqlServerTestBase
 
             _attackingPlayerId = playerIds[0];
             _defendingPlayerId = playerIds[1];
+            _bystandingPlayerId = playerIds[2];
 
             _roundNumber = await context.TurnQueues
                 .Where(q => q.GameId == _gameId && q.QueueType == TurnQueueType.Campaign && q.BattleId == null)
@@ -148,7 +185,7 @@ internal class BattleEngagementServicePersistenceTests : GameSqlServerTestBase
 
         ServiceResult<int> result = await StepAndCommenceAsync(RealBattleWriter(), _playerTurnId, MoveDirection.East);
 
-        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+        Assert.That(result.HasSucceeded, Is.True, () => FailureOf(result));
 
         await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
 
@@ -192,7 +229,53 @@ internal class BattleEngagementServicePersistenceTests : GameSqlServerTestBase
         }
     }
 
-    [Test, Description("When the Battle's history cannot be written, the move and the starting tiles flushed alongside the Battle roll back with it, so a Force is never left on the tile unrecorded.")]
+    [Test, Description("Starting a Battle gives each side a view of the whole battle map - fully explored for the attacker whose Turn it is, unexplored for the defender - and a bystander none.")]
+    public async Task ShouldGiveEachSideAViewOfTheBattleMapWithFullVisionForTheAttackerAsync()
+    {
+        ServiceResult<int> result = await StepAndCommenceAsync(RealBattleWriter(), _playerTurnId, MoveDirection.East);
+
+        Assert.That(result.HasSucceeded, Is.True, () => FailureOf(result));
+
+        await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
+
+        BattleMapIndex battleMap = await verify.BattleMapIndex.SingleAsync(index => index.CampaignMapId == _targetTileId);
+        Dictionary<int, BattleMap> tilesById = await verify.BattleMap.Where(tile => tile.BattleMapIndexId == battleMap.Id).ToDictionaryAsync(tile => tile.Id);
+
+        List<PlayerBattleMap> attackerView = await verify.PlayerBattleMaps.Where(view => view.PlayerId == _attackingPlayerId).ToListAsync();
+        List<PlayerBattleMap> defenderView = await verify.PlayerBattleMaps.Where(view => view.PlayerId == _defendingPlayerId).ToListAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(attackerView, Has.Count.EqualTo(_BATTLE_MAP_SIZE * _BATTLE_MAP_SIZE), "One row per battle tile for the attacker.");
+            Assert.That(defenderView, Has.Count.EqualTo(_BATTLE_MAP_SIZE * _BATTLE_MAP_SIZE), "And for the defender.");
+            Assert.That(await verify.PlayerBattleMaps.AnyAsync(view => view.PlayerId == _bystandingPlayerId), Is.False, "A Player with no part in the Battle has no view of its map.");
+
+            Assert.That(attackerView.Concat(defenderView), Has.All.Matches<PlayerBattleMap>(view => view.GameId == _gameId && view.BattleMapIndexId == battleMap.Id && tilesById.ContainsKey(view.BattleMapId)),
+                "Every row describes a tile of the map the Battle is fought on.");
+
+            // The attacker's rows are the ground exactly as it is, seen during the Turn the attack was made in.
+            Assert.That(attackerView, Has.All.Matches<PlayerBattleMap>(view =>
+                view.XCoord == tilesById[view.BattleMapId].XCoord
+                && view.YCoord == tilesById[view.BattleMapId].YCoord
+                && view.BiomeTypeId == tilesById[view.BattleMapId].BiomeTypeId
+                && view.AltitudeLevel == tilesById[view.BattleMapId].AltitudeLevel
+                && view.FirstSeenOnTurnId == _playerTurnId
+                && view.LastSeenOnTurnId == _playerTurnId),
+                "The attacker has explored the whole battle map.");
+
+            // The defender's rows know where each tile is and nothing else about it.
+            Assert.That(defenderView, Has.All.Matches<PlayerBattleMap>(view =>
+                view.XCoord == tilesById[view.BattleMapId].XCoord
+                && view.YCoord == tilesById[view.BattleMapId].YCoord
+                && view.BiomeTypeId == BiomeType.Unknown
+                && view.AltitudeLevel == null
+                && view.FirstSeenOnTurnId == null
+                && view.LastSeenOnTurnId == null),
+                "The defender has explored none of it.");
+        }
+    }
+
+    [Test, Description("When the Battle's history cannot be written, the move, the starting tiles and every side's view of the map roll back with it, so a Force is never left on the tile unrecorded.")]
     public async Task ShouldRollBackTheMoveWhenTheBattleCannotBeRecordedAsync()
     {
         // An allocator that answers for a Turn that does not exist. The first save - the Battle, and with it the staged move and starting tiles - succeeds, and then the history rows break
@@ -220,6 +303,7 @@ internal class BattleEngagementServicePersistenceTests : GameSqlServerTestBase
             Assert.That(await verify.MovementHistory.AnyAsync(h => h.UnitInstanceId == _attackerId), Is.False);
             Assert.That(attacker.BattleMapTileId, Is.Null);
             Assert.That(defender.BattleMapTileId, Is.Null);
+            Assert.That(await verify.PlayerBattleMaps.AnyAsync(), Is.False, "The views written before the Battle was recorded rolled back with it.");
 
             // The map commits on its own before any of this, and is left for the next Battle here to reuse.
             Assert.That(await verify.BattleMapIndex.AnyAsync(index => index.CampaignMapId == _targetTileId && index.GenerationStatus == MapCreationStatus.Complete), Is.True);
@@ -255,18 +339,23 @@ internal class BattleEngagementServicePersistenceTests : GameSqlServerTestBase
         }
     }
 
-    [Test, Description("A later Battle on the same tile fights on the map the first one generated, rather than generating and numbering a second copy.")]
+    [Test, Description("A later Battle on the same tile fights on the map the first one generated, rather than generating a second copy, and each side keeps the view of it they already had.")]
     public async Task ShouldReuseTheTilesBattleMapForALaterBattleAsync()
     {
         ServiceResult<int> first = await StepAndCommenceAsync(RealBattleWriter(), _playerTurnId, MoveDirection.East);
 
-        Assert.That(first.HasSucceeded, Is.True, () => string.Join("; ", first.Errors));
+        Assert.That(first.HasSucceeded, Is.True, () => FailureOf(first));
 
         // Stand in for the first Battle ending: concluded, and both Forces back off the battle map. Nothing in play concludes a Battle yet.
         await using (AscendantEmpireContext edit = await DbFactory.CreateDbContextAsync())
         {
             await edit.Battles.Where(b => b.Id == first.SuccessValue).ExecuteUpdateAsync(set => set.SetProperty(b => b.ConcludedAtRoundNumber, _roundNumber));
             await edit.UnitInstances.Where(u => u.GameId == _gameId).ExecuteUpdateAsync(set => set.SetProperty(u => u.BattleMapTileId, (int?)null));
+
+            // The defender comes away from the first Battle remembering one corner of the field, which the second Battle must neither forget nor duplicate.
+            await edit.PlayerBattleMaps
+                .Where(view => view.PlayerId == _defendingPlayerId && view.XCoord == 0 && view.YCoord == 0)
+                .ExecuteUpdateAsync(set => set.SetProperty(view => view.FirstSeenOnTurnId, (int?)_playerTurnId));
         }
 
         // Both Forces are on the target tile now, so the second fight needs no step - only the engagement itself.
@@ -277,7 +366,7 @@ internal class BattleEngagementServicePersistenceTests : GameSqlServerTestBase
             second = await BuildService(RealBattleWriter()).CommenceAsync(context, await EngagementAsync(context, _playerTurnId, MoveDirection.West));
         }
 
-        Assert.That(second.HasSucceeded, Is.True, () => string.Join("; ", second.Errors));
+        Assert.That(second.HasSucceeded, Is.True, () => FailureOf(second));
 
         await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
 
@@ -286,6 +375,11 @@ internal class BattleEngagementServicePersistenceTests : GameSqlServerTestBase
             Assert.That(second.SuccessValue, Is.Not.EqualTo(first.SuccessValue), "A second Battle was started.");
             Assert.That(await verify.BattleMapIndex.CountAsync(index => index.CampaignMapId == _targetTileId), Is.EqualTo(1), "On the one map.");
             Assert.That(await verify.BattleMap.CountAsync(), Is.EqualTo(_BATTLE_MAP_SIZE * _BATTLE_MAP_SIZE), "No second set of tiles was written.");
+
+            Assert.That(await verify.PlayerBattleMaps.CountAsync(view => view.PlayerId == _attackingPlayerId), Is.EqualTo(_BATTLE_MAP_SIZE * _BATTLE_MAP_SIZE), "No second set of views for the attacker.");
+            Assert.That(await verify.PlayerBattleMaps.CountAsync(view => view.PlayerId == _defendingPlayerId), Is.EqualTo(_BATTLE_MAP_SIZE * _BATTLE_MAP_SIZE), "Nor for the defender.");
+            Assert.That(await verify.PlayerBattleMaps.CountAsync(view => view.PlayerId == _defendingPlayerId && view.FirstSeenOnTurnId != null), Is.EqualTo(1),
+                "The defender still remembers the corner they explored, and has been shown nothing more.");
         }
     }
 
@@ -330,7 +424,15 @@ internal class BattleEngagementServicePersistenceTests : GameSqlServerTestBase
 
     private BattleEngagementService BuildService(IBattleLifecycleWriter battleWriter)
     {
-        return new BattleEngagementService(NullLogger<BattleEngagementService>.Instance, _mediator, battleWriter);
+        return new BattleEngagementService(_engagementLogger, _mediator, battleWriter, new PlayerBattleMapService(NullLogger<PlayerBattleMapService>.Instance));
+    }
+
+    /// <summary>
+    /// A failed result's errors, together with whatever exception the service logged, since its catch-all reports only a generic error and would otherwise hide the cause.
+    /// </summary>
+    private string FailureOf(ServiceResultBase result)
+    {
+        return $"{string.Join("; ", result.Errors)}\nLogged exception: {_engagementLogger.LastException}";
     }
 
     /// <summary>The Battle writer over the real allocator, on the per-test database.</summary>

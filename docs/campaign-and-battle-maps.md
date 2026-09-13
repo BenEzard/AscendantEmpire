@@ -144,6 +144,28 @@ Indexes:
 - Non-unique on `BattleMapIndexId` (for bulk tile retrieval)
 - Non-unique on `BiomeTypeId`
 
+### Player Battle Map (`game.PlayerBattleMap`)
+
+Each battle participant's fog-of-war view of a battle map: the battle map counterpart of [Player Campaign Map](#player-campaign-map). One row per (player, battle tile).
+
+Rows exist only for Players who have fought on the map. When a Battle commences, `BattleEngagementService` asks `IPlayerBattleMapService` to give every side a row for each tile they don't already have one for. The rows are written in the same transaction as the Battle itself, so they land or roll back with it. A battle map is persistent, so a Player who fought on the same tile before keeps their rows, and whatever they explored then. Players with no part in the Battle get no rows.
+
+| Field | Description |
+|---|---|
+| `PlayerId`, `BattleMapId` | Composite primary key. `BattleMapId` is the `battle.BattleMap` tile, which already addresses the tile, so no id range is reserved. |
+| `GameId` | FK → `game.GameIndex`. Carried because `battle.BattleMapIndex` has no game id; it is what the game delete purges by. |
+| `BattleMapIndexId` | FK → `battle.BattleMapIndex`, for reading or updating one Player's whole map at once. |
+| `XCoord`, `YCoord` | Copied from the tile when the row is created. |
+| `BiomeTypeId` | `Unknown` until the tile is first seen, then copied from the tile. |
+| `AltitudeLevel` | `NULL` until the tile is first seen, then copied from the tile. Nullable because `BattleMapAltitude.Ground` is 0. |
+| `FirstSeenOnTurnId` | FK → `turns.PlayerTurn`. `NULL` until the Player first sees the tile. **This is `IsExplored`**, as on the campaign map. |
+| `LastSeenOnTurnId` | FK → `turns.PlayerTurn`. The Turn of the most recent sighting. |
+
+Indexes:
+- Non-unique on `(PlayerId, BattleMapIndexId)`
+
+**Who can see the battle map.** Today the Player whose Turn it is when the Battle starts (the attacker) is given full vision of the whole map, and the defenders start with none. The intended rule gives full vision to a Player whose settled territory, or an ally's, holds the tile, or who has an ambushing Force on it. Territory, alliances and ambushes aren't modelled yet, so that rule is a TODO in `BattleEngagementService`.
+
 ### Battle Map Generation (`BattleMapGenerator`)
 
 Located at `AscendantEmpire.Application/MapGeneration/BattleMapGenerator.cs`.
@@ -245,6 +267,10 @@ battle.BattleMapIndex
          │ (FK: BattleMapIndexId)
          ▼
 battle.BattleMap  (individual battle tiles)
+         │
+         │ (FK: BattleMapId, one per participating player per battle tile)
+         ▼
+game.PlayerBattleMap  (each participant's fog-of-war view)
 ```
 
 `game.GameIndex` carries `GenerationSeed` and `BattleMapSize`, which govern all battle map generation for that game.

@@ -93,6 +93,11 @@ public class AscendantEmpireContext : DbContext
     public DbSet<PlayerCampaignMap> PlayerCampaignMaps { get; set; }
 
     /// <summary>
+    /// Each battle participant's knowledge of the battle map they fought on: one row per (Player, battle map tile). Written in bulk by <c>IPlayerBattleMapService</c>.
+    /// </summary>
+    public DbSet<PlayerBattleMap> PlayerBattleMaps { get; set; }
+
+    /// <summary>
     /// Each Player's last observed owner, progress and state for every Structure they have watched change.
     /// </summary>
     public DbSet<PlayerKnownStructure> PlayerKnownStructures { get; set; }
@@ -746,6 +751,62 @@ public class AscendantEmpireContext : DbContext
                 .WithMany()
                 .HasForeignKey(x => x.CampaignMapGeographyTypeId)
                 .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        // --- PlayerBattleMap ----------------------------------------------------------
+        // The battle map sibling of PlayerCampaignMap: one Player's fog-of-war view of one battle map tile. Written only for battle participants, when a Battle commences.
+        modelBuilder.Entity<PlayerBattleMap>(entity =>
+        {
+            entity.ToTable("PlayerBattleMap", schema);
+
+            // The battle tile id already addresses the tile, so the pair is a natural key and no id range has to be reserved the way PlayerCampaignMap's are.
+            entity.HasKey(e => new { e.PlayerId, e.BattleMapId });
+
+            // No navigations, and every relationship NoAction: nothing reads these rows through an entity graph, and GameDeleteExecutor removes them in its own hand-ordered step.
+            entity.HasOne<GameIndex>()
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerBattleMap_GameIndex_GameId");
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerBattleMap_Player_PlayerId");
+
+            entity.HasOne<BattleMapIndex>()
+                .WithMany()
+                .HasForeignKey(e => e.BattleMapIndexId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerBattleMap_BattleMapIndex_BattleMapIndexId");
+
+            entity.HasOne<BattleMap>()
+                .WithMany()
+                .HasForeignKey(e => e.BattleMapId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerBattleMap_BattleMap_BattleMapId");
+
+            entity.HasOne<CampaignBiome>()
+                .WithMany()
+                .HasForeignKey(e => e.BiomeTypeId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerBattleMap_CampaignBiome_BiomeTypeId");
+
+            entity.HasOne<PlayerTurn>()
+                .WithMany()
+                .HasForeignKey(e => e.FirstSeenOnTurnId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerBattleMap_PlayerTurn_FirstSeenOnTurnId");
+
+            entity.HasOne<PlayerTurn>()
+                .WithMany()
+                .HasForeignKey(e => e.LastSeenOnTurnId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerBattleMap_PlayerTurn_LastSeenOnTurnId");
+
+            // One Player's whole map at once - the shape of both the vision grant and any future battle map read.
+            entity.HasIndex(e => new { e.PlayerId, e.BattleMapIndexId });
         });
 
         // --- PlayerKnownStructure ------------------------------------------------------

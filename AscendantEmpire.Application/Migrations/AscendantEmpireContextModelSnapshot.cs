@@ -422,6 +422,57 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("Player", "game");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerBattleMap", b =>
+                {
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BattleMapId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("AltitudeLevel")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BattleMapIndexId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BiomeTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("FirstSeenOnTurnId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("LastSeenOnTurnId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("XCoord")
+                        .HasColumnType("int");
+
+                    b.Property<int>("YCoord")
+                        .HasColumnType("int");
+
+                    b.HasKey("PlayerId", "BattleMapId");
+
+                    b.HasIndex("BattleMapId");
+
+                    b.HasIndex("BattleMapIndexId");
+
+                    b.HasIndex("BiomeTypeId");
+
+                    b.HasIndex("FirstSeenOnTurnId");
+
+                    b.HasIndex("GameId");
+
+                    b.HasIndex("LastSeenOnTurnId");
+
+                    b.HasIndex("PlayerId", "BattleMapIndexId");
+
+                    b.ToTable("PlayerBattleMap", "game");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerCampaignMap", b =>
                 {
                     b.Property<int>("PlayerCampaignMapId")
@@ -3070,6 +3121,56 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Game");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerBattleMap", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.BattleMaps.BattleMap", null)
+                        .WithMany()
+                        .HasForeignKey("BattleMapId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerBattleMap_BattleMap_BattleMapId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.BattleMaps.BattleMapIndex", null)
+                        .WithMany()
+                        .HasForeignKey("BattleMapIndexId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerBattleMap_BattleMapIndex_BattleMapIndexId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignBiome", null)
+                        .WithMany()
+                        .HasForeignKey("BiomeTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerBattleMap_CampaignBiome_BiomeTypeId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Turns.PlayerTurn", null)
+                        .WithMany()
+                        .HasForeignKey("FirstSeenOnTurnId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_PlayerBattleMap_PlayerTurn_FirstSeenOnTurnId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", null)
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerBattleMap_GameIndex_GameId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Turns.PlayerTurn", null)
+                        .WithMany()
+                        .HasForeignKey("LastSeenOnTurnId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_PlayerBattleMap_PlayerTurn_LastSeenOnTurnId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", null)
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerBattleMap_Player_PlayerId");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerCampaignMap", b =>

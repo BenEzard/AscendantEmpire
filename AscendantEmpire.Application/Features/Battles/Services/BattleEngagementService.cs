@@ -3,12 +3,14 @@ using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Battles.Classes;
 using AscendantEmpire.Application.Features.Maps.BattleMaps;
+using AscendantEmpire.Application.Features.Maps.BattleMaps.Services;
 using AscendantEmpire.Domain.Entities.Battles;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums.Battle;
 using AscendantEmpire.Domain.Enums.Maps;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
@@ -19,7 +21,8 @@ namespace AscendantEmpire.Application.Features.Battles.Services;
 internal sealed class BattleEngagementService(
     ILogger<BattleEngagementService> logger,
     IMediator mediator,
-    IBattleLifecycleWriter battleLifecycleWriter) : IBattleEngagementService
+    IBattleLifecycleWriter battleLifecycleWriter,
+    IPlayerBattleMapService playerBattleMapService) : IBattleEngagementService
 {
     /// <inheritdoc />
     public async Task<ServiceResult<int>> CommenceAsync(AscendantEmpireContext context, BattleEngagement engagement, CancellationToken cancelToken = default)
@@ -120,9 +123,32 @@ internal sealed class BattleEngagementService(
 
             Battle battle = BuildBattle(engagement, sidePlayerIds, factionNamesByPlayerId, tileControllerPlayerId);
 
+            // One transaction for every write from here on. It is opened only now, after the battle map exists, because the generator holds an exclusive lock on battle.BattleMap inside its own
+            // transaction on another connection, and the Player Battle Map writes below read from that table. A caller already inside a transaction keeps ownership of it; otherwise this one is
+            // ours, and disposing it uncommitted - on any refusal or exception below - rolls every write back.
+            await using IDbContextTransaction? ownTransaction = context.Database.CurrentTransaction is null ? await context.Database.BeginTransactionAsync(cancelToken) : null;
+
+            // Every side's view of the battle map, unexplored. These rows are written straight to the database rather than staged, so they go in before the Battle is recorded, and roll back
+            // with it if it cannot be.
+            ServiceResult<int> initialiseResult = await playerBattleMapService.InitialiseAsync(context, engagement.GameId, battleMapIndexId, sidePlayerIds, cancelToken);
+
+            if (initialiseResult.HasSucceeded == false)
+            {
+                const string error = "The players' views of the battlefield could not be prepared, so the battle cannot begin.";
+
+                logger.LogWarning(
+                    "{Error} Game Id: {GameId}, Campaign Map Tile Id: {CampaignMapTileId}. Errors: {Errors}",
+                    error,
+                    engagement.GameId,
+                    engagement.CampaignMapTileId,
+                    string.Join("; ", initialiseResult.Errors));
+
+                return ServiceResult<int>.Fail(initialiseResult.Errors.Prepend(error));
+            }
+
             // The writer's first save flushes everything the caller has staged on this context - the attacker's move and its Moved history row, the movement points it paid, and the starting
-            // tiles above - inside the transaction it opens. That documented behaviour is what makes the whole step one commit: the move is never saved without the Battle, nor the Battle
-            // without the move.
+            // tiles above - and it joins the transaction above rather than opening its own. That documented behaviour is what makes the whole step one commit: the move is never saved without
+            // the Battle, nor the Battle without the move.
             ServiceResultBase commenceResult = await battleLifecycleWriter.CommenceAsync(context, battle, engagement.PlayerTurnId, cancelToken);
 
             if (commenceResult.HasSucceeded == false)
@@ -137,6 +163,31 @@ internal sealed class BattleEngagementService(
                     string.Join("; ", commenceResult.Errors));
 
                 return ServiceResult<int>.Fail(commenceResult.Errors.Prepend(error));
+            }
+
+            // TODO: Full exploration vision of the battle map belongs to a Player whose settled territory - or an ally's - holds the tile, or who has an ambushing Force on it. Territory,
+            //  alliances and ambushes are not modelled yet, so for now the Player whose Turn it is - the attacker - sees the whole battlefield and the defenders see none of it.
+            //
+            // Granted after the Battle is recorded, still inside the one transaction: a Battle that could not be recorded reveals nothing, and a reveal that fails takes the Battle with it.
+            ServiceResult<int> visionResult = await playerBattleMapService.GrantFullVisionAsync(context, battleMapIndexId, engagement.Attacker.PlayerId, engagement.PlayerTurnId, cancelToken);
+
+            if (visionResult.HasSucceeded == false)
+            {
+                const string error = "The battlefield could not be revealed to the attacker, so the battle has not begun.";
+
+                logger.LogWarning(
+                    "{Error} Game Id: {GameId}, Campaign Map Tile Id: {CampaignMapTileId}. Errors: {Errors}",
+                    error,
+                    engagement.GameId,
+                    engagement.CampaignMapTileId,
+                    string.Join("; ", visionResult.Errors));
+
+                return ServiceResult<int>.Fail(visionResult.Errors.Prepend(error));
+            }
+
+            if (ownTransaction is not null)
+            {
+                await ownTransaction.CommitAsync(cancelToken);
             }
 
             logger.LogInformation(

@@ -50,6 +50,10 @@ public sealed record BattleEngagement
 /// As the task that introduced it (COMM-1) specifies, every Force is assumed to see every other, so no detection, ambush or hiding is considered. "Enemy" means any other Player, since there is
 /// no alliance model yet.
 /// </para>
+/// <para>
+/// On the battle map itself, every side is given a view of the map (<c>game.PlayerBattleMap</c>), and the attacker - the Player whose Turn it is - is given full vision of it while the defenders
+/// start with none. That stands in for the real rule, which gives full vision to a Player whose settled territory (or an ally's) holds the tile, or who has an ambushing Force there.
+/// </para>
 /// </remarks>
 public interface IBattleEngagementService
 {
@@ -59,8 +63,9 @@ public interface IBattleEngagementService
     /// <remarks>
     /// <para>
     /// <b>Saves.</b> The battle map is generated first, if the tile has never had one; that runs on its own connection and commits on its own, before anything else is written, and a map left
-    /// behind by a Battle that then fails to start is simply reused by the next one. Everything else - the attacker's staged move, every Unit's starting battle tile, the Battle, its roster and
-    /// the history rows - is saved in the one transaction <see cref="IBattleLifecycleWriter.CommenceAsync"/> opens, so either all of it lands or none of it does.
+    /// behind by a Battle that then fails to start is simply reused by the next one. Everything else - every side's rows in <c>game.PlayerBattleMap</c> and the attacker's vision of the map, the
+    /// attacker's staged move, every Unit's starting battle tile, the Battle, its roster and the history rows - is saved in one transaction, which this opens when the caller has none and
+    /// <see cref="IBattleLifecycleWriter.CommenceAsync"/> joins, so either all of it lands or none of it does.
     /// </para>
     /// <para>
     /// On failure the context should be discarded, exactly as with <see cref="IBattleLifecycleWriter.CommenceAsync"/>.

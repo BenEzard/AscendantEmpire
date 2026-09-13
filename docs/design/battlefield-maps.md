@@ -22,6 +22,8 @@ empire's units. The exception: if the occupying unit is set to **ambush** or **h
 been seen by the approaching unit, no battle triggers. Otherwise the battle begins.
 
 On the first battle on a tile, a **battlefield map is generated**; subsequent battles reuse it.
+
+Each side gets its own fog-of-war view of the battlefield map when the battle starts. A player whose settled territory (or an ally's) holds the tile, or who has an ambushing unit there, is meant to see the whole map from the outset. That rule isn't built yet: today the player whose turn it is (the attacker) sees the whole map, and the defenders see none of it. See [Player Battle Map](../campaign-and-battle-maps.md#player-battle-map-gameplayerbattlemap).
 Where a tile is ocean surrounded by ocean, the same battle map is reused to reduce redundancy. (A
 similar "base" system on land could reduce generation and storage too.)
 

@@ -5,6 +5,7 @@ using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Identity;
+using AscendantEmpire.Domain.Entities.Maps.BattleMaps;
 using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
@@ -129,6 +130,26 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             Assert.That(await context.PlayerReports.AnyAsync(r => r.GameId == gameId), Is.False);
             Assert.That(await context.PlayerKnownStructures.AnyAsync(k => k.GameId == gameId), Is.False);
             Assert.That(await context.StructureInstances.AnyAsync(s => s.GameId == gameId), Is.False);
+        }
+    }
+
+    [Test, Description("Players' views of a battle map go with their game, and before the turns, battle map tiles and players they name.")]
+    public async Task ShouldRemoveTheGamesPlayerBattleMapViewsWhenItIsDeletedAsync()
+    {
+        int gameId = await SetupGameAsync("Doomed");
+
+        await SeedPlayerBattleMapAsync(gameId);
+
+        Processing job = await ExecuteDeleteAsync(gameId);
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(job.Status, Is.EqualTo(ProcessingStatus.Complete), job.ErrorMessage);
+            Assert.That(await context.PlayerBattleMaps.AnyAsync(v => v.GameId == gameId), Is.False);
+            Assert.That(await context.BattleMap.AnyAsync(), Is.False, "The only battle map in the database belonged to the deleted game.");
+            Assert.That(await context.BattleMapIndex.AnyAsync(), Is.False);
         }
     }
 
@@ -620,6 +641,71 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             LastSeenPlayerTurnId = turn.Id,
             LastSeenTurnSequence = 2,
             StillVisible = true
+        });
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Opens a Turn and gives one player an explored view of a one-tile battle map on the game's first campaign tile.
+    /// </summary>
+    /// <remarks>
+    /// Written straight to the tables rather than through the generator and the engagement service, for the same reason as <see cref="SeedSightingsAsync"/>: this fixture is about the purge
+    /// reaching the rows. The view names the Turn it was seen in, so it proves the purge takes the views before the player turns as well as before the battle map and the players.
+    /// </remarks>
+    private async Task SeedPlayerBattleMapAsync(int gameId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        TurnQueue campaignQueue = await context.TurnQueues.SingleAsync(q => q.GameId == gameId && q.QueueType == TurnQueueType.Campaign && q.BattleId == null);
+        int playerId = await context.Players.Where(p => p.GameId == gameId).OrderBy(p => p.Id).Select(p => p.Id).FirstAsync();
+        var campaignTile = await context.CampaignMaps.Where(t => t.GameId == gameId).OrderBy(t => t.CampaignMapId).Select(t => new { t.CampaignMapId, t.BiomeTypeId }).FirstAsync();
+
+        // Battle map tile ids are application-assigned, so take the next one free.
+        int battleTileId = (await context.BattleMap.MaxAsync(t => (int?)t.Id) ?? 0) + 1;
+
+        var turn = new PlayerTurn
+        {
+            TurnQueueId = campaignQueue.Id,
+            PlayerId = playerId,
+            RoundNumber = campaignQueue.CurrentRoundNumber,
+            StartedAt = DateTimeOffset.UtcNow
+        };
+
+        var battleMap = new BattleMapIndex
+        {
+            CampaignMapId = campaignTile.CampaignMapId,
+            BattleMapOffsetId = battleTileId,
+            GenerationStatus = MapCreationStatus.Complete,
+            Status = "Generation complete"
+        };
+
+        context.PlayerTurns.Add(turn);
+        context.BattleMapIndex.Add(battleMap);
+        await context.SaveChangesAsync();
+
+        context.BattleMap.Add(new BattleMap
+        {
+            Id = battleTileId,
+            BattleMapIndexId = battleMap.Id,
+            XCoord = 0,
+            YCoord = 0,
+            AltitudeLevel = (int)BattleMapAltitude.Ground,
+            BiomeTypeId = campaignTile.BiomeTypeId
+        });
+
+        context.PlayerBattleMaps.Add(new PlayerBattleMap
+        {
+            PlayerId = playerId,
+            BattleMapId = battleTileId,
+            GameId = gameId,
+            BattleMapIndexId = battleMap.Id,
+            XCoord = 0,
+            YCoord = 0,
+            BiomeTypeId = campaignTile.BiomeTypeId,
+            AltitudeLevel = (int)BattleMapAltitude.Ground,
+            FirstSeenOnTurnId = turn.Id,
+            LastSeenOnTurnId = turn.Id
         });
 
         await context.SaveChangesAsync();
