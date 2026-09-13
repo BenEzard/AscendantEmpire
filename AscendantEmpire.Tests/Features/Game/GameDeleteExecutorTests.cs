@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.Application.Features.Game.Executors;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
+using AscendantEmpire.Domain.Entities.Battles;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Identity;
 using AscendantEmpire.Domain.Entities.Maps.BattleMaps;
@@ -11,6 +12,7 @@ using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums;
 using AscendantEmpire.Domain.Enums.Authentication;
+using AscendantEmpire.Domain.Enums.Battle;
 using AscendantEmpire.Domain.Enums.Forces;
 using AscendantEmpire.Domain.Enums.Games;
 using AscendantEmpire.Domain.Enums.Intelligence;
@@ -130,6 +132,26 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             Assert.That(await context.PlayerReports.AnyAsync(r => r.GameId == gameId), Is.False);
             Assert.That(await context.PlayerKnownStructures.AnyAsync(k => k.GameId == gameId), Is.False);
             Assert.That(await context.StructureInstances.AnyAsync(s => s.GameId == gameId), Is.False);
+        }
+    }
+
+    [Test, Description("Battle history goes with its game, and before the battles, turns, tiles and players it names - the step whose absence failed real deletes on the PlayerTurn foreign key.")]
+    public async Task ShouldRemoveTheGamesBattleHistoryWhenItIsDeletedAsync()
+    {
+        int gameId = await SetupGameAsync("Doomed");
+
+        await SeedBattleHistoryAsync(gameId);
+
+        Processing job = await ExecuteDeleteAsync(gameId);
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(job.Status, Is.EqualTo(ProcessingStatus.Complete), job.ErrorMessage);
+            Assert.That(await context.BattleHistory.AnyAsync(h => h.GameId == gameId), Is.False);
+            Assert.That(await context.Battles.AnyAsync(b => b.GameId == gameId), Is.False);
+            Assert.That(await context.BattleParticipants.AnyAsync(), Is.False, "The only battle in the database belonged to the deleted game.");
         }
     }
 
@@ -642,6 +664,99 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             LastSeenTurnSequence = 2,
             StillVisible = true
         });
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Opens a Turn and records one whole engagement between the game's two players in it - commenced, a side giving way, and concluded - on the game's first campaign tile.
+    /// </summary>
+    /// <remarks>
+    /// Written straight to the tables rather than through the battle lifecycle writer, for the same reason as <see cref="SeedSightingsAsync"/>: this fixture is about the purge reaching the rows.
+    /// The departure and conclusion rows matter as well as the commencement, because they are the only kinds that name a player, so between them the rows reach every foreign key the feed has.
+    /// </remarks>
+    private async Task SeedBattleHistoryAsync(int gameId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        TurnQueue campaignQueue = await context.TurnQueues.SingleAsync(q => q.GameId == gameId && q.QueueType == TurnQueueType.Campaign && q.BattleId == null);
+        int[] playerIds = await context.Players.Where(p => p.GameId == gameId).OrderBy(p => p.Id).Select(p => p.Id).ToArrayAsync();
+        int victorId = playerIds[0];
+        int routedId = playerIds[1];
+        int tileId = await context.CampaignMaps.Where(t => t.GameId == gameId).OrderBy(t => t.CampaignMapId).Select(t => t.CampaignMapId).FirstAsync();
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+
+        var turn = new PlayerTurn
+        {
+            TurnQueueId = campaignQueue.Id,
+            PlayerId = victorId,
+            RoundNumber = campaignQueue.CurrentRoundNumber,
+            StartedAt = now
+        };
+
+        // Concluded, with a victor, so the Battle row itself also names a player the purge has to outlast.
+        var battle = new Battle
+        {
+            GameId = gameId,
+            CampaignMapTileId = tileId,
+            CommencedAtRoundNumber = campaignQueue.CurrentRoundNumber,
+            ConcludedAtRoundNumber = campaignQueue.CurrentRoundNumber,
+            OriginalTileStatus = TileOwnershipStatus.Unclaimed,
+            VictorId = victorId,
+            CreatedAt = now,
+            UpdatedAt = now,
+            RowVersion = [],
+            BattleParticipants =
+            [
+                .. playerIds.Take(2).Select(playerId => new BattleParticipant
+                {
+                    PlayerId = playerId,
+                    JoinedAtRoundNumber = campaignQueue.CurrentRoundNumber,
+                    IsStillInBattle = false,
+                    LeftAtRoundNumber = campaignQueue.CurrentRoundNumber,
+                    ExitReason = playerId == routedId ? BattleExitReason.Routed : BattleExitReason.CeaseFire,
+                    RowVersion = []
+                })
+            ]
+        };
+
+        context.PlayerTurns.Add(turn);
+        context.Battles.Add(battle);
+        await context.SaveChangesAsync();
+
+        context.BattleHistory.AddRange(
+            new BattleHistory
+            {
+                GameId = gameId,
+                BattleId = battle.Id,
+                EventType = BattleHistoryEventType.Commenced,
+                CampaignMapTileId = tileId,
+                PlayerTurnId = turn.Id,
+                TurnSequence = 1
+            },
+            new BattleHistory
+            {
+                GameId = gameId,
+                BattleId = battle.Id,
+                EventType = BattleHistoryEventType.ParticipantLeft,
+                ParticipantPlayerId = routedId,
+                ExitReason = BattleExitReason.Routed,
+                TroopsLost = 30,
+                CampaignMapTileId = tileId,
+                PlayerTurnId = turn.Id,
+                TurnSequence = 2
+            },
+            new BattleHistory
+            {
+                GameId = gameId,
+                BattleId = battle.Id,
+                EventType = BattleHistoryEventType.Concluded,
+                GroundHeldByPlayerId = victorId,
+                CampaignMapTileId = tileId,
+                PlayerTurnId = turn.Id,
+                TurnSequence = 3
+            });
 
         await context.SaveChangesAsync();
     }

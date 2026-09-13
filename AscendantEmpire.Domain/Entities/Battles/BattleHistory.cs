@@ -39,8 +39,8 @@ public class BattleHistory
     /// The engagement the row is about.
     /// </summary>
     /// <remarks>
-    /// A <b>real foreign key</b>, unlike <c>MovementHistory.UnitInstanceId</c>. A Battle is never hard-deleted - concluding it stamps its <c>ConcludedAtRoundNumber</c> and the row stays - so the
-    /// constraint never has a delete to refuse.
+    /// A <b>real foreign key</b>, unlike <c>MovementHistory.UnitInstanceId</c>. Concluding a Battle stamps its <c>ConcludedAtRoundNumber</c> and the row stays; the only hard delete is the game
+    /// purge, which removes this feed before the Battles it names.
     /// </remarks>
     public int BattleId { get; set; }
 

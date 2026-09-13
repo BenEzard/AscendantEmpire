@@ -543,7 +543,7 @@ public class AscendantEmpireContext : DbContext
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_BattleHistory_GameIndex_GameId");
 
-            // A real foreign key, unlike MovementHistory.UnitInstanceId: a Battle is never hard-deleted, so the constraint never has a delete to refuse.
+            // A real foreign key, unlike MovementHistory.UnitInstanceId: concluding a Battle keeps its row, and the one hard delete - the game purge - removes this feed before the Battles it names.
             entity.HasOne<Battle>()
                 .WithMany()
                 .HasForeignKey(e => e.BattleId)

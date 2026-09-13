@@ -64,6 +64,7 @@ internal sealed class GameDeleteExecutor(
     [
         "[units].[MovementHistory]",
         "[structure].[StructureHistory]",
+        "[battle].[BattleHistory]",
         "[units].[ForceOrderParticipants]",
         "[units].[ForceOrderMovementSteps]",
         "[units].[ForceOrders]",
@@ -207,6 +208,12 @@ internal sealed class GameDeleteExecutor(
             // Structure history names structures, tiles, players and player turns, so it goes before all of them too. Unlike movement history its instance id is a real foreign key, which this
             // position already satisfies: structures are purged well below.
             ("structure history", () => purge.StructureHistory
+                .Where(h => h.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            // Battle history, the third raw feed, names battles, players, tiles and player turns, so it goes at the same point as the other two - and before the battles especially, since its
+            // BattleId is a real foreign key. It carries its own GameId, so needs no scoping through the battle.
+            ("battle history", () => purge.BattleHistory
                 .Where(h => h.GameId == gameId)
                 .ExecuteDeleteAsync(cancellationToken)),
 
