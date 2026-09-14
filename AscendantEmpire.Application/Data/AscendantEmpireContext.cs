@@ -98,6 +98,11 @@ public class AscendantEmpireContext : DbContext
     public DbSet<PlayerBattleMap> PlayerBattleMaps { get; set; }
 
     /// <summary>
+    /// The modifiers each Player holds to their Forage, Hunt, Fish and Fodder values, one row per source, resource and biome. Summed by <c>IPlayerSustenanceValueReader</c>.
+    /// </summary>
+    public DbSet<PlayerSustenanceModifier> PlayerSustenanceModifiers { get; set; }
+
+    /// <summary>
     /// Each Player's last observed owner, progress and state for every Structure they have watched change.
     /// </summary>
     public DbSet<PlayerKnownStructure> PlayerKnownStructures { get; set; }
@@ -807,6 +812,54 @@ public class AscendantEmpireContext : DbContext
 
             // One Player's whole map at once - the shape of both the vision grant and any future battle map read.
             entity.HasIndex(e => new { e.PlayerId, e.BattleMapIndexId });
+        });
+
+        // --- PlayerSustenanceModifier --------------------------------------------------
+        // One modifier to a Player's Forage, Hunt, Fish or Fodder value. The effective value is derived from these and the biome's base, never stored - see the entity's remarks.
+        modelBuilder.Entity<PlayerSustenanceModifier>(entity =>
+        {
+            // A modifier with neither part would change nothing, and would still take up the source's one row for that resource and biome.
+            entity.ToTable("PlayerSustenanceModifier", schema, table => table.HasCheckConstraint(
+                "CK_PlayerSustenanceModifier_HasValue",
+                "[FlatValue] <> 0 OR [PercentValue] <> 0"));
+
+            entity.HasKey(e => e.Id);
+
+            // No navigations, and every relationship NoAction: nothing reads these rows through an entity graph, and GameDeleteExecutor removes them in its own hand-ordered step.
+            entity.HasOne<GameIndex>()
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerSustenanceModifier_GameIndex_GameId");
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerSustenanceModifier_Player_PlayerId");
+
+            // Optional: a null biome is a modifier to every biome.
+            entity.HasOne<CampaignBiome>()
+                .WithMany()
+                .HasForeignKey(e => e.BiomeTypeId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerSustenanceModifier_CampaignBiome_BiomeTypeId");
+
+            // A source grants a Player at most one modifier per resource per biome, so a source that gives both a flat and a percentage amount does it in one row.
+            //
+            // HasFilter(null) matters. EF's SQL Server convention filters a unique index on a nullable column to "IS NOT NULL", which would let a source hold any number of
+            // all-biome rows for the same resource. Unfiltered, SQL Server treats NULLs as equal in a unique index, which is exactly the rule wanted here.
+            //
+            // The Player comes first because it is also the reader's lookup: every one of a Player's modifiers at once.
+            entity.HasIndex(e => new { e.PlayerId, e.SourceType, e.SourceId, e.Resource, e.BiomeTypeId })
+                .IsUnique()
+                .HasFilter(null)
+                .HasDatabaseName("UX_PlayerSustenanceModifier_Player_Source_Resource_Biome");
+
+            // The game delete's filter.
+            entity.HasIndex(e => e.GameId)
+                .HasDatabaseName("IX_PlayerSustenanceModifier_GameId");
         });
 
         // --- PlayerKnownStructure ------------------------------------------------------

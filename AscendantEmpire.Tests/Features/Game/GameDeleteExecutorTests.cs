@@ -175,6 +175,27 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
         }
     }
 
+    [Test, Description("Players' sustenance modifiers go with their game, and before the players they name, while the biome catalogue they also name survives.")]
+    public async Task ShouldRemoveTheGamesPlayerSustenanceModifiersWhenItIsDeletedAsync()
+    {
+        int gameId = await SetupGameAsync("Doomed");
+
+        await SeedPlayerSustenanceModifiersAsync(gameId);
+
+        int biomesBefore = await CountAsync(c => c.CampaignBiomes.CountAsync());
+
+        Processing job = await ExecuteDeleteAsync(gameId);
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(job.Status, Is.EqualTo(ProcessingStatus.Complete), job.ErrorMessage);
+            Assert.That(await context.PlayerSustenanceModifiers.AnyAsync(m => m.GameId == gameId), Is.False);
+            Assert.That(await context.CampaignBiomes.CountAsync(), Is.EqualTo(biomesBefore), "Biomes are catalogue data, not the game's.");
+        }
+    }
+
     [Test, Description("The job is marked complete rather than being left in progress, because the page polls that status to know when to refresh the list.")]
     public async Task ShouldMarkTheJobCompleteWhenThePurgeSucceedsAsync()
     {
@@ -822,6 +843,46 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             FirstSeenOnTurnId = turn.Id,
             LastSeenOnTurnId = turn.Id
         });
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Gives the game's first player two sustenance modifiers: one for every biome, and one naming the Grassland biome.
+    /// </summary>
+    /// <remarks>
+    /// Written straight to the table, for the same reason as <see cref="SeedSightingsAsync"/>: nothing writes modifiers in play yet. The biome-specific row matters as well as the all-biome one,
+    /// because it is the only kind that names a biome, so between them the rows reach every foreign key the table has.
+    /// </remarks>
+    private async Task SeedPlayerSustenanceModifiersAsync(int gameId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        int playerId = await context.Players.Where(p => p.GameId == gameId).OrderBy(p => p.Id).Select(p => p.Id).FirstAsync();
+
+        context.PlayerSustenanceModifiers.AddRange(
+            new PlayerSustenanceModifier
+            {
+                GameId = gameId,
+                PlayerId = playerId,
+                SourceType = Domain.Enums.Modifiers.ModifierSourceType.Technology,
+                SourceId = 1,
+                Resource = Domain.Enums.Resources.SustenanceResource.Forage,
+                BiomeTypeId = null,
+                FlatValue = 50_000,
+                PercentValue = 0
+            },
+            new PlayerSustenanceModifier
+            {
+                GameId = gameId,
+                PlayerId = playerId,
+                SourceType = Domain.Enums.Modifiers.ModifierSourceType.Technology,
+                SourceId = 1,
+                Resource = Domain.Enums.Resources.SustenanceResource.Hunt,
+                BiomeTypeId = BiomeType.Grassland,
+                FlatValue = 0,
+                PercentValue = 250
+            });
 
         await context.SaveChangesAsync();
     }

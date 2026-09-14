@@ -50,7 +50,7 @@ The original discussion (kept below) was treating classification, passive bonuse
 
 - Weapon domain damage modifiers and movement modifiers (see above) are the two existing instances.
 - Modifiers always carry data (a `Value`, optional `DomainType`/`Conditions`) — this is the dividing line from Tags, which never do.
-- Values support both flat and percentage amounts via an explicit `ValueType` (Flat/Percent) enum next to `Value`, rather than a bare, ambiguous number.
+- Values support both flat and percentage amounts via an explicit `ValueType` (Flat/Percent) enum next to `Value`, rather than a bare, ambiguous number. (Modifiers whose formula always uses both terms carry separate `FlatValue`/`PercentValue` columns instead — see decision 5.)
 - Movement modifiers are not yet applied to movement — see [unit-movement.md](../units/unit-movement.md#movement-modifiers). The existing `Effect`/`Conditions` JSON shape looks expressive enough for every `MoveModifier` case.
 
 ### 3. Capability Grants — tag unlocks an action (first use landed in UD-56)
@@ -104,7 +104,11 @@ Structured Modifier shape (concept 2) should gain an optional `ApplyTo` field (s
 2. Tags are string keys with no attached data; Modifiers are structured records that always carry data.
 3. Tags are flat — no hierarchy.
 4. Simple constraints are allowed (e.g. a `TagType` restricts which `ComponentType`s may carry it), and should warn rather than block at design time — consistent with the existing obsolescence pattern ("obsolescence is always at the player's discretion").
-5. Values support both flat and percentage, via an explicit `ValueType` enum next to `Value`.
+5. Values support both flat and percentage, and are never a bare, ambiguous number. Which shape depends on how the value is applied:
+   - **One kind of amount per modifier** (the unit component modifiers): an explicit `ValueType` (Flat/Percent) enum next to `Value`.
+   - **Always both terms in the formula** (Player sustenance modifiers, `Base + Base × ΣPercent + ΣFlat` — see
+     [campaign-map.md](../campaign-map.md#biome)): two named, non-nullable columns, `FlatValue` and `PercentValue`, defaulting to `0`. One
+     modifier can then carry both parts in a single row, and the totals are plain sums.
 6. Tags stay scoped to unit design for now. The `Tag`/`TagType` entities have no unit-design-specific fields, so relocating them later (own folder/namespace, own entities outside unit design) is cheap — do it when a second consumer needs tagging (e.g. adding a `StructureTag` join table beside `UnitComponentTag`), not before.
    - Note this is about moving the **entities** out of unit design, and is unaffected by `UnitDesignTagsController` existing. That controller was split out of `UnitDesignController` for size and cohesion (see [UD-32](../../work-in-progress/UD-32.md)) and keeps tags firmly *inside* unit design — it is not the relocation this point defers, and does not bring it forward.
 

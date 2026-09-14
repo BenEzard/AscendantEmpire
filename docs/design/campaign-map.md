@@ -74,16 +74,35 @@ indefinitely, until game mechanics turn them off (e.g. bone becomes useless in m
 > Open question: does this open a hack where tiny units are mass-produced to each suck resources
 > from a tile?
 
-For empire-specific values, a **Multiplier** and an **AddValue** apply per resource (e.g.
-`ForageBaseValue`, `ForageMultiplierValue`, `ForageAddValue`). A tile may also carry **additional
-resources** on top of its biome (e.g. a forest tile with a 10,000-wood resource, generic or luxury),
-which can also be depleted and renewed.
+Only the **sustenance values** are player-specific. A Player's own Forage, Hunt, Fish and Fodder
+values per biome are raised (or lowered) by modifiers from tech advances, specialists and
+departments. Each modifier can carry a flat amount, a percentage of base, or both. Some modifiers
+can be removed later (e.g. a specialist is lost), so a Player's value is always derived from the
+modifiers they currently hold, never accumulated. The **material values** (Bone, Wood, Stone,
+Special) are static: the same for every Player in every game.
+
+A modifier applies **empire-wide**, or to the **territory of one Settlement**.
+
+Modifiers are stored in `game.PlayerSustenanceModifier`, one row per Player, source, resource and biome (a null biome means every biome), each with a `FlatValue` and a `PercentValue`. Losing a source deletes its rows. A Player's effective values are read only through `IPlayerSustenanceValueReader`, which reads the base values live from `map.CampaignBiomes` and applies the formula below. Nothing writes modifiers yet.
+
+> TODO: Settlement-scoped modifiers wait on Settlements, which are not modelled yet. A Settlement
+> will be its own entity (it may also be added to `StructureInstance`, so one read returns every
+> map object).
+
+A `null` base value means the resource does not exist in that biome, and it can never gain a
+value: modifiers do not apply to it. A resource that can be raised in a biome starts at `>= 0`.
+
+A tile may also carry **additional resources** on top of its biome (e.g. a forest tile with a
+10,000-wood resource, generic or luxury), which can also be depleted and renewed.
 
 The total amount of each resource on a tile is:
 
 ```
-[Base Value] × [Multiplier Value] + [Add Value] + [Additional Resources]
+[Base Value] + [Base Value] × Σ[Percent Modifiers] + Σ[Flat Modifiers] + [Additional Resources]
 ```
+
+Percentages add together rather than compound, and apply to the base only. The summed percentage
+is floored at −100% and the resulting value at `0`.
 
 For empire-specific multiplier examples, see [resources-data-model.md](../resources-data-model.md).
 
@@ -125,6 +144,19 @@ At end of turn, 100 food is deducted (100 men). Human-consumable food on the til
 | --- | --- | --- | --- | --- | --- |
 | Tile food supply | 334 | 67 | 0 | 1000 | 1.7 |
 
+### Players with different values on the same tile
+
+A tile has one depletion state, but each Player can extract only up to **their own current value**
+for that biome. Players with different values therefore see different amounts left on the same
+tile.
+
+For example, Player A's Grassland Forage is 100 and Player B's is 150. Player A exhausts the tile
+once they have taken 100. When Player B arrives, there are still 50 on the tile for them (their
+150 minus Player A's 100). Player B can see and extract that 50. Player A cannot.
+
+To handle this, the tile records the last Player on it. When a different Player arrives, the gap
+between the two Players' values is calculated and reconciled.
+
 ### Replenishment
 
 At the end of each round, each foodstuff is replenished:
@@ -132,6 +164,9 @@ At the end of each round, each foodstuff is replenished:
 - if the current amount on the tile is `0` → `[Empire Resource Initial Value] × 0.1`;
 - if the current amount is `> 0` → `current amount × [Regeneration Rate]`, capped at
   `[Empire Biome Resource Initial Value]`.
+
+The empire whose values apply is the one that has **claimed** the tile, if it lies within their
+territory. On an unclaimed tile, it is the **last Player on the tile**.
 
 ### Depletion rules
 
@@ -149,6 +184,10 @@ At the end of each round, each foodstuff is replenished:
 
 **Consumption per Unit (within a Force):** if `[Food Required] > 0`,
 `Σ([Number of individuals] × [Food requirements of Unit Base])`.
+
+**Force gathering bonuses** (e.g. a forager specialist attached to a Command) reduce the food the
+Force draws from the tile. They do **not** raise the tile's maximum. For example, a 100-man Force
+with a forager worth 10 needs only 90 food from the tile.
 
 ### End-of-turn calculation
 

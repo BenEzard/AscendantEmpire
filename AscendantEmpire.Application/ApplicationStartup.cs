@@ -6,6 +6,7 @@ using AscendantEmpire.Application.Features.Game.Executors;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Intelligence.Services;
 using AscendantEmpire.Application.Features.Maps.BattleMaps.Services;
+using AscendantEmpire.Application.Features.Maps.Biomes.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Executors;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
@@ -84,6 +85,10 @@ public static class ApplicationStartup
         services.AddScoped<ISightDataReader, SightDataReader>();
         services.AddScoped<IFieldOfViewService, FieldOfViewService>();
         services.AddScoped<IWitnessService, WitnessService>();
+
+        // A Player's effective Forage, Hunt, Fish and Fodder values: each biome's base with the Player's sustenance modifiers applied. The only place that formula is used, so depletion,
+        // replenishment and shared-tile reconciliation cannot disagree. Nothing in play calls it yet, and nothing writes modifiers yet.
+        services.AddScoped<IPlayerSustenanceValueReader, PlayerSustenanceValueReader>();
 
         // Which Players share vision. Every Player is a coalition of one until a foreign relations model exists to say otherwise.
         services.AddScoped<ICoalitionResolver, SoloCoalitionResolver>();

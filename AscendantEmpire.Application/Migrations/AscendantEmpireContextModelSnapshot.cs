@@ -821,6 +821,55 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("PlayerReportPathTile", "game");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerSustenanceModifier", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("BiomeTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("FlatValue")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("PercentValue")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Resource")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SourceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SourceType")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BiomeTypeId");
+
+                    b.HasIndex("GameId")
+                        .HasDatabaseName("IX_PlayerSustenanceModifier_GameId");
+
+                    b.HasIndex("PlayerId", "SourceType", "SourceId", "Resource", "BiomeTypeId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_PlayerSustenanceModifier_Player_Source_Resource_Biome");
+
+                    b.ToTable("PlayerSustenanceModifier", "game", t =>
+                        {
+                            t.HasCheckConstraint("CK_PlayerSustenanceModifier_HasValue", "[FlatValue] <> 0 OR [PercentValue] <> 0");
+                        });
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.StructureInstance", b =>
                 {
                     b.Property<int>("Id")
@@ -3417,6 +3466,29 @@ namespace AscendantEmpire.Application.Migrations
                         .HasConstraintName("FK_PlayerReportPathTile_PlayerReport_PlayerReportId");
 
                     b.Navigation("PlayerReport");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerSustenanceModifier", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignBiome", null)
+                        .WithMany()
+                        .HasForeignKey("BiomeTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_PlayerSustenanceModifier_CampaignBiome_BiomeTypeId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", null)
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerSustenanceModifier_GameIndex_GameId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", null)
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerSustenanceModifier_Player_PlayerId");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.StructureInstance", b =>

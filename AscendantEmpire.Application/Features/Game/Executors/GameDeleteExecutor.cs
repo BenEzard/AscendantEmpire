@@ -82,6 +82,7 @@ internal sealed class GameDeleteExecutor(
         "[military].[PlayerOrganisationStructureTier]",
         "[military].[PlayerOrganisationStructure]",
         "[military].[PlayerOfficerRank]",
+        "[game].[PlayerSustenanceModifier]",
         "[game].[Player]",
         "[game].[GameIndex]",
     ];
@@ -350,6 +351,12 @@ internal sealed class GameDeleteExecutor(
 
             ("officer ranks", () => purge.PlayerOfficerRanks
                 .Where(r => playerIds.Contains(r.PlayerId))
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            // Per-player sustenance modifiers name the players, so they go before them. The biomes they also name are catalogue data and survive. They carry their own GameId, so need no
+            // scoping through the players.
+            ("player sustenance modifiers", () => purge.PlayerSustenanceModifiers
+                .Where(m => m.GameId == gameId)
                 .ExecuteDeleteAsync(cancellationToken)),
 
             // The maps, then the players, then the game itself. Campaign map tiles name the player who controls, first saw and last visited them, so
