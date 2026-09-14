@@ -105,21 +105,21 @@ describe("useForceSelection", () => {
       );
     });
 
-    expect(result.current.multiForceTile?.forces.map((f) => f.id)).toEqual([1, 3]);
+    expect(result.current.forceSelectionTile?.forces.map((f) => f.id)).toEqual([1, 3]);
   });
 
   /**
-   * Two forces on the tile but only one of them the player's is a single-force tile as far as selection goes —
-   * there is nothing to choose between, so the bar stays away.
+   * A lone force still gets the bar — it is where the force's strength and remaining movement are shown — and an enemy
+   * sharing the tile doesn't count towards it.
    */
-  it("offers no bar when the player owns only one of the forces on the tile", () => {
+  it("offers the bar for a single owned force, leaving out an enemy sharing the tile", () => {
     const { result } = renderForceSelection();
 
     act(() => {
       result.current.selectForceFromTile(tile([force({ id: 1 }), force({ id: 2, ownerPlayerId: OTHER_PLAYER_ID })]));
     });
 
-    expect(result.current.multiForceTile).toBeNull();
+    expect(result.current.forceSelectionTile?.forces.map((f) => f.id)).toEqual([1]);
     expect(selectedIds(result)).toEqual([1]);
   });
 
@@ -131,7 +131,7 @@ describe("useForceSelection", () => {
     });
 
     expect(result.current.selectedForces).toEqual([]);
-    expect(result.current.multiForceTile).toBeNull();
+    expect(result.current.forceSelectionTile).toBeNull();
   });
 
   it("selects the strongest owned force by default on a multi-force tile", () => {
@@ -228,7 +228,7 @@ describe("useForceSelection", () => {
     expect(result.current.selectedForces).toEqual([]);
     expect(result.current.selectedForceIds.size).toBe(0);
     // The bar still has a tile to render, so the dock has a reason to stay on screen.
-    expect(result.current.multiForceTile).not.toBeNull();
+    expect(result.current.forceSelectionTile).not.toBeNull();
   });
 
   /**
@@ -419,7 +419,7 @@ describe("useForceSelection", () => {
     it("re-points the bar at the destination tile when the force arrives among others", () => {
       const { result } = selectFromCrowdedTile();
 
-      expect(result.current.multiForceTile).toMatchObject({ x: 5, y: 4 });
+      expect(result.current.forceSelectionTile).toMatchObject({ x: 5, y: 4 });
 
       act(() => {
         result.current.onForceMoved(
@@ -427,19 +427,20 @@ describe("useForceSelection", () => {
         );
       });
 
-      expect(result.current.multiForceTile).toMatchObject({ x: 6, y: 4 });
-      expect(result.current.multiForceTile?.forces.map((f) => f.id)).toEqual([1, 8]);
+      expect(result.current.forceSelectionTile).toMatchObject({ x: 6, y: 4 });
+      expect(result.current.forceSelectionTile?.forces.map((f) => f.id)).toEqual([1, 8]);
     });
 
-    it("hides the bar when the force moves somewhere it stands alone", () => {
+    it("keeps the bar, showing only the mover, when the force moves somewhere it stands alone", () => {
       const { result } = selectFromCrowdedTile();
 
       act(() => {
         result.current.onForceMoved(stepResult({ x: 6, y: 4, forcesOnDestination: [force({ id: 1 })] }));
       });
 
-      // Nothing to choose between, which is the same rule that governs selecting a tile by hand.
-      expect(result.current.multiForceTile).toBeNull();
+      // A lone force still gets the bar, which is the same rule that governs selecting a tile by hand.
+      expect(result.current.forceSelectionTile).toMatchObject({ x: 6, y: 4 });
+      expect(result.current.forceSelectionTile?.forces.map((f) => f.id)).toEqual([1]);
     });
 
     it("leaves the moved force selected so it can be moved again straight away", () => {
@@ -467,7 +468,7 @@ describe("useForceSelection", () => {
         );
       });
 
-      expect(result.current.multiForceTile?.forces.map((f) => f.id)).toEqual([1, 8]);
+      expect(result.current.forceSelectionTile?.forces.map((f) => f.id)).toEqual([1, 8]);
     });
 
     it("takes the moved force's fresh state from the response rather than patching the snapshot it held", () => {
@@ -500,7 +501,7 @@ describe("useForceSelection", () => {
       expect(result.current.selectedForces[0].campaignMovementRemaining).toBe(0.5);
       // The bar cannot describe the destination without data for it, and a bar for the tile the force left would be
       // worse than none at all.
-      expect(result.current.multiForceTile).toBeNull();
+      expect(result.current.forceSelectionTile).toBeNull();
     });
 
     it("lets a force picked up on the destination tile be moved without reselecting it from the map", () => {

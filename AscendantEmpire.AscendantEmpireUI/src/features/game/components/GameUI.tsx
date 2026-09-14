@@ -17,6 +17,7 @@ import VisionSettingsOffcanvas from "./VisionSettingsOffcanvas";
 import { enterGame } from "@/features/auth/api/authApi";
 import ContextActionToolbar from "./ContextActionToolbar";
 import ForceSelectionToolbar from "./ForceSelectionToolbar";
+import TileToolbar, { type TileToolbarTile } from "./TileToolbar";
 import NotificationsHost from "@/features/notifications/NotificationsHost";
 import { NotificationsProvider } from "@/features/notifications/useNotifications";
 import NewGameDialog from "./NewGameDialog";
@@ -65,6 +66,11 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   // the turn ends or the player moves a force, because either makes the list they were shown out of date.
   const [endTurnArmed, setEndTurnArmed] = useState(false);
 
+  // The tile the tile toolbar describes: the one the player last clicked, or where a moved force now stands. Held as
+  // coordinates rather than the clicked cell, so the bar reads the live cell off the grid and stays correct when the tile
+  // is explored (and its terrain revealed) while the bar is up.
+  const [inspectedTileCoords, setInspectedTileCoords] = useState<{ x: number; y: number } | null>(null);
+
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const tileGridContainerRef = useRef<HTMLDivElement | null>(null);
   const toolbarBottomPx = useElementBottomPx(toolbarRef);
@@ -95,7 +101,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const {
     selectedForces,
     selectedForceIds,
-    multiForceTile,
+    forceSelectionTile,
     getVisibleForceId,
     chooseForce,
     selectForceFromTile,
@@ -116,6 +122,10 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
       // The fog needs nothing here: the mutation has already written the step's tiles and observers into the tiles cache, and
       // both fog layers are derived from that cache.
       onForceMoved(result);
+
+      // The tile bar follows the force for the same reason the selection bar does: the two sit side by side, and a tile bar
+      // still describing the tile the force left would contradict the forces listed next to it.
+      setInspectedTileCoords({ x: result.xCoord, y: result.yCoord });
 
       // A step onto another player's forces starts a battle. The force can't move again until it's over, so say so now rather
       // than leaving the player to discover it from a refused step. The Battle button arrives on its own: the mutation has
@@ -247,7 +257,22 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   // them there, so the map is never left showing whichever of the two spoke last.
   const { observedTileKeys } = useFogOfWar(tilesResponse?.observers);
 
-  const { biomeNameByType, geographyNameByType, getTileStyle, getTileTitle } = useTileRendering({ biomes, geographies, selectedTile, observedTileKeys });
+  const { getTileStyle, getTileTitle, getTileTerrainLabel } = useTileRendering({ biomes, geographies, selectedTile, observedTileKeys });
+
+  // What the tile toolbar draws. Looked up from the current grid on every rebuild rather than captured at click time, so a
+  // tile explored under the bar (a force stepping next to it, say) shows its real terrain rather than the placeholder.
+  const tileToolbarTile = useMemo<TileToolbarTile | null>(() => {
+    if (inspectedTileCoords == null || tiles2d == null) {
+      return null;
+    }
+
+    const cell = tiles2d[inspectedTileCoords.y]?.[inspectedTileCoords.x];
+    if (cell == null) {
+      return null;
+    }
+
+    return { x: cell.x, y: cell.y, terrainLabel: getTileTerrainLabel(cell) };
+  }, [inspectedTileCoords, tiles2d, getTileTerrainLabel]);
 
   // Stable per-tile predicate for the grid, so its memoised tiles only re-render when what the player can see actually changes.
   const isTileObserved = useCallback((tile: TileCell) => observedTileKeys.has(`${tile.x},${tile.y}`), [observedTileKeys]);
@@ -305,7 +330,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     [openToast],
   );
 
-  // --- Tile click: vision + force selection + inspect toast ---
+  // --- Tile click: vision + force selection + tile toolbar ---
   const onTileClick = useCallback(
     (t: TileCell) => {
       if (visionActiveTool === "vision") {
@@ -315,13 +340,10 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
 
       selectForceFromTile(t);
 
-      const biomeName = t.biomeTypeId == null ? "null" : (biomeNameByType.get(t.biomeTypeId) ?? `unknown(${t.biomeTypeId})`);
-      const geoName = t.geographyTypeId == null ? "null" : (geographyNameByType.get(t.geographyTypeId) ?? `unknown(${t.geographyTypeId})`);
-      const label = biomeName === "Unknown" && geoName === "Unknown" ? "Unknown" : `${biomeName}, ${geoName}`;
-
-      openToast(`[${t.x}, ${t.y}]: ${label}`, "warning");
+      // Every click points the tile toolbar at the clicked tile, whether or not anything stands on it.
+      setInspectedTileCoords({ x: t.x, y: t.y });
     },
-    [visionActiveTool, setSelectedTile, sendVisionRequest, selectForceFromTile, biomeNameByType, geographyNameByType, openToast],
+    [visionActiveTool, setSelectedTile, sendVisionRequest, selectForceFromTile],
   );
 
   // --- Toolbar wiring ---
@@ -340,6 +362,8 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
       setShowMilitaryAdvisor(false);
       setEndTurnActions([]);
       setEndTurnArmed(false);
+      // Coordinates from one game mean nothing in the next, whose map may not even be the same size.
+      setInspectedTileCoords(null);
     }
   }, [gameSelection]);
 
@@ -508,24 +532,29 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
         {/* Opened from a force's Battle button on the context action toolbar. */}
         <BattleDialog show={battleDialogForceId != null} forceId={battleDialogForceId} onClose={closeBattleDialog} />
 
-        {/* Both bars stack in one fixed column, so the selection bar sits under the action toolbar without either
-            needing to know the other's height.
+        {/* The bars stack in one fixed column, so the bottom row sits under the action toolbar without either needing
+            to know the other's height. The bottom row puts the tile bar to the left of the selection bar, centred as a
+            pair.
 
-            Mounted while anything is selected *or* the bar has a tile to offer. The second half matters: ctrl+
-            clicking the last selected force empties the selection, and if the dock unmounted on that the bar would
-            vanish out from under the cursor that was clicking in it, leaving the player to go back to the map to
-            recover it. With a tile still set, the bar stays and the action toolbar simply empties. */}
-        {(selectedForces.length > 0 || multiForceTile != null) && (
+            Mounted while anything is selected, the selection bar has a tile to offer, *or* the tile bar has a tile to
+            describe. The second condition matters: ctrl+clicking the last selected force empties the selection, and if
+            the dock unmounted on that the bar would vanish out from under the cursor that was clicking in it, leaving the
+            player to go back to the map to recover it. With a tile still set, the bar stays and the action toolbar
+            simply empties. The third is what lets a tile with no forces on it still show the tile bar on its own. */}
+        {(selectedForces.length > 0 || forceSelectionTile != null || tileToolbarTile != null) && (
           <div className="command-dock">
             <ContextActionToolbar visible={contextActionToolbarActions.length > 0} actions={contextActionToolbarActions} />
-            <ForceSelectionToolbar
-              visible={multiForceTile != null}
-              tile={multiForceTile}
-              selectedForceIds={selectedForceIds}
-              unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
-              unitNameByUnitTemplateId={unitNameByUnitTemplateId}
-              onSelect={chooseForce}
-            />
+            <div className="command-dock__row">
+              <TileToolbar tile={tileToolbarTile} />
+              <ForceSelectionToolbar
+                visible={forceSelectionTile != null}
+                tile={forceSelectionTile}
+                selectedForceIds={selectedForceIds}
+                unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
+                unitNameByUnitTemplateId={unitNameByUnitTemplateId}
+                onSelect={chooseForce}
+              />
+            </div>
           </div>
         )}
 

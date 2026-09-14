@@ -1,6 +1,6 @@
 # Force Selection Toolbar
 
-When a campaign map tile holds more than one of the player's Forces, a bar of those Forces is docked
+When a campaign map tile holds any of the player's Forces — even just one — a bar of those Forces is docked
 under the [context action toolbar](force-context-action-toolbar.md). Clicking one selects it, and
 ctrl+clicking adds or removes one. That is the whole of the selection mechanism.
 
@@ -55,10 +55,11 @@ interface ForceSelectionToolbarProps {
 
 All state lives in
 [`useForceSelection.tsx`](../../../AscendantEmpire.AscendantEmpireUI/src/features/game/hooks/useForceSelection.tsx),
-which already owned the selection and the per-tile visible Force. It gained `multiForceTile` (the
-renamed `pendingForceSelectionTile` — no longer "the tile whose dialog can be reopened", now the bar's
-data source), and its `selectedForce` became a `selectedForces` list with a memoised
-`selectedForceIds` set derived from it.
+which owns the selection and the per-tile visible Force. `forceSelectionTile` is the bar's data source:
+set whenever the clicked tile (or a moved Force's destination) holds at least one of the player's
+Forces, and null otherwise. A lone Force gets the bar too, because the bar is where its strength and
+remaining movement are shown. `selectedForces` is the selection, with a memoised `selectedForceIds`
+set derived from it.
 
 Each entry reuses
 [`ObservedForce`](../../../AscendantEmpire.AscendantEmpireUI/src/features/map/components/ObservedForce.tsx),
@@ -141,6 +142,14 @@ action count, so a hard-coded offset on the lower bar would have drifted. The do
 `pointer-events: none` with `pointer-events: auto` on its children, so the gap between the bars doesn't
 swallow clicks meant for the map.
 
+The selection bar shares the dock's bottom row, a `.command-dock__row`, with
+[`TileToolbar`](../../../AscendantEmpire.AscendantEmpireUI/src/features/game/components/TileToolbar.tsx)
+on its left: the coordinates and terrain of the tile last clicked. The row is centred as a pair, so the
+selection bar shifts right while the tile bar is up, and stretched so both bars take the same height.
+It repeats the dock's `pointer-events` arrangement for the gap between its two bars. The tile bar shows
+for every tile click, including tiles holding no Forces, which is why the dock also mounts whenever it
+has a tile to describe.
+
 ## Multi-select
 
 The bar is a multi-select. A plain left click sets the selection to the Force clicked; ctrl+click (⌘ on
@@ -177,7 +186,7 @@ rules, exactly as it is free of availability rules.
 
 Row 3 above leaves nothing selected, and row 4 then clicks in the bar again. That round trip only works
 if the bar survives an empty selection, so the dock in `GameUI` mounts on
-`selectedForces.length > 0 || multiForceTile != null` rather than on a Force being selected. Without the
+`selectedForces.length > 0 || forceSelectionTile != null` rather than on a Force being selected. Without the
 second half, ctrl+clicking the last Force off would unmount the very bar the player was clicking in,
 leaving them to go back to the map to recover it. With it, the bar stays and the action toolbar simply
 empties — the honest rendering of a selection with nothing in it.

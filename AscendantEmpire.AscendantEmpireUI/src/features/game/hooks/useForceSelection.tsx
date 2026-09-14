@@ -55,7 +55,7 @@ interface UseForceSelectionOptions {
 
 /**
  * Owns the player's force selection: which forces are selected, which force is shown per tile, and the
- * force-selection bar shown when a tile holds several. Also derives the context-action toolbar actions
+ * force-selection bar shown for the player's forces on the selected tile. Also derives the context-action toolbar actions
  * for the selection.
  */
 export function useForceSelection({ gameId, playerId, openToast }: UseForceSelectionOptions) {
@@ -69,9 +69,10 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
   // wherever a force is picked up (from the map or from the bar) and again when one moves.
   const [tileByForceId, setTileByForceId] = useState<Record<number, { x: number; y: number }>>({});
 
-  // The tile whose forces the selection bar is offering. Set only when the player has more than one force
-  // standing on the clicked tile — with a single force there is nothing to choose between.
-  const [multiForceTile, setMultiForceTile] = useState<ForceSelectionToolbarTile | null>(null);
+  // The tile whose forces the selection bar is offering. Set whenever the player has at least one force standing on the
+  // clicked tile — a lone force still gets the bar, so its strength and movement are on show and it can be ctrl+clicked off
+  // and on again like any other entry.
+  const [forceSelectionTile, setForceSelectionTile] = useState<ForceSelectionToolbarTile | null>(null);
 
   // The force whose battle the Battle dialog is showing, or null while the dialog is closed. Held here rather than in GameUI
   // because it is opened by a toolbar action, and this hook is what turns those actions into interactions.
@@ -83,7 +84,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
       setSelectedForces([]);
       setVisibleForceIdsByTile({});
       setTileByForceId({});
-      setMultiForceTile(null);
+      setForceSelectionTile(null);
       setBattleDialogForceId(null);
     }
   }, [gameId]);
@@ -143,7 +144,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
         setSelectedForces((current) => [...current, force]);
       }
 
-      if (multiForceTile == null) return;
+      if (forceSelectionTile == null) return;
 
       // Pinned only when the click *selected* the force. Pinning on a removing ctrl+click would leave the tile
       // drawing the very force the player just deselected.
@@ -152,10 +153,10 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
 
       setVisibleForceIdsByTile((current) => ({
         ...current,
-        [getTileKey(multiForceTile.x, multiForceTile.y)]: force.id,
+        [getTileKey(forceSelectionTile.x, forceSelectionTile.y)]: force.id,
       }));
     },
-    [multiForceTile, selectedForces],
+    [forceSelectionTile, selectedForces],
   );
 
   /** Names the selection for a toast, so a multi-force order reads as one rather than as a mystery. */
@@ -237,9 +238,10 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
 
       // The bar belongs to wherever the force now stands, not where it set off from — otherwise moving off a crowded tile
       // leaves the bar offering that tile's forces, including the one that just left it. Same rule as selecting a tile by
-      // hand: it is only worth showing when there is more than one force to choose between.
+      // hand: shown whenever the player has any force there, even the mover alone. Null only when the response carried no
+      // destination tile (the vision refresh failed), since the bar has nothing honest to describe then.
       const ownedOnDestination = forcesOnDestination.filter((force) => force.ownerPlayerId === playerId);
-      setMultiForceTile(ownedOnDestination.length > 1 ? { x: xCoord, y: yCoord, forces: ownedOnDestination } : null);
+      setForceSelectionTile(ownedOnDestination.length > 0 ? { x: xCoord, y: yCoord, forces: ownedOnDestination } : null);
     },
     [playerId],
   );
@@ -301,7 +303,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
     [describeSelection, openToast, selectedForces],
   );
 
-  /** Selects the player's force on a clicked tile (single force, multi-force, or none). */
+  /** Selects the player's force on a clicked tile, and offers every owned force there in the selection bar. */
   const selectForceFromTile = useCallback(
     (t: TileCell) => {
       if (playerId == null) return;
@@ -325,14 +327,9 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
 
       // Clicking the map always replaces the selection, however many forces were in it. Multi-select is the bar's
       // gesture; the map's click is what starts a fresh selection.
-      if (ownedForces.length === 1) {
-        setSelectedForces([ownedForces[0]]);
-        setVisibleForceIdsByTile((current) => ({
-          ...current,
-          [getTileKey(t.x, t.y)]: ownedForces[0].id,
-        }));
-        setMultiForceTile(null);
-      } else if (ownedForces.length > 1) {
+      if (ownedForces.length > 0) {
+        // The force the tile is already drawing (or the strongest, when nothing is pinned). With a lone force that is
+        // simply that force, so one branch covers both the single- and multi-force tile.
         const displayedOwnedForce = getVisibleForceForTile(t, { forces: ownedForces }) ?? ownedForces[0];
 
         setSelectedForces([displayedOwnedForce]);
@@ -340,10 +337,12 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
           ...current,
           [getTileKey(t.x, t.y)]: displayedOwnedForce.id,
         }));
-        setMultiForceTile({ x: t.x, y: t.y, forces: ownedForces });
+
+        // Offered even for a single force: the bar is where its strength and remaining movement are shown.
+        setForceSelectionTile({ x: t.x, y: t.y, forces: ownedForces });
       } else {
         setSelectedForces([]);
-        setMultiForceTile(null);
+        setForceSelectionTile(null);
       }
     },
     [playerId, getVisibleForceForTile],
@@ -369,7 +368,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
   return {
     selectedForces,
     selectedForceIds,
-    multiForceTile,
+    forceSelectionTile,
     getVisibleForceId,
     chooseForce,
     selectForceFromTile,

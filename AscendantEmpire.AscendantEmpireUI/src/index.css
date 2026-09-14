@@ -414,6 +414,51 @@ body {
   pointer-events: auto;
 }
 
+/* The bottom row of the dock: the tile bar on the left, the force selection bar to its right. Centred as a pair by the
+   dock's align-items, so the force bar shifts right when the tile bar appears beside it.
+   Stretched so the tile bar takes the force bar's height and the two read as one strip. Like the dock itself, the row
+   hands pointer-events back to its children only — without that, the gap between the two bars would swallow clicks meant
+   for the map. Declared after `.command-dock > *` so it wins at equal specificity. */
+.command-dock__row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.command-dock__row > * {
+  pointer-events: auto;
+}
+
+/* The coordinates and terrain of the tile the player last clicked. Shares the dock's chrome so it reads as part of the
+   same control surface as the bars beside and above it. */
+.tile-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto; /* Never squeezed: when the row is short of room, it is the force bar that scrolls instead. */
+  padding: 4px 10px;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  color: #0f172a;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(8px);
+}
+
+.tile-toolbar__coordinates {
+  font-weight: 600;
+  /* Fixed-width digits, so the bar doesn't jitter in width as the player clicks between (9, 4) and (10, 4). */
+  font-variant-numeric: tabular-nums;
+}
+
+.tile-toolbar__terrain {
+  color: #475569;
+}
+
 /* Positioned by .command-dock, not by itself — this rule is chrome only. */
 .command-toolbox {
   display: flex;

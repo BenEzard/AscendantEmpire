@@ -1,6 +1,7 @@
 import { renderHook } from "@testing-library/react";
 import type { TileCell } from "@/features/map/components/TileTypes";
 import type { Biome } from "@/types/map/Biome";
+import type { Geography } from "@/types/map/Geography";
 import { useTileRendering } from "../useTileRendering";
 
 const GRASSLAND_COLOUR = "#4ade80";
@@ -97,5 +98,31 @@ describe("useTileRendering fog layers", () => {
     expect(overlayCount(whileWatched)).toBe(0);
     expect(overlayCount(afterStep)).toBe(1);
     expect(afterStep).not.toEqual(neverSeen);
+  });
+});
+
+describe("useTileRendering terrain label", () => {
+  const GEOGRAPHIES = [{ campaignMapGeographyType: 1, name: "Hills" } as Geography];
+
+  it("names the biome and geography together", () => {
+    const { result } = renderHook(() =>
+      useTileRendering({ biomes: BIOMES, geographies: GEOGRAPHIES, selectedTile: null, observedTileKeys: new Set() }),
+    );
+
+    expect(result.current.getTileTerrainLabel(tile(1, 1, true))).toBe("Grassland, Hills");
+  });
+
+  /** Unexplored ground carries the Unknown placeholder for both, and "Unknown, Unknown" says nothing the single word doesn't. */
+  it("collapses to a single Unknown when both biome and geography are the Unknown placeholder", () => {
+    const { result } = renderHook(() =>
+      useTileRendering({
+        biomes: [{ biomeType: 0, name: "Unknown" } as Biome],
+        geographies: [{ campaignMapGeographyType: 0, name: "Unknown" } as Geography],
+        selectedTile: null,
+        observedTileKeys: new Set(),
+      }),
+    );
+
+    expect(result.current.getTileTerrainLabel({ x: 1, y: 1, biomeTypeId: 0, geographyTypeId: 0, isExplored: false })).toBe("Unknown");
   });
 });
