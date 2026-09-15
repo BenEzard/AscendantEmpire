@@ -14,8 +14,11 @@ export interface TileProps {
   tile: TileCell;
   sizePx: number;
   geography: Geography;
-  /** Every force currently selected. A set rather than a single id since selection is a multi-select. */
-  selectedForceIds?: ReadonlySet<number>;
+  /**
+   * Whether the force this tile draws is part of the selection. A boolean rather than the selection set itself, so that changing the selection only
+   * re-renders the tiles whose drawn force actually went in or out of it — a new set would change for every tile at once.
+   */
+  isVisibleForceSelected?: boolean;
   visibleForceId?: number;
   unitImageSrcByUnitTemplateId?: ReadonlyMap<number, string>;
   /**
@@ -36,19 +39,30 @@ export interface TileProps {
   onHold?: (tile: TileCell) => void;
   className?: string;
   /**
-   * Optional styling hooks.
+   * The CSS background to paint the tile with, overriding the faint default. A string rather than a style callback, so the memo compares what the tile
+   * looks like instead of which function produced it.
    */
-  getTitle?: (tile: TileCell) => string;
-  getStyle?: (tile: TileCell) => React.CSSProperties;
+  background?: string;
+  /** Draws the highlight outline around the tile, for the tile the vision tool is pointed at. */
+  isHighlighted?: boolean;
+  /** The hover tooltip. */
+  title?: string;
 }
 
 const HOLD_DELAY_MS = 350;
+
+/** The outline drawn around a highlighted tile. Inset by its own width so it sits inside the tile rather than under its neighbours. */
+const HIGHLIGHT_OUTLINE = "2px solid rgba(255, 255, 0, 0.8)";
+const HIGHLIGHT_OUTLINE_OFFSET = "-2px";
+
+/** The background of a tile whose caller supplies none. */
+const DEFAULT_BACKGROUND = "rgba(0,0,0,0.03)";
 
 const Tile = React.memo(function Tile({
   tile,
   sizePx,
   geography,
-  selectedForceIds,
+  isVisibleForceSelected = false,
   visibleForceId,
   unitImageSrcByUnitTemplateId,
   isObserved = true,
@@ -58,8 +72,9 @@ const Tile = React.memo(function Tile({
   onClick,
   onHold,
   className,
-  getTitle,
-  getStyle,
+  background,
+  isHighlighted = false,
+  title,
 }: TileProps) {
   const clickable = !!onClick;
   const holdTimerRef = React.useRef<number | null>(null);
@@ -74,7 +89,11 @@ const Tile = React.memo(function Tile({
 
   React.useEffect(() => () => clearHoldTimer(), [clearHoldTimer]);
 
-  const baseStyle: React.CSSProperties = {
+  // A faint default, for a tile whose caller has no background to give it.
+  const tileBackground = background ?? DEFAULT_BACKGROUND;
+
+  // Built here from primitive props rather than handed in, so the memo only lets a tile through when something it draws has changed.
+  const style: React.CSSProperties = {
     width: sizePx,
     height: sizePx,
     display: "block",
@@ -84,9 +103,10 @@ const Tile = React.memo(function Tile({
     // no rounding
     borderRadius: 0,
 
-    // base visuals; allow getStyle to override
-    background: "rgba(0,0,0,0.03)",
+    background: tileBackground,
     border: "1px solid rgba(0,0,0,0.12)",
+    outline: isHighlighted ? HIGHLIGHT_OUTLINE : undefined,
+    outlineOffset: HIGHLIGHT_OUTLINE_OFFSET,
   };
 
   const iconKey = geography?.mapEditorIcon ?? null;
@@ -103,21 +123,17 @@ const Tile = React.memo(function Tile({
   const knownForcesToDraw = !isObserved && knownForces != null && knownForces.length > 0 ? knownForces : null;
   const knownStructuresToDraw = !isObserved && knownStructures != null && knownStructures.length > 0 ? knownStructures : null;
 
-  const style = { ...baseStyle, ...(getStyle?.(tile) ?? {}) };
   const combinedClassName = ["tile", className].filter(Boolean).join(" ");
 
-  const bgCandidate =
-    (typeof style.background === "string" ? style.background : undefined) ??
-    (typeof style.backgroundColor === "string" ? style.backgroundColor : undefined);
-  const rgba = cssColorToRgba(bgCandidate);
-  const bgForContrast = rgba && rgba.a < 0.2 ? "#ffffff" : bgCandidate;
+  const rgba = cssColorToRgba(tileBackground);
+  const bgForContrast = rgba && rgba.a < 0.2 ? "#ffffff" : tileBackground;
   const iconColor = pickTextColorOnBg(bgForContrast);
 
   return (
     <div
       className={combinedClassName}
       role={clickable ? "button" : undefined}
-      title={getTitle?.(tile)}
+      title={title}
       onPointerDown={(event) => {
         holdTriggeredRef.current = false;
         clearHoldTimer();
@@ -159,7 +175,7 @@ const Tile = React.memo(function Tile({
         <ObservedForce
           force={visibleForce}
           unitInstanceCount={visibleForceCount}
-          isSelected={selectedForceIds?.has(visibleForce.id) ?? false}
+          isSelected={isVisibleForceSelected}
           unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
         />
       ) : null}

@@ -66,7 +66,7 @@ with the same biome values** (set by the map).
 **Sustenance values** (Forage, Hunt, Fish, Fodder) can be depleted and renewed. The longer a unit
 stays on a tile — and the more individuals in it — the lower its forage gets. Depleted sustenance
 renews at the tile's **Regeneration Rate** (the same rate applies to all sustenance values on the
-tile).
+tile). How depletion and renewal are calculated is in [Depletion of resources](#depletion-of-resources).
 
 **Material values** (Bone, Wood, Stone) are *not* depleted: that amount can be extracted per turn
 indefinitely, until game mechanics turn them off (e.g. bone becomes useless in modern times).
@@ -80,6 +80,9 @@ departments. Each modifier can carry a flat amount, a percentage of base, or bot
 can be removed later (e.g. a specialist is lost), so a Player's value is always derived from the
 modifiers they currently hold, never accumulated. The **material values** (Bone, Wood, Stone,
 Special) are static: the same for every Player in every game.
+
+The **Regeneration Rate** is *not* player-specific. It is the biome's rate, raised only on a claimed
+tile by the claimant's Settlement-scoped modifiers (see [Replenishment](#replenishment)).
 
 A modifier applies **empire-wide**, or to the **territory of one Settlement**.
 
@@ -124,49 +127,168 @@ The purpose of these mechanics:
 
 ### Tracking
 
-Tiles visited recently (those below maximum resource values) and tiles within a settlement zone are
-held in a separate index table for easy access.
+Tiles with any sustenance taken (`Taken > 0` for any resource) and tiles within a settlement zone
+are held in a separate index table for easy access.
+
+### What a tile stores: the amount taken
+
+A tile's depletion state is **Player-neutral**. For each sustenance resource (Forage, Hunt, Fish,
+Fodder) the tile stores only **how much has been taken** from it, `Taken` (never below `0`), plus
+whether anyone **fed on it this round** (see [Replenishment](#replenishment)). It does not store an
+amount remaining, because the amount remaining is different for every Player.
+
+Each Player sees, and can extract, only what is left of **their own** effective value:
+
+```
+Available to a Player = MAX(0, [Player's Effective Value] − Taken)
+```
+
+- **Feeding** adds what was extracted to `Taken`. A Player can never extract more than is
+  available to them.
+- **Modifier changes** need no reconciliation. Effective values are read live, so a Player who
+  gains or loses a modifier simply sees a different amount against the same `Taken`.
+- **No Player is recorded** on the tile, and there is no hand-over calculation when a different
+  Player arrives: every Player reads the same `Taken`.
+
+A Player with a higher value can therefore reach food a weaker Player cannot. Once a weaker Player
+has stripped a tile, a stronger Player still finds their surplus on it.
+
+> **Why an absolute amount rather than a percentage.** Storing a fraction remaining
+> (`fraction × own value`) would make a stronger Player's advantage "more yield from the same
+> animals", and a tile emptied by anyone would be empty for everyone. Storing the amount taken gives
+> the stronger Player a reserve the weaker Player cannot touch, which is the advantage tech is meant
+> to buy. Converting a Player's *view* into another Player's view (rather than storing a neutral
+> amount) is order-dependent and leaks food on every hand-over, so it is avoided.
 
 ### Scenario — a unit moves onto a tile
 
-Suppose Empire A has two tech improvements raising Grassland Hunt to 200 and Regen.Rate to 1.7, and
-moves a 100-man unit onto a grassland tile. A record is created in `OccupiedTiles` using Empire A's
-biome values:
+Suppose Empire A has tech improvements raising their Grassland Hunt to 200, and moves a 100-man unit
+onto an untouched grassland tile. The tile's `Taken` is `0` for every resource, so Empire A sees:
 
-| | Forage | Hunt | Fish | Fodder | Regen.Rate |
-| --- | --- | --- | --- | --- | --- |
-| Tile food supply | 400 | 200 | 0 | 1000 | 1.7 |
+| | Forage | Hunt | Fish | Fodder |
+| --- | --- | --- | --- | --- |
+| Available to Empire A | 400 | 200 | 0 | 1000 |
 
-At end of turn, 100 food is deducted (100 men). Human-consumable food on the tile is
-`400 + 200 + 0 = 600`, so Forage is reduced by `2/3 × 100 = 66` and Hunt by `1/3 × 100 = 33`:
+At end of turn, 100 food is deducted (100 men). Human-consumable food available is
+`400 + 200 + 0 = 600`, so `2/3 × 100 = 66` is taken from Forage and `1/3 × 100 = 33` from Hunt:
 
-| | Forage | Hunt | Fish | Fodder | Regen.Rate |
-| --- | --- | --- | --- | --- | --- |
-| Tile food supply | 334 | 67 | 0 | 1000 | 1.7 |
-
-### Players with different values on the same tile
-
-A tile has one depletion state, but each Player can extract only up to **their own current value**
-for that biome. Players with different values therefore see different amounts left on the same
-tile.
-
-For example, Player A's Grassland Forage is 100 and Player B's is 150. Player A exhausts the tile
-once they have taken 100. When Player B arrives, there are still 50 on the tile for them (their
-150 minus Player A's 100). Player B can see and extract that 50. Player A cannot.
-
-To handle this, the tile records the last Player on it. When a different Player arrives, the gap
-between the two Players' values is calculated and reconciled.
+| | Forage | Hunt | Fish | Fodder |
+| --- | --- | --- | --- | --- |
+| Taken (stored on the tile) | 66 | 33 | 0 | 0 |
+| Available to Empire A | 334 | 167 | 0 | 1000 |
+| Available to a Player on base values (Hunt 100) | 334 | 67 | 0 | 1000 |
 
 ### Replenishment
 
-At the end of each round, each foodstuff is replenished:
+Replenishment runs **once per tile at the end of each round**, after every Player's turn, for each
+sustenance resource with a non-`null` base.
 
-- if the current amount on the tile is `0` → `[Empire Resource Initial Value] × 0.1`;
-- if the current amount is `> 0` → `current amount × [Regeneration Rate]`, capped at
-  `[Empire Biome Resource Initial Value]`.
+#### Inputs
 
-The empire whose values apply is the one that has **claimed** the tile, if it lies within their
-territory. On an unclaimed tile, it is the **last Player on the tile**.
+| Input | Unclaimed tile | Claimed tile (within a Player's territory) |
+| --- | --- | --- |
+| `Base` | The biome's base value from `map.CampaignBiomes` | The **claimant's** effective value for the tile (empire-wide and Settlement-scoped modifiers) |
+| `Rate` | The biome's Regeneration Rate | The biome's Regeneration Rate plus the claimant's Settlement-scoped regeneration modifiers |
+| `FedOn` | Whether anyone fed on the tile this round | same |
+
+`Base` sets how much regrows, the 10% refill and the cap. Using the claimant's values on a claimed
+tile is how a Player's management of their own land shows: their tech gives a higher `Base` (more
+regrowth, a higher refill) and their Settlements can raise `Rate`. Wild land always recovers at the
+biome's values, whoever was last on it.
+
+> TODO: Settlement-scoped regeneration modifiers wait on Settlements, as Settlement-scoped
+> sustenance modifiers do.
+
+A tile was **fed on** this round if any Force ended its turn on it, or passed through it (the 20%
+draw), **whether or not there was anything left to take**. It depends on presence, not on food
+extracted; otherwise a Force sitting on an empty tile would let it refill.
+
+> TODO: Whether a Settlement's population feeding on its own territory counts as feeding on the tile
+> is deferred to the Settlement mechanics.
+
+#### Calculation
+
+`Base − Taken` is the tile's **base view**: what is left measured against `Base`. It can be negative
+when a stronger Player has taken more than `Base`.
+
+| Condition | Fed on this round | Nobody fed on it |
+| --- | --- | --- |
+| `Taken ≥ Base` (bare at base values) | **No change** | `Taken = 0.9 × Base` |
+| `Taken > 0.9 × Base` (base view below 10%) | Regrow | `Taken = 0.9 × Base` |
+| Otherwise | Regrow | Regrow |
+
+```
+Regrow:  Taken = MAX(0, Taken − (Base − Taken) × (Rate − 1))
+```
+
+Regrowing is the base view multiplied by `Rate`, capped at `Base` (so `Taken` never goes below `0`).
+A tile below 10% that is left alone for a round jumps to 10% of `Base`, rather than regrowing, and
+skips regrowth for that round.
+
+The rules in effect:
+
+- A tile **can be fully depleted**. While someone keeps feeding on a bare tile it stays bare, for
+  every Player, however strong.
+- A tile **left alone** for a round recovers to at least 10% of `Base`.
+- A **partly depleted** tile regrows at `Rate` whether or not it is fed on.
+
+> **Why nothing changes on a bare tile that is fed on.** The alternative, converting the base view
+> back into `Taken` (`Taken = Base − new base view`), forgets whatever was taken above `Base`. A
+> stronger Player's surplus (`their value − Base`) would come back in full every round on a tile that
+> is meant to be bare, and a Force of that size could camp on it forever while no weaker Player could
+> eat at all. The surplus grows with tech (at +100% it is a whole tile's worth every round), which
+> would break denial — scorched earth, stripping a tile ahead of an enemy, starving besiegers —
+> against stronger Players.
+>
+> **Why `Base` rather than the highest value of any Player.** Measuring against the highest Player
+> value also closes that leak, but every Player's regrowth then speeds up with the best Player's tech,
+> and a weaker Player sees nothing on a tile a stronger Player stripped until the stronger Player's
+> whole surplus has grown back first.
+
+#### Worked examples
+
+Illustrative values: an unclaimed tile, Hunt `Base` 80, `Rate` 1.1. Player **Default** has Hunt 80
+(no modifiers); Player **Advanced** has Hunt 100 (+25%).
+
+**Default, then Advanced.**
+
+| Step | `Taken` | Default sees | Advanced sees |
+| --- | --- | --- | --- |
+| Untouched | 0 | 80 | 100 |
+| Default takes 30 | 30 | 50 | 70 |
+| Round end, fed on: regrow `30 − 50 × 0.1` | 25 | 55 | 75 |
+| Default leaves; Advanced arrives and takes 30 | 55 | 25 | 45 |
+
+The order of arrival makes no difference: had Advanced taken the first 30, every number would be the
+same.
+
+**Default strips the tile; Advanced camps on it.**
+
+| Step | `Taken` | Default sees | Advanced sees |
+| --- | --- | --- | --- |
+| Default takes 80 | 80 | 0 | 20 |
+| Round end, fed on, `Taken ≥ Base`: no change | 80 | 0 | 20 |
+| Advanced arrives and takes 20 | 100 | 0 | 0 |
+| Round end, fed on, `Taken ≥ Base`: no change | 100 | 0 | 0 |
+| Advanced leaves; round end, nobody fed on it: `0.9 × 80` | 72 | 8 | 28 |
+| Round end, nobody fed on it: regrow `72 − 8 × 0.1` | 71.2 | 8.8 | 28.8 |
+
+**Claimed tile.** The same tile claimed by Advanced uses `Base` 100. With `Taken` 25 and the tile fed
+on, it regrows by `(100 − 25) × 0.1 = 7.5` (to `Taken` 17.5), where wild land regrows by
+`(80 − 25) × 0.1 = 5.5`.
+
+#### Accepted behaviour
+
+- **A small Force can live on a tile indefinitely** by eating no more than the tile regrows. The
+  most a tile can sustain each round, per resource, is `Base × (1 − 1 / Rate)`: eat it down to
+  `Base / Rate` and it regrows to full. For example, Hunt 30 sustains 2.7 a round at `Rate` 1.1, or
+  10 at `Rate` 1.5.
+- **A round left alone restores a stronger Player's whole surplus** (`Taken = 0.9 × Base` forgives
+  anything taken above `Base`). Using it means leaving the tile for a full round, so it rewards
+  moving around rather than camping. Stripping a tile and staying on it still denies it to everyone.
+- **A base of `0`.** If a Player's modifiers give them a value in a biome whose base is `0` (and not
+  `null`), an unclaimed tile is always bare at base values: it stays bare while fed on, and resets to
+  `Taken = 0` after a round left alone.
 
 ### Depletion rules
 
@@ -182,6 +304,9 @@ territory. On an unclaimed tile, it is the **last Player on the tile**.
 - **Scorched earth** sets all resource quantities on the tile to `0`. The unit on the tile is fed
   for that turn, but the extra resources are *not* added to the unit's supply.
 
+> TODO: Decide how scorched earth sets `Taken`. To leave the tile bare for every Player it must be at
+> least the highest effective value any Player has for that tile.
+
 **Consumption per Unit (within a Force):** if `[Food Required] > 0`,
 `Σ([Number of individuals] × [Food requirements of Unit Base])`.
 
@@ -195,12 +320,16 @@ with a forager worth 10 needs only 90 food from the tile.
 - Add up all Action bonuses for the empire (e.g. FORAGE, HUNTING).
 - For each unit, calculate food required (based on individuals and the food requirement of their
   base, plus attached specialists). A man = 1 food; a mounted man = 1 food + 2 fodder.
-- If a tile's current food supply is below 10% of its maximum, set it to 10%.
+- Add each Force's extraction to the tile's `Taken`, and mark the tile as fed on this round.
+
+At the end of the **round** (after every Player's turn), each indexed tile is replenished as described
+in [Replenishment](#replenishment).
 
 ### Regeneration and farming bonuses
 
 Regeneration speed depends on climate, and the same rate applies to all renewable food sources on
-the tile. Terrain improvements and equipment add yield:
+the tile. The rate is the biome's; only a claimant's Settlement-scoped modifiers raise it (see
+[Replenishment](#replenishment)). Terrain improvements and equipment add yield:
 
 - Terrain improvement **Irrigation**: +50% yield.
 - Terrain improvement **Farm (with crop)**: +300% yield.

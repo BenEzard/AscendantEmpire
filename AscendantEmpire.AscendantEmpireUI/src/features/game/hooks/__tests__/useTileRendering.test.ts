@@ -25,8 +25,8 @@ function renderTileRendering(observed: string[]) {
 }
 
 /** The background is built as a stack of gradient layers over the biome colour, so overlays are counted by looking for them. */
-function overlayCount(background: string | undefined): number {
-  return (background ?? "").split("linear-gradient").length - 1;
+function overlayCount(background: string): number {
+  return background.split("linear-gradient").length - 1;
 }
 
 /**
@@ -38,27 +38,27 @@ describe("useTileRendering fog layers", () => {
   it("draws no overlay at all on ground an observer is watching", () => {
     const { result } = renderTileRendering(["1,1"]);
 
-    const style = result.current.getTileStyle(tile(1, 1, true));
+    const background = result.current.getTileBackground(tile(1, 1, true));
 
-    expect(overlayCount(style.background as string)).toBe(0);
-    expect(style.background).toContain(GRASSLAND_COLOUR);
+    expect(overlayCount(background)).toBe(0);
+    expect(background).toContain(GRASSLAND_COLOUR);
   });
 
   /** Explored but unwatched: the terrain under the haze is real and the player is meant to still be able to read it. */
   it("hazes explored ground that nothing is watching, over its real biome colour", () => {
     const { result } = renderTileRendering([]);
 
-    const style = result.current.getTileStyle(tile(1, 1, true));
+    const background = result.current.getTileBackground(tile(1, 1, true));
 
-    expect(overlayCount(style.background as string)).toBe(1);
-    expect(style.background).toContain(GRASSLAND_COLOUR);
+    expect(overlayCount(background)).toBe(1);
+    expect(background).toContain(GRASSLAND_COLOUR);
   });
 
   it("fogs unexplored ground more heavily than explored ground that is merely unwatched", () => {
     const { result } = renderTileRendering([]);
 
-    const unexplored = result.current.getTileStyle(tile(1, 1, false)).background as string;
-    const unwatched = result.current.getTileStyle(tile(2, 2, true)).background as string;
+    const unexplored = result.current.getTileBackground(tile(1, 1, false));
+    const unwatched = result.current.getTileBackground(tile(2, 2, true));
 
     expect(unexplored).not.toEqual(unwatched);
     // Both draw exactly one overlay; they differ in which one, and the unexplored layer is the near-opaque of the two.
@@ -73,9 +73,9 @@ describe("useTileRendering fog layers", () => {
   it("draws only the unexplored fog on ground that is neither explored nor watched", () => {
     const { result } = renderTileRendering([]);
 
-    const style = result.current.getTileStyle(tile(1, 1, false));
+    const background = result.current.getTileBackground(tile(1, 1, false));
 
-    expect(overlayCount(style.background as string)).toBe(1);
+    expect(overlayCount(background)).toBe(1);
   });
 
   /**
@@ -87,17 +87,48 @@ describe("useTileRendering fog layers", () => {
       useTileRendering({ biomes: BIOMES, geographies: [], selectedTile: null, observedTileKeys: new Set(observed) }),
     { initialProps: { observed: ["5,5"] } });
 
-    const whileWatched = result.current.getTileStyle(tile(5, 5, true)).background as string;
+    const whileWatched = result.current.getTileBackground(tile(5, 5, true));
 
     // The force has stepped away and now reports a different set of tiles.
     rerender({ observed: ["6,5"] });
 
-    const afterStep = result.current.getTileStyle(tile(5, 5, true)).background as string;
-    const neverSeen = result.current.getTileStyle(tile(5, 5, false)).background as string;
+    const afterStep = result.current.getTileBackground(tile(5, 5, true));
+    const neverSeen = result.current.getTileBackground(tile(5, 5, false));
 
     expect(overlayCount(whileWatched)).toBe(0);
     expect(overlayCount(afterStep)).toBe(1);
     expect(afterStep).not.toEqual(neverSeen);
+  });
+});
+
+/**
+ * The vision tool's selected tile is drawn twice over: a yellow layer in the background, and an outline the tile draws itself when
+ * told it is selected. Both have to agree on which tile that is.
+ */
+describe("useTileRendering selection", () => {
+  function renderWithSelection(selectedTile: { x: number; y: number } | null) {
+    return renderHook(() => useTileRendering({ biomes: BIOMES, geographies: [], selectedTile, observedTileKeys: new Set(["1,1", "2,2"]) }));
+  }
+
+  it("reports only the selected tile as selected", () => {
+    const { result } = renderWithSelection({ x: 1, y: 1 });
+
+    expect(result.current.isTileSelected(tile(1, 1, true))).toBe(true);
+    expect(result.current.isTileSelected(tile(2, 2, true))).toBe(false);
+  });
+
+  it("reports no tile as selected while nothing is", () => {
+    const { result } = renderWithSelection(null);
+
+    expect(result.current.isTileSelected(tile(1, 1, true))).toBe(false);
+  });
+
+  /** Watched ground has no fog layer, so the single overlay on the selected tile can only be the selection's. */
+  it("layers the selection over the selected tile's background and nowhere else", () => {
+    const { result } = renderWithSelection({ x: 1, y: 1 });
+
+    expect(overlayCount(result.current.getTileBackground(tile(1, 1, true)))).toBe(1);
+    expect(overlayCount(result.current.getTileBackground(tile(2, 2, true)))).toBe(0);
   });
 });
 

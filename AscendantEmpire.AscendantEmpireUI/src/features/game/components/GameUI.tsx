@@ -143,14 +143,18 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     onError: (err) => openToast(err instanceof Error ? err.message : "That force could not move.", "danger"),
   });
 
+  // Taken out of the mutation result on its own. The result is a fresh object on every render, but `mutate` keeps its identity, so the callbacks below
+  // depend on it rather than on the result — otherwise the map's hold handler, and with it the whole tile grid, changed on every render of this page.
+  const { mutate: mutateStepForce } = stepForce;
+
   const onNumpadStep = useCallback(
     (direction: MoveDirection) => {
       const force = getForceToStep();
       if (force == null) return;
 
-      stepForce.mutate({ unitInstanceId: force.id, direction });
+      mutateStepForce({ unitInstanceId: force.id, direction });
     },
-    [getForceToStep, stepForce],
+    [getForceToStep, mutateStepForce],
   );
 
   const onSingleForceOnly = useCallback(
@@ -178,7 +182,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
 
       switch (plan.kind) {
         case "step":
-          stepForce.mutate({ unitInstanceId: plan.unitInstanceId, direction: plan.direction });
+          mutateStepForce({ unitInstanceId: plan.unitInstanceId, direction: plan.direction });
           break;
         case "multiple-selected":
           onSingleForceOnly();
@@ -193,7 +197,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
           break;
       }
     },
-    [getStepToTile, onSingleForceOnly, openToast, stepForce],
+    [getStepToTile, onSingleForceOnly, openToast, mutateStepForce],
   );
 
   const construction = useConstructionPanel();
@@ -257,7 +261,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   // them there, so the map is never left showing whichever of the two spoke last.
   const { observedTileKeys } = useFogOfWar(tilesResponse?.observers);
 
-  const { getTileStyle, getTileTitle, getTileTerrainLabel } = useTileRendering({ biomes, geographies, selectedTile, observedTileKeys });
+  const { getTileBackground, isTileSelected, getTileTitle, getTileTerrainLabel } = useTileRendering({ biomes, geographies, selectedTile, observedTileKeys });
 
   // What the tile toolbar draws. Looked up from the current grid on every rebuild rather than captured at click time, so a
   // tile explored under the bar (a force stepping next to it, say) shows its real terrain rather than the placeholder.
@@ -602,7 +606,8 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
                       currentRoundNumber={currentRoundNumber}
                       onTileClick={onTileClick}
                       onTileHold={onTileHold}
-                      getTileStyle={getTileStyle}
+                      getTileBackground={getTileBackground}
+                      isTileHighlighted={isTileSelected}
                       getTileTitle={getTileTitle}
                     />
                   )}

@@ -33,14 +33,23 @@ export interface TileGridProps {
   getKnownStructures?: (tile: TileCell) => readonly KnownStructure[] | undefined;
   /** The round being played now, which markers fade against. */
   currentRoundNumber?: number | null;
+  /** Called with the clicked tile. Its identity may change freely: the grid hands every tile one stable handler that forwards to the latest one. */
   onTileClick?: (tile: TileCell) => void;
+  /** Called when a tile is held. The same stability guarantee as `onTileClick` applies. */
   onTileHold?: (tile: TileCell) => void;
 
-  /**
-   * Optional hooks you can use for tooltips / styling.
+  /*
+   * Per-tile appearance. Each of these is called by the grid for every tile, and what it returns is handed to the tile as a plain value. That is what lets
+   * the memoised tiles skip re-rendering when a callback takes a new identity — only a tile whose returned value actually changed re-renders. They must
+   * therefore return primitives: a fresh object per call would defeat the memo just as a fresh callback used to.
    */
+
+  /** The hover tooltip. */
   getTileTitle?: (tile: TileCell) => string;
-  getTileStyle?: (tile: TileCell) => React.CSSProperties;
+  /** The CSS background to paint the tile with. Omitted means a faint default. */
+  getTileBackground?: (tile: TileCell) => string;
+  /** Whether to draw the highlight outline around the tile. */
+  isTileHighlighted?: (tile: TileCell) => boolean;
   tileClassName?: string;
 }
 
@@ -60,10 +69,27 @@ const TileGrid = React.memo(function TileGrid({
   onTileClick,
   onTileHold,
   getTileTitle,
-  getTileStyle,
+  getTileBackground,
+  isTileHighlighted,
   tileClassName,
 }: TileGridProps) {
   void height;
+
+  // The latest click and hold handlers, held in refs so the tiles can be given handlers that never change identity. A caller's handler typically depends
+  // on the selection, so passing it straight through would re-render every tile on the map each time the selection changed.
+  const onTileClickRef = React.useRef(onTileClick);
+  onTileClickRef.current = onTileClick;
+
+  const onTileHoldRef = React.useRef(onTileHold);
+  onTileHoldRef.current = onTileHold;
+
+  const handleTileClick = React.useCallback((tile: TileCell) => onTileClickRef.current?.(tile), []);
+  const handleTileHold = React.useCallback((tile: TileCell) => onTileHoldRef.current?.(tile), []);
+
+  // Whether a handler is supplied at all still reaches the tiles, since it changes how they behave: a tile with no click handler isn't drawn as a button,
+  // and one with no hold handler never starts the hold timer. That only changes when a handler appears or disappears, not when it is replaced.
+  const tileClickHandler = onTileClick ? handleTileClick : undefined;
+  const tileHoldHandler = onTileHold ? handleTileHold : undefined;
   // Flatten row-major (y then x)
   const flat = React.useMemo(() => tiles2d.flat(), [tiles2d]);
 
@@ -98,23 +124,32 @@ const TileGrid = React.memo(function TileGrid({
             throw new Error(`No Geography found for geographyTypeId=${t.geographyTypeId} at (${t.x},${t.y})`);
           }
 
+          // The force the tile draws, falling back to its first force the same way Tile does, so the selected state below describes the force that is
+          // actually on screen.
+          const visibleForceId = getVisibleForceId?.(t) ?? t.forces?.[0]?.id;
+
+          // Resolved to a boolean here rather than passing the selection set down. A new set reaches every tile; a boolean only differs for the tiles whose
+          // drawn force went into or out of the selection.
+          const isVisibleForceSelected = visibleForceId != null && (selectedForceIds?.has(visibleForceId) ?? false);
+
           return (
             <Tile
               key={`${t.x},${t.y}`}
               tile={t}
               geography={g}
               sizePx={TILE_SIZE_PX}
-              selectedForceIds={selectedForceIds}
+              isVisibleForceSelected={isVisibleForceSelected}
               unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
-              visibleForceId={getVisibleForceId?.(t)}
+              visibleForceId={visibleForceId}
               isObserved={isTileObserved?.(t) ?? true}
               knownForces={getKnownForces?.(t)}
               knownStructures={getKnownStructures?.(t)}
               currentRoundNumber={currentRoundNumber}
-              onClick={onTileClick}
-              onHold={onTileHold}
-              getTitle={getTileTitle}
-              getStyle={getTileStyle}
+              onClick={tileClickHandler}
+              onHold={tileHoldHandler}
+              title={getTileTitle?.(t)}
+              background={getTileBackground?.(t)}
+              isHighlighted={isTileHighlighted?.(t) ?? false}
               className={tileClassName}
             />
           );

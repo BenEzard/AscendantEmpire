@@ -99,7 +99,7 @@ POST /campaign-map/player ─┐
                            ├─► tiles cache (React Query: ["playerCampaignTiles", gameId, playerId])
 POST /force-orders/step ───┘         │
                                      ├─ tiles[]      ─► buildTiles2d ─► TileCell.isExplored ─┐
-                                     │                                                        ├─► getTileStyle
+                                     │                                                        ├─► getTileBackground
                                      └─ observers[]  ─► useFogOfWar ─► observedTileKeys ─────┘
 ```
 
@@ -129,7 +129,7 @@ not re-render when something unrelated on the page does.
 | `features/map/hooks/useCampaignMapTiles.ts` | The cache and `mergeTiles` — the accumulate/replace rules above. |
 | `features/game/hooks/useForceStep.ts` | Writes a step's tiles *and* observers into the same cache. |
 | `features/game/hooks/useFogOfWar.ts` | Derives `observedTileKeys`, skipping the whole-map pseudo-observer. |
-| `features/game/hooks/useTileRendering.ts` | `getTileStyle` — picks one of the three overlays. |
+| `features/game/hooks/useTileRendering.ts` | `getTileBackground` — picks one of the three overlays. |
 | `features/map/components/Tile.tsx` | Draws structures and forces only when `isObserved`. |
 
 ### Occupants are not drawn on unwatched ground

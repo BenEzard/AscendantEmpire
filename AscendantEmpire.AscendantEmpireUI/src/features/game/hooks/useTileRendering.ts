@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type CSSProperties } from "react";
+import { useCallback, useMemo } from "react";
 import type { Biome } from "@/types/map/Biome";
 import type { Geography } from "@/types/map/Geography";
 import type { TileCell } from "@/features/map/components/TileTypes";
@@ -24,9 +24,12 @@ const UNEXPLORED_FOG = "linear-gradient(rgba(48, 48, 48, 0.9), rgba(48, 48, 48, 
 const UNWATCHED_HAZE = "linear-gradient(rgba(90, 90, 90, 0.35), rgba(90, 90, 90, 0.35)), ";
 
 /**
- * Builds the biome/geography lookup maps and the tile style/title accessors for the
- * game map. Tile style layers a selection highlight and a fog-of-war overlay over the
- * biome colour. The terrain label is also returned on its own, for the tile toolbar.
+ * Builds the biome/geography lookup maps and the per-tile appearance accessors for the
+ * game map. A tile's background layers a selection highlight and a fog-of-war overlay over
+ * the biome colour. The terrain label is also returned on its own, for the tile toolbar.
+ *
+ * Every accessor returns a primitive, because the grid passes what they return to memoised
+ * tiles as values — see TileGrid.
  *
  * The fog has two layers, because the map answers two different questions per tile.
  * *Explored* is permanent and rides on the tile itself: once the player has seen the
@@ -61,12 +64,24 @@ export function useTileRendering(opts: UseTileRenderingOptions) {
     return m;
   }, [geographies]);
 
-  const getTileStyle = useCallback(
-    (t: TileCell): CSSProperties => {
+  /** Whether the tile is the one the vision tool is pointed at. */
+  const isTileSelected = useCallback(
+    (t: TileCell) => selectedTile != null && selectedTile.x === t.x && selectedTile.y === t.y,
+    [selectedTile],
+  );
+
+  /**
+   * The tile's CSS background: a stack of gradient overlays (selection, then fog) over the biome colour.
+   *
+   * A string rather than a style object, so the grid can hand it to each memoised tile as a value. A tile then only re-renders when its own background
+   * changes, not whenever the selection or the observed set gives this callback a new identity.
+   */
+  const getTileBackground = useCallback(
+    (t: TileCell): string => {
       const bg = t.biomeTypeId != null ? biomeColorByType.get(t.biomeTypeId) : undefined;
       const baseBg = bg ?? "rgba(0,0,0,0.03)";
 
-      const isSelected = selectedTile != null && selectedTile.x === t.x && selectedTile.y === t.y;
+      const isSelected = isTileSelected(t);
       const isObserved = observedTileKeys.has(`${t.x},${t.y}`);
 
       const selectionOverlay = isSelected ? "linear-gradient(rgba(255, 255, 0, 0.35), rgba(255, 255, 0, 0.35)), " : "";
@@ -80,13 +95,9 @@ export function useTileRendering(opts: UseTileRenderingOptions) {
         fogOverlay = UNWATCHED_HAZE;
       }
 
-      return {
-        background: `${selectionOverlay}${fogOverlay}${baseBg}`,
-        outline: isSelected ? "2px solid rgba(255, 255, 0, 0.8)" : undefined,
-        outlineOffset: "-2px",
-      };
+      return `${selectionOverlay}${fogOverlay}${baseBg}`;
     },
-    [biomeColorByType, observedTileKeys, selectedTile],
+    [biomeColorByType, isTileSelected, observedTileKeys],
   );
 
   /**
@@ -120,5 +131,5 @@ export function useTileRendering(opts: UseTileRenderingOptions) {
     [getTileTerrainLabel],
   );
 
-  return { getTileStyle, getTileTitle, getTileTerrainLabel };
+  return { getTileBackground, isTileSelected, getTileTitle, getTileTerrainLabel };
 }
