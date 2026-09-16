@@ -225,7 +225,8 @@ internal static class BiomeSeedData
                 DoesBlockSight = true,
                 IsWater = false,
                 IsTraversable = false,
-                RegenerationRate = 1.1m,
+                // No sustenance values, so nothing regrows and the rate must be empty.
+                RegenerationRate = null,
                 IsPaintableOnCampaignMap = true,
                 MapEditorHtmlColor = "#000000",
                 CanBeElevated = true,

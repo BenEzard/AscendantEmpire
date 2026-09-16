@@ -48,6 +48,8 @@ internal class AddCampaignBiomesHandlerTests
                 IsWater = false,
                 IsTraversable = true,
                 RegenerationRate = 1.15m,
+                // A Regeneration Rate is only valid alongside a sustenance value.
+                BaseForageValue = 30,
                 MapEditorHtmlColor = "#fcfda4",
                 CanBeElevated = true,
                 IsPaintableOnCampaignMap = true
@@ -272,10 +274,10 @@ internal class AddCampaignBiomesHandlerTests
         }
     }
 
-    [Test, Description("Should fail if Regeneration Rate is 1 or less.")]
-    [TestCase(1.0, Description = "Regeneration Rate is 1.0")]
+    [Test, Description("Should fail if a Biome with sustenance values has a Regeneration Rate below the 1.05 minimum.")]
+    [TestCase(1.04, Description = "Regeneration Rate is just below the 1.05 minimum")]
     [TestCase(0.5, Description = "Regeneration Rate is 0.5")]
-    public async Task ShouldFailWhenRegenerationRateIsOneOrLess(decimal regenerationRate)
+    public async Task ShouldFailWhenRegenerationRateIsBelowTheMinimum(decimal regenerationRate)
     {
         var request = new AddCampaignMapBiomesRequest(
         [
@@ -288,6 +290,7 @@ internal class AddCampaignBiomesHandlerTests
                 IsWater = false,
                 IsTraversable = true,
                 RegenerationRate = regenerationRate, // Invalid Regeneration Rate
+                BaseForageValue = 30, // A sustenance value, so the rate is required and its minimum applies
                 MapEditorHtmlColor = "#fcfda4",
                 CanBeElevated = true,
                 IsPaintableOnCampaignMap = true

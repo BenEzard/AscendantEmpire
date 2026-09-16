@@ -157,6 +157,7 @@ public static class ApplicationStartup
 
         // End of a Campaign Round — runs once, after the last Player's turn in the Round.
         services.AddScoped<IEndCampaignRoundProcess, HealTroops>();
+        services.AddScoped<IEndCampaignRoundProcess, RegenerateTileSustenance>();
         services.AddScoped<IEndCampaignRoundProcess, EvaluateVictoryConditions>();
 
         // Start of a Campaign Turn — runs for the Player whose turn is beginning.

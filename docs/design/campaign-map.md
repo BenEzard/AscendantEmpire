@@ -68,6 +68,10 @@ stays on a tile — and the more individuals in it — the lower its forage gets
 renews at the tile's **Regeneration Rate** (the same rate applies to all sustenance values on the
 tile). How depletion and renewal are calculated is in [Depletion of resources](#depletion-of-resources).
 
+A biome with any sustenance value (a non-`null` Forage, Hunt, Fish or Fodder base, `0` included)
+must have a Regeneration Rate of at least **1.05**. A biome with none must leave the rate empty, since
+it has nothing to regrow. The biome validator enforces both.
+
 **Material values** (Bone, Wood, Stone) are *not* depleted: that amount can be extracted per turn
 indefinitely, until game mechanics turn them off (e.g. bone becomes useless in modern times).
 
@@ -200,6 +204,11 @@ Had the pool held less than 100, the unit would take everything available and go
 Replenishment runs **once per tile at the end of each round**, after every Player's turn, for each
 sustenance resource with a non-`null` base.
 
+Today this is the end-of-round `RegenerateTileSustenance` process. It reads the Game's
+`game.CampaignMapDepletion` rows with any `Taken` above `0` (a row regrown to `0` is kept for the next
+feed) and treats every tile as unclaimed. A biome with a sustenance base but no rate predates the
+validator rule; its tiles are skipped with a warning until the data is re-seeded.
+
 #### Inputs
 
 | Input | Unclaimed tile | Claimed tile (within a Player's territory) |
@@ -241,6 +250,10 @@ Regrow:  Taken = MAX(0, Taken − (Base − Taken) × (Rate − 1))
 Regrowing is the base view multiplied by `Rate`, capped at `Base` (so `Taken` never goes below `0`).
 A tile below 10% that is left alone for a round jumps to 10% of `Base`, rather than regrowing, and
 skips regrowth for that round.
+
+`FedOn` is `FedOnRound` equal to the round that is ending, so nothing needs clearing for the next
+round. Amounts are in thousandths, and rounding always goes against the tile: the regrowth is rounded
+down and `0.9 × Base` is rounded up.
 
 The rules in effect:
 
@@ -346,8 +359,8 @@ to their troops. Each Force's need, food and shortfall is handed to `IUnderfedFo
 for the consequences of going hungry; it only logs until the damage model for partial feeding is
 designed.
 
-At the end of the **round** (after every Player's turn), each indexed tile is replenished as described
-in [Replenishment](#replenishment).
+At the end of the **round** (after every Player's turn), the `RegenerateTileSustenance` process
+replenishes each depleted tile as described in [Replenishment](#replenishment).
 
 ### Regeneration and farming bonuses
 

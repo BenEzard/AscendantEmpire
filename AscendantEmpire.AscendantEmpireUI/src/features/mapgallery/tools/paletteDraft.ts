@@ -2,7 +2,8 @@ import type { Biome } from "@/types/map/Biome";
 import type { Geography } from "@/types/map/Geography";
 
 const BIOME_DEFAULTS = {
-  regenerationRate: 1.1,
+  // A new biome starts with no sustenance values, and the server requires the rate to be empty until it has one.
+  regenerationRate: null,
   movementCost: 1,
   isTraversable: true,
   isWater: false,

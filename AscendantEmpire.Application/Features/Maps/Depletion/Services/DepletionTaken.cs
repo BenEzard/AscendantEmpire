@@ -82,4 +82,49 @@ internal static class DepletionTaken
             }
         }
     }
+
+    /// <summary>
+    /// Replaces what has been taken of <paramref name="resource"/> from the tile with <paramref name="amount"/>.
+    /// </summary>
+    /// <remarks>
+    /// For regeneration, which works out a whole new <c>Taken</c> rather than adding to it. Feeding adds through <see cref="AddTaken"/>.
+    /// </remarks>
+    /// <param name="depletion">The tile's depletion row.</param>
+    /// <param name="resource">The resource to set.</param>
+    /// <param name="amount">The new amount taken. Must not be negative, matching the table's check constraint.</param>
+    public static void SetTaken(CampaignMapDepletion depletion, SustenanceResource resource, ScaledAmount amount)
+    {
+        if (amount < ScaledAmount.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(amount), "An amount taken cannot be negative.");
+        }
+
+        switch (resource)
+        {
+            case SustenanceResource.Forage:
+            {
+                depletion.ForageTaken = amount.RawValue;
+                break;
+            }
+            case SustenanceResource.Hunt:
+            {
+                depletion.HuntTaken = amount.RawValue;
+                break;
+            }
+            case SustenanceResource.Fish:
+            {
+                depletion.FishTaken = amount.RawValue;
+                break;
+            }
+            case SustenanceResource.Fodder:
+            {
+                depletion.FodderTaken = amount.RawValue;
+                break;
+            }
+            default:
+            {
+                throw new ArgumentOutOfRangeException(nameof(resource), resource, "Unknown sustenance resource.");
+            }
+        }
+    }
 }

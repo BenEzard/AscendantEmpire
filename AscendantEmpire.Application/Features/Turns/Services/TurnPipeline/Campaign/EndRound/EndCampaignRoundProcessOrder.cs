@@ -9,6 +9,9 @@ internal enum EndCampaignRoundProcessOrder
     /// <summary>The wounded recover before anything is judged on the Round's final state.</summary>
     HealTroops = 10000,
 
+    /// <summary>Depleted tiles regrow once every Player's Forces have fed for the Round, so the next Round opens on the regrown amounts.</summary>
+    RegenerateTileSustenance = 15000,
+
     /// <summary>Whether anyone has won is decided on the state the rest of the end-of-Round processing leaves behind, so this runs last.</summary>
     EvaluateVictoryConditions = 20000,
 }

@@ -45,8 +45,11 @@ public class CampaignBiome
     /// <summary>
     /// How quickly does this Biome regenerate resources?
     /// </summary>
-    /// <remarks>Only applicable for Biomes that can be painted on a Campaign Map</remarks>
-    public decimal? RegenerationRate { get; set; } = 1.1m;
+    /// <remarks>
+    /// The rate the Biome's sustenance (Forage, Hunt, Fish, Fodder) regrows at the end of each Round. Required, and at least 1.05, when the Biome has any sustenance base
+    /// value; <see langword="null"/> when it has none, since there is nothing to regrow. Enforced by the biome validator.
+    /// </remarks>
+    public decimal? RegenerationRate { get; set; }
     #endregion
 
     #region Map Editor Properties
