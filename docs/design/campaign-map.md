@@ -149,6 +149,11 @@ Available to a Player = MAX(0, [Player's Effective Value] − Taken)
   gains or loses a modifier simply sees a different amount against the same `Taken`.
 - **No Player is recorded** on the tile, and there is no hand-over calculation when a different
   Player arrives: every Player reads the same `Taken`.
+- **Shown only on tiles in live sight.** The tile toolbar shows a Player what is available to them
+  on the selected tile (`GET campaign-map/player/tiles/{x}/{y}/sustenance`), but only while one of
+  their Observers can see it. `Taken` grows whenever anyone feeds, so disclosing it on an unwatched
+  tile would reveal where other Players' Forces have been. `Taken` is not stored yet (CM-37), so the
+  toolbar currently shows the Player's full effective value.
 
 A Player with a higher value can therefore reach food a weaker Player cannot. Once a weaker Player
 has stripped a tile, a stronger Player still finds their surplus on it.

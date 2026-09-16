@@ -1,0 +1,162 @@
+using AscendantEmpire.Application.Common.Messaging;
+using AscendantEmpire.Application.Common.Validation;
+using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Maps.Biomes.Classes;
+using AscendantEmpire.Application.Features.Maps.Biomes.Services;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
+using AscendantEmpire.BackendContracts.Biomes;
+using AscendantEmpire.Domain.Enums.Maps;
+using AscendantEmpire.Domain.Enums.Resources;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+
+using static AscendantEmpire.Application.Common.ServiceResultBase;
+
+namespace AscendantEmpire.Application.Features.Maps.Biomes.Handlers;
+
+public record GetTileSustenanceRequest(
+    int GameId,
+    int PlayerId,
+    int X,
+    int Y
+) : IRequest<ServiceResult<TileSustenance>>;
+
+internal class GetTileSustenanceRequestValidator : Validator<GetTileSustenanceRequest>
+{
+    public GetTileSustenanceRequestValidator()
+    {
+        RuleFor(x => x.GameId)
+            .GreaterThan(0).WithMessage("Game Id is required.");
+
+        RuleFor(x => x.PlayerId)
+            .GreaterThan(0).WithMessage("Player Id is required.");
+
+        // The upper bounds depend on the Game's map, so they are checked against its geometry in the handler.
+        RuleFor(x => x.X)
+            .GreaterThanOrEqualTo(0).WithMessage("X cannot be negative.");
+
+        RuleFor(x => x.Y)
+            .GreaterThanOrEqualTo(0).WithMessage("Y cannot be negative.");
+    }
+}
+
+/// <summary>
+/// The Forage, Hunt, Fish and Fodder available to a Player on one campaign map tile, for the tile toolbar.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Only answers for a tile in the Player's <b>live sight</b>. The amount taken from a tile is Player-neutral and grows whenever anyone feeds on it, so reporting what is left on
+/// a tile nobody of theirs is watching would tell the Player where other Players' Forces have been. An unwatched tile comes back as <see cref="TileSustenance.NotObserved"/>
+/// (a success, not an error), and the client shows nothing.
+/// </para>
+/// <para>
+/// Sight goes through <see cref="IFieldOfViewService"/>, the same rules the live map read uses, so the toolbar can never disclose a tile the map does not show as in view. The
+/// seen tile already carries its world-map biome, so no separate tile read is needed.
+/// </para>
+/// <para>
+/// Values come from <see cref="IPlayerSustenanceValueReader"/> (the Player's effective values), less the tile's <c>Taken</c> amount through
+/// <see cref="SustenanceValueCalculator.CalculateAvailableValue"/>.
+/// </para>
+/// </remarks>
+internal class GetTileSustenanceHandler(
+    ILogger<GetTileSustenanceHandler> logger,
+    IDbContextFactory<AscendantEmpireContext> dbFactory,
+    ISightDataReader sightDataReader,
+    IFieldOfViewService fieldOfViewService,
+    IPlayerSustenanceValueReader sustenanceValueReader
+) : IRequestHandler<GetTileSustenanceRequest, ServiceResult<TileSustenance>>
+{
+    public async Task<ServiceResult<TileSustenance>> Handle(GetTileSustenanceRequest request, CancellationToken cancelToken)
+    {
+        try
+        {
+            // Validate the request object
+            var validator = new GetTileSustenanceRequestValidator();
+            ValidationResult validationResult = validator.Validate(request);
+
+            if (validationResult.IsValid == false)
+            {
+                IEnumerable<string> errors = validationResult.Errors.Select(e => e.ErrorMessage);
+                string error = $"Validation failed for {nameof(GetTileSustenanceRequest)}.";
+                logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
+
+                return ServiceResult<TileSustenance>.Fail(errors.Prepend(error));
+            }
+
+            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+
+            CampaignMapGeometry? geometry = await sightDataReader.GetGeometryAsync(context, request.GameId, cancelToken);
+
+            if (geometry is null)
+            {
+                string error = $"Game Id {request.GameId} was not found while reading a tile's sustenance.";
+                logger.LogWarning("{Error}", error);
+
+                return ServiceResult<TileSustenance>.NotFound(error);
+            }
+
+            // A coordinate off the edge of the map names no tile, and is not wrapped onto one.
+            if (request.X >= geometry.Width || request.Y >= geometry.Height)
+            {
+                string error = $"Tile ({request.X}, {request.Y}) is not on Game Id {request.GameId}'s {geometry.Width} x {geometry.Height} map.";
+                logger.LogWarning("{Error}", error);
+
+                return ServiceResult<TileSustenance>.NotFound(error);
+            }
+
+            ServiceResult<IReadOnlyCollection<ObserverFieldOfView>> fieldOfViewResult = await fieldOfViewService.GetPlayerFieldOfViewAsync(request.GameId, request.PlayerId, geometry, cancelToken);
+
+            if (fieldOfViewResult.HasSucceeded == false)
+            {
+                const string error = "Error working out what a Player's Observers can see while reading a tile's sustenance.";
+                logger.LogWarning(error);
+
+                return ServiceResult<TileSustenance>.Fail(fieldOfViewResult.Errors.Prepend(error));
+            }
+
+            // The tile as one of the Player's Observers sees it, if any does. Several may; they all describe the same world-map tile, so the first will do.
+            SightTerrain? seenTile = fieldOfViewResult.SuccessValue!
+                .SelectMany(view => view.SeenTiles)
+                .FirstOrDefault(tile => tile.X == request.X && tile.Y == request.Y);
+
+            if (seenTile is null)
+            {
+                return ServiceResult<TileSustenance>.Succeed(TileSustenance.NotObserved);
+            }
+
+            PlayerSustenanceValues values = await sustenanceValueReader.GetValuesAsync(context, request.PlayerId, cancelToken);
+
+            // TODO CM-37: read the tile's Taken amounts from game.CampaignMapDepletion. Until depletion exists nothing has ever been taken, so what is available is the whole
+            // effective value.
+            ScaledAmount taken = ScaledAmount.Zero;
+
+            return ServiceResult<TileSustenance>.Succeed(new TileSustenance
+            {
+                IsObserved = true,
+                Forage = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Forage, taken),
+                Hunt = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Hunt, taken),
+                Fish = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Fish, taken),
+                Fodder = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Fodder, taken)
+            });
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "An error occurred while handling {RequestName}.", nameof(GetTileSustenanceRequest));
+
+            return ServiceResult<TileSustenance>.Fail("An unexpected error occurred while retrieving a tile's sustenance.");
+        }
+    }
+
+    /// <summary>
+    /// One resource's available amount, presented as a decimal, or <see langword="null"/> when the resource does not exist in the biome.
+    /// </summary>
+    private static decimal? GetAvailableValue(PlayerSustenanceValues values, BiomeType biome, SustenanceResource resource, ScaledAmount taken)
+    {
+        ScaledAmount? availableValue = SustenanceValueCalculator.CalculateAvailableValue(values.GetValue(biome, resource), taken);
+
+        return availableValue?.ToDecimal();
+    }
+}

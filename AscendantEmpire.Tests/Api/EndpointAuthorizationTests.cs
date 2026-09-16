@@ -119,6 +119,7 @@ public sealed class EndpointAuthorizationTests
 
         "POST /campaign-map/player",
         "POST /campaign-map/player/clear",
+        "GET /campaign-map/player/tiles/{x}/{y}/sustenance",
 
         "GET /games/mine",
         "GET /match-making/games",

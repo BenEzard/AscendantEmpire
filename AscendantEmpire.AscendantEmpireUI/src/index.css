@@ -430,33 +430,73 @@ body {
   pointer-events: auto;
 }
 
-/* The coordinates and terrain of the tile the player last clicked. Shares the dock's chrome so it reads as part of the
-   same control surface as the bars beside and above it. */
+/* The terrain, sustenance and coordinates of the tile the player last clicked, one per line. Shares the dock's chrome so it
+   reads as part of the same control surface as the bars beside and above it. */
 .tile-toolbar {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  align-items: flex-start; /* Each line hugs its own content rather than stretching to the widest. */
+  justify-content: center; /* Vertically centred when the dock row makes the bar taller than its lines. */
+  gap: 2px;
   flex: 0 0 auto; /* Never squeezed: when the row is short of room, it is the force bar that scrolls instead. */
-  padding: 4px 10px;
+  /* Just enough above and below to keep the lines off the border. The sides get more, so the terrain text and the outer icons
+     clear the rounded corners instead of being clipped by them. */
+  padding: 2px 8px;
+  margin: 0;
   white-space: nowrap;
   font-size: 0.8rem;
   line-height: 1.2;
   color: #0f172a;
   border: 1px solid rgba(15, 23, 42, 0.15);
+  /* The same rounding as the force selection bar docked beside it, so the pair reads as one control surface. */
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 14px 30px rgba(15, 23, 42, 0.18);
   backdrop-filter: blur(8px);
 }
 
-.tile-toolbar__coordinates {
-  font-weight: 600;
-  /* Fixed-width digits, so the bar doesn't jitter in width as the player clicks between (9, 4) and (10, 4). */
+/* What the player could feed on here: icon + amount pairs on their own line, packed tight so the bar stays narrow. */
+.tile-toolbar__sustenance {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tile-toolbar__sustenance-item {
+  display: inline-flex;
+}
+
+/* The icon with its number centred underneath. Applied to the tooltip's wrapper, which is already inline-flex, so this only
+   turns it into a column. */
+.tile-toolbar__sustenance-stack {
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  line-height: 1;
+}
+
+/* 21px: half as big again as the text-sized 14px, so the resource can be told at a glance. */
+.tile-toolbar__sustenance-icon {
+  width: 21px;
+  height: 21px;
+  flex: 0 0 auto;
+  color: #475569;
+}
+
+.tile-toolbar__sustenance-amount {
+  /* Smaller than the terrain line: the icon carries the meaning, the number is its annotation. */
+  font-size: 0.7rem;
+  /* Fixed-width digits, so the line doesn't jitter in width as the player clicks between tiles. */
   font-variant-numeric: tabular-nums;
 }
 
-.tile-toolbar__terrain {
+/* The last line, a secondary detail: regular weight and muted. */
+.tile-toolbar__coordinates {
+  /* Much smaller than the rest of the bar: the coordinates are rarely what the player is looking for. */
+  font-size: 10px;
   color: #475569;
+  /* Fixed-width digits, so the bar doesn't jitter in width as the player clicks between (9, 4) and (10, 4). */
+  font-variant-numeric: tabular-nums;
 }
 
 /* Positioned by .command-dock, not by itself — this rule is chrome only. */

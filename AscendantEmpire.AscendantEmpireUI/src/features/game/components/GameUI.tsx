@@ -46,6 +46,7 @@ import type { SightingReport } from "@/features/intelligence/api/intelligenceApi
 import type { SightingDescriptionContext } from "@/features/intelligence/describeSightingReport";
 import { useCurrentCampaignTurnQuery } from "../hooks/useCurrentCampaignTurn";
 import { useGamePlayersQuery } from "../hooks/useGamePlayers";
+import { useTileSustenanceQuery } from "@/features/map/hooks/useTileSustenance";
 
 type ActivePanel = "unit-design" | null;
 
@@ -263,6 +264,13 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
 
   const { getTileBackground, isTileSelected, getTileTitle, getTileTerrainLabel } = useTileRendering({ biomes, geographies, selectedTile, observedTileKeys });
 
+  // Whether the inspected tile is in live sight. Only then is its sustenance asked for: the server discloses nothing about any other tile, since what is left
+  // on a tile changes as anyone feeds on it and would give away where other players' forces have been.
+  const isInspectedTileObserved = inspectedTileCoords != null && observedTileKeys.has(`${inspectedTileCoords.x},${inspectedTileCoords.y}`);
+
+  // What the player could feed on at the inspected tile. Asked for per tile on selection and cached, rather than loaded for the whole map — see the hook.
+  const { data: inspectedTileSustenance } = useTileSustenanceQuery(gameId, playerId, inspectedTileCoords, tilesEnabled && isInspectedTileObserved);
+
   // What the tile toolbar draws. Looked up from the current grid on every rebuild rather than captured at click time, so a
   // tile explored under the bar (a force stepping next to it, say) shows its real terrain rather than the placeholder.
   const tileToolbarTile = useMemo<TileToolbarTile | null>(() => {
@@ -275,8 +283,11 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
       return null;
     }
 
-    return { x: cell.x, y: cell.y, terrainLabel: getTileTerrainLabel(cell) };
-  }, [inspectedTileCoords, tiles2d, getTileTerrainLabel]);
+    // Sustenance is dropped the moment the tile leaves sight, rather than left showing whatever was cached while it was watched.
+    const sustenance = isInspectedTileObserved ? (inspectedTileSustenance ?? null) : null;
+
+    return { x: cell.x, y: cell.y, terrainLabel: getTileTerrainLabel(cell), sustenance };
+  }, [inspectedTileCoords, tiles2d, getTileTerrainLabel, isInspectedTileObserved, inspectedTileSustenance]);
 
   // Stable per-tile predicate for the grid, so its memoised tiles only re-render when what the player can see actually changes.
   const isTileObserved = useCallback((tile: TileCell) => observedTileKeys.has(`${tile.x},${tile.y}`), [observedTileKeys]);

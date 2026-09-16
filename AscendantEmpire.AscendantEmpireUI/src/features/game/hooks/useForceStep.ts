@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { postStepForce, type StepForceRequest, type StepForceResponse } from "@/features/game/api/forceMovementApi";
 import { mergeTiles, playerCampaignTilesKey } from "@/features/map/hooks/useCampaignMapTiles";
 import type { CampaignMapTilesResponse } from "@/features/map/api/playerCampaignMapApi";
+import { TILE_SUSTENANCE_KEY_PREFIX } from "@/features/map/hooks/useTileSustenance";
 
 /**
  * Steps a single force one tile and folds the result back into the cached map.
@@ -35,6 +36,10 @@ export function useForceStepMutation(
       // in useForceContextActions. The bare prefix rather than a built key: each selection is cached separately, and the moved
       // force may sit in several of those entries.
       queryClient.invalidateQueries({ queryKey: ["forceContextActions"] });
+
+      // A step moves one of the player's observers, so a tile can come into or drop out of sight, and the server only discloses sustenance on tiles in
+      // sight. Stepping feeds nobody, so the amounts themselves don't change; only the query the tile bar is watching actually refetches.
+      queryClient.invalidateQueries({ queryKey: TILE_SUSTENANCE_KEY_PREFIX });
 
       opts?.onSuccess?.(data);
     },

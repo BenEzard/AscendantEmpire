@@ -48,4 +48,27 @@ internal static class SustenanceValueCalculator
 
         return effectiveValue < ScaledAmount.Zero ? ScaledAmount.Zero : effectiveValue;
     }
+
+    /// <summary>
+    /// What is left of a Player's effective value on a tile once the tile's Player-neutral <c>Taken</c> amount is removed: <c>MAX(0, Effective − Taken)</c>.
+    /// </summary>
+    /// <remarks>
+    /// Floored at 0 because <c>Taken</c> can exceed a weaker Player's effective value: a stronger Player may have stripped the tile past what the weaker Player could ever reach.
+    /// See "What a tile stores: the amount taken" in <c>docs/design/campaign-map.md</c>.
+    /// </remarks>
+    /// <param name="effectiveValue">The Player's effective value, from <see cref="CalculateEffectiveValue"/>, or <see langword="null"/> when the resource does not exist in the biome.</param>
+    /// <param name="taken">How much has been taken from the tile, by anyone.</param>
+    /// <returns>The amount available to the Player, never negative, or <see langword="null"/> when <paramref name="effectiveValue"/> is.</returns>
+    public static ScaledAmount? CalculateAvailableValue(ScaledAmount? effectiveValue, ScaledAmount taken)
+    {
+        // A resource the biome does not have is not "none left": it stays absent, so the caller can tell the two apart.
+        if (effectiveValue is null)
+        {
+            return null;
+        }
+
+        ScaledAmount availableValue = effectiveValue.Value - taken;
+
+        return availableValue < ScaledAmount.Zero ? ScaledAmount.Zero : availableValue;
+    }
 }

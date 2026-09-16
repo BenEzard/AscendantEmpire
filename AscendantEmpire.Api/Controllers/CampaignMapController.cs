@@ -1,10 +1,14 @@
 ﻿using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
+using AscendantEmpire.Application.Features.Maps.Biomes.Classes;
+using AscendantEmpire.Application.Features.Maps.Biomes.Handlers;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Handlers;
+using AscendantEmpire.BackendContracts.Biomes;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.FrontendContracts;
+using AscendantEmpire.FrontendContracts.Biomes.GetTileSustenance;
 using AscendantEmpire.FrontendContracts.CampaignMaps;
 
 using Microsoft.AspNetCore.Authorization;
@@ -87,5 +91,47 @@ public class CampaignMapController : ControllerBase
         ServiceResultBase response = await mediator.Send(new HidePlayerCampaignMapRequest(gameId, playerId));
 
         return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Get the Forage, Hunt, Fish and Fodder available to the Player on one tile of the Campaign Map.
+    /// </summary>
+    /// <remarks>
+    /// Only disclosed for a tile in the Player's live sight; any other tile answers with <c>isObserved</c> false and no values. A null value means the resource does not exist in
+    /// the tile's biome.
+    /// </remarks>
+    /// <response code="200">The tile's sustenance, as available to the Player</response>
+    /// <response code="400">Validation error</response>
+    /// <response code="403">The caller has not entered a game</response>
+    /// <response code="404">Game not found, or the tile is not on the map</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpGet("player/tiles/{x:int}/{y:int}/sustenance")]
+    [ProducesResponseType(typeof(ITileSustenance), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 403)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetTileSustenanceAsync(
+        [FromServices] IMediator mediator,
+        int x,
+        int y,
+        CancellationToken cancelToken)
+    {
+        // Game and player come from the token: a Player's sustenance values are their own, and so is their sight.
+        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
+        {
+            return contextError!;
+        }
+
+        ServiceResult<TileSustenance> response = await mediator.Send(new GetTileSustenanceRequest(gameId, playerId, x, y), cancelToken);
+
+        return response.ToActionResult(contract => new DTTileSustenance
+        {
+            IsObserved = contract.IsObserved,
+            Forage = contract.Forage,
+            Hunt = contract.Hunt,
+            Fish = contract.Fish,
+            Fodder = contract.Fodder
+        });
     }
 }

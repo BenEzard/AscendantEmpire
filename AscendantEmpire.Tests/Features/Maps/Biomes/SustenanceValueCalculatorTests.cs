@@ -74,4 +74,28 @@ internal class SustenanceValueCalculatorTests
 
         Assert.That(effectiveValue, Is.EqualTo(ScaledAmount.Zero));
     }
+
+    [Test, Description("What is available is the Player's effective value less what has been taken from the tile, since Taken is stored Player-neutral.")]
+    public void ShouldSubtractTakenFromTheEffectiveValueWhenWorkingOutWhatIsAvailable()
+    {
+        ScaledAmount? availableValue = SustenanceValueCalculator.CalculateAvailableValue(_BASE_VALUE, ScaledAmount.FromWhole(66));
+
+        Assert.That(availableValue, Is.EqualTo(ScaledAmount.FromWhole(334)));
+    }
+
+    [Test, Description("A stronger Player can take more than a weaker Player's effective value, and the weaker Player then sees 0 rather than a negative amount.")]
+    public void ShouldFloorTheAvailableValueAtZeroWhenTakenExceedsTheEffectiveValue()
+    {
+        ScaledAmount? availableValue = SustenanceValueCalculator.CalculateAvailableValue(_BASE_VALUE, ScaledAmount.FromWhole(500));
+
+        Assert.That(availableValue, Is.EqualTo(ScaledAmount.Zero));
+    }
+
+    [Test, Description("A resource the biome does not have stays null when working out what is available, so it is never mistaken for a stripped tile showing 0.")]
+    public void ShouldReturnNullAvailableValueWhenTheEffectiveValueIsNull()
+    {
+        ScaledAmount? availableValue = SustenanceValueCalculator.CalculateAvailableValue(null, ScaledAmount.Zero);
+
+        Assert.That(availableValue, Is.Null);
+    }
 }
