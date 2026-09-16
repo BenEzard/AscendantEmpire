@@ -5,8 +5,10 @@ using AscendantEmpire.Application.Features.Maps.Biomes.Classes;
 using AscendantEmpire.Application.Features.Maps.Biomes.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
+using AscendantEmpire.Application.Features.Maps.Depletion.Services;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.Biomes;
+using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Resources;
 
@@ -57,8 +59,9 @@ internal class GetTileSustenanceRequestValidator : Validator<GetTileSustenanceRe
 /// seen tile already carries its world-map biome, so no separate tile read is needed.
 /// </para>
 /// <para>
-/// Values come from <see cref="IPlayerSustenanceValueReader"/> (the Player's effective values), less the tile's <c>Taken</c> amount through
-/// <see cref="SustenanceValueCalculator.CalculateAvailableValue"/>.
+/// Values come from <see cref="IPlayerSustenanceValueReader"/> (the Player's effective values), less the tile's <c>Taken</c> amount of each resource from
+/// <c>game.CampaignMapDepletion</c>, through <see cref="SustenanceValueCalculator.CalculateAvailableValue"/>. A tile with no depletion row has never been fed on, so
+/// nothing has been taken from it.
 /// </para>
 /// </remarks>
 internal class GetTileSustenanceHandler(
@@ -129,17 +132,18 @@ internal class GetTileSustenanceHandler(
 
             PlayerSustenanceValues values = await sustenanceValueReader.GetValuesAsync(context, request.PlayerId, cancelToken);
 
-            // TODO CM-37: read the tile's Taken amounts from game.CampaignMapDepletion. Until depletion exists nothing has ever been taken, so what is available is the whole
-            // effective value.
-            ScaledAmount taken = ScaledAmount.Zero;
+            // What has been taken from the tile, by anyone. Null when the tile has never been fed on, which DepletionTaken reads as nothing taken.
+            CampaignMapDepletion? depletion = await context.CampaignMapDepletions
+                .AsNoTracking()
+                .FirstOrDefaultAsync(d => d.CampaignMapId == seenTile.CampaignMapId, cancelToken);
 
             return ServiceResult<TileSustenance>.Succeed(new TileSustenance
             {
                 IsObserved = true,
-                Forage = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Forage, taken),
-                Hunt = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Hunt, taken),
-                Fish = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Fish, taken),
-                Fodder = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Fodder, taken)
+                Forage = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Forage, depletion),
+                Hunt = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Hunt, depletion),
+                Fish = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Fish, depletion),
+                Fodder = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Fodder, depletion)
             });
         }
         catch (Exception ex)
@@ -153,9 +157,9 @@ internal class GetTileSustenanceHandler(
     /// <summary>
     /// One resource's available amount, presented as a decimal, or <see langword="null"/> when the resource does not exist in the biome.
     /// </summary>
-    private static decimal? GetAvailableValue(PlayerSustenanceValues values, BiomeType biome, SustenanceResource resource, ScaledAmount taken)
+    private static decimal? GetAvailableValue(PlayerSustenanceValues values, BiomeType biome, SustenanceResource resource, CampaignMapDepletion? depletion)
     {
-        ScaledAmount? availableValue = SustenanceValueCalculator.CalculateAvailableValue(values.GetValue(biome, resource), taken);
+        ScaledAmount? availableValue = SustenanceValueCalculator.CalculateAvailableValue(values.GetValue(biome, resource), DepletionTaken.GetTaken(depletion, resource));
 
         return availableValue?.ToDecimal();
     }

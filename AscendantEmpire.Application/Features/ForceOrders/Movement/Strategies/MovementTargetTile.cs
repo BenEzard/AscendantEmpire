@@ -1,3 +1,4 @@
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
@@ -43,11 +44,9 @@ internal sealed record MovementTargetTile
     /// Whether this tile is water, for the purpose of deciding which movement domains may enter it.
     /// </summary>
     /// <remarks>
-    /// Both the biome and the geography record this — Coastal and Ocean carry <see cref="CampaignBiome.IsWater"/>, and the geography has its own
-    /// deep and shallow water types — and the map generator keeps the two consistent. Either being water is enough, so a hand-edited map that sets
-    /// only one of them still refuses a land Force rather than quietly letting it walk out to sea.
+    /// The rule itself lives in <see cref="CampaignTileWater"/>, which gathering also uses, so a tile a land Force is refused as water can never feed it as land.
     /// </remarks>
-    public bool IsWater => BiomeIsWater || GeographyType is CampaignMapGeographyType.DeepWater or CampaignMapGeographyType.ShallowWater;
+    public bool IsWater => CampaignTileWater.IsWater(BiomeIsWater, GeographyType);
 
     /// <summary>
     /// Whether nothing can enter this tile at all, whatever its movement domain or how much movement it has left.

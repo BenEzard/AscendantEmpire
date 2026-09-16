@@ -58,7 +58,9 @@ Key fields: `CampaignMapGalleryId` (manual PK), `CampaignMapGalleryIndexId` (FK)
 
 The live copy of the map for a specific game. Rows are inserted from the gallery tiles at game creation via a single bulk SQL `INSERT...SELECT`.
 
-Additional fields beyond the gallery copy: `ForageAmount`, `HuntAmount`, `FishAmount`, `FodderAmount`, `FirstSeenOnTurnId`, `FirstSeenByPlayerId`, `LastVisitedOnTurnId`, `LastVisitedByPlayerId`, `ControlledByPlayerId`.
+Additional fields beyond the gallery copy: `FirstSeenOnTurnId`, `FirstSeenByPlayerId`, `LastVisitedOnTurnId`, `LastVisitedByPlayerId`, `ControlledByPlayerId`.
+
+What has been taken from a tile (Forage, Hunt, Fish, Fodder) is not stored on the tile: it lives in `game.CampaignMapDepletion`, one row per tile that has been fed on.
 
 Primary key: `CampaignMapId` (identity — not contiguous offset). Foreign key: `GameId → game.GameIndex`.
 

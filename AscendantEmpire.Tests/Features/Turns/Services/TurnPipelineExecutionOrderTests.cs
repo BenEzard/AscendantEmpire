@@ -1,11 +1,13 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Intelligence.Services;
+using AscendantEmpire.Application.Features.Maps.Biomes.Services;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions.Checks;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndRound;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndTurn;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.StartTurn;
+using AscendantEmpire.Application.Features.Units.Services;
 using AscendantEmpire.Domain.Enums.Turns;
 
 using Microsoft.EntityFrameworkCore;
@@ -41,7 +43,11 @@ public class TurnPipelineExecutionOrderTests
 
     private static IPipelineProcess[] EndCampaignTurnProcesses() =>
     [
-        new Gathering(),
+        new Gathering(
+            Substitute.For<IDbContextFactory<AscendantEmpireContext>>(),
+            Substitute.For<IPlayerSustenanceValueReader>(),
+            Substitute.For<IUnderfedForceResolver>(),
+            NullLogger<Gathering>.Instance),
         new BuildingStructure(),
         new Fortifying(),
         new EvaluateForceOnHostileTerrain(),

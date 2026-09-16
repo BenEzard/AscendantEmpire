@@ -18,6 +18,9 @@ export const tileSustenanceKey = (gameId: number | undefined, playerId: number |
  * Refetched on window focus, like the intelligence feed: other players end their turns — and feed on tiles — while this tab sits in the background.
  * Invalidated (by prefix) when this player's turn ends and when a force steps, since a step changes which tiles are in sight. `gameId` and `playerId`
  * only scope the cache — the request takes both from the game token.
+ *
+ * TODO: another player's forces feeding on a watched tile only show here on one of those refetches. Invalidate on a push from the server once there is a
+ * channel for other players' turns ending.
  */
 export function useTileSustenanceQuery(
   gameId: number | undefined,

@@ -359,6 +359,12 @@ internal sealed class GameDeleteExecutor(
                 .Where(m => m.GameId == gameId)
                 .ExecuteDeleteAsync(cancellationToken)),
 
+            // Campaign map depletion names the tiles, so it goes before the campaign map. It carries its own GameId, so needs no scoping through the tiles, and its key is the
+            // tile id rather than an identity, so there is nothing to reseed.
+            ("campaign map depletion", () => purge.CampaignMapDepletions
+                .Where(d => d.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
             // The maps, then the players, then the game itself. Campaign map tiles name the player who controls, first saw and last visited them, so
             // they have to go before the players do.
             ("player map views", () => purge.PlayerCampaignMaps

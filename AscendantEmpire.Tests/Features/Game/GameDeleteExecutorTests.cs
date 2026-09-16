@@ -196,6 +196,27 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
         }
     }
 
+    [Test, Description("Campaign map depletion goes with its game, and before the campaign map tiles it names, while another game's depletion survives.")]
+    public async Task ShouldRemoveTheGamesCampaignMapDepletionWhenItIsDeletedAsync()
+    {
+        int doomedGameId = await SetupGameAsync("Doomed");
+        int survivorGameId = await SetupGameAsync("Survivor");
+
+        await SeedCampaignMapDepletionAsync(doomedGameId);
+        await SeedCampaignMapDepletionAsync(survivorGameId);
+
+        Processing job = await ExecuteDeleteAsync(doomedGameId);
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(job.Status, Is.EqualTo(ProcessingStatus.Complete), job.ErrorMessage);
+            Assert.That(await context.CampaignMapDepletions.AnyAsync(d => d.GameId == doomedGameId), Is.False);
+            Assert.That(await context.CampaignMapDepletions.AnyAsync(d => d.GameId == survivorGameId), Is.True, "Only the deleted game's depletion goes.");
+        }
+    }
+
     [Test, Description("The job is marked complete rather than being left in progress, because the page polls that status to know when to refresh the list.")]
     public async Task ShouldMarkTheJobCompleteWhenThePurgeSucceedsAsync()
     {
@@ -883,6 +904,30 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
                 FlatValue = 0,
                 PercentValue = 250
             });
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Records food taken from the game's first campaign map tile.
+    /// </summary>
+    /// <remarks>
+    /// Written straight to the table rather than through the end-of-turn pipeline, which would need a started game with Forces on the map just to produce one row.
+    /// </remarks>
+    private async Task SeedCampaignMapDepletionAsync(int gameId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        int tileId = await context.CampaignMaps.Where(t => t.GameId == gameId).OrderBy(t => t.CampaignMapId).Select(t => t.CampaignMapId).FirstAsync();
+
+        context.CampaignMapDepletions.Add(new CampaignMapDepletion
+        {
+            CampaignMapId = tileId,
+            GameId = gameId,
+            ForageTaken = 66_667,
+            HuntTaken = 33_333,
+            FedOnRound = 1
+        });
 
         await context.SaveChangesAsync();
     }

@@ -15,11 +15,6 @@ public class CampaignMap
     public int XCoord { get; set; }
     public int YCoord { get; set; }
 
-    public int? ForageAmount { get; set; }
-    public int? HuntAmount { get; set; }
-    public int? FishAmount { get; set; }
-    public int? FodderAmount { get; set; }
-
     public int? FirstSeenOnTurnId { get; set; }
     public int? FirstSeenByPlayerId { get; set; }
     

@@ -260,19 +260,7 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int?>("FirstSeenOnTurnId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("FishAmount")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("FodderAmount")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ForageAmount")
-                        .HasColumnType("int");
-
                     b.Property<int>("GameId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("HuntAmount")
                         .HasColumnType("int");
 
                     b.Property<int?>("LastVisitedByPlayerId")
@@ -307,6 +295,48 @@ namespace AscendantEmpire.Application.Migrations
                         .HasDatabaseName("UX_CampaignMap_Game_X_Y");
 
                     b.ToTable("CampaignMap", "game");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.CampaignMapDepletion", b =>
+                {
+                    b.Property<int>("CampaignMapId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("FedOnRound")
+                        .HasColumnType("int");
+
+                    b.Property<long>("FishTaken")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L);
+
+                    b.Property<long>("FodderTaken")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L);
+
+                    b.Property<long>("ForageTaken")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L);
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("HuntTaken")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L);
+
+                    b.HasKey("CampaignMapId");
+
+                    b.HasIndex("GameId")
+                        .HasDatabaseName("IX_CampaignMapDepletion_GameId");
+
+                    b.ToTable("CampaignMapDepletion", "game", t =>
+                        {
+                            t.HasCheckConstraint("CK_CampaignMapDepletion_TakenNonNegative", "[ForageTaken] >= 0 AND [HuntTaken] >= 0 AND [FishTaken] >= 0 AND [FodderTaken] >= 0");
+                        });
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.GameIndex", b =>
@@ -3152,6 +3182,23 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Geography");
 
                     b.Navigation("LastVisitor");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.CampaignMapDepletion", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.CampaignMap", null)
+                        .WithMany()
+                        .HasForeignKey("CampaignMapId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_CampaignMapDepletion_CampaignMap_CampaignMapId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", null)
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_CampaignMapDepletion_GameIndex_GameId");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.Player", b =>

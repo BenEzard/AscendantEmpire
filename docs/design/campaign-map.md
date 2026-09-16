@@ -127,14 +127,20 @@ The purpose of these mechanics:
 
 ### Tracking
 
-Tiles with any sustenance taken (`Taken > 0` for any resource) and tiles within a settlement zone
-are held in a separate index table for easy access.
+A tile's depletion state is held in `game.CampaignMapDepletion`, one row per tile that has been fed
+on, keyed by the game tile's `CampaignMapId`. The row is created the first time a Force feeds on the
+tile and persists between turns; a tile with no row has had nothing taken. A Player's view joins to
+it on `PlayerCampaignMap.CampaignMapId`.
+
+> TODO: Tiles within a settlement zone also need to be found for replenishment, and wait on
+> Settlements.
 
 ### What a tile stores: the amount taken
 
 A tile's depletion state is **Player-neutral**. For each sustenance resource (Forage, Hunt, Fish,
 Fodder) the tile stores only **how much has been taken** from it, `Taken` (never below `0`), plus
-whether anyone **fed on it this round** (see [Replenishment](#replenishment)). It does not store an
+`FedOnRound`, the last round anyone **fed on it** (see [Replenishment](#replenishment)). A tile was
+fed on this round when `FedOnRound` is the current round number, so the marker never needs resetting. It does not store an
 amount remaining, because the amount remaining is different for every Player.
 
 Each Player sees, and can extract, only what is left of **their own** effective value:
@@ -152,8 +158,8 @@ Available to a Player = MAX(0, [Player's Effective Value] − Taken)
 - **Shown only on tiles in live sight.** The tile toolbar shows a Player what is available to them
   on the selected tile (`GET campaign-map/player/tiles/{x}/{y}/sustenance`), but only while one of
   their Observers can see it. `Taken` grows whenever anyone feeds, so disclosing it on an unwatched
-  tile would reveal where other Players' Forces have been. `Taken` is not stored yet (CM-37), so the
-  toolbar currently shows the Player's full effective value.
+  tile would reveal where other Players' Forces have been. The toolbar shows each resource as
+  `MAX(0, effective − Taken)`, and a resource the biome does not have is left out.
 
 A Player with a higher value can therefore reach food a weaker Player cannot. Once a weaker Player
 has stripped a tile, a stronger Player still finds their surplus on it.
@@ -174,14 +180,20 @@ onto an untouched grassland tile. The tile's `Taken` is `0` for every resource, 
 | --- | --- | --- | --- | --- |
 | Available to Empire A | 400 | 200 | 0 | 1000 |
 
-At end of turn, 100 food is deducted (100 men). Human-consumable food available is
-`400 + 200 + 0 = 600`, so `2/3 × 100 = 66` is taken from Forage and `1/3 × 100 = 33` from Hunt:
+At end of turn, the unit needs 100 food (100 men). On land the pool is Forage and Hunt; on water it
+is Fish alone. Fodder is for animals and is not eaten by men. The pool available is `400 + 200 = 600`,
+and the need is split in proportion to what each resource has, so `2/3 × 100 = 66.667` is taken from
+Forage and `1/3 × 100 = 33.333` from Hunt. The split is in thousandths, with any thousandth left over
+by rounding going to the resource whose share lost the most, so the amounts taken always sum exactly
+to the need:
 
 | | Forage | Hunt | Fish | Fodder |
 | --- | --- | --- | --- | --- |
-| Taken (stored on the tile) | 66 | 33 | 0 | 0 |
-| Available to Empire A | 334 | 167 | 0 | 1000 |
-| Available to a Player on base values (Hunt 100) | 334 | 67 | 0 | 1000 |
+| Taken (stored on the tile) | 66.667 | 33.333 | 0 | 0 |
+| Available to Empire A | 333.333 | 166.667 | 0 | 1000 |
+| Available to a Player on base values (Hunt 100) | 333.333 | 66.667 | 0 | 1000 |
+
+Had the pool held less than 100, the unit would take everything available and go short by the rest.
 
 ### Replenishment
 
@@ -326,6 +338,13 @@ with a forager worth 10 needs only 90 food from the tile.
 - For each unit, calculate food required (based on individuals and the food requirement of their
   base, plus attached specialists). A man = 1 food; a mounted man = 1 food + 2 fodder.
 - Add each Force's extraction to the tile's `Taken`, and mark the tile as fed on this round.
+
+Today this is the end-of-turn `Gathering` process. It feeds the Player's Forces that are not in a
+Battle (so only one side ever feeds from a tile), at 1 troop = 1 food, from the tile each ends its
+turn on. The Forces on a tile feed from one pool, and a shortfall is spread across them in proportion
+to their troops. Each Force's need, food and shortfall is handed to `IUnderfedForceResolver`, the seam
+for the consequences of going hungry; it only logs until the damage model for partial feeding is
+designed.
 
 At the end of the **round** (after every Player's turn), each indexed tile is replenished as described
 in [Replenishment](#replenishment).

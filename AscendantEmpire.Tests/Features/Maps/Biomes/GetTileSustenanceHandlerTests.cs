@@ -128,6 +128,47 @@ internal class GetTileSustenanceHandlerTests : InMemoryTestBase
         Assert.That(result.SuccessValue!.Hunt, Is.EqualTo(200m));
     }
 
+    [Test, Description("What has been taken from the tile is subtracted from each resource separately, so depletion of one resource never shows against another.")]
+    public async Task ShouldSubtractEachResourcesOwnTakenAmountAsync()
+    {
+        await AddDepletionAsync(SeenTileId, forageTaken: ScaledAmount.FromWhole(150).RawValue, huntTaken: ScaledAmount.FromDecimal(25.5m).RawValue, fodderTaken: 0);
+
+        ServiceResult<TileSustenance> result = await HandleAsync(_SEEN_X, _SEEN_Y);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.SuccessValue!.Forage, Is.EqualTo(250m));
+            Assert.That(result.SuccessValue.Hunt, Is.EqualTo(74.5m));
+            Assert.That(result.SuccessValue.Fish, Is.Null, "A resource the biome does not have stays absent, even on a depleted tile.");
+            Assert.That(result.SuccessValue.Fodder, Is.EqualTo(1_000m));
+        }
+    }
+
+    [Test, Description("A tile stripped past the Player's own value by a stronger Player shows 0 rather than a negative amount.")]
+    public async Task ShouldShowZeroWhenMoreHasBeenTakenThanThePlayersValueAsync()
+    {
+        await AddDepletionAsync(SeenTileId, forageTaken: 0, huntTaken: ScaledAmount.FromWhole(180).RawValue, fodderTaken: 0);
+
+        ServiceResult<TileSustenance> result = await HandleAsync(_SEEN_X, _SEEN_Y);
+
+        Assert.That(result.SuccessValue!.Hunt, Is.EqualTo(0m));
+    }
+
+    [Test, Description("Depletion is read for the tile asked about only, so another tile having been fed on changes nothing here.")]
+    public async Task ShouldIgnoreDepletionOnAnotherTileAsync()
+    {
+        await AddDepletionAsync(SeenTileId + 1, forageTaken: ScaledAmount.FromWhole(400).RawValue, huntTaken: ScaledAmount.FromWhole(100).RawValue, fodderTaken: ScaledAmount.FromWhole(1_000).RawValue);
+
+        ServiceResult<TileSustenance> result = await HandleAsync(_SEEN_X, _SEEN_Y);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.SuccessValue!.Forage, Is.EqualTo(400m));
+            Assert.That(result.SuccessValue.Hunt, Is.EqualTo(100m));
+            Assert.That(result.SuccessValue.Fodder, Is.EqualTo(1_000m));
+        }
+    }
+
     [Test, Description("A tile outside live sight discloses nothing, because what is left on a tile changes as anyone feeds and would leak where other Forces have been.")]
     public async Task ShouldDiscloseNothingWhenTheTileIsNotObservedAsync()
     {
@@ -162,6 +203,31 @@ internal class GetTileSustenanceHandlerTests : InMemoryTestBase
         ServiceResult<TileSustenance> result = await HandleAsync(_SEEN_X, _SEEN_Y);
 
         Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.NotFound));
+    }
+
+    /// <summary>
+    /// The seen tile's id, as <see cref="BuildSeenTile"/> numbers tiles on the 10 x 10 map.
+    /// </summary>
+    private static int SeenTileId => 1 + (_SEEN_Y * 10) + _SEEN_X;
+
+    /// <summary>
+    /// Records raw scaled amounts as already taken from a tile.
+    /// </summary>
+    private async Task AddDepletionAsync(int tileId, long forageTaken, long huntTaken, long fodderTaken)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        context.CampaignMapDepletions.Add(new CampaignMapDepletion
+        {
+            CampaignMapId = tileId,
+            GameId = _GAME_ID,
+            ForageTaken = forageTaken,
+            HuntTaken = huntTaken,
+            FodderTaken = fodderTaken,
+            FedOnRound = 1
+        });
+
+        await context.SaveChangesAsync();
     }
 
     private async Task<ServiceResult<TileSustenance>> HandleAsync(int x, int y)

@@ -87,8 +87,12 @@ public static class ApplicationStartup
         services.AddScoped<IWitnessService, WitnessService>();
 
         // A Player's effective Forage, Hunt, Fish and Fodder values: each biome's base with the Player's sustenance modifiers applied. The only place that formula is used, so depletion,
-        // replenishment and shared-tile reconciliation cannot disagree. Nothing in play calls it yet, and nothing writes modifiers yet.
+        // replenishment and the tile toolbar cannot disagree. Nothing writes modifiers yet.
         services.AddScoped<IPlayerSustenanceValueReader, PlayerSustenanceValueReader>();
+
+        // What happens to a Force that did not get all the food it needed at the end of its Turn, called by the Gathering process below. Only logs until a damage model for
+        // partial feeding exists.
+        services.AddScoped<IUnderfedForceResolver, LoggingUnderfedForceResolver>();
 
         // Which Players share vision. Every Player is a coalition of one until a foreign relations model exists to say otherwise.
         services.AddScoped<ICoalitionResolver, SoloCoalitionResolver>();

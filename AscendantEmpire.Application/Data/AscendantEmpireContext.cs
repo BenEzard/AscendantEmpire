@@ -103,6 +103,12 @@ public class AscendantEmpireContext : DbContext
     public DbSet<PlayerSustenanceModifier> PlayerSustenanceModifiers { get; set; }
 
     /// <summary>
+    /// The Player-neutral Forage, Hunt, Fish and Fodder taken from each campaign map tile that has been fed on, and the last Round it was fed on. Written by the end-of-turn
+    /// <c>Gathering</c> process.
+    /// </summary>
+    public DbSet<CampaignMapDepletion> CampaignMapDepletions { get; set; }
+
+    /// <summary>
     /// Each Player's last observed owner, progress and state for every Structure they have watched change.
     /// </summary>
     public DbSet<PlayerKnownStructure> PlayerKnownStructures { get; set; }
@@ -860,6 +866,45 @@ public class AscendantEmpireContext : DbContext
             // The game delete's filter.
             entity.HasIndex(e => e.GameId)
                 .HasDatabaseName("IX_PlayerSustenanceModifier_GameId");
+        });
+
+        // --- CampaignMapDepletion ------------------------------------------------------
+        // What has been taken from a campaign map tile, by anyone, and the last Round it was fed on. Player-neutral: a Player's available amount is derived from this and their
+        // effective value, never stored - see the entity's remarks.
+        modelBuilder.Entity<CampaignMapDepletion>(entity =>
+        {
+            // Extraction can never take more than is available, so a negative amount taken could only come from a defect.
+            entity.ToTable("CampaignMapDepletion", schema, table => table.HasCheckConstraint(
+                "CK_CampaignMapDepletion_TakenNonNegative",
+                "[ForageTaken] >= 0 AND [HuntTaken] >= 0 AND [FishTaken] >= 0 AND [FodderTaken] >= 0"));
+
+            // The tile id is the key, and comes from the tile rather than being generated: a tile has at most one depletion row.
+            entity.HasKey(e => e.CampaignMapId);
+
+            entity.Property(e => e.CampaignMapId)
+                .ValueGeneratedNever();
+
+            entity.Property(e => e.ForageTaken).HasDefaultValue(0L);
+            entity.Property(e => e.HuntTaken).HasDefaultValue(0L);
+            entity.Property(e => e.FishTaken).HasDefaultValue(0L);
+            entity.Property(e => e.FodderTaken).HasDefaultValue(0L);
+
+            // No navigations, and every relationship NoAction: nothing reads these rows through an entity graph, and GameDeleteExecutor removes them in its own hand-ordered step.
+            entity.HasOne<CampaignMap>()
+                .WithMany()
+                .HasForeignKey(e => e.CampaignMapId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_CampaignMapDepletion_CampaignMap_CampaignMapId");
+
+            entity.HasOne<GameIndex>()
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_CampaignMapDepletion_GameIndex_GameId");
+
+            // The game delete's filter.
+            entity.HasIndex(e => e.GameId)
+                .HasDatabaseName("IX_CampaignMapDepletion_GameId");
         });
 
         // --- PlayerKnownStructure ------------------------------------------------------
