@@ -20,8 +20,9 @@ namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campa
 /// </summary>
 /// <remarks>
 /// <para>
-/// Per tile, the Forces on it feed from one pool: Forage and Hunt on land, Fish on water (fodder is for animals, and nothing eats it yet). 1 troop needs 1 food. What is
-/// available of each resource to this Player is <c>MAX(0, effective − Taken)</c>, with the effective values read live through <see cref="IPlayerSustenanceValueReader"/>.
+/// Per tile, the Forces on it feed from one pool: Forage and Hunt on land, Fish on water (fodder is for animals, and nothing eats it yet), built by <see cref="TileFoodPool"/>.
+/// 1 troop needs 1 food. What is available of each resource to this Player is <c>MAX(0, effective − Taken)</c>, with the effective values read live through
+/// <see cref="IPlayerSustenanceValueReader"/>.
 /// The need is split across the pool by <see cref="FoodExtractionCalculator"/>, and any shortfall is spread across the tile's Forces by <see cref="ShortfallAllocator"/>
 /// and handed to <see cref="IUnderfedForceResolver"/>. See "What a tile stores: the amount taken" in <c>docs/design/campaign-map.md</c>.
 /// </para>
@@ -136,23 +137,13 @@ internal class Gathering(
             Dictionary<int, long> troopsByForceId = forcesOnTile.ToDictionary(f => f.Id, f => (long)f.Troops);
             ScaledAmount need = ScaledAmount.FromWhole(troopsByForceId.Values.Sum());
 
-            // The pool: what is available of each resource this tile offers, to this Player.
-            SustenanceResource[] poolResources = CampaignTileWater.IsWater(tile.BiomeIsWater, tile.CampaignMapGeographyTypeId)
-                ? [SustenanceResource.Fish]
-                : [SustenanceResource.Forage, SustenanceResource.Hunt];
-
-            var available = new Dictionary<SustenanceResource, ScaledAmount>();
-
-            foreach (SustenanceResource resource in poolResources)
-            {
-                ScaledAmount? availableValue = SustenanceValueCalculator.CalculateAvailableValue(values.GetValue(tile.BiomeTypeId, resource), DepletionTaken.GetTaken(depletion, resource));
-
-                // Null means the biome does not have the resource at all, so it is not part of the pool - unlike a stripped resource, which is in it at 0.
-                if (availableValue is not null)
-                {
-                    available.Add(resource, availableValue.Value);
-                }
-            }
+            // The pool: what is available of each resource this tile offers, to this Player. Built by TileFoodPool, which the support indicator shares, so the colour a
+            // tile is shown in always comes from the same pool the Forces eat from here.
+            Dictionary<SustenanceResource, ScaledAmount> available = TileFoodPool.GetAvailable(
+                CampaignTileWater.IsWater(tile.BiomeIsWater, tile.CampaignMapGeographyTypeId),
+                values,
+                tile.BiomeTypeId,
+                depletion);
 
             FoodExtraction extraction = FoodExtractionCalculator.Extract(need, available);
 

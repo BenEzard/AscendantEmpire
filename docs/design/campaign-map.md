@@ -419,6 +419,37 @@ Remaining Energy (of population after collecting food) = People after growth × 
   least warned if it cannot move).
 - If a unit attempts to move into a tile that won't have enough food, the player should be warned.
 
+### Support indicator
+
+A tile's **support level** says whether it can feed a set of Forces from the food available to the
+Player: the pool of Forage and Hunt on land, or Fish on water, less what has been taken — the same
+pool `Gathering` feeds from (`TileFoodPool`). The need is 1 food per troop, healthy and injured,
+counting only Forces that feed (troops left, not in a Battle).
+
+| Level | Rule | Colour |
+| --- | --- | --- |
+| Exhausted | Nothing available at all. Shown even with no Forces on the tile. | Dark red |
+| Plenty | Available ≥ 2 × need. | Green |
+| OneTurn | Available ≥ need. | Yellow |
+| Insufficient | Some food, but less than the need. | Red |
+| *(none)* | Food available but no need. | No colour |
+
+The rules are checked in that order. The number of turns is plain available ÷ need: it does not count
+regrowth at the end of a round, or other Players feeding on the tile.
+
+The level is shown in two places:
+
+- **Tile toolbar.** The selected tile's background. The need is the Player's own Forces standing on
+  the tile. It is returned with the tile's sustenance.
+- **Hover marker.** While Forces are selected, a circle at the centre of the hovered tile. The need is
+  the selected Forces plus the Player's own Forces already on the hovered tile, each counted once. No
+  marker is drawn on the selected Forces' own tile. Selecting Forces makes one request,
+  `GET campaign-map/player/tiles/support`, which returns the level of every tile in live sight, so
+  hovering is a lookup rather than a request per tile.
+
+Both only disclose tiles in the Player's live sight, like the sustenance values: a level reveals what
+is left on a tile, which changes as anyone feeds on it.
+
 ## Discovery of resources
 
 Many resources are not automatically visible and must be **discovered**.

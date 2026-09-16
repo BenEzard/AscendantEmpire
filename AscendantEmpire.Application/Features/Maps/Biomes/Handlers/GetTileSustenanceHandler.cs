@@ -63,13 +63,18 @@ internal class GetTileSustenanceRequestValidator : Validator<GetTileSustenanceRe
 /// <c>game.CampaignMapDepletion</c>, through <see cref="SustenanceValueCalculator.CalculateAvailableValue"/>. A tile with no depletion row has never been fed on, so
 /// nothing has been taken from it.
 /// </para>
+/// <para>
+/// The tile's <see cref="TileSustenance.SupportLevel"/> comes from <see cref="ITileSupportEvaluator"/> with no requested Forces, so the need is only the Player's own Forces
+/// already standing on the tile. The hover marker asks the same evaluator about every observed tile at once, through <c>GetTileSupportLevelsHandler</c>.
+/// </para>
 /// </remarks>
 internal class GetTileSustenanceHandler(
     ILogger<GetTileSustenanceHandler> logger,
     IDbContextFactory<AscendantEmpireContext> dbFactory,
     ISightDataReader sightDataReader,
     IFieldOfViewService fieldOfViewService,
-    IPlayerSustenanceValueReader sustenanceValueReader
+    IPlayerSustenanceValueReader sustenanceValueReader,
+    ITileSupportEvaluator tileSupportEvaluator
 ) : IRequestHandler<GetTileSustenanceRequest, ServiceResult<TileSustenance>>
 {
     public async Task<ServiceResult<TileSustenance>> Handle(GetTileSustenanceRequest request, CancellationToken cancelToken)
@@ -137,13 +142,25 @@ internal class GetTileSustenanceHandler(
                 .AsNoTracking()
                 .FirstOrDefaultAsync(d => d.CampaignMapId == seenTile.CampaignMapId, cancelToken);
 
+            // Whether the tile can feed the Forces already on it. No Forces are requested, so the only way this fails is a defect in the evaluator.
+            ServiceResult<IReadOnlyDictionary<int, TileSupportLevel?>> supportResult = await tileSupportEvaluator.EvaluateAsync(context, request.GameId, request.PlayerId, [seenTile], [], cancelToken);
+
+            if (supportResult.HasSucceeded == false)
+            {
+                const string error = "Error working out whether a tile can support the Player's Forces while reading its sustenance.";
+                logger.LogWarning(error);
+
+                return ServiceResult<TileSustenance>.Fail(supportResult.Errors.Prepend(error));
+            }
+
             return ServiceResult<TileSustenance>.Succeed(new TileSustenance
             {
                 IsObserved = true,
                 Forage = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Forage, depletion),
                 Hunt = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Hunt, depletion),
                 Fish = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Fish, depletion),
-                Fodder = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Fodder, depletion)
+                Fodder = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Fodder, depletion),
+                SupportLevel = supportResult.SuccessValue![seenTile.CampaignMapId]
             });
         }
         catch (Exception ex)

@@ -137,4 +137,49 @@ describe("TileGrid re-rendering", () => {
 
     expect(renderedTiles()).toEqual(["1,0", "2,0"]);
   });
+
+  /** The hover handler is built on the page's selection-dependent state too, so replacing it must not reach the tiles either. */
+  it("re-renders no tiles when the hover handler is replaced, and hovering still reaches the newest handler", () => {
+    const firstHover = vi.fn();
+    const { container, update } = renderGrid({ onTileHover: firstHover });
+
+    const latestHover = vi.fn();
+    update({ onTileHover: latestHover });
+
+    expect(renderedTiles()).toEqual([]);
+
+    fireEvent.pointerEnter(container.querySelectorAll(".tile")[2]);
+
+    expect(firstHover).not.toHaveBeenCalled();
+    expect(latestHover).toHaveBeenCalledWith(TILES_2D[0][2]);
+  });
+});
+
+describe("TileGrid hover", () => {
+  /** Only the tile entered is reported while moving across the map, and null only once the pointer leaves the map altogether — never a null between tiles. */
+  it("reports each tile entered, and null when the pointer leaves the map", () => {
+    const onTileHover = vi.fn();
+    const { container } = renderGrid({ onTileHover });
+
+    const tiles = container.querySelectorAll(".tile");
+    // Moving from one tile to the next never leaves the grid's layer in a browser, so only the enters are fired here.
+    fireEvent.pointerEnter(tiles[0]);
+    fireEvent.pointerEnter(tiles[1]);
+
+    expect(onTileHover.mock.calls).toEqual([[TILES_2D[0][0]], [TILES_2D[0][1]]]);
+
+    fireEvent.pointerLeave(tiles[1].parentElement!.parentElement!);
+
+    expect(onTileHover).toHaveBeenLastCalledWith(null);
+  });
+
+  it("draws its children over the tiles", () => {
+    const { getByTestId } = render(
+      <TileGrid {...BASE_PROPS}>
+        <span data-testid="overlay" />
+      </TileGrid>,
+    );
+
+    expect(getByTestId("overlay")).toBeInTheDocument();
+  });
 });

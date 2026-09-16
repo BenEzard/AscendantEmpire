@@ -3,6 +3,7 @@ import type { IconType } from "react-icons";
 import { GiBerryBush, GiDeer, GiFishing, GiHighGrass } from "react-icons/gi";
 import type { TileSustenance } from "@/features/map/api/tileSustenanceApi";
 import { formatSustenanceAmount } from "./formatSustenanceAmount";
+import { SUPPORT_LEVEL_LABELS, tileSupportLevelClass } from "./tileSupportLevelClass";
 
 export interface TileToolbarTile {
   x: number;
@@ -49,6 +50,9 @@ const SUSTENANCE_RESOURCES: SustenanceResourceDisplay[] = [
  * Laid out as three lines, most useful first: the terrain ("Grassland, Hills"), then the sustenance, then the coordinates. The
  * sustenance line is simply absent when there is nothing to show, so the bar shrinks to two lines rather than leaving a gap.
  *
+ * The background says whether the tile can feed the player's forces standing on it: green for two turns or more, yellow for one, red when it can't feed them
+ * all, and dark red when nothing is left — dark red shows even with no forces on the tile. No level, no colour.
+ *
  * A presenter, like its neighbours in the dock: it holds no state and makes no decisions.
  */
 export default function TileToolbar({ tile }: TileToolbarProps) {
@@ -62,8 +66,14 @@ export default function TileToolbar({ tile }: TileToolbarProps) {
   // the resource is there, the tile has just been stripped of it.
   const presentResources = sustenance == null ? [] : SUSTENANCE_RESOURCES.filter((resource) => sustenance[resource.key] != null);
 
+  // Whether the tile can feed the forces on it colours the whole bar. Only honoured for an observed tile, like the amounts: a level discloses what is left.
+  const supportLevel = sustenance?.supportLevel ?? null;
+  const className = ["tile-toolbar", tileSupportLevelClass("tile-toolbar", supportLevel)].filter(Boolean).join(" ");
+
   return (
-    <div className="tile-toolbar" aria-label="Tile toolbar">
+    // The level is named for screen readers through aria-description rather than a native title: a title would raise a browser tooltip on top of the
+    // resource tooltips inside the bar.
+    <div className={className} aria-label="Tile toolbar" aria-description={supportLevel == null ? undefined : SUPPORT_LEVEL_LABELS[supportLevel]}>
       <span className="tile-toolbar__terrain">{tile.terrainLabel}</span>
       {presentResources.length > 0 && (
         <span className="tile-toolbar__sustenance" aria-label="Sustenance available">

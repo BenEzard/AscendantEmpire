@@ -106,6 +106,22 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
     [selectedForceIds],
   );
 
+  // The tiles the selection stands on, as "x,y" keys, for the hover marker to leave alone — the tile toolbar already describes a tile the forces are on. A
+  // set because a selection could in principle span tiles, even though the bar only ever offers one tile's forces.
+  const selectedForceTileKeys = useMemo<ReadonlySet<string>>(() => {
+    const keys = new Set<string>();
+
+    for (const force of selectedForces) {
+      const tile = tileByForceId[force.id];
+
+      if (tile != null) {
+        keys.add(getTileKey(tile.x, tile.y));
+      }
+    }
+
+    return keys;
+  }, [selectedForces, tileByForceId]);
+
   const getVisibleForceForTile = useCallback(
     (tile: TileCell, options?: { forces?: ObservedForceTile[] }) => {
       const forces = options?.forces ?? tile.forces ?? [];
@@ -368,6 +384,8 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
   return {
     selectedForces,
     selectedForceIds,
+    selectedForceIdList,
+    selectedForceTileKeys,
     forceSelectionTile,
     getVisibleForceId,
     chooseForce,

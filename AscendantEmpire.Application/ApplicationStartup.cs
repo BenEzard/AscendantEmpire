@@ -8,6 +8,7 @@ using AscendantEmpire.Application.Features.Intelligence.Services;
 using AscendantEmpire.Application.Features.Maps.BattleMaps.Services;
 using AscendantEmpire.Application.Features.Maps.Biomes.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
+using AscendantEmpire.Application.Features.Maps.Depletion.Services;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Executors;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
 using AscendantEmpire.Application.Features.UnitComponents.Executors;
@@ -93,6 +94,10 @@ public static class ApplicationStartup
         // What happens to a Force that did not get all the food it needed at the end of its Turn, called by the Gathering process below. Only logs until a damage model for
         // partial feeding exists.
         services.AddScoped<IUnderfedForceResolver, LoggingUnderfedForceResolver>();
+
+        // Whether a tile can feed the Player's Forces on it (and any selected Forces about to move there), for the tile toolbar's background and the hover marker. Shares
+        // Gathering's pool rules, so the colour shown and the feed itself cannot disagree.
+        services.AddScoped<ITileSupportEvaluator, TileSupportEvaluator>();
 
         // Which Players share vision. Every Player is a coalition of one until a foreign relations model exists to say otherwise.
         services.AddScoped<ICoalitionResolver, SoloCoalitionResolver>();

@@ -4,11 +4,13 @@ using AscendantEmpire.Application.Features.Maps.Biomes.Handlers;
 using AscendantEmpire.Application.Features.Maps.Biomes.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
+using AscendantEmpire.Application.Features.Maps.Depletion.Services;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.Biomes;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
+using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Modifiers;
@@ -34,6 +36,10 @@ namespace AscendantEmpire.Tests.Features.Maps.Biomes;
 /// <para>
 /// The map is 10 x 10. The catalogue has one biome, Grassland (Forage 400, Hunt 100, no Fish, Fodder 1,000). By default the Player has one Force at (3, 4) seeing only its own
 /// Grassland tile.
+/// </para>
+/// <para>
+/// The support level comes from the real <see cref="TileSupportEvaluator"/>. Which Forces count, and the thresholds, are covered in <c>TileSupportEvaluatorTests</c> and
+/// <c>ForceSupportCalculatorTests</c>; here it is only checked that the level reaches the response.
 /// </para>
 /// </remarks>
 [TestFixture]
@@ -77,7 +83,7 @@ internal class GetTileSustenanceHandlerTests : InMemoryTestBase
         _fieldOfViewService = Substitute.For<IFieldOfViewService>();
         SetSeenTiles(BuildSeenTile(_SEEN_X, _SEEN_Y, BiomeType.Grassland));
 
-        _handler = new GetTileSustenanceHandler(NullLogger<GetTileSustenanceHandler>.Instance, DbFactory, _sightDataReader, _fieldOfViewService, new PlayerSustenanceValueReader());
+        _handler = new GetTileSustenanceHandler(NullLogger<GetTileSustenanceHandler>.Instance, DbFactory, _sightDataReader, _fieldOfViewService, new PlayerSustenanceValueReader(), new TileSupportEvaluator(new PlayerSustenanceValueReader()));
     }
 
     [Test, Description("A tile in live sight reports the Player's values for its biome, which with no modifiers and nothing taken are the biome's base values.")]
@@ -185,6 +191,44 @@ internal class GetTileSustenanceHandlerTests : InMemoryTestBase
         }
     }
 
+    [Test, Description("The toolbar is told whether the tile can feed the Player's Forces on it: 300 troops against 500 Forage and Hunt is one Turn.")]
+    public async Task ShouldReturnTheSupportLevelForTheForcesOnTheTileAsync()
+    {
+        await AddForceAsync(troops: 300);
+
+        ServiceResult<TileSustenance> result = await HandleAsync(_SEEN_X, _SEEN_Y);
+
+        Assert.That(result.SuccessValue!.SupportLevel, Is.EqualTo(TileSupportLevel.OneTurn));
+    }
+
+    [Test, Description("A tile with food and no Forces on it has no support level, so the toolbar is not coloured.")]
+    public async Task ShouldReturnNoSupportLevelWhenNoForcesAreOnTheTileAsync()
+    {
+        ServiceResult<TileSustenance> result = await HandleAsync(_SEEN_X, _SEEN_Y);
+
+        Assert.That(result.SuccessValue!.SupportLevel, Is.Null);
+    }
+
+    [Test, Description("A stripped tile is exhausted even with no Forces on it, so the toolbar shows a bare tile as bare.")]
+    public async Task ShouldReturnExhaustedForAStrippedTileWithNoForcesAsync()
+    {
+        await AddDepletionAsync(SeenTileId, forageTaken: ScaledAmount.FromWhole(400).RawValue, huntTaken: ScaledAmount.FromWhole(100).RawValue, fodderTaken: 0);
+
+        ServiceResult<TileSustenance> result = await HandleAsync(_SEEN_X, _SEEN_Y);
+
+        Assert.That(result.SuccessValue!.SupportLevel, Is.EqualTo(TileSupportLevel.Exhausted));
+    }
+
+    [Test, Description("A tile outside live sight has no support level either, since a level would disclose what is left on it.")]
+    public async Task ShouldReturnNoSupportLevelWhenTheTileIsNotObservedAsync()
+    {
+        await AddDepletionAsync(SeenTileId + 1, forageTaken: ScaledAmount.FromWhole(400).RawValue, huntTaken: ScaledAmount.FromWhole(100).RawValue, fodderTaken: 0);
+
+        ServiceResult<TileSustenance> result = await HandleAsync(_SEEN_X + 1, _SEEN_Y);
+
+        Assert.That(result.SuccessValue!.SupportLevel, Is.Null);
+    }
+
     [Test, Description("A coordinate past the edge of the map names no tile and is a 404, rather than being wrapped onto a tile that is on the map.")]
     public async Task ShouldReturnNotFoundWhenTheTileIsOffTheMapAsync()
     {
@@ -225,6 +269,28 @@ internal class GetTileSustenanceHandlerTests : InMemoryTestBase
             HuntTaken = huntTaken,
             FodderTaken = fodderTaken,
             FedOnRound = 1
+        });
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Adds a healthy Force of the Player's on the seen tile.
+    /// </summary>
+    private async Task AddForceAsync(int troops)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        context.UnitInstances.Add(new UnitInstance
+        {
+            Id = 1,
+            GameId = _GAME_ID,
+            PlayerId = _PLAYER_ID,
+            CampaignMapTileId = SeenTileId,
+            UnitTemplateId = 1,
+            InitialStrength = troops,
+            HealthyCount = troops,
+            InjuredCount = 0
         });
 
         await context.SaveChangesAsync();

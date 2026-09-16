@@ -499,6 +499,74 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Support levels: whether the tile can feed the forces on it (or, for the hover marker, the selected forces if they moved there). The toolbar and the
+   marker share one set of colours, so a level always reads the same in both. Plain available ÷ need — regrowth is not counted. */
+:root {
+  --tile-support-plenty: #4ade80;
+  --tile-support-one-turn: #facc15;
+  --tile-support-insufficient: #dc2626;
+  --tile-support-exhausted: #7f1d1d;
+}
+
+/* Two turns or more. Light enough that the bar's dark text and icons stay readable unchanged. */
+.tile-toolbar--support-plenty {
+  background: var(--tile-support-plenty);
+}
+
+/* One turn. Light enough for the same reason. */
+.tile-toolbar--support-one-turn {
+  background: var(--tile-support-one-turn);
+}
+
+/* Not enough for the whole force, and nothing left at all. Both too dark for the bar's usual slate text, so everything on them turns light. */
+.tile-toolbar--support-insufficient {
+  background: var(--tile-support-insufficient);
+}
+
+.tile-toolbar--support-exhausted {
+  background: var(--tile-support-exhausted);
+}
+
+.tile-toolbar--support-insufficient,
+.tile-toolbar--support-exhausted,
+.tile-toolbar--support-insufficient .tile-toolbar__sustenance-icon,
+.tile-toolbar--support-insufficient .tile-toolbar__coordinates,
+.tile-toolbar--support-exhausted .tile-toolbar__sustenance-icon,
+.tile-toolbar--support-exhausted .tile-toolbar__coordinates {
+  color: #f8fafc;
+}
+
+/* The hover marker: a circle centred on the hovered tile (TileSupportMarker positions its centre; the transform pulls it back by half its size). Clicks and
+   holds pass straight through to the tile beneath. The white ring and shadow keep it visible against any terrain colour. */
+.tile-support-marker {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.45);
+  pointer-events: none;
+  /* Above everything a tile draws inside itself (forces and known-force markers sit at 2), so the marker is never hidden under a unit. */
+  z-index: 3;
+}
+
+.tile-support-marker--support-plenty {
+  background: var(--tile-support-plenty);
+}
+
+.tile-support-marker--support-one-turn {
+  background: var(--tile-support-one-turn);
+}
+
+.tile-support-marker--support-insufficient {
+  background: var(--tile-support-insufficient);
+}
+
+.tile-support-marker--support-exhausted {
+  background: var(--tile-support-exhausted);
+}
+
 /* Positioned by .command-dock, not by itself — this rule is chrome only. */
 .command-toolbox {
   display: flex;

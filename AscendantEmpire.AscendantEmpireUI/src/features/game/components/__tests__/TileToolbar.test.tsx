@@ -23,7 +23,7 @@ describe("TileToolbar", () => {
   it("shows each present sustenance resource and leaves out the absent ones", () => {
     render(
       <TileToolbar
-        tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: true, forage: 334.5, hunt: 0, fish: null, fodder: 1250 } }}
+        tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: true, forage: 334.5, hunt: 0, fish: null, fodder: 1250, supportLevel: null } }}
       />,
     );
 
@@ -35,7 +35,7 @@ describe("TileToolbar", () => {
 
   /** Terrain first, then what the player can feed on, then the coordinates — the order a player reasons about a tile in. */
   it("lays the lines out as terrain, sustenance, then coordinates", () => {
-    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: true, forage: 400, hunt: null, fish: null, fodder: null } }} />);
+    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: true, forage: 400, hunt: null, fish: null, fodder: null, supportLevel: null } }} />);
 
     const lineClasses = Array.from(screen.getByLabelText("Tile toolbar").children).map((line) => line.className);
 
@@ -44,7 +44,7 @@ describe("TileToolbar", () => {
 
   /** One tooltip covers the icon and its number, naming the resource and the amount together. */
   it("shows the resource and amount in a tooltip when the icon and number are hovered", async () => {
-    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: true, forage: 400, hunt: null, fish: null, fodder: null } }} />);
+    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: true, forage: 400, hunt: null, fish: null, fodder: null, supportLevel: null } }} />);
 
     const amount = screen.getByLabelText("Forage 400").querySelector(".tile-toolbar__sustenance-amount")!;
     fireEvent.mouseEnter(amount.parentElement!);
@@ -55,10 +55,40 @@ describe("TileToolbar", () => {
   /** An unwatched tile discloses nothing, so no sustenance group is drawn even if a value somehow arrives with it. */
   it("shows no sustenance for a tile out of sight", () => {
     render(
-      <TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: false, forage: 400, hunt: null, fish: null, fodder: null } }} />,
+      <TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: false, forage: 400, hunt: null, fish: null, fodder: null, supportLevel: null } }} />,
     );
 
     expect(screen.queryByLabelText("Sustenance available")).not.toBeInTheDocument();
+  });
+
+  /** The background says whether the tile can feed the forces on it; each level has its own colour class. */
+  it.each([
+    ["Plenty", "tile-toolbar--support-plenty"],
+    ["OneTurn", "tile-toolbar--support-one-turn"],
+    ["Insufficient", "tile-toolbar--support-insufficient"],
+    ["Exhausted", "tile-toolbar--support-exhausted"],
+  ] as const)("colours the bar for a %s support level", (supportLevel, expectedClass) => {
+    render(
+      <TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: true, forage: 0, hunt: 0, fish: null, fodder: null, supportLevel } }} />,
+    );
+
+    expect(screen.getByLabelText("Tile toolbar")).toHaveClass("tile-toolbar", expectedClass);
+  });
+
+  /** No forces on a tile with food means no level, and no colour. */
+  it("leaves the bar uncoloured with no support level", () => {
+    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: true, forage: 400, hunt: null, fish: null, fodder: null, supportLevel: null } }} />);
+
+    expect(screen.getByLabelText("Tile toolbar").className).toBe("tile-toolbar");
+  });
+
+  /** An unwatched tile discloses nothing, so a level that somehow arrives with it is not drawn either. */
+  it("leaves the bar uncoloured for a tile out of sight", () => {
+    render(
+      <TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: false, forage: null, hunt: null, fish: null, fodder: null, supportLevel: "Exhausted" } }} />,
+    );
+
+    expect(screen.getByLabelText("Tile toolbar").className).toBe("tile-toolbar");
   });
 
   it("shows no sustenance before any has arrived", () => {

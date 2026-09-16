@@ -9,6 +9,9 @@ export const TILE_SIZE_PX = 50;
 // Static container style hoisted to module scope so it isn't re-allocated each render.
 const CONTAINER_STYLE: React.CSSProperties = { overflow: "auto", border: "1px solid rgba(0,0,0,0.125)" };
 
+// The positioning context for overlays drawn over the tiles. Inside the scrolling container, so an overlay placed by tile coordinates scrolls with the map.
+const OVERLAY_LAYER_STYLE: React.CSSProperties = { position: "relative" };
+
 export interface TileGridProps {
   width: number;
   height: number;
@@ -37,6 +40,16 @@ export interface TileGridProps {
   onTileClick?: (tile: TileCell) => void;
   /** Called when a tile is held. The same stability guarantee as `onTileClick` applies. */
   onTileHold?: (tile: TileCell) => void;
+  /**
+   * Called with the tile the pointer enters, and with null when the pointer leaves the map. The same stability guarantee as `onTileClick` applies. Moving
+   * between tiles reports only the tile entered, never a null in between.
+   */
+  onTileHover?: (tile: TileCell | null) => void;
+  /**
+   * Drawn over the tiles, positioned against the top-left of the grid (tile (x, y) starts at `x * TILE_SIZE_PX`, `y * TILE_SIZE_PX`), so it scrolls with the
+   * map. Keep its identity stable: the grid is memoised, and a fresh element on every parent render would re-render the grid with it.
+   */
+  children?: React.ReactNode;
 
   /*
    * Per-tile appearance. Each of these is called by the grid for every tile, and what it returns is handed to the tile as a plain value. That is what lets
@@ -68,6 +81,8 @@ const TileGrid = React.memo(function TileGrid({
   currentRoundNumber,
   onTileClick,
   onTileHold,
+  onTileHover,
+  children,
   getTileTitle,
   getTileBackground,
   isTileHighlighted,
@@ -86,10 +101,17 @@ const TileGrid = React.memo(function TileGrid({
   const handleTileClick = React.useCallback((tile: TileCell) => onTileClickRef.current?.(tile), []);
   const handleTileHold = React.useCallback((tile: TileCell) => onTileHoldRef.current?.(tile), []);
 
+  const onTileHoverRef = React.useRef(onTileHover);
+  onTileHoverRef.current = onTileHover;
+
+  const handleTileHover = React.useCallback((tile: TileCell) => onTileHoverRef.current?.(tile), []);
+  const handleGridLeave = React.useCallback(() => onTileHoverRef.current?.(null), []);
+
   // Whether a handler is supplied at all still reaches the tiles, since it changes how they behave: a tile with no click handler isn't drawn as a button,
   // and one with no hold handler never starts the hold timer. That only changes when a handler appears or disappears, not when it is replaced.
   const tileClickHandler = onTileClick ? handleTileClick : undefined;
   const tileHoldHandler = onTileHold ? handleTileHold : undefined;
+  const tileHoverHandler = onTileHover ? handleTileHover : undefined;
   // Flatten row-major (y then x)
   const flat = React.useMemo(() => tiles2d.flat(), [tiles2d]);
 
@@ -117,43 +139,48 @@ const TileGrid = React.memo(function TileGrid({
 
   return (
     <div ref={containerRef} style={CONTAINER_STYLE}>
-      <div style={gridStyle}>
-        {flat.map((t) => {
-          const g = t.geographyTypeId == null ? undefined : geographyByType.get(t.geographyTypeId);
-          if (!g) {
-            throw new Error(`No Geography found for geographyTypeId=${t.geographyTypeId} at (${t.x},${t.y})`);
-          }
+      {/* Leaving this layer is leaving the map. Tiles only report the tile entered, so this is the one place the pointer is known to be off every tile. */}
+      <div style={OVERLAY_LAYER_STYLE} onPointerLeave={handleGridLeave}>
+        <div style={gridStyle}>
+          {flat.map((t) => {
+            const g = t.geographyTypeId == null ? undefined : geographyByType.get(t.geographyTypeId);
+            if (!g) {
+              throw new Error(`No Geography found for geographyTypeId=${t.geographyTypeId} at (${t.x},${t.y})`);
+            }
 
-          // The force the tile draws, falling back to its first force the same way Tile does, so the selected state below describes the force that is
-          // actually on screen.
-          const visibleForceId = getVisibleForceId?.(t) ?? t.forces?.[0]?.id;
+            // The force the tile draws, falling back to its first force the same way Tile does, so the selected state below describes the force that is
+            // actually on screen.
+            const visibleForceId = getVisibleForceId?.(t) ?? t.forces?.[0]?.id;
 
-          // Resolved to a boolean here rather than passing the selection set down. A new set reaches every tile; a boolean only differs for the tiles whose
-          // drawn force went into or out of the selection.
-          const isVisibleForceSelected = visibleForceId != null && (selectedForceIds?.has(visibleForceId) ?? false);
+            // Resolved to a boolean here rather than passing the selection set down. A new set reaches every tile; a boolean only differs for the tiles whose
+            // drawn force went into or out of the selection.
+            const isVisibleForceSelected = visibleForceId != null && (selectedForceIds?.has(visibleForceId) ?? false);
 
-          return (
-            <Tile
-              key={`${t.x},${t.y}`}
-              tile={t}
-              geography={g}
-              sizePx={TILE_SIZE_PX}
-              isVisibleForceSelected={isVisibleForceSelected}
-              unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
-              visibleForceId={visibleForceId}
-              isObserved={isTileObserved?.(t) ?? true}
-              knownForces={getKnownForces?.(t)}
-              knownStructures={getKnownStructures?.(t)}
-              currentRoundNumber={currentRoundNumber}
-              onClick={tileClickHandler}
-              onHold={tileHoldHandler}
-              title={getTileTitle?.(t)}
-              background={getTileBackground?.(t)}
-              isHighlighted={isTileHighlighted?.(t) ?? false}
-              className={tileClassName}
-            />
-          );
-        })}
+            return (
+              <Tile
+                key={`${t.x},${t.y}`}
+                tile={t}
+                geography={g}
+                sizePx={TILE_SIZE_PX}
+                isVisibleForceSelected={isVisibleForceSelected}
+                unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
+                visibleForceId={visibleForceId}
+                isObserved={isTileObserved?.(t) ?? true}
+                knownForces={getKnownForces?.(t)}
+                knownStructures={getKnownStructures?.(t)}
+                currentRoundNumber={currentRoundNumber}
+                onClick={tileClickHandler}
+                onHold={tileHoldHandler}
+                onHover={tileHoverHandler}
+                title={getTileTitle?.(t)}
+                background={getTileBackground?.(t)}
+                isHighlighted={isTileHighlighted?.(t) ?? false}
+                className={tileClassName}
+              />
+            );
+          })}
+        </div>
+        {children}
       </div>
     </div>
   );

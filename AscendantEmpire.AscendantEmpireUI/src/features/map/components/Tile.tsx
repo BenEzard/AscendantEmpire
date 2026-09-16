@@ -37,6 +37,8 @@ export interface TileProps {
   currentRoundNumber?: number | null;
   onClick?: (tile: TileCell) => void;
   onHold?: (tile: TileCell) => void;
+  /** Called with the tile when the pointer enters it. Should keep one identity, like `onClick`, or every tile re-renders when it changes. */
+  onHover?: (tile: TileCell) => void;
   className?: string;
   /**
    * The CSS background to paint the tile with, overriding the faint default. A string rather than a style callback, so the memo compares what the tile
@@ -71,6 +73,7 @@ const Tile = React.memo(function Tile({
   currentRoundNumber = null,
   onClick,
   onHold,
+  onHover,
   className,
   background,
   isHighlighted = false,
@@ -150,6 +153,11 @@ const Tile = React.memo(function Tile({
           holdTimerRef.current = null;
           onHold(tile);
         }, HOLD_DELAY_MS);
+      }}
+      onPointerEnter={() => {
+        // Only entering is reported. Leaving one tile is always entering another, or leaving the map, which the grid reports itself — so reporting leaves
+        // too would briefly say the pointer was nowhere between every pair of tiles.
+        onHover?.(tile);
       }}
       onPointerUp={() => {
         clearHoldTimer();

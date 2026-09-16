@@ -1,3 +1,5 @@
+using AscendantEmpire.Domain.Enums.Resources;
+
 namespace AscendantEmpire.FrontendContracts.Biomes.GetTileSustenance;
 
 /// <summary>
@@ -27,4 +29,10 @@ public interface ITileSustenance
     decimal? Fish { get; }
 
     decimal? Fodder { get; }
+
+    /// <summary>
+    /// Whether the tile can feed the Player's Forces standing on it, serialised as the member's name. <c>Exhausted</c> for a stripped tile even with no Forces on it;
+    /// otherwise <see langword="null"/> when no Forces are on it, or when the tile is not observed. A count of Turns ignores regrowth and other Players feeding.
+    /// </summary>
+    TileSupportLevel? SupportLevel { get; }
 }

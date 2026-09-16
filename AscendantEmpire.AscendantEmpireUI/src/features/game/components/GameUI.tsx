@@ -47,6 +47,9 @@ import type { SightingDescriptionContext } from "@/features/intelligence/describ
 import { useCurrentCampaignTurnQuery } from "../hooks/useCurrentCampaignTurn";
 import { useGamePlayersQuery } from "../hooks/useGamePlayers";
 import { useTileSustenanceQuery } from "@/features/map/hooks/useTileSustenance";
+import { useTileSupportLevelsQuery } from "@/features/map/hooks/useTileSupportLevels";
+import { useHoveredTileStore } from "@/features/map/hooks/useHoveredTileStore";
+import TileSupportMarker from "./TileSupportMarker";
 
 type ActivePanel = "unit-design" | null;
 
@@ -102,6 +105,8 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const {
     selectedForces,
     selectedForceIds,
+    selectedForceIdList,
+    selectedForceTileKeys,
     forceSelectionTile,
     getVisibleForceId,
     chooseForce,
@@ -288,6 +293,30 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
 
     return { x: cell.x, y: cell.y, terrainLabel: getTileTerrainLabel(cell), sustenance };
   }, [inspectedTileCoords, tiles2d, getTileTerrainLabel, isInspectedTileObserved, inspectedTileSustenance]);
+
+  // --- Hover marker: could the hovered tile feed the selected forces? ---
+  // Where the pointer is, held outside React state so hovering never re-renders this page or the grid — only the marker subscribes to it. The store's
+  // setter keeps one identity, so the grid's hover handler never changes.
+  const hoveredTileStore = useHoveredTileStore();
+  const onTileHover = useCallback((tile: TileCell | null) => hoveredTileStore.set(tile == null ? null : { x: tile.x, y: tile.y }), [hoveredTileStore]);
+
+  // The support level of every observed tile for the selection, asked for once per selection so the marker is a lookup rather than a request per hover.
+  const { data: supportLevelByTileKey } = useTileSupportLevelsQuery(gameId, playerId, tilesEnabled ? selectedForceIdList : []);
+
+  // Built here and memoised because it is the grid's child: the grid is memoised, and a fresh element on every render of this page would re-render the whole
+  // grid with it. It only changes when the levels, the sight or the selection does — all of which re-render the grid's tiles anyway.
+  const tileSupportMarker = useMemo(
+    () =>
+      selectedForceIdList.length === 0 ? null : (
+        <TileSupportMarker
+          hoveredTileStore={hoveredTileStore}
+          levelByTileKey={supportLevelByTileKey}
+          observedTileKeys={observedTileKeys}
+          selectedForceTileKeys={selectedForceTileKeys}
+        />
+      ),
+    [selectedForceIdList, hoveredTileStore, supportLevelByTileKey, observedTileKeys, selectedForceTileKeys],
+  );
 
   // Stable per-tile predicate for the grid, so its memoised tiles only re-render when what the player can see actually changes.
   const isTileObserved = useCallback((tile: TileCell) => observedTileKeys.has(`${tile.x},${tile.y}`), [observedTileKeys]);
@@ -617,10 +646,12 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
                       currentRoundNumber={currentRoundNumber}
                       onTileClick={onTileClick}
                       onTileHold={onTileHold}
+                      onTileHover={onTileHover}
                       getTileBackground={getTileBackground}
                       isTileHighlighted={isTileSelected}
-                      getTileTitle={getTileTitle}
-                    />
+                      getTileTitle={getTileTitle}>
+                      {tileSupportMarker}
+                    </TileGrid>
                   )}
                 </>
               )}
