@@ -62,7 +62,7 @@ internal class GetCampaignMapBiomesTests
                 DoesBlockSight = true,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationRate = 1.1m,
+                RegenerationPercent = 0.1m,
                 // Base values are stored SCALED in the DB; the handler converts them back to whole numbers.
                 BaseForageValue = ScaledAmount.FromWhole(2).RawValue,
                 BaseHuntValue = ScaledAmount.FromWhole(3).RawValue,
@@ -84,7 +84,7 @@ internal class GetCampaignMapBiomesTests
                 DoesBlockSight = false,
                 IsWater = false,
                 IsTraversable = false,
-                RegenerationRate = 1.1m,
+                RegenerationPercent = 0.1m,
                 // Base values are stored SCALED in the DB; the handler converts them back to whole numbers.
                 BaseForageValue = ScaledAmount.FromWhole(2).RawValue,
                 BaseHuntValue = ScaledAmount.FromWhole(3).RawValue,
@@ -106,7 +106,7 @@ internal class GetCampaignMapBiomesTests
                 DoesBlockSight = false,
                 IsWater = false,
                 IsTraversable = false,
-                RegenerationRate = 1.1m,
+                RegenerationPercent = 0.1m,
                 MapEditorHtmlColor = "#ffffcc", // Invalid color
                 CanBeElevated = true,
                 IsPaintableOnCampaignMap = false
@@ -142,7 +142,7 @@ internal class GetCampaignMapBiomesTests
                 Assert.That(biome.DoesBlockSight, Is.EqualTo(loadedBiome.DoesBlockSight), $"Biome {biome.BiomeType} sight blocking does not match.");
                 Assert.That(biome.IsWater, Is.EqualTo(loadedBiome.IsWater), $"Biome {biome.BiomeType} water status does not match.");
                 Assert.That(biome.IsTraversable, Is.EqualTo(loadedBiome.IsTraversable), $"Biome {biome.BiomeType} traversability does not match.");
-                Assert.That(biome.RegenerationRate, Is.EqualTo(loadedBiome.RegenerationRate), $"Biome {biome.BiomeType} regeneration rate does not match.");
+                Assert.That(biome.RegenerationPercent, Is.EqualTo(loadedBiome.RegenerationPercent), $"Biome {biome.BiomeType} Regeneration Percent does not match.");
                 // The handler returns whole numbers, so compare against the whole equivalent of the scaled seed.
                 Assert.That(biome.BaseForageValue, Is.EqualTo(ExpectedWhole(loadedBiome.BaseForageValue)), $"Biome {biome.BiomeType} forage value does not match.");
                 Assert.That(biome.BaseHuntValue, Is.EqualTo(ExpectedWhole(loadedBiome.BaseHuntValue)), $"Biome {biome.BiomeType} hunt value does not match.");

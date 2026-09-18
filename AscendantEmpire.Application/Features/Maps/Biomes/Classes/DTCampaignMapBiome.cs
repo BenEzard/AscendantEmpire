@@ -33,9 +33,9 @@ public class DTCampaignMapBiome : ICampaignMapBiome
     public bool IsTraversable { get; set; }
 
     /// <summary>
-    /// The rate at which this Biome regenerates resources
+    /// The share of each sustenance base value that regrows at the end of every Round, as a fraction (0.25 is 25%)
     /// <summary>
-    public decimal? RegenerationRate { get; set; }
+    public decimal? RegenerationPercent { get; set; }
     #endregion
 
     #region Map Editor Properties

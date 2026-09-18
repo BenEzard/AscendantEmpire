@@ -116,7 +116,7 @@ internal class BattleEngagementServicePersistenceTests : GameSqlServerTestBase
                     DoesBlockSight = false,
                     IsWater = false,
                     IsTraversable = true,
-                    RegenerationRate = 1.0m,
+                    RegenerationPercent = 0.1m,
                     IsPaintableOnCampaignMap = false,
                     CanBeElevated = true
                 });

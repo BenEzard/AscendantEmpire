@@ -32,7 +32,7 @@ internal static class StartPositionsMapSeed
                 DoesBlockSight = false,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationRate = 1.0m,
+                RegenerationPercent = 0.1m,
                 IsPaintableOnCampaignMap = true,
                 MapEditorHtmlColor = "#90ee90",
                 CanBeElevated = true
@@ -46,7 +46,7 @@ internal static class StartPositionsMapSeed
                 DoesBlockSight = false,
                 IsWater = true,
                 IsTraversable = false,
-                RegenerationRate = 1.0m,
+                RegenerationPercent = 0.1m,
                 IsPaintableOnCampaignMap = true,
                 MapEditorHtmlColor = "#0000ff",
                 CanBeElevated = false

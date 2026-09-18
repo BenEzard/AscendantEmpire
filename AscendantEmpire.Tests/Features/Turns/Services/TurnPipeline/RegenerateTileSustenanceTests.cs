@@ -24,7 +24,7 @@ namespace AscendantEmpire.Tests.Features.Turns.Services.TurnPipeline;
 /// around them.
 /// </para>
 /// <para>
-/// The catalogue has Grassland (Forage 400, Hunt 200, no Fish, Fodder 1,000, Rate 1.1), Ocean (Fish 300 only, Rate 1.25) and a legacy Desert (Forage 100, no Rate). There are
+/// The catalogue has Grassland (Forage 400, Hunt 200, no Fish, Fodder 1,000, 10%), Ocean (Fish 300 only, 25%) and a legacy Desert (Forage 100, no Regeneration Percent). There are
 /// two Grassland tiles, an Ocean tile and a Desert tile in this Game, and a Grassland tile in another Game.
 /// </para>
 /// </remarks>
@@ -57,7 +57,7 @@ internal class RegenerateTileSustenanceTests : InMemoryTestBase
                 IsWater = false,
                 IsTraversable = true,
                 MapEditorHtmlColor = "#7cb342",
-                RegenerationRate = 1.1m,
+                RegenerationPercent = 0.1m,
                 BaseForageValue = ScaledAmount.FromWhole(400).RawValue,
                 BaseHuntValue = ScaledAmount.FromWhole(200).RawValue,
                 BaseFishValue = null,
@@ -72,14 +72,14 @@ internal class RegenerateTileSustenanceTests : InMemoryTestBase
                 IsWater = true,
                 IsTraversable = true,
                 MapEditorHtmlColor = "#1565c0",
-                RegenerationRate = 1.25m,
+                RegenerationPercent = 0.25m,
                 BaseForageValue = null,
                 BaseHuntValue = null,
                 BaseFishValue = ScaledAmount.FromWhole(300).RawValue,
                 BaseFodderValue = null
             };
 
-            // Saved before the biome validator required a rate wherever there is a sustenance base.
+            // Saved before the biome validator required a Regeneration Percent wherever there is a sustenance base.
             var legacyDesert = new CampaignBiome
             {
                 BiomeTypeId = BiomeType.Desert,
@@ -88,7 +88,7 @@ internal class RegenerateTileSustenanceTests : InMemoryTestBase
                 IsWater = false,
                 IsTraversable = true,
                 MapEditorHtmlColor = "#e0c068",
-                RegenerationRate = null,
+                RegenerationPercent = null,
                 BaseForageValue = ScaledAmount.FromWhole(100).RawValue
             };
 
@@ -108,7 +108,7 @@ internal class RegenerateTileSustenanceTests : InMemoryTestBase
         _process = new RegenerateTileSustenance(DbFactory, NullLogger<RegenerateTileSustenance>.Instance);
     }
 
-    [Test, Description("A tile fed on this Round regrows each resource on its own: partly depleted Forage regrows while bare Hunt stays bare under the Force.")]
+    [Test, Description("A tile fed on this Round regrows each resource by its own Base: partly depleted Forage and bare Hunt both regrow under the Force.")]
     public async Task ShouldRegrowEachResourceIndependentlyOnATileFedOnThisRoundAsync()
     {
         await AddDepletionAsync(_GRASSLAND_TILE_ID, forageTaken: 100_000, huntTaken: 200_000, fedOnRound: _CURRENT_ROUND_NUMBER);
@@ -117,12 +117,12 @@ internal class RegenerateTileSustenanceTests : InMemoryTestBase
 
         CampaignMapDepletion depletion = await ReloadDepletionAsync(_GRASSLAND_TILE_ID);
 
-        // Forage: a base view of 300 regrows by 30.
+        // Forage regrows by 10% of its Base of 400, Hunt by 10% of its Base of 200.
         using (Assert.EnterMultipleScope())
         {
             Assert.That(error, Is.Empty);
-            Assert.That(depletion.ForageTaken, Is.EqualTo(70_000));
-            Assert.That(depletion.HuntTaken, Is.EqualTo(200_000), "A bare resource that is fed on stays bare.");
+            Assert.That(depletion.ForageTaken, Is.EqualTo(60_000));
+            Assert.That(depletion.HuntTaken, Is.EqualTo(180_000), "A bare resource regrows even while it is fed on.");
             Assert.That(depletion.FodderTaken, Is.Zero);
         }
     }
@@ -139,15 +139,16 @@ internal class RegenerateTileSustenanceTests : InMemoryTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(depletion.ForageTaken, Is.EqualTo(360_000), "Bare Forage left alone refills to 10% of Base.");
-            Assert.That(depletion.HuntTaken, Is.EqualTo(35_000), "Hunt above 10% regrows by a tenth of its base view of 150.");
+            Assert.That(depletion.ForageTaken, Is.EqualTo(360_000), "Bare Forage left alone recovers to 10% of Base.");
+            Assert.That(depletion.HuntTaken, Is.EqualTo(30_000), "Hunt regrows by 10% of its Base of 200.");
         }
     }
 
     [Test, Description("Being fed on only counts for the Round it happened in, so the next Round's end treats the tile as left alone with nothing needing clearing.")]
     public async Task ShouldTreatTheFedOnMarkerAsClearedInTheNextRoundAsync()
     {
-        await AddDepletionAsync(_GRASSLAND_TILE_ID, forageTaken: 0, huntTaken: 200_000, fedOnRound: _CURRENT_ROUND_NUMBER);
+        // Hunt above its Base of 200, as a stronger Player would leave it, so the 10% floor gives a different answer from regrowth.
+        await AddDepletionAsync(_GRASSLAND_TILE_ID, forageTaken: 0, huntTaken: 250_000, fedOnRound: _CURRENT_ROUND_NUMBER);
 
         await _process.ProcessAsync(EndRoundContext(_CURRENT_ROUND_NUMBER));
         long huntTakenAfterFedOnRound = (await ReloadDepletionAsync(_GRASSLAND_TILE_ID)).HuntTaken;
@@ -157,8 +158,8 @@ internal class RegenerateTileSustenanceTests : InMemoryTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(huntTakenAfterFedOnRound, Is.EqualTo(200_000));
-            Assert.That(huntTakenAfterRoundLeftAlone, Is.EqualTo(180_000));
+            Assert.That(huntTakenAfterFedOnRound, Is.EqualTo(230_000), "Fed on: regrowth only.");
+            Assert.That(huntTakenAfterRoundLeftAlone, Is.EqualTo(180_000), "Left alone: the 10% floor beats regrowth to 210.");
         }
     }
 
@@ -174,7 +175,7 @@ internal class RegenerateTileSustenanceTests : InMemoryTestBase
         Assert.That(depletion.FishTaken, Is.EqualTo(5_000));
     }
 
-    [Test, Description("Every depleted tile in the Game regrows in the one run, each at its own biome's rate.")]
+    [Test, Description("Every depleted tile in the Game regrows in the one run, each at its own biome's Regeneration Percent.")]
     public async Task ShouldRegrowEveryDepletedTileInTheGameAsync()
     {
         await AddDepletionAsync(_GRASSLAND_TILE_ID, forageTaken: 100_000, huntTaken: 0, fedOnRound: _CURRENT_ROUND_NUMBER);
@@ -185,9 +186,9 @@ internal class RegenerateTileSustenanceTests : InMemoryTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That((await ReloadDepletionAsync(_GRASSLAND_TILE_ID)).ForageTaken, Is.EqualTo(70_000));
-            Assert.That((await ReloadDepletionAsync(_OTHER_GRASSLAND_TILE_ID)).ForageTaken, Is.EqualTo(180_000));
-            Assert.That((await ReloadDepletionAsync(_OCEAN_TILE_ID)).FishTaken, Is.EqualTo(112_500), "A base view of 150 at Rate 1.25 regrows by 37.5.");
+            Assert.That((await ReloadDepletionAsync(_GRASSLAND_TILE_ID)).ForageTaken, Is.EqualTo(60_000));
+            Assert.That((await ReloadDepletionAsync(_OTHER_GRASSLAND_TILE_ID)).ForageTaken, Is.EqualTo(160_000));
+            Assert.That((await ReloadDepletionAsync(_OCEAN_TILE_ID)).FishTaken, Is.EqualTo(75_000), "25% of a Fish Base of 300 regrows 75.");
         }
     }
 
@@ -219,8 +220,8 @@ internal class RegenerateTileSustenanceTests : InMemoryTestBase
         }
     }
 
-    [Test, Description("A legacy biome with a sustenance base but no rate leaves its tile as it is, without stopping other tiles regrowing or the Round ending.")]
-    public async Task ShouldSkipATileWhoseBiomeHasNoRateAsync()
+    [Test, Description("A legacy biome with a sustenance base but no Regeneration Percent leaves its tile as it is, without stopping other tiles regrowing or the Round ending.")]
+    public async Task ShouldSkipATileWhoseBiomeHasNoRegenerationPercentAsync()
     {
         await AddDepletionAsync(_DESERT_TILE_ID, forageTaken: 100_000, huntTaken: 0, fedOnRound: null);
         await AddDepletionAsync(_GRASSLAND_TILE_ID, forageTaken: 100_000, huntTaken: 0, fedOnRound: _CURRENT_ROUND_NUMBER);
@@ -231,7 +232,7 @@ internal class RegenerateTileSustenanceTests : InMemoryTestBase
         {
             Assert.That(error, Is.Empty);
             Assert.That((await ReloadDepletionAsync(_DESERT_TILE_ID)).ForageTaken, Is.EqualTo(100_000));
-            Assert.That((await ReloadDepletionAsync(_GRASSLAND_TILE_ID)).ForageTaken, Is.EqualTo(70_000));
+            Assert.That((await ReloadDepletionAsync(_GRASSLAND_TILE_ID)).ForageTaken, Is.EqualTo(60_000));
         }
     }
 

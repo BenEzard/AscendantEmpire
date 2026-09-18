@@ -171,7 +171,7 @@ internal sealed class MapImportExecutor(
                 DoesBlockSight = exportBiome.DoesBlockSight,
                 IsWater = exportBiome.IsWater,
                 IsTraversable = exportBiome.IsTraversable,
-                RegenerationRate = exportBiome.RegenerationRate,
+                RegenerationPercent = exportBiome.RegenerationPercent,
                 IsPaintableOnCampaignMap = exportBiome.IsPaintableOnCampaignMap,
                 MapEditorHtmlColor = exportBiome.MapEditorHtmlColor,
                 CanBeElevated = exportBiome.CanBeElevated,

@@ -5,7 +5,7 @@ export type Biome = {
   doesBlockSight: boolean; // Does this Biome block Sight? (prevent a Unit/Structure from seeing through, or out of, it)
   isWater: boolean; // Is this Biome a water tile? (i.e. Ocean, Lake, River, etc.)
   isTraversable: boolean; // Is this Biome traversable? (i.e. can a Unit move through it)
-  regenerationRate: number | null; // How quickly does this Biome regenerate resources?
+  regenerationPercent: number | null; // Share of each sustenance Base that regrows every Round, as a fraction (0.25 = 25%); null when the Biome has no sustenance
   isPaintableOnCampaignMap: boolean; // Can this Biome be painted on a Campaign Map (by a map designer)?
   mapEditorHtmlColor: string; // HTML color string which this Biome will be shown as in the Map Editor
   canBeElevated: boolean; // Can this Biome be elevated? (i.e. can it be Hilly or Mountainous)

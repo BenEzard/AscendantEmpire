@@ -19,7 +19,7 @@ export interface BiomeResourceProps<K extends keyof Biome = keyof Biome> {
 
   /**
    * When true, an empty input becomes `null` instead of `""` / `NaN`.
-   * Useful for regenerationRate or nullable base values.
+   * Useful for nullable base values.
    */
   emptyToNull?: boolean;
 

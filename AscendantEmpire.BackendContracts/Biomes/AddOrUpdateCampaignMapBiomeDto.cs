@@ -23,7 +23,7 @@ public record class AddOrUpdateCampaignMapBiomeDto : IAddOrUpdateCampaignMapBiom
     public required bool IsTraversable { get; init; }
 
     /// <inheritdoc />
-    public required decimal? RegenerationRate { get; init; }
+    public required decimal? RegenerationPercent { get; init; }
     #endregion
 
     #region Map Editor Properties

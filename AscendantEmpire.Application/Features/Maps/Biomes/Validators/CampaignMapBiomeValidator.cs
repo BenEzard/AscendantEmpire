@@ -7,9 +7,9 @@ namespace AscendantEmpire.Application.Features.Maps.Biomes.Validators;
 internal class CampaignMapBiomeValidator : Validator<IAddOrUpdateCampaignMapBiomeDto>
 {
     /// <summary>
-    /// The lowest Regeneration Rate a Biome with sustenance values may have.
+    /// The highest Regeneration Percent a Biome with sustenance values may have: 1, a whole Base back every Round. The lowest is anything above 0.
     /// </summary>
-    private const decimal _MINIMUM_REGENERATION_RATE = 1.05m;
+    private const decimal _MAXIMUM_REGENERATION_PERCENT = 1m;
 
     /// <summary>
     /// Validate each Campaign Map Biome
@@ -20,8 +20,8 @@ internal class CampaignMapBiomeValidator : Validator<IAddOrUpdateCampaignMapBiom
     /// <item>Name is not empty</item>
     /// <item>MovementCost is between 0.01 and 99.99</item>
     /// <item>IsWater Biome cannot have DoesBlockSight set to true</item>
-    /// <item>RegenerationRate must be specified, and at least 1.05, when the Biome has any sustenance value (BaseForageValue, BaseHuntValue, BaseFishValue or BaseFodderValue)</item>
-    /// <item>RegenerationRate must be null when the Biome has no sustenance value, since there is nothing to regrow</item>
+    /// <item>RegenerationPercent must be specified, more than 0 and at most 1, when the Biome has any sustenance value (BaseForageValue, BaseHuntValue, BaseFishValue or BaseFodderValue)</item>
+    /// <item>RegenerationPercent must be null when the Biome has no sustenance value, since there is nothing to regrow</item>
     /// <item>BaseForageValue, BaseHuntValue, BaseFishValue, BaseFodderValue, BaseBoneValue, BaseWoodValue, BaseStoneValue, and BaseSpecialValue must be greater than or equal to 0, if specified</item>
     /// <item>Water Biomes cannot have Hunt, Fodder, Wood, or Stone values</item>
     /// <item>Water Biomes cannot be elevated</item>
@@ -44,15 +44,16 @@ internal class CampaignMapBiomeValidator : Validator<IAddOrUpdateCampaignMapBiom
             .Must(b => (b.IsWater && b.DoesBlockSight) == false)
             .WithMessage(b => $"An {nameof(b.IsWater)} Biome cannot be Does Block Sight = true");
 
-        // The rate only drives sustenance regrowth at the end of a Round, so it is required exactly when the Biome has something to regrow. A base of 0 still counts as having
-        // the resource: only null means the Biome does not have it.
+        // The percentage only drives sustenance regrowth at the end of a Round, so it is required exactly when the Biome has something to regrow. A base of 0 still counts as
+        // having the resource: only null means the Biome does not have it. It is a fraction of Base: 0 would never regrow anything, and above 1 would regrow more than a whole
+        // Base in one Round.
         RuleFor(b => b)
-            .Must(b => HasSustenanceValue(b) == false || b.RegenerationRate >= _MINIMUM_REGENERATION_RATE)
-            .WithMessage(b => $"{b.BiomeType}: {nameof(b.RegenerationRate)} must be at least {_MINIMUM_REGENERATION_RATE} when the Biome has Forage, Hunt, Fish or Fodder values.");
+            .Must(b => HasSustenanceValue(b) == false || (b.RegenerationPercent > 0m && b.RegenerationPercent <= _MAXIMUM_REGENERATION_PERCENT))
+            .WithMessage(b => $"{b.BiomeType}: {nameof(b.RegenerationPercent)} must be more than 0 and at most {_MAXIMUM_REGENERATION_PERCENT} when the Biome has Forage, Hunt, Fish or Fodder values.");
 
         RuleFor(b => b)
-            .Must(b => HasSustenanceValue(b) || b.RegenerationRate == null)
-            .WithMessage(b => $"{b.BiomeType}: {nameof(b.RegenerationRate)} must be empty when the Biome has no Forage, Hunt, Fish or Fodder values.");
+            .Must(b => HasSustenanceValue(b) || b.RegenerationPercent == null)
+            .WithMessage(b => $"{b.BiomeType}: {nameof(b.RegenerationPercent)} must be empty when the Biome has no Forage, Hunt, Fish or Fodder values.");
 
         RuleFor(b => b.BaseForageValue)
             .Must(v => v == null || v == 0 || v >= 9)
@@ -113,7 +114,7 @@ internal class CampaignMapBiomeValidator : Validator<IAddOrUpdateCampaignMapBiom
         {
             if (biome.IsPaintableOnCampaignMap == false)
             {
-                if (biome.RegenerationRate != null) context.AddFailure($"{nameof(biome.RegenerationRate)} must be null if Biome is not paintable on Campaign Map.");
+                if (biome.RegenerationPercent != null) context.AddFailure($"{nameof(biome.RegenerationPercent)} must be null if Biome is not paintable on Campaign Map.");
                 if (biome.BaseForageValue != null) context.AddFailure($"{nameof(biome.BaseForageValue)} must be null if Biome is not paintable on Campaign Map.");
                 if (biome.BaseHuntValue != null) context.AddFailure($"{nameof(biome.BaseHuntValue)} must be null if Biome is not paintable on Campaign Map.");
                 if (biome.BaseFishValue != null) context.AddFailure($"{nameof(biome.BaseFishValue)} must be null if Biome is not paintable on Campaign Map.");

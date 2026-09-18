@@ -44,33 +44,30 @@ The biome is the vegetation/climate/environment on a tile. It affects:
 Together with geography, the biome determines a tile's "base" resource factor. **Each empire starts
 with the same biome values** (set by the map).
 
-| Biome | Forage | Hunt | Fish | Fodder | Regen.Rate | Bone | Wood | Stone | SightBarrier | MovePenalty |
+| Biome | Forage | Hunt | Fish | Fodder | Regen % | Bone | Wood | Stone | SightBarrier | MovePenalty |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Unexplored | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| Arid | 100 | 70 | 0 | 50 | 1.5 | 1 | 1 | 1 | 0 | 1 |
-| Coastal | 10 | 20 | 300 | 0 | 1.5 | 1 | 0 | 0 | 0 | 1 |
-| Desert | 50 | 40 | 0 | 0 | 1.25 | 1 | 0 | 1 | 0 | 1.5 |
-| Forest | 300 | 150 | 0 | 100 | 1.8 | 1 | 20 | 1 | 100 | 2 |
-| Grassland | 400 | 100 | 0 | 1000 | 1.5 | 1 | 1 | 1 | 0 | 1 |
+| Arid | 100 | 70 | 0 | 50 | 50% | 1 | 1 | 1 | 0 | 1 |
+| Coastal | 10 | 20 | 300 | 0 | 50% | 1 | 0 | 0 | 0 | 1 |
+| Desert | 50 | 40 | 0 | 0 | 25% | 1 | 0 | 1 | 0 | 1.5 |
+| Forest | 300 | 150 | 0 | 100 | 80% | 1 | 20 | 1 | 100 | 2 |
+| Grassland | 400 | 100 | 0 | 1000 | 50% | 1 | 1 | 1 | 0 | 1 |
 | Ice | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1.5 |
-| Jungle | 350 | 150 | 0 | 0 | 2 | 1 | 30 | 1 | 100 | 3 |
-| Lake | 100 | 70 | 0 | 0 | 1.5 | 1 | 0 | 0 | 0 | 1 |
-| Mangrove | 100 | 70 | 0 | 0 | 1.5 | 1 | 10 | 1 | 0 | 1.5 |
-| Ocean | 0 | 70 | 0 | 50 | 1.5 | 0 | 0 | 0 | 0 | 1 |
-| Tundra | 100 | 70 | 0 | 10 | 1.5 | 1 | 1 | 1 | 0 | 1 |
+| Jungle | 350 | 150 | 0 | 0 | 100% | 1 | 30 | 1 | 100 | 3 |
+| Lake | 100 | 70 | 0 | 0 | 50% | 1 | 0 | 0 | 0 | 1 |
+| Mangrove | 100 | 70 | 0 | 0 | 50% | 1 | 10 | 1 | 0 | 1.5 |
+| Ocean | 0 | 70 | 0 | 50 | 50% | 0 | 0 | 0 | 0 | 1 |
+| Tundra | 100 | 70 | 0 | 10 | 50% | 1 | 1 | 1 | 0 | 1 |
 | Void | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 |
-| Woodland | 300 | 100 | 0 | 100 | 1.75 | 1 | 20 | 1 | 0 | 1 |
+| Woodland | 300 | 100 | 0 | 100 | 75% | 1 | 20 | 1 | 0 | 1 |
 
 (Hunt, Wood, and Stone above are *generic* resource types.)
 
 **Sustenance values** (Forage, Hunt, Fish, Fodder) can be depleted and renewed. The longer a unit
 stays on a tile — and the more individuals in it — the lower its forage gets. Depleted sustenance
-renews at the tile's **Regeneration Rate** (the same rate applies to all sustenance values on the
-tile). How depletion and renewal are calculated is in [Depletion of resources](#depletion-of-resources).
+renews by the biome's **Regeneration Percent**: the share of each sustenance `Base` that regrows every round (the same percentage applies to all sustenance values on the tile). How depletion and renewal are calculated is in [Depletion of resources](#depletion-of-resources).
 
-A biome with any sustenance value (a non-`null` Forage, Hunt, Fish or Fodder base, `0` included)
-must have a Regeneration Rate of at least **1.05**. A biome with none must leave the rate empty, since
-it has nothing to regrow. The biome validator enforces both.
+A biome with any sustenance value (a non-`null` Forage, Hunt, Fish or Fodder base, `0` included) must have a Regeneration Percent **more than 0% and at most 100%**. A biome with none must leave it empty, since it has nothing to regrow. The biome validator enforces both. It is stored as a fraction (`map.CampaignBiomes.RegenerationPercent`, `0.25` = 25%, to three decimal places) and entered as a percent in the Biome Manager.
 
 **Material values** (Bone, Wood, Stone) are *not* depleted: that amount can be extracted per turn
 indefinitely, until game mechanics turn them off (e.g. bone becomes useless in modern times).
@@ -85,8 +82,7 @@ can be removed later (e.g. a specialist is lost), so a Player's value is always 
 modifiers they currently hold, never accumulated. The **material values** (Bone, Wood, Stone,
 Special) are static: the same for every Player in every game.
 
-The **Regeneration Rate** is *not* player-specific. It is the biome's rate, raised only on a claimed
-tile by the claimant's Settlement-scoped modifiers (see [Replenishment](#replenishment)).
+The **Regeneration Percent** is *not* player-specific. It is the biome's percentage, raised only on a claimed tile by the claimant's Settlement-scoped modifiers (see [Replenishment](#replenishment)).
 
 A modifier applies **empire-wide**, or to the **territory of one Settlement**.
 
@@ -201,84 +197,49 @@ Had the pool held less than 100, the unit would take everything available and go
 
 ### Replenishment
 
-Replenishment runs **once per tile at the end of each round**, after every Player's turn, for each
-sustenance resource with a non-`null` base.
+Replenishment runs **once per tile at the end of each round**, after every Player's turn, for each sustenance resource with a non-`null` base.
 
-Today this is the end-of-round `RegenerateTileSustenance` process. It reads the Game's
-`game.CampaignMapDepletion` rows with any `Taken` above `0` (a row regrown to `0` is kept for the next
-feed) and treats every tile as unclaimed. A biome with a sustenance base but no rate predates the
-validator rule; its tiles are skipped with a warning until the data is re-seeded.
+Today this is the end-of-round `RegenerateTileSustenance` process. It reads the Game's `game.CampaignMapDepletion` rows with any `Taken` above `0` (a row regrown to `0` is kept for the next feed) and treats every tile as unclaimed. A biome with a sustenance base but no Regeneration Percent predates the validator rule; its tiles are skipped with a warning until the data is re-seeded.
 
 #### Inputs
 
 | Input | Unclaimed tile | Claimed tile (within a Player's territory) |
 | --- | --- | --- |
 | `Base` | The biome's base value from `map.CampaignBiomes` | The **claimant's** effective value for the tile (empire-wide and Settlement-scoped modifiers) |
-| `Rate` | The biome's Regeneration Rate | The biome's Regeneration Rate plus the claimant's Settlement-scoped regeneration modifiers |
+| `Percent` | The biome's Regeneration Percent | The biome's Regeneration Percent plus the claimant's Settlement-scoped regeneration modifiers, in percentage points (a 25% biome with a +10 modifier regrows 35%) |
 | `FedOn` | Whether anyone fed on the tile this round | same |
 
-`Base` sets how much regrows, the 10% refill and the cap. Using the claimant's values on a claimed
-tile is how a Player's management of their own land shows: their tech gives a higher `Base` (more
-regrowth, a higher refill) and their Settlements can raise `Rate`. Wild land always recovers at the
-biome's values, whoever was last on it.
+`Base` sets how much regrows, the 10% floor and the cap. Using the claimant's values on a claimed tile is how a Player's management of their own land shows: their tech gives a higher `Base` (more food back each round, a higher floor) and their Settlements can raise `Percent`. Wild land always recovers at the biome's values, whoever was last on it.
 
-> TODO: Settlement-scoped regeneration modifiers wait on Settlements, as Settlement-scoped
-> sustenance modifiers do.
+> TODO: Settlement-scoped regeneration modifiers wait on Settlements, as Settlement-scoped sustenance modifiers do.
 
-A tile was **fed on** this round if any Force ended its turn on it, or passed through it (the 20%
-draw), **whether or not there was anything left to take**. It depends on presence, not on food
-extracted; otherwise a Force sitting on an empty tile would let it refill.
+A tile was **fed on** this round if any Force ended its turn on it, or passed through it (the 20% draw), **whether or not there was anything left to take**. It depends on presence, not on food extracted.
 
-> TODO: Whether a Settlement's population feeding on its own territory counts as feeding on the tile
-> is deferred to the Settlement mechanics.
+> TODO: Whether a Settlement's population feeding on its own territory counts as feeding on the tile is deferred to the Settlement mechanics.
 
 #### Calculation
 
-`Base − Taken` is the tile's **base view**: what is left measured against `Base`. It can be negative
-when a stronger Player has taken more than `Base`.
-
-| Condition | Fed on this round | Nobody fed on it |
-| --- | --- | --- |
-| `Taken ≥ Base` (bare at base values) | **No change** | `Taken = 0.9 × Base` |
-| `Taken > 0.9 × Base` (base view below 10%) | Regrow | `Taken = 0.9 × Base` |
-| Otherwise | Regrow | Regrow |
+Two rules, in order:
 
 ```
-Regrow:  Taken = MAX(0, Taken − (Base − Taken) × (Rate − 1))
+1. Regrow, every round:            Taken = MAX(0, Taken − Percent × Base)
+2. Floor, only if nobody fed on it: Taken = MIN(Taken, 0.9 × Base)
 ```
 
-Regrowing is the base view multiplied by `Rate`, capped at `Base` (so `Taken` never goes below `0`).
-A tile below 10% that is left alone for a round jumps to 10% of `Base`, rather than regrowing, and
-skips regrowth for that round.
+- **Rule 1** gives back a fixed share of `Base` every round, whether or not the tile is being fed on, capped at `Base` (so `Taken` never goes below `0`). A bare tile regrows too, so a Force camping on it gets `Percent × Base` a round. Anything a stronger Player took above `Base` is paid off first, like any other `Taken`.
+- **Rule 2** makes a tile nobody fed on this round recover to **at least 10% of `Base`**. It is a floor, not a replacement: the tile keeps whichever of the two leaves more food, so a biome that regrows more than 10% a round keeps its full regrowth.
 
-`FedOn` is `FedOnRound` equal to the round that is ending, so nothing needs clearing for the next
-round. Amounts are in thousandths, and rounding always goes against the tile: the regrowth is rounded
-down and `0.9 × Base` is rounded up.
+`FedOn` is `FedOnRound` equal to the round that is ending, so nothing needs clearing for the next round. Amounts are in thousandths, and rounding always goes against the tile: the regrowth is rounded down and `0.9 × Base` is rounded up.
 
-The rules in effect:
-
-- A tile **can be fully depleted**. While someone keeps feeding on a bare tile it stays bare, for
-  every Player, however strong.
-- A tile **left alone** for a round recovers to at least 10% of `Base`.
-- A **partly depleted** tile regrows at `Rate` whether or not it is fed on.
-
-> **Why nothing changes on a bare tile that is fed on.** The alternative, converting the base view
-> back into `Taken` (`Taken = Base − new base view`), forgets whatever was taken above `Base`. A
-> stronger Player's surplus (`their value − Base`) would come back in full every round on a tile that
-> is meant to be bare, and a Force of that size could camp on it forever while no weaker Player could
-> eat at all. The surplus grows with tech (at +100% it is a whole tile's worth every round), which
-> would break denial — scorched earth, stripping a tile ahead of an enemy, starving besiegers —
-> against stronger Players.
+> **Why Rule 2 exists.** `Taken` is shared, but each Player measures it against their own value. A stronger Player can eat a tile down past `Base`, to their own higher value, and Rule 1 pays that surplus off before anything reappears at base values. Without Rule 2 a Player with lower values would see nothing on the tile for several rounds after the stronger Player left (at 10% a round, a surplus of 25% of `Base` takes three rounds to pay off). Rule 2 forgives the surplus once nobody is feeding there, so a Player with lower values can eat on the tile the very next round.
 >
-> **Why `Base` rather than the highest value of any Player.** Measuring against the highest Player
-> value also closes that leak, but every Player's regrowth then speeds up with the best Player's tech,
-> and a weaker Player sees nothing on a tile a stronger Player stripped until the stronger Player's
-> whole surplus has grown back first.
+> **Why Rule 2 only applies when nobody fed on the tile.** Applied while a Force is still there, it would hand a stronger Player camping on the tile their surplus back every round: they eat down to their own value, the floor puts the tile back to 10% of `Base`, and their whole surplus reappears for them. The surplus grows with tech (at +100% it is a whole tile's worth every round), which would break denial — scorched earth, stripping a tile ahead of an enemy, starving besiegers — against stronger Players. This is why `FedOnRound` is kept.
+>
+> **Why `Base` rather than the highest value of any Player.** Regrowth and the floor are measured against `Base` (or the claimant's value on a claimed tile). Measuring them against the highest value any Player has would make every Player's land recover faster because of the best Player's tech.
 
 #### Worked examples
 
-Illustrative values: an unclaimed tile, Hunt `Base` 80, `Rate` 1.1. Player **Default** has Hunt 80
-(no modifiers); Player **Advanced** has Hunt 100 (+25%).
+Illustrative values: an unclaimed tile, Hunt `Base` 80, Regeneration Percent 10% (8 a round). Player **Default** has Hunt 80 (no modifiers); Player **Advanced** has Hunt 100 (+25%).
 
 **Default, then Advanced.**
 
@@ -286,39 +247,33 @@ Illustrative values: an unclaimed tile, Hunt `Base` 80, `Rate` 1.1. Player **Def
 | --- | --- | --- | --- |
 | Untouched | 0 | 80 | 100 |
 | Default takes 30 | 30 | 50 | 70 |
-| Round end, fed on: regrow `30 − 50 × 0.1` | 25 | 55 | 75 |
-| Default leaves; Advanced arrives and takes 30 | 55 | 25 | 45 |
+| Round end, fed on: regrow `30 − 8` | 22 | 58 | 78 |
+| Default leaves; Advanced arrives and takes 30 | 52 | 28 | 48 |
 
-The order of arrival makes no difference: had Advanced taken the first 30, every number would be the
-same.
+The order of arrival makes no difference: had Advanced taken the first 30, every number would be the same.
 
-**Default strips the tile; Advanced camps on it.**
+**Default strips the tile; Advanced camps on it, then leaves.**
 
 | Step | `Taken` | Default sees | Advanced sees |
 | --- | --- | --- | --- |
 | Default takes 80 | 80 | 0 | 20 |
-| Round end, fed on, `Taken ≥ Base`: no change | 80 | 0 | 20 |
-| Advanced arrives and takes 20 | 100 | 0 | 0 |
-| Round end, fed on, `Taken ≥ Base`: no change | 100 | 0 | 0 |
-| Advanced leaves; round end, nobody fed on it: `0.9 × 80` | 72 | 8 | 28 |
-| Round end, nobody fed on it: regrow `72 − 8 × 0.1` | 71.2 | 8.8 | 28.8 |
+| Round end, fed on: regrow `80 − 8` | 72 | 8 | 28 |
+| Advanced arrives and takes 28 | 100 | 0 | 0 |
+| Round end, fed on: regrow `100 − 8`, paying off Advanced's surplus | 92 | 0 | 8 |
+| Advanced leaves; round end, nobody fed on it: `MIN(92 − 8, 0.9 × 80)` | 72 | 8 | 28 |
+| Round end, nobody fed on it: regrow `72 − 8` | 64 | 16 | 36 |
 
-**Claimed tile.** The same tile claimed by Advanced uses `Base` 100. With `Taken` 25 and the tile fed
-on, it regrows by `(100 − 25) × 0.1 = 7.5` (to `Taken` 17.5), where wild land regrows by
-`(80 − 25) × 0.1 = 5.5`.
+Without Rule 2, the round after Advanced left would end at `Taken` 84 and Default would still see nothing.
+
+**Claimed tile.** The same tile claimed by Advanced uses `Base` 100, so it regrows 10 a round where wild land regrows 8. A Settlement-scoped +5 point regeneration modifier would make it 15.
 
 #### Accepted behaviour
 
-- **A small Force can live on a tile indefinitely** by eating no more than the tile regrows. The
-  most a tile can sustain each round, per resource, is `Base × (1 − 1 / Rate)`: eat it down to
-  `Base / Rate` and it regrows to full. For example, Hunt 30 sustains 2.7 a round at `Rate` 1.1, or
-  10 at `Rate` 1.5.
-- **A round left alone restores a stronger Player's whole surplus** (`Taken = 0.9 × Base` forgives
-  anything taken above `Base`). Using it means leaving the tile for a full round, so it rewards
-  moving around rather than camping. Stripping a tile and staying on it still denies it to everyone.
-- **A base of `0`.** If a Player's modifiers give them a value in a biome whose base is `0` (and not
-  `null`), an unclaimed tile is always bare at base values: it stays bare while fed on, and resets to
-  `Taken = 0` after a round left alone.
+- **A small Force can live on a tile indefinitely** by eating no more than the tile regrows: `Percent × Base` a round, per resource. For example, Hunt 30 sustains 3 a round at 10%, or 15 at 50%.
+- **Staying on a tile does not deny it.** A bare tile still regrows `Percent × Base` every round, and whoever is on it gets that much. Denial comes from eating the regrowth as it arrives.
+- **A stronger Player's surplus is paid off before a weaker Player sees food** for as long as someone keeps feeding there. A round left alone forgives it (Rule 2).
+- **Recovery time depends on the percentage, not the size of the tile.** A bare tile left alone is back to full in about `1 ÷ Percent` rounds (10 rounds at 10%, 4 at 25%), and is never below 10% after its first round alone.
+- **A base of `0`.** If a Player's modifiers give them a value in a biome whose base is `0` (and not `null`), an unclaimed tile regrows nothing: anything taken stays while the tile is fed on, and resets to `Taken = 0` after a round left alone.
 
 ### Depletion rules
 
@@ -364,9 +319,7 @@ replenishes each depleted tile as described in [Replenishment](#replenishment).
 
 ### Regeneration and farming bonuses
 
-Regeneration speed depends on climate, and the same rate applies to all renewable food sources on
-the tile. The rate is the biome's; only a claimant's Settlement-scoped modifiers raise it (see
-[Replenishment](#replenishment)). Terrain improvements and equipment add yield:
+Regeneration speed depends on climate: the biome's Regeneration Percent, the same for all renewable food sources on the tile. Only a claimant's Settlement-scoped modifiers raise it (see [Replenishment](#replenishment)). Terrain improvements and equipment add yield:
 
 - Terrain improvement **Irrigation**: +50% yield.
 - Terrain improvement **Farm (with crop)**: +300% yield.

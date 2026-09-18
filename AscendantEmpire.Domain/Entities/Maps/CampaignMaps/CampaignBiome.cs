@@ -43,13 +43,19 @@ public class CampaignBiome
     public bool IsTraversable { get; set; }
 
     /// <summary>
-    /// How quickly does this Biome regenerate resources?
+    /// The share of each sustenance base value that regrows at the end of every Round, as a fraction (0.25 is 25%).
     /// </summary>
     /// <remarks>
-    /// The rate the Biome's sustenance (Forage, Hunt, Fish, Fodder) regrows at the end of each Round. Required, and at least 1.05, when the Biome has any sustenance base
-    /// value; <see langword="null"/> when it has none, since there is nothing to regrow. Enforced by the biome validator.
+    /// <para>
+    /// The same share applies to all of the Biome's sustenance (Forage, Hunt, Fish, Fodder): at the end of each Round a tile gets back this fraction of its <c>Base</c>, fed on
+    /// or not, capped at <c>Base</c>. See "Replenishment" in <c>docs/design/campaign-map.md</c>.
+    /// </para>
+    /// <para>
+    /// Required, and more than 0 and at most 1, when the Biome has any sustenance base value; <see langword="null"/> when it has none, since there is nothing to regrow.
+    /// Enforced by the biome validator. Stored to three decimal places, so the finest step is 0.1%.
+    /// </para>
     /// </remarks>
-    public decimal? RegenerationRate { get; set; }
+    public decimal? RegenerationPercent { get; set; }
     #endregion
 
     #region Map Editor Properties

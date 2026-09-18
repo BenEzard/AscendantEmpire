@@ -14,7 +14,7 @@ public class MapExportBiome
     public bool DoesBlockSight { get; init; }
     public bool IsWater { get; init; }
     public bool IsTraversable { get; init; }
-    public decimal? RegenerationRate { get; init; }
+    public decimal? RegenerationPercent { get; init; }
     public bool IsPaintableOnCampaignMap { get; init; }
     public required string MapEditorHtmlColor { get; init; }
     public bool CanBeElevated { get; init; }

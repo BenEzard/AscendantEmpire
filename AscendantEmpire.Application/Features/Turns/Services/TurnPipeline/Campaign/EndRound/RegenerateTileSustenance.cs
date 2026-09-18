@@ -26,7 +26,7 @@ namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campa
 /// A tile was fed on this Round when <see cref="CampaignMapDepletion.FedOnRound"/> is the Round ending, so there is no marker to clear for the next Round.
 /// </para>
 /// <para>
-/// Every tile is treated as unclaimed for now: <c>Base</c> is the biome's base value and <c>Rate</c> the biome's Regeneration Rate.
+/// Every tile is treated as unclaimed for now: <c>Base</c> is the biome's base value and the share that regrows is the biome's Regeneration Percent.
 /// </para>
 /// </remarks>
 internal class RegenerateTileSustenance(IDbContextFactory<AscendantEmpireContext> dbFactory, ILogger<RegenerateTileSustenance> logger) : IEndCampaignRoundProcess
@@ -43,7 +43,7 @@ internal class RegenerateTileSustenance(IDbContextFactory<AscendantEmpireContext
     public async Task<string> ProcessAsync(TurnPipelineContextData context)
     {
         // TODO: A claimed tile (within a Player's territory) should regrow against the claimant's effective values (IPlayerSustenanceValueReader) as Base, and the biome's
-        //       rate plus the claimant's Settlement-scoped regeneration modifiers as Rate. Waits on Settlements being modelled.
+        //       Regeneration Percent plus the claimant's Settlement-scoped regeneration modifiers (in percentage points). Waits on Settlements being modelled.
         // TODO: Tiles within a Settlement zone also need to be found for replenishment. Waits on Settlements.
         // TODO: Whether a Settlement's population feeding on its own territory counts as feeding on the tile is deferred to the Settlement mechanics.
         // TODO: Scorched earth setting Taken is undecided (see docs/design/campaign-map.md).
@@ -76,7 +76,7 @@ internal class RegenerateTileSustenance(IDbContextFactory<AscendantEmpireContext
             .Select(b => new BiomeRegenerationValues
             {
                 BiomeType = b.BiomeTypeId,
-                RegenerationRate = b.RegenerationRate,
+                RegenerationPercent = b.RegenerationPercent,
                 BaseForageValue = b.BaseForageValue,
                 BaseHuntValue = b.BaseHuntValue,
                 BaseFishValue = b.BaseFishValue,
@@ -99,12 +99,12 @@ internal class RegenerateTileSustenance(IDbContextFactory<AscendantEmpireContext
                 continue;
             }
 
-            if (biome.RegenerationRate is null)
+            if (biome.RegenerationPercent is null)
             {
-                // Something was taken, so the biome has a sustenance base, and the biome validator requires a rate wherever there is one. This is data saved before that
+                // Something was taken, so the biome has a sustenance base, and the biome validator requires a Regeneration Percent wherever there is one. This is data saved before that
                 // rule existed; re-seeding fixes it.
                 logger.LogWarning(
-                    "Biome {BiomeType} has no Regeneration Rate, so depleted tile Id {CampaignMapTileId} in Game Id {GameId} did not regenerate.",
+                    "Biome {BiomeType} has no Regeneration Percent, so depleted tile Id {CampaignMapTileId} in Game Id {GameId} did not regenerate.",
                     biomeType,
                     depletion.CampaignMapId,
                     context.GameId);
@@ -128,7 +128,7 @@ internal class RegenerateTileSustenance(IDbContextFactory<AscendantEmpireContext
                 ScaledAmount newTaken = TileRegenerationCalculator.Regenerate(
                     DepletionTaken.GetTaken(depletion, resource),
                     ScaledAmount.FromRaw(baseRawValue.Value),
-                    biome.RegenerationRate.Value,
+                    biome.RegenerationPercent.Value,
                     fedOn);
 
                 DepletionTaken.SetTaken(depletion, resource, newTaken);
@@ -149,12 +149,12 @@ internal class RegenerateTileSustenance(IDbContextFactory<AscendantEmpireContext
     }
 
     /// <summary>
-    /// A biome's Regeneration Rate and four base sustenance values, each stored scaled by <c>ScaledAmount.Scale</c>, or <see langword="null"/> where the biome does not have that resource.
+    /// A biome's Regeneration Percent and four base sustenance values, each stored scaled by <c>ScaledAmount.Scale</c>, or <see langword="null"/> where the biome does not have that resource.
     /// </summary>
     private sealed class BiomeRegenerationValues
     {
         public BiomeType BiomeType { get; init; }
-        public decimal? RegenerationRate { get; init; }
+        public decimal? RegenerationPercent { get; init; }
         public long? BaseForageValue { get; init; }
         public long? BaseHuntValue { get; init; }
         public long? BaseFishValue { get; init; }

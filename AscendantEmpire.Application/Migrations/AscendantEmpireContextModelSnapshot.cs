@@ -1207,7 +1207,7 @@ namespace AscendantEmpire.Application.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<decimal?>("RegenerationRate")
+                    b.Property<decimal?>("RegenerationPercent")
                         .HasPrecision(18, 3)
                         .HasColumnType("decimal(18,3)");
 

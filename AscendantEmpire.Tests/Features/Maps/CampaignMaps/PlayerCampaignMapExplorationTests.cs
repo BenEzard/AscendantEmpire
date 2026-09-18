@@ -380,7 +380,7 @@ internal class PlayerCampaignMapExplorationTests : GameSqlServerTestBase
                 DoesBlockSight = true,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationRate = 1.1m,
+                RegenerationPercent = 0.1m,
                 IsPaintableOnCampaignMap = true,
                 CanBeElevated = true
             },
@@ -393,7 +393,7 @@ internal class PlayerCampaignMapExplorationTests : GameSqlServerTestBase
                 DoesBlockSight = false,
                 IsWater = true,
                 IsTraversable = true,
-                RegenerationRate = 1.0m,
+                RegenerationPercent = 0.1m,
                 IsPaintableOnCampaignMap = true,
                 CanBeElevated = false
             },

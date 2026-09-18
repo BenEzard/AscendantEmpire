@@ -84,7 +84,7 @@ namespace AscendantEmpire.Api.Controllers
                         DoesBlockSight = b.DoesBlockSight,
                         IsWater = b.IsWater,
                         IsTraversable = b.IsTraversable,
-                        RegenerationRate = b.RegenerationRate,
+                        RegenerationPercent = b.RegenerationPercent,
                         MapEditorHtmlColor = b.MapEditorHtmlColor,
                         CanBeElevated = b.CanBeElevated,
                         IsPaintableOnCampaignMap = b.IsPaintableOnCampaignMap,

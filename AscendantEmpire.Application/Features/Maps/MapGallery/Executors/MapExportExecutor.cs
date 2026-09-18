@@ -150,7 +150,7 @@ internal sealed class MapExportExecutor(
                 DoesBlockSight = b.DoesBlockSight,
                 IsWater = b.IsWater,
                 IsTraversable = b.IsTraversable,
-                RegenerationRate = b.RegenerationRate,
+                RegenerationPercent = b.RegenerationPercent,
                 IsPaintableOnCampaignMap = b.IsPaintableOnCampaignMap,
                 MapEditorHtmlColor = b.MapEditorHtmlColor,
                 CanBeElevated = b.CanBeElevated,

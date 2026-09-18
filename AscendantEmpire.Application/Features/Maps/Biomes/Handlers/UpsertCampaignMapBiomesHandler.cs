@@ -51,7 +51,7 @@ internal class UpsertCampaignMapBiomesHandler(
                     DoesBlockSight = b.DoesBlockSight,
                     IsWater = b.IsWater,
                     IsTraversable = b.IsTraversable,
-                    RegenerationRate = b.RegenerationRate,
+                    RegenerationPercent = b.RegenerationPercent,
                     BaseForageValue = b.BaseForageValue,
                     BaseHuntValue = b.BaseHuntValue,
                     BaseFishValue = b.BaseFishValue,
@@ -86,7 +86,7 @@ internal class UpsertCampaignMapBiomesHandler(
                 existingBiome.DoesBlockSight = updatedValues.DoesBlockSight;
                 existingBiome.IsWater = updatedValues.IsWater;
                 existingBiome.IsTraversable = updatedValues.IsTraversable;
-                existingBiome.RegenerationRate = updatedValues.RegenerationRate;
+                existingBiome.RegenerationPercent = updatedValues.RegenerationPercent;
                 // The DTO carries whole numbers from the UI; store them scaled so bonus math keeps precision.
                 existingBiome.BaseForageValue = ScaledResourceValue.ToRaw(updatedValues.BaseForageValue);
                 existingBiome.BaseHuntValue = ScaledResourceValue.ToRaw(updatedValues.BaseHuntValue);

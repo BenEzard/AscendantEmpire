@@ -58,7 +58,7 @@ internal class UpsertCampaignBiomesHandlerTests
                 DoesBlockSight = true,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationRate = 2m,
+                RegenerationPercent = 0.2m,
                 IsPaintableOnCampaignMap = true,
                 MapEditorHtmlColor = "#fcfda4",
                 CanBeElevated = true,
@@ -86,7 +86,7 @@ internal class UpsertCampaignBiomesHandlerTests
                 Assert.That(updated.DoesBlockSight, Is.True, $"{nameof(updated.DoesBlockSight)} value is not what's expected.");
                 Assert.That(updated.IsWater, Is.False, $"{nameof(updated.IsWater)} value is not what's expected.");
                 Assert.That(updated.IsTraversable, Is.True, $"{nameof(updated.IsTraversable)} value is not what's expected.");
-                Assert.That(updated.RegenerationRate, Is.EqualTo(2m), $"{nameof(updated.RegenerationRate)} value is not what's expected.");
+                Assert.That(updated.RegenerationPercent, Is.EqualTo(0.2m), $"{nameof(updated.RegenerationPercent)} value is not what's expected.");
                 Assert.That(updated.IsPaintableOnCampaignMap, Is.True, $"{nameof(updated.IsPaintableOnCampaignMap)} value is not what's expected.");
                 Assert.That(updated.MapEditorHtmlColor, Is.EqualTo("#fcfda4"), $"{nameof(updated.MapEditorHtmlColor)} value is not what's expected.");
                 Assert.That(updated.CanBeElevated, Is.True, $"{nameof(updated.CanBeElevated)} value is not what's expected.");

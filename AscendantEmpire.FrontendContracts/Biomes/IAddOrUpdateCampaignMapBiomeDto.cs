@@ -34,9 +34,9 @@ public interface IAddOrUpdateCampaignMapBiomeDto
     #endregion
 
     /// <summary>
-    /// How quickly does this Biome regenerate resources?
+    /// The share of each sustenance base value that regrows at the end of every Round, as a fraction (0.25 is 25%), or <see langword="null"/> when the Biome has no sustenance.
     /// </summary>
-    public decimal? RegenerationRate { get; }
+    public decimal? RegenerationPercent { get; }
 
     #region Passive Regenerating Resources
     /// <summary>

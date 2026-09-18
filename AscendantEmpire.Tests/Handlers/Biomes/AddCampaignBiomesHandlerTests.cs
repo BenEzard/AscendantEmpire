@@ -47,8 +47,8 @@ internal class AddCampaignBiomesHandlerTests
                 DoesBlockSight = false,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationRate = 1.15m,
-                // A Regeneration Rate is only valid alongside a sustenance value.
+                RegenerationPercent = 0.15m,
+                // A Regeneration Percent is only valid alongside a sustenance value.
                 BaseForageValue = 30,
                 MapEditorHtmlColor = "#fcfda4",
                 CanBeElevated = true,
@@ -81,7 +81,7 @@ internal class AddCampaignBiomesHandlerTests
                 DoesBlockSight = false,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationRate = 1.15m,
+                RegenerationPercent = 0.15m,
                 MapEditorHtmlColor = "#000000",
                 CanBeElevated = false,
                 IsPaintableOnCampaignMap = true
@@ -110,7 +110,7 @@ internal class AddCampaignBiomesHandlerTests
                 DoesBlockSight = false,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationRate = 1.15m,
+                RegenerationPercent = 0.15m,
                 MapEditorHtmlColor = "#000000",
                 CanBeElevated = false,
                 IsPaintableOnCampaignMap = true
@@ -137,7 +137,7 @@ internal class AddCampaignBiomesHandlerTests
                 DoesBlockSight = false,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationRate = 1.15m,
+                RegenerationPercent = 0.15m,
                 MapEditorHtmlColor = "#000000",
                 CanBeElevated = false,
                 IsPaintableOnCampaignMap = true
@@ -164,7 +164,7 @@ internal class AddCampaignBiomesHandlerTests
                 DoesBlockSight = false,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationRate = 1.15m,
+                RegenerationPercent = 0.15m,
                 MapEditorHtmlColor = "#fcfda4",
                 CanBeElevated = true,
                 IsPaintableOnCampaignMap = true
@@ -177,7 +177,7 @@ internal class AddCampaignBiomesHandlerTests
                 DoesBlockSight = false,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationRate = 1.15m,
+                RegenerationPercent = 0.15m,
                 MapEditorHtmlColor = "#000000",
                 CanBeElevated = false,
                 IsPaintableOnCampaignMap = true
@@ -204,7 +204,7 @@ internal class AddCampaignBiomesHandlerTests
                 DoesBlockSight = false,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationRate = 1.15m,
+                RegenerationPercent = 0.15m,
                 MapEditorHtmlColor = "invalid-color", // Invalid Color
                 CanBeElevated = true,
                 IsPaintableOnCampaignMap = true
@@ -233,7 +233,7 @@ internal class AddCampaignBiomesHandlerTests
                 DoesBlockSight = false,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationRate = 1.15m,
+                RegenerationPercent = 0.15m,
                 MapEditorHtmlColor = "#000000",
                 CanBeElevated = false,
                 IsPaintableOnCampaignMap = true
@@ -260,7 +260,7 @@ internal class AddCampaignBiomesHandlerTests
                 DoesBlockSight = true, // Water Biomes should not block sight
                 IsWater = true,
                 IsTraversable = false,
-                RegenerationRate = 1.15m,
+                RegenerationPercent = 0.15m,
                 MapEditorHtmlColor = "#0000ff",
                 CanBeElevated = false,
                 IsPaintableOnCampaignMap = true
@@ -274,10 +274,10 @@ internal class AddCampaignBiomesHandlerTests
         }
     }
 
-    [Test, Description("Should fail if a Biome with sustenance values has a Regeneration Rate below the 1.05 minimum.")]
-    [TestCase(1.04, Description = "Regeneration Rate is just below the 1.05 minimum")]
-    [TestCase(0.5, Description = "Regeneration Rate is 0.5")]
-    public async Task ShouldFailWhenRegenerationRateIsBelowTheMinimum(decimal regenerationRate)
+    [Test, Description("Should fail if a Biome with sustenance values has a Regeneration Percent outside more than 0 and at most 1.")]
+    [TestCase(0.0, Description = "Regeneration Percent of 0 would never regrow anything")]
+    [TestCase(1.5, Description = "Regeneration Percent above 1 would regrow more than a whole Base in a Round")]
+    public async Task ShouldFailWhenRegenerationPercentIsOutOfRange(decimal regenerationPercent)
     {
         var request = new AddCampaignMapBiomesRequest(
         [
@@ -289,8 +289,8 @@ internal class AddCampaignBiomesHandlerTests
                 DoesBlockSight = false,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationRate = regenerationRate, // Invalid Regeneration Rate
-                BaseForageValue = 30, // A sustenance value, so the rate is required and its minimum applies
+                RegenerationPercent = regenerationPercent, // Invalid Regeneration Percent
+                BaseForageValue = 30, // A sustenance value, so the Regeneration Percent is required and its range applies
                 MapEditorHtmlColor = "#fcfda4",
                 CanBeElevated = true,
                 IsPaintableOnCampaignMap = true
@@ -299,8 +299,8 @@ internal class AddCampaignBiomesHandlerTests
         ServiceResultBase result = await _handler.Handle(request, CancellationToken.None);
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result.HasSucceeded, Is.False, "Biome addition succeeded with an invalid Regeneration Rate.");
-            Assert.That(result.Errors, Is.Not.Null.And.Not.Empty, "Expected error messages for invalid Regeneration Rate.");
+            Assert.That(result.HasSucceeded, Is.False, "Biome addition succeeded with an invalid Regeneration Percent.");
+            Assert.That(result.Errors, Is.Not.Null.And.Not.Empty, "Expected error messages for invalid Regeneration Percent.");
         }
     }
 
@@ -317,7 +317,7 @@ internal class AddCampaignBiomesHandlerTests
                 DoesBlockSight = false,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationRate = 1.15m,
+                RegenerationPercent = 0.15m,
                 BaseForageValue = -10, // Invalid Base Forage Value
                 MapEditorHtmlColor = "#fcfda4",
                 CanBeElevated = true,
@@ -347,7 +347,7 @@ internal class AddCampaignBiomesHandlerTests
                 DoesBlockSight = false,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationRate = 1.15m,
+                RegenerationPercent = 0.15m,
                 BaseHuntValue = -5, // Invalid Base Hunt Value
                 MapEditorHtmlColor = "#fcfda4",
                 CanBeElevated = true,
@@ -375,7 +375,7 @@ internal class AddCampaignBiomesHandlerTests
                 DoesBlockSight = false,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationRate = 1.15m,
+                RegenerationPercent = 0.15m,
                 BaseFishValue = -3, // Invalid Base Fish Value
                 MapEditorHtmlColor = "#fcfda4",
                 CanBeElevated = true,
@@ -403,7 +403,7 @@ internal class AddCampaignBiomesHandlerTests
                 DoesBlockSight = false,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationRate = 1.15m,
+                RegenerationPercent = 0.15m,
                 BaseFodderValue = -2, // Invalid Base Fodder Value
                 MapEditorHtmlColor = "#fcfda4",
                 CanBeElevated = true,
@@ -431,7 +431,7 @@ internal class AddCampaignBiomesHandlerTests
                 DoesBlockSight = false,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationRate = 1.15m,
+                RegenerationPercent = 0.15m,
                 BaseBoneValue = -1, // Invalid Base Bone Value
                 MapEditorHtmlColor = "#fcfda4",
                 CanBeElevated = true,
@@ -459,7 +459,7 @@ internal class AddCampaignBiomesHandlerTests
                 DoesBlockSight = false,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationRate = 1.15m,
+                RegenerationPercent = 0.15m,
                 BaseWoodValue = -4, // Invalid Base Wood Value
                 MapEditorHtmlColor = "#fcfda4",
                 CanBeElevated = true,
@@ -487,7 +487,7 @@ internal class AddCampaignBiomesHandlerTests
                 DoesBlockSight = false,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationRate = 1.15m,
+                RegenerationPercent = 0.15m,
                 BaseStoneValue = -6, // Invalid Base Stone Value
                 MapEditorHtmlColor = "#fcfda4",
                 CanBeElevated = true,
@@ -515,7 +515,7 @@ internal class AddCampaignBiomesHandlerTests
                 DoesBlockSight = false,
                 IsWater = false,
                 IsTraversable = true,
-                RegenerationRate = 1.15m,
+                RegenerationPercent = 0.15m,
                 BaseSpecialValue = -8, // Invalid Base Special Value
                 MapEditorHtmlColor = "#fcfda4",
                 CanBeElevated = true,
@@ -543,7 +543,7 @@ internal class AddCampaignBiomesHandlerTests
                 DoesBlockSight = false,
                 IsWater = true, // Water Biome
                 IsTraversable = false,
-                RegenerationRate = 1.15m,
+                RegenerationPercent = 0.15m,
                 BaseHuntValue = 5, // Invalid Hunt Value for Water Biome
                 MapEditorHtmlColor = "#0000ff",
                 CanBeElevated = false,
@@ -571,7 +571,7 @@ internal class AddCampaignBiomesHandlerTests
                 DoesBlockSight = false,
                 IsWater = true, // Water Biome
                 IsTraversable = false,
-                RegenerationRate = 1.15m,
+                RegenerationPercent = 0.15m,
                 BaseWoodValue = 10, // Invalid Wood Value for Water Biome
                 MapEditorHtmlColor = "#0000ff",
                 CanBeElevated = false,
@@ -599,7 +599,7 @@ internal class AddCampaignBiomesHandlerTests
                 DoesBlockSight = false,
                 IsWater = true, // Water Biome
                 IsTraversable = false,
-                RegenerationRate = 1.15m,
+                RegenerationPercent = 0.15m,
                 BaseStoneValue = 15, // Invalid Stone Value for Water Biome
                 MapEditorHtmlColor = "#0000ff",
                 CanBeElevated = false,

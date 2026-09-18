@@ -2,8 +2,8 @@ import type { Biome } from "@/types/map/Biome";
 import type { Geography } from "@/types/map/Geography";
 
 const BIOME_DEFAULTS = {
-  // A new biome starts with no sustenance values, and the server requires the rate to be empty until it has one.
-  regenerationRate: null,
+  // A new biome starts with no sustenance values, and the server requires the Regeneration Percent to be empty until it has one.
+  regenerationPercent: null,
   movementCost: 1,
   isTraversable: true,
   isWater: false,
@@ -33,7 +33,7 @@ export function createNewBiome(nextId: number): Biome {
     canBeElevated: false,
     isPaintableOnCampaignMap: BIOME_DEFAULTS.isPaintableOnCampaignMap,
     mapEditorHtmlColor: "",
-    regenerationRate: BIOME_DEFAULTS.regenerationRate,
+    regenerationPercent: BIOME_DEFAULTS.regenerationPercent,
     baseForageValue: null,
     baseHuntValue: null,
     baseFishValue: null,

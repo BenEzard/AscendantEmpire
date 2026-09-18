@@ -133,7 +133,7 @@ internal sealed class GenerateCampaignMapExecutorTests : SqlServerTestBase
             DoesBlockSight = false,
             IsWater = false,
             IsTraversable = true,
-            RegenerationRate = 1.1m,
+            RegenerationPercent = 0.1m,
             IsPaintableOnCampaignMap = true,
             CanBeElevated = true
         });

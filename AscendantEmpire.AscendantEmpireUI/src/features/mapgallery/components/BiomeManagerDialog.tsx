@@ -7,6 +7,7 @@ import { safeStringify } from "../../../util/json";
 import { useSaveCampaignMapBiomesMutation } from "../hooks/useCampaignMapBiomes";
 import { isValidColor, pickTextColorOnBg } from "../../../util/color";
 import BiomeResource from "./BiomeResource";
+import { fromRegenerationPercentInput, toRegenerationPercentInput } from "../tools/regenerationPercent";
 
 interface BiomeManagerProps {
   biomes: Biome[];
@@ -312,12 +313,15 @@ function BiomeManagerDialog({
             label: "Regenerating Resources",
             content: (
               <div className="w-full max-w-xl">
+                {/* Stored as a fraction (0.25) but edited as a percent (25): the share of each sustenance Base that regrows every Round. */}
                 <BiomeResource
-                  label="Regeneration Rate"
+                  label="Regeneration (% of Base / Round)"
                   biome={selectedBiome}
-                  field="regenerationRate"
+                  field="regenerationPercent"
                   disabled={!selectedBiome || mustBeTraversablePaintable}
                   emptyToNull={true}
+                  getValue={(biome) => toRegenerationPercentInput(biome.regenerationPercent)}
+                  parseValue={fromRegenerationPercentInput}
                   onChange={handleBiomeFieldChange}
                 />
 

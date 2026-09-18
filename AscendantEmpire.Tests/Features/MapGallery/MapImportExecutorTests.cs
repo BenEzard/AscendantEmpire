@@ -270,7 +270,7 @@ internal sealed class MapImportExecutorTests : SqlServerTestBase
             MapEditorHtmlColor = "#90ee90",
             MovementCost = 1.0m,
             IsTraversable = true,
-            RegenerationRate = 1.1m,
+            RegenerationPercent = 0.1m,
             IsPaintableOnCampaignMap = true,
             CanBeElevated = true,
             BaseForageValue = 50_000
@@ -386,7 +386,7 @@ internal sealed class MapImportExecutorTests : SqlServerTestBase
                     DoesBlockSight = false,
                     IsWater = false,
                     IsTraversable = true,
-                    RegenerationRate = 1.1m,
+                    RegenerationPercent = 0.1m,
                     IsPaintableOnCampaignMap = true,
                     MapEditorHtmlColor = "#90ee90",
                     CanBeElevated = true,

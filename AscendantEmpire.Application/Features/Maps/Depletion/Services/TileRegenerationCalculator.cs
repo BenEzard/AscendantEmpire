@@ -7,16 +7,18 @@ namespace AscendantEmpire.Application.Features.Maps.Depletion.Services;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The rules are evaluated in order:
+/// Two rules, applied in order:
 /// <list type="number">
-///   <item><description>Fed on this Round and <c>Taken ≥ Base</c>: no change. A bare tile that is being fed on stays bare, for every Player.</description></item>
-///   <item><description>Not fed on and <c>Taken &gt; 0.9 × Base</c> (below 10%, bare included): <c>Taken = 0.9 × Base</c>, with no regrowth this Round.</description></item>
-///   <item><description>Otherwise regrow: <c>Taken = MAX(0, Taken − (Base − Taken) × (Rate − 1))</c>, the base view multiplied by <c>Rate</c> and capped at <c>Base</c>.</description></item>
+///   <item><description>Regrow, every Round, whether or not the tile was fed on: <c>Taken = MAX(0, Taken − Regeneration Percent × Base)</c>. A fixed share of <c>Base</c>
+///   comes back each Round, capped at <c>Base</c>.</description></item>
+///   <item><description>Nobody fed on the tile this Round: <c>Taken</c> is at most <c>0.9 × Base</c>. A tile left alone always recovers to at least 10% of <c>Base</c>, and
+///   keeps whichever of the two is more generous.</description></item>
 /// </list>
 /// </para>
 /// <para>
-/// Rule 1 deliberately does not convert back through <c>Base</c> (<c>Taken = Base − new base view</c>). That would forget anything a stronger Player took above <c>Base</c>, and
-/// hand their surplus back every Round on a tile that is meant to be bare.
+/// Regrowth pays off anything a stronger Player took above <c>Base</c> first, so a weaker Player sees nothing on such a tile until <c>Taken</c> drops back below
+/// <c>Base</c>. Rule 2 forgives that surplus, but only on a tile nobody fed on: applied while a Force is still there, it would hand a stronger Player their surplus back every
+/// Round on a tile they are camping on.
 /// </para>
 /// <para>
 /// Rounding always goes against the tile, in thousandths: the regrowth is rounded down and <c>0.9 × Base</c> is rounded up, so a tile never gets back a thousandth more than the
@@ -38,10 +40,10 @@ internal static class TileRegenerationCalculator
     /// </summary>
     /// <param name="taken">How much of the resource has been taken from the tile, by anyone. Never negative.</param>
     /// <param name="baseValue">The tile's base value for the resource. Never negative. A resource with no base is not regenerated, so the caller skips it.</param>
-    /// <param name="regenerationRate">The tile's Regeneration Rate. At least 1: a rate below 1 would take food away rather than regrow it.</param>
+    /// <param name="regenerationPercent">The share of <paramref name="baseValue"/> that regrows each Round, as a fraction (0.25 is 25%). Between 0 and 1.</param>
     /// <param name="fedOn">Whether any Force fed on the tile this Round.</param>
     /// <returns>The new amount taken. Never negative.</returns>
-    public static ScaledAmount Regenerate(ScaledAmount taken, ScaledAmount baseValue, decimal regenerationRate, bool fedOn)
+    public static ScaledAmount Regenerate(ScaledAmount taken, ScaledAmount baseValue, decimal regenerationPercent, bool fedOn)
     {
         if (taken < ScaledAmount.Zero)
         {
@@ -53,33 +55,33 @@ internal static class TileRegenerationCalculator
             throw new ArgumentOutOfRangeException(nameof(baseValue), "A base value cannot be negative.");
         }
 
-        if (regenerationRate < 1m)
+        if (regenerationPercent < 0m || regenerationPercent > 1m)
         {
-            throw new ArgumentOutOfRangeException(nameof(regenerationRate), regenerationRate, "A Regeneration Rate cannot be below 1.");
+            throw new ArgumentOutOfRangeException(nameof(regenerationPercent), regenerationPercent, "A Regeneration Percent must be between 0 and 1.");
         }
 
-        // Rule 1: a bare tile (at base values) that is being fed on stays exactly as it is. Taken may be above Base here, and must stay there.
-        if (fedOn && taken >= baseValue)
-        {
-            return taken;
-        }
-
-        // 0.9 × Base, rounded up: Base less 10% of it rounded down. Rounding up leaves more taken, so the refill never exceeds 10%.
-        ScaledAmount refillTaken = baseValue - baseValue.Divide(_REFILL_DIVISOR);
-
-        // Rule 2: a tile below 10% (bare, or stripped past Base by a stronger Player, included) that nobody fed on jumps to 10%, and does not also regrow this Round.
-        if (fedOn == false && taken > refillTaken)
-        {
-            return refillTaken;
-        }
-
-        // Rule 3: regrow. The base view is not negative here - rule 1 or rule 2 has already handled every Taken above Base - so rounding down is truncation.
-        long baseViewRaw = (baseValue - taken).RawValue;
-        long regrowthRaw = (long)Math.Floor(baseViewRaw * (regenerationRate - 1m));
+        // Rule 1: regrow a fixed share of Base, rounded down so the tile never gets back more than the percentage allows. Taken above Base (from a stronger Player) is paid
+        // off first, like any other Taken.
+        long regrowthRaw = (long)Math.Floor(baseValue.RawValue * regenerationPercent);
 
         ScaledAmount regrownTaken = taken - ScaledAmount.FromRaw(regrowthRaw);
 
         // Regrowth is capped at Base, which is Taken never going below 0.
-        return regrownTaken < ScaledAmount.Zero ? ScaledAmount.Zero : regrownTaken;
+        if (regrownTaken < ScaledAmount.Zero)
+        {
+            regrownTaken = ScaledAmount.Zero;
+        }
+
+        // A tile someone fed on this Round only regrows: Rule 2 would hand a stronger Player camping on it their surplus back.
+        if (fedOn)
+        {
+            return regrownTaken;
+        }
+
+        // Rule 2: 0.9 × Base, rounded up - Base less 10% of it rounded down. Rounding up leaves more taken, so the refill never exceeds 10%.
+        ScaledAmount refillTaken = baseValue - baseValue.Divide(_REFILL_DIVISOR);
+
+        // A tile left alone keeps whichever leaves less taken: the regrowth, or the 10% floor.
+        return regrownTaken < refillTaken ? regrownTaken : refillTaken;
     }
 }

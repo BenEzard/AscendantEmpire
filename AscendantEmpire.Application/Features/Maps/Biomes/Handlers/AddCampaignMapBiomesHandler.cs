@@ -44,7 +44,7 @@ internal class AddCampaignMapBiomesHandler(
                 DoesBlockSight = biome.DoesBlockSight,
                 IsWater = biome.IsWater,
                 IsTraversable = biome.IsTraversable,
-                RegenerationRate = biome.RegenerationRate,
+                RegenerationPercent = biome.RegenerationPercent,
                 // The DTO carries whole numbers from the UI; store them scaled so bonus math keeps precision.
                 BaseForageValue = ScaledResourceValue.ToRaw(biome.BaseForageValue),
                 BaseHuntValue = ScaledResourceValue.ToRaw(biome.BaseHuntValue),
