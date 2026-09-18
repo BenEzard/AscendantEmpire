@@ -1,4 +1,5 @@
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Maps.Depletion.Classes;
 using AscendantEmpire.Application.Features.Maps.Depletion.Services;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.Domain.Entities.Games;
@@ -29,7 +30,10 @@ namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campa
 /// Every tile is treated as unclaimed for now: <c>Base</c> is the biome's base value and the share that regrows is the biome's Regeneration Percent.
 /// </para>
 /// </remarks>
-internal class RegenerateTileSustenance(IDbContextFactory<AscendantEmpireContext> dbFactory, ILogger<RegenerateTileSustenance> logger) : IEndCampaignRoundProcess
+internal class RegenerateTileSustenance(
+    IDbContextFactory<AscendantEmpireContext> dbFactory,
+    IBiomeRegenerationValueReader biomeRegenerationValueReader,
+    ILogger<RegenerateTileSustenance> logger) : IEndCampaignRoundProcess
 {
     /// <summary>
     /// Every sustenance resource, in declaration order.
@@ -43,7 +47,8 @@ internal class RegenerateTileSustenance(IDbContextFactory<AscendantEmpireContext
     public async Task<string> ProcessAsync(TurnPipelineContextData context)
     {
         // TODO: A claimed tile (within a Player's territory) should regrow against the claimant's effective values (IPlayerSustenanceValueReader) as Base, and the biome's
-        //       Regeneration Percent plus the claimant's Settlement-scoped regeneration modifiers (in percentage points). Waits on Settlements being modelled.
+        //       Regeneration Percent plus the claimant's Settlement-scoped regeneration modifiers (in percentage points). Waits on Settlements being modelled. The support forecast
+        //       (TileSupportForecaster) regrows through the same values and must follow - see its TODO on revealing a claimant's tech.
         // TODO: Tiles within a Settlement zone also need to be found for replenishment. Waits on Settlements.
         // TODO: Whether a Settlement's population feeding on its own territory counts as feeding on the tile is deferred to the Settlement mechanics.
         // TODO: Scorched earth setting Taken is undecided (see docs/design/campaign-map.md).
@@ -71,18 +76,8 @@ internal class RegenerateTileSustenance(IDbContextFactory<AscendantEmpireContext
             .Select(t => new { t.CampaignMapId, t.BiomeTypeId })
             .ToDictionaryAsync(t => t.CampaignMapId, t => t.BiomeTypeId);
 
-        // The biome catalogue is small, so it is read whole rather than narrowed to the biomes on the depleted tiles.
-        Dictionary<BiomeType, BiomeRegenerationValues> biomesByType = await db.CampaignBiomes
-            .Select(b => new BiomeRegenerationValues
-            {
-                BiomeType = b.BiomeTypeId,
-                RegenerationPercent = b.RegenerationPercent,
-                BaseForageValue = b.BaseForageValue,
-                BaseHuntValue = b.BaseHuntValue,
-                BaseFishValue = b.BaseFishValue,
-                BaseFodderValue = b.BaseFodderValue
-            })
-            .ToDictionaryAsync(b => b.BiomeType);
+        // Through the reader the support forecast also uses, so the forecast regrows a tile by exactly what this process will.
+        Dictionary<BiomeType, BiomeRegenerationValues> biomesByType = await biomeRegenerationValueReader.GetValuesAsync(db);
 
         int regeneratedTileCount = 0;
 
@@ -146,33 +141,5 @@ internal class RegenerateTileSustenance(IDbContextFactory<AscendantEmpireContext
             context.CurrentRoundNumber);
 
         return string.Empty;
-    }
-
-    /// <summary>
-    /// A biome's Regeneration Percent and four base sustenance values, each stored scaled by <c>ScaledAmount.Scale</c>, or <see langword="null"/> where the biome does not have that resource.
-    /// </summary>
-    private sealed class BiomeRegenerationValues
-    {
-        public BiomeType BiomeType { get; init; }
-        public decimal? RegenerationPercent { get; init; }
-        public long? BaseForageValue { get; init; }
-        public long? BaseHuntValue { get; init; }
-        public long? BaseFishValue { get; init; }
-        public long? BaseFodderValue { get; init; }
-
-        /// <summary>
-        /// The base value column that holds the given resource.
-        /// </summary>
-        public long? GetBaseValue(SustenanceResource resource)
-        {
-            return resource switch
-            {
-                SustenanceResource.Forage => BaseForageValue,
-                SustenanceResource.Hunt => BaseHuntValue,
-                SustenanceResource.Fish => BaseFishValue,
-                SustenanceResource.Fodder => BaseFodderValue,
-                _ => throw new ArgumentOutOfRangeException(nameof(resource), resource, "Not a sustenance resource.")
-            };
-        }
     }
 }

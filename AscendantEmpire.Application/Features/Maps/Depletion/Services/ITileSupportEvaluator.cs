@@ -1,13 +1,14 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
-using AscendantEmpire.Domain.Enums.Resources;
+using AscendantEmpire.Application.Features.Maps.Depletion.Classes;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 namespace AscendantEmpire.Application.Features.Maps.Depletion.Services;
 
 /// <summary>
-/// Works out the support level of campaign map tiles: whether each can feed the Player's Forces standing on it, together with any Forces about to move onto it.
+/// Works out the support of campaign map tiles: whether, and for how many Turns, each can feed the Player's Forces standing on it together with any Forces about to move
+/// onto it.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -22,7 +23,7 @@ namespace AscendantEmpire.Application.Features.Maps.Depletion.Services;
 internal interface ITileSupportEvaluator
 {
     /// <summary>
-    /// The support level of each of <paramref name="tiles"/>.
+    /// The support level, and the Turns forecast, of each of <paramref name="tiles"/>.
     /// </summary>
     /// <param name="context">The caller's context, read through and never written to.</param>
     /// <param name="gameId">The Game the tiles are in.</param>
@@ -32,8 +33,8 @@ internal interface ITileSupportEvaluator
     /// Forces to count on every tile as well as those already standing on it - the Forces the Player has selected, for the hover marker. Each must be one of the Player's own
     /// Forces in the Game; any other id fails the evaluation. Empty for the tile toolbar.
     /// </param>
-    /// <returns>Each tile's level keyed by its <c>CampaignMapId</c>, <see langword="null"/> where there is nothing to say (food, but nobody to feed).</returns>
-    Task<ServiceResult<IReadOnlyDictionary<int, TileSupportLevel?>>> EvaluateAsync(
+    /// <returns>Each tile's support keyed by its <c>CampaignMapId</c>, <see langword="null"/> where there is nothing to say (food, but nobody to feed).</returns>
+    Task<ServiceResult<IReadOnlyDictionary<int, TileSupport?>>> EvaluateAsync(
         AscendantEmpireContext context,
         int gameId,
         int playerId,

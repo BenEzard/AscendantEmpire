@@ -1,4 +1,5 @@
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Maps.Depletion.Services;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndRound;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
@@ -105,7 +106,7 @@ internal class RegenerateTileSustenanceTests : InMemoryTestBase
             await context.SaveChangesAsync();
         }
 
-        _process = new RegenerateTileSustenance(DbFactory, NullLogger<RegenerateTileSustenance>.Instance);
+        _process = new RegenerateTileSustenance(DbFactory, new BiomeRegenerationValueReader(), NullLogger<RegenerateTileSustenance>.Instance);
     }
 
     [Test, Description("A tile fed on this Round regrows each resource by its own Base: partly depleted Forage and bare Hunt both regrow under the Force.")]

@@ -55,6 +55,8 @@ internal class Gathering(
         // TODO: Food needs should come from each Force's unit design rather than 1 troop = 1 food, and mounted units should need Fodder as well.
         // TODO: Force gathering bonuses (a forager attached to a Command) should reduce what a Force draws from the tile.
         // TODO: A hostile Force on a Settlement's tile takes the tile's food and the Settlement gets none. Waits on Settlements being modelled.
+        // TODO: A hidden Force feeding here raises the tile's shared Taken, which lowers what every watching Player sees (toolbar values, support level, Turns forecast) and so
+        //       signals it is there. Going hungry must not give it away either. Waits on hiding and detection being modelled - see CM-45.
         // TODO: Rerun risk. The pipeline is not transactional, so if a later end-of-Turn process fails and the Turn is ended again, these Forces feed a second time.
         //       Guard it (a per-Force or per-Turn fed stamp) once the pipeline's retry story is settled.
         // TODO: Open design questions - should tiles controlled by a Settlement (within its boundaries) be exempt? And fortification work leaves a Force on one tile for

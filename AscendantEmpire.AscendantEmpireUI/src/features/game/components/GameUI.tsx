@@ -300,8 +300,8 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const hoveredTileStore = useHoveredTileStore();
   const onTileHover = useCallback((tile: TileCell | null) => hoveredTileStore.set(tile == null ? null : { x: tile.x, y: tile.y }), [hoveredTileStore]);
 
-  // The support level of every observed tile for the selection, asked for once per selection so the marker is a lookup rather than a request per hover.
-  const { data: supportLevelByTileKey } = useTileSupportLevelsQuery(gameId, playerId, tilesEnabled ? selectedForceIdList : []);
+  // The support level and turns of every observed tile for the selection, asked for once per selection so the marker is a lookup rather than a request per hover.
+  const { data: supportByTileKey } = useTileSupportLevelsQuery(gameId, playerId, tilesEnabled ? selectedForceIdList : []);
 
   // Built here and memoised because it is the grid's child: the grid is memoised, and a fresh element on every render of this page would re-render the whole
   // grid with it. It only changes when the levels, the sight or the selection does — all of which re-render the grid's tiles anyway.
@@ -310,12 +310,12 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
       selectedForceIdList.length === 0 ? null : (
         <TileSupportMarker
           hoveredTileStore={hoveredTileStore}
-          levelByTileKey={supportLevelByTileKey}
+          supportByTileKey={supportByTileKey}
           observedTileKeys={observedTileKeys}
           selectedForceTileKeys={selectedForceTileKeys}
         />
       ),
-    [selectedForceIdList, hoveredTileStore, supportLevelByTileKey, observedTileKeys, selectedForceTileKeys],
+    [selectedForceIdList, hoveredTileStore, supportByTileKey, observedTileKeys, selectedForceTileKeys],
   );
 
   // Stable per-tile predicate for the grid, so its memoised tiles only re-render when what the player can see actually changes.

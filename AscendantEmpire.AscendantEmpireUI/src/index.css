@@ -537,11 +537,20 @@ body {
 }
 
 /* The hover marker: a circle centred on the hovered tile (TileSupportMarker positions its centre; the transform pulls it back by half its size). Clicks and
-   holds pass straight through to the tile beneath. The white ring and shadow keep it visible against any terrain colour. */
+   holds pass straight through to the tile beneath. The white ring and shadow keep it visible against any terrain colour. Inside is the number of turns the
+   tile could feed the selection; 18px inside the ring is room enough for the widest, "5+". */
 .tile-support-marker {
   position: absolute;
   width: 18px;
   height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Dark on the light levels (plenty, one turn); the dark levels turn it light below, as the tile toolbar does. */
+  color: #0f172a;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
   transform: translate(-50%, -50%);
   border-radius: 50%;
   border: 2px solid #ffffff;
@@ -565,6 +574,12 @@ body {
 
 .tile-support-marker--support-exhausted {
   background: var(--tile-support-exhausted);
+}
+
+/* Too dark for the marker's usual slate digits, so they turn light — the same pairing as the tile toolbar. */
+.tile-support-marker--support-insufficient,
+.tile-support-marker--support-exhausted {
+  color: #f8fafc;
 }
 
 /* Positioned by .command-dock, not by itself — this rule is chrome only. */

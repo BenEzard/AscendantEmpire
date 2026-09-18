@@ -2,6 +2,7 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.Biomes.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
+using AscendantEmpire.Application.Features.Maps.Depletion.Classes;
 using AscendantEmpire.Application.Features.Maps.Depletion.Services;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.Domain.Entities.Games;
@@ -19,11 +20,12 @@ namespace AscendantEmpire.Tests.Features.Maps.Depletion;
 /// </summary>
 /// <remarks>
 /// <para>
-/// On the in-memory tier. The evaluator's reads are LINQ only. The Player's values come from the real <see cref="PlayerSustenanceValueReader"/>. The thresholds themselves are
-/// pinned without a database in <c>ForceSupportCalculatorTests</c>.
+/// On the in-memory tier. The evaluator's reads are LINQ only. The Player's values and the biomes' regeneration values come from the real readers. The forecast itself is
+/// pinned without a database in <c>TileSupportForecasterTests</c>.
 /// </para>
 /// <para>
-/// The catalogue has Grassland (Forage 400, Hunt 200: 600 food on land) and Ocean (Fish 300 only). Tiles are passed in as the Player sees them, so no map rows are seeded.
+/// The catalogue has Grassland (Forage 400, Hunt 200: 600 food on land), Ocean (Fish 300 only), neither with a Regeneration Percent so their Turns are plain division, and
+/// Woodland (Forage 100, Hunt 100) regrowing 50% a Round. Tiles are passed in as the Player sees them, so no map rows are seeded.
 /// </para>
 /// </remarks>
 [TestFixture]
@@ -35,6 +37,7 @@ internal class TileSupportEvaluatorTests : InMemoryTestBase
     private const int _GRASSLAND_TILE_ID = 101;
     private const int _OTHER_GRASSLAND_TILE_ID = 102;
     private const int _OCEAN_TILE_ID = 103;
+    private const int _WOODLAND_TILE_ID = 104;
 
     private TileSupportEvaluator _evaluator = null!;
 
@@ -69,12 +72,26 @@ internal class TileSupportEvaluatorTests : InMemoryTestBase
                     BaseHuntValue = null,
                     BaseFishValue = ScaledAmount.FromWhole(300).RawValue,
                     BaseFodderValue = null
+                },
+                new CampaignBiome
+                {
+                    BiomeTypeId = BiomeType.Woodland,
+                    Name = "Woodland",
+                    MovementCost = 1m,
+                    IsWater = false,
+                    IsTraversable = true,
+                    MapEditorHtmlColor = "#558b2f",
+                    RegenerationPercent = 0.5m,
+                    BaseForageValue = ScaledAmount.FromWhole(100).RawValue,
+                    BaseHuntValue = ScaledAmount.FromWhole(100).RawValue,
+                    BaseFishValue = null,
+                    BaseFodderValue = null
                 });
 
             await context.SaveChangesAsync();
         }
 
-        _evaluator = new TileSupportEvaluator(new PlayerSustenanceValueReader());
+        _evaluator = new TileSupportEvaluator(new PlayerSustenanceValueReader(), new BiomeRegenerationValueReader());
     }
 
     [Test, Description("The Player's own Forces on a tile are summed into one need: 250 + 100 troops against 600 food is one Turn, where either alone would be two.")]
@@ -116,12 +133,12 @@ internal class TileSupportEvaluatorTests : InMemoryTestBase
         await AddForceAsync(unitInstanceId: 1, _GRASSLAND_TILE_ID, troops: 200);
         await AddForceAsync(unitInstanceId: 2, _OTHER_GRASSLAND_TILE_ID, troops: 300);
 
-        IReadOnlyDictionary<int, TileSupportLevel?> levels = await EvaluateAsync([Grassland(_GRASSLAND_TILE_ID), Grassland(_OTHER_GRASSLAND_TILE_ID)], forceIds: [1]);
+        IReadOnlyDictionary<int, TileSupport?> levels = await EvaluateAsync([Grassland(_GRASSLAND_TILE_ID), Grassland(_OTHER_GRASSLAND_TILE_ID)], forceIds: [1]);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(levels[_GRASSLAND_TILE_ID], Is.EqualTo(TileSupportLevel.Plenty), "The requested Force is already here, so the need is its 200 alone.");
-            Assert.That(levels[_OTHER_GRASSLAND_TILE_ID], Is.EqualTo(TileSupportLevel.OneTurn), "200 requested plus the 300 already there is 500 against 600.");
+            Assert.That(levels[_GRASSLAND_TILE_ID]?.Level, Is.EqualTo(TileSupportLevel.Plenty), "The requested Force is already here, so the need is its 200 alone.");
+            Assert.That(levels[_OTHER_GRASSLAND_TILE_ID]?.Level, Is.EqualTo(TileSupportLevel.OneTurn), "200 requested plus the 300 already there is 500 against 600.");
         }
     }
 
@@ -140,7 +157,7 @@ internal class TileSupportEvaluatorTests : InMemoryTestBase
     {
         await AddForceAsync(unitInstanceId: 1, _OTHER_GRASSLAND_TILE_ID, troops: 1_000, battleMapTileId: 7);
 
-        ServiceResult<IReadOnlyDictionary<int, TileSupportLevel?>> result = await EvaluateResultAsync([Grassland(_GRASSLAND_TILE_ID)], [1]);
+        ServiceResult<IReadOnlyDictionary<int, TileSupport?>> result = await EvaluateResultAsync([Grassland(_GRASSLAND_TILE_ID)], [1]);
 
         using (Assert.EnterMultipleScope())
         {
@@ -156,7 +173,7 @@ internal class TileSupportEvaluatorTests : InMemoryTestBase
         await AddForceAsync(unitInstanceId: 1, _GRASSLAND_TILE_ID, troops: 100);
         await AddForceAsync(unitInstanceId: 3, _OTHER_GRASSLAND_TILE_ID, troops: 100, playerId: _OTHER_PLAYER_ID);
 
-        ServiceResult<IReadOnlyDictionary<int, TileSupportLevel?>> result = await EvaluateResultAsync([Grassland(_GRASSLAND_TILE_ID)], [1, forceId]);
+        ServiceResult<IReadOnlyDictionary<int, TileSupport?>> result = await EvaluateResultAsync([Grassland(_GRASSLAND_TILE_ID)], [1, forceId]);
 
         using (Assert.EnterMultipleScope())
         {
@@ -203,12 +220,32 @@ internal class TileSupportEvaluatorTests : InMemoryTestBase
     {
         await AddForceAsync(unitInstanceId: 1, _GRASSLAND_TILE_ID, troops: 100);
 
-        IReadOnlyDictionary<int, TileSupportLevel?> levels = await EvaluateAsync([Grassland(_GRASSLAND_TILE_ID), Grassland(_GRASSLAND_TILE_ID)], forceIds: []);
+        IReadOnlyDictionary<int, TileSupport?> levels = await EvaluateAsync([Grassland(_GRASSLAND_TILE_ID), Grassland(_GRASSLAND_TILE_ID)], forceIds: []);
 
         Assert.That(levels, Has.Count.EqualTo(1));
     }
 
-    private async Task<ServiceResult<IReadOnlyDictionary<int, TileSupportLevel?>>> EvaluateResultAsync(SightTerrain[] tiles, int[] forceIds)
+    [Test, Description("The biome's regrowth is counted: 150 troops on 200 Woodland food is one Turn by plain division, but 100 regrown a Round makes it two.")]
+    public async Task ShouldCountTheTurnsTheBiomesRegrowthAddsAsync()
+    {
+        await AddForceAsync(unitInstanceId: 1, _WOODLAND_TILE_ID, troops: 150);
+
+        IReadOnlyDictionary<int, TileSupport?> supports = await EvaluateAsync([BuildTile(_WOODLAND_TILE_ID, BiomeType.Woodland, CampaignMapGeographyType.Flat, biomeIsWater: false)], forceIds: []);
+
+        Assert.That(supports[_WOODLAND_TILE_ID], Is.EqualTo(new TileSupport(TileSupportLevel.Plenty, 2)), "200, then 150 after regrowth, then 100: two Turns.");
+    }
+
+    [Test, Description("A biome with no Regeneration Percent does not regrow, so its Turns are plain division: 600 Grassland food feeds 250 troops for two Turns.")]
+    public async Task ShouldCountPlainTurnsWithoutARegenerationPercentAsync()
+    {
+        await AddForceAsync(unitInstanceId: 1, _GRASSLAND_TILE_ID, troops: 250);
+
+        IReadOnlyDictionary<int, TileSupport?> supports = await EvaluateAsync([Grassland(_GRASSLAND_TILE_ID)], forceIds: []);
+
+        Assert.That(supports[_GRASSLAND_TILE_ID], Is.EqualTo(new TileSupport(TileSupportLevel.Plenty, 2)));
+    }
+
+    private async Task<ServiceResult<IReadOnlyDictionary<int, TileSupport?>>> EvaluateResultAsync(SightTerrain[] tiles, int[] forceIds)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
@@ -217,14 +254,14 @@ internal class TileSupportEvaluatorTests : InMemoryTestBase
 
     private async Task<TileSupportLevel?> EvaluateSingleAsync(SightTerrain tile, int[]? forceIds = null)
     {
-        IReadOnlyDictionary<int, TileSupportLevel?> levels = await EvaluateAsync([tile], forceIds ?? []);
+        IReadOnlyDictionary<int, TileSupport?> supports = await EvaluateAsync([tile], forceIds ?? []);
 
-        return levels[tile.CampaignMapId];
+        return supports[tile.CampaignMapId]?.Level;
     }
 
-    private async Task<IReadOnlyDictionary<int, TileSupportLevel?>> EvaluateAsync(SightTerrain[] tiles, int[] forceIds)
+    private async Task<IReadOnlyDictionary<int, TileSupport?>> EvaluateAsync(SightTerrain[] tiles, int[] forceIds)
     {
-        ServiceResult<IReadOnlyDictionary<int, TileSupportLevel?>> result = await EvaluateResultAsync(tiles, forceIds);
+        ServiceResult<IReadOnlyDictionary<int, TileSupport?>> result = await EvaluateResultAsync(tiles, forceIds);
 
         Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
 

@@ -3,9 +3,9 @@ using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
+using AscendantEmpire.Application.Features.Maps.Depletion.Classes;
 using AscendantEmpire.Application.Features.Maps.Depletion.Services;
 using AscendantEmpire.BackendContracts.Biomes;
-using AscendantEmpire.Domain.Enums.Resources;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -40,7 +40,7 @@ internal class GetTileSupportLevelsRequestValidator : Validator<GetTileSupportLe
 }
 
 /// <summary>
-/// The support level of every tile in the Player's live sight for the Forces they have selected, for the hover marker.
+/// The support level, and the Turns forecast, of every tile in the Player's live sight for the Forces they have selected, for the hover marker.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -106,7 +106,7 @@ internal class GetTileSupportLevelsHandler(
                 .SelectMany(view => view.SeenTiles)
                 .DistinctBy(tile => tile.CampaignMapId)];
 
-            ServiceResult<IReadOnlyDictionary<int, TileSupportLevel?>> supportResult = await tileSupportEvaluator.EvaluateAsync(
+            ServiceResult<IReadOnlyDictionary<int, TileSupport?>> supportResult = await tileSupportEvaluator.EvaluateAsync(
                 context,
                 request.GameId,
                 request.PlayerId,
@@ -123,17 +123,18 @@ internal class GetTileSupportLevelsHandler(
                 return ServiceResult<TileSupportLevels>.Fail(supportResult.Errors.Prepend(error));
             }
 
-            IReadOnlyDictionary<int, TileSupportLevel?> levelByTileId = supportResult.SuccessValue!;
+            IReadOnlyDictionary<int, TileSupport?> supportByTileId = supportResult.SuccessValue!;
 
             TileSupportLevelEntry[] entries = [.. seenTiles
-                .Where(tile => levelByTileId[tile.CampaignMapId] is not null)
+                .Where(tile => supportByTileId[tile.CampaignMapId] is not null)
                 .OrderBy(tile => tile.Y)
                 .ThenBy(tile => tile.X)
                 .Select(tile => new TileSupportLevelEntry
                 {
                     X = tile.X,
                     Y = tile.Y,
-                    SupportLevel = levelByTileId[tile.CampaignMapId]!.Value
+                    SupportLevel = supportByTileId[tile.CampaignMapId]!.Level,
+                    Turns = supportByTileId[tile.CampaignMapId]!.Turns
                 })];
 
             return ServiceResult<TileSupportLevels>.Succeed(new TileSupportLevels { Tiles = entries });

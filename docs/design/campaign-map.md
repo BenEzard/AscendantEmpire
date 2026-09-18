@@ -374,29 +374,58 @@ Remaining Energy (of population after collecting food) = People after growth × 
 
 ### Support indicator
 
-A tile's **support level** says whether it can feed a set of Forces from the food available to the
+A tile's **support** says how many turns it can feed a set of Forces from the food available to the
 Player: the pool of Forage and Hunt on land, or Fish on water, less what has been taken — the same
 pool `Gathering` feeds from (`TileFoodPool`). The need is 1 food per troop, healthy and injured,
 counting only Forces that feed (troops left, not in a Battle).
 
+The turns are **forecast** one turn at a time (`TileSupportForecaster`), on a copy of the tile's
+depletion, with the same rules the turn pipeline uses:
+
+1. The Forces feed: the need is split across the pool as `Gathering` splits it. A turn only counts
+   when the pool covers the whole need.
+2. The round ends: the tile regrows as in [Replenishment](#replenishment), as fed on.
+
+A Player's feed always comes before the round's regrowth, so this order holds whatever the turn
+order. The forecast stops after **5 turns**; a tile that still feeds the Forces after that lasts
+beyond the forecast (possibly for good, when the regrowth covers the need). A biome with no
+Regeneration Percent does not regrow, so its turns are plain available ÷ need.
+
 | Level | Rule | Colour |
 | --- | --- | --- |
-| Exhausted | Nothing available at all. Shown even with no Forces on the tile. | Dark red |
-| Plenty | Available ≥ 2 × need. | Green |
-| OneTurn | Available ≥ need. | Yellow |
-| Insufficient | Some food, but less than the need. | Red |
+| Exhausted | Nothing available at all now. Shown even with no Forces on the tile. | Dark red |
 | *(none)* | Food available but no need. | No colour |
+| Plenty | Feeds the Forces for 2 turns or more. | Green |
+| OneTurn | Feeds them for 1 turn. | Yellow |
+| Insufficient | Some food, but not enough for a whole turn. | Red |
 
-The rules are checked in that order. The number of turns is plain available ÷ need: it does not count
-regrowth at the end of a round, or other Players feeding on the tile.
+The rules are checked in that order. A stripped tile is Exhausted even though it will regrow: the
+Forces on it go hungry this turn.
+
+The forecast answers **how long these Forces can stay**. It holds their size, the Player's modifiers
+and the biome fixed, and assumes nobody else feeds on the tile. That holds while the Forces stand on
+it: with no alliance model, any other Player stepping on starts a Battle, and Forces in a Battle do
+not feed. Before they arrive a rival can still feed there; the forecast is refetched after every step.
+
+> TODO: The 20% pass-through draw will let Forces moving through an occupied tile eat from food the
+> forecast treats as the Forces' own, and alliances (COMM-4) will let another Player's Forces share
+> a tile. The forecast needs revisiting when either lands.
+>
+> TODO: Once a claimed tile regrows against the claimant's effective values, forecasting on a
+> rival's claimed tile would reveal how much their tech boosts food. Decide what a non-claimant is
+> shown when Settlements land.
+>
+> TODO: A hidden Force's feeding must not reveal it — see
+> [Hidden Forces and food](#hidden-forces-and-food).
 
 The level is shown in two places:
 
 - **Tile toolbar.** The selected tile's background. The need is the Player's own Forces standing on
   the tile. It is returned with the tile's sustenance.
-- **Hover marker.** While Forces are selected, a circle at the centre of the hovered tile. The need is
-  the selected Forces plus the Player's own Forces already on the hovered tile, each counted once. No
-  marker is drawn on the selected Forces' own tile. Selecting Forces makes one request,
+- **Hover marker.** While Forces are selected, a circle at the centre of the hovered tile, holding the
+  number of turns: `0` to `5`, or `5+` beyond the forecast. The need is the selected Forces plus the
+  Player's own Forces already on the hovered tile, each counted once. No marker is drawn on the
+  selected Forces' own tile. Selecting Forces makes one request,
   `GET campaign-map/player/tiles/support`, which returns the level of every tile in live sight, so
   hovering is a lookup rather than a request per tile.
 
@@ -560,6 +589,13 @@ Points 1–3 determine whether a unit *may* detect an enemy on a tile; points 4�
 | Resource type | Detection when on tile | Detection for surrounding tile |
 | --- | --- | --- |
 | Wood (Forest/Jungle) | Max detection of 0 when standing on a wood-resource tile (no surrounding tiles shown) | Max detection of 0 when looking at a Forest tile |
+
+#### Hidden Forces and food
+
+> TODO (CM-45): A hidden Force still feeds, and feeding adds to the tile's shared `Taken`. That
+> lowers what every watching Player sees on the tile — the toolbar's sustenance values, the support
+> level and the turns in the [support indicator](#support-indicator) — which signals the Force is
+> there. Going hungry must not give it away either. Waits on hiding and detection being modelled.
 
 ## Infrastructure (Terrain Improvements)
 

@@ -30,10 +30,10 @@ namespace AscendantEmpire.Tests.Features.Maps.Depletion;
 /// <remarks>
 /// <para>
 /// On the in-memory tier. Sight and geometry are substituted, as in <c>GetTileSustenanceHandlerTests</c>; the evaluator and the Player's values are real. Which Forces make up
-/// a need, and the thresholds, are covered in <c>TileSupportEvaluatorTests</c> and <c>ForceSupportCalculatorTests</c>.
+/// a need, and the forecast, are covered in <c>TileSupportEvaluatorTests</c> and <c>TileSupportForecasterTests</c>.
 /// </para>
 /// <para>
-/// The map is 10 x 10. Grassland has Forage 400 and Hunt 100: 500 food. The Player's one Force, of 300 troops, stands at (3, 4) and sees (3, 4) and (4, 4). (5, 4) is out
+/// The map is 10 x 10. Grassland has Forage 400 and Hunt 100: 500 food, with no Regeneration Percent unless a test sets one. The Player's one Force, of 300 troops, stands at (3, 4) and sees (3, 4) and (4, 4). (5, 4) is out
 /// of sight.
 /// </para>
 /// </remarks>
@@ -94,7 +94,7 @@ internal class GetTileSupportLevelsHandlerTests : InMemoryTestBase
             DbFactory,
             _sightDataReader,
             _fieldOfViewService,
-            new TileSupportEvaluator(new PlayerSustenanceValueReader()));
+            new TileSupportEvaluator(new PlayerSustenanceValueReader(), new BiomeRegenerationValueReader()));
     }
 
     [Test, Description("Every observed tile gets one entry for the selected Force: 300 troops against 500 food is one Turn, and a stripped tile is exhausted.")]
@@ -109,10 +109,28 @@ internal class GetTileSupportLevelsHandlerTests : InMemoryTestBase
             Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
             Assert.That(result.SuccessValue!.Tiles, Is.EqualTo(new[]
             {
-                new TileSupportLevelEntry { X = _FORCE_X, Y = _Y, SupportLevel = TileSupportLevel.OneTurn },
-                new TileSupportLevelEntry { X = _FORCE_X + 1, Y = _Y, SupportLevel = TileSupportLevel.Exhausted }
+                new TileSupportLevelEntry { X = _FORCE_X, Y = _Y, SupportLevel = TileSupportLevel.OneTurn, Turns = 1 },
+                new TileSupportLevelEntry { X = _FORCE_X + 1, Y = _Y, SupportLevel = TileSupportLevel.Exhausted, Turns = 0 }
             }));
         }
+    }
+
+    [Test, Description("Each entry carries the forecast Turns: a tile that regrows its whole base every Round feeds the Force beyond the forecast, so its Turns are null.")]
+    public async Task ShouldReturnTheTurnsForecastWithRegrowthAsync()
+    {
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            CampaignBiome grassland = context.CampaignBiomes.Single(biome => biome.BiomeTypeId == BiomeType.Grassland);
+            grassland.RegenerationPercent = 1m;
+
+            await context.SaveChangesAsync();
+        }
+
+        ServiceResult<TileSupportLevels> result = await HandleAsync([_FORCE_ID]);
+
+        Assert.That(
+            result.SuccessValue!.Tiles.Single(tile => tile.X == _FORCE_X),
+            Is.EqualTo(new TileSupportLevelEntry { X = _FORCE_X, Y = _Y, SupportLevel = TileSupportLevel.Plenty, Turns = null }));
     }
 
     [Test, Description("A tile outside live sight is never included, even a stripped one, since its level would leak where other Players' Forces have fed.")]

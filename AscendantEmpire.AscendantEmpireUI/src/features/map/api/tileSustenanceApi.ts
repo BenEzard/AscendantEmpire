@@ -8,7 +8,7 @@ import { http } from "@/api/http";
  * - `Insufficient`: some food, but not enough for a whole turn.
  * - `Exhausted`: nothing available at all — shown even with no forces on the tile.
  *
- * A count of turns is plain available ÷ need: it ignores regrowth at the end of a round and other players feeding on the tile.
+ * A count of turns is forecast turn by turn, with the tile regrowing at the end of each round, for the forces as they stand and nobody else feeding on the tile.
  */
 export type TileSupportLevel = "Plenty" | "OneTurn" | "Insufficient" | "Exhausted";
 

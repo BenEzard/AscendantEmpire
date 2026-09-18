@@ -32,7 +32,7 @@ public interface ITileSustenance
 
     /// <summary>
     /// Whether the tile can feed the Player's Forces standing on it, serialised as the member's name. <c>Exhausted</c> for a stripped tile even with no Forces on it;
-    /// otherwise <see langword="null"/> when no Forces are on it, or when the tile is not observed. A count of Turns ignores regrowth and other Players feeding.
+    /// otherwise <see langword="null"/> when no Forces are on it, or when the tile is not observed. Turns are forecast with end-of-Round regrowth, for the Forces as they stand.
     /// </summary>
     TileSupportLevel? SupportLevel { get; }
 }

@@ -5,6 +5,7 @@ using AscendantEmpire.Application.Features.Maps.Biomes.Classes;
 using AscendantEmpire.Application.Features.Maps.Biomes.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
+using AscendantEmpire.Application.Features.Maps.Depletion.Classes;
 using AscendantEmpire.Application.Features.Maps.Depletion.Services;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.Biomes;
@@ -143,7 +144,7 @@ internal class GetTileSustenanceHandler(
                 .FirstOrDefaultAsync(d => d.CampaignMapId == seenTile.CampaignMapId, cancelToken);
 
             // Whether the tile can feed the Forces already on it. No Forces are requested, so the only way this fails is a defect in the evaluator.
-            ServiceResult<IReadOnlyDictionary<int, TileSupportLevel?>> supportResult = await tileSupportEvaluator.EvaluateAsync(context, request.GameId, request.PlayerId, [seenTile], [], cancelToken);
+            ServiceResult<IReadOnlyDictionary<int, TileSupport?>> supportResult = await tileSupportEvaluator.EvaluateAsync(context, request.GameId, request.PlayerId, [seenTile], [], cancelToken);
 
             if (supportResult.HasSucceeded == false)
             {
@@ -160,7 +161,8 @@ internal class GetTileSustenanceHandler(
                 Hunt = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Hunt, depletion),
                 Fish = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Fish, depletion),
                 Fodder = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Fodder, depletion),
-                SupportLevel = supportResult.SuccessValue![seenTile.CampaignMapId]
+                // The level only: the toolbar colours itself by it, and does not show the Turns the hover marker does.
+                SupportLevel = supportResult.SuccessValue![seenTile.CampaignMapId]?.Level
             });
         }
         catch (Exception ex)

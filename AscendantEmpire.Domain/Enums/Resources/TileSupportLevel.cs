@@ -9,8 +9,8 @@ namespace AscendantEmpire.Domain.Enums.Resources;
 /// <c>"Plenty"</c>, <c>"OneTurn"</c>, <c>"Insufficient"</c> and <c>"Exhausted"</c>.
 /// </para>
 /// <para>
-/// A count of Turns is plain <c>available ÷ need</c>: it ignores regrowth at the end of a Round and other Players feeding on the tile. See "Support indicator" in
-/// <c>docs/design/campaign-map.md</c>.
+/// A count of Turns is forecast Turn by Turn, with the tile regrowing at the end of each Round, for the Forces as they stand and nobody else feeding on the tile. See
+/// "Support indicator" in <c>docs/design/campaign-map.md</c>.
 /// </para>
 /// </remarks>
 public enum TileSupportLevel

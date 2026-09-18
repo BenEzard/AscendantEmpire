@@ -3,9 +3,10 @@ using AscendantEmpire.Application.Features.Maps.Biomes.Classes;
 using AscendantEmpire.Application.Features.Maps.Biomes.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
+using AscendantEmpire.Application.Features.Maps.Depletion.Classes;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.Domain.Entities.Games;
-using AscendantEmpire.Domain.Enums.Resources;
+using AscendantEmpire.Domain.Enums.Maps;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -19,8 +20,8 @@ namespace AscendantEmpire.Application.Features.Maps.Depletion.Services;
 /// <remarks>
 /// <para>
 /// Per tile, the need is the troops (healthy and injured, 1 troop = 1 food) of the Player's own Forces standing on the tile together with the requested Forces, each Force
-/// counted once - so a requested Force already on the tile is not doubled. The pool comes from <see cref="TileFoodPool"/> and the level from
-/// <see cref="ForceSupportCalculator"/>, the same pool the end-of-Turn feed eats from.
+/// counted once - so a requested Force already on the tile is not doubled. The level and the number of Turns come from <see cref="TileSupportForecaster"/>, which feeds
+/// from the same pool as the end-of-Turn feed and regrows the tile as the end of the Round does.
 /// </para>
 /// <para>
 /// Forces count exactly as they do in <c>Gathering</c>: a wiped-out Force has nobody to feed, and a Force in a Battle is fighting rather than foraging. A requested Force of
@@ -30,9 +31,9 @@ namespace AscendantEmpire.Application.Features.Maps.Depletion.Services;
 /// Troop counts are always read here, never taken from the client.
 /// </para>
 /// </remarks>
-internal class TileSupportEvaluator(IPlayerSustenanceValueReader sustenanceValueReader) : ITileSupportEvaluator
+internal class TileSupportEvaluator(IPlayerSustenanceValueReader sustenanceValueReader, IBiomeRegenerationValueReader biomeRegenerationValueReader) : ITileSupportEvaluator
 {
-    public async Task<ServiceResult<IReadOnlyDictionary<int, TileSupportLevel?>>> EvaluateAsync(
+    public async Task<ServiceResult<IReadOnlyDictionary<int, TileSupport?>>> EvaluateAsync(
         AscendantEmpireContext context,
         int gameId,
         int playerId,
@@ -56,7 +57,7 @@ internal class TileSupportEvaluator(IPlayerSustenanceValueReader sustenanceValue
 
         if (unknownForceIds.Length > 0)
         {
-            return ServiceResult<IReadOnlyDictionary<int, TileSupportLevel?>>.Fail(
+            return ServiceResult<IReadOnlyDictionary<int, TileSupport?>>.Fail(
                 $"Force Id(s) {string.Join(", ", unknownForceIds)} are not Forces of Player Id {playerId} in Game Id {gameId}.");
         }
 
@@ -85,12 +86,15 @@ internal class TileSupportEvaluator(IPlayerSustenanceValueReader sustenanceValue
 
         PlayerSustenanceValues values = await sustenanceValueReader.GetValuesAsync(context, playerId, cancelToken);
 
-        var levelByTileId = new Dictionary<int, TileSupportLevel?>();
+        // What each biome regrows at the end of a Round, so the forecast can count the Turns regrowth adds.
+        Dictionary<BiomeType, BiomeRegenerationValues> regenerationByBiome = await biomeRegenerationValueReader.GetValuesAsync(context, cancelToken);
+
+        var supportByTileId = new Dictionary<int, TileSupport?>();
 
         foreach (SightTerrain tile in tiles)
         {
             // Several Observers can see the same tile; it only needs evaluating once.
-            if (levelByTileId.ContainsKey(tile.CampaignMapId))
+            if (supportByTileId.ContainsKey(tile.CampaignMapId))
             {
                 continue;
             }
@@ -108,17 +112,17 @@ internal class TileSupportEvaluator(IPlayerSustenanceValueReader sustenanceValue
 
             depletionByTileId.TryGetValue(tile.CampaignMapId, out CampaignMapDepletion? depletion);
 
-            Dictionary<SustenanceResource, ScaledAmount> available = TileFoodPool.GetAvailable(
+            TileSupport? support = TileSupportForecaster.Forecast(
+                need,
                 CampaignTileWater.IsWater(tile.BiomeIsWater, tile.GeographyType),
                 values,
                 tile.BiomeType,
-                depletion);
+                depletion,
+                regenerationByBiome.GetValueOrDefault(tile.BiomeType));
 
-            ScaledAmount totalAvailable = available.Values.Aggregate(ScaledAmount.Zero, (sum, amount) => sum + amount);
-
-            levelByTileId.Add(tile.CampaignMapId, ForceSupportCalculator.Classify(need, totalAvailable));
+            supportByTileId.Add(tile.CampaignMapId, support);
         }
 
-        return ServiceResult<IReadOnlyDictionary<int, TileSupportLevel?>>.Succeed(levelByTileId);
+        return ServiceResult<IReadOnlyDictionary<int, TileSupport?>>.Succeed(supportByTileId);
     }
 }

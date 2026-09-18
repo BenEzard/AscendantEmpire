@@ -144,7 +144,7 @@ public class CampaignMapController : ControllerBase
     /// </summary>
     /// <remarks>
     /// Asked once per selection, so hovering is a lookup rather than a request per tile. A tile's need is the selected Forces plus the Player's own Forces already on it.
-    /// Tiles outside live sight, and tiles with food but nobody to feed, are left out. A count of Turns ignores regrowth and other Players feeding.
+    /// Tiles outside live sight, and tiles with food but nobody to feed, are left out. Turns are forecast with end-of-Round regrowth, for the Forces as they stand.
     /// The selected Forces are repeated in the query (<c>?forceIds=1&amp;forceIds=2</c>), and each must be one of the Player's own Forces.
     /// </remarks>
     /// <response code="200">The support level of each observed tile, for the selected Forces</response>
@@ -177,7 +177,8 @@ public class CampaignMapController : ControllerBase
             {
                 X = tile.X,
                 Y = tile.Y,
-                SupportLevel = tile.SupportLevel
+                SupportLevel = tile.SupportLevel,
+                Turns = tile.Turns
             })]
         });
     }

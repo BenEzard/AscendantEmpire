@@ -99,6 +99,10 @@ public static class ApplicationStartup
         // Gathering's pool rules, so the colour shown and the feed itself cannot disagree.
         services.AddScoped<ITileSupportEvaluator, TileSupportEvaluator>();
 
+        // Each biome's Regeneration Percent and base values: what an unclaimed tile regrows against at the end of a Round. Shared by the end-of-Round regrowth and the support
+        // forecast, so the Turns a tile is shown to last and the regrowth itself cannot disagree.
+        services.AddScoped<IBiomeRegenerationValueReader, BiomeRegenerationValueReader>();
+
         // Which Players share vision. Every Player is a coalition of one until a foreign relations model exists to say otherwise.
         services.AddScoped<ICoalitionResolver, SoloCoalitionResolver>();
 

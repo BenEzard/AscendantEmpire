@@ -10,4 +10,6 @@ public class DTTileSupportLevelEntry : ITileSupportLevelEntry
     public int Y { get; set; }
 
     public TileSupportLevel SupportLevel { get; set; }
+
+    public int? Turns { get; set; }
 }

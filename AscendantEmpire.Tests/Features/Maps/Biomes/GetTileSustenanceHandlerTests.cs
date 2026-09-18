@@ -39,7 +39,7 @@ namespace AscendantEmpire.Tests.Features.Maps.Biomes;
 /// </para>
 /// <para>
 /// The support level comes from the real <see cref="TileSupportEvaluator"/>. Which Forces count, and the thresholds, are covered in <c>TileSupportEvaluatorTests</c> and
-/// <c>ForceSupportCalculatorTests</c>; here it is only checked that the level reaches the response.
+/// <c>TileSupportForecasterTests</c>; here it is only checked that the level reaches the response.
 /// </para>
 /// </remarks>
 [TestFixture]
@@ -83,7 +83,7 @@ internal class GetTileSustenanceHandlerTests : InMemoryTestBase
         _fieldOfViewService = Substitute.For<IFieldOfViewService>();
         SetSeenTiles(BuildSeenTile(_SEEN_X, _SEEN_Y, BiomeType.Grassland));
 
-        _handler = new GetTileSustenanceHandler(NullLogger<GetTileSustenanceHandler>.Instance, DbFactory, _sightDataReader, _fieldOfViewService, new PlayerSustenanceValueReader(), new TileSupportEvaluator(new PlayerSustenanceValueReader()));
+        _handler = new GetTileSustenanceHandler(NullLogger<GetTileSustenanceHandler>.Instance, DbFactory, _sightDataReader, _fieldOfViewService, new PlayerSustenanceValueReader(), new TileSupportEvaluator(new PlayerSustenanceValueReader(), new BiomeRegenerationValueReader()));
     }
 
     [Test, Description("A tile in live sight reports the Player's values for its biome, which with no modifiers and nothing taken are the biome's base values.")]
