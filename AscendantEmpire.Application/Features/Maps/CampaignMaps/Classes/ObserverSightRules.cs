@@ -10,7 +10,7 @@ namespace AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 /// an addition. See <c>docs/testing.md</c> on using the lightest tier that suffices.
 /// </para>
 /// <para>
-/// The design these rules implement is in <c>docs/design/campaign-map.md</c>, "Vision on the campaign map".
+/// The design these rules implement is in <c>docs/design/campaign-map/vision.md</c>, "Vision on the campaign map".
 /// </para>
 /// </remarks>
 internal static class ObserverSightRules

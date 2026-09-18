@@ -8,7 +8,7 @@ namespace AscendantEmpire.FrontendContracts.Biomes.GetTileSustenance;
 /// <remarks>
 /// <para>
 /// Each value is what is left of the Player's own effective value once the tile's Player-neutral <c>Taken</c> amount is removed, so two Players can see different amounts on
-/// the same tile. See "What a tile stores: the amount taken" in <c>docs/design/campaign-map.md</c>.
+/// the same tile. See "What a tile stores: the amount taken" in <c>docs/design/campaign-map/depletion.md</c>.
 /// </para>
 /// <para>
 /// A <see langword="null"/> value means the resource does not exist in the tile's biome; <c>0</c> means it exists but nothing is left.

@@ -48,7 +48,7 @@ public class CampaignBiome
     /// <remarks>
     /// <para>
     /// The same share applies to all of the Biome's sustenance (Forage, Hunt, Fish, Fodder): at the end of each Round a tile gets back this fraction of its <c>Base</c>, fed on
-    /// or not, capped at <c>Base</c>. See "Replenishment" in <c>docs/design/campaign-map.md</c>.
+    /// or not, capped at <c>Base</c>. See "Replenishment" in <c>docs/design/campaign-map/replenishment.md</c>.
     /// </para>
     /// <para>
     /// Required, and more than 0 and at most 1, when the Biome has any sustenance base value; <see langword="null"/> when it has none, since there is nothing to regrow.

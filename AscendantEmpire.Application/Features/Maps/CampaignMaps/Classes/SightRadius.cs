@@ -32,7 +32,7 @@ internal sealed class SightNode(int x, int y)
 /// <para>
 /// The range is a square — Chebyshev distance, so a diagonal step counts as one. Each tile's <b>sight parent</b> is the tile one step back towards the
 /// Observer on each axis at once, which walks a tile diagonally until it is level with the Observer on one axis and then straight in. That is the
-/// "diagonal for as long as possible" path in <c>docs/design/campaign-map.md</c>, and it is a fixed tree rather than true ray-casting: each tile has
+/// "diagonal for as long as possible" path in <c>docs/design/campaign-map/vision.md</c>, and it is a fixed tree rather than true ray-casting: each tile has
 /// exactly one parent, and whatever blocks that parent blocks it.
 /// </para>
 /// <para>

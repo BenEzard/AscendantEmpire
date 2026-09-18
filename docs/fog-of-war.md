@@ -4,7 +4,7 @@ How what a player *knows* about the campaign map reaches the screen, and why it 
 than one.
 
 The rules that decide what a Force or Building can see — sight range, elevation, sight-blocking
-biomes — are design, and live in [Vision on the campaign map](design/campaign-map.md#vision-on-the-campaign-map).
+biomes — are design, and live in [Vision on the campaign map](design/campaign-map/vision.md).
 This document is the pipeline: the storage behind it, the shape it crosses the API in, and how the
 client draws it.
 

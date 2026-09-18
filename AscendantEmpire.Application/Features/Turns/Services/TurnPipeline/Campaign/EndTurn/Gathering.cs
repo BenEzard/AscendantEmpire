@@ -24,7 +24,7 @@ namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campa
 /// 1 troop needs 1 food. What is available of each resource to this Player is <c>MAX(0, effective − Taken)</c>, with the effective values read live through
 /// <see cref="IPlayerSustenanceValueReader"/>.
 /// The need is split across the pool by <see cref="FoodExtractionCalculator"/>, and any shortfall is spread across the tile's Forces by <see cref="ShortfallAllocator"/>
-/// and handed to <see cref="IUnderfedForceResolver"/>. See "What a tile stores: the amount taken" in <c>docs/design/campaign-map.md</c>.
+/// and handed to <see cref="IUnderfedForceResolver"/>. See "What a tile stores: the amount taken" in <c>docs/design/campaign-map/depletion.md</c>.
 /// </para>
 /// <para>
 /// A tile fed on is marked with <see cref="CampaignMapDepletion.FedOnRound"/> whether or not there was anything left to take: the marker records presence, not food.
@@ -51,7 +51,7 @@ internal class Gathering(
     {
         // TODO: Passing through a tile should draw 20% of a Force's need from it, and mark it fed on (FedOnRound) as well. The tiles passed through in the Turn
         //       are in units.MovementHistory; the draw needs its own ordering rules against the end-of-Turn feed.
-        // TODO: UNIT_HARVEST_CAP - a maximum a Force can harvest from a tile regardless of availability (and pillaging to exceed it). See docs/design/campaign-map.md.
+        // TODO: UNIT_HARVEST_CAP - a maximum a Force can harvest from a tile regardless of availability (and pillaging to exceed it). See docs/design/campaign-map/depletion.md.
         // TODO: Food needs should come from each Force's unit design rather than 1 troop = 1 food, and mounted units should need Fodder as well.
         // TODO: Force gathering bonuses (a forager attached to a Command) should reduce what a Force draws from the tile.
         // TODO: A hostile Force on a Settlement's tile takes the tile's food and the Settlement gets none. Waits on Settlements being modelled.

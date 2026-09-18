@@ -5,7 +5,7 @@ namespace AscendantEmpire.Domain.Enums.Resources;
 /// </summary>
 /// <remarks>
 /// The material values (Bone, Wood, Stone, Special) are deliberately absent: they are static, the same for every Player in every game, so nothing ever modifies them.
-/// See the Biome section of <c>docs/design/campaign-map.md</c>.
+/// See the Biome section of <c>docs/design/campaign-map/tiles.md</c>.
 /// </remarks>
 public enum SustenanceResource
 {

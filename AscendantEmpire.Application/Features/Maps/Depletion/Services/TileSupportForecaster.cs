@@ -33,7 +33,7 @@ namespace AscendantEmpire.Application.Features.Maps.Depletion.Services;
 /// <para>
 /// The forecast answers "how long can these Forces stay here", and holds everything else fixed: the Forces' size, the Player's modifiers and the biome. It assumes nobody
 /// else feeds on the tile, which holds while the Forces stand on it - any other Player stepping on starts a Battle, and Forces in a Battle do not feed. See "Support indicator"
-/// in <c>docs/design/campaign-map.md</c>.
+/// in <c>docs/design/campaign-map/support-indicator.md</c>.
 /// </para>
 /// <para>
 /// Pure and database-free.

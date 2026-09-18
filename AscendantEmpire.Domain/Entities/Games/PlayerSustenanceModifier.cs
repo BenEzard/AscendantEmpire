@@ -24,7 +24,7 @@ namespace AscendantEmpire.Domain.Entities.Games;
 /// <para>
 /// Only empire-wide modifiers exist so far. A Settlement's modifiers will apply to its territory, and wait on Settlements being modelled - TODO: add a nullable
 /// <c>SettlementId</c> scope then. A Force's gathering bonuses (a forager attached to a Command) are not modifiers of this kind at all: they reduce what the Force draws
-/// from a tile rather than raising the tile's maximum. See the Biome section of <c>docs/design/campaign-map.md</c>.
+/// from a tile rather than raising the tile's maximum. See the Biome section of <c>docs/design/campaign-map/tiles.md</c>, and "Depletion rules" in <c>docs/design/campaign-map/depletion.md</c>.
 /// </para>
 /// <para>
 /// No navigation properties, the same as <see cref="PlayerBattleMap"/>: the rows are summed, never walked as an entity graph.

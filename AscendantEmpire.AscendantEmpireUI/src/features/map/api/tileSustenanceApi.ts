@@ -23,7 +23,7 @@ export function parseTileSupportLevel(value: unknown): TileSupportLevel | null {
  * The Forage, Hunt, Fish and Fodder available to the current player on one tile.
  *
  * Each value is what is left of the player's *own* effective value once the tile's shared "taken" amount is removed, so two players can see different
- * amounts on the same tile (see "What a tile stores: the amount taken" in docs/design/campaign-map.md).
+ * amounts on the same tile (see "What a tile stores: the amount taken" in docs/design/campaign-map/depletion.md).
  *
  * A null value means the resource does not exist in the tile's biome, which is not the same as 0 — a tile that has it but has been stripped bare.
  */

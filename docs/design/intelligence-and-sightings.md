@@ -5,7 +5,7 @@ when their turn opens.
 
 > This document is the design. For how *current* vision is computed and drawn — explored ground
 > versus ground currently watched — see [Fog of War](../fog-of-war.md). For the sight and detection
-> rules themselves, see [Vision on the campaign map](campaign-map.md#vision-on-the-campaign-map).
+> rules themselves, see [Vision on the campaign map](campaign-map/vision.md).
 >
 > **Status: partly built.** The `turns.PlayerTurn` foundation landed in F-21, `units.MovementHistory` with its single writer in F-22, the witness service with its coalition seam in F-23, the Forces producer in F-24, the Structures producer in F-25, and the combat producer in F-26: `battle.BattleHistory` with its own single writer, combat reports, and the fold wired into the campaign end-of-turn step. All three producers now exist. The fidelity curve (F-31) is not built.
 >

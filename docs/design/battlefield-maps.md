@@ -1,7 +1,7 @@
 # Battlefield Maps
 
 Battlefield maps are the tactical maps where battles play out. Most combat happens here — the
-exceptions (artillery bombardments, plane sorties, ICBMs) occur on the [campaign map](campaign-map.md).
+exceptions (artillery bombardments, plane sorties, ICBMs) occur on the [campaign map](campaign-map/README.md).
 
 > In this document, **Unit** means one fielded body of soldiers - the thing that is placed, moved and fought with on the battle map. Where several Units act under one commander, that is a **Command**; **Force** covers either. See [Terminology.md](../../Terminology.md).
 

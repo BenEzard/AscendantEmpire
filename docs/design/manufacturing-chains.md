@@ -2,7 +2,7 @@
 
 Infrastructure turns raw inputs into outputs through a **manufacturing chain**. This document gives
 the worked examples; for the generic properties of infrastructure see
-[campaign-map.md](campaign-map.md#infrastructure-terrain-improvements).
+[campaign-map/infrastructure.md](campaign-map/infrastructure.md).
 
 ## Definitions
 

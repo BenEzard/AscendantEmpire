@@ -19,7 +19,7 @@ The player starts with **3× Roving Band (300 people)** on a "good" tile produci
 | **Turn 2** | The player is warned the tile can't feed the tribe and must move to avoid starvation. (Tile would have `85 + 100 = 185`; population is 315.) | Each tile would have `295 + 100 = 395`; population per band is 105. Each band forages **110.25 food**, leaving ~285. Surplus → +5% population; tiles regenerate as above. |
 
 The split opening sustains the population longer because no single tile is over-grazed — illustrating
-the [resource-depletion](campaign-map.md#depletion-of-resources) pressure that drives early
+the [resource-depletion](campaign-map/depletion.md) pressure that drives early
 nomadism.
 
 ## Path to settling

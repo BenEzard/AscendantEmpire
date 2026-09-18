@@ -7,7 +7,7 @@ namespace AscendantEmpire.Tests.Features.Maps.CampaignMaps;
 /// </summary>
 /// <remarks>
 /// <para>
-/// These pin the vision rules from <c>docs/design/campaign-map.md</c>: a Biome that blocks sight caps how far an Observer can see, high ground adds
+/// These pin the vision rules from <c>docs/design/campaign-map/vision.md</c>: a Biome that blocks sight caps how far an Observer can see, high ground adds
 /// to it, and everything else leaves the Observer's own Sight alone.
 /// </para>
 /// <para>

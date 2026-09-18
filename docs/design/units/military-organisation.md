@@ -305,7 +305,7 @@ the same Campaign Tile. This is the layer that consumes the **(max tiers)+1** to
   Units**, and **max attached Specialists**.
 * A Command's `Sight` is the **maximum** `Sight` of the Units within it — the best-placed pair of eyes
   sees for the whole Command, rather than their ranges being added together. See
-  [Vision on the campaign map](../campaign-map.md#vision-on-the-campaign-map) for the full set of rules.
+  [Vision on the campaign map](../campaign-map/vision.md) for the full set of rules.
 * `Detection` sharing within a Command is designed but **not yet implemented** — Detection currently
   plays no part in what a player can see.
 
@@ -489,4 +489,4 @@ components of a unit are obsolete, the unit design itself is obsoleted.
 
 <span style="color:orange;">TODO: When a unit has multiple weapons, how is partial ammunition availability handled?
 
-TODO: Integrated design with [Infrastructure](../campaign-map.md#infrastructure-terrain-improvements).</span>
+TODO: Integrated design with [Infrastructure](../campaign-map/infrastructure.md).</span>

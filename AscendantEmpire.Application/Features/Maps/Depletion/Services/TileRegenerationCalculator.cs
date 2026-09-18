@@ -3,7 +3,7 @@ using AscendantEmpire.Application.Helpers.ScaledNumerics;
 namespace AscendantEmpire.Application.Features.Maps.Depletion.Services;
 
 /// <summary>
-/// Works out a tile's new <c>Taken</c> amount for one sustenance resource at the end of a Round, following "Replenishment" in <c>docs/design/campaign-map.md</c>.
+/// Works out a tile's new <c>Taken</c> amount for one sustenance resource at the end of a Round, following "Replenishment" in <c>docs/design/campaign-map/replenishment.md</c>.
 /// </summary>
 /// <remarks>
 /// <para>

@@ -107,7 +107,7 @@ A step that passes is paid for, recorded and answered:
 
 `MovementEntryRules.GetEntryRefusal` is the single answer to "may a Force of this domain enter this tile?". The
 fog-of-war read asks it too — an observer blinded by dense terrain reveals exactly the neighbours its domain
-could never have entered (see [campaign-map.md](../campaign-map.md#standing-in-dense-terrain)) — so what the map
+could never have entered (see [campaign-map/vision.md](../campaign-map/vision.md#standing-in-dense-terrain)) — so what the map
 reveals and what a step refuses can never disagree.
 
 **Impassable tiles are refused for every domain**, before any domain rule is consulted:

@@ -17,7 +17,7 @@ namespace AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 /// Pure: no database, no side effects, testable without a container. The caller loads the terrain; <see cref="GetFootprint"/> says which terrain that is.
 /// </para>
 /// <para>
-/// The rules, in the order they apply — see "Vision on the campaign map" in <c>docs/design/campaign-map.md</c>:
+/// The rules, in the order they apply — see "Vision on the campaign map" in <c>docs/design/campaign-map/vision.md</c>:
 /// <list type="number">
 ///   <item><description>A negative Sight is no Observer at all. Otherwise the occupied tile is always seen.</description></item>
 ///   <item><description>The occupied tile adjusts the range: a blocking Biome zeroes it, high ground adds to it (<see cref="ObserverSightRules"/>).</description></item>

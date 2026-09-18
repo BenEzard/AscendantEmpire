@@ -16,7 +16,7 @@ Source assets live under `Empire.GeneratorConsole/New_ImageResources`:
 | 4 | | (further steps) |
 
 Each colour in the reduced palette maps to a geography/biome combination, producing the tile grid
-described in [campaign-map.md](campaign-map.md).
+described in [campaign-map/tiles.md](campaign-map/tiles.md).
 
 ## Turn processing notes
 

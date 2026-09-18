@@ -17,7 +17,7 @@ namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campa
 /// <remarks>
 /// <para>
 /// Runs once per tile, for each sustenance resource the tile's biome has (a non-null base), using the rules in <see cref="TileRegenerationCalculator"/>. See "Replenishment"
-/// in <c>docs/design/campaign-map.md</c>.
+/// in <c>docs/design/campaign-map/replenishment.md</c>.
 /// </para>
 /// <para>
 /// Only tiles with something taken are read: a tile whose every <c>Taken</c> is 0 has nothing to regrow, whether or not it was fed on. A row that regrows back to 0 is kept, and
@@ -51,7 +51,7 @@ internal class RegenerateTileSustenance(
         //       (TileSupportForecaster) regrows through the same values and must follow - see its TODO on revealing a claimant's tech.
         // TODO: Tiles within a Settlement zone also need to be found for replenishment. Waits on Settlements.
         // TODO: Whether a Settlement's population feeding on its own territory counts as feeding on the tile is deferred to the Settlement mechanics.
-        // TODO: Scorched earth setting Taken is undecided (see docs/design/campaign-map.md).
+        // TODO: Scorched earth setting Taken is undecided (see docs/design/campaign-map/depletion.md).
         // TODO: Rerun risk. The pipeline is not transactional, so if a later end-of-Round process fails and the Round is ended again, these tiles regrow a second time.
         //       Guard it (a per-Round regenerated stamp) once the pipeline's retry story is settled.
 

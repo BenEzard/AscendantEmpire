@@ -41,4 +41,4 @@ Buildings are constructed within a settlement and provide outputs or capabilitie
 | Meeting Place | | | Built in: Camp | 10 units of craft materials per turn | Where the tribe gathers, and consequently where they output craft. |
 
 > Infrastructure built on tiles *outside* a settlement is linked to the settlement in which it was
-> created. See [campaign-map.md](campaign-map.md#infrastructure-terrain-improvements).
+> created. See [campaign-map/infrastructure.md](campaign-map/infrastructure.md).

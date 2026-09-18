@@ -14,7 +14,7 @@ namespace AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 /// </para>
 /// <para>
 /// Every Unit and every Structure is its own Observer, even when several share a tile. A union of ranges radiating from one tile is arithmetically the
-/// largest of them, so the Command and Structure sight rules in <c>docs/design/campaign-map.md</c> hold without being special-cased.
+/// largest of them, so the Command and Structure sight rules in <c>docs/design/campaign-map/vision.md</c> hold without being special-cased.
 /// </para>
 /// </remarks>
 internal sealed record SightObserver

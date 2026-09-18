@@ -47,7 +47,7 @@ internal class PlayerCampaignMapRequestValidator : Validator<GetPlayerCampaignMa
 /// witness service uses too, so live vision and intelligence cannot drift apart.
 /// </para>
 /// <para>
-/// See <c>docs/fog-of-war.md</c> for how the response is drawn, and <c>docs/design/campaign-map.md</c> for the vision rules themselves.
+/// See <c>docs/fog-of-war.md</c> for how the response is drawn, and <c>docs/design/campaign-map/vision.md</c> for the vision rules themselves.
 /// </para>
 /// </remarks>
 internal class GetPlayerCampaignMapHandler(

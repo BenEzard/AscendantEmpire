@@ -107,7 +107,7 @@ Structured Modifier shape (concept 2) should gain an optional `ApplyTo` field (s
 5. Values support both flat and percentage, and are never a bare, ambiguous number. Which shape depends on how the value is applied:
    - **One kind of amount per modifier** (the unit component modifiers): an explicit `ValueType` (Flat/Percent) enum next to `Value`.
    - **Always both terms in the formula** (Player sustenance modifiers, `Base + Base × ΣPercent + ΣFlat` — see
-     [campaign-map.md](../campaign-map.md#biome)): two named, non-nullable columns, `FlatValue` and `PercentValue`, defaulting to `0`. One
+     [campaign-map/tiles.md](../campaign-map/tiles.md#biome)): two named, non-nullable columns, `FlatValue` and `PercentValue`, defaulting to `0`. One
      modifier can then carry both parts in a single row, and the totals are plain sums.
 6. Tags stay scoped to unit design for now. The `Tag`/`TagType` entities have no unit-design-specific fields, so relocating them later (own folder/namespace, own entities outside unit design) is cheap — do it when a second consumer needs tagging (e.g. adding a `StructureTag` join table beside `UnitComponentTag`), not before.
    - Note this is about moving the **entities** out of unit design, and is unaffected by `UnitDesignTagsController` existing. That controller was split out of `UnitDesignController` for size and cohesion (see [UD-32](../../work-in-progress/UD-32.md)) and keeps tags firmly *inside* unit design — it is not the relocation this point defers, and does not bring it forward.

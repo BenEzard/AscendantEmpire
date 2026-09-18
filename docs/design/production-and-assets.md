@@ -86,5 +86,5 @@ luxury regardless of surplus.
 ## Resources
 
 Resources appear on the **campaign map**. How tiles produce, deplete, regenerate, and reveal
-resources is described in [campaign-map.md](campaign-map.md). How raw resources are refined into
+resources is described in [campaign-map/](campaign-map/README.md). How raw resources are refined into
 finished goods is described in [manufacturing-chains.md](manufacturing-chains.md).

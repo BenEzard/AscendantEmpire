@@ -7,7 +7,7 @@ namespace AscendantEmpire.Domain.Entities.Games;
 /// <para>
 /// Player-neutral. The tile stores what has been <b>taken</b>, never what remains, because Players with different sustenance values reach different amounts on the same
 /// tile: what is available to a Player is <c>MAX(0, [Player's effective value] − Taken)</c>. A Player gaining or losing a modifier just sees a different amount against the
-/// same <c>Taken</c>, and no Player is recorded here. See "What a tile stores: the amount taken" in <c>docs/design/campaign-map.md</c>.
+/// same <c>Taken</c>, and no Player is recorded here. See "What a tile stores: the amount taken" in <c>docs/design/campaign-map/depletion.md</c>.
 /// </para>
 /// <para>
 /// Only tiles that have been fed on have a row: it is created the first time a Force feeds on the tile, and persists between Turns. A tile with no row has had nothing

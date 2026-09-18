@@ -7,7 +7,7 @@ namespace AscendantEmpire.Application.Features.Maps.Biomes.Services;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <c>Effective = Base + Base × ΣPercent + ΣFlat</c>, following the Biome section of <c>docs/design/campaign-map.md</c>:
+/// <c>Effective = Base + Base × ΣPercent + ΣFlat</c>, following the Biome section of <c>docs/design/campaign-map/tiles.md</c>:
 /// <list type="bullet">
 ///   <item><description>A <c>null</c> base means the resource does not exist in the biome, and stays <c>null</c> whatever the modifiers say.</description></item>
 ///   <item><description>Percentages are summed by the caller and applied once, to the base only, so they add together rather than compound and never scale the flat part.</description></item>
@@ -54,7 +54,7 @@ internal static class SustenanceValueCalculator
     /// </summary>
     /// <remarks>
     /// Floored at 0 because <c>Taken</c> can exceed a weaker Player's effective value: a stronger Player may have stripped the tile past what the weaker Player could ever reach.
-    /// See "What a tile stores: the amount taken" in <c>docs/design/campaign-map.md</c>.
+    /// See "What a tile stores: the amount taken" in <c>docs/design/campaign-map/depletion.md</c>.
     /// </remarks>
     /// <param name="effectiveValue">The Player's effective value, from <see cref="CalculateEffectiveValue"/>, or <see langword="null"/> when the resource does not exist in the biome.</param>
     /// <param name="taken">How much has been taken from the tile, by anyone.</param>
