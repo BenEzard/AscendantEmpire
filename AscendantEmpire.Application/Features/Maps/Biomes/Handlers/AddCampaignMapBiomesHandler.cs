@@ -53,7 +53,6 @@ internal class AddCampaignMapBiomesHandler(
                 BaseBoneValue = ScaledResourceValue.ToRaw(biome.BaseBoneValue),
                 BaseWoodValue = ScaledResourceValue.ToRaw(biome.BaseWoodValue),
                 BaseStoneValue = ScaledResourceValue.ToRaw(biome.BaseStoneValue),
-                BaseSpecialValue = ScaledResourceValue.ToRaw(biome.BaseSpecialValue),
                 MapEditorHtmlColor = biome.MapEditorHtmlColor,
                 CanBeElevated = biome.CanBeElevated,
                 IsPaintableOnCampaignMap = biome.IsPaintableOnCampaignMap

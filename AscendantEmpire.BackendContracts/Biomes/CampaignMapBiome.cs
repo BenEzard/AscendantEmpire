@@ -99,11 +99,5 @@ public record CampaignMapBiome
     /// </summary>
     /// <remarks>If value is null it can NEVER be increased/set</remarks>
     public int? BaseStoneValue { get; init; }
-
-    /// <summary>
-    /// Base value of the Special resource in this Biome
-    /// </summary>
-    /// <remarks>If value is null it can NEVER be increased/set</remarks>
-    public int? BaseSpecialValue { get; init; }
     #endregion
 }

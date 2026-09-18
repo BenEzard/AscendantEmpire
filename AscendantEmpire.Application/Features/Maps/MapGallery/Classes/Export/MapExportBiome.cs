@@ -25,5 +25,4 @@ public class MapExportBiome
     public int? BaseBoneValue { get; init; }
     public int? BaseWoodValue { get; init; }
     public int? BaseStoneValue { get; init; }
-    public int? BaseSpecialValue { get; init; }
 }

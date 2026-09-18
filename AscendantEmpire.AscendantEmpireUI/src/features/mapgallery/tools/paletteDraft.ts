@@ -41,7 +41,6 @@ export function createNewBiome(nextId: number): Biome {
     baseBoneValue: null,
     baseWoodValue: null,
     baseStoneValue: null,
-    baseSpecialValue: null,
   };
 }
 

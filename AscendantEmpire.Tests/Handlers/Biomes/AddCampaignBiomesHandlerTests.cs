@@ -332,7 +332,7 @@ internal class AddCampaignBiomesHandlerTests
         }
     }
 
-    // BaseForageValue, BaseHuntValue, BaseFishValue, BaseFodderValue, BaseBoneValue, BaseWoodValue, BaseStoneValue, and BaseSpecialValue must be greater than or equal to 0, if specified
+    // BaseForageValue, BaseHuntValue, BaseFishValue, BaseFodderValue, BaseBoneValue, BaseWoodValue, and BaseStoneValue must be greater than or equal to 0, if specified
 
     [Test, Description("Should fail if BaseHuntValue is specified, but less than 0")]
     public async Task ShouldFailWhenBaseHuntValueIsNegative()
@@ -499,34 +499,6 @@ internal class AddCampaignBiomesHandlerTests
         {
             Assert.That(result.HasSucceeded, Is.False, "Biome addition succeeded with a negative Base Stone Value.");
             Assert.That(result.Errors, Is.Not.Null.And.Not.Empty, "Expected error messages for negative Base Stone Value.");
-        }
-    }
-
-    [Test, Description("Should fail if BaseSpecialValue is specified, but less than 0")]
-    public async Task ShouldFailWhenBaseSpecialValueIsNegative()
-    {
-        var request = new AddCampaignMapBiomesRequest(
-        [
-            new()
-            {
-                BiomeType = BiomeType.Arid,
-                Name = "Arid",
-                MovementCost = 1.0m,
-                DoesBlockSight = false,
-                IsWater = false,
-                IsTraversable = true,
-                RegenerationPercent = 0.15m,
-                BaseSpecialValue = -8, // Invalid Base Special Value
-                MapEditorHtmlColor = "#fcfda4",
-                CanBeElevated = true,
-                IsPaintableOnCampaignMap = true
-            }
-        ]);
-        ServiceResultBase result = await _handler.Handle(request, CancellationToken.None);
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(result.HasSucceeded, Is.False, "Biome addition succeeded with a negative Base Special Value.");
-            Assert.That(result.Errors, Is.Not.Null.And.Not.Empty, "Expected error messages for negative Base Special Value.");
         }
     }
 

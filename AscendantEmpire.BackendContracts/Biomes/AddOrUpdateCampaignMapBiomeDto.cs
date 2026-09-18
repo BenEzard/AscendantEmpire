@@ -60,8 +60,5 @@ public record class AddOrUpdateCampaignMapBiomeDto : IAddOrUpdateCampaignMapBiom
 
     /// <inheritdoc />
     public int? BaseStoneValue { get; init; }
-
-    /// <inheritdoc />
-    public int? BaseSpecialValue { get; init; }
     #endregion
 }

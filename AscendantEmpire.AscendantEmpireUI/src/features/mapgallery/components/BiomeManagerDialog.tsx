@@ -401,16 +401,6 @@ function BiomeManagerDialog({
                   disabledPlaceholder="n/a"
                   onChange={handleBiomeFieldChange}
                 />
-
-                <BiomeResource
-                  label="Base Special"
-                  biome={selectedBiome}
-                  field="baseSpecialValue"
-                  disabled={!selectedBiome || mustBeTraversablePaintable}
-                  placeholder="specify..."
-                  disabledPlaceholder="n/a"
-                  onChange={handleBiomeFieldChange}
-                />
               </div>
             ),
           },

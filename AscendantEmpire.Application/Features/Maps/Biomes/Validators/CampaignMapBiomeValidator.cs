@@ -22,7 +22,7 @@ internal class CampaignMapBiomeValidator : Validator<IAddOrUpdateCampaignMapBiom
     /// <item>IsWater Biome cannot have DoesBlockSight set to true</item>
     /// <item>RegenerationPercent must be specified, more than 0 and at most 1, when the Biome has any sustenance value (BaseForageValue, BaseHuntValue, BaseFishValue or BaseFodderValue)</item>
     /// <item>RegenerationPercent must be null when the Biome has no sustenance value, since there is nothing to regrow</item>
-    /// <item>BaseForageValue, BaseHuntValue, BaseFishValue, BaseFodderValue, BaseBoneValue, BaseWoodValue, BaseStoneValue, and BaseSpecialValue must be greater than or equal to 0, if specified</item>
+    /// <item>BaseForageValue, BaseHuntValue, BaseFishValue, BaseFodderValue, BaseBoneValue, BaseWoodValue, and BaseStoneValue must be greater than or equal to 0, if specified</item>
     /// <item>Water Biomes cannot have Hunt, Fodder, Wood, or Stone values</item>
     /// <item>Water Biomes cannot be elevated</item>
     /// </list> 
@@ -83,10 +83,6 @@ internal class CampaignMapBiomeValidator : Validator<IAddOrUpdateCampaignMapBiom
             .Must(v => v == null || v == 0 || v >= 9)
             .WithMessage(b => $"{nameof(b.BaseStoneValue)} must be 0 or greater than 9, if specified.");
 
-        RuleFor(b => b.BaseSpecialValue)
-            .Must(v => v == null || v == 0 || v >= 9)
-            .WithMessage(b => $"{nameof(b.BaseSpecialValue)} must be 0 or greater than 9, if specified.");
-
         RuleFor(b => b)
             .Must(b =>
                 b.IsWater == false || 
@@ -122,7 +118,6 @@ internal class CampaignMapBiomeValidator : Validator<IAddOrUpdateCampaignMapBiom
                 if (biome.BaseBoneValue != null) context.AddFailure($"{nameof(biome.BaseBoneValue)} must be null if Biome is not paintable on Campaign Map.");
                 if (biome.BaseWoodValue != null) context.AddFailure($"{nameof(biome.BaseWoodValue)} must be null if Biome is not paintable on Campaign Map.");
                 if (biome.BaseStoneValue != null) context.AddFailure($"{nameof(biome.BaseStoneValue)} must be null if Biome is not paintable on Campaign Map.");
-                if (biome.BaseSpecialValue != null) context.AddFailure($"{nameof(biome.BaseSpecialValue)} must be null if Biome is not paintable on Campaign Map.");
             }
         });
 

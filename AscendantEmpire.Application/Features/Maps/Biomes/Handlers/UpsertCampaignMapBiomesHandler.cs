@@ -59,7 +59,6 @@ internal class UpsertCampaignMapBiomesHandler(
                     BaseBoneValue = b.BaseBoneValue,
                     BaseWoodValue = b.BaseWoodValue,
                     BaseStoneValue = b.BaseStoneValue,
-                    BaseSpecialValue = b.BaseSpecialValue,
                     MapEditorHtmlColor = b.MapEditorHtmlColor,
                     CanBeElevated = b.CanBeElevated,
                     IsPaintableOnCampaignMap = b.IsPaintableOnCampaignMap
@@ -95,7 +94,6 @@ internal class UpsertCampaignMapBiomesHandler(
                 existingBiome.BaseBoneValue = ScaledResourceValue.ToRaw(updatedValues.BaseBoneValue);
                 existingBiome.BaseWoodValue = ScaledResourceValue.ToRaw(updatedValues.BaseWoodValue);
                 existingBiome.BaseStoneValue = ScaledResourceValue.ToRaw(updatedValues.BaseStoneValue);
-                existingBiome.BaseSpecialValue = ScaledResourceValue.ToRaw(updatedValues.BaseSpecialValue);
                 existingBiome.MapEditorHtmlColor = updatedValues.MapEditorHtmlColor;
                 existingBiome.CanBeElevated = updatedValues.CanBeElevated;
                 existingBiome.IsPaintableOnCampaignMap = updatedValues.IsPaintableOnCampaignMap;

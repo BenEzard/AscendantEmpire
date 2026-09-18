@@ -71,7 +71,6 @@ internal class GetCampaignMapBiomesTests
                 BaseBoneValue = ScaledAmount.FromWhole(6).RawValue,
                 BaseWoodValue = ScaledAmount.FromWhole(7).RawValue,
                 BaseStoneValue = ScaledAmount.FromWhole(8).RawValue,
-                BaseSpecialValue = ScaledAmount.FromWhole(9).RawValue,
                 MapEditorHtmlColor = "not-a-color", // Invalid color
                 CanBeElevated = false,
                 IsPaintableOnCampaignMap = true
@@ -93,7 +92,6 @@ internal class GetCampaignMapBiomesTests
                 BaseBoneValue = ScaledAmount.FromWhole(6).RawValue,
                 BaseWoodValue = ScaledAmount.FromWhole(7).RawValue,
                 BaseStoneValue = ScaledAmount.FromWhole(8).RawValue,
-                BaseSpecialValue = ScaledAmount.FromWhole(9).RawValue,
                 MapEditorHtmlColor = "#ffffff", // Invalid color
                 CanBeElevated = true,
                 IsPaintableOnCampaignMap = false
@@ -151,7 +149,6 @@ internal class GetCampaignMapBiomesTests
                 Assert.That(biome.BaseBoneValue, Is.EqualTo(ExpectedWhole(loadedBiome.BaseBoneValue)), $"Biome {biome.BiomeType} bone value does not match.");
                 Assert.That(biome.BaseWoodValue, Is.EqualTo(ExpectedWhole(loadedBiome.BaseWoodValue)), $"Biome {biome.BiomeType} wood value does not match.");
                 Assert.That(biome.BaseStoneValue, Is.EqualTo(ExpectedWhole(loadedBiome.BaseStoneValue)), $"Biome {biome.BiomeType} stone value does not match.");
-                Assert.That(biome.BaseSpecialValue, Is.EqualTo(ExpectedWhole(loadedBiome.BaseSpecialValue)), $"Biome {biome.BiomeType} special value does not match.");
                 Assert.That(biome.MapEditorHtmlColor, Is.EqualTo(loadedBiome.MapEditorHtmlColor), $"Biome {biome.Name} MapEditorHtmlColor does not match the loaded value.");
                 Assert.That(biome.CanBeElevated, Is.EqualTo(loadedBiome.CanBeElevated), $"Biome {biome.Name} CanBeElevated does not match the loaded value.");
                 Assert.That(biome.IsPaintableOnCampaignMap, Is.EqualTo(loadedBiome.IsPaintableOnCampaignMap), $"Biome {biome.Name} IsPaintableOnCampaignMap does not match the loaded value.");

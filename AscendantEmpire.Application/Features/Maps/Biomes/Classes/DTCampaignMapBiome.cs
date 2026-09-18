@@ -91,11 +91,6 @@ public class DTCampaignMapBiome : ICampaignMapBiome
     /// Base value of the Stone resource in this Biome
     /// </summary>
     public int? BaseStoneValue { get; set; }
-
-    /// <summary>
-    /// Base value of the Special resource in this Biome
-    /// </summary>
-    public int? BaseSpecialValue { get; set; }
     #endregion
 }
 

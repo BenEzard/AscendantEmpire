@@ -20,5 +20,4 @@ export type Biome = {
   baseBoneValue: number | null; // Base value of the Bone resource in this Biome
   baseWoodValue: number | null; // Base value of the Wood resource in this Biome
   baseStoneValue: number | null; // Base value of the Stone resource in this Biome
-  baseSpecialValue: number | null; // Base value of the Special resource in this Biome
 };

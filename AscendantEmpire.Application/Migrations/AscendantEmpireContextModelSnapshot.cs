@@ -1170,9 +1170,6 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<long?>("BaseHuntValue")
                         .HasColumnType("bigint");
 
-                    b.Property<long?>("BaseSpecialValue")
-                        .HasColumnType("bigint");
-
                     b.Property<long?>("BaseStoneValue")
                         .HasColumnType("bigint");
 

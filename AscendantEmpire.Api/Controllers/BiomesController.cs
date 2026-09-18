@@ -95,7 +95,6 @@ namespace AscendantEmpire.Api.Controllers
                         BaseBoneValue = b.BaseBoneValue,
                         BaseWoodValue = b.BaseWoodValue,
                         BaseStoneValue = b.BaseStoneValue,
-                        BaseSpecialValue = b.BaseSpecialValue,
                     }).ToList() ?? []
                 };
             });

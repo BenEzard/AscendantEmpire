@@ -100,11 +100,5 @@ public interface ICampaignMapBiome
     /// </summary>
     /// <remarks>If value is null then that means it can NEVER be increased/set</remarks>
     public int? BaseStoneValue { get; }
-
-    /// <summary>
-    /// Base value of the Clay resource in this Biome
-    /// </summary>
-    /// <remarks>If value is null then that means it can NEVER be increased/set</remarks>
-    public int? BaseSpecialValue { get; }
     #endregion
 }

@@ -182,8 +182,7 @@ internal sealed class MapImportExecutor(
                 BaseFodderValue = ScaledResourceValue.ToRaw(exportBiome.BaseFodderValue),
                 BaseBoneValue = ScaledResourceValue.ToRaw(exportBiome.BaseBoneValue),
                 BaseWoodValue = ScaledResourceValue.ToRaw(exportBiome.BaseWoodValue),
-                BaseStoneValue = ScaledResourceValue.ToRaw(exportBiome.BaseStoneValue),
-                BaseSpecialValue = ScaledResourceValue.ToRaw(exportBiome.BaseSpecialValue)
+                BaseStoneValue = ScaledResourceValue.ToRaw(exportBiome.BaseStoneValue)
             });
 
             added = true;

@@ -69,7 +69,6 @@ internal class UpsertCampaignBiomesHandlerTests
                 BaseBoneValue = 50,
                 BaseWoodValue = 60,
                 BaseStoneValue = 70,
-                BaseSpecialValue = 80,
             }
         ]);
 
@@ -98,7 +97,6 @@ internal class UpsertCampaignBiomesHandlerTests
                 Assert.That(updated.BaseBoneValue, Is.EqualTo(ScaledAmount.FromWhole(50).RawValue), $"{nameof(updated.BaseBoneValue)} value is not what's expected.");
                 Assert.That(updated.BaseWoodValue, Is.EqualTo(ScaledAmount.FromWhole(60).RawValue), $"{nameof(updated.BaseWoodValue)} value is not what's expected.");
                 Assert.That(updated.BaseStoneValue, Is.EqualTo(ScaledAmount.FromWhole(70).RawValue), $"{nameof(updated.BaseStoneValue)} value is not what's expected.");
-                Assert.That(updated.BaseSpecialValue, Is.EqualTo(ScaledAmount.FromWhole(80).RawValue), $"{nameof(updated.BaseSpecialValue)} value is not what's expected.");
             }
         }
     }

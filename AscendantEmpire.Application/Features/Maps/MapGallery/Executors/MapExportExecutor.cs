@@ -161,8 +161,7 @@ internal sealed class MapExportExecutor(
                 BaseFodderValue = ScaledResourceValue.ToWhole(b.BaseFodderValue),
                 BaseBoneValue = ScaledResourceValue.ToWhole(b.BaseBoneValue),
                 BaseWoodValue = ScaledResourceValue.ToWhole(b.BaseWoodValue),
-                BaseStoneValue = ScaledResourceValue.ToWhole(b.BaseStoneValue),
-                BaseSpecialValue = ScaledResourceValue.ToWhole(b.BaseSpecialValue)
+                BaseStoneValue = ScaledResourceValue.ToWhole(b.BaseStoneValue)
             })];
 
         List<MapExportGeography> exportGeographies = [.. geographies

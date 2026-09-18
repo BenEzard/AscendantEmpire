@@ -82,12 +82,6 @@ public interface IAddOrUpdateCampaignMapBiomeDto
     /// </summary>
     /// <remarks>If value is null it can NEVER be increased/set</remarks>
     public int? BaseStoneValue { get; }
-
-    /// <summary>
-    /// Base value of the Special resource in this Biome
-    /// </summary>
-    /// <remarks>If value is null it can NEVER be increased/set</remarks>
-    public int? BaseSpecialValue { get; }
     #endregion
 
     #region Map Editor Properties

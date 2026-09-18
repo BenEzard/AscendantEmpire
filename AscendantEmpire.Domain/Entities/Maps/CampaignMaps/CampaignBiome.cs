@@ -118,10 +118,5 @@ public class CampaignBiome
     /// Base value of the Stone resource in this Biome, stored scaled by ScaledAmount.Scale (1,000)
     /// </summary>
     public long? BaseStoneValue { get; set; }
-
-    /// <summary>
-    /// Base value of the Special resource in this Biome, stored scaled by ScaledAmount.Scale (1,000)
-    /// </summary>
-    public long? BaseSpecialValue { get; set; }
     #endregion
 }
