@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { FaCheck, FaMountain, FaRegFolderOpen, FaTree } from "react-icons/fa6";
+import { FaCheck, FaFish, FaMountain, FaRegFolderOpen, FaTree } from "react-icons/fa6";
 import { BiExport, BiLocationPlus } from "react-icons/bi";
 import { SlClose } from "react-icons/sl";
 import { VscNewFile } from "react-icons/vsc";
@@ -34,6 +34,9 @@ type Args = {
   geographyMapSelection: number | null;
   setGeographyMapSelection: (v: number | null) => void;
   openGeographies: () => void;
+
+  mapResourcesLoading: boolean;
+  openMapResources: () => void;
 
   openMapIndex: CampaignMapGalleryIndex | null;
   closeMap: () => void;
@@ -232,6 +235,9 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
     setGeographyMapSelection,
     openGeographies,
 
+    mapResourcesLoading,
+    openMapResources,
+
     openMapIndex,
     closeMap,
     openPushOutMap,
@@ -353,6 +359,24 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
             />
           ),
         },
+        {
+          // The main click opens the MapResource Type Manager, as the Biomes and Geographies buttons open theirs. The dropdown of MapResources to
+          // place, grouped by category, is ME-40's; until then it has no items, which leaves its arrow disabled.
+          key: "mapResources",
+          tooltip: mapResourcesLoading ? "Loading MapResources..." : "MapResources",
+          disabled: mapResourcesLoading,
+          render: ({ disabled }) => (
+            <DropButton
+              label="MapResources"
+              title={mapResourcesLoading ? "Loading MapResources..." : "MapResources"}
+              icon={<FaFish />}
+              disabled={disabled}
+              onClick={openMapResources}
+              menuDisabled
+              items={[]}
+            />
+          ),
+        },
       ],
     }),
     [
@@ -366,6 +390,8 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
       geographyMapSelection,
       setGeographyMapSelection,
       openGeographies,
+      mapResourcesLoading,
+      openMapResources,
       openMapIndex,
     ],
   );

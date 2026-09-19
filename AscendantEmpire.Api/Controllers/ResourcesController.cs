@@ -1,13 +1,17 @@
 using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
+using AscendantEmpire.Application.Features.Resources.Classes;
 using AscendantEmpire.Application.Features.Resources.Handlers;
 using AscendantEmpire.BackendContracts.Resources;
 using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
+using AscendantEmpire.FrontendContracts.Resources.GetResources;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+
+using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 namespace AscendantEmpire.Api.Controllers;
 
@@ -34,5 +38,29 @@ public class ResourcesController : ControllerBase
         ServiceResultBase response = await mediator.Send(new UpsertResourcesRequest(metaCategories));
 
         return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Get every Resource, for pickers
+    /// </summary>
+    /// <response code="200">Every Resource, in meta category order and then by name</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpGet]
+    [ProducesResponseType(typeof(IResourceSummaryCollection), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetResourcesAsync([FromServices] IMediator mediator, CancellationToken cancelToken)
+    {
+        ServiceResult<IReadOnlyCollection<ResourceSummary>> response = await mediator.Send(new GetResourcesRequest(), cancelToken);
+
+        return response.ToActionResult(contract => new DTResourceSummaryCollection
+        {
+            Resources = [.. contract.Select(resource => new DTResourceSummary
+            {
+                Id = resource.Id,
+                Code = resource.Code,
+                DisplayName = resource.DisplayName,
+                MetaCategoryDisplayName = resource.MetaCategoryDisplayName
+            })]
+        });
     }
 }

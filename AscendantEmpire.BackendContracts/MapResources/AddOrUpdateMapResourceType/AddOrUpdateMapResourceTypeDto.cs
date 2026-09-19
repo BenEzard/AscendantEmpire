@@ -14,7 +14,7 @@ public record class AddOrUpdateMapResourceTypeDto : IAddOrUpdateMapResourceTypeD
     public required string DisplayName { get; init; }
 
     /// <inheritdoc />
-    public required int MapResourceCategoryId { get; init; }
+    public required string MapResourceCategoryCode { get; init; }
 
     /// <inheritdoc />
     public int SortOrder { get; init; }

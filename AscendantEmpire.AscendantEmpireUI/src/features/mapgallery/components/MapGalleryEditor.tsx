@@ -7,6 +7,8 @@ import ProcessProgressDialog from "@/features/processing/components/ProcessProgr
 import { useCampaignMapBiomesQuery } from "../hooks/useCampaignMapBiomes";
 import BiomeManagerDialog from "./BiomeManagerDialog";
 import GeographyManagerDialog from "./GeographyManagerDialog";
+import MapResourceTypeManagerDialog from "./MapResourceTypeManagerDialog";
+import { useMapResourceCatalogueQuery } from "../hooks/useMapResourceCatalogue";
 import { useCampaignMapTilesQuery } from "@/features/mapgallery/hooks/useCampaignMapTiles";
 import { useCampaignMapGeographiesQuery } from "../hooks/useCampaignMapGeographies";
 import type { TileCell } from "../types/TileTypes";
@@ -85,6 +87,10 @@ function MapGalleryEditor() {
   // ---------------------------
   const { data: biomes, error: biomeError, isLoading: biomesLoading } = useCampaignMapBiomesQuery();
   const { data: geographies, error: geographyError, isLoading: geographiesLoading } = useCampaignMapGeographiesQuery();
+  const { error: mapResourcesError, isLoading: mapResourcesLoading } = useMapResourceCatalogueQuery();
+
+  // The MapResource Type Manager keeps its own draft (taken when it opens), so opening it is just showing it.
+  const openMapResources = useCallback(() => setActiveDialog("mapResources"), []);
 
   // Stable array reference for TileGrid so its React.memo isn't defeated each render.
   const geographiesList = useMemo(() => geographies ?? [], [geographies]);
@@ -263,6 +269,9 @@ function MapGalleryEditor() {
     setGeographyMapSelection,
     openGeographies,
 
+    mapResourcesLoading,
+    openMapResources,
+
     openMapIndex,
     closeMap,
     openPushOutMap,
@@ -289,6 +298,7 @@ function MapGalleryEditor() {
 
       {biomeError && <Alert variant="danger">Biomes failed: {biomeError.message}</Alert>}
       {geographyError && <Alert variant="danger">Geographies failed: {geographyError.message}</Alert>}
+      {mapResourcesError && <Alert variant="danger">MapResources failed: {mapResourcesError.message}</Alert>}
       {startPositionsError && <Alert variant="danger">Start positions failed: {startPositionsError.message}</Alert>}
 
       {/* ====== Opened map display ====== */}
@@ -335,6 +345,14 @@ function MapGalleryEditor() {
         geographyEditorSelection={geographyEditorSelection}
         onSelectGeographyEditorSelection={setGeographyEditorSelection}
         setGeographies={setGeographyDraft}
+        onClose={() => setActiveDialog(null)}
+        onSaveSuccess={(msg) => openToast(msg ?? "Saved!", "success")}
+      />
+
+      <MapResourceTypeManagerDialog
+        show={activeDialog === "mapResources"}
+        biomes={biomes ?? []}
+        geographies={geographiesList}
         onClose={() => setActiveDialog(null)}
         onSaveSuccess={(msg) => openToast(msg ?? "Saved!", "success")}
       />

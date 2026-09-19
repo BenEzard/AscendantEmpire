@@ -5,6 +5,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 using AscendantEmpire.Application.Features.Maps.Biomes.Handlers;
 using AscendantEmpire.Application.Features.Maps.Geographies.Handlers;
+using AscendantEmpire.Application.Features.Maps.MapResources.Handlers;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Enums.Processing;
@@ -63,6 +64,11 @@ internal sealed class DatabaseSeedExecutor(
 
             // --- Biomes -------------------------------------------------------------------
             await RunStepAsync("biomes", new UpsertCampaignMapBiomesRequest(BiomeSeedData.Build()), cancellationToken);
+            await UpdateProgressAsync(processing, 90, cancellationToken);
+
+            // --- MapResource categories ---------------------------------------------------
+            // Categories only: see MapResourceCategorySeedData for why no MapResourceTypes are seeded.
+            await RunStepAsync("map resource categories", new PutMapResourceCatalogueRequest(MapResourceCategorySeedData.Build()), cancellationToken);
             await UpdateProgressAsync(processing, 95, cancellationToken);
 
             // Mark complete. ResultReference carries a short human-readable summary for the toast.
@@ -117,7 +123,8 @@ internal sealed class DatabaseSeedExecutor(
     {
         return $"Seeded {TagTypeSeedData.Build().Count} tag type(s), " +
             $"{GeographySeedData.Build().Count} geography(ies), " +
-            $"{BiomeSeedData.Build().Count} biome(s).";
+            $"{BiomeSeedData.Build().Count} biome(s), " +
+            $"{MapResourceCategorySeedData.Build().Categories.Count} map resource category(ies).";
     }
 
     /// <summary>

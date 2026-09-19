@@ -84,6 +84,11 @@ MapResources are placed on a gallery map's tiles in the map editor, which lists 
 grouped by **MapResourceCategory** (Food, Metals, Wood...). A category only arranges the editor's
 list; nothing in play reads it.
 
+The categories and types themselves are edited in the editor's **MapResource Type Manager** (the
+MapResources palette button). A type's and a category's code is its fixed key once saved. Deleting a
+type is refused while any map places it or any game uses it, and deleting a category is refused while
+it has types. The database seed creates the categories only: a type's Resources must exist first.
+
 Each game created from the map starts with an instance of every placement. Its starting quantity is
 the one the editor set, if any; otherwise it is rolled from the `InitialQuantity` range when the game
 is created. A Distribution instead starts at its scenario's amounts (the editor may pin a scenario,

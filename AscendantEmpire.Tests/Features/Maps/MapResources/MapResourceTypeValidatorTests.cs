@@ -313,7 +313,7 @@ internal class MapResourceTypeValidatorTests
         {
             Code = "CoalSeam",
             DisplayName = "Coal Seam",
-            MapResourceCategoryId = 1,
+            MapResourceCategoryCode = "Food",
             IsRenewable = false,
             IsStratified = true,
             IsDistribution = false,
@@ -335,7 +335,7 @@ internal class MapResourceTypeValidatorTests
         {
             Code = "CopperDeposit",
             DisplayName = "Copper Deposit",
-            MapResourceCategoryId = 2,
+            MapResourceCategoryCode = "Metals",
             IsRenewable = false,
             IsStratified = false,
             IsDistribution = false,
@@ -359,7 +359,7 @@ internal class MapResourceTypeValidatorTests
         {
             Code = code,
             DisplayName = code,
-            MapResourceCategoryId = 1,
+            MapResourceCategoryCode = "Food",
             IconPath = $"/icons/map-resources/{code}.png",
             IsRenewable = true,
             IsStratified = false,

@@ -37,33 +37,7 @@ internal static class MapResourceTestSeed
     {
         await EnsureBiomeAsync(context, BiomeType.Forest);
 
-        // --- A Resource, through the standalone path of its hierarchy ---
-        var meta = new ResourceMetaCategory { Code = "TestMeta", DisplayName = "Test Meta", SortOrder = 99, IconPath = "test.png" };
-        context.ResourceMetaCategories.Add(meta);
-        await context.SaveChangesAsync();
-
-        var category = new ResourceCategory
-        {
-            ResourceMetaCategoryId = meta.Id,
-            Code = "TestMeta.TestCategory",
-            CategoryType = ResourceCategoryType.StandaloneResources,
-            DisplayName = "Test Category",
-            SortOrder = 1
-        };
-        context.ResourceCategories.Add(category);
-        await context.SaveChangesAsync();
-
-        var resource = new Resource
-        {
-            Code = "TestMeta.TestCategory.TestForage",
-            DisplayName = "Test Forage",
-            IconPath = "test.png",
-            IsGradedResource = false,
-            ResourceMetaCategoryId = meta.Id,
-            ResourceCategoryId = category.Id
-        };
-        context.Resources.Add(resource);
-        await context.SaveChangesAsync();
+        Resource resource = (await SeedResourcesAsync(context, "TestForage"))[0];
 
         // --- The MapResource catalogue ---
         var mapCategory = new MapResourceCategory { Code = "TestFood", DisplayName = "Test Food", SortOrder = 1 };
@@ -153,6 +127,43 @@ internal static class MapResourceTestSeed
         await context.SaveChangesAsync();
 
         return new MapResourceTestCatalogue(berry.Id, wood.Id, coal.Id, resource.Id, scenario.Id);
+    }
+
+    /// <summary>
+    /// Adds one Resource per name, through the standalone path of the Resource hierarchy (a meta category and a category of its own), and saves.
+    /// </summary>
+    /// <returns>The Resources, in the order named.</returns>
+    public static async Task<List<Resource>> SeedResourcesAsync(AscendantEmpireContext context, params string[] names)
+    {
+        var meta = new ResourceMetaCategory { Code = "TestMeta", DisplayName = "Test Meta", SortOrder = 99, IconPath = "test.png" };
+        context.ResourceMetaCategories.Add(meta);
+        await context.SaveChangesAsync();
+
+        var category = new ResourceCategory
+        {
+            ResourceMetaCategoryId = meta.Id,
+            Code = "TestMeta.TestCategory",
+            CategoryType = ResourceCategoryType.StandaloneResources,
+            DisplayName = "Test Category",
+            SortOrder = 1
+        };
+        context.ResourceCategories.Add(category);
+        await context.SaveChangesAsync();
+
+        List<Resource> resources = [.. names.Select(name => new Resource
+        {
+            Code = $"TestMeta.TestCategory.{name}",
+            DisplayName = name,
+            IconPath = "test.png",
+            IsGradedResource = false,
+            ResourceMetaCategoryId = meta.Id,
+            ResourceCategoryId = category.Id
+        })];
+
+        context.Resources.AddRange(resources);
+        await context.SaveChangesAsync();
+
+        return resources;
     }
 
     /// <summary>

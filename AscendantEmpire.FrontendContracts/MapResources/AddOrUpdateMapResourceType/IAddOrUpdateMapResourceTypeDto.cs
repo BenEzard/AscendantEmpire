@@ -29,9 +29,12 @@ public interface IAddOrUpdateMapResourceTypeDto
     string DisplayName { get; }
 
     /// <summary>
-    /// The category the map editor lists the type under.
+    /// The code of the category the map editor lists the type under.
     /// </summary>
-    int MapResourceCategoryId { get; }
+    /// <remarks>
+    /// A code rather than an id, so a category and the types in it can be created in the same save, and seed data can name categories without knowing their ids.
+    /// </remarks>
+    string MapResourceCategoryCode { get; }
 
     /// <summary>
     /// Where the type comes within its category, lowest first.

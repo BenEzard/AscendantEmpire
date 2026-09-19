@@ -52,6 +52,10 @@ internal class MapResourceTypeValidator : Validator<IAddOrUpdateMapResourceTypeD
             .MaximumLength(MapResourceType.DISPLAY_NAME_MAX_LENGTH)
             .WithMessage(t => $"{t.Code}: {nameof(t.DisplayName)} must be at most {MapResourceType.DISPLAY_NAME_MAX_LENGTH} characters.");
 
+        // Whether the category exists is the handler's check: it may be created in the same save.
+        RuleFor(t => t.MapResourceCategoryCode)
+            .NotEmpty().WithMessage(t => $"{t.Code}: {nameof(t.MapResourceCategoryCode)} is required.");
+
         RuleFor(t => t.IconPath)
             .MaximumLength(MapResourceType.ICON_PATH_MAX_LENGTH)
             .WithMessage(t => $"{t.Code}: {nameof(t.IconPath)} must be at most {MapResourceType.ICON_PATH_MAX_LENGTH} characters.");
