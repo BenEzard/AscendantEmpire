@@ -19,6 +19,6 @@ combat are covered separately in [battlefield-maps.md](../battlefield-maps.md).)
 | [replenishment.md](replenishment.md) | How a depleted tile regrows at the end of each round, with worked examples and accepted behaviour. |
 | [food-yield.md](food-yield.md) | Regeneration and farming bonuses, productivity rates, tile bonuses, and the formula for units which consume. |
 | [support-indicator.md](support-indicator.md) | The tile support indicator: how many turns a tile can feed a set of Forces, and how it is shown. |
-| [resource-discovery.md](resource-discovery.md) | How hidden resources are discovered. |
+| [map-resources.md](map-resources.md) | MapResources on a tile: renewable and stratified MapResources, growth and spread, and how they are discovered. |
 | [vision.md](vision.md) | Vision on the campaign map: Sight, Detection, dense terrain, and hidden Forces. |
 | [infrastructure.md](infrastructure.md) | Infrastructure (terrain improvements) built around settlements. |

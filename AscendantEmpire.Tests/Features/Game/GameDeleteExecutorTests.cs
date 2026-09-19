@@ -20,6 +20,7 @@ using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Processing;
 using AscendantEmpire.Domain.Enums.System;
 using AscendantEmpire.Domain.Enums.Turns;
+using AscendantEmpire.Tests.Features.Maps.MapResources;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -214,6 +215,43 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             Assert.That(job.Status, Is.EqualTo(ProcessingStatus.Complete), job.ErrorMessage);
             Assert.That(await context.CampaignMapDepletions.AnyAsync(d => d.GameId == doomedGameId), Is.False);
             Assert.That(await context.CampaignMapDepletions.AnyAsync(d => d.GameId == survivorGameId), Is.True, "Only the deleted game's depletion goes.");
+        }
+    }
+
+    [Test, Description("A game's MapResources, their amounts and layers, and every Player's knowledge, modifiers and switches for them go with it; the MapResource catalogue survives.")]
+    public async Task ShouldRemoveTheGamesMapResourcesWhenItIsDeletedAsync()
+    {
+        int doomedGameId = await SetupGameAsync("Doomed");
+        int survivorGameId = await SetupGameAsync("Survivor");
+
+        MapResourceTestCatalogue catalogue;
+
+        await using (AscendantEmpireContext seed = await DbFactory.CreateDbContextAsync())
+        {
+            catalogue = await MapResourceTestSeed.SeedCatalogueAsync(seed);
+        }
+
+        await SeedMapResourcesAsync(doomedGameId, catalogue);
+        await SeedMapResourcesAsync(survivorGameId, catalogue);
+
+        int typesBefore = await CountAsync(c => c.MapResourceTypes.CountAsync());
+
+        Processing job = await ExecuteDeleteAsync(doomedGameId);
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(job.Status, Is.EqualTo(ProcessingStatus.Complete), job.ErrorMessage);
+            Assert.That(await context.MapResourceInstances.AnyAsync(i => i.GameId == doomedGameId), Is.False);
+            Assert.That(await context.MapResourceInstanceAmounts.AnyAsync(a => a.GameId == doomedGameId), Is.False);
+            Assert.That(await context.MapResourceInstanceLayers.AnyAsync(l => l.GameId == doomedGameId), Is.False);
+            Assert.That(await context.PlayerKnownMapResources.AnyAsync(k => k.GameId == doomedGameId), Is.False);
+            Assert.That(await context.PlayerMapResourceTypeKnowledge.AnyAsync(k => k.GameId == doomedGameId), Is.False);
+            Assert.That(await context.PlayerMapResourceModifiers.AnyAsync(m => m.GameId == doomedGameId), Is.False);
+            Assert.That(await context.PlayerMapResourceSwitches.AnyAsync(s => s.GameId == doomedGameId), Is.False);
+            Assert.That(await context.MapResourceInstances.AnyAsync(i => i.GameId == survivorGameId), Is.True, "Only the deleted game's MapResources go.");
+            Assert.That(await context.MapResourceTypes.CountAsync(), Is.EqualTo(typesBefore), "MapResourceTypes are catalogue data, not the game's.");
         }
     }
 
@@ -927,6 +965,61 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             ForageTaken = 66_667,
             HuntTaken = 33_333,
             FedOnRound = 1
+        });
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Gives the game one MapResource of each kind across its first two tiles, with a row in every per-Player MapResource table for its first player.
+    /// </summary>
+    /// <remarks>
+    /// Written straight to the tables, for the same reason as <see cref="SeedPlayerSustenanceModifiersAsync"/>: nothing creates MapResources in a game yet. Between them the
+    /// rows reach every foreign key the new tables have, so a purge step in the wrong order fails here.
+    /// </remarks>
+    private async Task SeedMapResourcesAsync(int gameId, MapResourceTestCatalogue catalogue)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        int playerId = await context.Players.Where(p => p.GameId == gameId).OrderBy(p => p.Id).Select(p => p.Id).FirstAsync();
+        List<int> tileIds = await context.CampaignMaps.Where(t => t.GameId == gameId).OrderBy(t => t.CampaignMapId).Select(t => t.CampaignMapId).Take(2).ToListAsync();
+
+        // A renewable and a Distribution share the first tile; a stratified instance has the second to itself.
+        var berry = new MapResourceInstance { GameId = gameId, CampaignMapId = tileIds[0], MapResourceTypeId = catalogue.BerryTypeId, Slot = 1, Quantity = 300_000, SpreadLimit = 3, EstimationFuzzyFactor = 0.2m };
+        var wood = new MapResourceInstance { GameId = gameId, CampaignMapId = tileIds[0], MapResourceTypeId = catalogue.WoodTypeId, Slot = 2, EstimationFuzzyFactor = 0.1m, MapResourceDistributionScenarioId = catalogue.ScenarioId };
+        var coal = new MapResourceInstance { GameId = gameId, CampaignMapId = tileIds[1], MapResourceTypeId = catalogue.CoalTypeId, Slot = 1 };
+
+        context.MapResourceInstances.AddRange(berry, wood, coal);
+        await context.SaveChangesAsync();
+
+        context.MapResourceInstanceAmounts.Add(new MapResourceInstanceAmount { MapResourceInstanceId = wood.Id, ResourceId = catalogue.ResourceId, GameId = gameId, Amount = 10_000_000 });
+        context.MapResourceInstanceLayers.Add(new MapResourceInstanceLayer { MapResourceInstanceId = coal.Id, LayerNumber = 1, GameId = gameId, ResourceId = catalogue.ResourceId, Quantity = 2_000_000, EstimationFuzzyFactor = 0.15m });
+        context.PlayerKnownMapResources.Add(new PlayerKnownMapResource { GameId = gameId, PlayerId = playerId, MapResourceInstanceId = berry.Id, DiscoveredOnRound = 1 });
+        context.PlayerMapResourceTypeKnowledge.Add(new PlayerMapResourceTypeKnowledge { PlayerId = playerId, MapResourceTypeId = catalogue.BerryTypeId, GameId = gameId, FirstSeenOnRound = 1 });
+
+        context.PlayerMapResourceModifiers.Add(new PlayerMapResourceModifier
+        {
+            GameId = gameId,
+            PlayerId = playerId,
+            SourceType = Domain.Enums.Modifiers.ModifierSourceType.Technology,
+            SourceId = 1,
+            MapResourceTypeId = catalogue.BerryTypeId,
+            Target = Domain.Enums.MapResources.MapResourceModifierTarget.GrowthPercentage,
+            BiomeTypeId = BiomeType.Forest,
+            FlatValue = 50,
+            PercentValue = 0
+        });
+
+        context.PlayerMapResourceSwitches.Add(new PlayerMapResourceSwitch
+        {
+            GameId = gameId,
+            PlayerId = playerId,
+            SourceType = Domain.Enums.Modifiers.ModifierSourceType.Technology,
+            SourceId = 1,
+            Kind = Domain.Enums.MapResources.MapResourceSwitchKind.YieldResource,
+            MapResourceTypeId = catalogue.BerryTypeId,
+            ResourceId = catalogue.ResourceId,
+            IsEnabled = true
         });
 
         await context.SaveChangesAsync();

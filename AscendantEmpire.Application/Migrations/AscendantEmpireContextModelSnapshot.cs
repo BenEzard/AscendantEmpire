@@ -393,6 +393,135 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("GameIndex", "game");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.MapResourceInstance", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CampaignMapId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CreatedOnRound")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DormantSinceRound")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("EstimationFuzzyFactor")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MapResourceDistributionScenarioId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MapResourceTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("Quantity")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte>("Slot")
+                        .HasColumnType("tinyint");
+
+                    b.Property<int?>("SpreadLimit")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameId")
+                        .HasDatabaseName("IX_MapResourceInstance_GameId");
+
+                    b.HasIndex("MapResourceDistributionScenarioId");
+
+                    b.HasIndex("MapResourceTypeId");
+
+                    b.HasIndex("CampaignMapId", "MapResourceTypeId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_MapResourceInstance_Tile_Type");
+
+                    b.HasIndex("CampaignMapId", "Slot")
+                        .IsUnique()
+                        .HasDatabaseName("UX_MapResourceInstance_Tile_Slot");
+
+                    b.ToTable("MapResourceInstance", "game", t =>
+                        {
+                            t.HasCheckConstraint("CK_MapResourceInstance_QuantityNonNegative", "[Quantity] IS NULL OR [Quantity] >= 0");
+
+                            t.HasCheckConstraint("CK_MapResourceInstance_Slot", "[Slot] BETWEEN 1 AND 2");
+
+                            t.HasCheckConstraint("CK_MapResourceInstance_SpreadLimitNonNegative", "[SpreadLimit] IS NULL OR [SpreadLimit] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.MapResourceInstanceAmount", b =>
+                {
+                    b.Property<int>("MapResourceInstanceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ResourceId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.HasKey("MapResourceInstanceId", "ResourceId");
+
+                    b.HasIndex("GameId")
+                        .HasDatabaseName("IX_MapResourceInstanceAmount_GameId");
+
+                    b.HasIndex("ResourceId");
+
+                    b.ToTable("MapResourceInstanceAmount", "game", t =>
+                        {
+                            t.HasCheckConstraint("CK_MapResourceInstanceAmount_AmountNonNegative", "[Amount] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.MapResourceInstanceLayer", b =>
+                {
+                    b.Property<int>("MapResourceInstanceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LayerNumber")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("EstimationFuzzyFactor")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("Quantity")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("ResourceId")
+                        .HasColumnType("int");
+
+                    b.HasKey("MapResourceInstanceId", "LayerNumber");
+
+                    b.HasIndex("GameId")
+                        .HasDatabaseName("IX_MapResourceInstanceLayer_GameId");
+
+                    b.HasIndex("ResourceId");
+
+                    b.ToTable("MapResourceInstanceLayer", "game", t =>
+                        {
+                            t.HasCheckConstraint("CK_MapResourceInstanceLayer_LayerNumberPositive", "[LayerNumber] >= 1");
+
+                            t.HasCheckConstraint("CK_MapResourceInstanceLayer_Quantity", "[Quantity] >= 0 AND ([ResourceId] IS NOT NULL OR [Quantity] = 0)");
+                        });
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.Player", b =>
                 {
                     b.Property<int>("Id")
@@ -616,6 +745,47 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("PlayerKnownForce", "game");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerKnownMapResource", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("DeepestLayerSurveyed")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DiscoveredOnRound")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MapResourceInstanceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameId")
+                        .HasDatabaseName("IX_PlayerKnownMapResource_GameId");
+
+                    b.HasIndex("MapResourceInstanceId")
+                        .HasDatabaseName("IX_PlayerKnownMapResource_Instance");
+
+                    b.HasIndex("PlayerId", "MapResourceInstanceId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_PlayerKnownMapResource_Player_Instance");
+
+                    b.ToTable("PlayerKnownMapResource", "game", t =>
+                        {
+                            t.HasCheckConstraint("CK_PlayerKnownMapResource_DeepestLayerSurveyedPositive", "[DeepestLayerSurveyed] IS NULL OR [DeepestLayerSurveyed] >= 1");
+                        });
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerKnownStructure", b =>
                 {
                     b.Property<int>("Id")
@@ -679,6 +849,146 @@ namespace AscendantEmpire.Application.Migrations
                         .HasDatabaseName("UX_PlayerKnownStructure_Game_Player_Structure");
 
                     b.ToTable("PlayerKnownStructure", "game");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerMapResourceModifier", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("BiomeTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CampaignMapGeographyTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("FlatValue")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MapResourceTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("PercentValue")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SourceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SourceType")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Target")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BiomeTypeId");
+
+                    b.HasIndex("CampaignMapGeographyTypeId");
+
+                    b.HasIndex("GameId")
+                        .HasDatabaseName("IX_PlayerMapResourceModifier_GameId");
+
+                    b.HasIndex("MapResourceTypeId");
+
+                    b.HasIndex("PlayerId", "SourceType", "SourceId", "MapResourceTypeId", "Target", "BiomeTypeId", "CampaignMapGeographyTypeId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_PlayerMapResourceModifier_Player_Source_Type_Target_Biome_Geography");
+
+                    b.ToTable("PlayerMapResourceModifier", "game", t =>
+                        {
+                            t.HasCheckConstraint("CK_PlayerMapResourceModifier_HasValue", "[FlatValue] <> 0 OR [PercentValue] <> 0");
+                        });
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerMapResourceSwitch", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("LayerNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MapResourceTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ResourceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SourceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SourceType")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameId")
+                        .HasDatabaseName("IX_PlayerMapResourceSwitch_GameId");
+
+                    b.HasIndex("MapResourceTypeId");
+
+                    b.HasIndex("ResourceId");
+
+                    b.HasIndex("PlayerId", "SourceType", "SourceId", "Kind", "MapResourceTypeId", "ResourceId", "LayerNumber")
+                        .IsUnique()
+                        .HasDatabaseName("UX_PlayerMapResourceSwitch_Player_Source_Kind_Type_Resource_Layer");
+
+                    b.ToTable("PlayerMapResourceSwitch", "game", t =>
+                        {
+                            t.HasCheckConstraint("CK_PlayerMapResourceSwitch_KindTarget", "([Kind] = 1 AND [ResourceId] IS NULL AND [LayerNumber] IS NULL) OR ([Kind] = 2 AND [ResourceId] IS NOT NULL AND [LayerNumber] IS NULL) OR ([Kind] = 3 AND [ResourceId] IS NULL AND [LayerNumber] >= 1)");
+                        });
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerMapResourceTypeKnowledge", b =>
+                {
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MapResourceTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FirstSeenOnRound")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ResearchedOnRound")
+                        .HasColumnType("int");
+
+                    b.HasKey("PlayerId", "MapResourceTypeId");
+
+                    b.HasIndex("GameId")
+                        .HasDatabaseName("IX_PlayerMapResourceTypeKnowledge_GameId");
+
+                    b.HasIndex("MapResourceTypeId");
+
+                    b.ToTable("PlayerMapResourceTypeKnowledge", "game");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerReport", b =>
@@ -1339,6 +1649,51 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("CampaignMapGalleryIndex", "mapgallery");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignMapGalleryResource", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CampaignMapGalleryId")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("InitialQuantity")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("MapResourceDistributionScenarioId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MapResourceTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<byte>("Slot")
+                        .HasColumnType("tinyint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MapResourceDistributionScenarioId");
+
+                    b.HasIndex("MapResourceTypeId");
+
+                    b.HasIndex("CampaignMapGalleryId", "MapResourceTypeId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CampaignMapGalleryResource_Tile_Type");
+
+                    b.HasIndex("CampaignMapGalleryId", "Slot")
+                        .IsUnique()
+                        .HasDatabaseName("UX_CampaignMapGalleryResource_Tile_Slot");
+
+                    b.ToTable("CampaignMapGalleryResource", "mapgallery", t =>
+                        {
+                            t.HasCheckConstraint("CK_CampaignMapGalleryResource_InitialQuantityNonNegative", "[InitialQuantity] IS NULL OR [InitialQuantity] >= 0");
+
+                            t.HasCheckConstraint("CK_CampaignMapGalleryResource_Slot", "[Slot] BETWEEN 1 AND 2");
+                        });
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignMapStartPosition", b =>
                 {
                     b.Property<int>("Id")
@@ -1373,6 +1728,323 @@ namespace AscendantEmpire.Application.Migrations
                         .HasDatabaseName("UX_CampaignMapStartPosition_Map_X_Y");
 
                     b.ToTable("CampaignMapStartPosition", "mapgallery");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("UX_MapResourceCategory_Code");
+
+                    b.ToTable("MapResourceCategory", "map");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceDistributionScenario", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("MapResourceTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ScenarioNumber")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MapResourceTypeId", "ScenarioNumber")
+                        .IsUnique()
+                        .HasDatabaseName("UX_MapResourceDistributionScenario_Type_ScenarioNumber");
+
+                    b.ToTable("MapResourceDistributionScenario", "map");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceDistributionScenarioAmount", b =>
+                {
+                    b.Property<int>("MapResourceDistributionScenarioId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ResourceId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("Amount")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("MapResourceDistributionScenarioId", "ResourceId");
+
+                    b.HasIndex("ResourceId");
+
+                    b.ToTable("MapResourceDistributionScenarioAmount", "map", t =>
+                        {
+                            t.HasCheckConstraint("CK_MapResourceDistributionScenarioAmount_AmountPositive", "[Amount] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceDistributionScenarioBiomeWeight", b =>
+                {
+                    b.Property<int>("MapResourceDistributionScenarioId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BiomeTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Weight")
+                        .HasColumnType("int");
+
+                    b.HasKey("MapResourceDistributionScenarioId", "BiomeTypeId");
+
+                    b.HasIndex("BiomeTypeId");
+
+                    b.ToTable("MapResourceDistributionScenarioBiomeWeight", "map", t =>
+                        {
+                            t.HasCheckConstraint("CK_MapResourceDistributionScenarioBiomeWeight_WeightPositive", "[Weight] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceHabitat", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BiomeTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CampaignMapGeographyTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("GrowthPercentage")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<long?>("InitialQuantityMax")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("InitialQuantityMin")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("MapResourceTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("MaximumQuantity")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal?>("SpreadLikelihood")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int?>("SpreadLimitMax")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SpreadLimitMin")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BiomeTypeId");
+
+                    b.HasIndex("CampaignMapGeographyTypeId");
+
+                    b.HasIndex("MapResourceTypeId", "BiomeTypeId", "CampaignMapGeographyTypeId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_MapResourceHabitat_Type_Biome_Geography");
+
+                    b.ToTable("MapResourceHabitat", "map", t =>
+                        {
+                            t.HasCheckConstraint("CK_MapResourceHabitat_InitialQuantityRange", "[InitialQuantityMin] IS NULL OR ([InitialQuantityMin] >= 0 AND [InitialQuantityMax] >= [InitialQuantityMin])");
+
+                            t.HasCheckConstraint("CK_MapResourceHabitat_SpreadLimitRange", "[SpreadLimitMin] IS NULL OR ([SpreadLimitMin] >= 0 AND [SpreadLimitMax] >= [SpreadLimitMin])");
+                        });
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("CaptureLikelihood")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("DiscoveryLikelihood")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal?>("EstimationFuzzyFactorMax")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal?>("EstimationFuzzyFactorMin")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int>("ExtractionMethod")
+                        .HasColumnType("int");
+
+                    b.Property<string>("IconPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsDiscoverableByDefault")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDistribution")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsRenewable")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsStratified")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("MapResourceCategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("RequiresResearchToExtract")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal?>("ReseedLikelihood")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SurvivalRounds")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("UX_MapResourceType_Code");
+
+                    b.HasIndex("MapResourceCategoryId", "SortOrder")
+                        .HasDatabaseName("IX_MapResourceType_Category_SortOrder");
+
+                    b.ToTable("MapResourceType", "map", t =>
+                        {
+                            t.HasCheckConstraint("CK_MapResourceType_DistributionIsRenewable", "[IsDistribution] = 0 OR [IsRenewable] = 1");
+
+                            t.HasCheckConstraint("CK_MapResourceType_RenewableOrStratified", "[IsRenewable] = 0 OR [IsStratified] = 0");
+                        });
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceTypeLayer", b =>
+                {
+                    b.Property<int>("MapResourceTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LayerNumber")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("DiscoveryLikelihood")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("EmptyLikelihood")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("EstimationFuzzyFactorMax")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("EstimationFuzzyFactorMin")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<long>("QuantityMax")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("QuantityMin")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("RequiredMineLevel")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ResourceId")
+                        .HasColumnType("int");
+
+                    b.HasKey("MapResourceTypeId", "LayerNumber");
+
+                    b.HasIndex("ResourceId");
+
+                    b.ToTable("MapResourceTypeLayer", "map", t =>
+                        {
+                            t.HasCheckConstraint("CK_MapResourceTypeLayer_FuzzyFactorRange", "[EstimationFuzzyFactorMin] >= 0 AND [EstimationFuzzyFactorMax] >= [EstimationFuzzyFactorMin]");
+
+                            t.HasCheckConstraint("CK_MapResourceTypeLayer_LayerNumberPositive", "[LayerNumber] >= 1");
+
+                            t.HasCheckConstraint("CK_MapResourceTypeLayer_QuantityRange", "[QuantityMin] >= 0 AND [QuantityMax] >= [QuantityMin]");
+                        });
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceTypeYield", b =>
+                {
+                    b.Property<int>("MapResourceTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ResourceId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("AmountPerUnit")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsEnabledByDefault")
+                        .HasColumnType("bit");
+
+                    b.HasKey("MapResourceTypeId", "ResourceId");
+
+                    b.HasIndex("ResourceId");
+
+                    b.ToTable("MapResourceTypeYield", "map", t =>
+                        {
+                            t.HasCheckConstraint("CK_MapResourceTypeYield_AmountPositive", "[AmountPerUnit] > 0");
+                        });
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Military.PlayerOfficerRank", b =>
@@ -3198,6 +3870,83 @@ namespace AscendantEmpire.Application.Migrations
                         .HasConstraintName("FK_CampaignMapDepletion_GameIndex_GameId");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.MapResourceInstance", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.CampaignMap", null)
+                        .WithMany()
+                        .HasForeignKey("CampaignMapId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_MapResourceInstance_CampaignMap_CampaignMapId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", null)
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_MapResourceInstance_GameIndex_GameId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceDistributionScenario", null)
+                        .WithMany()
+                        .HasForeignKey("MapResourceDistributionScenarioId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_MapResourceInstance_MapResourceDistributionScenario_ScenarioId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceType", null)
+                        .WithMany()
+                        .HasForeignKey("MapResourceTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_MapResourceInstance_MapResourceType_MapResourceTypeId");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.MapResourceInstanceAmount", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", null)
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_MapResourceInstanceAmount_GameIndex_GameId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.MapResourceInstance", null)
+                        .WithMany()
+                        .HasForeignKey("MapResourceInstanceId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_MapResourceInstanceAmount_MapResourceInstance_MapResourceInstanceId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Resources.Resource", null)
+                        .WithMany()
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_MapResourceInstanceAmount_Resource_ResourceId");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.MapResourceInstanceLayer", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", null)
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_MapResourceInstanceLayer_GameIndex_GameId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.MapResourceInstance", null)
+                        .WithMany()
+                        .HasForeignKey("MapResourceInstanceId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_MapResourceInstanceLayer_MapResourceInstance_MapResourceInstanceId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Resources.Resource", null)
+                        .WithMany()
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_MapResourceInstanceLayer_Resource_ResourceId");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.Player", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", "Game")
@@ -3354,6 +4103,30 @@ namespace AscendantEmpire.Application.Migrations
                         .HasConstraintName("FK_PlayerKnownForce_UnitTemplate_UnitTemplateId");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerKnownMapResource", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", null)
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerKnownMapResource_GameIndex_GameId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.MapResourceInstance", null)
+                        .WithMany()
+                        .HasForeignKey("MapResourceInstanceId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerKnownMapResource_MapResourceInstance_MapResourceInstanceId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", null)
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerKnownMapResource_Player_PlayerId");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerKnownStructure", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.Games.CampaignMap", null)
@@ -3404,6 +4177,96 @@ namespace AscendantEmpire.Application.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired()
                         .HasConstraintName("FK_PlayerKnownStructure_StructureInstances_StructureInstanceId");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerMapResourceModifier", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignBiome", null)
+                        .WithMany()
+                        .HasForeignKey("BiomeTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_PlayerMapResourceModifier_CampaignBiome_BiomeTypeId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignGeography", null)
+                        .WithMany()
+                        .HasForeignKey("CampaignMapGeographyTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_PlayerMapResourceModifier_CampaignGeography_CampaignMapGeographyTypeId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", null)
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerMapResourceModifier_GameIndex_GameId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceType", null)
+                        .WithMany()
+                        .HasForeignKey("MapResourceTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerMapResourceModifier_MapResourceType_MapResourceTypeId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", null)
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerMapResourceModifier_Player_PlayerId");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerMapResourceSwitch", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", null)
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerMapResourceSwitch_GameIndex_GameId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceType", null)
+                        .WithMany()
+                        .HasForeignKey("MapResourceTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerMapResourceSwitch_MapResourceType_MapResourceTypeId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", null)
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerMapResourceSwitch_Player_PlayerId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Resources.Resource", null)
+                        .WithMany()
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_PlayerMapResourceSwitch_Resource_ResourceId");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerMapResourceTypeKnowledge", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", null)
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerMapResourceTypeKnowledge_GameIndex_GameId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceType", null)
+                        .WithMany()
+                        .HasForeignKey("MapResourceTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerMapResourceTypeKnowledge_MapResourceType_MapResourceTypeId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", null)
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerMapResourceTypeKnowledge_Player_PlayerId");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.PlayerReport", b =>
@@ -3649,6 +4512,29 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Index");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignMapGalleryResource", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignMapGallery", null)
+                        .WithMany()
+                        .HasForeignKey("CampaignMapGalleryId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_CampaignMapGalleryResource_CampaignMapGallery_CampaignMapGalleryId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceDistributionScenario", null)
+                        .WithMany()
+                        .HasForeignKey("MapResourceDistributionScenarioId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_CampaignMapGalleryResource_MapResourceDistributionScenario_ScenarioId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceType", null)
+                        .WithMany()
+                        .HasForeignKey("MapResourceTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_CampaignMapGalleryResource_MapResourceType_MapResourceTypeId");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignMapStartPosition", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignMapGalleryIndex", "CampaignMapGalleryIndex")
@@ -3658,6 +4544,131 @@ namespace AscendantEmpire.Application.Migrations
                         .IsRequired();
 
                     b.Navigation("CampaignMapGalleryIndex");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceDistributionScenario", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceType", "MapResourceType")
+                        .WithMany("DistributionScenarios")
+                        .HasForeignKey("MapResourceTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_MapResourceDistributionScenario_MapResourceType_MapResourceTypeId");
+
+                    b.Navigation("MapResourceType");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceDistributionScenarioAmount", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceDistributionScenario", "Scenario")
+                        .WithMany("Amounts")
+                        .HasForeignKey("MapResourceDistributionScenarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_MapResourceDistributionScenarioAmount_MapResourceDistributionScenario_ScenarioId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Resources.Resource", null)
+                        .WithMany()
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_MapResourceDistributionScenarioAmount_Resource_ResourceId");
+
+                    b.Navigation("Scenario");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceDistributionScenarioBiomeWeight", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignBiome", null)
+                        .WithMany()
+                        .HasForeignKey("BiomeTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_MapResourceDistributionScenarioBiomeWeight_CampaignBiome_BiomeTypeId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceDistributionScenario", "Scenario")
+                        .WithMany("BiomeWeights")
+                        .HasForeignKey("MapResourceDistributionScenarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_MapResourceDistributionScenarioBiomeWeight_MapResourceDistributionScenario_ScenarioId");
+
+                    b.Navigation("Scenario");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceHabitat", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignBiome", null)
+                        .WithMany()
+                        .HasForeignKey("BiomeTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_MapResourceHabitat_CampaignBiome_BiomeTypeId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignGeography", null)
+                        .WithMany()
+                        .HasForeignKey("CampaignMapGeographyTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_MapResourceHabitat_CampaignGeography_CampaignMapGeographyTypeId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceType", "MapResourceType")
+                        .WithMany("Habitats")
+                        .HasForeignKey("MapResourceTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_MapResourceHabitat_MapResourceType_MapResourceTypeId");
+
+                    b.Navigation("MapResourceType");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceType", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceCategory", "Category")
+                        .WithMany("MapResourceTypes")
+                        .HasForeignKey("MapResourceCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_MapResourceType_MapResourceCategory_MapResourceCategoryId");
+
+                    b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceTypeLayer", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceType", "MapResourceType")
+                        .WithMany("Layers")
+                        .HasForeignKey("MapResourceTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_MapResourceTypeLayer_MapResourceType_MapResourceTypeId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Resources.Resource", null)
+                        .WithMany()
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_MapResourceTypeLayer_Resource_ResourceId");
+
+                    b.Navigation("MapResourceType");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceTypeYield", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceType", "MapResourceType")
+                        .WithMany("Yields")
+                        .HasForeignKey("MapResourceTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_MapResourceTypeYield_MapResourceType_MapResourceTypeId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Resources.Resource", null)
+                        .WithMany()
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_MapResourceTypeYield_Resource_ResourceId");
+
+                    b.Navigation("MapResourceType");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Military.PlayerOfficerRank", b =>
@@ -4394,6 +5405,29 @@ namespace AscendantEmpire.Application.Migrations
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.CampaignMaps.CampaignMapGalleryIndex", b =>
                 {
                     b.Navigation("StartPositions");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceCategory", b =>
+                {
+                    b.Navigation("MapResourceTypes");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceDistributionScenario", b =>
+                {
+                    b.Navigation("Amounts");
+
+                    b.Navigation("BiomeWeights");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Maps.MapResources.MapResourceType", b =>
+                {
+                    b.Navigation("DistributionScenarios");
+
+                    b.Navigation("Habitats");
+
+                    b.Navigation("Layers");
+
+                    b.Navigation("Yields");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Military.PlayerOrganisationStructure", b =>

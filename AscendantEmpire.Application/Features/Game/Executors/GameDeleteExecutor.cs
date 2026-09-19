@@ -83,6 +83,10 @@ internal sealed class GameDeleteExecutor(
         "[military].[PlayerOrganisationStructure]",
         "[military].[PlayerOfficerRank]",
         "[game].[PlayerSustenanceModifier]",
+        "[game].[PlayerKnownMapResource]",
+        "[game].[PlayerMapResourceSwitch]",
+        "[game].[PlayerMapResourceModifier]",
+        "[game].[MapResourceInstance]",
         "[game].[Player]",
         "[game].[GameIndex]",
     ];
@@ -357,6 +361,38 @@ internal sealed class GameDeleteExecutor(
             // scoping through the players.
             ("player sustenance modifiers", () => purge.PlayerSustenanceModifiers
                 .Where(m => m.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            // The per-player MapResource tables name the players, so they go before them; the discoveries also name the instances, so they go before those too. The
+            // MapResourceTypes, Resources, Biomes and Geographies they name are catalogue data and survive. All carry their own GameId, so need no scoping through a parent.
+            ("player known map resources", () => purge.PlayerKnownMapResources
+                .Where(k => k.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            ("player map resource switches", () => purge.PlayerMapResourceSwitches
+                .Where(s => s.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            ("player map resource modifiers", () => purge.PlayerMapResourceModifiers
+                .Where(m => m.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            ("player map resource type knowledge", () => purge.PlayerMapResourceTypeKnowledge
+                .Where(k => k.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            // A Distribution's amounts and a stratified instance's layers name their instance, so they go first; the instances name the tiles, so they go before the
+            // campaign map.
+            ("map resource instance amounts", () => purge.MapResourceInstanceAmounts
+                .Where(a => a.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            ("map resource instance layers", () => purge.MapResourceInstanceLayers
+                .Where(l => l.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            ("map resource instances", () => purge.MapResourceInstances
+                .Where(i => i.GameId == gameId)
                 .ExecuteDeleteAsync(cancellationToken)),
 
             // Campaign map depletion names the tiles, so it goes before the campaign map. It carries its own GameId, so needs no scoping through the tiles, and its key is the

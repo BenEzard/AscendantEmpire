@@ -3,6 +3,7 @@ using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Identity;
 using AscendantEmpire.Domain.Entities.Maps.BattleMaps;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
+using AscendantEmpire.Domain.Entities.Maps.MapResources;
 using AscendantEmpire.Domain.Entities.Military;
 using AscendantEmpire.Domain.Entities.Resources;
 using AscendantEmpire.Domain.Entities.Structures;
@@ -13,6 +14,7 @@ using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Entities.Util;
 using AscendantEmpire.Domain.Enums.Battle;
 using AscendantEmpire.Domain.Enums.Forces;
+using AscendantEmpire.Domain.Enums.MapResources;
 using AscendantEmpire.Domain.Enums.Structures;
 
 using Microsoft.EntityFrameworkCore;
@@ -69,6 +71,53 @@ public class AscendantEmpireContext : DbContext
     /// Authored player start positions for maps in the gallery.
     /// </summary>
     public DbSet<CampaignMapStartPosition> CampaignMapStartPositions { get; set; }
+
+    /// <summary>
+    /// MapResources the map editor has placed on gallery tiles, at most two per tile. Copied into <see cref="MapResourceInstances"/> at game setup.
+    /// </summary>
+    public DbSet<CampaignMapGalleryResource> CampaignMapGalleryResources { get; set; }
+    #endregion
+
+    #region Map Resources (map schema)
+    /// <summary>
+    /// Groups of like MapResourceTypes (Food, Metals, Wood...) for the map editor.
+    /// </summary>
+    public DbSet<MapResourceCategory> MapResourceCategories { get; set; }
+
+    /// <summary>
+    /// The kinds of MapResource that can be on a tile, e.g. Berry, Deer, Coal Seam. See <c>docs/design/campaign-map/map-resources.md</c>.
+    /// </summary>
+    public DbSet<MapResourceType> MapResourceTypes { get; set; }
+
+    /// <summary>
+    /// The Resources one unit of a MapResourceType gives when extracted.
+    /// </summary>
+    public DbSet<MapResourceTypeYield> MapResourceTypeYields { get; set; }
+
+    /// <summary>
+    /// Where each MapResourceType can exist (per Biome and optional Geography), and its values there.
+    /// </summary>
+    public DbSet<MapResourceHabitat> MapResourceHabitats { get; set; }
+
+    /// <summary>
+    /// The sets of starting amounts a Distribution MapResource is created from.
+    /// </summary>
+    public DbSet<MapResourceDistributionScenario> MapResourceDistributionScenarios { get; set; }
+
+    /// <summary>
+    /// The starting amount of each Resource in a Distribution scenario.
+    /// </summary>
+    public DbSet<MapResourceDistributionScenarioAmount> MapResourceDistributionScenarioAmounts { get; set; }
+
+    /// <summary>
+    /// How likely each Distribution scenario is to be picked in each Biome.
+    /// </summary>
+    public DbSet<MapResourceDistributionScenarioBiomeWeight> MapResourceDistributionScenarioBiomeWeights { get; set; }
+
+    /// <summary>
+    /// The layer templates of stratified MapResourceTypes.
+    /// </summary>
+    public DbSet<MapResourceTypeLayer> MapResourceTypeLayers { get; set; }
     #endregion
 
     #region Game Schema
@@ -107,6 +156,41 @@ public class AscendantEmpireContext : DbContext
     /// <c>Gathering</c> process.
     /// </summary>
     public DbSet<CampaignMapDepletion> CampaignMapDepletions { get; set; }
+
+    /// <summary>
+    /// The MapResources on each game's campaign map tiles, Player-neutral. Created at game setup from <see cref="CampaignMapGalleryResources"/>, and by spread.
+    /// </summary>
+    public DbSet<MapResourceInstance> MapResourceInstances { get; set; }
+
+    /// <summary>
+    /// Each Distribution instance's own amount of each of its Resources.
+    /// </summary>
+    public DbSet<MapResourceInstanceAmount> MapResourceInstanceAmounts { get; set; }
+
+    /// <summary>
+    /// Each stratified instance's layers.
+    /// </summary>
+    public DbSet<MapResourceInstanceLayer> MapResourceInstanceLayers { get; set; }
+
+    /// <summary>
+    /// When each Player first saw, and researched, each MapResourceType.
+    /// </summary>
+    public DbSet<PlayerMapResourceTypeKnowledge> PlayerMapResourceTypeKnowledge { get; set; }
+
+    /// <summary>
+    /// The MapResource instances each Player has discovered.
+    /// </summary>
+    public DbSet<PlayerKnownMapResource> PlayerKnownMapResources { get; set; }
+
+    /// <summary>
+    /// The modifiers each Player holds to their MapResourceType values, one row per source, type, target, Biome and Geography.
+    /// </summary>
+    public DbSet<PlayerMapResourceModifier> PlayerMapResourceModifiers { get; set; }
+
+    /// <summary>
+    /// The per-Player switches turning discovery, a yielded Resource or a layer survey on or off. An off always wins.
+    /// </summary>
+    public DbSet<PlayerMapResourceSwitch> PlayerMapResourceSwitches { get; set; }
 
     /// <summary>
     /// Each Player's last observed owner, progress and state for every Structure they have watched change.
@@ -907,6 +991,8 @@ public class AscendantEmpireContext : DbContext
                 .HasDatabaseName("IX_CampaignMapDepletion_GameId");
         });
 
+        ConfigureMapResourceGameState(modelBuilder, schema);
+
         // --- PlayerKnownStructure ------------------------------------------------------
         // The sibling of PlayerKnownForce: a Player's last-known owner, progress and state for a Structure. Upserted by the sightings step, never deleted by play.
         //
@@ -1219,6 +1305,335 @@ public class AscendantEmpireContext : DbContext
         });
     }
 
+    /// <summary>
+    /// A game's MapResources and what each Player knows of them. See <c>docs/design/campaign-map/map-resources.md</c>.
+    /// </summary>
+    /// <remarks>
+    /// The same shape as the other newer <c>game</c> tables: no navigations, every relationship NoAction with a named constraint, and a <c>GameId</c> on every row for
+    /// <c>GameDeleteExecutor</c>, which removes them in its own hand-ordered steps.
+    /// </remarks>
+    private static void ConfigureMapResourceGameState(ModelBuilder modelBuilder, string schema)
+    {
+        // --- MapResourceInstance -------------------------------------------------------
+        // A MapResource on a tile. Player-neutral, like CampaignMapDepletion.
+        modelBuilder.Entity<MapResourceInstance>(entity =>
+        {
+            entity.ToTable("MapResourceInstance", schema, table =>
+            {
+                // Two slots, and one row per slot (below), is what caps a tile at two MapResources - dormant ones included.
+                table.HasCheckConstraint(
+                    "CK_MapResourceInstance_Slot",
+                    $"[Slot] BETWEEN {MapResourceInstance.MIN_SLOT} AND {MapResourceInstance.MAX_SLOT}");
+
+                // Extraction can never take more than is there, and a spread can only use up what is left, so either going negative could only come from a defect.
+                table.HasCheckConstraint(
+                    "CK_MapResourceInstance_QuantityNonNegative",
+                    "[Quantity] IS NULL OR [Quantity] >= 0");
+
+                table.HasCheckConstraint(
+                    "CK_MapResourceInstance_SpreadLimitNonNegative",
+                    "[SpreadLimit] IS NULL OR [SpreadLimit] >= 0");
+            });
+
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne<GameIndex>()
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MapResourceInstance_GameIndex_GameId");
+
+            entity.HasOne<CampaignMap>()
+                .WithMany()
+                .HasForeignKey(e => e.CampaignMapId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MapResourceInstance_CampaignMap_CampaignMapId");
+
+            entity.HasOne<MapResourceType>()
+                .WithMany()
+                .HasForeignKey(e => e.MapResourceTypeId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MapResourceInstance_MapResourceType_MapResourceTypeId");
+
+            entity.HasOne<MapResourceDistributionScenario>()
+                .WithMany()
+                .HasForeignKey(e => e.MapResourceDistributionScenarioId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MapResourceInstance_MapResourceDistributionScenario_ScenarioId");
+
+            // At most one MapResource per slot, so at most two per tile. The tile comes first because it is also the lookup: every MapResource on a tile.
+            entity.HasIndex(e => new { e.CampaignMapId, e.Slot })
+                .IsUnique()
+                .HasDatabaseName("UX_MapResourceInstance_Tile_Slot");
+
+            // At most one of each type per tile: spreading into a tile that has the same type tops it up or revives it rather than adding a second.
+            entity.HasIndex(e => new { e.CampaignMapId, e.MapResourceTypeId })
+                .IsUnique()
+                .HasDatabaseName("UX_MapResourceInstance_Tile_Type");
+
+            // The end-of-Round process's load, and the game delete's filter.
+            entity.HasIndex(e => e.GameId)
+                .HasDatabaseName("IX_MapResourceInstance_GameId");
+        });
+
+        // --- MapResourceInstanceAmount -------------------------------------------------
+        // A Distribution instance's own amount of one Resource.
+        modelBuilder.Entity<MapResourceInstanceAmount>(entity =>
+        {
+            entity.ToTable("MapResourceInstanceAmount", schema, table => table.HasCheckConstraint(
+                "CK_MapResourceInstanceAmount_AmountNonNegative",
+                "[Amount] >= 0"));
+
+            entity.HasKey(e => new { e.MapResourceInstanceId, e.ResourceId });
+
+            entity.HasOne<MapResourceInstance>()
+                .WithMany()
+                .HasForeignKey(e => e.MapResourceInstanceId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MapResourceInstanceAmount_MapResourceInstance_MapResourceInstanceId");
+
+            entity.HasOne<GameIndex>()
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MapResourceInstanceAmount_GameIndex_GameId");
+
+            entity.HasOne<Resource>()
+                .WithMany()
+                .HasForeignKey(e => e.ResourceId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MapResourceInstanceAmount_Resource_ResourceId");
+
+            // The game delete's filter.
+            entity.HasIndex(e => e.GameId)
+                .HasDatabaseName("IX_MapResourceInstanceAmount_GameId");
+        });
+
+        // --- MapResourceInstanceLayer --------------------------------------------------
+        // One layer of a stratified instance.
+        modelBuilder.Entity<MapResourceInstanceLayer>(entity =>
+        {
+            entity.ToTable("MapResourceInstanceLayer", schema, table =>
+            {
+                table.HasCheckConstraint(
+                    "CK_MapResourceInstanceLayer_LayerNumberPositive",
+                    "[LayerNumber] >= 1");
+
+                // An empty layer holds nothing; a layer with a Resource can be worked down to 0 but never below.
+                table.HasCheckConstraint(
+                    "CK_MapResourceInstanceLayer_Quantity",
+                    "[Quantity] >= 0 AND ([ResourceId] IS NOT NULL OR [Quantity] = 0)");
+            });
+
+            entity.HasKey(e => new { e.MapResourceInstanceId, e.LayerNumber });
+
+            entity.HasOne<MapResourceInstance>()
+                .WithMany()
+                .HasForeignKey(e => e.MapResourceInstanceId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MapResourceInstanceLayer_MapResourceInstance_MapResourceInstanceId");
+
+            entity.HasOne<GameIndex>()
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MapResourceInstanceLayer_GameIndex_GameId");
+
+            // Optional: an empty layer has no Resource.
+            entity.HasOne<Resource>()
+                .WithMany()
+                .HasForeignKey(e => e.ResourceId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MapResourceInstanceLayer_Resource_ResourceId");
+
+            // The game delete's filter.
+            entity.HasIndex(e => e.GameId)
+                .HasDatabaseName("IX_MapResourceInstanceLayer_GameId");
+        });
+
+        // --- PlayerMapResourceTypeKnowledge --------------------------------------------
+        // When a Player first saw, and researched, a MapResourceType. Stands in for research state until Technology is modelled.
+        modelBuilder.Entity<PlayerMapResourceTypeKnowledge>(entity =>
+        {
+            entity.ToTable("PlayerMapResourceTypeKnowledge", schema);
+
+            // Composite, like PlayerUnlockedComponent: a Player knows a type once or not at all.
+            entity.HasKey(e => new { e.PlayerId, e.MapResourceTypeId });
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerMapResourceTypeKnowledge_Player_PlayerId");
+
+            entity.HasOne<MapResourceType>()
+                .WithMany()
+                .HasForeignKey(e => e.MapResourceTypeId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerMapResourceTypeKnowledge_MapResourceType_MapResourceTypeId");
+
+            entity.HasOne<GameIndex>()
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerMapResourceTypeKnowledge_GameIndex_GameId");
+
+            // The game delete's filter.
+            entity.HasIndex(e => e.GameId)
+                .HasDatabaseName("IX_PlayerMapResourceTypeKnowledge_GameId");
+        });
+
+        // --- PlayerKnownMapResource ----------------------------------------------------
+        // A MapResource instance a Player has discovered. Whether they can see it now is derived live from vision, never stored.
+        modelBuilder.Entity<PlayerKnownMapResource>(entity =>
+        {
+            entity.ToTable("PlayerKnownMapResource", schema, table => table.HasCheckConstraint(
+                "CK_PlayerKnownMapResource_DeepestLayerSurveyedPositive",
+                "[DeepestLayerSurveyed] IS NULL OR [DeepestLayerSurveyed] >= 1"));
+
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne<GameIndex>()
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerKnownMapResource_GameIndex_GameId");
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerKnownMapResource_Player_PlayerId");
+
+            entity.HasOne<MapResourceInstance>()
+                .WithMany()
+                .HasForeignKey(e => e.MapResourceInstanceId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerKnownMapResource_MapResourceInstance_MapResourceInstanceId");
+
+            // A Player discovers an instance once. The Player comes first because it is also the view's lookup: every instance a Player knows.
+            entity.HasIndex(e => new { e.PlayerId, e.MapResourceInstanceId })
+                .IsUnique()
+                .HasDatabaseName("UX_PlayerKnownMapResource_Player_Instance");
+
+            // For copying discoveries when an instance spreads, and removing them when it is deleted for good.
+            entity.HasIndex(e => e.MapResourceInstanceId)
+                .HasDatabaseName("IX_PlayerKnownMapResource_Instance");
+
+            // The game delete's filter.
+            entity.HasIndex(e => e.GameId)
+                .HasDatabaseName("IX_PlayerKnownMapResource_GameId");
+        });
+
+        // --- PlayerMapResourceModifier -------------------------------------------------
+        // One modifier to a Player's value for a MapResourceType. The same shape as PlayerSustenanceModifier, plus a Geography.
+        modelBuilder.Entity<PlayerMapResourceModifier>(entity =>
+        {
+            // A modifier with neither part would change nothing, and would still take up the source's one row for that type, target, Biome and Geography.
+            entity.ToTable("PlayerMapResourceModifier", schema, table => table.HasCheckConstraint(
+                "CK_PlayerMapResourceModifier_HasValue",
+                "[FlatValue] <> 0 OR [PercentValue] <> 0"));
+
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne<GameIndex>()
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerMapResourceModifier_GameIndex_GameId");
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerMapResourceModifier_Player_PlayerId");
+
+            entity.HasOne<MapResourceType>()
+                .WithMany()
+                .HasForeignKey(e => e.MapResourceTypeId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerMapResourceModifier_MapResourceType_MapResourceTypeId");
+
+            // Optional: a null Biome is a modifier to every Biome.
+            entity.HasOne<CampaignBiome>()
+                .WithMany()
+                .HasForeignKey(e => e.BiomeTypeId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerMapResourceModifier_CampaignBiome_BiomeTypeId");
+
+            // Optional: a null Geography is a modifier to every Geography.
+            entity.HasOne<CampaignGeography>()
+                .WithMany()
+                .HasForeignKey(e => e.CampaignMapGeographyTypeId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerMapResourceModifier_CampaignGeography_CampaignMapGeographyTypeId");
+
+            // A source grants a Player at most one modifier per type, target, Biome and Geography. HasFilter(null) so the null (every Biome / every Geography) rows collide
+            // too - see UX_PlayerSustenanceModifier_Player_Source_Resource_Biome.
+            entity.HasIndex(e => new { e.PlayerId, e.SourceType, e.SourceId, e.MapResourceTypeId, e.Target, e.BiomeTypeId, e.CampaignMapGeographyTypeId })
+                .IsUnique()
+                .HasFilter(null)
+                .HasDatabaseName("UX_PlayerMapResourceModifier_Player_Source_Type_Target_Biome_Geography");
+
+            // The game delete's filter.
+            entity.HasIndex(e => e.GameId)
+                .HasDatabaseName("IX_PlayerMapResourceModifier_GameId");
+        });
+
+        // --- PlayerMapResourceSwitch ---------------------------------------------------
+        // One source switching discovery, a yielded Resource or a layer survey on or off for a Player. An off always wins over an on; see the entity's remarks.
+        modelBuilder.Entity<PlayerMapResourceSwitch>(entity =>
+        {
+            // Each kind names exactly what it switches: a yield switch names its Resource, a survey switch its layer, and a discovery switch neither.
+            entity.ToTable("PlayerMapResourceSwitch", schema, table => table.HasCheckConstraint(
+                "CK_PlayerMapResourceSwitch_KindTarget",
+                $"([Kind] = {(int)MapResourceSwitchKind.Discovery} AND [ResourceId] IS NULL AND [LayerNumber] IS NULL)"
+                + $" OR ([Kind] = {(int)MapResourceSwitchKind.YieldResource} AND [ResourceId] IS NOT NULL AND [LayerNumber] IS NULL)"
+                + $" OR ([Kind] = {(int)MapResourceSwitchKind.SurveyLayer} AND [ResourceId] IS NULL AND [LayerNumber] >= 1)"));
+
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne<GameIndex>()
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerMapResourceSwitch_GameIndex_GameId");
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerMapResourceSwitch_Player_PlayerId");
+
+            entity.HasOne<MapResourceType>()
+                .WithMany()
+                .HasForeignKey(e => e.MapResourceTypeId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerMapResourceSwitch_MapResourceType_MapResourceTypeId");
+
+            entity.HasOne<Resource>()
+                .WithMany()
+                .HasForeignKey(e => e.ResourceId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerMapResourceSwitch_Resource_ResourceId");
+
+            // A source sets one switch per thing switched. HasFilter(null) so the null Resource / Layer columns collide, as for the modifiers.
+            entity.HasIndex(e => new { e.PlayerId, e.SourceType, e.SourceId, e.Kind, e.MapResourceTypeId, e.ResourceId, e.LayerNumber })
+                .IsUnique()
+                .HasFilter(null)
+                .HasDatabaseName("UX_PlayerMapResourceSwitch_Player_Source_Kind_Type_Resource_Layer");
+
+            // The game delete's filter.
+            entity.HasIndex(e => e.GameId)
+                .HasDatabaseName("IX_PlayerMapResourceSwitch_GameId");
+        });
+    }
+
     private static void ConfigureAuthSchema(ModelBuilder modelBuilder)
     {
         const string schema = "auth";
@@ -1322,6 +1737,229 @@ public class AscendantEmpireContext : DbContext
         {
             entity.ToTable("CampaignGeography", schema);
         });
+
+        ConfigureMapResourceCatalogue(modelBuilder, schema);
+    }
+
+    /// <summary>
+    /// The MapResource catalogue: categories, types, and each type's yields, habitats, Distribution scenarios and layers. Static data, edited in the map editor and read live
+    /// by games, never copied into them. See <c>docs/design/campaign-map/map-resources.md</c>.
+    /// </summary>
+    /// <remarks>
+    /// A type owns its yields, habitats, scenarios and layers, so they are cascade-deleted with it and are written through its navigations. Everything outside that aggregate -
+    /// Resources, Biomes, Geographies, and every game row naming a type - is NoAction, so a type that any game still uses cannot be deleted.
+    /// </remarks>
+    private static void ConfigureMapResourceCatalogue(ModelBuilder modelBuilder, string schema)
+    {
+        // --- MapResourceCategory -------------------------------------------------------
+        modelBuilder.Entity<MapResourceCategory>(entity =>
+        {
+            entity.ToTable("MapResourceCategory", schema);
+
+            entity.HasKey(e => e.Id);
+
+            // The seed data's match key.
+            entity.HasIndex(e => e.Code)
+                .IsUnique()
+                .HasDatabaseName("UX_MapResourceCategory_Code");
+        });
+
+        // --- MapResourceType -----------------------------------------------------------
+        modelBuilder.Entity<MapResourceType>(entity =>
+        {
+            // The two flag rules the kind depends on. MapResourceTypeValidator checks these and everything that follows from them (which values and children each kind
+            // needs); the database holds the flags themselves, so no code path can store a type that is both renewable and stratified.
+            entity.ToTable("MapResourceType", schema, table =>
+            {
+                table.HasCheckConstraint(
+                    "CK_MapResourceType_RenewableOrStratified",
+                    "[IsRenewable] = 0 OR [IsStratified] = 0");
+
+                table.HasCheckConstraint(
+                    "CK_MapResourceType_DistributionIsRenewable",
+                    "[IsDistribution] = 0 OR [IsRenewable] = 1");
+            });
+
+            entity.HasKey(e => e.Id);
+
+            // The seed data's match key.
+            entity.HasIndex(e => e.Code)
+                .IsUnique()
+                .HasDatabaseName("UX_MapResourceType_Code");
+
+            // The map editor's grouped list. Restrict: a category with types in it cannot be deleted out from under them.
+            entity.HasOne(e => e.Category)
+                .WithMany(c => c.MapResourceTypes)
+                .HasForeignKey(e => e.MapResourceCategoryId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("FK_MapResourceType_MapResourceCategory_MapResourceCategoryId");
+
+            entity.HasIndex(e => new { e.MapResourceCategoryId, e.SortOrder })
+                .HasDatabaseName("IX_MapResourceType_Category_SortOrder");
+        });
+
+        // --- MapResourceTypeYield ------------------------------------------------------
+        modelBuilder.Entity<MapResourceTypeYield>(entity =>
+        {
+            // One unit extracted always gives something of each Resource listed, or the Resource would not be listed.
+            entity.ToTable("MapResourceTypeYield", schema, table => table.HasCheckConstraint(
+                "CK_MapResourceTypeYield_AmountPositive",
+                "[AmountPerUnit] > 0"));
+
+            entity.HasKey(e => new { e.MapResourceTypeId, e.ResourceId });
+
+            entity.HasOne(e => e.MapResourceType)
+                .WithMany(t => t.Yields)
+                .HasForeignKey(e => e.MapResourceTypeId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_MapResourceTypeYield_MapResourceType_MapResourceTypeId");
+
+            entity.HasOne<Resource>()
+                .WithMany()
+                .HasForeignKey(e => e.ResourceId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MapResourceTypeYield_Resource_ResourceId");
+        });
+
+        // --- MapResourceHabitat --------------------------------------------------------
+        modelBuilder.Entity<MapResourceHabitat>(entity =>
+        {
+            entity.ToTable("MapResourceHabitat", schema, table =>
+            {
+                table.HasCheckConstraint(
+                    "CK_MapResourceHabitat_InitialQuantityRange",
+                    "[InitialQuantityMin] IS NULL OR ([InitialQuantityMin] >= 0 AND [InitialQuantityMax] >= [InitialQuantityMin])");
+
+                table.HasCheckConstraint(
+                    "CK_MapResourceHabitat_SpreadLimitRange",
+                    "[SpreadLimitMin] IS NULL OR ([SpreadLimitMin] >= 0 AND [SpreadLimitMax] >= [SpreadLimitMin])");
+            });
+
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne(e => e.MapResourceType)
+                .WithMany(t => t.Habitats)
+                .HasForeignKey(e => e.MapResourceTypeId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_MapResourceHabitat_MapResourceType_MapResourceTypeId");
+
+            entity.HasOne<CampaignBiome>()
+                .WithMany()
+                .HasForeignKey(e => e.BiomeTypeId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MapResourceHabitat_CampaignBiome_BiomeTypeId");
+
+            // Optional: a null Geography is every Geography in the Biome.
+            entity.HasOne<CampaignGeography>()
+                .WithMany()
+                .HasForeignKey(e => e.CampaignMapGeographyTypeId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MapResourceHabitat_CampaignGeography_CampaignMapGeographyTypeId");
+
+            // One habitat per type, Biome and Geography, including one Biome-wide (null Geography) habitat - so HasFilter(null), for the same reason as
+            // UX_PlayerSustenanceModifier_Player_Source_Resource_Biome: SQL Server treats NULLs as equal in an unfiltered unique index.
+            entity.HasIndex(e => new { e.MapResourceTypeId, e.BiomeTypeId, e.CampaignMapGeographyTypeId })
+                .IsUnique()
+                .HasFilter(null)
+                .HasDatabaseName("UX_MapResourceHabitat_Type_Biome_Geography");
+        });
+
+        // --- MapResourceDistributionScenario -------------------------------------------
+        modelBuilder.Entity<MapResourceDistributionScenario>(entity =>
+        {
+            entity.ToTable("MapResourceDistributionScenario", schema);
+
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne(e => e.MapResourceType)
+                .WithMany(t => t.DistributionScenarios)
+                .HasForeignKey(e => e.MapResourceTypeId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_MapResourceDistributionScenario_MapResourceType_MapResourceTypeId");
+
+            entity.HasIndex(e => new { e.MapResourceTypeId, e.ScenarioNumber })
+                .IsUnique()
+                .HasDatabaseName("UX_MapResourceDistributionScenario_Type_ScenarioNumber");
+        });
+
+        // --- MapResourceDistributionScenarioAmount -------------------------------------
+        modelBuilder.Entity<MapResourceDistributionScenarioAmount>(entity =>
+        {
+            entity.ToTable("MapResourceDistributionScenarioAmount", schema, table => table.HasCheckConstraint(
+                "CK_MapResourceDistributionScenarioAmount_AmountPositive",
+                "[Amount] > 0"));
+
+            entity.HasKey(e => new { e.MapResourceDistributionScenarioId, e.ResourceId });
+
+            entity.HasOne(e => e.Scenario)
+                .WithMany(s => s.Amounts)
+                .HasForeignKey(e => e.MapResourceDistributionScenarioId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_MapResourceDistributionScenarioAmount_MapResourceDistributionScenario_ScenarioId");
+
+            entity.HasOne<Resource>()
+                .WithMany()
+                .HasForeignKey(e => e.ResourceId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MapResourceDistributionScenarioAmount_Resource_ResourceId");
+        });
+
+        // --- MapResourceDistributionScenarioBiomeWeight --------------------------------
+        modelBuilder.Entity<MapResourceDistributionScenarioBiomeWeight>(entity =>
+        {
+            // A Biome where the scenario should never be picked simply has no row.
+            entity.ToTable("MapResourceDistributionScenarioBiomeWeight", schema, table => table.HasCheckConstraint(
+                "CK_MapResourceDistributionScenarioBiomeWeight_WeightPositive",
+                "[Weight] > 0"));
+
+            entity.HasKey(e => new { e.MapResourceDistributionScenarioId, e.BiomeTypeId });
+
+            entity.HasOne(e => e.Scenario)
+                .WithMany(s => s.BiomeWeights)
+                .HasForeignKey(e => e.MapResourceDistributionScenarioId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_MapResourceDistributionScenarioBiomeWeight_MapResourceDistributionScenario_ScenarioId");
+
+            entity.HasOne<CampaignBiome>()
+                .WithMany()
+                .HasForeignKey(e => e.BiomeTypeId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MapResourceDistributionScenarioBiomeWeight_CampaignBiome_BiomeTypeId");
+        });
+
+        // --- MapResourceTypeLayer ------------------------------------------------------
+        modelBuilder.Entity<MapResourceTypeLayer>(entity =>
+        {
+            entity.ToTable("MapResourceTypeLayer", schema, table =>
+            {
+                table.HasCheckConstraint(
+                    "CK_MapResourceTypeLayer_LayerNumberPositive",
+                    "[LayerNumber] >= 1");
+
+                table.HasCheckConstraint(
+                    "CK_MapResourceTypeLayer_QuantityRange",
+                    "[QuantityMin] >= 0 AND [QuantityMax] >= [QuantityMin]");
+
+                table.HasCheckConstraint(
+                    "CK_MapResourceTypeLayer_FuzzyFactorRange",
+                    "[EstimationFuzzyFactorMin] >= 0 AND [EstimationFuzzyFactorMax] >= [EstimationFuzzyFactorMin]");
+            });
+
+            entity.HasKey(e => new { e.MapResourceTypeId, e.LayerNumber });
+
+            entity.HasOne(e => e.MapResourceType)
+                .WithMany(t => t.Layers)
+                .HasForeignKey(e => e.MapResourceTypeId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_MapResourceTypeLayer_MapResourceType_MapResourceTypeId");
+
+            entity.HasOne<Resource>()
+                .WithMany()
+                .HasForeignKey(e => e.ResourceId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_MapResourceTypeLayer_Resource_ResourceId");
+        });
     }
 
     private static void ConfigureMapGallerySchema(ModelBuilder modelBuilder)
@@ -1374,6 +2012,55 @@ public class AscendantEmpireContext : DbContext
             entity.HasIndex(x => new { x.CampaignMapGalleryIndexId, x.XCoord, x.YCoord })
                 .IsUnique()
                 .HasDatabaseName("UX_CampaignMapStartPosition_Map_X_Y");
+        });
+
+        // --- CampaignMapGalleryResource ----------------------------------------------
+        // A MapResource placed on a gallery tile by the map editor. Copied into game.MapResourceInstance at game setup.
+        modelBuilder.Entity<CampaignMapGalleryResource>(entity =>
+        {
+            entity.ToTable("CampaignMapGalleryResource", schema, table =>
+            {
+                // Two slots, and one row per slot (below), is what caps a tile at two MapResources.
+                table.HasCheckConstraint(
+                    "CK_CampaignMapGalleryResource_Slot",
+                    $"[Slot] BETWEEN {CampaignMapGalleryResource.MIN_SLOT} AND {CampaignMapGalleryResource.MAX_SLOT}");
+
+                table.HasCheckConstraint(
+                    "CK_CampaignMapGalleryResource_InitialQuantityNonNegative",
+                    "[InitialQuantity] IS NULL OR [InitialQuantity] >= 0");
+            });
+
+            entity.HasKey(x => x.Id);
+
+            // No navigations, and every relationship NoAction: gallery tiles are only ever updated in place, and a type placed on any map cannot be deleted.
+            entity.HasOne<CampaignMapGallery>()
+                .WithMany()
+                .HasForeignKey(x => x.CampaignMapGalleryId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_CampaignMapGalleryResource_CampaignMapGallery_CampaignMapGalleryId");
+
+            entity.HasOne<MapResourceType>()
+                .WithMany()
+                .HasForeignKey(x => x.MapResourceTypeId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_CampaignMapGalleryResource_MapResourceType_MapResourceTypeId");
+
+            entity.HasOne<MapResourceDistributionScenario>()
+                .WithMany()
+                .HasForeignKey(x => x.MapResourceDistributionScenarioId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_CampaignMapGalleryResource_MapResourceDistributionScenario_ScenarioId");
+
+            // At most one MapResource per slot, so at most two per tile. The tile comes first because it is also the lookup: every MapResource on a tile.
+            entity.HasIndex(x => new { x.CampaignMapGalleryId, x.Slot })
+                .IsUnique()
+                .HasDatabaseName("UX_CampaignMapGalleryResource_Tile_Slot");
+
+            // At most one of each type per tile: spread treats "the same MapResource on the tile" as a single instance.
+            entity.HasIndex(x => new { x.CampaignMapGalleryId, x.MapResourceTypeId })
+                .IsUnique()
+                .HasDatabaseName("UX_CampaignMapGalleryResource_Tile_Type");
         });
     }
 
