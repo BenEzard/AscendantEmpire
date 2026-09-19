@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import axios from "axios";
 import { useQueryClient } from "@tanstack/react-query";
 import { CiExport } from "react-icons/ci";
 import { Button, ConfirmDialog, ExportDialog, PagedDialog, Toast, ToastViewport } from "@/components/ui";
@@ -7,6 +6,7 @@ import type { Biome } from "@/types/map/Biome";
 import type { Geography } from "@/types/map/Geography";
 import type { MapResourceCategory, MapResourceType } from "@/types/map/MapResource";
 import { safeStringify } from "@/util/json";
+import { apiErrorMessages } from "@/util/apiErrors";
 import {
   mapResourceCatalogueKey,
   useDeleteMapResourceMutation,
@@ -74,7 +74,7 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
   const kind = selectedType ? kindOf(selectedType) : null;
 
   const showErrors = (error: unknown) => {
-    setErrorItems(toErrorItems(error));
+    setErrorItems(apiErrorMessages(error));
     setShowError(true);
   };
 
@@ -353,19 +353,4 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
       <ExportDialog show={showExport} title="Export MapResources" textBody={safeStringify(toPayload(draft))} onClose={() => setShowExport(false)} />
     </>
   );
-}
-
-/** The messages to show for a failed request: the server's `errors` array when it sent one, otherwise whatever describes the failure best. */
-function toErrorItems(error: unknown): string[] {
-  if (axios.isAxiosError(error)) {
-    const data = error.response?.data;
-    if (Array.isArray(data?.errors)) return data.errors as string[];
-    if (typeof data === "string" && data !== "") return [data];
-    if (data?.message) return [data.message as string];
-    if (error.message) return [error.message];
-  } else if (error instanceof Error) {
-    return [error.message];
-  }
-
-  return ["An unknown error occurred."];
 }

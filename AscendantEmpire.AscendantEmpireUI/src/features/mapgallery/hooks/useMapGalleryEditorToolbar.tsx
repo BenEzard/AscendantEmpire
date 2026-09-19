@@ -13,6 +13,8 @@ import ToolbarExclusiveButtons from "@/components/ui/toolbar/ToolbarExclusiveBut
 
 import type { Biome } from "@/types/map/Biome";
 import type { Geography } from "@/types/map/Geography";
+import type { MapResourceCategory } from "@/types/map/MapResource";
+import MapResourcePalette from "@/features/mapgallery/components/mapResources/MapResourcePalette";
 import type { CampaignMapGalleryIndex } from "@/features/mapgallery/api/mapGalleryApi";
 import { useAccountMenu } from "@/features/auth/hooks/useAccountMenu";
 
@@ -36,6 +38,10 @@ type Args = {
   openGeographies: () => void;
 
   mapResourcesLoading: boolean;
+  mapResourceCategories: MapResourceCategory[] | undefined;
+  mapResourceMapSelection: number | null;
+  /** Chooses the MapResource to place (or none). Choosing one also arms the MapResource tool. */
+  selectMapResource: (typeId: number | null) => void;
   openMapResources: () => void;
 
   openMapIndex: CampaignMapGalleryIndex | null;
@@ -236,6 +242,9 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
     openGeographies,
 
     mapResourcesLoading,
+    mapResourceCategories,
+    mapResourceMapSelection,
+    selectMapResource,
     openMapResources,
 
     openMapIndex,
@@ -360,8 +369,8 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
           ),
         },
         {
-          // The main click opens the MapResource Type Manager, as the Biomes and Geographies buttons open theirs. The dropdown of MapResources to
-          // place, grouped by category, is ME-40's; until then it has no items, which leaves its arrow disabled.
+          // The main click opens the MapResource Type Manager, as the Biomes and Geographies buttons open theirs; the dropdown lists every
+          // MapResource grouped by category, and choosing one arms the MapResource tool to place it.
           key: "mapResources",
           tooltip: mapResourcesLoading ? "Loading MapResources..." : "MapResources",
           disabled: mapResourcesLoading,
@@ -372,8 +381,11 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
               icon={<FaFish />}
               disabled={disabled}
               onClick={openMapResources}
-              menuDisabled
+              menuDisabled={mapResourcesLoading || openMapIndex == null}
               items={[]}
+              renderMenu={(close) => (
+                <MapResourcePalette categories={mapResourceCategories ?? []} selectedTypeId={mapResourceMapSelection} onSelect={selectMapResource} close={close} />
+              )}
             />
           ),
         },
@@ -391,6 +403,9 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
       setGeographyMapSelection,
       openGeographies,
       mapResourcesLoading,
+      mapResourceCategories,
+      mapResourceMapSelection,
+      selectMapResource,
       openMapResources,
       openMapIndex,
     ],

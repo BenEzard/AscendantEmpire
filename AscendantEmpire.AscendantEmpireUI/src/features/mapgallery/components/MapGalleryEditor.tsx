@@ -9,6 +9,12 @@ import BiomeManagerDialog from "./BiomeManagerDialog";
 import GeographyManagerDialog from "./GeographyManagerDialog";
 import MapResourceTypeManagerDialog from "./MapResourceTypeManagerDialog";
 import { useMapResourceCatalogueQuery } from "../hooks/useMapResourceCatalogue";
+import { useGalleryMapResourceMutations, useGalleryMapResourcesQuery } from "../hooks/useGalleryMapResources";
+import MapResourcePlacementDialog from "./mapResources/MapResourcePlacementDialog";
+import type { TileMapResourceMarker } from "./Tile";
+import { placementsByTile, resolvePlacementClick, tileKey, typesById } from "../tools/mapResourcePlacement";
+import type { GalleryMapResourceSpecifics } from "../api/galleryMapResourcesApi";
+import { apiErrorMessages } from "@/util/apiErrors";
 import { useCampaignMapTilesQuery } from "@/features/mapgallery/hooks/useCampaignMapTiles";
 import { useCampaignMapGeographiesQuery } from "../hooks/useCampaignMapGeographies";
 import type { TileCell } from "../types/TileTypes";
@@ -87,10 +93,17 @@ function MapGalleryEditor() {
   // ---------------------------
   const { data: biomes, error: biomeError, isLoading: biomesLoading } = useCampaignMapBiomesQuery();
   const { data: geographies, error: geographyError, isLoading: geographiesLoading } = useCampaignMapGeographiesQuery();
-  const { error: mapResourcesError, isLoading: mapResourcesLoading } = useMapResourceCatalogueQuery();
+  const { data: mapResourceCategories, error: mapResourcesError, isLoading: mapResourcesLoading } = useMapResourceCatalogueQuery();
 
   // The MapResource Type Manager keeps its own draft (taken when it opens), so opening it is just showing it.
   const openMapResources = useCallback(() => setActiveDialog("mapResources"), []);
+
+  // The MapResource chosen in the palette to place. Choosing one arms the MapResource tool; choosing "<none>" puts the editor back to inspecting.
+  const [mapResourceMapSelection, setMapResourceMapSelection] = useState<number | null>(null);
+  const selectMapResource = useCallback((typeId: number | null) => {
+    setMapResourceMapSelection(typeId);
+    setActiveTool((tool) => (typeId != null ? "mapResource" : tool === "mapResource" ? "inspect" : tool));
+  }, []);
 
   // Stable array reference for TileGrid so its React.memo isn't defeated each render.
   const geographiesList = useMemo(() => geographies ?? [], [geographies]);
@@ -132,6 +145,62 @@ function MapGalleryEditor() {
     const positions = startPositionsResponse?.startPositions ?? [];
     return new Set(positions.map((sp) => `${sp.xCoord},${sp.yCoord}`));
   }, [startPositionsResponse]);
+
+  // ---------------------------
+  // MapResources placed on the open map (must be above onTileClick, which reads them)
+  // ---------------------------
+  const openMapId = openMapIndex?.campaignMapGalleryIndexId ?? null;
+  const { data: galleryMapResources, error: galleryMapResourcesError } = useGalleryMapResourcesQuery(openMapId);
+  const placementMutations = useGalleryMapResourceMutations(openMapId);
+
+  const placementsByTileKey = useMemo(() => placementsByTile(galleryMapResources), [galleryMapResources]);
+  const mapResourceTypesById = useMemo(() => typesById(mapResourceCategories), [mapResourceCategories]);
+
+  // What each tile draws. Rebuilt only when the placements or the catalogue change, so the arrays keep their identity and tiles stay memoized.
+  const mapResourceMarkers = useMemo(() => {
+    const markers = new Map<string, TileMapResourceMarker[]>();
+    for (const [key, placements] of placementsByTileKey) {
+      markers.set(
+        key,
+        placements.map((placement) => {
+          const type = mapResourceTypesById.get(placement.mapResourceTypeId);
+          return { key: placement.id, name: type?.displayName ?? `MapResource ${placement.mapResourceTypeId}`, iconPath: type?.iconPath ?? null };
+        }),
+      );
+    }
+    return markers;
+  }, [placementsByTileKey, mapResourceTypesById]);
+
+  // The placement whose dialog is open. Kept as an id, so the dialog always shows the placement as last fetched.
+  const [editingPlacementId, setEditingPlacementId] = useState<number | null>(null);
+  const [placementErrors, setPlacementErrors] = useState<string[]>([]);
+  const editingPlacement = galleryMapResources?.find((placement) => placement.id === editingPlacementId) ?? null;
+
+  const openPlacement = useCallback((placementId: number) => {
+    setPlacementErrors([]);
+    setEditingPlacementId(placementId);
+  }, []);
+
+  const closePlacement = useCallback(() => {
+    setPlacementErrors([]);
+    setEditingPlacementId(null);
+  }, []);
+
+  const savePlacement = useCallback(
+    (specifics: GalleryMapResourceSpecifics) => {
+      if (editingPlacementId == null) return;
+      placementMutations.update.mutate(
+        { placementId: editingPlacementId, specifics },
+        { onSuccess: closePlacement, onError: (error) => setPlacementErrors(apiErrorMessages(error)) },
+      );
+    },
+    [editingPlacementId, placementMutations.update, closePlacement],
+  );
+
+  const deletePlacement = useCallback(() => {
+    if (!editingPlacement) return;
+    placementMutations.remove.mutate(editingPlacement, { onSuccess: closePlacement, onError: (error) => setPlacementErrors(apiErrorMessages(error)) });
+  }, [editingPlacement, placementMutations.remove, closePlacement]);
 
   // ---------------------------
   // Mutations
@@ -178,6 +247,32 @@ function MapGalleryEditor() {
         });
       }
 
+      if (activeTool === "mapResource") {
+        if (!openMapIndex) {
+          openToast("No map opened.", "warning");
+          return;
+        }
+
+        // Clicking a tile that already holds the chosen MapResource opens it; otherwise it is placed, and its dialog opens for its specifics.
+        const click = resolvePlacementClick(mapResourceMapSelection, placementsByTileKey.get(tileKey(t.x, t.y)));
+
+        if (click.action === "none") {
+          openToast(click.reason, "warning");
+        } else if (click.action === "edit") {
+          openPlacement(click.placement.id);
+        } else {
+          placementMutations.place.mutate(
+            { xCoord: t.x, yCoord: t.y, mapResourceTypeId: mapResourceMapSelection! },
+            {
+              onSuccess: (placed) => openPlacement(placed.id),
+              // The server says why a tile was refused (no habitat for it, or it is full).
+              onError: (error) => openToast(apiErrorMessages(error).join(" "), "danger"),
+            },
+          );
+        }
+        return;
+      }
+
       if (activeTool === "startPosition") {
         if (!openMapIndex) {
           openToast("No map opened.", "warning");
@@ -203,7 +298,23 @@ function MapGalleryEditor() {
         });
       }
     },
-    [activeTool, openToast, biomeNameByType, geographyNameByType, openMapIndex, biomeMapSelection, geographyMapSelection, updateTilesMutation, buildBrushCoords, startPositionsResponse, putStartPositionsMutation],
+    [
+      activeTool,
+      openToast,
+      biomeNameByType,
+      geographyNameByType,
+      openMapIndex,
+      biomeMapSelection,
+      geographyMapSelection,
+      updateTilesMutation,
+      buildBrushCoords,
+      startPositionsResponse,
+      putStartPositionsMutation,
+      mapResourceMapSelection,
+      placementsByTileKey,
+      openPlacement,
+      placementMutations.place,
+    ],
   );
 
   // ---------------------------
@@ -270,6 +381,9 @@ function MapGalleryEditor() {
     openGeographies,
 
     mapResourcesLoading,
+    mapResourceCategories,
+    mapResourceMapSelection,
+    selectMapResource,
     openMapResources,
 
     openMapIndex,
@@ -299,6 +413,7 @@ function MapGalleryEditor() {
       {biomeError && <Alert variant="danger">Biomes failed: {biomeError.message}</Alert>}
       {geographyError && <Alert variant="danger">Geographies failed: {geographyError.message}</Alert>}
       {mapResourcesError && <Alert variant="danger">MapResources failed: {mapResourcesError.message}</Alert>}
+      {galleryMapResourcesError && <Alert variant="danger">Placed MapResources failed: {galleryMapResourcesError.message}</Alert>}
       {startPositionsError && <Alert variant="danger">Start positions failed: {startPositionsError.message}</Alert>}
 
       {/* ====== Opened map display ====== */}
@@ -323,6 +438,7 @@ function MapGalleryEditor() {
                 getTileStyle={getTileStyle}
                 getTileTitle={getTileTitle}
                 startPositionKeys={startPositionKeys}
+                mapResourceMarkers={mapResourceMarkers}
               />
             )}
           </>
@@ -348,6 +464,28 @@ function MapGalleryEditor() {
         onClose={() => setActiveDialog(null)}
         onSaveSuccess={(msg) => openToast(msg ?? "Saved!", "success")}
       />
+
+      {(() => {
+        // The edited placement's tile, for the habitat its starting quantity would be rolled from.
+        const tile = editingPlacement ? (tiles2d?.[editingPlacement.yCoord]?.[editingPlacement.xCoord] ?? null) : null;
+        const biomeName = tile?.biomeTypeId != null ? biomeNameByType.get(tile.biomeTypeId) : undefined;
+        const geographyName = tile?.geographyTypeId != null ? geographyNameByType.get(tile.geographyTypeId) : undefined;
+
+        return (
+          <MapResourcePlacementDialog
+            placement={editingPlacement}
+            type={editingPlacement ? mapResourceTypesById.get(editingPlacement.mapResourceTypeId) : undefined}
+            biomeType={tile?.biomeTypeId ?? null}
+            geographyType={tile?.geographyTypeId ?? null}
+            tileDescription={[geographyName, biomeName].filter(Boolean).join(" ") || "unknown terrain"}
+            busy={placementMutations.update.isPending || placementMutations.remove.isPending}
+            errors={placementErrors}
+            onSave={savePlacement}
+            onDelete={deletePlacement}
+            onClose={closePlacement}
+          />
+        );
+      })()}
 
       <MapResourceTypeManagerDialog
         show={activeDialog === "mapResources"}

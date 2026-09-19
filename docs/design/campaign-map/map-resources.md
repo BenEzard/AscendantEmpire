@@ -84,6 +84,12 @@ MapResources are placed on a gallery map's tiles in the map editor, which lists 
 grouped by **MapResourceCategory** (Food, Metals, Wood...). A category only arranges the editor's
 list; nothing in play reads it.
 
+To place one, choose it from the MapResources palette's dropdown and click a tile. It takes the
+tile's first free slot, and a dialog opens to set its starting quantity or pin a Distribution
+scenario (either left empty is decided per game), or to delete it. A tile is refused when the type
+has no habitat for its Biome and Geography, when it already holds that type, or when both slots are
+taken. Clicking a tile that already holds the chosen type opens its dialog instead.
+
 The categories and types themselves are edited in the editor's **MapResource Type Manager** (the
 MapResources palette button). A type's and a category's code is its fixed key once saved. Deleting a
 type is refused while any map places it or any game uses it, and deleting a category is refused while

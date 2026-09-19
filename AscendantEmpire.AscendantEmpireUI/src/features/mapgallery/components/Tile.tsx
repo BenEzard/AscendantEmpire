@@ -5,6 +5,14 @@ import type { TileCell } from "../types/TileTypes";
 import { iconMap } from "./mapEditorIcons";
 import type { Geography } from "@/types/map/Geography";
 import { cssColorToRgba, pickTextColorOnBg } from "@/util/color";
+import MapResourceIcon from "./mapResources/MapResourceIcon";
+
+/** A MapResource placed on the tile, as the tile draws it. */
+export type TileMapResourceMarker = {
+  key: number;
+  name: string;
+  iconPath: string | null;
+};
 
 export interface TileProps {
   tile: TileCell;
@@ -15,6 +23,8 @@ export interface TileProps {
   className?: string;
   /** When true, renders a start-position marker icon above the geography icon. */
   showStartPosition?: boolean;
+  /** MapResources placed on the tile, drawn in its bottom-right corner in slot order. */
+  mapResources?: TileMapResourceMarker[];
   /**
    * Optional styling hooks.
    */
@@ -22,7 +32,18 @@ export interface TileProps {
   getStyle?: (tile: TileCell) => React.CSSProperties;
 }
 
-const Tile = React.memo(function Tile({ tile, sizePx, geography, onClick, onHover, className, showStartPosition, getTitle, getStyle }: TileProps) {
+const Tile = React.memo(function Tile({
+  tile,
+  sizePx,
+  geography,
+  onClick,
+  onHover,
+  className,
+  showStartPosition,
+  mapResources,
+  getTitle,
+  getStyle,
+}: TileProps) {
   const clickable = !!onClick;
 
   const baseStyle: React.CSSProperties = {
@@ -53,16 +74,28 @@ const Tile = React.memo(function Tile({ tile, sizePx, geography, onClick, onHove
   const bgForContrast = rgba && rgba.a < 0.2 ? "#ffffff" : bgCandidate;
   const iconColor = pickTextColorOnBg(bgForContrast);
 
+  // The hover title names the tile's MapResources after whatever the caller's title says.
+  const baseTitle = getTitle?.(tile);
+  const resourceTitle = mapResources && mapResources.length > 0 ? `MapResources: ${mapResources.map((m) => m.name).join(", ")}` : undefined;
+  const title = [baseTitle, resourceTitle].filter(Boolean).join("\n") || undefined;
+
   return (
     <div
       className={combinedClassName}
       role={clickable ? "button" : undefined}
-      title={getTitle?.(tile)}
+      title={title}
       onClick={() => onClick?.(tile)}
       onMouseEnter={() => onHover?.(tile)}
       style={style}>
       {Icon ? <Icon className="tile-icon-fill" aria-hidden style={{ color: iconColor }} /> : null}
       {showStartPosition ? <BiLocationPlus className="tile-start-position-icon" aria-hidden /> : null}
+      {mapResources && mapResources.length > 0 ? (
+        <span className="tile-map-resources" aria-hidden>
+          {mapResources.map((marker) => (
+            <MapResourceIcon key={marker.key} iconPath={marker.iconPath} size={Math.round(sizePx * 0.36)} className="tile-map-resource-icon" />
+          ))}
+        </span>
+      ) : null}
     </div>
   );
 });

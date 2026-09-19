@@ -37,6 +37,13 @@ interface DropButtonProps {
   menuLayout?: "list" | "grid";
   /** Only used when menuLayout is "grid". */
   menuGridColumns?: number;
+
+  /**
+   * Renders the whole dropdown panel instead of `items`, for a menu that is more than a flat list (e.g. items grouped under headings). Receives a
+   * callback that closes the menu, for the panel to call once a choice is made. When set, `items`, `menuLayout` and the arrow-key navigation are
+   * unused, and the arrow is enabled whenever the button and `menuDisabled` allow.
+   */
+  renderMenu?: (close: () => void) => ReactNode;
 }
 
 export default function DropButton({
@@ -51,6 +58,7 @@ export default function DropButton({
   menuDisabled = false,
   menuLayout = "list",
   menuGridColumns = 3,
+  renderMenu,
 }: DropButtonProps) {
   const [open, setOpen] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
@@ -60,7 +68,8 @@ export default function DropButton({
 
   const effectiveTitle = title ?? label;
 
-  const hasEnabledItems = useMemo(() => items.some((i) => !i.disabled), [items]);
+  // A custom panel decides for itself what it offers, so it always counts as having something to open.
+  const hasEnabledItems = useMemo(() => renderMenu != null || items.some((i) => !i.disabled), [items, renderMenu]);
   const arrowDisabled = disabled || menuDisabled || !hasEnabledItems;
 
   const navigableItems = useMemo(() => items.filter((i) => !i.disabled), [items]);
@@ -83,6 +92,12 @@ export default function DropButton({
         e.preventDefault();
         setOpen(false);
         arrowButtonRef.current?.focus();
+        return;
+      }
+
+      // Nothing to move between in a custom panel (renderMenu), and a modulo by zero would give NaN.
+      if (navigableItems.length === 0) {
+        if (e.key === "Tab") setOpen(false);
         return;
       }
 
@@ -167,7 +182,9 @@ export default function DropButton({
             ref={menuRef}
             role="menu"
             className="absolute left-0 top-full z-50 mt-1 min-w-48 overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
-            {menuLayout === "grid" ? (
+            {renderMenu ? (
+              renderMenu(() => setOpen(false))
+            ) : menuLayout === "grid" ? (
               <div
                 className="grid gap-1 p-1"
                 style={{

@@ -73,6 +73,22 @@ body {
   z-index: 1;
 }
 
+/* MapResources placed on a map editor tile: a row of small icons in the bottom-right corner, over the geography icon. */
+.tile-map-resources {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  display: flex;
+  gap: 1px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.tile-map-resource-icon {
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.75);
+}
+
 .tile-structure-image {
   position: absolute;
   inset: 8%;

@@ -1,6 +1,6 @@
 // src/features/map-gallery/components/TileGrid.tsx
 import React from "react";
-import Tile from "./Tile";
+import Tile, { type TileMapResourceMarker } from "./Tile";
 import type { TileCell } from "../types/TileTypes";
 import type { Geography } from "@/types/map/Geography";
 
@@ -27,6 +27,9 @@ export interface TileGridProps {
 
   /** Set of "x,y" keys for tiles that should display a start-position marker. */
   startPositionKeys?: ReadonlySet<string>;
+
+  /** MapResources to draw, by "x,y" key. The arrays must keep their identity between renders, or every tile re-renders. */
+  mapResourceMarkers?: ReadonlyMap<string, TileMapResourceMarker[]>;
 }
 
 const TileGrid = React.memo(function TileGrid({
@@ -42,6 +45,7 @@ const TileGrid = React.memo(function TileGrid({
   getTileStyle,
   tileClassName,
   startPositionKeys,
+  mapResourceMarkers,
 }: TileGridProps) {
   // Flatten row-major (y then x)
   const flat = React.useMemo(() => tiles2d.flat(), [tiles2d]);
@@ -90,6 +94,7 @@ const TileGrid = React.memo(function TileGrid({
               getStyle={getTileStyle}
               className={tileClassName}
               showStartPosition={startPositionKeys?.has(`${t.x},${t.y}`) ?? false}
+              mapResources={mapResourceMarkers?.get(`${t.x},${t.y}`)}
             />
           );
         })}

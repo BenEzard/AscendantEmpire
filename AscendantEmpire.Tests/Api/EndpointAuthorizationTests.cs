@@ -99,6 +99,9 @@ public sealed class EndpointAuthorizationTests
         ["POST /geography/campaign-map"] = PermissionType.MapEditor,
         ["PUT /geography/campaign-map"] = PermissionType.MapEditor,
         ["PUT /map-resources/catalogue"] = PermissionType.MapEditor,
+        ["POST /map-gallery/{id}/map-resources"] = PermissionType.MapEditor,
+        ["PUT /map-gallery/{id}/map-resources/{placementId}"] = PermissionType.MapEditor,
+        ["DELETE /map-gallery/{id}/map-resources/{placementId}"] = PermissionType.MapEditor,
         ["DELETE /map-resources/types/{code}"] = PermissionType.MapEditor,
         ["DELETE /map-resources/categories/{code}"] = PermissionType.MapEditor,
     };
@@ -120,6 +123,7 @@ public sealed class EndpointAuthorizationTests
         "GET /biomes/campaign-map",
         "GET /geography/campaign-map",
         "GET /map-resources/catalogue",
+        "GET /map-gallery/{id}/map-resources",
         "GET /resources",
 
         "POST /campaign-map/player",
