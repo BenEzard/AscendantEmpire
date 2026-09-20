@@ -478,13 +478,15 @@ body {
   gap: 8px;
 }
 
+/* Wraps one figure — the apple or fodder — so the pair of it can carry a single label for screen readers. */
 .tile-toolbar__sustenance-item {
   display: inline-flex;
 }
 
-/* The icon with its number centred underneath. Applied to the tooltip's wrapper, which is already inline-flex, so this only
-   turns it into a column. */
+/* The icon with its number centred underneath. Applied to a Tooltip's wrapper, which is already inline-flex — restating it
+   there is harmless. */
 .tile-toolbar__sustenance-stack {
+  display: inline-flex;
   flex-direction: column;
   align-items: center;
   gap: 0;
