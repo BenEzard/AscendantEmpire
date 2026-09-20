@@ -5,12 +5,16 @@ using AscendantEmpire.Domain.Enums.UnitDesigns;
 namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 
 /// <summary>
-/// The initial <c>unitdesigns.UnitComponent</c> catalogue values applied by the database seed, together with the tags those components reference.
+/// The initial <c>unitdesigns.UnitComponent</c> catalogue values applied by the database seed.
 /// </summary>
 /// <remarks>
 /// <para>
 /// This is the second half of the starting requirements: the human body the starter templates build on, the equipment and training that give them their
 /// organisation, and the primitive weapons the body's weapon slots expect. See <c>docs/design/starting-requirements.md</c>.
+/// </para>
+/// <para>
+/// The tags these components carry are named by code only; their definitions live in <see cref="TagSeedData"/> and are written by the seed's tag step,
+/// which the components step declares a dependency on. Keeping them in one place is what lets the tag catalogue be re-seeded without the components.
 /// </para>
 /// <para>
 /// Every numeric stat uses the Scale 1,000 fixed-point convention — 1,000 raw means 1.0 — and is written raw here, because the component bulk-upsert takes raw
@@ -24,15 +28,16 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 internal static class UnitComponentSeedData
 {
     /// <summary>
-    /// Builds the component catalogue payload to seed, with the tag definitions it depends on attached.
+    /// Builds the component catalogue payload to seed.
     /// </summary>
+    /// <remarks>
+    /// No <c>Tags</c> list: the bulk-upsert resolves each component's TagCodes against the payload plus whatever is already in the database, and the seed's
+    /// tag step has committed them by the time this runs.
+    /// </remarks>
     public static BulkUpsertUnitComponentsDto Build()
     {
         return new BulkUpsertUnitComponentsDto
         {
-            // Tags travel with the components: the bulk-upsert resolves each component's TagCodes against this
-            // list plus whatever is already in the database, so the tags must be in the same payload.
-            Tags = TagSeedData.Build(),
             Components =
             [
                 BuildHumanBody(),

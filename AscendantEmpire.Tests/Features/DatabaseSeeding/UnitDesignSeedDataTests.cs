@@ -23,6 +23,7 @@ namespace AscendantEmpire.Tests.Features.DatabaseSeeding;
 internal class UnitDesignSeedDataTests
 {
     private readonly BulkUpsertUnitComponentsDto _components = UnitComponentSeedData.Build();
+    private readonly IReadOnlyCollection<TagDto> _tags = TagSeedData.Build();
     private readonly CatalogueTemplatesDocument _templates = StarterTemplateSeedData.Build();
 
     [Test, Description("Every code GameSetupService demands of a new game has a seeded template, matched the same case-insensitive way game setup matches it.")]
@@ -68,10 +69,10 @@ internal class UnitDesignSeedDataTests
         }
     }
 
-    [Test, Description("Every tag a seeded component references is defined in the same payload, so the bulk upsert never depends on a tag already being in the database.")]
+    [Test, Description("Every tag a seeded component references is seeded by the tag step, which the components step declares a dependency on.")]
     public void ShouldDefineEveryTagItsComponentsReference()
     {
-        IEnumerable<string> definedCodes = _components.Tags.Select(tag => tag.Code);
+        IEnumerable<string> definedCodes = _tags.Select(tag => tag.Code);
 
         string[] undefinedCodes = [.. _components.Components.SelectMany(component => component.TagCodes).Distinct().Except(definedCodes)];
 
@@ -81,7 +82,7 @@ internal class UnitDesignSeedDataTests
     [Test, Description("Every seeded tag passes the same organisation-field rules the Tag manager and the bulk upsert apply, so the seed cannot author an invalid tag.")]
     public void ShouldSeedOnlyTagsThatPassOrganisationValidation()
     {
-        foreach (TagDto tag in _components.Tags)
+        foreach (TagDto tag in _tags)
         {
             List<string> errors = TagValidation.ValidateOrganisationFields(
                 tag.TagType,
@@ -146,7 +147,7 @@ internal class UnitDesignSeedDataTests
     /// </summary>
     private TagDto? FindTag(string code)
     {
-        return _components.Tags.SingleOrDefault(tag => tag.Code == code);
+        return _tags.SingleOrDefault(tag => tag.Code == code);
     }
 
     /// <summary>

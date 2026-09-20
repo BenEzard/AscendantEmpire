@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { postInitiateDatabaseSeed } from "../api/seedApi";
+import { postInitiateDatabaseSeed, type SeedTarget } from "../api/seedApi";
 import { useProcessStatus } from "@/features/processing/hooks/useProcessStatus";
 
 export type DatabaseSeedPhase =
@@ -14,8 +14,8 @@ export interface UseDatabaseSeedResult {
   seedPhase: DatabaseSeedPhase;
   /** The latest progress value (0–100) from the polling response. */
   progressPercent: number;
-  /** Initiate the database seed. */
-  startSeed: () => void;
+  /** Initiate a database seed over the given targets. Prerequisites are added server-side. */
+  startSeed: (targets: SeedTarget[]) => void;
   /** Reset back to idle (e.g. when the user closes the dialog). */
   resetSeed: () => void;
   /** True while any seed phase other than idle is active. */
@@ -32,7 +32,7 @@ export function useDatabaseSeed(): UseDatabaseSeedResult {
 
   // --- POST /system/seed ---
   const initiateMutation = useMutation({
-    mutationFn: () => postInitiateDatabaseSeed(),
+    mutationFn: (targets: SeedTarget[]) => postInitiateDatabaseSeed(targets),
     onSuccess: (processId: number) => {
       setSeedPhase({ phase: "polling", processId });
     },
@@ -70,11 +70,14 @@ export function useDatabaseSeed(): UseDatabaseSeedResult {
     }
   }, [poll.phase, poll.errorMessage, seedPhase.phase]);
 
-  const startSeed = useCallback(() => {
-    setProgressPercent(0);
-    setSeedPhase({ phase: "starting" });
-    initiateMutation.mutate();
-  }, [initiateMutation]);
+  const startSeed = useCallback(
+    (targets: SeedTarget[]) => {
+      setProgressPercent(0);
+      setSeedPhase({ phase: "starting" });
+      initiateMutation.mutate(targets);
+    },
+    [initiateMutation],
+  );
 
   const resetSeed = useCallback(() => {
     setSeedPhase(IDLE);

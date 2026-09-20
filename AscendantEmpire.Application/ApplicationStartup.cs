@@ -2,6 +2,7 @@ using AscendantEmpire.Application.BackgroundServices;
 using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.Application.Features.Battles.Services;
 using AscendantEmpire.Application.Features.DatabaseSeeding.Executors;
+using AscendantEmpire.Application.Features.DatabaseSeeding.Steps;
 using AscendantEmpire.Application.Features.Game.Executors;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Intelligence.Services;
@@ -188,6 +189,18 @@ public static class ApplicationStartup
         services.AddScoped<IProcessExecutor, CatalogueImportExecutor>();
         services.AddScoped<IProcessExecutor, DatabaseSeedExecutor>();
         services.AddScoped<IProcessExecutor, GameDeleteExecutor>();
+
+        // Each selectable part of the database seed is one ISeedStep.
+        // The seed executor and the GET /system/seed/targets catalogue enumerate this same collection, so the dependency graph the selection dialog draws
+        // and the order the seed runs in can never drift apart.
+        // Registration order is not the run order — SeedTargetResolver sorts by group and sort order, then by dependency.
+        services.AddScoped<ISeedStep, GeographySeedStep>();
+        services.AddScoped<ISeedStep, BiomeSeedStep>();
+        services.AddScoped<ISeedStep, MapResourceCategorySeedStep>();
+        services.AddScoped<ISeedStep, TagTypeSeedStep>();
+        services.AddScoped<ISeedStep, TagSeedStep>();
+        services.AddScoped<ISeedStep, UnitComponentSeedStep>();
+        services.AddScoped<ISeedStep, StarterTemplateSeedStep>();
 
         return services;
     }

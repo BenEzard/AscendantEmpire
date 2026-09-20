@@ -9,10 +9,11 @@ import { GiGearHammer } from "react-icons/gi";
 
 import ToolBar from "@/components/ui/toolbar/Toolbar";
 import type { ToolBarGroup } from "@/components/ui/toolbar/Toolbar";
-import { Button, ExportDialog, HamburgerMenu, Modal, ProgressOperationDialog, SearchDrawer, SearchTable, Toast, ToastViewport } from "@/components/ui";
+import { ExportDialog, HamburgerMenu, ProgressOperationDialog, SearchDrawer, SearchTable, Toast, ToastViewport } from "@/components/ui";
 import { useAccountMenu } from "@/features/auth/hooks/useAccountMenu";
 
 import { useDatabaseSeed } from "../hooks/useDatabaseSeed";
+import { useSeedTargets } from "../hooks/useSeedTargets";
 
 import { createComponent, getComponent, updateComponent } from "@/features/unitdesign/api/componentsApi";
 import { getComponentList, type ComponentListRow } from "@/features/unitdesign/api/catalogueApi";
@@ -25,6 +26,7 @@ import type { UnitComponent } from "@/features/unitdesign/types/UnitComponent";
 import ComponentSetupDialog from "./ComponentSetupDialog";
 import TagSetupDialog from "./TagSetupDialog";
 import TagTypeSetupDialog from "./TagTypeSetupDialog";
+import SeedSelectionDialog from "./SeedSelectionDialog";
 import UnitDesigner from "@/features/unitdesign/UnitDesigner";
 
 // Which catalogue the left-hand search drawer is currently browsing (null = closed).
@@ -57,8 +59,12 @@ export default function EntitySetupTool() {
   // tool never acquires a game/player token.
   const [showDesigner, setShowDesigner] = useState(false);
 
-  // Controls the confirmation modal opened by the Database group's "Seed" button.
+  // Controls the target-selection dialog opened by the Database group's "Seed" button.
   const [showSeedConfirm, setShowSeedConfirm] = useState(false);
+
+  // The seedable parts of the database and the dependencies between them, fetched once from the API so the
+  // dialog never has to hard-code a list the backend owns.
+  const seedTargets = useSeedTargets();
 
   // Drives the database seed background process (initiate -> poll -> done/error). Progress and the terminal
   // state are rendered by the ProgressOperationDialog (active/done) and the copyable ExportDialog (error).
@@ -490,33 +496,18 @@ export default function EntitySetupTool() {
         </div>
       )}
 
-      {/* Database seed: confirmation before the (overwriting) seed runs. */}
-      <Modal
+      {/* Database seed: pick which parts to seed before the (overwriting) seed runs. */}
+      <SeedSelectionDialog
         open={showSeedConfirm}
-        onClose={() => setShowSeedConfirm(false)}
-        title="Seed Database"
-        size="md"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setShowSeedConfirm(false)}>
-              No
-            </Button>
-            <Button
-              variant="danger"
-              onClick={() => {
-                setShowSeedConfirm(false);
-                seed.startSeed();
-              }}>
-              Yes, Seed
-            </Button>
-          </>
-        }>
-        <p>
-          Seed the database with its initial values? Existing rows for the seeded tables (biomes, geographies,
-          tag types, map resource categories, tags, unit components and the settler and scout templates) will
-          be overwritten to match the seed values. Anything you have added beyond them is left alone.
-        </p>
-      </Modal>
+        targets={seedTargets.targets}
+        loading={seedTargets.isLoading}
+        error={seedTargets.errorMessage}
+        onCancel={() => setShowSeedConfirm(false)}
+        onCommit={(targets) => {
+          setShowSeedConfirm(false);
+          seed.startSeed(targets);
+        }}
+      />
 
       {/* Seed progress + success. Errors are shown in the copyable ExportDialog below instead. */}
       <ProgressOperationDialog

@@ -1,0 +1,53 @@
+namespace AscendantEmpire.Domain.Enums.System;
+
+/// <summary>
+/// One independently selectable part of the database seed.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Each member has exactly one <c>ISeedStep</c> implementation behind it, and the seed selection dialog lists one row per member. Adding a member without
+/// adding its step fails <c>SeedStepCatalogueTests</c>, so the two can't drift apart.
+/// </para>
+/// <para>
+/// Serialised as its string name (the API registers <c>JsonStringEnumConverter</c>), so the frontend's string union carries these names verbatim and the
+/// numbers below are never seen outside the database. They are still assigned explicitly, because an expanded selection is persisted into a Processing
+/// row's <c>MetadataJson</c> and a reordering would silently re-target a queued job.
+/// </para>
+/// </remarks>
+public enum SeedTarget
+{
+    /// <summary>
+    /// The <c>map.CampaignGeographies</c> catalogue — the elevation/movement half of a tile's terrain.
+    /// </summary>
+    Geographies = 1,
+
+    /// <summary>
+    /// The <c>map.CampaignBiomes</c> catalogue — the cover/resource half of a tile's terrain.
+    /// </summary>
+    Biomes = 2,
+
+    /// <summary>
+    /// The <c>map.MapResourceCategory</c> rows the map editor groups resource types under.
+    /// </summary>
+    MapResourceCategories = 3,
+
+    /// <summary>
+    /// The <c>unitdesigns.TagType</c> metadata catalogue, one row per <see cref="Domain.Enums.UnitDesigns.TagType"/> member.
+    /// </summary>
+    TagTypes = 4,
+
+    /// <summary>
+    /// The <c>unitdesigns.Tag</c> catalogue, including the military organisation tags the starting requirements turn on.
+    /// </summary>
+    Tags = 5,
+
+    /// <summary>
+    /// The <c>unitdesigns.UnitComponent</c> catalogue — the human body, its equipment and training, and the primitive weapons.
+    /// </summary>
+    UnitComponents = 6,
+
+    /// <summary>
+    /// The global <c>unitdesigns.UnitTemplate</c> rows a new game spawns for every player — the settler and the scout.
+    /// </summary>
+    StarterTemplates = 7
+}

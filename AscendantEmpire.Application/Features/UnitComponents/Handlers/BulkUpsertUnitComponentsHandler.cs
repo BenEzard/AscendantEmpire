@@ -2,7 +2,6 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Turns.Services;
-using AscendantEmpire.Application.Features.UnitComponents.Classes;
 using AscendantEmpire.Application.Features.UnitComponents.Services;
 using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
@@ -77,37 +76,9 @@ internal class BulkUpsertUnitComponentsHandler(
                 return ServiceResult<BulkUpsertUnitComponentsResult>.Fail(tagErrors);
             }
 
-            // Create any tags defined in the payload that don't already exist; for those that do, let
-            // the payload re-classify them (TagType and the organisation fields are authoritative on re-import).
-            foreach (TagDto tagDto in catalogue.Tags)
-            {
-                if (tagsByCode.TryGetValue(tagDto.Code, out Tag? existingTag))
-                {
-                    existingTag.TagType = tagDto.TagType;
-                    existingTag.MovementDomain = tagDto.MovementDomain;
-                    existingTag.LeadershipModel = tagDto.LeadershipModel;
-                    existingTag.UnledBaseSize = tagDto.UnledBaseSize;
-                    existingTag.UnledDefaultSize = tagDto.UnledDefaultSize;
-                    existingTag.UnledMaxSize = tagDto.UnledMaxSize;
-                }
-                else
-                {
-                    var tag = new Tag
-                    {
-                        Code = tagDto.Code,
-                        DisplayName = tagDto.DisplayName,
-                        Description = tagDto.Description,
-                        TagType = tagDto.TagType,
-                        MovementDomain = tagDto.MovementDomain,
-                        LeadershipModel = tagDto.LeadershipModel,
-                        UnledBaseSize = tagDto.UnledBaseSize,
-                        UnledDefaultSize = tagDto.UnledDefaultSize,
-                        UnledMaxSize = tagDto.UnledMaxSize,
-                    };
-                    context.Tags.Add(tag);
-                    tagsByCode[tagDto.Code] = tag;
-                }
-            }
+            // Create any tags defined in the payload that don't already exist; for those that do, let the payload re-classify them (TagType and the organisation fields are authoritative on re-import).
+            // Shared with the tags-only upsert the database seed uses, so both create and re-classify identically.
+            TagCatalogueUpserter.Upsert(context, catalogue.Tags, tagsByCode);
 
             // A component's type is immutable, and a slot id must belong to the component carrying it. Both
             // are checked before the graph is touched so a rejected request writes nothing.
@@ -245,10 +216,7 @@ internal class BulkUpsertUnitComponentsHandler(
         }
 
         // Duplicate tag codes within the payload's Tags list.
-        string[] duplicateTagCodes = [.. catalogue.Tags
-            .GroupBy(t => t.Code)
-            .Where(g => g.Count() > 1)
-            .Select(g => g.Key)];
+        string[] duplicateTagCodes = TagCatalogueUpserter.FindDuplicateCodes(catalogue.Tags);
 
         if (duplicateTagCodes.Length > 0)
         {
@@ -260,41 +228,10 @@ internal class BulkUpsertUnitComponentsHandler(
             UnitComponentReconciler.ValidateComponent(component, errors);
         }
 
+        // Each tag's own fields, including the organisation rules shared with the single-tag create/update path, so an imported catalogue cannot slip past the checks the Tag manager enforces.
         foreach (TagDto tag in catalogue.Tags)
         {
-            if (string.IsNullOrWhiteSpace(tag.Code))
-            {
-                errors.Add("A tag is missing its Code.");
-            }
-            else if (tag.Code.Length > Tag.CODE_MAX_LENGTH)
-            {
-                errors.Add($"Tag code '{tag.Code}' exceeds {Tag.CODE_MAX_LENGTH} characters.");
-            }
-
-            if (string.IsNullOrWhiteSpace(tag.DisplayName))
-            {
-                errors.Add($"Tag '{tag.Code}' is missing its DisplayName.");
-            }
-            else if (tag.DisplayName.Length > Tag.DISPLAY_NAME_MAX_LENGTH)
-            {
-                errors.Add($"Tag '{tag.Code}' DisplayName exceeds {Tag.DISPLAY_NAME_MAX_LENGTH} characters.");
-            }
-
-            if (!Enum.IsDefined(tag.TagType))
-            {
-                errors.Add($"Tag '{tag.Code}' has an undefined TagType value.");
-            }
-
-            // The organisation rules are shared with the single-tag create/update path, so an imported
-            // catalogue cannot slip past the checks the Tag manager enforces.
-            errors.AddRange(TagValidation.ValidateOrganisationFields(
-                tag.TagType,
-                tag.MovementDomain,
-                tag.LeadershipModel,
-                tag.UnledBaseSize,
-                tag.UnledDefaultSize,
-                tag.UnledMaxSize,
-                tag.Code));
+            TagCatalogueUpserter.Validate(tag, errors);
         }
 
         return errors;
