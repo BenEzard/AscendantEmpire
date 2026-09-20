@@ -45,11 +45,19 @@ friendly territory.
 
 - A unit base component requires **1** food type to remain healthy.
 - Food types: fodder (mounted units), food (men), ration packs (men).
-- A unit **out of food** injures **34%** of its initial force strength per turn. When the unit is
-  100% wounded, 34% (or the remainder) dies. Weakening is spread evenly across all units in a
-  Command.
-- If a Unit Stack has **≤ 15 individuals** it is "free" from food requirements (the calculation is
-  skipped).
+- A unit that goes short of food takes **casualties in proportion to its shortfall**. At total
+  starvation it loses **34%** of its troops in one turn; going half short costs half of that. The
+  total is rounded **down**, so a large unit carrying a small deficit loses nobody.
+- A single roll splits that total between **dead** and **wounded**: between 10% and 30% of the
+  casualties die and the rest are wounded, rounded in the wounded's favour. How many suffer is
+  fixed by the shortfall; only who dies is left to chance.
+- Deaths are taken from the **already wounded** first and reach the healthy only once the wounded
+  are gone. Wounds are taken from the healthy — and a wound with no healthy man left to take it
+  **kills instead**. A unit left hungry therefore accumulates wounded and then begins losing men.
+- Each Force takes its own casualties; a shortfall shared by several units on one tile is split
+  between them in proportion to their troops before any of this is applied.
+- If a tile holds **≤ 15 individuals** in total, the units on it take wounds but never deaths. The
+  gate is per tile rather than per unit, so splitting an army into small bands does not buy it.
 - With the **Mobile Scavenging** technology, a unit takes a percentage of a tile's food as it moves
   *through* it (i.e. it neither starts nor ends its turn there).
 - A unit consumes food from the tile in which it **ends** its turn. If that tile doesn't produce

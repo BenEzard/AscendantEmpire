@@ -47,6 +47,7 @@ internal class GatheringTests : InMemoryTestBase
     private const int _OTHER_GRASSLAND_TILE_ID = 102;
     private const int _OCEAN_TILE_ID = 103;
     private const int _CURRENT_ROUND_NUMBER = 4;
+    private const int _PLAYER_TURN_ID = 77;
 
     private IUnderfedForceResolver _underfedForceResolver = null!;
     private Gathering _process = null!;
@@ -212,7 +213,7 @@ internal class GatheringTests : InMemoryTestBase
         {
             Assert.That(error, Is.Empty);
             Assert.That(await context.CampaignMapDepletions.AnyAsync(), Is.False);
-            await _underfedForceResolver.DidNotReceiveWithAnyArgs().ResolveAsync(default!, default, default, default!, default);
+            await _underfedForceResolver.DidNotReceiveWithAnyArgs().ResolveAsync(default!, default, default, default, default, default!, default);
         }
     }
 
@@ -235,7 +236,14 @@ internal class GatheringTests : InMemoryTestBase
                 new ForceFeedingResult(2, _GRASSLAND_TILE_ID, ScaledAmount.FromWhole(200), ScaledAmount.FromWhole(150), ScaledAmount.FromWhole(50))
             }));
 
-            await _underfedForceResolver.Received(1).ResolveAsync(Arg.Any<AscendantEmpireContext>(), _GAME_ID, _PLAYER_ID, Arg.Any<IReadOnlyCollection<ForceFeedingResult>>(), Arg.Any<CancellationToken>());
+            await _underfedForceResolver.Received(1).ResolveAsync(
+                Arg.Any<AscendantEmpireContext>(),
+                _GAME_ID,
+                _PLAYER_ID,
+                _CURRENT_ROUND_NUMBER,
+                _PLAYER_TURN_ID,
+                Arg.Any<IReadOnlyCollection<ForceFeedingResult>>(),
+                Arg.Any<CancellationToken>());
         }
     }
 
@@ -258,7 +266,10 @@ internal class GatheringTests : InMemoryTestBase
     // ── arrangement ───────────────────────────────────────────────────────────
 
     private static TurnPipelineContextData EndTurnContext() =>
-        new(TurnPipelineType.EndCampaignTurn, _GAME_ID, _PLAYER_ID, _CURRENT_ROUND_NUMBER);
+        new(TurnPipelineType.EndCampaignTurn, _GAME_ID, _PLAYER_ID, _CURRENT_ROUND_NUMBER)
+        {
+            PlayerTurnId = _PLAYER_TURN_ID
+        };
 
     private static CampaignMap BuildTile(int tileId, int x, CampaignBiome biome, CampaignGeography geography)
     {
@@ -348,7 +359,7 @@ internal class GatheringTests : InMemoryTestBase
     {
         return (IReadOnlyCollection<ForceFeedingResult>)_underfedForceResolver.ReceivedCalls()
             .Single(call => call.GetMethodInfo().Name == nameof(IUnderfedForceResolver.ResolveAsync))
-            .GetArguments()[3]!;
+            .GetArguments()[5]!;
     }
 
     private ForceFeedingResult SingleResolvedResult()

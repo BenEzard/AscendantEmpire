@@ -1,4 +1,4 @@
-using AscendantEmpire.Application.BackgroundServices;
+﻿using AscendantEmpire.Application.BackgroundServices;
 using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.Application.Features.Battles.Services;
 using AscendantEmpire.Application.Features.DatabaseSeeding.Executors;
@@ -97,7 +97,7 @@ public static class ApplicationStartup
 
         // What happens to a Force that did not get all the food it needed at the end of its Turn, called by the Gathering process below. Only logs until a damage model for
         // partial feeding exists.
-        services.AddScoped<IUnderfedForceResolver, LoggingUnderfedForceResolver>();
+        services.AddScoped<IUnderfedForceResolver, StarvationUnderfedForceResolver>();
 
         // Whether a tile can feed the Player's Forces on it (and any selected Forces about to move there), for the tile toolbar's background and the hover marker. Shares
         // Gathering's pool rules, so the colour shown and the feed itself cannot disagree.

@@ -171,8 +171,15 @@ internal class Gathering(
             totalShortfall += extraction.Shortfall;
         }
 
-        // Before saving, so whatever the consequences of going hungry write lands in the same save as the depletion.
-        await underfedForceResolver.ResolveAsync(db, context.GameId, playerId, results);
+        // Before saving, so whatever the consequences of going hungry write lands in the same save as the depletion. The Round is part of how each Force's
+        // casualty roll is derived, and the Turn is what a destroyed Force's history row is stamped with.
+        await underfedForceResolver.ResolveAsync(
+            db,
+            gameId: context.GameId,
+            playerId: playerId,
+            roundNumber: context.CurrentRoundNumber,
+            playerTurnId: context.PlayerTurnId,
+            results: results);
 
         await db.SaveChangesAsync();
 

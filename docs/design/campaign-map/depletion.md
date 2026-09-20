@@ -123,8 +123,8 @@ Today this is the end-of-turn `Gathering` process. It feeds the Player's Forces 
 Battle (so only one side ever feeds from a tile), at 1 troop = 1 food, from the tile each ends its
 turn on. The Forces on a tile feed from one pool, and a shortfall is spread across them in proportion
 to their troops. Each Force's need, food and shortfall is handed to `IUnderfedForceResolver`, the seam
-for the consequences of going hungry; it only logs until the damage model for partial feeding is
-designed.
+for the consequences of going hungry, which kills and wounds troops in proportion to the shortfall
+— see [Food](../units/unit-support-and-supply.md#food).
 
 At the end of the **round** (after every Player's turn), the `RegenerateTileSustenance` process
 replenishes each depleted tile as described in [Replenishment](replenishment.md).
