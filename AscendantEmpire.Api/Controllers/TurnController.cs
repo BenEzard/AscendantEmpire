@@ -7,6 +7,7 @@ using AscendantEmpire.BackendContracts.Turns.GetCurrentCampaignTurn;
 using AscendantEmpire.Domain.Enums.Turns;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Turns.EndCampaignTurnOrder;
+using AscendantEmpire.FrontendContracts.Turns.GetCampaignPossibleActions;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -47,6 +48,44 @@ public class TurnController : ControllerBase
         }
 
         ServiceResult<CurrentCampaignTurn> response = await campaignTurnService.GetCurrentCampaignTurnAsync(gameId, cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Get the actions a Player still has outstanding on the open Campaign Turn
+    /// </summary>
+    /// <remarks>
+    /// <para>The same list an end-turn check reports, read without touching the Turn. It exists because the end-turn route cannot be used to ask the
+    /// question: in <see cref="EndTurnMode.CheckForActions"/> mode it <i>ends</i> the Turn when it finds nothing outstanding, so a client populating a
+    /// notifications panel as the Player opens their Game would end their Turn for them.</para>
+    /// <para>Another Player's Turn, and a Game with no Turn open, both answer an empty list with
+    /// <see cref="ICampaignPossibleActions.IsYourTurn"/> false rather than failing — a Player may open their Game at any point in the Round.</para>
+    /// </remarks>
+    /// <param name="mediator">Mediator used to dispatch the request.</param>
+    /// <param name="cancelToken">Cancellation token.</param>
+    /// <response code="200">Whether it is the caller's Turn, and what they have outstanding on it</response>
+    /// <response code="400">Returns an error response with an array of errors in the event of a failed request due to client error, such as invalid input</response>
+    /// <response code="403">The caller has not entered a game</response>
+    /// <response code="404">Returns an error response when the Game was not found, or the Player is not part of it</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpGet("possible-actions")]
+    [ProducesResponseType(typeof(ICampaignPossibleActions), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 403)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetPossibleActionsAsync(
+        [FromServices] IMediator mediator,
+        CancellationToken cancelToken)
+    {
+        // Game and player come from the token, so a caller cannot read what another Player has outstanding.
+        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
+        {
+            return contextError!;
+        }
+
+        ServiceResult<CampaignPossibleActions> response = await mediator.Send(new GetCampaignPossibleActionsRequest(gameId, playerId), cancelToken);
 
         return response.ToActionResult();
     }

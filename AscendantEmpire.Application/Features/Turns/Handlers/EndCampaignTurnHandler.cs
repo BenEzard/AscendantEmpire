@@ -2,13 +2,11 @@
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
-using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndRound;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndTurn;
-using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.BackendContracts.Turns.GetCurrentCampaignTurn;
 using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Enums.Turns;
@@ -72,7 +70,7 @@ internal class EndCampaignTurnHandler(
     ICampaignTurnService campaignTurnService,
     ICampaignRoundService campaignRoundService,
     IPlayerTurnService playerTurnService,
-    IGameContextService gameContextService) : IRequestHandler<EndCampaignTurnRequest, ServiceResult<EndCampaignTurnOutcome>>
+    ICampaignTurnAccessService campaignTurnAccessService) : IRequestHandler<EndCampaignTurnRequest, ServiceResult<EndCampaignTurnOutcome>>
 {
 
     public async Task<ServiceResult<EndCampaignTurnOutcome>> Handle(EndCampaignTurnRequest request, CancellationToken cancelToken)
@@ -260,33 +258,32 @@ internal class EndCampaignTurnHandler(
     /// <returns>Returns the current turn information if all validations pass.</returns>
     private async Task<ServiceResult<CurrentCampaignTurn>> ValidateGameAndPlayerAsync(int gameId, int playerId, CancellationToken cancelToken)
     {
-        // Confirm the Game is active, and the Player is a part of it.
-        ServiceResult<IReadOnlyCollection<GameContext>> gameContextResult = await gameContextService.GetGameContexts(gameId, playerId, cancelToken);
+        // The Game being active with this Player in it, and a Turn being open at all, are the same two checks the read-only possible-actions request
+        // makes, so they are shared. Only what follows — the Turn having to be *this* Player's — is particular to ending one.
+        CampaignTurnAccess access = await campaignTurnAccessService.GetCampaignTurnAccessAsync(gameId, playerId, cancelToken);
 
-        if (gameContextResult.HasSucceeded == false || gameContextResult.SuccessValue is null || gameContextResult.SuccessValue.Count == 0)
+        switch (access.Status)
         {
-            string error = $"Game Id {gameId} was not found or Player Id {playerId} is not part of the game.";
-            logger.LogWarning("{Error}", error);
-            return ServiceResult<CurrentCampaignTurn>.NotFound(error);
+            case CampaignTurnAccessStatus.PlayerNotInGame:
+            case CampaignTurnAccessStatus.NoTurnInProgress:
+                return ServiceResult<CurrentCampaignTurn>.NotFound(access.Errors);
+
+            case CampaignTurnAccessStatus.Failed:
+                return ServiceResult<CurrentCampaignTurn>.Fail(access.Errors);
         }
 
-        // Confirm it is the Player's turn.
-        ServiceResult<CurrentCampaignTurn> turnResult = await campaignTurnService.GetCurrentCampaignTurnAsync(gameId, cancelToken);
+        CurrentCampaignTurn currentTurn = access.CurrentTurn!;
 
-        if (turnResult.HasSucceeded == false || turnResult.SuccessValue is null)
-        {
-            logger.LogWarning("Failed to retrieve current campaign turn for Game Id {GameId}. Error: {Error}", gameId, turnResult.Errors);
-            return turnResult;
-        }
-
-        if (turnResult.SuccessValue.PlayerId != playerId)
+        // Confirm it is the Player's turn. A refusal here, unlike on the read-only route: a Player asking to end a Turn that is not theirs is asking for
+        // something the game will not do, not merely asking a question with a dull answer.
+        if (currentTurn.PlayerId != playerId)
         {
             string error = $"It is not Player Id {playerId}'s turn.";
             logger.LogWarning("{Error}", error);
             return ServiceResult<CurrentCampaignTurn>.Fail(error);
         }
 
-        return turnResult;
+        return ServiceResult<CurrentCampaignTurn>.Succeed(currentTurn);
     }
 
     private record DTQueueInfo

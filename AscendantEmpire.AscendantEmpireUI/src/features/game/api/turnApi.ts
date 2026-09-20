@@ -61,11 +61,65 @@ export async function getCurrentCampaignTurn(): Promise<CurrentCampaignTurn> {
   };
 }
 
+/**
+ * What the player still has outstanding on the open campaign turn, read without touching it.
+ *
+ * `isYourTurn` is false both for another player's turn and for a game with no turn open at all, and `possibleActions` is empty in either case — the flag is
+ * what separates "you are not the one being asked" from "you have nothing left to do", which otherwise read the same.
+ */
+export type CampaignPossibleActions = {
+  isYourTurn: boolean;
+  possibleActions: PossibleAction[];
+};
+
+type PossibleActionWireDto = Partial<PossibleAction>;
+
+/**
+ * Reads the possible actions off the wire, filling in anything the server left out.
+ *
+ * Shared by the two routes that report them, so an action means the same thing whether it arrived from the end-turn check or from the read-only route.
+ */
+function mapPossibleActions(actions: PossibleActionWireDto[] | undefined): PossibleAction[] {
+  return (actions ?? []).map((action) => ({
+    category: action.category ?? "Military",
+    description: action.description ?? "",
+    // Explicitly null rather than 0 when absent: 0 is a real tile, and a "go to" that silently sent the player to the map's corner would be worse
+    // than no "go to" at all.
+    xCoord: action.xCoord ?? null,
+    yCoord: action.yCoord ?? null,
+    id: action.id ?? 0,
+    recordTypeId: action.recordTypeId ?? 0,
+  }));
+}
+
+type CampaignPossibleActionsWireDto = Partial<{
+  isYourTurn: boolean;
+  possibleActions: PossibleActionWireDto[];
+}>;
+
+/**
+ * Reads what the player still has outstanding this turn.
+ *
+ * A read, and only a read — which is the whole reason it exists. `postEndCampaignTurn(false)` reports the same list, but *ends the turn* when it finds
+ * nothing outstanding, so it cannot be used to populate a panel as a game opens.
+ *
+ * Nothing identifies the player: the API reads the game and player from the game token.
+ */
+export async function getCampaignPossibleActions(): Promise<CampaignPossibleActions> {
+  const { data } = await http.get<CampaignPossibleActionsWireDto>("/turn/possible-actions");
+
+  return {
+    // Absent means no: a response the client cannot read should leave the panel empty rather than claim the turn.
+    isYourTurn: data.isYourTurn ?? false,
+    possibleActions: mapPossibleActions(data.possibleActions),
+  };
+}
+
 type EndCampaignTurnWireDto = Partial<{
   turnEnded: boolean;
   roundEnded: boolean;
   victoryAchievedByPlayerId: number | null;
-  possibleActions: Partial<PossibleAction>[];
+  possibleActions: PossibleActionWireDto[];
 }>;
 
 /**
@@ -84,15 +138,6 @@ export async function postEndCampaignTurn(force: boolean): Promise<EndCampaignTu
     turnEnded: data.turnEnded ?? false,
     roundEnded: data.roundEnded ?? false,
     victoryAchievedByPlayerId: data.victoryAchievedByPlayerId ?? null,
-    possibleActions: (data.possibleActions ?? []).map((action) => ({
-      category: action.category ?? "Military",
-      description: action.description ?? "",
-      // Explicitly null rather than 0 when absent: 0 is a real tile, and a "go to" that silently sent the player to the map's corner would be worse
-      // than no "go to" at all.
-      xCoord: action.xCoord ?? null,
-      yCoord: action.yCoord ?? null,
-      id: action.id ?? 0,
-      recordTypeId: action.recordTypeId ?? 0,
-    })),
+    possibleActions: mapPossibleActions(data.possibleActions),
   };
 }

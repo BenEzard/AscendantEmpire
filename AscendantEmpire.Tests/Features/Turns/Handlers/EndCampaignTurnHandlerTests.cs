@@ -44,6 +44,9 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
 
     // Real, not mocked: the round-boundary tests assert on the participant and queue rows this service writes.
     private ICampaignRoundService _campaignRoundService = null!;
+
+    // Also real: it only combines the two mocks above, so mocking it as well would mean arranging the same facts twice.
+    private ICampaignTurnAccessService _campaignTurnAccessService = null!;
     private IPlayerTurnService _playerTurnService = null!;
 
     private EndCampaignTurnHandler _handler = null!;
@@ -123,6 +126,12 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
             _startCampaignRoundPipeline,
             _startCampaignTurnPipeline);
 
+        // Real, over the two mocks it reads through, so the membership and open-Turn stubs each test already arranges keep driving the handler unchanged.
+        _campaignTurnAccessService = new CampaignTurnAccessService(
+            new NullLogger<CampaignTurnAccessService>(),
+            _gameContextService,
+            _campaignTurnService);
+
         _handler = new EndCampaignTurnHandler(
             new NullLogger<EndCampaignTurnHandler>(),
             DbFactory,
@@ -132,7 +141,7 @@ public class EndCampaignTurnHandlerTests : GameSqlServerTestBase
             _campaignTurnService,
             _campaignRoundService,
             _playerTurnService,
-            _gameContextService);
+            _campaignTurnAccessService);
     }
 
     // ── seed helper ──────────────────────────────────────────────────────────

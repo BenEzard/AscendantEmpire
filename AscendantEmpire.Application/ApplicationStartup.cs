@@ -60,6 +60,9 @@ public static class ApplicationStartup
         services.AddScoped<ICampaignTurnService, CampaignTurnService>();
         services.AddScoped<ICampaignRoundService, CampaignRoundService>();
 
+        // The membership-and-open-Turn check both Campaign Turn requests start with: ending a Turn, and reading what is still outstanding on one.
+        services.AddScoped<ICampaignTurnAccessService, CampaignTurnAccessService>();
+
         // Opens and closes PlayerTurn rows, and hands out the sequence numbers the raw activity feeds order themselves by. Lane-agnostic, so the Battle
         // pipeline can use it unchanged once it exists.
         services.AddScoped<IPlayerTurnService, PlayerTurnService>();

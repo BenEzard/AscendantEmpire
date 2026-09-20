@@ -15,6 +15,12 @@ function report(reportId: number, roundNumber: number, path: { x: number; y: num
     destroyedInView: false,
     completedInView: null,
     capturedInView: null,
+    // The combat-report fields. Null on a force report, which is what this fixture builds; a test that wants a combat report passes them as overrides.
+    sideJoinedInView: null,
+    sideLeftInView: null,
+    battleId: null,
+    groundHeldByPlayerId: null,
+    troopsLost: null,
     firstTurnSequence: 1,
     lastTurnSequence: 1,
     firstWitnessId: 50,

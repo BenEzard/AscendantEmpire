@@ -45,6 +45,7 @@ import { useStructureDisplayInfoQuery } from "@/features/map/hooks/useStructureD
 import type { SightingReport } from "@/features/intelligence/api/intelligenceApi";
 import type { SightingDescriptionContext } from "@/features/intelligence/describeSightingReport";
 import { useCurrentCampaignTurnQuery } from "../hooks/useCurrentCampaignTurn";
+import { useCampaignPossibleActionsQuery } from "../hooks/useCampaignPossibleActions";
 import { useGamePlayersQuery } from "../hooks/useGamePlayers";
 import { useTileSustenanceQuery } from "@/features/map/hooks/useTileSustenance";
 import { useTileSupportLevelsQuery } from "@/features/map/hooks/useTileSupportLevels";
@@ -56,15 +57,15 @@ type ActivePanel = "unit-design" | null;
 // One shared empty feed, so the notifications provider is not handed a fresh array — and made to rebuild its groups — on every render before the feed loads.
 const NO_SIGHTING_REPORTS: SightingReport[] = [];
 
+// The same trick for the outstanding actions, which are absent out of turn and while the first read is in flight. A fresh `[]` each render would also reset
+// the provider's end-turn dismissals, which watch that array's identity.
+const NO_POSSIBLE_ACTIONS: PossibleAction[] = [];
+
 
 function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
   const [showMilitaryAdvisor, setShowMilitaryAdvisor] = useState(false);
-
-  // What the server reported as still outstanding when the player last asked to end their turn. This is what the notifications panel is built from,
-  // and the turn has not ended while it holds anything — nothing was written by the check that produced it.
-  const [endTurnActions, setEndTurnActions] = useState<PossibleAction[]>([]);
 
   // Set once the player has been shown what they have outstanding, so the next press of End Turn ends the turn regardless. Disarmed again whenever
   // the turn ends or the player moves a force, because either makes the list they were shown out of date.
@@ -245,6 +246,17 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   // Null while nobody is taking a turn, which draws every known-force marker fresh rather than fading them on a guess.
   const currentRoundNumber = currentCampaignTurn?.currentRoundNumber ?? null;
 
+  // --- What the player still has outstanding this turn ---
+  //
+  // Asked for only while the open turn is this player's. Out of turn there is nothing they are being asked to do, and the server would answer an empty
+  // list anyway, so the gate saves a round-trip rather than changing the answer.
+  const isPlayersTurn = currentCampaignTurn != null && playerId != null && currentCampaignTurn.playerId === playerId;
+  const { data: possibleActions } = useCampaignPossibleActionsQuery(gameId, playerId, tilesEnabled && isPlayersTurn);
+
+  // What the notifications panel is built from: the server's answer as the game opened, or whatever the last End Turn check reported, whichever spoke
+  // most recently — both write to the one cache. Empty out of turn, and empty while the first read is in flight.
+  const endTurnActions = possibleActions?.possibleActions ?? NO_POSSIBLE_ACTIONS;
+
   // Carries the last build's DTO-to-cell pairs across rebuilds so unchanged tiles keep their object identity. A ref rather
   // than state: it is a memoisation detail of the line below and must never itself cause a render.
   const tileCellSourcesRef = useRef<TileCellSourceMap>(new Map());
@@ -404,7 +416,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   useEffect(() => {
     if (gameSelection == null) {
       setShowMilitaryAdvisor(false);
-      setEndTurnActions([]);
+      // The panel empties on its own — its query is disabled without a game — so only the arming needs clearing here.
       setEndTurnArmed(false);
       // Coordinates from one game mean nothing in the next, whose map may not even be the same size.
       setInspectedTileCoords(null);
@@ -415,16 +427,15 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const endTurn = useEndTurnMutation(gameId, playerId, {
     onSuccess: (outcome) => {
       if (outcome.turnEnded) {
-        // Empty the panel and disarm, so nothing carries over into a turn where it was never checked.
-        setEndTurnActions([]);
+        // Disarm, so nothing carries over into a turn where it was never checked. The panel is emptied by the mutation, which drops the outstanding
+        // actions from the cache along with everything else the end of a turn invalidates.
         setEndTurnArmed(false);
         openToast(outcome.roundEnded ? "Turn ended. A new round has begun." : "Turn ended.", "success");
         return;
       }
 
-      // The turn is still running. The server is reporting what the player could still do, so it goes to the notifications panel and the next press
-      // of End Turn is the one that ends it.
-      setEndTurnActions(outcome.possibleActions);
+      // The turn is still running. The server has reported what the player could still do — the mutation has already written that into the cache the
+      // panel reads — so all that is left here is to arm the next press of End Turn as the one that ends it.
       setEndTurnArmed(true);
 
       const count = outcome.possibleActions.length;

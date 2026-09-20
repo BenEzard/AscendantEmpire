@@ -72,6 +72,7 @@ public sealed class EndpointAuthorizationTests
         ["DELETE /games/{gameId}"] = PermissionType.DeleteGame,
 
         // Entity setup tool: everything that writes to the shared catalogues, plus the dev-only actions.
+        ["GET /system/seed/targets"] = PermissionType.EntitySetupTool,
         ["POST /system/seed"] = PermissionType.EntitySetupTool,
         ["POST /unit-design-catalogue/bulk"] = PermissionType.EntitySetupTool,
         ["POST /unit-design-catalogue"] = PermissionType.EntitySetupTool,
@@ -158,6 +159,7 @@ public sealed class EndpointAuthorizationTests
         "GET /force-orders/actions",
 
         "GET /turn/campaign",
+        "GET /turn/possible-actions",
         "POST /turn/end-campaign",
 
         "GET /intelligence/reports",

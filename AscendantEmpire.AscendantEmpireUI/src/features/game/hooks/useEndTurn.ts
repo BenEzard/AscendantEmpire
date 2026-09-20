@@ -6,6 +6,7 @@ import { knownForcesKey, knownStructuresKey, sightingReportsKey } from "@/featur
 import { TILE_SUSTENANCE_KEY_PREFIX } from "@/features/map/hooks/useTileSustenance";
 import { TILE_SUPPORT_KEY_PREFIX } from "@/features/map/hooks/useTileSupportLevels";
 import { currentCampaignTurnKey } from "./useCurrentCampaignTurn";
+import { campaignPossibleActionsKey } from "./useCampaignPossibleActions";
 
 /**
  * Ends the current player's campaign turn.
@@ -14,8 +15,8 @@ import { currentCampaignTurnKey } from "./useCurrentCampaignTurn";
  * map may have moved on under someone else's turn — so this drops the cached map and unit state and lets it refetch, rather than trying to patch it
  * the way a single force step does.
  *
- * A call that comes back with `turnEnded` false has changed nothing: the server only reported what the player still has outstanding, so the caches
- * are left exactly as they were.
+ * A call that comes back with `turnEnded` false has changed nothing on the server: it only reported what the player still has outstanding. That report
+ * is written into the possible-actions cache, which is where the notifications panel reads it from, and every other cache is left exactly as it was.
  */
 export function useEndTurnMutation(
   gameId: number | undefined,
@@ -30,6 +31,15 @@ export function useEndTurnMutation(
   return useMutation<EndCampaignTurnOutcome, unknown, boolean>({
     mutationFn: (force) => postEndCampaignTurn(force),
     onSuccess: (outcome) => {
+      if (outcome.turnEnded === false) {
+        // The check reported what the player still has outstanding, which is the same thing the possible-actions query holds. Writing it into that cache
+        // rather than into state of its own keeps one answer to the question: whichever of the two routes last spoke, the panel is built from it.
+        queryClient.setQueryData(campaignPossibleActionsKey(gameId, playerId), {
+          isYourTurn: true,
+          possibleActions: outcome.possibleActions,
+        });
+      }
+
       if (outcome.turnEnded) {
         queryClient.invalidateQueries({ queryKey: playerCampaignTilesKey(gameId, playerId) });
         queryClient.invalidateQueries({ queryKey: unitDisplayInfoKey(gameId) });
@@ -44,6 +54,10 @@ export function useEndTurnMutation(
         queryClient.invalidateQueries({ queryKey: knownForcesKey(gameId, playerId) });
         queryClient.invalidateQueries({ queryKey: knownStructuresKey(gameId, playerId) });
         queryClient.invalidateQueries({ queryKey: currentCampaignTurnKey(gameId) });
+
+        // The turn has passed to somebody else, so whatever the player had outstanding is no longer theirs to do. Invalidated rather than blanked here,
+        // so a hot-seat game that comes straight back round to this player is answered by the server rather than by an assumption.
+        queryClient.invalidateQueries({ queryKey: campaignPossibleActionsKey(gameId, playerId) });
 
         // What is left on a tile changes at the end of a turn, when forces feed. The bare prefix: every tile the player has looked at is cached separately.
         queryClient.invalidateQueries({ queryKey: TILE_SUSTENANCE_KEY_PREFIX });
