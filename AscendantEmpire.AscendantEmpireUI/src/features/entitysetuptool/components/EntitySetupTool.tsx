@@ -513,7 +513,8 @@ export default function EntitySetupTool() {
         }>
         <p>
           Seed the database with its initial values? Existing rows for the seeded tables (biomes, geographies,
-          tag types) will be overwritten to match the seed values.
+          tag types, map resource categories, tags, unit components and the settler and scout templates) will
+          be overwritten to match the seed values. Anything you have added beyond them is left alone.
         </p>
       </Modal>
 

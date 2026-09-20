@@ -229,9 +229,10 @@ pass unchanged; that is the proof the refactor was behaviour-preserving.
 the global `UnitTemplate`, or a `DatabaseSeeding/SeedData` class beside `TagTypeSeedData` — were weighed and
 declined for now:
 
-- The seed tool **deliberately excludes unit design content**
-  ([starting-requirements.md](../starting-requirements.md)), so a `SeedData` class would contradict a
-  standing decision to make one list of codes marginally more editable.
+- The seed does create the starter templates themselves (`StarterTemplateSeedData`, see
+  [starting-requirements.md](../starting-requirements.md)), but **which codes are required** is a different
+  question from **what those templates contain**. Moving the required list into seed data would make one
+  array marginally more editable at the cost of the guarantee below.
 - A flag on `UnitTemplate` lets a database silently disagree with the application. Today a missing or
   misconfigured starter fails game creation with a specific, actionable message; a data-driven set can
   instead be *empty*, which fails as a game with no units and no error.
