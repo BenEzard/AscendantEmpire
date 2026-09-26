@@ -15,7 +15,7 @@ import type { TileMapResourceMarker } from "./Tile";
 import { placementsByTile, resolvePlacementClick, tileKey, typesById } from "../tools/mapResourcePlacement";
 import type { GalleryMapResourceSpecifics } from "../api/galleryMapResourcesApi";
 import { apiErrorMessages } from "@/util/apiErrors";
-import { useCampaignMapTilesQuery } from "@/features/mapgallery/hooks/useCampaignMapTiles";
+import { useCampaignMapTilesQuery, type CampaignMapTileDto } from "@/features/mapgallery/hooks/useCampaignMapTiles";
 import { useCampaignMapGeographiesQuery } from "../hooks/useCampaignMapGeographies";
 import type { TileCell } from "../types/TileTypes";
 import TileGrid from "./TileGrid";
@@ -32,18 +32,20 @@ import { useBrushTool } from "../hooks/useBrushTool";
 import { useTileRendering } from "../hooks/useTileRendering";
 import { useCampaignMapStartPositionsQuery, usePutCampaignMapStartPositionsMutation } from "../hooks/useCampaignMapStartPositions";
 import MapPropertiesDialog from "./MapPropertiesDialog";
+import { useUpdateCampaignMapRiversMutation } from "../hooks/useUpdateCampaignMapRivers";
+import { currentWidthOf, toCanonicalEdge, type MapEdgeGeometry, type TileEdgeRef } from "../tools/riverEdgePicking";
+import type { DrawableRiverWidth } from "@/components/map/RiverStrokeLayer";
 
-function buildTiles2d(
-  width: number,
-  height: number,
-  tiles: { xCoord: number; yCoord: number; biomeTypeId: number | null; campaignMapGeographyTypeId: number | null }[],
-): TileCell[][] {
+function buildTiles2d(width: number, height: number, tiles: CampaignMapTileDto[]): TileCell[][] {
   const grid: TileCell[][] = Array.from({ length: height }, (_, y) =>
     Array.from({ length: width }, (_, x) => ({
       x,
       y,
       biomeTypeId: null,
       geographyTypeId: null,
+      // A tile the server did not send has no rivers rather than unknown ones: this is the authored map, not a player's view of it.
+      southRiver: "None" as const,
+      eastRiver: "None" as const,
     })),
   );
 
@@ -56,10 +58,22 @@ function buildTiles2d(
       y: t.yCoord,
       biomeTypeId: t.biomeTypeId,
       geographyTypeId: t.campaignMapGeographyTypeId,
+      southRiver: t.southRiver ?? "None",
+      eastRiver: t.eastRiver ?? "None",
     };
   }
 
   return grid;
+}
+
+/** The open map's shape, as the river-edge helpers want it. */
+function mapEdgeGeometry(index: CampaignMapGalleryIndex): MapEdgeGeometry {
+  return {
+    width: index.width,
+    height: index.height,
+    horizontalWrap: index.horizontalWrap,
+    verticalWrap: index.verticalWrap,
+  };
 }
 
 function MapGalleryEditor() {
@@ -104,6 +118,25 @@ function MapGalleryEditor() {
     setMapResourceMapSelection(typeId);
     setActiveTool((tool) => (typeId != null ? "mapResource" : tool === "mapResource" ? "inspect" : tool));
   }, []);
+
+  // The width the River tool draws, and the edge under the pointer. "Medium" to start with, because it is the width a Land Force
+  // can still cross and so the one an author reaches for most. There is no "erase" width: a click on an edge that already carries
+  // the chosen width takes it away again.
+  const [riverWidthSelection, setRiverWidthSelection] = useState<DrawableRiverWidth>("Medium");
+  const [hoveredRiverEdge, setHoveredRiverEdge] = useState<TileEdgeRef | null>(null);
+
+  // Choosing a width from the dropdown also arms the tool, the way choosing a MapResource does.
+  const selectRiverWidth = useCallback((width: DrawableRiverWidth) => {
+    setRiverWidthSelection(width);
+    setActiveTool("river");
+  }, []);
+
+  // Dropped as soon as the tool is put away, so the marker cannot be left sitting on the map by a tool change.
+  useEffect(() => {
+    if (activeTool !== "river") {
+      setHoveredRiverEdge(null);
+    }
+  }, [activeTool]);
 
   // Stable array reference for TileGrid so its React.memo isn't defeated each render.
   const geographiesList = useMemo(() => geographies ?? [], [geographies]);
@@ -203,6 +236,21 @@ function MapGalleryEditor() {
   }, [editingPlacement, placementMutations.remove, closePlacement]);
 
   // ---------------------------
+  // Open map / tiles (above the click handlers, which read the grid to decide what a click does)
+  // ---------------------------
+  const {
+    data: tilesResponse,
+    error: tilesError,
+    isLoading: tilesLoading,
+    isFetching: tilesFetching,
+  } = useCampaignMapTilesQuery(openMapIndex?.campaignMapGalleryIndexId ?? null, openMapIndex != null);
+
+  const tiles2d = useMemo(() => {
+    if (!openMapIndex || !tilesResponse) return null;
+    return buildTiles2d(openMapIndex.width, openMapIndex.height, tilesResponse.tiles);
+  }, [openMapIndex, tilesResponse]);
+
+  // ---------------------------
   // Mutations
   // ---------------------------
   const updateTilesMutation = useUpdateCampaignMapTilesMutation({
@@ -213,10 +261,63 @@ function MapGalleryEditor() {
     onFailureToast: (message) => openToast(message, "danger"),
   });
 
+  const updateRiversMutation = useUpdateCampaignMapRiversMutation({
+    onFailureToast: (message) => openToast(message, "danger"),
+  });
+
   const publishCampaignMapMutation = usePublishCampaignMapMutation({
     onSuccessToast: (message: string) => openToast(message, "success"),
     onFailureToast: (message: string) => openToast(message, "danger"),
   });
+
+  /** What a click on the hovered edge would do, so the marker can say whether it draws or erases before the click happens. */
+  const hoverWouldErase = useMemo(() => {
+    if (hoveredRiverEdge == null || openMapIndex == null) {
+      return false;
+    }
+
+    const canonical = toCanonicalEdge(hoveredRiverEdge, mapEdgeGeometry(openMapIndex));
+
+    return canonical != null && currentWidthOf(tiles2d, canonical) === riverWidthSelection;
+  }, [hoveredRiverEdge, openMapIndex, tiles2d, riverWidthSelection]);
+
+  /**
+   * Sets the river on the edge the pointer picked, or takes it away again.
+   *
+   * The tool **toggles**: an edge that already carries the chosen width is erased, and any other edge is set to it. So a
+   * mis-drawn edge is undone by clicking it again, and widening a Medium river to Large is still a single click — which is why
+   * there is no separate eraser to switch to and back out of.
+   *
+   * The edge arrives as one of the clicked tile's four sides; only South and East exist on the wire, so a north or west click is
+   * translated to the neighbour that owns that edge, wrapping included. An edge facing off a map that does not wrap has no owner
+   * and is refused here rather than sent, since the server would only refuse it too.
+   *
+   * Everything else the authoring rules check — that the river reaches the sea, and that it never widens inland — stays on the
+   * server. Both need the whole river network, and a second copy of that walk in the client is a second copy to keep correct.
+   */
+  const onRiverEdgeClick = useCallback(
+    (edge: TileEdgeRef) => {
+      if (!openMapIndex) {
+        openToast("No map opened.", "warning");
+        return;
+      }
+
+      const canonical = toCanonicalEdge(edge, mapEdgeGeometry(openMapIndex));
+
+      if (canonical == null) {
+        openToast("That edge faces off the map.", "warning");
+        return;
+      }
+
+      const alreadyThere = currentWidthOf(tiles2d, canonical) === riverWidthSelection;
+
+      updateRiversMutation.mutate({
+        campaignMapGalleryIndexId: openMapIndex.campaignMapGalleryIndexId,
+        changes: [{ x: canonical.x, y: canonical.y, edge: canonical.edge, width: alreadyThere ? "None" : riverWidthSelection }],
+      });
+    },
+    [openMapIndex, openToast, riverWidthSelection, tiles2d, updateRiversMutation],
+  );
 
   const onTileClick = useCallback(
     (t: TileCell) => {
@@ -318,21 +419,6 @@ function MapGalleryEditor() {
   );
 
   // ---------------------------
-  // Open map / tiles
-  // ---------------------------
-  const {
-    data: tilesResponse,
-    error: tilesError,
-    isLoading: tilesLoading,
-    isFetching: tilesFetching,
-  } = useCampaignMapTilesQuery(openMapIndex?.campaignMapGalleryIndexId ?? null, openMapIndex != null);
-
-  const tiles2d = useMemo(() => {
-    if (!openMapIndex || !tilesResponse) return null;
-    return buildTiles2d(openMapIndex.width, openMapIndex.height, tilesResponse.tiles);
-  }, [openMapIndex, tilesResponse]);
-
-  // ---------------------------
   // Push Out
   // ---------------------------
   const openPushOutMap = useCallback(() => {
@@ -396,6 +482,9 @@ function MapGalleryEditor() {
     activeTool,
     setActiveTool,
 
+    riverWidthSelection,
+    selectRiverWidth,
+
     brushKind,
     setBrushKind,
     brushRadii,
@@ -439,6 +528,12 @@ function MapGalleryEditor() {
                 getTileTitle={getTileTitle}
                 startPositionKeys={startPositionKeys}
                 mapResourceMarkers={mapResourceMarkers}
+                // Only wired while the River tool is on: the picker sits over the grid and takes the clicks, which is what the tool
+                // wants and what every other tool must not have happen to it.
+                onRiverEdgeClick={activeTool === "river" ? onRiverEdgeClick : undefined}
+                onRiverEdgeHover={activeTool === "river" ? setHoveredRiverEdge : undefined}
+                hoveredRiverEdge={hoveredRiverEdge}
+                hoveredRiverEdgeErases={hoverWouldErase}
               />
             )}
           </>

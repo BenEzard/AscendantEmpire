@@ -6,6 +6,11 @@ export interface CampaignMapGalleryIndex {
   description: string;
   width: number;
   height: number;
+
+  // Whether the map's opposite edges join. The River tool needs both: on a wrapping axis the last column's east edge is a real edge
+  // shared with column 0, and on one that does not wrap it faces off the map and can never carry a river.
+  horizontalWrap: boolean;
+  verticalWrap: boolean;
 }
 
 export type CampaignMapPreviewMode = "biome" | "geography" | "startpositions";

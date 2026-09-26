@@ -47,6 +47,61 @@ setup, another step to game deletion, and a unique key to stop an edge being sto
 Game setup copies both columns from the gallery map. What rivers do to movement is in
 [unit-movement.md](../units/unit-movement.md#rivers--built).
 
+### Authoring rules
+
+Rivers meet at **vertices** — tile corners, not tiles. A tile's South edge runs from corner `(x, y+1)`
+to `(x+1, y+1)`; its East edge runs from `(x+1, y)` to `(x+1, y+1)`. Two edges are **connected** when
+they share a corner, which covers a river running straight on, turning, and a tributary joining a trunk
+alike. On an axis that wraps, the far corner is the near one, so a river may cross the seam and stay one
+river.
+
+A **mouth** is an edge with a **coastal corner**: one where any of the up to four tiles meeting at that
+corner has a water biome (`CampaignBiome.IsWater`). It is defined by the corner rather than by the banks
+because the last stretch of a river running straight into the coast has land on both sides of it and
+touches the water only at its end.
+
+Two rules follow, and every writer enforces them — the map editor and the map importer both:
+
+1. **A river starts at the sea.** Every river edge must reach a mouth through connected edges, so a
+   river is drawn from the coast inland and an edge cannot be started in the middle of a continent.
+   Erasing works the other way about: an erase that would leave part of a river unreachable from any
+   mouth is **refused**, so a river is erased from its inland end back towards the sea. (In the editor,
+   erasing is a second click on an edge that already carries the chosen width — see below.)
+
+2. **A river never widens inland.** Give each edge its hop count to the nearest mouth. Where two
+   connected edges differ in that count, the one further out may not be wider than the one nearer the
+   sea. So a Large river may narrow to Medium as it runs inland, and a Medium tributary may join a
+   Large trunk, but a Medium stretch can never become Large further from the coast. A mouth edge itself
+   is unconstrained — a river may enter the sea as either width.
+
+Two further rules apply to a single edge: an edge facing off a **non-wrapping** boundary is refused,
+because there is no tile on the other side of it; and an edge with **water on both banks** is refused,
+because a river between two stretches of sea means nothing. An edge between land and water is a mouth
+and is fine.
+
+Both rules in the first pair are properties of the whole network, so they are judged against the map a
+write *would* produce rather than edge by edge. A batch therefore lands whole or not at all, and the
+rules are re-checked when an author later changes the width of an edge drawn long ago.
+
+### Authoring rivers in the map editor
+
+The **River** tool on the editor's Editor Tools group draws them. Its dropdown chooses the width a
+click draws, **Large** or **Medium**. A click takes the **nearest edge** of the tile under the pointer,
+and hovering marks that edge first, so which of the four a click will take is never a guess.
+
+The tool **toggles**: clicking an edge that already carries the chosen width erases it, and clicking any
+other edge sets it. So a mis-drawn edge is undone by clicking it again, widening a Medium river to Large
+is still one click, and there is no eraser to switch to and back out of. The hover marker is drawn in a
+second colour when the click would erase.
+
+A North or West click is translated to the neighbour that owns that edge — the tile above's South, or
+the tile to the left's East — wrapping included, so only South and East ever travel on the wire. An
+edge facing off a map that does not wrap has no owner, and the editor says so without sending anything.
+
+Whether the edge reaches the sea, and whether it widens inland, stay with the server: both need the
+whole river network, and the refusal names the edge that breaks the rule, which is often not the one
+that was clicked.
+
 ### What a player is shown
 
 Rivers are **explored terrain**, like biome and geography: a player sees them on any tile they have

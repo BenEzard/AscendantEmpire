@@ -1,30 +1,6 @@
 import React from "react";
 import type { TileCell } from "./TileTypes";
-import type { RiverWidth } from "@/types/map/Rivers";
-
-/** One river edge, already in grid pixels. */
-interface RiverStroke {
-  /** `"x,y,side"` — unique because each edge is emitted by exactly one tile. */
-  key: string;
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  /** Never `"None"` — an edge with no river produces no stroke at all, so there is nothing here to check for again when drawing. */
-  width: Exclude<RiverWidth, "None">;
-}
-
-/**
- * How thick each width is drawn, in pixels. Large is twice Medium, so which of the two a river is reads at a glance and without
- * having to compare it against a neighbouring one.
- */
-const STROKE_PX: Record<Exclude<RiverWidth, "None">, number> = {
-  Medium: 3,
-  Large: 6,
-};
-
-/** How much wider the casing under each stroke is drawn than the stroke itself, split over both sides. */
-const CASING_EXTRA_PX = 2;
+import RiverStrokeLayer, { type RiverStroke } from "@/components/map/RiverStrokeLayer";
 
 export interface RiverOverlayProps {
   /** The grid, row-major (`tiles2d[y][x]`), as TileGrid holds it. */
@@ -36,18 +12,15 @@ export interface RiverOverlayProps {
 }
 
 /**
- * Draws the rivers between tiles as strokes along the tile edges they run on.
- *
- * One SVG over the whole grid rather than borders on the tiles themselves. A river belongs to the *edge* between two tiles, not to
- * either of them, so drawing it on a tile would mean deciding which tile owns the line and then keeping both sides of every river
- * in agreement about its width — which is exactly the problem the server already solved by storing each edge once.
+ * Picks out the rivers the player can see and hands them to {@link RiverStrokeLayer} to draw.
  *
  * **Each edge is drawn once.** Both tiles either side of a river report it, so a tile draws its South and East edges always, and
  * its North and West only where the neighbour that would otherwise draw them has no rivers to report — an unexplored tile, or the
  * edge of the grid. Drawing all four from every tile would double every interior stroke, which shows: two 6px lines a pixel apart
  * are not the same picture as one.
  *
- * Nothing here is interactive, and the layer never swallows a click: tiles underneath it still receive every pointer event.
+ * That rule is what belongs here rather than in the shared layer: the map editor reads the two edges each tile owns, and knows
+ * every tile, so it has no fog to reason about and nothing to deduplicate.
  */
 const RiverOverlay = React.memo(function RiverOverlay({ tiles2d, width, height, tileSizePx }: RiverOverlayProps) {
   const strokes = React.useMemo(() => {
@@ -95,42 +68,7 @@ const RiverOverlay = React.memo(function RiverOverlay({ tiles2d, width, height, 
     return collected;
   }, [tiles2d, tileSizePx]);
 
-  if (strokes.length === 0) {
-    return null;
-  }
-
-  return (
-    <svg
-      // Absolute over the grid, which is the first child of TileGrid's positioned overlay layer, so the two line up exactly and the
-      // rivers scroll with the map.
-      style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none" }}
-      width={width * tileSizePx}
-      height={height * tileSizePx}
-      aria-hidden="true"
-      data-testid="river-overlay">
-      {/* A pale casing under every stroke, so a river reads against dark water and pale ice alike — biome colours run the whole
-          range, and no single blue is legible over all of them on its own. */}
-      <g data-testid="river-casings" stroke="var(--campaign-river-casing)" strokeLinecap="square" fill="none">
-        {strokes.map((stroke) => (
-          <line key={stroke.key} x1={stroke.x1} y1={stroke.y1} x2={stroke.x2} y2={stroke.y2} strokeWidth={STROKE_PX[stroke.width] + CASING_EXTRA_PX} />
-        ))}
-      </g>
-      <g data-testid="river-strokes" stroke="var(--campaign-river)" strokeLinecap="square" fill="none">
-        {strokes.map((stroke) => (
-          <line
-            key={stroke.key}
-            x1={stroke.x1}
-            y1={stroke.y1}
-            x2={stroke.x2}
-            y2={stroke.y2}
-            strokeWidth={STROKE_PX[stroke.width]}
-            data-river-edge={stroke.key}
-            data-river-width={stroke.width}
-          />
-        ))}
-      </g>
-    </svg>
-  );
+  return <RiverStrokeLayer strokes={strokes} widthPx={width * tileSizePx} heightPx={height * tileSizePx} />;
 });
 
 export default RiverOverlay;

@@ -14,4 +14,8 @@ public class DTCampaignMapIndex : ICampaignMapIndex
     public int Width { get; set; }
     /// <inheritdoc />
     public int Height { get; set; }
+    /// <inheritdoc />
+    public bool HorizontalWrap { get; set; }
+    /// <inheritdoc />
+    public bool VerticalWrap { get; set; }
 }

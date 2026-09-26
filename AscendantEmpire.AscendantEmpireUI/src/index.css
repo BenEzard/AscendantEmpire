@@ -537,6 +537,14 @@ body {
 :root {
   --campaign-river: #1d64b8;
   --campaign-river-casing: #cfe8ff;
+
+  /* The edge the map editor's River tool would act on next. Warm, so it never reads as a river that is already there — the author
+     has to be able to tell "this is where it would go" from "this is where one is".
+
+     A second colour for the case where the click would take the river away instead, because the tool toggles: the marker looks the
+     same either way, and drawing and erasing are opposite enough to be worth telling apart before the click. */
+  --map-editor-river-hover: #f59e0b;
+  --map-editor-river-hover-erase: #dc2626;
 }
 
 /* Two turns or more. Light enough that the bar's dark text and icons stay readable unchanged. */

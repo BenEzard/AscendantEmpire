@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { FaCheck, FaFish, FaMountain, FaRegFolderOpen, FaTree } from "react-icons/fa6";
+import { FaCheck, FaFish, FaMountain, FaRegFolderOpen, FaTree, FaWater } from "react-icons/fa6";
 import { BiExport, BiLocationPlus } from "react-icons/bi";
 import { SlClose } from "react-icons/sl";
 import { VscNewFile } from "react-icons/vsc";
@@ -22,6 +22,7 @@ import BrushPreview from "@/features/mapgallery/components/BrushPreview";
 import type { BrushKind } from "@/features/mapgallery/tools/brush";
 import { iconMap } from "@/features/mapgallery/components/mapEditorIcons";
 import type { ActiveDialog, ActiveTool } from "@/features/mapgallery/types/MapGalleryEditorTypes";
+import type { DrawableRiverWidth } from "@/components/map/RiverStrokeLayer";
 import { IoInformationCircle } from "react-icons/io5";
 
 type Args = {
@@ -53,6 +54,11 @@ type Args = {
 
   activeTool: ActiveTool;
   setActiveTool: (t: ActiveTool) => void;
+
+  /** The width the River tool draws. Clicking an edge that already has it erases it instead, so there is no separate eraser. */
+  riverWidthSelection: DrawableRiverWidth;
+  /** Chooses the river width. Choosing one also arms the River tool. */
+  selectRiverWidth: (width: DrawableRiverWidth) => void;
 
   brushKind: BrushKind;
   setBrushKind: (k: BrushKind) => void;
@@ -124,6 +130,44 @@ function makeBrushItem(descriptor: BrushDescriptor, ctx: BrushItemContext): Drop
       });
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// River tool menu items
+// ---------------------------------------------------------------------------
+
+/**
+ * What the River tool can draw, widest first.
+ *
+ * There is no eraser: clicking an edge that already carries the selected width removes it, so the tool toggles and the width
+ * chosen here is the only thing the menu has to say.
+ */
+const RIVER_WIDTH_CHOICES: { width: DrawableRiverWidth; label: string; title: string; previewPx: number }[] = [
+  { width: "Large", label: "Large", title: "Large river — no Land Force can cross it, and Water Forces can sail up it. Click it again to erase it", previewPx: 6 },
+  { width: "Medium", label: "Medium", title: "Medium river — a Land Force can cross it, at a cost. Click it again to erase it", previewPx: 3 },
+];
+
+/**
+ * Builds the River dropdown's items: the two widths, drawn at the thickness they will appear on the map.
+ *
+ * The preview is the line itself rather than an icon, because the only thing that distinguishes Large from Medium once it is on
+ * the map is how thick it is.
+ */
+function buildRiverWidthItems(selection: DrawableRiverWidth, selectRiverWidth: (width: DrawableRiverWidth) => void): DropButtonItem[] {
+  return RIVER_WIDTH_CHOICES.map((choice) => ({
+    key: choice.width,
+    label: (
+      <span className="inline-flex w-full items-center gap-2">
+        <span aria-hidden className="inline-flex h-4 w-6 items-center">
+          <span className="w-full rounded-sm" style={{ height: choice.previewPx, background: "var(--campaign-river)" }} />
+        </span>
+        <span>{choice.label}</span>
+      </span>
+    ),
+    title: choice.title,
+    active: selection === choice.width,
+    onSelect: () => selectRiverWidth(choice.width),
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -256,6 +300,9 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
 
     activeTool,
     setActiveTool,
+
+    riverWidthSelection,
+    selectRiverWidth,
 
     brushKind,
     setBrushKind,
@@ -442,6 +489,18 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
                   menuLayout: "grid",
                   menuGridColumns: 3,
                 },
+                {
+                  type: "dropbutton",
+                  key: "river",
+                  label: "River",
+                  icon: <FaWater />,
+                  tooltip: "Draw rivers along tile edges. Clicking an edge that already carries the chosen width erases it",
+                  onClick: () => {
+                    // The main click only arms the tool; the width comes from the dropdown, and whatever was chosen last stays chosen.
+                  },
+                  items: buildRiverWidthItems(riverWidthSelection, selectRiverWidth),
+                  menuDisabled: false,
+                },
               ]}
             />
           ),
@@ -455,7 +514,19 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
         },
       ],
     }),
-    [openMapIndex, activeTool, setActiveTool, brushKind, brushRadii, clampRadius, setBrushKind, setBrushRadii, openMapProperties],
+    [
+      openMapIndex,
+      activeTool,
+      setActiveTool,
+      brushKind,
+      brushRadii,
+      clampRadius,
+      setBrushKind,
+      setBrushRadii,
+      openMapProperties,
+      riverWidthSelection,
+      selectRiverWidth,
+    ],
   );
 
   return useMemo(() => [mapMenuGroup, paletteGroup, editorToolsGroup], [mapMenuGroup, paletteGroup, editorToolsGroup]);

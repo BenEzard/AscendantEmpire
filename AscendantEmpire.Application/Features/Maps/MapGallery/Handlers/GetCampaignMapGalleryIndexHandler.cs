@@ -40,6 +40,8 @@ internal class GetCampaignMapGalleryIndexHandler(
                 Description = entity.Description,
                 Width = entity.Width,
                 Height = entity.Height,
+                HorizontalWrap = entity.HorizontalWrap,
+                VerticalWrap = entity.VerticalWrap,
                 CampaignMapOffsetId = entity.CampaignMapOffsetId,
                 CreationStatus = entity.CreationStatus,
                 CreationEngine = entity.CreationEngine,

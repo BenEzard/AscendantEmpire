@@ -33,15 +33,17 @@ internal class GetCampaignMapTilesHandler(
                 return ServiceResult<IReadOnlyCollection<DTCampaignMapTile>>.NotFound(notFoundError);
             }
 
-            // Assuming we found some tiles, we would map them to DTCampaignMapTile DTOs.
-            // Here we just return a dummy tile for demonstration.
+            // The river columns go out raw, as the two edges a tile actually owns. The map editor edits those columns, so resolving them into four
+            // per-tile edges the way the player map read does would only mean the editor translating them back again before it could save anything.
             List<DTCampaignMapTile> data = [.. entities.Select(tile => new DTCampaignMapTile
             {
                 CampaignMapGalleryIndexId = tile.CampaignMapGalleryIndexId,
                 XCoord = tile.XCoord,
                 YCoord = tile.YCoord,
                 BiomeTypeId = tile.BiomeTypeId,
-                CampaignMapGeographyTypeId = tile.CampaignMapGeographyTypeId
+                CampaignMapGeographyTypeId = tile.CampaignMapGeographyTypeId,
+                SouthRiver = tile.SouthRiver,
+                EastRiver = tile.EastRiver
             })];
 
             return ServiceResult<IReadOnlyCollection<DTCampaignMapTile>>.Succeed(data);

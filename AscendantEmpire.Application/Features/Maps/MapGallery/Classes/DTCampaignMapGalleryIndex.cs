@@ -16,6 +16,10 @@ public class DTCampaignMapGalleryIndex : ICampaignMapGalleryIndex
     /// <inheritdoc />
     public int Height { get; set; }
     /// <inheritdoc />
+    public bool HorizontalWrap { get; set; }
+    /// <inheritdoc />
+    public bool VerticalWrap { get; set; }
+    /// <inheritdoc />
     public int CampaignMapOffsetId { get; set; }
     /// <inheritdoc />
     public MapCreationStatus CreationStatus { get; set; }

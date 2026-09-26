@@ -28,6 +28,8 @@ internal class SearchCampaignMapGalleryIndexHandler(
                     Description = c.Description,
                     Width = c.Width,
                     Height = c.Height,
+                    HorizontalWrap = c.HorizontalWrap,
+                    VerticalWrap = c.VerticalWrap,
                 })
                 .ToArrayAsync(cancellationToken);
 

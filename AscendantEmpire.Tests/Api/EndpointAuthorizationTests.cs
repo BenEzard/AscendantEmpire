@@ -103,6 +103,7 @@ public sealed class EndpointAuthorizationTests
         ["POST /map-gallery/{id}/map-resources"] = PermissionType.MapEditor,
         ["PUT /map-gallery/{id}/map-resources/{placementId}"] = PermissionType.MapEditor,
         ["DELETE /map-gallery/{id}/map-resources/{placementId}"] = PermissionType.MapEditor,
+        ["PUT /map-gallery/{id}/rivers"] = PermissionType.MapEditor,
         ["DELETE /map-resources/types/{code}"] = PermissionType.MapEditor,
         ["DELETE /map-resources/categories/{code}"] = PermissionType.MapEditor,
     };

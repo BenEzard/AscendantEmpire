@@ -10,4 +10,10 @@ public record CampaignMapTile : ICampaignMapTile
     public int YCoord { get; init; }
     public BiomeType BiomeTypeId { get; init; }
     public CampaignMapGeographyType CampaignMapGeographyTypeId { get; init; }
+
+    /// <summary>The river along this tile's South edge — the edge it shares with the tile below it.</summary>
+    public RiverWidth SouthRiver { get; init; }
+
+    /// <summary>The river along this tile's East edge — the edge it shares with the tile to its right.</summary>
+    public RiverWidth EastRiver { get; init; }
 }

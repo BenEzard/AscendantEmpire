@@ -115,6 +115,8 @@ public class MapGalleryController
                 Description = response.SuccessValue.Description,
                 Width = response.SuccessValue.Width,
                 Height = response.SuccessValue.Height,
+                HorizontalWrap = response.SuccessValue.HorizontalWrap,
+                VerticalWrap = response.SuccessValue.VerticalWrap,
                 CampaignMapOffsetId = response.SuccessValue.CampaignMapOffsetId,
                 CreationStatus = response.SuccessValue.CreationStatus,
                 CreationEngine = response.SuccessValue.CreationEngine,
@@ -151,7 +153,9 @@ public class MapGalleryController
                 XCoord = t.XCoord,
                 YCoord = t.YCoord,
                 BiomeTypeId = t.BiomeTypeId,
-                CampaignMapGeographyTypeId = t.CampaignMapGeographyTypeId
+                CampaignMapGeographyTypeId = t.CampaignMapGeographyTypeId,
+                SouthRiver = t.SouthRiver,
+                EastRiver = t.EastRiver
             }).ToList();
 
             return new CampaignMapTileCollection
@@ -270,7 +274,9 @@ public class MapGalleryController
                     MapName = c.MapName,
                     Description = c.Description,
                     Width = c.Width,
-                    Height = c.Height
+                    Height = c.Height,
+                    HorizontalWrap = c.HorizontalWrap,
+                    VerticalWrap = c.VerticalWrap
                 })]
             };
         });
