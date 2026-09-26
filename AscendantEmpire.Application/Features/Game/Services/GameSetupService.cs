@@ -573,7 +573,9 @@ internal class GameSetupService(
                 [LastVisitedOnTurnId],
                 [LastVisitedByPlayerId],
                 [BiomeTypeId],
-                [CampaignMapGeographyTypeId]
+                [CampaignMapGeographyTypeId],
+                [SouthRiver],
+                [EastRiver]
             )
             SELECT
                 {campaignMapOffsetId} + g.[XCoord] + (g.[YCoord] * {mapWidth}),
@@ -585,7 +587,9 @@ internal class GameSetupService(
                 NULL,
                 NULL,
                 g.[BiomeTypeId],
-                g.[CampaignMapGeographyTypeId]
+                g.[CampaignMapGeographyTypeId],
+                g.[SouthRiver],
+                g.[EastRiver]
             FROM [mapgallery].[CampaignMapGallery] g
             WHERE g.[CampaignMapGalleryIndexId] = {campaignMapGalleryIndexId};
             ", cancellationToken);

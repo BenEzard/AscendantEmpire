@@ -1,4 +1,5 @@
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
+using AscendantEmpire.Domain.Enums.Maps;
 
 namespace AscendantEmpire.BackendContracts.ForceOrders.StepForce;
 
@@ -36,6 +37,20 @@ public record StepForceResult
     /// When it did, the Force and every enemy Force on the tile are now in battle, and none of them can take a campaign step until it is over.
     /// </remarks>
     public bool StartedBattle { get; init; }
+
+    /// <summary>
+    /// The river the step crossed from one bank to the other, or <see cref="RiverWidth.None"/>.
+    /// </summary>
+    /// <remarks>
+    /// The geometry of the step, whatever the Force's domain made of it: an Air Force that crossed a river is told so too, though it paid nothing for it.
+    /// </remarks>
+    public RiverWidth RiverCrossed { get; init; }
+
+    /// <summary>
+    /// The river the step ran alongside, with both tiles on the same bank, or <see cref="RiverWidth.None"/>.
+    /// </summary>
+    /// <remarks>The geometry of the step, like <see cref="RiverCrossed"/>. For a Land Force it made the step cheaper; for a ship it is the river sailed up.</remarks>
+    public RiverWidth RiverAlong { get; init; }
 
     /// <summary>
     /// The player's refreshed view of the map from where their observers now stand.

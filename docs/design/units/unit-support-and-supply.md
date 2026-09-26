@@ -25,6 +25,9 @@ friendly territory.
   break (including supply units) are unsupplied.
 - The supply radius of chained units must **overlap or touch** (be adjacent) for the chain to be
   active.
+- **Rivers cut supply.** A chain cannot cross a Medium or Large river edge unless a bridge or ferry
+  carries it over. Neither bridges nor ferries exist yet. Rivers do not block vision. See
+  [unit-movement.md](unit-movement.md#rivers--built) for how rivers are modelled.
 
 ## Fuel
 

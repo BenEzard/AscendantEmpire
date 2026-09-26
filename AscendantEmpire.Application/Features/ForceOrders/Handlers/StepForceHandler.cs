@@ -7,6 +7,7 @@ using AscendantEmpire.Application.Features.ForceOrders.Movement;
 using AscendantEmpire.Application.Features.ForceOrders.Movement.Strategies;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Handlers;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Units.Services;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
@@ -193,14 +194,32 @@ internal class StepForceHandler(
                 BiomeIsTraversable = targetTile.Biome.IsTraversable
             };
 
-            ServiceResult<StepForceResult>? terrainRefusal = ValidateTerrain(force, movementProfile, target);
+            // The rivers around the Force decide what the step crosses and follows, and the tile it is leaving decides whether a ship is putting out from a
+            // river or sailing on open water. Everything either needs lies in the 3x3 block around the origin.
+            (RiverEdges riverEdges, bool originIsWater) = await GetStepSurroundingsAsync(context, request.GameId, origin, gameInfo, cancelToken);
+
+            (int deltaX, int deltaY) = MapDirections.GetDelta(request.Direction);
+
+            var step = new MovementStep
+            {
+                Target = target,
+                OriginIsWater = originIsWater,
+                IsDiagonal = deltaX != 0 && deltaY != 0,
+                Rivers = RiverMovementRules.Evaluate(riverEdges, request.Direction)
+            };
+
+            ServiceResult<StepForceResult>? terrainRefusal = ValidateStep(force, movementProfile, step);
             if (terrainRefusal is not null)
             {
                 return terrainRefusal;
             }
 
-            // The last of the refusals, and the only one that weighs what the Force is still holding against the tile standing in front of it.
-            ServiceResult<StepForceResult>? strandingRefusal = ValidateItWouldNotBeStranded(force, movementProfile, target);
+            // What the step costs this Force: the tile's cost, adjusted for any river crossed or followed as its domain sees it. The stranding check and
+            // the payment below both use this one figure, so the guard can never be weighing a different price from the one charged.
+            decimal stepCost = MovementStepRules.GetStepCost(movementDomainStrategies, movementProfile.MovementDomain, step);
+
+            // The last of the refusals, and the only one that weighs what the Force is still holding against the step standing in front of it.
+            ServiceResult<StepForceResult>? strandingRefusal = ValidateItWouldNotBeStranded(force, movementProfile, target, stepCost);
             if (strandingRefusal is not null)
             {
                 return strandingRefusal;
@@ -221,7 +240,7 @@ internal class StepForceHandler(
             // tile's cost — ValidateForce settled that already, so no affordability check is left to make here. What remains is the payment: the
             // whole cost comes off and the balance is allowed to go negative, so a Force dives into expensive ground and waits the debt out rather
             // than the ground being permanently out of its reach.
-            long entryCost = ScaledAmount.FromDecimal(target.MovementCost).RawValue;
+            long entryCost = ScaledAmount.FromDecimal(stepCost).RawValue;
 
             // The position goes through the lifecycle writer rather than onto the Force directly - the property is init-only, so nothing else can set it. The writer stages the new tile and the
             // Moved row together, so the save below commits both or neither. When it refuses, nothing has been staged, and the step is refused rather than made without a record.
@@ -279,7 +298,8 @@ internal class StepForceHandler(
             }
 
             logger.LogInformation(
-                "Unit Instance Id {UnitInstanceId} stepped {Direction} from ({OriginX}, {OriginY}) to ({TargetX}, {TargetY}) for {Cost} movement points, leaving {Remaining}.",
+                "Unit Instance Id {UnitInstanceId} stepped {Direction} from ({OriginX}, {OriginY}) to ({TargetX}, {TargetY}) for {Cost} movement points, leaving {Remaining}. "
+                + "River crossed: {RiverCrossed}; river along: {RiverAlong}.",
                 force.Id,
                 request.Direction,
                 origin.X,
@@ -287,7 +307,9 @@ internal class StepForceHandler(
                 target.XCoord,
                 target.YCoord,
                 ScaledAmount.FromRaw(entryCost),
-                ScaledAmount.FromRaw(force.CampaignMovementRemaining));
+                ScaledAmount.FromRaw(force.CampaignMovementRemaining),
+                step.Rivers.Crossed,
+                step.Rivers.Along);
 
             IReadOnlyCollection<ObserverSight> observers = await GetRefreshedVisionAsync(request, cancelToken);
 
@@ -299,6 +321,8 @@ internal class StepForceHandler(
                 CampaignMovementRemaining = ScaledAmount.FromRaw(force.CampaignMovementRemaining).ToDecimal(),
                 CampaignMovementPoints = ScaledAmount.FromRaw(movementProfile.CampaignMovementPoints).ToDecimal(),
                 StartedBattle = startedBattle,
+                RiverCrossed = step.Rivers.Crossed,
+                RiverAlong = step.Rivers.Along,
                 Observers = observers
             });
         }
@@ -494,16 +518,20 @@ internal class StepForceHandler(
     }
 
     /// <summary>
-    /// Checks that the target tile can be entered at all, and that this Force's movement domain permits it.
+    /// Checks that the target tile can be entered at all, and that this Force's movement domain permits this step onto it, rivers included.
     /// </summary>
     /// <remarks>
-    /// The decision itself belongs to <see cref="MovementEntryRules"/>, which the fog-of-war read also asks — a blinded Observer reveals exactly the
-    /// adjacent tiles it could not have stepped onto, so the two must never disagree. Only the wording and logging are this handler's.
+    /// <para>
+    /// The decision itself belongs to <see cref="MovementStepRules"/>. It agrees with <see cref="MovementEntryRules"/>, which the fog-of-war read asks, on
+    /// everything about the tile, and differs only where the step's shape matters: a Land Force refused a Large river, or a ship sailing up one onto land.
+    /// Only the wording and logging are this handler's.
+    /// </para>
     /// </remarks>
-    /// <returns><see langword="null"/> when the Force may enter the tile; otherwise the failure to answer with.</returns>
-    private ServiceResult<StepForceResult>? ValidateTerrain(UnitInstance force, ForceMovementProfile movementProfile, MovementTargetTile target)
+    /// <returns><see langword="null"/> when the Force may take the step; otherwise the failure to answer with.</returns>
+    private ServiceResult<StepForceResult>? ValidateStep(UnitInstance force, ForceMovementProfile movementProfile, MovementStep step)
     {
-        MovementEntryRefusal? refusal = MovementEntryRules.GetEntryRefusal(movementDomainStrategies, movementProfile.MovementDomain, target);
+        MovementTargetTile target = step.Target;
+        MovementEntryRefusal? refusal = MovementStepRules.GetStepRefusal(movementDomainStrategies, movementProfile.MovementDomain, step);
 
         if (refusal is null)
         {
@@ -534,10 +562,11 @@ internal class StepForceHandler(
     /// </para>
     /// <para>The refusal quotes the count rather than the arithmetic behind it, because the count is the thing the player is being asked to weigh.</para>
     /// </remarks>
+    /// <param name="stepCost">What the step costs this Force, rivers included — the same figure it is charged.</param>
     /// <returns><see langword="null"/> when the step is within the limit; otherwise the failure to answer with.</returns>
-    private ServiceResult<StepForceResult>? ValidateItWouldNotBeStranded(UnitInstance force, ForceMovementProfile movementProfile, MovementTargetTile target)
+    private ServiceResult<StepForceResult>? ValidateItWouldNotBeStranded(UnitInstance force, ForceMovementProfile movementProfile, MovementTargetTile target, decimal stepCost)
     {
-        int turnsHeld = target.TurnsHeld(movementProfile.CampaignMovementPoints, force.CampaignMovementRemaining);
+        int turnsHeld = MovementTargetTile.TurnsHeld(stepCost, movementProfile.CampaignMovementPoints, force.CampaignMovementRemaining);
 
         if (turnsHeld <= _MAX_STRANDED_TURNS)
         {
@@ -557,6 +586,72 @@ internal class StepForceHandler(
             ScaledAmount.FromRaw(force.CampaignMovementRemaining));
 
         return ServiceResult<StepForceResult>.Fail(error);
+    }
+
+    /// <summary>
+    /// Reads what a step needs to know about the ground around the Force: the river edges of the 3x3 block around it, and whether the tile it is leaving
+    /// is water.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// One projected, untracked query. The block is fetched as every combination of its (up to) three columns and three rows, which is exactly the block
+    /// even where the map wraps, because the wrapped coordinates come from <see cref="MapDirections.GetNeighbours"/>.
+    /// </para>
+    /// <para>
+    /// The origin's water-ness goes through <see cref="CampaignTileWater"/>, the same rule the target tile uses, so a ship putting back out from a river
+    /// and a ship on open sea are told apart by the rule everything else uses.
+    /// </para>
+    /// </remarks>
+    private static async Task<(RiverEdges RiverEdges, bool OriginIsWater)> GetStepSurroundingsAsync(
+        AscendantEmpireContext context,
+        int gameId,
+        Coord origin,
+        GameContext gameInfo,
+        CancellationToken cancelToken)
+    {
+        IReadOnlyCollection<Coord> neighbours = MapDirections.GetNeighbours(
+            origin,
+            gameInfo.MapWidth,
+            gameInfo.MapHeight,
+            gameInfo.HasHorizontalWrapping,
+            gameInfo.HasVerticalWrapping);
+
+        List<int> columns = [.. neighbours.Select(coord => coord.X).Append(origin.X).Distinct()];
+        List<int> rows = [.. neighbours.Select(coord => coord.Y).Append(origin.Y).Distinct()];
+
+        var tiles = await context.CampaignMaps
+            .AsNoTracking()
+            .Where(tile => tile.GameId == gameId && columns.Contains(tile.XCoord) && rows.Contains(tile.YCoord))
+            .Select(tile => new
+            {
+                tile.XCoord,
+                tile.YCoord,
+                tile.SouthRiver,
+                tile.EastRiver,
+                BiomeIsWater = tile.Biome.IsWater,
+                tile.CampaignMapGeographyTypeId
+            })
+            .ToListAsync(cancelToken);
+
+        Dictionary<Coord, TileRiverEdges> edgesByCoord = tiles.ToDictionary(
+            tile => new Coord(tile.XCoord, tile.YCoord),
+            tile => new TileRiverEdges(tile.SouthRiver, tile.EastRiver));
+
+        var originTile = tiles.SingleOrDefault(tile => tile.XCoord == origin.X && tile.YCoord == origin.Y);
+
+        // The Force is standing on the origin, so it has a row. Were it somehow missing, treating it as land is the conservative reading: a ship is then
+        // held to the stricter river rules rather than being let out onto land.
+        bool originIsWater = originTile is not null && CampaignTileWater.IsWater(originTile.BiomeIsWater, originTile.CampaignMapGeographyTypeId);
+
+        RiverEdges riverEdges = RiverEdges.Create(
+            origin,
+            edgesByCoord,
+            gameInfo.MapWidth,
+            gameInfo.MapHeight,
+            gameInfo.HasHorizontalWrapping,
+            gameInfo.HasVerticalWrapping);
+
+        return (riverEdges, originIsWater);
     }
 
     /// <summary>

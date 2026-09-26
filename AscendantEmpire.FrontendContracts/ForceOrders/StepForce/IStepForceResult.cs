@@ -1,3 +1,4 @@
+using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.FrontendContracts.CampaignMaps;
 
 namespace AscendantEmpire.FrontendContracts.ForceOrders.StepForce;
@@ -46,6 +47,18 @@ public interface IStepForceResult
     /// refused move.
     /// </remarks>
     bool StartedBattle { get; }
+
+    /// <summary>
+    /// The river the step crossed from one bank to the other, or <see cref="RiverWidth.None"/>, so the client can explain what the step cost.
+    /// </summary>
+    /// <remarks>The step's geometry, whatever the Force's domain made of it: an Air Force crosses rivers without paying for them.</remarks>
+    RiverWidth RiverCrossed { get; }
+
+    /// <summary>
+    /// The river the step ran alongside, with both tiles on the same bank, or <see cref="RiverWidth.None"/>.
+    /// </summary>
+    /// <remarks>For a Land Force it made the step cheaper; for a ship it is the river being sailed up.</remarks>
+    RiverWidth RiverAlong { get; }
 
     /// <summary>Everything the player can see from where their Forces and structures now stand.</summary>
     IReadOnlyCollection<IObserver> Observers { get; }

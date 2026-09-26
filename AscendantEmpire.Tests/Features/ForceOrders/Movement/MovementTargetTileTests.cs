@@ -1,4 +1,4 @@
-using AscendantEmpire.Application.Features.ForceOrders.Movement.Strategies;
+﻿using AscendantEmpire.Application.Features.ForceOrders.Movement.Strategies;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.StartTurn;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
@@ -145,9 +145,7 @@ internal class MovementTargetTileTests
     [TestCase(1.0, 1.0, 10.0, 10, Description = "A hypothetical high-cost biome, well past the stranding limit the handler applies to this count.")]
     public void ShouldCountTheTurnEndsATileHoldsAForce(decimal allowance, decimal movementPointsBefore, decimal tileCost, int expectedTurnsHeld)
     {
-        MovementTargetTile tile = Tile(geographyMovementCost: tileCost);
-
-        int turnsHeld = tile.TurnsHeld(Raw(allowance), Raw(movementPointsBefore));
+        int turnsHeld = MovementTargetTile.TurnsHeld(tileCost, Raw(allowance), Raw(movementPointsBefore));
 
         Assert.That(turnsHeld, Is.EqualTo(expectedTurnsHeld));
     }
@@ -162,10 +160,8 @@ internal class MovementTargetTileTests
     [TestCase(1.0, 0.5, 0.5, Description = "A road tile entered on the last half point.")]
     public void ShouldAgreeWithTheReplenishmentRuleAboutWhenTheForceMovesAgain(decimal allowance, decimal movementPointsBefore, decimal tileCost)
     {
-        MovementTargetTile tile = Tile(geographyMovementCost: tileCost);
-
         long allowanceRaw = Raw(allowance);
-        int predictedTurnsHeld = tile.TurnsHeld(allowanceRaw, Raw(movementPointsBefore));
+        int predictedTurnsHeld = MovementTargetTile.TurnsHeld(tileCost, allowanceRaw, Raw(movementPointsBefore));
 
         // Pay for the tile, then open Turn after Turn until the Force is holding something it could spend.
         long balanceRaw = Raw(movementPointsBefore) - Raw(tileCost);
@@ -183,9 +179,7 @@ internal class MovementTargetTileTests
     [Test, Description("A Force compiled to no campaign movement never recovers, so the tile holds it for ever rather than the count dividing by zero.")]
     public void ShouldHoldAForceWithNoAllowanceForEver()
     {
-        MovementTargetTile tile = Tile(geographyMovementCost: 2m);
-
-        Assert.That(tile.TurnsHeld(0, Raw(0.5m)), Is.EqualTo(int.MaxValue));
+        Assert.That(MovementTargetTile.TurnsHeld(2m, 0, Raw(0.5m)), Is.EqualTo(int.MaxValue));
     }
 
     [Test, Description("The refusal message names the tile the player was aiming at, so a rejected step is traceable to a square on the map.")]

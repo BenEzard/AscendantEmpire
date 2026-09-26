@@ -254,6 +254,11 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int?>("ControlledByPlayerId")
                         .HasColumnType("int");
 
+                    b.Property<byte>("EastRiver")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((byte)0, "DF_CampaignMap_EastRiver");
+
                     b.Property<int?>("FirstSeenByPlayerId")
                         .HasColumnType("int");
 
@@ -268,6 +273,11 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.Property<int?>("LastVisitedOnTurnId")
                         .HasColumnType("int");
+
+                    b.Property<byte>("SouthRiver")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((byte)0, "DF_CampaignMap_SouthRiver");
 
                     b.Property<int>("XCoord")
                         .HasColumnType("int");
@@ -1565,6 +1575,16 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.Property<int>("CampaignMapGeographyTypeId")
                         .HasColumnType("int");
+
+                    b.Property<byte>("EastRiver")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((byte)0, "DF_CampaignMapGallery_EastRiver");
+
+                    b.Property<byte>("SouthRiver")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint")
+                        .HasDefaultValue((byte)0, "DF_CampaignMapGallery_SouthRiver");
 
                     b.Property<int>("XCoord")
                         .HasColumnType("int");

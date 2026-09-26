@@ -36,6 +36,24 @@ internal static class MapDirections
         };
 
     /// <summary>
+    /// The (X, Y) offset one step in the given direction, before any wrapping.
+    /// </summary>
+    /// <remarks>
+    /// Exposed for rules that reason about a step's shape rather than its destination — the river rules need to know which edges a step runs across
+    /// and alongside — so they read the same table the neighbour arithmetic does.
+    /// </remarks>
+    internal static (int DeltaX, int DeltaY) GetDelta(MoveDirection direction)
+    {
+        // An unrecognised direction is a programming error, exactly as it is in TryGetNeighbour.
+        if (!_DELTAS_BY_DIRECTION.TryGetValue(direction, out (int DeltaX, int DeltaY) delta))
+        {
+            throw new ArgumentOutOfRangeException(nameof(direction), direction, "There is no step defined for this direction.");
+        }
+
+        return delta;
+    }
+
+    /// <summary>
     /// Finds the tile one step from <paramref name="origin"/> in the given direction.
     /// </summary>
     /// <param name="origin">Where the Force currently stands.</param>

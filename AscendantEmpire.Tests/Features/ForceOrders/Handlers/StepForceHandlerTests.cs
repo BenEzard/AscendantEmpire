@@ -871,6 +871,169 @@ internal class StepForceHandlerTests : InMemoryTestBase
         await context.SaveChangesAsync();
     }
 
+    /// <summary>
+    /// Puts rivers on a tile's South and East edges, the two it owns. A river on a tile's North or West edge is set on the tile above or to the left.
+    /// </summary>
+    private async Task SetRiversAsync(int x, int y, RiverWidth south = RiverWidth.None, RiverWidth east = RiverWidth.None)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        CampaignMap tile = context.CampaignMaps.Single(t => t.GameId == _GAME_ID && t.XCoord == x && t.YCoord == y);
+        tile.SouthRiver = south;
+        tile.EastRiver = east;
+
+        await context.SaveChangesAsync();
+    }
+
+    [Test, Description("Crossing a Medium river costs a Land Force the tile plus the crossing, and the response names the river crossed.")]
+    public async Task ShouldChargeALandForceToCrossAMediumRiverAsync()
+    {
+        await GivenALandForceAsync();
+        await SetRiversAsync(_START_X, _START_Y, east: RiverWidth.Medium);
+
+        ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
+
+        UnitInstance moved = await ReloadForceAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
+            Assert.That(moved.CampaignMovementRemaining, Is.EqualTo(0), "Flat grassland at 1.0 plus 1.0 for the crossing uses all 2.0.");
+            Assert.That(result.SuccessValue!.RiverCrossed, Is.EqualTo(RiverWidth.Medium));
+            Assert.That(result.SuccessValue.RiverAlong, Is.EqualTo(RiverWidth.None));
+        }
+    }
+
+    [Test, Description("Nothing carries a Land Force over a Large river yet, so the step is refused and costs and records nothing.")]
+    public async Task ShouldRefuseALandForceALargeRiverCrossingAsync()
+    {
+        await GivenALandForceAsync();
+        await SetRiversAsync(_START_X, _START_Y, east: RiverWidth.Large);
+
+        ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
+
+        UnitInstance unmoved = await ReloadForceAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors.Single(), Is.EqualTo("Cannot cross a large river."));
+            Assert.That(unmoved.CampaignMapTileId, Is.EqualTo(TileId(_START_X, _START_Y)));
+            Assert.That(unmoved.CampaignMovementRemaining, Is.EqualTo(_CAMPAIGN_MOVEMENT_POINTS));
+            Assert.That(await LoadHistoryAsync(), Is.Empty);
+        }
+    }
+
+    [Test, Description("Running along a Large river on the same bank makes a Land step half a point cheaper.")]
+    public async Task ShouldDiscountALandStepAlongARiverAsync()
+    {
+        await GivenALandForceAsync();
+        await SetRiversAsync(_START_X, _START_Y, south: RiverWidth.Large);
+        await SetRiversAsync(_START_X + 1, _START_Y, south: RiverWidth.Large);
+
+        ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
+
+        UnitInstance moved = await ReloadForceAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
+            Assert.That(moved.CampaignMovementRemaining, Is.EqualTo(1_500), "Flat grassland at 1.0, less 0.5 for the Large river alongside.");
+            Assert.That(result.SuccessValue!.RiverAlong, Is.EqualTo(RiverWidth.Large));
+        }
+    }
+
+    [Test, Description("The stranding guard weighs the river-inclusive cost, the same figure the step is charged, not the bare tile.")]
+    public async Task ShouldCountTheRiverCrossingTowardsStrandingAsync()
+    {
+        // A 0.2 allowance holding 0.1. Flat grassland alone would hold it five turns; with a Medium crossing the 2.0 step holds it ten, past the limit of six.
+        await CompileTemplateAsync(campaignMovementPoints: 200);
+        await AddForceAsync(campaignMovementRemaining: 100);
+        await SetRiversAsync(_START_X, _START_Y, east: RiverWidth.Medium);
+
+        ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors.Single(), Does.Contain("10 turns"));
+        }
+    }
+
+    [Test, Description("An Air Force flies over a Large river as if it were not there: not refused, not charged.")]
+    public async Task ShouldLetAnAirForceCrossALargeRiverAsync()
+    {
+        await CompileTemplateAsync(DomainType.Air);
+        await AddForceAsync();
+        await SetRiversAsync(_START_X, _START_Y, east: RiverWidth.Large);
+
+        ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
+
+        UnitInstance moved = await ReloadForceAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
+            Assert.That(moved.CampaignMovementRemaining, Is.EqualTo(1_000), "Only the tile's 1.0 is paid.");
+            Assert.That(result.SuccessValue!.RiverCrossed, Is.EqualTo(RiverWidth.Large), "The response still reports the geometry of the step.");
+        }
+    }
+
+    [Test, Description("A ship may leave the sea at the mouth of a Large river and pays the flat sailing cost to enter the bank tile.")]
+    public async Task ShouldLetAShipSailIntoALargeRiverMouthAsync()
+    {
+        // The ship is on the open sea just north of the start tile. A Large river runs down the start tile's east side from the coast.
+        await CompileTemplateAsync(DomainType.Water);
+        await AddForceAsync(y: _START_Y - 1);
+        await SetRiversAsync(_START_X, _START_Y, east: RiverWidth.Large);
+
+        ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.South);
+
+        UnitInstance moved = await ReloadForceAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
+            Assert.That(moved.CampaignMapTileId, Is.EqualTo(TileId(_START_X, _START_Y)));
+            Assert.That(moved.CampaignMovementRemaining, Is.EqualTo(1_500), "The flat 0.5 sailing cost, not the land's.");
+        }
+    }
+
+    [Test, Description("A ship on a river may carry on along a continuous Large river onto the next bank tile.")]
+    public async Task ShouldLetAShipSailUpALargeRiverAsync()
+    {
+        await CompileTemplateAsync(DomainType.Water);
+        await AddForceAsync();
+        await SetRiversAsync(_START_X, _START_Y, south: RiverWidth.Large);
+        await SetRiversAsync(_START_X + 1, _START_Y, south: RiverWidth.Large);
+
+        ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
+
+        UnitInstance moved = await ReloadForceAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
+            Assert.That(moved.CampaignMapTileId, Is.EqualTo(TileId(_START_X + 1, _START_Y)));
+            Assert.That(moved.CampaignMovementRemaining, Is.EqualTo(1_500));
+        }
+    }
+
+    [Test, Description("Away from a Large river a ship on land cannot strike out overland, though it could still put back out to sea.")]
+    public async Task ShouldRefuseAShipLeavingTheRiverOverlandAsync()
+    {
+        await CompileTemplateAsync(DomainType.Water);
+        await AddForceAsync();
+
+        ServiceResult<StepForceResult> result = await StepAsync(MoveDirection.East);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors.Single(), Is.EqualTo("Can only sail along a large river."));
+        }
+    }
+
     [Test, Description("A direction outside the eight is rejected by validation rather than reaching the neighbour arithmetic and throwing.")]
     public async Task ShouldRejectADirectionThatIsNotOneOfTheEightAsync()
     {

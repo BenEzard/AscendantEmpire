@@ -30,4 +30,15 @@ internal sealed class BelowWaterMovementStrategy : IMovementDomainStrategy
 
         return null;
     }
+
+    /// <remarks>Sails up Large rivers exactly as a surface ship does. See <see cref="RiverMovementRules.GetSailingRefusal"/>.</remarks>
+    public string? GetStepRefusal(MovementStep step)
+    {
+        return RiverMovementRules.GetSailingRefusal(step);
+    }
+
+    public decimal GetStepCost(MovementStep step)
+    {
+        return RiverMovementRules.GetSailingStepCost(step);
+    }
 }

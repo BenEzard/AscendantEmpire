@@ -2,6 +2,8 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Domain.Entities.Games;
+using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
+using AscendantEmpire.Domain.Enums.Maps;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -211,6 +213,69 @@ internal class CampaignMapTileIdAssignmentTests : GameSqlServerTestBase
             int[] secondGameTileIds = [.. secondGameTiles.Select(cm => cm.CampaignMapId)];
 
             Assert.That(firstGameTileIds.Intersect(secondGameTileIds), Is.Empty, "The two games share no tile ids.");
+        }
+    }
+
+    /// <summary>
+    /// Puts rivers on the seeded gallery tiles, which is what game setup then copies into the game's own map.
+    /// </summary>
+    /// <remarks>Each tile owns only its South and East edges, so an edge is set on whichever of the two tiles beside it owns it.</remarks>
+    private async Task SetGalleryRiversAsync(params (int X, int Y, RiverWidth South, RiverWidth East)[] edges)
+    {
+        await using AscendantEmpireContext ctx = await DbFactory.CreateDbContextAsync();
+
+        foreach ((int x, int y, RiverWidth south, RiverWidth east) in edges)
+        {
+            CampaignMapGallery tile = await ctx.CampaignMapGallery
+                .SingleAsync(t => t.CampaignMapGalleryIndexId == _galleryIndexId && t.XCoord == x && t.YCoord == y);
+
+            tile.SouthRiver = south;
+            tile.EastRiver = east;
+        }
+
+        await ctx.SaveChangesAsync();
+    }
+
+    [Test, Description("Game setup copies each gallery tile's river edges onto the game's own tile, so a game is played on the rivers the map was authored with.")]
+    public async Task CampaignMapRiversAreCopiedFromTheGalleryMapAsync()
+    {
+        await SeedGameAsync(mapWidth: _MAP_WIDTH, mapHeight: _MAP_HEIGHT, numberOfPlayers: 2);
+
+        // Deliberately lopsided: a South edge on one tile and an East edge on the tile at the mirrored coordinate, so copying the columns the wrong way
+        // round - or transposing X and Y - moves a river somewhere these assertions notice.
+        (int X, int Y, RiverWidth South, RiverWidth East)[] rivers =
+        [
+            (1, 0, RiverWidth.Medium, RiverWidth.None),
+            (0, 1, RiverWidth.None, RiverWidth.Large),
+            (2, 2, RiverWidth.Large, RiverWidth.Medium)
+        ];
+
+        await SetGalleryRiversAsync(rivers);
+
+        int gameId = await SetupGameAsync("River Copy Game", numberOfPlayers: 2);
+
+        await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
+
+        List<CampaignMap> tiles = await verify.CampaignMaps.Where(cm => cm.GameId == gameId).ToListAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(tiles, Has.Count.EqualTo(_TILES_PER_MAP));
+
+            // Every other tile is expected to come back with no river at all, so the authored edges are checked against the whole map rather than only the
+            // three tiles they sit on.
+            Dictionary<(int X, int Y), (RiverWidth South, RiverWidth East)> expectedByCoord = rivers
+                .ToDictionary(river => (river.X, river.Y), river => (river.South, river.East));
+
+            foreach (CampaignMap tile in tiles)
+            {
+                (RiverWidth south, RiverWidth east) = expectedByCoord.TryGetValue((tile.XCoord, tile.YCoord), out (RiverWidth South, RiverWidth East) authored)
+                    ? authored
+                    : (RiverWidth.None, RiverWidth.None);
+
+                Assert.That(tile.SouthRiver, Is.EqualTo(south), $"Tile ({tile.XCoord}, {tile.YCoord}) should carry the gallery tile's South river.");
+                Assert.That(tile.EastRiver, Is.EqualTo(east), $"Tile ({tile.XCoord}, {tile.YCoord}) should carry the gallery tile's East river.");
+            }
         }
     }
 

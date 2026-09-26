@@ -1,3 +1,4 @@
+using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.FrontendContracts.CampaignMaps;
 using AscendantEmpire.FrontendContracts.ForceOrders.StepForce;
 
@@ -12,5 +13,7 @@ public class DTStepForceResult : IStepForceResult
     public decimal CampaignMovementRemaining { get; set; }
     public decimal CampaignMovementPoints { get; set; }
     public bool StartedBattle { get; set; }
+    public RiverWidth RiverCrossed { get; set; }
+    public RiverWidth RiverAlong { get; set; }
     public required IReadOnlyCollection<IObserver> Observers { get; set; }
 }

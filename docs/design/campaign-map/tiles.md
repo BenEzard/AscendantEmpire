@@ -22,6 +22,31 @@ are the same for all empires.** How geography and biome combine into a tile's mo
 
 *Values are indicative only.*
 
+## Rivers
+
+Rivers run **between** tiles, along their edges, never on a tile. Each river edge is **Medium** or
+**Large** (`RiverWidth`: `None`, `Medium`, `Large`).
+
+Every tile owns only its **South** and **East** edges, as two columns on both
+`mapgallery.CampaignMapGallery` and `game.CampaignMap`: `SouthRiver` and `EastRiver`, each defaulting
+to `None`. A tile's North edge is the `SouthRiver` of the tile above it, and its West edge is the
+`EastRiver` of the tile to its left. So every edge is stored exactly once, the two banks of a river
+can never disagree, and a tile may have rivers on any combination of its four sides.
+
+- On an axis that **wraps**, the last column's East edge (last row's South edge) is the edge it
+  shares with column 0 (row 0).
+- On an axis that **does not wrap**, those edges face off the map and must be `None`. The movement
+  rules read them as `None` whatever is stored.
+
+The widths live **on the tile** rather than in a sparse table of river edges. Both columns are `tinyint`, so a
+tile carries 2 bytes whether or not it has a river — about 80 KB for a 40,000-tile map. A row in a separate edge
+table would cost roughly 20–30 bytes with its row overhead and index, so it would only save space while rivers
+bordered a small minority of tiles, and it would add a join to every step and map read, a second copy at game
+setup, another step to game deletion, and a unique key to stop an edge being stored twice.
+
+Game setup copies both columns from the gallery map. What rivers do to movement is in
+[unit-movement.md](../units/unit-movement.md#rivers--built). Rivers do not block vision.
+
 ## Biome
 
 The biome is the vegetation/climate/environment on a tile. It affects:

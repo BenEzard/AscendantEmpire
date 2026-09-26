@@ -39,25 +39,59 @@ internal static class MovementEntryRules
         ArgumentNullException.ThrowIfNull(movementDomainStrategies);
         ArgumentNullException.ThrowIfNull(target);
 
-        if (target.IsImpassable)
+        MovementEntryRefusal? impassable = GetImpassableRefusal(target);
+
+        if (impassable is not null)
         {
-            // The two causes read differently to a player, so a mountain is named as one; anything else keeps the general wording.
-            string reason = target.GeographyIsImpassable ? "Mountain terrain cannot be entered." : "This terrain cannot be entered.";
-            return new MovementEntryRefusal(reason, IsRuleFault: false);
+            return impassable;
         }
 
-        IMovementDomainStrategy? strategy = movementDomainStrategies.SingleOrDefault(s => s.MovementDomain == movementDomain);
+        IMovementDomainStrategy? strategy = FindStrategy(movementDomainStrategies, movementDomain);
 
         if (strategy is null)
         {
-            // Every DomainType has a registered strategy, so this is a wiring fault rather than anything the player did. Refusing entry is the safe
-            // reading of it: better a Force that cannot move than one that walks anywhere at all.
-            return new MovementEntryRefusal($"No movement rules are registered for the {movementDomain} domain.", IsRuleFault: true);
+            return MissingStrategyRefusal(movementDomain);
         }
 
         string? refusal = strategy.GetEntryRefusal(target);
 
         return refusal is null ? null : new MovementEntryRefusal(refusal, IsRuleFault: false);
+    }
+
+    /// <summary>
+    /// The refusal for a tile nothing can enter, whatever its domain; <see langword="null"/> when the tile is passable.
+    /// </summary>
+    /// <remarks>Shared with <see cref="MovementStepRules"/>, so a step and a tile question refuse an impassable tile in the same words.</remarks>
+    internal static MovementEntryRefusal? GetImpassableRefusal(MovementTargetTile target)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+
+        if (!target.IsImpassable)
+        {
+            return null;
+        }
+
+        // The two causes read differently to a player, so a mountain is named as one; anything else keeps the general wording.
+        string reason = target.GeographyIsImpassable ? "Mountain terrain cannot be entered." : "This terrain cannot be entered.";
+        return new MovementEntryRefusal(reason, IsRuleFault: false);
+    }
+
+    /// <summary>The strategy registered for a domain, or <see langword="null"/> when none is, which is a wiring fault.</summary>
+    internal static IMovementDomainStrategy? FindStrategy(IEnumerable<IMovementDomainStrategy> movementDomainStrategies, DomainType movementDomain)
+    {
+        ArgumentNullException.ThrowIfNull(movementDomainStrategies);
+
+        return movementDomainStrategies.SingleOrDefault(s => s.MovementDomain == movementDomain);
+    }
+
+    /// <summary>The refusal given when no strategy is registered for a domain.</summary>
+    /// <remarks>
+    /// Every DomainType has a registered strategy, so this is a wiring fault rather than anything the player did. Refusing entry is the safe reading of it:
+    /// better a Force that cannot move than one that walks anywhere at all.
+    /// </remarks>
+    internal static MovementEntryRefusal MissingStrategyRefusal(DomainType movementDomain)
+    {
+        return new MovementEntryRefusal($"No movement rules are registered for the {movementDomain} domain.", IsRuleFault: true);
     }
 }
 

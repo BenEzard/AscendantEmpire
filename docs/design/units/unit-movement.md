@@ -55,7 +55,7 @@ copied onto the compiled template. It decides which terrain the Unit may enter; 
   further.
 - **Movement penalty** — an obstacle that slows movement (wooded or swampy areas).
 - **Movement sap** — an obstacle that, once crossed, consumes *all* remaining movement points for the turn
-  regardless of how many there were (e.g. a river in the early game).
+  regardless of how many there were. Nothing is a sap today.
 - **Movement obstacle** — something that blocks movement entirely, by its nature (e.g. a mountain) or by an
   aspect of the Unit (e.g. chariots cannot enter swamps without a road).
 
@@ -77,7 +77,7 @@ A Force moves on the campaign map one tile at a time, through `POST /force-order
 The request names the Force and one of eight compass directions; the server resolves the neighbour against the
 Force's current tile, so a client can never name a distant destination. On a map that wraps, stepping off one
 edge arrives at the other (`MapDirections.TryGetNeighbour`); on one that does not, there is no tile that way. A
-diagonal step costs the same as an orthogonal one.
+diagonal step costs the same as an orthogonal one, apart from the rivers it crosses (see [Rivers](#rivers--built)).
 
 In the client, the player steps the selected Force with the **numpad** (`useNumpadMovement`) or by **holding**
 one of the eight tiles around it (`GameUI`'s `onTileHold`). Only one Force moves at a time: with several
@@ -91,17 +91,20 @@ A step is refused, in this order, when:
 4. it holds **no campaign movement** (`CampaignMovementRemaining <= 0`) — see [The entry gate](#the-entry-gate--built);
 5. it is not this player's turn, or the turn has no open `PlayerTurn` row to record the step against;
 6. the step runs off a non-wrapping edge of the map;
-7. the tile cannot be entered — see [Entering a tile](#entering-a-tile--built);
+7. the tile cannot be entered, or the step cannot be taken because of a river — see
+   [Entering a tile](#entering-a-tile--built) and [Rivers](#rivers--built);
 8. the step would strand the Force for too long — see [Stranding](#stranding--built).
 
 A step that passes is paid for, recorded and answered:
 
-- The tile's **whole** cost comes off `CampaignMovementRemaining`, and the balance may go negative.
+- The step's **whole** cost — the tile's cost adjusted for any river crossed or followed — comes off
+  `CampaignMovementRemaining`, and the balance may go negative.
 - The new position goes through `IForceLifecycleWriter.MoveAsync`, which stages the tile change and a `Moved`
   row in `units.MovementHistory` together; `UnitInstance.CampaignMapTileId` is init-only, so nothing else can
   move a Force. See [intelligence-and-sightings.md](../intelligence-and-sightings.md).
-- The response carries the Force's new tile, remaining movement and allowance, plus a re-run of the fog-of-war
-  read, so the client redraws what the player can now see.
+- The response carries the Force's new tile, remaining movement and allowance, the rivers the step crossed and
+  ran along (`RiverCrossed`, `RiverAlong`), plus a re-run of the fog-of-war read, so the client redraws what the
+  player can now see.
 
 ### Entering a tile — built
 
@@ -120,9 +123,13 @@ reveals and what a step refuses can never disagree.
 
 | Domain | May enter | Notes |
 |---|---|---|
-| Land | Dry ground only | Water is refused outright; crossing needs a ford, bridge or transport, none of which exist. |
-| Water | Water only | Beaching onto a coast will be a landing action, not a move. |
-| BelowWater | Water only | Same as Water for now. Shallow water and depth are undesigned. |
+| Land | Dry ground only | Water is refused outright; crossing needs a ford, bridge or transport, none of which exist. A step may not cross a Large river. |
+| Water | Water only | As a step, may also sail up a Large river onto bank tiles (see [Rivers](#rivers--built)). Beaching onto an ordinary coast will be a landing action, not a move. |
+| BelowWater | Water only | Same as Water, rivers included. Shallow water and depth are undesigned. |
+
+The table is the **tile** rule, which fog of war shares. A step is judged by `MovementStepRules.GetStepRefusal`,
+which applies the same impassability check and then asks the domain's `GetStepRefusal`. That differs from the tile
+rule only where rivers are concerned, so a blinded observer's reveal is unaffected by them.
 | Air | Anything passable | Still pays the tile's cost, and still cannot cross a mountain. |
 | NearEarthOrbit | Anything passable | Behaves as Air until orbital movement is designed. |
 
@@ -149,6 +156,53 @@ cost of 1 (`MovementTargetTile.MovementCost`). The seeded values:
 So Flat Grassland costs 1, Flat Desert 1.1, Hilly Forest 3, and **Hilly Jungle 4** — the dearest passable tile
 the seeded terrain can produce.
 
+What a **step** costs is decided by the Force's domain strategy (`GetStepCost`): the tile cost for Air and orbit, the
+tile cost adjusted for rivers for Land, and a flat sailing cost for a ship on a river. See [Rivers](#rivers--built).
+
+### Rivers — built
+
+Rivers run **between** tiles, along their edges. Each river edge is **Medium** or **Large**. A tile stores only its
+South and East edges (`SouthRiver`, `EastRiver`), so each edge is stored once; see
+[tiles.md](../campaign-map/tiles.md#rivers) for the model.
+
+**Geometry** (`RiverMovementRules.Evaluate`, over a `RiverEdges` snapshot of the 3×3 block around the Force):
+
+- An **orthogonal** step **crosses** the edge the two tiles share.
+- A **diagonal** step from A to D, with B beside A horizontally and C beside it vertically, crosses only when the
+  river separates A from D, i.e. when both ways round the corner cross it. The width crossed is
+  `min(max(A|B, B|D), max(A|C, C|D))`, so a river that merely ends at the corner is never crossed, and the Force
+  takes the easier way.
+- An **orthogonal** step runs **along** a river when, on one side, both tiles have a river on their edge parallel
+  to the step. The run is as wide as its narrower half; if both sides qualify, the wider wins. A diagonal step never
+  runs along a river.
+
+**What each domain makes of it:**
+
+| Domain | Crossing Medium | Crossing Large | Along |
+|---|---|---|---|
+| Land | +1 (`MEDIUM_RIVER_CROSSING_COST`) | **Refused**: "Cannot cross a large river." | −0.25 (Medium), −0.5 (Large) |
+| Water, BelowWater | no effect | no effect | May sail up a Large river (below) |
+| Air, NearEarthOrbit | ignored | ignored | ignored |
+
+A Land step costs `max(MINIMUM_STEP_COST, tile cost + crossing − along)`, with `MINIMUM_STEP_COST` at 0.25. A step can
+both cross a tributary and run along a main river; both apply. The constants are on `RiverMovementRules`.
+
+**Sailing up Large rivers.** A **bank tile** is a land tile with a Large river on one of its edges. A ship may stand on
+one, reached and left by these steps only (`RiverMovementRules.GetSailingRefusal`):
+
+- **Water → land**, orthogonally, onto a tile with a Large river on a side parallel to the step — a river mouth.
+- **Land → land**, orthogonally, along a continuous Large river.
+- **Land → water**, orthogonally, always, so a ship can never be stranded on a river.
+- No diagonal step may involve land.
+
+A step onto a bank tile costs a flat `RIVER_SAILING_COST` (0.5), ignoring the land's terrain. Steps onto water pay
+the water tile's cost.
+
+**Not built:** bridges, fords and ferries, which will make a Large river crossable for Land Forces. Rivers are
+authored in the map editor (ME-44), drawn on the campaign map (CM-53) and generated (ME-45) in later tasks; until
+then a river exists only where the columns are set directly. Rivers cut supply (see
+[unit-support-and-supply.md](unit-support-and-supply.md#supply-chains)), which waits on the supply system.
+
 ### The entry gate — built
 
 A Force may enter any tile its domain permits **whenever it holds any movement at all**. The tile's cost is
@@ -163,10 +217,10 @@ A Force sitting on zero, or still in debt, may enter nothing.
 How long a tile holds a Force is `MovementTargetTile.TurnsHeld`:
 
 ```
-TurnsHeld = cost < remaining ? 0 : floor((cost − remaining) ÷ allowance) + 1
+TurnsHeld = stepCost < remaining ? 0 : floor((stepCost − remaining) ÷ allowance) + 1
 ```
 
-It is the number of turn-ends the Force spends standing there before it can leave, and is exactly the turn on
+`stepCost` is the step's river-inclusive cost, the same figure the Force is charged. `TurnsHeld` is the number of turn-ends the Force spends standing there before it can leave, and is exactly the turn on
 which [replenishment](#replenishment--built) brings the balance back above zero. The comparison is not strict
 on `remaining`, because landing on exactly 0 strands a Force for a turn just as debt does. A Force with no
 allowance is held for ever (`int.MaxValue`).
@@ -268,7 +322,8 @@ Nothing can form a Command yet, so every Force that moves is a single Unit.
 
 ### Movement modifiers
 
-**Not applied.** No bonus, penalty or modifier affects any step today: the tile cost above is the whole price.
+**Not applied.** No unit bonus, penalty or modifier affects any step today. The tile cost, adjusted for
+[rivers](#rivers--built), is the whole price.
 
 Nothing reads modifier data. The `MoveModifier` enum names the intended bonuses (`JungleCrasher`,
 `ForestWalker`, `RiverRunner`, `Amphibious`, `IgnoreHillsPenalty`, `RoadAffinity`, `RailAffinity`,
@@ -276,8 +331,7 @@ Nothing reads modifier data. The `MoveModifier` enum names the intended bonuses 
 `CompiledUnitTemplate` has no equivalent, nothing parses the JSON, and there is no authoring UI for movement
 modifiers.
 
-**Design.** Campaign movement bonuses and penalties also apply on the battlefield map. A **river** is a movement
-sap in the early game.
+**Design.** Campaign movement bonuses and penalties also apply on the battlefield map.
 
 ### Battles on entry
 

@@ -19,4 +19,20 @@ internal sealed class NearEarthOrbitMovementStrategy : IMovementDomainStrategy
 
         return null;
     }
+
+    /// <remarks>Rivers are no obstacle from orbit, so the step is judged on the tile alone, as flight is.</remarks>
+    public string? GetStepRefusal(MovementStep step)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+
+        return GetEntryRefusal(step.Target);
+    }
+
+    /// <remarks>The tile's cost is the whole price, as it is for flight.</remarks>
+    public decimal GetStepCost(MovementStep step)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+
+        return step.Target.MovementCost;
+    }
 }

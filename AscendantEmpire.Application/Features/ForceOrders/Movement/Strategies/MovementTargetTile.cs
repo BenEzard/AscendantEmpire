@@ -77,8 +77,12 @@ internal sealed record MovementTargetTile
     public decimal MovementCost => GeographyMovementCost + (BiomeMovementCost - 1m);
 
     /// <summary>
-    /// How many Turn-ends a Force is pinned on this tile by the cost of entering it, before it holds enough movement to leave again.
+    /// How many Turn-ends a Force is pinned on the tile it steps onto by the cost of the step, before it holds enough movement to leave again.
     /// </summary>
+    /// <param name="stepCost">
+    /// What the step costs, from <see cref="IMovementDomainStrategy.GetStepCost"/>. That is the tile's <see cref="MovementCost"/> adjusted for any river the
+    /// step crosses or follows, and it has to be the same figure the step is charged, or the stranding check would guard a price nobody pays.
+    /// </param>
     /// <param name="allowanceRaw">The Force's full per-Turn allowance from its compiled template, raw Scale 1,000.</param>
     /// <param name="remainingRaw">What the Force is holding immediately <i>before</i> the step, raw Scale 1,000.</param>
     /// <returns>Zero when the Force can still move on after entering; otherwise the number of Turn-ends it spends standing here.</returns>
@@ -97,11 +101,14 @@ internal sealed record MovementTargetTile
     /// The comparison against the remaining points is deliberately <b>not</b> strict. A step that lands a Force on precisely zero has stranded it
     /// for a Turn just as surely as debt would, because the entry gate asks for more than nothing rather than for nothing.
     /// </para>
-    /// <para>Meaningless when <see cref="IsImpassable"/> is set, so check that first.</para>
+    /// <para>
+    /// Static rather than read off the tile, because the tile's own cost is no longer the whole story: a river crossed or followed changes the price of
+    /// the step without changing the tile.
+    /// </para>
     /// </remarks>
-    public int TurnsHeld(long allowanceRaw, long remainingRaw)
+    public static int TurnsHeld(decimal stepCost, long allowanceRaw, long remainingRaw)
     {
-        long costRaw = ScaledAmount.FromDecimal(MovementCost).RawValue;
+        long costRaw = ScaledAmount.FromDecimal(stepCost).RawValue;
 
         if (costRaw < remainingRaw)
         {

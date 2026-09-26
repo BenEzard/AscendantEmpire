@@ -19,4 +19,20 @@ internal sealed class AirMovementStrategy : IMovementDomainStrategy
 
         return null;
     }
+
+    /// <remarks>Rivers are no obstacle to flight, so the step is judged on the tile alone.</remarks>
+    public string? GetStepRefusal(MovementStep step)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+
+        return GetEntryRefusal(step.Target);
+    }
+
+    /// <remarks>Nor do rivers speed flight up: the tile's cost is the whole price.</remarks>
+    public decimal GetStepCost(MovementStep step)
+    {
+        ArgumentNullException.ThrowIfNull(step);
+
+        return step.Target.MovementCost;
+    }
 }

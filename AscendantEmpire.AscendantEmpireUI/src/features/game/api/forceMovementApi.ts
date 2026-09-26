@@ -22,6 +22,11 @@ export type MoveDirection =
   | "West"
   | "NorthWest";
 
+/**
+ * How wide a river along a tile edge is — the `RiverWidth` enum's member names, since the API serialises enums as strings.
+ */
+export type RiverWidth = "None" | "Medium" | "Large";
+
 export type StepForceRequest = {
   unitInstanceId: number;
   direction: MoveDirection;
@@ -39,6 +44,10 @@ export type StepForceResponse = {
    * and every enemy force on that tile are now in battle and can't take another campaign step until it is over.
    */
   startedBattle: boolean;
+  /** The river the step crossed from one bank to the other. The step's geometry, whatever the force's domain made of it. */
+  riverCrossed: RiverWidth;
+  /** The river the step ran alongside with both tiles on the same bank: cheaper for a land force, the river sailed up for a ship. */
+  riverAlong: RiverWidth;
   /** Every tile the player can now see, including the one the force just left, which comes back without it. */
   tiles: CampaignMapTileDto[];
   observers: PlayerCampaignMapObserverResultDto[];
@@ -51,6 +60,8 @@ type StepForceWireDto = Partial<{
   campaignMovementRemaining: number;
   campaignMovementPoints: number;
   startedBattle: boolean;
+  riverCrossed: RiverWidth;
+  riverAlong: RiverWidth;
   observers: Parameters<typeof normalizeObserver>[0][];
 }>;
 
@@ -79,6 +90,9 @@ export async function postStepForce(req: StepForceRequest): Promise<StepForceRes
     campaignMovementPoints: data.campaignMovementPoints ?? 0,
     // Missing means an older API that could not start a battle, so it is read as "no battle" rather than guessed at.
     startedBattle: data.startedBattle ?? false,
+    // Missing means an older API with no rivers, so it is read as no river rather than guessed at.
+    riverCrossed: data.riverCrossed ?? "None",
+    riverAlong: data.riverAlong ?? "None",
     // Several observers can see the same tile, so collapse them the way the map read does before anything merges them in.
     tiles: mergeTilesByCoord(observers.flatMap((observer) => observer.seenTiles)),
     observers,

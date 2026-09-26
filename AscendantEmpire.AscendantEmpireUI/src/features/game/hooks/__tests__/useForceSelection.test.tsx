@@ -69,6 +69,8 @@ function stepResult({
     campaignMovementRemaining,
     campaignMovementPoints: 2,
     startedBattle: false,
+    riverCrossed: "None",
+    riverAlong: "None",
     tiles:
       forcesOnDestination == null
         ? []

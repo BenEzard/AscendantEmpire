@@ -15,6 +15,7 @@ using AscendantEmpire.Domain.Entities.Util;
 using AscendantEmpire.Domain.Enums.Battle;
 using AscendantEmpire.Domain.Enums.Forces;
 using AscendantEmpire.Domain.Enums.MapResources;
+using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Structures;
 
 using Microsoft.EntityFrameworkCore;
@@ -744,6 +745,11 @@ public class AscendantEmpireContext : DbContext
             // and that only holds if we choose the value ourselves: an IDENTITY column numbers rows in
             // whatever order the query plan emits them, which is not the coordinate order we rely on.
             entity.Property(x => x.CampaignMapId).ValueGeneratedNever();
+
+            // River edges default to None in the database as well as in C#, because game setup copies tiles with a raw INSERT ... SELECT. The constraints are
+            // named so they never arrive as server-generated DF__ names (see TM-6_RenameStaleDefaultConstraints).
+            entity.Property(x => x.SouthRiver).HasDefaultValue(RiverWidth.None, "DF_CampaignMap_SouthRiver");
+            entity.Property(x => x.EastRiver).HasDefaultValue(RiverWidth.None, "DF_CampaignMap_EastRiver");
 
             entity.HasOne(x => x.Game)
                 .WithMany()
@@ -1970,6 +1976,11 @@ public class AscendantEmpireContext : DbContext
         modelBuilder.Entity<CampaignMapGallery>(entity =>
         {
             entity.ToTable("CampaignMapGallery", schema);
+
+            // River edges default to None in the database as well as in C#, because the blank-map and Perlin generators insert tiles with raw SQL and
+            // SqlBulkCopy that don't name these columns. The constraints are named so they never arrive as server-generated DF__ names.
+            entity.Property(x => x.SouthRiver).HasDefaultValue(RiverWidth.None, "DF_CampaignMapGallery_SouthRiver");
+            entity.Property(x => x.EastRiver).HasDefaultValue(RiverWidth.None, "DF_CampaignMapGallery_EastRiver");
 
             entity.HasOne(x => x.Biome)
                 .WithMany()

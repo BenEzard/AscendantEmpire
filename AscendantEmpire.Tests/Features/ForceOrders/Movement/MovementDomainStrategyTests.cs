@@ -1,3 +1,4 @@
+using AscendantEmpire.Application.Features.ForceOrders.Movement;
 using AscendantEmpire.Application.Features.ForceOrders.Movement.Strategies;
 using AscendantEmpire.Domain.Enums.Maps;
 
@@ -112,6 +113,69 @@ internal class MovementDomainStrategyTests
         {
             Assert.That(strategy.GetEntryRefusal(LandTile()), Is.Null);
             Assert.That(strategy.GetEntryRefusal(WaterTile()), Is.Null);
+        }
+    }
+
+    /// <summary>A step onto the given tile with the given rivers, from dry land, straight on.</summary>
+    private static MovementStep Step(MovementTargetTile target, RiverWidth crossed = RiverWidth.None, RiverWidth along = RiverWidth.None)
+    {
+        return new MovementStep
+        {
+            Target = target,
+            OriginIsWater = false,
+            IsDiagonal = false,
+            Rivers = new RiverStepEffect(crossed, along, RiverWidth.None)
+        };
+    }
+
+    [Test, Description("A Land Force can cross a Medium river but nothing carries it over a Large one until bridges or fords exist.")]
+    public void ShouldRefuseALandForceALargeRiverCrossing()
+    {
+        var strategy = new LandMovementStrategy();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(strategy.GetStepRefusal(Step(LandTile(), crossed: RiverWidth.Medium)), Is.Null);
+            Assert.That(strategy.GetStepRefusal(Step(LandTile(), crossed: RiverWidth.Large)), Is.EqualTo("Cannot cross a large river."));
+            Assert.That(strategy.GetStepRefusal(Step(WaterTile())), Is.EqualTo("Cannot enter water."), "The tile rule still comes first.");
+        }
+    }
+
+    [Test, Description("Land Forces are the ones rivers slow and speed, so their step cost is the tile's cost adjusted for the rivers.")]
+    public void ShouldPriceALandStepWithItsRivers()
+    {
+        var strategy = new LandMovementStrategy();
+
+        Assert.That(strategy.GetStepCost(Step(LandTile(), crossed: RiverWidth.Medium)), Is.EqualTo(1m + RiverMovementRules.MEDIUM_RIVER_CROSSING_COST));
+    }
+
+    [Test, Description("Rivers are no obstacle to flight or orbit: a Large crossing is neither refused nor charged, and a run along one is no cheaper.")]
+    public void ShouldLetAirAndOrbitIgnoreRivers()
+    {
+        IMovementDomainStrategy[] strategies = [new AirMovementStrategy(), new NearEarthOrbitMovementStrategy()];
+
+        using (Assert.EnterMultipleScope())
+        {
+            foreach (IMovementDomainStrategy strategy in strategies)
+            {
+                Assert.That(strategy.GetStepRefusal(Step(LandTile(), crossed: RiverWidth.Large)), Is.Null, $"{strategy.MovementDomain} should cross a Large river.");
+                Assert.That(strategy.GetStepCost(Step(LandTile(), crossed: RiverWidth.Medium, along: RiverWidth.Large)), Is.EqualTo(1m), $"{strategy.MovementDomain} should pay only the tile.");
+            }
+        }
+    }
+
+    [Test, Description("Surface and submerged ships both sail up Large rivers, so both follow the sailing rules rather than the plain water rule on a step.")]
+    public void ShouldLetBothShipDomainsSailUpALargeRiver()
+    {
+        IMovementDomainStrategy[] strategies = [new WaterMovementStrategy(), new BelowWaterMovementStrategy()];
+
+        using (Assert.EnterMultipleScope())
+        {
+            foreach (IMovementDomainStrategy strategy in strategies)
+            {
+                Assert.That(strategy.GetStepRefusal(Step(LandTile(), along: RiverWidth.Large)), Is.Null, $"{strategy.MovementDomain} should sail up the river.");
+                Assert.That(strategy.GetEntryRefusal(LandTile()), Is.EqualTo("Cannot enter land."), "As a tile question, which fog of war asks, land is still refused.");
+            }
         }
     }
 

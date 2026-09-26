@@ -29,4 +29,26 @@ internal interface IMovementDomainStrategy
     /// <see langword="null"/> when entry is permitted; otherwise the player-facing reason it is refused, phrased so it can be shown verbatim.
     /// </returns>
     string? GetEntryRefusal(MovementTargetTile target);
+
+    /// <summary>
+    /// Judge whether a Force of this domain may take this particular step, rivers included.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The step handler asks this; the fog-of-war read asks <see cref="GetEntryRefusal"/>. They differ only where a step's shape matters, which today
+    /// means rivers: a Land Force cannot cross a Large river, and a ship can leave the sea to sail up one. Impassable tiles are refused before either
+    /// is consulted.
+    /// </para>
+    /// </remarks>
+    /// <param name="step">The step the Force is trying to take.</param>
+    /// <returns>
+    /// <see langword="null"/> when the step is permitted; otherwise the player-facing reason it is refused, phrased so it can be shown verbatim.
+    /// </returns>
+    string? GetStepRefusal(MovementStep step);
+
+    /// <summary>
+    /// What a Force of this domain pays, in movement points, for a step this strategy has permitted.
+    /// </summary>
+    /// <remarks>Meaningless for a step <see cref="GetStepRefusal"/> refuses, so ask that first.</remarks>
+    decimal GetStepCost(MovementStep step);
 }

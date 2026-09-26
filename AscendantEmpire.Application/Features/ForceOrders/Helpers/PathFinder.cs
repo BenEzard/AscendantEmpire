@@ -52,6 +52,14 @@ public readonly record struct PathStep(BaseCoord Coord, int? ExpectedArrivalTurn
 
 internal readonly record struct MovementEvaluation(bool IsBlocked, decimal AdditionalMovementCost);
 
+/// <summary>
+/// A whole-path Dijkstra search over the eight-way campaign grid, with wrapping and per-edge boundary costs.
+/// </summary>
+/// <remarks>
+/// Not registered in DI and without a production caller. If it is revived, campaign rivers (<c>CampaignMap.SouthRiver</c> / <c>EastRiver</c>) should
+/// feed <see cref="PathMap.Boundaries"/>, and its step costs should come from the same domain strategies <c>StepForceHandler</c> uses
+/// (<c>RiverMovementRules</c>), since a boundary rule here can only add cost and cannot express a run along a river.
+/// </remarks>
 public class PathFinder : IPathFinder
 {
     public PathResult? FindShortestPath(

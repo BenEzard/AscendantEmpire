@@ -17,6 +17,24 @@ public class CampaignMapGallery
     public required BiomeType BiomeTypeId { get; set; }
     public required CampaignMapGeographyType CampaignMapGeographyTypeId { get; set; }
 
+    /// <summary>
+    /// The river running along this tile's South edge — the edge it shares with the tile below it.
+    /// </summary>
+    /// <remarks>
+    /// A tile owns only its South and East edges, so its North edge is the <see cref="SouthRiver"/> of the tile above it. On an axis that does not wrap,
+    /// the bottom row's South edge faces off the map and must be <see cref="RiverWidth.None"/>.
+    /// </remarks>
+    public RiverWidth SouthRiver { get; set; }
+
+    /// <summary>
+    /// The river running along this tile's East edge — the edge it shares with the tile to its right.
+    /// </summary>
+    /// <remarks>
+    /// A tile owns only its South and East edges, so its West edge is the <see cref="EastRiver"/> of the tile to its left. On an axis that does not wrap,
+    /// the last column's East edge faces off the map and must be <see cref="RiverWidth.None"/>.
+    /// </remarks>
+    public RiverWidth EastRiver { get; set; }
+
     [ForeignKey("BiomeTypeId")]
     public required CampaignBiome Biome { get; set; }
 
