@@ -35,6 +35,9 @@ public static class ObserverSightPresentation
                 BiomeTypeId = tile.BiomeTypeId,
                 CampaignMapGeographyTypeId = tile.CampaignMapGeographyTypeId,
                 IsExplored = tile.IsExplored,
+                // Passed straight through, null and all: an unexplored Tile has no rivers to report, and substituting an empty set would tell the client the
+                // ground is known to have none.
+                Rivers = tile.Rivers,
                 Structures = [.. tile.Structures?.Select(structure => new DTStructureStub
                 {
                     Id = structure.Id,

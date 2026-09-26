@@ -1,3 +1,5 @@
+import type { TileRivers } from "@/types/map/Rivers";
+
 export type ObservedStructureTile = {
   id: number;
   structureId: number;
@@ -39,6 +41,12 @@ export type TileCell = {
   // changes when the tile's DTO changes, so it rides along with the identity check that keeps memoised tiles from re-rendering.
   // Whether the tile is being watched *right now* is the other fog layer, and that one does live in a set — see useFogOfWar.
   isExplored: boolean;
+
+  // The river on each of the tile's four edges, or undefined for ground the player has never explored — and for a grid with no
+  // rivers at all, such as the map editor's. Rivers are terrain, so they stay on a tile that has fallen out of sight.
+  //
+  // Both banks report the edge they share. RiverOverlay is what draws each edge once.
+  rivers?: TileRivers;
 
   structures?: ObservedStructureTile[];
   forces?: ObservedForceTile[];

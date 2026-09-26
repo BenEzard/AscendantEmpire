@@ -1,7 +1,8 @@
 import { fireEvent, render } from "@testing-library/react";
 import type { Geography } from "@/types/map/Geography";
 import type { ObservedForceTile, TileCell } from "../TileTypes";
-import TileGrid, { type TileGridProps } from "../TileGrid";
+import TileGrid, { TILE_SIZE_PX, type TileGridProps } from "../TileGrid";
+import type { TileRivers } from "@/types/map/Rivers";
 
 /** How many times each tile has rendered, keyed by `"x,y"`. Hoisted alongside the mock below, which writes to it. */
 const renderCounts = vi.hoisted(() => new Map<string, number>());
@@ -181,5 +182,88 @@ describe("TileGrid hover", () => {
     );
 
     expect(getByTestId("overlay")).toBeInTheDocument();
+  });
+});
+
+/** Builds a tile with the river edges given; anything left out has no river. Omit `rivers` entirely for ground the player has not explored. */
+function riverTile(x: number, y: number, rivers?: Partial<TileRivers>): TileCell {
+  return {
+    x,
+    y,
+    biomeTypeId: 1,
+    geographyTypeId: 1,
+    isExplored: rivers != null,
+    rivers: rivers == null ? undefined : { north: "None", east: "None", south: "None", west: "None", ...rivers },
+  };
+}
+
+/**
+ * A 2 x 2 map with two rivers on it, and one unexplored tile.
+ *
+ * - The edge between (0, 0) and (1, 0) is a Large river. Both tiles report it — (0, 0) as its East, (1, 0) as its West.
+ * - The edge between (0, 0) and (0, 1) is a Medium river, and (0, 1) is unexplored, so only (0, 0) reports it.
+ * - The edge between (0, 1) and (1, 1) is a Medium river reported only by (1, 1), because the tile to its left is unexplored.
+ */
+const RIVER_TILES_2D: TileCell[][] = [
+  [riverTile(0, 0, { east: "Large", south: "Medium" }), riverTile(1, 0, { west: "Large" })],
+  [riverTile(0, 1), riverTile(1, 1, { west: "Medium" })],
+];
+
+const RIVER_PROPS: TileGridProps = { ...BASE_PROPS, width: 2, height: 2, tiles2d: RIVER_TILES_2D };
+
+/** Every river stroke the grid drew, as `"x,y,side"` keys paired with the width drawn. */
+function drawnRivers(container: HTMLElement): { edge: string; width: string; strokeWidth: string }[] {
+  return [...container.querySelectorAll("[data-river-edge]")].map((line) => ({
+    edge: line.getAttribute("data-river-edge")!,
+    width: line.getAttribute("data-river-width")!,
+    strokeWidth: line.getAttribute("stroke-width")!,
+  }));
+}
+
+/**
+ * Rivers run between tiles, so both tiles either side of one report it and the grid has to decide which of them draws it. Drawing
+ * all four edges of every tile would lay a second line over every interior river — two thick strokes a pixel apart, not one river.
+ */
+describe("TileGrid rivers", () => {
+  it("draws each edge once, from the tile that owns it", () => {
+    const { container } = render(<TileGrid {...RIVER_PROPS} />);
+
+    // (1, 0) reports the Large river on its West, and does not draw it: (0, 0) already drew the same edge as its East.
+    expect(drawnRivers(container).map((stroke) => stroke.edge).sort()).toEqual(["0,0,east", "0,0,south", "1,1,west"]);
+  });
+
+  it("draws a north or west edge whose neighbour is unexplored, since that neighbour reports nothing to draw it from", () => {
+    const { container } = render(<TileGrid {...RIVER_PROPS} />);
+
+    // (0, 1) is unexplored, so the edge between it and (1, 1) reaches the client only on (1, 1)'s West.
+    expect(drawnRivers(container).map((stroke) => stroke.edge)).toContain("1,1,west");
+  });
+
+  it("draws a large river noticeably thicker than a medium one", () => {
+    const { container } = render(<TileGrid {...RIVER_PROPS} />);
+
+    const strokes = drawnRivers(container);
+    const large = Number(strokes.find((stroke) => stroke.width === "Large")!.strokeWidth);
+    const medium = Number(strokes.find((stroke) => stroke.width === "Medium")!.strokeWidth);
+
+    expect(large).toBeGreaterThan(medium);
+  });
+
+  it("puts every stroke on the boundary between two tiles, never across a tile", () => {
+    const { container } = render(<TileGrid {...RIVER_PROPS} />);
+
+    // An edge is either horizontal or vertical, and lies on a multiple of the tile size — which is what "between tiles" means in pixels.
+    for (const line of container.querySelectorAll("[data-river-edge]")) {
+      const [x1, y1, x2, y2] = ["x1", "y1", "x2", "y2"].map((attribute) => Number(line.getAttribute(attribute)));
+
+      expect(x1 === x2 || y1 === y2).toBe(true);
+      expect([x1, y1, x2, y2].every((coordinate) => coordinate % TILE_SIZE_PX === 0)).toBe(true);
+    }
+  });
+
+  it("draws nothing at all on a grid whose tiles have no rivers", () => {
+    const { container } = render(<TileGrid {...BASE_PROPS} />);
+
+    expect(container.querySelector("[data-testid='river-overlay']")).toBeNull();
   });
 });

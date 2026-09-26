@@ -46,6 +46,14 @@ That makes `FirstSeenOnTurnId` the exploration flag:
 | `LastSeenOnTurnId` | The `turns.PlayerTurn` of the most recent sighting, stamped every time the tile is seen again. Not yet used by the client. |
 | `BiomeTypeId`, `CampaignMapGeographyTypeId` | Copied from the world map when the tile is first seen. `Unknown` until then. |
 
+Rivers are **not** copied onto a player's map. They sit on the edges between world-map tiles
+(`SouthRiver`/`EastRiver` on `game.CampaignMap`), and a river never changes, so there is nothing about
+one for a player to remember differently from the world. The read derives a tile's four edges from the
+world map at the moment it responds, for explored tiles only — see
+[tiles.md](design/campaign-map/tiles.md#what-a-player-is-shown). An unexplored tile sends no rivers at
+all, and because an edge is described by both of the tiles it separates, an edge shows as soon as either
+of them has been explored.
+
 There is no stored "watched" column, and there should not be: it is derived from where the player's
 observers are standing at the moment of the read.
 
@@ -117,6 +125,10 @@ The two halves merge by **opposite** rules, in `mergeTiles`:
   being watched right now, so a tile absent from the new set is one nothing is looking at any more,
   and it drops back to haze.
 
+Within a tile, `structures` and `forces` are **replaced** even when empty — an empty array is the
+server saying the tile is clear — while `rivers` **accumulate** like exploration, because a river never
+changes and a response that says nothing about one is silent rather than a correction.
+
 `isExplored` rides on the tile rather than living in a set, because it changes only when the tile's
 DTO changes; `observedTileKeys` is a set rebuilt from the observers, memoised so the whole grid does
 not re-render when something unrelated on the page does.
@@ -131,6 +143,7 @@ not re-render when something unrelated on the page does.
 | `features/game/hooks/useFogOfWar.ts` | Derives `observedTileKeys`, skipping the whole-map pseudo-observer. |
 | `features/game/hooks/useTileRendering.ts` | `getTileBackground` — picks one of the three overlays. |
 | `features/map/components/Tile.tsx` | Draws structures and forces only when `isObserved`. |
+| `features/map/components/RiverOverlay.tsx` | Draws the rivers between tiles, once per edge — see [tiles.md](design/campaign-map/tiles.md#what-a-player-is-shown). |
 
 ### Occupants are not drawn on unwatched ground
 

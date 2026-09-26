@@ -157,3 +157,34 @@ describe("useTileRendering terrain label", () => {
     expect(result.current.getTileTerrainLabel({ x: 1, y: 1, biomeTypeId: 0, geographyTypeId: 0, isExplored: false })).toBe("Unknown");
   });
 });
+
+/**
+ * A river runs along a tile's edge rather than on the tile, so nothing about the tile's colour or icon says it is there. The hover
+ * tooltip is where the player reads which of its sides one borders.
+ */
+describe("useTileRendering river tooltip", () => {
+  function renderWithTile(t: TileCell) {
+    const { result } = renderHook(() => useTileRendering({ biomes: BIOMES, geographies: [], selectedTile: null, observedTileKeys: new Set() }));
+
+    return result.current.getTileTitle(t);
+  }
+
+  it("lists the tile's river edges by side, clockwise from the north", () => {
+    const title = renderWithTile({ ...tile(3, 4, true), rivers: { north: "Medium", east: "None", south: "None", west: "Large" } });
+
+    expect(title).toContain("Rivers: N medium, W large");
+  });
+
+  it("leaves the river line out entirely for a tile with no rivers on it", () => {
+    const title = renderWithTile({ ...tile(3, 4, true), rivers: { north: "None", east: "None", south: "None", west: "None" } });
+
+    expect(title).not.toContain("Rivers");
+  });
+
+  /** Unexplored ground reports no rivers at all, and "no rivers here" is a claim about ground the player has never seen. */
+  it("leaves the river line out for unexplored ground", () => {
+    const title = renderWithTile(tile(3, 4, false));
+
+    expect(title).not.toContain("Rivers");
+  });
+});

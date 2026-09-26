@@ -1,4 +1,5 @@
 import { http } from "@/api/http";
+import type { RiverWidth } from "@/types/map/Rivers";
 import {
   mergeTilesByCoord,
   normalizeObserver,
@@ -22,10 +23,9 @@ export type MoveDirection =
   | "West"
   | "NorthWest";
 
-/**
- * How wide a river along a tile edge is — the `RiverWidth` enum's member names, since the API serialises enums as strings.
- */
-export type RiverWidth = "None" | "Medium" | "Large";
+// Re-exported so the callers that reached for a river width through the step API keep working. The type itself belongs with the
+// tile rivers in types/map/Rivers, since the map read sends the same values.
+export type { RiverWidth };
 
 export type StepForceRequest = {
   unitInstanceId: number;
@@ -39,6 +39,13 @@ export type StepForceResponse = {
   /** May be negative — a force holding any movement at all may enter a tile, and pays its whole cost. */
   campaignMovementRemaining: number;
   campaignMovementPoints: number;
+  /** What the step actually cost, rivers and all — the figure that came off the force's remaining movement. */
+  stepCost: number;
+  /**
+   * How much of `stepCost` the rivers accounted for: positive where they made the step dearer, negative where they made it
+   * cheaper, and 0 where they made no difference. One net figure, since a step can both cross a river and follow another.
+   */
+  riverMovementCost: number;
   /**
    * Whether the step took the force onto a tile held by another player's forces, and so started a battle. When it did, the force
    * and every enemy force on that tile are now in battle and can't take another campaign step until it is over.
@@ -59,6 +66,8 @@ type StepForceWireDto = Partial<{
   yCoord: number;
   campaignMovementRemaining: number;
   campaignMovementPoints: number;
+  stepCost: number;
+  riverMovementCost: number;
   startedBattle: boolean;
   riverCrossed: RiverWidth;
   riverAlong: RiverWidth;
@@ -88,6 +97,10 @@ export async function postStepForce(req: StepForceRequest): Promise<StepForceRes
     yCoord: data.yCoord ?? 0,
     campaignMovementRemaining: data.campaignMovementRemaining ?? 0,
     campaignMovementPoints: data.campaignMovementPoints ?? 0,
+    // 0 when absent. Both are only ever used to explain a step that involved a river, and the river fields below say whether it
+    // did — so a missing figure costs the player a number in a sentence, never a wrong claim about what they paid.
+    stepCost: data.stepCost ?? 0,
+    riverMovementCost: data.riverMovementCost ?? 0,
     // Missing means an older API that could not start a battle, so it is read as "no battle" rather than guessed at.
     startedBattle: data.startedBattle ?? false,
     // Missing means an older API with no rivers, so it is read as no river rather than guessed at.

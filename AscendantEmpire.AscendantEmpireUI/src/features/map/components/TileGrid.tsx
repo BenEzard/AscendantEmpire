@@ -2,6 +2,7 @@ import React from "react";
 import type { Geography } from "@/types/map/Geography";
 import type { TileCell } from "./TileTypes";
 import Tile from "./Tile";
+import RiverOverlay from "./RiverOverlay";
 import type { KnownForce, KnownStructure } from "@/features/intelligence/api/intelligenceApi";
 
 export const TILE_SIZE_PX = 50;
@@ -88,8 +89,6 @@ const TileGrid = React.memo(function TileGrid({
   isTileHighlighted,
   tileClassName,
 }: TileGridProps) {
-  void height;
-
   // The latest click and hold handlers, held in refs so the tiles can be given handlers that never change identity. A caller's handler typically depends
   // on the selection, so passing it straight through would re-render every tile on the map each time the selection changed.
   const onTileClickRef = React.useRef(onTileClick);
@@ -180,6 +179,9 @@ const TileGrid = React.memo(function TileGrid({
             );
           })}
         </div>
+        {/* Over the tiles, because a river runs along the boundary between two of them and belongs to neither — so it cannot be
+            drawn inside either one. Before `children`, so anything a caller overlays sits above it. */}
+        <RiverOverlay tiles2d={tiles2d} width={width} height={height} tileSizePx={TILE_SIZE_PX} />
         {children}
       </div>
     </div>

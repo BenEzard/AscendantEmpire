@@ -1,4 +1,5 @@
 ﻿import { http } from "@/api/http";
+import { RIVER_EDGES, type RiverWidth, type TileRivers } from "@/types/map/Rivers";
 
 // gameId/playerId are client-side only: they scope the React Query cache, and are deliberately NOT sent to the server.
 // The API reads both from the game token, so a request cannot ask about — or clear — another player's map.
@@ -22,6 +23,12 @@ export interface CampaignMapTileDto {
   // different question from whether anything is watching the tile right now — which is answered by the observers, not here.
   // Tiles reported by a real observer are always explored; only the whole-map read ever sends this false. See docs/fog-of-war.md.
   isExplored: boolean;
+  // The river on each of the tile's four edges, or undefined for ground the player has never explored — which reports no terrain
+  // at all. A tile that is explored and simply has no river arrives with all four edges "None", which is a different answer.
+  //
+  // Terrain, so it is sent for any explored tile whether or not something is watching it. Both banks report the edge they share;
+  // drawing each edge once is RiverOverlay's job.
+  rivers?: TileRivers;
   // Always present, never omitted when empty. An empty array is the API telling us there is nothing on this tile, which is
   // different from not having heard about the tile at all — and the merges below rely on being able to tell those apart, or a
   // force that moved away would keep being drawn on the tile it left.
@@ -95,6 +102,9 @@ type CampaignMapTileWireDto = Partial<{
   biomeTypeId: number;
   campaignMapGeographyTypeId: number;
   isExplored: boolean;
+  // Null on the wire for an unexplored tile, and each edge is a RiverWidth member name. Partial rather than a full TileRivers,
+  // because an older API sends nothing at all and a normalizer that assumed four edges would read undefined off it.
+  rivers: Partial<TileRivers> | null;
   structures: ObservedStructureWireDto[];
   forces: ObservedForceWireDto[];
 }>;
@@ -159,6 +169,22 @@ function normalizeObservedForce(force: ObservedForceWireDto): ObservedForceDto {
   };
 }
 
+/**
+ * Fills in the four edges of a tile's rivers, or gives back undefined when the API sent none.
+ *
+ * Undefined is preserved rather than flattened to an all-`"None"` object: no rivers at all is what an *unexplored* tile sends, and
+ * turning that into "we know there is no river here" would put a claim about the ground behind the fog.
+ */
+function normalizeTileRivers(rivers: Partial<TileRivers> | null | undefined): TileRivers | undefined {
+  if (rivers == null) {
+    return undefined;
+  }
+
+  // Each edge defaults to "None": an edge the API left out is an edge with no river, which is the one safe reading — the map only
+  // ever omits a width it has nothing to say about.
+  return Object.fromEntries(RIVER_EDGES.map((edge) => [edge, rivers[edge] ?? ("None" as RiverWidth)])) as TileRivers;
+}
+
 export function normalizeCampaignMapTile(tile: CampaignMapTileWireDto): CampaignMapTileDto {
   return {
     xCoord: tile.xCoord ?? 0,
@@ -168,6 +194,7 @@ export function normalizeCampaignMapTile(tile: CampaignMapTileWireDto): Campaign
     // Defaults to unexplored. An absent flag means the API told us nothing, and guessing "explored" would strip the fog off
     // ground the player has never been to — the one failure mode this flag exists to prevent.
     isExplored: tile.isExplored ?? false,
+    rivers: normalizeTileRivers(tile.rivers),
     // Always emitted, even when empty. These used to be dropped when empty, which made "this tile is clear" indistinguishable
     // from "this tile wasn't reported" — and the merges then kept whatever was there before, so a force that stepped away would
     // stay drawn on the tile it left.
@@ -216,6 +243,9 @@ export function mergeTilesByCoord(tiles: CampaignMapTileDto[]): CampaignMapTileD
     mergedByCoord.set(key, {
       ...existing,
       ...tile,
+      // `??` again, but for the opposite reason: rivers are terrain and never change, so an observer that reported none has
+      // nothing to say about them and must not blank what another observer told us about the same tile.
+      rivers: tile.rivers ?? existing.rivers,
       structures: tile.structures ?? existing.structures,
       forces: tile.forces ?? existing.forces,
     });

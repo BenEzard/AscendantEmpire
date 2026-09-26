@@ -51,6 +51,10 @@ export function mergeTiles(prev: CampaignMapTilesResponse | undefined, next: Cam
       merged[idx] = {
         ...existing,
         ...t,
+        // Rivers accumulate like exploration rather than being replaced like contents: a river never changes, so a response that
+        // says nothing about one is silent, not a correction. Without this a step's response would strip the rivers off any tile
+        // it reported without them.
+        rivers: t.rivers ?? existing.rivers,
         structures: t.structures ?? existing.structures,
         forces: t.forces ?? existing.forces,
       };

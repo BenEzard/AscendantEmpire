@@ -12,6 +12,8 @@ public class DTStepForceResult : IStepForceResult
     public int YCoord { get; set; }
     public decimal CampaignMovementRemaining { get; set; }
     public decimal CampaignMovementPoints { get; set; }
+    public decimal StepCost { get; set; }
+    public decimal RiverMovementCost { get; set; }
     public bool StartedBattle { get; set; }
     public RiverWidth RiverCrossed { get; set; }
     public RiverWidth RiverAlong { get; set; }

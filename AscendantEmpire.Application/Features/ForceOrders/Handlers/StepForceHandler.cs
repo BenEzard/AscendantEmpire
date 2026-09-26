@@ -320,6 +320,10 @@ internal class StepForceHandler(
                 YCoord = target.YCoord,
                 CampaignMovementRemaining = ScaledAmount.FromRaw(force.CampaignMovementRemaining).ToDecimal(),
                 CampaignMovementPoints = ScaledAmount.FromRaw(movementProfile.CampaignMovementPoints).ToDecimal(),
+                StepCost = stepCost,
+                // What the rivers did to the price, as the difference from what the ground alone would have cost. Worked out here rather than asked of the
+                // strategy: the strategy already priced the step, and one subtraction says the same thing for every domain without another rule to keep in step.
+                RiverMovementCost = stepCost - target.MovementCost,
                 StartedBattle = startedBattle,
                 RiverCrossed = step.Rivers.Crossed,
                 RiverAlong = step.Rivers.Along,

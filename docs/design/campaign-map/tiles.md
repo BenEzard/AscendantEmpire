@@ -45,7 +45,28 @@ bordered a small minority of tiles, and it would add a join to every step and ma
 setup, another step to game deletion, and a unique key to stop an edge being stored twice.
 
 Game setup copies both columns from the gallery map. What rivers do to movement is in
-[unit-movement.md](../units/unit-movement.md#rivers--built). Rivers do not block vision.
+[unit-movement.md](../units/unit-movement.md#rivers--built).
+
+### What a player is shown
+
+Rivers are **explored terrain**, like biome and geography: a player sees them on any tile they have
+explored, whether or not one of their observers is watching it now. They **do not block vision**, and
+being across a river never hides a tile — a river belongs to a *step*, not to a tile, so fog of war is
+unaffected by it.
+
+The map read sends each explored tile all four of its own edges — `Rivers { North, East, South, West }`
+— resolved server-side from its own `SouthRiver`/`EastRiver` and its neighbours', wrapping included. An
+unexplored tile sends no rivers at all, which is a different answer from four edges of `None`: the
+latter says the player knows there is no river here.
+
+Because a tile's edge is also its neighbour's, **an edge is visible as soon as either of the two tiles
+it separates has been explored**. That is what puts a river on the boundary of explored ground rather
+than half a tile short of it.
+
+Both banks therefore report the same edge, and the client draws each one once: it draws every tile's
+South and East, plus a North or West only where the neighbour that would otherwise have drawn it is
+unexplored. The line is drawn along the boundary between the two tiles, and **Large is drawn twice as
+thick as Medium**.
 
 ## Biome
 

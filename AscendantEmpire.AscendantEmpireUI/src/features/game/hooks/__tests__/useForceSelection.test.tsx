@@ -68,6 +68,8 @@ function stepResult({
     yCoord: y,
     campaignMovementRemaining,
     campaignMovementPoints: 2,
+    stepCost: 1,
+    riverMovementCost: 0,
     startedBattle: false,
     riverCrossed: "None",
     riverAlong: "None",

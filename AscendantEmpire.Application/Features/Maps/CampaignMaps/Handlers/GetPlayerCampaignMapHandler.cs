@@ -56,7 +56,8 @@ internal class GetPlayerCampaignMapHandler(
     IDbContextFactory<AscendantEmpireContext> dbFactory,
     IServiceScopeFactory scopeFactory,
     ICampaignTurnService campaignTurnService,
-    IFieldOfViewService fieldOfViewService
+    IFieldOfViewService fieldOfViewService,
+    ICampaignRiverReader campaignRiverReader
     ) : IRequestHandler<GetPlayerCampaignMapRequest, ServiceResult<IReadOnlyCollection<ObserverSight>>>
 {
     public async Task<ServiceResult<IReadOnlyCollection<ObserverSight>>> Handle(GetPlayerCampaignMapRequest request, CancellationToken cancelToken)
@@ -112,6 +113,14 @@ internal class GetPlayerCampaignMapHandler(
             IReadOnlyCollection<ObserverFieldOfView> fieldsOfView = fieldOfViewResult.SuccessValue!;
 
             cancelToken.ThrowIfCancellationRequested();
+
+            // The rivers on every Tile an Observer can see. Read once for the whole set rather than per Tile, and separately from the terrain the sight rules
+            // return, because a river is not a property of a Tile: it sits on an edge that the Tile above or to the left of it owns.
+            IReadOnlyDictionary<Coord, TileRivers> riversByCoord = await GetTileRiversAsync(
+                request.GameId,
+                [.. fieldsOfView.SelectMany(view => view.SeenTiles).Select(tile => new Coord(tile.X, tile.Y)).Distinct()],
+                geometry,
+                cancelToken);
 
             // The world-map id of every Tile in view. Structures and Forces are stored against the world map, so these look them up directly.
             List<int> campaignMapTileIds = [.. fieldsOfView.SelectMany(view => view.SeenTiles).Select(tile => tile.CampaignMapId).Distinct()];
@@ -212,6 +221,9 @@ internal class GetPlayerCampaignMapHandler(
                         // has already written FirstSeenOnTurnId on this very set of Tiles. Reading the flag back off the Tile row instead would report the value
                         // from before that write, so a Tile would come back unexplored on the very read that explored it.
                         IsExplored = true,
+                        // Terrain, like the Biome and Geography above, so it rides along with them. Falls back to "no rivers" rather than null: null means
+                        // unexplored to the client, and a Tile an Observer is looking at is explored by definition.
+                        Rivers = riversByCoord.GetValueOrDefault(new Coord(seenTile.X, seenTile.Y)) ?? TileRivers.None,
                         Structures = structuresAtTile?.Select(os => new ObservedStructure
                         {
                             Id = os.StructureInstanceId,
@@ -249,6 +261,17 @@ internal class GetPlayerCampaignMapHandler(
 
                 List<InternalPlayerObservedTile> fetchPlayerView = await GetPlayerTilesInScopeAsync(gameInfo, thisPlayer.PlayerId, cancelToken);
 
+                // Rivers for the ground the Player remembers, and only that ground. Unexplored Tiles are left out of the request, so they disclose nothing -
+                // while an explored Tile beside one still reports the edge the two of them share, because that edge is described by both of them.
+                IReadOnlyDictionary<Coord, TileRivers> rememberedRiversByCoord = await GetTileRiversAsync(
+                    gameInfo.GameId,
+                    [.. fetchPlayerView
+                        .Where(tile => tile.FirstSeenByPlayerOnTurnId != null)
+                        .Where(tile => alreadyObservedTiles.Contains((tile.XCoord, tile.YCoord)) == false)
+                        .Select(tile => new Coord(tile.XCoord, tile.YCoord))],
+                    geometry,
+                    cancelToken);
+
                 var fullMapObserver = new ObserverSight
                 {
                     Id = 0,
@@ -268,6 +291,9 @@ internal class GetPlayerCampaignMapHandler(
                             // whole board — the ground they remember and the ground they have never been to alike. FirstSeenOnTurnId is what
                             // separates the two, and this is the only place in the response where the flag is ever false.
                             IsExplored = masterTile.FirstSeenByPlayerOnTurnId != null,
+                            // Null for ground the Player has never been to, which is why the lookup is not defaulted here: an unexplored Tile was never asked
+                            // about, and saying "no rivers" would claim knowledge of ground they have not seen.
+                            Rivers = rememberedRiversByCoord.GetValueOrDefault(new Coord(masterTile.XCoord, masterTile.YCoord)),
                             // Tiles outside an observer's sight are terrain only: the player knows the
                             // ground from having explored it, but not what is standing on it now.
                             Structures = [],
@@ -288,6 +314,35 @@ internal class GetPlayerCampaignMapHandler(
         }
 
         return ServiceResult<IReadOnlyCollection<ObserverSight>>.Succeed(observers);
+    }
+
+    /// <summary>
+    /// The four river edges of each of the given Tiles, on a context of this read's own.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A thin wrapper over <see cref="ICampaignRiverReader"/> so both halves of the response - what the Observers see, and the ground the Player remembers -
+    /// ask for rivers the same way, on one line each.
+    /// </para>
+    /// <para>
+    /// Only the Tiles handed in are described, which is how fog of war is applied: the callers pass explored ground, and the neighbours whose columns own its
+    /// North and West edges are loaded by the reader without ever being reported.
+    /// </para>
+    /// </remarks>
+    private async Task<IReadOnlyDictionary<Coord, TileRivers>> GetTileRiversAsync(
+        int gameId,
+        IReadOnlyCollection<Coord> coords,
+        CampaignMapGeometry geometry,
+        CancellationToken cancelToken)
+    {
+        if (coords.Count == 0)
+        {
+            return new Dictionary<Coord, TileRivers>();
+        }
+
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+
+        return await campaignRiverReader.GetTileRiversAsync(context, gameId, coords, geometry, cancelToken);
     }
 
     /// <summary>

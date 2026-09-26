@@ -91,6 +91,10 @@ public static class ApplicationStartup
         services.AddScoped<IFieldOfViewService, FieldOfViewService>();
         services.AddScoped<IWitnessService, WitnessService>();
 
+        // Rivers on the campaign map a Player is shown. Not a sight concern - a river is terrain, reported for any explored tile whether or not something is
+        // watching it - so it is its own reader rather than another method on ISightDataReader.
+        services.AddScoped<ICampaignRiverReader, CampaignRiverReader>();
+
         // A Player's effective Forage, Hunt, Fish and Fodder values: each biome's base with the Player's sustenance modifiers applied. The only place that formula is used, so depletion,
         // replenishment and the tile toolbar cannot disagree. Nothing writes modifiers yet.
         services.AddScoped<IPlayerSustenanceValueReader, PlayerSustenanceValueReader>();

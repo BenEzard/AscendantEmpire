@@ -102,6 +102,8 @@ public class ForceOrdersController : ControllerBase
             YCoord = contract.YCoord,
             CampaignMovementRemaining = contract.CampaignMovementRemaining,
             CampaignMovementPoints = contract.CampaignMovementPoints,
+            StepCost = contract.StepCost,
+            RiverMovementCost = contract.RiverMovementCost,
             StartedBattle = contract.StartedBattle,
             RiverCrossed = contract.RiverCrossed,
             RiverAlong = contract.RiverAlong,

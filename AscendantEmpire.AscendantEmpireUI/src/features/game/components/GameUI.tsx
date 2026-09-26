@@ -38,6 +38,7 @@ import { useTileRendering } from "../hooks/useTileRendering";
 import { useConstructionPanel } from "../hooks/useConstructionPanel";
 import { useGameToolbar } from "./useGameToolbar";
 import ConstructionPanel from "./ConstructionPanel";
+import { describeRiverStep } from "./describeRiverStep";
 import { useKnownForcesQuery, useKnownStructuresQuery, useSightingReportsQuery } from "@/features/intelligence/hooks/useIntelligenceQueries";
 import { groupKnownForcesByUnobservedTile } from "@/features/intelligence/knownForceMarkers";
 import { groupKnownStructuresByUnobservedTile } from "@/features/intelligence/knownStructureMarkers";
@@ -139,6 +140,15 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
       // already invalidated the toolbar's actions.
       if (result.startedBattle) {
         openToast("Battle has begun!", "warning");
+      }
+
+      // What the rivers did to the step, when any were involved. Worth saying because a river changes the price of a step without
+      // changing anything the player can see on the tile they moved onto — so an unexplained 2 MP on flat grassland reads as a bug.
+      // Raised after the battle toast, so the fighting stays the first thing they are told about.
+      const riverMessage = describeRiverStep(result);
+
+      if (riverMessage != null) {
+        openToast(riverMessage, "info");
       }
 
       // The player has just changed what they have outstanding, so the list they were shown no longer stands and the turn should not end on the

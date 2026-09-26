@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import type { Biome } from "@/types/map/Biome";
 import type { Geography } from "@/types/map/Geography";
 import type { TileCell } from "@/features/map/components/TileTypes";
+import { describeTileRivers } from "@/types/map/Rivers";
 
 interface UseTileRenderingOptions {
   biomes: Biome[] | undefined;
@@ -120,13 +121,18 @@ export function useTileRendering(opts: UseTileRenderingOptions) {
     (t: TileCell) => {
       const label = getTileTerrainLabel(t);
 
+      // The tile's river edges, named by side: "Rivers: N medium, E large". Absent altogether for a tile with no rivers, and for
+      // unexplored ground, which reports no terrain at all — rather than a line reading "Rivers: none" on most of the map.
+      const riverLabel = describeTileRivers(t.rivers);
+      const riverLines = riverLabel == null ? [] : [`Rivers: ${riverLabel}`];
+
       // Only forces whose movement we were actually told about. The API masks the numbers for forces the player
       // doesn't own, so an enemy standing here contributes nothing to the tooltip rather than a blank or a guess.
       const movementLines = (t.forces ?? [])
         .filter((force) => force.campaignMovementRemaining != null && force.campaignMovementPoints != null)
         .map((force) => `Force #${force.id}: ${force.campaignMovementRemaining} / ${force.campaignMovementPoints} MP`);
 
-      return [`(${t.x}, ${t.y}); ${label}`, ...movementLines].join("\n");
+      return [`(${t.x}, ${t.y}); ${label}`, ...riverLines, ...movementLines].join("\n");
     },
     [getTileTerrainLabel],
   );

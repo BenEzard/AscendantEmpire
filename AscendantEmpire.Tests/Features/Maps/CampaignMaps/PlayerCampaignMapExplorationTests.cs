@@ -71,6 +71,8 @@ internal class PlayerCampaignMapExplorationTests : GameSqlServerTestBase
             .AddSingleton<ICampaignTurnService>(new CampaignTurnService(NullLogger<CampaignTurnService>.Instance, DbFactory))
             .AddScoped<ISightDataReader, SightDataReader>()
             .AddScoped<IFieldOfViewService, FieldOfViewService>()
+            // The map read describes the rivers on every Tile it hands back, so the handler cannot be constructed without this.
+            .AddScoped<ICampaignRiverReader, CampaignRiverReader>()
             .AddScoped<IMovementDomainStrategy, LandMovementStrategy>()
             .AddScoped<IMovementDomainStrategy, WaterMovementStrategy>()
             .AddScoped<IMovementDomainStrategy, BelowWaterMovementStrategy>()
@@ -291,6 +293,125 @@ internal class PlayerCampaignMapExplorationTests : GameSqlServerTestBase
                     $"Observer {observer.RecordType} {observer.Id} must see only the Tile it occupies, or the Jungle stops being worth hiding in.");
             }
         }
+    }
+
+    [Test, Description("An explored Tile reports all four of its river edges, including the North one the Tile above it owns and has never been seen.")]
+    public async Task AnExploredTileReportsTheEdgesItsNeighboursOwnAsync()
+    {
+        int gameId = await SetupGameAsync();
+        Player player = await GetFirstPlayerAsync(gameId);
+
+        await MovePlayerForcesToTileAsync(gameId, player.Id, _BLOCKED_TILE_X, _BLOCKED_TILE_Y);
+
+        // The Tile above owns the edge between them, and nothing is ever looking at it from the north side; the occupied Tile owns its own East edge.
+        await PaintWorldMapRiverAsync(gameId, _BLOCKED_TILE_X, _BLOCKED_TILE_Y - 1, southRiver: RiverWidth.Large);
+        await PaintWorldMapRiverAsync(gameId, _BLOCKED_TILE_X, _BLOCKED_TILE_Y, eastRiver: RiverWidth.Medium);
+
+        IReadOnlyCollection<ObserverSight> observers = await ReadWholeMapAsync(gameId, player.Id);
+
+        TileRivers? rivers = FindTile(observers, _BLOCKED_TILE_X, _BLOCKED_TILE_Y).Rivers;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(rivers, Is.Not.Null, "An explored Tile always describes its edges, even when none of them carries a river.");
+            Assert.That(rivers!.North, Is.EqualTo(RiverWidth.Large), "A Tile's North edge is the SouthRiver of the Tile above it, whether or not that Tile is explored.");
+            Assert.That(rivers.East, Is.EqualTo(RiverWidth.Medium), "A Tile's East edge is its own column.");
+            Assert.That(rivers.South, Is.EqualTo(RiverWidth.None));
+            Assert.That(rivers.West, Is.EqualTo(RiverWidth.None));
+        }
+    }
+
+    [Test, Description("Ground the Player has never been to reports no rivers at all, even where the world map has one on its edge.")]
+    public async Task UnexploredGroundReportsNoRiversAsync()
+    {
+        int gameId = await SetupGameAsync();
+        Player player = await GetFirstPlayerAsync(gameId);
+
+        // The Forces start nowhere near the far corner, so this river is on ground the Player has not seen.
+        await PaintWorldMapRiverAsync(gameId, _MAP_WIDTH - 2, _MAP_HEIGHT - 1, eastRiver: RiverWidth.Large);
+
+        IReadOnlyCollection<ObserverSight> observers = await ReadWholeMapAsync(gameId, player.Id);
+
+        List<ObservedCampaignTile> unexplored = [.. RememberedTiles(observers).Where(tile => tile.IsExplored == false)];
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(unexplored, Is.Not.Empty, "The map is far larger than the starting Observers can see.");
+            Assert.That(unexplored.All(tile => tile.Rivers == null), Is.True,
+                "Rivers are terrain, so an unexplored Tile must disclose none - null, not four edges of None, which would claim the ground has no river.");
+            Assert.That(FindTile(observers, _MAP_WIDTH - 2, _MAP_HEIGHT - 1).IsExplored, Is.False,
+                "The painted river must be on ground the Player has not seen, or this test is asserting nothing.");
+        }
+    }
+
+    [Test, Description("A river survives the Force watching it walking away, because rivers are terrain and terrain is remembered.")]
+    public async Task ARiverStaysReportedOnGroundThatHasFallenOutOfSightAsync()
+    {
+        int gameId = await SetupGameAsync();
+        Player player = await GetFirstPlayerAsync(gameId);
+
+        await MovePlayerForcesToTileAsync(gameId, player.Id, _BLOCKED_TILE_X, _BLOCKED_TILE_Y);
+        await PaintWorldMapRiverAsync(gameId, _BLOCKED_TILE_X, _BLOCKED_TILE_Y, eastRiver: RiverWidth.Large);
+
+        // The first read is what explores the Tile; the move then takes every Observer away from it.
+        await ReadWholeMapAsync(gameId, player.Id);
+        await MovePlayerForcesToFarCornerAsync(gameId, player.Id);
+
+        IReadOnlyCollection<ObserverSight> afterMove = await ReadWholeMapAsync(gameId, player.Id);
+
+        ObservedCampaignTile leftBehind = FindTile(afterMove, _BLOCKED_TILE_X, _BLOCKED_TILE_Y);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(WatchedCoords(afterMove), Does.Not.Contain((_BLOCKED_TILE_X, _BLOCKED_TILE_Y)), "The move must take every Observer off the Tile.");
+            Assert.That(leftBehind.IsExplored, Is.True);
+            Assert.That(leftBehind.Rivers?.East, Is.EqualTo(RiverWidth.Large), "Like the Biome and Geography, a river is shown for explored ground whether or not it is watched.");
+        }
+    }
+
+    /// <summary>
+    /// The Tile at the given coordinates, taken from whichever Observer reported it.
+    /// </summary>
+    /// <remarks>
+    /// A whole-map read covers every Tile exactly once between its Observers and its pseudo-observer, so there is never a choice to make here.
+    /// </remarks>
+    private static ObservedCampaignTile FindTile(IReadOnlyCollection<ObserverSight> observers, int xCoord, int yCoord)
+    {
+        List<ObservedCampaignTile> matches =
+        [
+            .. observers.SelectMany(observer => observer.SeenTiles).Where(tile => tile.XCoord == xCoord && tile.YCoord == yCoord)
+        ];
+
+        Assert.That(matches, Is.Not.Empty, $"A whole-map read must report ({xCoord}, {yCoord}).");
+
+        return matches[0];
+    }
+
+    /// <summary>
+    /// Puts a river on one Tile's South or East edge on the world map.
+    /// </summary>
+    /// <remarks>
+    /// The world map, like <see cref="PaintWorldMapTileAsync"/>: a Player's own map has no river columns, because the read derives a Tile's four edges
+    /// from the world at the moment it responds. Game setup copies the gallery map's rivers, and the stock test map has none, so a river has to be
+    /// painted on for a test to have one.
+    /// </remarks>
+    private async Task PaintWorldMapRiverAsync(int gameId, int xCoord, int yCoord, RiverWidth? southRiver = null, RiverWidth? eastRiver = null)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        CampaignMap tile = await context.CampaignMaps.SingleAsync(t => t.GameId == gameId && t.XCoord == xCoord && t.YCoord == yCoord);
+
+        if (southRiver is not null)
+        {
+            tile.SouthRiver = southRiver.Value;
+        }
+
+        if (eastRiver is not null)
+        {
+            tile.EastRiver = eastRiver.Value;
+        }
+
+        await context.SaveChangesAsync();
     }
 
     /// <summary>

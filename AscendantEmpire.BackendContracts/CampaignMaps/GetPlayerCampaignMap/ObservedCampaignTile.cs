@@ -23,6 +23,22 @@ public record class ObservedCampaignTile
     /// </para>
     /// </remarks>
     public bool IsExplored { get; init; }
+
+    /// <summary>
+    /// The river on each of the Tile's four edges, or <see langword="null"/> when the Player has not explored it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Derived server-side from the Tile's own <c>SouthRiver</c> and <c>EastRiver</c> and those of the Tiles above and to the left of it, with the map's
+    /// wrapping honoured, so the client never has to know which side of an edge owns it.
+    /// </para>
+    /// <para>
+    /// Rivers are terrain, so like the Biome and Geography they are reported for any explored Tile whether or not an Observer can see it now. An edge is
+    /// therefore visible as soon as <b>either</b> of the Tiles it separates has been explored, since each of them describes it.
+    /// </para>
+    /// </remarks>
+    public TileRivers? Rivers { get; init; }
+
     public IReadOnlyCollection<ObservedStructure> Structures { get; init; } = null!;
     public IReadOnlyCollection<ObservedForce> Forces { get; init; } = null!;
 }

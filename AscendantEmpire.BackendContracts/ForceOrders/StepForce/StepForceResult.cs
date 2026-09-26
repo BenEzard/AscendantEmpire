@@ -31,6 +31,31 @@ public record StepForceResult
     public decimal CampaignMovementPoints { get; init; }
 
     /// <summary>
+    /// What the step actually cost, rivers and all — the figure taken off <see cref="CampaignMovementRemaining"/>.
+    /// </summary>
+    /// <remarks>
+    /// Sent so the client can state the price of a step rather than working it out from the rules, which live on the server and differ by movement
+    /// domain. See <c>docs/design/units/unit-movement.md</c>.
+    /// </remarks>
+    public decimal StepCost { get; init; }
+
+    /// <summary>
+    /// How much of <see cref="StepCost"/> the rivers accounted for: positive where they made the step dearer, negative where they made it cheaper.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The difference between what the step cost and what the ground alone would have cost, so it is meaningful whatever the Force's movement domain: a
+    /// Land Force crossing a Medium river pays a point more, one following a river pays a quarter or a half less, and a ship sailing up a Large river
+    /// pays a flat rate that ignores the land it is passing.
+    /// </para>
+    /// <para>
+    /// A single net figure, because one step can both cross a river and follow another — crossing a tributary beside a main river, say — and attributing
+    /// the total to either one of them alone would be wrong.
+    /// </para>
+    /// </remarks>
+    public decimal RiverMovementCost { get; init; }
+
+    /// <summary>
     /// Whether the step took the Force onto a tile held by another Player's Forces, and so started a Battle.
     /// </summary>
     /// <remarks>

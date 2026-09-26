@@ -7,6 +7,11 @@ What a Force or Building can see is determined by both **Sight** and **Detection
 > This section is the *design* of vision. For how it is stored, sent to the client and drawn —
 > explored ground versus ground currently watched — see [Fog of War](../../fog-of-war.md).
 
+Rivers are not part of any of this. They do not block sight, and they are **explored terrain**: a
+player sees a river on ground they have explored whether or not anything is watching it, and an edge
+shows as soon as either of its two banks has been explored. See
+[tiles.md](tiles.md#what-a-player-is-shown).
+
 ## Sight
 
 Sight is the ability to see the *geography of the land, buildings, and certain resources* from a
@@ -87,6 +92,10 @@ beside it.
 The rule asks the movement rules themselves, so "revealed" and "refused a step" are the same
 question with the same answer. The map can never show water it would then let a force sail into, nor
 refuse a step onto ground it had never revealed.
+
+It asks the **tile** rules, not the step rules, and rivers are deliberately outside them. A river
+belongs to the step across it rather than to either tile, and a tile beyond a Large river can still be
+entered from another side — so a river changes nothing about what is revealed here.
 
 A **structure** has no movement domain of its own and is judged as a land force. Without that, a
 settlement founded on a coastal jungle would sit beside sea nothing could ever uncover — the force

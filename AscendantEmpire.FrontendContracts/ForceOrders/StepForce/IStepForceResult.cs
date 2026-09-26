@@ -39,6 +39,18 @@ public interface IStepForceResult
     /// <summary>The Force's full movement allowance for a turn, so the client can show what remains as a proportion of it.</summary>
     decimal CampaignMovementPoints { get; }
 
+    /// <summary>What the step actually cost, rivers and all, so the client can say what was paid rather than deducing it.</summary>
+    decimal StepCost { get; }
+
+    /// <summary>
+    /// How much of <see cref="StepCost"/> the rivers accounted for: positive where they made the step dearer, negative where they made it cheaper.
+    /// </summary>
+    /// <remarks>
+    /// A single net figure — one step can both cross a river and follow another — and it is the difference from what the ground alone would have cost, so
+    /// it reads the same whatever the Force's movement domain.
+    /// </remarks>
+    decimal RiverMovementCost { get; }
+
     /// <summary>
     /// Whether the step took the Force onto a tile held by another Player's Forces, and so started a Battle.
     /// </summary>

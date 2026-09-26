@@ -526,6 +526,19 @@ body {
   --tile-support-exhausted: #7f1d1d;
 }
 
+/* Rivers on the campaign map. Drawn along the boundary between two tiles rather than on either of them — see RiverOverlay.
+
+   Two colours because one is not enough: a river crosses biome colours that run from near-white ice to dark green jungle and
+   darker ocean, and any single blue disappears against one end of that range. The casing is drawn a little wider underneath the
+   stroke, so the pair reads as a river with banks whatever it is lying over, and in both light and dark themes.
+
+   Fixed values rather than theme-dependent ones, because what a river needs contrast against is the terrain under it, and the
+   terrain colours are the map's, not the theme's. */
+:root {
+  --campaign-river: #1d64b8;
+  --campaign-river-casing: #cfe8ff;
+}
+
 /* Two turns or more. Light enough that the bar's dark text and icons stay readable unchanged. */
 .tile-toolbar--support-plenty {
   background: var(--tile-support-plenty);

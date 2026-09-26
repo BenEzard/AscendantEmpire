@@ -18,6 +18,16 @@ public interface IObservedCampaignTile
     /// The client draws solid fog over what is not explored, and a lighter haze over what is explored but unwatched. See <c>docs/fog-of-war.md</c>.
     /// </remarks>
     bool IsExplored { get; }
+
+    /// <summary>
+    /// The river on each of the Tile's four edges, or <see langword="null"/> when the Player has not explored it.
+    /// </summary>
+    /// <remarks>
+    /// Terrain, like the Biome and Geography: reported for any explored Tile whether or not something is watching it now. Every edge is reported by both
+    /// of the Tiles it separates, so the client draws each one once — see <c>TileGrid</c>.
+    /// </remarks>
+    ITileRivers? Rivers { get; }
+
     IReadOnlyCollection<IStructureStub>? Structures { get; }
     IReadOnlyCollection<IForceStub>? Forces { get; }
 }
