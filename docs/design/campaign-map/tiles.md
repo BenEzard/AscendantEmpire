@@ -102,6 +102,32 @@ Whether the edge reaches the sea, and whether it widens inland, stay with the se
 whole river network, and the refusal names the edge that breaks the rule, which is often not the one
 that was clicked.
 
+**Pushing a map out** to games already in progress carries the river columns across to `game.CampaignMap`
+along with biome and geography. A player's own rivers are derived from that table when the map is read,
+so nothing per-player needs updating.
+
+**The preview PNG** draws the river network over both the biome and the geography image. A tile is four
+pixels across there, so Medium is a one-pixel line and Large a two-pixel one — coarse, but the shape of
+the network reads at a glance. A map edited after it was generated gets its previews re-rendered on
+demand.
+
+### Export and import
+
+An export carries a `Rivers` section, one entry per tile that owns at least one river edge:
+
+```json
+{ "RelativeId": 137, "South": "Medium", "East": "None" }
+```
+
+`RelativeId` is the row-major tile index, `Y * Width + X`, the same one the `Tiles` section uses. The
+section is **sparse** — a tile with no rivers is simply absent — and a map with no rivers at all has an
+empty one. This is format version **1.1**; a 1.0 document has no `Rivers` section and imports as a map
+with no rivers, which is what every map written before rivers existed was.
+
+An import runs the same authoring rules as the editor and **fails** on a document whose rivers break
+them, before any tile is written. Whether a biome counts as water is read from the importing database,
+not from the document, since that is what will govern the map once it is here.
+
 ### What a player is shown
 
 Rivers are **explored terrain**, like biome and geography: a player sees them on any tile they have

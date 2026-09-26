@@ -67,20 +67,33 @@ internal sealed class RenderCampaignMapPreviewExecutor(
             processing.ProgressPercent = 50;
             await context.SaveChangesAsync(cancellationToken);
 
-            // Rebuild the row-major (y * width + x) arrays the renderer expects.
+            // Rebuild the row-major (y * width + x) arrays the renderer expects. The two river arrays are the South and East edges
+            // each tile owns, which between them are every edge on the map exactly once.
             var geography = new CampaignMapGeographyType[width * height];
             var biomes = new BiomeType[width * height];
+            var southRivers = new RiverWidth[width * height];
+            var eastRivers = new RiverWidth[width * height];
 
             foreach (CampaignMapGallery tile in tiles)
             {
                 int idx = tile.YCoord * width + tile.XCoord;
                 geography[idx] = tile.CampaignMapGeographyTypeId;
                 biomes[idx] = tile.BiomeTypeId;
+                southRivers[idx] = tile.SouthRiver;
+                eastRivers[idx] = tile.EastRiver;
             }
 
             // Render the previews. MapPreviewRenderer is best-effort: on failure it returns (null, null),
             // which simply clears the stored paths rather than failing the job.
-            (index.GeographyMapPath, index.BiomeMapPath) = MapPreviewRenderer.Render(geography, biomes, width, height, mapGenOptions.Value.OutputDirectory, index.Id);
+            (index.GeographyMapPath, index.BiomeMapPath) = MapPreviewRenderer.Render(
+                geography,
+                biomes,
+                width,
+                height,
+                mapGenOptions.Value.OutputDirectory,
+                index.Id,
+                southRivers,
+                eastRivers);
 
             // Mark complete.
             processing.Status = ProcessingStatus.Complete;

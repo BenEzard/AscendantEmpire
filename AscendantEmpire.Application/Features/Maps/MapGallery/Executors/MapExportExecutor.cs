@@ -8,6 +8,7 @@ using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.Application.Options;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
+using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Processing;
 using AscendantEmpire.Domain.Enums.System;
 
@@ -188,6 +189,18 @@ internal sealed class MapExportExecutor(
                 LocationScore = x.LocationScore
             })];
 
+        // Only the tiles that actually carry a river. On any real map that is a small minority of them, and a row of two Nones per
+        // tile would bury the rivers in an export that is meant to be readable.
+        List<MapExportRiverEdge> exportRivers = [.. tiles
+            .Where(t => t.SouthRiver != RiverWidth.None || t.EastRiver != RiverWidth.None)
+            .OrderBy(t => t.YCoord * index.Width + t.XCoord)
+            .Select(t => new MapExportRiverEdge
+            {
+                RelativeId = t.YCoord * index.Width + t.XCoord,
+                South = t.SouthRiver,
+                East = t.EastRiver
+            })];
+
         return new MapExportDocument
         {
             ExportedAt = DateTime.UtcNow,
@@ -206,7 +219,8 @@ internal sealed class MapExportExecutor(
             Tiles = exportTiles,
             Biomes = exportBiomes,
             Geographies = exportGeographies,
-            StartPositions = exportStartPositions
+            StartPositions = exportStartPositions,
+            Rivers = exportRivers
         };
     }
 

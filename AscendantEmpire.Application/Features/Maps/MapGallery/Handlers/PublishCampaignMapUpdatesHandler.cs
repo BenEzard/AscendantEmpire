@@ -31,7 +31,9 @@ internal class PublishCampaignMapUpdatesHandler(
         int X,
         int Y,
         BiomeType BiomeTypeId,
-        CampaignMapGeographyType GeographyTypeId
+        CampaignMapGeographyType GeographyTypeId,
+        RiverWidth SouthRiver,
+        RiverWidth EastRiver
     );
 
     private readonly record struct CoordKey(int X, int Y);
@@ -49,7 +51,9 @@ internal class PublishCampaignMapUpdatesHandler(
                     g.XCoord,
                     g.YCoord,
                     g.BiomeTypeId,
-                    g.CampaignMapGeographyTypeId
+                    g.CampaignMapGeographyTypeId,
+                    g.SouthRiver,
+                    g.EastRiver
                 ))
                 .ToListAsync(cancellationToken);
 
@@ -137,6 +141,8 @@ CREATE TABLE #GalleryTiles (
     YCoord INT NOT NULL,
     BiomeTypeId INT NOT NULL,
     GeographyTypeId INT NOT NULL,
+    SouthRiver TINYINT NOT NULL,
+    EastRiver TINYINT NOT NULL,
     PRIMARY KEY (XCoord, YCoord)
 );";
         await createTempTableCommand.ExecuteNonQueryAsync(cancellationToken);
@@ -148,6 +154,9 @@ CREATE TABLE #GalleryTiles (
             table.Columns.Add("YCoord", typeof(int));
             table.Columns.Add("BiomeTypeId", typeof(int));
             table.Columns.Add("GeographyTypeId", typeof(int));
+            // Byte rather than int, to match the tinyint columns on both the temp table and game.CampaignMap.
+            table.Columns.Add("SouthRiver", typeof(byte));
+            table.Columns.Add("EastRiver", typeof(byte));
 
             foreach (GalleryTileDto[] tileBatch in galleryTiles.Chunk(tileBatchSize))
             {
@@ -155,7 +164,7 @@ CREATE TABLE #GalleryTiles (
 
                 foreach (GalleryTileDto tile in tileBatch)
                 {
-                    table.Rows.Add(tile.X, tile.Y, (int)tile.BiomeTypeId, (int)tile.GeographyTypeId);
+                    table.Rows.Add(tile.X, tile.Y, (int)tile.BiomeTypeId, (int)tile.GeographyTypeId, (byte)tile.SouthRiver, (byte)tile.EastRiver);
                 }
 
                 using (SqlBulkCopy bulk = new(conn, SqlBulkCopyOptions.Default, transaction))
@@ -168,7 +177,9 @@ CREATE TABLE #GalleryTiles (
 UPDATE cm
 SET
     cm.BiomeTypeId = gt.BiomeTypeId,
-    cm.CampaignMapGeographyTypeId = gt.GeographyTypeId
+    cm.CampaignMapGeographyTypeId = gt.GeographyTypeId,
+    cm.SouthRiver = gt.SouthRiver,
+    cm.EastRiver = gt.EastRiver
 FROM game.CampaignMap cm
 INNER JOIN #GalleryTiles gt
     ON gt.XCoord = cm.XCoord
@@ -178,6 +189,8 @@ WHERE
     AND (
         cm.BiomeTypeId <> gt.BiomeTypeId
         OR cm.CampaignMapGeographyTypeId <> gt.GeographyTypeId
+        OR cm.SouthRiver <> gt.SouthRiver
+        OR cm.EastRiver <> gt.EastRiver
     );
 
 TRUNCATE TABLE #GalleryTiles;";
@@ -194,6 +207,13 @@ TRUNCATE TABLE #GalleryTiles;";
         }
     }
 
+    /// <summary>
+    /// Brings each Player's remembered copy of the terrain up to date with the gallery map.
+    /// </summary>
+    /// <remarks>
+    /// Rivers are deliberately absent here: a Player's rivers are derived from <c>game.CampaignMap</c> when the map is read, not
+    /// remembered per Player, so updating that table above is the whole of it.
+    /// </remarks>
     private static async Task UpdatePlayerCampaignMapTilesAsync(
         AscendantEmpireContext db,
         int[] gameIds,

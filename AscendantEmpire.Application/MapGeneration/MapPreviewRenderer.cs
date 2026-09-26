@@ -18,6 +18,25 @@ public static class MapPreviewRenderer
     /// <summary>Side length (in pixels) of each campaign tile in the output PNG.</summary>
     private const int TilePixelSize = 4;
 
+    // ── Rivers ────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// How thick each river width is drawn, in pixels.
+    /// </summary>
+    /// <remarks>
+    /// A tile is four pixels across here, so there is room for a one-pixel line and a two-pixel one and no more. Large is still
+    /// twice Medium, which is the same relationship the map itself draws, so a river network's shape and rough size both read even
+    /// at this scale. There is no pale casing under the stroke the way there is on the map: at one pixel there is nowhere to put it.
+    /// </remarks>
+    private static readonly Dictionary<RiverWidth, int> _riverThickness = new()
+    {
+        [RiverWidth.Medium] = 1,
+        [RiverWidth.Large] = 2,
+    };
+
+    /// <summary>The colour rivers are drawn in, matching the campaign map's own so a preview and the map agree.</summary>
+    private static readonly SKColor _riverColour = new(29, 100, 184);
+
     // ── Geography colour palette ──────────────────────────────────────────────
 
     private static readonly Dictionary<CampaignMapGeographyType, SKColor> _geoColours = new()
@@ -61,13 +80,20 @@ public static class MapPreviewRenderer
     /// <param name="height">Map height in tiles.</param>
     /// <param name="outputDirectory">Directory to write PNGs into (created if missing).</param>
     /// <param name="indexId">Used to build unique, stable filenames.</param>
+    /// <param name="southRivers">
+    /// The South river edge of each tile [y * width + x], or null to draw no rivers. Rivers run between tiles, and a tile owns only
+    /// its South and East edges, so these two arrays are every edge on the map exactly once.
+    /// </param>
+    /// <param name="eastRivers">The East river edge of each tile [y * width + x], or null to draw no rivers.</param>
     public static (string? GeographyPath, string? BiomePath) Render(
         CampaignMapGeographyType[] geography,
         BiomeType[] biomes,
         int width,
         int height,
         string outputDirectory,
-        int indexId)
+        int indexId,
+        RiverWidth[]? southRivers = null,
+        RiverWidth[]? eastRivers = null)
     {
         try
         {
@@ -80,13 +106,17 @@ public static class MapPreviewRenderer
                 width,
                 height,
                 geoPath,
-                (x, y) => _geoColours.GetValueOrDefault(geography[y * width + x], _geoColours[CampaignMapGeographyType.Unknown]));
+                (x, y) => _geoColours.GetValueOrDefault(geography[y * width + x], _geoColours[CampaignMapGeographyType.Unknown]),
+                southRivers,
+                eastRivers);
 
             RenderImage(
                 width,
                 height,
                 biomePath,
-                (x, y) => _biomeColours.GetValueOrDefault(biomes[y * width + x], _biomeColours[BiomeType.Unknown]));
+                (x, y) => _biomeColours.GetValueOrDefault(biomes[y * width + x], _biomeColours[BiomeType.Unknown]),
+                southRivers,
+                eastRivers);
 
             return (geoPath, biomePath);
         }
@@ -167,9 +197,15 @@ public static class MapPreviewRenderer
     // ─────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Writes a single PNG where each tile is a <see cref="TilePixelSize"/>-pixel square.
+    /// Writes a single PNG where each tile is a <see cref="TilePixelSize"/>-pixel square, with any rivers stroked over it.
     /// </summary>
-    private static void RenderImage(int width, int height, string path, Func<int, int, SKColor> colourSelector)
+    private static void RenderImage(
+        int width,
+        int height,
+        string path,
+        Func<int, int, SKColor> colourSelector,
+        RiverWidth[]? southRivers,
+        RiverWidth[]? eastRivers)
     {
         int imgWidth  = width  * TilePixelSize;
         int imgHeight = height * TilePixelSize;
@@ -194,6 +230,8 @@ public static class MapPreviewRenderer
             }
         }
 
+        DrawRivers(canvas, width, height, southRivers, eastRivers);
+
         canvas.Flush();
 
         // Snapshot the surface and encode to PNG, writing straight to disk.
@@ -201,5 +239,50 @@ public static class MapPreviewRenderer
         using SKData data = image.Encode(SKEncodedImageFormat.Png, 100);
         using FileStream stream = File.OpenWrite(path);
         data.SaveTo(stream);
+    }
+
+    /// <summary>
+    /// Strokes the map's rivers along the tile boundaries they run on, over the tiles already drawn.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A tile owns only its South and East edges, so drawing those two for every tile draws every edge on the map exactly once —
+    /// no neighbour to consult and nothing to deduplicate.
+    /// </para>
+    /// <para>
+    /// Drawn as rectangles aligned to whole pixels rather than as antialiased lines. A one-pixel line centred on a tile boundary
+    /// falls between two pixel rows and comes out as two grey ones, which at this scale is the difference between a river and a
+    /// smudge. Each stroke therefore starts one pixel before the boundary: Medium is that single pixel, and Large is it plus the
+    /// one after, so the boundary itself always carries river colour.
+    /// </para>
+    /// </remarks>
+    private static void DrawRivers(SKCanvas canvas, int width, int height, RiverWidth[]? southRivers, RiverWidth[]? eastRivers)
+    {
+        if (southRivers is null && eastRivers is null)
+        {
+            return;
+        }
+
+        using var paint = new SKPaint { Style = SKPaintStyle.Fill, Color = _riverColour, IsAntialias = false };
+
+        for (int tileY = 0; tileY < height; tileY++)
+        {
+            for (int tileX = 0; tileX < width; tileX++)
+            {
+                int index = tileY * width + tileX;
+
+                if (southRivers is not null && _riverThickness.TryGetValue(southRivers[index], out int southThickness))
+                {
+                    float boundaryY = (tileY + 1) * TilePixelSize;
+                    canvas.DrawRect(tileX * TilePixelSize, boundaryY - 1, TilePixelSize, southThickness, paint);
+                }
+
+                if (eastRivers is not null && _riverThickness.TryGetValue(eastRivers[index], out int eastThickness))
+                {
+                    float boundaryX = (tileX + 1) * TilePixelSize;
+                    canvas.DrawRect(boundaryX - 1, tileY * TilePixelSize, eastThickness, TilePixelSize, paint);
+                }
+            }
+        }
     }
 }

@@ -3,8 +3,11 @@ using System.Text.Json;
 
 using AscendantEmpire.Application.BackgroundServices;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
+using AscendantEmpire.Application.Features.Maps.MapGallery.Classes;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Classes.Export;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
+using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
@@ -71,6 +74,9 @@ internal sealed class MapImportExecutor(
             // --- Index --------------------------------------------------------------------
             CampaignMapGalleryIndex newIndex = await CreateIndexAsync(document, cancellationToken);
             await UpdateProgressAsync(processing, 60, cancellationToken);
+
+            // --- Rivers (judged before any tile is written, so a bad document leaves no half-map behind) -----
+            await ValidateRiversAsync(document, newIndex, cancellationToken);
 
             // --- Tiles --------------------------------------------------------------------
             await ImportTilesAsync(document, newIndex, cancellationToken);
@@ -283,9 +289,89 @@ internal sealed class MapImportExecutor(
     /// every map, so ids are allocated as <c>MAX(CampaignMapGalleryId)+1</c>. The read and inserts run inside a
     /// transaction; background jobs are processed one at a time, but this keeps the allocation atomic.
     /// </remarks>
+    /// <summary>
+    /// Puts the document's rivers through the same authoring rules the map editor writes under, and refuses the import if any of
+    /// them are broken.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// An import is a writer like any other, so a hand-edited or foreign document cannot introduce a river the editor would not
+    /// have let an author draw — one starting inland, or widening as it runs away from the coast.
+    /// </para>
+    /// <para>
+    /// Whether a Biome is water is read from <b>this</b> database rather than from the document, because that is what will govern
+    /// the map once it is imported: <see cref="ImportMissingBiomesAsync"/> leaves an existing Biome alone, so a document claiming
+    /// something different about one does not change what it is here.
+    /// </para>
+    /// <para>
+    /// Run before any tile is inserted. The import has no transaction spanning its steps, so refusing here rather than midway
+    /// leaves the index behind but no tiles, which the failed Processing record already accounts for.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">The document's rivers break an authoring rule.</exception>
+    private async Task ValidateRiversAsync(MapExportDocument document, CampaignMapGalleryIndex newIndex, CancellationToken cancellationToken)
+    {
+        Dictionary<RiverEdgeKey, RiverWidth> riverEdges = [];
+
+        foreach (MapExportRiverEdge edge in document.Rivers)
+        {
+            (int x, int y) = FromRelativeId(edge.RelativeId, newIndex.Width);
+
+            if (edge.South != RiverWidth.None)
+            {
+                riverEdges[new RiverEdgeKey(x, y, RiverEdgeSide.South)] = edge.South;
+            }
+
+            if (edge.East != RiverWidth.None)
+            {
+                riverEdges[new RiverEdgeKey(x, y, RiverEdgeSide.East)] = edge.East;
+            }
+        }
+
+        // A document with no Rivers section at all lands here too, and has nothing to check. That is every 1.0 export.
+        if (riverEdges.Count == 0)
+        {
+            return;
+        }
+
+        HashSet<BiomeType> waterBiomes = [.. await context.CampaignBiomes
+            .AsNoTracking()
+            .Where(b => b.IsWater)
+            .Select(b => b.BiomeTypeId)
+            .ToListAsync(cancellationToken)];
+
+        HashSet<Coord> waterTiles = [.. document.Tiles
+            .Where(t => waterBiomes.Contains(t.BiomeTypeId))
+            .Select(t => FromRelativeId(t.RelativeId, newIndex.Width))
+            .Select(position => new Coord(position.X, position.Y))];
+
+        var geometry = new CampaignMapGeometry(
+            CampaignMapOffsetId: newIndex.CampaignMapOffsetId,
+            Width: newIndex.Width,
+            Height: newIndex.Height,
+            WrapsHorizontally: newIndex.HorizontalWrap,
+            WrapsVertically: newIndex.VerticalWrap);
+
+        IReadOnlyCollection<RiverRuleViolation> violations = RiverNetworkRules.Validate(riverEdges, geometry, waterTiles);
+
+        if (violations.Count > 0)
+        {
+            string detail = string.Join(" ", violations.Select(violation => $"{violation.Edge}: {violation.Reason}"));
+
+            throw new InvalidOperationException($"The imported map's rivers are not valid. {detail}");
+        }
+    }
+
+    /// <summary>The coordinate a row-major tile index refers to, which is how an export names a tile.</summary>
+    private static (int X, int Y) FromRelativeId(int relativeId, int width) => (relativeId % width, relativeId / width);
+
     private async Task ImportTilesAsync(MapExportDocument document, CampaignMapGalleryIndex newIndex, CancellationToken cancellationToken)
     {
         int width = newIndex.Width;
+
+        // The river edges to put back on the tiles that own them, by the row-major index the export names them with. A tile with no
+        // entry has no river, which is also what a document written before rivers existed says about every tile on the map.
+        Dictionary<int, MapExportRiverEdge> riversByRelativeId = document.Rivers.ToDictionary(edge => edge.RelativeId);
 
         await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
@@ -299,6 +385,8 @@ internal sealed class MapImportExecutor(
         // Insert in RelativeId order so the allocated ids run in the same row-major order the generator uses.
         foreach (MapExportTile exportTile in document.Tiles.OrderBy(t => t.RelativeId))
         {
+            riversByRelativeId.TryGetValue(exportTile.RelativeId, out MapExportRiverEdge? rivers);
+
             context.CampaignMapGallery.Add(new CampaignMapGallery
             {
                 CampaignMapGalleryId = startId + offset,
@@ -307,6 +395,8 @@ internal sealed class MapImportExecutor(
                 YCoord = exportTile.RelativeId / width,
                 BiomeTypeId = exportTile.BiomeTypeId,
                 CampaignMapGeographyTypeId = exportTile.GeographyTypeId,
+                SouthRiver = rivers?.South ?? RiverWidth.None,
+                EastRiver = rivers?.East ?? RiverWidth.None,
                 // FK scalars above drive the relationships; the required navigations are not needed for insert.
                 Biome = null!,
                 Geography = null!,

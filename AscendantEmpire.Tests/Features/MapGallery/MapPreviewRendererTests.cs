@@ -160,4 +160,84 @@ internal sealed class MapPreviewRendererTests
 
         Assert.That(foundRed, Is.True, "A red dot should have been drawn near the start position.");
     }
+
+    [Test, Description("Rivers are stroked along the tile boundaries they run on, with Large twice the thickness of Medium.")]
+    public void Render_DrawsRiversOnTheTileBoundaries()
+    {
+        const int width = 3;
+        const int height = 2;
+        const int tilePixelSize = 4;
+
+        // The river colour the renderer uses, which is the campaign map's own.
+        const byte riverRed = 29;
+        const byte riverGreen = 100;
+        const byte riverBlue = 184;
+
+        var geography = new CampaignMapGeographyType[width * height];
+        Array.Fill(geography, CampaignMapGeographyType.Flat);
+
+        var biomes = new BiomeType[width * height];
+        Array.Fill(biomes, BiomeType.Grassland);
+
+        // A Large river on tile (0, 0)'s East edge, and a Medium one on tile (1, 0)'s South edge.
+        var southRivers = new RiverWidth[width * height];
+        var eastRivers = new RiverWidth[width * height];
+        eastRivers[0] = RiverWidth.Large;
+        southRivers[1] = RiverWidth.Medium;
+
+        (string? _, string? biomePath) = MapPreviewRenderer.Render(
+            geography, biomes, width, height, _outputDirectory, indexId: 11, southRivers, eastRivers);
+
+        using SKBitmap bitmap = SKBitmap.Decode(biomePath!);
+
+        bool IsRiver(int x, int y)
+        {
+            SKColor pixel = bitmap.GetPixel(x, y);
+            return (pixel.Red, pixel.Green, pixel.Blue) == (riverRed, riverGreen, riverBlue);
+        }
+
+        using (Assert.EnterMultipleScope())
+        {
+            // The East edge of (0, 0) is the vertical boundary at x = 4, and Large occupies the two pixels either side of it.
+            Assert.That(IsRiver(tilePixelSize - 1, 1), Is.True, "The Large river should cover the pixel before the boundary.");
+            Assert.That(IsRiver(tilePixelSize, 1), Is.True, "The Large river should cover the pixel after the boundary.");
+
+            // The South edge of (1, 0) is the horizontal boundary at y = 4, and Medium is a single pixel of it.
+            Assert.That(IsRiver(tilePixelSize + 1, tilePixelSize - 1), Is.True, "The Medium river should cover one pixel at the boundary.");
+            Assert.That(IsRiver(tilePixelSize + 1, tilePixelSize), Is.False, "The Medium river should be half the thickness of the Large one.");
+
+            // Nothing is drawn where no river runs, so a tile centre away from both edges keeps its biome colour.
+            Assert.That(IsRiver(tilePixelSize * 2 + 1, 1), Is.False, "Tile (2, 0) has no river and should be untouched.");
+        }
+    }
+
+    [Test, Description("A map with no rivers renders exactly as it did before rivers existed, so passing none changes nothing.")]
+    public void Render_WithoutRivers_LeavesEveryTileSolid()
+    {
+        const int width = 2;
+        const int height = 2;
+
+        var geography = new CampaignMapGeographyType[width * height];
+        Array.Fill(geography, CampaignMapGeographyType.Flat);
+
+        var biomes = new BiomeType[width * height];
+        Array.Fill(biomes, BiomeType.Grassland);
+
+        (string? _, string? biomePath) = MapPreviewRenderer.Render(geography, biomes, width, height, _outputDirectory, indexId: 12);
+
+        using SKBitmap bitmap = SKBitmap.Decode(biomePath!);
+
+        // Grassland (105, 185, 80) everywhere, boundaries included.
+        bool allGrassland = true;
+        for (int y = 0; y < bitmap.Height && allGrassland; y++)
+        {
+            for (int x = 0; x < bitmap.Width && allGrassland; x++)
+            {
+                SKColor pixel = bitmap.GetPixel(x, y);
+                allGrassland = (pixel.Red, pixel.Green, pixel.Blue) == ((byte)105, (byte)185, (byte)80);
+            }
+        }
+
+        Assert.That(allGrassland, Is.True, "No river should have been drawn on a map that has none.");
+    }
 }
