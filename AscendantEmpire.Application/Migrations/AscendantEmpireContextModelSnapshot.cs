@@ -2163,6 +2163,50 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("PlayerOrganisationStructureTier", "military");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Resources.PlayerUnlockedResource", b =>
+                {
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ResourceId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ObsoleteOnRound")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UnlockedOnRound")
+                        .HasColumnType("int");
+
+                    b.HasKey("PlayerId", "ResourceId");
+
+                    b.HasIndex("ResourceId")
+                        .HasDatabaseName("IX_PlayerUnlockedResource_Resource");
+
+                    b.ToTable("PlayerUnlockedResource", "resources");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Resources.PlayerUnlockedResourceMetaCategory", b =>
+                {
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ResourceMetaCategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ObsoleteOnRound")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UnlockedOnRound")
+                        .HasColumnType("int");
+
+                    b.HasKey("PlayerId", "ResourceMetaCategoryId");
+
+                    b.HasIndex("ResourceMetaCategoryId")
+                        .HasDatabaseName("IX_PlayerUnlockedResourceMetaCategory_ResourceMetaCategory");
+
+                    b.ToTable("PlayerUnlockedResourceMetaCategory", "resources");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Resources.Resource", b =>
                 {
                     b.Property<int>("Id")
@@ -4754,6 +4798,48 @@ namespace AscendantEmpire.Application.Migrations
                         .HasConstraintName("FK_PlayerOrganisationStructureTier_Structure_StructureId");
 
                     b.Navigation("Structure");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Resources.PlayerUnlockedResource", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerUnlockedResource_Player_PlayerId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Resources.Resource", "Resource")
+                        .WithMany()
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerUnlockedResource_Resource_ResourceId");
+
+                    b.Navigation("Player");
+
+                    b.Navigation("Resource");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Resources.PlayerUnlockedResourceMetaCategory", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerUnlockedResourceMetaCategory_Player_PlayerId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Resources.ResourceMetaCategory", "MetaCategory")
+                        .WithMany()
+                        .HasForeignKey("ResourceMetaCategoryId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerUnlockedResourceMetaCategory_ResourceMetaCategory_ResourceMetaCategoryId");
+
+                    b.Navigation("MetaCategory");
+
+                    b.Navigation("Player");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Resources.Resource", b =>

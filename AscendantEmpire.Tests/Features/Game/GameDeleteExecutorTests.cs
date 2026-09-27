@@ -1,4 +1,4 @@
-using AscendantEmpire.Application.Data;
+﻿using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.Application.Features.Game.Executors;
 using AscendantEmpire.Application.Features.Game.Handlers;
@@ -73,6 +73,8 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             Assert.That(await context.TurnQueueParticipants.AnyAsync(), Is.False, "The only turn queue in the database belonged to the deleted game.");
             Assert.That(await context.PlayerUnlockedTemplates.AnyAsync(), Is.False, "Unlock rows are player-scoped, even when the template they name survives.");
             Assert.That(await context.PlayerUnlockedComponents.AnyAsync(), Is.False);
+            Assert.That(await context.PlayerUnlockedResources.AnyAsync(), Is.False, "Resource unlocks are player-scoped, even though the Resource they name survives.");
+            Assert.That(await context.PlayerUnlockedResourceMetaCategories.AnyAsync(), Is.False);
             Assert.That(await context.PlayerOfficerRanks.AnyAsync(), Is.False);
         }
     }
@@ -306,6 +308,8 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
         int biomesBefore = await CountAsync(c => c.CampaignBiomes.CountAsync());
         int galleryTilesBefore = await CountAsync(c => c.CampaignMapGallery.CountAsync());
         int startPositionsBefore = await CountAsync(c => c.CampaignMapStartPositions.CountAsync());
+        int resourcesBefore = await CountAsync(c => c.Resources.CountAsync());
+        int resourceMetaCategoriesBefore = await CountAsync(c => c.ResourceMetaCategories.CountAsync());
 
         await ExecuteDeleteAsync(gameId);
 
@@ -319,6 +323,9 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             Assert.That(await context.CampaignMapGallery.CountAsync(), Is.EqualTo(galleryTilesBefore));
             Assert.That(await context.CampaignMapStartPositions.CountAsync(), Is.EqualTo(startPositionsBefore),
                 "Start positions belong to the gallery map, not to any one game played on it.");
+            Assert.That(await context.Resources.CountAsync(), Is.EqualTo(resourcesBefore),
+                "The resource catalogue is shared; only the per-player unlock rows pointing at it go.");
+            Assert.That(await context.ResourceMetaCategories.CountAsync(), Is.EqualTo(resourceMetaCategoriesBefore));
             Assert.That(await context.Users.AnyAsync(), Is.True, "Accounts outlive the games they played.");
         }
     }

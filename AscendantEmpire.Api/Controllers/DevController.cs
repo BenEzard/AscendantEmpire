@@ -1,8 +1,10 @@
 using AscendantEmpire.Api.Authentication;
 using AscendantEmpire.Api.Utilities;
+using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Features.Authentication.Classes;
 using AscendantEmpire.Application.Features.Authentication.Services;
+using AscendantEmpire.Application.Features.Resources.Handlers;
 using AscendantEmpire.Application.Features.Turns.Handlers;
 using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
@@ -15,16 +17,21 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 namespace AscendantEmpire.Api.Controllers;
 
-// Remove in F-18. The whole controller, its result type below, and the endpoint the frontend Dev Tools buttons call, all go when F-18 is done.
-
 /// <summary>
-/// Development-only conveniences for playing a multi-player Game single-handed.
+/// Development-only conveniences standing in for systems that do not exist yet.
 /// </summary>
 /// <remarks>
-/// <para>Remove in F-18. <see cref="DevelopmentOnlyAttribute"/> keeps these routes out of every environment but Development — outside it the controller is
-/// dropped from the application model entirely, so the paths simply do not exist.</para>
-/// <para>That guard is doing real work rather than being belt-and-braces: the endpoint below issues a session for another user's account without any
-/// credential check at all. It is a play-testing shortcut and nothing else.</para>
+/// <para><see cref="DevelopmentOnlyAttribute"/> keeps these routes out of every environment but Development — outside it the controller is dropped from the
+/// application model entirely, so the paths simply do not exist.</para>
+/// <para>That guard is doing real work rather than being belt-and-braces: the hot-seat endpoint issues a session for another user's account without any
+/// credential check at all. These are play-testing shortcuts and nothing else.</para>
+/// <para>
+/// The actions have <b>different lifetimes</b>, so this file is not a wholesale delete:
+/// <list type="bullet">
+///   <item><description><c>end-turn-and-switch-player</c> and <see cref="DTDevSwitchPlayerResult"/> go in F-18, with the frontend Dev Tools buttons that call them.</description></item>
+///   <item><description>the <c>player-resources</c> actions and their request types go when the Technology system takes over the unlock rows.</description></item>
+/// </list>
+/// </para>
 /// </remarks>
 [ApiController]
 [Route("[controller]")]
@@ -126,6 +133,127 @@ public class DevController : ControllerBase
 
         return Ok(body);
     }
+
+    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+    // Resource unlocks. Unlike the hot-seat endpoint above, this one is NOT removed in F-18 — it stands in for the Technology system and goes when that
+    // lands. Whoever does F-18 should keep this action (and the controller) rather than deleting the file wholesale.
+    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Grant the calling Player the named Resources and ResourceMetaCategories.
+    /// </summary>
+    /// <remarks>
+    /// Stands in for the Technology system, which will eventually own these rows. Without it the unlock path cannot be exercised by hand at all: a new game
+    /// grants its starter set and nothing ever changes it, so a meta-category icon appearing on unlock could never be seen.
+    /// </remarks>
+    /// <response code="204">The unlocks were granted</response>
+    /// <response code="400">No codes were supplied</response>
+    /// <response code="403">The caller has not entered a game</response>
+    /// <response code="404">A supplied code matches no catalogue row, or the Game has no campaign turn queue</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpPut("player-resources/grant")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(typeof(IApiErrorResult), 403)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GrantPlayerResourcesAsync(
+        [FromServices] IMediator mediator,
+        [FromBody] DTDevGrantResourceRequest body,
+        CancellationToken cancelToken)
+    {
+        // Game and Player come from the token, so this cannot be pointed at somebody else's unlocks.
+        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
+        {
+            return contextError!;
+        }
+
+        ServiceResultBase response = await mediator.Send(
+            new GrantPlayerResourceRequest(gameId, playerId, body.ResourceCodes ?? [], body.MetaCategoryCodes ?? [], body.ObsoleteInRounds),
+            cancelToken);
+
+        return response.ToActionResult();
+    }
+
+    /// <summary>
+    /// Take the named Resources and ResourceMetaCategories back off the calling Player.
+    /// </summary>
+    /// <remarks>
+    /// Deletes the rows rather than obsoleting them — no row means never granted, which is what undoing a grant wants. To retire something the Player has kept
+    /// instead, grant it with <c>obsoleteInRounds</c> set.
+    /// </remarks>
+    /// <response code="204">The unlocks were withdrawn</response>
+    /// <response code="400">No codes were supplied</response>
+    /// <response code="403">The caller has not entered a game</response>
+    /// <response code="404">A supplied code matches no catalogue row</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpPut("player-resources/withdraw")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(typeof(IApiErrorResult), 403)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> WithdrawPlayerResourcesAsync(
+        [FromServices] IMediator mediator,
+        [FromBody] DTDevWithdrawResourceRequest body,
+        CancellationToken cancelToken)
+    {
+        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
+        {
+            return contextError!;
+        }
+
+        ServiceResultBase response = await mediator.Send(
+            new WithdrawPlayerResourceRequest(gameId, playerId, body.ResourceCodes ?? [], body.MetaCategoryCodes ?? []),
+            cancelToken);
+
+        return response.ToActionResult();
+    }
+}
+
+/// <summary>
+/// Which Resources and ResourceMetaCategories to grant, and whether they are to start obsoleting.
+/// </summary>
+/// <remarks>
+/// Remove with the Technology system, alongside the endpoint that takes it. Declared here rather than in the contracts projects for the same reason as
+/// <see cref="DTDevSwitchPlayerResult"/>: it is temporary, so keeping it beside its only endpoint makes the removal a delete rather than a hunt.
+/// </remarks>
+public class DTDevGrantResourceRequest
+{
+    /// <summary>
+    /// Catalogue codes of the Resources to grant, e.g. "Weapons.MeleeWeapons.MedievalSword.Low".
+    /// </summary>
+    public IReadOnlyCollection<string>? ResourceCodes { get; init; }
+
+    /// <summary>
+    /// Catalogue codes of the ResourceMetaCategories to grant, e.g. "ConstructionMaterials".
+    /// </summary>
+    public IReadOnlyCollection<string>? MetaCategoryCodes { get; init; }
+
+    /// <summary>
+    /// Schedules the granted rows to stop being available this many Rounds from now, so the obsoleting countdown can be exercised.
+    /// </summary>
+    /// <remarks>Null leaves them current indefinitely.</remarks>
+    public int? ObsoleteInRounds { get; init; }
+}
+
+/// <summary>
+/// Which Resources and ResourceMetaCategories to take back off the Player.
+/// </summary>
+/// <remarks>Remove with the Technology system, alongside the endpoint that takes it.</remarks>
+public class DTDevWithdrawResourceRequest
+{
+    /// <summary>
+    /// Catalogue codes of the Resources to withdraw.
+    /// </summary>
+    public IReadOnlyCollection<string>? ResourceCodes { get; init; }
+
+    /// <summary>
+    /// Catalogue codes of the ResourceMetaCategories to withdraw.
+    /// </summary>
+    public IReadOnlyCollection<string>? MetaCategoryCodes { get; init; }
 }
 
 /// <summary>

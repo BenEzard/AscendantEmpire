@@ -8,6 +8,7 @@ using AscendantEmpire.BackendContracts.Turns.CreateCampaignTurnQueue;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Military;
+using AscendantEmpire.Domain.Entities.Resources;
 using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
@@ -53,6 +54,47 @@ internal class GameSetupService(
     /// are absent. See <c>docs/design/units/military-organisation-implementation-notes.md</c>.
     /// </remarks>
     public static readonly string[] StarterTemplateCodes = ["SETTLER", "SCOUT"];
+
+    /// <summary>
+    /// The <c>resources.ResourceMetaCategory</c> codes every Player starts the game with unlocked, and so which icons their Resources toolbar group shows.
+    /// </summary>
+    /// <remarks>
+    /// All three, so every icon is present from the first Round. Which Resources sit under each one is <see cref="StarterResourceCodes"/>; a meta-category with
+    /// nothing available under it still shows its icon over an empty panel.
+    /// </remarks>
+    public static readonly string[] StarterResourceMetaCategoryCodes = ["ConstructionMaterials", "Weapons", "RawMaterials"];
+
+    /// <summary>
+    /// The <c>resources.Resource</c> codes every Player starts the game with unlocked — a stone-age start.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Held back until Technology exists: the named timbers, every Plank and Brick, the harder and prestige stones, the spear and the sword, every Medium and
+    /// High grade (those need buildings and specialists rather than merely the material), and everything needing processing.
+    /// </para>
+    /// <para>
+    /// These are <b>seeded catalogue content</b>, unlike <see cref="StarterTemplateCodes"/>: they come from <c>ResourceSeedData</c>, so a game set up before the
+    /// Resources seed has run finds none of them and fails rather than starting a Player with an empty resource panel.
+    /// </para>
+    /// </remarks>
+    public static readonly string[] StarterResourceCodes =
+    [
+        "ConstructionMaterials.Wood.Logs.GenericLog",
+        "ConstructionMaterials.Wood.Logs.Bamboo",
+        "ConstructionMaterials.Stone.RawRock.GenericRock",
+        "ConstructionMaterials.Stone.RawRock.Flint",
+        "ConstructionMaterials.Stone.RawRock.Limestone",
+        "Weapons.MeleeWeapons.WoodClub.Low",
+        "Weapons.MeleeWeapons.BoneKnife.Low",
+        "Weapons.MeleeWeapons.StoneAxe.Low",
+        "RawMaterials.RawMaterials.Bone",
+        "RawMaterials.RawMaterials.Clay",
+        "RawMaterials.RawMaterials.Ochre",
+        "RawMaterials.RawMaterials.Chalk",
+        "RawMaterials.RawMaterials.Fodder",
+        "RawMaterials.RawMaterials.Hides",
+        "RawMaterials.RawMaterials.Tallow"
+    ];
 
     /// <inheritdoc/>
     public async Task<ServiceResult<int>> SetupGameAsync(SetupGameRequest request, CancellationToken cancellationToken = default)
@@ -461,6 +503,27 @@ internal class GameSetupService(
             .SelectMany(t => t.Components.Select(c => c.UnitComponentId).Append(t.BodyComponentId))
             .Distinct()];
 
+        // The starter resource catalogue rows, resolved by code. Unlike the templates these are seeded rather than hand-authored, so an unseeded catalogue is
+        // the likely cause of a miss — say so, because a Player with no resources would otherwise be a silent empty panel.
+        Dictionary<string, int> starterMetaCategoryIdsByCode = await context.ResourceMetaCategories
+            .Where(m => StarterResourceMetaCategoryCodes.Contains(m.Code))
+            .ToDictionaryAsync(m => m.Code, m => m.Id, cancellationToken);
+
+        Dictionary<string, int> starterResourceIdsByCode = await context.Resources
+            .Where(r => StarterResourceCodes.Contains(r.Code))
+            .ToDictionaryAsync(r => r.Code, r => r.Id, cancellationToken);
+
+        string[] missingResourceCodes =
+        [
+            .. StarterResourceMetaCategoryCodes.Except(starterMetaCategoryIdsByCode.Keys, StringComparer.OrdinalIgnoreCase),
+            .. StarterResourceCodes.Except(starterResourceIdsByCode.Keys, StringComparer.OrdinalIgnoreCase)
+        ];
+
+        if (missingResourceCodes.Length > 0)
+        {
+            return ServiceResultBase.Fail($"Starter resource(s) not found in the catalogue: {string.Join(", ", missingResourceCodes)}. A game cannot start without them — run the Resources database seed from the Entity Setup Tool.");
+        }
+
         List<DomainPlayer> playersInOrder = [.. addedPlayers.OrderBy(p => p.Id)];
 
         // Collected across every player and handed to the lifecycle writer in one go below, rather than added to the context as they are built.
@@ -483,6 +546,21 @@ internal class GameSetupService(
                 PlayerId = player.Id,
                 UnitTemplateId = template.Id,
                 UnlockedOnTurn = 0,
+            }));
+
+            // Round 0 rather than _FIRST_ROUND_NUMBER, matching the unlock rows above: these were granted at setup, before the first Round opened.
+            context.PlayerUnlockedResourceMetaCategories.AddRange(starterMetaCategoryIdsByCode.Values.Select(metaCategoryId => new PlayerUnlockedResourceMetaCategory
+            {
+                PlayerId = player.Id,
+                ResourceMetaCategoryId = metaCategoryId,
+                UnlockedOnRound = 0,
+            }));
+
+            context.PlayerUnlockedResources.AddRange(starterResourceIdsByCode.Values.Select(resourceId => new PlayerUnlockedResource
+            {
+                PlayerId = player.Id,
+                ResourceId = resourceId,
+                UnlockedOnRound = 0,
             }));
 
             // One unit of each starter template, at the player's start tile, at its tag's default size, all healthy.

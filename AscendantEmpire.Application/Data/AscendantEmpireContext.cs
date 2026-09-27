@@ -244,6 +244,16 @@ public class AscendantEmpireContext : DbContext
     public DbSet<ResourceCategory> ResourceCategories { get; set; }
     public DbSet<ResourceGroup> ResourceGroups { get; set; }
     public DbSet<Resource> Resources { get; set; }
+
+    /// <summary>
+    /// Which ResourceMetaCategories each Player has unlocked, and so which icons their Resources toolbar group shows.
+    /// </summary>
+    public DbSet<PlayerUnlockedResourceMetaCategory> PlayerUnlockedResourceMetaCategories { get; set; }
+
+    /// <summary>
+    /// Which Resources each Player has unlocked. The categories and groups between are derived from these rather than unlocked in their own right.
+    /// </summary>
+    public DbSet<PlayerUnlockedResource> PlayerUnlockedResources { get; set; }
     #endregion
 
     #region Turn Schema
@@ -525,6 +535,53 @@ public class AscendantEmpireContext : DbContext
                 .WithMany(x => x.Resources)
                 .HasForeignKey(x => x.ResourceCategoryId)
                 .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        // --- Per-player unlock state -------------------------------------------------
+        // These live here with the catalogue they gate rather than in the game schema, following PlayerUnlockedComponent, which sits with the unit-design
+        // catalogue. ResourceCategory and ResourceGroup deliberately have no equivalent: their visibility is derived from the Resources beneath them.
+        modelBuilder.Entity<PlayerUnlockedResourceMetaCategory>(entity =>
+        {
+            entity.ToTable("PlayerUnlockedResourceMetaCategory", schema);
+
+            entity.HasKey(e => new { e.PlayerId, e.ResourceMetaCategoryId });
+
+            entity.HasOne(e => e.Player)
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerUnlockedResourceMetaCategory_Player_PlayerId");
+
+            entity.HasOne(e => e.MetaCategory)
+                .WithMany()
+                .HasForeignKey(e => e.ResourceMetaCategoryId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerUnlockedResourceMetaCategory_ResourceMetaCategory_ResourceMetaCategoryId");
+
+            entity.HasIndex(e => e.ResourceMetaCategoryId)
+                .HasDatabaseName("IX_PlayerUnlockedResourceMetaCategory_ResourceMetaCategory");
+        });
+
+        modelBuilder.Entity<PlayerUnlockedResource>(entity =>
+        {
+            entity.ToTable("PlayerUnlockedResource", schema);
+
+            entity.HasKey(e => new { e.PlayerId, e.ResourceId });
+
+            entity.HasOne(e => e.Player)
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerUnlockedResource_Player_PlayerId");
+
+            entity.HasOne(e => e.Resource)
+                .WithMany()
+                .HasForeignKey(e => e.ResourceId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerUnlockedResource_Resource_ResourceId");
+
+            entity.HasIndex(e => e.ResourceId)
+                .HasDatabaseName("IX_PlayerUnlockedResource_Resource");
         });
     }
 

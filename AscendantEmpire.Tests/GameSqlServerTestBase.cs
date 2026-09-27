@@ -1,7 +1,9 @@
 ﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
+using AscendantEmpire.Application.Features.Resources.Handlers;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Units.Services;
 using AscendantEmpire.Domain.Entities.Games;
@@ -45,6 +47,7 @@ public class GameSqlServerTestBase : SqlServerTestBase
         // starter catalogue (org tags, components, templates + compiled snapshots) and one start position per
         // player on the gallery map.
         await SeedStarterCatalogueAsync();
+        await SeedStarterResourcesAsync();
         await SeedStartPositionsAsync(_galleryIndexId, numberOfPlayers, mapWidth, mapHeight);
 
         _completedMapProperties = new CampaignMapGalleryProperties
@@ -76,7 +79,33 @@ public class GameSqlServerTestBase : SqlServerTestBase
     }
 
     /// <summary>
-    /// Seeds the minimum rows needed by the raw SQL INSERT in <c>GenerateCampaignMapAsync</c>: a <see cref="CampaignBiome"/>, a <see cref="CampaignGeography"/>, a <see cref="CampaignMapGalleryIndex"/>, 
+    /// Seeds the resource catalogue, which game setup unlocks a starter subset of for every Player.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Runs the real seed data through the real upsert, rather than hand-writing the handful of rows the starter codes name. That way the catalogue a test runs
+    /// against is the catalogue production gets, and <c>GameSetupService.StarterResourceCodes</c> cannot drift from it without failing here.
+    /// </para>
+    /// <para>
+    /// Idempotent, because the upsert matches on code - a fixture that seeds twice updates rather than duplicating.
+    /// </para>
+    /// </remarks>
+    public async Task SeedStarterResourcesAsync()
+    {
+        await using AscendantEmpireContext ctx = await DbFactory.CreateDbContextAsync();
+
+        var handler = new UpsertResourcesHandler(NullLogger<UpsertResourcesHandler>.Instance, ctx);
+
+        ServiceResultBase result = await handler.Handle(new UpsertResourcesRequest(ResourceSeedData.Build()), CancellationToken.None);
+
+        if (result.HasSucceeded == false)
+        {
+            throw new InvalidOperationException($"Seeding the resource catalogue for the test failed: {string.Join("; ", result.Errors)}");
+        }
+    }
+
+    /// <summary>
+    /// Seeds the minimum rows needed by the raw SQL INSERT in <c>GenerateCampaignMapAsync</c>: a <see cref="CampaignBiome"/>, a <see cref="CampaignGeography"/>, a <see cref="CampaignMapGalleryIndex"/>,
     /// and <c>Width × Height</c> <see cref="CampaignMapGallery"/> tile rows.
     /// </summary>
     /// <returns>The Id of the seeded <see cref="CampaignMapGalleryIndex"/>.</returns>

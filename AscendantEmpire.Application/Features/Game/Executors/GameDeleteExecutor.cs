@@ -304,6 +304,16 @@ internal sealed class GameDeleteExecutor(
                 .Where(u => playerIds.Contains(u.PlayerId))
                 .ExecuteDeleteAsync(cancellationToken)),
 
+            // Per-player resource unlocks, on the same terms: the Resource and meta-category they name are catalogue rows that survive, the row is this
+            // Player's and goes with them.
+            ("player resource unlocks", () => purge.PlayerUnlockedResources
+                .Where(u => playerIds.Contains(u.PlayerId))
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            ("player resource meta-category unlocks", () => purge.PlayerUnlockedResourceMetaCategories
+                .Where(u => playerIds.Contains(u.PlayerId))
+                .ExecuteDeleteAsync(cancellationToken)),
+
             ("player design states", () => purge.PlayerUnitDesignStates
                 .Where(s => playerIds.Contains(s.PlayerId))
                 .ExecuteDeleteAsync(cancellationToken)),

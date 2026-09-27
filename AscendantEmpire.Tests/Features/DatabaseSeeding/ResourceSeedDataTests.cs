@@ -1,4 +1,5 @@
 using AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
+using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.BackendContracts.Resources;
 using AscendantEmpire.Domain.Entities.Resources;
 using AscendantEmpire.Domain.Enums.Resources;
@@ -171,6 +172,24 @@ internal class ResourceSeedDataTests
                 Assert.That(path, Does.Not.Contain("\\"), $"Icon path '{path}' uses backslashes.");
             }
         });
+    }
+
+    [Test, Description("Every starter resource code game setup demands resolves to a seeded Resource, so a rename in either file fails here rather than at game creation.")]
+    public void ShouldSeedAResourceForEveryStarterCode()
+    {
+        string[] missingCodes = [.. GameSetupService.StarterResourceCodes.Except(AllResourceCodes(), StringComparer.OrdinalIgnoreCase)];
+
+        Assert.That(missingCodes, Is.Empty, $"Starter resource codes with no seeded Resource: {string.Join(", ", missingCodes)}");
+    }
+
+    [Test, Description("Every starter meta-category code game setup demands resolves to a seeded ResourceMetaCategory, on the same terms as the resource codes.")]
+    public void ShouldSeedAMetaCategoryForEveryStarterCode()
+    {
+        IEnumerable<string> seededCodes = _metaCategories.Select(metaCategory => metaCategory.Code!);
+
+        string[] missingCodes = [.. GameSetupService.StarterResourceMetaCategoryCodes.Except(seededCodes, StringComparer.OrdinalIgnoreCase)];
+
+        Assert.That(missingCodes, Is.Empty, $"Starter meta-category codes with no seeded row: {string.Join(", ", missingCodes)}");
     }
 
     private IEnumerable<UpsertResourceCategoryDto> AllCategories()
