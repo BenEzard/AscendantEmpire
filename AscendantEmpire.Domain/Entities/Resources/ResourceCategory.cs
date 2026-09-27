@@ -7,7 +7,10 @@ namespace AscendantEmpire.Domain.Entities.Resources;
 /// </summary>
 public sealed class ResourceCategory
 {
-    public const int MAX_CODE_LENGTH = 50;
+    /// <summary>
+    /// Codes are hierarchical, so the limit has to hold a full dotted path rather than one segment - "ConstructionMaterials.Stone.Bricks.SandstoneBlock" is already 49.
+    /// </summary>
+    public const int MAX_CODE_LENGTH = 100;
     public const int MAX_DISPLAY_NAME_LENGTH = 50;
 
     public int Id { get; set; }

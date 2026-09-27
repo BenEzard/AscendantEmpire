@@ -150,11 +150,13 @@ internal static class MapResourceTestSeed
         context.ResourceCategories.Add(category);
         await context.SaveChangesAsync();
 
-        List<Resource> resources = [.. names.Select(name => new Resource
+        // Sort orders are spaced by 10 from the caller's order, matching how the real catalogue is seeded.
+        List<Resource> resources = [.. names.Select((name, index) => new Resource
         {
             Code = $"TestMeta.TestCategory.{name}",
             DisplayName = name,
             IconPath = "test.png",
+            SortOrder = (index + 1) * 10,
             IsGradedResource = false,
             ResourceMetaCategoryId = meta.Id,
             ResourceCategoryId = category.Id

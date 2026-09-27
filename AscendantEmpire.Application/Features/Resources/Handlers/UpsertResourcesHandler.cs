@@ -21,7 +21,7 @@ internal class UpsertResourcesHandler(
     AscendantEmpireContext context
     ) : IRequestHandler<UpsertResourcesRequest, ServiceResultBase>
 {
-    private const int SortOrderStep = 10;
+    private const int _SORT_ORDER_STEP = 10;
 
     public async Task<ServiceResultBase> Handle(
         UpsertResourcesRequest request,
@@ -30,34 +30,39 @@ internal class UpsertResourcesHandler(
         try
         {
             if (request.MetaCategories.Count == 0)
+            {
                 return Fail("At least one meta-category must be provided.");
+            }
 
             // --- Step 1: Derive all codes and sort orders from the request before touching the DB.
             //     Working with immutable plan objects avoids repeating derivation logic and keeps
             //     validation independent of DB state. ---
 
+            // A supplied Code is taken whole at every level rather than being prefixed by its parent, so the code a caller writes is exactly the code that
+            // lands in the database and can be grepped for. Codes are the upsert's match key: derived-only would mean renaming a DisplayName inserted a
+            // second row instead of renaming the first.
             var metaPlan = request.MetaCategories
                 .Select((m, i) => new
                 {
                     Dto = m,
-                    Code = ToProperCode(m.DisplayName),
-                    SortOrder = m.SortOrder ?? (i + 1) * SortOrderStep
+                    Code = m.Code ?? ToProperCode(m.DisplayName),
+                    SortOrder = m.SortOrder ?? (i + 1) * _SORT_ORDER_STEP
                 })
                 .ToArray();
 
-            // Category codes are hierarchical: "MetaCode.CategoryCode"
+            // Derived category codes are hierarchical: "MetaCode.CategoryCode"
             var categoryPlan = metaPlan
                 .SelectMany(m => m.Dto.Categories
                     .Select((c, i) => new
                     {
                         Dto = c,
                         MetaCode = m.Code,
-                        Code = $"{m.Code}.{ToProperCode(c.DisplayName)}",
-                        SortOrder = c.SortOrder ?? (i + 1) * SortOrderStep
+                        Code = c.Code ?? $"{m.Code}.{ToProperCode(c.DisplayName)}",
+                        SortOrder = c.SortOrder ?? (i + 1) * _SORT_ORDER_STEP
                     }))
                 .ToArray();
 
-            // Group codes: "MetaCode.CategoryCode.GroupCode" (grouped categories only)
+            // Derived group codes: "MetaCode.CategoryCode.GroupCode" (grouped categories only)
             var groupPlan = categoryPlan
                 .Where(c => c.Dto.CategoryType == ResourceCategoryType.GroupedResources)
                 .SelectMany(c => c.Dto.Groups
@@ -66,21 +71,22 @@ internal class UpsertResourcesHandler(
                         Dto = g,
                         CategoryCode = c.Code,
                         MetaCode = c.MetaCode,
-                        Code = $"{c.Code}.{ToProperCode(g.DisplayName)}",
-                        SortOrder = g.SortOrder ?? (i + 1) * SortOrderStep
+                        Code = g.Code ?? $"{c.Code}.{ToProperCode(g.DisplayName)}",
+                        SortOrder = g.SortOrder ?? (i + 1) * _SORT_ORDER_STEP
                     }))
                 .ToArray();
 
             // Resources via the grouped path (belong to a ResourceGroup)
             var groupedResourcePlan = groupPlan
                 .SelectMany(g => g.Dto.Resources
-                    .Select(r => new
+                    .Select((r, i) => new
                     {
                         Dto = r,
                         GroupCode = (string?)g.Code,
                         CategoryCode = (string?)null,
                         MetaCode = g.MetaCode,
-                        Code = r.Code ?? $"{g.Code}.{ToProperCode(r.DisplayName)}"
+                        Code = r.Code ?? $"{g.Code}.{ToProperCode(r.DisplayName)}",
+                        SortOrder = r.SortOrder ?? (i + 1) * _SORT_ORDER_STEP
                     }))
                 .ToArray();
 
@@ -88,13 +94,14 @@ internal class UpsertResourcesHandler(
             var standaloneResourcePlan = categoryPlan
                 .Where(c => c.Dto.CategoryType == ResourceCategoryType.StandaloneResources)
                 .SelectMany(c => c.Dto.Resources
-                    .Select(r => new
+                    .Select((r, i) => new
                     {
                         Dto = r,
                         GroupCode = (string?)null,
                         CategoryCode = (string?)c.Code,
                         MetaCode = c.MetaCode,
-                        Code = r.Code ?? $"{c.Code}.{ToProperCode(r.DisplayName)}"
+                        Code = r.Code ?? $"{c.Code}.{ToProperCode(r.DisplayName)}",
+                        SortOrder = r.SortOrder ?? (i + 1) * _SORT_ORDER_STEP
                     }))
                 .ToArray();
 
@@ -108,7 +115,9 @@ internal class UpsertResourcesHandler(
                 .Select(g => g.Key)];
 
             if (duplicateMetaCodes.Length > 0)
+            {
                 errors.Add($"Duplicate meta-category names resolve to the same code(s): {string.Join(", ", duplicateMetaCodes)}");
+            }
 
             string[] duplicateCategoryCodes = [.. categoryPlan
                 .GroupBy(c => c.Code)
@@ -116,7 +125,9 @@ internal class UpsertResourcesHandler(
                 .Select(g => g.Key)];
 
             if (duplicateCategoryCodes.Length > 0)
+            {
                 errors.Add($"Duplicate category names resolve to the same code(s): {string.Join(", ", duplicateCategoryCodes)}");
+            }
 
             string[] duplicateGroupCodes = [.. groupPlan
                 .GroupBy(g => g.Code)
@@ -124,7 +135,9 @@ internal class UpsertResourcesHandler(
                 .Select(g => g.Key)];
 
             if (duplicateGroupCodes.Length > 0)
+            {
                 errors.Add($"Duplicate group names resolve to the same code(s): {string.Join(", ", duplicateGroupCodes)}");
+            }
 
             string[] allResourceCodes = [..
                 groupedResourcePlan.Select(r => r.Code)
@@ -136,10 +149,14 @@ internal class UpsertResourcesHandler(
                 .Select(g => g.Key)];
 
             if (duplicateResourceCodes.Length > 0)
+            {
                 errors.Add($"Duplicate resource names resolve to the same code(s): {string.Join(", ", duplicateResourceCodes)}");
+            }
 
             if (errors.Count > 0)
+            {
                 return Fail(errors);
+            }
 
             // --- Step 3: Load all existing records in bulk to avoid N+1 queries ---
 
@@ -187,9 +204,12 @@ internal class UpsertResourcesHandler(
                 {
                     metaEntity.DisplayName = meta.Dto.DisplayName;
                     metaEntity.SortOrder = meta.SortOrder;
+
                     // Only overwrite IconPath when explicitly provided, to allow partial updates.
                     if (meta.Dto.IconPath is not null)
+                    {
                         metaEntity.IconPath = meta.Dto.IconPath;
+                    }
                 }
             }
 
@@ -262,7 +282,10 @@ internal class UpsertResourcesHandler(
                         Code = res.Code,
                         DisplayName = res.Dto.DisplayName,
                         IconPath = res.Dto.IconPath ?? string.Empty,
+                        Description = res.Dto.Description,
+                        SortOrder = res.SortOrder,
                         IsGradedResource = res.Dto.IsGradedResource,
+                        ResourceGrade = res.Dto.ResourceGrade,
                         NeverLuxury = res.Dto.NeverLuxury,
                         MetaCategory = metaEntity,
                         Group = groupEntity
@@ -273,14 +296,26 @@ internal class UpsertResourcesHandler(
                 else
                 {
                     resourceEntity.DisplayName = res.Dto.DisplayName;
+                    resourceEntity.SortOrder = res.SortOrder;
                     resourceEntity.IsGradedResource = res.Dto.IsGradedResource;
+                    resourceEntity.ResourceGrade = res.Dto.ResourceGrade;
                     resourceEntity.NeverLuxury = res.Dto.NeverLuxury;
                     resourceEntity.MetaCategory = metaEntity;
+
                     // Ensure grouped path is set and standalone path is cleared.
                     resourceEntity.Group = groupEntity;
                     resourceEntity.Category = null;
+
+                    // IconPath and Description are only overwritten when supplied, to allow partial updates.
                     if (res.Dto.IconPath is not null)
+                    {
                         resourceEntity.IconPath = res.Dto.IconPath;
+                    }
+
+                    if (res.Dto.Description is not null)
+                    {
+                        resourceEntity.Description = res.Dto.Description;
+                    }
                 }
             }
 
@@ -296,7 +331,10 @@ internal class UpsertResourcesHandler(
                         Code = res.Code,
                         DisplayName = res.Dto.DisplayName,
                         IconPath = res.Dto.IconPath ?? string.Empty,
+                        Description = res.Dto.Description,
+                        SortOrder = res.SortOrder,
                         IsGradedResource = res.Dto.IsGradedResource,
+                        ResourceGrade = res.Dto.ResourceGrade,
                         NeverLuxury = res.Dto.NeverLuxury,
                         MetaCategory = metaEntity,
                         Category = catEntity
@@ -307,14 +345,26 @@ internal class UpsertResourcesHandler(
                 else
                 {
                     resourceEntity.DisplayName = res.Dto.DisplayName;
+                    resourceEntity.SortOrder = res.SortOrder;
                     resourceEntity.IsGradedResource = res.Dto.IsGradedResource;
+                    resourceEntity.ResourceGrade = res.Dto.ResourceGrade;
                     resourceEntity.NeverLuxury = res.Dto.NeverLuxury;
                     resourceEntity.MetaCategory = metaEntity;
+
                     // Ensure standalone path is set and grouped path is cleared.
                     resourceEntity.Category = catEntity;
                     resourceEntity.Group = null;
+
+                    // IconPath and Description are only overwritten when supplied, to allow partial updates.
                     if (res.Dto.IconPath is not null)
+                    {
                         resourceEntity.IconPath = res.Dto.IconPath;
+                    }
+
+                    if (res.Dto.Description is not null)
+                    {
+                        resourceEntity.Description = res.Dto.Description;
+                    }
                 }
             }
 

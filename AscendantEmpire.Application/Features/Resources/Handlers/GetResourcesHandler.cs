@@ -28,6 +28,7 @@ internal class GetResourcesHandler(
             List<ResourceSummary> resources = await context.Resources
                 .AsNoTracking()
                 .OrderBy(r => r.MetaCategory.SortOrder)
+                .ThenBy(r => r.SortOrder)
                 .ThenBy(r => r.DisplayName)
                 .Select(r => new ResourceSummary
                 {

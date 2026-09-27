@@ -2,7 +2,9 @@
 import type { NotificationGroup, NotificationGroupType, NotificationItem } from "./types";
 import { notificationGroupTypeMeta } from "./types";
 import unitIconSrc from "@/assets/units/centurion_40px.png";
-import sandstoneBlockIconSrc from "@/assets/stone/sandstone-block_40px.png";
+
+// Served from public/ rather than bundled as an import, because the resource catalogue seeds this same path as a Resource's IconPath.
+const SANDSTONE_BLOCK_ICON_SRC = "/resources/stone/sandstone-block_40px.png";
 
 // RecordType's numeric values, which the API sends as `recordTypeId`. They are persisted on the server, so they can be relied on not to move.
 const RECORD_TYPE_UNIT = 1;
@@ -38,10 +40,10 @@ function iconFor(groupType: NotificationGroupType): { iconSrc: string; iconAlt: 
       return { iconSrc: unitIconSrc, iconAlt: "Unit" };
 
     case "city-under-siege":
-      return { iconSrc: sandstoneBlockIconSrc, iconAlt: "City" };
+      return { iconSrc: SANDSTONE_BLOCK_ICON_SRC, iconAlt: "City" };
 
     default:
-      return { iconSrc: sandstoneBlockIconSrc, iconAlt: "Resource" };
+      return { iconSrc: SANDSTONE_BLOCK_ICON_SRC, iconAlt: "Resource" };
   }
 }
 

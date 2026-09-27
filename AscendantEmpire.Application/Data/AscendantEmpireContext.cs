@@ -443,12 +443,17 @@ public class AscendantEmpireContext : DbContext
         const string schema = "resources";
 
 
+        // Code is the match key every resource upsert works from, so it is length-capped and uniquely indexed at all four levels. Without the unique index
+        // nothing stops two rows sharing a code, and the upsert would then silently update whichever the dictionary happened to keep.
         modelBuilder.Entity<ResourceMetaCategory>(entity =>
         {
             entity.ToTable("ResourceMetaCategory", schema);
             entity.HasKey(x => x.Id);
+            entity.Property(x => x.Code).HasMaxLength(ResourceMetaCategory.MAX_CODE_LENGTH).IsRequired();
             entity.Property(x => x.DisplayName).HasMaxLength(ResourceMetaCategory.MAX_DISPLAY_NAME_LENGTH).IsRequired();
+            entity.Property(x => x.IconPath).HasMaxLength(ResourceMetaCategory.MAX_ICON_PATH_LENGTH);
 
+            entity.HasIndex(x => x.Code).IsUnique();
             entity.HasIndex(x => x.DisplayName).IsUnique();
         });
 
@@ -456,8 +461,10 @@ public class AscendantEmpireContext : DbContext
         {
             entity.ToTable("ResourceCategory", schema);
             entity.HasKey(x => x.Id);
+            entity.Property(x => x.Code).HasMaxLength(ResourceCategory.MAX_CODE_LENGTH).IsRequired();
             entity.Property(x => x.DisplayName).HasMaxLength(ResourceCategory.MAX_DISPLAY_NAME_LENGTH).IsRequired();
 
+            entity.HasIndex(x => x.Code).IsUnique();
             entity.HasIndex(x => new { x.ResourceMetaCategoryId, x.DisplayName }).IsUnique();
 
             entity.HasOne(x => x.MetaCategory)
@@ -477,7 +484,10 @@ public class AscendantEmpireContext : DbContext
             entity.ToTable("ResourceGroup", schema);
             entity.HasKey(x => x.Id);
 
+            entity.Property(x => x.Code).HasMaxLength(ResourceGroup.MAX_CODE_LENGTH).IsRequired();
             entity.Property(x => x.DisplayName).HasMaxLength(ResourceGroup.MAX_DISPLAY_NAME_LENGTH).IsRequired();
+
+            entity.HasIndex(x => x.Code).IsUnique();
             entity.HasIndex(x => new { x.ResourceCategoryId, x.DisplayName }).IsUnique();
 
             // GroupOrder is per-category

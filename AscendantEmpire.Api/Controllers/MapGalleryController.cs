@@ -24,7 +24,6 @@ using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.MapGallery.GetCampaignMapGalleryIndex;
 using AscendantEmpire.FrontendContracts.MapGallery.GetCampaignMapStartPositions;
 using AscendantEmpire.FrontendContracts.MapGallery.GetCampaignMapTiles;
-using AscendantEmpire.FrontendContracts.MapGallery.PutCampaignMapStartPositions;
 using AscendantEmpire.FrontendContracts.MapGallery.SearchCampaignMapIndex;
 using AscendantEmpire.FrontendContracts.MapGallery.UpdateCampaignMapRivers;
 using AscendantEmpire.FrontendContracts.MapGallery.UpdateCampaignMapTiles;

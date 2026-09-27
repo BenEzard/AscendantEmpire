@@ -8,6 +8,7 @@ import { useCampaignMapBiomesQuery } from "../hooks/useCampaignMapBiomes";
 import BiomeManagerDialog from "./BiomeManagerDialog";
 import GeographyManagerDialog from "./GeographyManagerDialog";
 import MapResourceTypeManagerDialog from "./MapResourceTypeManagerDialog";
+import type { CampaignMapGalleryIndex } from "../api/mapGalleryApi";
 import { useMapResourceCatalogueQuery } from "../hooks/useMapResourceCatalogue";
 import { useGalleryMapResourceMutations, useGalleryMapResourcesQuery } from "../hooks/useGalleryMapResources";
 import MapResourcePlacementDialog from "./mapResources/MapResourcePlacementDialog";

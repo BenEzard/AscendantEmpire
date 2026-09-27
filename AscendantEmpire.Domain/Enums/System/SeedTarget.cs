@@ -49,5 +49,10 @@ public enum SeedTarget
     /// <summary>
     /// The global <c>unitdesigns.UnitTemplate</c> rows a new game spawns for every player — the settler and the scout.
     /// </summary>
-    StarterTemplates = 7
+    StarterTemplates = 7,
+
+    /// <summary>
+    /// The <c>resources</c> schema catalogue — the meta-categories, categories, groups and Resources a Player's economy is built from.
+    /// </summary>
+    Resources = 8
 }

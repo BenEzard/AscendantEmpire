@@ -17,5 +17,10 @@ public enum SeedTargetGroup
     /// <summary>
     /// The unit-design catalogue — tag types, tags, components and the starter templates.
     /// </summary>
-    UnitDesign = 2
+    UnitDesign = 2,
+
+    /// <summary>
+    /// The resource catalogue — the meta-categories, categories, groups and Resources themselves.
+    /// </summary>
+    Resources = 3
 }

@@ -1,30 +1,6 @@
 import { createElement, type ReactNode } from "react";
 import { GiClayBrick, GiStoneBlock, GiWoodStick } from "react-icons/gi";
 
-import boneIconUrl from "@/assets/other/fishbone.svg";
-import grassIconUrl from "@/assets/other/high-grass.svg";
-import ashLogIconUrl from "@/assets/wood/ash-log_40px.png";
-import ashPlankIconUrl from "@/assets/wood/ash-plank_40px.png";
-import bambooIconUrl from "@/assets/wood/bamboo_40px.png";
-import cedarLogIconUrl from "@/assets/wood/cedar-log_40px.png";
-import cedarPlankIconUrl from "@/assets/wood/cedar-plank_40px.png";
-import ebonyLogIconUrl from "@/assets/wood/ebony-log_40px.png";
-import ebonyPlankIconUrl from "@/assets/wood/ebony-plank_40px.png";
-import oakLogIconUrl from "@/assets/wood/oak-log_40px.png";
-import oakPlankIconUrl from "@/assets/wood/oak-plank_40px.png";
-import pineLogIconUrl from "@/assets/wood/pine-log_40px.png";
-import pinePlankIconUrl from "@/assets/wood/pine-plank_40px.png";
-import genericRockPileIconUrl from "@/assets/stone/generic-rock-pile_40px.png";
-import marbleBlockIconUrl from "@/assets/stone/marble-block_40px.png";
-import marblePileIconUrl from "@/assets/stone/marble-pile_40px.png";
-import obsidianPileIconUrl from "@/assets/stone/obsidian-pile_40px.png";
-import sandstoneBlockIconUrl from "@/assets/stone/sandstone-block_40px.png";
-import sandstoneRocksIconUrl from "@/assets/stone/sandstone-rocks_40px.png";
-import boneKnifeIconUrl from "@/assets/unit-design/weapons/melee/bone-knife_40px.png";
-import medievalSwordIconUrl from "@/assets/unit-design/weapons/melee/medieval-sword_40px.png";
-import stoneAxeIconUrl from "@/assets/unit-design/weapons/melee/stone-axe_40px.png";
-import woodClubIconUrl from "@/assets/unit-design/weapons/melee/wood-club_40px.png";
-import woodSpearIconUrl from "@/assets/unit-design/weapons/melee/two-piece-wood-spear_40px.png";
 import tradeIconUrl from "@/assets/icons/trade_40px.png";
 import type {
   DistributionConfig,
@@ -35,6 +11,35 @@ import type {
   ResourceTickerGroupData,
   StandaloneResourceCategoryData,
 } from "./ResourceTickerCollection";
+
+// Resource icons are served from public/ rather than bundled, because the resource catalogue seeds these same paths as each Resource's IconPath — see
+// ResourceSeedData on the API side. This file goes away once the panel is driven from GET /player/resources.
+const ICON_BASE = "/resources";
+
+const boneIconUrl = `${ICON_BASE}/other/fishbone.svg`;
+const grassIconUrl = `${ICON_BASE}/other/high-grass.svg`;
+const ashLogIconUrl = `${ICON_BASE}/wood/ash-log_40px.png`;
+const ashPlankIconUrl = `${ICON_BASE}/wood/ash-plank_40px.png`;
+const bambooIconUrl = `${ICON_BASE}/wood/bamboo_40px.png`;
+const cedarLogIconUrl = `${ICON_BASE}/wood/cedar-log_40px.png`;
+const cedarPlankIconUrl = `${ICON_BASE}/wood/cedar-plank_40px.png`;
+const ebonyLogIconUrl = `${ICON_BASE}/wood/ebony-log_40px.png`;
+const ebonyPlankIconUrl = `${ICON_BASE}/wood/ebony-plank_40px.png`;
+const oakLogIconUrl = `${ICON_BASE}/wood/oak-log_40px.png`;
+const oakPlankIconUrl = `${ICON_BASE}/wood/oak-plank_40px.png`;
+const pineLogIconUrl = `${ICON_BASE}/wood/pine-log_40px.png`;
+const pinePlankIconUrl = `${ICON_BASE}/wood/pine-plank_40px.png`;
+const genericRockPileIconUrl = `${ICON_BASE}/stone/generic-rock-pile_40px.png`;
+const marbleBlockIconUrl = `${ICON_BASE}/stone/marble-block_40px.png`;
+const marblePileIconUrl = `${ICON_BASE}/stone/marble-pile_40px.png`;
+const obsidianPileIconUrl = `${ICON_BASE}/stone/obsidian-pile_40px.png`;
+const sandstoneBlockIconUrl = `${ICON_BASE}/stone/sandstone-block_40px.png`;
+const sandstoneRocksIconUrl = `${ICON_BASE}/stone/sandstone-rocks_40px.png`;
+const boneKnifeIconUrl = `${ICON_BASE}/unit-design/weapons/melee/bone-knife_40px.png`;
+const medievalSwordIconUrl = `${ICON_BASE}/unit-design/weapons/melee/medieval-sword_40px.png`;
+const stoneAxeIconUrl = `${ICON_BASE}/unit-design/weapons/melee/stone-axe_40px.png`;
+const woodClubIconUrl = `${ICON_BASE}/unit-design/weapons/melee/wood-club_40px.png`;
+const woodSpearIconUrl = `${ICON_BASE}/unit-design/weapons/melee/two-piece-wood-spear_40px.png`;
 
 type ResourceDefinition = Omit<ResourceTickerData, "id" | "code" | "name"> & {
   label: string;

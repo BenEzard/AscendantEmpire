@@ -41,7 +41,7 @@ interface UseGameToolbarArgs {
  */
 const SHOW_DEV_HOT_SEAT_BUTTONS = import.meta.env.DEV;
 
-/** Builds the game screen's toolbar groups (Game menu, Dev Tools, Structures, Advisors). */
+/** Builds the game screen's toolbar groups (Game menu, Dev Tools, Resources, Structures, Advisors). */
 export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
   const {
     gameOpen,
@@ -90,7 +90,14 @@ export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
                   {
                     label: "Dev Tools",
                     items: [
-                      { key: "clear-vision", icon: <GoEyeClosed />, label: "Clear Vision", tooltip: "Clear Vision", disabled: !gameOpen, onClick: onClearVision },
+                      {
+                        key: "clear-vision",
+                        icon: <GoEyeClosed />,
+                        label: "Clear Vision",
+                        tooltip: "Clear Vision",
+                        disabled: !gameOpen,
+                        onClick: onClearVision,
+                      },
                     ],
                   },
                   // Log out last, separated from the page's own groups. Absent when logged out.
@@ -137,15 +144,22 @@ export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
         ],
       },
       {
-        caption: "Structures",
+        // Resources — the raw materials a player draws on. Construction materials are the first of
+        // these; further resource panels are expected to join it in this group.
+        caption: "Resources",
         buttons: [
           {
             key: "wood-stick",
             icon: <GiWoodStick />,
-            tooltip: "Construction Material",
+            tooltip: "Construction Materials",
             domId: CONSTRUCTION_BUTTON_DOM_ID,
             onClick: onToggleConstruction,
           },
+        ],
+      },
+      {
+        caption: "Structures",
+        buttons: [
           {
             key: "unit-design",
             icon: <FaChessKnight />,
@@ -180,6 +194,26 @@ export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
       },
     ],
     // onEndTurnAndSwitchPlayer, onEndRoundAndReturnToPlayer and devSwitchInProgress: remove in F-18.
-    [gameOpen, onNewGame, onOpenGame, onCloseGame, onClearVision, visionActive, onToggleVision, onOpenVisionSettings, onToggleConstruction, unitDesignActive, onToggleUnitDesign, onEndTurn, militaryAdvisorActive, onToggleMilitaryAdvisor, onEndTurnAndSwitchPlayer, onEndRoundAndReturnToPlayer, devSwitchInProgress, accountHeader, accountGroup],
+    [
+      gameOpen,
+      onNewGame,
+      onOpenGame,
+      onCloseGame,
+      onClearVision,
+      visionActive,
+      onToggleVision,
+      onOpenVisionSettings,
+      onToggleConstruction,
+      unitDesignActive,
+      onToggleUnitDesign,
+      onEndTurn,
+      militaryAdvisorActive,
+      onToggleMilitaryAdvisor,
+      onEndTurnAndSwitchPlayer,
+      onEndRoundAndReturnToPlayer,
+      devSwitchInProgress,
+      accountHeader,
+      accountGroup,
+    ],
   );
 }
