@@ -65,12 +65,28 @@ internal abstract class PlayerResourceUnlockTestBase : InMemoryTestBase
     /// <summary>
     /// Grants the fixture's resource and meta-category, so a withdraw test has something to take away.
     /// </summary>
-    protected async Task GrantAsync(int? obsoleteInRounds = null)
+    protected Task GrantAsync(int? obsoleteInRounds = null)
+    {
+        return GrantAsync([_RESOURCE_CODE], [_META_CATEGORY_CODE], obsoleteInRounds);
+    }
+
+    /// <summary>
+    /// Grants the named catalogue rows through the real handler, so the unlock rows a test reads are the ones production writes.
+    /// </summary>
+    /// <remarks>
+    /// Either list may be empty, but not both. Granting the two separately is what lets a test obsolete a meta-category while leaving the Resources
+    /// beneath it current, since one call stamps the same Round onto everything it names.
+    /// </remarks>
+    /// <param name="obsoleteInRounds">Offset from the current Round. Negative or zero puts the obsoleting Round in the past or on it.</param>
+    protected async Task GrantAsync(
+        IReadOnlyCollection<string> resourceCodes,
+        IReadOnlyCollection<string> metaCategoryCodes,
+        int? obsoleteInRounds = null)
     {
         var handler = new GrantPlayerResourceHandler(NullLogger<GrantPlayerResourceHandler>.Instance, DbFactory);
 
         ServiceResultBase result = await handler.Handle(
-            new GrantPlayerResourceRequest(_GAME_ID, _playerId, [_RESOURCE_CODE], [_META_CATEGORY_CODE], obsoleteInRounds),
+            new GrantPlayerResourceRequest(_GAME_ID, _playerId, resourceCodes, metaCategoryCodes, obsoleteInRounds),
             CancellationToken.None);
 
         Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));

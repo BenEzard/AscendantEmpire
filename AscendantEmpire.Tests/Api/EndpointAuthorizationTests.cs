@@ -1,4 +1,4 @@
-using AscendantEmpire.Domain.Enums.Authentication;
+﻿using AscendantEmpire.Domain.Enums.Authentication;
 
 using FluentAssertions;
 
@@ -152,6 +152,7 @@ public sealed class EndpointAuthorizationTests
         "GET /player/structures",
         "GET /player/forces",
         "GET /player/game-players",
+        "GET /player/resources",
 
         "GET /system/status",
 

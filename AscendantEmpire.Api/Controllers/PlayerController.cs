@@ -2,11 +2,15 @@
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Features.Players.Classes;
 using AscendantEmpire.Application.Features.Players.Handlers;
+using AscendantEmpire.Application.Features.Resources.Classes;
+using AscendantEmpire.Application.Features.Resources.Handlers;
 using AscendantEmpire.BackendContracts.Players.GetPlayers;
 using AscendantEmpire.BackendContracts.Players.GetPlayerStructures;
+using AscendantEmpire.BackendContracts.Resources.GetPlayerResources;
 using AscendantEmpire.BackendContracts.Units.GetPlayerForces;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Player;
+using AscendantEmpire.FrontendContracts.Resources.GetPlayerResources;
 using AscendantEmpire.FrontendContracts.Units;
 
 using Microsoft.AspNetCore.Authorization;
@@ -140,5 +144,111 @@ public class PlayerController : ControllerBase
             CampaignMovementPoints = s.CampaignMovementPoints,
             BattleMovementRemaining = s.BattleMovementRemaining
         }).ToList() ?? []);
+    }
+
+    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+    // Resources
+    //
+    // The Player's view of the resource catalogue, gated by what they have unlocked. This is a tree rather than a list, because the Resources toolbar and
+    // the panels behind it are drawn from the catalogue's own hierarchy.
+    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Get the Resources a Player can currently see, as the tree the Resources toolbar and its panels are drawn from
+    /// </summary>
+    /// <remarks>
+    /// One call rather than one per meta-category: the toolbar needs the unlocked meta-category list before any panel is opened, and a category's or
+    /// group's visibility is a function of the Resources beneath it, so splitting it would force the client to recombine what the server already knows.
+    /// An unlocked meta-category with nothing visible under it is still returned, with no categories, so its toolbar icon stays put over an empty panel.
+    /// </remarks>
+    /// <response code="200">The Player's visible resource tree</response>
+    /// <response code="403">The caller has not entered a game</response>
+    /// <response code="404">The Player is not in an in-progress Game, or that Game has no campaign turn queue to read the current Round from</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpGet("resources")]
+    [ProducesResponseType(typeof(IPlayerResourceTree), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 403)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetPlayerResourcesAsync(
+        [FromServices] IMediator mediator,
+        CancellationToken cancelToken)
+    {
+        // Game and player come from the token, so the caller can't ask for someone else's data.
+        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
+        {
+            return contextError!;
+        }
+
+        ServiceResult<IReadOnlyCollection<PlayerResourceMetaCategory>> response =
+            await mediator.Send(new GetPlayerResourcesRequest(gameId, playerId), cancelToken);
+
+        return response.ToActionResult(metaCategories => new DTPlayerResourceTree
+        {
+            MetaCategories =
+            [
+                .. (metaCategories ?? []).Select(m => new DTPlayerResourceMetaCategory
+                {
+                    Id = m.Id,
+                    Code = m.Code,
+                    DisplayName = m.DisplayName,
+                    IconPath = m.IconPath,
+                    SortOrder = m.SortOrder,
+                    Categories =
+                    [
+                        .. m.Categories.Select(c => new DTPlayerResourceCategory
+                        {
+                            Id = c.Id,
+                            Code = c.Code,
+                            DisplayName = c.DisplayName,
+                            CategoryType = c.CategoryType,
+                            SortOrder = c.SortOrder,
+                            Groups =
+                            [
+                                .. c.Groups.Select(g => new DTPlayerResourceGroup
+                                {
+                                    Id = g.Id,
+                                    Code = g.Code,
+                                    DisplayName = g.DisplayName,
+                                    SortOrder = g.SortOrder,
+                                    Resources = [.. g.Resources.Select(ToWireResource)]
+                                })
+                            ],
+                            Resources = [.. c.Resources.Select(ToWireResource)]
+                        })
+                    ]
+                })
+            ]
+        });
+    }
+
+    /// <summary>
+    /// Transcribes one Resource onto the wire.
+    /// </summary>
+    /// <remarks>
+    /// Shared by the grouped and standalone arms of the tree, which carry the same Resource shape by two different paths.
+    /// </remarks>
+    private static DTPlayerResource ToWireResource(PlayerResource resource)
+    {
+        return new DTPlayerResource
+        {
+            Id = resource.Id,
+            Code = resource.Code,
+            DisplayName = resource.DisplayName,
+            Description = resource.Description,
+            IconPath = resource.IconPath,
+            IsGradedResource = resource.IsGradedResource,
+            ResourceGrade = resource.ResourceGrade,
+            SortOrder = resource.SortOrder,
+            NeverLuxury = resource.NeverLuxury,
+            ObsoleteInRounds = resource.ObsoleteInRounds,
+            Amount = resource.Amount,
+            AmountAddedPerTurn = resource.AmountAddedPerTurn,
+            HasStrategicStockpile = resource.HasStrategicStockpile,
+            IsImported = resource.IsImported,
+            IsExported = resource.IsExported,
+            DemandNotMet = resource.DemandNotMet,
+            IsLuxury = resource.IsLuxury
+        };
     }
 }
