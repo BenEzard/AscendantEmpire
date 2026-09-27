@@ -20,6 +20,19 @@ This project contains a web API backend and a React frontend.
 These are C# rules. The React frontend keeps its own idiom — `camelCase` throughout, no underscore
 prefixes, and `SCREAMING_SNAKE_CASE` reserved for module-level constants.
 
+## API controllers
+- **One route prefix, one controller.** A controller is the single source of control for its route prefix.
+  Never add a second controller hanging off a prefix an existing controller already owns — no
+  `MapGalleryRiversController` beside `MapGalleryController` — and never move endpoints out to a new
+  controller because the file is getting long. Length is not a reason to split: put new endpoints on the
+  controller that owns the prefix and separate them with a banner comment.
+- Controllers declare `[Route("[controller]")]`. `KebabCaseParameterTransformer` (registered in
+  `Program.cs`) kebab-cases the token, so `MapGalleryController` serves `/map-gallery`. Nested resources are
+  action-level templates on that same controller — `[HttpPut("{id:int}/rivers")]` — never a hard-coded
+  prefix on a new class.
+- Action method names must be unique and descriptive across the whole controller, since they become the
+  Swagger operation ids — `UpdateCampaignMapRiversAsync`, not `UpdateAsync`.
+
 ## Testing
 - Follow the database-tier rules in [testing.md](docs/testing.md) when writing or reviewing tests
   (no database → in-memory → containerised SQL Server; always use the lightest tier that suffices).

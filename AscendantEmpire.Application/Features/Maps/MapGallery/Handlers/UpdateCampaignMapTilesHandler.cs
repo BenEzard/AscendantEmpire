@@ -132,7 +132,7 @@ internal class UpdateCampaignMapTilesHandler(
                 if (validateBiomeResult.SuccessValue?.Length > 0)
                 {
                     tilesUpdated = await context.CampaignMapGallery
-                        .Where(t => t.CampaignMapGalleryId == request.CampaignMapGalleryIndexId)
+                        .Where(t => t.CampaignMapGalleryIndexId == request.CampaignMapGalleryIndexId)
                         .Where(t => validateBiomeResult.SuccessValue.Contains(t.CampaignMapGalleryId))
                         .ExecuteUpdateAsync(s => s.SetProperty(t => t.BiomeTypeId, request.BiomeType.Value),
                             cancellationToken);

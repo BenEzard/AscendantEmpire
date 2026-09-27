@@ -17,7 +17,7 @@ namespace AscendantEmpire.Api.Controllers;
 
 [ApiController]
 [Route("[controller]")]
-public class SystemController
+public class SystemController : ControllerBase
 {
     /// <summary>
     /// Get the current status of a background process by its processId.

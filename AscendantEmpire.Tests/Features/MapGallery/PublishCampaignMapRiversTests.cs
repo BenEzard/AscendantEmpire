@@ -98,6 +98,10 @@ internal sealed class PublishCampaignMapRiversTests : SqlServerTestBase
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
+        // The game's own block of tile ids. Game setup allocates one per game and numbers tiles from it in row-major order, and the
+        // column is ValueGeneratedNever, so the ids have to be chosen here exactly as setup would choose them.
+        const int campaignMapOffsetId = 10_000;
+
         GameIndex game = new()
         {
             GameName = "River Publish Game",
@@ -106,6 +110,9 @@ internal sealed class PublishCampaignMapRiversTests : SqlServerTestBase
             CreationStatus = GameCreationStatus.SetupComplete,
             PlayStatus = GamePlayStatus.InProgress,
             CreatedAt = DateTimeOffset.UtcNow,
+            CampaignMapOffsetId = campaignMapOffsetId,
+            MapWidth = RiverMapSeed.MAP_WIDTH,
+            MapHeight = RiverMapSeed.MAP_HEIGHT,
             HorizontalWrap = false,
             VerticalWrap = false,
             GenerationSeed = 0,
@@ -121,6 +128,7 @@ internal sealed class PublishCampaignMapRiversTests : SqlServerTestBase
             {
                 context.CampaignMaps.Add(new CampaignMap
                 {
+                    CampaignMapId = campaignMapOffsetId + x + (y * RiverMapSeed.MAP_WIDTH),
                     GameId = game.Id,
                     XCoord = x,
                     YCoord = y,
