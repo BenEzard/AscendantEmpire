@@ -125,8 +125,6 @@ export default function OrderedResourceTickerGroup({
     setDragTargetIndex(null);
   };
 
-  if (tickers.every((t) => t.amount === 0)) return null;
-
   return (
     <div
       ref={containerRef}
@@ -140,11 +138,7 @@ export default function OrderedResourceTickerGroup({
       <div className="resource-ticker-group__tickers">
         {cols.map((ticker, colIndex) => {
           const isPlaceholder = ticker == null;
-          const slotClassName = [
-            "resource-ticker-group__ticker-slot",
-            isPlaceholder ? "resource-ticker-group__ticker-slot--hidden" : "",
-            !isPlaceholder && ticker.amount === 0 ? "resource-ticker-group__ticker-slot--zero" : "",
-          ]
+          const slotClassName = ["resource-ticker-group__ticker-slot", isPlaceholder ? "resource-ticker-group__ticker-slot--hidden" : ""]
             .filter(Boolean)
             .join(" ");
 
@@ -157,16 +151,16 @@ export default function OrderedResourceTickerGroup({
               {ticker ? (
                 <OrderedResourceTicker
                   name={ticker.name}
-                  icon={ticker.icon}
+                  iconPath={ticker.iconPath}
                   amount={ticker.amount}
                   tooltip={ticker.tooltip ?? `${ticker.name}: ${formatNumberWithCommas(ticker.amount)}`}
-                  IsLuxury={ticker.isLuxury === true}
+                  IsLuxury={ticker.isLuxury}
                   isImported={ticker.isImported}
                   isExported={ticker.isExported}
                   hasStrategicStockpile={ticker.hasStrategicStockpile}
                   obsoleteIn={ticker.obsoleteIn}
                   demandNotMet={ticker.demandNotMet}
-                  grade={ticker.quality}
+                  grade={ticker.grade}
                   draggable={draggableTickers}
                   onDragHandlePointerDown={draggableTickers ? handlePointerDown(colIndex) : undefined}
                   isDragSource={isDragging && dragSourceIndex === colIndex}

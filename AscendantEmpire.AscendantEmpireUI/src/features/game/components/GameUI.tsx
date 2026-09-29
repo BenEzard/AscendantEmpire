@@ -35,9 +35,9 @@ import { useNumpadMovement } from "../hooks/useNumpadMovement";
 import type { MoveDirection } from "../api/forceMovementApi";
 import type { PossibleAction } from "../api/turnApi";
 import { useTileRendering } from "../hooks/useTileRendering";
-import { useConstructionPanel } from "../hooks/useConstructionPanel";
+import { useResourcePanels } from "../hooks/useResourcePanels";
 import { useGameToolbar } from "./useGameToolbar";
-import ConstructionPanel from "./ConstructionPanel";
+import ResourcePanel from "./ResourcePanel";
 import { describeRiverStep } from "./describeRiverStep";
 import { useKnownForcesQuery, useKnownStructuresQuery, useSightingReportsQuery } from "@/features/intelligence/hooks/useIntelligenceQueries";
 import { groupKnownForcesByUnobservedTile } from "@/features/intelligence/knownForceMarkers";
@@ -217,7 +217,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     [getStepToTile, onSingleForceOnly, openToast, mutateStepForce],
   );
 
-  const construction = useConstructionPanel();
+  const resources = useResourcePanels({ gameId, playerId, enabled: tilesEnabled });
 
   // --- Map data ---
   const { data: biomes } = useCampaignMapBiomesQuery();
@@ -476,7 +476,9 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     visionActive: visionActiveTool === "vision",
     onToggleVision: toggleVisionTool,
     onOpenVisionSettings: openVisionSettings,
-    onToggleConstruction: construction.toggleConstructionPanel,
+    resourceMetaCategories: resources.metaCategories,
+    openResourceMetaCategoryCode: resources.openMetaCategoryCode,
+    onToggleResourcePanel: resources.toggleResourcePanel,
     unitDesignActive: activePanel === "unit-design",
     onToggleUnitDesign: toggleUnitDesign,
     onEndTurn,
@@ -509,16 +511,16 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
           />
         )}
 
-        {construction.showConstructionPanel && (
-          <ConstructionPanel
-            overlayRef={construction.overlayRef}
-            top={construction.overlayTop}
-            left={construction.overlayLeft}
-            categories={construction.constructionCategories}
-            setCategories={construction.setConstructionCategories}
+        {resources.openMetaCategory != null && (
+          <ResourcePanel
+            overlayRef={resources.overlayRef}
+            top={resources.overlayTop}
+            left={resources.overlayLeft}
+            categories={resources.openCategories}
+            onReorderGroupTickers={resources.reorderGroupTickers}
             onClickResource={(code) => {
-              construction.setResourceManagerSelectedId(code);
-              construction.setShowResourceManager(true);
+              resources.setResourceManagerSelectedId(code);
+              resources.setShowResourceManager(true);
             }}
           />
         )}
@@ -581,11 +583,11 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
         />
 
         <ResourceManagerDialog
-          show={construction.showResourceManager}
-          onClose={() => construction.setShowResourceManager(false)}
-          tickers={construction.allConstructionTickers}
-          selectedResourceId={construction.resourceManagerSelectedId}
-          onSelectResource={construction.setResourceManagerSelectedId}
+          show={resources.showResourceManager}
+          onClose={() => resources.setShowResourceManager(false)}
+          tickers={resources.allOpenPanelTickers}
+          selectedResourceId={resources.resourceManagerSelectedId}
+          onSelectResource={resources.setResourceManagerSelectedId}
           onCommit={(changes, tradePartners) => {
             console.log("[GameUI] ResourceManager changes committed:", changes);
             console.log("[GameUI] ResourceManager trade partners committed:", tradePartners);

@@ -138,10 +138,6 @@
   display: flex;
 }
 
-.resource-ticker-group__ticker-slot--zero {
-  display: none;
-}
-
 .resource-ticker-group__placeholder {
   width: calc(var(--rt-size) + 6px);
   height: var(--rt-size);
@@ -165,10 +161,6 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-}
-
-.resource-standalone-category__cell--zero {
-  display: none;
 }
 
 

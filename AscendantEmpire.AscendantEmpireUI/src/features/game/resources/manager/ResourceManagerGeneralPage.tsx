@@ -1,5 +1,5 @@
-import { cloneElement, isValidElement, type ReactNode } from "react";
 import type { ResourceTickerData } from "../tickers/ResourceTickerCollection";
+import ResourceIconImage from "../ResourceIconImage";
 import { Badge } from "@/components/ui";
 
 const DEFAULT_DESCRIPTION =
@@ -9,17 +9,8 @@ interface ResourceManagerGeneralPageProps {
   selectedTicker: ResourceTickerData | null;
 }
 
-function getLargeIcon(icon: ReactNode): ReactNode {
-  if (isValidElement(icon) && icon.type === "img") {
-    const props = icon.props as { src?: string; alt?: string };
-    if (props.src?.includes("_40px")) {
-      return cloneElement(icon as React.ReactElement<{ src: string }>, {
-        src: props.src.replace("_40px", "_300px"),
-      });
-    }
-  }
-  return icon;
-}
+/** Rendered width and height of the header icon, in px. The catalogue ships one size of art, so the 40px asset is scaled up to fill the header. */
+const HEADER_ICON_SIZE = 96;
 
 export default function ResourceManagerGeneralPage({ selectedTicker }: ResourceManagerGeneralPageProps) {
   if (!selectedTicker) {
@@ -33,7 +24,7 @@ export default function ResourceManagerGeneralPage({ selectedTicker }: ResourceM
     selectedTicker.obsoleteIn != null && selectedTicker.obsoleteIn > 0 && (
       <Badge
         key="obsolete"
-        label={`Obsolete In: ${selectedTicker.obsoleteIn} turns`}
+        label={`Obsolete In: ${selectedTicker.obsoleteIn} rounds`}
         textColor="#991b1b"
         backgroundColor="#fee2e2"
         tooltipText="This resource is being phased out and will soon become obsolete."
@@ -93,9 +84,9 @@ export default function ResourceManagerGeneralPage({ selectedTicker }: ResourceM
         {badges.length > 0 && <div className="flex flex-wrap gap-1.5 mb-3">{badges}</div>}
         <p className="text-sm text-slate-600 leading-relaxed">{description}</p>
       </div>
-      {selectedTicker.icon && (
-        <div className="shrink-0 [&_img]:w-24 [&_img]:h-24 [&_svg]:w-24 [&_svg]:h-24 [&_svg]:text-slate-700">{getLargeIcon(selectedTicker.icon)}</div>
-      )}
+      <div className="shrink-0 [&_svg]:text-slate-700">
+        <ResourceIconImage iconPath={selectedTicker.iconPath} size={HEADER_ICON_SIZE} />
+      </div>
     </div>
   );
 }

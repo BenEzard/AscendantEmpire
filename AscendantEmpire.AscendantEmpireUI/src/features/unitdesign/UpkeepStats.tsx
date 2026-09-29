@@ -5,7 +5,7 @@ import { FaFish } from "react-icons/fa";
 import { GiHeavyBullets, GiJerrycan, GiSpanner } from "react-icons/gi";
 
 import type { PlaceholderUpkeep, PlaceholderUpkeepCategory } from "./model/placeholderCosts";
-import { getResourceIconByLabel } from "@/features/game/resources/tickers/resourceIcons";
+import { getPlaceholderCostIconByLabel } from "./model/placeholderCostIcons";
 import Tooltip from "@/components/ui/Tooltip";
 import { formatToOneDecimal } from "@/util/number";
 
@@ -27,7 +27,7 @@ function iconBadge(title: string, icon: ReactNode) {
 }
 
 function resourceIcon(label: string) {
-  const icon = getResourceIconByLabel(label);
+  const icon = getPlaceholderCostIconByLabel(label);
   const fallback = (
     <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-white/80">{label.slice(0, 2).toUpperCase()}</div>
   );

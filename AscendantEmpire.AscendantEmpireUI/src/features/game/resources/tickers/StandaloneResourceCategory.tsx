@@ -9,7 +9,6 @@ export interface StandaloneResourceCategoryProps {
   categoryId?: number;
   categoryType: ResourceCategoryType;
   label: string;
-  column: number;
   resources: ResourceTickerData[];
   maxColumns: number;
   onClickAmount?: (args: ResourceClickArgs) => void;
@@ -20,33 +19,28 @@ export default function StandaloneResourceCategory({
   categoryId,
   categoryType,
   label,
-  column,
   resources,
   maxColumns,
   onClickAmount,
 }: StandaloneResourceCategoryProps) {
-  if (resources.every((r) => r.amount === 0)) return null;
-
   return (
-    <div className="resource-category" data-column={column}>
+    <div className="resource-category">
       <ResourceCategoryHeader label={label} />
       <div className="resource-standalone-category__grid" style={{ gridTemplateColumns: `repeat(${Math.max(1, maxColumns)}, max-content)` }}>
         {resources.map((resource, index) => (
-          <div
-            key={resource.code}
-            className={`resource-standalone-category__cell${resource.amount === 0 ? " resource-standalone-category__cell--zero" : ""}`}>
+          <div key={resource.code} className="resource-standalone-category__cell">
             <ResourceTicker
               name={resource.name}
-              icon={resource.icon}
+              iconPath={resource.iconPath}
               amount={resource.amount}
               tooltip={resource.tooltip ?? `${resource.name}: ${formatNumberWithCommas(resource.amount)}`}
-              IsLuxury={resource.isLuxury === true}
+              IsLuxury={resource.isLuxury}
               isImported={resource.isImported}
               isExported={resource.isExported}
               hasStrategicStockpile={resource.hasStrategicStockpile}
               obsoleteIn={resource.obsoleteIn}
               demandNotMet={resource.demandNotMet}
-              grade={resource.quality}
+              grade={resource.grade}
               onClick={
                 onClickAmount
                   ? () =>

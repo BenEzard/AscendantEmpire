@@ -7,6 +7,7 @@ import { TILE_SUSTENANCE_KEY_PREFIX } from "@/features/map/hooks/useTileSustenan
 import { TILE_SUPPORT_KEY_PREFIX } from "@/features/map/hooks/useTileSupportLevels";
 import { currentCampaignTurnKey } from "./useCurrentCampaignTurn";
 import { campaignPossibleActionsKey } from "./useCampaignPossibleActions";
+import { playerResourcesKey } from "./usePlayerResources";
 
 /**
  * Ends the current player's campaign turn.
@@ -54,6 +55,10 @@ export function useEndTurnMutation(
         queryClient.invalidateQueries({ queryKey: knownForcesKey(gameId, playerId) });
         queryClient.invalidateQueries({ queryKey: knownStructuresKey(gameId, playerId) });
         queryClient.invalidateQueries({ queryKey: currentCampaignTurnKey(gameId) });
+
+        // Amounts, per-turn changes and the obsoleting countdowns are all measured against the Round, which the end of a turn can move — and what the
+        // player has unlocked may have moved with it.
+        queryClient.invalidateQueries({ queryKey: playerResourcesKey(gameId, playerId) });
 
         // The turn has passed to somebody else, so whatever the player had outstanding is no longer theirs to do. Invalidated rather than blanked here,
         // so a hot-seat game that comes straight back round to this player is answered by the server rather than by an assumption.

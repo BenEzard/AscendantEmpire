@@ -7,9 +7,8 @@ import type { ResourceClickArgs, ResourceTickerData, ResourceTickerGroupData } f
 export interface OrderedResourceCategoryProps {
   categoryKey: string;
   categoryId?: number;
-  categoryType: "processed-resources";
+  categoryType: "grouped-resources";
   label: string;
-  column: number;
   tickerGroups: ResourceTickerGroupData[];
   maxColumns: number;
   onClickAmount?: (args: ResourceClickArgs) => void;
@@ -30,7 +29,6 @@ export default function OrderedResourceCategory({
   categoryId,
   categoryType,
   label,
-  column,
   tickerGroups,
   maxColumns,
   onClickAmount,
@@ -45,10 +43,8 @@ export default function OrderedResourceCategory({
     return undefined;
   }, [resolvedMaxColumns]);
 
-  if (tickerGroups.every((g) => g.tickers.every((t) => t.amount === 0))) return null;
-
   return (
-    <div className="resource-category" data-column={column}>
+    <div className="resource-category">
       <ResourceCategoryHeader label={label} />
       <div className="resource-category__tickers" style={gridTemplateColumns ? { gridTemplateColumns } : undefined}>
         {orderedTickerGroups.map((group) => (

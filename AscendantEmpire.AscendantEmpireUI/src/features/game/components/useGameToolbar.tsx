@@ -1,14 +1,15 @@
 ﻿import { useMemo } from "react";
 import { FaChessKnight, FaPersonWalkingArrowRight, FaRegFolderOpen } from "react-icons/fa6";
 import { GoEye, GoEyeClosed } from "react-icons/go";
-import { GiRank3, GiWoodStick } from "react-icons/gi";
+import { GiRank3 } from "react-icons/gi";
 import { GrCaretNext, GrPowerCycle } from "react-icons/gr";
 import { SlClose } from "react-icons/sl";
 import { VscNewFile } from "react-icons/vsc";
 import type { ToolBarGroup } from "@/components/ui/toolbar/Toolbar";
 import { HamburgerMenu } from "@/components/ui";
 import { useAccountMenu } from "@/features/auth/hooks/useAccountMenu";
-import { CONSTRUCTION_BUTTON_DOM_ID } from "../hooks/useConstructionPanel";
+import type { PlayerResourceMetaCategory } from "@/features/game/api/playerResourcesApi";
+import { buildResourceToolbarButtons } from "./resourceToolbarButtons";
 
 interface UseGameToolbarArgs {
   gameOpen: boolean;
@@ -19,7 +20,11 @@ interface UseGameToolbarArgs {
   visionActive: boolean;
   onToggleVision: () => void;
   onOpenVisionSettings: () => void;
-  onToggleConstruction: () => void;
+  /** The meta-categories the Player has unlocked, one toolbar button each, in the order the API returned them. */
+  resourceMetaCategories: PlayerResourceMetaCategory[];
+  /** Code of the meta-category whose panel is open, so its button shows as pressed. */
+  openResourceMetaCategoryCode: string | null;
+  onToggleResourcePanel: (metaCategoryCode: string) => void;
   unitDesignActive: boolean;
   onToggleUnitDesign: () => void;
   onEndTurn: () => void;
@@ -52,7 +57,9 @@ export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
     visionActive,
     onToggleVision,
     onOpenVisionSettings,
-    onToggleConstruction,
+    resourceMetaCategories,
+    openResourceMetaCategoryCode,
+    onToggleResourcePanel,
     unitDesignActive,
     onToggleUnitDesign,
     onEndTurn,
@@ -144,18 +151,10 @@ export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
         ],
       },
       {
-        // Resources — the raw materials a player draws on. Construction materials are the first of
-        // these; further resource panels are expected to join it in this group.
+        // Resources — the raw materials a player draws on. One button per meta-category the player has unlocked, each
+        // opening its own panel; the group is empty while the tree loads, and for a player with none unlocked.
         caption: "Resources",
-        buttons: [
-          {
-            key: "wood-stick",
-            icon: <GiWoodStick />,
-            tooltip: "Construction Materials",
-            domId: CONSTRUCTION_BUTTON_DOM_ID,
-            onClick: onToggleConstruction,
-          },
-        ],
+        buttons: buildResourceToolbarButtons(resourceMetaCategories, openResourceMetaCategoryCode, onToggleResourcePanel),
       },
       {
         caption: "Structures",
@@ -203,7 +202,11 @@ export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
       visionActive,
       onToggleVision,
       onOpenVisionSettings,
-      onToggleConstruction,
+      // The tree and the toggle are both identity-stable (a frozen empty array or react-query's shared data, and an empty-dep callback), so only the
+      // open code moves the groups array — once per open or close, which is what lets the pressed button re-render.
+      resourceMetaCategories,
+      openResourceMetaCategoryCode,
+      onToggleResourcePanel,
       unitDesignActive,
       onToggleUnitDesign,
       onEndTurn,

@@ -13,7 +13,8 @@ export const RESOURCE_TICKER_BACKGROUNDS = {
   demandNotMet: "#ffedd5",
 } as const;
 
-export type ResourceGrade = "none" | "bronze" | "silver" | "gold";
+/** The API's `ResourceGrade` member names. The bronze/silver/gold shields a ticker wears are presentation for Low/Medium/High. */
+export type ResourceGrade = "None" | "Low" | "Medium" | "High";
 
 export function getResourceTickerBackground(args: { obsoleteIn?: number; demandNotMet?: boolean }): string {
   // obsoleteIn takes priority over demandNotMet

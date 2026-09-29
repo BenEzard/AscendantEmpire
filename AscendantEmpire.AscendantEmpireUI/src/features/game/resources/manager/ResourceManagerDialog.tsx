@@ -160,7 +160,7 @@ export default function ResourceManagerDialog({
           content: (
             <ResourceManagerProductionPage
               selectedTicker={selectedTicker}
-              totalThisTurn={selectedTicker?.resourcesAddedPerTurn || 800}
+              totalThisTurn={selectedTicker?.amountAddedPerTurn || 800}
               totalLastTurn={0}
               currentConsumption={0}
               maxConsumption={0}
@@ -173,7 +173,7 @@ export default function ResourceManagerDialog({
           content: (
             <ResourceManagerDistributionPage
               selectedTicker={selectedTicker}
-              resourcesPerTurn={selectedTicker?.resourcesAddedPerTurn || 800}
+              resourcesPerTurn={selectedTicker?.amountAddedPerTurn || 800}
               amountLastTurn={0}
               currentConsumption={0}
               maxConsumption={0}
@@ -188,7 +188,7 @@ export default function ResourceManagerDialog({
           content: (
             <ResourceManagerTradePage
               selectedTicker={selectedTicker}
-              resourcesPerTurn={selectedTicker?.resourcesAddedPerTurn || 800}
+              resourcesPerTurn={selectedTicker?.amountAddedPerTurn || 800}
               amountLastTurn={0}
               currentConsumption={0}
               maxConsumption={0}

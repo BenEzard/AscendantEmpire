@@ -37,7 +37,7 @@ export function buildResourceTooltip({
     isImported ? "Imported" : null,
     isExported ? "Exported" : null,
     hasStrategicStockpile ? "Stockpiled" : null,
-    obsoleteIn != null && obsoleteIn > 0 ? `Obsolete In: ${obsoleteIn} turns` : null,
+    obsoleteIn != null && obsoleteIn > 0 ? `Obsolete In: ${obsoleteIn} rounds` : null,
     demandNotMet ? "Demand Not Met" : null,
   ].filter((value): value is string => value != null);
 

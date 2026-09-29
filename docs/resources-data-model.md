@@ -90,19 +90,21 @@ The frontend type system mirrors this hierarchy. The entry point is `ResourceTic
 
 | Backend | Frontend Type | Component |
 |---|---|---|
-| `ResourceMetaCategory` | (container, not a standalone component) | `ResourceTickerCollection` |
-| `ResourceCategory` (GroupedResources) | `ProcessedResourceCategoryData` | `OrderedResourceCategory` / `GroupedResourceCategory` |
+| `ResourceMetaCategory` | (one toolbar button and one panel, not a component of its own) | `ResourceTickerCollection` |
+| `ResourceCategory` (GroupedResources) | `GroupedResourceCategoryData` | `OrderedResourceCategory` |
 | `ResourceCategory` (StandaloneResources) | `StandaloneResourceCategoryData` | `StandaloneResourceCategory` |
-| `ResourceGroup` | `ResourceTickerGroupData` | `OrderedResourceTickerGroup` / `GroupedResourceTickerGroup` |
+| `ResourceGroup` | `ResourceTickerGroupData` | `OrderedResourceTickerGroup` |
 | `Resource` | `ResourceTickerData` | `ResourceTicker` |
+
+The `Ordered` prefix is about the tickers inside a group being draggable into a usage order, not about a second kind of category.
 
 ### Frontend Hierarchy
 
 **Grouped:**
 ```
 ResourceTickerCollection
-  └─ OrderedResourceCategory / GroupedResourceCategory   ← ProcessedResourceCategoryData
-       └─ OrderedResourceTickerGroup / GroupedResourceTickerGroup  ← ResourceTickerGroupData
+  └─ OrderedResourceCategory                             ← GroupedResourceCategoryData
+       └─ OrderedResourceTickerGroup                     ← ResourceTickerGroupData
             └─ ResourceTicker                            ← ResourceTickerData
 ```
 
@@ -115,13 +117,38 @@ ResourceTickerCollection
 
 ### Discriminant
 
-Both category shapes share the same `type` discriminant field:
+Both category shapes share the same `type` discriminant field, which `mapPlayerResources.ts` maps from the wire's `categoryType`:
 
-| `ResourceCategoryData.type` | Maps to |
-|---|---|
-| `"processed-resources"` | `ProcessedResourceCategoryData` → `OrderedResourceCategory` |
-| `"grouped-resources"` | `ProcessedResourceCategoryData` → `GroupedResourceCategory` |
-| `"standalone-resources"` | `StandaloneResourceCategoryData` → `StandaloneResourceCategory` |
+| `ResourceCategoryData.type` | From `categoryType` | Maps to |
+|---|---|---|
+| `"grouped-resources"` | `GroupedResources` | `GroupedResourceCategoryData` → `OrderedResourceCategory` |
+| `"standalone-resources"` | `StandaloneResources` | `StandaloneResourceCategoryData` → `StandaloneResourceCategory` |
+
+### Read Path
+
+The Resources toolbar and its panels are driven entirely by `GET /player/resources`:
+
+```
+GET /player/resources
+  └─ playerResourcesApi.ts        wire DTOs, one type per FrontendContracts interface
+       └─ usePlayerResourcesQuery cached under playerResourcesKey(gameId, playerId)
+            └─ mapPlayerResources.ts   view models for one meta-category's panel
+                 └─ ResourceTickerCollection
+```
+
+- One toolbar button and one panel per unlocked `ResourceMetaCategory`, in the order the API returned; one panel is open at a time. The button's DOM
+  id comes from `resourceToolbarButtonDomId(code)`, and its panel anchors to it.
+- The API sorts meta-categories, categories, groups and resources, so array order is render order. A group's grid `column` is its 1-based position in
+  that order — there is no column on the wire.
+- The query refetches when the window regains focus, and the end-turn mutation invalidates it: the amounts and the obsoleting countdowns are measured
+  against the Round.
+- `ResourceGrade` is the API's member names — `None`, `Low`, `Medium`, `High`. The bronze, silver and gold shields a ticker wears are presentation for
+  Low, Medium and High.
+- `ResourceTickerData.obsoleteIn` is in **rounds**, from `ObsoleteInRounds`.
+- Seven fields — `amount`, `amountAddedPerTurn`, `hasStrategicStockpile`, `isImported`, `isExported`, `demandNotMet`, `isLuxury` — are contract
+  placeholders the API sends as zero or false until their own tickets land. A zero amount renders like any other: nothing is hidden for holding none.
+- A resource's `distributionConfig` and `productionConfig` have no wire source, so the Resource Manager's distribution and production pages show their
+  empty states.
 
 ---
 

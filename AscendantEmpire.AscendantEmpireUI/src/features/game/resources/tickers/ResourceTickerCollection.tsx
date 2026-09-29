@@ -48,20 +48,21 @@ export type ResourceTickerData = {
   id: number;
   code: string;
   name: string;
-  column?: number;
+  /** Root-relative URL of the resource's catalogue icon, or "" where it has none. */
+  iconPath: string;
   amount: number;
-  resourcesAddedPerTurn?: number;
+  amountAddedPerTurn: number;
   description?: string;
   tooltip?: string;
-  isLuxury?: boolean;
-  icon?: ReactNode;
-  isImported?: boolean;
-  isExported?: boolean;
-  hasStrategicStockpile?: boolean;
-  // Number of turns until this resource becomes obsolete; omit or 0 means not obsoleting
+  isLuxury: boolean;
+  isImported: boolean;
+  isExported: boolean;
+  hasStrategicStockpile: boolean;
+  // Number of rounds until this resource becomes obsolete; omit or 0 means not obsoleting
   obsoleteIn?: number;
-  demandNotMet?: boolean;
-  quality?: ResourceGrade;
+  demandNotMet: boolean;
+  grade: ResourceGrade;
+  // No wire source yet — the resource manager's sliders and charts fall back to their own empty states without one.
   distributionConfig?: DistributionConfig;
   productionConfig?: ProductionConfig;
 };
@@ -70,12 +71,14 @@ export type ResourceTickerGroupData = {
   id: number;
   code: string;
   label?: string;
+  /** 1-based grid column this group occupies, taken from its position in the order the API returned. */
   column: number;
   tickers: ResourceTickerData[];
   distributionConfig?: DistributionConfig;
 };
 
-export type ResourceCategoryType = "processed-resources" | "standalone-resources";
+/** Mapped from the API's `ResourceCategoryType` member names — `GroupedResources` and `StandaloneResources`. */
+export type ResourceCategoryType = "grouped-resources" | "standalone-resources";
 
 export type ResourceClickArgs = {
   categoryCode: string;
@@ -93,13 +96,11 @@ export type ResourceClickArgs = {
   collectionId?: string;
 };
 
-export type ProcessedResourceCategoryData = {
+export type GroupedResourceCategoryData = {
   id: number;
   code: string;
-  type: "processed-resources";
+  type: "grouped-resources";
   label: string;
-  column: number;
-  icon: ReactNode;
   tickerGroups: ResourceTickerGroupData[];
   maxColumns?: number;
 };
@@ -109,12 +110,10 @@ export type StandaloneResourceCategoryData = {
   code: string;
   type: "standalone-resources";
   label: string;
-  column: number;
-  icon: ReactNode;
   resources: ResourceTickerData[];
 };
 
-export type ResourceCategoryData = ProcessedResourceCategoryData | StandaloneResourceCategoryData;
+export type ResourceCategoryData = GroupedResourceCategoryData | StandaloneResourceCategoryData;
 
 export interface ResourceTickerCollectionProps {
   categories: ResourceCategoryData[];
@@ -123,7 +122,7 @@ export interface ResourceTickerCollectionProps {
   onReorderGroupTickers?: (args: { categoryCode: string; groupCode: string; tickers: ResourceTickerData[] }) => void;
 }
 
-function getProcessedCategoryColumnCount(category: ProcessedResourceCategoryData): number {
+function getGroupedCategoryColumnCount(category: GroupedResourceCategoryData): number {
   const actualMax = category.tickerGroups.reduce((max, group) => Math.max(max, group.column), 0);
   return Math.max(category.maxColumns ?? 0, actualMax);
 }
@@ -134,18 +133,22 @@ export default function ResourceTickerCollection({
   onClickAmount,
   onReorderGroupTickers,
 }: ResourceTickerCollectionProps) {
-  const processedCategoryColumnCount = categories.reduce(
-    (max, category) => (category.type === "processed-resources" ? Math.max(max, getProcessedCategoryColumnCount(category)) : max),
+  // Grouped categories lay their groups out in real grid columns, so the collection is as wide as its widest grouped category.
+  const groupedCategoryColumnCount = categories.reduce(
+    (max, category) => (category.type === "grouped-resources" ? Math.max(max, getGroupedCategoryColumnCount(category)) : max),
     0,
   );
-  const resolvedProcessedColumns = Math.max(maxColumns, processedCategoryColumnCount);
+  const resolvedGroupedColumns = Math.max(maxColumns, groupedCategoryColumnCount);
 
+  // A standalone grid sits below the grouped rows in the same panel, so it is made at least as wide as the widest group row and the panel's right
+  // edge lines up instead of stepping. Standalone categories deliberately contribute nothing here — a panel with no grouped category falls back to
+  // the caller's floor.
   const maxTickersInAnyGroup = categories.reduce(
     (max, category) =>
-      category.type === "processed-resources"
+      category.type === "grouped-resources"
         ? Math.max(
             max,
-            category.tickerGroups.reduce((m, g) => Math.max(m, g.tickers.filter((t) => t.amount !== 0).length), 0),
+            category.tickerGroups.reduce((groupMax, group) => Math.max(groupMax, group.tickers.length), 0),
           )
         : max,
     0,
@@ -156,7 +159,7 @@ export default function ResourceTickerCollection({
     <div className="resource-ticker-collection">
       {categories.map((category) => {
         switch (category.type) {
-          case "processed-resources":
+          case "grouped-resources":
             return (
               <OrderedResourceCategory
                 key={category.code}
@@ -164,9 +167,8 @@ export default function ResourceTickerCollection({
                 categoryId={category.id}
                 categoryType={category.type}
                 label={category.label}
-                column={category.column}
                 tickerGroups={category.tickerGroups}
-                maxColumns={resolvedProcessedColumns}
+                maxColumns={resolvedGroupedColumns}
                 onClickAmount={onClickAmount}
                 draggableTickers={!!onReorderGroupTickers}
                 onReorderGroupTickers={
@@ -185,7 +187,6 @@ export default function ResourceTickerCollection({
                 categoryId={category.id}
                 categoryType={category.type}
                 label={category.label}
-                column={category.column}
                 resources={category.resources}
                 maxColumns={resolvedStandaloneColumns}
                 onClickAmount={onClickAmount}
