@@ -24,10 +24,10 @@ public enum PermissionType
     /// <summary>Use the System panel, including listing and deactivating accounts and granting these permissions.</summary>
     SystemPanel = 3,
 
-    /// <summary>Use the Entity Setup Tool, including seeding the database and editing the shared component, tag and template catalogues.</summary>
+    /// <summary>Use the Entity Setup Tool, including seeding the database and editing the shared component, tag, template, biome and geography catalogues.</summary>
     EntitySetupTool = 4,
 
-    /// <summary>Use the Map Editor, including creating, editing and publishing campaign maps and editing the biome and geography catalogues.</summary>
+    /// <summary>Use the Map Editor, including creating, editing and publishing campaign maps.</summary>
     MapEditor = 5,
 
     /// <summary>Permanently delete a Game and everything scoped to it, from the System panel's Games page.</summary>

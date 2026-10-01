@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Geography } from "../../../types/map/Geography";
-import { getCampaignMapGeographies, putCampaignMapGeographies } from "../api/geographiesApi";
+import type { Geography } from "@/types/map/Geography";
+import { getCampaignMapGeographies, putCampaignMapGeographies } from "@/api/geographiesApi";
 
 export const campaignMapGeographiesKey = ["geographies", "campaign-map"] as const;
 

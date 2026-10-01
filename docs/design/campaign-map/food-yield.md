@@ -181,9 +181,10 @@ available on a tile, through `GET campaign-map/player/tiles/{x}/{y}/sustenance` 
 | File | Role |
 | --- | --- |
 | [Biome.ts](../../../AscendantEmpire.AscendantEmpireUI/src/types/map/Biome.ts) | The biome contract, including `regenerationPercent` and each `base*Value`. |
-| [biomesApi.ts (mapgallery)](../../../AscendantEmpire.AscendantEmpireUI/src/features/mapgallery/api/biomesApi.ts) · [biomesApi.ts (map)](../../../AscendantEmpire.AscendantEmpireUI/src/features/map/api/biomesApi.ts) | The catalogue reads and writes. |
-| [BiomeManagerDialog.tsx](../../../AscendantEmpire.AscendantEmpireUI/src/features/mapgallery/components/BiomeManagerDialog.tsx) | Where a map designer edits each biome's yields and Regeneration Percent. |
-| [regenerationPercent.ts](../../../AscendantEmpire.AscendantEmpireUI/src/features/mapgallery/tools/regenerationPercent.ts) | Converts between the percentage a designer types and the fraction stored. |
+| [biomesApi.ts](../../../AscendantEmpire.AscendantEmpireUI/src/api/biomesApi.ts) · [useCampaignMapBiomes.ts](../../../AscendantEmpire.AscendantEmpireUI/src/hooks/useCampaignMapBiomes.ts) | The catalogue reads and writes, shared by the game, the Map Editor and the Entity Setup Tool. |
+| [BiomeManagerDialog.tsx](../../../AscendantEmpire.AscendantEmpireUI/src/features/entitysetuptool/components/BiomeManagerDialog.tsx) | Where a designer edits each biome's yields and Regeneration Percent, in the Entity Setup Tool. |
+| [BiomeListDialog.tsx](../../../AscendantEmpire.AscendantEmpireUI/src/features/mapgallery/components/BiomeListDialog.tsx) | The Map Editor's read-only table of the catalogue, for looking up what a biome yields while drawing a map. |
+| [regenerationPercent.ts](../../../AscendantEmpire.AscendantEmpireUI/src/util/regenerationPercent.ts) | Converts between the percentage a designer types and the fraction stored. |
 
 ### Tests
 
@@ -196,8 +197,8 @@ available on a tile, through `GET campaign-map/player/tiles/{x}/{y}/sustenance` 
 
 ### Authoring a biome's yield
 
-1. A designer edits the biome in `BiomeManagerDialog`, entering base values as plain whole numbers and
-   Regeneration Percent as a percentage.
+1. A designer edits the biome in the Entity Setup Tool's `BiomeManagerDialog`, entering base values as
+   plain whole numbers and Regeneration Percent as a percentage.
 2. `PUT biomes/campaign-map` reaches `UpsertCampaignMapBiomesHandler`, which runs
    `CampaignMapBiomeValidator` — including the rules tying `RegenerationPercent` to having sustenance.
 3. The handler scales each base value by 1,000 (`ScaledResourceValue.ToRaw`) and writes the row.

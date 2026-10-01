@@ -1,5 +1,5 @@
-import type { Geography } from "../../../types/map/Geography";
-import { http } from "../../../api/http";
+import type { Geography } from "../types/map/Geography";
+import { http } from "./http";
 
 export async function getCampaignMapGeographies(): Promise<Geography[]> {
   const { data } = await http.get<{ geographies: Geography[] }>("/geography/campaign-map");

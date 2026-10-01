@@ -1,31 +1,28 @@
 import { Button, ExportDialog, PagedDialog, Toast, ToastViewport } from "@/components/ui";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CiExport } from "react-icons/ci";
-import type { Geography } from "../../../types/map/Geography";
-import { safeStringify } from "../../../util/json";
-import { useSaveCampaignMapGeographiesMutation } from "../hooks/useCampaignMapGeographies";
+import type { Geography } from "@/types/map/Geography";
+import { safeStringify } from "@/util/json";
+import { useCampaignMapGeographiesQuery, useSaveCampaignMapGeographiesMutation } from "@/hooks/useCampaignMapGeographies";
 
 interface GeographyManagerProps {
-  geographies: Geography[];
-  setGeographies: React.Dispatch<React.SetStateAction<Geography[]>>;
-
-  geographyEditorSelection: number | null;
-  onSelectGeographyEditorSelection: (id: number | null) => void;
-
-  show: boolean;
-  onClose: () => void;
-  onSaveSuccess: (message?: string) => void;
+  open: boolean;
+  onCancel: () => void;
+  onSaveSuccess: (message: string) => void;
 }
 
-function GeographyManagerDialog({
-  geographies,
-  setGeographies,
-  geographyEditorSelection,
-  onSelectGeographyEditorSelection,
-  show,
-  onClose,
-  onSaveSuccess,
-}: GeographyManagerProps) {
+/**
+ * The geography catalogue editor, over whichever geography the header dropdown has selected. Self-contained like the other
+ * setup dialogs on this tool - it loads the catalogue itself and holds its own editable draft, so nothing reaches the server
+ * until Save.
+ */
+function GeographyManagerDialog({ open, onCancel, onSaveSuccess }: GeographyManagerProps) {
+  const { data: geographies } = useCampaignMapGeographiesQuery();
+
+  // The editable copy of the catalogue. Every edit lands here; only Save sends it to the server.
+  const [geographyDraft, setGeographyDraft] = useState<Geography[]>([]);
+  const [selectedGeographyType, setSelectedGeographyType] = useState<number | null>(null);
+
   const [textEditorTitle, setTextEditorTitle] = useState("Text");
   const [textEditorBody, setTextEditorBody] = useState<string>();
   const [showTextEditor, setShowTextEditor] = useState(false);
@@ -34,29 +31,50 @@ function GeographyManagerDialog({
   const [errorToastItems, setErrorToastItems] = useState<string[]>([]);
   const toggleErrorToast = () => setShowErrorToast((v) => !v);
 
-  const orderedGeographies = useMemo(() => geographies.slice().sort((a, b) => a.name.localeCompare(b.name)), [geographies]);
+  const orderedGeographies = useMemo(() => geographyDraft.slice().sort((a, b) => a.name.localeCompare(b.name)), [geographyDraft]);
 
   const selectedGeography = useMemo(() => {
-    if (geographyEditorSelection == null) return null;
-    return geographies.find((g) => g.campaignMapGeographyType === geographyEditorSelection) ?? null;
-  }, [geographies, geographyEditorSelection]);
+    if (selectedGeographyType == null) return null;
+    return geographyDraft.find((g) => g.campaignMapGeographyType === selectedGeographyType) ?? null;
+  }, [geographyDraft, selectedGeographyType]);
+
+  // Seeds the draft from the catalogue when the dialog opens, and again once the query lands if it was still in
+  // flight at that moment. Guarded by the ref so a later background refetch can never clobber edits in progress.
+  const hasSeededDraftRef = useRef(false);
+
+  useEffect(() => {
+    if (!open) {
+      hasSeededDraftRef.current = false;
+      return;
+    }
+
+    if (hasSeededDraftRef.current || geographies == null) {
+      return;
+    }
+
+    const firstByName = geographies.slice().sort((a, b) => a.name.localeCompare(b.name))[0];
+
+    setGeographyDraft(geographies);
+    setSelectedGeographyType(firstByName?.campaignMapGeographyType ?? null);
+    hasSeededDraftRef.current = true;
+  }, [open, geographies]);
 
   const handleExportClick = () => {
     setTextEditorTitle("Export Geographies");
-    setTextEditorBody(safeStringify(geographies));
+    setTextEditorBody(safeStringify(geographyDraft));
     setShowTextEditor(true);
   };
 
   const handleGeographyFieldChange = <K extends keyof Geography>(field: K, value: Geography[K]) => {
-    if (geographyEditorSelection == null) return;
+    if (selectedGeographyType == null) return;
 
-    setGeographies((prev) => prev.map((g) => (g.campaignMapGeographyType === geographyEditorSelection ? { ...g, [field]: value } : g)));
+    setGeographyDraft((prev) => prev.map((g) => (g.campaignMapGeographyType === selectedGeographyType ? { ...g, [field]: value } : g)));
   };
 
   const saveGeographyMutation = useSaveCampaignMapGeographiesMutation({
     onSuccess: () => {
       setShowErrorToast(false);
-      onClose();
+      onCancel();
       onSaveSuccess("Geographies saved successfully.");
     },
     onError: (error) => {
@@ -66,16 +84,16 @@ function GeographyManagerDialog({
     },
   });
 
-  const handleSave = useCallback(() => saveGeographyMutation.mutate(geographies), [saveGeographyMutation, geographies]);
+  const handleSave = useCallback(() => saveGeographyMutation.mutate(geographyDraft), [saveGeographyMutation, geographyDraft]);
 
   return (
     <>
       <PagedDialog
-        open={show}
+        open={open}
         title="Geography Manager"
         size="lg"
         panelClassName="thick-border-modal"
-        onCancel={onClose}
+        onCancel={onCancel}
         onCommit={handleSave}
         header={
           <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -85,7 +103,7 @@ function GeographyManagerDialog({
               value={selectedGeography?.campaignMapGeographyType ?? ""}
               onChange={(e) => {
                 const selectedType = Number(e.target.value);
-                onSelectGeographyEditorSelection(Number.isFinite(selectedType) ? selectedType : null);
+                setSelectedGeographyType(Number.isFinite(selectedType) ? selectedType : null);
               }}
               disabled={orderedGeographies.length === 0}>
               {orderedGeographies.length === 0 ? (
@@ -108,7 +126,7 @@ function GeographyManagerDialog({
                 Export
               </Button>
             </div>
-            <Button variant="secondary" onClick={onClose}>
+            <Button variant="secondary" onClick={onCancel}>
               Cancel / Close
             </Button>
             <Button variant="success" disabled={saveGeographyMutation.isPending} onClick={handleSave}>

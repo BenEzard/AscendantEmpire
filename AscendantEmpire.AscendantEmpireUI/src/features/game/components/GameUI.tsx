@@ -4,8 +4,8 @@ import { usePlayerCampaignMapTilesQuery } from "@/features/map/hooks/useCampaign
 import TileGrid, { TILE_SIZE_PX } from "@/features/map/components/TileGrid";
 import type { TileCell } from "@/features/map/components/TileTypes";
 import { buildTiles2d, type TileCellSourceMap } from "@/features/map/util/buildTiles2d";
-import { useCampaignMapBiomesQuery } from "@/features/map/hooks/useCampaignMapBiomes";
-import { useCampaignMapGeographiesQuery } from "@/features/map/hooks/useCampaignMapGeographies";
+import { useCampaignMapBiomesQuery } from "@/hooks/useCampaignMapBiomes";
+import { useCampaignMapGeographiesQuery } from "@/hooks/useCampaignMapGeographies";
 import { useUnitDisplayInfoQuery } from "@/features/map/hooks/useUnitDisplayInfo";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Spinner } from "@/components/ui";

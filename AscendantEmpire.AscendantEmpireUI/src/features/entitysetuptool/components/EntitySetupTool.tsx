@@ -3,7 +3,7 @@
 // permission by its entry point — and is intentionally separate from the game-side `unitdesign`
 // feature. The real functionality will be filled in later.
 import { useEffect, useMemo, useState } from "react";
-import { FaDatabase, FaPlus, FaTags } from "react-icons/fa6";
+import { FaDatabase, FaMountain, FaPlus, FaTags, FaTree } from "react-icons/fa6";
 import { HiArrowPath, HiMagnifyingGlass, HiXMark } from "react-icons/hi2";
 import { GiGearHammer } from "react-icons/gi";
 
@@ -23,7 +23,9 @@ import { getTagTypes, saveTagTypes } from "@/features/unitdesign/api/tagTypesApi
 import type { Tag } from "@/features/unitdesign/types/Tag";
 import type { TagTypeInfo } from "@/features/unitdesign/types/TagType";
 import type { UnitComponent } from "@/features/unitdesign/types/UnitComponent";
+import BiomeManagerDialog from "./BiomeManagerDialog";
 import ComponentSetupDialog from "./ComponentSetupDialog";
+import GeographyManagerDialog from "./GeographyManagerDialog";
 import TagSetupDialog from "./TagSetupDialog";
 import TagTypeSetupDialog from "./TagTypeSetupDialog";
 import SeedSelectionDialog from "./SeedSelectionDialog";
@@ -49,6 +51,14 @@ export default function EntitySetupTool() {
 
   // Controls the TagTypeSetupDialog opened by the Tags group's "Tag Types" button.
   const [showTagTypeSetup, setShowTagTypeSetup] = useState(false);
+
+  // Controls the BiomeManagerDialog opened by the Map group's "Biomes" button. The dialog loads the biome
+  // catalogue itself, so there is nothing else to hold here.
+  const [showBiomeManager, setShowBiomeManager] = useState(false);
+
+  // Controls the GeographyManagerDialog opened by the Map group's "Geographies" button, which loads its own
+  // catalogue in the same way.
+  const [showGeographyManager, setShowGeographyManager] = useState(false);
 
   // The tag type catalogue, loaded once on mount. Backs both the Tag Type manager (as its editable set)
   // and the Tag dialog's "Tag Type" dropdown (as its options).
@@ -95,6 +105,8 @@ export default function EntitySetupTool() {
   const [componentSuccessMessage, setComponentSuccessMessage] = useState<string | null>(null);
   const [tagSuccessMessage, setTagSuccessMessage] = useState<string | null>(null);
   const [tagTypeSuccessMessage, setTagTypeSuccessMessage] = useState<string | null>(null);
+  const [biomeSuccessMessage, setBiomeSuccessMessage] = useState<string | null>(null);
+  const [geographySuccessMessage, setGeographySuccessMessage] = useState<string | null>(null);
 
   // Load the tag type catalogue once on mount so it's ready for both the Tag Type manager and the Tag
   // dialog's type dropdown. A failure is logged but non-fatal (the dropdown falls back gracefully).
@@ -225,9 +237,10 @@ export default function EntitySetupTool() {
     setSearchKind(null);
   };
 
-  // "Components" group plus a "Tags" group. Each group's Add opens its setup dialog (blank); the search
-  // buttons open the left-hand search drawer populated from the catalogue / tag endpoints; the Components
-  // group's refresh recompiles every template's stats snapshot after catalogue component edits.
+  // "Components" group plus "Tags", "Designer", "Map" and "Database" groups. Each group's Add opens its setup
+  // dialog (blank); the search buttons open the left-hand search drawer populated from the catalogue / tag
+  // endpoints; the Components group's refresh recompiles every template's stats snapshot after catalogue
+  // component edits; the Map group edits the global map catalogues.
   const toolBarGroups = useMemo<ToolBarGroup[]>(
     () => [
       {
@@ -351,6 +364,26 @@ export default function EntitySetupTool() {
             tooltip: "Open Unit Designer",
             // Opens the shared assembly bench full-screen, in edit mode, self-loading the catalogue.
             onClick: () => setShowDesigner(true),
+          },
+        ],
+      },
+      {
+        caption: "Map",
+        buttons: [
+          {
+            key: "biomes",
+            icon: <FaTree />,
+            tooltip: "Biomes",
+            // Opens the biome catalogue editor. Biomes are configuration, so they are authored here rather
+            // than in the Map Editor, which only reads the catalogue to paint with and to look values up.
+            onClick: () => setShowBiomeManager(true),
+          },
+          {
+            key: "geographies",
+            icon: <FaMountain />,
+            tooltip: "Geographies",
+            // The geography catalogue, authored here for the same reason as biomes.
+            onClick: () => setShowGeographyManager(true),
           },
         ],
       },
@@ -481,6 +514,10 @@ export default function EntitySetupTool() {
         error={tagTypeError}
       />
 
+      <BiomeManagerDialog open={showBiomeManager} onCancel={() => setShowBiomeManager(false)} onSaveSuccess={setBiomeSuccessMessage} />
+
+      <GeographyManagerDialog open={showGeographyManager} onCancel={() => setShowGeographyManager(false)} onSaveSuccess={setGeographySuccessMessage} />
+
       {/* Full-screen Unit Designer overlay. developerMode routes Save to the dev tool's catalogue endpoints
           (POST/PUT /global-unit-templates), which need no game/player token, and reveals the
           developer-only fields in the properties panel — currently the template's map sprite. */}
@@ -532,6 +569,8 @@ export default function EntitySetupTool() {
         <Toast open={componentSuccessMessage !== null} message={componentSuccessMessage} variant="success" onClose={() => setComponentSuccessMessage(null)} />
         <Toast open={tagSuccessMessage !== null} message={tagSuccessMessage} variant="success" onClose={() => setTagSuccessMessage(null)} />
         <Toast open={tagTypeSuccessMessage !== null} message={tagTypeSuccessMessage} variant="success" onClose={() => setTagTypeSuccessMessage(null)} />
+        <Toast open={biomeSuccessMessage !== null} message={biomeSuccessMessage} variant="success" onClose={() => setBiomeSuccessMessage(null)} />
+        <Toast open={geographySuccessMessage !== null} message={geographySuccessMessage} variant="success" onClose={() => setGeographySuccessMessage(null)} />
         <Toast open={templateSuccessMessage !== null} message={templateSuccessMessage} variant="success" onClose={() => setTemplateSuccessMessage(null)} />
         <Toast open={templateErrorMessage !== null} message={templateErrorMessage} variant="danger" onClose={() => setTemplateErrorMessage(null)} />
       </ToastViewport>

@@ -2,35 +2,32 @@ import { Button, ExportDialog, PagedDialog, Toast, ToastViewport } from "@/compo
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { CiExport } from "react-icons/ci";
-import type { Biome } from "../../../types/map/Biome";
-import { safeStringify } from "../../../util/json";
-import { useSaveCampaignMapBiomesMutation } from "../hooks/useCampaignMapBiomes";
-import { isValidColor, pickTextColorOnBg } from "../../../util/color";
+import type { Biome } from "@/types/map/Biome";
+import { safeStringify } from "@/util/json";
+import { useCampaignMapBiomesQuery, useSaveCampaignMapBiomesMutation } from "@/hooks/useCampaignMapBiomes";
+import { isValidColor, pickTextColorOnBg } from "@/util/color";
 import BiomeResource from "./BiomeResource";
-import { fromRegenerationPercentInput, toRegenerationPercentInput } from "../tools/regenerationPercent";
+import { fromRegenerationPercentInput, toRegenerationPercentInput } from "@/util/regenerationPercent";
 
 interface BiomeManagerProps {
-  biomes: Biome[];
-  setBiomes: React.Dispatch<React.SetStateAction<Biome[]>>;
-
-  biomeManagerSelection: number | null;
-  onSelectBiomeManagerSelection: (biomeType: number | null) => void;
-
-  show: boolean;
-  onClose: () => void;
-  onSaveSuccess: (message?: string) => void;
+  open: boolean;
+  onCancel: () => void;
+  onSaveSuccess: (message: string) => void;
 }
 
-function BiomeManagerDialog({
-  biomes,
-  setBiomes,
-  biomeManagerSelection,
-  onSelectBiomeManagerSelection,
-  show,
-  onClose,
-  onSaveSuccess,
-}: BiomeManagerProps) {
-  const selectedBiome = biomes.find((b) => b.biomeType === biomeManagerSelection) ?? null;
+/**
+ * The biome catalogue editor: one page of general properties and two of resource yields, over whichever biome the header
+ * dropdown has selected. Self-contained like the other setup dialogs on this tool - it loads the catalogue itself and holds
+ * its own editable draft, so nothing reaches the server until Save.
+ */
+function BiomeManagerDialog({ open, onCancel, onSaveSuccess }: BiomeManagerProps) {
+  const { data: biomes } = useCampaignMapBiomesQuery();
+
+  // The editable copy of the catalogue. Every edit lands here; only Save sends it to the server.
+  const [biomeDraft, setBiomeDraft] = useState<Biome[]>([]);
+  const [selectedBiomeType, setSelectedBiomeType] = useState<number | null>(null);
+
+  const selectedBiome = biomeDraft.find((b) => b.biomeType === selectedBiomeType) ?? null;
 
   const [textEditorTitle, setTextEditorTitle] = useState("Text");
   const [textEditorBody, setTextEditorBody] = useState("");
@@ -49,7 +46,28 @@ function BiomeManagerDialog({
   const selectedBiomeHtmlColor = selectedBiome?.mapEditorHtmlColor;
   const selectedBiomeSwatchColor = isValidColor(selectedBiomeHtmlColor) ? selectedBiomeHtmlColor : "#ffffff";
 
-  const orderedBiomes = useMemo(() => biomes.slice().sort((a, b) => a.name.localeCompare(b.name)), [biomes]);
+  const orderedBiomes = useMemo(() => biomeDraft.slice().sort((a, b) => a.name.localeCompare(b.name)), [biomeDraft]);
+
+  // Seeds the draft from the catalogue when the dialog opens, and again once the query lands if it was still in
+  // flight at that moment. Guarded by the ref so a later background refetch can never clobber edits in progress.
+  const hasSeededDraftRef = useRef(false);
+
+  useEffect(() => {
+    if (!open) {
+      hasSeededDraftRef.current = false;
+      return;
+    }
+
+    if (hasSeededDraftRef.current || biomes == null) {
+      return;
+    }
+
+    const firstByName = biomes.slice().sort((a, b) => a.name.localeCompare(b.name))[0];
+
+    setBiomeDraft(biomes);
+    setSelectedBiomeType(firstByName?.biomeType ?? null);
+    hasSeededDraftRef.current = true;
+  }, [open, biomes]);
 
   useEffect(() => {
     if (!isBiomeDropdownOpen) return;
@@ -80,12 +98,12 @@ function BiomeManagerDialog({
     const originalId = selectedBiome.biomeType;
     const updated = { ...selectedBiome, [field]: value };
 
-    setBiomes((prev) => prev.map((b) => (b.biomeType === originalId ? updated : b)));
+    setBiomeDraft((prev) => prev.map((b) => (b.biomeType === originalId ? updated : b)));
   };
 
   const handleExportClick = () => {
     setTextEditorTitle("Export Biomes");
-    setTextEditorBody(safeStringify(biomes));
+    setTextEditorBody(safeStringify(biomeDraft));
     setShowTextEditor(true);
   };
 
@@ -119,16 +137,16 @@ function BiomeManagerDialog({
     },
   });
 
-  const handleSave = useCallback(() => saveBiomesMutation.mutate(biomes), [saveBiomesMutation, biomes]);
+  const handleSave = useCallback(() => saveBiomesMutation.mutate(biomeDraft), [saveBiomesMutation, biomeDraft]);
 
   return (
     <>
       <PagedDialog
-        open={show}
+        open={open}
         title="Biome Manager"
         size="lg"
         panelClassName="thick-border-modal"
-        onCancel={onClose}
+        onCancel={onCancel}
         onCommit={handleSave}
         header={
           <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -171,7 +189,7 @@ function BiomeManagerDialog({
                           isSelected ? "bg-slate-100 font-medium" : "hover:bg-slate-50",
                         ].join(" ")}
                         onClick={() => {
-                          onSelectBiomeManagerSelection(b.biomeType);
+                          setSelectedBiomeType(b.biomeType);
                           setIsBiomeDropdownOpen(false);
                         }}>
                         <span
@@ -196,7 +214,7 @@ function BiomeManagerDialog({
                 Export
               </Button>
             </div>
-            <Button variant="secondary" onClick={onClose}>
+            <Button variant="secondary" onClick={onCancel}>
               Cancel / Close
             </Button>
             <Button variant="success" disabled={saveBiomesMutation.isPending} onClick={handleSave}>

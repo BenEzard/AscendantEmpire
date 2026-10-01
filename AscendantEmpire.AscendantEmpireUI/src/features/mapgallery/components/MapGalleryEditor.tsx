@@ -4,9 +4,9 @@ import { Alert, Button, Modal, Spinner } from "@/components/ui";
 import NewCampaignMapDialog from "./NewCampaignMapDialog";
 import OpenCampaignMapDialog from "./OpenCampaignMapDialog";
 import ProcessProgressDialog from "@/features/processing/components/ProcessProgressDialog";
-import { useCampaignMapBiomesQuery } from "../hooks/useCampaignMapBiomes";
-import BiomeManagerDialog from "./BiomeManagerDialog";
-import GeographyManagerDialog from "./GeographyManagerDialog";
+import { useCampaignMapBiomesQuery } from "@/hooks/useCampaignMapBiomes";
+import BiomeListDialog from "./BiomeListDialog";
+import GeographyListDialog from "./GeographyListDialog";
 import MapResourceTypeManagerDialog from "./MapResourceTypeManagerDialog";
 import type { CampaignMapGalleryIndex } from "../api/mapGalleryApi";
 import { useMapResourceCatalogueQuery } from "../hooks/useMapResourceCatalogue";
@@ -17,7 +17,7 @@ import { placementsByTile, resolvePlacementClick, tileKey, typesById } from "../
 import type { GalleryMapResourceSpecifics } from "../api/galleryMapResourcesApi";
 import { apiErrorMessages } from "@/util/apiErrors";
 import { useCampaignMapTilesQuery, type CampaignMapTileDto } from "@/features/mapgallery/hooks/useCampaignMapTiles";
-import { useCampaignMapGeographiesQuery } from "../hooks/useCampaignMapGeographies";
+import { useCampaignMapGeographiesQuery } from "@/hooks/useCampaignMapGeographies";
 import type { TileCell } from "../types/TileTypes";
 import TileGrid from "./TileGrid";
 import { onInspectTileClick } from "../tools/inspectTool";
@@ -28,7 +28,7 @@ import { useMapGalleryEditorToolbar } from "@/features/mapgallery/hooks/useMapGa
 import { usePublishCampaignMapMutation } from "../hooks/usePublishCampaignMap";
 import { useToast } from "@/hooks/useToast";
 import { useMapEditorSession } from "../hooks/useMapEditorSession";
-import { usePaletteDrafts } from "../hooks/usePaletteDrafts";
+import { usePaletteSelections } from "../hooks/usePaletteSelections";
 import { useBrushTool } from "../hooks/useBrushTool";
 import { useTileRendering } from "../hooks/useTileRendering";
 import { useCampaignMapStartPositionsQuery, usePutCampaignMapStartPositionsMutation } from "../hooks/useCampaignMapStartPositions";
@@ -145,22 +145,11 @@ function MapGalleryEditor() {
   // ---------------------------
   // Editor tools (palette / brush / tile rendering)
   // ---------------------------
-  const {
-    biomeDraft,
-    setBiomeDraft,
-    biomeMapSelection,
-    setBiomeMapSelection,
-    biomeManagerSelection,
-    setBiomeManagerSelection,
-    geographyDraft,
-    setGeographyDraft,
-    geographyMapSelection,
-    setGeographyMapSelection,
-    geographyEditorSelection,
-    setGeographyEditorSelection,
-    openBiomes,
-    openGeographies,
-  } = usePaletteDrafts({ biomes, biomesLoading, geographies, geographiesLoading, setActiveDialog });
+  const { biomeMapSelection, setBiomeMapSelection, geographyMapSelection, setGeographyMapSelection, openBiomes, openGeographies } = usePaletteSelections({
+    biomesLoading,
+    geographiesLoading,
+    setActiveDialog,
+  });
 
   const { brushKind, setBrushKind, brushRadii, setBrushRadii, clampRadius, buildBrushCoords, previewKeySet, handleTileHover, handleTileHoverEnd } =
     useBrushTool({ mapDims, activeTool, hasOpenMap: openMapIndex != null });
@@ -541,25 +530,10 @@ function MapGalleryEditor() {
         )}
       </div>
 
-      <BiomeManagerDialog
-        show={activeDialog === "biomes"}
-        biomes={biomeDraft}
-        biomeManagerSelection={biomeManagerSelection}
-        onSelectBiomeManagerSelection={setBiomeManagerSelection}
-        setBiomes={setBiomeDraft}
-        onClose={() => setActiveDialog(null)}
-        onSaveSuccess={(msg) => openToast(msg ?? "Saved!", "success")}
-      />
+      {/* Read-only: both catalogues are authored in the Entity Setup Tool, so the editor only looks them up. */}
+      <BiomeListDialog show={activeDialog === "biomes"} biomes={biomes ?? []} onClose={() => setActiveDialog(null)} />
 
-      <GeographyManagerDialog
-        show={activeDialog === "geographies"}
-        geographies={geographyDraft}
-        geographyEditorSelection={geographyEditorSelection}
-        onSelectGeographyEditorSelection={setGeographyEditorSelection}
-        setGeographies={setGeographyDraft}
-        onClose={() => setActiveDialog(null)}
-        onSaveSuccess={(msg) => openToast(msg ?? "Saved!", "success")}
-      />
+      <GeographyListDialog show={activeDialog === "geographies"} geographies={geographies ?? []} onClose={() => setActiveDialog(null)} />
 
       {(() => {
         // The edited placement's tile, for the habitat its starting quantity would be rolled from.

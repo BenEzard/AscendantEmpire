@@ -25,7 +25,7 @@ public class GeographyController : ControllerBase
     /// </summary>
     /// <response code="200">Campaign Map Geographies successfully created</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [Authorize(Policy = nameof(PermissionType.MapEditor))]
+    [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
     [HttpPost("campaign-map")]
     [ProducesResponseType(201)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
@@ -44,7 +44,7 @@ public class GeographyController : ControllerBase
     /// <response code="201">Campaign Map Geographies successfully upserted</response>
     /// <response code="400">Validation error</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [Authorize(Policy = nameof(PermissionType.MapEditor))]
+    [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
     [HttpPut("campaign-map")]
     [ProducesResponseType(204)]
     [ProducesResponseType(400)]

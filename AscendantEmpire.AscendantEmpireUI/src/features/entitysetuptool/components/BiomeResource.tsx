@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui";
 import { BsEraserFill } from "react-icons/bs";
-import type { Biome } from "../../../types/map/Biome";
+import type { Biome } from "@/types/map/Biome";
 import Tooltip from "@/components/ui/Tooltip";
 
 export interface BiomeResourceProps<K extends keyof Biome = keyof Biome> {

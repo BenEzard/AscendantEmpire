@@ -184,7 +184,7 @@ with the same biome values** (set by the map).
 stays on a tile — and the more individuals in it — the lower its forage gets. Depleted sustenance
 renews by the biome's **Regeneration Percent**: the share of each sustenance `Base` that regrows every round (the same percentage applies to all sustenance values on the tile). How depletion and renewal are calculated is in [Depletion of resources](depletion.md).
 
-A biome with any sustenance value (a non-`null` Forage, Hunt, Fish or Fodder base, `0` included) must have a Regeneration Percent **more than 0% and at most 100%**. A biome with none must leave it empty, since it has nothing to regrow. The biome validator enforces both. It is stored as a fraction (`map.CampaignBiomes.RegenerationPercent`, `0.25` = 25%, to three decimal places) and entered as a percent in the Biome Manager.
+A biome with any sustenance value (a non-`null` Forage, Hunt, Fish or Fodder base, `0` included) must have a Regeneration Percent **more than 0% and at most 100%**. A biome with none must leave it empty, since it has nothing to regrow. The biome validator enforces both. It is stored as a fraction (`map.CampaignBiomes.RegenerationPercent`, `0.25` = 25%, to three decimal places) and entered as a percent in the Entity Setup Tool's Biome Manager.
 
 **Material values** (Bone, Wood, Stone) are *not* depleted: that amount can be extracted per turn
 indefinitely, until game mechanics turn them off (e.g. bone becomes useless in modern times).

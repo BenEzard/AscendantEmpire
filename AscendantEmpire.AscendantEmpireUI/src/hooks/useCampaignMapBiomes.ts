@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Biome } from "../../../types/map/Biome";
-import { getCampaignMapBiomes, putCampaignMapBiomes } from "../api/biomesApi";
+import type { Biome } from "@/types/map/Biome";
+import { getCampaignMapBiomes, putCampaignMapBiomes } from "@/api/biomesApi";
 
 export const campaignMapBiomesKey = ["biomes", "campaign-map"] as const;
 

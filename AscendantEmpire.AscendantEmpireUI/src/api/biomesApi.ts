@@ -1,5 +1,5 @@
-import type { Biome } from "../../../types/map/Biome";
-import { http } from "../../../api/http";
+import type { Biome } from "../types/map/Biome";
+import { http } from "./http";
 
 export async function getCampaignMapBiomes(): Promise<Biome[]> {
   const { data } = await http.get<{ biomes: Biome[] }>("/biomes/campaign-map");
