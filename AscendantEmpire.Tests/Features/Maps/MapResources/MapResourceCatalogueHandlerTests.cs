@@ -125,6 +125,33 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
         }
     }
 
+    [Test, Description("SortOrder is not in the request: each new type is stepped to the end of its category, and a place set by hand survives a later save.")]
+    public async Task ShouldPlaceANewTypeAtTheEndOfItsCategoryAndLeaveAnExistingPlaceAloneAsync()
+    {
+        await PutAsync(Catalogue([Category("Food")], [Berry()]));
+        await PutAsync(Catalogue([], [Berry() with { Code = "Mushroom", DisplayName = "Mushroom" }]));
+
+        // Set directly, the way a designer changes the order now the manager no longer edits it.
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            MapResourceType berry = await context.MapResourceTypes.SingleAsync(t => t.Code == "Berry");
+            berry.SortOrder = 99;
+
+            await context.SaveChangesAsync();
+        }
+
+        ServiceResultBase result = await PutAsync(Catalogue([], [Berry() with { DisplayName = "Wild Berry" }]));
+
+        MapResourceCategoryDetail food = (await GetAsync()).Categories.Single(c => c.Code == "Food");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
+            Assert.That(food.Types.Single(t => t.Code == "Berry").SortOrder, Is.EqualTo(99), "A place set by hand is not overwritten by a save.");
+            Assert.That(food.Types.Single(t => t.Code == "Mushroom").SortOrder, Is.EqualTo(20), "The second new type steps past the first rather than tying with it.");
+        }
+    }
+
     [Test, Description("A Distribution scenario that is saved again keeps its row, since map placements and game instances point at it by id.")]
     public async Task ShouldKeepADistributionScenarioIdAcrossSavesAsync()
     {

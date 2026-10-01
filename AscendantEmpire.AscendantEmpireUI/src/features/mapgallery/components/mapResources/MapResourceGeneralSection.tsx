@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CodeField, FieldRow, inputClass } from "@/components/ui";
+import { CodeField, FieldRow, HintIcon, inputClass } from "@/components/ui";
 import { ExtractionMethod, type MapResourceType } from "@/types/map/MapResource";
 import { EXTRACTION_METHODS, MAP_RESOURCE_KINDS, grows, kindOf, withExtractionMethod, withKind } from "../../tools/mapResourceDraft";
 import { CheckboxRow, PercentInput, WholeNumberInput } from "./mapResourceFields";
@@ -49,9 +49,8 @@ export default function MapResourceGeneralSection({ type, categories, onChange }
         </select>
       </FieldRow>
 
-      <FieldRow label="Sort Order" hint="(within its category)">
-        <WholeNumberInput value={type.sortOrder} required onChange={(value) => set("sortOrder", value)} />
-      </FieldRow>
+      {/* Sort Order is not edited here: the server places a new type at the end of its category, and the order is changed in the
+          database by hand. It still orders the picker, so the draft carries it through untouched. */}
 
       <FieldRow label="Map Icon" hint="(image path; empty for none)">
         <div className="flex items-center gap-2">
@@ -70,17 +69,13 @@ export default function MapResourceGeneralSection({ type, categories, onChange }
       <FieldRow label="Kind" align="top">
         <div role="radiogroup" aria-label="Kind" className="space-y-1">
           {MAP_RESOURCE_KINDS.map((option) => (
-            <label key={option.kind} className="flex items-start gap-2 text-sm text-slate-700">
-              <input
-                type="radio"
-                name="map-resource-kind"
-                className="mt-1"
-                checked={kind === option.kind}
-                onChange={() => onChange(withKind(type, option.kind))}
-              />
-              <span>
+            // Each kind's description hangs off an info icon beside its name, so the four options stay one line
+            // each and read the same way as the hints on the rows above.
+            <label key={option.kind} className="flex items-center gap-2 text-sm text-slate-700">
+              <input type="radio" name="map-resource-kind" checked={kind === option.kind} onChange={() => onChange(withKind(type, option.kind))} />
+              <span className="inline-flex items-center">
                 {option.label}
-                <span className="block text-xs text-slate-400">{option.description}</span>
+                <HintIcon hint={option.description} className="ml-1 align-middle" />
               </span>
             </label>
           ))}

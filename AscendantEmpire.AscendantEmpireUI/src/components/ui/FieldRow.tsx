@@ -6,6 +6,7 @@
 // componentSetupFields.tsx re-exports it, so the existing call sites did not have to change.
 
 import type { ReactNode } from "react";
+import HintIcon from "./HintIcon";
 
 // The shared input styling used by the dialogs' text/number/select controls. Exported so the other
 // editors (e.g. PillKeyValueEditor, ScaledNumberField) can reuse the exact same look.
@@ -14,7 +15,8 @@ export const inputClass = "w-full rounded-md border border-slate-300 px-2 py-2 t
 
 /**
  * A label/control row matching the two-column layout used by the manager dialogs.
- * The optional hint renders as small muted text after the label (e.g. "(1.0 = base)").
+ * The optional hint renders as a small info icon after the label, with the hint text as its tooltip
+ * (e.g. "(1.0 = base)" becomes a bubble reading "1.0 = base") — see HintIcon.
  * `align` controls how the label sits against the control: "center" (default) vertically centres it,
  * while "top" pins it to the control's first line — better when the control is a tall, multi-line input.
  * `className` is appended to the outer row so a caller can tune spacing (e.g. a negative top margin to
@@ -44,7 +46,7 @@ export function FieldRow({
           lines up with the control's first line rather than the control's border. */}
       <label className={`col-span-5 text-sm text-slate-700 ${isTop ? "pt-2" : ""}`}>
         {label}
-        {hint ? <span className="ml-1 text-xs text-slate-400">{hint}</span> : null}
+        <HintIcon hint={hint} className="ml-1 align-middle" />
       </label>
       <div className="col-span-7">
         {children}

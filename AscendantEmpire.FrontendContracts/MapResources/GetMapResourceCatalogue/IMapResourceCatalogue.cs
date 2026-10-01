@@ -30,12 +30,17 @@ public interface IMapResourceCategory
 }
 
 /// <summary>
-/// A MapResourceType with everything it owns, in exactly the shape it is saved in, plus its id.
+/// A MapResourceType with everything it owns, in the shape it is saved in, plus the two values the manager reads but never sends: its id and its position in its category.
 /// </summary>
 /// <remarks>
-/// The same shape as <see cref="IAddOrUpdateMapResourceTypeDto"/> so the manager can edit what it loaded and send it straight back.
+/// Built on <see cref="IAddOrUpdateMapResourceTypeDto"/> so the manager can edit what it loaded and send it straight back, dropping only the two read-only values.
 /// </remarks>
 public interface IMapResourceTypeDetail : IAddOrUpdateMapResourceTypeDto
 {
     int Id { get; }
+
+    /// <summary>
+    /// Where the type comes within its category, lowest first. Read-only: it is set when the type is created and changed only in the database by hand.
+    /// </summary>
+    int SortOrder { get; }
 }

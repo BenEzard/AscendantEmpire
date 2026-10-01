@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CiExport } from "react-icons/ci";
-import { Button, ConfirmDialog, ExportDialog, PagedDialog, Toast, ToastViewport } from "@/components/ui";
+import { HiPlus, HiTrash } from "react-icons/hi2";
+import { Button, ConfirmDialog, ExportDialog, PagedDialog, Toast, ToastViewport, Tooltip } from "@/components/ui";
 import type { Biome } from "@/types/map/Biome";
 import type { Geography } from "@/types/map/Geography";
 import type { MapResourceCategory, MapResourceType } from "@/types/map/MapResource";
@@ -93,7 +94,7 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
       setShowError(false);
       // New types and categories now have ids, so their codes lock and they can be deleted.
       reseedFromServer();
-      onSaveSuccess("MapResources saved successfully.");
+      onSaveSuccess("Map Resources saved successfully.");
     },
     onError: showErrors,
   });
@@ -195,13 +196,13 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
     return counts;
   }, [draft.types]);
 
-  const noTypeSelected = <p className="text-sm text-slate-500">Select a MapResource, or add one.</p>;
+  const noTypeSelected = <p className="text-sm text-slate-500">Select a Map Resource, or add one.</p>;
 
   return (
     <>
       <PagedDialog<SectionKey>
         open={show}
-        title="MapResource Type Manager"
+        title="Map Resource Type Manager"
         size="xl"
         panelClassName="thick-border-modal"
         onCancel={onClose}
@@ -211,7 +212,7 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
         header={
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <label htmlFor="map-resource-select" className="text-sm font-semibold whitespace-nowrap">
-              Select MapResource
+              Select Map Resource
             </label>
             <select
               id="map-resource-select"
@@ -219,7 +220,7 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
               value={selectedIndex ?? ""}
               disabled={draft.types.length === 0}
               onChange={(e) => setSelectedIndex(e.target.value === "" ? null : Number(e.target.value))}>
-              {draft.types.length === 0 ? <option value="">No MapResources yet</option> : null}
+              {draft.types.length === 0 ? <option value="">No Map Resources yet</option> : null}
               {groupedTypes.map(({ category, types }) =>
                 types.length === 0 ? null : (
                   <optgroup key={category.code} label={category.displayName}>
@@ -232,12 +233,18 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
                 ),
               )}
             </select>
-            <Button variant="secondary" disabled={draft.categories.length === 0} onClick={addType}>
-              Add MapResource
-            </Button>
-            <Button variant="danger" disabled={!selectedType} onClick={removeType}>
-              Delete
-            </Button>
+            {/* Icon-only, with the wording moved to the tooltip and the accessible name. Kept as buttons rather than bare
+                icons so Delete keeps its danger colouring beside the picker. */}
+            <Tooltip content="Add Map Resource">
+              <Button variant="secondary" className="px-2" aria-label="Add Map Resource" disabled={draft.categories.length === 0} onClick={addType}>
+                <HiPlus size={18} aria-hidden />
+              </Button>
+            </Tooltip>
+            <Tooltip content="Delete Map Resource">
+              <Button variant="danger" className="px-2" aria-label="Delete Map Resource" disabled={!selectedType} onClick={removeType}>
+                <HiTrash size={18} aria-hidden />
+              </Button>
+            </Tooltip>
           </div>
         }
         footer={
@@ -322,7 +329,7 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
 
       <ConfirmDialog
         open={pendingDelete != null}
-        title={`Delete ${pendingDelete?.kind === "category" ? "Category" : "MapResource"}`}
+        title={`Delete ${pendingDelete?.kind === "category" ? "Category" : "Map Resource"}`}
         message={`Delete "${pendingDelete?.label}"? This cannot be undone.`}
         confirmLabel="Delete"
         confirmVariant="danger"
@@ -339,7 +346,7 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
           autoHideMs={8000}
           message={
             <div>
-              <div className="mb-1 font-semibold">MapResource Error</div>
+              <div className="mb-1 font-semibold">Map Resource Error</div>
               <ul className="list-disc pl-5">
                 {errorItems.map((message, i) => (
                   <li key={i}>{message}</li>
@@ -350,7 +357,7 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
         />
       </ToastViewport>
 
-      <ExportDialog show={showExport} title="Export MapResources" textBody={safeStringify(toPayload(draft))} onClose={() => setShowExport(false)} />
+      <ExportDialog show={showExport} title="Export Map Resources" textBody={safeStringify(toPayload(draft))} onClose={() => setShowExport(false)} />
     </>
   );
 }

@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Button, PagedDialog, Toast, ToastViewport, ToggleSwitch } from "@/components/ui";
+import { Button, FieldRow, PagedDialog, Toast, ToastViewport, ToggleSwitch } from "@/components/ui";
 import { http } from "@/api/http";
 
 // ── Engine options ──────────────────────────────────────────────────────────
@@ -137,18 +137,6 @@ function buildParameters(form: FormState): Record<string, string> {
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
-function FieldRow({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
-  return (
-    <>
-      <label className="col-span-4 flex items-center text-sm font-medium text-slate-700">{label}</label>
-      <div className="col-span-8">
-        {children}
-        {error && <div className="mt-1 text-xs text-[var(--bs-danger)]">{error}</div>}
-      </div>
-    </>
-  );
-}
-
 function TextInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
   return (
     <input
@@ -194,9 +182,11 @@ function NumberInput({
   );
 }
 
+// A plain block in normal flow: the shared FieldRow owns each row's own grid, so the sections are no
+// longer one big twelve-column grid for a divider to span.
 function SectionDivider({ label }: { label: string }) {
   return (
-    <div className="col-span-12 mb-1 mt-3 border-b border-slate-200 pb-1">
+    <div className="mb-1 mt-3 border-b border-slate-200 pb-1">
       <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</span>
     </div>
   );
@@ -311,12 +301,13 @@ export default function NewCampaignMapDialog({ show, onClose, onSaveSuccess }: N
   // ── Page sections ──────────────────────────────────────────────────────────
 
   const mapInfoSection = (
-    <div className="grid grid-cols-12 gap-x-3 gap-y-2">
+    <div>
       <FieldRow label="Map Name" error={errors.mapName}>
         <TextInput value={form.mapName} onChange={(v) => setField("mapName", v)} />
       </FieldRow>
 
-      <FieldRow label="Description" error={errors.description}>
+      {/* Top-aligned so the label sits on the textarea's first line rather than halfway down it. */}
+      <FieldRow label="Description" align="top" error={errors.description}>
         <textarea
           className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
           rows={3}
@@ -349,7 +340,7 @@ export default function NewCampaignMapDialog({ show, onClose, onSaveSuccess }: N
   );
 
   const perlinSettingsSection = (
-    <div className="grid grid-cols-12 gap-x-3 gap-y-2">
+    <div>
       <SectionDivider label="Terrain" />
 
       <FieldRow label="Water Ratio" error={errors.waterRatio}>
@@ -410,7 +401,7 @@ export default function NewCampaignMapDialog({ show, onClose, onSaveSuccess }: N
   );
 
   const blankMapSettingsSection = (
-    <div className="grid grid-cols-12 gap-x-3 gap-y-2">
+    <div>
       <FieldRow label="Default Biome">
         <select
           className="w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"

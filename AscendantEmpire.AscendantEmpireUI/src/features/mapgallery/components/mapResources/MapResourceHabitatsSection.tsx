@@ -123,13 +123,13 @@ export default function MapResourceHabitatsSection({ type, biomes, geographies, 
   return (
     <div className="w-full">
       {kind === "stratified" ? (
-        <p className="mb-2 text-xs text-slate-500">A stratified MapResource only needs to know where it can exist: its quantities are on the Layers page.</p>
+        <p className="mb-2 text-xs text-slate-500">A stratified Map Resource only needs to know where it can exist: its quantities are on the Layers page.</p>
       ) : null}
 
       <EditableTable<MapResourceHabitat>
         rows={type.habitats}
         addLabel="Habitat"
-        emptyHint="No habitats yet: the MapResource cannot exist anywhere."
+        emptyHint="No habitats yet: the Map Resource cannot exist anywhere."
         addDisabled={nextBiome === undefined}
         onAddRow={() => setHabitats([...type.habitats, createHabitat(kind, nextBiome!)])}
         onRemoveRow={(index) => setHabitats(type.habitats.filter((_, i) => i !== index))}

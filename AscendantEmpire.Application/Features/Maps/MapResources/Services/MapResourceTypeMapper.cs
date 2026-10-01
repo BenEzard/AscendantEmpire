@@ -117,7 +117,9 @@ internal static class MapResourceTypeMapper
         type.Code = dto.Code;
         type.DisplayName = dto.DisplayName;
         type.Category = category;
-        type.SortOrder = dto.SortOrder;
+
+        // SortOrder is deliberately absent: the manager does not edit it, so an update must leave whatever the database holds. The handler sets it once, when it
+        // creates the type.
         type.IconPath = string.IsNullOrWhiteSpace(dto.IconPath) ? null : dto.IconPath.Trim();
         type.IsRenewable = dto.IsRenewable;
         type.IsStratified = dto.IsStratified;

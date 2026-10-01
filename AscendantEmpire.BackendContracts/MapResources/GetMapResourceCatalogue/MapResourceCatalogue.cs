@@ -29,10 +29,13 @@ public record MapResourceCategoryDetail
 
 /// <inheritdoc cref="IMapResourceTypeDetail" />
 /// <remarks>
-/// Extends the add-or-update record rather than repeating it, so what the manager loads is, field for field, what it saves.
+/// Extends the add-or-update record rather than repeating it, so what the manager loads is what it saves, plus the two values it only reads.
 /// </remarks>
 public record MapResourceTypeDetail : AddOrUpdateMapResourceTypeDto, IMapResourceTypeDetail
 {
     /// <inheritdoc />
     public required int Id { get; init; }
+
+    /// <inheritdoc />
+    public required int SortOrder { get; init; }
 }

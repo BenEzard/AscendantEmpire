@@ -7,10 +7,16 @@ export async function getMapResourceCatalogue(): Promise<MapResourceCategory[]> 
   return data.categories;
 }
 
+/**
+ * A type as the PUT takes it: everything the manager edits, without the two values the server owns. `sortOrder` is set when the type is created and
+ * changed in the database by hand, so sending it back would be the manager overwriting a value it never showed.
+ */
+export type MapResourceTypePayload = Omit<MapResourceType, "id" | "sortOrder">;
+
 /** The body PUT /map-resources/catalogue takes: categories and types, each added or updated by code. */
 export type MapResourceCataloguePayload = {
   categories: { code: string; displayName: string; sortOrder: number }[];
-  types: MapResourceType[];
+  types: MapResourceTypePayload[];
 };
 
 /** Adds or updates categories and types by code, in one transaction. Nothing absent is deleted. */

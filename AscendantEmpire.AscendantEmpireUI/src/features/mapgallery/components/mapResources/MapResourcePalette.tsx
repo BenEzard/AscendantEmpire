@@ -37,7 +37,7 @@ export default function MapResourcePalette({ categories, selectedTypeId, onSelec
       </button>
 
       {columns.length === 0 ? (
-        <p className="px-2 py-1 text-xs text-slate-500">No MapResources yet. Click the button itself to open the MapResource Type Manager.</p>
+        <p className="px-2 py-1 text-xs text-slate-500">No Map Resources yet. Click the button itself to open the Map Resource Type Manager.</p>
       ) : (
         <div className="flex max-h-96 gap-4 overflow-auto">
           {columns.map((category) => (

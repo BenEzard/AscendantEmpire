@@ -7,7 +7,7 @@
  * manager offers four kinds, and switching kind here clears whatever the new kind does not use and fills in defaults for what it now needs.
  */
 import { ExtractionMethod, type MapResourceCategory, type MapResourceHabitat, type MapResourceType, type MapResourceTypeLayer } from "@/types/map/MapResource";
-import type { MapResourceCataloguePayload } from "../api/mapResourcesApi";
+import type { MapResourceCataloguePayload, MapResourceTypePayload } from "../api/mapResourcesApi";
 
 /** The four valid combinations of the three kind flags. */
 export type MapResourceKind = "fixed" | "renewable" | "distribution" | "stratified";
@@ -54,15 +54,18 @@ export function toDraft(categories: MapResourceCategory[] | undefined): MapResou
 export function toPayload(draft: MapResourceDraft): MapResourceCataloguePayload {
   return {
     categories: draft.categories.map(({ code, displayName, sortOrder }) => ({ code, displayName, sortOrder })),
-    types: draft.types.map(withoutId),
+    types: draft.types.map(toTypePayload),
   };
 }
 
-/** A copy of the type without its id, so the body matches the add-or-update contract exactly. */
-function withoutId(type: MapResourceType): MapResourceType {
-  const copy = { ...type };
+/** A copy of the type without the two values the server owns, so the body matches the add-or-update contract exactly. */
+function toTypePayload(type: MapResourceType): MapResourceTypePayload {
+  // Widened to Partial so sortOrder, which is required on the loaded type, can be deleted without a cast of its own.
+  const copy: Partial<MapResourceType> = { ...type };
   delete copy.id;
-  return copy;
+  delete copy.sortOrder;
+
+  return copy as MapResourceTypePayload;
 }
 
 /** Which of the four kinds the type's flags describe. */

@@ -26,12 +26,21 @@ public record PutMapResourceCatalogueRequest(IPutMapResourceCatalogueDto Catalog
 /// <para>
 /// Codes are matched case-insensitively, as the database's unique indexes compare them, so "berry" updates "Berry" rather than failing on the index.
 /// </para>
+/// <para>
+/// A type's SortOrder is not in the request. The server gives a new type the next place in its category and never touches an existing one's, which is changed in the
+/// database by hand.
+/// </para>
 /// </remarks>
 internal class PutMapResourceCatalogueHandler(
     ILogger<PutMapResourceCatalogueHandler> logger,
     AscendantEmpireContext context
 ) : IRequestHandler<PutMapResourceCatalogueRequest, ServiceResultBase>
 {
+    /// <summary>
+    /// The gap left between types created in the same category, so one can later be slotted between two by hand.
+    /// </summary>
+    private const int _SORT_ORDER_STEP = 10;
+
     public async Task<ServiceResultBase> Handle(PutMapResourceCatalogueRequest request, CancellationToken cancellationToken)
     {
         IPutMapResourceCatalogueDto catalogue = request.Catalogue;
@@ -100,11 +109,25 @@ internal class PutMapResourceCatalogueHandler(
                 .Where(t => typeCodes.Contains(t.Code))
                 .ToDictionaryAsync(t => t.Code, StringComparer.OrdinalIgnoreCase, cancellationToken);
 
+            // The request does not carry SortOrder, so a new type is placed at the end of its category rather than left tied at zero with every other new type.
+            // Keyed by category code, because a category created in this same request has no id yet.
+            Dictionary<string, int> highestSortOrderByCategoryCode = await context.MapResourceTypes
+                .Select(t => new { CategoryCode = t.Category.Code, t.SortOrder })
+                .GroupBy(row => row.CategoryCode)
+                .Select(group => new { CategoryCode = group.Key, Highest = group.Max(row => row.SortOrder) })
+                .ToDictionaryAsync(row => row.CategoryCode, row => row.Highest, StringComparer.OrdinalIgnoreCase, cancellationToken);
+
             foreach (IAddOrUpdateMapResourceTypeDto dto in catalogue.Types)
             {
                 if (typesByCode.TryGetValue(dto.Code, out MapResourceType? type) == false)
                 {
-                    type = new MapResourceType { Code = dto.Code, DisplayName = dto.DisplayName };
+                    type = new MapResourceType
+                    {
+                        Code = dto.Code,
+                        DisplayName = dto.DisplayName,
+                        SortOrder = NextSortOrder(highestSortOrderByCategoryCode, dto.MapResourceCategoryCode)
+                    };
+
                     context.MapResourceTypes.Add(type);
                 }
 
@@ -128,6 +151,20 @@ internal class PutMapResourceCatalogueHandler(
         }
 
         return ServiceResultBase.SuccessNoContent();
+    }
+
+    /// <summary>
+    /// Where a newly created type sits in its category: one step past the highest already there.
+    /// </summary>
+    /// <remarks>
+    /// Updates <paramref name="highestByCategoryCode"/> as it goes, so several types created into the same category in one request step apart rather than collide.
+    /// </remarks>
+    private static int NextSortOrder(Dictionary<string, int> highestByCategoryCode, string categoryCode)
+    {
+        int next = highestByCategoryCode.TryGetValue(categoryCode, out int highest) ? highest + _SORT_ORDER_STEP : _SORT_ORDER_STEP;
+        highestByCategoryCode[categoryCode] = next;
+
+        return next;
     }
 
     /// <summary>

@@ -14,6 +14,10 @@ namespace AscendantEmpire.FrontendContracts.MapResources.AddOrUpdateMapResourceT
 /// Which of the values and children must be set depends on the type's kind, set by <see cref="IsRenewable"/>, <see cref="IsStratified"/> and <see cref="IsDistribution"/>.
 /// <c>MapResourceTypeValidator</c> checks every combination; see <c>docs/design/campaign-map/map-resources.md</c>.
 /// </para>
+/// <para>
+/// A type's position within its category is not here: the manager does not edit it. The server sets it when the type is created and leaves it alone afterwards, and
+/// <see cref="GetMapResourceCatalogue.IMapResourceTypeDetail.SortOrder"/> reports it.
+/// </para>
 /// </remarks>
 public interface IAddOrUpdateMapResourceTypeDto
 {
@@ -35,11 +39,6 @@ public interface IAddOrUpdateMapResourceTypeDto
     /// A code rather than an id, so a category and the types in it can be created in the same save, and seed data can name categories without knowing their ids.
     /// </remarks>
     string MapResourceCategoryCode { get; }
-
-    /// <summary>
-    /// Where the type comes within its category, lowest first.
-    /// </summary>
-    int SortOrder { get; }
 
     /// <summary>
     /// The path of the image drawn on a tile holding an instance, or <see langword="null"/> for no icon.

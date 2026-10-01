@@ -26,7 +26,7 @@ export default function MapResourceCategoriesSection({ categories, typeCounts, o
       <EditableTable<CategoryDraft>
         rows={categories}
         addLabel="Category"
-        emptyHint="No categories yet. Add one before adding MapResources."
+        emptyHint="No categories yet. Add one before adding Map Resources."
         onAddRow={() => onChange([...categories, { code: "", displayName: "New Category", sortOrder: nextSortOrder }])}
         onRemoveRow={(index) => onRemove(categories[index])}
         columns={[

@@ -4,6 +4,7 @@
 // as a percent (likelihoods, growth, fuzzy factors). These wrap a plain <input> so each page states which it is, and an empty box means "not
 // set" (null) rather than 0.
 
+import { HintIcon } from "@/components/ui";
 import { fromPercentInput, fromWholeInput, toPercentInput } from "../../tools/mapResourceDraft";
 
 // Full-width for the label/control rows; compact for table cells, where a page may show up to nine columns.
@@ -102,7 +103,8 @@ export function CheckboxRow({
     <label className="mb-2 flex items-center gap-2 text-sm text-slate-700">
       <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       {label}
-      {hint ? <span className="text-xs text-slate-400">{hint}</span> : null}
+      {/* Same info-icon affordance as FieldRow's hint, so a checkbox row reads identically to the rows around it. */}
+      <HintIcon hint={hint} className="align-middle" />
     </label>
   );
 }
