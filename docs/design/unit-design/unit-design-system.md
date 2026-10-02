@@ -6,7 +6,7 @@ The Unit Design System lets a player assemble their own unit designs from a cata
 
 **Terminology specific to this page:**
 
-* Cost - a cost is both a type and a quantity of `Resource`.
+* Cost - a cost is both a type and a quantity of `Asset`.
 
 * A `Template Slot` is a place where a `Unit Component` can be plugged in to a Body Component. Only Body Components expose Template Slots. It has the following properties:
   
@@ -42,7 +42,7 @@ The interesting decisions live in how the parts play off each other:
 
 * **Weight vs. mobility & power.** Heavier loadouts cost movement and power budget. Concretely, a body's battle-map movement is its **Power less the weight of everything fitted to it**: a man carrying a knife crosses 6.5 tiles a turn, the same man with a sword or spear 6, and in armour with a spear and shield 5. Every piece of kit is therefore paid for in tiles. See [Battle-map movement points](#battle-map-movement-points) for the arithmetic.
 
-* **Sight vs. detection vs. visibility.** Sight is how far the unit sees terrain, buildings and resources — summed across its components, it is what sets the unit's reveal radius on the campaign map. Detection is how well it spots *other units*; visibility is how easily it is spotted. A scout wants high sight and detection, and low visibility. All three are optional per component: leaving one empty means that component contributes nothing to it.
+* **Sight vs. detection vs. visibility.** Sight is how far the unit sees terrain, buildings and assets — summed across its components, it is what sets the unit's reveal radius on the campaign map. Detection is how well it spots *other units*; visibility is how easily it is spotted. A scout wants high sight and detection, and low visibility. All three are optional per component: leaving one empty means that component contributes nothing to it.
 
 * **Weapons.** Damage is split across five types — crush, pierce, burn, slash and poison — and a weapon has a range band, may be dual-wielded, and can only engage the Domains it is built to hit.
 
@@ -134,6 +134,6 @@ Unit design is served by **five controllers**, split out of a single 712-line `U
 
 **Transfer** round-trips the catalogue between databases as a zip through the dev Entity Setup Tool, carrying each component with its slots nested under the body. It is the only controller here that is not purely mediator-dispatched: export and import run as background processes and return a `processId` the caller polls, while the download reads the process row through an `IDbContextFactory` and streams a file off disk. That mix of authorization posture (`SystemPanel`, not `EntitySetupTool`) and architectural style is why transfer is its own controller rather than part of the catalogue.
 
-**Global templates** are separated from the player templates they share a table with because they are a different resource: no game, no player, a required and unique `Code`, and no unlock check on save. `POST /global-unit-templates/recompile-all` is the exception to that controller's name — it rebuilds every compiled snapshot, custom templates included, and lives there for its permission gate rather than its scope. Run it after editing catalogue components, whose changes do not propagate to snapshots already built from them.
+**Global templates** are separated from the player templates they share a table with because they are a different asset: no game, no player, a required and unique `Code`, and no unlock check on save. `POST /global-unit-templates/recompile-all` is the exception to that controller's name — it rebuilds every compiled snapshot, custom templates included, and lives there for its permission gate rather than its scope. Run it after editing catalogue components, whose changes do not propagate to snapshots already built from them.
 
 > **Four reads carry no permission gate**: `GET /unit-design-catalogue`, `GET /unit-design-catalogue/{code}`, `GET /unit-design-tags` and `GET /unit-design-tags/types`. They are not anonymous — the `FallbackPolicy` still requires a token — but any authenticated account can read the whole dev catalogue. Gating them is tracked as **UD-35**, and is blocked on the designer moving onto its own unlock-scoped feeds rather than loading through the god-view.

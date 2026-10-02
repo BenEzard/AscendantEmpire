@@ -12,7 +12,7 @@ interface MapResourcePaletteProps {
 }
 
 /**
- * The MapResources palette's dropdown: every saved MapResourceType, grouped under its category in columns, laid out after the in-game resource
+ * The MapResources palette's dropdown: every saved MapResourceType, grouped under its category in columns, laid out after the in-game asset
  * collection (a heading per category over its entries). Choosing one arms the MapResource tool with it.
  */
 export default function MapResourcePalette({ categories, selectedTypeId, onSelect, close }: MapResourcePaletteProps) {

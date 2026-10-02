@@ -18,7 +18,7 @@ A **supply chain** is the logistics link back to allied supplies for a unit oper
 friendly territory.
 
 - A supply chain is **implicit** (not needed) inside the empire's own territory, or an ally's where
-  a Support Agreement exists. (Resources are still deducted as support — there is just no chaining
+  a Support Agreement exists. (Assets are still deducted as support — there is just no chaining
   required.)
 - An **intact** supply chain exists where units carrying the SUPPLY component are daisy-chained back
   to friendly territory. The chain is **broken** when it is not contiguous; any units beyond the

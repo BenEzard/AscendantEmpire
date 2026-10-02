@@ -15,9 +15,9 @@ export const ExtractionMethod = {
 
 export type ExtractionMethod = (typeof ExtractionMethod)[keyof typeof ExtractionMethod];
 
-/** One Resource a MapResourceType gives, and how much one unit extracted gives. */
+/** One Asset a MapResourceType gives, and how much one unit extracted gives. */
 export type MapResourceTypeYield = {
-  resourceId: number;
+  assetId: number;
   amountPerUnit: number;
   isEnabledByDefault: boolean; // Off until a game mechanic switches it on for a Player (e.g. a Deer's pelt).
 };
@@ -39,14 +39,14 @@ export type MapResourceHabitat = {
 export type MapResourceDistributionScenario = {
   scenarioNumber: number;
   displayName: string | null;
-  amounts: { resourceId: number; amount: number }[];
+  amounts: { assetId: number; amount: number }[];
   biomeWeights: { biomeType: number; weight: number }[];
 };
 
 /** One layer of a stratified MapResourceType. */
 export type MapResourceTypeLayer = {
   layerNumber: number;
-  resourceId: number;
+  assetId: number;
   emptyLikelihood: number;
   quantityMin: number;
   quantityMax: number;
@@ -96,8 +96,8 @@ export type MapResourceCategory = {
   types: MapResourceType[];
 };
 
-/** A Resource, as listed for the yield, scenario and layer pickers (GET /resources). */
-export type ResourceSummary = {
+/** An Asset, as listed for the yield, scenario and layer pickers (GET /assets). */
+export type AssetSummary = {
   id: number;
   code: string;
   displayName: string;

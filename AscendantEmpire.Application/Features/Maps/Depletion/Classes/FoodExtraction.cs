@@ -1,5 +1,5 @@
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
-using AscendantEmpire.Domain.Enums.Resources;
+using AscendantEmpire.Domain.Enums.Maps;
 
 namespace AscendantEmpire.Application.Features.Maps.Depletion.Classes;
 

@@ -1,4 +1,4 @@
-import type { MapResourceCategory, MapResourceType, ResourceSummary } from "../../../types/map/MapResource";
+import type { MapResourceCategory, MapResourceType, AssetSummary } from "../../../types/map/MapResource";
 import { http } from "../../../api/http";
 
 /** The whole MapResource catalogue: categories in order, each with its types in order. */
@@ -36,8 +36,8 @@ export async function deleteMapResourceCategory(code: string): Promise<void> {
   await http.delete(`/map-resources/categories/${encodeURIComponent(code)}`);
 }
 
-/** Every Resource, for the pickers. */
-export async function getResources(): Promise<ResourceSummary[]> {
-  const { data } = await http.get<{ resources: ResourceSummary[] }>("/resources");
-  return data.resources;
+/** Every Asset, for the pickers. */
+export async function getAssets(): Promise<AssetSummary[]> {
+  const { data } = await http.get<{ assets: AssetSummary[] }>("/assets");
+  return data.assets;
 }

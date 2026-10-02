@@ -3,14 +3,14 @@
 Part of the [Campaign Map](README.md) design.
 
 A **MapResource** is something on a map tile that can be extracted: a berry patch, a herd of deer, a
-coal seam, a forest's mix of woods. When extracted, it gives up **one or more Resources** (e.g. a
-Berry gives `forage`; a Deer gives `medium_game` and `pelt`). A Resource is an Asset held in a
-Resource Bank (see
-[production-and-assets.md](../production-and-assets.md) and
-[resources-data-model.md](../../resources-data-model.md)).
+coal seam, a forest's mix of woods. When extracted, it gives up **one or more Assets** (e.g. a
+Berry gives `forage`; a Deer gives `medium_game` and `pelt`). Extracted Assets are held in an Asset
+Bank (see [production-and-assets.md](../production-and-assets.md) and
+[assets-data-model.md](../../assets-data-model.md)).
 
-> **Naming.** Always write **MapResource** (and `MapResourceType`), never "resource", for the thing
-> on the tile. "Resource" means the extracted Resource/Asset, and mixing the two is ambiguous.
+> **Naming.** Always write **MapResource** (and `MapResourceType`) for the thing on the tile, never
+> "Asset". An Asset is what extracting one *yields*: the two sit either side of extraction, and a
+> MapResourceType can yield several Assets at once.
 
 MapResources appear on a `CampaignMapTile`.
 
@@ -29,35 +29,35 @@ behave. Its kinds are set by flags:
 | --- | --- |
 | `Renewable` (bool) | Grows every round, and may spread. See [Renewable](#renewable). |
 | `Stratified` (bool) | Not renewable. Held in layers, reached in order. See [Stratified](#stratified). |
-| `Distribution` (bool) | Renewable, holds several Resources in set amounts, never spreads. See [Distribution](#distribution). |
+| `Distribution` (bool) | Renewable, holds several Assets in set amounts, never spreads. See [Distribution](#distribution). |
 
 - `Renewable` and `Stratified` are **mutually exclusive**, enforced by the MapResourceType validator.
 - A `Distribution` must also be `Renewable`, and must not spread (no `SpreadLikelihood`).
 - **Icon.** Most MapResourceTypes show an icon on the tile. Some, such as a Distribution of wood in a
   forest, have none: the biome already says "forest".
-- **Yield.** Every MapResourceType gives up **one or more Resources**. It lists the Resources, and
+- **Yield.** Every MapResourceType gives up **one or more Assets**. It lists the Assets, and
   how much of each, that one unit extracted gives: a Berry gives one (`forage`); a Deer gives two
   (`medium_game` and `pelt`). A Distribution is different: it holds a separate amount of each of its
-  Resources, and extracting it gives some of each (see [Distribution](#distribution)).
+  Assets, and extracting it gives some of each (see [Distribution](#distribution)).
 - **Extraction method.** Each MapResourceType has one: e.g. Gather, Hunt, Fell, Mine, or **Capture**
   (horses), which succeeds with a `CaptureLikelihood`. Extracting always reduces the quantity on the
   tile.
 - **Research first (some MapResourceTypes).** A MapResourceType may require research before it can
   be extracted (e.g. Berry research before anyone in the empire can take berries). Others can be
   extracted as soon as they are discovered. See [Discovery](#discovery).
-- **Each yielded Resource can be switched on and off.** Each Resource in a MapResourceType's yield
+- **Each yielded Asset can be switched on and off.** Each Asset in a MapResourceType's yield
   can be switched on and off per Player by game mechanics (e.g. a tech). Extracting gives only the
-  Resources that are switched on for that Player; the quantity on the tile still goes down by the
+  Assets that are switched on for that Player; the quantity on the tile still goes down by the
   full amount extracted. For example, once Deer is researched a Deer gives `medium_game` straight
   away, but gives `pelt` only after the Player unlocks the hide-working tech. Until then, the hides
-  of deer taken are lost. This does not apply to a Distribution: all of its Resources are always
+  of deer taken are lost. This does not apply to a Distribution: all of its Assets are always
   given.
 
 > Extraction itself is out of scope here, apart from the rules above and the Distribution rules
 > below. In a Player's controlled area it is done by improvements
 > (or from a nearby camp or Settlement, e.g. berries, without an improvement on the tile). In
 > unclaimed or enemy land, a Force feeds from a food MapResource such as a berry patch: it is the
-> `[Additional Resources]` term in the total-resource formula in [tiles.md](tiles.md).
+> `[Additional Assets]` term in the total-asset formula in [tiles.md](tiles.md).
 
 ## Placement on tiles
 
@@ -93,7 +93,7 @@ taken. Clicking a tile that already holds the chosen type opens its dialog inste
 The categories and types themselves are edited in the editor's **MapResource Type Manager** (the
 MapResources palette button). A type's and a category's code is its fixed key once saved. Deleting a
 type is refused while any map places it or any game uses it, and deleting a category is refused while
-it has types. The database seed creates the categories only: a type's Resources must exist first.
+it has types. The database seed creates the categories only: a type's Assets must exist first.
 
 Each game created from the map starts with an instance of every placement. Its starting quantity is
 the one the editor set, if any; otherwise it is rolled from the `InitialQuantity` range when the game
@@ -201,8 +201,8 @@ An exhausted renewable instance (`Quantity` of `0`) is not removed straight away
 
 ## Distribution
 
-A Distribution holds **several Resources in set amounts**, from one of a set of **scenarios** for its
-MapResourceType. For example, Forest Wood (Resources: oak, generic, cedar, ash, ebony, bamboo):
+A Distribution holds **several Assets in set amounts**, from one of a set of **scenarios** for its
+MapResourceType. For example, Forest Wood (Assets: oak, generic, cedar, ash, ebony, bamboo):
 
 | Scenario | Contents |
 | --- | --- |
@@ -217,19 +217,19 @@ MapResourceType. For example, Forest Wood (Resources: oak, generic, cedar, ash, 
 ### Growth
 
 `MaximumQuantity` comes from the MapResourceType, Biome and Geography table like any other, and caps
-the **total** of all the Distribution's Resources. It is not the scenario's total: scenario 1 above
+the **total** of all the Distribution's Assets. It is not the scenario's total: scenario 1 above
 totals 10,230, but its `MaximumQuantity` might be 20,000.
 
 Each round the total grows by `MAX(MINIMUM_GROWTH, Total × GrowthPercentage)`, capped at
-`MaximumQuantity`, and the growth is shared between the Resources **in proportion to their current
-amounts**. So each Resource expands in ratio until the total hits the ceiling. Scenario 1 at 20,000
+`MaximumQuantity`, and the growth is shared between the Assets **in proportion to their current
+amounts**. So each Asset expands in ratio until the total hits the ceiling. Scenario 1 at 20,000
 would hold roughly oak 391, generic 19,550, cedar 59.
 
-A Resource at `0` gets no share, so once a wood type is gone from a tile it does not come back.
+An Asset at `0` gets no share, so once a wood type is gone from a tile it does not come back.
 
 ### Extraction
 
-Extraction takes from every Resource **in proportion to their current amounts**, and each amount
+Extraction takes from every Asset **in proportion to their current amounts**, and each amount
 taken is **floored to a whole number** (no fractions; what the floor drops is left on the tile).
 
 Taking 200 from scenario 1 (oak 200, generic 10,000, cedar 30, total 10,230):
@@ -239,9 +239,9 @@ Taking 200 from scenario 1 (oak 200, generic 10,000, cedar 30, total 10,230):
 | Share of 200 | 3.910 | 195.503 | 0.587 | 200 |
 | Taken (floored) | 3 | 195 | 0 | 198 |
 
-- Felling gives the specific Resources (oak, generic, cedar) in the amounts taken.
-- When a Resource reaches `0`, no more of it is taken from that tile.
-- A rare Resource is only taken when its share reaches 1: cedar above needs 341 taken in one go.
+- Felling gives the specific Assets (oak, generic, cedar) in the amounts taken.
+- When an Asset reaches `0`, no more of it is taken from that tile.
+- A rare Asset is only taken when its share reaches 1: cedar above needs 341 taken in one go.
   Small extractions from a tile get only its common woods.
 
 > When all of a tile's wood has been extracted, its biome changes. That is a separate task.
@@ -260,7 +260,7 @@ which may be empty:
 | 2 | none, or y of low-quality coal |
 | 3 | none, or z of high-quality coal |
 
-- A layer may hold a **different Resource** from the layer above it (e.g. low-grade coal above
+- A layer may hold a **different Asset** from the layer above it (e.g. low-grade coal above
   anthracite).
 - Layers are extracted **in order**: a layer must be exhausted before the next can be reached.
 - Each layer below the first has three gates:
@@ -316,7 +316,7 @@ Shown = Quantity × (1 + EstimationFuzzyFactor × Error)
 ## Switches
 
 Everything above that is "switched on and off per Player by game mechanics" (discovering a
-MapResourceType, receiving one Resource from its yield, surveying one of its layers) is held as
+MapResourceType, receiving one Asset from its yield, surveying one of its layers) is held as
 switch rows: one per Player, source, and thing switched, each turning it on or off. They resolve in
 this order:
 
@@ -324,7 +324,7 @@ this order:
    that allowed it, for as long as the Player holds it.
 2. Otherwise any **on** row turns it on.
 3. Otherwise the default applies: the MapResourceType's default for discovery, the yielded
-   Resource's default, or, for a layer, on for layer 1 and off for every deeper layer (standing in
+   Asset's default, or, for a layer, on for layer 1 and off for every deeper layer (standing in
    for the survey tech until Technology is modelled).
 
 As with modifiers, losing a source just deletes its rows.
@@ -346,10 +346,10 @@ are fractions (`0.25` = 25%).
 | --- | --- |
 | `MapResourceCategory` | The editor's groups. |
 | `MapResourceType` | A type's flags, extraction method, discovery values, fuzzy factor range, survival values, and `IconPath` (the image drawn on the tile; null for no icon). |
-| `MapResourceTypeYield` | What one extracted unit gives, per Resource, and whether each Resource is on by default. |
+| `MapResourceTypeYield` | What one extracted unit gives, per Asset, and whether each Asset is on by default. |
 | `MapResourceHabitat` | The per Type, Biome and Geography values in [Placement on tiles](#placement-on-tiles). |
 | `MapResourceDistributionScenario`, `...Amount`, `...BiomeWeight` | A Distribution's scenarios, their amounts, and their weight in each Biome. |
-| `MapResourceTypeLayer` | A stratified type's layers: Resource, chance of being empty, quantity range, discovery likelihood, mine level, fuzzy factor range. |
+| `MapResourceTypeLayer` | A stratified type's layers: Asset, chance of being empty, quantity range, discovery likelihood, mine level, fuzzy factor range. |
 
 **Map editor (`mapgallery` schema):** `CampaignMapGalleryResource`, a placement on a gallery tile,
 with an optional starting quantity and optional pinned scenario.
@@ -359,8 +359,8 @@ with an optional starting quantity and optional pinned scenario.
 | Table | Holds |
 | --- | --- |
 | `MapResourceInstance` | An instance on a tile: its slot (1 or 2), `Quantity`, `SpreadLimit`, the Round it went dormant, and its `EstimationFuzzyFactor`. |
-| `MapResourceInstanceAmount` | A Distribution instance's own amount of each Resource. |
-| `MapResourceInstanceLayer` | A stratified instance's layers: Resource (null when empty), quantity, fuzzy factor. |
+| `MapResourceInstanceAmount` | A Distribution instance's own amount of each Asset. |
+| `MapResourceInstanceLayer` | A stratified instance's layers: Asset (null when empty), quantity, fuzzy factor. |
 | `PlayerMapResourceTypeKnowledge` | The Round a Player first saw a MapResourceType, and the Round they researched it. |
 | `PlayerKnownMapResource` | The instances a Player has discovered, and the deepest layer they have surveyed. |
 | `PlayerMapResourceModifier` | [Player modifiers](#player-modifiers). |

@@ -18,7 +18,7 @@ public interface IMapResourceDistributionScenarioDto
     string? DisplayName { get; }
 
     /// <summary>
-    /// The starting amount of each Resource. At least one, each Resource at most once.
+    /// The starting amount of each Asset. At least one, each Asset at most once.
     /// </summary>
     IReadOnlyCollection<IMapResourceDistributionScenarioAmountDto> Amounts { get; }
 
@@ -29,11 +29,11 @@ public interface IMapResourceDistributionScenarioDto
 }
 
 /// <summary>
-/// The starting amount of one Resource in a Distribution scenario.
+/// The starting amount of one Asset in a Distribution scenario.
 /// </summary>
 public interface IMapResourceDistributionScenarioAmountDto
 {
-    int ResourceId { get; }
+    int AssetId { get; }
 
     /// <summary>
     /// The starting amount, as a whole number. Above 0.

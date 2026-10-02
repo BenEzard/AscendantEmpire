@@ -21,11 +21,11 @@ Definitions:
   river, railroad). Coastal settlements with a harbour and ship technology are automatically linked
   to other harboured settlements.
 - Initially each settlement forms its own **Asset Bank Group**. When settlements are linked, they
-  share an Asset Bank Group, representing the ability to share resources.
-- Settlements **not** linked cannot share resources outside their group. When a settlement is
+  share an Asset Bank Group, representing the ability to share assets.
+- Settlements **not** linked cannot share assets outside their group. When a settlement is
   separated from others, it reverts to its own asset bank (or any it is still connected to).
-- When a linked settlement lacks a resource but another in the group has it, that bank is debited.
-  If the resource isn't held in sufficient quantity across the group, the purchase cannot be made.
+- When a linked settlement lacks an asset but another in the group has it, that bank is debited.
+  If the asset isn't held in sufficient quantity across the group, the purchase cannot be made.
 - When two asset banks are merged, all their assets are combined.
 
 > Open idea (liked): an "internal transaction" between settlements — e.g. a mining settlement

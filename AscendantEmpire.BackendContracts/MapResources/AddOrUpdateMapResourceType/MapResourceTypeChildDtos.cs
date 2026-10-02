@@ -9,7 +9,7 @@ namespace AscendantEmpire.BackendContracts.MapResources.AddOrUpdateMapResourceTy
 public record class MapResourceTypeYieldDto : IMapResourceTypeYieldDto
 {
     /// <inheritdoc />
-    public required int ResourceId { get; init; }
+    public required int AssetId { get; init; }
 
     /// <inheritdoc />
     public required int AmountPerUnit { get; init; }
@@ -73,7 +73,7 @@ public record class MapResourceDistributionScenarioDto : IMapResourceDistributio
 public record class MapResourceDistributionScenarioAmountDto : IMapResourceDistributionScenarioAmountDto
 {
     /// <inheritdoc />
-    public required int ResourceId { get; init; }
+    public required int AssetId { get; init; }
 
     /// <inheritdoc />
     public required int Amount { get; init; }
@@ -96,7 +96,7 @@ public record class MapResourceTypeLayerDto : IMapResourceTypeLayerDto
     public required int LayerNumber { get; init; }
 
     /// <inheritdoc />
-    public required int ResourceId { get; init; }
+    public required int AssetId { get; init; }
 
     /// <inheritdoc />
     public required decimal EmptyLikelihood { get; init; }

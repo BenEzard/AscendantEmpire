@@ -13,7 +13,6 @@ using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums;
 using AscendantEmpire.Domain.Enums.Maps;
-using AscendantEmpire.Domain.Enums.Resources;
 
 using Microsoft.Extensions.Logging.Abstractions;
 

@@ -58,7 +58,7 @@ public interface IAddOrUpdateMapResourceTypeDto
     bool IsStratified { get; }
 
     /// <summary>
-    /// Holds several Resources in set amounts from one of its scenarios. Must also be renewable, and never spreads.
+    /// Holds several Assets in set amounts from one of its scenarios. Must also be renewable, and never spreads.
     /// </summary>
     bool IsDistribution { get; }
     #endregion
@@ -115,7 +115,7 @@ public interface IAddOrUpdateMapResourceTypeDto
     #endregion
 
     /// <summary>
-    /// The Resources one unit extracted gives. Only for a type that is neither a Distribution nor stratified, which must have at least one.
+    /// The Assets one unit extracted gives. Only for a type that is neither a Distribution nor stratified, which must have at least one.
     /// </summary>
     IReadOnlyCollection<IMapResourceTypeYieldDto> Yields { get; }
 

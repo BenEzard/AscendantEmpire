@@ -25,7 +25,7 @@ function renewableType(): MapResourceType {
   return {
     ...type,
     code: "berry",
-    yields: [{ resourceId: 1, amountPerUnit: 1, isEnabledByDefault: true }],
+    yields: [{ assetId: 1, amountPerUnit: 1, isEnabledByDefault: true }],
     habitats: [{ ...createHabitat("renewable", FOREST), spreadLikelihood: 0.1, spreadLimitMin: 1, spreadLimitMax: 3 }],
   };
 }
@@ -104,7 +104,7 @@ describe("layers", () => {
     const renumbered = renumberLayers([createLayer(2, 5), createLayer(3, 6)]);
 
     expect(renumbered.map((l) => l.layerNumber)).toEqual([1, 2]);
-    expect(renumbered[0]).toMatchObject({ resourceId: 5, discoveryLikelihood: null, requiredMineLevel: null });
+    expect(renumbered[0]).toMatchObject({ assetId: 5, discoveryLikelihood: null, requiredMineLevel: null });
     expect(renumbered[1].discoveryLikelihood).not.toBeNull();
   });
 });

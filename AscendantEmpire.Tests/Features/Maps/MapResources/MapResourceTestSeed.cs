@@ -1,10 +1,10 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Maps.MapResources;
-using AscendantEmpire.Domain.Entities.Resources;
+using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.MapResources;
-using AscendantEmpire.Domain.Enums.Resources;
+using AscendantEmpire.Domain.Enums.Assets;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -16,16 +16,16 @@ namespace AscendantEmpire.Tests.Features.Maps.MapResources;
 /// <param name="BerryTypeId">A renewable type with one yield.</param>
 /// <param name="WoodTypeId">A Distribution with one scenario.</param>
 /// <param name="CoalTypeId">A stratified type with one layer.</param>
-/// <param name="ResourceId">The one Resource every type yields or holds.</param>
+/// <param name="AssetId">The one Asset every type yields or holds.</param>
 /// <param name="ScenarioId">The Distribution's scenario.</param>
-internal sealed record MapResourceTestCatalogue(int BerryTypeId, int WoodTypeId, int CoalTypeId, int ResourceId, int ScenarioId);
+internal sealed record MapResourceTestCatalogue(int BerryTypeId, int WoodTypeId, int CoalTypeId, int AssetId, int ScenarioId);
 
 /// <summary>
-/// Writes the catalogue rows MapResource tests need against a real database: a Resource to point at, and one MapResourceType of each kind that holds its Resources
+/// Writes the catalogue rows MapResource tests need against a real database: an Asset to point at, and one MapResourceType of each kind that holds its Assets
 /// differently.
 /// </summary>
 /// <remarks>
-/// Nothing seeds MapResources yet, and the Resource hierarchy is seeded by the Entity Setup Tool rather than a migration, so the template database has none of these. The
+/// Nothing seeds MapResources yet, and the Asset hierarchy is seeded by the Entity Setup Tool rather than a migration, so the template database has none of these. The
 /// codes are prefixed "Test" so they cannot collide with anything seeded for real.
 /// </remarks>
 internal static class MapResourceTestSeed
@@ -37,7 +37,7 @@ internal static class MapResourceTestSeed
     {
         await EnsureBiomeAsync(context, BiomeType.Forest);
 
-        Resource resource = (await SeedResourcesAsync(context, "TestForage"))[0];
+        Asset asset = (await SeedAssetsAsync(context, "TestForage"))[0];
 
         // --- The MapResource catalogue ---
         var mapCategory = new MapResourceCategory { Code = "TestFood", DisplayName = "Test Food", SortOrder = 1 };
@@ -56,7 +56,7 @@ internal static class MapResourceTestSeed
             EstimationFuzzyFactorMax = 0.3m,
             SurvivalRounds = 5,
             ReseedLikelihood = 0.2m,
-            Yields = [new MapResourceTypeYield { ResourceId = resource.Id, AmountPerUnit = 1_000, IsEnabledByDefault = true }],
+            Yields = [new MapResourceTypeYield { AssetId = asset.Id, AmountPerUnit = 1_000, IsEnabledByDefault = true }],
             Habitats =
             [
                 new MapResourceHabitat
@@ -76,7 +76,7 @@ internal static class MapResourceTestSeed
         var scenario = new MapResourceDistributionScenario
         {
             ScenarioNumber = 1,
-            Amounts = [new MapResourceDistributionScenarioAmount { ResourceId = resource.Id, Amount = 10_000_000 }],
+            Amounts = [new MapResourceDistributionScenarioAmount { AssetId = asset.Id, Amount = 10_000_000 }],
             BiomeWeights = [new MapResourceDistributionScenarioBiomeWeight { BiomeTypeId = BiomeType.Forest, Weight = 1 }]
         };
 
@@ -113,7 +113,7 @@ internal static class MapResourceTestSeed
                 new MapResourceTypeLayer
                 {
                     LayerNumber = 1,
-                    ResourceId = resource.Id,
+                    AssetId = asset.Id,
                     EmptyLikelihood = 0.25m,
                     QuantityMin = 1_000_000,
                     QuantityMax = 5_000_000,
@@ -126,46 +126,46 @@ internal static class MapResourceTestSeed
         context.MapResourceTypes.AddRange(berry, wood, coal);
         await context.SaveChangesAsync();
 
-        return new MapResourceTestCatalogue(berry.Id, wood.Id, coal.Id, resource.Id, scenario.Id);
+        return new MapResourceTestCatalogue(berry.Id, wood.Id, coal.Id, asset.Id, scenario.Id);
     }
 
     /// <summary>
-    /// Adds one Resource per name, through the standalone path of the Resource hierarchy (a meta category and a category of its own), and saves.
+    /// Adds one Asset per name, through the standalone path of the Asset hierarchy (a meta category and a category of its own), and saves.
     /// </summary>
-    /// <returns>The Resources, in the order named.</returns>
-    public static async Task<List<Resource>> SeedResourcesAsync(AscendantEmpireContext context, params string[] names)
+    /// <returns>The Assets, in the order named.</returns>
+    public static async Task<List<Asset>> SeedAssetsAsync(AscendantEmpireContext context, params string[] names)
     {
-        var meta = new ResourceMetaCategory { Code = "TestMeta", DisplayName = "Test Meta", SortOrder = 99, IconPath = "test.png" };
-        context.ResourceMetaCategories.Add(meta);
+        var meta = new AssetMetaCategory { Code = "TestMeta", DisplayName = "Test Meta", SortOrder = 99, IconPath = "test.png" };
+        context.AssetMetaCategories.Add(meta);
         await context.SaveChangesAsync();
 
-        var category = new ResourceCategory
+        var category = new AssetCategory
         {
-            ResourceMetaCategoryId = meta.Id,
+            AssetMetaCategoryId = meta.Id,
             Code = "TestMeta.TestCategory",
-            CategoryType = ResourceCategoryType.StandaloneResources,
+            CategoryType = AssetCategoryType.StandaloneAssets,
             DisplayName = "Test Category",
             SortOrder = 1
         };
-        context.ResourceCategories.Add(category);
+        context.AssetCategories.Add(category);
         await context.SaveChangesAsync();
 
         // Sort orders are spaced by 10 from the caller's order, matching how the real catalogue is seeded.
-        List<Resource> resources = [.. names.Select((name, index) => new Resource
+        List<Asset> assets = [.. names.Select((name, index) => new Asset
         {
             Code = $"TestMeta.TestCategory.{name}",
             DisplayName = name,
             IconPath = "test.png",
             SortOrder = (index + 1) * 10,
-            IsGradedResource = false,
-            ResourceMetaCategoryId = meta.Id,
-            ResourceCategoryId = category.Id
+            IsGradedAsset = false,
+            AssetMetaCategoryId = meta.Id,
+            AssetCategoryId = category.Id
         })];
 
-        context.Resources.AddRange(resources);
+        context.Assets.AddRange(assets);
         await context.SaveChangesAsync();
 
-        return resources;
+        return assets;
     }
 
     /// <summary>

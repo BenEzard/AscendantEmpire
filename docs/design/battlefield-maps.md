@@ -32,7 +32,7 @@ similar "base" system on land could reduce generation and storage too.)
 A battle map inherits its appearance from the underlying campaign tile:
 
 - geography type (e.g. plain, hilly),
-- resources (e.g. forest),
+- assets (e.g. forest),
 - tile improvements (e.g. farms), and
 - any fortifications that have been built.
 
@@ -57,7 +57,7 @@ means, is in [unit-movement.md](units/unit-movement.md#boundaries-and-the-safe-z
 ### Geography type
 
 If the geography is hilly, individual hills are rendered — opening up vantage points, blind spots
-(valleys), and strategic locations (hilltops). Resources like forests are rendered and impose
+(valleys), and strategic locations (hilltops). Assets like forests are rendered and impose
 movement and sight penalties.
 
 ### Altitude
@@ -74,7 +74,7 @@ Terrain improvements (especially fortifications) are visible and potentially act
 map.
 
 - Possibly, when a unit first fortifies, the player designs the fortifications (from available tech
-  and resources) and they are built over time. The UI must be quick, and fortifications must be
+  and assets) and they are built over time. The UI must be quick, and fortifications must be
   built **before** the player sees their foe (so they can't be tailored to the attacker).
 - A **farm** improvement uses most of the land (except edges); no fortifications can be built on the
   used area — the farm must be destroyed first.
@@ -114,7 +114,7 @@ units are within range.
 | | | Oil bags | Ignitable by archers; lights up the tile (chance of fire spread?) |
 | ACTIVE ATTACK | Active weapons | Catapult, artillery, turret | |
 | EXPERIENCE | +experience | Command tent | +experience points for defenders |
-| TERRAIN | Change terrain | Clear forest (preserve resource), despoil forest (destroy resource), desecrate land (poison/unusable), scorched earth, clear rocks | |
+| TERRAIN | Change terrain | Clear forest (preserve asset), despoil forest (destroy asset), desecrate land (poison/unusable), scorched earth, clear rocks | |
 | MORALE | Damage morale | Speaker system | |
 
 **Persistence:** fortifications built *during* combat do **not** remain after the battle. Any

@@ -2,15 +2,15 @@
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Features.Players.Classes;
 using AscendantEmpire.Application.Features.Players.Handlers;
-using AscendantEmpire.Application.Features.Resources.Classes;
-using AscendantEmpire.Application.Features.Resources.Handlers;
+using AscendantEmpire.Application.Features.Assets.Classes;
+using AscendantEmpire.Application.Features.Assets.Handlers;
 using AscendantEmpire.BackendContracts.Players.GetPlayers;
 using AscendantEmpire.BackendContracts.Players.GetPlayerStructures;
-using AscendantEmpire.BackendContracts.Resources.GetPlayerResources;
+using AscendantEmpire.BackendContracts.Assets.GetPlayerAssets;
 using AscendantEmpire.BackendContracts.Units.GetPlayerForces;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Player;
-using AscendantEmpire.FrontendContracts.Resources.GetPlayerResources;
+using AscendantEmpire.FrontendContracts.Assets.GetPlayerAssets;
 using AscendantEmpire.FrontendContracts.Units;
 
 using Microsoft.AspNetCore.Authorization;
@@ -147,30 +147,30 @@ public class PlayerController : ControllerBase
     }
 
     // ---------------------------------------------------------------------------------------------------------------------------------------------------
-    // Resources
+    // Assets
     //
-    // The Player's view of the resource catalogue, gated by what they have unlocked. This is a tree rather than a list, because the Resources toolbar and
+    // The Player's view of the asset catalogue, gated by what they have unlocked. This is a tree rather than a list, because the Assets toolbar and
     // the panels behind it are drawn from the catalogue's own hierarchy.
     // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
     /// <summary>
-    /// Get the Resources a Player can currently see, as the tree the Resources toolbar and its panels are drawn from
+    /// Get the Assets a Player can currently see, as the tree the Assets toolbar and its panels are drawn from
     /// </summary>
     /// <remarks>
     /// One call rather than one per meta-category: the toolbar needs the unlocked meta-category list before any panel is opened, and a category's or
-    /// group's visibility is a function of the Resources beneath it, so splitting it would force the client to recombine what the server already knows.
+    /// group's visibility is a function of the Assets beneath it, so splitting it would force the client to recombine what the server already knows.
     /// An unlocked meta-category with nothing visible under it is still returned, with no categories, so its toolbar icon stays put over an empty panel.
     /// </remarks>
-    /// <response code="200">The Player's visible resource tree</response>
+    /// <response code="200">The Player's visible asset tree</response>
     /// <response code="403">The caller has not entered a game</response>
     /// <response code="404">The Player is not in an in-progress Game, or that Game has no campaign turn queue to read the current Round from</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [HttpGet("resources")]
-    [ProducesResponseType(typeof(IPlayerResourceTree), 200)]
+    [HttpGet("assets")]
+    [ProducesResponseType(typeof(IPlayerAssetTree), 200)]
     [ProducesResponseType(typeof(IApiErrorResult), 403)]
     [ProducesResponseType(typeof(IApiErrorResult), 404)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> GetPlayerResourcesAsync(
+    public async Task<IActionResult> GetPlayerAssetsAsync(
         [FromServices] IMediator mediator,
         CancellationToken cancelToken)
     {
@@ -180,14 +180,14 @@ public class PlayerController : ControllerBase
             return contextError!;
         }
 
-        ServiceResult<IReadOnlyCollection<PlayerResourceMetaCategory>> response =
-            await mediator.Send(new GetPlayerResourcesRequest(gameId, playerId), cancelToken);
+        ServiceResult<IReadOnlyCollection<PlayerAssetMetaCategory>> response =
+            await mediator.Send(new GetPlayerAssetsRequest(gameId, playerId), cancelToken);
 
-        return response.ToActionResult(metaCategories => new DTPlayerResourceTree
+        return response.ToActionResult(metaCategories => new DTPlayerAssetTree
         {
             MetaCategories =
             [
-                .. (metaCategories ?? []).Select(m => new DTPlayerResourceMetaCategory
+                .. (metaCategories ?? []).Select(m => new DTPlayerAssetMetaCategory
                 {
                     Id = m.Id,
                     Code = m.Code,
@@ -196,7 +196,7 @@ public class PlayerController : ControllerBase
                     SortOrder = m.SortOrder,
                     Categories =
                     [
-                        .. m.Categories.Select(c => new DTPlayerResourceCategory
+                        .. m.Categories.Select(c => new DTPlayerAssetCategory
                         {
                             Id = c.Id,
                             Code = c.Code,
@@ -205,16 +205,16 @@ public class PlayerController : ControllerBase
                             SortOrder = c.SortOrder,
                             Groups =
                             [
-                                .. c.Groups.Select(g => new DTPlayerResourceGroup
+                                .. c.Groups.Select(g => new DTPlayerAssetGroup
                                 {
                                     Id = g.Id,
                                     Code = g.Code,
                                     DisplayName = g.DisplayName,
                                     SortOrder = g.SortOrder,
-                                    Resources = [.. g.Resources.Select(ToWireResource)]
+                                    Assets = [.. g.Assets.Select(ToWireAsset)]
                                 })
                             ],
-                            Resources = [.. c.Resources.Select(ToWireResource)]
+                            Assets = [.. c.Assets.Select(ToWireAsset)]
                         })
                     ]
                 })
@@ -223,32 +223,32 @@ public class PlayerController : ControllerBase
     }
 
     /// <summary>
-    /// Transcribes one Resource onto the wire.
+    /// Transcribes one Asset onto the wire.
     /// </summary>
     /// <remarks>
-    /// Shared by the grouped and standalone arms of the tree, which carry the same Resource shape by two different paths.
+    /// Shared by the grouped and standalone arms of the tree, which carry the same Asset shape by two different paths.
     /// </remarks>
-    private static DTPlayerResource ToWireResource(PlayerResource resource)
+    private static DTPlayerAsset ToWireAsset(PlayerAsset asset)
     {
-        return new DTPlayerResource
+        return new DTPlayerAsset
         {
-            Id = resource.Id,
-            Code = resource.Code,
-            DisplayName = resource.DisplayName,
-            Description = resource.Description,
-            IconPath = resource.IconPath,
-            IsGradedResource = resource.IsGradedResource,
-            ResourceGrade = resource.ResourceGrade,
-            SortOrder = resource.SortOrder,
-            NeverLuxury = resource.NeverLuxury,
-            ObsoleteInRounds = resource.ObsoleteInRounds,
-            Amount = resource.Amount,
-            AmountAddedPerTurn = resource.AmountAddedPerTurn,
-            HasStrategicStockpile = resource.HasStrategicStockpile,
-            IsImported = resource.IsImported,
-            IsExported = resource.IsExported,
-            DemandNotMet = resource.DemandNotMet,
-            IsLuxury = resource.IsLuxury
+            Id = asset.Id,
+            Code = asset.Code,
+            DisplayName = asset.DisplayName,
+            Description = asset.Description,
+            IconPath = asset.IconPath,
+            IsGradedAsset = asset.IsGradedAsset,
+            AssetGrade = asset.AssetGrade,
+            SortOrder = asset.SortOrder,
+            NeverLuxury = asset.NeverLuxury,
+            ObsoleteInRounds = asset.ObsoleteInRounds,
+            Amount = asset.Amount,
+            AmountAddedPerTurn = asset.AmountAddedPerTurn,
+            HasStrategicStockpile = asset.HasStrategicStockpile,
+            IsImported = asset.IsImported,
+            IsExported = asset.IsExported,
+            DemandNotMet = asset.DemandNotMet,
+            IsLuxury = asset.IsLuxury
         };
     }
 }

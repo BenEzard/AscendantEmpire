@@ -25,7 +25,7 @@ empire (undiscovered) are excluded from the returned order.
 The player may re-order preferences for any Material Class at any time, changing how assets get
 consumed.
 
-### Example 1 — Stone (a resource)
+### Example 1 — Stone (a map-extracted Asset)
 
 Generic stone, marble, and granite all belong to the Material Class `CONSTRUCTION_STONE`. A default
 preference order might be:
@@ -83,8 +83,19 @@ luxury good — but once an empire has a huge surplus of wine, it is no longer t
 Some assets are **intrinsically** luxury items (gold, silver) and always retain a certain aura of
 luxury regardless of surplus.
 
-## Resources
+## Where Assets come from
 
-Resources appear on the **campaign map**. How tiles produce, deplete, regenerate, and reveal
-resources is described in [campaign-map/](campaign-map/README.md). How raw resources are refined into
-finished goods is described in [manufacturing-chains.md](manufacturing-chains.md).
+Most Assets are extracted from the **campaign map**, from the MapResources on its tiles: a berry
+patch yields `forage`, a deer yields `medium_game` and a `pelt`. What can sit on a tile, and how it
+grows, depletes and is discovered, is described in
+[campaign-map/map-resources.md](campaign-map/map-resources.md); how a tile's own biome yields are
+depleted and renewed is in [campaign-map/](campaign-map/README.md). How extracted Assets are refined
+into finished goods is described in [manufacturing-chains.md](manufacturing-chains.md).
+
+Not every Asset comes off the map. Citizens, slaves and prisoners of war are Assets held in an Asset
+Bank and spent like any other, but no MapResource yields them — they come from population growth and
+from conquest. An Asset obtainable from the map is simply one that some MapResourceType lists in its
+yield; nothing on the Asset itself records this.
+
+The catalogue behind all of this — the meta-categories, categories, groups and Assets themselves —
+is described in [assets-data-model.md](../assets-data-model.md).

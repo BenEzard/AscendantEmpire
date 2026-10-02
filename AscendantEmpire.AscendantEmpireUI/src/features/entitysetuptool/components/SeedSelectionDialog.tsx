@@ -9,7 +9,7 @@ import { useSeedSelection } from "../hooks/useSeedSelection";
 const GROUP_LABELS: Record<SeedTargetGroup, string> = {
   Map: "Map",
   UnitDesign: "Unit Design",
-  Resources: "Resources",
+  Assets: "Resources",
 };
 
 export interface SeedSelectionDialogProps {

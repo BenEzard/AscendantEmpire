@@ -12,7 +12,7 @@ import {
   mapResourceCatalogueKey,
   useDeleteMapResourceMutation,
   useMapResourceCatalogueQuery,
-  useResourcesQuery,
+  useAssetsQuery,
   useSaveMapResourceCatalogueMutation,
 } from "../hooks/useMapResourceCatalogue";
 import { createMapResourceType, holdsSingleQuantity, kindOf, toDraft, toPayload, type MapResourceDraft } from "../tools/mapResourceDraft";
@@ -47,8 +47,8 @@ interface MapResourceTypeManagerDialogProps {
 export default function MapResourceTypeManagerDialog({ show, biomes, geographies, onClose, onSaveSuccess }: MapResourceTypeManagerDialogProps) {
   const queryClient = useQueryClient();
   const catalogueQuery = useMapResourceCatalogueQuery();
-  const resourcesQuery = useResourcesQuery();
-  const resources = useMemo(() => resourcesQuery.data ?? [], [resourcesQuery.data]);
+  const assetsQuery = useAssetsQuery();
+  const assets = useMemo(() => assetsQuery.data ?? [], [assetsQuery.data]);
 
   const [draft, setDraft] = useState<MapResourceDraft>({ categories: [], types: [] });
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -277,10 +277,10 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
           {
             key: "yields",
             label: "Yields",
-            // A Distribution holds its Resources in scenarios, and a stratified type in layers.
+            // A Distribution holds its Assets in scenarios, and a stratified type in layers.
             disabled: !kind || !holdsSingleQuantity(kind),
             count: selectedType?.yields.length,
-            content: selectedType ? <MapResourceYieldsSection type={selectedType} resources={resources} onChange={updateSelectedType} /> : noTypeSelected,
+            content: selectedType ? <MapResourceYieldsSection type={selectedType} assets={assets} onChange={updateSelectedType} /> : noTypeSelected,
           },
           {
             key: "habitats",
@@ -299,7 +299,7 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
             disabled: kind !== "distribution",
             count: selectedType?.distributionScenarios.length,
             content: selectedType ? (
-              <MapResourceScenariosSection type={selectedType} resources={resources} biomes={biomes} onChange={updateSelectedType} />
+              <MapResourceScenariosSection type={selectedType} assets={assets} biomes={biomes} onChange={updateSelectedType} />
             ) : (
               noTypeSelected
             ),
@@ -309,7 +309,7 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
             label: "Layers",
             disabled: kind !== "stratified",
             count: selectedType?.layers.length,
-            content: selectedType ? <MapResourceLayersSection type={selectedType} resources={resources} onChange={updateSelectedType} /> : noTypeSelected,
+            content: selectedType ? <MapResourceLayersSection type={selectedType} assets={assets} onChange={updateSelectedType} /> : noTypeSelected,
           },
           {
             key: "categories",

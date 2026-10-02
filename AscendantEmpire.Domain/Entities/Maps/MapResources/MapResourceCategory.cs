@@ -6,8 +6,8 @@ namespace AscendantEmpire.Domain.Entities.Maps.MapResources;
 /// A group of like MapResourceTypes, e.g. Food, Metals or Wood, so the map editor can list them together.
 /// </summary>
 /// <remarks>
-/// Purely for arranging the catalogue: nothing in play reads it. It is deliberately not the <c>resources.ResourceMetaCategory</c> of what a type yields, since one type can
-/// yield Resources from several meta categories (a Deer gives both meat and a pelt).
+/// Purely for arranging the catalogue: nothing in play reads it. It is deliberately not the <c>assets.AssetMetaCategory</c> of what a type yields, since one type can
+/// yield Assets from several meta categories (a Deer gives both meat and a pelt).
 /// </remarks>
 public class MapResourceCategory
 {

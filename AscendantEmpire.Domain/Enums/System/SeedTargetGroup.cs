@@ -20,7 +20,7 @@ public enum SeedTargetGroup
     UnitDesign = 2,
 
     /// <summary>
-    /// The resource catalogue — the meta-categories, categories, groups and Resources themselves.
+    /// The asset catalogue — the meta-categories, categories, groups and Assets themselves.
     /// </summary>
-    Resources = 3
+    Assets = 3
 }

@@ -3,7 +3,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
-using AscendantEmpire.Application.Features.Resources.Handlers;
+using AscendantEmpire.Application.Features.Assets.Handlers;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Units.Services;
 using AscendantEmpire.Domain.Entities.Games;
@@ -47,7 +47,7 @@ public class GameSqlServerTestBase : SqlServerTestBase
         // starter catalogue (org tags, components, templates + compiled snapshots) and one start position per
         // player on the gallery map.
         await SeedStarterCatalogueAsync();
-        await SeedStarterResourcesAsync();
+        await SeedStarterAssetsAsync();
         await SeedStartPositionsAsync(_galleryIndexId, numberOfPlayers, mapWidth, mapHeight);
 
         _completedMapProperties = new CampaignMapGalleryProperties
@@ -79,28 +79,28 @@ public class GameSqlServerTestBase : SqlServerTestBase
     }
 
     /// <summary>
-    /// Seeds the resource catalogue, which game setup unlocks a starter subset of for every Player.
+    /// Seeds the asset catalogue, which game setup unlocks a starter subset of for every Player.
     /// </summary>
     /// <remarks>
     /// <para>
     /// Runs the real seed data through the real upsert, rather than hand-writing the handful of rows the starter codes name. That way the catalogue a test runs
-    /// against is the catalogue production gets, and <c>GameSetupService.StarterResourceCodes</c> cannot drift from it without failing here.
+    /// against is the catalogue production gets, and <c>GameSetupService.StarterAssetCodes</c> cannot drift from it without failing here.
     /// </para>
     /// <para>
     /// Idempotent, because the upsert matches on code - a fixture that seeds twice updates rather than duplicating.
     /// </para>
     /// </remarks>
-    public async Task SeedStarterResourcesAsync()
+    public async Task SeedStarterAssetsAsync()
     {
         await using AscendantEmpireContext ctx = await DbFactory.CreateDbContextAsync();
 
-        var handler = new UpsertResourcesHandler(NullLogger<UpsertResourcesHandler>.Instance, ctx);
+        var handler = new UpsertAssetsHandler(NullLogger<UpsertAssetsHandler>.Instance, ctx);
 
-        ServiceResultBase result = await handler.Handle(new UpsertResourcesRequest(ResourceSeedData.Build()), CancellationToken.None);
+        ServiceResultBase result = await handler.Handle(new UpsertAssetsRequest(AssetSeedData.Build()), CancellationToken.None);
 
         if (result.HasSucceeded == false)
         {
-            throw new InvalidOperationException($"Seeding the resource catalogue for the test failed: {string.Join("; ", result.Errors)}");
+            throw new InvalidOperationException($"Seeding the asset catalogue for the test failed: {string.Join("; ", result.Errors)}");
         }
     }
 

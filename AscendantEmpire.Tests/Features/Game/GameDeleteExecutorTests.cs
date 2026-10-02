@@ -73,8 +73,8 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             Assert.That(await context.TurnQueueParticipants.AnyAsync(), Is.False, "The only turn queue in the database belonged to the deleted game.");
             Assert.That(await context.PlayerUnlockedTemplates.AnyAsync(), Is.False, "Unlock rows are player-scoped, even when the template they name survives.");
             Assert.That(await context.PlayerUnlockedComponents.AnyAsync(), Is.False);
-            Assert.That(await context.PlayerUnlockedResources.AnyAsync(), Is.False, "Resource unlocks are player-scoped, even though the Resource they name survives.");
-            Assert.That(await context.PlayerUnlockedResourceMetaCategories.AnyAsync(), Is.False);
+            Assert.That(await context.PlayerUnlockedAssets.AnyAsync(), Is.False, "Asset unlocks are player-scoped, even though the Asset they name survives.");
+            Assert.That(await context.PlayerUnlockedAssetMetaCategories.AnyAsync(), Is.False);
             Assert.That(await context.PlayerOfficerRanks.AnyAsync(), Is.False);
         }
     }
@@ -308,8 +308,8 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
         int biomesBefore = await CountAsync(c => c.CampaignBiomes.CountAsync());
         int galleryTilesBefore = await CountAsync(c => c.CampaignMapGallery.CountAsync());
         int startPositionsBefore = await CountAsync(c => c.CampaignMapStartPositions.CountAsync());
-        int resourcesBefore = await CountAsync(c => c.Resources.CountAsync());
-        int resourceMetaCategoriesBefore = await CountAsync(c => c.ResourceMetaCategories.CountAsync());
+        int assetsBefore = await CountAsync(c => c.Assets.CountAsync());
+        int assetMetaCategoriesBefore = await CountAsync(c => c.AssetMetaCategories.CountAsync());
 
         await ExecuteDeleteAsync(gameId);
 
@@ -323,9 +323,9 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             Assert.That(await context.CampaignMapGallery.CountAsync(), Is.EqualTo(galleryTilesBefore));
             Assert.That(await context.CampaignMapStartPositions.CountAsync(), Is.EqualTo(startPositionsBefore),
                 "Start positions belong to the gallery map, not to any one game played on it.");
-            Assert.That(await context.Resources.CountAsync(), Is.EqualTo(resourcesBefore),
-                "The resource catalogue is shared; only the per-player unlock rows pointing at it go.");
-            Assert.That(await context.ResourceMetaCategories.CountAsync(), Is.EqualTo(resourceMetaCategoriesBefore));
+            Assert.That(await context.Assets.CountAsync(), Is.EqualTo(assetsBefore),
+                "The asset catalogue is shared; only the per-player unlock rows pointing at it go.");
+            Assert.That(await context.AssetMetaCategories.CountAsync(), Is.EqualTo(assetMetaCategoriesBefore));
             Assert.That(await context.Users.AnyAsync(), Is.True, "Accounts outlive the games they played.");
         }
     }
@@ -933,7 +933,7 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
                 PlayerId = playerId,
                 SourceType = Domain.Enums.Modifiers.ModifierSourceType.Technology,
                 SourceId = 1,
-                Resource = Domain.Enums.Resources.SustenanceResource.Forage,
+                Resource = Domain.Enums.Maps.SustenanceResource.Forage,
                 BiomeTypeId = null,
                 FlatValue = 50_000,
                 PercentValue = 0
@@ -944,7 +944,7 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
                 PlayerId = playerId,
                 SourceType = Domain.Enums.Modifiers.ModifierSourceType.Technology,
                 SourceId = 1,
-                Resource = Domain.Enums.Resources.SustenanceResource.Hunt,
+                Resource = Domain.Enums.Maps.SustenanceResource.Hunt,
                 BiomeTypeId = BiomeType.Grassland,
                 FlatValue = 0,
                 PercentValue = 250
@@ -999,8 +999,8 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
         context.MapResourceInstances.AddRange(berry, wood, coal);
         await context.SaveChangesAsync();
 
-        context.MapResourceInstanceAmounts.Add(new MapResourceInstanceAmount { MapResourceInstanceId = wood.Id, ResourceId = catalogue.ResourceId, GameId = gameId, Amount = 10_000_000 });
-        context.MapResourceInstanceLayers.Add(new MapResourceInstanceLayer { MapResourceInstanceId = coal.Id, LayerNumber = 1, GameId = gameId, ResourceId = catalogue.ResourceId, Quantity = 2_000_000, EstimationFuzzyFactor = 0.15m });
+        context.MapResourceInstanceAmounts.Add(new MapResourceInstanceAmount { MapResourceInstanceId = wood.Id, AssetId = catalogue.AssetId, GameId = gameId, Amount = 10_000_000 });
+        context.MapResourceInstanceLayers.Add(new MapResourceInstanceLayer { MapResourceInstanceId = coal.Id, LayerNumber = 1, GameId = gameId, AssetId = catalogue.AssetId, Quantity = 2_000_000, EstimationFuzzyFactor = 0.15m });
         context.PlayerKnownMapResources.Add(new PlayerKnownMapResource { GameId = gameId, PlayerId = playerId, MapResourceInstanceId = berry.Id, DiscoveredOnRound = 1 });
         context.PlayerMapResourceTypeKnowledge.Add(new PlayerMapResourceTypeKnowledge { PlayerId = playerId, MapResourceTypeId = catalogue.BerryTypeId, GameId = gameId, FirstSeenOnRound = 1 });
 
@@ -1023,9 +1023,9 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             PlayerId = playerId,
             SourceType = Domain.Enums.Modifiers.ModifierSourceType.Technology,
             SourceId = 1,
-            Kind = Domain.Enums.MapResources.MapResourceSwitchKind.YieldResource,
+            Kind = Domain.Enums.MapResources.MapResourceSwitchKind.YieldAsset,
             MapResourceTypeId = catalogue.BerryTypeId,
-            ResourceId = catalogue.ResourceId,
+            AssetId = catalogue.AssetId,
             IsEnabled = true
         });
 

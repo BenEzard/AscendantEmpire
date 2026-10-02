@@ -208,7 +208,7 @@ public static class ApplicationStartup
         services.AddScoped<ISeedStep, TagSeedStep>();
         services.AddScoped<ISeedStep, UnitComponentSeedStep>();
         services.AddScoped<ISeedStep, StarterTemplateSeedStep>();
-        services.AddScoped<ISeedStep, ResourceSeedStep>();
+        services.AddScoped<ISeedStep, AssetSeedStep>();
 
         return services;
     }

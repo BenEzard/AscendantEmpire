@@ -54,7 +54,7 @@ public class MapResourceHabitat
     public long? InitialQuantityMax { get; set; }
 
     /// <summary>
-    /// The ceiling a renewable instance grows to, stored scaled by <c>ScaledAmount.Scale</c> (1,000). For a Distribution it caps the total of all its Resources.
+    /// The ceiling a renewable instance grows to, stored scaled by <c>ScaledAmount.Scale</c> (1,000). For a Distribution it caps the total of all its Assets.
     /// <see langword="null"/> for a type that is not renewable.
     /// </summary>
     public long? MaximumQuantity { get; set; }

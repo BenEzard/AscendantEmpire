@@ -1,18 +1,18 @@
 import { Button, EditableTable } from "@/components/ui";
 import { HiTrash } from "react-icons/hi2";
 import type { Biome } from "@/types/map/Biome";
-import type { MapResourceDistributionScenario, MapResourceType, ResourceSummary } from "@/types/map/MapResource";
+import type { MapResourceDistributionScenario, MapResourceType, AssetSummary } from "@/types/map/MapResource";
 import { nextNumber } from "../../tools/mapResourceDraft";
 import { CompactSelect, WholeNumberInput } from "./mapResourceFields";
-import { firstResourceId, resourceOptions } from "./resourceOptions";
-import NoResourcesHint from "./NoResourcesHint";
+import { firstAssetId, assetOptions } from "./assetOptions";
+import NoAssetsHint from "./NoAssetsHint";
 
 type ScenarioAmount = MapResourceDistributionScenario["amounts"][number];
 type ScenarioWeight = MapResourceDistributionScenario["biomeWeights"][number];
 
 interface MapResourceScenariosSectionProps {
   type: MapResourceType;
-  resources: ResourceSummary[];
+  assets: AssetSummary[];
   biomes: Biome[];
   onChange: (updated: MapResourceType) => void;
 }
@@ -21,7 +21,7 @@ interface MapResourceScenariosSectionProps {
  * A Distribution's scenarios: each a set of starting amounts, one of which a tile is created from. A scenario is picked at game creation,
  * weighted by the tile's Biome, unless the map editor pinned one; a Biome with no weight never gets that scenario at random.
  */
-export default function MapResourceScenariosSection({ type, resources, biomes, onChange }: MapResourceScenariosSectionProps) {
+export default function MapResourceScenariosSection({ type, assets, biomes, onChange }: MapResourceScenariosSectionProps) {
   const scenarios = type.distributionScenarios;
 
   const setScenarios = (distributionScenarios: MapResourceDistributionScenario[]) => onChange({ ...type, distributionScenarios });
@@ -39,15 +39,15 @@ export default function MapResourceScenariosSection({ type, resources, biomes, o
 
   return (
     <div className="w-full space-y-4">
-      {firstResourceId(resources) === undefined ? <NoResourcesHint /> : null}
+      {firstAssetId(assets) === undefined ? <NoAssetsHint /> : null}
 
       {scenarios.map((scenario, index) => {
-        // Each Resource and each Biome appears at most once in a scenario, so new rows take the first one not yet used.
-        const usedResources = new Set(scenario.amounts.map((a) => a.resourceId));
-        const nextResourceId = resources.find((r) => usedResources.has(r.id) === false)?.id;
+        // Each Asset and each Biome appears at most once in a scenario, so new rows take the first one not yet used.
+        const usedAssets = new Set(scenario.amounts.map((a) => a.assetId));
+        const nextAssetId = assets.find((r) => usedAssets.has(r.id) === false)?.id;
         const usedBiomes = new Set(scenario.biomeWeights.map((w) => w.biomeType));
         const nextBiome = paintableBiomes.find((b) => usedBiomes.has(b.biomeType) === false)?.biomeType;
-        const options = resourceOptions(resources, scenario.amounts.map((a) => a.resourceId));
+        const options = assetOptions(assets, scenario.amounts.map((a) => a.assetId));
 
         const setAmount = (row: number, patch: Partial<ScenarioAmount>) =>
           update(index, { amounts: scenario.amounts.map((a, i) => (i === row ? { ...a, ...patch } : a)) });
@@ -80,14 +80,14 @@ export default function MapResourceScenariosSection({ type, resources, biomes, o
                 rows={scenario.amounts}
                 addLabel="Resource"
                 emptyHint="No Resources yet."
-                addDisabled={nextResourceId === undefined}
-                onAddRow={() => update(index, { amounts: [...scenario.amounts, { resourceId: nextResourceId!, amount: 1 }] })}
+                addDisabled={nextAssetId === undefined}
+                onAddRow={() => update(index, { amounts: [...scenario.amounts, { assetId: nextAssetId!, amount: 1 }] })}
                 onRemoveRow={(row) => update(index, { amounts: scenario.amounts.filter((_, i) => i !== row) })}
                 columns={[
                   {
                     header: "Resource",
                     renderCell: (row, rowIndex) => (
-                      <CompactSelect ariaLabel="Resource" value={row.resourceId} options={options} onChange={(value) => setAmount(rowIndex, { resourceId: Number(value) })} />
+                      <CompactSelect ariaLabel="Resource" value={row.assetId} options={options} onChange={(value) => setAmount(rowIndex, { assetId: Number(value) })} />
                     ),
                   },
                   {

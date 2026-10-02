@@ -36,7 +36,7 @@ At the start of the turn, all negotiated trade deals are settled first. (There i
 exactly how/when trade should be done.)
 
 - For each settlement:
-  - Look up its associated Resource Bank, then do all calculations on the aggregated values for all
+  - Look up its associated Asset Bank, then do all calculations on the aggregated values for all
     settlements that share that bank.
   - For each type of farm: …
 
@@ -82,7 +82,7 @@ exactly how/when trade should be done.)
 Determine the **fuel** source (by Desirability Index and available assets), then the **material**
 source the same way:
 
-1. Is the option unlocked **and** do we hold `≥ [Amount Required]` in the Resource Bank? If yes, use
+1. Is the option unlocked **and** do we hold `≥ [Amount Required]` in the Asset Bank? If yes, use
    it; else continue down the list.
 2. `Production Amount = [Base Production Amount]` (then modified by the chosen specialist and input
    bonuses).

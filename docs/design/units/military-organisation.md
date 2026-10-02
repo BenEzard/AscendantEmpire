@@ -202,7 +202,7 @@ An Officer is a person and a type of **embedded** `Specialist`.
 ## The officer economy
 
 Officers are primarily **grown from combat**, not bought. Bodies are cheap; a seasoned
-officer corps is the scarce, strategic resource.
+officer corps is the scarce, strategic asset.
 
 ### The bottom-tier officer is free
 

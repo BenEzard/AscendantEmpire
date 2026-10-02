@@ -1,4 +1,4 @@
-using AscendantEmpire.Domain.Enums.Resources;
+using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.FrontendContracts.Biomes.GetTileSustenance;
 
 namespace AscendantEmpire.Application.Features.Maps.Biomes.Classes;

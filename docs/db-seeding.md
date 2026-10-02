@@ -52,8 +52,8 @@ They are real constraints, not conventions:
 The three map targets are genuinely independent of each other and of everything else.
 
 `MapResourceTypes` are deliberately **not** seeded. Their yields, scenarios and layers name
-`resources.Resource` rows the seed does not create, so a seeded type could not be guaranteed
-something to point at. Types are authored in the MapResource Type Manager once the Resources exist.
+`assets.Asset` rows the seed does not create, so a seeded type could not be guaranteed
+something to point at. Types are authored in the MapResource Type Manager once the Assets exist.
 If they were ever added as a target they would depend on both `MapResourceCategories` and `Biomes`.
 
 ---

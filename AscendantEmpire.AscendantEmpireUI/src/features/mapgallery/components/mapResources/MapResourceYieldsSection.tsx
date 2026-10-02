@@ -1,45 +1,45 @@
 import { EditableTable } from "@/components/ui";
-import type { MapResourceType, MapResourceTypeYield, ResourceSummary } from "@/types/map/MapResource";
+import type { MapResourceType, MapResourceTypeYield, AssetSummary } from "@/types/map/MapResource";
 import { CompactSelect, WholeNumberInput } from "./mapResourceFields";
-import { firstResourceId, resourceOptions } from "./resourceOptions";
-import NoResourcesHint from "./NoResourcesHint";
+import { firstAssetId, assetOptions } from "./assetOptions";
+import NoAssetsHint from "./NoAssetsHint";
 
 interface MapResourceYieldsSectionProps {
   type: MapResourceType;
-  resources: ResourceSummary[];
+  assets: AssetSummary[];
   onChange: (updated: MapResourceType) => void;
 }
 
 /**
- * What one unit extracted gives, per Resource. A Resource off by default (e.g. a Deer's pelt) is only given once a game mechanic switches it on
+ * What one unit extracted gives, per Asset. An Asset off by default (e.g. a Deer's pelt) is only given once a game mechanic switches it on
  * for a Player; until then it is lost, though the unit still comes off the tile.
  */
-export default function MapResourceYieldsSection({ type, resources, onChange }: MapResourceYieldsSectionProps) {
+export default function MapResourceYieldsSection({ type, assets, onChange }: MapResourceYieldsSectionProps) {
   const setYields = (yields: MapResourceTypeYield[]) => onChange({ ...type, yields });
   const update = (index: number, patch: Partial<MapResourceTypeYield>) =>
     setYields(type.yields.map((row, i) => (i === index ? { ...row, ...patch } : row)));
 
-  // Each Resource appears at most once, so new rows take the first Resource not yet used.
-  const used = new Set(type.yields.map((row) => row.resourceId));
-  const nextResourceId = resources.find((resource) => used.has(resource.id) === false)?.id;
-  const options = resourceOptions(resources, type.yields.map((row) => row.resourceId));
+  // Each Asset appears at most once, so new rows take the first Asset not yet used.
+  const used = new Set(type.yields.map((row) => row.assetId));
+  const nextAssetId = assets.find((asset) => used.has(asset.id) === false)?.id;
+  const options = assetOptions(assets, type.yields.map((row) => row.assetId));
 
   return (
     <div className="w-full">
-      {firstResourceId(resources) === undefined ? <NoResourcesHint /> : null}
+      {firstAssetId(assets) === undefined ? <NoAssetsHint /> : null}
 
       <EditableTable<MapResourceTypeYield>
         rows={type.yields}
         addLabel="Yield"
         emptyHint="No yields yet."
-        addDisabled={nextResourceId === undefined}
-        onAddRow={() => setYields([...type.yields, { resourceId: nextResourceId!, amountPerUnit: 1, isEnabledByDefault: true }])}
+        addDisabled={nextAssetId === undefined}
+        onAddRow={() => setYields([...type.yields, { assetId: nextAssetId!, amountPerUnit: 1, isEnabledByDefault: true }])}
         onRemoveRow={(index) => setYields(type.yields.filter((_, i) => i !== index))}
         columns={[
           {
             header: "Resource",
             renderCell: (row, index) => (
-              <CompactSelect ariaLabel="Resource" value={row.resourceId} options={options} onChange={(value) => update(index, { resourceId: Number(value) })} />
+              <CompactSelect ariaLabel="Resource" value={row.assetId} options={options} onChange={(value) => update(index, { assetId: Number(value) })} />
             ),
           },
           {

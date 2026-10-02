@@ -13,7 +13,7 @@ namespace AscendantEmpire.Domain.Entities.Games;
 /// Where its quantity lives depends on its type's kind:
 /// <list type="bullet">
 ///   <item><description>a single-quantity type (renewable or not) uses <see cref="Quantity"/>;</description></item>
-///   <item><description>a Distribution uses its <see cref="MapResourceInstanceAmount"/> rows, one per Resource, and leaves <see cref="Quantity"/> null;</description></item>
+///   <item><description>a Distribution uses its <see cref="MapResourceInstanceAmount"/> rows, one per Asset, and leaves <see cref="Quantity"/> null;</description></item>
 ///   <item><description>a stratified type uses its <see cref="MapResourceInstanceLayer"/> rows, and leaves <see cref="Quantity"/> null.</description></item>
 /// </list>
 /// </para>

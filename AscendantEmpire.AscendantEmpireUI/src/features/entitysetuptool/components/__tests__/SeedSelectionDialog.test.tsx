@@ -11,7 +11,7 @@ import type { SeedTarget, SeedTargetInfo } from "../../api/seedApi";
 const TARGETS: SeedTargetInfo[] = [
   { target: "Geographies", group: "Map", displayName: "Geographies", description: "Terrain elevation.", dependsOn: [], sortOrder: 10, itemCount: 6 },
   { target: "Biomes", group: "Map", displayName: "Biomes", description: "Terrain cover.", dependsOn: [], sortOrder: 20, itemCount: 12 },
-  { target: "MapResourceCategories", group: "Map", displayName: "Map Resource Categories", description: "Resource groups.", dependsOn: [], sortOrder: 30, itemCount: 7 },
+  { target: "MapResourceCategories", group: "Map", displayName: "Map Resource Categories", description: "Asset groups.", dependsOn: [], sortOrder: 30, itemCount: 7 },
   { target: "TagTypes", group: "UnitDesign", displayName: "Tag Types", description: "Tag classifications.", dependsOn: [], sortOrder: 10, itemCount: 5 },
   { target: "Tags", group: "UnitDesign", displayName: "Tags", description: "The tag catalogue.", dependsOn: ["TagTypes"], sortOrder: 20, itemCount: 5 },
   { target: "UnitComponents", group: "UnitDesign", displayName: "Unit Components", description: "Bodies and equipment.", dependsOn: ["Tags"], sortOrder: 30, itemCount: 6 },

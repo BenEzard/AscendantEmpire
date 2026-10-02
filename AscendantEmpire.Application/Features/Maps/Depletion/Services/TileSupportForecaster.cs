@@ -3,7 +3,7 @@ using AscendantEmpire.Application.Features.Maps.Depletion.Classes;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Enums.Maps;
-using AscendantEmpire.Domain.Enums.Resources;
+using AscendantEmpire.Domain.Enums.Maps;
 
 namespace AscendantEmpire.Application.Features.Maps.Depletion.Services;
 

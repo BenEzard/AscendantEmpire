@@ -11,9 +11,9 @@ public interface IMapResourceTypeLayerDto
     int LayerNumber { get; }
 
     /// <summary>
-    /// The Resource the layer holds when it is not empty.
+    /// The Asset the layer holds when it is not empty.
     /// </summary>
-    int ResourceId { get; }
+    int AssetId { get; }
 
     /// <summary>
     /// The chance, as a fraction, that an instance's layer is created empty.

@@ -1,4 +1,4 @@
-using AscendantEmpire.Domain.Enums.Resources;
+using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.FrontendContracts.Biomes.GetTileSupportLevels;
 
 namespace AscendantEmpire.Application.Features.Maps.Depletion.Classes;

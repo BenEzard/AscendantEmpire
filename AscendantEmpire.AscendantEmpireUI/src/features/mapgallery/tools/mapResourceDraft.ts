@@ -15,7 +15,7 @@ export type MapResourceKind = "fixed" | "renewable" | "distribution" | "stratifi
 export const MAP_RESOURCE_KINDS: { kind: MapResourceKind; label: string; description: string }[] = [
   { kind: "fixed", label: "Fixed", description: "A set amount that never grows, giving its yields." },
   { kind: "renewable", label: "Renewable", description: "Grows every Round and may spread, giving its yields." },
-  { kind: "distribution", label: "Distribution", description: "Grows, never spreads, and holds several Resources from a scenario." },
+  { kind: "distribution", label: "Distribution", description: "Grows, never spreads, and holds several Assets from a scenario." },
   { kind: "stratified", label: "Stratified", description: "Never grows; held in layers reached in order." },
 ];
 
@@ -125,7 +125,7 @@ export function withKind(type: MapResourceType, kind: MapResourceKind): MapResou
     estimationFuzzyFactorMax: stratified ? null : (type.estimationFuzzyFactorMax ?? DEFAULT_FUZZY_MAX),
     survivalRounds: growing ? (type.survivalRounds ?? DEFAULT_SURVIVAL_ROUNDS) : null,
     reseedLikelihood: growing ? (type.reseedLikelihood ?? DEFAULT_RESEED_LIKELIHOOD) : null,
-    // Each kind holds its Resources in exactly one of these three ways.
+    // Each kind holds its Assets in exactly one of these three ways.
     yields: holdsSingleQuantity(kind) ? type.yields : [],
     distributionScenarios: kind === "distribution" ? type.distributionScenarios : [],
     layers: stratified ? type.layers : [],
@@ -193,11 +193,11 @@ export function createHabitat(kind: MapResourceKind, biomeType: number): MapReso
 }
 
 /** A new layer at `layerNumber`. Layer 1 has no gates of its own; deeper layers need a discovery likelihood and a mine level. */
-export function createLayer(layerNumber: number, resourceId: number): MapResourceTypeLayer {
+export function createLayer(layerNumber: number, assetId: number): MapResourceTypeLayer {
   return withLayerNumber(
     {
       layerNumber,
-      resourceId,
+      assetId,
       emptyLikelihood: 0,
       quantityMin: 0,
       quantityMax: 0,

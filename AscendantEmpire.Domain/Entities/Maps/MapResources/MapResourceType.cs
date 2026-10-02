@@ -9,16 +9,16 @@ namespace AscendantEmpire.Domain.Entities.Maps.MapResources;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Always "MapResource", never "resource", for the thing on the tile: a Resource is what extracting it gives. See <c>docs/design/campaign-map/map-resources.md</c>.
+/// Always "MapResource", never "asset", for the thing on the tile: an Asset is what extracting it gives. See <c>docs/design/campaign-map/map-resources.md</c>.
 /// </para>
 /// <para>
 /// Its kind is set by three flags, whose combinations are checked by <c>MapResourceTypeValidator</c>:
 /// <list type="bullet">
 ///   <item><description><b>None set</b>: a fixed amount that never grows, giving its <see cref="Yields"/>.</description></item>
 ///   <item><description><see cref="IsRenewable"/>: grows every Round and may spread, giving its <see cref="Yields"/>.</description></item>
-///   <item><description><see cref="IsRenewable"/> and <see cref="IsDistribution"/>: grows, never spreads, and holds several Resources in set amounts from one of its
+///   <item><description><see cref="IsRenewable"/> and <see cref="IsDistribution"/>: grows, never spreads, and holds several Assets in set amounts from one of its
 ///   <see cref="DistributionScenarios"/>.</description></item>
-///   <item><description><see cref="IsStratified"/>: never grows, and holds its Resources in <see cref="Layers"/> reached in order.</description></item>
+///   <item><description><see cref="IsStratified"/>: never grows, and holds its Assets in <see cref="Layers"/> reached in order.</description></item>
 /// </list>
 /// </para>
 /// <para>
@@ -31,7 +31,7 @@ public class MapResourceType
     public const int DISPLAY_NAME_MAX_LENGTH = 100;
 
     /// <summary>
-    /// The same length as <c>Resource.MAX_ICON_PATH_LENGTH</c>, the other image path in the catalogue.
+    /// The same length as <c>Asset.MAX_ICON_PATH_LENGTH</c>, the other image path in the catalogue.
     /// </summary>
     public const int ICON_PATH_MAX_LENGTH = 500;
 
@@ -80,12 +80,12 @@ public class MapResourceType
     public bool IsRenewable { get; set; }
 
     /// <summary>
-    /// Whether instances hold their Resources in <see cref="Layers"/>, reached in order. Never renewable.
+    /// Whether instances hold their Assets in <see cref="Layers"/>, reached in order. Never renewable.
     /// </summary>
     public bool IsStratified { get; set; }
 
     /// <summary>
-    /// Whether instances hold several Resources in set amounts, taken from one of the <see cref="DistributionScenarios"/>. Must also be renewable, and never spreads.
+    /// Whether instances hold several Assets in set amounts, taken from one of the <see cref="DistributionScenarios"/>. Must also be renewable, and never spreads.
     /// </summary>
     public bool IsDistribution { get; set; }
     #endregion
@@ -152,7 +152,7 @@ public class MapResourceType
     #endregion
 
     /// <summary>
-    /// The Resources one unit extracted gives. Empty for a Distribution or a stratified type, which hold their Resources themselves.
+    /// The Assets one unit extracted gives. Empty for a Distribution or a stratified type, which hold their Assets themselves.
     /// </summary>
     public ICollection<MapResourceTypeYield> Yields { get; set; } = [];
 

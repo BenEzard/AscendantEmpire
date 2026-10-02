@@ -1,5 +1,5 @@
 ﻿import ToolBar from "@/components/ui/toolbar/Toolbar";
-import ResourceManagerDialog from "@/features/game/resources/manager/ResourceManagerDialog";
+import AssetManagerDialog from "@/features/game/assets/manager/AssetManagerDialog";
 import { usePlayerCampaignMapTilesQuery } from "@/features/map/hooks/useCampaignMapTiles";
 import TileGrid, { TILE_SIZE_PX } from "@/features/map/components/TileGrid";
 import type { TileCell } from "@/features/map/components/TileTypes";
@@ -35,9 +35,9 @@ import { useNumpadMovement } from "../hooks/useNumpadMovement";
 import type { MoveDirection } from "../api/forceMovementApi";
 import type { PossibleAction } from "../api/turnApi";
 import { useTileRendering } from "../hooks/useTileRendering";
-import { useResourcePanels } from "../hooks/useResourcePanels";
+import { useAssetPanels } from "../hooks/useAssetPanels";
 import { useGameToolbar } from "./useGameToolbar";
-import ResourcePanel from "./ResourcePanel";
+import AssetPanel from "./AssetPanel";
 import { describeRiverStep } from "./describeRiverStep";
 import { useKnownForcesQuery, useKnownStructuresQuery, useSightingReportsQuery } from "@/features/intelligence/hooks/useIntelligenceQueries";
 import { groupKnownForcesByUnobservedTile } from "@/features/intelligence/knownForceMarkers";
@@ -217,7 +217,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     [getStepToTile, onSingleForceOnly, openToast, mutateStepForce],
   );
 
-  const resources = useResourcePanels({ gameId, playerId, enabled: tilesEnabled });
+  const assets = useAssetPanels({ gameId, playerId, enabled: tilesEnabled });
 
   // --- Map data ---
   const { data: biomes } = useCampaignMapBiomesQuery();
@@ -476,9 +476,9 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     visionActive: visionActiveTool === "vision",
     onToggleVision: toggleVisionTool,
     onOpenVisionSettings: openVisionSettings,
-    resourceMetaCategories: resources.metaCategories,
-    openResourceMetaCategoryCode: resources.openMetaCategoryCode,
-    onToggleResourcePanel: resources.toggleResourcePanel,
+    assetMetaCategories: assets.metaCategories,
+    openAssetMetaCategoryCode: assets.openMetaCategoryCode,
+    onToggleAssetPanel: assets.toggleAssetPanel,
     unitDesignActive: activePanel === "unit-design",
     onToggleUnitDesign: toggleUnitDesign,
     onEndTurn,
@@ -511,16 +511,16 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
           />
         )}
 
-        {resources.openMetaCategory != null && (
-          <ResourcePanel
-            overlayRef={resources.overlayRef}
-            top={resources.overlayTop}
-            left={resources.overlayLeft}
-            categories={resources.openCategories}
-            onReorderGroupTickers={resources.reorderGroupTickers}
-            onClickResource={(code) => {
-              resources.setResourceManagerSelectedId(code);
-              resources.setShowResourceManager(true);
+        {assets.openMetaCategory != null && (
+          <AssetPanel
+            overlayRef={assets.overlayRef}
+            top={assets.overlayTop}
+            left={assets.overlayLeft}
+            categories={assets.openCategories}
+            onReorderGroupTickers={assets.reorderGroupTickers}
+            onClickAsset={(code) => {
+              assets.setAssetManagerSelectedId(code);
+              assets.setShowAssetManager(true);
             }}
           />
         )}
@@ -582,15 +582,15 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
           }}
         />
 
-        <ResourceManagerDialog
-          show={resources.showResourceManager}
-          onClose={() => resources.setShowResourceManager(false)}
-          tickers={resources.allOpenPanelTickers}
-          selectedResourceId={resources.resourceManagerSelectedId}
-          onSelectResource={resources.setResourceManagerSelectedId}
+        <AssetManagerDialog
+          show={assets.showAssetManager}
+          onClose={() => assets.setShowAssetManager(false)}
+          tickers={assets.allOpenPanelTickers}
+          selectedAssetId={assets.assetManagerSelectedId}
+          onSelectAsset={assets.setAssetManagerSelectedId}
           onCommit={(changes, tradePartners) => {
-            console.log("[GameUI] ResourceManager changes committed:", changes);
-            console.log("[GameUI] ResourceManager trade partners committed:", tradePartners);
+            console.log("[GameUI] AssetManager changes committed:", changes);
+            console.log("[GameUI] AssetManager trade partners committed:", tradePartners);
           }}
         />
 

@@ -22,12 +22,12 @@ public class MapResourceInstanceLayer
     public int GameId { get; set; }
 
     /// <summary>
-    /// The Resource the layer holds (a <c>resources.Resource</c>), or <see langword="null"/> when the layer was created empty.
+    /// The Asset the layer holds (a <c>assets.Asset</c>), or <see langword="null"/> when the layer was created empty.
     /// </summary>
     /// <remarks>
     /// A survey can reveal that a layer is empty, so an empty layer still has a row.
     /// </remarks>
-    public int? ResourceId { get; set; }
+    public int? AssetId { get; set; }
 
     /// <summary>
     /// The quantity left in the layer, stored scaled by <c>ScaledAmount.Scale</c> (1,000). Never negative, and always 0 for an empty layer.

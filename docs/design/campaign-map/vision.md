@@ -14,7 +14,7 @@ shows as soon as either of its two banks has been explored. See
 
 ## Sight
 
-Sight is the ability to see the *geography of the land, buildings, and certain resources* from a
+Sight is the ability to see the *geography of the land, buildings, and certain assets* from a
 distance. It is determined by:
 
 - the Sight value of the observer, worked out by the rules below;
@@ -151,9 +151,9 @@ Detection is a unit's ability to see **enemy units** on the campaign map. It is 
 Points 1–3 determine whether a unit *may* detect an enemy on a tile; points 4–5 determine the
 *terrain* a unit can see.
 
-| Resource type | Detection when on tile | Detection for surrounding tile |
+| Asset type | Detection when on tile | Detection for surrounding tile |
 | --- | --- | --- |
-| Wood (Forest/Jungle) | Max detection of 0 when standing on a wood-resource tile (no surrounding tiles shown) | Max detection of 0 when looking at a Forest tile |
+| Wood (Forest/Jungle) | Max detection of 0 when standing on a wood-asset tile (no surrounding tiles shown) | Max detection of 0 when looking at a Forest tile |
 
 ### Hidden Forces and food
 

@@ -308,7 +308,7 @@ reckoned by `CheckUnitSupply` at the start of the owning player's turn, before r
 - when a Command has fuel for some but not all of its Units, it either stays put or leaves the unsupplied Units
   behind.
 
-`CheckUnitSupply` is a stub and there is no resource system for it to read, so no Unit is denied movement for
+`CheckUnitSupply` is a stub and there is no asset system for it to read, so no Unit is denied movement for
 want of fuel. The ordering that makes the rule implementable is in place and pinned by a test, and the rule is
 recorded as a `TODO` on `ReplenishMovementPoints`. See [unit-support-and-supply.md](unit-support-and-supply.md)
 for supply chains and the other support types.

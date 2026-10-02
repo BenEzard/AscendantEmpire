@@ -49,10 +49,10 @@ internal static class MapResourceTypeMapper
             ReseedLikelihood = type.ReseedLikelihood,
 
             Yields = [.. type.Yields
-                .OrderBy(y => y.ResourceId)
+                .OrderBy(y => y.AssetId)
                 .Select(y => new MapResourceTypeYieldDto
                 {
-                    ResourceId = y.ResourceId,
+                    AssetId = y.AssetId,
                     AmountPerUnit = ToWhole(y.AmountPerUnit),
                     IsEnabledByDefault = y.IsEnabledByDefault
                 })],
@@ -82,8 +82,8 @@ internal static class MapResourceTypeMapper
                     ScenarioNumber = s.ScenarioNumber,
                     DisplayName = s.DisplayName,
                     Amounts = [.. s.Amounts
-                        .OrderBy(a => a.ResourceId)
-                        .Select(a => new MapResourceDistributionScenarioAmountDto { ResourceId = a.ResourceId, Amount = ToWhole(a.Amount) })],
+                        .OrderBy(a => a.AssetId)
+                        .Select(a => new MapResourceDistributionScenarioAmountDto { AssetId = a.AssetId, Amount = ToWhole(a.Amount) })],
                     BiomeWeights = [.. s.BiomeWeights
                         .OrderBy(w => w.BiomeTypeId)
                         .Select(w => new MapResourceDistributionScenarioBiomeWeightDto { BiomeType = w.BiomeTypeId, Weight = w.Weight })]
@@ -94,7 +94,7 @@ internal static class MapResourceTypeMapper
                 .Select(l => new MapResourceTypeLayerDto
                 {
                     LayerNumber = l.LayerNumber,
-                    ResourceId = l.ResourceId,
+                    AssetId = l.AssetId,
                     EmptyLikelihood = l.EmptyLikelihood,
                     QuantityMin = ToWhole(l.QuantityMin),
                     QuantityMax = ToWhole(l.QuantityMax),
@@ -137,9 +137,9 @@ internal static class MapResourceTypeMapper
         SyncChildren(
             type.Yields,
             dto.Yields,
-            entity => entity.ResourceId,
-            item => item.ResourceId,
-            item => new MapResourceTypeYield { ResourceId = item.ResourceId },
+            entity => entity.AssetId,
+            item => item.AssetId,
+            item => new MapResourceTypeYield { AssetId = item.AssetId },
             (item, entity) =>
             {
                 entity.AmountPerUnit = ToRaw(item.AmountPerUnit);
@@ -176,9 +176,9 @@ internal static class MapResourceTypeMapper
                 SyncChildren(
                     scenario.Amounts,
                     item.Amounts,
-                    entity => entity.ResourceId,
-                    amount => amount.ResourceId,
-                    amount => new MapResourceDistributionScenarioAmount { ResourceId = amount.ResourceId },
+                    entity => entity.AssetId,
+                    amount => amount.AssetId,
+                    amount => new MapResourceDistributionScenarioAmount { AssetId = amount.AssetId },
                     (amount, entity) => entity.Amount = ToRaw(amount.Amount));
 
                 SyncChildren(
@@ -198,7 +198,7 @@ internal static class MapResourceTypeMapper
             item => new MapResourceTypeLayer { LayerNumber = item.LayerNumber },
             (item, entity) =>
             {
-                entity.ResourceId = item.ResourceId;
+                entity.AssetId = item.AssetId;
                 entity.EmptyLikelihood = item.EmptyLikelihood;
                 entity.QuantityMin = ToRaw(item.QuantityMin);
                 entity.QuantityMax = ToRaw(item.QuantityMax);

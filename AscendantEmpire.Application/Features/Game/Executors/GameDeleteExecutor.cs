@@ -25,7 +25,7 @@ namespace AscendantEmpire.Application.Features.Game.Executors;
 /// The whole purge runs in one transaction, so a failure part way through leaves the Game intact rather than half-eaten.
 /// </para>
 /// <para>
-/// <b>What survives.</b> Everything that is not scoped to this Game: the biome, geography, structure, resource and unit-component catalogues, the map
+/// <b>What survives.</b> Everything that is not scoped to this Game: the biome, geography, structure, asset and unit-component catalogues, the map
 /// gallery (including its start positions, which are authored per gallery map rather than per game), user accounts and their permissions, and the global
 /// unit templates. A global template is one whose <c>GameId</c> and <c>PlayerId</c> are both null; only templates belonging to this Game or one of its
 /// players are removed. That distinction matters — a predicate of "has a GameId or a PlayerId", which the old wipe-everything script used, would take every
@@ -304,13 +304,13 @@ internal sealed class GameDeleteExecutor(
                 .Where(u => playerIds.Contains(u.PlayerId))
                 .ExecuteDeleteAsync(cancellationToken)),
 
-            // Per-player resource unlocks, on the same terms: the Resource and meta-category they name are catalogue rows that survive, the row is this
+            // Per-player asset unlocks, on the same terms: the Asset and meta-category they name are catalogue rows that survive, the row is this
             // Player's and goes with them.
-            ("player resource unlocks", () => purge.PlayerUnlockedResources
+            ("player asset unlocks", () => purge.PlayerUnlockedAssets
                 .Where(u => playerIds.Contains(u.PlayerId))
                 .ExecuteDeleteAsync(cancellationToken)),
 
-            ("player resource meta-category unlocks", () => purge.PlayerUnlockedResourceMetaCategories
+            ("player asset meta-category unlocks", () => purge.PlayerUnlockedAssetMetaCategories
                 .Where(u => playerIds.Contains(u.PlayerId))
                 .ExecuteDeleteAsync(cancellationToken)),
 
@@ -374,7 +374,7 @@ internal sealed class GameDeleteExecutor(
                 .ExecuteDeleteAsync(cancellationToken)),
 
             // The per-player MapResource tables name the players, so they go before them; the discoveries also name the instances, so they go before those too. The
-            // MapResourceTypes, Resources, Biomes and Geographies they name are catalogue data and survive. All carry their own GameId, so need no scoping through a parent.
+            // MapResourceTypes, Assets, Biomes and Geographies they name are catalogue data and survive. All carry their own GameId, so need no scoping through a parent.
             ("player known map resources", () => purge.PlayerKnownMapResources
                 .Where(k => k.GameId == gameId)
                 .ExecuteDeleteAsync(cancellationToken)),

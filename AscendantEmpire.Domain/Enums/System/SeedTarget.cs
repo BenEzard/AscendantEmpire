@@ -22,12 +22,12 @@ public enum SeedTarget
     Geographies = 1,
 
     /// <summary>
-    /// The <c>map.CampaignBiomes</c> catalogue — the cover/resource half of a tile's terrain.
+    /// The <c>map.CampaignBiomes</c> catalogue — the cover/asset half of a tile's terrain.
     /// </summary>
     Biomes = 2,
 
     /// <summary>
-    /// The <c>map.MapResourceCategory</c> rows the map editor groups resource types under.
+    /// The <c>map.MapResourceCategory</c> rows the map editor groups MapResource types under.
     /// </summary>
     MapResourceCategories = 3,
 
@@ -52,7 +52,7 @@ public enum SeedTarget
     StarterTemplates = 7,
 
     /// <summary>
-    /// The <c>resources</c> schema catalogue — the meta-categories, categories, groups and Resources a Player's economy is built from.
+    /// The <c>assets</c> schema catalogue — the meta-categories, categories, groups and Assets a Player's economy is built from.
     /// </summary>
-    Resources = 8
+    Assets = 8
 }

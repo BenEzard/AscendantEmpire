@@ -8,7 +8,7 @@ using AscendantEmpire.BackendContracts.Turns.CreateCampaignTurnQueue;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Military;
-using AscendantEmpire.Domain.Entities.Resources;
+using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
@@ -56,16 +56,16 @@ internal class GameSetupService(
     public static readonly string[] StarterTemplateCodes = ["SETTLER", "SCOUT"];
 
     /// <summary>
-    /// The <c>resources.ResourceMetaCategory</c> codes every Player starts the game with unlocked, and so which icons their Resources toolbar group shows.
+    /// The <c>assets.AssetMetaCategory</c> codes every Player starts the game with unlocked, and so which icons their Assets toolbar group shows.
     /// </summary>
     /// <remarks>
-    /// All three, so every icon is present from the first Round. Which Resources sit under each one is <see cref="StarterResourceCodes"/>; a meta-category with
+    /// All three, so every icon is present from the first Round. Which Assets sit under each one is <see cref="StarterAssetCodes"/>; a meta-category with
     /// nothing available under it still shows its icon over an empty panel.
     /// </remarks>
-    public static readonly string[] StarterResourceMetaCategoryCodes = ["ConstructionMaterials", "Weapons", "RawMaterials"];
+    public static readonly string[] StarterAssetMetaCategoryCodes = ["ConstructionMaterials", "Weapons", "RawMaterials"];
 
     /// <summary>
-    /// The <c>resources.Resource</c> codes every Player starts the game with unlocked — a stone-age start.
+    /// The <c>assets.Asset</c> codes every Player starts the game with unlocked — a stone-age start.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -73,11 +73,11 @@ internal class GameSetupService(
     /// High grade (those need buildings and specialists rather than merely the material), and everything needing processing.
     /// </para>
     /// <para>
-    /// These are <b>seeded catalogue content</b>, unlike <see cref="StarterTemplateCodes"/>: they come from <c>ResourceSeedData</c>, so a game set up before the
-    /// Resources seed has run finds none of them and fails rather than starting a Player with an empty resource panel.
+    /// These are <b>seeded catalogue content</b>, unlike <see cref="StarterTemplateCodes"/>: they come from <c>AssetSeedData</c>, so a game set up before the
+    /// Assets seed has run finds none of them and fails rather than starting a Player with an empty asset panel.
     /// </para>
     /// </remarks>
-    public static readonly string[] StarterResourceCodes =
+    public static readonly string[] StarterAssetCodes =
     [
         "ConstructionMaterials.Wood.Logs.GenericLog",
         "ConstructionMaterials.Wood.Logs.Bamboo",
@@ -503,25 +503,25 @@ internal class GameSetupService(
             .SelectMany(t => t.Components.Select(c => c.UnitComponentId).Append(t.BodyComponentId))
             .Distinct()];
 
-        // The starter resource catalogue rows, resolved by code. Unlike the templates these are seeded rather than hand-authored, so an unseeded catalogue is
-        // the likely cause of a miss — say so, because a Player with no resources would otherwise be a silent empty panel.
-        Dictionary<string, int> starterMetaCategoryIdsByCode = await context.ResourceMetaCategories
-            .Where(m => StarterResourceMetaCategoryCodes.Contains(m.Code))
+        // The starter asset catalogue rows, resolved by code. Unlike the templates these are seeded rather than hand-authored, so an unseeded catalogue is
+        // the likely cause of a miss — say so, because a Player with no assets would otherwise be a silent empty panel.
+        Dictionary<string, int> starterMetaCategoryIdsByCode = await context.AssetMetaCategories
+            .Where(m => StarterAssetMetaCategoryCodes.Contains(m.Code))
             .ToDictionaryAsync(m => m.Code, m => m.Id, cancellationToken);
 
-        Dictionary<string, int> starterResourceIdsByCode = await context.Resources
-            .Where(r => StarterResourceCodes.Contains(r.Code))
+        Dictionary<string, int> starterAssetIdsByCode = await context.Assets
+            .Where(r => StarterAssetCodes.Contains(r.Code))
             .ToDictionaryAsync(r => r.Code, r => r.Id, cancellationToken);
 
-        string[] missingResourceCodes =
+        string[] missingAssetCodes =
         [
-            .. StarterResourceMetaCategoryCodes.Except(starterMetaCategoryIdsByCode.Keys, StringComparer.OrdinalIgnoreCase),
-            .. StarterResourceCodes.Except(starterResourceIdsByCode.Keys, StringComparer.OrdinalIgnoreCase)
+            .. StarterAssetMetaCategoryCodes.Except(starterMetaCategoryIdsByCode.Keys, StringComparer.OrdinalIgnoreCase),
+            .. StarterAssetCodes.Except(starterAssetIdsByCode.Keys, StringComparer.OrdinalIgnoreCase)
         ];
 
-        if (missingResourceCodes.Length > 0)
+        if (missingAssetCodes.Length > 0)
         {
-            return ServiceResultBase.Fail($"Starter resource(s) not found in the catalogue: {string.Join(", ", missingResourceCodes)}. A game cannot start without them — run the Resources database seed from the Entity Setup Tool.");
+            return ServiceResultBase.Fail($"Starter asset(s) not found in the catalogue: {string.Join(", ", missingAssetCodes)}. A game cannot start without them — run the Assets database seed from the Entity Setup Tool.");
         }
 
         List<DomainPlayer> playersInOrder = [.. addedPlayers.OrderBy(p => p.Id)];
@@ -549,17 +549,17 @@ internal class GameSetupService(
             }));
 
             // Round 0 rather than _FIRST_ROUND_NUMBER, matching the unlock rows above: these were granted at setup, before the first Round opened.
-            context.PlayerUnlockedResourceMetaCategories.AddRange(starterMetaCategoryIdsByCode.Values.Select(metaCategoryId => new PlayerUnlockedResourceMetaCategory
+            context.PlayerUnlockedAssetMetaCategories.AddRange(starterMetaCategoryIdsByCode.Values.Select(metaCategoryId => new PlayerUnlockedAssetMetaCategory
             {
                 PlayerId = player.Id,
-                ResourceMetaCategoryId = metaCategoryId,
+                AssetMetaCategoryId = metaCategoryId,
                 UnlockedOnRound = 0,
             }));
 
-            context.PlayerUnlockedResources.AddRange(starterResourceIdsByCode.Values.Select(resourceId => new PlayerUnlockedResource
+            context.PlayerUnlockedAssets.AddRange(starterAssetIdsByCode.Values.Select(assetId => new PlayerUnlockedAsset
             {
                 PlayerId = player.Id,
-                ResourceId = resourceId,
+                AssetId = assetId,
                 UnlockedOnRound = 0,
             }));
 

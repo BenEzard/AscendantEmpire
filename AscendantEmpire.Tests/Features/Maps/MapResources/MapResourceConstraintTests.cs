@@ -218,14 +218,14 @@ internal class MapResourceConstraintTests : SqlServerTestBase
         Assert.That(async () => await context.SaveChangesAsync(), Throws.InstanceOf<DbUpdateException>());
     }
 
-    [TestCase(MapResourceSwitchKind.Discovery, false, false, Description = "A discovery switch names neither a Resource nor a layer.")]
-    [TestCase(MapResourceSwitchKind.YieldResource, true, false, Description = "A yield switch names the Resource it switches.")]
+    [TestCase(MapResourceSwitchKind.Discovery, false, false, Description = "A discovery switch names neither an Asset nor a layer.")]
+    [TestCase(MapResourceSwitchKind.YieldAsset, true, false, Description = "A yield switch names the Asset it switches.")]
     [TestCase(MapResourceSwitchKind.SurveyLayer, false, true, Description = "A survey switch names the layer it switches.")]
-    public async Task ShouldAllowASwitchNamingExactlyWhatItsKindSwitchesAsync(MapResourceSwitchKind kind, bool namesResource, bool namesLayer)
+    public async Task ShouldAllowASwitchNamingExactlyWhatItsKindSwitchesAsync(MapResourceSwitchKind kind, bool namesAsset, bool namesLayer)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        context.PlayerMapResourceSwitches.Add(BuildSwitch(kind, namesResource, namesLayer));
+        context.PlayerMapResourceSwitches.Add(BuildSwitch(kind, namesAsset, namesLayer));
 
         await context.SaveChangesAsync();
 
@@ -233,13 +233,13 @@ internal class MapResourceConstraintTests : SqlServerTestBase
     }
 
     [TestCase(MapResourceSwitchKind.Discovery, false, true, Description = "A discovery switch cannot name a layer.")]
-    [TestCase(MapResourceSwitchKind.YieldResource, false, false, Description = "A yield switch must name its Resource.")]
-    [TestCase(MapResourceSwitchKind.SurveyLayer, true, true, Description = "A survey switch cannot also name a Resource.")]
-    public async Task ShouldRejectASwitchThatDoesNotNameExactlyWhatItsKindSwitchesAsync(MapResourceSwitchKind kind, bool namesResource, bool namesLayer)
+    [TestCase(MapResourceSwitchKind.YieldAsset, false, false, Description = "A yield switch must name its Asset.")]
+    [TestCase(MapResourceSwitchKind.SurveyLayer, true, true, Description = "A survey switch cannot also name an Asset.")]
+    public async Task ShouldRejectASwitchThatDoesNotNameExactlyWhatItsKindSwitchesAsync(MapResourceSwitchKind kind, bool namesAsset, bool namesLayer)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        context.PlayerMapResourceSwitches.Add(BuildSwitch(kind, namesResource, namesLayer));
+        context.PlayerMapResourceSwitches.Add(BuildSwitch(kind, namesAsset, namesLayer));
 
         Assert.That(async () => await context.SaveChangesAsync(), Throws.InstanceOf<DbUpdateException>());
     }
@@ -283,7 +283,7 @@ internal class MapResourceConstraintTests : SqlServerTestBase
         };
     }
 
-    private PlayerMapResourceSwitch BuildSwitch(MapResourceSwitchKind kind, bool namesResource, bool namesLayer)
+    private PlayerMapResourceSwitch BuildSwitch(MapResourceSwitchKind kind, bool namesAsset, bool namesLayer)
     {
         return new PlayerMapResourceSwitch
         {
@@ -293,7 +293,7 @@ internal class MapResourceConstraintTests : SqlServerTestBase
             SourceId = _SOURCE_ID,
             Kind = kind,
             MapResourceTypeId = _catalogue.BerryTypeId,
-            ResourceId = namesResource ? _catalogue.ResourceId : null,
+            AssetId = namesAsset ? _catalogue.AssetId : null,
             LayerNumber = namesLayer ? 2 : null,
             IsEnabled = true
         };

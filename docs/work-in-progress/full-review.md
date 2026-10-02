@@ -31,7 +31,7 @@ At the time of session 1 the working tree had uncommitted work that this review 
   `GameSnapshotSqlServerTestBase.cs` deleted; `InMemoryTestBase.cs` added; ~8 test fixtures
   re-pointed. `testing.md` (new) and `CLAUDE.md` describe the target state.
 - `docs/tickets.md` staged-modified but deleted in the working tree.
-- Staged edits to the Resources domain entities and `UpsertResourcesHandler`.
+- Staged edits to the Assets domain entities and `UpsertAssetsHandler`.
 
 Slice **S12** (tests) should be reviewed *after* that refactor lands, or explicitly against the
 working-tree state — flag which was used.
@@ -93,7 +93,7 @@ Frontend: ~23k lines of TS/TSX.
 | S8 | Maps & map generation | `Features/Maps/**` (61 files), `MapGeneration/*`, `Helpers/MapMethods.cs`, map export/import/preview executors | ~7.3k | **Targeted pass** — see scope note in §5 | 3 |
 | S9 | UnitComponents / unit design | `Features/UnitComponents/**` (31 files), `Features/Units/*`, `Helpers/ScaledNumerics/*`, catalog export/import executors | ~4.7k | **Targeted pass** — see scope note in §5 | 3 |
 | S10 | Turns & troop orders | `Features/Turns/**` (35 files), `Features/TroopOrders/**` | ~3k | **Targeted pass** — see scope note in §5 | 3 |
-| S11 | Remaining backend features | `Features/{Game,Players,MatchMaking,Military,Resources,Structures,Troops,System,DatabaseSeeding}` | ~3.3k | **Targeted pass** — see scope note in §5 | 3 |
+| S11 | Remaining backend features | `Features/{Game,Players,MatchMaking,Military,Assets,Structures,Troops,System,DatabaseSeeding}` | ~3.3k | **Targeted pass** — see scope note in §5 | 3 |
 | S12 | Test suite health & coverage | `AscendantEmpire.Tests/**` (48 files) against `testing.md`; itemise untested high-risk paths | ~10.6k | **Partial** — per-fixture tier audit still blocked on the in-flight refactor | 1, 3 |
 | S13 | Frontend architecture & shared layers | `src/api`, `AppProviders.tsx`, `src/entries`, `src/hooks`, `src/components`, `src/types`, `src/util`, `src/styles`, Vite/tsconfig/eslint | ~4k | **Partial** — `src/hooks`, `components/ui` and types-vs-contracts alignment remain | 1, 3 |
 | S14 | Frontend features | `src/features/*`: game (5.4k), mapgallery (4.5k), entitysetuptool (3.0k), unitdesign (3.0k), system, map, notifications, processing, auth, matchmaker | ~19k | **Targeted pass** — see scope note in §5 | 3 |
@@ -249,7 +249,7 @@ reachable with **no token at all**:
 | `CampaignMapController` | `POST player`, `POST player/clear` |
 | `GamesController` | `POST setup`, `POST open` |
 | `MapGalleryController` | all 14, including `update-tiles`, `publish`, `import`, `export`, `export/download` |
-| `ResourcesController` | `PUT` |
+| `AssetsController` | `PUT` |
 | `SystemController` | `GET status`, **`POST seed`** — kicks off a database-wide seed job |
 | `TroopOrdersController` | `POST move` |
 | `TurnController` | `GET campaign`, `POST end-campaign` — advances the game turn |
@@ -848,7 +848,7 @@ validator exists (`if (validators.Any() == false) return await next(cancel);`), 
 reach their handler with entirely unchecked input — including mutating ones:
 `AddCampaignMapRequest`, `UpdateCampaignMapTilesRequest`, `PutCampaignMapStartPositionsRequest`,
 `CreateUnitTemplateRequest`, `UpdateUnitTemplateRequest`, `CreateGlobalUnitTemplateRequest`,
-`BulkUpsertUnitComponentsRequest`, `UpsertResourcesRequest`, `UpsertTagTypesRequest`,
+`BulkUpsertUnitComponentsRequest`, `UpsertAssetsRequest`, `UpsertTagTypesRequest`,
 `SaveOfficerRanksRequest`, `SaveOrganisationStructureRequest`, `PublishCampaignMapUpdatesRequest`
 and `RecompileAllUnitTemplatesRequest`. Combined with AE-S2-001 (most of these endpoints are
 anonymous) this is a wide unvalidated surface. A test that enumerates `IRequest<>` implementations
@@ -920,19 +920,19 @@ visible outside the file.
 **AE-S6-001 · Medium · The Domain project is a persistence schema, not a domain model.**
 67 entity files; exactly **two** contain any behaviour (`RefreshSession.IsActive`, and one file inside
 `_not_used_yet`). Every rule — turn eligibility, movement cost, fog of war, template compilation,
-resource upkeep — lives in handlers. That is a legitimate choice for EF-centric CQRS and it is
+asset upkeep — lives in handlers. That is a legitimate choice for EF-centric CQRS and it is
 applied consistently, so this is not a defect. It is worth naming explicitly, because the project has
 a substantial `docs/design/` (1,317 lines across 17 documents) describing rules that currently have
 no home in the type system: nothing stops a handler constructing an invalid entity, and the design
 docs cannot be traced to code. If the rules stay in handlers, say so in `CLAUDE.md` so nobody
 half-migrates them later.
 
-**AE-S6-002 · Medium · Six files carry a namespace from an abandoned rename.**
-Everything under `Entities/Resources/_not_used_yet/` declaring a namespace uses
-`AscendantEmpire.Domain.Entities.**Assets**._not_used_yet` while living in the `Resources` folder —
-`context-changes.cs`, `FactionResourcePriority.cs`, `FactionResourceState.cs`, `ResourceBank.cs`,
-`ResourceBankBalance.cs`, `WorldResourceSnapshot.cs`. A `Resources` ← `Assets` rename stopped
-halfway. (Related to the memory note about avoiding entity names as feature-folder names.)
+**AE-S6-002 · Resolved · Six files carried a namespace from an abandoned rename.**
+The folder is now `Entities/Assets/_not_used_yet/` and its types are named to match
+(`AssetBank.cs`, `AssetBankBalance.cs`, `FactionAssetPriority.cs`, `FactionAssetState.cs`,
+`WorldAssetSnapshot.cs`, `context-changes.cs`), so the `Assets` namespace those files already
+declared is the correct one. The economy concept is called Asset throughout — see
+[assets-data-model.md](../assets-data-model.md).
 
 **AE-S6-003 · Medium · `User` can hold two contradictory representations of "inactive".**
 `InactiveAt` is `DateTimeOffset?` and `InactiveReasonType` is a non-nullable enum with an `Active`
@@ -1005,7 +1005,7 @@ at minimum, or delete it.
 
 **AE-S12-001 · High · The frontend is effectively untested.**
 5 test files for ~23,000 lines of TS/TSX
-(`DescriptiveSettingDropDown`, `ResourceSliderCollection`, `ResourceTicker`, `slotImagePosition`,
+(`DescriptiveSettingDropDown`, `AssetSliderCollection`, `AssetTicker`, `slotImagePosition`,
 `UnitComponent`). The whole `src/api` layer — including the refresh-and-retry interceptor, which is
 subtle enough to have its own concurrency guard — has no tests at all, as do all 10 feature areas.
 
@@ -1145,7 +1145,7 @@ become a risk. A `useReducer` (or splitting the component) makes the state machi
 testable, which matters most here because these two files have no tests at all.
 
 **AE-S14-002 · Medium · Feature test coverage is effectively zero where the logic is.**
-Of five test files, three cover `game/resources` and two cover small `unitdesign` helpers. The four
+Of five test files, three cover `game/assets` and two cover small `unitdesign` helpers. The four
 largest features — `game` (5,367 lines), `mapgallery` (4,524), `entitysetuptool` (2,977),
 `unitdesign` (2,977) — have no component or hook tests. The testing infrastructure is already set up
 and working (`vitest`, `jsdom`, Testing Library, a `setup.ts`), so the cost here is writing tests, not
@@ -1156,7 +1156,7 @@ building a harness. Cross-ref AE-S12-001.
 `SlotsSection` 423). Not defects, but they are where AE-S14-001's state density concentrates.
 
 **AE-S14-004 · Info · `ResourceDummyData.ts` (379 lines) ships placeholder data in `src`.**
-Consistent with the memory note that resource cost/upkeep are placeholder stand-ins. Worth a
+Consistent with the memory note that asset cost/upkeep are placeholder stand-ins. Worth a
 `TODO`/ticket link in the file so it isn't mistaken for real data later.
 
 ---

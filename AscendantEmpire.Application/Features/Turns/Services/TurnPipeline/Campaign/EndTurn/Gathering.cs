@@ -8,7 +8,7 @@ using AscendantEmpire.Application.Features.Units.Classes;
 using AscendantEmpire.Application.Features.Units.Services;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.Domain.Entities.Games;
-using AscendantEmpire.Domain.Enums.Resources;
+using AscendantEmpire.Domain.Enums.Maps;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

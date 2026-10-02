@@ -8,7 +8,7 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Transcribed from <c>Resources/Documentation/Installation scripts/CampaignMapBiomes.json</c>.
+/// Transcribed from <c>Assets/Documentation/Installation scripts/CampaignMapBiomes.json</c>.
 /// </para>
 /// <para>
 /// The <c>Base*Value</c> figures are the plain whole numbers exactly as a user enters them in the biome

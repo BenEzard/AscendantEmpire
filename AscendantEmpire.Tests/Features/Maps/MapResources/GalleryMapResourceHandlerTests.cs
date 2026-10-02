@@ -51,7 +51,7 @@ internal class GalleryMapResourceHandlerTests : SqlServerTestBase
             DiscoveryLikelihood = 1m,
             EstimationFuzzyFactorMin = 0.1m,
             EstimationFuzzyFactorMax = 0.2m,
-            Yields = [new MapResourceTypeYield { ResourceId = _catalogue.ResourceId, AmountPerUnit = 1_000, IsEnabledByDefault = true }],
+            Yields = [new MapResourceTypeYield { AssetId = _catalogue.AssetId, AmountPerUnit = 1_000, IsEnabledByDefault = true }],
             Habitats = [new MapResourceHabitat { BiomeTypeId = BiomeType.Forest, CampaignMapGeographyTypeId = CampaignMapGeographyType.Hilly, InitialQuantityMin = 0, InitialQuantityMax = 1_000 }]
         };
         context.MapResourceTypes.Add(hillsOnly);

@@ -24,7 +24,7 @@ Campaign maps have two representations:
 | Layer | Schema | Tables | Purpose |
 |---|---|---|---|
 | Gallery (template) | `mapgallery` | `CampaignMapGalleryIndex`, `CampaignMapGallery` | A reusable blueprint created in the Map Editor. Multiple games can be started from the same gallery entry. |
-| Game instance | `game` | `CampaignMap` | A per-game copy of the campaign map, extended with runtime state (resources, fog of war, control). |
+| Game instance | `game` | `CampaignMap` | A per-game copy of the campaign map, extended with runtime state (assets, fog of war, control). |
 
 When a game is created, `game.CampaignMap` is populated by copying biome and geography data from `mapgallery.CampaignMapGallery` for the chosen map.
 

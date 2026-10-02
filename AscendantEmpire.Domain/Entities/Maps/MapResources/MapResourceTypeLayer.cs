@@ -5,7 +5,7 @@ namespace AscendantEmpire.Domain.Entities.Maps.MapResources;
 /// </summary>
 /// <remarks>
 /// <para>
-/// A template: each instance rolls its own contents for every layer at game setup, into <c>game.MapResourceInstanceLayer</c>. A layer may hold a different Resource from the
+/// A template: each instance rolls its own contents for every layer at game setup, into <c>game.MapResourceInstanceLayer</c>. A layer may hold a different Asset from the
 /// one above it, and may turn out empty.
 /// </para>
 /// <para>
@@ -25,9 +25,9 @@ public class MapResourceTypeLayer
     public int LayerNumber { get; set; }
 
     /// <summary>
-    /// The Resource the layer holds when it is not empty (a <c>resources.Resource</c>).
+    /// The Asset the layer holds when it is not empty (a <c>assets.Asset</c>).
     /// </summary>
-    public int ResourceId { get; set; }
+    public int AssetId { get; set; }
 
     /// <summary>
     /// The chance, as a fraction, that an instance's layer is created empty.

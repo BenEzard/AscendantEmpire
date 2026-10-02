@@ -7,7 +7,7 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 /// The initial <c>map.CampaignGeographies</c> values applied by the database seed.
 /// </summary>
 /// <remarks>
-/// Transcribed from <c>Resources/Documentation/Installation scripts/CampaignMapGeographyType.json</c>. The
+/// Transcribed from <c>Assets/Documentation/Installation scripts/CampaignMapGeographyType.json</c>. The
 /// <see cref="CampaignMapGeographyType"/> enum has an intentional gap at value 5, so Mountainous is 6.
 /// </remarks>
 internal static class GeographySeedData

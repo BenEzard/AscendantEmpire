@@ -16,7 +16,7 @@ namespace AscendantEmpire.Tests.Features.Maps.MapResources;
 [TestFixture]
 internal class MapResourceTypeValidatorTests
 {
-    // Resource ids only need to be distinct: whether they exist is the handler's check, not the validator's.
+    // Asset ids only need to be distinct: whether they exist is the handler's check, not the validator's.
     private const int _FORAGE = 1;
     private const int _MEDIUM_GAME = 2;
     private const int _PELT = 3;
@@ -113,19 +113,19 @@ internal class MapResourceTypeValidatorTests
     #endregion
 
     #region Children by kind
-    [Test, Description("A Distribution holds its Resources in scenarios, never in yields.")]
+    [Test, Description("A Distribution holds its Assets in scenarios, never in yields.")]
     public void ShouldRejectYieldsOnADistribution()
     {
         AssertRejected(ForestWood() with { Yields = [Yield(_OAK)] }, "a Distribution cannot have any yields");
     }
 
-    [Test, Description("A stratified type holds its Resources in layers, and must have at least one.")]
+    [Test, Description("A stratified type holds its Assets in layers, and must have at least one.")]
     public void ShouldRejectAStratifiedTypeWithoutLayers()
     {
         AssertRejected(CoalSeam() with { Layers = [] }, "needs at least one layer");
     }
 
-    [Test, Description("A single-quantity type gives its Resources through yields, and must have at least one.")]
+    [Test, Description("A single-quantity type gives its Assets through yields, and must have at least one.")]
     public void ShouldRejectASingleQuantityTypeWithoutYields()
     {
         AssertRejected(Berry() with { Yields = [] }, "needs at least one yield");
@@ -137,7 +137,7 @@ internal class MapResourceTypeValidatorTests
         AssertRejected(Berry() with { Habitats = [] }, "at least one habitat is required");
     }
 
-    [Test, Description("Each Resource appears at most once in a type's yields.")]
+    [Test, Description("Each Asset appears at most once in a type's yields.")]
     public void ShouldRejectADuplicatedYield()
     {
         AssertRejected(Deer() with { Yields = [Yield(_MEDIUM_GAME), Yield(_MEDIUM_GAME)] }, "appears more than once in the yields");
@@ -203,12 +203,12 @@ internal class MapResourceTypeValidatorTests
     #endregion
 
     #region Scenarios and layers
-    [Test, Description("A scenario with no Resources would create an instance with nothing to extract.")]
+    [Test, Description("A scenario with no Assets would create an instance with nothing to extract.")]
     public void ShouldRejectAScenarioWithNoAmounts()
     {
         MapResourceDistributionScenarioDto empty = OakRichScenario() with { Amounts = [] };
 
-        AssertRejected(ForestWood() with { DistributionScenarios = [empty] }, "at least one Resource amount is required");
+        AssertRejected(ForestWood() with { DistributionScenarios = [empty] }, "at least one Asset amount is required");
     }
 
     [Test, Description("A Biome where the scenario should never be picked has no weight rather than a weight of 0.")]
@@ -305,7 +305,7 @@ internal class MapResourceTypeValidatorTests
     }
 
     /// <summary>
-    /// Stratified: two layers holding different Resources, no fuzzy range of its own, and a habitat with no values.
+    /// Stratified: two layers holding different Assets, no fuzzy range of its own, and a habitat with no values.
     /// </summary>
     private static AddOrUpdateMapResourceTypeDto CoalSeam()
     {
@@ -322,7 +322,7 @@ internal class MapResourceTypeValidatorTests
             IsDiscoverableByDefault = true,
             DiscoveryLikelihood = 0.1m,
             Habitats = [new MapResourceHabitatDto { BiomeType = BiomeType.Tundra, GeographyType = CampaignMapGeographyType.Hilly }],
-            Layers = [CoalLayer(1), CoalLayer(2) with { ResourceId = _HIGH_COAL }],
+            Layers = [CoalLayer(1), CoalLayer(2) with { AssetId = _HIGH_COAL }],
         };
     }
 
@@ -360,7 +360,7 @@ internal class MapResourceTypeValidatorTests
             Code = code,
             DisplayName = code,
             MapResourceCategoryCode = "Food",
-            IconPath = $"/icons/map-resources/{code}.png",
+            IconPath = $"/icons/map-assets/{code}.png",
             IsRenewable = true,
             IsStratified = false,
             IsDistribution = false,
@@ -375,9 +375,9 @@ internal class MapResourceTypeValidatorTests
         };
     }
 
-    private static MapResourceTypeYieldDto Yield(int resourceId)
+    private static MapResourceTypeYieldDto Yield(int assetId)
     {
-        return new MapResourceTypeYieldDto { ResourceId = resourceId, AmountPerUnit = 1, IsEnabledByDefault = true };
+        return new MapResourceTypeYieldDto { AssetId = assetId, AmountPerUnit = 1, IsEnabledByDefault = true };
     }
 
     /// <summary>
@@ -424,9 +424,9 @@ internal class MapResourceTypeValidatorTests
             ScenarioNumber = 1,
             Amounts =
             [
-                new MapResourceDistributionScenarioAmountDto { ResourceId = _OAK, Amount = 200 },
-                new MapResourceDistributionScenarioAmountDto { ResourceId = _GENERIC_WOOD, Amount = 10_000 },
-                new MapResourceDistributionScenarioAmountDto { ResourceId = _CEDAR, Amount = 30 },
+                new MapResourceDistributionScenarioAmountDto { AssetId = _OAK, Amount = 200 },
+                new MapResourceDistributionScenarioAmountDto { AssetId = _GENERIC_WOOD, Amount = 10_000 },
+                new MapResourceDistributionScenarioAmountDto { AssetId = _CEDAR, Amount = 30 },
             ],
             BiomeWeights = [new MapResourceDistributionScenarioBiomeWeightDto { BiomeType = BiomeType.Forest, Weight = 3 }],
         };
@@ -440,7 +440,7 @@ internal class MapResourceTypeValidatorTests
         return new MapResourceTypeLayerDto
         {
             LayerNumber = layerNumber,
-            ResourceId = _LOW_COAL,
+            AssetId = _LOW_COAL,
             EmptyLikelihood = 0.25m,
             QuantityMin = 1_000,
             QuantityMax = 5_000,

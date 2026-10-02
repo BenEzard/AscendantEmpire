@@ -24,7 +24,7 @@ namespace AscendantEmpire.Application.Features.Maps.MapResources.Validators;
 /// </list>
 /// </para>
 /// <para>
-/// Whether the Resources and category named exist is the handler's check, since it needs the database. The database itself enforces the two flag rules as well
+/// Whether the Assets and category named exist is the handler's check, since it needs the database. The database itself enforces the two flag rules as well
 /// (<c>CK_MapResourceType_RenewableOrStratified</c> and <c>CK_MapResourceType_DistributionIsRenewable</c>).
 /// </para>
 /// </remarks>
@@ -128,7 +128,7 @@ internal class MapResourceTypeValidator : Validator<IAddOrUpdateMapResourceTypeD
         #endregion
 
         #region Children by kind
-        // Each kind holds its Resources in exactly one way: yields, scenarios or layers. The other two must be empty.
+        // Each kind holds its Assets in exactly one way: yields, scenarios or layers. The other two must be empty.
         RuleFor(t => t).Custom((t, context) =>
         {
             if (t.IsDistribution)
@@ -181,16 +181,16 @@ internal class MapResourceTypeValidator : Validator<IAddOrUpdateMapResourceTypeD
 
     private static void ValidateYields(IAddOrUpdateMapResourceTypeDto type, ValidationContext<IAddOrUpdateMapResourceTypeDto> context)
     {
-        foreach (int resourceId in Duplicates(type.Yields.Select(y => y.ResourceId)))
+        foreach (int assetId in Duplicates(type.Yields.Select(y => y.AssetId)))
         {
-            context.AddFailure($"{type.Code}: Resource {resourceId} appears more than once in the yields.");
+            context.AddFailure($"{type.Code}: Asset {assetId} appears more than once in the yields.");
         }
 
         foreach (IMapResourceTypeYieldDto yield in type.Yields)
         {
             if (yield.AmountPerUnit <= 0)
             {
-                context.AddFailure($"{type.Code}: the yield of Resource {yield.ResourceId} must give more than 0 per unit extracted.");
+                context.AddFailure($"{type.Code}: the yield of Asset {yield.AssetId} must give more than 0 per unit extracted.");
             }
         }
     }
@@ -299,17 +299,17 @@ internal class MapResourceTypeValidator : Validator<IAddOrUpdateMapResourceTypeD
             // A scenario with nothing in it would create an instance with nothing to extract.
             if (scenario.Amounts.Count == 0)
             {
-                context.AddFailure($"{which}: at least one Resource amount is required.");
+                context.AddFailure($"{which}: at least one Asset amount is required.");
             }
 
-            foreach (int resourceId in Duplicates(scenario.Amounts.Select(a => a.ResourceId)))
+            foreach (int assetId in Duplicates(scenario.Amounts.Select(a => a.AssetId)))
             {
-                context.AddFailure($"{which}: Resource {resourceId} appears more than once.");
+                context.AddFailure($"{which}: Asset {assetId} appears more than once.");
             }
 
             foreach (IMapResourceDistributionScenarioAmountDto amount in scenario.Amounts.Where(a => a.Amount <= 0))
             {
-                context.AddFailure($"{which}: the amount of Resource {amount.ResourceId} must be more than 0.");
+                context.AddFailure($"{which}: the amount of Asset {amount.AssetId} must be more than 0.");
             }
 
             foreach (BiomeType biome in Duplicates(scenario.BiomeWeights.Select(w => w.BiomeType)))

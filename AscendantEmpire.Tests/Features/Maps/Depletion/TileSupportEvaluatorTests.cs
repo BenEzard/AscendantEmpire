@@ -9,7 +9,6 @@ using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums.Maps;
-using AscendantEmpire.Domain.Enums.Resources;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 

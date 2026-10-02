@@ -4,7 +4,7 @@ using AscendantEmpire.Domain.Enums.Modifiers;
 namespace AscendantEmpire.Domain.Entities.Games;
 
 /// <summary>
-/// One source turning something about a MapResourceType on or off for one Player: discovering it, getting one Resource from its yield, or surveying one of its layers.
+/// One source turning something about a MapResourceType on or off for one Player: discovering it, getting one Asset from its yield, or surveying one of its layers.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -12,7 +12,7 @@ namespace AscendantEmpire.Domain.Entities.Games;
 /// but no Player can discover it until a tech switches discovery on; a Deer's pelt is off until hide-working switches it on.
 /// </para>
 /// <para>
-/// Resolved per Player, and per (<see cref="Kind"/>, type, <see cref="ResourceId"/>, <see cref="LayerNumber"/>):
+/// Resolved per Player, and per (<see cref="Kind"/>, type, <see cref="AssetId"/>, <see cref="LayerNumber"/>):
 /// <list type="number">
 ///   <item><description>any row with <see cref="IsEnabled"/> <see langword="false"/> wins, so a mechanic that forbids something (a taboo, a treaty) overrides the tech that
 ///   allowed it;</description></item>
@@ -32,8 +32,8 @@ public class PlayerMapResourceSwitch
     /// Surrogate key.
     /// </summary>
     /// <remarks>
-    /// The natural key includes the nullable <see cref="ResourceId"/> and <see cref="LayerNumber"/>, which cannot be part of a primary key. Uniqueness is enforced by the
-    /// <c>UX_PlayerMapResourceSwitch_Player_Source_Kind_Type_Resource_Layer</c> index instead.
+    /// The natural key includes the nullable <see cref="AssetId"/> and <see cref="LayerNumber"/>, which cannot be part of a primary key. Uniqueness is enforced by the
+    /// <c>UX_PlayerMapResourceSwitch_Player_Source_Kind_Type_Asset_Layer</c> index instead.
     /// </remarks>
     public int Id { get; set; }
 
@@ -71,9 +71,9 @@ public class PlayerMapResourceSwitch
     public int MapResourceTypeId { get; set; }
 
     /// <summary>
-    /// The Resource in the type's yield that is switched, for <see cref="MapResourceSwitchKind.YieldResource"/>; otherwise <see langword="null"/>.
+    /// The Asset in the type's yield that is switched, for <see cref="MapResourceSwitchKind.YieldAsset"/>; otherwise <see langword="null"/>.
     /// </summary>
-    public int? ResourceId { get; set; }
+    public int? AssetId { get; set; }
 
     /// <summary>
     /// The layer that is switched, for <see cref="MapResourceSwitchKind.SurveyLayer"/>; otherwise <see langword="null"/>.

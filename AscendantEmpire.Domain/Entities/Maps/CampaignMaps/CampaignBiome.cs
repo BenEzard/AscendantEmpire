@@ -75,47 +75,47 @@ public class CampaignBiome
     public bool CanBeElevated { get; set; }
     #endregion
 
-    // NOTE: The Base*Value resource fields below are stored SCALED by ScaledAmount.Scale (1,000).
+    // NOTE: The Base*Value asset fields below are stored SCALED by ScaledAmount.Scale (1,000).
     // The UI/API work in whole numbers (e.g. a designer enters 50); the handlers convert to/from the
     // scaled raw value (e.g. 50,000) so downstream fixed-point bonus math keeps sub-unit precision.
     // That scaling is why these are long? (bigint) rather than int? -- there must be headroom for the
     // multiplication.
 
-    #region Passive Regenerating Resources
+    #region Passive Regenerating Assets
     /// <summary>
-    /// Base value of the Forage resource in this Biome, stored scaled by ScaledAmount.Scale (1,000)
+    /// Base value of the Forage asset in this Biome, stored scaled by ScaledAmount.Scale (1,000)
     /// </summary>
     public long? BaseForageValue { get; set; }
 
     /// <summary>
-    /// Base value of the Hunt resource in this Biome, stored scaled by ScaledAmount.Scale (1,000)
+    /// Base value of the Hunt asset in this Biome, stored scaled by ScaledAmount.Scale (1,000)
     /// </summary>
     public long? BaseHuntValue { get; set; }
 
     /// <summary>
-    /// Base value of the Fish resource in this Biome, stored scaled by ScaledAmount.Scale (1,000)
+    /// Base value of the Fish asset in this Biome, stored scaled by ScaledAmount.Scale (1,000)
     /// </summary>
     public long? BaseFishValue { get; set; }
 
     /// <summary>
-    /// Base value of the Fodder resource in this Biome, stored scaled by ScaledAmount.Scale (1,000)
+    /// Base value of the Fodder asset in this Biome, stored scaled by ScaledAmount.Scale (1,000)
     /// </summary>
     public long? BaseFodderValue { get; set; }
     #endregion
 
     #region Passive Material Values
     /// <summary>
-    /// Base value of the Bone resource in this Biome, stored scaled by ScaledAmount.Scale (1,000)
+    /// Base value of the Bone asset in this Biome, stored scaled by ScaledAmount.Scale (1,000)
     /// </summary>
     public long? BaseBoneValue { get; set; }
 
     /// <summary>
-    /// Base value of the Wood resource in this Biome, stored scaled by ScaledAmount.Scale (1,000)
+    /// Base value of the Wood asset in this Biome, stored scaled by ScaledAmount.Scale (1,000)
     /// </summary>
     public long? BaseWoodValue { get; set; }
 
     /// <summary>
-    /// Base value of the Stone resource in this Biome, stored scaled by ScaledAmount.Scale (1,000)
+    /// Base value of the Stone asset in this Biome, stored scaled by ScaledAmount.Scale (1,000)
     /// </summary>
     public long? BaseStoneValue { get; set; }
     #endregion

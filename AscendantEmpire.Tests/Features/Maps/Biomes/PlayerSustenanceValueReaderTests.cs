@@ -6,7 +6,6 @@ using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Modifiers;
-using AscendantEmpire.Domain.Enums.Resources;
 
 namespace AscendantEmpire.Tests.Features.Maps.Biomes;
 

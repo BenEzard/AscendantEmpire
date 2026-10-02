@@ -445,7 +445,7 @@ earlier stages are shaped as they are.
 - `UnitInstance.CommandId`, nullable — a Unit under no Command is the ordinary case.
 - `ForceOrder` gains nullable `CommandId` beside the now-nullable `UnitInstanceId`, with a check constraint
   `(UnitInstanceId IS NOT NULL AND CommandId IS NULL) OR (UnitInstanceId IS NULL AND CommandId IS NOT NULL)` —
-  the same XOR shape `CK_Resource_GroupOrCategoryXor` already uses in the resources schema, so it is a pattern
+  the same XOR shape `CK_Asset_GroupOrCategoryXor` already uses in the assets schema, so it is a pattern
   the codebase has rather than a new idea. Filtered indexes on each half.
 - `RecordType.Command` starts being emitted; the map, vision, movement and toolbar projections gain their
   Command arms.

@@ -4,7 +4,7 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Features.Authentication.Classes;
 using AscendantEmpire.Application.Features.Authentication.Services;
-using AscendantEmpire.Application.Features.Resources.Handlers;
+using AscendantEmpire.Application.Features.Assets.Handlers;
 using AscendantEmpire.Application.Features.Turns.Handlers;
 using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
@@ -29,7 +29,7 @@ namespace AscendantEmpire.Api.Controllers;
 /// The actions have <b>different lifetimes</b>, so this file is not a wholesale delete:
 /// <list type="bullet">
 ///   <item><description><c>end-turn-and-switch-player</c> and <see cref="DTDevSwitchPlayerResult"/> go in F-18, with the frontend Dev Tools buttons that call them.</description></item>
-///   <item><description>the <c>player-resources</c> actions and their request types go when the Technology system takes over the unlock rows.</description></item>
+///   <item><description>the <c>player-assets</c> actions and their request types go when the Technology system takes over the unlock rows.</description></item>
 /// </list>
 /// </para>
 /// </remarks>
@@ -135,12 +135,12 @@ public class DevController : ControllerBase
     }
 
     // ---------------------------------------------------------------------------------------------------------------------------------------------------
-    // Resource unlocks. Unlike the hot-seat endpoint above, this one is NOT removed in F-18 — it stands in for the Technology system and goes when that
+    // Asset unlocks. Unlike the hot-seat endpoint above, this one is NOT removed in F-18 — it stands in for the Technology system and goes when that
     // lands. Whoever does F-18 should keep this action (and the controller) rather than deleting the file wholesale.
     // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
     /// <summary>
-    /// Grant the calling Player the named Resources and ResourceMetaCategories.
+    /// Grant the calling Player the named Assets and AssetMetaCategories.
     /// </summary>
     /// <remarks>
     /// Stands in for the Technology system, which will eventually own these rows. Without it the unlock path cannot be exercised by hand at all: a new game
@@ -151,16 +151,16 @@ public class DevController : ControllerBase
     /// <response code="403">The caller has not entered a game</response>
     /// <response code="404">A supplied code matches no catalogue row, or the Game has no campaign turn queue</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [HttpPut("player-resources/grant")]
+    [HttpPut("player-assets/grant")]
     [ProducesResponseType(204)]
     [ProducesResponseType(typeof(IApiErrorResult), 400)]
     [ProducesResponseType(401)]
     [ProducesResponseType(typeof(IApiErrorResult), 403)]
     [ProducesResponseType(typeof(IApiErrorResult), 404)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> GrantPlayerResourcesAsync(
+    public async Task<IActionResult> GrantPlayerAssetsAsync(
         [FromServices] IMediator mediator,
-        [FromBody] DTDevGrantResourceRequest body,
+        [FromBody] DTDevGrantAssetRequest body,
         CancellationToken cancelToken)
     {
         // Game and Player come from the token, so this cannot be pointed at somebody else's unlocks.
@@ -170,14 +170,14 @@ public class DevController : ControllerBase
         }
 
         ServiceResultBase response = await mediator.Send(
-            new GrantPlayerResourceRequest(gameId, playerId, body.ResourceCodes ?? [], body.MetaCategoryCodes ?? [], body.ObsoleteInRounds),
+            new GrantPlayerAssetRequest(gameId, playerId, body.AssetCodes ?? [], body.MetaCategoryCodes ?? [], body.ObsoleteInRounds),
             cancelToken);
 
         return response.ToActionResult();
     }
 
     /// <summary>
-    /// Take the named Resources and ResourceMetaCategories back off the calling Player.
+    /// Take the named Assets and AssetMetaCategories back off the calling Player.
     /// </summary>
     /// <remarks>
     /// Deletes the rows rather than obsoleting them — no row means never granted, which is what undoing a grant wants. To retire something the Player has kept
@@ -188,16 +188,16 @@ public class DevController : ControllerBase
     /// <response code="403">The caller has not entered a game</response>
     /// <response code="404">A supplied code matches no catalogue row</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [HttpPut("player-resources/withdraw")]
+    [HttpPut("player-assets/withdraw")]
     [ProducesResponseType(204)]
     [ProducesResponseType(typeof(IApiErrorResult), 400)]
     [ProducesResponseType(401)]
     [ProducesResponseType(typeof(IApiErrorResult), 403)]
     [ProducesResponseType(typeof(IApiErrorResult), 404)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> WithdrawPlayerResourcesAsync(
+    public async Task<IActionResult> WithdrawPlayerAssetsAsync(
         [FromServices] IMediator mediator,
-        [FromBody] DTDevWithdrawResourceRequest body,
+        [FromBody] DTDevWithdrawAssetRequest body,
         CancellationToken cancelToken)
     {
         if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
@@ -206,7 +206,7 @@ public class DevController : ControllerBase
         }
 
         ServiceResultBase response = await mediator.Send(
-            new WithdrawPlayerResourceRequest(gameId, playerId, body.ResourceCodes ?? [], body.MetaCategoryCodes ?? []),
+            new WithdrawPlayerAssetRequest(gameId, playerId, body.AssetCodes ?? [], body.MetaCategoryCodes ?? []),
             cancelToken);
 
         return response.ToActionResult();
@@ -214,21 +214,21 @@ public class DevController : ControllerBase
 }
 
 /// <summary>
-/// Which Resources and ResourceMetaCategories to grant, and whether they are to start obsoleting.
+/// Which Assets and AssetMetaCategories to grant, and whether they are to start obsoleting.
 /// </summary>
 /// <remarks>
 /// Remove with the Technology system, alongside the endpoint that takes it. Declared here rather than in the contracts projects for the same reason as
 /// <see cref="DTDevSwitchPlayerResult"/>: it is temporary, so keeping it beside its only endpoint makes the removal a delete rather than a hunt.
 /// </remarks>
-public class DTDevGrantResourceRequest
+public class DTDevGrantAssetRequest
 {
     /// <summary>
-    /// Catalogue codes of the Resources to grant, e.g. "Weapons.MeleeWeapons.MedievalSword.Low".
+    /// Catalogue codes of the Assets to grant, e.g. "Weapons.MeleeWeapons.MedievalSword.Low".
     /// </summary>
-    public IReadOnlyCollection<string>? ResourceCodes { get; init; }
+    public IReadOnlyCollection<string>? AssetCodes { get; init; }
 
     /// <summary>
-    /// Catalogue codes of the ResourceMetaCategories to grant, e.g. "ConstructionMaterials".
+    /// Catalogue codes of the AssetMetaCategories to grant, e.g. "ConstructionMaterials".
     /// </summary>
     public IReadOnlyCollection<string>? MetaCategoryCodes { get; init; }
 
@@ -240,18 +240,18 @@ public class DTDevGrantResourceRequest
 }
 
 /// <summary>
-/// Which Resources and ResourceMetaCategories to take back off the Player.
+/// Which Assets and AssetMetaCategories to take back off the Player.
 /// </summary>
 /// <remarks>Remove with the Technology system, alongside the endpoint that takes it.</remarks>
-public class DTDevWithdrawResourceRequest
+public class DTDevWithdrawAssetRequest
 {
     /// <summary>
-    /// Catalogue codes of the Resources to withdraw.
+    /// Catalogue codes of the Assets to withdraw.
     /// </summary>
-    public IReadOnlyCollection<string>? ResourceCodes { get; init; }
+    public IReadOnlyCollection<string>? AssetCodes { get; init; }
 
     /// <summary>
-    /// Catalogue codes of the ResourceMetaCategories to withdraw.
+    /// Catalogue codes of the AssetMetaCategories to withdraw.
     /// </summary>
     public IReadOnlyCollection<string>? MetaCategoryCodes { get; init; }
 }

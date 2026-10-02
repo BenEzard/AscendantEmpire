@@ -14,7 +14,6 @@ using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Modifiers;
-using AscendantEmpire.Domain.Enums.Resources;
 
 using Microsoft.Extensions.Logging.Abstractions;
 

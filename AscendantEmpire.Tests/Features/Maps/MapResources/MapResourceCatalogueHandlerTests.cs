@@ -1,14 +1,14 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.MapResources.Handlers;
-using AscendantEmpire.Application.Features.Resources.Handlers;
+using AscendantEmpire.Application.Features.Assets.Handlers;
 using AscendantEmpire.BackendContracts.MapResources.AddOrUpdateMapResourceType;
 using AscendantEmpire.BackendContracts.MapResources.GetMapResourceCatalogue;
 using AscendantEmpire.BackendContracts.MapResources.PutMapResourceCatalogue;
-using AscendantEmpire.BackendContracts.Resources;
+using AscendantEmpire.BackendContracts.Assets;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Maps.MapResources;
-using AscendantEmpire.Domain.Entities.Resources;
+using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.MapResources;
 
@@ -21,7 +21,7 @@ namespace AscendantEmpire.Tests.Features.Maps.MapResources;
 
 /// <summary>
 /// Tests for the MapResource Type Manager's handlers: saving the catalogue (categories and types by code, children updated in place), reading it back grouped, the two
-/// deletes, and the Resource list its pickers use.
+/// deletes, and the Asset list its pickers use.
 /// </summary>
 /// <remarks>
 /// Containerised rather than in-memory: the handlers lean on the database for owned children cascading on delete, codes matching case-insensitively under the unique
@@ -35,7 +35,7 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
     private int _oakId;
 
     [SetUp]
-    public async Task SeedResourcesAsync()
+    public async Task SeedAssetsAsync()
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
@@ -44,11 +44,11 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
         await MapResourceTestSeed.EnsureBiomeAsync(context, BiomeType.Woodland);
         await MapResourceTestSeed.EnsureGeographyAsync(context, CampaignMapGeographyType.Hilly);
 
-        List<Resource> resources = await MapResourceTestSeed.SeedResourcesAsync(context, "Berries", "Pelt", "Oak");
+        List<Asset> assets = await MapResourceTestSeed.SeedAssetsAsync(context, "Berries", "Pelt", "Oak");
 
-        _berriesId = resources[0].Id;
-        _peltId = resources[1].Id;
-        _oakId = resources[2].Id;
+        _berriesId = assets[0].Id;
+        _peltId = assets[1].Id;
+        _oakId = assets[2].Id;
     }
 
     #region Put and Get
@@ -103,7 +103,7 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
         {
             Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
             Assert.That(berry.Habitats, Has.Count.EqualTo(1));
-            Assert.That(berry.Yields.Select(y => (y.ResourceId, y.AmountPerUnit)), Is.EquivalentTo(new[] { (_berriesId, 5), (_peltId, 1) }));
+            Assert.That(berry.Yields.Select(y => (y.AssetId, y.AmountPerUnit)), Is.EquivalentTo(new[] { (_berriesId, 5), (_peltId, 1) }));
             Assert.That(await ReadAsync(c => c.MapResourceHabitats.Select(h => h.Id).SingleAsync()), Is.EqualTo(keptHabitatId), "The kept habitat is updated, not replaced.");
         }
     }
@@ -191,12 +191,12 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
         Assert.That(result.Errors, Has.Some.Contains("there is no category 'Food'"));
     }
 
-    [Test, Description("A yield naming a Resource that does not exist is refused, rather than failing on the foreign key.")]
-    public async Task ShouldRejectAnUnknownResourceAsync()
+    [Test, Description("A yield naming an Asset that does not exist is refused, rather than failing on the foreign key.")]
+    public async Task ShouldRejectAnUnknownAssetAsync()
     {
         ServiceResultBase result = await PutAsync(Catalogue([Category("Food")], [Berry() with { Yields = [Yield(999_999, amount: 1)] }]));
 
-        Assert.That(result.Errors, Has.Some.Contains("There is no Resource 999999"));
+        Assert.That(result.Errors, Has.Some.Contains("There is no Asset 999999"));
     }
 
     [Test, Description("The type validator runs on every type in the request.")]
@@ -269,16 +269,18 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
     }
     #endregion
 
-    [Test, Description("Every Resource is listed with its meta category, for the pickers.")]
-    public async Task ShouldListEveryResourceAsync()
+    [Test, Description("Every Asset is listed with its meta category, in catalogue order, because the pickers render the list as it arrives.")]
+    public async Task ShouldListEveryAssetAsync()
     {
-        var handler = new GetResourcesHandler(new NullLogger<GetResourcesHandler>(), DbFactory);
+        var handler = new GetAssetsHandler(new NullLogger<GetAssetsHandler>(), DbFactory);
 
-        ServiceResult<IReadOnlyCollection<ResourceSummary>> result = await handler.Handle(new GetResourcesRequest(), CancellationToken.None);
+        ServiceResult<IReadOnlyCollection<AssetSummary>> result = await handler.Handle(new GetAssetsRequest(), CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result.SuccessValue!.Select(r => r.DisplayName), Is.EqualTo(new[] { "Berries", "Oak", "Pelt" }), "Within a meta category, by name.");
+            // Seeded as Berries, Pelt, Oak with SortOrder 10, 20, 30. Alphabetically that would be Berries, Oak, Pelt, so this also pins
+            // that SortOrder beats DisplayName — the pickers do not sort, and firstAssetId takes whatever came first.
+            Assert.That(result.SuccessValue!.Select(r => r.DisplayName), Is.EqualTo(new[] { "Berries", "Pelt", "Oak" }), "Within a meta category, by SortOrder.");
             Assert.That(result.SuccessValue!.Select(r => r.MetaCategoryDisplayName), Is.All.EqualTo("Test Meta"));
         }
     }
@@ -414,9 +416,9 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
         };
     }
 
-    private static MapResourceTypeYieldDto Yield(int resourceId, int amount)
+    private static MapResourceTypeYieldDto Yield(int assetId, int amount)
     {
-        return new MapResourceTypeYieldDto { ResourceId = resourceId, AmountPerUnit = amount, IsEnabledByDefault = true };
+        return new MapResourceTypeYieldDto { AssetId = assetId, AmountPerUnit = amount, IsEnabledByDefault = true };
     }
 
     /// <summary>
@@ -450,7 +452,7 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
         return new MapResourceDistributionScenarioDto
         {
             ScenarioNumber = number,
-            Amounts = [new MapResourceDistributionScenarioAmountDto { ResourceId = _oakId, Amount = oak }],
+            Amounts = [new MapResourceDistributionScenarioAmountDto { AssetId = _oakId, Amount = oak }],
             BiomeWeights = [new MapResourceDistributionScenarioBiomeWeightDto { BiomeType = BiomeType.Woodland, Weight = 1 }],
         };
     }

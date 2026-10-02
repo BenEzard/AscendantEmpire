@@ -3,13 +3,13 @@ import {
   deleteMapResourceCategory,
   deleteMapResourceType,
   getMapResourceCatalogue,
-  getResources,
+  getAssets,
   putMapResourceCatalogue,
   type MapResourceCataloguePayload,
 } from "../api/mapResourcesApi";
 
 export const mapResourceCatalogueKey = ["map-resources", "catalogue"] as const;
-export const resourcesKey = ["resources"] as const;
+export const assetsKey = ["assets"] as const;
 
 /** The MapResource catalogue, grouped by category. Shared by the Type Manager and the editor palette. */
 export function useMapResourceCatalogueQuery() {
@@ -19,11 +19,11 @@ export function useMapResourceCatalogueQuery() {
   });
 }
 
-/** Every Resource, for the Type Manager's pickers. Rarely changes, so it is not refetched on focus. */
-export function useResourcesQuery() {
+/** Every Asset, for the Type Manager's pickers. Rarely changes, so it is not refetched on focus. */
+export function useAssetsQuery() {
   return useQuery({
-    queryKey: resourcesKey,
-    queryFn: getResources,
+    queryKey: assetsKey,
+    queryFn: getAssets,
     staleTime: 5 * 60 * 1000,
   });
 }

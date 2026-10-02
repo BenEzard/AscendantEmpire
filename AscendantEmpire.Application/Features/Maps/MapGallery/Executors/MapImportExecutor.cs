@@ -146,7 +146,7 @@ internal sealed class MapImportExecutor(
     /// Inserts any biomes referenced by the export that are not already present.
     /// </summary>
     /// <remarks>
-    /// Existing biomes are left untouched — other maps depend on that shared reference data. Base resource
+    /// Existing biomes are left untouched — other maps depend on that shared reference data. Base asset
     /// values are exported as whole numbers and converted back to the scaled raw storage value here.
     /// </remarks>
     private async Task ImportMissingBiomesAsync(MapExportDocument document, CancellationToken cancellationToken)

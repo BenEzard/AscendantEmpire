@@ -8,13 +8,13 @@ combat are covered separately in [battlefield-maps.md](../battlefield-maps.md).)
 - The map has a designated **width** and **height**.
 - It may optionally have **vertical and/or horizontal wrapping**, allowing units to circumnavigate
   the map on that axis.
-- It may contain **void tiles**, which cannot be entered, seen past, or used to collect resources.
+- It may contain **void tiles**, which cannot be entered, seen past, or used to collect assets.
 
 ## Documents
 
 | Document | Covers |
 | --- | --- |
-| [tiles.md](tiles.md) | Tile geography and biome, the resources a biome yields, Player sustenance modifiers, and the total-resource formula. |
+| [tiles.md](tiles.md) | Tile geography and biome, the assets a biome yields, Player sustenance modifiers, and the total-asset formula. |
 | [depletion.md](depletion.md) | How units and settlements deplete a tile's food: the shared `Taken` amount, depletion rules, the end-of-turn calculation, and UI implications. |
 | [replenishment.md](replenishment.md) | How a depleted tile regrows at the end of each round, with worked examples and accepted behaviour. |
 | [food-yield.md](food-yield.md) | Regeneration and farming bonuses, productivity rates, tile bonuses, and the formula for units which consume. |

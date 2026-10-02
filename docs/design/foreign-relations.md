@@ -16,8 +16,8 @@ For every other empire, an empire holds a **relationship** record.
 | | Prisoner of War Treatment | As above, for POWs. |
 | | Accept As Refugees? | Whether the empire accepts refugees from this empire. |
 | **Trade Policy** | (shorthand) | Filters out annoying AI requests you won't agree to. |
-| | Trade Embargos | Resources you won't trade under any circumstances. |
-| | Open to… | Y/N flags: Map Trade, Open Borders, POW swaps, Slave swaps, Technology Trading, Land Sale, Defensive Pact, non-Strategic Resource Trading, Strategic Resource Trading. |
+| | Trade Embargos | Assets you won't trade under any circumstances. |
+| | Open to… | Y/N flags: Map Trade, Open Borders, POW swaps, Slave swaps, Technology Trading, Land Sale, Defensive Pact, non-Strategic Asset Trading, Strategic Asset Trading. |
 
 ## Diplomatic arrangements
 
@@ -55,7 +55,7 @@ Permit (or restrict) movement of an empire through defined territory.
 
 | Name | Function |
 | --- | --- |
-| `[Resource]` Harvesting Agreement | Lets a guest harvest a resource in the host's territory and build related infrastructure (without destroying existing). Variables: `GOLD_PER_TURN`, `PERCENTAGE_HARVEST` (the rest goes to the host). |
+| `[MapResource]` Harvesting Agreement | Lets a guest harvest a MapResource in the host's territory and build related infrastructure (without destroying existing). The Assets it yields go to the guest. Variables: `GOLD_PER_TURN`, `PERCENTAGE_HARVEST` (the rest goes to the host). |
 | Land Sale Agreement | Sell controlled land from one empire to another. |
 | Establish `[Land \| Sea \| Air]` Base | Establish a military base on a designated tile. |
 | Intermarriage | Affects the relationship between the two empires. |

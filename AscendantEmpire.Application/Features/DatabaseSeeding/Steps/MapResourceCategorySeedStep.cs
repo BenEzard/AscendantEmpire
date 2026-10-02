@@ -6,10 +6,10 @@ using AscendantEmpire.Domain.Enums.System;
 namespace AscendantEmpire.Application.Features.DatabaseSeeding.Steps;
 
 /// <summary>
-/// Seeds the <c>map.MapResourceCategory</c> rows the map editor groups resource types under.
+/// Seeds the <c>map.MapResourceCategory</c> rows the map editor groups MapResource types under.
 /// </summary>
 /// <remarks>
-/// Categories only, so the step stands alone. MapResourceTypes are not seeded because their yields name <c>resources.Resource</c> rows this seed does not
+/// Categories only, so the step stands alone. MapResourceTypes are not seeded because their yields name <c>assets.Asset</c> rows this seed does not
 /// create — see <see cref="MapResourceCategorySeedData"/>. Were they ever added, that step would depend on both this one and biomes.
 /// </remarks>
 internal sealed class MapResourceCategorySeedStep : ISeedStep
@@ -20,7 +20,7 @@ internal sealed class MapResourceCategorySeedStep : ISeedStep
 
     public string DisplayName => "Map Resource Categories";
 
-    public string Description => "The groups the MapResource Type Manager lists resource types under — food, animals, wood, stone, metals, fuel, luxuries.";
+    public string Description => "The groups the MapResource Type Manager lists MapResource types under — food, animals, wood, stone, metals, fuel, luxuries.";
 
     public IReadOnlyCollection<SeedTarget> DependsOn => [];
 

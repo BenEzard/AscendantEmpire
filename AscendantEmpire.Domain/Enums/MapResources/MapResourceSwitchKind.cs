@@ -15,11 +15,11 @@ public enum MapResourceSwitchKind
     Discovery = 1,
 
     /// <summary>
-    /// Whether extracting the type gives the Player one particular Resource from its yield, e.g. a Deer's pelt. The quantity on the tile still goes down by the full amount
-    /// extracted, so a Resource switched off is lost. Defaults to the yield's <c>IsEnabledByDefault</c>. Never applies to a Distribution, which always gives all of its
-    /// Resources.
+    /// Whether extracting the type gives the Player one particular Asset from its yield, e.g. a Deer's pelt. The quantity on the tile still goes down by the full amount
+    /// extracted, so an Asset switched off is lost. Defaults to the yield's <c>IsEnabledByDefault</c>. Never applies to a Distribution, which always gives all of its
+    /// Assets.
     /// </summary>
-    YieldResource = 2,
+    YieldAsset = 2,
 
     /// <summary>
     /// Whether the Player can survey one layer of a stratified type. Layer 1 is always surveyable; deeper layers default to off, standing in for the tech requirement until

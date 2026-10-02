@@ -3,7 +3,7 @@
 **Specialists** are special individuals attached to settlements or Forces who provide bonuses.
 
 - Must be **unlocked** via technology developments and/or buildings.
-- Can be **trained** (at the expense of resources and/or research points) or **developed over
+- Can be **trained** (at the expense of assets and/or research points) or **developed over
   time**.
 - Cost an **upkeep** amount.
 - Provide benefits to the settlement or Force they are attached to.

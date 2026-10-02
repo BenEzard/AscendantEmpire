@@ -513,7 +513,7 @@ table. Adding one is a follow-up, not an omission.
 - The exact fidelity curve — how detection, visibility, distance and terrain combine into a level.
 - Whether a Force on a sentry stance gets a fidelity or range bonus, which is the obvious reason for
   `AlertSentries` to be named what it is.
-- Whether resources and infrastructure discovered by an observer belong in this feed too, or stay
+- Whether assets and infrastructure discovered by an observer belong in this feed too, or stay
   part of the map read.
 - Whether known-force markers should ever be automatically retired, or only ever fade in the client.
 - What an AI player does with a report feed.

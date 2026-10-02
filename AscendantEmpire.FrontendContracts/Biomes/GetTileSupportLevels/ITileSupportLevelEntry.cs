@@ -1,4 +1,4 @@
-using AscendantEmpire.Domain.Enums.Resources;
+using AscendantEmpire.Domain.Enums.Maps;
 
 namespace AscendantEmpire.FrontendContracts.Biomes.GetTileSupportLevels;
 

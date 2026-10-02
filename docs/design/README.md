@@ -17,13 +17,13 @@ is settled, some of it is still a working sketch with open questions called out 
 | [design-principles.md](design-principles.md) | The guiding philosophy ("fun over accuracy"). |
 | [starting-requirements.md](starting-requirements.md) | The catalogue content a database needs before a game can be created: the settler and scout tags, components and templates. |
 | [turn-structure.md](turn-structure.md) | The parallel "turn-based" model, rosters, and how battle rounds interleave with campaign turns. |
-| [production-and-assets.md](production-and-assets.md) | Assets, Material Classes, Material Preferences, luxury goods, and resources. |
+| [production-and-assets.md](production-and-assets.md) | Assets, Material Classes, Material Preferences, luxury goods, and where Assets come from. |
 | [units/military-organisation.md](units/military-organisation.md) | Ranks and organisation hierarchies, the officer economy, and how Units and Commands are sized and led. Supersedes the former `units-and-formations.md`. |
 | [units/military-organisation-implementation-notes.md](units/military-organisation-implementation-notes.md) | The implementation notes and outstanding gaps behind the organisation model. |
 | [units/unit-support-and-supply.md](units/unit-support-and-supply.md) | Supply chains and the four support types: fuel, ammunition, food, and medical. |
 | [units/combat.md](units/combat.md) | How combat resolves between units. |
 | [units/force-context-action-toolbar.md](units/force-context-action-toolbar.md) | The context action toolbar: how the backend decides what a selected Force can do, and how the frontend renders it. |
-| [campaign-map/](campaign-map/README.md) | The campaign map, split by topic: tile geography and biome, resource depletion, replenishment, food yield, the support indicator, resource discovery, vision (sight & detection), and infrastructure. |
+| [campaign-map/](campaign-map/README.md) | The campaign map, split by topic: tile geography and biome, depletion of a biome's yields, replenishment, food yield, the support indicator, MapResources and their discovery, vision (sight & detection), and infrastructure. |
 | [intelligence-and-sightings.md](intelligence-and-sightings.md) | What a player learns while they are not looking: witnesses, tracks, fidelity, the report feed, and last-known-position intel. |
 | [battlefield-maps.md](battlefield-maps.md) | How battlefield maps are generated, fortifications, battle flow, objectives, and manoeuvres. |
 | [units/unit-movement.md](units/unit-movement.md) | The source of truth for unit movement: campaign stepping, tile costs, carry and replenishment, and battle movement. |
@@ -56,7 +56,11 @@ The unit design system — how a unit template is assembled from components — 
 A few terms recur throughout these documents:
 
 - **Empire** — a player (human or AI).
-- **Asset** — anything collectable or manufacturable in the game, excluding Units.
+- **Asset** — anything collectable or manufacturable in the game, excluding Units. The catalogue is
+  described in [assets-data-model.md](../assets-data-model.md).
+- **Asset Bank** — where an empire's Assets are held, and what a cost is paid out of.
+- **MapResource** — the extractable thing standing on a campaign tile (a berry patch, a herd of deer,
+  a coal seam). Extracting one *yields* Assets; the two are never the same word.
 - **Material Class** — a generic category of asset (e.g. `CONSTRUCTION_STONE`, `SWORD_MELEE`) that
   concrete assets belong to.
 - **Unit** — one fielded body of soldiers with the same equipment, training and nationality, built from

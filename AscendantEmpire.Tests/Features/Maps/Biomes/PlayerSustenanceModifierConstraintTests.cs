@@ -4,7 +4,6 @@ using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Games;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Modifiers;
-using AscendantEmpire.Domain.Enums.Resources;
 
 using Microsoft.EntityFrameworkCore;
 

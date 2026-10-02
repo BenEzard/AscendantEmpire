@@ -18,7 +18,7 @@ Work begins in `MapGenerationPlay` (a standalone console prototype) and migrates
 Yes. Geography (heightmap → Flat/Hilly/Mountainous/Water) is the foundation everything else depends on. Biomes require a climate simulation (temperature + moisture) which is a second pass over the same noise seed. They are implemented as separate sub-steps within the same generator.
 
 ### Do temperature and moisture need to go into the existing Biome tables?
-No. Temperature and moisture are *generation inputs*, not game properties. The existing `map.CampaignBiomes` table stores game-mechanics data (movement cost, resources, etc.) and should not be changed. The Whittaker classification lookup (temperature × moisture → BiomeType) lives entirely inside the generator code.
+No. Temperature and moisture are *generation inputs*, not game properties. The existing `map.CampaignBiomes` table stores game-mechanics data (movement cost, assets, etc.) and should not be changed. The Whittaker classification lookup (temperature × moisture → BiomeType) lives entirely inside the generator code.
 
 ### BattleMaps on-demand from the seed — where are seeds stored?
 - The **master seed** is stored in `PropertiesJson` on the `CampaignMapGalleryIndex` record (written back after generation so the map can always be reproduced).

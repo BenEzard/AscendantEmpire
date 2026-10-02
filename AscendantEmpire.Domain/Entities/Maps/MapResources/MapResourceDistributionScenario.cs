@@ -31,7 +31,7 @@ public class MapResourceDistributionScenario
     public string? DisplayName { get; set; }
 
     /// <summary>
-    /// The starting amount of each Resource.
+    /// The starting amount of each Asset.
     /// </summary>
     public ICollection<MapResourceDistributionScenarioAmount> Amounts { get; set; } = [];
 

@@ -407,7 +407,7 @@ beat four rows on the hottest path.
 ### Column changes — `unitdesigns.CompiledUnitTemplate`
 
 Supply cannot be reckoned without the template saying what the Unit *needs*, and the snapshot carries none of it
-today: `FuelResourceId int?`, `AmmunitionResourceId int?`, `FoodResourceId int?`, `SupplyRadius int`,
+today: `FuelAssetId int?`, `AmmunitionAssetId int?`, `FoodAssetId int?`, `SupplyRadius int`,
 `LandCarryingCapacity int`, `AirCarryingCapacity int`. That last pair also closes the design's open TODO about
 Land and Sea Units crossing Water. This is compile-time work in the Unit Designer, so it lands under the Unit
 Design component (`UD`), not `TM`.
@@ -465,7 +465,7 @@ facing a real defensive modifier. All three are today an order with no resulting
 |---|---|
 | `GET /military/forces` | The roster: every Unit and Command, paged, with template, strength, tile, stance, supply, veterancy and current order. Filterable by domain, template, supply state and "has orders". Each row carries its tile so the client can jump the map to it. |
 | `GET /military/summary` | Totals: Forces by domain, total soldiers, officers held vs capped per rank, Forces unsupplied, Forces idle. Feeds the Military Advisor landing page. |
-| `GET /military/upkeep` | What the standing army costs per turn, by resource. |
+| `GET /military/upkeep` | What the standing army costs per turn, by asset. |
 
 No new tables. It does need covering indexes — `units.UnitInstances (GameId, PlayerId)` and the equivalent on
 `units.Commands` — since every query here is player-scoped and the existing indexes are order-shaped.

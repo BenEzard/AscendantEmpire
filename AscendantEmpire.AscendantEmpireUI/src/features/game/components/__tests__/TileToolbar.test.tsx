@@ -19,7 +19,7 @@ describe("TileToolbar", () => {
     expect(toolbar.querySelector(".tile-toolbar__terrain")?.textContent).toBe("Grassland, Hills");
   });
 
-  /** The bar shows two figures, never one per resource: everything the player can eat added up under the apple, and fodder — which feeds animals — beside it. */
+  /** The bar shows two figures, never one per asset: everything the player can eat added up under the apple, and fodder — which feeds animals — beside it. */
   it("adds the player's own food into one total and keeps fodder beside it", () => {
     render(
       <TileToolbar
@@ -40,14 +40,14 @@ describe("TileToolbar", () => {
     expect(screen.getByLabelText("Sustenance 120: Fish (120)")).toBeInTheDocument();
   });
 
-  /** Summed before it is formatted, so a tile with several fractional resources isn't reported as having less food than it holds. */
+  /** Summed before it is formatted, so a tile with several fractional assets isn't reported as having less food than it holds. */
   it("sums the raw amounts rather than the rounded ones", () => {
     render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: true, forage: 0.9, hunt: 0.9, fish: 0.9, fodder: null, supportLevel: null } }} />);
 
     expect(screen.getByLabelText("Sustenance 2: Forage (0) + Hunt (0) + Fish (0)")).toBeInTheDocument();
   });
 
-  /** Nothing the player can eat means no apple at all, rather than an apple showing 0 — the tile has none of those resources, it isn't stripped of them. */
+  /** Nothing the player can eat means no apple at all, rather than an apple showing 0 — the tile has none of those assets, it isn't stripped of them. */
   it("shows no apple on a tile with only fodder", () => {
     render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Desert, Flat", sustenance: { isObserved: true, forage: null, hunt: null, fish: null, fodder: 40, supportLevel: null } }} />);
 
@@ -65,7 +65,7 @@ describe("TileToolbar", () => {
   });
 
   /** Hovering the apple is the only place the individual amounts are shown, so this pins the sum the tooltip spells out and the order it lists them in. */
-  it("names each resource behind the total in the apple's tooltip when it is hovered", async () => {
+  it("names each asset behind the total in the apple's tooltip when it is hovered", async () => {
     render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: true, forage: 400, hunt: 12, fish: null, fodder: null, supportLevel: null } }} />);
 
     fireEvent.mouseEnter(screen.getByLabelText("Sustenance 412: Forage (400) + Hunt (12)").querySelector(".tile-toolbar__sustenance-stack")!);
@@ -73,7 +73,7 @@ describe("TileToolbar", () => {
     expect(await screen.findByRole("tooltip")).toHaveTextContent("Forage (400) + Hunt (12)");
   });
 
-  /** Fodder has nothing to break down, so it keeps the plain name-and-amount tooltip every resource used to have. */
+  /** Fodder has nothing to break down, so it keeps the plain name-and-amount tooltip every asset used to have. */
   it("names fodder and its amount in a tooltip when it is hovered", async () => {
     render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: true, forage: null, hunt: null, fish: null, fodder: 40, supportLevel: null } }} />);
 

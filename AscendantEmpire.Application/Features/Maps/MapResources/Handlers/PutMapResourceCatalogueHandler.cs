@@ -79,15 +79,15 @@ internal class PutMapResourceCatalogueHandler(
                 errors.Add($"{type.Code}: there is no category '{type.MapResourceCategoryCode}'.");
             }
 
-            HashSet<int> resourceIds = [.. catalogue.Types.SelectMany(ReferencedResourceIds)];
-            HashSet<int> knownResourceIds = [.. await context.Resources
-                .Where(r => resourceIds.Contains(r.Id))
+            HashSet<int> assetIds = [.. catalogue.Types.SelectMany(ReferencedAssetIds)];
+            HashSet<int> knownAssetIds = [.. await context.Assets
+                .Where(r => assetIds.Contains(r.Id))
                 .Select(r => r.Id)
                 .ToListAsync(cancellationToken)];
 
-            foreach (int missing in resourceIds.Except(knownResourceIds).Order())
+            foreach (int missing in assetIds.Except(knownAssetIds).Order())
             {
-                errors.Add($"There is no Resource {missing}.");
+                errors.Add($"There is no Asset {missing}.");
             }
 
             if (errors.Count != 0)
@@ -197,13 +197,13 @@ internal class PutMapResourceCatalogueHandler(
     }
 
     /// <summary>
-    /// Every Resource a type names: in its yields, its scenarios' amounts, and its layers.
+    /// Every Asset a type names: in its yields, its scenarios' amounts, and its layers.
     /// </summary>
-    private static IEnumerable<int> ReferencedResourceIds(IAddOrUpdateMapResourceTypeDto type)
+    private static IEnumerable<int> ReferencedAssetIds(IAddOrUpdateMapResourceTypeDto type)
     {
-        return type.Yields.Select(y => y.ResourceId)
-            .Concat(type.DistributionScenarios.SelectMany(s => s.Amounts).Select(a => a.ResourceId))
-            .Concat(type.Layers.Select(l => l.ResourceId));
+        return type.Yields.Select(y => y.AssetId)
+            .Concat(type.DistributionScenarios.SelectMany(s => s.Amounts).Select(a => a.AssetId))
+            .Concat(type.Layers.Select(l => l.AssetId));
     }
 
     private static ServiceResultBase Fail(IEnumerable<string> errors)

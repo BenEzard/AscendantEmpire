@@ -5,7 +5,7 @@ using AscendantEmpire.Domain.Entities.Maps.BattleMaps;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Maps.MapResources;
 using AscendantEmpire.Domain.Entities.Military;
-using AscendantEmpire.Domain.Entities.Resources;
+using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.Structures;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.Turns;
@@ -91,7 +91,7 @@ public class AscendantEmpireContext : DbContext
     public DbSet<MapResourceType> MapResourceTypes { get; set; }
 
     /// <summary>
-    /// The Resources one unit of a MapResourceType gives when extracted.
+    /// The Assets one unit of a MapResourceType gives when extracted.
     /// </summary>
     public DbSet<MapResourceTypeYield> MapResourceTypeYields { get; set; }
 
@@ -106,7 +106,7 @@ public class AscendantEmpireContext : DbContext
     public DbSet<MapResourceDistributionScenario> MapResourceDistributionScenarios { get; set; }
 
     /// <summary>
-    /// The starting amount of each Resource in a Distribution scenario.
+    /// The starting amount of each Asset in a Distribution scenario.
     /// </summary>
     public DbSet<MapResourceDistributionScenarioAmount> MapResourceDistributionScenarioAmounts { get; set; }
 
@@ -164,7 +164,7 @@ public class AscendantEmpireContext : DbContext
     public DbSet<MapResourceInstance> MapResourceInstances { get; set; }
 
     /// <summary>
-    /// Each Distribution instance's own amount of each of its Resources.
+    /// Each Distribution instance's own amount of each of its Assets.
     /// </summary>
     public DbSet<MapResourceInstanceAmount> MapResourceInstanceAmounts { get; set; }
 
@@ -189,7 +189,7 @@ public class AscendantEmpireContext : DbContext
     public DbSet<PlayerMapResourceModifier> PlayerMapResourceModifiers { get; set; }
 
     /// <summary>
-    /// The per-Player switches turning discovery, a yielded Resource or a layer survey on or off. An off always wins.
+    /// The per-Player switches turning discovery, a yielded Asset or a layer survey on or off. An off always wins.
     /// </summary>
     public DbSet<PlayerMapResourceSwitch> PlayerMapResourceSwitches { get; set; }
 
@@ -239,21 +239,21 @@ public class AscendantEmpireContext : DbContext
     public DbSet<UserPermission> UserPermissions { get; set; }
     #endregion
 
-    #region Resources Schema
-    public DbSet<ResourceMetaCategory> ResourceMetaCategories { get; set; }
-    public DbSet<ResourceCategory> ResourceCategories { get; set; }
-    public DbSet<ResourceGroup> ResourceGroups { get; set; }
-    public DbSet<Resource> Resources { get; set; }
+    #region Assets Schema
+    public DbSet<AssetMetaCategory> AssetMetaCategories { get; set; }
+    public DbSet<AssetCategory> AssetCategories { get; set; }
+    public DbSet<AssetGroup> AssetGroups { get; set; }
+    public DbSet<Asset> Assets { get; set; }
 
     /// <summary>
-    /// Which ResourceMetaCategories each Player has unlocked, and so which icons their Resources toolbar group shows.
+    /// Which AssetMetaCategories each Player has unlocked, and so which icons their Assets toolbar group shows.
     /// </summary>
-    public DbSet<PlayerUnlockedResourceMetaCategory> PlayerUnlockedResourceMetaCategories { get; set; }
+    public DbSet<PlayerUnlockedAssetMetaCategory> PlayerUnlockedAssetMetaCategories { get; set; }
 
     /// <summary>
-    /// Which Resources each Player has unlocked. The categories and groups between are derived from these rather than unlocked in their own right.
+    /// Which Assets each Player has unlocked. The categories and groups between are derived from these rather than unlocked in their own right.
     /// </summary>
-    public DbSet<PlayerUnlockedResource> PlayerUnlockedResources { get; set; }
+    public DbSet<PlayerUnlockedAsset> PlayerUnlockedAssets { get; set; }
     #endregion
 
     #region Turn Schema
@@ -423,7 +423,7 @@ public class AscendantEmpireContext : DbContext
 
         SetDecimalPrecision(modelBuilder, 18, 3);
 
-        ConfigureResourcesSchema(modelBuilder);
+        ConfigureAssetsSchema(modelBuilder);
 
         ConfigureBattleSchema(modelBuilder);
 
@@ -448,140 +448,140 @@ public class AscendantEmpireContext : DbContext
         ConfigureMilitarySchema(modelBuilder);
     }
 
-    private static void ConfigureResourcesSchema(ModelBuilder modelBuilder)
+    private static void ConfigureAssetsSchema(ModelBuilder modelBuilder)
     {
-        const string schema = "resources";
+        const string schema = "assets";
 
 
-        // Code is the match key every resource upsert works from, so it is length-capped and uniquely indexed at all four levels. Without the unique index
+        // Code is the match key every asset upsert works from, so it is length-capped and uniquely indexed at all four levels. Without the unique index
         // nothing stops two rows sharing a code, and the upsert would then silently update whichever the dictionary happened to keep.
-        modelBuilder.Entity<ResourceMetaCategory>(entity =>
+        modelBuilder.Entity<AssetMetaCategory>(entity =>
         {
-            entity.ToTable("ResourceMetaCategory", schema);
+            entity.ToTable("AssetMetaCategory", schema);
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.Code).HasMaxLength(ResourceMetaCategory.MAX_CODE_LENGTH).IsRequired();
-            entity.Property(x => x.DisplayName).HasMaxLength(ResourceMetaCategory.MAX_DISPLAY_NAME_LENGTH).IsRequired();
-            entity.Property(x => x.IconPath).HasMaxLength(ResourceMetaCategory.MAX_ICON_PATH_LENGTH);
+            entity.Property(x => x.Code).HasMaxLength(AssetMetaCategory.MAX_CODE_LENGTH).IsRequired();
+            entity.Property(x => x.DisplayName).HasMaxLength(AssetMetaCategory.MAX_DISPLAY_NAME_LENGTH).IsRequired();
+            entity.Property(x => x.IconPath).HasMaxLength(AssetMetaCategory.MAX_ICON_PATH_LENGTH);
 
             entity.HasIndex(x => x.Code).IsUnique();
             entity.HasIndex(x => x.DisplayName).IsUnique();
         });
 
-        modelBuilder.Entity<ResourceCategory>(entity =>
+        modelBuilder.Entity<AssetCategory>(entity =>
         {
-            entity.ToTable("ResourceCategory", schema);
+            entity.ToTable("AssetCategory", schema);
             entity.HasKey(x => x.Id);
-            entity.Property(x => x.Code).HasMaxLength(ResourceCategory.MAX_CODE_LENGTH).IsRequired();
-            entity.Property(x => x.DisplayName).HasMaxLength(ResourceCategory.MAX_DISPLAY_NAME_LENGTH).IsRequired();
+            entity.Property(x => x.Code).HasMaxLength(AssetCategory.MAX_CODE_LENGTH).IsRequired();
+            entity.Property(x => x.DisplayName).HasMaxLength(AssetCategory.MAX_DISPLAY_NAME_LENGTH).IsRequired();
 
             entity.HasIndex(x => x.Code).IsUnique();
-            entity.HasIndex(x => new { x.ResourceMetaCategoryId, x.DisplayName }).IsUnique();
+            entity.HasIndex(x => new { x.AssetMetaCategoryId, x.DisplayName }).IsUnique();
 
             entity.HasOne(x => x.MetaCategory)
                 .WithMany(x => x.Categories)
-                .HasForeignKey(x => x.ResourceMetaCategoryId)
+                .HasForeignKey(x => x.AssetMetaCategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // NEW: 1 -> many ResourceGroups
-            entity.HasMany(x => x.ResourceGroups)
+            // NEW: 1 -> many AssetGroups
+            entity.HasMany(x => x.AssetGroups)
                 .WithOne(x => x.Category)
-                .HasForeignKey(x => x.ResourceCategoryId)
+                .HasForeignKey(x => x.AssetCategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        modelBuilder.Entity<ResourceGroup>(entity =>
+        modelBuilder.Entity<AssetGroup>(entity =>
         {
-            entity.ToTable("ResourceGroup", schema);
+            entity.ToTable("AssetGroup", schema);
             entity.HasKey(x => x.Id);
 
-            entity.Property(x => x.Code).HasMaxLength(ResourceGroup.MAX_CODE_LENGTH).IsRequired();
-            entity.Property(x => x.DisplayName).HasMaxLength(ResourceGroup.MAX_DISPLAY_NAME_LENGTH).IsRequired();
+            entity.Property(x => x.Code).HasMaxLength(AssetGroup.MAX_CODE_LENGTH).IsRequired();
+            entity.Property(x => x.DisplayName).HasMaxLength(AssetGroup.MAX_DISPLAY_NAME_LENGTH).IsRequired();
 
             entity.HasIndex(x => x.Code).IsUnique();
-            entity.HasIndex(x => new { x.ResourceCategoryId, x.DisplayName }).IsUnique();
+            entity.HasIndex(x => new { x.AssetCategoryId, x.DisplayName }).IsUnique();
 
             // GroupOrder is per-category
-            entity.HasIndex(x => new { x.ResourceCategoryId, x.SortOrder }).IsUnique();
+            entity.HasIndex(x => new { x.AssetCategoryId, x.SortOrder }).IsUnique();
 
             entity.HasOne(x => x.Category)
-                .WithMany(x => x.ResourceGroups)
-                .HasForeignKey(x => x.ResourceCategoryId)
+                .WithMany(x => x.AssetGroups)
+                .HasForeignKey(x => x.AssetCategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        modelBuilder.Entity<Resource>(entity =>
+        modelBuilder.Entity<Asset>(entity =>
         {
-            // Enforce that exactly one of ResourceGroupId / ResourceCategoryId is non-null.
-            entity.ToTable("Resource", schema, t => t.HasCheckConstraint(
-                "CK_Resource_GroupOrCategoryXor",
-                "([ResourceGroupId] IS NOT NULL AND [ResourceCategoryId] IS NULL) OR ([ResourceGroupId] IS NULL AND [ResourceCategoryId] IS NOT NULL)"));
+            // Enforce that exactly one of AssetGroupId / AssetCategoryId is non-null.
+            entity.ToTable("Asset", schema, t => t.HasCheckConstraint(
+                "CK_Asset_GroupOrCategoryXor",
+                "([AssetGroupId] IS NOT NULL AND [AssetCategoryId] IS NULL) OR ([AssetGroupId] IS NULL AND [AssetCategoryId] IS NOT NULL)"));
 
             entity.HasKey(x => x.Id);
 
-            entity.Property(x => x.Code).HasMaxLength(Resource.MAX_CODE_LENGTH).IsRequired();
-            entity.Property(x => x.DisplayName).HasMaxLength(Resource.MAX_DISPLAY_NAME_LENGTH).IsRequired();
+            entity.Property(x => x.Code).HasMaxLength(Asset.MAX_CODE_LENGTH).IsRequired();
+            entity.Property(x => x.DisplayName).HasMaxLength(Asset.MAX_DISPLAY_NAME_LENGTH).IsRequired();
 
             entity.HasIndex(x => x.Code).IsUnique();
             entity.HasIndex(x => x.DisplayName);
 
-            // Grouped path: resource belongs to a ResourceGroup.
+            // Grouped path: asset belongs to an AssetGroup.
             entity.HasOne(x => x.Group)
-                .WithMany(x => x.Resources)
-                .HasForeignKey(x => x.ResourceGroupId)
+                .WithMany(x => x.Assets)
+                .HasForeignKey(x => x.AssetGroupId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            // Standalone path: resource belongs directly to a ResourceCategory.
+            // Standalone path: asset belongs directly to an AssetCategory.
             entity.HasOne(x => x.Category)
-                .WithMany(x => x.Resources)
-                .HasForeignKey(x => x.ResourceCategoryId)
+                .WithMany(x => x.Assets)
+                .HasForeignKey(x => x.AssetCategoryId)
                 .OnDelete(DeleteBehavior.NoAction);
         });
 
         // --- Per-player unlock state -------------------------------------------------
         // These live here with the catalogue they gate rather than in the game schema, following PlayerUnlockedComponent, which sits with the unit-design
-        // catalogue. ResourceCategory and ResourceGroup deliberately have no equivalent: their visibility is derived from the Resources beneath them.
-        modelBuilder.Entity<PlayerUnlockedResourceMetaCategory>(entity =>
+        // catalogue. AssetCategory and AssetGroup deliberately have no equivalent: their visibility is derived from the Assets beneath them.
+        modelBuilder.Entity<PlayerUnlockedAssetMetaCategory>(entity =>
         {
-            entity.ToTable("PlayerUnlockedResourceMetaCategory", schema);
+            entity.ToTable("PlayerUnlockedAssetMetaCategory", schema);
 
-            entity.HasKey(e => new { e.PlayerId, e.ResourceMetaCategoryId });
+            entity.HasKey(e => new { e.PlayerId, e.AssetMetaCategoryId });
 
             entity.HasOne(e => e.Player)
                 .WithMany()
                 .HasForeignKey(e => e.PlayerId)
                 .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_PlayerUnlockedResourceMetaCategory_Player_PlayerId");
+                .HasConstraintName("FK_PlayerUnlockedAssetMetaCategory_Player_PlayerId");
 
             entity.HasOne(e => e.MetaCategory)
                 .WithMany()
-                .HasForeignKey(e => e.ResourceMetaCategoryId)
+                .HasForeignKey(e => e.AssetMetaCategoryId)
                 .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_PlayerUnlockedResourceMetaCategory_ResourceMetaCategory_ResourceMetaCategoryId");
+                .HasConstraintName("FK_PlayerUnlockedAssetMetaCategory_AssetMetaCategory_AssetMetaCategoryId");
 
-            entity.HasIndex(e => e.ResourceMetaCategoryId)
-                .HasDatabaseName("IX_PlayerUnlockedResourceMetaCategory_ResourceMetaCategory");
+            entity.HasIndex(e => e.AssetMetaCategoryId)
+                .HasDatabaseName("IX_PlayerUnlockedAssetMetaCategory_AssetMetaCategory");
         });
 
-        modelBuilder.Entity<PlayerUnlockedResource>(entity =>
+        modelBuilder.Entity<PlayerUnlockedAsset>(entity =>
         {
-            entity.ToTable("PlayerUnlockedResource", schema);
+            entity.ToTable("PlayerUnlockedAsset", schema);
 
-            entity.HasKey(e => new { e.PlayerId, e.ResourceId });
+            entity.HasKey(e => new { e.PlayerId, e.AssetId });
 
             entity.HasOne(e => e.Player)
                 .WithMany()
                 .HasForeignKey(e => e.PlayerId)
                 .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_PlayerUnlockedResource_Player_PlayerId");
+                .HasConstraintName("FK_PlayerUnlockedAsset_Player_PlayerId");
 
-            entity.HasOne(e => e.Resource)
+            entity.HasOne(e => e.Asset)
                 .WithMany()
-                .HasForeignKey(e => e.ResourceId)
+                .HasForeignKey(e => e.AssetId)
                 .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_PlayerUnlockedResource_Resource_ResourceId");
+                .HasConstraintName("FK_PlayerUnlockedAsset_Asset_AssetId");
 
-            entity.HasIndex(e => e.ResourceId)
-                .HasDatabaseName("IX_PlayerUnlockedResource_Resource");
+            entity.HasIndex(e => e.AssetId)
+                .HasDatabaseName("IX_PlayerUnlockedAsset_Asset");
         });
     }
 
@@ -981,7 +981,7 @@ public class AscendantEmpireContext : DbContext
         // One modifier to a Player's Forage, Hunt, Fish or Fodder value. The effective value is derived from these and the biome's base, never stored - see the entity's remarks.
         modelBuilder.Entity<PlayerSustenanceModifier>(entity =>
         {
-            // A modifier with neither part would change nothing, and would still take up the source's one row for that resource and biome.
+            // A modifier with neither part would change nothing, and would still take up the source's one row for that asset and biome.
             entity.ToTable("PlayerSustenanceModifier", schema, table => table.HasCheckConstraint(
                 "CK_PlayerSustenanceModifier_HasValue",
                 "[FlatValue] <> 0 OR [PercentValue] <> 0"));
@@ -1451,14 +1451,14 @@ public class AscendantEmpireContext : DbContext
         });
 
         // --- MapResourceInstanceAmount -------------------------------------------------
-        // A Distribution instance's own amount of one Resource.
+        // A Distribution instance's own amount of one Asset.
         modelBuilder.Entity<MapResourceInstanceAmount>(entity =>
         {
             entity.ToTable("MapResourceInstanceAmount", schema, table => table.HasCheckConstraint(
                 "CK_MapResourceInstanceAmount_AmountNonNegative",
                 "[Amount] >= 0"));
 
-            entity.HasKey(e => new { e.MapResourceInstanceId, e.ResourceId });
+            entity.HasKey(e => new { e.MapResourceInstanceId, e.AssetId });
 
             entity.HasOne<MapResourceInstance>()
                 .WithMany()
@@ -1472,11 +1472,11 @@ public class AscendantEmpireContext : DbContext
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_MapResourceInstanceAmount_GameIndex_GameId");
 
-            entity.HasOne<Resource>()
+            entity.HasOne<Asset>()
                 .WithMany()
-                .HasForeignKey(e => e.ResourceId)
+                .HasForeignKey(e => e.AssetId)
                 .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_MapResourceInstanceAmount_Resource_ResourceId");
+                .HasConstraintName("FK_MapResourceInstanceAmount_Asset_AssetId");
 
             // The game delete's filter.
             entity.HasIndex(e => e.GameId)
@@ -1493,10 +1493,10 @@ public class AscendantEmpireContext : DbContext
                     "CK_MapResourceInstanceLayer_LayerNumberPositive",
                     "[LayerNumber] >= 1");
 
-                // An empty layer holds nothing; a layer with a Resource can be worked down to 0 but never below.
+                // An empty layer holds nothing; a layer with an Asset can be worked down to 0 but never below.
                 table.HasCheckConstraint(
                     "CK_MapResourceInstanceLayer_Quantity",
-                    "[Quantity] >= 0 AND ([ResourceId] IS NOT NULL OR [Quantity] = 0)");
+                    "[Quantity] >= 0 AND ([AssetId] IS NOT NULL OR [Quantity] = 0)");
             });
 
             entity.HasKey(e => new { e.MapResourceInstanceId, e.LayerNumber });
@@ -1513,13 +1513,13 @@ public class AscendantEmpireContext : DbContext
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_MapResourceInstanceLayer_GameIndex_GameId");
 
-            // Optional: an empty layer has no Resource.
-            entity.HasOne<Resource>()
+            // Optional: an empty layer has no Asset.
+            entity.HasOne<Asset>()
                 .WithMany()
-                .HasForeignKey(e => e.ResourceId)
+                .HasForeignKey(e => e.AssetId)
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_MapResourceInstanceLayer_Resource_ResourceId");
+                .HasConstraintName("FK_MapResourceInstanceLayer_Asset_AssetId");
 
             // The game delete's filter.
             entity.HasIndex(e => e.GameId)
@@ -1658,15 +1658,15 @@ public class AscendantEmpireContext : DbContext
         });
 
         // --- PlayerMapResourceSwitch ---------------------------------------------------
-        // One source switching discovery, a yielded Resource or a layer survey on or off for a Player. An off always wins over an on; see the entity's remarks.
+        // One source switching discovery, a yielded Asset or a layer survey on or off for a Player. An off always wins over an on; see the entity's remarks.
         modelBuilder.Entity<PlayerMapResourceSwitch>(entity =>
         {
-            // Each kind names exactly what it switches: a yield switch names its Resource, a survey switch its layer, and a discovery switch neither.
+            // Each kind names exactly what it switches: a yield switch names its Asset, a survey switch its layer, and a discovery switch neither.
             entity.ToTable("PlayerMapResourceSwitch", schema, table => table.HasCheckConstraint(
                 "CK_PlayerMapResourceSwitch_KindTarget",
-                $"([Kind] = {(int)MapResourceSwitchKind.Discovery} AND [ResourceId] IS NULL AND [LayerNumber] IS NULL)"
-                + $" OR ([Kind] = {(int)MapResourceSwitchKind.YieldResource} AND [ResourceId] IS NOT NULL AND [LayerNumber] IS NULL)"
-                + $" OR ([Kind] = {(int)MapResourceSwitchKind.SurveyLayer} AND [ResourceId] IS NULL AND [LayerNumber] >= 1)"));
+                $"([Kind] = {(int)MapResourceSwitchKind.Discovery} AND [AssetId] IS NULL AND [LayerNumber] IS NULL)"
+                + $" OR ([Kind] = {(int)MapResourceSwitchKind.YieldAsset} AND [AssetId] IS NOT NULL AND [LayerNumber] IS NULL)"
+                + $" OR ([Kind] = {(int)MapResourceSwitchKind.SurveyLayer} AND [AssetId] IS NULL AND [LayerNumber] >= 1)"));
 
             entity.HasKey(e => e.Id);
 
@@ -1688,18 +1688,18 @@ public class AscendantEmpireContext : DbContext
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_PlayerMapResourceSwitch_MapResourceType_MapResourceTypeId");
 
-            entity.HasOne<Resource>()
+            entity.HasOne<Asset>()
                 .WithMany()
-                .HasForeignKey(e => e.ResourceId)
+                .HasForeignKey(e => e.AssetId)
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_PlayerMapResourceSwitch_Resource_ResourceId");
+                .HasConstraintName("FK_PlayerMapResourceSwitch_Asset_AssetId");
 
-            // A source sets one switch per thing switched. HasFilter(null) so the null Resource / Layer columns collide, as for the modifiers.
-            entity.HasIndex(e => new { e.PlayerId, e.SourceType, e.SourceId, e.Kind, e.MapResourceTypeId, e.ResourceId, e.LayerNumber })
+            // A source sets one switch per thing switched. HasFilter(null) so the null Asset / Layer columns collide, as for the modifiers.
+            entity.HasIndex(e => new { e.PlayerId, e.SourceType, e.SourceId, e.Kind, e.MapResourceTypeId, e.AssetId, e.LayerNumber })
                 .IsUnique()
                 .HasFilter(null)
-                .HasDatabaseName("UX_PlayerMapResourceSwitch_Player_Source_Kind_Type_Resource_Layer");
+                .HasDatabaseName("UX_PlayerMapResourceSwitch_Player_Source_Kind_Type_Asset_Layer");
 
             // The game delete's filter.
             entity.HasIndex(e => e.GameId)
@@ -1820,7 +1820,7 @@ public class AscendantEmpireContext : DbContext
     /// </summary>
     /// <remarks>
     /// A type owns its yields, habitats, scenarios and layers, so they are cascade-deleted with it and are written through its navigations. Everything outside that aggregate -
-    /// Resources, Biomes, Geographies, and every game row naming a type - is NoAction, so a type that any game still uses cannot be deleted.
+    /// Assets, Biomes, Geographies, and every game row naming a type - is NoAction, so a type that any game still uses cannot be deleted.
     /// </remarks>
     private static void ConfigureMapResourceCatalogue(ModelBuilder modelBuilder, string schema)
     {
@@ -1874,12 +1874,12 @@ public class AscendantEmpireContext : DbContext
         // --- MapResourceTypeYield ------------------------------------------------------
         modelBuilder.Entity<MapResourceTypeYield>(entity =>
         {
-            // One unit extracted always gives something of each Resource listed, or the Resource would not be listed.
+            // One unit extracted always gives something of each Asset listed, or the Asset would not be listed.
             entity.ToTable("MapResourceTypeYield", schema, table => table.HasCheckConstraint(
                 "CK_MapResourceTypeYield_AmountPositive",
                 "[AmountPerUnit] > 0"));
 
-            entity.HasKey(e => new { e.MapResourceTypeId, e.ResourceId });
+            entity.HasKey(e => new { e.MapResourceTypeId, e.AssetId });
 
             entity.HasOne(e => e.MapResourceType)
                 .WithMany(t => t.Yields)
@@ -1887,11 +1887,11 @@ public class AscendantEmpireContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK_MapResourceTypeYield_MapResourceType_MapResourceTypeId");
 
-            entity.HasOne<Resource>()
+            entity.HasOne<Asset>()
                 .WithMany()
-                .HasForeignKey(e => e.ResourceId)
+                .HasForeignKey(e => e.AssetId)
                 .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_MapResourceTypeYield_Resource_ResourceId");
+                .HasConstraintName("FK_MapResourceTypeYield_Asset_AssetId");
         });
 
         // --- MapResourceHabitat --------------------------------------------------------
@@ -1963,7 +1963,7 @@ public class AscendantEmpireContext : DbContext
                 "CK_MapResourceDistributionScenarioAmount_AmountPositive",
                 "[Amount] > 0"));
 
-            entity.HasKey(e => new { e.MapResourceDistributionScenarioId, e.ResourceId });
+            entity.HasKey(e => new { e.MapResourceDistributionScenarioId, e.AssetId });
 
             entity.HasOne(e => e.Scenario)
                 .WithMany(s => s.Amounts)
@@ -1971,11 +1971,11 @@ public class AscendantEmpireContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK_MapResourceDistributionScenarioAmount_MapResourceDistributionScenario_ScenarioId");
 
-            entity.HasOne<Resource>()
+            entity.HasOne<Asset>()
                 .WithMany()
-                .HasForeignKey(e => e.ResourceId)
+                .HasForeignKey(e => e.AssetId)
                 .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_MapResourceDistributionScenarioAmount_Resource_ResourceId");
+                .HasConstraintName("FK_MapResourceDistributionScenarioAmount_Asset_AssetId");
         });
 
         // --- MapResourceDistributionScenarioBiomeWeight --------------------------------
@@ -2027,11 +2027,11 @@ public class AscendantEmpireContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("FK_MapResourceTypeLayer_MapResourceType_MapResourceTypeId");
 
-            entity.HasOne<Resource>()
+            entity.HasOne<Asset>()
                 .WithMany()
-                .HasForeignKey(e => e.ResourceId)
+                .HasForeignKey(e => e.AssetId)
                 .OnDelete(DeleteBehavior.NoAction)
-                .HasConstraintName("FK_MapResourceTypeLayer_Resource_ResourceId");
+                .HasConstraintName("FK_MapResourceTypeLayer_Asset_AssetId");
         });
     }
 

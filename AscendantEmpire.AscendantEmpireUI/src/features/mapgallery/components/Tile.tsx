@@ -76,8 +76,8 @@ const Tile = React.memo(function Tile({
 
   // The hover title names the tile's MapResources after whatever the caller's title says.
   const baseTitle = getTitle?.(tile);
-  const resourceTitle = mapResources && mapResources.length > 0 ? `MapResources: ${mapResources.map((m) => m.name).join(", ")}` : undefined;
-  const title = [baseTitle, resourceTitle].filter(Boolean).join("\n") || undefined;
+  const assetTitle = mapResources && mapResources.length > 0 ? `MapResources: ${mapResources.map((m) => m.name).join(", ")}` : undefined;
+  const title = [baseTitle, assetTitle].filter(Boolean).join("\n") || undefined;
 
   return (
     <div
