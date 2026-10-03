@@ -121,7 +121,7 @@ widened to `bigint` and rescaled to thousandths by `20260613204637_ScaleBiomeBas
 | `GameId` | `int` | The Game. Implied by the Player, but carried so the game delete can purge these rows directly. |
 | `PlayerId` | `int` | The Player whose yield is modified. |
 | `SourceType` | `int` (`ModifierSourceType`: Technology, Specialist, Department) | What kind of thing granted the modifier, so every row it granted can be removed together when it is lost. |
-| `SourceId` | `int` | The particular Technology, Specialist or Department. Not a foreign key — none of the three is modelled yet. |
+| `SourceId` | `int` | The particular Technology, Specialist or Department. Not a foreign key: it points at a different table per source type. Technology is modelled; Specialists and Departments are not. |
 | `Resource` | `int` (`SustenanceResource`) | Which of Forage, Hunt, Fish, Fodder is modified. |
 | `BiomeTypeId` | `int`, nullable (`BiomeType`) | The biome affected, or null for every biome. |
 | `FlatValue` | `bigint` | A flat amount added to the value. Negative for a penalty; `0` when the modifier has no flat part. |

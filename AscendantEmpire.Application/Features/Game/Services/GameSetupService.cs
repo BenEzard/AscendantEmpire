@@ -3,17 +3,20 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
 using AscendantEmpire.Application.Features.Military;
+using AscendantEmpire.Application.Features.Technologies.Services;
 using AscendantEmpire.Application.Features.Units.Services;
 using AscendantEmpire.BackendContracts.Turns.CreateCampaignTurnQueue;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Military;
 using AscendantEmpire.Domain.Entities.Assets;
+using AscendantEmpire.Domain.Entities.Technologies;
 using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums.Games;
 using AscendantEmpire.Domain.Enums.Maps;
+using AscendantEmpire.Domain.Enums.Technologies;
 using AscendantEmpire.Domain.Enums.Turns;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 
@@ -30,7 +33,9 @@ internal class GameSetupService(
     ILogger<GameSetupService> logger,
     IDbContextFactory<AscendantEmpireContext> dbFactory,
     ICampaignMapGalleryService campaignMapGalleryService,
-    IForceLifecycleWriter forceLifecycleWriter
+    IForceLifecycleWriter forceLifecycleWriter,
+    IEnumerable<ITechnologyRequirementGenerator> technologyRequirementGenerators,
+    IPlayerTechnologyAvailabilityService technologyAvailabilityService
 ) : IGameSetupService
 {
     public const int MIN_NUMBER_OF_PLAYERS = 2; // TODO: Make this configurable as AppSettings.
@@ -96,6 +101,40 @@ internal class GameSetupService(
         "RawMaterials.RawMaterials.Tallow"
     ];
 
+    /// <summary>
+    /// The <c>technology.Technology</c> codes every Player starts the game already having discovered.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// These are <b>seeded catalogue content</b>, like <see cref="StarterAssetCodes"/>: they come from <c>TechnologySeedData</c>, so a game set up before the
+    /// Technologies seed has run finds none of them and fails rather than starting a Player with a tech tree they can never enter.
+    /// </para>
+    /// <para>
+    /// Named explicitly rather than inferred from "has no prerequisites". The seeded tree has 51 technologies with no incoming edge, which is an artefact of
+    /// the source diagram rather than an intention - granting all of them would hand every Player most of the Stone age for nothing. These four are the roots
+    /// everything else descends from.
+    /// </para>
+    /// </remarks>
+    public static readonly string[] StarterTechnologyCodes =
+    [
+        "Foraging",
+        "Woodcutting",
+        "Quarrying",
+        "Wayfinding"
+    ];
+
+    /// <summary>
+    /// The technology settings a new game is created with.
+    /// </summary>
+    /// <remarks>
+    /// Defaults in code rather than fields on <see cref="SetupGameRequest"/>: no screen offers these yet, and a setting nobody can choose is better defaulted
+    /// in one visible place than threaded through a request, a validator and a form that all ignore it. Exposing them is a later change, and the only one that
+    /// has to happen before a randomised customisation mode could ever be selected.
+    /// </remarks>
+    private const int _DEFAULT_BASE_RESEARCH_POINTS = 100;
+    private const long _DEFAULT_TECHNOLOGY_SPEED_MULTIPLIER_PERCENT = 1_000;
+    private const long _DEFAULT_TECHNOLOGY_FUZZINESS_PERCENT = 0;
+
     /// <inheritdoc/>
     public async Task<ServiceResult<int>> SetupGameAsync(SetupGameRequest request, CancellationToken cancellationToken = default)
     {
@@ -127,6 +166,15 @@ internal class GameSetupService(
             // Seed each player's default military organisation config (officer rank ladders). Organisation
             // structures are created on demand when a player first customises a tag, so nothing is seeded here.
             await SeedPlayerMilitaryAsync(context, addedPlayers, cancellationToken);
+
+            // Each player's own technology requirements, their starting discoveries, and their research state. Done before the map so a missing technology
+            // catalogue fails setup early rather than after the expensive map generation.
+            ServiceResultBase technologyResult = await SeedPlayerTechnologyAsync(context, newGameIndex, addedPlayers, cancellationToken);
+
+            if (technologyResult.HasSucceeded == false)
+            {
+                return ServiceResult<int>.Fail(technologyResult.Errors);
+            }
 
             // Copy the 'global' view of the map gallery to the campaign map for this game.
             var generateCampaignMapResult = await GenerateCampaignMapAsync(context, newGameIndex, mapProperties.Id, cancellationToken);
@@ -332,6 +380,21 @@ internal class GameSetupService(
         context.GameIndex.Add(newGame);
         await context.SaveChangesAsync(cancellationToken);
 
+        // Unconditionally, in the same setup rather than on first read: a lazily created settings row would mean every reader coalescing to a hard-coded
+        // default, and two games created a week apart behaving differently with nothing in the data to explain why.
+        context.GameConfigurations.Add(new GameConfiguration
+        {
+            GameId = newGame.Id,
+            EmpireBaseResearchPoints = _DEFAULT_BASE_RESEARCH_POINTS,
+            TechnologySpeedMultiplierPercent = _DEFAULT_TECHNOLOGY_SPEED_MULTIPLIER_PERCENT,
+            TechnologyFuzzinessPercent = _DEFAULT_TECHNOLOGY_FUZZINESS_PERCENT,
+            TechnologyCustomisation = TechnologyCustomisation.Identical,
+            ResearchOverflowEnabled = false,
+            UnspentResearchPointsBehaviour = UnspentResearchPointsBehaviour.Lost
+        });
+
+        await context.SaveChangesAsync(cancellationToken);
+
         return newGame;
     }
 
@@ -395,6 +458,106 @@ internal class GameSetupService(
 
         context.PlayerOfficerRanks.AddRange(ranksToAdd);
         await context.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Generates every Player's technology requirements, grants their starting discoveries, and opens their research state.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A row is written for <b>every Player and every technology</b>, not just the reachable ones. That is what materialised per-Player requirements force:
+    /// <c>RandomisedEqual</c> has to balance each Player's totals against every other's, which can only be done with the whole set in hand. The consequence
+    /// is that the presence of a row means nothing - <c>Status</c> is the question.
+    /// </para>
+    /// <para>
+    /// Round 0 for the starting discoveries, matching the asset and component unlocks: these were granted at setup, before the first Round opened.
+    /// </para>
+    /// <para>
+    /// A missing technology catalogue fails setup loudly. A Player whose every technology is locked with no way in would otherwise be a silently unplayable
+    /// game. (The method is self-saving.)
+    /// </para>
+    /// </remarks>
+    private async Task<ServiceResultBase> SeedPlayerTechnologyAsync(
+        AscendantEmpireContext context,
+        GameIndex game,
+        IReadOnlyCollection<DomainPlayer> addedPlayers,
+        CancellationToken cancellationToken)
+    {
+        GameConfiguration configuration = await context.GameConfigurations.SingleAsync(c => c.GameId == game.Id, cancellationToken);
+
+        ITechnologyRequirementGenerator? generator = technologyRequirementGenerators
+            .SingleOrDefault(candidate => candidate.Customisation == configuration.TechnologyCustomisation);
+
+        if (generator is null)
+        {
+            return ServiceResultBase.Fail($"No technology requirement generator is registered for customisation '{configuration.TechnologyCustomisation}'.");
+        }
+
+        List<Technology> catalogue = await context.Technologies.ToListAsync(cancellationToken);
+
+        if (catalogue.Count == 0)
+        {
+            return ServiceResultBase.Fail(
+                "The technology catalogue is empty. A game cannot start without it - run the Technologies database seed from the Entity Setup Tool.");
+        }
+
+        Dictionary<string, int> starterIdsByCode = catalogue
+            .Where(technology => StarterTechnologyCodes.Contains(technology.Code))
+            .ToDictionary(technology => technology.Code, technology => technology.Id);
+
+        string[] missingStarterCodes = [.. StarterTechnologyCodes.Except(starterIdsByCode.Keys, StringComparer.OrdinalIgnoreCase)];
+
+        if (missingStarterCodes.Length > 0)
+        {
+            return ServiceResultBase.Fail(
+                $"Starter technolog(ies) not found in the catalogue: {string.Join(", ", missingStarterCodes)}. "
+                + "A game cannot start without them - run the Technologies database seed from the Entity Setup Tool.");
+        }
+
+        IReadOnlyCollection<PlayerTechnology> rows = generator.Generate(catalogue, addedPlayers, configuration);
+
+        HashSet<int> starterIds = [.. starterIdsByCode.Values];
+
+        foreach (PlayerTechnology row in rows.Where(row => starterIds.Contains(row.TechnologyId)))
+        {
+            // Discovered outright, with the buckets filled to their requirement so the totals are consistent with the status rather than a special case every
+            // reader has to know about. No acquisition round is stamped: a starting technology was never paid for.
+            row.Status = TechnologyStatus.Discovered;
+            row.DiscoveredOnRound = 0;
+            row.DirectedPoints = row.DirectedRequired ?? 0;
+            row.ExperiencePoints = row.ExperienceRequired ?? 0;
+            row.DiffusionPoints = row.DiffusionRequired ?? 0;
+        }
+
+        context.PlayerTechnologies.AddRange(rows);
+
+        context.PlayerResearchStates.AddRange(addedPlayers.Select(player => new PlayerResearchState
+        {
+            PlayerId = player.Id,
+            GameId = game.Id,
+            UnspentDirectedPoints = 0,
+            UnspentDiffusionPoints = 0
+        }));
+
+        await context.SaveChangesAsync(cancellationToken);
+
+        // Flips the starters' dependents from Locked to Available. Left to the one owner of that question rather than worked out here, so there is a single
+        // place it can be got wrong.
+        int reconciled = await technologyAvailabilityService.ReconcileGameAsync(context, game.Id, cancellationToken);
+
+        await context.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Seeded {RowCount} player technology row(s) for {PlayerCount} player(s) in game {GameId} using {Customisation} customisation, "
+            + "granting {StarterCount} starting technolog(ies) each; {ReconciledCount} row(s) became available.",
+            rows.Count,
+            addedPlayers.Count,
+            game.Id,
+            configuration.TechnologyCustomisation,
+            starterIds.Count,
+            reconciled);
+
+        return ServiceResultBase.Succeed();
     }
 
     /// <summary>

@@ -3,6 +3,8 @@ using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.Application.Features.Battles.Services;
 using AscendantEmpire.Application.Features.DatabaseSeeding.Executors;
 using AscendantEmpire.Application.Features.DatabaseSeeding.Steps;
+using AscendantEmpire.Application.Features.Technologies.Services;
+using AscendantEmpire.Domain.Enums.Games;
 using AscendantEmpire.Application.Features.Game.Executors;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Intelligence.Services;
@@ -209,6 +211,18 @@ public static class ApplicationStartup
         services.AddScoped<ISeedStep, UnitComponentSeedStep>();
         services.AddScoped<ISeedStep, StarterTemplateSeedStep>();
         services.AddScoped<ISeedStep, AssetSeedStep>();
+        services.AddScoped<ISeedStep, ExperienceTypeSeedStep>();
+        services.AddScoped<ISeedStep, TechnologySeedStep>();
+
+        // One technology requirement generator per customisation mode, so the selector finds something for every member of the enum and an unimplemented
+        // mode refuses by name rather than failing as "nothing registered". Implementing a mode means swapping its registration for a real generator.
+        services.AddScoped<ITechnologyRequirementGenerator, IdenticalTechnologyRequirementGenerator>();
+        services.AddScoped<ITechnologyRequirementGenerator>(
+            _ => new UnimplementedTechnologyRequirementGenerator(TechnologyCustomisation.RandomisedEqual));
+        services.AddScoped<ITechnologyRequirementGenerator>(
+            _ => new UnimplementedTechnologyRequirementGenerator(TechnologyCustomisation.FullyRandomised));
+
+        services.AddScoped<IPlayerTechnologyAvailabilityService, PlayerTechnologyAvailabilityService>();
 
         return services;
     }

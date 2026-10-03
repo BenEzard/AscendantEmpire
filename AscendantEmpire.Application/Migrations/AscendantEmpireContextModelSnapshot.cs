@@ -574,6 +574,34 @@ namespace AscendantEmpire.Application.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.GameConfiguration", b =>
+                {
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EmpireBaseResearchPoints")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("ResearchOverflowEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("TechnologyCustomisation")
+                        .HasColumnType("int");
+
+                    b.Property<long>("TechnologyFuzzinessPercent")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TechnologySpeedMultiplierPercent")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("UnspentResearchPointsBehaviour")
+                        .HasColumnType("int");
+
+                    b.HasKey("GameId");
+
+                    b.ToTable("GameConfiguration", "game");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.GameIndex", b =>
                 {
                     b.Property<int>("Id")
@@ -2505,6 +2533,438 @@ namespace AscendantEmpire.Application.Migrations
                         });
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.ExperienceType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("IconPath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ExperienceType_Code");
+
+                    b.HasIndex("DisplayName")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ExperienceType_DisplayName");
+
+                    b.HasIndex("SortOrder")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ExperienceType_SortOrder");
+
+                    b.ToTable("ExperienceType", "technology");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.PendingExperienceAccrual", b =>
+                {
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ExperienceTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Points")
+                        .HasColumnType("int");
+
+                    b.HasKey("PlayerId", "ExperienceTypeId");
+
+                    b.HasIndex("ExperienceTypeId")
+                        .HasDatabaseName("IX_PendingExperienceAccrual_ExperienceType");
+
+                    b.ToTable("PendingExperienceAccrual", "technology", t =>
+                        {
+                            t.HasCheckConstraint("CK_PendingExperienceAccrual_PointsNonNegative", "[Points] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.PlayerResearchModifier", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Bucket")
+                        .HasColumnType("int");
+
+                    b.Property<long>("FlatValue")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("PercentValue")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SourceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SourceType")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerId", "SourceType", "SourceId", "Bucket")
+                        .IsUnique()
+                        .HasDatabaseName("UX_PlayerResearchModifier_Player_Source_Bucket");
+
+                    b.ToTable("PlayerResearchModifier", "technology");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.PlayerResearchState", b =>
+                {
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CurrentTechnologyId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("LastResearchAppliedOnRound")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("NextTechnologyId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UnspentDiffusionPoints")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UnspentDirectedPoints")
+                        .HasColumnType("int");
+
+                    b.HasKey("PlayerId");
+
+                    b.HasIndex("CurrentTechnologyId");
+
+                    b.HasIndex("NextTechnologyId");
+
+                    b.ToTable("PlayerResearchState", "technology");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.PlayerTechnology", b =>
+                {
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TechnologyId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("AcquisitionPaidOnRound")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DiffusionPoints")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DiffusionRequired")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DirectedPoints")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DirectedRequired")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DiscoveredFromPlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DiscoveredOnRound")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DiscoveryMethod")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ExperiencePoints")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ExperienceRequired")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("PlayerId", "TechnologyId");
+
+                    b.HasIndex("DiscoveredFromPlayerId");
+
+                    b.HasIndex("TechnologyId");
+
+                    b.HasIndex("PlayerId", "Status")
+                        .HasDatabaseName("IX_PlayerTechnology_Player_Status");
+
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("PlayerId", "Status"), new[] { "DirectedPoints", "ExperiencePoints", "DiffusionPoints" });
+
+                    b.HasIndex("GameId", "TechnologyId", "Status")
+                        .HasDatabaseName("IX_PlayerTechnology_Game_Technology_Status");
+
+                    b.ToTable("PlayerTechnology", "technology", t =>
+                        {
+                            t.HasCheckConstraint("CK_PlayerTechnology_AtLeastOneBucket", "[DirectedRequired] IS NOT NULL OR [ExperienceRequired] IS NOT NULL OR [DiffusionRequired] IS NOT NULL");
+
+                            t.HasCheckConstraint("CK_PlayerTechnology_PointsNonNegative", "[DirectedPoints] >= 0 AND [ExperiencePoints] >= 0 AND [DiffusionPoints] >= 0");
+
+                            t.HasCheckConstraint("CK_PlayerTechnology_StatusStamps", "([Status] IN (1, 2) AND [AcquisitionPaidOnRound] IS NULL AND [DiscoveredOnRound] IS NULL) OR ([Status] = 3 AND [AcquisitionPaidOnRound] IS NOT NULL AND [DiscoveredOnRound] IS NULL) OR ([Status] = 4 AND [DiscoveredOnRound] IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.PlayerUnusedExperience", b =>
+                {
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ExperienceTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Points")
+                        .HasColumnType("int");
+
+                    b.HasKey("PlayerId", "ExperienceTypeId");
+
+                    b.HasIndex("ExperienceTypeId");
+
+                    b.HasIndex("GameId", "ExperienceTypeId")
+                        .HasDatabaseName("IX_PlayerUnusedExperience_Game_ExperienceType");
+
+                    b.ToTable("PlayerUnusedExperience", "technology", t =>
+                        {
+                            t.HasCheckConstraint("CK_PlayerUnusedExperience_PointsNonNegative", "[Points] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.ResearchHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Bucket")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Generated")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Lost")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Overflowed")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PlayerTurnId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RoundNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Spent")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerTurnId");
+
+                    b.HasIndex("PlayerId", "RoundNumber")
+                        .HasDatabaseName("IX_ResearchHistory_Player_Round");
+
+                    b.ToTable("ResearchHistory", "technology");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.Technology", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int?>("DiffusionRequired")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DirectedRequired")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("Era")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ExperienceRequired")
+                        .HasColumnType("int");
+
+                    b.Property<string>("IconPath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TreeColumn")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TreeRow")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Technology_Code");
+
+                    b.HasIndex("DisplayName")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Technology_DisplayName");
+
+                    b.HasIndex("Era", "SortOrder")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Technology_Era_SortOrder");
+
+                    b.ToTable("Technology", "technology", t =>
+                        {
+                            t.HasCheckConstraint("CK_Technology_AtLeastOneBucket", "[DirectedRequired] IS NOT NULL OR [ExperienceRequired] IS NOT NULL OR [DiffusionRequired] IS NOT NULL");
+                        });
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.TechnologyAcquisitionCost", b =>
+                {
+                    b.Property<int>("TechnologyId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AssetId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.HasKey("TechnologyId", "AssetId");
+
+                    b.HasIndex("AssetId")
+                        .HasDatabaseName("IX_TechnologyAcquisitionCost_Asset");
+
+                    b.ToTable("TechnologyAcquisitionCost", "technology", t =>
+                        {
+                            t.HasCheckConstraint("CK_TechnologyAcquisitionCost_QuantityPositive", "[Quantity] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.TechnologyExperienceType", b =>
+                {
+                    b.Property<int>("TechnologyId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ExperienceTypeId")
+                        .HasColumnType("int");
+
+                    b.HasKey("TechnologyId", "ExperienceTypeId");
+
+                    b.HasIndex("ExperienceTypeId")
+                        .HasDatabaseName("IX_TechnologyExperienceType_ExperienceType");
+
+                    b.ToTable("TechnologyExperienceType", "technology");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.TechnologyGrant", b =>
+                {
+                    b.Property<int>("TechnologyId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TargetType")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TargetId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GrantEffect")
+                        .HasColumnType("int");
+
+                    b.HasKey("TechnologyId", "TargetType", "TargetId");
+
+                    b.HasIndex("TargetType", "TargetId")
+                        .HasDatabaseName("IX_TechnologyGrant_Target");
+
+                    b.ToTable("TechnologyGrant", "technology");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.TechnologyPrerequisite", b =>
+                {
+                    b.Property<int>("TechnologyId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PrerequisiteTechnologyId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PrerequisiteKind")
+                        .HasColumnType("int");
+
+                    b.HasKey("TechnologyId", "PrerequisiteTechnologyId");
+
+                    b.HasIndex("PrerequisiteTechnologyId")
+                        .HasDatabaseName("IX_TechnologyPrerequisite_Prerequisite");
+
+                    b.ToTable("TechnologyPrerequisite", "technology", t =>
+                        {
+                            t.HasCheckConstraint("CK_TechnologyPrerequisite_NotSelf", "[TechnologyId] <> [PrerequisiteTechnologyId]");
+                        });
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Turns.PlayerTurn", b =>
                 {
                     b.Property<int>("Id")
@@ -4043,6 +4503,18 @@ namespace AscendantEmpire.Application.Migrations
                         .HasConstraintName("FK_CampaignMapDepletion_GameIndex_GameId");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.GameConfiguration", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", "Game")
+                        .WithOne()
+                        .HasForeignKey("AscendantEmpire.Domain.Entities.Games.GameConfiguration", "GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_GameConfiguration_GameIndex_GameId");
+
+                    b.Navigation("Game");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.MapResourceInstance", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.Games.CampaignMap", null)
@@ -4940,6 +5412,210 @@ namespace AscendantEmpire.Application.Migrations
                         .HasConstraintName("FK_StructureHistory_StructureInstances_StructureInstanceId");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.PendingExperienceAccrual", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Technologies.ExperienceType", "ExperienceType")
+                        .WithMany()
+                        .HasForeignKey("ExperienceTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PendingExperienceAccrual_ExperienceType_ExperienceTypeId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PendingExperienceAccrual_Player_PlayerId");
+
+                    b.Navigation("ExperienceType");
+
+                    b.Navigation("Player");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.PlayerResearchModifier", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerResearchModifier_Player_PlayerId");
+
+                    b.Navigation("Player");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.PlayerResearchState", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Technologies.Technology", "CurrentTechnology")
+                        .WithMany()
+                        .HasForeignKey("CurrentTechnologyId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_PlayerResearchState_Technology_CurrentTechnologyId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Technologies.Technology", "NextTechnology")
+                        .WithMany()
+                        .HasForeignKey("NextTechnologyId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_PlayerResearchState_Technology_NextTechnologyId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerResearchState_Player_PlayerId");
+
+                    b.Navigation("CurrentTechnology");
+
+                    b.Navigation("NextTechnology");
+
+                    b.Navigation("Player");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.PlayerTechnology", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", null)
+                        .WithMany()
+                        .HasForeignKey("DiscoveredFromPlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_PlayerTechnology_Player_DiscoveredFromPlayerId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerTechnology_Player_PlayerId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Technologies.Technology", "Technology")
+                        .WithMany()
+                        .HasForeignKey("TechnologyId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerTechnology_Technology_TechnologyId");
+
+                    b.Navigation("Player");
+
+                    b.Navigation("Technology");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.PlayerUnusedExperience", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Technologies.ExperienceType", "ExperienceType")
+                        .WithMany()
+                        .HasForeignKey("ExperienceTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerUnusedExperience_ExperienceType_ExperienceTypeId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerUnusedExperience_Player_PlayerId");
+
+                    b.Navigation("ExperienceType");
+
+                    b.Navigation("Player");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.ResearchHistory", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_ResearchHistory_Player_PlayerId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Turns.PlayerTurn", "PlayerTurn")
+                        .WithMany()
+                        .HasForeignKey("PlayerTurnId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_ResearchHistory_PlayerTurn_PlayerTurnId");
+
+                    b.Navigation("Player");
+
+                    b.Navigation("PlayerTurn");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.TechnologyAcquisitionCost", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.Asset", "Asset")
+                        .WithMany()
+                        .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_TechnologyAcquisitionCost_Asset_AssetId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Technologies.Technology", "Technology")
+                        .WithMany("AcquisitionCosts")
+                        .HasForeignKey("TechnologyId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_TechnologyAcquisitionCost_Technology_TechnologyId");
+
+                    b.Navigation("Asset");
+
+                    b.Navigation("Technology");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.TechnologyExperienceType", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Technologies.ExperienceType", "ExperienceType")
+                        .WithMany("Technologies")
+                        .HasForeignKey("ExperienceTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_TechnologyExperienceType_ExperienceType_ExperienceTypeId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Technologies.Technology", "Technology")
+                        .WithMany("ExperienceTypes")
+                        .HasForeignKey("TechnologyId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_TechnologyExperienceType_Technology_TechnologyId");
+
+                    b.Navigation("ExperienceType");
+
+                    b.Navigation("Technology");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.TechnologyGrant", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Technologies.Technology", "Technology")
+                        .WithMany("Grants")
+                        .HasForeignKey("TechnologyId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_TechnologyGrant_Technology_TechnologyId");
+
+                    b.Navigation("Technology");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.TechnologyPrerequisite", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Technologies.Technology", "PrerequisiteTechnology")
+                        .WithMany("Dependents")
+                        .HasForeignKey("PrerequisiteTechnologyId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_TechnologyPrerequisite_Technology_PrerequisiteTechnologyId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Technologies.Technology", "Technology")
+                        .WithMany("Prerequisites")
+                        .HasForeignKey("TechnologyId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_TechnologyPrerequisite_Technology_TechnologyId");
+
+                    b.Navigation("PrerequisiteTechnology");
+
+                    b.Navigation("Technology");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Turns.PlayerTurn", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
@@ -5576,6 +6252,24 @@ namespace AscendantEmpire.Application.Migrations
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Military.PlayerOrganisationStructure", b =>
                 {
                     b.Navigation("Tiers");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.ExperienceType", b =>
+                {
+                    b.Navigation("Technologies");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.Technology", b =>
+                {
+                    b.Navigation("AcquisitionCosts");
+
+                    b.Navigation("Dependents");
+
+                    b.Navigation("ExperienceTypes");
+
+                    b.Navigation("Grants");
+
+                    b.Navigation("Prerequisites");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Turns.TurnQueue", b =>

@@ -1,4 +1,4 @@
-namespace AscendantEmpire.Domain.Enums.System;
+﻿namespace AscendantEmpire.Domain.Enums.System;
 
 /// <summary>
 /// One independently selectable part of the database seed.
@@ -54,5 +54,15 @@ public enum SeedTarget
     /// <summary>
     /// The <c>assets</c> schema catalogue — the meta-categories, categories, groups and Assets a Player's economy is built from.
     /// </summary>
-    Assets = 8
+    Assets = 8,
+
+    /// <summary>
+    /// The <c>technology.ExperienceType</c> catalogue — the kinds of experience an action can earn, which technologies then draw on.
+    /// </summary>
+    ExperienceTypes = 9,
+
+    /// <summary>
+    /// The <c>technology.Technology</c> catalogue, with its prerequisites, acquisition costs, grants and experience mappings.
+    /// </summary>
+    Technologies = 10
 }

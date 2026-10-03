@@ -1,4 +1,4 @@
-using AscendantEmpire.Application.BackgroundServices;
+﻿using AscendantEmpire.Application.BackgroundServices;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.Application.Features.Game.Classes;
@@ -65,6 +65,8 @@ internal sealed class GameDeleteExecutor(
         "[units].[MovementHistory]",
         "[structure].[StructureHistory]",
         "[battle].[BattleHistory]",
+        "[technology].[ResearchHistory]",
+        "[technology].[PlayerResearchModifier]",
         "[units].[ForceOrderParticipants]",
         "[units].[ForceOrderMovementSteps]",
         "[units].[ForceOrders]",
@@ -421,8 +423,40 @@ internal sealed class GameDeleteExecutor(
                 .Where(t => t.GameId == gameId)
                 .ExecuteDeleteAsync(cancellationToken)),
 
+            // Per-player technology state. Every one of these is game-scoped and carries GameId, so each purges in one statement without going through
+            // the Player. The Technology and ExperienceType catalogue rows they point at are shared content and survive.
+            ("research history", () => purge.ResearchHistories
+                .Where(h => h.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            ("player research modifiers", () => purge.PlayerResearchModifiers
+                .Where(m => m.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            ("pending experience accruals", () => purge.PendingExperienceAccruals
+                .Where(a => a.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            ("player unused experience", () => purge.PlayerUnusedExperience
+                .Where(u => u.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            // Before the research state, because a research state row points at the technologies it has selected.
+            ("player technologies", () => purge.PlayerTechnologies
+                .Where(t => t.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            ("player research state", () => purge.PlayerResearchStates
+                .Where(r => r.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
             ("players", () => purge.Players
                 .Where(p => p.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            // Shares GameIndex's key, so it has to go before the game it belongs to.
+            ("game configuration", () => purge.GameConfigurations
+                .Where(c => c.GameId == gameId)
                 .ExecuteDeleteAsync(cancellationToken)),
 
             ("game", () => purge.GameIndex

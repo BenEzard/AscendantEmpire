@@ -1,4 +1,4 @@
-namespace AscendantEmpire.Domain.Enums.System;
+﻿namespace AscendantEmpire.Domain.Enums.System;
 
 /// <summary>
 /// The heading a <see cref="SeedTarget"/> is listed under in the seed selection dialog.
@@ -22,5 +22,10 @@ public enum SeedTargetGroup
     /// <summary>
     /// The asset catalogue — the meta-categories, categories, groups and Assets themselves.
     /// </summary>
-    Assets = 3
+    Assets = 3,
+
+    /// <summary>
+    /// The technology tree — the experience types, and the technologies that consume them.
+    /// </summary>
+    Technology = 4
 }

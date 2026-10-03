@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using NSubstitute;
+using AscendantEmpire.Application.Features.Technologies.Services;
 
 
 namespace AscendantEmpire.Tests.Features.Game.Services;
@@ -33,7 +34,13 @@ public partial class GameSetupServiceTests
         _logger = NullLogger<GameSetupService>.Instance;
         _dbFactory = Substitute.For<IDbContextFactory<AscendantEmpireContext>>();
         _campaignMapGalleryService = Substitute.For<ICampaignMapGalleryService>();
-        _service = new GameSetupService(_logger, _dbFactory, _campaignMapGalleryService, Substitute.For<IForceLifecycleWriter>());
+        _service = new GameSetupService(
+            _logger,
+            _dbFactory,
+            _campaignMapGalleryService,
+            Substitute.For<IForceLifecycleWriter>(),
+            [new IdenticalTechnologyRequirementGenerator()],
+            Substitute.For<IPlayerTechnologyAvailabilityService>());
     }
 
     /// <summary>

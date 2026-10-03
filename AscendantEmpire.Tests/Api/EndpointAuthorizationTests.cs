@@ -83,8 +83,17 @@ public sealed class EndpointAuthorizationTests
         ["POST /global-unit-templates"] = PermissionType.EntitySetupTool,
         ["PUT /global-unit-templates/{id}"] = PermissionType.EntitySetupTool,
         ["POST /global-unit-templates/recompile-all"] = PermissionType.EntitySetupTool,
-        ["PUT /resources"] = PermissionType.EntitySetupTool,
+        ["PUT /assets"] = PermissionType.EntitySetupTool,
+        ["PUT /technology"] = PermissionType.EntitySetupTool,
+        ["PUT /technology/experience-types"] = PermissionType.EntitySetupTool,
         ["POST /units/temporary-dev-only/spawn"] = PermissionType.EntitySetupTool,
+
+        // The campaign-map biome and geography catalogues are edited from the Entity Setup Tool, not the map editor — the map editor places what these
+        // define rather than defining it. Their reads stay open to any logged-in user, since the game page needs them to draw a tile.
+        ["POST /biomes/campaign-map"] = PermissionType.EntitySetupTool,
+        ["PUT /biomes/campaign-map"] = PermissionType.EntitySetupTool,
+        ["POST /geography/campaign-map"] = PermissionType.EntitySetupTool,
+        ["PUT /geography/campaign-map"] = PermissionType.EntitySetupTool,
 
         // Map editor: the map gallery mutations and the reference-data writes behind them.
         ["POST /map-gallery/add-campaign-map"] = PermissionType.MapEditor,
@@ -95,14 +104,10 @@ public sealed class EndpointAuthorizationTests
         ["POST /map-gallery/{id}/export"] = PermissionType.MapEditor,
         ["GET /map-gallery/{id}/export/download"] = PermissionType.MapEditor,
         ["POST /map-gallery/import"] = PermissionType.MapEditor,
-        ["POST /biomes/campaign-map"] = PermissionType.MapEditor,
-        ["PUT /biomes/campaign-map"] = PermissionType.MapEditor,
-        ["POST /geography/campaign-map"] = PermissionType.MapEditor,
-        ["PUT /geography/campaign-map"] = PermissionType.MapEditor,
         ["PUT /map-resources/catalogue"] = PermissionType.MapEditor,
-        ["POST /map-gallery/{id}/map-resources"] = PermissionType.MapEditor,
-        ["PUT /map-gallery/{id}/map-resources/{placementId}"] = PermissionType.MapEditor,
-        ["DELETE /map-gallery/{id}/map-resources/{placementId}"] = PermissionType.MapEditor,
+        ["POST /map-gallery/{id}/map-assets"] = PermissionType.MapEditor,
+        ["PUT /map-gallery/{id}/map-assets/{placementId}"] = PermissionType.MapEditor,
+        ["DELETE /map-gallery/{id}/map-assets/{placementId}"] = PermissionType.MapEditor,
         ["PUT /map-gallery/{id}/rivers"] = PermissionType.MapEditor,
         ["DELETE /map-resources/types/{code}"] = PermissionType.MapEditor,
         ["DELETE /map-resources/categories/{code}"] = PermissionType.MapEditor,
@@ -125,8 +130,8 @@ public sealed class EndpointAuthorizationTests
         "GET /biomes/campaign-map",
         "GET /geography/campaign-map",
         "GET /map-resources/catalogue",
-        "GET /map-gallery/{id}/map-resources",
-        "GET /resources",
+        "GET /map-gallery/{id}/map-assets",
+        "GET /assets",
 
         "POST /campaign-map/player",
         "POST /campaign-map/player/clear",
@@ -152,9 +157,12 @@ public sealed class EndpointAuthorizationTests
         "GET /player/structures",
         "GET /player/forces",
         "GET /player/game-players",
-        "GET /player/resources",
+        "GET /player/assets",
 
         "GET /system/status",
+
+        "GET /technology",
+        "GET /technology/experience-types",
 
         "POST /force-orders/move",
         "POST /force-orders/step",

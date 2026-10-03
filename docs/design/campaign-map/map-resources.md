@@ -324,8 +324,9 @@ this order:
    that allowed it, for as long as the Player holds it.
 2. Otherwise any **on** row turns it on.
 3. Otherwise the default applies: the MapResourceType's default for discovery, the yielded
-   Asset's default, or, for a layer, on for layer 1 and off for every deeper layer (standing in
-   for the survey tech until Technology is modelled).
+   Asset's default, or, for a layer, on for layer 1 and off for every deeper layer. The survey tech
+   that would turn a deeper layer on is not yet granted by any technology, so the switch stands in
+   for it.
 
 As with modifiers, losing a source just deletes its rows.
 

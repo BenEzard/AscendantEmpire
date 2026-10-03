@@ -18,6 +18,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using NSubstitute;
+using AscendantEmpire.Application.Features.Technologies.Handlers;
+using AscendantEmpire.BackendContracts.Technologies;
+using AscendantEmpire.Application.Features.Technologies.Services;
 
 namespace AscendantEmpire.Tests;
 
@@ -48,6 +51,7 @@ public class GameSqlServerTestBase : SqlServerTestBase
         // player on the gallery map.
         await SeedStarterCatalogueAsync();
         await SeedStarterAssetsAsync();
+        await SeedTechnologyCatalogueAsync();
         await SeedStartPositionsAsync(_galleryIndexId, numberOfPlayers, mapWidth, mapHeight);
 
         _completedMapProperties = new CampaignMapGalleryProperties
@@ -75,7 +79,21 @@ public class GameSqlServerTestBase : SqlServerTestBase
             NullLogger<ForceLifecycleWriter>.Instance,
             new PlayerTurnService(NullLogger<PlayerTurnService>.Instance, DbFactory));
 
-        _service = new GameSetupService(_capturingLogger, DbFactory, _mapGalleryService, forceLifecycleWriter);
+        // The real generators and reconcile, for the same reason the force writer is real: fixtures building on this base assert on the technology rows setup writes.
+        ITechnologyRequirementGenerator[] requirementGenerators =
+        [
+            new IdenticalTechnologyRequirementGenerator(),
+            new UnimplementedTechnologyRequirementGenerator(TechnologyCustomisation.RandomisedEqual),
+            new UnimplementedTechnologyRequirementGenerator(TechnologyCustomisation.FullyRandomised)
+        ];
+
+        _service = new GameSetupService(
+            _capturingLogger,
+            DbFactory,
+            _mapGalleryService,
+            forceLifecycleWriter,
+            requirementGenerators,
+            new PlayerTechnologyAvailabilityService(NullLogger<PlayerTechnologyAvailabilityService>.Instance));
     }
 
     /// <summary>
@@ -101,6 +119,50 @@ public class GameSqlServerTestBase : SqlServerTestBase
         if (result.HasSucceeded == false)
         {
             throw new InvalidOperationException($"Seeding the asset catalogue for the test failed: {string.Join("; ", result.Errors)}");
+        }
+    }
+
+    /// <summary>
+    /// Seeds the experience type and technology catalogues, which game setup generates every Player's requirements from.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Runs the real seed data through the real upserts, for the same reason the asset catalogue does: the catalogue a test runs against is the catalogue
+    /// production gets, so <c>GameSetupService.StarterTechnologyCodes</c> cannot drift from it without failing here.
+    /// </para>
+    /// <para>
+    /// Experience types first - the technology seed data names them by code and the upsert rejects a code it cannot resolve.
+    /// </para>
+    /// <para>
+    /// Idempotent, because both upserts match on code.
+    /// </para>
+    /// </remarks>
+    public async Task SeedTechnologyCatalogueAsync()
+    {
+        await using AscendantEmpireContext ctx = await DbFactory.CreateDbContextAsync();
+
+        var experienceTypeHandler = new UpsertExperienceTypesHandler(NullLogger<UpsertExperienceTypesHandler>.Instance, ctx);
+
+        ServiceResultBase experienceTypeResult = await experienceTypeHandler.Handle(
+            new UpsertExperienceTypesRequest(ExperienceTypeSeedData.Build()),
+            CancellationToken.None);
+
+        if (experienceTypeResult.HasSucceeded == false)
+        {
+            throw new InvalidOperationException(
+                $"Seeding the experience type catalogue for the test failed: {string.Join("; ", experienceTypeResult.Errors)}");
+        }
+
+        var technologyHandler = new UpsertTechnologiesHandler(NullLogger<UpsertTechnologiesHandler>.Instance, ctx);
+
+        ServiceResultBase technologyResult = await technologyHandler.Handle(
+            new UpsertTechnologiesRequest(TechnologySeedData.Build()),
+            CancellationToken.None);
+
+        if (technologyResult.HasSucceeded == false)
+        {
+            throw new InvalidOperationException(
+                $"Seeding the technology catalogue for the test failed: {string.Join("; ", technologyResult.Errors)}");
         }
     }
 

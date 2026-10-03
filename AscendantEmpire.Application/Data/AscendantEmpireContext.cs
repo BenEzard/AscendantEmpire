@@ -1,4 +1,4 @@
-using AscendantEmpire.Domain.Entities.Battles;
+﻿using AscendantEmpire.Domain.Entities.Battles;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Identity;
 using AscendantEmpire.Domain.Entities.Maps.BattleMaps;
@@ -7,6 +7,7 @@ using AscendantEmpire.Domain.Entities.Maps.MapResources;
 using AscendantEmpire.Domain.Entities.Military;
 using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.Structures;
+using AscendantEmpire.Domain.Entities.Technologies;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
@@ -126,6 +127,11 @@ public class AscendantEmpireContext : DbContext
     /// Index of current games.
     /// </summary>
     public DbSet<GameIndex> GameIndex { get; set; }
+
+    /// <summary>
+    /// The rule settings chosen for each game. One row per game, created with the GameIndex row.
+    /// </summary>
+    public DbSet<GameConfiguration> GameConfigurations { get; set; }
 
     /// <summary>
     /// List of Players in specific games.
@@ -254,6 +260,61 @@ public class AscendantEmpireContext : DbContext
     /// Which Assets each Player has unlocked. The categories and groups between are derived from these rather than unlocked in their own right.
     /// </summary>
     public DbSet<PlayerUnlockedAsset> PlayerUnlockedAssets { get; set; }
+    #endregion
+
+    #region Technology Schema
+    public DbSet<Technology> Technologies { get; set; }
+    public DbSet<ExperienceType> ExperienceTypes { get; set; }
+
+    /// <summary>
+    /// The Assets and quantities each Technology costs to unlock. No rows for a Technology means it is free.
+    /// </summary>
+    public DbSet<TechnologyAcquisitionCost> TechnologyAcquisitionCosts { get; set; }
+
+    /// <summary>
+    /// The prerequisite edges between Technologies. Mandatory edges must all be met; optional edges are alternatives.
+    /// </summary>
+    public DbSet<TechnologyPrerequisite> TechnologyPrerequisites { get; set; }
+
+    /// <summary>
+    /// What each Technology unlocks or retires when discovered - the source of the per-player unlock rows elsewhere.
+    /// </summary>
+    public DbSet<TechnologyGrant> TechnologyGrants { get; set; }
+
+    /// <summary>
+    /// Which kinds of experience feed which Technologies. A mapping only: the points per action are decided by the action.
+    /// </summary>
+    public DbSet<TechnologyExperienceType> TechnologyExperienceTypes { get; set; }
+
+    /// <summary>
+    /// Each Player's independent progress toward each Technology. A row exists from setup, so presence does not mean unlocked.
+    /// </summary>
+    public DbSet<PlayerTechnology> PlayerTechnologies { get; set; }
+
+    /// <summary>
+    /// Each Player's research project selection and carried-over points. One row per Player.
+    /// </summary>
+    public DbSet<PlayerResearchState> PlayerResearchStates { get; set; }
+
+    /// <summary>
+    /// Experience earned this turn and not yet distributed. Empty between turns.
+    /// </summary>
+    public DbSet<PendingExperienceAccrual> PendingExperienceAccruals { get; set; }
+
+    /// <summary>
+    /// Experience that had no Technology to go into. Never spent; kept only for comparing Players.
+    /// </summary>
+    public DbSet<PlayerUnusedExperience> PlayerUnusedExperience { get; set; }
+
+    /// <summary>
+    /// Modifiers to how many research points a Player generates per turn, by bucket and by granting source.
+    /// </summary>
+    public DbSet<PlayerResearchModifier> PlayerResearchModifiers { get; set; }
+
+    /// <summary>
+    /// Per-round summary of each Player's research points by bucket. Append-only.
+    /// </summary>
+    public DbSet<ResearchHistory> ResearchHistories { get; set; }
     #endregion
 
     #region Turn Schema
@@ -446,6 +507,8 @@ public class AscendantEmpireContext : DbContext
         ConfigureUnitDesignSchema(modelBuilder);
 
         ConfigureMilitarySchema(modelBuilder);
+
+        ConfigureTechnologySchema(modelBuilder);
     }
 
     private static void ConfigureAssetsSchema(ModelBuilder modelBuilder)
@@ -863,6 +926,26 @@ public class AscendantEmpireContext : DbContext
                 .WithOne(p => p.Game)
                 .HasForeignKey(p => p.GameId)
                 .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        // --- GameConfiguration ---------------------------------------------------------
+        // Shares GameIndex's key, and the row is created with it rather than on first read - see the
+        // entity for why a lazily created settings row is a problem rather than an optimisation.
+        modelBuilder.Entity<GameConfiguration>(entity =>
+        {
+            entity.ToTable("GameConfiguration", schema);
+
+            entity.HasKey(e => e.GameId);
+            entity.Property(e => e.GameId).ValueGeneratedNever();
+
+            entity.Property(e => e.TechnologyCustomisation).HasConversion<int>().IsRequired();
+            entity.Property(e => e.UnspentResearchPointsBehaviour).HasConversion<int>().IsRequired();
+
+            entity.HasOne(e => e.Game)
+                .WithOne()
+                .HasForeignKey<GameConfiguration>(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_GameConfiguration_GameIndex_GameId");
         });
 
         // --- Player --------------------------------------------------------------------
@@ -3428,6 +3511,376 @@ public class AscendantEmpireContext : DbContext
             entity.HasIndex(e => new { e.StructureId, e.TierIndex })
                 .IsUnique()
                 .HasDatabaseName("UX_PlayerOrganisationStructureTier_Structure_TierIndex");
+        });
+    }
+
+    /// <summary>
+    /// Configures the technology schema - the Technology catalogue, its prerequisite graph, its grants and
+    /// experience mappings, and every per-player research table.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Follows the assets schema throughout: composite keys on the join tables, <c>NoAction</c> on every
+    /// foreign key, and an explicit constraint or index name on each one. NoAction is not optional here -
+    /// Player and Technology both sit at the head of several paths, and cascading either would create
+    /// multiple cascade paths into them.
+    /// </para>
+    /// <para>
+    /// The check constraints are worth the trouble because the alternative is state that can quietly
+    /// disagree with itself: a <c>PlayerTechnology</c> whose status says Discovered with no round stamped,
+    /// or an acquisition cost row for nothing.
+    /// </para>
+    /// </remarks>
+    private static void ConfigureTechnologySchema(ModelBuilder modelBuilder)
+    {
+        const string schema = "technology";
+
+        // --- Technology catalogue ------------------------------------------------------
+        // Code is the match key every technology upsert works from, so it is length-capped and uniquely
+        // indexed. Without the unique index nothing stops two rows sharing a code, and the upsert would
+        // silently update whichever the dictionary happened to keep.
+        modelBuilder.Entity<Technology>(entity =>
+        {
+            // At least one bucket must be in use, matching the design doc's "between 1 and 3 buckets". A
+            // technology with all three null could never be discovered by any means.
+            entity.ToTable("Technology", schema, t => t.HasCheckConstraint(
+                "CK_Technology_AtLeastOneBucket",
+                "[DirectedRequired] IS NOT NULL OR [ExperienceRequired] IS NOT NULL OR [DiffusionRequired] IS NOT NULL"));
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Code).HasMaxLength(Technology.MAX_CODE_LENGTH).IsRequired();
+            entity.Property(e => e.DisplayName).HasMaxLength(Technology.MAX_DISPLAY_NAME_LENGTH).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(Technology.MAX_DESCRIPTION_LENGTH);
+            entity.Property(e => e.IconPath).HasMaxLength(Technology.MAX_ICON_PATH_LENGTH).IsRequired();
+
+            entity.Property(e => e.Era).HasConversion<int>().IsRequired();
+
+            entity.HasIndex(e => e.Code).IsUnique().HasDatabaseName("UX_Technology_Code");
+            entity.HasIndex(e => e.DisplayName).IsUnique().HasDatabaseName("UX_Technology_DisplayName");
+
+            // SortOrder is per era, the same way an AssetGroup's is per category.
+            entity.HasIndex(e => new { e.Era, e.SortOrder })
+                .IsUnique()
+                .HasDatabaseName("UX_Technology_Era_SortOrder");
+        });
+
+        // --- ExperienceType catalogue --------------------------------------------------
+        modelBuilder.Entity<ExperienceType>(entity =>
+        {
+            entity.ToTable("ExperienceType", schema);
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Code).HasMaxLength(ExperienceType.MAX_CODE_LENGTH).IsRequired();
+            entity.Property(e => e.DisplayName).HasMaxLength(ExperienceType.MAX_DISPLAY_NAME_LENGTH).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(ExperienceType.MAX_DESCRIPTION_LENGTH);
+            entity.Property(e => e.IconPath).HasMaxLength(ExperienceType.MAX_ICON_PATH_LENGTH).IsRequired();
+
+            entity.HasIndex(e => e.Code).IsUnique().HasDatabaseName("UX_ExperienceType_Code");
+            entity.HasIndex(e => e.DisplayName).IsUnique().HasDatabaseName("UX_ExperienceType_DisplayName");
+            entity.HasIndex(e => e.SortOrder).IsUnique().HasDatabaseName("UX_ExperienceType_SortOrder");
+        });
+
+        // --- TechnologyAcquisitionCost -------------------------------------------------
+        modelBuilder.Entity<TechnologyAcquisitionCost>(entity =>
+        {
+            // A free technology has no row, so a row of nothing is always a mistake.
+            entity.ToTable("TechnologyAcquisitionCost", schema, t => t.HasCheckConstraint(
+                "CK_TechnologyAcquisitionCost_QuantityPositive",
+                "[Quantity] > 0"));
+
+            entity.HasKey(e => new { e.TechnologyId, e.AssetId });
+
+            entity.HasOne(e => e.Technology)
+                .WithMany(e => e.AcquisitionCosts)
+                .HasForeignKey(e => e.TechnologyId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_TechnologyAcquisitionCost_Technology_TechnologyId");
+
+            entity.HasOne(e => e.Asset)
+                .WithMany()
+                .HasForeignKey(e => e.AssetId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_TechnologyAcquisitionCost_Asset_AssetId");
+
+            // "What does this Asset get spent on?" - also the check the Asset delete path needs.
+            entity.HasIndex(e => e.AssetId)
+                .HasDatabaseName("IX_TechnologyAcquisitionCost_Asset");
+        });
+
+        // --- TechnologyPrerequisite ----------------------------------------------------
+        modelBuilder.Entity<TechnologyPrerequisite>(entity =>
+        {
+            // A self-prerequisite would make the technology permanently unreachable. Longer cycles do the
+            // same but cannot be expressed here, so the upsert handler has to reject those.
+            entity.ToTable("TechnologyPrerequisite", schema, t => t.HasCheckConstraint(
+                "CK_TechnologyPrerequisite_NotSelf",
+                "[TechnologyId] <> [PrerequisiteTechnologyId]"));
+
+            entity.HasKey(e => new { e.TechnologyId, e.PrerequisiteTechnologyId });
+
+            entity.Property(e => e.PrerequisiteKind).HasConversion<int>().IsRequired();
+
+            // Both self-referencing foreign keys must be NoAction: cascading either way would create
+            // multiple cascade paths into Technology.
+            entity.HasOne(e => e.Technology)
+                .WithMany(e => e.Prerequisites)
+                .HasForeignKey(e => e.TechnologyId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_TechnologyPrerequisite_Technology_TechnologyId");
+
+            entity.HasOne(e => e.PrerequisiteTechnology)
+                .WithMany(e => e.Dependents)
+                .HasForeignKey(e => e.PrerequisiteTechnologyId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_TechnologyPrerequisite_Technology_PrerequisiteTechnologyId");
+
+            // The discovery cascade walks this edge - "what depends on the technology just discovered?" -
+            // which makes it the hottest query in the feature.
+            entity.HasIndex(e => e.PrerequisiteTechnologyId)
+                .HasDatabaseName("IX_TechnologyPrerequisite_Prerequisite");
+        });
+
+        // --- TechnologyGrant -----------------------------------------------------------
+        modelBuilder.Entity<TechnologyGrant>(entity =>
+        {
+            entity.ToTable("TechnologyGrant", schema);
+
+            entity.HasKey(e => new { e.TechnologyId, e.TargetType, e.TargetId });
+
+            entity.Property(e => e.TargetType).HasConversion<int>().IsRequired();
+            entity.Property(e => e.GrantEffect).HasConversion<int>().IsRequired();
+
+            entity.HasOne(e => e.Technology)
+                .WithMany(e => e.Grants)
+                .HasForeignKey(e => e.TechnologyId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_TechnologyGrant_Technology_TechnologyId");
+
+            // TargetId has no foreign key, so this index is the only way to answer "which technology
+            // granted this?" - needed both to tell the player why something appeared and to warn the
+            // Entity Setup Tool when two technologies grant the same thing.
+            entity.HasIndex(e => new { e.TargetType, e.TargetId })
+                .HasDatabaseName("IX_TechnologyGrant_Target");
+        });
+
+        // --- TechnologyExperienceType --------------------------------------------------
+        modelBuilder.Entity<TechnologyExperienceType>(entity =>
+        {
+            entity.ToTable("TechnologyExperienceType", schema);
+
+            entity.HasKey(e => new { e.TechnologyId, e.ExperienceTypeId });
+
+            entity.HasOne(e => e.Technology)
+                .WithMany(e => e.ExperienceTypes)
+                .HasForeignKey(e => e.TechnologyId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_TechnologyExperienceType_Technology_TechnologyId");
+
+            entity.HasOne(e => e.ExperienceType)
+                .WithMany(e => e.Technologies)
+                .HasForeignKey(e => e.ExperienceTypeId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_TechnologyExperienceType_ExperienceType_ExperienceTypeId");
+
+            // The allocator's lookup: given a type of experience, which technologies can take it.
+            entity.HasIndex(e => e.ExperienceTypeId)
+                .HasDatabaseName("IX_TechnologyExperienceType_ExperienceType");
+        });
+
+        // --- Per-player research state -------------------------------------------------
+        modelBuilder.Entity<PlayerTechnology>(entity =>
+        {
+            // Keeps the status enum and the round stamps from drifting apart. Locked and Available share a
+            // clause because neither has paid nor finished; Discovered deliberately says nothing about the
+            // acquisition stamp, since a technology can be traded or conquered without ever being paid for.
+            entity.ToTable("PlayerTechnology", schema, t =>
+            {
+                t.HasCheckConstraint(
+                    "CK_PlayerTechnology_StatusStamps",
+                    "([Status] IN (1, 2) AND [AcquisitionPaidOnRound] IS NULL AND [DiscoveredOnRound] IS NULL)"
+                    + " OR ([Status] = 3 AND [AcquisitionPaidOnRound] IS NOT NULL AND [DiscoveredOnRound] IS NULL)"
+                    + " OR ([Status] = 4 AND [DiscoveredOnRound] IS NOT NULL)");
+
+                t.HasCheckConstraint(
+                    "CK_PlayerTechnology_PointsNonNegative",
+                    "[DirectedPoints] >= 0 AND [ExperiencePoints] >= 0 AND [DiffusionPoints] >= 0");
+
+                // Mirrors CK_Technology_AtLeastOneBucket: the generator copies the catalogue's nullability
+                // across, so a row with no bucket at all means the generator went wrong.
+                t.HasCheckConstraint(
+                    "CK_PlayerTechnology_AtLeastOneBucket",
+                    "[DirectedRequired] IS NOT NULL OR [ExperienceRequired] IS NOT NULL OR [DiffusionRequired] IS NOT NULL");
+            });
+
+            entity.HasKey(e => new { e.PlayerId, e.TechnologyId });
+
+            entity.Property(e => e.Status).HasConversion<int>().IsRequired();
+            entity.Property(e => e.DiscoveryMethod).HasConversion<int>();
+
+            entity.HasOne(e => e.Player)
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerTechnology_Player_PlayerId");
+
+            entity.HasOne(e => e.Technology)
+                .WithMany()
+                .HasForeignKey(e => e.TechnologyId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerTechnology_Technology_TechnologyId");
+
+            // No navigation property for the source player: it is read as an id when attributing a theft or
+            // a trade, never walked as a graph.
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.DiscoveredFromPlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerTechnology_Player_DiscoveredFromPlayerId");
+
+            // The end-of-turn "where can these points go?" query, run once per bucket per turn. The points
+            // are included so it can be answered without touching the table itself.
+            entity.HasIndex(e => new { e.PlayerId, e.Status })
+                .IncludeProperties(e => new { e.DirectedPoints, e.ExperiencePoints, e.DiffusionPoints })
+                .HasDatabaseName("IX_PlayerTechnology_Player_Status");
+
+            // "Which other players in this game have this technology?" - diffusion, whether a trade is
+            // worth offering, and who is worth spying on. Scoped by game because it is never asked across
+            // games, and leading with GameId keeps it from spanning the whole table.
+            entity.HasIndex(e => new { e.GameId, e.TechnologyId, e.Status })
+                .HasDatabaseName("IX_PlayerTechnology_Game_Technology_Status");
+        });
+
+        modelBuilder.Entity<PlayerResearchState>(entity =>
+        {
+            entity.ToTable("PlayerResearchState", schema);
+
+            // Shared primary key with Player: exactly one row per player.
+            entity.HasKey(e => e.PlayerId);
+            entity.Property(e => e.PlayerId).ValueGeneratedNever();
+
+            entity.HasOne(e => e.Player)
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerResearchState_Player_PlayerId");
+
+            entity.HasOne(e => e.CurrentTechnology)
+                .WithMany()
+                .HasForeignKey(e => e.CurrentTechnologyId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerResearchState_Technology_CurrentTechnologyId");
+
+            entity.HasOne(e => e.NextTechnology)
+                .WithMany()
+                .HasForeignKey(e => e.NextTechnologyId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerResearchState_Technology_NextTechnologyId");
+
+            // No reverse index on either technology column: "who is researching X?" is never asked, and
+            // there is only one row per player to scan anyway.
+        });
+
+        // --- Experience accrual --------------------------------------------------------
+        modelBuilder.Entity<PendingExperienceAccrual>(entity =>
+        {
+            entity.ToTable("PendingExperienceAccrual", schema, t => t.HasCheckConstraint(
+                "CK_PendingExperienceAccrual_PointsNonNegative",
+                "[Points] >= 0"));
+
+            entity.HasKey(e => new { e.PlayerId, e.ExperienceTypeId });
+
+            entity.HasOne(e => e.Player)
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PendingExperienceAccrual_Player_PlayerId");
+
+            entity.HasOne(e => e.ExperienceType)
+                .WithMany()
+                .HasForeignKey(e => e.ExperienceTypeId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PendingExperienceAccrual_ExperienceType_ExperienceTypeId");
+
+            entity.HasIndex(e => e.ExperienceTypeId)
+                .HasDatabaseName("IX_PendingExperienceAccrual_ExperienceType");
+        });
+
+        modelBuilder.Entity<PlayerUnusedExperience>(entity =>
+        {
+            entity.ToTable("PlayerUnusedExperience", schema, t => t.HasCheckConstraint(
+                "CK_PlayerUnusedExperience_PointsNonNegative",
+                "[Points] >= 0"));
+
+            entity.HasKey(e => new { e.PlayerId, e.ExperienceTypeId });
+
+            entity.HasOne(e => e.Player)
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerUnusedExperience_Player_PlayerId");
+
+            entity.HasOne(e => e.ExperienceType)
+                .WithMany()
+                .HasForeignKey(e => e.ExperienceTypeId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerUnusedExperience_ExperienceType_ExperienceTypeId");
+
+            // "Who has wasted the most of this kind of experience?" - compared across the players of one
+            // game, so the game leads.
+            entity.HasIndex(e => new { e.GameId, e.ExperienceTypeId })
+                .HasDatabaseName("IX_PlayerUnusedExperience_Game_ExperienceType");
+        });
+
+        // --- Research generation and history -------------------------------------------
+        modelBuilder.Entity<PlayerResearchModifier>(entity =>
+        {
+            entity.ToTable("PlayerResearchModifier", schema);
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.SourceType).HasConversion<int>().IsRequired();
+            entity.Property(e => e.Bucket).HasConversion<int>().IsRequired();
+
+            entity.HasOne(e => e.Player)
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerResearchModifier_Player_PlayerId");
+
+            // One modifier per player / source / bucket - the natural key, enforced by index because the
+            // table carries a surrogate key to match PlayerSustenanceModifier.
+            entity.HasIndex(e => new { e.PlayerId, e.SourceType, e.SourceId, e.Bucket })
+                .IsUnique()
+                .HasDatabaseName("UX_PlayerResearchModifier_Player_Source_Bucket");
+        });
+
+        modelBuilder.Entity<ResearchHistory>(entity =>
+        {
+            entity.ToTable("ResearchHistory", schema);
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Bucket).HasConversion<int>().IsRequired();
+
+            entity.HasOne(e => e.Player)
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_ResearchHistory_Player_PlayerId");
+
+            entity.HasOne(e => e.PlayerTurn)
+                .WithMany()
+                .HasForeignKey(e => e.PlayerTurnId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_ResearchHistory_PlayerTurn_PlayerTurnId");
+
+            // How the feed is read: one player's research, most recent round first.
+            entity.HasIndex(e => new { e.PlayerId, e.RoundNumber })
+                .HasDatabaseName("IX_ResearchHistory_Player_Round");
+
+            // Append-only, so no RowVersion - matching MovementHistory, StructureHistory and BattleHistory.
         });
     }
 

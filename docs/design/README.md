@@ -30,7 +30,7 @@ is settled, some of it is still a working sketch with open questions called out 
 | [units/unit-mechanics.md](units/unit-mechanics.md) | Positioning/facing, tactics, fog of war, strength, and ranged attack. |
 | [settlements.md](settlements.md) | Settlement types, asset banks, and buildings. |
 | [specialists.md](specialists.md) | Specialists and military commanders. |
-| [technology.md](technology.md) | The three-bucket research model and the seven methods of technological advancement. |
+| [technology.md](technology.md) | The three-bucket research model, the seven methods of technological advancement, how experience is earned, and the schema and API behind them. |
 | [foreign-relations.md](foreign-relations.md) | Inter-empire relationships and diplomatic arrangements. |
 | [departments-advisors.md](departments-advisors.md) | Departments (the evolving "advisors" system). |
 | [manufacturing-chains.md](manufacturing-chains.md) | Infrastructure manufacturing chains, with farm and blacksmith examples. |
