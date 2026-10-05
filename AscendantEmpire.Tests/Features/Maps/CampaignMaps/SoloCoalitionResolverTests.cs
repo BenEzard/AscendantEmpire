@@ -49,7 +49,11 @@ internal class SoloCoalitionResolverTests : InMemoryTestBase
             Status = status,
             RulerTitle = "King",
             RulerName = $"Ruler {id}",
-            FactionName = $"Faction {id}"
+            FactionName = $"Faction {id}",
+            PeopleName = "People",
+            Demonym = "Person",
+            CultureName = "Culture",
+            Language = "Language"
         };
     }
 }

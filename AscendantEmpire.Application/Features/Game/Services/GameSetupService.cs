@@ -414,6 +414,12 @@ internal class GameSetupService(
                 RulerTitle = DomainPlayer.DEFAULT_RULER_TITLE,
                 RulerName = $"Player {i}",
                 FactionName = $"Faction {i}",
+                // Placeholders in the same shape as the names above: a seeded slot has to read as *something* in the
+                // lobby, and the setup dialog makes the player replace all four before it will save.
+                PeopleName = $"People {i}",
+                Demonym = $"Person {i}",
+                CultureName = $"Culture {i}",
+                Language = $"Language {i}",
                 Status = PlayerStatus.Active,
             });
         }

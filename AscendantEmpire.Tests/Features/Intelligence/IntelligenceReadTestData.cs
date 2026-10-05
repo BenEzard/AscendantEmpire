@@ -259,6 +259,10 @@ internal static class IntelligenceReadTestData
             RulerTitle = "King",
             RulerName = $"Player {id}",
             FactionName = $"Faction {id}",
+            PeopleName = "People",
+            Demonym = "Person",
+            CultureName = "Culture",
+            Language = "Language",
             Status = PlayerStatus.Active
         };
     }

@@ -27,6 +27,18 @@ public class DTPlayerDefinition : IPlayerDefinition
     public string? FactionColour { get; set; }
 
     /// <inheritdoc />
+    public required string PeopleName { get; set; }
+
+    /// <inheritdoc />
+    public required string Demonym { get; set; }
+
+    /// <inheritdoc />
+    public required string CultureName { get; set; }
+
+    /// <inheritdoc />
+    public required string Language { get; set; }
+
+    /// <inheritdoc />
     public required IReadOnlyCollection<DTUsedFactionColour> UsedFactionColours { get; set; }
 
     IReadOnlyCollection<IUsedFactionColour> IPlayerDefinition.UsedFactionColours => UsedFactionColours;

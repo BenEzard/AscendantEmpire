@@ -297,6 +297,10 @@ internal class GetMyGamesHandlerTests : InMemoryTestBase
             RulerTitle = rulerTitle,
             RulerName = rulerName,
             FactionName = factionName,
+            PeopleName = "People",
+            Demonym = "Person",
+            CultureName = "Culture",
+            Language = "Language",
             Status = status,
             CampaignOffsetId = campaignOffsetId,
         });

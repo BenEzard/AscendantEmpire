@@ -121,6 +121,10 @@ gets a `404` rather than a `403` — there is nothing there to forbid them from.
   "rulerGender": null,          // "Male" | "Female" | null
   "factionName": "Faction 3",
   "factionColour": null,
+  "peopleName": "People 3",
+  "demonym": "Person 3",
+  "cultureName": "Culture 3",
+  "language": "Language 3",
   "usedFactionColours": [
     { "value": "#0069a8", "usedBy": "Faction 1" },
     { "value": "#c10007", "usedBy": "Faction 2" }
@@ -134,7 +138,7 @@ It never includes the caller's own colour, which must stay pickable.
 
 ### `PUT /match-making/games/{gameId}/my-player`
 
-Defines the caller's own ruler and faction. A full replacement of the five values, not a patch.
+Defines the caller's own ruler and faction. A full replacement of all nine values, not a patch.
 
 Gated on `JoinGame`, the same permission as claiming. The body carries **no** identity at all — the
 game comes from the route and the slot from the token — so it cannot name a slot the caller does not
@@ -143,7 +147,9 @@ own.
 ```jsonc
 // request
 { "rulerTitle": "Empress", "rulerName": "Aelara", "rulerGender": "Female",
-  "factionName": "The Ember Pact", "factionColour": "#c800de" }
+  "factionName": "The Ember Pact", "factionColour": "#c800de",
+  "peopleName": "The Vashti", "demonym": "Vashti",
+  "cultureName": "Vashti Highland", "language": "Old Vashti" }
 // response: 204 No Content
 ```
 
@@ -168,6 +174,10 @@ own.
 - The colour is **not** checked against the frontend's palette. Doing so would mean keeping a copy
   of that palette in C# forever, and the worst a hostile client achieves by sending something else
   is an ugly colour.
+- **`peopleName`, `demonym`, `cultureName` and `language` are all required**, each capped at 50
+  characters. They are free text the player authors, checked only for presence and length: nothing
+  is looked up by them, and two factions in one game may name their peoples alike. `GameSetupService`
+  seeds each with a placeholder, so a slot never reads as blank in the lobby before it is claimed.
 
 ---
 
@@ -179,7 +189,7 @@ own.
 | `GetMatchMakingGamesHandler` | `AscendantEmpire.Application/Features/MatchMaking/Handlers/` | Lists joinable games + slots, deriving the claim flags per slot. |
 | `ClaimPlayerSlotHandler` | `AscendantEmpire.Application/Features/MatchMaking/Handlers/` | Assigns `Player.UserId`; guards "already taken" / "already in this game". |
 | `GetPlayerDefinitionHandler` | `AscendantEmpire.Application/Features/MatchMaking/Handlers/` | Reads the caller's own slot plus the rivals' colours, in one query. |
-| `UpdatePlayerDefinitionHandler` | `AscendantEmpire.Application/Features/MatchMaking/Handlers/` | Writes the five identity values; defaults a blank title and guards the colour clash. |
+| `UpdatePlayerDefinitionHandler` | `AscendantEmpire.Application/Features/MatchMaking/Handlers/` | Writes the nine identity values; defaults a blank title and guards the colour clash. |
 | Backend contracts | `AscendantEmpire.BackendContracts/MatchMaking/` | `MatchMakingGame`, `MatchMakingSlot`, `PlayerDefinition`, `UsedFactionColour` (handler output); `ClaimPlayerSlotDto`, `UpdatePlayerDefinitionDto` (request bodies). |
 | Frontend contracts | `AscendantEmpire.FrontendContracts/MatchMaking/` | `IMatchMakingGameCollection`, `IMatchMakingGame`, `IMatchMakingSlot`, `IPlayerDefinition`, `IUsedFactionColour`. |
 | DTOs | `AscendantEmpire.Application/Features/MatchMaking/Classes/` | `DTMatchMakingGameCollection` etc. — the serialized shapes. |
@@ -236,9 +246,10 @@ tool's internals for a layout primitive is the wrong dependency direction.
    - **Ruler** page — Ruler Name, Ruler Gender, Ruler Title, *in that order*: the gender decides
      which titles the combo box suggests, so it has to be answered first. The title is free text and
      may be left blank.
-   - **Faction** page — Faction Name and a `ColorPicker` over `DistinctColors`, with the colours
-     rivals already hold struck through. A save that loses the race anyway comes back as a 409 and is
-     shown against the colour field, with the page switched to it.
+   - **Faction** page — Faction Name, a `ColorPicker` over `DistinctColors` with the colours rivals
+     already hold struck through, and then the four names for the people behind the faction: People
+     Name, Demonym, Culture Name and Language. A save that loses the colour race anyway comes back as
+     a 409 and is shown against the colour field, with the page switched to it.
    - **Cancel** keeps the slot, carrying whatever the game seeded it with. That is only reasonable
      because of the **Edit** button, which reopens the same dialog — the two are one guarantee.
 5. **Play now** calls `enterGame(gameId)` (from the shared auth API) to swap the user token for a
@@ -261,9 +272,10 @@ just adds the claim step on top.
 - **`/games/open` is unchanged** — it stays anonymous and only lists `Active` players. The Match
   Maker uses its own authorised listing so it can compute the per-user claim flags.
 - **Slot identity is now the player's** — a seeded slot carries only placeholders (`"Nobody"`,
-  `"Player 3"`, `"Faction 3"`, no gender, no colour), and the two `my-player` endpoints above let
-  the claimant replace them. Uniqueness is enforced on the colour only: two factions in one game may
-  still share a ruler name or a faction name.
+  `"Player 3"`, `"Faction 3"`, `"People 3"`, `"Person 3"`, `"Culture 3"`, `"Language 3"`, no gender,
+  no colour), and the two `my-player` endpoints above let the claimant replace them. Uniqueness is
+  enforced on the colour only: two factions in one game may still share a ruler name, a faction name,
+  or any of the four people-and-culture names.
 - **Colour uniqueness is exact-value, not perceptual** — the index stops two players holding the
   same hex, but nothing stops them picking two colours that merely look alike. The defence is the
   palette the picker offers, not a server rule.

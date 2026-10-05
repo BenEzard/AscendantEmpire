@@ -151,6 +151,10 @@ internal class UnitTemplateOverwriteTests : SqlServerTestBase
             RulerTitle = "King",
             RulerName = "Tester",
             FactionName = "Testers",
+            PeopleName = "People",
+            Demonym = "Person",
+            CultureName = "Culture",
+            Language = "Language",
             Status = PlayerStatus.Active,
         };
         context.Players.Add(player);

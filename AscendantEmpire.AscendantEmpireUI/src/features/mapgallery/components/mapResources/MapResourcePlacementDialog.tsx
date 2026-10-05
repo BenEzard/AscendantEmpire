@@ -107,7 +107,7 @@ export default function MapResourcePlacementDialog({
 
           {kind && holdsSingleQuantity(kind) ? (
             <>
-              <FieldRow label="Starting Quantity" hint="(empty: rolled per game)">
+              <FieldRow label="Starting Quantity" hint="(Empty: rolled per game)">
                 <WholeNumberInput
                   value={initialQuantity}
                   ariaLabel="Starting quantity"

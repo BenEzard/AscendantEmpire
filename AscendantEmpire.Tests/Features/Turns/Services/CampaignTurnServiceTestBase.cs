@@ -71,6 +71,10 @@ public abstract class CampaignTurnServiceTestBase : InMemoryTestBase
                 RulerTitle = "King",
                 RulerName = $"Player {playerNumber}",
                 FactionName = $"Faction {playerNumber}",
+                PeopleName = "People",
+                Demonym = "Person",
+                CultureName = "Culture",
+                Language = "Language",
                 Status = PlayerStatus.Active
             });
         }

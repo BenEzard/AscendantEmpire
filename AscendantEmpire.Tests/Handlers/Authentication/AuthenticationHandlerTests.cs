@@ -345,6 +345,10 @@ internal class AuthenticationHandlerTests
             RulerName = $"Ruler {playerId}",
             RulerTitle = $"Title {playerId}",
             FactionName = $"Faction {playerId}",
+            PeopleName = "People",
+            Demonym = "Person",
+            CultureName = "Culture",
+            Language = "Language",
             CampaignOffsetId = playerId,
         };
 

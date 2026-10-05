@@ -28,6 +28,18 @@ public interface IPlayerDefinition
     /// <summary>The faction's colour as an "#rrggbb" string, or null when none has been picked.</summary>
     string? FactionColour { get; }
 
+    /// <summary>What this faction's people call themselves as a group, e.g. "The Vashti".</summary>
+    string PeopleName { get; }
+
+    /// <summary>What one member of that people is called, e.g. "Vashti".</summary>
+    string Demonym { get; }
+
+    /// <summary>The name of this people's culture, e.g. "Vashti Highland".</summary>
+    string CultureName { get; }
+
+    /// <summary>The language this people speak, e.g. "Old Vashti".</summary>
+    string Language { get; }
+
     /// <summary>The colours the other players in this game already hold; never includes the caller's own.</summary>
     IReadOnlyCollection<IUsedFactionColour> UsedFactionColours { get; }
 }

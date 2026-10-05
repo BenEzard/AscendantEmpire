@@ -358,6 +358,10 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
             RulerTitle = "Emperor",
             RulerName = "Test Ruler",
             FactionName = "Test Faction",
+            PeopleName = "People",
+            Demonym = "Person",
+            CultureName = "Culture",
+            Language = "Language",
             Status = PlayerStatus.Active,
         };
 

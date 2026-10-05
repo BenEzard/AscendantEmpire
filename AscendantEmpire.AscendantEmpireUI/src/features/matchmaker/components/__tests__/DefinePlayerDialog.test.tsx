@@ -40,6 +40,12 @@ function undefinedSlot(overrides: Partial<PlayerDefinition> = {}): PlayerDefinit
     rulerGender: null,
     factionName: "Faction 3",
     factionColour: null,
+    // Seeded placeholders, like the ruler and faction names above: the API never sends these back blank for a
+    // slot a game created, so the dialog opens with all four already answered.
+    peopleName: "People 3",
+    demonym: "Person 3",
+    cultureName: "Culture 3",
+    language: "Language 3",
     usedFactionColours: [{ value: TAKEN_COLOUR, usedBy: "Faction 1" }],
     ...overrides,
   };
@@ -67,6 +73,10 @@ const saveButton = () => screen.getByRole("button", { name: "Save" });
 const rulerNameInput = () => screen.getByRole("textbox", { name: "Ruler Name" });
 const rulerTitleInput = () => screen.getByRole("combobox", { name: "Ruler Title" });
 const factionNameInput = () => screen.getByRole("textbox", { name: "Faction Name" });
+const peopleNameInput = () => screen.getByRole("textbox", { name: "People Name" });
+const demonymInput = () => screen.getByRole("textbox", { name: "Demonym" });
+const cultureNameInput = () => screen.getByRole("textbox", { name: "Culture Name" });
+const languageInput = () => screen.getByRole("textbox", { name: "Language" });
 
 // Nav buttons render as "<number> <label>" (plus "has validation errors" when the page is marked
 // invalid), so anchor on the number. A loose /Faction/ would also match the colour picker's trigger,
@@ -118,6 +128,10 @@ describe("the commit gate", () => {
       rulerGender: "Female",
       factionName: "Faction 3",
       factionColour: "#8200db",
+      peopleName: "People 3",
+      demonym: "Person 3",
+      cultureName: "Culture 3",
+      language: "Language 3",
     });
   });
 
@@ -163,6 +177,53 @@ describe("the commit gate", () => {
 
     expect(vi.mocked(updatePlayerDefinition)).not.toHaveBeenCalled();
     expect(activeTabName()).toContain("Ruler");
+  });
+});
+
+describe("the people and culture fields", () => {
+  it("opens on what the slot already holds", async () => {
+    renderDialog();
+    await waitForLoad();
+
+    expect(peopleNameInput()).toHaveValue("People 3");
+    expect(demonymInput()).toHaveValue("Person 3");
+    expect(cultureNameInput()).toHaveValue("Culture 3");
+    expect(languageInput()).toHaveValue("Language 3");
+  });
+
+  // A slot from before these columns existed comes back with all four blank, which is the only way the dialog
+  // ever opens on an unanswered one — hence clearing the field by hand to reach the same state.
+  it.each([
+    ["People Name", peopleNameInput, "Give your people a name."],
+    ["Demonym", demonymInput, "Say what one of your people is called."],
+    ["Culture Name", cultureNameInput, "Give your people's culture a name."],
+    ["Language", languageInput, "Name the language your people speak."],
+  ])("refuses to save with a blank %s", async (_label, input, message) => {
+    const user = userEvent.setup();
+    renderDialog();
+    await waitForLoad();
+
+    await completeTheForm(user);
+    await user.clear(input());
+    await user.click(saveButton());
+
+    expect(vi.mocked(updatePlayerDefinition)).not.toHaveBeenCalled();
+    expect(screen.getByText(message)).toBeInTheDocument();
+  });
+
+  it("sends them trimmed", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updatePlayerDefinition).mockResolvedValue(undefined);
+    renderDialog();
+    await waitForLoad();
+
+    await completeTheForm(user);
+    await user.clear(peopleNameInput());
+    await user.type(peopleNameInput(), "  The Vashti  ");
+    await user.click(saveButton());
+
+    await waitFor(() => expect(vi.mocked(updatePlayerDefinition)).toHaveBeenCalled());
+    expect(vi.mocked(updatePlayerDefinition).mock.calls[0][1].peopleName).toBe("The Vashti");
   });
 });
 
@@ -259,6 +320,10 @@ describe("an already-defined slot", () => {
         rulerGender: "Female",
         factionName: "The Ember Pact",
         factionColour: "#8200db",
+        peopleName: "The Vashti",
+        demonym: "Vashti",
+        cultureName: "Vashti Highland",
+        language: "Old Vashti",
       }),
     );
 
@@ -267,5 +332,9 @@ describe("an already-defined slot", () => {
     expect(rulerTitleInput()).toHaveValue("Empress");
     expect(screen.getByRole("radio", { name: "Female" })).toBeChecked();
     expect(factionNameInput()).toHaveValue("The Ember Pact");
+    expect(peopleNameInput()).toHaveValue("The Vashti");
+    expect(demonymInput()).toHaveValue("Vashti");
+    expect(cultureNameInput()).toHaveValue("Vashti Highland");
+    expect(languageInput()).toHaveValue("Old Vashti");
   });
 });

@@ -236,6 +236,10 @@ internal class GetPlayersHandlerTests
                 FactionName = $"Faction {id}",
                 // Derived from the id so each player's colour is distinct, as the per-game unique index requires.
                 FactionColour = $"#{id:x6}",
+                PeopleName = "People",
+                Demonym = "Person",
+                CultureName = "Culture",
+                Language = "Language",
                 CampaignOffsetId = campaignOffsetId
             });
         }

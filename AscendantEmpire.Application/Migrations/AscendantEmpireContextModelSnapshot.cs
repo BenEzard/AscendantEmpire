@@ -796,6 +796,16 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("CampaignOffsetId")
                         .HasColumnType("int");
 
+                    b.Property<string>("CultureName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Demonym")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<string>("FactionColour")
                         .HasMaxLength(9)
                         .HasColumnType("nvarchar(9)");
@@ -807,6 +817,16 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.Property<int>("GameId")
                         .HasColumnType("int");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("PeopleName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<int?>("RulerGender")
                         .HasColumnType("int");

@@ -486,6 +486,10 @@ public class GameSqlServerTestBase : SqlServerTestBase
                 RulerTitle = "King",
                 RulerName = $"Player {i}",
                 FactionName = $"Faction {i}",
+                PeopleName = "People",
+                Demonym = "Person",
+                CultureName = "Culture",
+                Language = "Language",
                 Status = Domain.Enums.Games.PlayerStatus.Active
             });
         }

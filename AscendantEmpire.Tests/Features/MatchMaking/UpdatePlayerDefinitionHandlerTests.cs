@@ -53,6 +53,10 @@ internal class UpdatePlayerDefinitionHandlerTests : InMemoryTestBase
             RulerTitle = Player.DEFAULT_RULER_TITLE,
             RulerName = "Player 1",
             FactionName = "Faction 1",
+            PeopleName = "People",
+            Demonym = "Person",
+            CultureName = "Culture",
+            Language = "Language",
             Status = PlayerStatus.Active,
             CampaignOffsetId = 1,
         });
@@ -67,6 +71,10 @@ internal class UpdatePlayerDefinitionHandlerTests : InMemoryTestBase
             RulerName = "Rival",
             FactionName = "Rival Faction",
             FactionColour = _RIVAL_COLOUR,
+            PeopleName = "People",
+            Demonym = "Person",
+            CultureName = "Culture",
+            Language = "Language",
             RulerGender = RulerGender.Female,
             Status = PlayerStatus.Active,
             CampaignOffsetId = 2,
@@ -82,6 +90,10 @@ internal class UpdatePlayerDefinitionHandlerTests : InMemoryTestBase
             RulerName = "Elsewhere",
             FactionName = "Other Faction",
             FactionColour = _RIVAL_COLOUR,
+            PeopleName = "People",
+            Demonym = "Person",
+            CultureName = "Culture",
+            Language = "Language",
             Status = PlayerStatus.Active,
             CampaignOffsetId = 3,
         });
@@ -89,11 +101,19 @@ internal class UpdatePlayerDefinitionHandlerTests : InMemoryTestBase
         await context.SaveChangesAsync();
     }
 
-    [Test, Description("A save writes all five values to the caller's own slot, storing the colour lower-cased so a later clash check cannot miss it.")]
+    [Test, Description("A save writes all nine values to the caller's own slot, storing the colour lower-cased so a later clash check cannot miss it.")]
     public async Task SaveWritesEveryValueToTheCallersOwnSlotAsync()
     {
         ServiceResultBase.ServiceResult<ServiceResultBase.Empty> result = await _handler.Handle(
-            BuildRequest(rulerTitle: "  Empress  ", rulerName: "  Aelara  ", factionName: "  The Ember Pact  ", factionColour: "#C800DE"),
+            BuildRequest(
+                rulerTitle: "  Empress  ",
+                rulerName: "  Aelara  ",
+                factionName: "  The Ember Pact  ",
+                factionColour: "#C800DE",
+                peopleName: "  The Vashti  ",
+                demonym: "  Vashti  ",
+                cultureName: "  Vashti Highland  ",
+                language: "  Old Vashti  "),
             CancellationToken.None);
 
         Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
@@ -107,6 +127,10 @@ internal class UpdatePlayerDefinitionHandlerTests : InMemoryTestBase
             Assert.That(saved.RulerGender, Is.EqualTo(RulerGender.Female));
             Assert.That(saved.FactionName, Is.EqualTo("The Ember Pact"));
             Assert.That(saved.FactionColour, Is.EqualTo("#c800de"), "Colours are stored lower-cased, so a clash is detectable whatever the database collation.");
+            Assert.That(saved.PeopleName, Is.EqualTo("The Vashti"));
+            Assert.That(saved.Demonym, Is.EqualTo("Vashti"));
+            Assert.That(saved.CultureName, Is.EqualTo("Vashti Highland"));
+            Assert.That(saved.Language, Is.EqualTo("Old Vashti"));
         }
     }
 
@@ -188,9 +212,24 @@ internal class UpdatePlayerDefinitionHandlerTests : InMemoryTestBase
         string rulerName = "Aelara",
         RulerGender rulerGender = RulerGender.Female,
         string factionName = "The Ember Pact",
-        string factionColour = "#c800de")
+        string factionColour = "#c800de",
+        string peopleName = "The Vashti",
+        string demonym = "Vashti",
+        string cultureName = "Vashti Highland",
+        string language = "Old Vashti")
     {
-        return new UpdatePlayerDefinitionRequest(userId, gameId, rulerTitle, rulerName, rulerGender, factionName, factionColour);
+        return new UpdatePlayerDefinitionRequest(
+            userId,
+            gameId,
+            rulerTitle,
+            rulerName,
+            rulerGender,
+            factionName,
+            factionColour,
+            peopleName,
+            demonym,
+            cultureName,
+            language);
     }
 
     private async Task<Player> LoadOwnSlotAsync()

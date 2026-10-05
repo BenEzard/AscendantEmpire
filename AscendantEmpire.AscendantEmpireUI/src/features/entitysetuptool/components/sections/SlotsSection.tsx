@@ -348,7 +348,7 @@ function SlotCard({
 
           {/* Normalized offset from the component image's center (0 = center, ±1 = edges). Usually set by
               dragging on the Image page, but editable here for fine-tuning — hence the fractional step. */}
-          <FieldRow label="UI Position" hint="(x, y from center)">
+          <FieldRow label="UI Position" hint="(Offset in x and y from centre)">
             <div className="flex items-center gap-2">
               <NumberField value={slot.uiXPosition} step={0.01} onChange={(next) => patch("uiXPosition", next)} />
               <NumberField value={slot.uiYPosition} step={0.01} onChange={(next) => patch("uiYPosition", next)} />

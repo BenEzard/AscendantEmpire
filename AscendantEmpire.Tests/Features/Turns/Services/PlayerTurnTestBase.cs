@@ -124,6 +124,10 @@ internal abstract class PlayerTurnTestBase : SqlServerTestBase
             RulerName = factionName,
             FactionName = factionName,
             FactionColour = null,
+            PeopleName = "People",
+            Demonym = "Person",
+            CultureName = "Culture",
+            Language = "Language",
             Status = PlayerStatus.Active,
             CampaignOffsetId = campaignOffsetId,
         };

@@ -33,6 +33,11 @@ public record PlayerDefinition
     /// <summary>Null when the player has not picked a colour yet.</summary>
     public string? FactionColour { get; init; }
 
+    public required string PeopleName { get; init; }
+    public required string Demonym { get; init; }
+    public required string CultureName { get; init; }
+    public required string Language { get; init; }
+
     /// <summary>The colours the other players in this game already hold; never includes the caller's own.</summary>
     public required IReadOnlyCollection<UsedFactionColour> UsedFactionColours { get; init; }
 }

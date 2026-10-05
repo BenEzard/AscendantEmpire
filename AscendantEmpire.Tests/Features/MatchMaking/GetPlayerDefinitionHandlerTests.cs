@@ -52,6 +52,12 @@ internal class GetPlayerDefinitionHandlerTests : InMemoryTestBase
             RulerName = "Player 1",
             FactionName = "Faction 1",
             FactionColour = _OWN_COLOUR,
+            // Distinct from the other slots' placeholders, so the read-back assertions below would catch the
+            // handler reading these four off the wrong row.
+            PeopleName = "The Vashti",
+            Demonym = "Vashti",
+            CultureName = "Vashti Highland",
+            Language = "Old Vashti",
             RulerGender = null,
             Status = PlayerStatus.Active,
             CampaignOffsetId = 1,
@@ -67,6 +73,10 @@ internal class GetPlayerDefinitionHandlerTests : InMemoryTestBase
             RulerName = "Rival",
             FactionName = "Rival Faction",
             FactionColour = _RIVAL_COLOUR,
+            PeopleName = "People",
+            Demonym = "Person",
+            CultureName = "Culture",
+            Language = "Language",
             RulerGender = RulerGender.Female,
             Status = PlayerStatus.Active,
             CampaignOffsetId = 2,
@@ -80,6 +90,10 @@ internal class GetPlayerDefinitionHandlerTests : InMemoryTestBase
             RulerTitle = Player.DEFAULT_RULER_TITLE,
             RulerName = "Player 3",
             FactionName = "Faction 3",
+            PeopleName = "People",
+            Demonym = "Person",
+            CultureName = "Culture",
+            Language = "Language",
             Status = PlayerStatus.Active,
             CampaignOffsetId = 3,
         });
@@ -93,6 +107,10 @@ internal class GetPlayerDefinitionHandlerTests : InMemoryTestBase
             RulerTitle = "King",
             RulerName = "Elsewhere",
             FactionName = "Other Faction",
+            PeopleName = "People",
+            Demonym = "Person",
+            CultureName = "Culture",
+            Language = "Language",
             Status = PlayerStatus.Active,
             CampaignOffsetId = 4,
         });
@@ -119,6 +137,10 @@ internal class GetPlayerDefinitionHandlerTests : InMemoryTestBase
             Assert.That(definition.RulerGender, Is.Null, "An undefined slot asserts no gender at all.");
             Assert.That(definition.FactionName, Is.EqualTo("Faction 1"));
             Assert.That(definition.FactionColour, Is.EqualTo(_OWN_COLOUR));
+            Assert.That(definition.PeopleName, Is.EqualTo("The Vashti"));
+            Assert.That(definition.Demonym, Is.EqualTo("Vashti"));
+            Assert.That(definition.CultureName, Is.EqualTo("Vashti Highland"));
+            Assert.That(definition.Language, Is.EqualTo("Old Vashti"));
         }
     }
 

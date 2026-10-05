@@ -60,7 +60,11 @@ internal class PlayerTechnologyAvailabilityServiceTests : InMemoryTestBase
             GameId = _GAME_ID,
             RulerTitle = "Chief",
             RulerName = "Fixture",
-            FactionName = "Fixture"
+            FactionName = "Fixture",
+            PeopleName = "People",
+            Demonym = "Person",
+            CultureName = "Culture",
+            Language = "Language"
         };
 
         _context.Players.Add(player);
@@ -282,7 +286,11 @@ internal class PlayerTechnologyAvailabilityServiceTests : InMemoryTestBase
             GameId = _GAME_ID,
             RulerTitle = "Chief",
             RulerName = "Second",
-            FactionName = "Second"
+            FactionName = "Second",
+            PeopleName = "People",
+            Demonym = "Person",
+            CultureName = "Culture",
+            Language = "Language"
         };
 
         _context.Players.Add(second);

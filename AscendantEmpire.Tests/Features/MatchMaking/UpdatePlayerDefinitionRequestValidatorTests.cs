@@ -96,6 +96,54 @@ internal class UpdatePlayerDefinitionRequestValidatorTests
         Assert.That(result.IsValid, Is.EqualTo(expectedValid), () => string.Join("; ", result.Errors.Select(e => e.ErrorMessage)));
     }
 
+    [TestCase("", Description = "A people name is required, like the faction's own name.")]
+    [TestCase("   ", Description = "A whitespace-only people name counts as missing.")]
+    public void BlankPeopleNameIsRejected(string peopleName)
+    {
+        ValidationResult result = _validator.Validate(BuildRequest(peopleName: peopleName));
+
+        Assert.That(result.IsValid, Is.False);
+    }
+
+    [TestCase("", Description = "A demonym is required.")]
+    [TestCase("   ", Description = "A whitespace-only demonym counts as missing.")]
+    public void BlankDemonymIsRejected(string demonym)
+    {
+        ValidationResult result = _validator.Validate(BuildRequest(demonym: demonym));
+
+        Assert.That(result.IsValid, Is.False);
+    }
+
+    [TestCase("", Description = "A culture name is required.")]
+    [TestCase("   ", Description = "A whitespace-only culture name counts as missing.")]
+    public void BlankCultureNameIsRejected(string cultureName)
+    {
+        ValidationResult result = _validator.Validate(BuildRequest(cultureName: cultureName));
+
+        Assert.That(result.IsValid, Is.False);
+    }
+
+    [TestCase("", Description = "A language is required.")]
+    [TestCase("   ", Description = "A whitespace-only language counts as missing.")]
+    public void BlankLanguageIsRejected(string language)
+    {
+        ValidationResult result = _validator.Validate(BuildRequest(language: language));
+
+        Assert.That(result.IsValid, Is.False);
+    }
+
+    [Test, Description("Each people-and-culture name is length-checked against its own column, so none of the four can reach the database over-long.")]
+    public void OverLongPeopleAndCultureNamesAreRejected()
+    {
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_validator.Validate(BuildRequest(peopleName: new string('a', Player.PEOPLE_NAME_MAX_LENGTH + 1))).IsValid, Is.False);
+            Assert.That(_validator.Validate(BuildRequest(demonym: new string('a', Player.DEMONYM_MAX_LENGTH + 1))).IsValid, Is.False);
+            Assert.That(_validator.Validate(BuildRequest(cultureName: new string('a', Player.CULTURE_NAME_MAX_LENGTH + 1))).IsValid, Is.False);
+            Assert.That(_validator.Validate(BuildRequest(language: new string('a', Player.LANGUAGE_MAX_LENGTH + 1))).IsValid, Is.False);
+        }
+    }
+
     /// <summary>
     /// A valid request, with only the value a test cares about overridden.
     /// </summary>
@@ -106,8 +154,23 @@ internal class UpdatePlayerDefinitionRequestValidatorTests
         string rulerName = "Aelara",
         RulerGender rulerGender = RulerGender.Female,
         string factionName = "The Ember Pact",
-        string factionColour = "#c800de")
+        string factionColour = "#c800de",
+        string peopleName = "The Vashti",
+        string demonym = "Vashti",
+        string cultureName = "Vashti Highland",
+        string language = "Old Vashti")
     {
-        return new UpdatePlayerDefinitionRequest(userId, gameId, rulerTitle, rulerName, rulerGender, factionName, factionColour);
+        return new UpdatePlayerDefinitionRequest(
+            userId,
+            gameId,
+            rulerTitle,
+            rulerName,
+            rulerGender,
+            factionName,
+            factionColour,
+            peopleName,
+            demonym,
+            cultureName,
+            language);
     }
 }

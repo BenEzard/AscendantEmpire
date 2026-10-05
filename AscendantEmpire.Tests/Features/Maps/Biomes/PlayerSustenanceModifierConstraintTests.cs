@@ -65,6 +65,10 @@ internal class PlayerSustenanceModifierConstraintTests : SqlServerTestBase
             RulerTitle = Player.DEFAULT_RULER_TITLE,
             RulerName = "Ruler",
             FactionName = "Faction",
+            PeopleName = "People",
+            Demonym = "Person",
+            CultureName = "Culture",
+            Language = "Language",
             Status = PlayerStatus.Active,
             CampaignOffsetId = 1,
         };

@@ -72,6 +72,10 @@ function renderLobby(games: MatchMakingGamesResponse) {
     rulerGender: null,
     factionName: "Faction 70",
     factionColour: null,
+    peopleName: "People 70",
+    demonym: "Person 70",
+    cultureName: "Culture 70",
+    language: "Language 70",
     usedFactionColours: [],
   });
 
@@ -88,7 +92,7 @@ const claimButton = () => screen.getByRole("button", { name: "Claim" });
 const editButton = () => screen.getByRole("button", { name: "Edit" });
 
 /** The setup dialog, identified by its title. */
-const setupDialog = () => screen.queryByText("Define your ruler");
+const setupDialog = () => screen.queryByText("Define your Ruler and Faction");
 
 /** Waits for the lobby listing to have rendered. */
 async function waitForLobby() {

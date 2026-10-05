@@ -22,6 +22,12 @@ export type PlayerDefinition = {
   factionName: string;
   // Null until the player has picked one.
   factionColour: string | null;
+  // The four people-and-culture names. Non-nullable server-side: a seeded slot carries a placeholder, and a slot
+  // from before the columns existed carries an empty string.
+  peopleName: string;
+  demonym: string;
+  cultureName: string;
+  language: string;
   // Never includes the caller's own colour, which must stay pickable.
   usedFactionColours: UsedFactionColour[];
 };
@@ -34,4 +40,8 @@ export type UpdatePlayerDefinitionBody = {
   rulerGender: RulerGender;
   factionName: string;
   factionColour: string;
+  peopleName: string;
+  demonym: string;
+  cultureName: string;
+  language: string;
 };

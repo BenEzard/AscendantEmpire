@@ -83,6 +83,10 @@ internal sealed class GetPlayerDefinitionHandler(
                 RulerGender = ownSlot.RulerGender,
                 FactionName = ownSlot.FactionName,
                 FactionColour = ownSlot.FactionColour,
+                PeopleName = ownSlot.PeopleName,
+                Demonym = ownSlot.Demonym,
+                CultureName = ownSlot.CultureName,
+                Language = ownSlot.Language,
                 UsedFactionColours = usedColours
             };
 

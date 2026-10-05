@@ -36,6 +36,10 @@ type Draft = {
   rulerGender: RulerGender | null;
   factionName: string;
   factionColour: string | null;
+  peopleName: string;
+  demonym: string;
+  cultureName: string;
+  language: string;
 };
 
 type FieldErrors = Partial<Record<keyof Draft, string>>;
@@ -46,6 +50,10 @@ const EMPTY_DRAFT: Draft = {
   rulerGender: null,
   factionName: "",
   factionColour: null,
+  peopleName: "",
+  demonym: "",
+  cultureName: "",
+  language: "",
 };
 
 /**
@@ -81,6 +89,22 @@ function validate(draft: Draft): FieldErrors {
 
   if (draft.factionColour === null) {
     errors.factionColour = "Pick a colour for your faction.";
+  }
+
+  if (draft.peopleName.trim() === "") {
+    errors.peopleName = "Give your people a name.";
+  }
+
+  if (draft.demonym.trim() === "") {
+    errors.demonym = "Say what one of your people is called.";
+  }
+
+  if (draft.cultureName.trim() === "") {
+    errors.cultureName = "Give your people's culture a name.";
+  }
+
+  if (draft.language.trim() === "") {
+    errors.language = "Name the language your people speak.";
   }
 
   return errors;
@@ -146,6 +170,12 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
       rulerGender: definition.rulerGender,
       factionName: definition.factionName,
       factionColour: definition.factionColour,
+      // Shown exactly as stored, like the ruler and faction names beside them: a seeded slot's placeholder is
+      // something to edit, and a slot predating these columns comes back blank, which the validation then catches.
+      peopleName: definition.peopleName,
+      demonym: definition.demonym,
+      cultureName: definition.cultureName,
+      language: definition.language,
     });
   }, [open, definition]);
 
@@ -169,6 +199,10 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
         rulerGender: draft.rulerGender!,
         factionName: draft.factionName.trim(),
         factionColour: draft.factionColour!,
+        peopleName: draft.peopleName.trim(),
+        demonym: draft.demonym.trim(),
+        cultureName: draft.cultureName.trim(),
+        language: draft.language.trim(),
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: playerDefinitionQueryKey(gameId) });
@@ -212,9 +246,10 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
   return (
     <PagedDialog<DefinePlayerSection>
       open={open}
-      title="Define your ruler"
+      title="Define your Ruler and Faction"
       width={720}
-      height={320}
+      // Tall enough for the Faction page's six rows, so neither page scrolls and the dialog never resizes between them.
+      height={420}
       onCancel={onCancel}
       onCommit={attemptCommit}
       activeSection={activeSection}
@@ -271,7 +306,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
                 </div>
               </FieldRow>
 
-              <FieldRow label="Ruler Title" hint="(this will evolve as your empire grows)">
+              <FieldRow label="Ruler Title" hint="(This will evolve as your empire grows)">
                 <FreeTextComboBox
                   value={draft.rulerTitle}
                   onChange={(next) => setField("rulerTitle", next)}
@@ -286,7 +321,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
         {
           key: "faction",
           label: "Faction",
-          invalid: !!(shownErrors.factionName || colourError),
+          invalid: !!(shownErrors.factionName || colourError || shownErrors.peopleName || shownErrors.demonym || shownErrors.cultureName || shownErrors.language),
           content: (
             <>
               <FieldRow label="Faction Name" error={shownErrors.factionName}>
@@ -298,7 +333,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
                 />
               </FieldRow>
 
-              <FieldRow label="Faction Colour" hint="(colours already taken are struck through)" error={colourError}>
+              <FieldRow label="Faction Colour" hint="(Colours already taken are struck through)" error={colourError}>
                 <ColorPicker
                   value={draft.factionColour}
                   onChange={(next) => {
@@ -319,6 +354,44 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
                   <span className="col-span-7 col-start-6">Your faction will be drawn in {draft.factionColour}.</span>
                 </p>
               )}
+
+              {/* The people behind the faction. Four free-text names with no suggestions behind them: there is no
+                  catalogue to draw from, and each one's hint carries the question it answers. */}
+              <FieldRow label="People Name" hint="(What do these people call themselves?)" error={shownErrors.peopleName}>
+                <input
+                  className={errorClass(!!shownErrors.peopleName)}
+                  value={draft.peopleName}
+                  aria-label="People Name"
+                  onChange={(e) => setField("peopleName", e.target.value)}
+                />
+              </FieldRow>
+
+              <FieldRow label="Demonym" hint="(What is one person from this people called?)" error={shownErrors.demonym}>
+                <input
+                  className={errorClass(!!shownErrors.demonym)}
+                  value={draft.demonym}
+                  aria-label="Demonym"
+                  onChange={(e) => setField("demonym", e.target.value)}
+                />
+              </FieldRow>
+
+              <FieldRow label="Culture Name" hint="(What is the name of their culture?)" error={shownErrors.cultureName}>
+                <input
+                  className={errorClass(!!shownErrors.cultureName)}
+                  value={draft.cultureName}
+                  aria-label="Culture Name"
+                  onChange={(e) => setField("cultureName", e.target.value)}
+                />
+              </FieldRow>
+
+              <FieldRow label="Language" hint="(What language do they speak?)" error={shownErrors.language}>
+                <input
+                  className={errorClass(!!shownErrors.language)}
+                  value={draft.language}
+                  aria-label="Language"
+                  onChange={(e) => setField("language", e.target.value)}
+                />
+              </FieldRow>
             </>
           ),
         },

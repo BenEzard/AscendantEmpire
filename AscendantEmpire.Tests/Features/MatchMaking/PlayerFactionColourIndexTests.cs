@@ -116,6 +116,10 @@ internal class PlayerFactionColourIndexTests : SqlServerTestBase
             RulerName = factionName,
             FactionName = factionName,
             FactionColour = factionColour,
+            PeopleName = "People",
+            Demonym = "Person",
+            CultureName = "Culture",
+            Language = "Language",
             Status = PlayerStatus.Active,
             CampaignOffsetId = campaignOffsetId,
         };

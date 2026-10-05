@@ -3,7 +3,7 @@ using AscendantEmpire.Domain.Enums.Games;
 namespace AscendantEmpire.BackendContracts.MatchMaking;
 
 /// <summary>
-/// Request body for defining the player slot the caller controls in a game. A full replacement of the five values, not a patch.
+/// Request body for defining the player slot the caller controls in a game. A full replacement of all nine values, not a patch.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -22,4 +22,16 @@ public record class UpdatePlayerDefinitionDto
 
     /// <summary>The faction's colour as an "#rrggbb" string. Stored lower-cased and unique within the game.</summary>
     public required string FactionColour { get; init; }
+
+    /// <summary>What this faction's people call themselves as a group, e.g. "The Vashti".</summary>
+    public required string PeopleName { get; init; }
+
+    /// <summary>What one member of that people is called, e.g. "Vashti".</summary>
+    public required string Demonym { get; init; }
+
+    /// <summary>The name of this people's culture, e.g. "Vashti Highland".</summary>
+    public required string CultureName { get; init; }
+
+    /// <summary>The language this people speak, e.g. "Old Vashti".</summary>
+    public required string Language { get; init; }
 }

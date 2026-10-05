@@ -36,7 +36,11 @@ public record UpdatePlayerDefinitionRequest(
     string RulerName,
     RulerGender RulerGender,
     string FactionName,
-    string FactionColour
+    string FactionColour,
+    string PeopleName,
+    string Demonym,
+    string CultureName,
+    string Language
 ) : IRequest<ServiceResult<Empty>>;
 
 internal class UpdatePlayerDefinitionRequestValidator : Validator<UpdatePlayerDefinitionRequest>
@@ -68,6 +72,24 @@ internal class UpdatePlayerDefinitionRequestValidator : Validator<UpdatePlayerDe
         RuleFor(x => x.FactionColour)
             .NotEmpty().WithMessage("Faction Colour is required.")
             .Matches("^#[0-9a-fA-F]{6}$").WithMessage("Faction Colour must be a hex colour such as #1d293d.");
+
+        // The four people-and-culture names are required in the same way the faction's own name is: free text the
+        // player authors, checked only for presence and length because nothing is ever looked up by them.
+        RuleFor(x => x.PeopleName)
+            .NotEmpty().WithMessage("People Name is required.")
+            .MaximumLength(Player.PEOPLE_NAME_MAX_LENGTH).WithMessage($"People Name cannot be longer than {Player.PEOPLE_NAME_MAX_LENGTH} characters.");
+
+        RuleFor(x => x.Demonym)
+            .NotEmpty().WithMessage("Demonym is required.")
+            .MaximumLength(Player.DEMONYM_MAX_LENGTH).WithMessage($"Demonym cannot be longer than {Player.DEMONYM_MAX_LENGTH} characters.");
+
+        RuleFor(x => x.CultureName)
+            .NotEmpty().WithMessage("Culture Name is required.")
+            .MaximumLength(Player.CULTURE_NAME_MAX_LENGTH).WithMessage($"Culture Name cannot be longer than {Player.CULTURE_NAME_MAX_LENGTH} characters.");
+
+        RuleFor(x => x.Language)
+            .NotEmpty().WithMessage("Language is required.")
+            .MaximumLength(Player.LANGUAGE_MAX_LENGTH).WithMessage($"Language cannot be longer than {Player.LANGUAGE_MAX_LENGTH} characters.");
     }
 }
 
@@ -115,6 +137,10 @@ internal sealed class UpdatePlayerDefinitionHandler(
             slot.RulerGender = request.RulerGender;
             slot.FactionName = request.FactionName.Trim();
             slot.FactionColour = factionColour;
+            slot.PeopleName = request.PeopleName.Trim();
+            slot.Demonym = request.Demonym.Trim();
+            slot.CultureName = request.CultureName.Trim();
+            slot.Language = request.Language.Trim();
 
             await context.SaveChangesAsync(cancelToken);
 

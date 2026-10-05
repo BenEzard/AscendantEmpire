@@ -151,6 +151,10 @@ public class GetAllGamesHandlerTests : InMemoryTestBase
             RulerTitle = "King",
             RulerName = "Test",
             FactionName = $"Faction {Guid.NewGuid():N}",
+            PeopleName = "People",
+            Demonym = "Person",
+            CultureName = "Culture",
+            Language = "Language",
             Status = status
         });
 

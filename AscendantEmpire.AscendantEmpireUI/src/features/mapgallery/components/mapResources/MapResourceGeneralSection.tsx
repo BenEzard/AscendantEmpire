@@ -31,7 +31,7 @@ export default function MapResourceGeneralSection({ type, categories, onChange }
       </FieldRow>
 
       {/* The code is the key saves match on, so once saved it is fixed: changing it would add a second type rather than rename this one. */}
-      <FieldRow label="Code" hint={isSaved ? "(fixed once saved)" : undefined}>
+      <FieldRow label="Code" hint={isSaved ? "(Fixed once saved)" : undefined}>
         {isSaved ? (
           <input className={`${inputClass} bg-slate-100 text-slate-500`} value={type.code} readOnly />
         ) : (
@@ -52,7 +52,7 @@ export default function MapResourceGeneralSection({ type, categories, onChange }
       {/* Sort Order is not edited here: the server places a new type at the end of its category, and the order is changed in the
           database by hand. It still orders the picker, so the draft carries it through untouched. */}
 
-      <FieldRow label="Map Icon" hint="(image path; empty for none)">
+      <FieldRow label="Map Icon" hint="(Image path; empty for none)">
         <div className="flex items-center gap-2">
           <input
             className={inputClass}
@@ -109,18 +109,18 @@ export default function MapResourceGeneralSection({ type, categories, onChange }
 
       <CheckboxRow
         label="Discoverable by default"
-        hint="(off for e.g. uranium, until a tech switches it on)"
+        hint="(Off for e.g. uranium, until a tech switches it on)"
         checked={type.isDiscoverableByDefault}
         onChange={(checked) => set("isDiscoverableByDefault", checked)}
       />
 
-      <FieldRow label="Discovery Likelihood" hint={kind === "stratified" ? "(first layer)" : undefined}>
+      <FieldRow label="Discovery Likelihood" hint={kind === "stratified" ? "(First layer)" : undefined}>
         <PercentInput value={type.discoveryLikelihood} required onChange={(value) => set("discoveryLikelihood", value)} />
       </FieldRow>
 
       {/* A stratified type judges each layer separately, so its fuzzy factors are on the Layers page. */}
       {kind !== "stratified" ? (
-        <FieldRow label="Estimation Fuzziness" hint="(min–max)">
+        <FieldRow label="Estimation Fuzziness" hint="(Minimum to maximum)">
           <div className="grid grid-cols-2 gap-2">
             <PercentInput value={type.estimationFuzzyFactorMin} ariaLabel="Fuzziness minimum" onChange={(value) => set("estimationFuzzyFactorMin", value)} />
             <PercentInput value={type.estimationFuzzyFactorMax} ariaLabel="Fuzziness maximum" onChange={(value) => set("estimationFuzzyFactorMax", value)} />
@@ -130,11 +130,11 @@ export default function MapResourceGeneralSection({ type, categories, onChange }
 
       {grows(kind) ? (
         <>
-          <FieldRow label="Survival Rounds" hint="(dormant, once exhausted)">
+          <FieldRow label="Survival Rounds" hint="(Dormant, once exhausted)">
             <WholeNumberInput value={type.survivalRounds} onChange={(value) => set("survivalRounds", value)} />
           </FieldRow>
 
-          <FieldRow label="Reseed Likelihood" hint="(each dormant Round)">
+          <FieldRow label="Reseed Likelihood" hint="(Each dormant Round)">
             <PercentInput value={type.reseedLikelihood} onChange={(value) => set("reseedLikelihood", value)} />
           </FieldRow>
         </>
