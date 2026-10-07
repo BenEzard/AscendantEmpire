@@ -39,7 +39,15 @@ public class DTPlayerDefinition : IPlayerDefinition
     public required string Language { get; set; }
 
     /// <inheritdoc />
+    public required string RulerPortraitPath { get; set; }
+
+    /// <inheritdoc />
     public required IReadOnlyCollection<DTUsedFactionColour> UsedFactionColours { get; set; }
 
+    /// <inheritdoc />
+    public required IReadOnlyCollection<DTUsedRulerPortrait> UsedRulerPortraits { get; set; }
+
     IReadOnlyCollection<IUsedFactionColour> IPlayerDefinition.UsedFactionColours => UsedFactionColours;
+
+    IReadOnlyCollection<IUsedRulerPortrait> IPlayerDefinition.UsedRulerPortraits => UsedRulerPortraits;
 }

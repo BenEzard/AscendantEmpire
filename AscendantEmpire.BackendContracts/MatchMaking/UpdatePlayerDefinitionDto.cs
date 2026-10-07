@@ -3,7 +3,7 @@ using AscendantEmpire.Domain.Enums.Games;
 namespace AscendantEmpire.BackendContracts.MatchMaking;
 
 /// <summary>
-/// Request body for defining the player slot the caller controls in a game. A full replacement of all nine values, not a patch.
+/// Request body for defining the player slot the caller controls in a game. A full replacement of all ten values, not a patch.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -34,4 +34,7 @@ public record class UpdatePlayerDefinitionDto
 
     /// <summary>The language this people speak, e.g. "Old Vashti".</summary>
     public required string Language { get; init; }
+
+    /// <summary>The ruler's portrait, as one of the root-relative paths the UI offers, e.g. "/portraits/ruler_07.png".</summary>
+    public required string RulerPortraitPath { get; init; }
 }

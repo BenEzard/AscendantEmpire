@@ -10,5 +10,6 @@ public class DTGamePlayer : IGamePlayer
     public required string RulerLabel { get; set; }
     public required string FactionName { get; set; }
     public string? FactionColour { get; set; }
+    public required string RulerPortraitPath { get; set; }
     public required PlayerStatus Status { get; set; }
 }

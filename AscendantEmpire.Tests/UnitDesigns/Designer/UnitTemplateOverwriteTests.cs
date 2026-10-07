@@ -155,6 +155,7 @@ internal class UnitTemplateOverwriteTests : SqlServerTestBase
             Demonym = "Person",
             CultureName = "Culture",
             Language = "Language",
+            RulerPortraitPath = "/portraits/ruler_01.png",
             Status = PlayerStatus.Active,
         };
         context.Players.Add(player);

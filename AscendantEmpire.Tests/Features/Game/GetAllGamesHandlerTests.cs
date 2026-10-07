@@ -155,6 +155,7 @@ public class GetAllGamesHandlerTests : InMemoryTestBase
             Demonym = "Person",
             CultureName = "Culture",
             Language = "Language",
+            RulerPortraitPath = "/portraits/ruler_01.png",
             Status = status
         });
 

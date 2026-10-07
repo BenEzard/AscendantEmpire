@@ -1,4 +1,5 @@
 ﻿import ToolBar from "@/components/ui/toolbar/Toolbar";
+import CurrentTurnRulerIndicator from "@/features/game/components/CurrentTurnRulerIndicator";
 import AssetManagerDialog from "@/features/game/assets/manager/AssetManagerDialog";
 import { usePlayerCampaignMapTilesQuery } from "@/features/map/hooks/useCampaignMapTiles";
 import TileGrid, { TILE_SIZE_PX } from "@/features/map/components/TileGrid";
@@ -247,6 +248,13 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
 
   // Reports carry ids, not names. The lookups are resolved here, at read time, so a renamed faction reads correctly in reports raised before the rename.
   const factionNameByPlayerId = useMemo(() => new Map((gamePlayers ?? []).map((player) => [player.playerId, player.factionName])), [gamePlayers]);
+
+  // Whoever the campaign queue is waiting on, joined from the two queries already in hand. Undefined both while the players list is still loading and
+  // when no turn is open at all; the indicator renders its own empty state for that rather than disappearing.
+  const currentTurnPlayer = useMemo(
+    () => (currentCampaignTurn == null ? undefined : (gamePlayers ?? []).find((player) => player.playerId === currentCampaignTurn.playerId)),
+    [currentCampaignTurn, gamePlayers],
+  );
 
   const sightingDescriptionContext = useMemo<SightingDescriptionContext>(
     () => ({ unitNameByUnitTemplateId, factionNameByPlayerId, structureNameByStructureId }),
@@ -497,7 +505,17 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
       sightingDescriptionContext={sightingDescriptionContext}>
       <div className="flex flex-col" style={{ minHeight: "100vh", paddingRight: notificationPanelOpen ? "20vw" : undefined }}>
         <div ref={toolbarRef} className="fixed left-0 right-0 z-[1070]" style={{ top: topOffset }}>
-          <ToolBar groups={toolBarGroups} />
+          <ToolBar
+            groups={toolBarGroups}
+            trailing={
+              <CurrentTurnRulerIndicator
+                portraitPath={currentTurnPlayer?.rulerPortraitPath ?? null}
+                // The open turn's own faction name stands in while the players list loads, so the region does not flicker through "No open turn" on a
+                // turn that was open all along. CurrentCampaignTurn already carries it, so the fallback costs nothing.
+                rulerLabel={currentTurnPlayer?.rulerLabel ?? currentCampaignTurn?.factionName ?? null}
+              />
+            }
+          />
         </div>
         {/* Spacer so content doesn't slide under the fixed toolbar (toolbar height only, tab strip is handled by App) */}
         <div style={{ height: Math.max(0, toolbarBottomPx - topOffset) }} />

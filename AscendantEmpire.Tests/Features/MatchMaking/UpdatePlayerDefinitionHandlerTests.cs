@@ -4,6 +4,7 @@ using AscendantEmpire.Application.Features.MatchMaking.Handlers;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Enums.Games;
 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AscendantEmpire.Tests.Features.MatchMaking;
@@ -18,8 +19,9 @@ namespace AscendantEmpire.Tests.Features.MatchMaking;
 /// safe to reach while the caller still holds a plain user token.
 /// </para>
 /// <para>
-/// Runs at the in-memory tier: the faction colour clash is rejected by the handler's own check, so nothing here depends on the database enforcing the
-/// unique index. <see cref="PlayerFactionColourIndexTests"/> covers the index itself.
+/// Runs at the in-memory tier: both clash checks - the faction colour's and the ruler portrait's - are made by the handler itself, so nothing here
+/// depends on the database. <see cref="PlayerFactionColourIndexTests"/> covers the colour's unique index; the portrait has no index behind it, which
+/// makes the check below its only guarantee and so the only place the rule is pinned at all.
 /// </para>
 /// </remarks>
 internal class UpdatePlayerDefinitionHandlerTests : InMemoryTestBase
@@ -34,6 +36,9 @@ internal class UpdatePlayerDefinitionHandlerTests : InMemoryTestBase
 
     /// <summary>The colour the rival already holds, stored the way the handler stores it: lower-cased.</summary>
     private const string _RIVAL_COLOUR = "#c10007";
+
+    /// <summary>The portrait the rival already holds, so the caller may not take it.</summary>
+    private const string _RIVAL_PORTRAIT = "/portraits/ruler_04.png";
 
     private UpdatePlayerDefinitionHandler _handler = null!;
 
@@ -57,6 +62,7 @@ internal class UpdatePlayerDefinitionHandlerTests : InMemoryTestBase
             Demonym = "Person",
             CultureName = "Culture",
             Language = "Language",
+            RulerPortraitPath = Player.DEFAULT_RULER_PORTRAIT_PATH,
             Status = PlayerStatus.Active,
             CampaignOffsetId = 1,
         });
@@ -75,6 +81,7 @@ internal class UpdatePlayerDefinitionHandlerTests : InMemoryTestBase
             Demonym = "Person",
             CultureName = "Culture",
             Language = "Language",
+            RulerPortraitPath = _RIVAL_PORTRAIT,
             RulerGender = RulerGender.Female,
             Status = PlayerStatus.Active,
             CampaignOffsetId = 2,
@@ -94,6 +101,7 @@ internal class UpdatePlayerDefinitionHandlerTests : InMemoryTestBase
             Demonym = "Person",
             CultureName = "Culture",
             Language = "Language",
+            RulerPortraitPath = _RIVAL_PORTRAIT,
             Status = PlayerStatus.Active,
             CampaignOffsetId = 3,
         });
@@ -113,7 +121,8 @@ internal class UpdatePlayerDefinitionHandlerTests : InMemoryTestBase
                 peopleName: "  The Vashti  ",
                 demonym: "  Vashti  ",
                 cultureName: "  Vashti Highland  ",
-                language: "  Old Vashti  "),
+                language: "  Old Vashti  ",
+                rulerPortraitPath: "/portraits/ruler_12.png"),
             CancellationToken.None);
 
         Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
@@ -131,6 +140,7 @@ internal class UpdatePlayerDefinitionHandlerTests : InMemoryTestBase
             Assert.That(saved.Demonym, Is.EqualTo("Vashti"));
             Assert.That(saved.CultureName, Is.EqualTo("Vashti Highland"));
             Assert.That(saved.Language, Is.EqualTo("Old Vashti"));
+            Assert.That(saved.RulerPortraitPath, Is.EqualTo("/portraits/ruler_12.png"), "The portrait the player picked, not the one their slot was seeded with.");
         }
     }
 
@@ -202,6 +212,80 @@ internal class UpdatePlayerDefinitionHandlerTests : InMemoryTestBase
         Assert.That(saved.FactionColour, Is.EqualTo(_RIVAL_COLOUR));
     }
 
+    [Test, Description("A portrait a rival in the same game already wears is refused, so no two players share a face.")]
+    public async Task PortraitHeldByARivalIsRejectedAsync()
+    {
+        ServiceResultBase.ServiceResult<ServiceResultBase.Empty> result = await _handler.Handle(
+            BuildRequest(rulerPortraitPath: _RIVAL_PORTRAIT),
+            CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Conflict));
+        }
+    }
+
+    [Test, Description("The same portrait held in a different game is no obstacle, since the rule is per game rather than global.")]
+    public async Task PortraitHeldInAnotherGameIsAcceptedAsync()
+    {
+        // The slot in _OTHER_GAME_ID wears _RIVAL_PORTRAIT too, so this only passes if the check is scoped by game.
+        ServiceResultBase.ServiceResult<ServiceResultBase.Empty> result = await _handler.Handle(
+            BuildRequest(gameId: _GAME_ID, rulerPortraitPath: "/portraits/ruler_09.png"),
+            CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+    }
+
+    [Test, Description("A blank portrait lands as the default rather than being refused as a clash with whoever else has none.")]
+    public async Task BlankPortraitIsStoredAsTheDefaultAsync()
+    {
+        ServiceResultBase.ServiceResult<ServiceResultBase.Empty> result = await _handler.Handle(
+            BuildRequest(rulerPortraitPath: "   "),
+            CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        Player saved = await LoadOwnSlotAsync();
+
+        Assert.That(saved.RulerPortraitPath, Is.EqualTo(Player.DEFAULT_RULER_PORTRAIT_PATH));
+    }
+
+    [Test, Description("The default is exempt from the uniqueness rule, so any number of players may be undecided at once.")]
+    public async Task DefaultPortraitIsAcceptedWhileARivalAlsoHasNoneAsync()
+    {
+        // Put the rival on the default as well, so the only thing that can let this through is the exemption.
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            Player rival = await context.Players.SingleAsync(p => p.Id == _RIVAL_PLAYER_ID);
+            rival.RulerPortraitPath = Player.DEFAULT_RULER_PORTRAIT_PATH;
+            await context.SaveChangesAsync();
+        }
+
+        ServiceResultBase.ServiceResult<ServiceResultBase.Empty> result = await _handler.Handle(
+            BuildRequest(rulerPortraitPath: Player.DEFAULT_RULER_PORTRAIT_PATH),
+            CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+    }
+
+    [Test, Description("Re-saving the portrait the caller already wears is not a clash with themselves.")]
+    public async Task KeepingTheCallersOwnPortraitIsAcceptedAsync()
+    {
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            Player own = await context.Players.SingleAsync(p => p.Id == _OWN_PLAYER_ID);
+            own.RulerPortraitPath = "/portraits/ruler_09.png";
+            await context.SaveChangesAsync();
+        }
+
+        ServiceResultBase.ServiceResult<ServiceResultBase.Empty> result = await _handler.Handle(
+            BuildRequest(rulerPortraitPath: "/portraits/ruler_09.png"),
+            CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+    }
+
     /// <summary>
     /// A valid request against the caller's own slot, with only the values a test cares about overridden.
     /// </summary>
@@ -216,7 +300,8 @@ internal class UpdatePlayerDefinitionHandlerTests : InMemoryTestBase
         string peopleName = "The Vashti",
         string demonym = "Vashti",
         string cultureName = "Vashti Highland",
-        string language = "Old Vashti")
+        string language = "Old Vashti",
+        string rulerPortraitPath = "/portraits/ruler_07.png")
     {
         return new UpdatePlayerDefinitionRequest(
             userId,
@@ -229,7 +314,8 @@ internal class UpdatePlayerDefinitionHandlerTests : InMemoryTestBase
             peopleName,
             demonym,
             cultureName,
-            language);
+            language,
+            rulerPortraitPath);
     }
 
     private async Task<Player> LoadOwnSlotAsync()

@@ -33,6 +33,8 @@ export type { ColorPickerProps, Color, ColorPalette, UsedColor } from "./colorpi
 export { FieldRow, inputClass } from "./FieldRow";
 export { errorClass } from "./fieldStyles";
 export { default as HintIcon } from "./HintIcon";
+export { default as ImagePicker } from "./ImagePicker";
+export type { ImagePickerProps, ImagePickerItem, UsedImage } from "./ImagePicker";
 export { default as FreeTextComboBox } from "./FreeTextComboBox";
 export type { FreeTextComboBoxProps } from "./FreeTextComboBox";
 export { Slider, SliderButton, SliderGroup } from "./slider";

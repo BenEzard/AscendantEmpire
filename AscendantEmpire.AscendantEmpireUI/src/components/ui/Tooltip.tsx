@@ -78,7 +78,11 @@ export default function Tooltip({ content, children, className }: TooltipProps) 
             // Portaled to document.body, so this is now a sibling of Modal (z-[1080]), Drawer (z-[1050])
             // and Toast (z-[1100]) rather than nested inside their stacking context — z-50 would render
             // behind them. Sit above all current overlays so a tooltip is never hidden by one.
-            className="pointer-events-none z-[1200] whitespace-nowrap rounded bg-black px-2 py-1 text-xs text-white">
+            //
+            // whitespace-pre (rather than nowrap) so a `content` holding newlines renders as several lines — a hint that
+            // covers each option of a dropdown, say. It still never wraps on its own, so single-line content, which is
+            // almost all of it, sits exactly as it did under nowrap.
+            className="pointer-events-none z-[1200] whitespace-pre rounded bg-black px-2 py-1 text-xs text-white">
             {content}
           </span>,
           document.body,

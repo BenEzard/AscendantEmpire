@@ -10,9 +10,10 @@ namespace AscendantEmpire.Tests.Features.MatchMaking;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Two rules here are easy to "tidy" into something wrong. The ruler title carries no <c>NotEmpty</c> on purpose, because a blank title is a valid
-/// choice that the handler turns into the default placeholder; and the gender check leans on <see cref="RulerGender"/> starting at 1, so a request
-/// that simply omits it fails rather than silently arriving as Male.
+/// Three rules here are easy to "tidy" into something wrong. The ruler title carries no <c>NotEmpty</c> on purpose, because a blank title is a valid
+/// choice that the handler turns into the default placeholder; the ruler portrait carries none for the same reason, and its shape rule is guarded by a
+/// <c>When</c> so that a blank one is not measured against it; and the gender check leans on <see cref="RulerGender"/> starting at 1, so a request that
+/// simply omits it fails rather than silently arriving as Male.
 /// </para>
 /// <para>
 /// Runs with no database at all: the validator is constructed directly, which is the lowest tier <c>testing.md</c> describes.
@@ -144,6 +145,44 @@ internal class UpdatePlayerDefinitionRequestValidatorTests
         }
     }
 
+    [TestCase("", Description = "An omitted ruler portrait is accepted; the handler stores the default for it.")]
+    [TestCase("   ", Description = "A whitespace-only ruler portrait is accepted for the same reason.")]
+    public void BlankRulerPortraitIsAccepted(string rulerPortraitPath)
+    {
+        ValidationResult result = _validator.Validate(BuildRequest(rulerPortraitPath: rulerPortraitPath));
+
+        Assert.That(result.IsValid, Is.True, () => string.Join("; ", result.Errors.Select(e => e.ErrorMessage)));
+    }
+
+    [Test, Description("A ruler portrait path past the column length is rejected here rather than thrown by the database.")]
+    public void OverLongRulerPortraitIsRejected()
+    {
+        ValidationResult result = _validator.Validate(BuildRequest(rulerPortraitPath: $"/portraits/{new string('a', Player.RULER_PORTRAIT_PATH_MAX_LENGTH)}.png"));
+
+        Assert.That(result.IsValid, Is.False);
+    }
+
+    [TestCase("https://evil.example/x.png", Description = "An off-site URL is rejected: the path is rendered into an img src that every other player sees.")]
+    [TestCase("//evil.example/x.png", Description = "A protocol-relative URL is rejected for the same reason.")]
+    [TestCase("/elsewhere/ruler_01.png", Description = "A path outside the portraits folder is rejected, so only the shipped set can be chosen.")]
+    [TestCase("/portraits/../secrets.png", Description = "A traversal segment is rejected rather than normalised.")]
+    [TestCase("/portraits/ruler_01.svg", Description = "A non-png extension is rejected, since every shipped portrait is a png.")]
+    public void RulerPortraitOutsideTheOfferedShapeIsRejected(string rulerPortraitPath)
+    {
+        ValidationResult result = _validator.Validate(BuildRequest(rulerPortraitPath: rulerPortraitPath));
+
+        Assert.That(result.IsValid, Is.False);
+    }
+
+    [TestCase("/portraits/ruler_01.png", Description = "The first shipped portrait passes, pinning the shape rule as permissive enough for the real values.")]
+    [TestCase("/portraits/ruler_20.png", Description = "The last shipped portrait passes too, so the rule is not accidentally anchored to one file.")]
+    public void RulerPortraitTheUiOffersIsAccepted(string rulerPortraitPath)
+    {
+        ValidationResult result = _validator.Validate(BuildRequest(rulerPortraitPath: rulerPortraitPath));
+
+        Assert.That(result.IsValid, Is.True, () => string.Join("; ", result.Errors.Select(e => e.ErrorMessage)));
+    }
+
     /// <summary>
     /// A valid request, with only the value a test cares about overridden.
     /// </summary>
@@ -158,7 +197,8 @@ internal class UpdatePlayerDefinitionRequestValidatorTests
         string peopleName = "The Vashti",
         string demonym = "Vashti",
         string cultureName = "Vashti Highland",
-        string language = "Old Vashti")
+        string language = "Old Vashti",
+        string rulerPortraitPath = "/portraits/ruler_07.png")
     {
         return new UpdatePlayerDefinitionRequest(
             userId,
@@ -171,6 +211,7 @@ internal class UpdatePlayerDefinitionRequestValidatorTests
             peopleName,
             demonym,
             cultureName,
-            language);
+            language,
+            rulerPortraitPath);
     }
 }

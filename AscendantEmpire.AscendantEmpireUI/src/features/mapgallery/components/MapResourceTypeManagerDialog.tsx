@@ -200,10 +200,14 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
 
   return (
     <>
+      {/* `height` pins the page region so the dialog is the same size whatever page is open — and, the panel being centred, stays put on screen
+          rather than growing and shifting as you move between pages or as a page's list gains rows. Pages taller than it scroll internally.
+          The Component Setup dialog pins itself the same way for the same reason. */}
       <PagedDialog<SectionKey>
         open={show}
         title="Map Resource Type Manager"
         size="xl"
+        height={500}
         panelClassName="thick-border-modal"
         onCancel={onClose}
         onCommit={handleSave}

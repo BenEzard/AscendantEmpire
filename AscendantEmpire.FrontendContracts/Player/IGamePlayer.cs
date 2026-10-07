@@ -25,5 +25,14 @@ public interface IGamePlayer
     /// </summary>
     string? FactionColour { get; }
 
+    /// <summary>
+    /// Root-relative path to the ruler's portrait, e.g. "/portraits/ruler_07.png".
+    /// </summary>
+    /// <remarks>
+    /// Public identity like the colour beside it: the game toolbar shows the portrait of whichever player's turn is open, so every player needs to be
+    /// able to read every other player's. Empty only on a slot predating the column, which the client renders as a fallback glyph.
+    /// </remarks>
+    string RulerPortraitPath { get; }
+
     PlayerStatus Status { get; }
 }

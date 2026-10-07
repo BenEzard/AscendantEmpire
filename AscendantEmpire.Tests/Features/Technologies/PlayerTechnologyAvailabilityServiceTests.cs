@@ -64,7 +64,8 @@ internal class PlayerTechnologyAvailabilityServiceTests : InMemoryTestBase
             PeopleName = "People",
             Demonym = "Person",
             CultureName = "Culture",
-            Language = "Language"
+            Language = "Language",
+            RulerPortraitPath = "/portraits/ruler_01.png"
         };
 
         _context.Players.Add(player);
@@ -290,7 +291,8 @@ internal class PlayerTechnologyAvailabilityServiceTests : InMemoryTestBase
             PeopleName = "People",
             Demonym = "Person",
             CultureName = "Culture",
-            Language = "Language"
+            Language = "Language",
+            RulerPortraitPath = "/portraits/ruler_01.png"
         };
 
         _context.Players.Add(second);

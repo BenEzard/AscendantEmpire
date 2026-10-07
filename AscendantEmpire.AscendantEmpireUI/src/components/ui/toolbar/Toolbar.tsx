@@ -23,6 +23,15 @@ export interface ToolBarGroup {
 
 interface ToolBarProps {
   groups: ToolBarGroup[];
+
+  /**
+   * Optional content pinned to the toolbar's right-hand end.
+   *
+   * Rendered after the groups in a region that takes the leftover width, so the groups on the left keep their exact
+   * positions - nothing shifts when the trailing content appears, changes or is left out. Meant for status the toolbar
+   * reports rather than actions it offers; anything clickable belongs in a group.
+   */
+  trailing?: React.ReactNode;
   containerClassName?: string;
   showCaptions?: boolean;
   buttonVariant?: string;
@@ -30,6 +39,7 @@ interface ToolBarProps {
 
 function ToolBar({
   groups,
+  trailing,
   containerClassName = "toolbar flex justify-start border-b border-slate-200 bg-stone-100",
   showCaptions = true,
   buttonVariant = "secondary",
@@ -114,6 +124,8 @@ function ToolBar({
           {showCaptions && <div className="toolbar-caption">{group.caption}</div>}
         </div>
       ))}
+
+      {trailing != null && <div className="toolbar-trailing">{trailing}</div>}
     </div>
   );
 }

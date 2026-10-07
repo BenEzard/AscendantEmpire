@@ -10,8 +10,9 @@ namespace AscendantEmpire.BackendContracts.MatchMaking;
 /// Returned for the caller's own slot only. The slot is resolved from the game id and the token's user id, so this never describes anyone else.
 /// </para>
 /// <para>
-/// <see cref="UsedFactionColours"/> travels with the definition because the dialog that edits it needs a reading taken at the moment it opens - the
-/// lobby listing the frontend already holds is cached, and deriving the used colours from that invites avoidable clashes.
+/// <see cref="UsedFactionColours"/> and <see cref="UsedRulerPortraits"/> travel with the definition because the dialog that edits it needs a reading
+/// taken at the moment it opens - the lobby listing the frontend already holds is cached, and deriving what is taken from that invites avoidable
+/// clashes.
 /// </para>
 /// </remarks>
 public record PlayerDefinition
@@ -38,6 +39,12 @@ public record PlayerDefinition
     public required string CultureName { get; init; }
     public required string Language { get; init; }
 
+    /// <summary>Root-relative path to the ruler's portrait, e.g. "/portraits/ruler_07.png". Empty only on a slot predating the column.</summary>
+    public required string RulerPortraitPath { get; init; }
+
     /// <summary>The colours the other players in this game already hold; never includes the caller's own.</summary>
     public required IReadOnlyCollection<UsedFactionColour> UsedFactionColours { get; init; }
+
+    /// <summary>The portraits the other players in this game have already chosen; never includes the caller's own.</summary>
+    public required IReadOnlyCollection<UsedRulerPortrait> UsedRulerPortraits { get; init; }
 }

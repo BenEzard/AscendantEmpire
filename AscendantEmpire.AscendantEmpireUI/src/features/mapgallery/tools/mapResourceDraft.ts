@@ -19,6 +19,14 @@ export const MAP_RESOURCE_KINDS: { kind: MapResourceKind; label: string; descrip
   { kind: "stratified", label: "Stratified", description: "Never grows; held in layers reached in order." },
 ];
 
+/**
+ * Every kind's description as a single block of text, one kind per line, for the lone hint beside the Kind field.
+ * The kinds are chosen from a dropdown, which can carry no per-option hint of its own, so the four descriptions are
+ * gathered here instead and shown together — the designer reads what all four mean before choosing between them.
+ * Derived from MAP_RESOURCE_KINDS so a new kind or a reworded description needs no second edit here.
+ */
+export const MAP_RESOURCE_KIND_HINT = MAP_RESOURCE_KINDS.map((option) => `${option.label} — ${option.description}`).join("\n");
+
 export const EXTRACTION_METHODS: { value: ExtractionMethod; label: string }[] = [
   { value: ExtractionMethod.Gather, label: "Gather" },
   { value: ExtractionMethod.Hunt, label: "Hunt" },

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { GiCrown } from "react-icons/gi";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Alert,
@@ -7,16 +8,20 @@ import {
   DistinctColors,
   FieldRow,
   FreeTextComboBox,
+  ImagePicker,
   PagedDialog,
   Spinner,
   errorClass,
+  type ImagePickerItem,
   type UsedColor,
+  type UsedImage,
 } from "@/components/ui";
 import { ApiError } from "@/api/http";
 import { useValidatedCommit } from "@/hooks/useValidatedCommit";
 import { getPlayerDefinition, updatePlayerDefinition } from "../api/matchMakingApi";
 import type { PlayerDefinition } from "../types/PlayerDefinition";
 import { RULER_GENDERS, titlesFor, type RulerGender } from "../types/RulerGender";
+import { RULER_PORTRAITS } from "../types/RulerPortrait";
 
 /**
  * The title the API seeds an undefined slot with, and stores again for a blank one.
@@ -26,6 +31,21 @@ import { RULER_GENDERS, titlesFor, type RulerGender } from "../types/RulerGender
  */
 const PLACEHOLDER_RULER_TITLE = "Nobody";
 
+/**
+ * The message the API returns when a 409 is about the portrait rather than the colour.
+ *
+ * Mirrors the string in `UpdatePlayerDefinitionHandler`, the same arrangement as {@link PLACEHOLDER_RULER_TITLE}.
+ * Both uniqueness rules come back as a 409 with nothing but a message to tell them apart, and a clash shown against
+ * the wrong field would send the player to a page with nothing wrong on it.
+ */
+const PORTRAIT_TAKEN_MESSAGE = "That portrait has already been taken by another player in this game.";
+
+/** The portraits offered, in the shape the picker takes them. The stored path doubles as the image URL. */
+const PORTRAIT_ITEMS: ImagePickerItem[] = RULER_PORTRAITS.map((portrait) => ({ value: portrait.path, label: portrait.label }));
+
+/** The offered paths, for checking that what a slot already holds is still one of them. */
+const PORTRAIT_PATHS: ReadonlySet<string> = new Set(RULER_PORTRAITS.map((portrait) => portrait.path));
+
 /** The dialog's two pages. */
 type DefinePlayerSection = "ruler" | "faction";
 
@@ -34,6 +54,7 @@ type Draft = {
   rulerTitle: string;
   rulerName: string;
   rulerGender: RulerGender | null;
+  rulerPortraitPath: string;
   factionName: string;
   factionColour: string | null;
   peopleName: string;
@@ -48,6 +69,7 @@ const EMPTY_DRAFT: Draft = {
   rulerTitle: "",
   rulerName: "",
   rulerGender: null,
+  rulerPortraitPath: "",
   factionName: "",
   factionColour: null,
   peopleName: "",
@@ -69,8 +91,10 @@ function playerDefinitionQueryKey(gameId: number): unknown[] {
 /**
  * Validates the draft. Pure, so it can run on every render and the caller decides when to reveal the result.
  *
- * Note what is *not* here: the ruler title is optional. Left blank it is saved as the placeholder the game seeds a slot
- * with, which is why the field's placeholder text says so rather than an error appearing under it.
+ * Note what is *not* here: the ruler title and the ruler portrait are both optional. A blank title is saved as the
+ * placeholder the game seeds a slot with, and no portrait is a real answer rather than a missing one - the crown stands
+ * in for it, and it is the one value several players may share. A portrait somebody else has taken is kept out by the
+ * picker rather than caught here.
  */
 function validate(draft: Draft): FieldErrors {
   const errors: FieldErrors = {};
@@ -135,8 +159,10 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
 
   const [activeSection, setActiveSection] = useState<DefinePlayerSection>("ruler");
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
-  // A colour clash is only knowable at save time, so it is held apart from the pure field validation.
+  // A clash on either unique value is only knowable at save time, so both are held apart from the pure field
+  // validation - and apart from each other, since they sit on different pages.
   const [colourConflict, setColourConflict] = useState<string | null>(null);
+  const [portraitConflict, setPortraitConflict] = useState<string | null>(null);
 
   const definitionQuery = useQuery<PlayerDefinition, Error>({
     queryKey: playerDefinitionQueryKey(gameId),
@@ -157,6 +183,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
 
     setActiveSection("ruler");
     setColourConflict(null);
+    setPortraitConflict(null);
 
     if (!definition) {
       setDraft(EMPTY_DRAFT);
@@ -168,6 +195,9 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
       rulerTitle: definition.rulerTitle === PLACEHOLDER_RULER_TITLE ? "" : definition.rulerTitle,
       rulerName: definition.rulerName,
       rulerGender: definition.rulerGender,
+      // Anything the picker no longer offers - a portrait file since removed or renamed - reads as the crown, so the
+      // field never looks unset while holding a path that would be saved straight back.
+      rulerPortraitPath: PORTRAIT_PATHS.has(definition.rulerPortraitPath) ? definition.rulerPortraitPath : "",
       factionName: definition.factionName,
       factionColour: definition.factionColour,
       // Shown exactly as stored, like the ruler and faction names beside them: a seeded slot's placeholder is
@@ -188,6 +218,11 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
     [definition],
   );
 
+  const usedPortraits = useMemo<UsedImage[]>(
+    () => (definition?.usedRulerPortraits ?? []).map((used) => ({ value: used.value, usedBy: used.usedBy })),
+    [definition],
+  );
+
   const titleSuggestions = useMemo(() => titlesFor(draft.rulerGender), [draft.rulerGender]);
 
   const saveMutation = useMutation({
@@ -197,6 +232,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
         rulerName: draft.rulerName.trim(),
         // Safe: validation refuses to commit while the gender is unset.
         rulerGender: draft.rulerGender!,
+        rulerPortraitPath: draft.rulerPortraitPath,
         factionName: draft.factionName.trim(),
         factionColour: draft.factionColour!,
         peopleName: draft.peopleName.trim(),
@@ -210,10 +246,16 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
     },
     onError: (error: Error) => {
       if (error instanceof ApiError && error.status === 409) {
-        // Someone took the colour between the read and the save. Show it where the fix is, and refetch so the
-        // swatch that lost the race comes back struck through.
-        setColourConflict(error.message);
-        setActiveSection("faction");
+        // Someone took the colour or the portrait between the read and the save. Show it where the fix is, and refetch
+        // so whichever tile or swatch lost the race comes back struck through.
+        if (error.message === PORTRAIT_TAKEN_MESSAGE) {
+          setPortraitConflict(error.message);
+          setActiveSection("ruler");
+        } else {
+          setColourConflict(error.message);
+          setActiveSection("faction");
+        }
+
         void queryClient.invalidateQueries({ queryKey: playerDefinitionQueryKey(gameId) });
       }
     },
@@ -228,14 +270,16 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
     locate: () => setActiveSection(fieldErrors.rulerName || fieldErrors.rulerGender ? "ruler" : "faction"),
     onValid: () => {
       setColourConflict(null);
+      setPortraitConflict(null);
       saveMutation.mutate();
     },
   });
 
   const shownErrors: FieldErrors = submitted ? fieldErrors : {};
 
-  // The clash message belongs on the colour field whether or not a save has been attempted since.
+  // A clash message belongs on its field whether or not a save has been attempted since.
   const colourError = shownErrors.factionColour ?? colourConflict ?? undefined;
+  const portraitError = portraitConflict ?? undefined;
 
   // A failure that is not the colour clash has no field to sit on, so it goes in the banner instead.
   const bannerError =
@@ -248,7 +292,8 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
       open={open}
       title="Define your Ruler and Faction"
       width={720}
-      // Tall enough for the Faction page's six rows, so neither page scrolls and the dialog never resizes between them.
+      // Tall enough for the Faction page's six rows - still the taller of the two, the Ruler page's portrait being
+      // a thumbnail that opens a popover - so neither page scrolls and the dialog never resizes between them.
       height={420}
       onCancel={onCancel}
       onCommit={attemptCommit}
@@ -271,7 +316,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
         {
           key: "ruler",
           label: "Ruler",
-          invalid: !!(shownErrors.rulerName || shownErrors.rulerGender),
+          invalid: !!(shownErrors.rulerName || shownErrors.rulerGender || portraitError),
           content: definitionQuery.isLoading ? (
             <div className="flex items-center gap-2 text-slate-600">
               <Spinner size="sm" />
@@ -313,6 +358,25 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
                   suggestions={titleSuggestions}
                   placeholder={`Pick one, type your own, or leave it as "${PLACEHOLDER_RULER_TITLE}"`}
                   ariaLabel="Ruler Title"
+                />
+              </FieldRow>
+
+              {/* Last on the page because it is the only field that is a picture rather than words, and because
+                  gender has to stay directly above the title whose suggestions it drives. */}
+              <FieldRow label="Ruler Portrait" hint="(The face your rivals will see; portraits already taken are struck through)" error={portraitError}>
+                <ImagePicker
+                  value={draft.rulerPortraitPath}
+                  onChange={(next) => {
+                    setPortraitConflict(null);
+                    setField("rulerPortraitPath", next);
+                  }}
+                  items={PORTRAIT_ITEMS}
+                  usedValues={usedPortraits}
+                  // Optional, so there has to be something to show for having chosen nothing. The crown is what the
+                  // game toolbar already draws for a ruler without a portrait.
+                  emptyIcon={<GiCrown size={32} />}
+                  columns={5}
+                  title="Ruler portrait"
                 />
               </FieldRow>
             </>

@@ -32,6 +32,17 @@
   align-items: center;
 }
 
+/* Right-aligned status region. `margin-left: auto` is what pins it to the right end without touching the
+   container's justify-start, so the groups on the left never move. It is allowed to shrink - and its own
+   content to truncate - so that long content can never push a group off the toolbar. */
+.toolbar-trailing {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin-left: auto;
+  padding-right: 0.5rem;
+}
+
 /* When a group uses a single render() button that contains multiple controls */
 .toolbar-exclusive {
   display: inline-flex;

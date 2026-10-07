@@ -16,6 +16,11 @@ public record class Player
     /// </summary>
     public string? FactionColour { get; init; }
 
+    /// <summary>
+    /// Root-relative path to the ruler's portrait, e.g. "/portraits/ruler_07.png". Empty only on a slot predating the column.
+    /// </summary>
+    public required string RulerPortraitPath { get; init; }
+
     public PlayerStatus Status { get; init; }
 
     public int CampaignOffsetId { get; init; }

@@ -21,6 +21,25 @@ public class Player
     public const int FACTION_COLOUR_MAX_LENGTH = 9;
 
     /// <summary>
+    /// Generous for "/portraits/ruler_01.png", which is all this ever holds.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately shorter than the 500 allowed for an arbitrary catalogue icon path: this column holds one of a fixed set of generated paths, not
+    /// something a user types.
+    /// </remarks>
+    public const int RULER_PORTRAIT_PATH_MAX_LENGTH = 100;
+
+    /// <summary>
+    /// Stands in for a ruler portrait the player has not chosen yet.
+    /// </summary>
+    /// <remarks>
+    /// The one value <see cref="RulerPortraitPath"/> may hold more than once within a game: any number of players can be undecided at the same time,
+    /// while a portrait somebody has actually chosen is theirs alone. Empty rather than a path to a placeholder image, so there is no file to ship and
+    /// nothing for a client to special-case - every consumer already has to draw something for a portrait it cannot load.
+    /// </remarks>
+    public const string DEFAULT_RULER_PORTRAIT_PATH = "";
+
+    /// <summary>
     /// Stands in for a ruler title the player has not chosen yet.
     /// </summary>
     /// <remarks>
@@ -70,6 +89,30 @@ public class Player
     /// </remarks>
     [MaxLength(FACTION_COLOUR_MAX_LENGTH)]
     public string? FactionColour { get; set; }
+
+    /// <summary>
+    /// Root-relative path to the portrait chosen for this ruler, e.g. "/portraits/ruler_07.png".
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A client path, not a server one, exactly like Asset.IconPath: the files ship in the UI's public folder and the API neither reads nor serves
+    /// them. The value is one of the paths listed in the UI's RulerPortrait.ts, or <see cref="DEFAULT_RULER_PORTRAIT_PATH"/> for a player who has not
+    /// chosen yet.
+    /// </para>
+    /// <para>
+    /// Non-nullable and seeded with a placeholder like <see cref="RulerName"/>, rather than nullable like <see cref="FactionColour"/>, because the
+    /// game toolbar shows the portrait of whichever player's turn is open: a nullable column would make every read of it decide what a missing
+    /// portrait looks like.
+    /// </para>
+    /// <para>
+    /// <b>Unique within a game once chosen.</b> Two players may not wear the same face, so a non-default value is rejected if another slot in the
+    /// same game already holds it. Unlike <see cref="FactionColour"/> there is no unique index behind that: the check lives in
+    /// UpdatePlayerDefinitionHandler alone, which is enough because a portrait is cosmetic - the worst a lost race costs is two players sharing a
+    /// portrait until one of them edits it, where a shared faction colour would make the map unreadable.
+    /// </para>
+    /// </remarks>
+    [MaxLength(RULER_PORTRAIT_PATH_MAX_LENGTH)]
+    public required string RulerPortraitPath { get; set; }
 
     /// <summary>
     /// What this faction's people call themselves as a group, e.g. "The Vashti".

@@ -32,6 +32,9 @@ internal class GetPlayerDefinitionHandlerTests : InMemoryTestBase
     private const string _OWN_COLOUR = "#c800de";
     private const string _RIVAL_COLOUR = "#c10007";
 
+    private const string _OWN_PORTRAIT = "/portraits/ruler_07.png";
+    private const string _RIVAL_PORTRAIT = "/portraits/ruler_04.png";
+
     private GetPlayerDefinitionHandler _handler = null!;
 
     [SetUp]
@@ -58,6 +61,7 @@ internal class GetPlayerDefinitionHandlerTests : InMemoryTestBase
             Demonym = "Vashti",
             CultureName = "Vashti Highland",
             Language = "Old Vashti",
+            RulerPortraitPath = _OWN_PORTRAIT,
             RulerGender = null,
             Status = PlayerStatus.Active,
             CampaignOffsetId = 1,
@@ -77,6 +81,7 @@ internal class GetPlayerDefinitionHandlerTests : InMemoryTestBase
             Demonym = "Person",
             CultureName = "Culture",
             Language = "Language",
+            RulerPortraitPath = _RIVAL_PORTRAIT,
             RulerGender = RulerGender.Female,
             Status = PlayerStatus.Active,
             CampaignOffsetId = 2,
@@ -94,6 +99,8 @@ internal class GetPlayerDefinitionHandlerTests : InMemoryTestBase
             Demonym = "Person",
             CultureName = "Culture",
             Language = "Language",
+            // Still on the default, like every slot a game seeds: holds no portrait, so takes none out of the set.
+            RulerPortraitPath = Player.DEFAULT_RULER_PORTRAIT_PATH,
             Status = PlayerStatus.Active,
             CampaignOffsetId = 3,
         });
@@ -111,6 +118,8 @@ internal class GetPlayerDefinitionHandlerTests : InMemoryTestBase
             Demonym = "Person",
             CultureName = "Culture",
             Language = "Language",
+            // The caller's own portrait, in a game they hold no slot in: it must not appear as taken.
+            RulerPortraitPath = _OWN_PORTRAIT,
             Status = PlayerStatus.Active,
             CampaignOffsetId = 4,
         });
@@ -141,6 +150,25 @@ internal class GetPlayerDefinitionHandlerTests : InMemoryTestBase
             Assert.That(definition.Demonym, Is.EqualTo("Vashti"));
             Assert.That(definition.CultureName, Is.EqualTo("Vashti Highland"));
             Assert.That(definition.Language, Is.EqualTo("Old Vashti"));
+            Assert.That(definition.RulerPortraitPath, Is.EqualTo(_OWN_PORTRAIT), "The caller's own portrait, which the rivals' differs from.");
+        }
+    }
+
+    [Test, Description("The used-portrait list names only rivals who have chosen one, never the caller and never a rival still on the default.")]
+    public async Task UsedPortraitsCoverChosenRivalsOnlyAsync()
+    {
+        ServiceResultBase.ServiceResult<PlayerDefinition> result =
+            await _handler.Handle(new GetPlayerDefinitionRequest(_USER_ID, _GAME_ID), CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        IReadOnlyCollection<UsedRulerPortrait> usedPortraits = result.SuccessValue!.UsedRulerPortraits;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(usedPortraits.Select(p => p.Value), Is.EqualTo(new[] { _RIVAL_PORTRAIT }),
+                "Only the rival who has chosen a portrait: the undecided slot holds the default, which is the one value a game may repeat, and the caller's own must stay pickable.");
+            Assert.That(usedPortraits.Single().UsedBy, Is.EqualTo("Rival Faction"), "Named by faction, so the picker can say who holds it.");
         }
     }
 

@@ -46,7 +46,10 @@ function undefinedSlot(overrides: Partial<PlayerDefinition> = {}): PlayerDefinit
     demonym: "Person 3",
     cultureName: "Culture 3",
     language: "Language 3",
+    // Empty, which is how a game seeds every slot: the crown stands in until the player picks a face.
+    rulerPortraitPath: "",
     usedFactionColours: [{ value: TAKEN_COLOUR, usedBy: "Faction 1" }],
+    usedRulerPortraits: [],
     ...overrides,
   };
 }
@@ -86,6 +89,12 @@ const factionTab = () => screen.getByRole("button", { name: /^\d+\s*Faction\b/ }
 
 /** The colour picker's trigger square, named by the `title` passed to it. */
 const colourTrigger = () => screen.getByRole("button", { name: "Faction colour" });
+
+/** The portrait picker's trigger thumbnail, named by the `title` passed to it. */
+const portraitTrigger = () => screen.getByRole("button", { name: "Ruler portrait" });
+
+/** One portrait tile in the opened grid. ImagePicker labels each with the item's label, e.g. "Portrait 9". */
+const portraitTile = (label: string) => screen.getByRole("button", { name: label });
 
 /** One palette swatch. ColorPicker labels each with its Tailwind description, e.g. "purple-700". */
 const swatch = (description: string) => screen.getByRole("button", { name: description });
@@ -132,6 +141,7 @@ describe("the commit gate", () => {
       demonym: "Person 3",
       cultureName: "Culture 3",
       language: "Language 3",
+      rulerPortraitPath: "",
     });
   });
 
@@ -311,6 +321,143 @@ describe("faction colours", () => {
   });
 });
 
+describe("the ruler portrait", () => {
+  it("opens on the crown when the slot has not chosen one, which is how a game seeds every slot", async () => {
+    renderDialog();
+    await waitForLoad();
+
+    expect(portraitTrigger().querySelector("img")).toBeNull();
+  });
+
+  it("opens on the portrait the slot already holds", async () => {
+    renderDialog(undefinedSlot({ rulerPortraitPath: "/portraits/ruler_03.png" }));
+    await waitForLoad();
+
+    // The trigger carries the chosen portrait as its image, which is the only visible statement of what is chosen.
+    expect(portraitTrigger().querySelector("img")).toHaveAttribute("src", "/portraits/ruler_03.png");
+  });
+
+  it("sends the portrait the player picked from the grid", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updatePlayerDefinition).mockResolvedValue(undefined);
+    const { onSaved } = renderDialog();
+    await waitForLoad();
+
+    await user.click(portraitTrigger());
+    await user.click(portraitTile("Portrait 9"));
+    await completeTheForm(user);
+    await user.click(saveButton());
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(updatePlayerDefinition).mock.calls[0][1].rulerPortraitPath).toBe("/portraits/ruler_09.png");
+  });
+
+  // The crown is the one portrait value a game may hold more than once, so leaving it is a real answer rather than an
+  // unfinished field — unlike the gender and the colour, which the commit gate does insist on.
+  it("saves with no portrait at all, sending the crown as an empty path", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updatePlayerDefinition).mockResolvedValue(undefined);
+    const { onSaved } = renderDialog();
+    await waitForLoad();
+
+    await completeTheForm(user);
+    await user.click(saveButton());
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(updatePlayerDefinition).mock.calls[0][1].rulerPortraitPath).toBe("");
+  });
+
+  // A portrait file since removed or renamed leaves a path the picker cannot offer. Reading it as the crown is what
+  // stops the field looking unset while holding a value it would save straight back.
+  it("falls back to the crown for a path the picker no longer offers", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updatePlayerDefinition).mockResolvedValue(undefined);
+    const { onSaved } = renderDialog(undefinedSlot({ rulerPortraitPath: "/portraits/ruler_99.png" }));
+    await waitForLoad();
+
+    expect(portraitTrigger().querySelector("img")).toBeNull();
+
+    await completeTheForm(user);
+    await user.click(saveButton());
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(updatePlayerDefinition).mock.calls[0][1].rulerPortraitPath).toBe("");
+  });
+});
+
+describe("portraits a rival already holds", () => {
+  const TAKEN_PORTRAIT = "/portraits/ruler_04.png";
+
+  function aSlotWithARivalPortrait(overrides: Partial<PlayerDefinition> = {}): PlayerDefinition {
+    return undefinedSlot({ usedRulerPortraits: [{ value: TAKEN_PORTRAIT, usedBy: "Faction 1" }], ...overrides });
+  }
+
+  it("cannot be picked, and say who holds them", async () => {
+    const user = userEvent.setup();
+    renderDialog(aSlotWithARivalPortrait());
+    await waitForLoad();
+
+    await user.click(portraitTrigger());
+
+    expect(portraitTile("Portrait 4")).toBeDisabled();
+    expect(portraitTile("Portrait 1")).toBeEnabled();
+  });
+
+  it("stay unpicked when clicked, so a save cannot carry one", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updatePlayerDefinition).mockResolvedValue(undefined);
+    const { onSaved } = renderDialog(aSlotWithARivalPortrait());
+    await waitForLoad();
+
+    await user.click(portraitTrigger());
+    await user.click(portraitTile("Portrait 4"));
+    await completeTheForm(user);
+    await user.click(saveButton());
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(updatePlayerDefinition).mock.calls[0][1].rulerPortraitPath).toBe("");
+  });
+
+  // The used list is every portrait held in the game, the caller's own included, so the picker has to exempt the
+  // current selection or re-editing a defined slot would offer no way back to the portrait it already has.
+  it("do not include the player's own, which stays pickable", async () => {
+    const user = userEvent.setup();
+    renderDialog(
+      aSlotWithARivalPortrait({
+        rulerPortraitPath: TAKEN_PORTRAIT,
+        usedRulerPortraits: [{ value: TAKEN_PORTRAIT, usedBy: "Faction 1" }],
+      }),
+    );
+    await waitForLoad();
+
+    await user.click(portraitTrigger());
+
+    expect(portraitTile("Portrait 4")).toBeEnabled();
+    expect(portraitTile("Portrait 4")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("report a lost race against the portrait field, on the Ruler page", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updatePlayerDefinition).mockRejectedValue(
+      new ApiError("That portrait has already been taken by another player in this game.", 409, undefined),
+    );
+    const { onSaved } = renderDialog();
+    await waitForLoad();
+
+    await user.click(portraitTrigger());
+    await user.click(portraitTile("Portrait 9"));
+    // Finish on the other page, so landing back on Ruler is the dialog's doing rather than where we already were.
+    await completeTheForm(user);
+    await user.click(saveButton());
+
+    await waitFor(() =>
+      expect(screen.getByText("That portrait has already been taken by another player in this game.")).toBeInTheDocument(),
+    );
+    expect(activeTabName()).toContain("Ruler");
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+});
+
 describe("an already-defined slot", () => {
   it("opens on what the player chose last time", async () => {
     renderDialog(
@@ -324,6 +471,7 @@ describe("an already-defined slot", () => {
         demonym: "Vashti",
         cultureName: "Vashti Highland",
         language: "Old Vashti",
+        rulerPortraitPath: "/portraits/ruler_14.png",
       }),
     );
 
@@ -336,5 +484,6 @@ describe("an already-defined slot", () => {
     expect(demonymInput()).toHaveValue("Vashti");
     expect(cultureNameInput()).toHaveValue("Vashti Highland");
     expect(languageInput()).toHaveValue("Old Vashti");
+    expect(portraitTrigger().querySelector("img")).toHaveAttribute("src", "/portraits/ruler_14.png");
   });
 });

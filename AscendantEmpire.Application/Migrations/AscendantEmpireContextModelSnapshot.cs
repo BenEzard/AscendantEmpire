@@ -836,6 +836,11 @@ namespace AscendantEmpire.Application.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("RulerPortraitPath")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<string>("RulerTitle")
                         .IsRequired()
                         .HasMaxLength(50)

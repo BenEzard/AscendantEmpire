@@ -158,6 +158,12 @@ public class MatchMakingController : ControllerBase
             Demonym = definition.Demonym,
             CultureName = definition.CultureName,
             Language = definition.Language,
+            RulerPortraitPath = definition.RulerPortraitPath,
+            UsedRulerPortraits = [.. definition.UsedRulerPortraits.Select(p => new DTUsedRulerPortrait
+            {
+                Value = p.Value,
+                UsedBy = p.UsedBy
+            })],
             UsedFactionColours = [.. definition.UsedFactionColours.Select(c => new DTUsedFactionColour
             {
                 Value = c.Value,
@@ -167,7 +173,7 @@ public class MatchMakingController : ControllerBase
     }
 
     /// <summary>
-    /// Define the caller's own ruler and faction in a game. A full replacement of all nine values, not a patch.
+    /// Define the caller's own ruler and faction in a game. A full replacement of all ten values, not a patch.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -214,7 +220,8 @@ public class MatchMakingController : ControllerBase
                 PeopleName: request.PeopleName,
                 Demonym: request.Demonym,
                 CultureName: request.CultureName,
-                Language: request.Language),
+                Language: request.Language,
+                RulerPortraitPath: request.RulerPortraitPath),
             cancelToken);
 
         return response.ToActionResult();

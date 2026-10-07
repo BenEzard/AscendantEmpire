@@ -28,6 +28,11 @@ namespace AscendantEmpire.Application.Features.MatchMaking.Handlers;
 /// A blank <paramref name="RulerTitle"/> is legal and stored as <see cref="Player.DEFAULT_RULER_TITLE"/> - the title is optional in the UI, and
 /// defaulting it here keeps the placeholder in one place rather than spreading it into a database default.
 /// </para>
+/// <para>
+/// A blank <paramref name="RulerPortraitPath"/> is legal in the same way. A portrait that <i>is</i> chosen must be unique within the game, which is
+/// checked here and nowhere else: unlike the colour there is no index behind it, because the cost of losing the race is two players sharing a face
+/// rather than an unreadable map. The default is exempt, so any number of players may be undecided at once.
+/// </para>
 /// </remarks>
 public record UpdatePlayerDefinitionRequest(
     int UserId,
@@ -40,7 +45,8 @@ public record UpdatePlayerDefinitionRequest(
     string PeopleName,
     string Demonym,
     string CultureName,
-    string Language
+    string Language,
+    string RulerPortraitPath
 ) : IRequest<ServiceResult<Empty>>;
 
 internal class UpdatePlayerDefinitionRequestValidator : Validator<UpdatePlayerDefinitionRequest>
@@ -90,6 +96,18 @@ internal class UpdatePlayerDefinitionRequestValidator : Validator<UpdatePlayerDe
         RuleFor(x => x.Language)
             .NotEmpty().WithMessage("Language is required.")
             .MaximumLength(Player.LANGUAGE_MAX_LENGTH).WithMessage($"Language cannot be longer than {Player.LANGUAGE_MAX_LENGTH} characters.");
+
+        // Deliberately no NotEmpty, like the ruler title above: an unchosen portrait is a valid choice, and the
+        // handler stores the default for it. A value that *is* given is checked for shape as well as length, unlike
+        // the names above, because it is rendered straight into an <img src> that every other player in the game sees
+        // in their toolbar - an off-site URL from a hostile client would pull a remote image onto their screen. The
+        // twenty portrait paths themselves are deliberately not enumerated here: that would mean keeping a second copy
+        // of the UI's manifest in C# forever, the same reason the faction colour is checked for hex shape rather than
+        // against the palette offered.
+        RuleFor(x => x.RulerPortraitPath)
+            .MaximumLength(Player.RULER_PORTRAIT_PATH_MAX_LENGTH).WithMessage($"Ruler Portrait cannot be longer than {Player.RULER_PORTRAIT_PATH_MAX_LENGTH} characters.")
+            .Matches(@"^/portraits/[a-z0-9_-]+\.png$").WithMessage("Ruler Portrait must be one of the portraits the game offers.")
+            .When(x => string.IsNullOrWhiteSpace(x.RulerPortraitPath) == false);
     }
 }
 
@@ -109,6 +127,9 @@ internal sealed class UpdatePlayerDefinitionHandler(
             string rulerTitle = string.IsNullOrWhiteSpace(request.RulerTitle)
                 ? Player.DEFAULT_RULER_TITLE
                 : request.RulerTitle.Trim();
+            string rulerPortraitPath = string.IsNullOrWhiteSpace(request.RulerPortraitPath)
+                ? Player.DEFAULT_RULER_PORTRAIT_PATH
+                : request.RulerPortraitPath.Trim();
 
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
@@ -132,6 +153,21 @@ internal sealed class UpdatePlayerDefinitionHandler(
                 return ServiceResult<Empty>.Conflict("That colour has already been taken by another player in this game.");
             }
 
+            // The default is exempt: it is the one portrait value a game may hold more than once, because any number of
+            // players can be undecided at the same time. Unlike the colour there is no unique index behind this check,
+            // so it is the whole guarantee rather than a friendlier version of one - see Player.RulerPortraitPath.
+            if (rulerPortraitPath != Player.DEFAULT_RULER_PORTRAIT_PATH)
+            {
+                bool portraitTaken = await context.Players
+                    .AnyAsync(p => p.GameId == request.GameId && p.Id != slot.Id && p.RulerPortraitPath == rulerPortraitPath, cancelToken);
+
+                if (portraitTaken)
+                {
+                    logger.LogInformation("User {UserId} tried to take portrait {RulerPortraitPath} in game {GameId}, but another player already holds it.", request.UserId, rulerPortraitPath, request.GameId);
+                    return ServiceResult<Empty>.Conflict("That portrait has already been taken by another player in this game.");
+                }
+            }
+
             slot.RulerTitle = rulerTitle;
             slot.RulerName = request.RulerName.Trim();
             slot.RulerGender = request.RulerGender;
@@ -141,6 +177,7 @@ internal sealed class UpdatePlayerDefinitionHandler(
             slot.Demonym = request.Demonym.Trim();
             slot.CultureName = request.CultureName.Trim();
             slot.Language = request.Language.Trim();
+            slot.RulerPortraitPath = rulerPortraitPath;
 
             await context.SaveChangesAsync(cancelToken);
 

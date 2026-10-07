@@ -128,6 +128,7 @@ internal abstract class PlayerTurnTestBase : SqlServerTestBase
             Demonym = "Person",
             CultureName = "Culture",
             Language = "Language",
+            RulerPortraitPath = "/portraits/ruler_01.png",
             Status = PlayerStatus.Active,
             CampaignOffsetId = campaignOffsetId,
         };

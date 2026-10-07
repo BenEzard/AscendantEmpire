@@ -6,7 +6,8 @@ export type GamePlayerStatus = "PendingAddition" | "Active" | "ExcludedDueToInac
 /**
  * One player in the entered game, as any other player in it may see them.
  *
- * Public identity only. Used to name whose force an intelligence report is about, which the report itself carries only as an id.
+ * Public identity only. Used to name whose force an intelligence report is about - which the report itself carries only as an id - and to show the
+ * ruler whose turn is currently open in the game toolbar.
  */
 export type GamePlayer = {
   playerId: number;
@@ -15,6 +16,8 @@ export type GamePlayer = {
   factionName: string;
   /** The faction's colour, or null while the player has not picked one. */
   factionColour: string | null;
+  /** Root-relative path to the ruler's portrait. Empty on a slot predating the column. */
+  rulerPortraitPath: string;
   status: GamePlayerStatus;
 };
 
@@ -31,6 +34,7 @@ export async function getGamePlayers(): Promise<GamePlayer[]> {
       rulerLabel: player.rulerLabel ?? "",
       factionName: player.factionName ?? "",
       factionColour: player.factionColour ?? null,
+      rulerPortraitPath: player.rulerPortraitPath ?? "",
       status: player.status ?? "Active",
     }));
 }

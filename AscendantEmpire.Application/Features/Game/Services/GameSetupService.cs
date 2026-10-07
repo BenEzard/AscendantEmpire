@@ -420,6 +420,10 @@ internal class GameSetupService(
                 Demonym = $"Person {i}",
                 CultureName = $"Culture {i}",
                 Language = $"Language {i}",
+                // Not a placeholder in the shape of the names above, but genuinely nothing: a portrait is the one value
+                // that must be unique within the game once chosen, so seeding real ones would have the slots hold every
+                // face between them before a single player had claimed anything.
+                RulerPortraitPath = DomainPlayer.DEFAULT_RULER_PORTRAIT_PATH,
                 Status = PlayerStatus.Active,
             });
         }

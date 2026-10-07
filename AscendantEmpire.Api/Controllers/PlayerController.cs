@@ -69,7 +69,7 @@ public class PlayerController : ControllerBase
     }
 
     /// <summary>
-    /// Get every Player in the Game the caller has entered: who they are, and the colour they fly.
+    /// Get every Player in the Game the caller has entered: who they are, the colour they fly, and their ruler's portrait.
     /// </summary>
     /// <remarks>
     /// Public identity only, so any Player in the Game may read it. The client uses it to name the owner of a Force in an intelligence report. Every status is
@@ -104,6 +104,7 @@ public class PlayerController : ControllerBase
                     RulerLabel = $"{p.RulerTitle} {p.RulerName} ({p.FactionName})",
                     FactionName = p.FactionName,
                     FactionColour = p.FactionColour,
+                    RulerPortraitPath = p.RulerPortraitPath,
                     Status = p.Status
                 })
             ]

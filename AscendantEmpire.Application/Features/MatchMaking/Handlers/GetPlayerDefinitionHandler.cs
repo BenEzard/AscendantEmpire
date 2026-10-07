@@ -74,6 +74,17 @@ internal sealed class GetPlayerDefinitionHandler(
                 })
                 .OrderBy(c => c.UsedBy)];
 
+            // Only portraits a rival has actually chosen are unavailable. A slot still on the default holds nothing
+            // to take, which is what lets every undecided player share that state.
+            List<UsedRulerPortrait> usedPortraits = [.. slots
+                .Where(p => p.Id != ownSlot.Id && p.RulerPortraitPath != Player.DEFAULT_RULER_PORTRAIT_PATH)
+                .Select(p => new UsedRulerPortrait
+                {
+                    Value = p.RulerPortraitPath,
+                    UsedBy = p.FactionName
+                })
+                .OrderBy(p => p.UsedBy)];
+
             PlayerDefinition definition = new()
             {
                 PlayerId = ownSlot.Id,
@@ -87,7 +98,9 @@ internal sealed class GetPlayerDefinitionHandler(
                 Demonym = ownSlot.Demonym,
                 CultureName = ownSlot.CultureName,
                 Language = ownSlot.Language,
-                UsedFactionColours = usedColours
+                RulerPortraitPath = ownSlot.RulerPortraitPath,
+                UsedFactionColours = usedColours,
+                UsedRulerPortraits = usedPortraits
             };
 
             return ServiceResult<PlayerDefinition>.Succeed(definition);

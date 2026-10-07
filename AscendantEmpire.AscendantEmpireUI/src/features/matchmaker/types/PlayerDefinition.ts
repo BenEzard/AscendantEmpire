@@ -11,6 +11,15 @@ export type UsedFactionColour = {
   usedBy: string;
 };
 
+/**
+ * A ruler portrait another player in the same game has already chosen. Shaped to match the image picker's `UsedImage`,
+ * so the response goes straight into `usedValues` with no translation.
+ */
+export type UsedRulerPortrait = {
+  value: string;
+  usedBy: string;
+};
+
 /** The caller's own slot in one game, plus the colours their rivals hold. */
 export type PlayerDefinition = {
   playerId: number;
@@ -28,8 +37,14 @@ export type PlayerDefinition = {
   demonym: string;
   cultureName: string;
   language: string;
+  // Root-relative path to the chosen portrait, e.g. "/portraits/ruler_07.png". Non-nullable server-side: a seeded
+  // slot already carries one, and a slot from before the column existed carries an empty string.
+  rulerPortraitPath: string;
   // Never includes the caller's own colour, which must stay pickable.
   usedFactionColours: UsedFactionColour[];
+  // Likewise never the caller's own portrait. Only portraits a rival has actually chosen appear; the default is the one
+  // value a game may hold more than once, so an undecided rival takes nothing out of the set.
+  usedRulerPortraits: UsedRulerPortrait[];
 };
 
 /** The PUT body. Carries no identity: the game comes from the route and the slot from the token. */
@@ -44,4 +59,5 @@ export type UpdatePlayerDefinitionBody = {
   demonym: string;
   cultureName: string;
   language: string;
+  rulerPortraitPath: string;
 };

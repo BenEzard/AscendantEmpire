@@ -53,7 +53,8 @@ internal class SoloCoalitionResolverTests : InMemoryTestBase
             PeopleName = "People",
             Demonym = "Person",
             CultureName = "Culture",
-            Language = "Language"
+            Language = "Language",
+            RulerPortraitPath = "/portraits/ruler_01.png"
         };
     }
 }

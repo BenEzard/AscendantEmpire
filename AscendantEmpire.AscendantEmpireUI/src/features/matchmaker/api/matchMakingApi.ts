@@ -32,7 +32,7 @@ export async function getPlayerDefinition(gameId: number): Promise<PlayerDefinit
 }
 
 /**
- * Save the caller's ruler and faction identity. A full replacement of all nine values, not a patch.
+ * Save the caller's ruler and faction identity. A full replacement of all ten values, not a patch.
  *
  * Resolves on success (HTTP 204). Rejects with a 409 when another player in that game has taken the colour since the
  * definition was read — the picker's struck-through swatches are a courtesy, not the guarantee.

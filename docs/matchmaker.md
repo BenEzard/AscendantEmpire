@@ -125,12 +125,20 @@ gets a `404` rather than a `403` — there is nothing there to forbid them from.
   "demonym": "Person 3",
   "cultureName": "Culture 3",
   "language": "Language 3",
+  "rulerPortraitPath": "",          // "" = no portrait chosen; the client draws a crown
   "usedFactionColours": [
     { "value": "#0069a8", "usedBy": "Faction 1" },
     { "value": "#c10007", "usedBy": "Faction 2" }
+  ],
+  "usedRulerPortraits": [
+    { "value": "/portraits/ruler_04.png", "usedBy": "Faction 1" }
   ]
 }
 ```
+
+`usedRulerPortraits` lists only portraits a rival has actually chosen — a slot still on the default holds
+none, which is what lets every undecided player share that state — and never the caller's own, which must
+stay pickable.
 
 `usedFactionColours` is taken here rather than derived from the games listing the client already
 holds: that listing is cached, and a stale reading would offer a colour that has since been taken.
@@ -138,7 +146,7 @@ It never includes the caller's own colour, which must stay pickable.
 
 ### `PUT /match-making/games/{gameId}/my-player`
 
-Defines the caller's own ruler and faction. A full replacement of all nine values, not a patch.
+Defines the caller's own ruler and faction. A full replacement of all ten values, not a patch.
 
 Gated on `JoinGame`, the same permission as claiming. The body carries **no** identity at all — the
 game comes from the route and the slot from the token — so it cannot name a slot the caller does not
@@ -149,7 +157,8 @@ own.
 { "rulerTitle": "Empress", "rulerName": "Aelara", "rulerGender": "Female",
   "factionName": "The Ember Pact", "factionColour": "#c800de",
   "peopleName": "The Vashti", "demonym": "Vashti",
-  "cultureName": "Vashti Highland", "language": "Old Vashti" }
+  "cultureName": "Vashti Highland", "language": "Old Vashti",
+  "rulerPortraitPath": "/portraits/ruler_07.png" }
 // response: 204 No Content
 ```
 
@@ -160,7 +169,7 @@ own.
 | Missing / invalid token | `401` |
 | Token lacks `JoinGame` | `403` |
 | Caller controls no player in that game | `404` |
-| Another player in that game already holds that colour | `409` |
+| Another player in that game already holds that colour, or that portrait | `409` |
 
 - **`rulerTitle` is optional.** Blank (or omitted) is a valid choice and is stored as `"Nobody"`,
   the same placeholder `GameSetupService` seeds a slot with. The substitution happens in the
@@ -178,6 +187,23 @@ own.
   characters. They are free text the player authors, checked only for presence and length: nothing
   is looked up by them, and two factions in one game may name their peoples alike. `GameSetupService`
   seeds each with a placeholder, so a slot never reads as blank in the lobby before it is claimed.
+- **`rulerPortraitPath` is optional**, like the ruler title. Blank (or omitted) is a valid choice and is
+  stored as the empty string, which is what `GameSetupService` seeds every slot with. The client draws a
+  crown for it. A value that *is* given is capped at 100 characters and must match
+  `^/portraits/[a-z0-9_-]+\.png$` — a root-relative path to a file in the UI's `public/portraits/` folder,
+  a client path the API never resolves, the same arrangement as `Asset.IconPath`.
+- **A chosen portrait is unique within the game.** Two players may not wear the same face, so a non-blank
+  value another slot in the same game already holds comes back as a `409`. The empty default is exempt: it
+  is the one value the column may hold more than once, because any number of players can be undecided at
+  the same time.
+- Unlike the colour there is **no unique index** behind that — the check in
+  `UpdatePlayerDefinitionHandler` is the whole guarantee. A portrait is cosmetic, so the worst a lost race
+  costs is two players sharing a face until one of them edits it, where a shared faction colour would make
+  the map unreadable.
+- The path is checked for **shape but not membership**: the twenty portraits are not enumerated in
+  C#, for the same reason the colour is not checked against the palette. The shape rule is there
+  because this value — unlike a name — is rendered into an `<img src>` that every other player in
+  the game sees in their toolbar, so an off-site URL would pull a remote image onto their screen.
 
 ---
 
@@ -189,7 +215,7 @@ own.
 | `GetMatchMakingGamesHandler` | `AscendantEmpire.Application/Features/MatchMaking/Handlers/` | Lists joinable games + slots, deriving the claim flags per slot. |
 | `ClaimPlayerSlotHandler` | `AscendantEmpire.Application/Features/MatchMaking/Handlers/` | Assigns `Player.UserId`; guards "already taken" / "already in this game". |
 | `GetPlayerDefinitionHandler` | `AscendantEmpire.Application/Features/MatchMaking/Handlers/` | Reads the caller's own slot plus the rivals' colours, in one query. |
-| `UpdatePlayerDefinitionHandler` | `AscendantEmpire.Application/Features/MatchMaking/Handlers/` | Writes the nine identity values; defaults a blank title and guards the colour clash. |
+| `UpdatePlayerDefinitionHandler` | `AscendantEmpire.Application/Features/MatchMaking/Handlers/` | Writes the ten identity values; defaults a blank title and guards the colour clash. |
 | Backend contracts | `AscendantEmpire.BackendContracts/MatchMaking/` | `MatchMakingGame`, `MatchMakingSlot`, `PlayerDefinition`, `UsedFactionColour` (handler output); `ClaimPlayerSlotDto`, `UpdatePlayerDefinitionDto` (request bodies). |
 | Frontend contracts | `AscendantEmpire.FrontendContracts/MatchMaking/` | `IMatchMakingGameCollection`, `IMatchMakingGame`, `IMatchMakingSlot`, `IPlayerDefinition`, `IUsedFactionColour`. |
 | DTOs | `AscendantEmpire.Application/Features/MatchMaking/Classes/` | `DTMatchMakingGameCollection` etc. — the serialized shapes. |
@@ -243,9 +269,13 @@ tool's internals for a layout primitive is the wrong dependency direction.
 3. **Claim** calls `POST /match-making/claim`, refetches the list so the seat flips to "your slot",
    and then opens `DefinePlayerDialog` on it.
 4. The dialog fetches `GET .../my-player` on open, and saves with `PUT .../my-player`:
-   - **Ruler** page — Ruler Name, Ruler Gender, Ruler Title, *in that order*: the gender decides
-     which titles the combo box suggests, so it has to be answered first. The title is free text and
-     may be left blank.
+   - **Ruler** page — Ruler Name, Ruler Gender, Ruler Title, Ruler Portrait, *in that order*: the
+     gender decides which titles the combo box suggests, so it has to be answered first. The title
+     is free text and may be left blank. The portrait is an `ImagePicker` — a thumbnail of the
+     current choice that opens a grid of the files in the UI's `public/portraits/`, with the
+     portraits rivals already wear struck through and unpickable. It may be left unchosen, in which
+     case the trigger shows a crown. A portrait lost to a race comes back as a 409 and is shown
+     against the portrait field, with the page switched to it — the same treatment as the colour.
    - **Faction** page — Faction Name, a `ColorPicker` over `DistinctColors` with the colours rivals
      already hold struck through, and then the four names for the people behind the faction: People
      Name, Demonym, Culture Name and Language. A save that loses the colour race anyway comes back as
@@ -272,10 +302,11 @@ just adds the claim step on top.
 - **`/games/open` is unchanged** — it stays anonymous and only lists `Active` players. The Match
   Maker uses its own authorised listing so it can compute the per-user claim flags.
 - **Slot identity is now the player's** — a seeded slot carries only placeholders (`"Nobody"`,
-  `"Player 3"`, `"Faction 3"`, `"People 3"`, `"Person 3"`, `"Culture 3"`, `"Language 3"`, no gender,
-  no colour), and the two `my-player` endpoints above let the claimant replace them. Uniqueness is
-  enforced on the colour only: two factions in one game may still share a ruler name, a faction name,
-  or any of the four people-and-culture names.
+  `"Player 3"`, `"Faction 3"`, `"People 3"`, `"Person 3"`, `"Culture 3"`, `"Language 3"`, no portrait,
+  no gender, no colour), and the two `my-player` endpoints above let the claimant replace them.
+  Uniqueness is
+  enforced on the colour and the chosen portrait: two factions in one game may still share a ruler name,
+  a faction name, or any of the four people-and-culture names.
 - **Colour uniqueness is exact-value, not perceptual** — the index stops two players holding the
   same hex, but nothing stops them picking two colours that merely look alike. The defence is the
   palette the picker offers, not a server rule.

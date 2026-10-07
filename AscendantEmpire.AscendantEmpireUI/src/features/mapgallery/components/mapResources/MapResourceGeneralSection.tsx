@@ -1,7 +1,16 @@
 import { useState } from "react";
-import { CodeField, FieldRow, HintIcon, inputClass } from "@/components/ui";
+import { CodeField, FieldRow, inputClass } from "@/components/ui";
 import { ExtractionMethod, type MapResourceType } from "@/types/map/MapResource";
-import { EXTRACTION_METHODS, MAP_RESOURCE_KINDS, grows, kindOf, withExtractionMethod, withKind } from "../../tools/mapResourceDraft";
+import {
+  EXTRACTION_METHODS,
+  MAP_RESOURCE_KINDS,
+  MAP_RESOURCE_KIND_HINT,
+  grows,
+  kindOf,
+  withExtractionMethod,
+  withKind,
+  type MapResourceKind,
+} from "../../tools/mapResourceDraft";
 import { CheckboxRow, PercentInput, WholeNumberInput } from "./mapResourceFields";
 
 interface MapResourceGeneralSectionProps {
@@ -66,20 +75,16 @@ export default function MapResourceGeneralSection({ type, categories, onChange }
         </div>
       </FieldRow>
 
-      <FieldRow label="Kind" align="top">
-        <div role="radiogroup" aria-label="Kind" className="space-y-1">
+      {/* A dropdown rather than a radio per kind, so Kind reads as one row like Category and Extraction above it, and the four
+          descriptions travel together in the row's own hint (MAP_RESOURCE_KIND_HINT) instead of an info icon per option. */}
+      <FieldRow label="Kind" hint={MAP_RESOURCE_KIND_HINT}>
+        <select className={inputClass} value={kind} onChange={(e) => onChange(withKind(type, e.target.value as MapResourceKind))}>
           {MAP_RESOURCE_KINDS.map((option) => (
-            // Each kind's description hangs off an info icon beside its name, so the four options stay one line
-            // each and read the same way as the hints on the rows above.
-            <label key={option.kind} className="flex items-center gap-2 text-sm text-slate-700">
-              <input type="radio" name="map-resource-kind" checked={kind === option.kind} onChange={() => onChange(withKind(type, option.kind))} />
-              <span className="inline-flex items-center">
-                {option.label}
-                <HintIcon hint={option.description} className="ml-1 align-middle" />
-              </span>
-            </label>
+            <option key={option.kind} value={option.kind}>
+              {option.label}
+            </option>
           ))}
-        </div>
+        </select>
       </FieldRow>
 
       <FieldRow label="Extraction">
