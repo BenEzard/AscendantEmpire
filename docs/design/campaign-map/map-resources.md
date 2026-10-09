@@ -334,7 +334,21 @@ As with modifiers, losing a source just deletes its rows.
 
 Every roll (spread, spread direction, survival, capture, discovery, `SpreadLimit`, estimation error)
 is derived from the game's seed, `GameIndex.GenerationSeed`, so the results can be reproduced and
-tested.
+tested. No roll's result is stored.
+
+A roll's key is the seed plus whatever tells that roll apart from every other roll drawn from the
+same seed. What that takes depends on whether the roll is taken once or taken again:
+
+| Roll | Key | Notes |
+| --- | --- | --- |
+| Survival (reseed) | seed + instance `Id` + **round** + roll name | Taken once in each dormant round. The round is what makes those rolls differ: keyed on the seed and the instance alone, a dormant instance would draw the same number every round, and so would either reseed on its first dormant round or never reseed at all. |
+| Spread, and spread direction | seed + instance `Id` + **round** + roll name | Taken once a round while the instance has spreads left. The direction must vary from round to round as well, so it carries the round too. |
+| Discovery | seed + instance `Id` + Player `Id` + **round** + roll name | Taken per Player, per round one of their units enters or rests on the tile, so a round that fails does not fix the outcome for every later round. A stratified type rolls per layer, which the roll name carries. |
+| Capture | seed + instance `Id` + Player `Id` + **round** + roll name | Taken per extraction attempt, so a failed capture is not failed identically for good. |
+| `SpreadLimit`, initial quantity, Distribution scenario, `EstimationFuzzyFactor` | seed + instance `Id` + roll name | Rolled once, when the instance is created, and fixed for its life — so these carry no round. `EstimationFuzzyFactor` depends on it: it is recomputed on every view rather than stored, which only holds while the key gives the same answer every time it is asked. |
+
+The **roll name** separates two rolls that would otherwise share a key, such as a spread and its
+direction in the same round.
 
 ## Data model
 

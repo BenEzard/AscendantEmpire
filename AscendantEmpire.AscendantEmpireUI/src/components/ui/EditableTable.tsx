@@ -35,6 +35,18 @@ export interface EditableTableProps<TRow> {
   addLabel?: string;
   /** Message shown in place of the rows when there are none yet. */
   emptyHint?: string;
+  /**
+   * A stable React key for a row, for callers that re-order `rows` while the table is on screen.
+   * <para>
+   * Without it the rows are keyed by position, so a row moving from one position to another leaves any state held
+   * *inside* a cell (a CodeField's manually-edited flag, say) behind with the old position — it stays with the slot
+   * rather than following the row. Return something that identifies the row itself and the state moves with it.
+   * </para>
+   * <para>
+   * Callers whose row order never changes can leave this unset; keying by position is then correct and is the default.
+   * </para>
+   */
+  rowKey?: (row: TRow, rowIndex: number) => string | number;
 }
 
 export default function EditableTable<TRow>({
@@ -45,6 +57,7 @@ export default function EditableTable<TRow>({
   addDisabled,
   addLabel,
   emptyHint,
+  rowKey,
 }: EditableTableProps<TRow>) {
   return (
     <div className="rounded-md border border-slate-200">
@@ -83,7 +96,7 @@ export default function EditableTable<TRow>({
             </tr>
           ) : (
             rows.map((row, rowIndex) => (
-              <tr key={rowIndex} className="border-b border-slate-100 last:border-b-0">
+              <tr key={rowKey ? rowKey(row, rowIndex) : rowIndex} className="border-b border-slate-100 last:border-b-0">
                 {columns.map((column) => (
                   <td key={column.header} className={`px-2 py-0 align-middle ${column.className ?? ""}`}>
                     {column.renderCell(row, rowIndex)}

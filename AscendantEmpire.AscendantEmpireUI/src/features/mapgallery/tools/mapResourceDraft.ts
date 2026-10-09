@@ -262,6 +262,23 @@ export function fromPercentInput(raw: string): number | null {
   return Math.round(Number(raw) * 10) / 1000;
 }
 
+/**
+ * A stored fraction (0.25) as the whole percent a slider's knob sits on (25).
+ * <para>
+ * A slider has nowhere to show "not set", so a null fraction reads as 0 — to the fields the sliders drive the two mean the same thing.
+ * Rounded to a whole percent because the sliders step in whole percents, so a stored value carrying tenths (0.305) snaps the knob to the
+ * nearest percent while the row's readout still shows the exact figure, until the designer drags it.
+ * </para>
+ */
+export function toPercentSlider(fraction: number | null | undefined): number {
+  return Math.round((fraction ?? 0) * 100);
+}
+
+/** A whole percent off a slider as the stored fraction (25 becomes 0.25). */
+export function fromPercentSlider(percent: number): number {
+  return Math.round(percent) / 100;
+}
+
 /** A typed whole number, or null when empty. Fractions are dropped: the fields this feeds are whole numbers on the server. */
 export function fromWholeInput(raw: string): number | null {
   if (raw.trim() === "") {

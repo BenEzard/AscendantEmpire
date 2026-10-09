@@ -1,17 +1,18 @@
 import { useState } from "react";
-import { CodeField, FieldRow, inputClass } from "@/components/ui";
+import { CodeField, FieldRow, RangeSlider, inputClass } from "@/components/ui";
 import { ExtractionMethod, type MapResourceType } from "@/types/map/MapResource";
 import {
   EXTRACTION_METHODS,
   MAP_RESOURCE_KINDS,
   MAP_RESOURCE_KIND_HINT,
-  grows,
+  fromPercentSlider,
   kindOf,
+  toPercentSlider,
   withExtractionMethod,
   withKind,
   type MapResourceKind,
 } from "../../tools/mapResourceDraft";
-import { CheckboxRow, PercentInput, WholeNumberInput } from "./mapResourceFields";
+import { CheckboxRow, PercentInput, PercentSlider } from "./mapResourceFields";
 
 interface MapResourceGeneralSectionProps {
   type: MapResourceType;
@@ -20,7 +21,8 @@ interface MapResourceGeneralSectionProps {
 }
 
 /**
- * The type's own values: identity, category, icon, kind, extraction, discovery, and (for a type that grows) how long it survives exhaustion.
+ * The type's own values: identity, category, icon, kind, extraction and discovery. What a growing type does once exhausted is its own page
+ * (see MapResourceRenewableSection), since only two of the four kinds have those values at all.
  * Values the chosen kind does not use are hidden, and switching kind clears them (see withKind), so what is saved always suits the kind.
  */
 export default function MapResourceGeneralSection({ type, categories, onChange }: MapResourceGeneralSectionProps) {
@@ -107,12 +109,6 @@ export default function MapResourceGeneralSection({ type, categories, onChange }
       ) : null}
 
       <CheckboxRow
-        label="Requires research to extract"
-        checked={type.requiresResearchToExtract}
-        onChange={(checked) => set("requiresResearchToExtract", checked)}
-      />
-
-      <CheckboxRow
         label="Discoverable by default"
         hint="(Off for e.g. uranium, until a tech switches it on)"
         checked={type.isDiscoverableByDefault}
@@ -120,29 +116,31 @@ export default function MapResourceGeneralSection({ type, categories, onChange }
       />
 
       <FieldRow label="Discovery Likelihood" hint={kind === "stratified" ? "(First layer)" : undefined}>
-        <PercentInput value={type.discoveryLikelihood} required onChange={(value) => set("discoveryLikelihood", value)} />
+        <PercentSlider value={type.discoveryLikelihood} ariaLabel="Discovery likelihood" onChange={(value) => set("discoveryLikelihood", value)} />
       </FieldRow>
 
-      {/* A stratified type judges each layer separately, so its fuzzy factors are on the Layers page. */}
+      <CheckboxRow
+        label="Requires research to extract"
+        checked={type.requiresResearchToExtract}
+        onChange={(checked) => set("requiresResearchToExtract", checked)}
+      />
+
+      {/* A stratified type judges each layer separately, so its fuzzy factors are on the Layers page.
+          One dual-knob slider rather than two percent boxes: the pair is a single range, and the slider keeps the minimum at or below the
+          maximum by construction — the ordering the server's validator insists on. It brings its own label row, matching FieldRow's two-column
+          grid, so it sits here unwrapped. The knobs read in whole percents, hence the "(%)" on the label. */}
       {kind !== "stratified" ? (
-        <FieldRow label="Estimation Fuzziness" hint="(Minimum to maximum)">
-          <div className="grid grid-cols-2 gap-2">
-            <PercentInput value={type.estimationFuzzyFactorMin} ariaLabel="Fuzziness minimum" onChange={(value) => set("estimationFuzzyFactorMin", value)} />
-            <PercentInput value={type.estimationFuzzyFactorMax} ariaLabel="Fuzziness maximum" onChange={(value) => set("estimationFuzzyFactorMax", value)} />
-          </div>
-        </FieldRow>
-      ) : null}
-
-      {grows(kind) ? (
-        <>
-          <FieldRow label="Survival Rounds" hint="(Dormant, once exhausted)">
-            <WholeNumberInput value={type.survivalRounds} onChange={(value) => set("survivalRounds", value)} />
-          </FieldRow>
-
-          <FieldRow label="Reseed Likelihood" hint="(Each dormant Round)">
-            <PercentInput value={type.reseedLikelihood} onChange={(value) => set("reseedLikelihood", value)} />
-          </FieldRow>
-        </>
+        <RangeSlider
+          label="Estimation Fuzziness (%)"
+          minValue={toPercentSlider(type.estimationFuzzyFactorMin)}
+          maxValue={toPercentSlider(type.estimationFuzzyFactorMax)}
+          trackMin={0}
+          trackMax={100}
+          step={1}
+          onChange={({ min, max }) =>
+            onChange({ ...type, estimationFuzzyFactorMin: fromPercentSlider(min), estimationFuzzyFactorMax: fromPercentSlider(max) })
+          }
+        />
       ) : null}
     </div>
   );

@@ -19,7 +19,9 @@ namespace AscendantEmpire.Domain.Entities.Games;
 /// </para>
 /// <para>
 /// Every roll concerning an instance (spread, survival, capture, discovery, a Player's estimation error) is derived from the game's seed and the instance's <see cref="Id"/>,
-/// so no roll's result is stored. The estimation error in particular is recomputed on every view, which keeps it fixed without a column that could drift.
+/// so no roll's result is stored. A roll taken again for the same instance — survival, spread, discovery, capture — also keys on the Round, since without it every Round
+/// would draw the same number. A roll taken once keys on the instance alone: the estimation error in particular is recomputed on every view, which keeps it fixed without a
+/// column that could drift. See the Randomness section of the design doc.
 /// </para>
 /// <para>
 /// No navigation properties, the same as <see cref="CampaignMapDepletion"/>: the rows are read and written by tile and game, never walked as an entity graph.

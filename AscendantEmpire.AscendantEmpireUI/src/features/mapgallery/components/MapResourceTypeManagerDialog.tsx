@@ -15,15 +15,16 @@ import {
   useAssetsQuery,
   useSaveMapResourceCatalogueMutation,
 } from "../hooks/useMapResourceCatalogue";
-import { createMapResourceType, holdsSingleQuantity, kindOf, toDraft, toPayload, type MapResourceDraft } from "../tools/mapResourceDraft";
+import { createMapResourceType, grows, holdsSingleQuantity, kindOf, toDraft, toPayload, type MapResourceDraft } from "../tools/mapResourceDraft";
 import MapResourceGeneralSection from "./mapResources/MapResourceGeneralSection";
 import MapResourceYieldsSection from "./mapResources/MapResourceYieldsSection";
 import MapResourceHabitatsSection from "./mapResources/MapResourceHabitatsSection";
+import MapResourceRenewableSection from "./mapResources/MapResourceRenewableSection";
 import MapResourceScenariosSection from "./mapResources/MapResourceScenariosSection";
 import MapResourceLayersSection from "./mapResources/MapResourceLayersSection";
 import MapResourceCategoriesSection from "./mapResources/MapResourceCategoriesSection";
 
-type SectionKey = "general" | "yields" | "habitats" | "scenarios" | "layers" | "categories";
+type SectionKey = "general" | "yields" | "habitats" | "renewable" | "scenarios" | "layers" | "categories";
 
 /** A saved row the designer asked to delete, awaiting confirmation. */
 type PendingDelete = { kind: "type" | "category"; code: string; label: string };
@@ -198,6 +199,14 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
 
   const noTypeSelected = <p className="text-sm text-slate-500">Select a Map Resource, or add one.</p>;
 
+  // Shown in place of the Renewable page for a kind that never grows, so the page says why it is empty rather than offering fields that the
+  // chosen kind has to leave unset.
+  const notRenewable = (
+    <p className="text-sm text-slate-500">
+      {selectedType ? "Only a Renewable or Distribution Map Resource grows, and so survives being exhausted." : "Select a Map Resource, or add one."}
+    </p>
+  );
+
   return (
     <>
       {/* `height` pins the page region so the dialog is the same size whatever page is open — and, the panel being centred, stays put on screen
@@ -296,6 +305,16 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
             ) : (
               noTypeSelected
             ),
+          },
+          {
+            key: "renewable",
+            label: "Renewable",
+            // Renewable and Distribution both grow, and both carry IsRenewable, which is what these two values hang off.
+            disabled: !kind || !grows(kind),
+            // Guarded rather than rendered-and-greyed: switching kind clears both values, and an editable page on a kind that must leave them
+            // empty would let the designer put back a pair the server then refuses. The nav button being disabled does not stop the page
+            // showing, since PagedDialog keeps the active page on screen.
+            content: selectedType && kind && grows(kind) ? <MapResourceRenewableSection type={selectedType} onChange={updateSelectedType} /> : notRenewable,
           },
           {
             key: "scenarios",
