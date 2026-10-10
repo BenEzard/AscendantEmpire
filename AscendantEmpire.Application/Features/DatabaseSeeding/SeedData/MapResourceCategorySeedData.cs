@@ -7,8 +7,9 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Categories only. A MapResourceType's yields, scenarios and layers name <c>assets.Asset</c> rows, which this seed does not create (the Entity Setup Tool does),
-/// so seeded types could not be guaranteed an Asset to point at. Types are made in the MapResource Type Manager once the Assets exist.
+/// Categories only. The types listed under them are seeded by <see cref="MapResourceTypeSeedData"/>, which runs after the Asset catalogue so that the
+/// <c>assets.Asset</c> rows its yields, scenarios and layers name are there to point at. Any type that seed does not cover is made by hand in the
+/// MapResource Type Manager.
 /// </para>
 /// <para>
 /// Matched by code, so re-running the seed renames or re-orders a category rather than duplicating it, and never removes one added by hand.

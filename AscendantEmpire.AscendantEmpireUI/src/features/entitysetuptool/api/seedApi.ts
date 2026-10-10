@@ -15,10 +15,13 @@ export type SeedTarget =
   | "Tags"
   | "UnitComponents"
   | "StarterTemplates"
-  | "Assets";
+  | "Assets"
+  | "ExperienceTypes"
+  | "Technologies"
+  | "MapResourceTypes";
 
 /** The heading a target is listed under. Mirrors the backend SeedTargetGroup enum. */
-export type SeedTargetGroup = "Map" | "UnitDesign" | "Assets";
+export type SeedTargetGroup = "Map" | "UnitDesign" | "Assets" | "Technology";
 
 /**
  * A seed target as the selection dialog needs it. Mirrors the backend DTSeedTarget.

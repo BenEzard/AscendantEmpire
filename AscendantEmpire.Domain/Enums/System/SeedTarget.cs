@@ -64,5 +64,10 @@ public enum SeedTarget
     /// <summary>
     /// The <c>technology.Technology</c> catalogue, with its prerequisites, acquisition costs, grants and experience mappings.
     /// </summary>
-    Technologies = 10
+    Technologies = 10,
+
+    /// <summary>
+    /// The <c>map.MapResourceType</c> rows and their children — Timber, and the mixes of wood a Forest, Jungle or Woodland tile can start with.
+    /// </summary>
+    MapResourceTypes = 11
 }

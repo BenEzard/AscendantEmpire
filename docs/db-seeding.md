@@ -34,6 +34,10 @@ Each part is a `SeedTarget` (`AscendantEmpire.Domain/Enums/System/SeedTarget.cs`
 | `Tags` | Unit Design | `TagTypes` | `unitdesigns.Tag` |
 | `UnitComponents` | Unit Design | `Tags` | `unitdesigns.UnitComponent` and its graph |
 | `StarterTemplates` | Unit Design | `UnitComponents` | global `unitdesigns.UnitTemplate` |
+| `Assets` | Assets | — | the `assets` schema catalogue |
+| `ExperienceTypes` | Technology | — | `technology.ExperienceType` |
+| `Technologies` | Technology | `ExperienceTypes` | `technology.Technology` and its graph |
+| `MapResourceTypes` | Map | `MapResourceCategories`, `Biomes`, `Assets` | `map.MapResourceType` and its habitats, scenarios and yields |
 
 ### Why those edges exist
 
@@ -49,12 +53,16 @@ They are real constraints, not conventions:
   code (`BaseCode`, `SlotComponentCodes`), and `UnitTemplateAssembly` resolves those against rows
   already committed — not against anything in the template payload.
 
-The three map targets are genuinely independent of each other and of everything else.
+- **`Technologies` → `ExperienceTypes`.** A technology maps the experience kinds it draws on by code,
+  and the upsert resolves those against rows already committed.
+- **`MapResourceTypes` → `MapResourceCategories`, `Biomes`, `Assets`.** A type is listed under a
+  category it names by code; a habitat and a Distribution scenario weight each point at a
+  `map.CampaignBiome` row (`FK_MapResourceHabitat_CampaignBiome_BiomeTypeId` and
+  `FK_MapResourceDistributionScenarioBiomeWeight_CampaignBiome_BiomeTypeId`); and a scenario's amounts
+  name `assets.Asset` rows by id, which `SeedMapResourceTypesHandler` resolves from codes.
 
-`MapResourceTypes` are deliberately **not** seeded. Their yields, scenarios and layers name
-`assets.Asset` rows the seed does not create, so a seeded type could not be guaranteed
-something to point at. Types are authored in the MapResource Type Manager once the Assets exist.
-If they were ever added as a target they would depend on both `MapResourceCategories` and `Biomes`.
+`Geographies`, `Biomes`, `TagTypes`, `Assets` and `ExperienceTypes` are genuinely independent of
+each other and of everything else.
 
 ---
 
@@ -128,7 +136,7 @@ A step sends its own request rather than handing back an `IRequest` for the exec
 That is forced by how handlers are resolved: the handler is looked up against the response type the
 *caller* supplies, not the request's runtime type. A request declaring
 `ServiceResult<BulkUpsertUnitComponentsResult>` dispatched through an `IRequest<ServiceResultBase>`
-parameter would not find its handler. Four of the seven steps do declare the base response type, but
+parameter would not find its handler. Most of the steps do declare the base response type, but
 the two unit-design ones return closed generics — so a uniform request-shaped interface would break
 on exactly those two.
 
@@ -138,7 +146,7 @@ fails the same way, and the executor has one thing to catch.
 
 ### Registration
 
-All seven are registered in `ApplicationStartup.AddApplicationServices`, next to the
+All of them are registered in `ApplicationStartup.AddApplicationServices`, next to the
 `IProcessExecutor` block:
 
 ```csharp

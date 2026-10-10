@@ -9,8 +9,8 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.Steps;
 /// Seeds the <c>map.MapResourceCategory</c> rows the map editor groups MapResource types under.
 /// </summary>
 /// <remarks>
-/// Categories only, so the step stands alone. MapResourceTypes are not seeded because their yields name <c>assets.Asset</c> rows this seed does not
-/// create — see <see cref="MapResourceCategorySeedData"/>. Were they ever added, that step would depend on both this one and biomes.
+/// Categories only, so the step stands alone. The types listed under them are seeded separately by <see cref="MapResourceTypeSeedStep"/>, which follows
+/// this step because a type has to name a category that already exists.
 /// </remarks>
 internal sealed class MapResourceCategorySeedStep : ISeedStep
 {
