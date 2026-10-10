@@ -145,7 +145,12 @@ function makeBrushItem(descriptor: BrushDescriptor, ctx: BrushItemContext): Drop
  * chosen here is the only thing the menu has to say.
  */
 const RIVER_WIDTH_CHOICES: { width: DrawableRiverWidth; label: string; title: string; previewPx: number }[] = [
-  { width: "Large", label: "Large", title: "Large river — no Land Force can cross it, and Water Forces can sail up it. Click it again to erase it", previewPx: 6 },
+  {
+    width: "Large",
+    label: "Large",
+    title: "Large river — no Land Force can cross it, and Water Forces can sail up it. Click it again to erase it",
+    previewPx: 6,
+  },
   { width: "Medium", label: "Medium", title: "Medium river — a Land Force can cross it, at a cost. Click it again to erase it", previewPx: 3 },
 ];
 
@@ -177,7 +182,11 @@ function buildRiverWidthItems(selection: DrawableRiverWidth, selectRiverWidth: (
 // ---------------------------------------------------------------------------
 
 /** Builds the Biomes dropdown items: a "<none>" entry followed by paintable biomes. */
-function buildBiomePaletteItems(biomes: Biome[] | undefined, selection: BiomeType | null, setSelection: (v: BiomeType | null) => void): DropButtonItem[] {
+function buildBiomePaletteItems(
+  biomes: Biome[] | undefined,
+  selection: BiomeType | null,
+  setSelection: (v: BiomeType | null) => void,
+): DropButtonItem[] {
   return [
     {
       key: "none",
@@ -418,10 +427,10 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
           ),
         },
         {
-          // The main click opens the MapResource Type Manager, as the Biomes and Geographies buttons open theirs; the dropdown lists every
-          // MapResource grouped by category, and choosing one arms the MapResource tool to place it.
+          // The main click opens the MapResource Type Manager; the dropdown lists every MapResource grouped by category,
+          // and choosing one arms the MapResource tool to place it.
           key: "mapResources",
-          tooltip: mapResourcesLoading ? "Loading MapResources..." : "MapResources",
+          tooltip: mapResourcesLoading ? "Loading MapResources..." : "Map Resources",
           disabled: mapResourcesLoading,
           render: ({ disabled }) => (
             <DropButton
@@ -433,7 +442,12 @@ export function useMapGalleryEditorToolbar(args: Args): ToolBarGroup[] {
               menuDisabled={mapResourcesLoading || openMapIndex == null}
               items={[]}
               renderMenu={(close) => (
-                <MapResourcePalette categories={mapResourceCategories ?? []} selectedTypeId={mapResourceMapSelection} onSelect={selectMapResource} close={close} />
+                <MapResourcePalette
+                  categories={mapResourceCategories ?? []}
+                  selectedTypeId={mapResourceMapSelection}
+                  onSelect={selectMapResource}
+                  close={close}
+                />
               )}
             />
           ),

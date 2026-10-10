@@ -14,6 +14,7 @@ using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Maps.Depletion.Services;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Executors;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
+using AscendantEmpire.Application.Features.Maps.MapResources.Services;
 using AscendantEmpire.Application.Features.UnitComponents.Executors;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strategies;
@@ -130,6 +131,12 @@ public static class ApplicationStartup
         services.AddScoped<ICampaignMapGalleryService, CampaignMapGalleryService>();
         services.AddScoped<IGameSetupService, GameSetupService>();
         services.AddScoped<IGameContextService, GameContextService>();
+
+        // Pre-assigns the MapResources a tile's Biome implies - Timber on Forest, Jungle and Woodland - when a map is generated, and keeps them in step when
+        // the map editor's Biome brush repaints a tile. Which Biomes count is read from the type's habitats, so a habitat added in the MapResource Type
+        // Manager takes effect with no code change. Scoped so it shares the calling handler's context, which is what lets its placement writes join that
+        // handler's transaction.
+        services.AddScoped<IBiomeImpliedMapResourceService, BiomeImpliedMapResourceService>();
 
         // Force context action pipeline. Each IForceActionStrategy decides one toolbar action; the service builds the shared context once and
         // judges every strategy against it. Display order comes from ForceActionType's value, so registration order here does not matter.

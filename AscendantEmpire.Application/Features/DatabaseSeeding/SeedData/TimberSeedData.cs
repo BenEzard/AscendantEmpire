@@ -1,4 +1,5 @@
 using AscendantEmpire.BackendContracts.MapResources.AddOrUpdateMapResourceType;
+using AscendantEmpire.Domain.Entities.Maps.MapResources;
 using AscendantEmpire.Domain.Enums.MapResources;
 using AscendantEmpire.Domain.Enums.Maps;
 
@@ -126,7 +127,7 @@ internal sealed class TimberSeedData : IMapResourceTypeSeed
     ];
     #endregion
 
-    public string Code => "Timber";
+    public string Code => MapResourceTypeCodes.TIMBER;
 
     public IReadOnlyCollection<string> AssetCodes => [_OAK_LOG, _GENERIC_LOG, _CEDAR_LOG, _ASH_LOG, _EBONY_LOG, _BAMBOO];
 

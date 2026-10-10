@@ -169,6 +169,66 @@ internal static class MapResourceTestSeed
     }
 
     /// <summary>
+    /// Adds the real <c>Timber</c> MapResourceType, with a Biome-wide habitat for each Biome named, and saves.
+    /// </summary>
+    /// <param name="biomes">The Biomes Timber should grow in. Pass none to seed the type with no habitat at all, so it belongs nowhere.</param>
+    /// <remarks>
+    /// <para>
+    /// Its Code is <see cref="MapResourceTypeCodes.TIMBER"/> rather than carrying this class's "Test" prefix, because the code that places the MapResources a
+    /// Biome implies finds the type by that exact Code, and a prefixed one would be invisible to it. Nothing seeds MapResourceTypes into the template
+    /// database - they come from the seed's Map Resources target - so there is nothing for the real Code to collide with.
+    /// </para>
+    /// <para>
+    /// Deliberately thinner than <c>TimberSeedData</c>: a habitat per Biome is all that deciding where Timber belongs reads, and the 45 generated scenarios
+    /// would only slow every test that needs a wooded tile.
+    /// </para>
+    /// </remarks>
+    /// <returns>The MapResourceType's id.</returns>
+    public static async Task<int> SeedTimberAsync(AscendantEmpireContext context, params BiomeType[] biomes)
+    {
+        foreach (BiomeType biome in biomes)
+        {
+            await EnsureBiomeAsync(context, biome);
+        }
+
+        var woodCategory = new MapResourceCategory { Code = "TestWoodCategory", DisplayName = "Test Wood", SortOrder = 2 };
+
+        var timber = new MapResourceType
+        {
+            Code = MapResourceTypeCodes.TIMBER,
+            DisplayName = "Timber",
+            Category = woodCategory,
+
+            // No icon: a tile covered in trees is already said by its Biome.
+            IconPath = null,
+            IsRenewable = true,
+            IsDistribution = true,
+            ExtractionMethod = ExtractionMethod.Fell,
+            IsDiscoverableByDefault = true,
+            DiscoveryLikelihood = 1m,
+            EstimationFuzzyFactorMin = 0.05m,
+            EstimationFuzzyFactorMax = 0.15m,
+            SurvivalRounds = 5,
+            ReseedLikelihood = 0.2m,
+
+            // Biome-wide habitats, as the real seed's are: no Geography, so every Geography in the Biome holds wood. A Distribution starts at its scenario's
+            // amounts and never spreads, so the initial quantity and spread columns stay null.
+            Habitats = [.. biomes.Select(biome => new MapResourceHabitat
+            {
+                BiomeTypeId = biome,
+                CampaignMapGeographyTypeId = null,
+                MaximumQuantity = 20_000_000,
+                GrowthPercentage = 0.03m
+            })]
+        };
+
+        context.MapResourceTypes.Add(timber);
+        await context.SaveChangesAsync();
+
+        return timber.Id;
+    }
+
+    /// <summary>
     /// Adds a Biome row if the database does not have it. Biomes are seeded by the Entity Setup Tool, so the template database may not.
     /// </summary>
     public static async Task EnsureBiomeAsync(AscendantEmpireContext context, BiomeType biome)

@@ -4,6 +4,8 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.Biomes.Handlers;
 using AscendantEmpire.Application.Features.Maps.Geographies.Handlers;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Classes;
+using AscendantEmpire.Application.Features.Maps.MapResources.Classes;
+using AscendantEmpire.Application.Features.Maps.MapResources.Services;
 using AscendantEmpire.Application.Helpers;
 using AscendantEmpire.BackendContracts.Biomes;
 using AscendantEmpire.BackendContracts.CampaignMaps;
@@ -13,6 +15,7 @@ using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
@@ -29,17 +32,12 @@ public record UpdateCampaignMapTilesRequest(
 internal class UpdateCampaignMapTilesHandler(
     ILogger<UpdateCampaignMapTilesHandler> logger,
     AscendantEmpireContext context,
-    IMediator mediator
+    IMediator mediator,
+    IBiomeImpliedMapResourceService impliedMapResources
 ) : IRequestHandler<UpdateCampaignMapTilesRequest, ServiceResult<int, IReadOnlyCollection<TileUpdateFail>?>>
 {
-    /// <summary>
-    /// When false, it uses ExecuteUpdate; when true, it falls back to loading entities, modifying them, and saving changes for testing purposes.
-    /// </summary>
-    private readonly bool _TEST_MODE = false;
-
     public async Task<ServiceResult<int, IReadOnlyCollection<TileUpdateFail>?>> Handle(UpdateCampaignMapTilesRequest request, CancellationToken cancellationToken)
     {
-        int tilesUpdated = 0;
         var failures = new List<TileUpdateFail>();
 
         try
@@ -77,109 +75,270 @@ internal class UpdateCampaignMapTilesHandler(
 
             EnhancedCoord[] enhancedCoordinates = MapMethods.EnhanceCoordinates(index.CampaignMapOffsetId, index.Width, request.Coordinates);
 
-            int[] dbIds = [.. enhancedCoordinates.Select(ec => ec.DbId)];
+            // Deduplicated because a brush stroke can name the same coordinate twice, and every id below is counted as well as matched.
+            int[] dbIds = [.. enhancedCoordinates.Select(ec => ec.DbId).Distinct()];
 
-            // If both are being updated (including implicit mutated geography), just apply.
-            if (request.BiomeType is not null && mutatedGeographyType is not null)
-            {
-                if (_TEST_MODE)
-                {
-                    List<CampaignMapGallery> tilesToUpdateInTestMode = await context.CampaignMapGallery
-                        .Where(t => t.CampaignMapGalleryIndexId == request.CampaignMapGalleryIndexId)
-                        .Where(t => dbIds.Contains(t.CampaignMapGalleryId))
-                        .ToListAsync(cancellationToken);
-                    
-                    foreach (CampaignMapGallery tile in tilesToUpdateInTestMode)
-                    {
-                        tile.BiomeTypeId = request.BiomeType.Value;
-                        tile.CampaignMapGeographyTypeId = mutatedGeographyType.Value;
-                    }
-
-                    tilesUpdated = await context.SaveChangesAsync(cancellationToken);
-                }
-                else
-                    tilesUpdated = await context.CampaignMapGallery
-                    .Where(t => t.CampaignMapGalleryIndexId == request.CampaignMapGalleryIndexId)
-                    .Where(t => dbIds.Contains(t.CampaignMapGalleryId))
-                    .ExecuteUpdateAsync(s => s
-                            .SetProperty(t => t.BiomeTypeId, request.BiomeType.Value)
-                            .SetProperty(t => t.CampaignMapGeographyTypeId, mutatedGeographyType.Value),
-                        cancellationToken);
-
-                return ServiceResult<int, IReadOnlyCollection<TileUpdateFail>?>.Succeed(tilesUpdated);
-            }
-
-            // Otherwise, only one property is being updated and we need per-tile validation.
-            List<CampaignMapGallery> tilesToUpdate = await context.CampaignMapGallery
+            // Loaded for every branch, not just the ones needing per-tile validation: the MapResources a Biome implies are decided from each tile's current
+            // terrain and the terrain it is becoming.
+            //
+            // Untracked deliberately. The tiles are written below through ExecuteUpdate, which goes straight to the database and leaves the change tracker
+            // untouched - so a tracked tile read again in the same context would still report the terrain it had before an earlier paint in that context.
+            List<CampaignMapGallery> paintedTiles = await context.CampaignMapGallery
+                .AsNoTracking()
                 .Where(t => t.CampaignMapGalleryIndexId == request.CampaignMapGalleryIndexId)
                 .Where(t => dbIds.Contains(t.CampaignMapGalleryId))
                 .ToListAsync(cancellationToken);
 
-            // Changing Biome
-            if (request.BiomeType is not null) // change biome; validate vs current geography
+            // Which of the painted tiles may take the change. Only a single-property paint needs per-tile validation: when both Biome and Geography are
+            // given, the combination was already checked for every tile at once.
+            int[] candidateIds = SelectCandidateTiles(
+                request: request,
+                loaded: validationResult.SuccessValue,
+                mutatedGeographyType: mutatedGeographyType,
+                paintedTiles: paintedTiles,
+                failures: failures);
+
+            // What the paint would do to those tiles' implied MapResources, worked out before anything is written so a tile whose placement holds out can be
+            // left alone rather than painted and then reported.
+            BiomeImpliedResourcePlan impliedPlan = await PlanImpliedMapResourcesAsync(
+                request: request,
+                mutatedGeographyType: mutatedGeographyType,
+                paintedTiles: paintedTiles,
+                candidateIds: candidateIds,
+                cancellationToken: cancellationToken);
+
+            HashSet<int> tilesHoldingOut = [.. impliedPlan.Refusals
+                .Where(refusal => refusal.Reason == BiomeImpliedResourceRefusal.AuthorIntentBlocksRemoval)
+                .Select(refusal => refusal.CampaignMapGalleryId)];
+
+            int[] idsToWrite = [.. candidateIds.Where(id => tilesHoldingOut.Contains(id) == false)];
+
+            if (tilesHoldingOut.Count > 0)
             {
-                List<IGrouping<CampaignMapGeographyType, CampaignMapGallery>> tilesByGeography =
-                    [.. tilesToUpdate.GroupBy(t => t.CampaignMapGeographyTypeId)];
-
-                CampaignMapBiome requestBiome =
-                    validationResult.SuccessValue.Biomes.First(b => b.BiomeType == request.BiomeType);
-
-                IReadOnlyCollection<CampaignMapGeography> geographies = validationResult.SuccessValue.Geographies;
-
-                ServiceResult<int[]?, IReadOnlyCollection<DTTileUpdateFail>?> validateBiomeResult =
-                    ValidateBiomeChange(requestBiome, tilesByGeography, geographies);
-
-                if (validateBiomeResult.SuccessValue?.Length > 0)
-                {
-                    tilesUpdated = await context.CampaignMapGallery
-                        .Where(t => t.CampaignMapGalleryIndexId == request.CampaignMapGalleryIndexId)
-                        .Where(t => validateBiomeResult.SuccessValue.Contains(t.CampaignMapGalleryId))
-                        .ExecuteUpdateAsync(s => s.SetProperty(t => t.BiomeTypeId, request.BiomeType.Value),
-                            cancellationToken);
-                }
-
-                if (validateBiomeResult.ErrorValue?.Count > 0)
-                {
-                    failures.AddRange(validateBiomeResult.ErrorValue.Select(ToContractFail));
-                }
-            }
-            else if (request.CampaignMapGeographyType is not null) // change geography; validate vs current biome
-            {
-                List<IGrouping<BiomeType, CampaignMapGallery>> tilesByBiome =
-                    [.. tilesToUpdate.GroupBy(t => t.BiomeTypeId)];
-
-                CampaignMapGeography requestGeography =
-                    validationResult.SuccessValue.Geographies.First(g => g.CampaignMapGeographyType == request.CampaignMapGeographyType);
-
-                IReadOnlyCollection<CampaignMapBiome> biomes = validationResult.SuccessValue.Biomes;
-
-                ServiceResult<int[]?, IReadOnlyCollection<DTTileUpdateFail>?> validateGeographyResult =
-                    ValidateGeographyChange(requestGeography, tilesByBiome, biomes);
-
-                if (validateGeographyResult.SuccessValue?.Length > 0)
-                {
-                    tilesUpdated = await context.CampaignMapGallery
-                        .Where(t => t.CampaignMapGalleryId == request.CampaignMapGalleryIndexId)
-                        .Where(t => validateGeographyResult.SuccessValue.Contains(t.CampaignMapGalleryId))
-                        .ExecuteUpdateAsync(s => s.SetProperty(t => t.CampaignMapGeographyTypeId, request.CampaignMapGeographyType.Value),
-                            cancellationToken);
-                }
-
-                if (validateGeographyResult.ErrorValue?.Count > 0)
-                {
-                    failures.AddRange(validateGeographyResult.ErrorValue.Select(ToContractFail));
-                }
+                failures.Add(ToContractFail(BuildHoldOutFailure(paintedTiles, tilesHoldingOut)));
             }
 
-            return ServiceResult<int, IReadOnlyCollection<TileUpdateFail>?>.PartialSuccess(
-                tilesUpdated,
-                failures);
+            int tilesUpdated = await WritePaintAsync(
+                request: request,
+                mutatedGeographyType: mutatedGeographyType,
+                idsToWrite: idsToWrite,
+                impliedPlan: impliedPlan,
+                cancellationToken: cancellationToken);
+
+            // A clean paint answers 200, a paint that left tiles behind answers 206. Branches used to disagree on this, always reporting partial success even
+            // when nothing failed.
+            return failures.Count == 0
+                ? ServiceResult<int, IReadOnlyCollection<TileUpdateFail>?>.Succeed(tilesUpdated)
+                : ServiceResult<int, IReadOnlyCollection<TileUpdateFail>?>.PartialSuccess(tilesUpdated, failures);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "An error occurred while updating campaign map tiles.");
             return ServiceResult<int, IReadOnlyCollection<TileUpdateFail>?>.Fail("An error occurred while updating campaign map tiles.");
         }
+    }
+
+    /// <summary>
+    /// Picks the painted tiles the change may be applied to, adding a failure group for any the terrain rules turn down.
+    /// </summary>
+    /// <remarks>
+    /// A paint giving both Biome and Geography needs no per-tile check: the pair was validated once for the whole request, so every painted tile qualifies.
+    /// A paint giving only one of the two has to be judged against each tile's existing other half, which is what can turn individual tiles down.
+    /// </remarks>
+    private static int[] SelectCandidateTiles(
+        UpdateCampaignMapTilesRequest request,
+        DTLoadedData loaded,
+        CampaignMapGeographyType? mutatedGeographyType,
+        List<CampaignMapGallery> paintedTiles,
+        List<TileUpdateFail> failures)
+    {
+        if (request.BiomeType is not null && mutatedGeographyType is not null)
+        {
+            return [.. paintedTiles.Select(tile => tile.CampaignMapGalleryId)];
+        }
+
+        if (request.BiomeType is not null)
+        {
+            List<IGrouping<CampaignMapGeographyType, CampaignMapGallery>> tilesByGeography =
+                [.. paintedTiles.GroupBy(tile => tile.CampaignMapGeographyTypeId)];
+
+            CampaignMapBiome requestBiome = loaded.Biomes.First(biome => biome.BiomeType == request.BiomeType);
+
+            ServiceResult<int[]?, IReadOnlyCollection<DTTileUpdateFail>?> validateBiomeResult =
+                ValidateBiomeChange(requestBiome, tilesByGeography, loaded.Geographies);
+
+            if (validateBiomeResult.ErrorValue?.Count > 0)
+            {
+                failures.AddRange(validateBiomeResult.ErrorValue.Select(ToContractFail));
+            }
+
+            return validateBiomeResult.SuccessValue ?? [];
+        }
+
+        if (request.CampaignMapGeographyType is not null)
+        {
+            List<IGrouping<BiomeType, CampaignMapGallery>> tilesByBiome = [.. paintedTiles.GroupBy(tile => tile.BiomeTypeId)];
+
+            CampaignMapGeography requestGeography =
+                loaded.Geographies.First(geography => geography.CampaignMapGeographyType == request.CampaignMapGeographyType);
+
+            ServiceResult<int[]?, IReadOnlyCollection<DTTileUpdateFail>?> validateGeographyResult =
+                ValidateGeographyChange(requestGeography, tilesByBiome, loaded.Biomes);
+
+            if (validateGeographyResult.ErrorValue?.Count > 0)
+            {
+                failures.AddRange(validateGeographyResult.ErrorValue.Select(ToContractFail));
+            }
+
+            return validateGeographyResult.SuccessValue ?? [];
+        }
+
+        // Unreachable: ValidateRequestAsync refuses a request naming neither. Returning nothing rather than throwing keeps a future caller honest.
+        return [];
+    }
+
+    /// <summary>
+    /// Works out what the paint would do to the candidate tiles' implied MapResources, and logs the tiles that are simply too full to gain one.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A failure to read the plan does not block the paint: the tiles are the author's edit, and the MapResources their Biomes imply are a convenience on
+    /// top of it. The paint goes ahead against an empty plan.
+    /// </para>
+    /// <para>
+    /// Runs for a Geography-only paint too. Timber's habitats are all Biome-wide today, so such a paint changes nothing and the plan comes back empty - but a
+    /// habitat naming a Geography is exactly what <c>MapResourceHabitat.CampaignMapGeographyTypeId</c> exists for, and one added in the MapResource Type
+    /// Manager has to be honoured here without a code change.
+    /// </para>
+    /// </remarks>
+    private async Task<BiomeImpliedResourcePlan> PlanImpliedMapResourcesAsync(
+        UpdateCampaignMapTilesRequest request,
+        CampaignMapGeographyType? mutatedGeographyType,
+        List<CampaignMapGallery> paintedTiles,
+        int[] candidateIds,
+        CancellationToken cancellationToken)
+    {
+        List<CampaignMapGallery> candidateTiles = [.. paintedTiles.Where(tile => candidateIds.Contains(tile.CampaignMapGalleryId))];
+
+        ServiceResult<BiomeImpliedResourcePlan> planResult = await impliedMapResources.PlanPaintAsync(
+            paintedTiles: candidateTiles,
+            paintedBiome: request.BiomeType,
+            paintedGeography: mutatedGeographyType,
+            cancellationToken: cancellationToken);
+
+        if (planResult.HasSucceeded == false || planResult.SuccessValue is null)
+        {
+            logger.LogWarning(
+                "Could not work out the MapResources the painted tiles' Biomes imply for Campaign Map Gallery ID {CampaignMapGalleryId}; the paint went ahead "
+                    + "without them. Errors: {Errors}",
+                request.CampaignMapGalleryIndexId, string.Join(Environment.NewLine, planResult.Errors));
+
+            return BiomeImpliedResourcePlan.None;
+        }
+
+        BiomeImpliedResourcePlan plan = planResult.SuccessValue;
+
+        int fullTiles = plan.Refusals.Count(refusal => refusal.Reason == BiomeImpliedResourceRefusal.NoFreeSlot);
+
+        if (fullTiles > 0)
+        {
+            // Not a failure: those tiles are painted, and only an automatic convenience did not happen on them. Reporting them through Failures would make the
+            // editor revert tiles the database did change. If the editor ever wants to show "painted, but no Timber", that belongs on a new advisory
+            // collection on the response, not here.
+            logger.LogInformation(
+                "{FullTileCount} painted tiles of Campaign Map Gallery ID {CampaignMapGalleryId} gained no Biome-implied MapResource because both of their "
+                    + "slots were already taken.",
+                fullTiles, request.CampaignMapGalleryIndexId);
+        }
+
+        return plan;
+    }
+
+    /// <summary>
+    /// Describes the tiles left unpainted because the MapResource on them was authored in the map editor.
+    /// </summary>
+    /// <remarks>
+    /// One group, because the reason is the same for all of them. Each tile carries its real <c>CampaignMapGalleryId</c> and the terrain it still has, which
+    /// is what lets the editor put it back as it was - and it genuinely still has it, because these are the tiles that were not written.
+    /// </remarks>
+    private static DTTileUpdateFail BuildHoldOutFailure(List<CampaignMapGallery> paintedTiles, HashSet<int> tilesHoldingOut)
+    {
+        DTTileUpdateFailTile[] heldOutTiles = [.. paintedTiles
+            .Where(tile => tilesHoldingOut.Contains(tile.CampaignMapGalleryId))
+            .OrderBy(tile => tile.YCoord)
+            .ThenBy(tile => tile.XCoord)
+            .Select(tile => new DTTileUpdateFailTile
+            {
+                Coord = new Coord(tile.XCoord, tile.YCoord),
+                DbId = tile.CampaignMapGalleryId,
+                OriginalBiomeType = tile.BiomeTypeId,
+                OriginalGeographyType = tile.CampaignMapGeographyTypeId
+            })];
+
+        return new DTTileUpdateFail
+        {
+            ErrorMessage = "These tiles keep the MapResource their Biome implies, because the map editor pinned a scenario or set a quantity on it, so their "
+                + "Biome was left unchanged. Remove that MapResource from them first, then paint.",
+            FailedTiles = heldOutTiles
+        };
+    }
+
+    /// <summary>
+    /// Writes the painted tiles and their implied MapResources together.
+    /// </summary>
+    /// <remarks>
+    /// One transaction, because this is now two writes: the tiles go through <c>ExecuteUpdateAsync</c>, which takes effect immediately, and the placements go
+    /// through the change tracker. Failing between the two would leave a tile holding a MapResource its new Biome does not imply, or missing one its new Biome
+    /// does, with nothing to put it right. All the reading and deciding is done by this point, so the transaction only spans the writes.
+    /// </remarks>
+    /// <returns>The number of tiles written.</returns>
+    private async Task<int> WritePaintAsync(
+        UpdateCampaignMapTilesRequest request,
+        CampaignMapGeographyType? mutatedGeographyType,
+        int[] idsToWrite,
+        BiomeImpliedResourcePlan impliedPlan,
+        CancellationToken cancellationToken)
+    {
+        if (idsToWrite.Length == 0 && impliedPlan.IsEmpty)
+        {
+            return 0;
+        }
+
+        await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+        int tilesUpdated = 0;
+
+        if (idsToWrite.Length > 0)
+        {
+            IQueryable<CampaignMapGallery> tilesToWrite = context.CampaignMapGallery
+                .Where(t => t.CampaignMapGalleryIndexId == request.CampaignMapGalleryIndexId)
+                .Where(t => idsToWrite.Contains(t.CampaignMapGalleryId));
+
+            if (request.BiomeType is not null && mutatedGeographyType is not null)
+            {
+                tilesUpdated = await tilesToWrite.ExecuteUpdateAsync(s => s
+                        .SetProperty(t => t.BiomeTypeId, request.BiomeType.Value)
+                        .SetProperty(t => t.CampaignMapGeographyTypeId, mutatedGeographyType.Value),
+                    cancellationToken);
+            }
+            else if (request.BiomeType is not null)
+            {
+                tilesUpdated = await tilesToWrite.ExecuteUpdateAsync(s => s.SetProperty(t => t.BiomeTypeId, request.BiomeType.Value), cancellationToken);
+            }
+            else if (mutatedGeographyType is not null)
+            {
+                tilesUpdated = await tilesToWrite.ExecuteUpdateAsync(
+                    s => s.SetProperty(t => t.CampaignMapGeographyTypeId, mutatedGeographyType.Value),
+                    cancellationToken);
+            }
+        }
+
+        await impliedMapResources.ApplyPaintPlanAsync(impliedPlan, cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return tilesUpdated;
     }
 
     /// <summary>
@@ -502,7 +661,7 @@ internal class UpdateCampaignMapTilesHandler(
         List<DTTileUpdateFail> failed = [];
 
         int[] allIds = [.. tilesByGeography
-            .SelectMany(g => g.Select(t => t.CampaignMapGalleryIndexId))
+            .SelectMany(g => g.Select(t => t.CampaignMapGalleryId))
             .Distinct()];
 
         foreach (var group in tilesByGeography)
@@ -516,11 +675,10 @@ internal class UpdateCampaignMapTilesHandler(
                     .Select(t => new DTTileUpdateFailTile
                     {
                         Coord = new Coord(t.XCoord, t.YCoord),
-                        DbId = t.CampaignMapGalleryIndexId,
+                        DbId = t.CampaignMapGalleryId,
                         OriginalBiomeType = t.BiomeTypeId,
                         OriginalGeographyType = t.CampaignMapGeographyTypeId
                     })
-                    .DistinctBy(x => x.DbId)
                     .ToArray();
 
                 failed.Add(new DTTileUpdateFail
@@ -549,7 +707,7 @@ internal class UpdateCampaignMapTilesHandler(
         List<DTTileUpdateFail> failed = [];
 
         int[] allIds = [.. tilesByBiome
-            .SelectMany(g => g.Select(t => t.CampaignMapGalleryIndexId))
+            .SelectMany(g => g.Select(t => t.CampaignMapGalleryId))
             .Distinct()];
 
         foreach (var group in tilesByBiome)
@@ -563,11 +721,10 @@ internal class UpdateCampaignMapTilesHandler(
                     .Select(t => new DTTileUpdateFailTile
                     {
                         Coord = new Coord(t.XCoord, t.YCoord),
-                        DbId = t.CampaignMapGalleryIndexId,
+                        DbId = t.CampaignMapGalleryId,
                         OriginalBiomeType = t.BiomeTypeId,
                         OriginalGeographyType = t.CampaignMapGeographyTypeId
                     })
-                    .DistinctBy(x => x.DbId)
                     .ToArray();
 
                 failed.Add(new DTTileUpdateFail

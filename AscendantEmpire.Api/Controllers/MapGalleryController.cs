@@ -345,6 +345,7 @@ public class MapGalleryController : ControllerBase
                             X = ft.Coord.X,
                             Y = ft.Coord.Y
                         },
+                        DbId = ft.DbId,
                         OriginalBiomeType = ft.OriginalBiomeType,
                         OriginalGeographyType = ft.OriginalGeographyType
                     })]

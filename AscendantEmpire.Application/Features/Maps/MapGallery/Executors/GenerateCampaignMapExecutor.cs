@@ -4,6 +4,7 @@ using AscendantEmpire.Application.BackgroundServices;
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Handlers;
+using AscendantEmpire.Application.Features.Maps.MapResources.Services;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
@@ -22,12 +23,19 @@ namespace AscendantEmpire.Application.Features.Maps.MapGallery.Executors;
 /// Executes <see cref="ProcessType.GenerateCampaignMap"/> jobs.
 /// </summary>
 /// <remarks>
-/// Generates the tiles for a single queued <see cref="CampaignMapGalleryIndex"/> (the one referenced by the job's <c>MetadataJson</c>) using the engine recorded on the index, 
+/// <para>
+/// Generates the tiles for a single queued <see cref="CampaignMapGalleryIndex"/> (the one referenced by the job's <c>MetadataJson</c>) using the engine recorded on the index,
 /// and reports progress on both the <see cref="Processing"/> record and the index itself.
+/// </para>
+/// <para>
+/// Once the tiles exist, it places the MapResources their Biomes imply. That step is hooked here rather than inside each generator so every engine gets it
+/// from one call site, and because the generators are constructed by the switch below rather than resolved from the container.
+/// </para>
 /// </remarks>
 internal sealed class GenerateCampaignMapExecutor(
     AscendantEmpireContext context,
     IServiceScopeFactory scopeFactory,
+    IBiomeImpliedMapResourceService impliedMapResources,
     ILogger<GenerateCampaignMapExecutor> logger
 ) : IProcessExecutor
 {
@@ -94,6 +102,11 @@ internal sealed class GenerateCampaignMapExecutor(
 
             await SetProgressAsync(processing, index, 90, cancellationToken);
 
+            // --- Biome-implied MapResources -------------------------------------
+            await PlaceBiomeImpliedMapResourcesAsync(index, cancellationToken);
+
+            await SetProgressAsync(processing, index, 95, cancellationToken);
+
             // --- Complete -------------------------------------------------------
             index.CreationStatus = MapCreationStatus.Complete;
             index.Status = "Creation complete";
@@ -115,6 +128,47 @@ internal sealed class GenerateCampaignMapExecutor(
                 indexId, processingId);
 
             await FailAsync(processing, index, "Error during creation", [ex.Message], cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Places the MapResources the generated tiles' Biomes imply, without ever failing the map.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Advisory by design. The tiles are written and correct by this point, and an author can place what is missing from the editor's MapResources palette,
+    /// so a map whose Timber did not land is bare rather than wrong. Marking it <see cref="MapCreationStatus.InError"/> would strand a complete map: nothing
+    /// re-runs the placement pass for a map that already has its tiles.
+    /// </para>
+    /// <para>
+    /// The service returns its failures rather than throwing, so the catch here is for the unexpected. It has to be caught: the caller's catch calls
+    /// <see cref="FailAsync"/>, which would put a map whose tiles all landed into error.
+    /// </para>
+    /// </remarks>
+    private async Task PlaceBiomeImpliedMapResourcesAsync(CampaignMapGalleryIndex index, CancellationToken cancellationToken)
+    {
+        try
+        {
+            ServiceResult<int> placementResult = await impliedMapResources.PlaceForGeneratedMapAsync(index.Id, cancellationToken);
+
+            if (placementResult.HasSucceeded)
+            {
+                logger.LogInformation(
+                    "Placed {PlacementCount} Biome-implied MapResources on CampaignMapGalleryIndex {IndexId}.",
+                    placementResult.SuccessValue, index.Id);
+
+                return;
+            }
+
+            logger.LogWarning(
+                "Biome-implied MapResources were not placed on CampaignMapGalleryIndex {IndexId}, which is complete without them: {Errors}",
+                index.Id, string.Join(Environment.NewLine, placementResult.Errors));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "Placing Biome-implied MapResources threw for CampaignMapGalleryIndex {IndexId}. The map is complete without them.",
+                index.Id);
         }
     }
 

@@ -95,6 +95,15 @@ MapResources palette button). A type's and a category's code is its fixed key on
 type is refused while any map places it or any game uses it, and deleting a category is refused while
 it has types. The database seed creates the categories only: a type's Assets must exist first.
 
+**Timber is pre-assigned.** Generating a map gives every Forest, Jungle and Woodland tile a Timber
+placement, in the tile's first free slot, with no quantity and no pinned scenario. The editor's Biome
+brush keeps that in step: painting a tile one of those Biomes adds the placement, and painting it out of
+Timber's habitat removes it again — unless the author pinned a scenario or set a quantity on it, in which
+case the tile's Biome is left unchanged and the editor is told which tiles held out. A tile whose two
+slots are already taken by other MapResources gains no Timber. Which Biomes count is read from Timber's
+habitats rather than named in code, so a habitat added in the MapResource Type Manager takes effect with
+no code change.
+
 Each game created from the map starts with an instance of every placement. Its starting quantity is
 the one the editor set, if any; otherwise it is rolled from the `InitialQuantity` range when the game
 is created. A Distribution instead starts at its scenario's amounts (the editor may pin a scenario,
@@ -168,7 +177,7 @@ Picking from all 8 directions, including blocked ones, means a patch with fewer 
 
 Each instance has a `SpreadLimit` (int), to stop spread going on forever.
 
-- An instance created at map generation gets a random `SpreadLimit` from its MapResourceType's range.
+- An instance created at game creation gets a random `SpreadLimit` from its habitat's range.
 - Each spread that **uses up a spread** (see the table above) decrements the spreading instance's
   `SpreadLimit`.
 - A new or revived instance gets the spreading instance's `SpreadLimit` **after** the decrement, so
@@ -212,7 +221,11 @@ MapResourceType. For example, Timber (Assets: oak, generic, cedar, ash, ebony, b
 | 1 | oak 200, generic 10,000, cedar 30 |
 | 2 | generic 5,000, ebony 300 |
 
-- A tile's scenario is picked at map generation, using the game seed, weighted by Biome.
+- A Forest, Jungle or Woodland tile is given its Timber placement at **map generation**, and in the map
+  editor when a tile is painted one of those Biomes. The placement says only that there is wood there.
+- Which scenario that wood turns out to be is picked at **game creation**, from
+  `GameIndex.GenerationSeed`, weighted by Biome — so two games from the same map get different mixes on
+  the same tile.
 - The scenario is a **template** of starting amounts. The instance keeps its **own copy** of each
   amount, so felling oak on tile (4,5) does not change any other tile that uses the same scenario.
 - A Distribution never spreads.
@@ -304,7 +317,7 @@ Shown = Quantity × (1 + EstimationFuzzyFactor × Error)
 ```
 
 - **`EstimationFuzzyFactor` is per instance.** Each instance gets its own, rolled from its
-  MapResourceType's range when it is created (at map generation, or by spread), so one instance can
+  MapResourceType's range when it is created (at game creation, or by spread), so one instance can
   be harder to judge than another of the same type.
 - **Tech reduces it per Player.** A Player's modifiers for the MapResourceType lower the instance's
   factor for that Player only, so better-equipped Players see closer to the truth.
@@ -493,7 +506,7 @@ The two wood placements are identical: the row says only "there is wood here", l
 each game. A placement pins a scenario by setting `ScenarioId` instead. Row 9003 is a Deer holding
 the same tile's second slot, so tile 48813 is full.
 
-**`game.MapResourceInstance`** — what game setup creates from those placements:
+**`game.MapResourceInstance`** — what game creation creates from those placements:
 
 | Id | GameId | CampaignMapId | TypeId | Slot | Quantity | SpreadLimit | DormantSinceRound | EstimationFuzzyFactor | ScenarioId | CreatedOnRound |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -575,8 +588,9 @@ has nothing to improve. No research item is generated for a type found on sight.
 | Tech-gating a Distribution's Assets. `PlayerMapResourceSwitch` already carries an `AssetId`, so this needs a switch kind and an extraction rule rather than a schema change — but a per-Asset default has nowhere to live, since a Distribution type's Asset set exists only as the union of its scenarios' amounts. A type-level list of the Assets a Distribution can hold, each with its own default, would give the default a home and let the validator check that every scenario amount names a declared Asset. | [Switches](#switches) |
 | The tile icon for a Distribution whose majority Asset, ignoring generic, is one particular wood. It can be derived per view from the instance's amounts and drawn from `assets.Asset.IconPath`, with no new column: `EstimationFuzzyFactor` is per instance and `Error` is per seed, Player and instance, so every Asset is scaled by the same multiplier and the majority a Player sees is the true one. What share counts as a majority is undecided. | [Distribution](#distribution) |
 | Whether a Distribution implied by its Biome should take a tile slot at all, or whether the ceiling of 2 should rise. | [Placement on tiles](#placement-on-tiles) |
-| Jittering the copied amounts at game setup, by a share keyed on the seed and the instance `Id`, so two tiles drawing the same scenario do not start identical. `MapResourceInstanceAmount` is already an independent copy and the scenario is never read back, so nothing downstream assumes they match. The lever to reach for if a fixed set of scenarios reads too uniform across hundreds of tiles. | [Distribution](#distribution) |
+| Jittering the copied amounts at game creation, by a share keyed on the seed and the instance `Id`, so two tiles drawing the same scenario do not start identical. `MapResourceInstanceAmount` is already an independent copy and the scenario is never read back, so nothing downstream assumes they match. The lever to reach for if a fixed set of scenarios reads too uniform across hundreds of tiles. | [Distribution](#distribution) |
 | `SurvivalRounds` and `ReseedLikelihood` are on the MapResourceType, so a stripped jungle and a stripped woodland must recover at the same rate. They are habitat-shaped values, and moving them onto `MapResourceHabitat` alongside `GrowthPercentage` would let dormancy vary by Biome for every renewable type. | [Exhaustion and survival](#exhaustion-and-survival) |
 | Nothing checks that a scenario pinned on a gallery placement is weighted in that tile's Biome, so a bamboo scenario can be pinned onto a Forest tile. Habitat compatibility is checked per type, which cannot see it. | `UpdateGalleryMapResourceHandler` |
 | A Distribution instance's total is not stored. `MapResourceInstance.Quantity` is null and the total is summed from `MapResourceInstanceAmount` wherever it is needed, including growth. | [Instances](#instances) |
+| Importing a map creates its tiles but none of the placements their Biomes imply, so an imported Forest map starts with no Timber until a tile is repainted. Generation and the editor's Biome brush both pre-assign it; import has no equivalent pass, and the export document carries no placements to restore either. | `MapImportExecutor` |
 | Only Timber is seeded. The seed's **Map Resources** target writes every resource registered in `MapResourceTypeSeedData`, and Timber — its habitats and its 45 generated scenarios — is the only one so far; Berry, Deer, Coal Seam and the rest are still authored by hand in the MapResource Type Manager. Adding one is a seed-data file plus a line of that registry. | `MapResourceTypeSeedData` |
