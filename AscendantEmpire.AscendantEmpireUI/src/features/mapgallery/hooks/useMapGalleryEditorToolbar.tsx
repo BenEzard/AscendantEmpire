@@ -24,18 +24,20 @@ import { iconMap } from "@/features/mapgallery/components/mapEditorIcons";
 import type { ActiveDialog, ActiveTool } from "@/features/mapgallery/types/MapGalleryEditorTypes";
 import type { DrawableRiverWidth } from "@/components/map/RiverStrokeLayer";
 import { IoInformationCircle } from "react-icons/io5";
+import type { BiomeType } from "@/types/map/Biome";
+import type { CampaignMapGeographyType } from "@/types/map/Geography";
 
 type Args = {
   biomesLoading: boolean;
   biomes: Biome[] | undefined;
-  biomeMapSelection: number | null;
-  setBiomeMapSelection: (v: number | null) => void;
+  biomeMapSelection: BiomeType | null;
+  setBiomeMapSelection: (v: BiomeType | null) => void;
   openBiomes: () => void;
 
   geographiesLoading: boolean;
   geographies: Geography[] | undefined;
-  geographyMapSelection: number | null;
-  setGeographyMapSelection: (v: number | null) => void;
+  geographyMapSelection: CampaignMapGeographyType | null;
+  setGeographyMapSelection: (v: CampaignMapGeographyType | null) => void;
   openGeographies: () => void;
 
   mapResourcesLoading: boolean;
@@ -175,7 +177,7 @@ function buildRiverWidthItems(selection: DrawableRiverWidth, selectRiverWidth: (
 // ---------------------------------------------------------------------------
 
 /** Builds the Biomes dropdown items: a "<none>" entry followed by paintable biomes. */
-function buildBiomePaletteItems(biomes: Biome[] | undefined, selection: number | null, setSelection: (v: number | null) => void): DropButtonItem[] {
+function buildBiomePaletteItems(biomes: Biome[] | undefined, selection: BiomeType | null, setSelection: (v: BiomeType | null) => void): DropButtonItem[] {
   return [
     {
       key: "none",
@@ -220,8 +222,8 @@ function buildBiomePaletteItems(biomes: Biome[] | undefined, selection: number |
 /** Builds the Geographies dropdown items: a "<none>" entry followed by paintable geographies. */
 function buildGeographyPaletteItems(
   geographies: Geography[] | undefined,
-  selection: number | null,
-  setSelection: (v: number | null) => void,
+  selection: CampaignMapGeographyType | null,
+  setSelection: (v: CampaignMapGeographyType | null) => void,
 ): DropButtonItem[] {
   return [
     {

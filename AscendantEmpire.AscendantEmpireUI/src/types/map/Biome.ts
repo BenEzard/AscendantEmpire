@@ -1,5 +1,26 @@
+/**
+ * Which Biome this is — the C# `BiomeType` enum's member names, since the API serialises enums as their name rather than their number
+ * (AscendantEmpire.Api/Program.cs registers a JsonStringEnumConverter). Same convention as RiverWidth in ./Rivers.ts.
+ *
+ * The server's numeric values never reach the client, so these are opaque names here: nothing compares or orders them, and anything that
+ * coerces one with `Number()` gets NaN.
+ */
+export type BiomeType =
+  | "Unknown"
+  | "Coastal"
+  | "Ocean"
+  | "Desert"
+  | "Arid"
+  | "Ice"
+  | "Tundra"
+  | "Grassland"
+  | "Forest"
+  | "Jungle"
+  | "Woodland"
+  | "Void";
+
 export type Biome = {
-  biomeType: number; // Unique identifier for this Biome
+  biomeType: BiomeType; // Unique identifier for this Biome
   name: string; // User-friendly name of this Biome
   movementCost: number; // The movement cost to traverse a Tile of this Biome
   doesBlockSight: boolean; // Does this Biome block Sight? (prevent a Unit/Structure from seeing through, or out of, it)

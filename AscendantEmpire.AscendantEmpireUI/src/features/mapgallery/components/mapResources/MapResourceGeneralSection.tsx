@@ -93,7 +93,9 @@ export default function MapResourceGeneralSection({ type, categories, onChange }
         <select
           className={inputClass}
           value={type.extractionMethod}
-          onChange={(e) => onChange(withExtractionMethod(type, Number(e.target.value) as ExtractionMethod))}>
+          // Cast, not Number(): an ExtractionMethod is an enum name. Coercing it gave NaN, and the options being numbers while the loaded value
+          // was a name meant a saved method showed as Gather whatever it really was.
+          onChange={(e) => onChange(withExtractionMethod(type, e.target.value as ExtractionMethod))}>
           {EXTRACTION_METHODS.map((method) => (
             <option key={method.value} value={method.value}>
               {method.label}

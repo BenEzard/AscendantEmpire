@@ -4,10 +4,11 @@ import type { GalleryMapResource } from "../../api/galleryMapResourcesApi";
 import { createHabitat, createMapResourceType } from "../mapResourceDraft";
 import { habitatFor, placementsByTile, resolvePlacementClick, tileKey, typesById } from "../mapResourcePlacement";
 
-const FOREST = 8;
-const WOODLAND = 10;
-const FLAT = 3;
-const HILLY = 4;
+// Biome and Geography arrive as their enum member names rather than numbers — see BiomeType in @/types/map/Biome.
+const FOREST = "Forest";
+const WOODLAND = "Woodland";
+const FLAT = "Flat";
+const HILLY = "Hilly";
 
 function placement(id: number, x: number, y: number, slot: number, mapResourceTypeId: number): GalleryMapResource {
   return { id, xCoord: x, yCoord: y, slot, mapResourceTypeId, initialQuantity: null, distributionScenarioNumber: null };

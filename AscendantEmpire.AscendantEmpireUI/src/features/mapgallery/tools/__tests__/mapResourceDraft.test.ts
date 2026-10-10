@@ -15,8 +15,9 @@ import {
   withKind,
 } from "../mapResourceDraft";
 
-const FOREST = 8;
-const HILLY = 4;
+// Biome and Geography arrive as their enum member names rather than numbers — see BiomeType in @/types/map/Biome.
+const FOREST = "Forest";
+const HILLY = "Hilly";
 
 /** A renewable type with a yield and a spreading Forest habitat. */
 function renewableType(): MapResourceType {

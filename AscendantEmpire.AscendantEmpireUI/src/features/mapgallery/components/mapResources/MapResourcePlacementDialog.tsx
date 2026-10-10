@@ -6,6 +6,8 @@ import { holdsSingleQuantity, kindOf } from "../../tools/mapResourceDraft";
 import { habitatFor } from "../../tools/mapResourcePlacement";
 import MapResourceIcon from "./MapResourceIcon";
 import { WholeNumberInput } from "./mapResourceFields";
+import type { BiomeType } from "@/types/map/Biome";
+import type { CampaignMapGeographyType } from "@/types/map/Geography";
 
 interface MapResourcePlacementDialogProps {
   /** The placement being edited; the dialog is closed while null. */
@@ -13,8 +15,8 @@ interface MapResourcePlacementDialogProps {
   /** Its type, from the catalogue. Undefined only if the catalogue has not loaded. */
   type: MapResourceType | undefined;
   /** The tile's Biome and Geography, to find the habitat whose range an empty starting quantity is rolled from. */
-  biomeType: number | null;
-  geographyType: number | null;
+  biomeType: BiomeType | null;
+  geographyType: CampaignMapGeographyType | null;
   /** How the tile reads, e.g. "Hilly Forest". */
   tileDescription: string;
   busy: boolean;

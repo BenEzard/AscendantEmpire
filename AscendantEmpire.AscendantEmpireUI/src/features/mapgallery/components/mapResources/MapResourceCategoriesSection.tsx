@@ -45,8 +45,6 @@ export default function MapResourceCategoriesSection({ categories, typeCounts, o
 
   return (
     <div className="w-full max-w-2xl">
-      {/* Says what a category is for before the table, since the page is reached from the nav with no other context. Body size (text-sm) because it
-          is the page's own statement rather than a note on a field, but in the table headers' slate-500 so it reads as guidance, not content. */}
       <p className="mb-3 text-sm text-slate-500">Map Resources must belong to a Category. Define the Categories here.</p>
 
       <EditableTable<CategoryDraft>

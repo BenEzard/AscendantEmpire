@@ -1,4 +1,6 @@
 import { http } from "@/api/http";
+import type { BiomeType } from "@/types/map/Biome";
+import type { CampaignMapGeographyType } from "@/types/map/Geography";
 
 export type CoordDto = {
   // Be tolerant to backend casing and potential naming.
@@ -14,15 +16,15 @@ export type CoordDto = {
 
 export type UpdateCampaignMapTilesDto = {
   coordinates: CoordDto[];
-  biomeType?: number | null;
-  geographyType?: number | null;
+  biomeType?: BiomeType | null;
+  geographyType?: CampaignMapGeographyType | null;
 };
 
 export type TileUpdateFailTile = {
   coord: { x: number; y: number };
   dbId: number;
-  originalBiomeType: number;
-  originalGeographyType: number;
+  originalBiomeType: BiomeType;
+  originalGeographyType: CampaignMapGeographyType;
 };
 
 export type TileGroupUpdateFail = {
@@ -54,10 +56,10 @@ type TileUpdateFailTileWire = Partial<{
   Coord: CoordDto;
   dbId: number;
   DbId: number;
-  originalBiomeType: number;
-  OriginalBiomeType: number;
-  originalGeographyType: number;
-  OriginalGeographyType: number;
+  originalBiomeType: BiomeType;
+  OriginalBiomeType: BiomeType;
+  originalGeographyType: CampaignMapGeographyType;
+  OriginalGeographyType: CampaignMapGeographyType;
 }>;
 
 function normalizeCoord(coord: CoordDto | undefined | null): { x: number; y: number } {
@@ -79,8 +81,9 @@ function normalizeResponse(data: UpdateCampaignMapTilesResponseWire): UpdateCamp
       return {
         coord: normalizeCoord(coordWire),
         dbId: (t.dbId ?? t.DbId ?? 0) as number,
-        originalBiomeType: (t.originalBiomeType ?? t.OriginalBiomeType ?? 0) as number,
-        originalGeographyType: (t.originalGeographyType ?? t.OriginalGeographyType ?? 0) as number,
+        // "Unknown" is each enum's zero member, and what a failure naming no original terrain amounts to.
+        originalBiomeType: (t.originalBiomeType ?? t.OriginalBiomeType ?? "Unknown") as BiomeType,
+        originalGeographyType: (t.originalGeographyType ?? t.OriginalGeographyType ?? "Unknown") as CampaignMapGeographyType,
       };
     });
 

@@ -13,8 +13,9 @@ function observer(id: number, seen: [number, number][]): PlayerCampaignMapObserv
     seenTiles: seen.map(([x, y]) => ({
       xCoord: x,
       yCoord: y,
-      biomeTypeId: 1,
-      campaignMapGeographyTypeId: 3,
+      // Biome and Geography arrive as their enum member names, not numbers — see BiomeType in @/types/map/Biome.
+      biomeTypeId: "Coastal",
+      campaignMapGeographyTypeId: "Flat",
       isExplored: true,
       structures: [],
       forces: [],

@@ -1,6 +1,11 @@
 import { FieldRow } from "@/components/ui";
 import type { MapResourceType } from "@/types/map/MapResource";
-import { PercentSlider, WholeNumberInput } from "./mapResourceFields";
+import { PercentSlider, WholeNumberSlider } from "./mapResourceFields";
+
+// Survival Rounds is dragged rather than typed: the useful range is small and known, and the server now takes anything from 0 up, so a slider
+// cannot produce a value a save would refuse. 20 Rounds is well past anything the design calls for and keeps the knob's steps readable.
+const SURVIVAL_ROUNDS_MIN = 0;
+const SURVIVAL_ROUNDS_MAX = 20;
 
 interface MapResourceRenewableSectionProps {
   type: MapResourceType;
@@ -12,12 +17,10 @@ interface MapResourceRenewableSectionProps {
 // a designer setting either one needs to know both. Authored with explicit line breaks because the tooltip bubble uses
 // whitespace-pre and never wraps on its own (see Tooltip).
 const SURVIVAL_ROUNDS_HINT = [
-  "How many Rounds an exhausted instance stays dormant before it is deleted for good.",
-  "It takes one Reseed Likelihood roll in each of those Rounds; once they have all failed,",
-  "the instance is removed and its tile slot freed. There is no further Round after the last.",
+  "How many Rounds an exhausted instance stays dormant before it is deleted for good?",
   "",
-  "While dormant it still holds one of the tile's two slots, so it keeps other MapResources",
-  "from spreading onto the tile.",
+  "At 0 it is deleted the moment it is exhausted, never going dormant — so it is never",
+  "rolled for reseeding, and the Reseed Likelihood below has nothing to apply to.",
 ].join("\n");
 
 const RESEED_LIKELIHOOD_HINT = [
@@ -26,9 +29,14 @@ const RESEED_LIKELIHOOD_HINT = [
   "",
   "Each Round rolls separately, so the chance of recovering at all compounds over the",
   "Survival Rounds: 10% across 5 Rounds recovers about 41% of the time.",
+].join("\n");
+
+/** Replaces the hint above when nothing ever goes dormant, so the row says why it is greyed rather than leaving the designer to guess. */
+const RESEED_NEVER_ROLLED_HINT = [
+  "Not used while Survival Rounds is 0: an instance deleted the moment it is exhausted",
+  "never has a dormant Round to be rolled in.",
   "",
-  "A neighbouring instance of the same type spreading onto the tile revives it outright,",
-  "without a roll.",
+  "The value is kept, because a renewable MapResourceType must carry one either way.",
 ].join("\n");
 
 /**
@@ -43,19 +51,38 @@ const RESEED_LIKELIHOOD_HINT = [
 export default function MapResourceRenewableSection({ type, onChange }: MapResourceRenewableSectionProps) {
   const set = <K extends keyof MapResourceType>(field: K, value: MapResourceType[K]) => onChange({ ...type, [field]: value });
 
+  // 0 Survival Rounds means an exhausted instance is deleted on the spot, so there is never a dormant Round for the reseed roll to happen in.
+  const neverDormant = type.survivalRounds === 0;
+
   return (
     <div className="w-full max-w-xl">
-      <p className="mb-4 text-sm text-slate-500">
-        An exhausted instance goes dormant rather than vanishing, holding its tile slot and taking one reseed roll in each Round it survives.
-      </p>
+      <p className="mb-4 text-sm text-slate-500">An exhausted Map Resource instance has a chance of re-seeding itself.</p>
 
       <FieldRow label="Survival Rounds" hint={SURVIVAL_ROUNDS_HINT}>
-        <WholeNumberInput value={type.survivalRounds} onChange={(value) => set("survivalRounds", value)} />
+        <WholeNumberSlider
+          value={type.survivalRounds}
+          min={SURVIVAL_ROUNDS_MIN}
+          max={SURVIVAL_ROUNDS_MAX}
+          unitLabel={type.survivalRounds === 1 ? "Round" : "Rounds"}
+          ariaLabel="Survival Rounds"
+          onChange={(value) => set("survivalRounds", value)}
+        />
       </FieldRow>
 
-      <FieldRow label="Reseed Likelihood" hint={RESEED_LIKELIHOOD_HINT}>
-        <PercentSlider value={type.reseedLikelihood} ariaLabel="Reseed likelihood" onChange={(value) => set("reseedLikelihood", value)} />
+      {/* Greyed rather than hidden or cleared when nothing goes dormant: the server still wants the pair set on a renewable type, so the value
+          stays as it is and only stops meaning anything. Hiding the row would make the save's requirement invisible. */}
+      <FieldRow label="Reseed Likelihood" hint={neverDormant ? RESEED_NEVER_ROLLED_HINT : RESEED_LIKELIHOOD_HINT}>
+        <PercentSlider
+          value={type.reseedLikelihood}
+          disabled={neverDormant}
+          ariaLabel="Reseed likelihood"
+          onChange={(value) => set("reseedLikelihood", value)}
+        />
       </FieldRow>
+
+      {neverDormant ? (
+        <p className="text-xs text-slate-500">With 0 Survival Rounds an exhausted instance is deleted at once, so it is never rolled to reseed.</p>
+      ) : null}
     </div>
   );
 }

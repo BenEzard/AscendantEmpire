@@ -155,10 +155,10 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
     [Test, Description("A Distribution scenario that is saved again keeps its row, since map placements and game instances point at it by id.")]
     public async Task ShouldKeepADistributionScenarioIdAcrossSavesAsync()
     {
-        await PutAsync(Catalogue([Category("Wood")], [ForestWood(amount: 200)]));
+        await PutAsync(Catalogue([Category("Wood")], [Timber(amount: 200)]));
         int scenarioId = await ReadAsync(c => c.MapResourceDistributionScenarios.Select(s => s.Id).SingleAsync());
 
-        ServiceResultBase result = await PutAsync(Catalogue([], [ForestWood(amount: 300)]));
+        ServiceResultBase result = await PutAsync(Catalogue([], [Timber(amount: 300)]));
 
         using (Assert.EnterMultipleScope())
         {
@@ -171,10 +171,10 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
     [Test, Description("Removing a Distribution scenario a map still places is refused with a message, not a server error.")]
     public async Task ShouldRefuseToRemoveAScenarioAMapPlacesAsync()
     {
-        await PutAsync(Catalogue([Category("Wood")], [ForestWood(amount: 200) with { DistributionScenarios = [Scenario(1, 200), Scenario(2, 100)] }]));
-        await PlaceOnAGalleryTileAsync("ForestWood", scenarioNumber: 2);
+        await PutAsync(Catalogue([Category("Wood")], [Timber(amount: 200) with { DistributionScenarios = [Scenario(1, 200), Scenario(2, 100)] }]));
+        await PlaceOnAGalleryTileAsync("Timber", scenarioNumber: 2);
 
-        ServiceResultBase result = await PutAsync(Catalogue([], [ForestWood(amount: 200)]));
+        ServiceResultBase result = await PutAsync(Catalogue([], [Timber(amount: 200)]));
 
         using (Assert.EnterMultipleScope())
         {
@@ -232,10 +232,10 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
     [Test, Description("A type placed on a map cannot be deleted, and the message says why.")]
     public async Task ShouldRefuseToDeleteATypePlacedOnAMapAsync()
     {
-        await PutAsync(Catalogue([Category("Wood")], [ForestWood(amount: 200)]));
-        await PlaceOnAGalleryTileAsync("ForestWood", scenarioNumber: null);
+        await PutAsync(Catalogue([Category("Wood")], [Timber(amount: 200)]));
+        await PlaceOnAGalleryTileAsync("Timber", scenarioNumber: null);
 
-        ServiceResultBase result = await DeleteTypeAsync("ForestWood");
+        ServiceResultBase result = await DeleteTypeAsync("Timber");
 
         using (Assert.EnterMultipleScope())
         {
@@ -424,12 +424,12 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
     /// <summary>
     /// A Distribution of oak with one scenario, in Woodland.
     /// </summary>
-    private AddOrUpdateMapResourceTypeDto ForestWood(int amount)
+    private AddOrUpdateMapResourceTypeDto Timber(int amount)
     {
         return new AddOrUpdateMapResourceTypeDto
         {
-            Code = "ForestWood",
-            DisplayName = "Forest Wood",
+            Code = "Timber",
+            DisplayName = "Timber",
             MapResourceCategoryCode = "Wood",
             IsRenewable = true,
             IsStratified = false,

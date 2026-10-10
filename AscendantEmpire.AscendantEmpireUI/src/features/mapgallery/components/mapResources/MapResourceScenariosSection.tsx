@@ -1,9 +1,9 @@
 import { Button, EditableTable } from "@/components/ui";
 import { HiTrash } from "react-icons/hi2";
-import type { Biome } from "@/types/map/Biome";
+import type { Biome, BiomeType } from "@/types/map/Biome";
 import type { MapResourceDistributionScenario, MapResourceType, AssetSummary } from "@/types/map/MapResource";
 import { nextNumber } from "../../tools/mapResourceDraft";
-import { CompactSelect, WholeNumberInput } from "./mapResourceFields";
+import { CompactComboBox, CompactSelect, WholeNumberInput } from "./mapResourceFields";
 import { firstAssetId, assetOptions } from "./assetOptions";
 import NoAssetsHint from "./NoAssetsHint";
 
@@ -87,7 +87,8 @@ export default function MapResourceScenariosSection({ type, assets, biomes, onCh
                   {
                     header: "Resource",
                     renderCell: (row, rowIndex) => (
-                      <CompactSelect ariaLabel="Resource" value={row.assetId} options={options} onChange={(value) => setAmount(rowIndex, { assetId: Number(value) })} />
+                      // A combo box rather than a select: the Assets list grows with the economy, so typing to narrow it beats scrolling it.
+                      <CompactComboBox ariaLabel="Resource" value={row.assetId} options={options} onChange={(assetId) => setAmount(rowIndex, { assetId })} />
                     ),
                   },
                   {
@@ -111,7 +112,7 @@ export default function MapResourceScenariosSection({ type, assets, biomes, onCh
                   {
                     header: "Biome",
                     renderCell: (row, rowIndex) => (
-                      <CompactSelect ariaLabel="Biome" value={row.biomeType} options={biomeOptions} onChange={(value) => setWeight(rowIndex, { biomeType: Number(value) })} />
+                      <CompactSelect ariaLabel="Biome" value={row.biomeType} options={biomeOptions} onChange={(value) => setWeight(rowIndex, { biomeType: value as BiomeType })} />
                     ),
                   },
                   {

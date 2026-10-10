@@ -22,7 +22,7 @@ MapResources appear on a `CampaignMapTile`.
 
 ## MapResourceTypes
 
-A `MapResourceType` (e.g. Berry, Deer, Horse, Coal Seam, Forest Wood) defines how its instances
+A `MapResourceType` (e.g. Berry, Deer, Horse, Coal Seam, Timber) defines how its instances
 behave. Its kinds are set by flags:
 
 | Flag | Meaning |
@@ -181,12 +181,15 @@ An exhausted renewable instance (`Quantity` of `0`) is not removed straight away
 
 | Value (per MapResourceType) | Meaning |
 | --- | --- |
-| `SurvivalRounds` (int) | How many rounds a dormant instance survives, e.g. 5. |
+| `SurvivalRounds` (int) | How many rounds a dormant instance survives, e.g. 5. `0` is deleted on exhaustion, never dormant. |
 | `ReseedLikelihood` (decimal) | The chance each dormant round that it comes back. |
 
 - If a roll succeeds, the instance comes back at `GrowthPercentage × MaximumQuantity` and grows as
   normal.
 - If it fails for `SurvivalRounds` rounds, the instance is **deleted permanently**.
+- At `SurvivalRounds` of `0` the instance is deleted the moment it is exhausted. It has no dormant
+  round, so it is never rolled and `ReseedLikelihood` never applies — though a renewable
+  MapResourceType still carries one, since the two are set together whatever the round count.
 - A dormant instance still takes one of the tile's 2 places and blocks other MapResources spreading
   in. A neighbour of the same type spreading into it revives it (see [Spread](#spread)).
 
@@ -202,7 +205,7 @@ An exhausted renewable instance (`Quantity` of `0`) is not removed straight away
 ## Distribution
 
 A Distribution holds **several Assets in set amounts**, from one of a set of **scenarios** for its
-MapResourceType. For example, Forest Wood (Assets: oak, generic, cedar, ash, ebony, bamboo):
+MapResourceType. For example, Timber (Assets: oak, generic, cedar, ash, ebony, bamboo):
 
 | Scenario | Contents |
 | --- | --- |
@@ -385,3 +388,195 @@ The database enforces the limits a defect could otherwise break: at most 2 MapRe
 (two slots, one row each) and one of each type, never renewable and stratified at once, and no
 negative quantity. No `Error` is stored for estimation: it is derived from the seed each time it is
 needed, so it cannot drift.
+
+### Explanation of Distribution Data Model
+
+A Distribution spans the most tables of any kind, so here is one worked through: a `Timber` type,
+from its catalogue rows to two adjacent tiles that start different and then diverge. Amounts are the
+raw stored values, with the logical figure in brackets where it helps.
+
+The six Assets it draws on are `assets.Asset` rows the Asset catalogue already holds:
+
+| Id | DisplayName |
+| --- | --- |
+| 41 | Oak Log |
+| 42 | Generic Log |
+| 43 | Cedar Log |
+| 44 | Ash Log |
+| 45 | Ebony Log |
+| 46 | Bamboo |
+
+**`map.MapResourceType`** — one row, in the `wood` category (id 3):
+
+| Column | Value |
+| --- | --- |
+| Id | 7 |
+| Code | `Timber` |
+| DisplayName | Timber |
+| MapResourceCategoryId | 3 |
+| IconPath | `NULL` — the Biome already says "forest" |
+| IsRenewable | 1 |
+| IsDistribution | 1 |
+| IsStratified | 0 |
+| ExtractionMethod | Fell |
+| CaptureLikelihood | `NULL` |
+| RequiresResearchToExtract | 0 |
+| IsDiscoverableByDefault | 1 |
+| DiscoveryLikelihood | 1.000 — wood is seen on sight |
+| EstimationFuzzyFactorMin / Max | 0.050 / 0.150 |
+| SurvivalRounds / ReseedLikelihood | 5 / 0.200 |
+
+**`map.MapResourceTypeYield`** has **no rows**. A Distribution holds its Assets in its scenarios, and
+the MapResourceType validator rejects yield rows on one.
+
+**`map.MapResourceHabitat`** — where it can exist, and its ceiling there:
+
+| Id | TypeId | BiomeTypeId | GeographyTypeId | InitialQuantityMin/Max | MaximumQuantity | GrowthPercentage | Spread columns |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 55 | 7 | Forest (8) | `NULL` | `NULL` | 20000000 [20,000] | 0.030 | `NULL` |
+| 56 | 7 | Forest (8) | Hilly | `NULL` | 14000000 [14,000] | 0.025 | `NULL` |
+| 57 | 7 | Jungle (9) | `NULL` | `NULL` | 26000000 [26,000] | 0.040 | `NULL` |
+| 58 | 7 | Woodland (10) | `NULL` | `NULL` | 9000000 [9,000] | 0.020 | `NULL` |
+
+Row 56 is a Geography-specific habitat beating the Biome-wide one, so a hilly forest holds less wood.
+`InitialQuantityMin` and `InitialQuantityMax` are null because a Distribution starts at its
+scenario's amounts, and all three spread columns are null because a Distribution never spreads; the
+validator enforces both.
+
+**`map.MapResourceDistributionScenario`** — three of the type's scenarios:
+
+| Id | TypeId | ScenarioNumber | DisplayName |
+| --- | --- | --- | --- |
+| 301 | 7 | 1 | Mixed oak |
+| 302 | 7 | 2 | Ebony stand |
+| 303 | 7 | 17 | Bamboo thicket |
+
+**`map.MapResourceDistributionScenarioAmount`** — the templates themselves, keyed on the scenario and
+the Asset, so an Asset cannot appear twice in one scenario:
+
+| ScenarioId | AssetId | Amount |
+| --- | --- | --- |
+| 301 | 41 (Oak) | 200000 [200] |
+| 301 | 42 (Generic) | 10000000 [10,000] |
+| 301 | 43 (Cedar) | 30000 [30] |
+| 302 | 42 (Generic) | 5000000 [5,000] |
+| 302 | 45 (Ebony) | 300000 [300] |
+| 303 | 46 (Bamboo) | 12000000 [12,000] |
+| 303 | 42 (Generic) | 1500000 [1,500] |
+| 303 | 44 (Ash) | 40000 [40] |
+
+**`map.MapResourceDistributionScenarioBiomeWeight`** — which Biomes each scenario can appear in, and
+how often:
+
+| ScenarioId | BiomeTypeId | Weight |
+| --- | --- | --- |
+| 301 | Forest (8) | 20 |
+| 301 | Woodland (10) | 12 |
+| 302 | Forest (8) | 1 |
+| 302 | Woodland (10) | 1 |
+| 303 | Jungle (9) | 25 |
+
+The **missing** rows carry as much meaning as the present ones. Scenario 301 has no Jungle row and
+303 has no Forest or Woodland row, which is what keeps bamboo out of forests and oak out of jungles.
+The weights are what make a wood rare: on a Forest tile the roll is over `{301: 20, 302: 1}`, so an
+ebony stand lands once in 21 tiles.
+
+**`mapgallery.CampaignMapGalleryResource`** — the placements on the gallery map:
+
+| Id | CampaignMapGalleryId | MapResourceTypeId | Slot | InitialQuantity | ScenarioId |
+| --- | --- | --- | --- | --- | --- |
+| 9001 | 48812 (Forest, 4/5) | 7 | 1 | `NULL` | `NULL` |
+| 9002 | 48813 (Forest, 5/5) | 7 | 1 | `NULL` | `NULL` |
+| 9003 | 48813 | 4 (Deer) | 2 | 6000000 | `NULL` |
+
+The two wood placements are identical: the row says only "there is wood here", leaving which mix to
+each game. A placement pins a scenario by setting `ScenarioId` instead. Row 9003 is a Deer holding
+the same tile's second slot, so tile 48813 is full.
+
+**`game.MapResourceInstance`** — what game setup creates from those placements:
+
+| Id | GameId | CampaignMapId | TypeId | Slot | Quantity | SpreadLimit | DormantSinceRound | EstimationFuzzyFactor | ScenarioId | CreatedOnRound |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 70114 | 93 | 120488 (4/5) | 7 | 1 | `NULL` | `NULL` | `NULL` | 0.082 | 301 | 0 |
+| 70115 | 93 | 120489 (5/5) | 7 | 1 | `NULL` | `NULL` | `NULL` | 0.114 | 302 | 0 |
+
+Two adjacent Forest tiles from one placement each, rolled onto **different scenarios** — one mixed
+oak, one an ebony stand. `Quantity` is null because the amounts are in child rows, `SpreadLimit` is
+null because a Distribution never spreads, and each `EstimationFuzzyFactor` was rolled from the
+type's 0.050–0.150 range keyed on the seed and the instance `Id`. Another game from the same map
+rolls both again.
+
+**`game.MapResourceInstanceAmount`** — each instance's own copy of its scenario:
+
+| InstanceId | AssetId | GameId | Amount |
+| --- | --- | --- | --- |
+| 70114 | 41 (Oak) | 93 | 200000 [200] |
+| 70114 | 42 (Generic) | 93 | 10000000 [10,000] |
+| 70114 | 43 (Cedar) | 93 | 30000 [30] |
+| 70115 | 42 (Generic) | 93 | 5000000 [5,000] |
+| 70115 | 45 (Ebony) | 93 | 300000 [300] |
+
+#### How two tiles diverge
+
+Felling 200 from instance 70114 takes from each Asset in proportion to its current amount, floored to
+a whole unit, against a total of 10,230:
+
+| | Oak | Generic | Cedar |
+| --- | --- | --- | --- |
+| Share of 200 | 3.910 | 195.503 | 0.587 |
+| Taken, floored | 3 | 195 | 0 |
+| Amount after | 200000 → 197000 | 10000000 → 9805000 | 30000 (unchanged) |
+
+Cedar is untouched because its share never reached 1: a small felling only yields a tile's common
+woods. The end of the Round then grows the new total of 10,032 by the Forest habitat's 0.030, shared
+in proportion again and capped at 20,000:
+
+| | Oak | Generic | Cedar |
+| --- | --- | --- | --- |
+| Share of 300.96 | 5.909 | 294.146 | 0.900 |
+| Amount after | 202909 | 10099146 | 30900 |
+
+Storing thousandths is what makes this work: cedar's 0.900 of growth is 900 raw units, so a rare wood
+still grows rather than rounding away to nothing each Round. Meanwhile instance 70115 grows its own
+generic and ebony on its own track, and the two tiles' compositions drift apart for good — once an
+Asset reaches 0 it gets no share of growth and never returns.
+
+## Accepted limitations
+
+Wood is one `Timber` type covering Forest, Jungle and Woodland, rather than a type per Biome or a
+type per species. The 2-slot limit is what forces that: six separate wood types could never sit on
+one tile, and a forest holding only oak would be wrong. One type also matches what is genuinely
+shared across every wood — they are all felled, all seen on sight, and all improved by the same
+forestry tech. Three consequences follow, and all three are accepted.
+
+**A Distribution's Assets cannot be tech-gated.** The per-Asset switches that hold back a Deer's
+`pelt` until hide-working cover `MapResourceTypeYield` rows only, and a Distribution has none, so
+[Switches](#switches) never applies to one and all of its Assets are always given. A Stone Age Player
+felling a Timber tile that holds ebony gets the ebony logs immediately. Splitting the exotic woods
+into their own types would restore gating, but only by removing them from Timber's scenarios
+entirely, which costs the sprinkling of a rare wood through an ordinary forest that the Distribution
+kind exists to express. It would also give up the guarantee that `UX_MapResourceInstance_Tile_Type`
+provides today, that one tile holds at most one wood MapResource.
+
+**Timber takes one of a forest tile's two slots.** Every Forest, Jungle and Woodland tile that holds
+Timber has a single slot left for everything else on it — deer, berries, copper — even though Timber
+draws no icon of its own, the Biome having already said "forest".
+
+**Discovery does nothing for Timber.** Its `DiscoveryLikelihood` is 1, so trees are seen on sight and
+the loop where first sight adds a "Research X" item that improves later discovery of the same type
+has nothing to improve. No research item is generated for a type found on sight.
+
+## Outstanding decisions
+
+| Open question | Where it bites |
+| --- | --- |
+| Nothing validates a scenario's total against the habitat ceiling. A scenario whose amounts total more than the smallest `MaximumQuantity` among the Biomes it is weighted in creates an instance born above its ceiling, and growth only ever adds. | `MapResourceTypeValidator` |
+| The rounding direction of each Asset's share of growth is unspecified, and the shares rarely sum to exactly the total growth, so the total either creeps towards `MaximumQuantity` without reaching it or overshoots. | [Distribution › Growth](#growth-1) |
+| Tech-gating a Distribution's Assets. `PlayerMapResourceSwitch` already carries an `AssetId`, so this needs a switch kind and an extraction rule rather than a schema change — but a per-Asset default has nowhere to live, since a Distribution type's Asset set exists only as the union of its scenarios' amounts. A type-level list of the Assets a Distribution can hold, each with its own default, would give the default a home and let the validator check that every scenario amount names a declared Asset. | [Switches](#switches) |
+| The tile icon for a Distribution whose majority Asset, ignoring generic, is one particular wood. It can be derived per view from the instance's amounts and drawn from `assets.Asset.IconPath`, with no new column: `EstimationFuzzyFactor` is per instance and `Error` is per seed, Player and instance, so every Asset is scaled by the same multiplier and the majority a Player sees is the true one. What share counts as a majority is undecided. | [Distribution](#distribution) |
+| Whether a Distribution implied by its Biome should take a tile slot at all, or whether the ceiling of 2 should rise. | [Placement on tiles](#placement-on-tiles) |
+| Jittering the copied amounts at game setup, by a share keyed on the seed and the instance `Id`, so two tiles drawing the same scenario do not start identical. `MapResourceInstanceAmount` is already an independent copy and the scenario is never read back, so nothing downstream assumes they match. The lever to reach for if a fixed set of scenarios reads too uniform across hundreds of tiles. | [Distribution](#distribution) |
+| `SurvivalRounds` and `ReseedLikelihood` are on the MapResourceType, so a stripped jungle and a stripped woodland must recover at the same rate. They are habitat-shaped values, and moving them onto `MapResourceHabitat` alongside `GrowthPercentage` would let dormancy vary by Biome for every renewable type. | [Exhaustion and survival](#exhaustion-and-survival) |
+| Nothing checks that a scenario pinned on a gallery placement is weighted in that tile's Biome, so a bamboo scenario can be pinned onto a Forest tile. Habitat compatibility is checked per type, which cannot see it. | `UpdateGalleryMapResourceHandler` |
+| A Distribution instance's total is not stored. `MapResourceInstance.Quantity` is null and the total is summed from `MapResourceInstanceAmount` wherever it is needed, including growth. | [Instances](#instances) |
+| No MapResourceType or scenario is seeded. `MapResourceCategorySeedData` creates the categories only, so a Timber type, its habitats and its scenarios have to be authored — and roughly 200 rows of scenario data is more than the MapResource Type Manager is meant for. | `MapResourceCategorySeedData` |

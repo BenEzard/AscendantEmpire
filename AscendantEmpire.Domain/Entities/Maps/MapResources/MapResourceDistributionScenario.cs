@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace AscendantEmpire.Domain.Entities.Maps.MapResources;
 
 /// <summary>
-/// One set of starting amounts a Distribution instance can be created from, e.g. Forest Wood scenario 2: generic 5,000 and ebony 300.
+/// One set of starting amounts a Distribution instance can be created from, e.g. Timber scenario 2: generic 5,000 and ebony 300.
 /// </summary>
 /// <remarks>
 /// A template only. An instance copies the amounts into its own <c>game.MapResourceInstanceAmount</c> rows, so felling oak on one tile never changes another tile using the

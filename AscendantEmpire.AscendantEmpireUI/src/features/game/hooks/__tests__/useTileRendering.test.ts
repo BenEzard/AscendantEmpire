@@ -7,10 +7,11 @@ import { useTileRendering } from "../useTileRendering";
 const GRASSLAND_COLOUR = "#4ade80";
 
 /** One biome with a colour, so the base background under the fog is something recognisable. */
-const BIOMES = [{ biomeType: 7, name: "Grassland", mapEditorHtmlColor: GRASSLAND_COLOUR } as Biome];
+const BIOMES = [{ biomeType: "Grassland", name: "Grassland", mapEditorHtmlColor: GRASSLAND_COLOUR } as Biome];
 
 function tile(x: number, y: number, isExplored: boolean): TileCell {
-  return { x, y, biomeTypeId: 7, geographyTypeId: 1, isExplored };
+  // Biome and Geography arrive as their enum member names, not numbers — see BiomeType in @/types/map/Biome.
+  return { x, y, biomeTypeId: "Grassland", geographyTypeId: "Hilly", isExplored };
 }
 
 function renderTileRendering(observed: string[]) {
@@ -133,7 +134,7 @@ describe("useTileRendering selection", () => {
 });
 
 describe("useTileRendering terrain label", () => {
-  const GEOGRAPHIES = [{ campaignMapGeographyType: 1, name: "Hills" } as Geography];
+  const GEOGRAPHIES = [{ campaignMapGeographyType: "Hilly", name: "Hills" } as Geography];
 
   it("names the biome and geography together", () => {
     const { result } = renderHook(() =>
@@ -147,14 +148,14 @@ describe("useTileRendering terrain label", () => {
   it("collapses to a single Unknown when both biome and geography are the Unknown placeholder", () => {
     const { result } = renderHook(() =>
       useTileRendering({
-        biomes: [{ biomeType: 0, name: "Unknown" } as Biome],
-        geographies: [{ campaignMapGeographyType: 0, name: "Unknown" } as Geography],
+        biomes: [{ biomeType: "Unknown", name: "Unknown" } as Biome],
+        geographies: [{ campaignMapGeographyType: "Unknown", name: "Unknown" } as Geography],
         selectedTile: null,
         observedTileKeys: new Set(),
       }),
     );
 
-    expect(result.current.getTileTerrainLabel({ x: 1, y: 1, biomeTypeId: 0, geographyTypeId: 0, isExplored: false })).toBe("Unknown");
+    expect(result.current.getTileTerrainLabel({ x: 1, y: 1, biomeTypeId: "Unknown", geographyTypeId: "Unknown", isExplored: false })).toBe("Unknown");
   });
 });
 

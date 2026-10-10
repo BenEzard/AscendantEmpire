@@ -118,9 +118,11 @@ internal class MapResourceTypeValidator : Validator<IAddOrUpdateMapResourceTypeD
             .Must(t => t.IsRenewable == (t.SurvivalRounds != null && t.ReseedLikelihood != null))
             .WithMessage(t => $"{t.Code}: {nameof(t.SurvivalRounds)} and {nameof(t.ReseedLikelihood)} must both be set for a renewable MapResourceType, and both be empty otherwise.");
 
+        // 0 is allowed, and means an exhausted instance is deleted the moment it is exhausted rather than going dormant. It then never reaches a dormant Round, so it is
+        // never rolled to reseed - but it still carries a ReseedLikelihood, because the pairing rule above holds for every renewable type whatever this value is.
         RuleFor(t => t.SurvivalRounds)
-            .Must(rounds => rounds == null || rounds >= 1)
-            .WithMessage(t => $"{t.Code}: {nameof(t.SurvivalRounds)} must be at least 1.");
+            .Must(rounds => rounds == null || rounds >= 0)
+            .WithMessage(t => $"{t.Code}: {nameof(t.SurvivalRounds)} cannot be negative.");
 
         RuleFor(t => t.ReseedLikelihood)
             .Must(IsFractionOrEmpty)

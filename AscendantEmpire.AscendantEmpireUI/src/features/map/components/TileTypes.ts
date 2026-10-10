@@ -1,4 +1,6 @@
 import type { TileRivers } from "@/types/map/Rivers";
+import type { BiomeType } from "@/types/map/Biome";
+import type { CampaignMapGeographyType } from "@/types/map/Geography";
 
 export type ObservedStructureTile = {
   id: number;
@@ -34,8 +36,8 @@ export type TileCell = {
   x: number;
   y: number;
 
-  biomeTypeId: number | null;
-  geographyTypeId: number | null;
+  biomeTypeId: BiomeType | null;
+  geographyTypeId: CampaignMapGeographyType | null;
 
   // Whether the player has ever seen this tile. Carried on the cell rather than held in a separate set because it only ever
   // changes when the tile's DTO changes, so it rides along with the identity check that keeps memoised tiles from re-rendering.

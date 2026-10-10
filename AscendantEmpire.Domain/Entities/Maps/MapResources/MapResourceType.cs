@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations;
 namespace AscendantEmpire.Domain.Entities.Maps.MapResources;
 
 /// <summary>
-/// A kind of MapResource, e.g. Berry, Deer, Horse, Coal Seam or Forest Wood: everything about how its instances behave that is the same on every tile and in every game.
+/// A kind of MapResource, e.g. Berry, Deer, Horse, Coal Seam or Timber: everything about how its instances behave that is the same on every tile and in every game.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -143,6 +143,10 @@ public class MapResourceType
     /// <summary>
     /// How many Rounds an exhausted (dormant) instance survives before it is deleted, or <see langword="null"/> for a type that is not renewable.
     /// </summary>
+    /// <remarks>
+    /// 0 is a renewable type whose instances are deleted the moment they are exhausted, never going dormant and so never rolled against
+    /// <see cref="ReseedLikelihood"/>, which is nonetheless still set.
+    /// </remarks>
     public int? SurvivalRounds { get; set; }
 
     /// <summary>

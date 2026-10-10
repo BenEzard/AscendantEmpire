@@ -1,5 +1,7 @@
 ﻿import { http } from "@/api/http";
 import { RIVER_EDGES, type RiverWidth, type TileRivers } from "@/types/map/Rivers";
+import type { BiomeType } from "@/types/map/Biome";
+import type { CampaignMapGeographyType } from "@/types/map/Geography";
 
 // gameId/playerId are client-side only: they scope the React Query cache, and are deliberately NOT sent to the server.
 // The API reads both from the game token, so a request cannot ask about — or clear — another player's map.
@@ -17,8 +19,8 @@ export type ClearPlayerCampaignMapRequest = {
 export interface CampaignMapTileDto {
   xCoord: number;
   yCoord: number;
-  biomeTypeId: number;
-  campaignMapGeographyTypeId: number;
+  biomeTypeId: BiomeType;
+  campaignMapGeographyTypeId: CampaignMapGeographyType;
   // Whether the player has ever seen this tile, and so knows the ground on it. The permanent half of the fog of war, and a
   // different question from whether anything is watching the tile right now — which is answered by the observers, not here.
   // Tiles reported by a real observer are always explored; only the whole-map read ever sends this false. See docs/fog-of-war.md.
@@ -99,8 +101,8 @@ type ObservedForceWireDto = Partial<{
 type CampaignMapTileWireDto = Partial<{
   xCoord: number;
   yCoord: number;
-  biomeTypeId: number;
-  campaignMapGeographyTypeId: number;
+  biomeTypeId: BiomeType;
+  campaignMapGeographyTypeId: CampaignMapGeographyType;
   isExplored: boolean;
   // Null on the wire for an unexplored tile, and each edge is a RiverWidth member name. Partial rather than a full TileRivers,
   // because an older API sends nothing at all and a normalizer that assumed four edges would read undefined off it.
@@ -189,8 +191,10 @@ export function normalizeCampaignMapTile(tile: CampaignMapTileWireDto): Campaign
   return {
     xCoord: tile.xCoord ?? 0,
     yCoord: tile.yCoord ?? 0,
-    biomeTypeId: tile.biomeTypeId ?? 0,
-    campaignMapGeographyTypeId: tile.campaignMapGeographyTypeId ?? 0,
+    // "Unknown" is the enums' own zero member, and the honest reading of a tile the API said nothing about. It matches no
+    // paintable Biome or Geography, so the lookups fall through to their "(unknown ...)" labels.
+    biomeTypeId: tile.biomeTypeId ?? "Unknown",
+    campaignMapGeographyTypeId: tile.campaignMapGeographyTypeId ?? "Unknown",
     // Defaults to unexplored. An absent flag means the API told us nothing, and guessing "explored" would strip the fog off
     // ground the player has never been to — the one failure mode this flag exists to prevent.
     isExplored: tile.isExplored ?? false,

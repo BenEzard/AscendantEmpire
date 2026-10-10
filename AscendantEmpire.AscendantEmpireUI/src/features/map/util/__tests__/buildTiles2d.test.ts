@@ -2,7 +2,8 @@ import { buildTiles2d, type TileCellSourceMap } from "@/features/map/util/buildT
 import type { CampaignMapTileDto } from "@/features/map/api/playerCampaignMapApi";
 
 function tile(x: number, y: number, isExplored = true): CampaignMapTileDto {
-  return { xCoord: x, yCoord: y, biomeTypeId: 1, campaignMapGeographyTypeId: 3, isExplored, structures: [], forces: [] };
+  // Biome and Geography arrive as their enum member names, not numbers — see BiomeType in @/types/map/Biome.
+  return { xCoord: x, yCoord: y, biomeTypeId: "Coastal", campaignMapGeographyTypeId: "Flat", isExplored, structures: [], forces: [] };
 }
 
 describe("buildTiles2d", () => {
@@ -11,7 +12,7 @@ describe("buildTiles2d", () => {
 
     expect(grid).toHaveLength(2);
     expect(grid[0]).toHaveLength(3);
-    expect(grid[1][2].biomeTypeId).toBe(1);
+    expect(grid[1][2].biomeTypeId).toBe("Coastal");
     expect(grid[0][0].biomeTypeId).toBeNull();
   });
 

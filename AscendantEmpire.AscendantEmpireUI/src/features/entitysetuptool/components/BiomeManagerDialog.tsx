@@ -8,6 +8,7 @@ import { useCampaignMapBiomesQuery, useSaveCampaignMapBiomesMutation } from "@/h
 import { isValidColor, pickTextColorOnBg } from "@/util/color";
 import BiomeResource from "./BiomeResource";
 import { fromRegenerationPercentInput, toRegenerationPercentInput } from "@/util/regenerationPercent";
+import type { BiomeType } from "@/types/map/Biome";
 
 interface BiomeManagerProps {
   open: boolean;
@@ -25,7 +26,7 @@ function BiomeManagerDialog({ open, onCancel, onSaveSuccess }: BiomeManagerProps
 
   // The editable copy of the catalogue. Every edit lands here; only Save sends it to the server.
   const [biomeDraft, setBiomeDraft] = useState<Biome[]>([]);
-  const [selectedBiomeType, setSelectedBiomeType] = useState<number | null>(null);
+  const [selectedBiomeType, setSelectedBiomeType] = useState<BiomeType | null>(null);
 
   const selectedBiome = biomeDraft.find((b) => b.biomeType === selectedBiomeType) ?? null;
 

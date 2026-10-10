@@ -1,7 +1,7 @@
 namespace AscendantEmpire.Domain.Entities.Games;
 
 /// <summary>
-/// How much of one Asset a Distribution instance holds, e.g. the oak in the Forest Wood on tile (4,5). Keyed on the instance and the Asset.
+/// How much of one Asset a Distribution instance holds, e.g. the oak in the Timber on tile (4,5). Keyed on the instance and the Asset.
 /// </summary>
 /// <remarks>
 /// The instance's own copy of its scenario's amount, so extracting from one tile never changes another that started from the same scenario. Growth and extraction both

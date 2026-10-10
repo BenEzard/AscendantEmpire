@@ -4,6 +4,7 @@ import { CiExport } from "react-icons/ci";
 import type { Geography } from "@/types/map/Geography";
 import { safeStringify } from "@/util/json";
 import { useCampaignMapGeographiesQuery, useSaveCampaignMapGeographiesMutation } from "@/hooks/useCampaignMapGeographies";
+import type { CampaignMapGeographyType } from "@/types/map/Geography";
 
 interface GeographyManagerProps {
   open: boolean;
@@ -21,7 +22,7 @@ function GeographyManagerDialog({ open, onCancel, onSaveSuccess }: GeographyMana
 
   // The editable copy of the catalogue. Every edit lands here; only Save sends it to the server.
   const [geographyDraft, setGeographyDraft] = useState<Geography[]>([]);
-  const [selectedGeographyType, setSelectedGeographyType] = useState<number | null>(null);
+  const [selectedGeographyType, setSelectedGeographyType] = useState<CampaignMapGeographyType | null>(null);
 
   const [textEditorTitle, setTextEditorTitle] = useState("Text");
   const [textEditorBody, setTextEditorBody] = useState<string>();
@@ -101,10 +102,9 @@ function GeographyManagerDialog({ open, onCancel, onSaveSuccess }: GeographyMana
             <select
               className="w-64 max-w-full rounded-md border border-slate-300 px-2 py-2 text-sm"
               value={selectedGeography?.campaignMapGeographyType ?? ""}
-              onChange={(e) => {
-                const selectedType = Number(e.target.value);
-                setSelectedGeographyType(Number.isFinite(selectedType) ? selectedType : null);
-              }}
+              // The value is a CampaignMapGeographyType member name, not a number: the API serialises enums as their name. Coercing it
+              // with Number() gave NaN, so picking a Geography put nothing in state and the select snapped back to the first option.
+              onChange={(e) => setSelectedGeographyType(e.target.value === "" ? null : (e.target.value as CampaignMapGeographyType))}
               disabled={orderedGeographies.length === 0}>
               {orderedGeographies.length === 0 ? (
                 <option value="">(no geographies)</option>

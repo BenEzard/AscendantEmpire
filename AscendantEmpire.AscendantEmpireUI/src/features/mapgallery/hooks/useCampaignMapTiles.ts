@@ -1,13 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { http } from "@/api/http";
 import type { RiverWidth } from "@/types/map/Rivers";
+import type { BiomeType } from "@/types/map/Biome";
+import type { CampaignMapGeographyType } from "@/types/map/Geography";
 
 export interface CampaignMapTileDto {
   campaignMapGalleryIndexId: number;
   xCoord: number;
   yCoord: number;
-  biomeTypeId: number | null;
-  campaignMapGeographyTypeId: number | null;
+  biomeTypeId: BiomeType | null;
+  campaignMapGeographyTypeId: CampaignMapGeographyType | null;
 
   // The two river edges this tile owns, raw as the gallery map stores them. The editor writes these same two columns, so it is sent
   // them rather than the four resolved edges the in-game map read derives.

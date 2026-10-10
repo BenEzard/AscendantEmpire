@@ -6,6 +6,7 @@
  * value that does not apply to the kind rather than ignoring it. So instead of letting the designer tick flags into an invalid combination, the
  * manager offers four kinds, and switching kind here clears whatever the new kind does not use and fills in defaults for what it now needs.
  */
+import type { BiomeType } from "@/types/map/Biome";
 import { ExtractionMethod, type MapResourceCategory, type MapResourceHabitat, type MapResourceType, type MapResourceTypeLayer } from "@/types/map/MapResource";
 import type { MapResourceCataloguePayload, MapResourceTypePayload } from "../api/mapResourcesApi";
 
@@ -183,7 +184,7 @@ export function createMapResourceType(categoryCode: string, sortOrder: number): 
 }
 
 /** A new habitat for `biomeType` (every Geography), with the values the kind needs. */
-export function createHabitat(kind: MapResourceKind, biomeType: number): MapResourceHabitat {
+export function createHabitat(kind: MapResourceKind, biomeType: BiomeType): MapResourceHabitat {
   return habitatForKind(
     {
       biomeType,

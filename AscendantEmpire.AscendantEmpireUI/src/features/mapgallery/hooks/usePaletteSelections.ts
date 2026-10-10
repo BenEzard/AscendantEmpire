@@ -1,5 +1,7 @@
 import { useCallback, useState } from "react";
 import type { ActiveDialog } from "@/features/mapgallery/types/MapGalleryEditorTypes";
+import type { BiomeType } from "@/types/map/Biome";
+import type { CampaignMapGeographyType } from "@/types/map/Geography";
 
 interface UsePaletteSelectionsOptions {
   biomesLoading: boolean;
@@ -15,8 +17,8 @@ interface UsePaletteSelectionsOptions {
 export function usePaletteSelections(opts: UsePaletteSelectionsOptions) {
   const { biomesLoading, geographiesLoading, setActiveDialog } = opts;
 
-  const [biomeMapSelection, setBiomeMapSelection] = useState<number | null>(null);
-  const [geographyMapSelection, setGeographyMapSelection] = useState<number | null>(null);
+  const [biomeMapSelection, setBiomeMapSelection] = useState<BiomeType | null>(null);
+  const [geographyMapSelection, setGeographyMapSelection] = useState<CampaignMapGeographyType | null>(null);
 
   const openBiomes = useCallback(() => {
     if (biomesLoading) return;

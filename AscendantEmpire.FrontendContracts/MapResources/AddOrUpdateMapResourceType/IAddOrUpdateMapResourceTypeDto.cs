@@ -106,6 +106,10 @@ public interface IAddOrUpdateMapResourceTypeDto
     /// <summary>
     /// How many Rounds a dormant instance survives. Set exactly when the type is renewable.
     /// </summary>
+    /// <remarks>
+    /// 0 means an exhausted instance is deleted at once rather than going dormant, and so is never rolled to reseed. <see cref="ReseedLikelihood"/> is still required
+    /// either way, since the pair is set exactly when the type is renewable whatever this value is.
+    /// </remarks>
     int? SurvivalRounds { get; }
 
     /// <summary>

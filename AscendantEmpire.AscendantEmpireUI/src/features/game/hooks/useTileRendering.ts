@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
-import type { Biome } from "@/types/map/Biome";
-import type { Geography } from "@/types/map/Geography";
+import type { Biome, BiomeType } from "@/types/map/Biome";
+import type { CampaignMapGeographyType, Geography } from "@/types/map/Geography";
 import type { TileCell } from "@/features/map/components/TileTypes";
 import { describeTileRivers } from "@/types/map/Rivers";
 
@@ -45,7 +45,7 @@ export function useTileRendering(opts: UseTileRenderingOptions) {
   const { biomes, geographies, selectedTile, observedTileKeys } = opts;
 
   const biomeColorByType = useMemo(() => {
-    const m = new Map<number, string>();
+    const m = new Map<BiomeType, string>();
     for (const b of biomes ?? []) {
       const c = (b.mapEditorHtmlColor ?? "").trim();
       if (c) m.set(b.biomeType, c);
@@ -54,13 +54,13 @@ export function useTileRendering(opts: UseTileRenderingOptions) {
   }, [biomes]);
 
   const biomeNameByType = useMemo(() => {
-    const m = new Map<number, string>();
+    const m = new Map<BiomeType, string>();
     for (const b of biomes ?? []) m.set(b.biomeType, b.name);
     return m;
   }, [biomes]);
 
   const geographyNameByType = useMemo(() => {
-    const m = new Map<number, string>();
+    const m = new Map<CampaignMapGeographyType, string>();
     for (const g of geographies ?? []) m.set(g.campaignMapGeographyType, g.name);
     return m;
   }, [geographies]);

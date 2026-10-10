@@ -18,7 +18,8 @@ function force(id: number): ObservedForceDto {
 }
 
 function tile(x: number, y: number, forces: ObservedForceDto[] = []): CampaignMapTileDto {
-  return { xCoord: x, yCoord: y, biomeTypeId: 1, campaignMapGeographyTypeId: 3, isExplored: true, structures: [], forces };
+  // Biome and Geography arrive as their enum member names, not numbers — see BiomeType in @/types/map/Biome.
+  return { xCoord: x, yCoord: y, biomeTypeId: "Coastal", campaignMapGeographyTypeId: "Flat", isExplored: true, structures: [], forces };
 }
 
 describe("mergeTilesByCoord", () => {

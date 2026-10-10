@@ -4,6 +4,8 @@
  */
 import type { MapResourceCategory, MapResourceHabitat, MapResourceType } from "@/types/map/MapResource";
 import type { GalleryMapResource } from "../api/galleryMapResourcesApi";
+import type { BiomeType } from "@/types/map/Biome";
+import type { CampaignMapGeographyType } from "@/types/map/Geography";
 
 /** The "x,y" key tiles are indexed by, as start positions are. */
 export function tileKey(x: number, y: number): string {
@@ -35,7 +37,7 @@ export function typesById(categories: MapResourceCategory[] | undefined): Readon
  * The habitat that sets the type's values on a tile: one naming the tile's Geography wins over the Biome-wide one. Undefined when neither exists, which
  * means the type cannot exist on the tile at all.
  */
-export function habitatFor(type: MapResourceType, biomeType: number | null, geographyType: number | null): MapResourceHabitat | undefined {
+export function habitatFor(type: MapResourceType, biomeType: BiomeType | null, geographyType: CampaignMapGeographyType | null): MapResourceHabitat | undefined {
   const inBiome = type.habitats.filter((habitat) => habitat.biomeType === biomeType);
 
   return inBiome.find((habitat) => habitat.geographyType != null && habitat.geographyType === geographyType) ?? inBiome.find((habitat) => habitat.geographyType == null);

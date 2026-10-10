@@ -43,12 +43,13 @@ function force(id: number): ObservedForceTile {
 }
 
 function tile(x: number, forces?: ObservedForceTile[]): TileCell {
-  return { x, y: 0, biomeTypeId: 1, geographyTypeId: 1, isExplored: true, forces };
+  // Biome and Geography arrive as their enum member names, not numbers — see BiomeType in @/types/map/Biome.
+  return { x, y: 0, biomeTypeId: "Grassland", geographyTypeId: "Flat", isExplored: true, forces };
 }
 
 // Everything the grid is given is held at module scope, so that between renders only the prop a test changes has a new identity.
 const TILES_2D: TileCell[][] = [[tile(0), tile(1, [force(10)]), tile(2, [force(20)])]];
-const GEOGRAPHIES = [{ campaignMapGeographyType: 1, name: "Plains" } as Geography];
+const GEOGRAPHIES = [{ campaignMapGeographyType: "Flat", name: "Plains" } as Geography];
 
 // ObservedForce draws nothing without a picture, and the selected state is only visible on what it draws.
 const IMAGES = new Map([[3, "unit.png"]]);
@@ -190,8 +191,8 @@ function riverTile(x: number, y: number, rivers?: Partial<TileRivers>): TileCell
   return {
     x,
     y,
-    biomeTypeId: 1,
-    geographyTypeId: 1,
+    biomeTypeId: "Grassland",
+    geographyTypeId: "Flat",
     isExplored: rivers != null,
     rivers: rivers == null ? undefined : { north: "None", east: "None", south: "None", west: "None", ...rivers },
   };

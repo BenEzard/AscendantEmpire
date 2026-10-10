@@ -1,11 +1,13 @@
 // src/features/map-gallery/components/TileGridView.tsx
 import type { Geography } from "@/types/map/Geography";
+import type { BiomeType } from "@/types/map/Biome";
+import type { CampaignMapGeographyType } from "@/types/map/Geography";
 
 export type TileCell = {
   x: number;
   y: number;
-  biomeTypeId: number | null;
-  geographyTypeId: number | null;
+  biomeTypeId: BiomeType | null;
+  geographyTypeId: CampaignMapGeographyType | null;
 };
 
 export interface TileGridViewProps {

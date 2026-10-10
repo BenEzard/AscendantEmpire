@@ -4,6 +4,7 @@ import type { TileCell } from "./TileTypes";
 import Tile from "./Tile";
 import RiverOverlay from "./RiverOverlay";
 import type { KnownForce, KnownStructure } from "@/features/intelligence/api/intelligenceApi";
+import type { CampaignMapGeographyType } from "@/types/map/Geography";
 
 export const TILE_SIZE_PX = 50;
 
@@ -118,7 +119,7 @@ const TileGrid = React.memo(function TileGrid({
   // lookup is an O(1) Map.get() instead of an O(geographies) Array.find() running for
   // every tile on every render (O(tiles Ã— geographies)).
   const geographyByType = React.useMemo(() => {
-    const m = new Map<number, Geography>();
+    const m = new Map<CampaignMapGeographyType, Geography>();
     for (const g of geographies) {
       m.set(g.campaignMapGeographyType, g);
     }

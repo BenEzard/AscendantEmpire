@@ -2,7 +2,8 @@ import { mergeTiles } from "@/features/map/hooks/useCampaignMapTiles";
 import type { CampaignMapTileDto, CampaignMapTilesResponse, PlayerCampaignMapObserverResultDto } from "@/features/map/api/playerCampaignMapApi";
 
 function tile(x: number, y: number, isExplored: boolean): CampaignMapTileDto {
-  return { xCoord: x, yCoord: y, biomeTypeId: 1, campaignMapGeographyTypeId: 3, isExplored, structures: [], forces: [] };
+  // Biome and Geography arrive as their enum member names, not numbers — see BiomeType in @/types/map/Biome.
+  return { xCoord: x, yCoord: y, biomeTypeId: "Coastal", campaignMapGeographyTypeId: "Flat", isExplored, structures: [], forces: [] };
 }
 
 function observer(id: number, seen: [number, number][]): PlayerCampaignMapObserverResultDto {

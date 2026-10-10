@@ -1,14 +1,16 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { postUpdateCampaignMapTiles } from "../api/updateCampaignMapTilesApi";
 import { mapGalleryTilesKey, type CampaignMapTilesResponse } from "./useCampaignMapTiles";
+import type { BiomeType } from "@/types/map/Biome";
+import type { CampaignMapGeographyType } from "@/types/map/Geography";
 
 export type PaintCoord = { x: number; y: number };
 
 export type UpdateCampaignMapTilesVariables = {
   campaignMapGalleryIndexId: number;
   coordinates: PaintCoord[];
-  biomeType: number | null;
-  geographyType: number | null;
+  biomeType: BiomeType | null;
+  geographyType: CampaignMapGeographyType | null;
 };
 
 type MutationContext = {

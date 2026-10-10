@@ -1,6 +1,6 @@
 import { EditableTable, type EditableTableColumn } from "@/components/ui";
-import type { Biome } from "@/types/map/Biome";
-import type { Geography } from "@/types/map/Geography";
+import type { Biome, BiomeType } from "@/types/map/Biome";
+import type { CampaignMapGeographyType, Geography } from "@/types/map/Geography";
 import type { MapResourceHabitat, MapResourceType } from "@/types/map/MapResource";
 import { canSpread, createHabitat, grows, holdsSingleQuantity, kindOf } from "../../tools/mapResourceDraft";
 import { CompactSelect, PercentInput, WholeNumberInput } from "./mapResourceFields";
@@ -47,7 +47,14 @@ export default function MapResourceHabitatsSection({ type, biomes, geographies, 
     {
       header: "Biome",
       renderCell: (row, index) => (
-        <CompactSelect ariaLabel="Biome" value={row.biomeType} options={biomeOptions} onChange={(value) => update(index, { biomeType: Number(value) })} />
+        <CompactSelect
+          ariaLabel="Biome"
+          value={row.biomeType}
+          options={biomeOptions}
+          // Cast, not Number(): a BiomeType is an enum name, so the <select>'s string value already is one. Coercing it gave NaN, which matched
+          // no option, so the select silently snapped back to the first Biome and the choice never stuck.
+          onChange={(value) => update(index, { biomeType: value as BiomeType })}
+        />
       ),
     },
     {
@@ -57,7 +64,7 @@ export default function MapResourceHabitatsSection({ type, biomes, geographies, 
           ariaLabel="Geography"
           value={row.geographyType ?? ANY_GEOGRAPHY}
           options={geographyOptions}
-          onChange={(value) => update(index, { geographyType: value === ANY_GEOGRAPHY ? null : Number(value) })}
+          onChange={(value) => update(index, { geographyType: value === ANY_GEOGRAPHY ? null : (value as CampaignMapGeographyType) })}
         />
       ),
     },
@@ -68,13 +75,23 @@ export default function MapResourceHabitatsSection({ type, biomes, geographies, 
       {
         header: "Start Min",
         renderCell: (row, index) => (
-          <WholeNumberInput compact ariaLabel="Initial quantity minimum" value={row.initialQuantityMin} onChange={(value) => update(index, { initialQuantityMin: value })} />
+          <WholeNumberInput
+            compact
+            ariaLabel="Initial quantity minimum"
+            value={row.initialQuantityMin}
+            onChange={(value) => update(index, { initialQuantityMin: value })}
+          />
         ),
       },
       {
         header: "Start Max",
         renderCell: (row, index) => (
-          <WholeNumberInput compact ariaLabel="Initial quantity maximum" value={row.initialQuantityMax} onChange={(value) => update(index, { initialQuantityMax: value })} />
+          <WholeNumberInput
+            compact
+            ariaLabel="Initial quantity maximum"
+            value={row.initialQuantityMax}
+            onChange={(value) => update(index, { initialQuantityMax: value })}
+          />
         ),
       },
     );
@@ -85,13 +102,23 @@ export default function MapResourceHabitatsSection({ type, biomes, geographies, 
       {
         header: kind === "distribution" ? "Max Total" : "Maximum",
         renderCell: (row, index) => (
-          <WholeNumberInput compact ariaLabel="Maximum quantity" value={row.maximumQuantity} onChange={(value) => update(index, { maximumQuantity: value })} />
+          <WholeNumberInput
+            compact
+            ariaLabel="Maximum quantity"
+            value={row.maximumQuantity}
+            onChange={(value) => update(index, { maximumQuantity: value })}
+          />
         ),
       },
       {
         header: "Growth",
         renderCell: (row, index) => (
-          <PercentInput compact ariaLabel="Growth percentage" value={row.growthPercentage} onChange={(value) => update(index, { growthPercentage: value })} />
+          <PercentInput
+            compact
+            ariaLabel="Growth percentage"
+            value={row.growthPercentage}
+            onChange={(value) => update(index, { growthPercentage: value })}
+          />
         ),
       },
     );
@@ -102,19 +129,35 @@ export default function MapResourceHabitatsSection({ type, biomes, geographies, 
       {
         header: "Spread",
         renderCell: (row, index) => (
-          <PercentInput compact ariaLabel="Spread likelihood" placeholder="none" value={row.spreadLikelihood} onChange={(value) => update(index, { spreadLikelihood: value })} />
+          <PercentInput
+            compact
+            ariaLabel="Spread likelihood"
+            placeholder="none"
+            value={row.spreadLikelihood}
+            onChange={(value) => update(index, { spreadLikelihood: value })}
+          />
         ),
       },
       {
         header: "Limit Min",
         renderCell: (row, index) => (
-          <WholeNumberInput compact ariaLabel="Spread limit minimum" value={row.spreadLimitMin} onChange={(value) => update(index, { spreadLimitMin: value })} />
+          <WholeNumberInput
+            compact
+            ariaLabel="Spread limit minimum"
+            value={row.spreadLimitMin}
+            onChange={(value) => update(index, { spreadLimitMin: value })}
+          />
         ),
       },
       {
         header: "Limit Max",
         renderCell: (row, index) => (
-          <WholeNumberInput compact ariaLabel="Spread limit maximum" value={row.spreadLimitMax} onChange={(value) => update(index, { spreadLimitMax: value })} />
+          <WholeNumberInput
+            compact
+            ariaLabel="Spread limit maximum"
+            value={row.spreadLimitMax}
+            onChange={(value) => update(index, { spreadLimitMax: value })}
+          />
         ),
       },
     );
@@ -122,14 +165,18 @@ export default function MapResourceHabitatsSection({ type, biomes, geographies, 
 
   return (
     <div className="w-full">
+      <p className="mb-3 text-sm text-slate-500">Specify the habitats where this Map Resource can exist.</p>
+
       {kind === "stratified" ? (
-        <p className="mb-2 text-xs text-slate-500">A stratified Map Resource only needs to know where it can exist: its quantities are on the Layers page.</p>
+        <p className="mb-2 text-xs text-slate-500">
+          A stratified Map Resource only needs to know where it can exist: its quantities are on the Layers page.
+        </p>
       ) : null}
 
       <EditableTable<MapResourceHabitat>
         rows={type.habitats}
         addLabel="Habitat"
-        emptyHint="No habitats yet: the Map Resource cannot exist anywhere."
+        emptyHint='No habitats exist. Press the "+" in the top right of this table to add some.'
         addDisabled={nextBiome === undefined}
         onAddRow={() => setHabitats([...type.habitats, createHabitat(kind, nextBiome!)])}
         onRemoveRow={(index) => setHabitats(type.habitats.filter((_, i) => i !== index))}

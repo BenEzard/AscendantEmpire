@@ -40,7 +40,8 @@ function force(overrides: Partial<ObservedForceTile> = {}): ObservedForceTile {
 }
 
 function tile(forces: ObservedForceTile[]): TileCell {
-  return { x: 3, y: 4, biomeTypeId: 1, geographyTypeId: 1, isExplored: true, forces };
+  // Biome and Geography arrive as their enum member names, not numbers — see BiomeType in @/types/map/Biome.
+  return { x: 3, y: 4, biomeTypeId: "Coastal", geographyTypeId: "Flat", isExplored: true, forces };
 }
 
 /**
@@ -76,7 +77,17 @@ function stepResult({
     tiles:
       forcesOnDestination == null
         ? []
-        : [{ xCoord: x, yCoord: y, biomeTypeId: 1, campaignMapGeographyTypeId: 3, isExplored: true, structures: [], forces: forcesOnDestination }],
+        : [
+            {
+              xCoord: x,
+              yCoord: y,
+              biomeTypeId: "Coastal",
+              campaignMapGeographyTypeId: "Flat",
+              isExplored: true,
+              structures: [],
+              forces: forcesOnDestination,
+            },
+          ],
     observers: [],
   };
 }

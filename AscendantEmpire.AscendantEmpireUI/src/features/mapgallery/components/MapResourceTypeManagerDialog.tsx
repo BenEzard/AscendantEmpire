@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CiExport } from "react-icons/ci";
-import { HiPlus, HiTrash } from "react-icons/hi2";
+import { HiMiniPlus, HiTrash } from "react-icons/hi2";
 import { Button, ConfirmDialog, ExportDialog, PagedDialog, Toast, ToastViewport, Tooltip } from "@/components/ui";
 import type { Biome } from "@/types/map/Biome";
 import type { Geography } from "@/types/map/Geography";
@@ -59,6 +59,7 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
   const [errorItems, setErrorItems] = useState<string[]>([]);
   const [showError, setShowError] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   // Re-seeded only when the dialog opens (and after a save), never on a background refetch, which would throw away unsaved edits.
   const catalogueLoaded = catalogueQuery.data !== undefined;
@@ -80,15 +81,24 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
     setShowError(true);
   };
 
-  /** Replaces the draft with the catalogue as just refetched, keeping the same type selected by code. */
-  const reseedFromServer = () => {
-    const fresh = toDraft(queryClient.getQueryData<MapResourceCategory[]>(mapResourceCatalogueKey));
+  /**
+   * Replaces the draft with `source`, keeping the same type selected by code where that type still exists — by code rather than by index,
+   * since the index of a given type shifts as rows come and go.
+   */
+  const reseedFrom = (source: MapResourceCategory[] | undefined) => {
+    const fresh = toDraft(source);
     const selectedCode = selectedType?.code;
 
     setDraft(fresh);
     const index = fresh.types.findIndex((t) => t.code.toLowerCase() === selectedCode?.toLowerCase());
     setSelectedIndex(index >= 0 ? index : fresh.types.length > 0 ? 0 : null);
   };
+
+  /**
+   * Reseeds from the catalogue as just refetched. Read straight out of the query cache rather than from `catalogueQuery.data`, which is a render
+   * behind immediately after a save.
+   */
+  const reseedFromServer = () => reseedFrom(queryClient.getQueryData<MapResourceCategory[]>(mapResourceCatalogueKey));
 
   const saveMutation = useSaveMapResourceCatalogueMutation({
     onSuccess: () => {
@@ -197,6 +207,56 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
     return counts;
   }, [draft.types]);
 
+  /**
+   * The unsaved new type, if the designer has one on the go. Identified by its missing id, which the server fills in on save, so no extra state
+   * has to be kept in step with the draft.
+   *
+   * Only ever one at a time, since Add is locked while this is set.
+   */
+  const inFlightNewType = useMemo(() => draft.types.find((type) => type.id == null) ?? null, [draft.types]);
+
+  /**
+   * Add is locked while a new type is unsaved, so a second click cannot push the half-filled one out of reach: the picker sorts by category and
+   * sort order, not by when a row was added, so a fresh blank row can easily land somewhere the designer is not looking.
+   *
+   * Resolved by Save (which gives it an id), by Cancel, or by deleting it with the trash.
+   */
+  const addLocked = inFlightNewType != null;
+  const addDisabled = draft.categories.length === 0 || addLocked;
+
+  // Both sides of the dirty check go through the same toDraft → toPayload path, so an untouched draft serialises byte-for-byte identically to the
+  // saved catalogue and the comparison needs no field-by-field diffing. The draft's own payload is what Export writes out, so it is shared.
+  //
+  // Comparing payloads rather than drafts means a type's `id` and `sortOrder` sit outside the comparison, since toPayload drops both. Neither is
+  // editable here — a type's sortOrder is only ever set when the type is created, which shows up as a whole added entry — so nothing a designer
+  // can do goes unnoticed. Putting a sortOrder editor on the General page would be the thing that breaks that, and would want comparing drafts.
+  const draftPayloadJson = useMemo(() => safeStringify(toPayload(draft)), [draft]);
+  const savedPayloadJson = useMemo(() => safeStringify(toPayload(toDraft(catalogueQuery.data))), [catalogueQuery.data]);
+
+  /**
+   * True when the draft holds edits the server has not got. Drives whether Cancel is offered at all, and whether it stops to confirm.
+   *
+   * Compared against the live query data, so a background refetch that genuinely moves the catalogue underneath an open dialog counts as a
+   * difference — which it is.
+   */
+  const isDirty = catalogueLoaded && draftPayloadJson !== savedPayloadJson;
+
+  const busy = saveMutation.isPending || deleteMutation.isPending;
+
+  /** Throws away every unsaved edit and leaves the dialog open. Confirmed first, since nothing short of re-typing brings the edits back. */
+  const discardEdits = () => {
+    reseedFrom(catalogueQuery.data);
+    setShowDiscardConfirm(false);
+    setShowError(false);
+  };
+
+  // A clean draft has nothing to discard, so the button is disabled and this never fires; the guard is here so a stray call cannot pop an
+  // empty-handed confirmation.
+  const handleCancelEdits = () => {
+    if (!isDirty) return;
+    setShowDiscardConfirm(true);
+  };
+
   const noTypeSelected = <p className="text-sm text-slate-500">Select a Map Resource, or add one.</p>;
 
   // Shown in place of the Renewable page for a kind that never grows, so the page says why it is empty rather than offering fields that the
@@ -246,17 +306,38 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
                 ),
               )}
             </select>
-            {/* Icon-only, with the wording moved to the tooltip and the accessible name. Kept as buttons rather than bare
-                icons so Delete keeps its danger colouring beside the picker. */}
-            <Tooltip content="Add Map Resource">
-              <Button variant="secondary" className="px-2" aria-label="Add Map Resource" disabled={draft.categories.length === 0} onClick={addType}>
-                <HiPlus size={18} aria-hidden />
-              </Button>
+            {/* Plain icon-only controls (no border/padding), matching the add/remove icons in the pages' EditableTables */}
+            {/* The tooltip says why Add is locked, since a greyed icon on its own leaves the designer guessing. */}
+            <Tooltip
+              content={
+                addLocked
+                  ? `Save or cancel "${inFlightNewType?.displayName || "the new Map Resource"}" before adding another`
+                  : draft.categories.length === 0
+                    ? "Add a Category before adding a Map Resource"
+                    : "Add Map Resource"
+              }
+              // The cursor lives on the wrapper, not the button: a disabled button swallows its own pointer events, so `disabled:pointer-events-none`
+              // below is what lets the hover reach Tooltip's span and show the reason at all — and that also rules out a cursor on the button itself.
+              className={addDisabled ? "cursor-not-allowed" : undefined}>
+              <button
+                type="button"
+                className="ml-1 text-[var(--bs-primary)] hover:opacity-70 focus:outline-none disabled:pointer-events-none disabled:opacity-40"
+                aria-label="Add Map Resource"
+                disabled={addDisabled}
+                onClick={addType}>
+                {/* 22 rather than the trash's 18, so the shorter Mini cross still matches the trash's visual footprint. */}
+                <HiMiniPlus size={22} aria-hidden />
+              </button>
             </Tooltip>
             <Tooltip content="Delete Map Resource">
-              <Button variant="danger" className="px-2" aria-label="Delete Map Resource" disabled={!selectedType} onClick={removeType}>
+              <button
+                type="button"
+                className="text-slate-400 hover:text-[var(--bs-danger)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-slate-400"
+                aria-label="Delete Map Resource"
+                disabled={!selectedType}
+                onClick={removeType}>
                 <HiTrash size={18} aria-hidden />
-              </Button>
+              </button>
             </Tooltip>
           </div>
         }
@@ -268,6 +349,14 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
                 Export
               </Button>
             </div>
+            {/* Outlined, so the two Cancels beside each other read as different weights of the same idea rather than as a pair of equal buttons;
+                the tooltip spells out which one keeps the dialog open. Disabled on a clean draft, which also makes it the dialog's
+                unsaved-changes indicator. */}
+            <Tooltip content={isDirty ? "Discard unsaved changes, and keep this dialog open" : "No unsaved changes to discard"}>
+              <Button variant="outline-secondary" disabled={!isDirty || busy} onClick={handleCancelEdits}>
+                Cancel
+              </Button>
+            </Tooltip>
             <Button variant="secondary" onClick={onClose}>
               Cancel / Close
             </Button>
@@ -314,7 +403,8 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
             // Guarded rather than rendered-and-greyed: switching kind clears both values, and an editable page on a kind that must leave them
             // empty would let the designer put back a pair the server then refuses. The nav button being disabled does not stop the page
             // showing, since PagedDialog keeps the active page on screen.
-            content: selectedType && kind && grows(kind) ? <MapResourceRenewableSection type={selectedType} onChange={updateSelectedType} /> : notRenewable,
+            content:
+              selectedType && kind && grows(kind) ? <MapResourceRenewableSection type={selectedType} onChange={updateSelectedType} /> : notRenewable,
           },
           {
             key: "scenarios",
@@ -361,6 +451,23 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
         onCancel={() => setPendingDelete(null)}
       />
 
+      <ConfirmDialog
+        open={showDiscardConfirm}
+        title="Discard unsaved changes"
+        message={
+          <>
+            Every unsaved edit to the Map Resource catalogue will be lost, including any new Map Resource you have not saved yet. This cannot be
+            undone.
+            {inFlightNewType ? <div className="mt-2">&quot;{inFlightNewType.displayName || "The new Map Resource"}&quot; will be removed.</div> : null}
+          </>
+        }
+        confirmLabel="Discard"
+        cancelLabel="Keep editing"
+        confirmVariant="danger"
+        onConfirm={discardEdits}
+        onCancel={() => setShowDiscardConfirm(false)}
+      />
+
       <ToastViewport>
         <Toast
           open={showError}
@@ -380,7 +487,7 @@ export default function MapResourceTypeManagerDialog({ show, biomes, geographies
         />
       </ToastViewport>
 
-      <ExportDialog show={showExport} title="Export Map Resources" textBody={safeStringify(toPayload(draft))} onClose={() => setShowExport(false)} />
+      <ExportDialog show={showExport} title="Export Map Resources" textBody={draftPayloadJson} onClose={() => setShowExport(false)} />
     </>
   );
 }

@@ -5,6 +5,7 @@ import RiverOverlay from "./RiverOverlay";
 import type { TileCell } from "../types/TileTypes";
 import type { Geography } from "@/types/map/Geography";
 import { isSameEdge, resolveEdgeFromPoint, type TileEdgeRef } from "../tools/riverEdgePicking";
+import type { CampaignMapGeographyType } from "@/types/map/Geography";
 
 export const TILE_SIZE_PX = 50;
 
@@ -82,7 +83,7 @@ const TileGrid = React.memo(function TileGrid({
   // lookup below is an O(1) Map.get() instead of an O(geographies) Array.find() that
   // would otherwise run for every tile on every render (O(tiles × geographies)).
   const geographyByType = React.useMemo(() => {
-    const m = new Map<number, Geography>();
+    const m = new Map<CampaignMapGeographyType, Geography>();
     for (const g of geographies) {
       m.set(g.campaignMapGeographyType, g);
     }

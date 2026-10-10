@@ -3,14 +3,24 @@
 // Mirrors IMapResourceCatalogue / IAddOrUpdateMapResourceTypeDto. Quantities are whole numbers (the server stores them scaled by
 // 1,000); likelihoods and percentages are fractions (0.25 = 25%) — the manager shows those as percents. See
 // docs/design/campaign-map/map-resources.md.
+//
+// A habitat's Biome and Geography are enums, and so arrive as their member names — see BiomeType and CampaignMapGeographyType.
 
-/** How a MapResource is extracted. Values match the server's ExtractionMethod enum. */
+import type { BiomeType } from "./Biome";
+import type { CampaignMapGeographyType } from "./Geography";
+
+/**
+ * How a MapResource is extracted. The values are the C# `ExtractionMethod` enum's member *names*, not its numbers, because the API serialises
+ * enums as their name (AscendantEmpire.Api/Program.cs registers a JsonStringEnumConverter).
+ *
+ * Kept as a named lookup rather than a bare union so the code reads `ExtractionMethod.Capture` at the one place that singles a method out.
+ */
 export const ExtractionMethod = {
-  Gather: 1,
-  Hunt: 2,
-  Fell: 3,
-  Mine: 4,
-  Capture: 5,
+  Gather: "Gather",
+  Hunt: "Hunt",
+  Fell: "Fell",
+  Mine: "Mine",
+  Capture: "Capture",
 } as const;
 
 export type ExtractionMethod = (typeof ExtractionMethod)[keyof typeof ExtractionMethod];
@@ -24,8 +34,8 @@ export type MapResourceTypeYield = {
 
 /** Where a MapResourceType can exist (a Biome, optionally one Geography in it) and its values there. */
 export type MapResourceHabitat = {
-  biomeType: number;
-  geographyType: number | null; // null = every Geography in the Biome.
+  biomeType: BiomeType;
+  geographyType: CampaignMapGeographyType | null; // null = every Geography in the Biome.
   initialQuantityMin: number | null;
   initialQuantityMax: number | null;
   maximumQuantity: number | null;
@@ -40,7 +50,7 @@ export type MapResourceDistributionScenario = {
   scenarioNumber: number;
   displayName: string | null;
   amounts: { assetId: number; amount: number }[];
-  biomeWeights: { biomeType: number; weight: number }[];
+  biomeWeights: { biomeType: BiomeType; weight: number }[];
 };
 
 /** One layer of a stratified MapResourceType. */

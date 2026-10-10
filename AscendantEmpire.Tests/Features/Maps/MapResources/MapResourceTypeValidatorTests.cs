@@ -38,7 +38,7 @@ internal class MapResourceTypeValidatorTests
         yield return new TestCaseData(Berry()).SetName("A renewable type that spreads (Berry) is valid.");
         yield return new TestCaseData(Deer()).SetName("A renewable type with two yields, one off by default (Deer), is valid.");
         yield return new TestCaseData(Horse()).SetName("A Capture type with a CaptureLikelihood (Horse) is valid.");
-        yield return new TestCaseData(ForestWood()).SetName("A Distribution (Forest Wood) is valid.");
+        yield return new TestCaseData(Timber()).SetName("A Distribution (Timber) is valid.");
         yield return new TestCaseData(CoalSeam()).SetName("A stratified type (Coal Seam) is valid.");
         yield return new TestCaseData(CopperDeposit()).SetName("A type that is neither renewable nor stratified (Copper Deposit) is valid.");
     }
@@ -61,7 +61,7 @@ internal class MapResourceTypeValidatorTests
     [Test, Description("A Distribution grows, so it must be renewable.")]
     public void ShouldRejectADistributionThatIsNotRenewable()
     {
-        AssertRejected(ForestWood() with { IsRenewable = false }, "must also be IsRenewable");
+        AssertRejected(Timber() with { IsRenewable = false }, "must also be IsRenewable");
     }
     #endregion
 
@@ -99,6 +99,20 @@ internal class MapResourceTypeValidatorTests
         AssertRejected(CopperDeposit() with { SurvivalRounds = 5, ReseedLikelihood = 0.2m }, "both be empty otherwise");
     }
 
+    [Test, Description("0 Survival Rounds is a renewable type deleted the moment it is exhausted, which is a choice the designer is allowed to make.")]
+    public void ShouldAcceptARenewableTypeWithNoSurvivalRounds()
+    {
+        ValidationResult result = _validator.Validate(Berry() with { SurvivalRounds = 0 });
+
+        Assert.That(result.IsValid, Is.True, string.Join("; ", result.Errors.Select(e => e.ErrorMessage)));
+    }
+
+    [Test, Description("A negative number of Rounds describes nothing, unlike 0 which means deleted on exhaustion.")]
+    public void ShouldRejectNegativeSurvivalRounds()
+    {
+        AssertRejected(Berry() with { SurvivalRounds = -1 }, "SurvivalRounds cannot be negative");
+    }
+
     [Test, Description("A stratified type judges each layer separately, so the type itself has no fuzzy factor range.")]
     public void ShouldRejectAFuzzyFactorRangeOnAStratifiedType()
     {
@@ -116,7 +130,7 @@ internal class MapResourceTypeValidatorTests
     [Test, Description("A Distribution holds its Assets in scenarios, never in yields.")]
     public void ShouldRejectYieldsOnADistribution()
     {
-        AssertRejected(ForestWood() with { Yields = [Yield(_OAK)] }, "a Distribution cannot have any yields");
+        AssertRejected(Timber() with { Yields = [Yield(_OAK)] }, "a Distribution cannot have any yields");
     }
 
     [Test, Description("A stratified type holds its Assets in layers, and must have at least one.")]
@@ -154,9 +168,9 @@ internal class MapResourceTypeValidatorTests
     [Test, Description("A Distribution never spreads, so its habitats have no spread values.")]
     public void ShouldRejectSpreadValuesOnADistributionHabitat()
     {
-        MapResourceHabitatDto spreading = ForestWoodHabitat() with { SpreadLikelihood = 0.1m, SpreadLimitMin = 1, SpreadLimitMax = 3 };
+        MapResourceHabitatDto spreading = TimberHabitat() with { SpreadLikelihood = 0.1m, SpreadLimitMin = 1, SpreadLimitMax = 3 };
 
-        AssertRejected(ForestWood() with { Habitats = [spreading] }, "only a renewable MapResourceType that is not a Distribution can spread");
+        AssertRejected(Timber() with { Habitats = [spreading] }, "only a renewable MapResourceType that is not a Distribution can spread");
     }
 
     [Test, Description("A SpreadLikelihood with no SpreadLimit range would spread without limit, so the three are set together or not at all.")]
@@ -196,9 +210,9 @@ internal class MapResourceTypeValidatorTests
     [Test, Description("A Distribution starts at its scenario's amounts, so its habitats have no initial quantity range.")]
     public void ShouldRejectAnInitialQuantityRangeOnADistributionHabitat()
     {
-        MapResourceHabitatDto withInitial = ForestWoodHabitat() with { InitialQuantityMin = 100, InitialQuantityMax = 200 };
+        MapResourceHabitatDto withInitial = TimberHabitat() with { InitialQuantityMin = 100, InitialQuantityMax = 200 };
 
-        AssertRejected(ForestWood() with { Habitats = [withInitial] }, "does not start from an initial quantity");
+        AssertRejected(Timber() with { Habitats = [withInitial] }, "does not start from an initial quantity");
     }
     #endregion
 
@@ -208,7 +222,7 @@ internal class MapResourceTypeValidatorTests
     {
         MapResourceDistributionScenarioDto empty = OakRichScenario() with { Amounts = [] };
 
-        AssertRejected(ForestWood() with { DistributionScenarios = [empty] }, "at least one Asset amount is required");
+        AssertRejected(Timber() with { DistributionScenarios = [empty] }, "at least one Asset amount is required");
     }
 
     [Test, Description("A Biome where the scenario should never be picked has no weight rather than a weight of 0.")]
@@ -219,7 +233,7 @@ internal class MapResourceTypeValidatorTests
             BiomeWeights = [new MapResourceDistributionScenarioBiomeWeightDto { BiomeType = BiomeType.Forest, Weight = 0 }]
         };
 
-        AssertRejected(ForestWood() with { DistributionScenarios = [zeroWeight] }, "the weight in Forest must be more than 0");
+        AssertRejected(Timber() with { DistributionScenarios = [zeroWeight] }, "the weight in Forest must be more than 0");
     }
 
     [Test, Description("Layers are reached in order from the top, so they are numbered 1, 2, 3... with no gaps.")]
@@ -293,13 +307,13 @@ internal class MapResourceTypeValidatorTests
     /// <summary>
     /// A Distribution: renewable, no yields, one scenario, no initial quantity and no spread.
     /// </summary>
-    private static AddOrUpdateMapResourceTypeDto ForestWood()
+    private static AddOrUpdateMapResourceTypeDto Timber()
     {
-        return RenewableBase("ForestWood", ExtractionMethod.Fell) with
+        return RenewableBase("Timber", ExtractionMethod.Fell) with
         {
             IsDistribution = true,
             IconPath = null,
-            Habitats = [ForestWoodHabitat()],
+            Habitats = [TimberHabitat()],
             DistributionScenarios = [OakRichScenario()],
         };
     }
@@ -401,7 +415,7 @@ internal class MapResourceTypeValidatorTests
     /// <summary>
     /// A Distribution habitat: a ceiling on the total and a growth percentage, and nothing else.
     /// </summary>
-    private static MapResourceHabitatDto ForestWoodHabitat()
+    private static MapResourceHabitatDto TimberHabitat()
     {
         return new MapResourceHabitatDto { BiomeType = BiomeType.Forest, MaximumQuantity = 20_000, GrowthPercentage = 0.05m };
     }
@@ -415,7 +429,7 @@ internal class MapResourceTypeValidatorTests
     }
 
     /// <summary>
-    /// The spec's Forest Wood scenario 1: oak 200, generic 10,000, cedar 30.
+    /// The spec's Timber scenario 1: oak 200, generic 10,000, cedar 30.
     /// </summary>
     private static MapResourceDistributionScenarioDto OakRichScenario()
     {
