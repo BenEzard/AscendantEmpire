@@ -8,73 +8,50 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>Generated from the "Tech Map" sheet of <c>AscendantEmpire_Files/Resources/Tech.xlsx</c>.</b> Each box in that diagram is one technology and each arrow
-/// is a prerequisite edge, with a dashed arrow meaning an optional one. 207 technologies and 210 edges came across, 21 of them
-/// optional. The graph is acyclic and 8 levels deep.
+/// <b>This file is the catalogue.</b> It is authored by hand and is the source of truth - nothing generates it, so an edit goes in here directly and nothing
+/// will overwrite it.
 /// </para>
 /// <para>
-/// Matched by code, so re-running the seed renames or re-orders a row rather than duplicating it, and never removes one added by hand. Codes are derived from
-/// the display name - ProperCase with non-alphanumerics stripped - and are <b>flat, with no era prefix</b>. That is deliberate: a code is a stable
-/// cross-reference key, and prefixing it with a field this file is explicitly unsure about (see below) would mean re-keying the whole catalogue later.
+/// Matched by code, so re-running the seed renames or re-orders a row rather than duplicating it, and never removes one added by hand. Codes are flat, with no
+/// era prefix, and spelled ProperCase with non-alphanumerics stripped. A code is a stable cross-reference key - every prerequisite names one - so renaming a
+/// code silently orphans whatever depended on it.
 /// </para>
 /// <para>
-/// SortOrder is left unset throughout and derived from list position, and the list is ordered by depth in the tree and then by name, so roots come first and
-/// a prerequisite is always written before the technology that needs it. Icon paths are left unset until artwork exists.
+/// SortOrder is left unset throughout and derived from list position, so the order entries appear in here is the order they appear in game. The list is
+/// ordered by depth and then by name, which puts the roots first and writes a prerequisite before the technology that needs it; the upsert resolves
+/// prerequisites across the whole batch, so that ordering is a courtesy to readers rather than a requirement. Icon paths are left unset until artwork exists.
 /// </para>
 ///
-/// <para><b>What the diagram did not carry, and what was assumed instead:</b></para>
+/// <para><b>What is still a placeholder:</b></para>
 /// <list type="bullet">
 ///   <item><description>
-///     <b>Eras.</b> The diagram has no era dimension - no bands, and its fill colours mark status rather than age. Everything is therefore
-///     <c>TechnologyEra.Stone</c>, which is certainly wrong for the later entries: Copper, Metallurgy, Writing, Banking and Brickworks are not Stone-age
-///     technologies. Era only matters to the <c>RandomisedEqual</c> requirement generator, which is not implemented, so nothing reads it yet - but it wants
-///     assigning before that lands.
+///     <b><c>Broken</c>.</b> A placeholder root that 45 technologies hang off because nothing ever established what their real prerequisites are. Without it
+///     they would all be Available from the first Round, handing every Player most of the Stone age at once. It is retired by giving each of its dependents
+///     real prerequisites and deleting the row. Its <c>DirectedRequired</c> is deliberately out of reach: it is a root, so it is Available from the start, and
+///     the catalogue authors no acquisition costs - a cheap root with none would simply be researched, unlocking all 45 at a stroke.
 ///   </description></item>
 ///   <item><description>
-///     <b>Research costs.</b> The diagram has no numbers. <c>DirectedRequired</c> is derived from depth in the tree as
-///     <c>100 + depth * 100</c>, so a root costs 100 and the deepest costs 800. That is a placeholder curve,
-///     not a balance decision.
+///     <b>Eras.</b> Everything is <c>TechnologyEra.Stone</c>, which is certainly wrong for the later entries: Copper, Metallurgy, Writing, Banking and
+///     Brickworks are not Stone-age technologies. Era only matters to the <c>RandomisedEqual</c> requirement generator, which is not implemented, so nothing
+///     reads it yet - but it wants assigning before that lands.
 ///   </description></item>
 ///   <item><description>
-///     <b>Experience sources.</b> 27 technologies carry an annotation naming something that matches a seeded <c>ExperienceType</c> - "Bonus:
-///     Hunting", "Bonus: Fishing" and so on. Those get an experience bucket of half their directed requirement, fed by the matching type. The rest are
-///     directed-only, because the diagram gives nothing to connect them to.
+///     <b>Research costs.</b> Round numbers, not balance decisions, and the one thing in here a reader should not trust.
 ///   </description></item>
 ///   <item><description>
-///     <b>Grants.</b> Around a hundred boxes carry <c>Gives:</c>, <c>Asset:</c>, <c>Unit:</c>, <c>Building:</c>, <c>Specialist:</c> or <c>Action:</c>
-///     annotations. Almost none of them name anything that exists in the Asset, unit-component or template catalogues, so they could not become
-///     <c>TechnologyGrant</c> rows - the upsert would reject the batch for an unresolvable target. <b>Every annotation line is preserved verbatim in
-///     <c>Description</c></b> instead, so the information is here when those targets exist. Wiring them up is outstanding work, and doing so means growing
-///     <c>TechnologySeedStep.DependsOn</c> to cover whichever catalogues they point at.
+///     <b>Experience sources.</b> 27 technologies draw on a seeded <c>ExperienceType</c>, named in <c>ExperienceTypeCodes</c> and matching the "Bonus:"
+///     annotation in their description. The rest are directed-only, because nothing connects them to a kind of experience yet.
 ///   </description></item>
 ///   <item><description>
-///     <b>Acquisition costs.</b> None, and none were invented. No Asset stockpile is modelled yet - <c>AssetBank</c> and <c>AssetBankBalance</c> are
-///     unmapped - so a technology with cost rows could not be unlocked at all.
-///   </description></item>
-/// </list>
-///
-/// <para><b>Known gaps in the source diagram:</b></para>
-/// <list type="bullet">
-///   <item><description>
-///     <b>17 arrows were lost.</b> Excel only records a connector's endpoints when both ends are dropped onto a shape; those 17 were left floating, so the
-///     file holds a line position and nothing else. Resolving them to the nearest shape produced visibly wrong pairs, so they were discarded rather than
-///     guessed. They cluster around Early Diplomacy / Oral Tradition / Early Trade / Band Leadership, and around Herb Lore / Ochre / the Climate and Terrain
-///     Skills. Re-attaching them in the spreadsheet and regenerating is the fix.
+///     <b>Grants.</b> Around a hundred entries carry <c>Gives:</c>, <c>Asset:</c>, <c>Unit:</c>, <c>Building:</c>, <c>Specialist:</c> or <c>Action:</c>
+///     annotations in their <c>Description</c>. Almost none of them name anything that exists in the Asset, unit-component or template catalogues, so they
+///     cannot become <c>TechnologyGrant</c> rows - the upsert would reject the batch for an unresolvable target. <b>The annotation text is kept verbatim</b>
+///     so the information is here when those targets exist, and wiring them up means growing <c>TechnologySeedStep.DependsOn</c> to cover whichever
+///     catalogues they point at.
 ///   </description></item>
 ///   <item><description>
-///     <b>51 technologies have no prerequisite at all</b>, including Banking, Writing, Metallurgy, Military, Horse Riding, Brickworks, Ceramics and
-///     Political Organisation. Some of that is the 17 lost arrows; the rest are arrows that were never drawn. Taken literally this is the starting set a new
-///     game would grant, which is implausibly large - so <c>GameSetupService.StarterTechnologyCodes</c> should name its starters explicitly rather than
-///     inferring them from this.
-///   </description></item>
-///   <item><description>
-///     <b>Three stray duplicate boxes were dropped.</b> A second "Plow animals" box with no arrows on it, and second "Terrain Skill - Coastal" and "Terrain
-///     Skill - Ocean" boxes which were fed BY Terrain Mastery where the kept boxes feed INTO it - merging those would have formed a two-node cycle.
-///   </description></item>
-///   <item><description>
-///     <b>One display name was corrected:</b> "Fundamentals of Military Serviice" to "Fundamentals of Military Service". The code derives from the name and
-///     has to be stable, so the typo was worth fixing before anything referenced it. Every other name is verbatim from the diagram, including the spelling
-///     inside annotation text.
+///     <b>Acquisition costs.</b> None. No Asset stockpile is modelled yet - <c>AssetBank</c> and <c>AssetBankBalance</c> are unmapped - so a technology with
+///     cost rows could not be unlocked at all.
 ///   </description></item>
 /// </list>
 /// </remarks>
@@ -87,20 +64,38 @@ internal static class TechnologySeedData
     {
         return
         [
+            // Nothing in the source material said what these should depend on, so they hang off this instead of being available from turn one. Its
+            // requirement is set absurdly high because the catalogue authors no acquisition costs, and a cheap root with none would simply be researched.
+            new UpsertTechnologyDto
+            {
+                Code = "Broken",
+                DisplayName = "Broken",
+                Description = "Placeholder root standing in for prerequisites the source material never carried. Its dependents await their real ones; emptying them and deleting this row retires it.",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 1_000_000
+            },
             new UpsertTechnologyDto
             {
                 Code = "Amber",
                 DisplayName = "Amber",
                 Description = "Gives: Hematite",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "Banking",
                 DisplayName = "Banking",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
@@ -108,21 +103,33 @@ internal static class TechnologySeedData
                 DisplayName = "Basic Construction",
                 Description = "- Huts",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "Brickworks",
                 DisplayName = "Brickworks",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "CeramicArt",
                 DisplayName = "Ceramic Art",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
@@ -130,14 +137,22 @@ internal static class TechnologySeedData
                 DisplayName = "Ceramics",
                 Description = "Build: Kiln",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "Ceremonies",
                 DisplayName = "Ceremonies",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
@@ -145,49 +160,77 @@ internal static class TechnologySeedData
                 DisplayName = "Climate Skill - Polar",
                 Description = "(on 1st settlement)",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "CompoundInterest",
                 DisplayName = "Compound Interest",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "CookingPots",
                 DisplayName = "Cooking Pots",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "CourtingBehaviour",
                 DisplayName = "Courting Behaviour",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "CropRotation",
                 DisplayName = "Crop Rotation",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "EarlyConscription",
                 DisplayName = "Early Conscription",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "EarlyIndustrialFiring",
                 DisplayName = "Early Industrial Firing",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
@@ -195,7 +238,11 @@ internal static class TechnologySeedData
                 DisplayName = "Expert Mobile Scavengers",
                 Description = "(Extract 10% of tile on the move)",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
@@ -209,28 +256,44 @@ internal static class TechnologySeedData
                 Code = "FishPonds",
                 DisplayName = "Fish ponds",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "FundamentalsOfMilitaryService",
                 DisplayName = "Fundamentals of Military Service",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "HorseRiding",
                 DisplayName = "Horse Riding",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "Horticulture",
                 DisplayName = "Horticulture",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
@@ -255,7 +318,11 @@ internal static class TechnologySeedData
                 Code = "IntroducedSpecies",
                 DisplayName = "Introduced Species",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
@@ -263,7 +330,11 @@ internal static class TechnologySeedData
                 DisplayName = "Irrigation",
                 Description = "Build: Irrigation Project",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
@@ -277,28 +348,44 @@ internal static class TechnologySeedData
                 Code = "LargeScaleConstructionProjects",
                 DisplayName = "Large Scale Construction Projects",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "LongResearch",
                 DisplayName = "Long Research",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "Metallurgy",
                 DisplayName = "Metallurgy",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "Military",
                 DisplayName = "Military",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
@@ -306,7 +393,11 @@ internal static class TechnologySeedData
                 DisplayName = "Mobile Scavenging",
                 Description = "(Extract 5% of tile on the move)",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
@@ -321,21 +412,33 @@ internal static class TechnologySeedData
                 Code = "Pastoralist",
                 DisplayName = "Pastoralist",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "PitFiring",
                 DisplayName = "Pit Firing",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "PoliticalOrganisation",
                 DisplayName = "Political Organisation",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
@@ -349,56 +452,88 @@ internal static class TechnologySeedData
                 Code = "PrimitiveSymbolism",
                 DisplayName = "Primitive Symbolism",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "PropertyOwnership",
                 DisplayName = "Property Ownership",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "RaidingParties",
                 DisplayName = "Raiding Parties",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "RegularTrade",
                 DisplayName = "Regular Trade",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "SailAndMastExpensive",
                 DisplayName = "Sail and mast (expensive)",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "ShortResearch",
                 DisplayName = "Short Research",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "ShrunkenHeads",
                 DisplayName = "Shrunken Heads",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "Slings",
                 DisplayName = "Slings",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
@@ -406,49 +541,77 @@ internal static class TechnologySeedData
                 DisplayName = "Smith's Guild",
                 Description = "(on 5th Blacksmith's shop) Building: Blacksmith's Guild Specialists: Apprentice, Journeyman, Master",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "SocialOrganisation1",
                 DisplayName = "Social Organisation 1",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "Tattoos",
                 DisplayName = "Tattoos",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "Temples",
                 DisplayName = "Temples",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "TerrainSkillCoastal",
                 DisplayName = "Terrain Skill - Coastal",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "TerrainSkillOcean",
                 DisplayName = "Terrain Skill - Ocean",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
                 Code = "TribalWarfare",
                 DisplayName = "Tribal Warfare",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {
@@ -456,7 +619,11 @@ internal static class TechnologySeedData
                 DisplayName = "Writing",
                 Description = "Gives: Scribes",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                ]
             },
             new UpsertTechnologyDto
             {

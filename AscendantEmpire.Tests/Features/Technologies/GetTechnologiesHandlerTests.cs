@@ -285,8 +285,8 @@ internal class GetTechnologiesHandlerTests : InMemoryTestBase
 
         Assert.Multiple(() =>
         {
-            Assert.That(catalogue, Has.Count.EqualTo(207));
-            Assert.That(catalogue.Sum(technology => technology.Prerequisites.Count), Is.EqualTo(210));
+            Assert.That(catalogue, Has.Count.EqualTo(208));
+            Assert.That(catalogue.Sum(technology => technology.Prerequisites.Count), Is.EqualTo(255));
             Assert.That(catalogue.Count(technology => technology.ExperienceSources.Count > 0), Is.EqualTo(27));
 
             // Every technology uses at least one bucket, which the catalogue's own check constraint also insists on.

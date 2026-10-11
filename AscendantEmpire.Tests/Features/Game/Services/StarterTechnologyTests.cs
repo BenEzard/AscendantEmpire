@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore;
 namespace AscendantEmpire.Tests.Features.Game.Services;
 
 /// <summary>
-/// Tests the technology step of game setup: every Player gets a row for every technology, the starters come back Discovered, their dependents become
-/// Available, and an unseeded catalogue fails setup loudly rather than producing a Player who can never research anything.
+/// Tests the technology step of game setup: every Player gets a row for every technology, nothing comes back Discovered, the catalogue's roots come back
+/// Available and the rest Locked, and an unseeded catalogue fails setup loudly rather than producing a Player who can never research anything.
 /// </summary>
 /// <remarks>
 /// Runs at the SqlServer tier because <c>SetupGameAsync</c> generates the campaign map with raw SQL, as the sibling starter-asset fixture does. The technology
@@ -48,16 +48,16 @@ internal class StarterTechnologyTests : GameSqlServerTestBase
             .Where(row => playerIds.Contains(row.PlayerId))
             .ToListAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(technologyCount, Is.GreaterThan(0), "the catalogue has to be seeded for any of this to mean anything");
             Assert.That(rows, Has.Count.EqualTo(playerIds.Length * technologyCount));
             Assert.That(rows.All(row => row.GameId == result.SuccessValue), Is.True);
-        });
+        }
     }
 
-    [Test, Description("Each Player gets exactly the starter technologies Discovered on round 0, resolved from the catalogue rather than a second copy of the codes.")]
-    public async Task SetupDiscoversExactlyTheStarterTechnologiesAsync()
+    [Test, Description("No technology comes back Discovered at setup, because the starter set is empty and a Player is meant to begin the game having researched nothing.")]
+    public async Task ShouldDiscoverNothingAtSetupAsync()
     {
         await SeedGameAsync(mapWidth: 2, mapHeight: 2, numberOfPlayers: 2);
 
@@ -66,35 +66,30 @@ internal class StarterTechnologyTests : GameSqlServerTestBase
 
         await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
 
-        int[] playerIds = [.. await verify.Players.Where(p => p.GameId == result.SuccessValue).Select(p => p.Id).ToListAsync()];
+        List<PlayerTechnology> rows = await verify.PlayerTechnologies
+            .Where(row => row.GameId == result.SuccessValue)
+            .ToListAsync();
 
-        // Resolved from the catalogue, so this pins the setup service against the codes it asks for rather than against a restatement of them.
-        HashSet<int> expectedStarterIds = [.. await verify.Technologies
+        // Resolved from the catalogue rather than from a restatement of the codes, so this follows StarterTechnologyCodes if it is ever filled again.
+        HashSet<int> starterIds = [.. await verify.Technologies
             .Where(technology => GameSetupService.StarterTechnologyCodes.Contains(technology.Code))
             .Select(technology => technology.Id)
             .ToListAsync()];
 
-        foreach (int playerId in playerIds)
+        using (Assert.EnterMultipleScope())
         {
-            List<PlayerTechnology> discovered = await verify.PlayerTechnologies
-                .Where(row => row.PlayerId == playerId && row.Status == TechnologyStatus.Discovered)
-                .ToListAsync();
+            Assert.That(starterIds, Is.Empty, "the starter set is empty by design - this test wants rewriting if a code is put back");
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(expectedStarterIds, Is.Not.Empty);
-                Assert.That(discovered.Select(row => row.TechnologyId), Is.EquivalentTo(expectedStarterIds));
-                Assert.That(discovered.All(row => row.DiscoveredOnRound == 0), Is.True, "granted at setup, before the first Round opened");
+            Assert.That(rows.Where(row => row.Status == TechnologyStatus.Discovered), Is.Empty);
 
-                // Never paid for, so no acquisition round is stamped — and the buckets are filled to their requirement so the totals agree with the status.
-                Assert.That(discovered.All(row => row.AcquisitionPaidOnRound is null), Is.True);
-                Assert.That(discovered.All(row => row.DirectedPoints == (row.DirectedRequired ?? 0)), Is.True);
-            });
+            // No round stamp belongs on a row nobody has researched or paid for, which the table's own check constraint also insists on.
+            Assert.That(rows.All(row => row.DiscoveredOnRound is null), Is.True);
+            Assert.That(rows.All(row => row.AcquisitionPaidOnRound is null), Is.True);
         }
     }
 
-    [Test, Description("The starters' dependents come out Available and the rest Locked, so the availability reconcile really ran as part of setup.")]
-    public async Task SetupLeavesTheStartersDependentsAvailableAsync()
+    [Test, Description("Exactly the technologies with no prerequisite come out Available and every other one Locked, so the availability reconcile really ran as part of setup.")]
+    public async Task ShouldLeaveOnlyThePrerequisiteFreeTechnologiesAvailableAsync()
     {
         await SeedGameAsync(mapWidth: 2, mapHeight: 2, numberOfPlayers: 2);
 
@@ -105,21 +100,31 @@ internal class StarterTechnologyTests : GameSqlServerTestBase
 
         int playerId = await verify.Players.Where(p => p.GameId == result.SuccessValue).Select(p => p.Id).FirstAsync();
 
+        // Derived from the catalogue's own edges, so this pins the reconcile's answer rather than carrying a second copy of which technologies are roots.
+        HashSet<int> rootIds = [.. await verify.Technologies
+            .Where(technology => !technology.Prerequisites.Any())
+            .Select(technology => technology.Id)
+            .ToListAsync()];
+
         List<PlayerTechnology> rows = await verify.PlayerTechnologies
             .Where(row => row.PlayerId == playerId)
             .ToListAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
-            Assert.That(rows.Any(row => row.Status == TechnologyStatus.Available), Is.True,
-                "the seeded tree has technologies with no prerequisites besides the starters, so some must be available");
+            Assert.That(rootIds, Is.Not.Empty, "a catalogue with no roots would leave the Player nothing to research");
 
-            Assert.That(rows.Any(row => row.Status == TechnologyStatus.Locked), Is.True,
-                "and most of the tree sits behind the starters");
+            Assert.That(
+                rows.Where(row => row.Status == TechnologyStatus.Available).Select(row => row.TechnologyId),
+                Is.EquivalentTo(rootIds));
+
+            Assert.That(
+                rows.Where(row => row.Status == TechnologyStatus.Locked).Select(row => row.TechnologyId),
+                Is.EquivalentTo(rows.Select(row => row.TechnologyId).Except(rootIds)));
 
             // Nothing is Unlocked at setup: unlocking means paying the acquisition cost, which no Player has had a turn to do.
-            Assert.That(rows.Any(row => row.Status == TechnologyStatus.Unlocked), Is.False);
-        });
+            Assert.That(rows.Where(row => row.Status == TechnologyStatus.Unlocked), Is.Empty);
+        }
     }
 
     [Test, Description("Every Player gets a research state row, so no reader has to branch on its absence.")]
@@ -136,13 +141,13 @@ internal class StarterTechnologyTests : GameSqlServerTestBase
             .Where(state => state.GameId == result.SuccessValue)
             .ToListAsync();
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(states, Has.Count.EqualTo(3));
             Assert.That(states.All(state => state.CurrentTechnologyId is null), Is.True, "nothing is being researched until a Player chooses");
             Assert.That(states.All(state => state.UnspentDirectedPoints == 0), Is.True);
             Assert.That(states.All(state => state.LastResearchAppliedOnRound is null), Is.True);
-        });
+        }
     }
 
     [Test, Description("A game is created with a configuration row holding the technology settings, so no reader ever coalesces to a hard-coded default.")]
@@ -157,14 +162,14 @@ internal class StarterTechnologyTests : GameSqlServerTestBase
 
         GameConfiguration configuration = await verify.GameConfigurations.SingleAsync(c => c.GameId == result.SuccessValue);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(configuration.TechnologyCustomisation, Is.EqualTo(TechnologyCustomisation.Identical),
                 "the only implemented mode, and the only one a game may be created in");
 
             Assert.That(configuration.TechnologySpeedMultiplierPercent, Is.EqualTo(1_000), "100%, so the catalogue's figures come through unchanged");
             Assert.That(configuration.EmpireBaseResearchPoints, Is.GreaterThan(0));
-        });
+        }
     }
 
     [Test, Description("Under Identical customisation every Player faces the same requirements, which is the correct answer for the mode rather than a stand-in.")]
@@ -207,11 +212,11 @@ internal class StarterTechnologyTests : GameSqlServerTestBase
 
         ServiceResultBase.ServiceResult<int> result = await _service.SetupGameAsync(BuildRequest(numberOfPlayers: 2), CancellationToken.None);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.HasSucceeded, Is.False);
             Assert.That(string.Join("; ", result.Errors), Does.Contain("Technologies database seed"),
                 "the message has to say what to do about it, since an unseeded catalogue is the likely cause");
-        });
+        }
     }
 }

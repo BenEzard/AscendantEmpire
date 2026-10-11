@@ -255,20 +255,31 @@ stays **acyclic**, and that every grant target and cost Asset **resolves**.
 Two seed targets, `ExperienceTypes` and `Technologies`, the second depending on the first. Both run
 through the same upsert the Entity Setup Tool uses, so seeding and hand-editing cannot diverge.
 
-The technology catalogue is **generated from the Tech Map sheet of `AscendantEmpire_Files/Resources/Tech.xlsx`**
-by the scripts in [`tools/tech-seed/`](../../tools/tech-seed/README.md) — each box is a technology, each
-arrow a prerequisite, a dashed arrow an optional one. That README records what the diagram does not carry
-and what is assumed instead, and the generated file's own remarks repeat it.
+The technology catalogue lives in `TechnologySeedData.cs` and is **authored by hand** — that file is the
+source of truth, and nothing generates it. Its own remarks record the authoring conventions and what in it
+is still a placeholder.
+
+One of those placeholders shapes the start of every game. 45 technologies have no established
+prerequisites, so they are parented to a placeholder root called **`Broken`** to keep them out of reach;
+without it they would all be available for research from the first Round. `Broken` carries a deliberately
+unreachable research requirement, since the catalogue authors no acquisition costs and a cheap root with
+none would simply be researched. It is retired by giving each of its dependents real prerequisites and
+deleting the row.
+
+That leaves six technologies genuinely available to research at the start of a game: Primitive Crafting 1,
+Hunting, Fire-Making, Intensive Gathering, Language and Natural Exploration. Nothing is granted as already
+discovered — `GameSetupService.StarterTechnologyCodes` is deliberately empty.
 
 ## Open questions
 
 - Should capturing a technology reveal the *entire* tech, pay the full research cost, or just the
   majority (e.g. 80%)?
 - Should tech trading be allowed when the recipient is too far behind to understand it?
-- Which era does each technology belong to? The source diagram carries no era dimension, so everything is
-  currently `Stone`.
-- What should the research requirements actually be? They are currently derived from depth in the tree as
-  a placeholder.
-- Which technologies grant which Assets, components and templates? The diagram's annotations name things
-  that mostly do not exist in those catalogues yet, so they are carried as description text rather than as
-  grants.
+- Which prerequisites do the 45 technologies behind `Broken` actually have?
+- Which era does each technology belong to? Everything is currently `Stone`, which is wrong for the later
+  entries — Copper, Metallurgy, Writing, Banking and Brickworks among them.
+- What should the research requirements actually be? They are round placeholder numbers, not balanced
+  figures.
+- Which technologies grant which Assets, components and templates? The annotations carried in each
+  technology's description name things that mostly do not exist in those catalogues yet, so they are text
+  rather than grants.

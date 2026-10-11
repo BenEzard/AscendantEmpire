@@ -44,19 +44,14 @@ internal class GameSetupService(
     /// <summary>
     /// The Round the campaign Turn Queue is opened on when a Game is set up.
     /// </summary>
-    /// <remarks>
-    /// Shared by the Queue itself and by the movement stamp on the starting Units, because the two have to agree.
-    /// </remarks>
     private const int _FIRST_ROUND_NUMBER = 1;
 
     /// <summary>
-    /// The global template codes every player starts the game with — unlocked, and spawned once each at the
-    /// player's start position. Each must resolve to an unled organisation tag (see
-    /// <see cref="SeedStarterUnitsAsync"/>).
+    /// The global unit template codes every player starts the game with — unlocked, and spawned once each at the player's start position. 
     /// </summary>
     /// <remarks>
-    /// These are <b>hand-authored catalogue content</b>, not seeded: game setup reads them and fails if they
-    /// are absent. See <c>docs/design/units/military-organisation-implementation-notes.md</c>.
+    /// Each must resolve to an unled organisation tag (see <see cref="SeedStarterUnitsAsync"/>).
+    /// These are <b>hand-authored catalogue content</b>, not seeded: game setup reads them and fails if they are absent. See <c>docs/design/units/military-organisation-implementation-notes.md</c>.
     /// </remarks>
     public static readonly string[] StarterTemplateCodes = ["SETTLER", "SCOUT"];
 
@@ -106,21 +101,18 @@ internal class GameSetupService(
     /// </summary>
     /// <remarks>
     /// <para>
-    /// These are <b>seeded catalogue content</b>, like <see cref="StarterAssetCodes"/>: they come from <c>TechnologySeedData</c>, so a game set up before the
-    /// Technologies seed has run finds none of them and fails rather than starting a Player with a tech tree they can never enter.
+    /// <b>Deliberately empty.</b> Nothing is granted Discovered at setup: a Player starts the game having researched nothing, and what they may research first
+    /// is decided by the prerequisite graph instead. The catalogue's roots - the technologies with no prerequisite - come out Available from the first Round,
+    /// which is the whole of what "starting technologies" means today.
     /// </para>
     /// <para>
-    /// Named explicitly rather than inferred from "has no prerequisites". The seeded tree has 51 technologies with no incoming edge, which is an artefact of
-    /// the source diagram rather than an intention - granting all of them would hand every Player most of the Stone age for nothing. These four are the roots
-    /// everything else descends from.
+    /// The guard in <c>SeedPlayerTechnologiesAsync</c> is kept even though an empty array can never trip it. These would be <b>seeded catalogue content</b>
+    /// like <see cref="StarterAssetCodes"/>, so the moment a code is put back here it has to resolve against <c>TechnologySeedData</c> - and a code that does
+    /// not must fail game creation loudly rather than quietly granting nothing.
     /// </para>
     /// </remarks>
     public static readonly string[] StarterTechnologyCodes =
     [
-        "Foraging",
-        "Woodcutting",
-        "Quarrying",
-        "Wayfinding"
     ];
 
     /// <summary>
@@ -435,8 +427,7 @@ internal class GameSetupService(
     }
 
     /// <summary>
-    /// Seeds every player's default officer rank ladders — one full ladder per seeded movement domain — from
-    /// the code-defined <see cref="MilitaryOrganisationDefaults"/>.
+    /// Seeds every player's default officer rank ladders — one full ladder per seeded movement domain — from the code-defined <see cref="MilitaryOrganisationDefaults"/>.
     /// </summary>
     /// <remarks>(The method is self-saving.)</remarks>
     private static async Task SeedPlayerMilitaryAsync(

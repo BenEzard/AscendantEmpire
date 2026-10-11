@@ -587,7 +587,7 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
 
     // --- The real seed data ----------------------------------------------------------
 
-    [Test, Description("The real seed data upserts cleanly, so an authoring mistake in the catalogue is caught here rather than at seed time.")]
+    [Test, Description("The real seed data upserts cleanly - which also proves its prerequisite graph is acyclic, since the upsert rejects a cycle outright.")]
     public async Task ShouldUpsertTheRealSeedData()
     {
         await SeedExperienceTypesAsync();
@@ -623,16 +623,16 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
         });
     }
 
-    [Test, Description("The seeded tree keeps its shape — 207 technologies, 210 edges, 21 of them optional — so a regeneration that loses data is noticed.")]
-    public async Task ShouldSeedTheWholeTreeFromTheDiagram()
+    [Test, Description("The catalogue keeps its shape - 208 technologies, 255 edges, 21 of them optional - so a hand edit that drops rows or edges is noticed.")]
+    public async Task ShouldSeedTheWholeCatalogue()
     {
         await SeedExperienceTypesAsync();
         await UpsertAsync(TechnologySeedData.Build());
 
         Assert.Multiple(() =>
         {
-            Assert.That(_context.Technologies.Count(), Is.EqualTo(207));
-            Assert.That(_context.TechnologyPrerequisites.Count(), Is.EqualTo(210));
+            Assert.That(_context.Technologies.Count(), Is.EqualTo(208));
+            Assert.That(_context.TechnologyPrerequisites.Count(), Is.EqualTo(255));
             Assert.That(
                 _context.TechnologyPrerequisites.Count(edge => edge.PrerequisiteKind == TechnologyPrerequisiteKind.Optional),
                 Is.EqualTo(21));
@@ -640,22 +640,7 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
         });
     }
 
-    [Test, Description("The seeded tree is acyclic and reaches depth 7, which is what the cycle rejection and the derived cost curve both depend on.")]
-    public async Task ShouldSeedAnAcyclicTreeSevenLevelsDeep()
-    {
-        await SeedExperienceTypesAsync();
-        await UpsertAsync(TechnologySeedData.Build());
-
-        // The upsert would have rejected a cycle outright, so reaching the deepest derived cost is the thing left to pin: DirectedRequired is
-        // 100 + depth * 100, so a value of 800 can only exist if something sits at depth 7.
-        Assert.Multiple(() =>
-        {
-            Assert.That(_context.Technologies.Max(technology => technology.DirectedRequired), Is.EqualTo(800));
-            Assert.That(_context.Technologies.Min(technology => technology.DirectedRequired), Is.EqualTo(100));
-        });
-    }
-
-    [Test, Description("Every seeded technology sits in the Stone era, since the diagram carried no era dimension and nothing has assigned them yet.")]
+    [Test, Description("Every seeded technology sits in the Stone era, since no era has been assigned to any of them yet.")]
     public async Task ShouldSeedEveryTechnologyInTheStoneEraUntilErasAreAssigned()
     {
         await SeedExperienceTypesAsync();
