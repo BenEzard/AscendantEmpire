@@ -18,17 +18,20 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 /// </para>
 /// <para>
 /// SortOrder is left unset throughout and derived from list position, so the order entries appear in here is the order they appear in game. The list is
-/// ordered by depth and then by name, which puts the roots first and writes a prerequisite before the technology that needs it; the upsert resolves
-/// prerequisites across the whole batch, so that ordering is a courtesy to readers rather than a requirement. Icon paths are left unset until artwork exists.
+/// ordered by depth and then by code, which puts the roots first and normally writes a prerequisite before the technology that needs it; the upsert resolves
+/// prerequisites across the whole batch, so that ordering is a courtesy to readers rather than a requirement, and a repair that leaves a technology at its
+/// original cost may legitimately point it at a prerequisite further down. Icon paths are left unset until artwork exists.
 /// </para>
 ///
 /// <para><b>What is still a placeholder:</b></para>
 /// <list type="bullet">
 ///   <item><description>
-///     <b><c>Broken</c>.</b> A placeholder root that 45 technologies hang off because nothing ever established what their real prerequisites are. Without it
+///     <b><c>Broken</c>.</b> A placeholder root that 44 technologies hang off because nothing ever established what their real prerequisites are. Without it
 ///     they would all be Available from the first Round, handing every Player most of the Stone age at once. It is retired by giving each of its dependents
 ///     real prerequisites and deleting the row. Its <c>DirectedRequired</c> is deliberately out of reach: it is a root, so it is Available from the start, and
-///     the catalogue authors no acquisition costs - a cheap root with none would simply be researched, unlocking all 45 at a stroke.
+///     the catalogue authors no acquisition costs - a cheap root with none would simply be researched, unlocking all 44 at a stroke.
+///     <b>Giving one of its dependents a real prerequisite replaces the <c>Broken</c> edge rather than joining it</b>, since a technology left behind both
+///     stays gated on a root nobody can research.
 ///   </description></item>
 ///   <item><description>
 ///     <b>Eras.</b> Everything is <c>TechnologyEra.Stone</c>, which is certainly wrong for the later entries: Copper, Metallurgy, Writing, Banking and
@@ -83,7 +86,7 @@ internal static class TechnologySeedData
                 DirectedRequired = 100,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "ForestFamiliarity" }
                 ]
             },
             new UpsertTechnologyDto
@@ -147,18 +150,6 @@ internal static class TechnologySeedData
             {
                 Code = "Ceremonies",
                 DisplayName = "Ceremonies",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "ClimateSkillPolar",
-                DisplayName = "Climate Skill - Polar",
-                Description = "(on 1st settlement)",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 100,
                 Prerequisites =
@@ -356,17 +347,6 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "LongResearch",
-                DisplayName = "Long Research",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
                 Code = "Metallurgy",
                 DisplayName = "Metallurgy",
                 Era = TechnologyEra.Stone,
@@ -504,17 +484,6 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "ShortResearch",
-                DisplayName = "Short Research",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
                 Code = "ShrunkenHeads",
                 DisplayName = "Shrunken Heads",
                 Era = TechnologyEra.Stone,
@@ -573,17 +542,6 @@ internal static class TechnologySeedData
             {
                 Code = "Temples",
                 DisplayName = "Temples",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "TerrainSkillCoastal",
-                DisplayName = "Terrain Skill - Coastal",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 100,
                 Prerequisites =
@@ -680,18 +638,6 @@ internal static class TechnologySeedData
                 Prerequisites =
                 [
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "PrimitiveCrafting1" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "ClimateExpertisePolar",
-                DisplayName = "Climate Expertise - Polar",
-                Description = "(on 3rd settlement)",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 200,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "ClimateSkillPolar" }
                 ]
             },
             new UpsertTechnologyDto
@@ -877,17 +823,6 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "TerrainMasteryCoastal",
-                DisplayName = "Terrain Mastery - Coastal",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 200,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "TerrainSkillCoastal" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
                 Code = "TerrainMasteryOcean",
                 DisplayName = "Terrain Mastery - Ocean",
                 Era = TechnologyEra.Stone,
@@ -994,18 +929,6 @@ internal static class TechnologySeedData
                 Prerequisites =
                 [
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "MineralsI" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "ClimateMasteryPolar",
-                DisplayName = "Climate Mastery - Polar",
-                Description = "(on 5th settlement)",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 300,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "ClimateExpertisePolar" }
                 ]
             },
             new UpsertTechnologyDto
@@ -1673,6 +1596,26 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
+                Code = "ForestFamiliarity",
+                DisplayName = "Forest Familiarity",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 400,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto
+                    {
+                        PrerequisiteTechnologyCode = "ClimateSkillModerate",
+                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
+                    },
+                    new UpsertTechnologyPrerequisiteDto
+                    {
+                        PrerequisiteTechnologyCode = "ClimateSkillSubtropical",
+                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
+                    }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
                 Code = "Furs",
                 DisplayName = "Furs",
                 Era = TechnologyEra.Stone,
@@ -2100,6 +2043,17 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
+                Code = "ForestNative",
+                DisplayName = "Forest Native",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 500,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "ForestFamiliarity" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
                 Code = "Herding",
                 DisplayName = "Herding",
                 Description = "+50% domestication birth rate",
@@ -2383,8 +2337,8 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "ClimateSkillCold",
-                DisplayName = "Climate Skill - Cold",
+                Code = "ClimateSkillPolar",
+                DisplayName = "Climate Skill - Polar",
                 Description = "(on 1st settlement)",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 600,
@@ -2442,6 +2396,17 @@ internal static class TechnologySeedData
                 [
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BowArrow" },
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "SmallGameHunting" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "ForestMastery",
+                DisplayName = "Forest Mastery",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 600,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "ForestNative" }
                 ]
             },
             new UpsertTechnologyDto
@@ -2536,14 +2501,26 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "ClimateExpertiseCold",
-                DisplayName = "Climate Expertise - Cold",
+                Code = "ClimateExpertisePolar",
+                DisplayName = "Climate Expertise - Polar",
                 Description = "(on 3rd settlement)",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 700,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "ClimateSkillCold" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "ClimateSkillPolar" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "CoastalFamiliarity",
+                DisplayName = "Coastal Familiarity",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 700,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "DugoutCanoe" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "HabitatFamiliarisation" }
                 ]
             },
             new UpsertTechnologyDto
@@ -2606,14 +2583,25 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "ClimateMasteryCold",
-                DisplayName = "Climate Mastery - Cold",
+                Code = "ClimateMasteryPolar",
+                DisplayName = "Climate Mastery - Polar",
                 Description = "(on 5th settlement)",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 800,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "ClimateExpertiseCold" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "ClimateExpertisePolar" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "CoastalNative",
+                DisplayName = "Coastal Native",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 800,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "CoastalFamiliarity" }
                 ]
             },
             new UpsertTechnologyDto
@@ -2625,6 +2613,17 @@ internal static class TechnologySeedData
                 Prerequisites =
                 [
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "LeatherTanning" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "CoastalMastery",
+                DisplayName = "Coastal Mastery",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 900,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "CoastalNative" }
                 ]
             }
         ];

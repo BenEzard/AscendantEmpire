@@ -3,7 +3,7 @@
 // permission by its entry point — and is intentionally separate from the game-side `unitdesign`
 // feature. The real functionality will be filled in later.
 import { useEffect, useMemo, useState } from "react";
-import { FaDatabase, FaMountain, FaPlus, FaTags, FaTree } from "react-icons/fa6";
+import { FaDatabase, FaMountain, FaPlus, FaSitemap, FaTags, FaTree } from "react-icons/fa6";
 import { HiArrowPath, HiMagnifyingGlass, HiXMark } from "react-icons/hi2";
 import { GiGearHammer } from "react-icons/gi";
 
@@ -29,6 +29,7 @@ import GeographyManagerDialog from "./GeographyManagerDialog";
 import TagSetupDialog from "./TagSetupDialog";
 import TagTypeSetupDialog from "./TagTypeSetupDialog";
 import SeedSelectionDialog from "./SeedSelectionDialog";
+import TechnologyTreeViewer from "./technologytree/TechnologyTreeViewer";
 import UnitDesigner from "@/features/unitdesign/UnitDesigner";
 
 // Which catalogue the left-hand search drawer is currently browsing (null = closed).
@@ -68,6 +69,10 @@ export default function EntitySetupTool() {
   // global/common catalogue template (developerMode) rather than a player-owned custom one, since this dev
   // tool never acquires a game/player token.
   const [showDesigner, setShowDesigner] = useState(false);
+
+  // Controls the full-screen Technology Tree overlay opened by the Technology group. Read-only, and read from
+  // the catalogue rather than from any game, so it needs no game/player token either.
+  const [showTechnologyTree, setShowTechnologyTree] = useState(false);
 
   // Controls the target-selection dialog opened by the Database group's "Seed" button.
   const [showSeedConfirm, setShowSeedConfirm] = useState(false);
@@ -368,6 +373,19 @@ export default function EntitySetupTool() {
         ],
       },
       {
+        caption: "Technology",
+        buttons: [
+          {
+            key: "open-technology-tree",
+            icon: <FaSitemap />,
+            tooltip: "Technology Tree",
+            // Opens the catalogue's prerequisite graph full-screen. Read-only — authoring the catalogue is the
+            // database seed's job, so there is nothing to save from here.
+            onClick: () => setShowTechnologyTree(true),
+          },
+        ],
+      },
+      {
         caption: "Map",
         buttons: [
           {
@@ -530,6 +548,14 @@ export default function EntitySetupTool() {
             onSaveSuccess={setTemplateSuccessMessage}
             onSaveError={setTemplateErrorMessage}
           />
+        </div>
+      )}
+
+      {/* Full-screen Technology Tree overlay, mounted the same way as the Unit Designer: a graph of a couple of
+          hundred boxes across eight columns needs the whole viewport, not a dialog. It self-loads the catalogue. */}
+      {showTechnologyTree && (
+        <div className="fixed inset-0 z-40 flex flex-col">
+          <TechnologyTreeViewer onClose={() => setShowTechnologyTree(false)} />
         </div>
       )}
 

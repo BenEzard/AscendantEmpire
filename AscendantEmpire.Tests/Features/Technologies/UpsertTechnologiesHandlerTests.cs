@@ -623,20 +623,31 @@ internal class UpsertTechnologiesHandlerTests : InMemoryTestBase
         });
     }
 
-    [Test, Description("The catalogue keeps its shape - 208 technologies, 255 edges, 21 of them optional - so a hand edit that drops rows or edges is noticed.")]
-    public async Task ShouldSeedTheWholeCatalogue()
+    [Test, Description("Every row the catalogue authors reaches the database, so an edge or an experience mapping silently dropped on the way in is noticed.")]
+    public async Task ShouldSeedEveryRowTheCatalogueAuthors()
     {
+        IReadOnlyCollection<UpsertTechnologyDto> catalogue = TechnologySeedData.Build();
+
         await SeedExperienceTypesAsync();
-        await UpsertAsync(TechnologySeedData.Build());
+        await UpsertAsync(catalogue);
+
+        // Counted off the payload rather than written in as literals: the catalogue is hand-edited often, and a figure pinned here would be stale within a
+        // repair or two. What is worth pinning is that nothing is lost between the authored rows and the stored ones.
+        int authoredEdges = catalogue.Sum(technology => technology.Prerequisites.Count);
+        int authoredOptionalEdges = catalogue.Sum(technology => technology.Prerequisites
+            .Count(prerequisite => prerequisite.PrerequisiteKind == TechnologyPrerequisiteKind.Optional));
+        int authoredExperienceSources = catalogue.Count(technology => technology.ExperienceTypeCodes.Count > 0);
 
         Assert.Multiple(() =>
         {
-            Assert.That(_context.Technologies.Count(), Is.EqualTo(208));
-            Assert.That(_context.TechnologyPrerequisites.Count(), Is.EqualTo(255));
+            Assert.That(_context.Technologies.Count(), Is.EqualTo(catalogue.Count));
+            Assert.That(_context.TechnologyPrerequisites.Count(), Is.EqualTo(authoredEdges));
             Assert.That(
                 _context.TechnologyPrerequisites.Count(edge => edge.PrerequisiteKind == TechnologyPrerequisiteKind.Optional),
-                Is.EqualTo(21));
-            Assert.That(_context.TechnologyExperienceTypes.Select(mapping => mapping.TechnologyId).Distinct().Count(), Is.EqualTo(27));
+                Is.EqualTo(authoredOptionalEdges));
+            Assert.That(
+                _context.TechnologyExperienceTypes.Select(mapping => mapping.TechnologyId).Distinct().Count(),
+                Is.EqualTo(authoredExperienceSources));
         });
     }
 
