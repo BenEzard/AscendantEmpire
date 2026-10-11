@@ -110,17 +110,11 @@ namespace AscendantEmpire.Api
             builder.Services.AddApplicationServices();
 
             // Strongly-typed options for the Application layer.
-            builder.Services.Configure<AscendantEmpire.Application.Options.ExportSettings>(
-                builder.Configuration.GetSection("ExportSettings"));
-
-            builder.Services.Configure<AscendantEmpire.Application.Options.ImportSettings>(
-                builder.Configuration.GetSection("ImportSettings"));
-
-            builder.Services.Configure<AscendantEmpire.Application.Options.MapGenerationSettings>(
-                builder.Configuration.GetSection("MapGenerationSettings"));
-
-            builder.Services.Configure<AscendantEmpire.Application.Options.BackgroundProcessingSettings>(
-                builder.Configuration.GetSection("BackgroundProcessingSettings"));
+            builder.Services.Configure<Application.Options.ExportSettings>(builder.Configuration.GetSection("ExportSettings"));
+            builder.Services.Configure<Application.Options.ImportSettings>(builder.Configuration.GetSection("ImportSettings"));
+            builder.Services.Configure<Application.Options.MapGenerationSettings>(builder.Configuration.GetSection("MapGenerationSettings"));
+            builder.Services.Configure<Application.Options.BackgroundProcessingSettings>(builder.Configuration.GetSection("BackgroundProcessingSettings"));
+            builder.Services.Configure<Application.Options.GameSettings>(builder.Configuration.GetSection("GameSettings"));
 
             // The base appsettings.json deliberately carries no connection string, so that no single machine's SQL Server becomes the silent fallback for
             // every environment. That only helps if a missing value is noticed: UseSqlServer accepts null and defers the failure to the first query, which

@@ -40,7 +40,9 @@ public partial class GameSetupServiceTests
             _campaignMapGalleryService,
             Substitute.For<IForceLifecycleWriter>(),
             [new IdenticalTechnologyRequirementGenerator()],
-            Substitute.For<IPlayerTechnologyAvailabilityService>());
+            Substitute.For<IPlayerTechnologyAvailabilityService>(),
+            TestGameSettings.Create()
+        );
     }
 
     /// <summary>
@@ -99,14 +101,14 @@ public partial class GameSetupServiceTests
     }
 
     /// <summary>
-    /// Tests that SetupGameAsync handles minimum number of players (2).
-    /// Input: Request with NumberOfPlayers = 2.
+    /// Tests that SetupGameAsync handles the minimum number of players.
+    /// Input: Request with NumberOfPlayers at the configured lower bound.
     /// Expected: Request is processed (validation at line 45 is the first check).
     /// </summary>
-    [Test, Description("The lower player-count bound is accepted, not rejected off-by-one; reads the constant so retuning cannot stale it.")]
+    [Test, Description("The lower player-count bound is accepted, not rejected off-by-one; reads the configured bound so retuning cannot stale it.")]
     public async Task SetupGameAsync_MinimumNumberOfPlayers_ProcessesRequest()
     {
-        SetupGameRequest request = new SetupGameRequest(GalleryMapId: 1, GameName: "Min Players Game", NumberOfPlayers: GameSetupService.MIN_NUMBER_OF_PLAYERS, BattleMapSize: 50, GenerationSeed: null);
+        SetupGameRequest request = new SetupGameRequest(GalleryMapId: 1, GameName: "Min Players Game", NumberOfPlayers: TestGameSettings.MINIMUM_PLAYERS_PER_GAME, BattleMapSize: 50, GenerationSeed: null);
         CampaignMapGalleryProperties mapProperties = new CampaignMapGalleryProperties
         {
             Id = 1,
@@ -131,14 +133,14 @@ public partial class GameSetupServiceTests
     }
 
     /// <summary>
-    /// Tests that SetupGameAsync handles maximum number of players (8).
-    /// Input: Request with NumberOfPlayers = 8.
+    /// Tests that SetupGameAsync handles the maximum number of players.
+    /// Input: Request with NumberOfPlayers at the configured upper bound.
     /// Expected: Request is processed (validation at line 45 is the first check).
     /// </summary>
     [Test, Description("The upper player-count bound, pinning the other end of the range the minimum test above covers.")]
     public async Task SetupGameAsync_MaximumNumberOfPlayers_ProcessesRequest()
     {
-        SetupGameRequest request = new SetupGameRequest(GalleryMapId: 1, GameName: "Max Players Game", NumberOfPlayers: GameSetupService.MAX_NUMBER_OF_PLAYERS, BattleMapSize: 50, GenerationSeed: null);
+        SetupGameRequest request = new SetupGameRequest(GalleryMapId: 1, GameName: "Max Players Game", NumberOfPlayers: TestGameSettings.MAXIMUM_PLAYERS_PER_GAME, BattleMapSize: 50, GenerationSeed: null);
         CampaignMapGalleryProperties mapProperties = new CampaignMapGalleryProperties
         {
             Id = 1,

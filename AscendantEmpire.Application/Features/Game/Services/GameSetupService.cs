@@ -23,6 +23,10 @@ using AscendantEmpire.Domain.Enums.UnitDesigns;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
+using AscendantEmpire.Application.Options;
+
+using Microsoft.Extensions.Options;
+
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 using DomainPlayer = AscendantEmpire.Domain.Entities.Games.Player;
@@ -35,12 +39,10 @@ internal class GameSetupService(
     ICampaignMapGalleryService campaignMapGalleryService,
     IForceLifecycleWriter forceLifecycleWriter,
     IEnumerable<ITechnologyRequirementGenerator> technologyRequirementGenerators,
-    IPlayerTechnologyAvailabilityService technologyAvailabilityService
+    IPlayerTechnologyAvailabilityService technologyAvailabilityService,
+    IOptions<GameSettings> gameSettings
 ) : IGameSetupService
 {
-    public const int MIN_NUMBER_OF_PLAYERS = 2; // TODO: Make this configurable as AppSettings.
-    public const int MAX_NUMBER_OF_PLAYERS = 8; // TODO: Make this configurable as AppSettings.
-
     /// <summary>
     /// The Round the campaign Turn Queue is opened on when a Game is set up.
     /// </summary>
@@ -59,8 +61,8 @@ internal class GameSetupService(
     /// The <c>assets.AssetMetaCategory</c> codes every Player starts the game with unlocked, and so which icons their Assets toolbar group shows.
     /// </summary>
     /// <remarks>
-    /// All three, so every icon is present from the first Round. Which Assets sit under each one is <see cref="StarterAssetCodes"/>; a meta-category with
-    /// nothing available under it still shows its icon over an empty panel.
+    /// All three, so every icon is present from the first Round. Which Assets sit under each one is <see cref="StarterAssetCodes"/>; 
+    /// a meta-category with nothing available under it still shows its icon over an empty panel.
     /// </remarks>
     public static readonly string[] StarterAssetMetaCategoryCodes = ["ConstructionMaterials", "Weapons", "RawMaterials"];
 
@@ -115,18 +117,6 @@ internal class GameSetupService(
     [
     ];
 
-    /// <summary>
-    /// The technology settings a new game is created with.
-    /// </summary>
-    /// <remarks>
-    /// Defaults in code rather than fields on <see cref="SetupGameRequest"/>: no screen offers these yet, and a setting nobody can choose is better defaulted
-    /// in one visible place than threaded through a request, a validator and a form that all ignore it. Exposing them is a later change, and the only one that
-    /// has to happen before a randomised customisation mode could ever be selected.
-    /// </remarks>
-    private const int _DEFAULT_BASE_RESEARCH_POINTS = 100;
-    private const long _DEFAULT_TECHNOLOGY_SPEED_MULTIPLIER_PERCENT = 1_000;
-    private const long _DEFAULT_TECHNOLOGY_FUZZINESS_PERCENT = 0;
-
     /// <inheritdoc/>
     public async Task<ServiceResult<int>> SetupGameAsync(SetupGameRequest request, CancellationToken cancellationToken = default)
     {
@@ -159,8 +149,8 @@ internal class GameSetupService(
             // structures are created on demand when a player first customises a tag, so nothing is seeded here.
             await SeedPlayerMilitaryAsync(context, addedPlayers, cancellationToken);
 
-            // Each player's own technology requirements, their starting discoveries, and their research state. Done before the map so a missing technology
-            // catalogue fails setup early rather than after the expensive map generation.
+            // Each player's own technology requirements, their starting discoveries, and their research state.
+            // Done before the map so a missing technology catalogue fails setup early rather than after the expensive map generation.
             ServiceResultBase technologyResult = await SeedPlayerTechnologyAsync(context, newGameIndex, addedPlayers, cancellationToken);
 
             if (technologyResult.HasSucceeded == false)
@@ -344,7 +334,8 @@ internal class GameSetupService(
                 cancellationToken);
     }
 
-    private static async Task<GameIndex> AddGameIndexAsync(
+    // Not static: the GameConfiguration row it writes alongside the GameIndex is seeded from the configured technology settings.
+    private async Task<GameIndex> AddGameIndexAsync(
         AscendantEmpireContext context,
         SetupGameRequest request,
         CampaignMapGalleryProperties mapProperties,
@@ -374,12 +365,17 @@ internal class GameSetupService(
 
         // Unconditionally, in the same setup rather than on first read: a lazily created settings row would mean every reader coalescing to a hard-coded
         // default, and two games created a week apart behaving differently with nothing in the data to explain why.
+        //
+        // The configured values are copied onto the row rather than read back from settings later, for the same reason: retuning the defaults must not
+        // silently change the rules of a game that is already under way.
+        TechnologySettings technologySettings = gameSettings.Value.TechnologySettings;
+
         context.GameConfigurations.Add(new GameConfiguration
         {
             GameId = newGame.Id,
-            EmpireBaseResearchPoints = _DEFAULT_BASE_RESEARCH_POINTS,
-            TechnologySpeedMultiplierPercent = _DEFAULT_TECHNOLOGY_SPEED_MULTIPLIER_PERCENT,
-            TechnologyFuzzinessPercent = _DEFAULT_TECHNOLOGY_FUZZINESS_PERCENT,
+            EmpireBaseResearchPoints = technologySettings.BaseResearchPoints,
+            TechnologySpeedMultiplierPercent = technologySettings.TechnologySpeedMultiplierPercent,
+            TechnologyFuzzinessPercent = technologySettings.TechnologyFuzzinessPercent,
             TechnologyCustomisation = TechnologyCustomisation.Identical,
             ResearchOverflowEnabled = false,
             UnspentResearchPointsBehaviour = UnspentResearchPointsBehaviour.Lost
@@ -562,19 +558,16 @@ internal class GameSetupService(
     }
 
     /// <summary>
-    /// Unlocks the starter templates (and their components) for every player, then spawns each player's
-    /// starting units — one of each starter template — at the map's authored start positions.
+    /// Unlocks the starter templates (and their components) for every player, then spawns each player's starting units — one of each starter template — at the map's authored start positions.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Starter templates are hand-authored global templates identified by <see cref="StarterTemplateCodes"/>;
-    /// nothing creates them, so this reads the catalogue as it finds it. Each must be unled (its compiled
-    /// organisation tag declares <c>LeadershipModel.Unled</c>) because the unit's starting size is the tag's
-    /// authored <c>UnledDefaultSize</c> — a commissioned template has no equivalent single default.
+    /// Starter templates are hand-authored global templates identified by <see cref="StarterTemplateCodes"/>; nothing creates them, so this reads the catalogue as it finds it. 
+    /// Each must be unled (its compiled organisation tag declares <c>LeadershipModel.Unled</c>) because the unit's starting size is the tag's authored <c>UnledDefaultSize</c> 
+    /// — a commissioned template has no equivalent single default.
     /// </para>
     /// <para>
-    /// A missing template, missing snapshot, non-unled organisation, or missing start position fails game
-    /// setup loudly rather than starting a game with no units. (The method is self-saving.)
+    /// A missing template, missing snapshot, non-unled organisation, or missing start position fails game setup loudly rather than starting a game with no units. (The method is self-saving.)
     /// </para>
     /// </remarks>
     private async Task<ServiceResultBase> SeedStarterUnitsAsync(
@@ -977,40 +970,4 @@ internal class GameSetupService(
         "Imperatrix",
         "System Lady"
     ];
-
-    private static string[] GetNonGenderSpecificRulerTitles() =>
-    [
-        "Sovereign",
-        "High Sovereign",
-        "Monarch",
-        "Ruler",
-        "Regent",
-        "Pharaoh",
-        "Chieftain",
-        "High Chieftain",
-        "Warlord",
-        "Supreme Commander",
-        "Grand Marshal",
-        "First Citizen",
-        "Archon",
-        "High Executor",
-        "Planetary Governor",
-        "Oracle-Ruler",
-        "High Arbiter",
-        "Dominion Speaker",
-        "Thronekeeper"
-    ];
-
-    public static string[] GetRulerTitles() =>
-        GetMaleRulerTitles()
-        .Concat(GetFemaleRulerTitles())
-        .Concat(GetNonGenderSpecificRulerTitles())
-        .ToArray();
-
-    private static string GetRandomRulerTitle(Random? rng = null)
-    {
-        rng ??= Random.Shared;
-        string[] titles = GetRulerTitles();
-        return titles[rng.Next(titles.Length)];
-    }
 }

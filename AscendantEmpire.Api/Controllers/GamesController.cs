@@ -6,10 +6,12 @@ using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.BackendContracts.Games.AddGame;
 using AscendantEmpire.BackendContracts.Games.GetGames;
 using AscendantEmpire.BackendContracts.Games.GetMyGames;
+using AscendantEmpire.BackendContracts.Games.GetNewGameSettings;
 using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Games.GetGames;
 using AscendantEmpire.FrontendContracts.Games.GetMyGames;
+using AscendantEmpire.FrontendContracts.Games.Settings;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -91,6 +93,49 @@ public class GamesController : ControllerBase
                 CurrentTurnRulerLabel = g.CurrentTurnRulerLabel,
                 IsYourTurn = g.IsYourTurn,
             }).ToList() ?? []
+        });
+    }
+
+    /// <summary>
+    /// Get the settings which should be used when creating a new game
+    /// </summary>
+    /// <remarks>
+    /// </remarks>
+    /// <response code="200">The settings that must be used to create a new game.</response>
+    /// <response code="401">Missing or invalid token</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [Authorize]
+    [HttpGet("settings")]
+    [ProducesResponseType(typeof(INewGameSettings), 200)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetGameSettingsAsync([FromServices] IMediator mediator, CancellationToken cancelToken)
+    {
+        // The user id comes from the proven token, never the request.
+        int? userId = User.GetUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        ServiceResult<NewGameSettings> response = await mediator.Send(new GetNewGameSettingsRequest(), cancelToken);
+
+        return response.ToActionResult(contract => new DTNewGameSettings
+        {
+            MinimumPlayersPerGame = response.SuccessValue?.MinimumPlayersPerGame ?? 0,
+            MaximumPlayersPerGame = response.SuccessValue?.MaximumPlayersPerGame ?? 0,
+            BattleMapSettings = new DTBattleMapSettings
+            {
+                MinimumBattleMapSize = response.SuccessValue?.MinimumBattleMapSize ?? 0,
+                MaximumBattleMapSize = response.SuccessValue?.MaximumBattleMapSize ?? 0,
+                DefaultBattleMapSize = response.SuccessValue?.DefaultBattleMapSize ?? 0
+            },
+            TechnologySettings = new DTTechnologySettings
+            {
+                BaseResearchPoints = response.SuccessValue?.BaseResearchPoints ?? 0,
+                TechnologySpeedMultiplierPercent = response.SuccessValue?.TechnologySpeedMultiplierPercent ?? 0,
+                TechnologyFuzzinessPercent = response.SuccessValue?.TechnologyFuzzinessPercent ?? 0
+            }
         });
     }
 

@@ -139,6 +139,7 @@ public sealed class EndpointAuthorizationTests
         "GET /campaign-map/player/tiles/support",
 
         "GET /games/mine",
+        "GET /games/settings",
         "GET /match-making/games",
         "GET /match-making/games/{gameId}/my-player",
 

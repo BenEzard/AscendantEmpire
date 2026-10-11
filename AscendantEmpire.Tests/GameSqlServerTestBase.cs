@@ -93,7 +93,8 @@ public class GameSqlServerTestBase : SqlServerTestBase
             _mapGalleryService,
             forceLifecycleWriter,
             requirementGenerators,
-            new PlayerTechnologyAvailabilityService(NullLogger<PlayerTechnologyAvailabilityService>.Instance));
+            new PlayerTechnologyAvailabilityService(NullLogger<PlayerTechnologyAvailabilityService>.Instance),
+            TestGameSettings.Create());
     }
 
     /// <summary>

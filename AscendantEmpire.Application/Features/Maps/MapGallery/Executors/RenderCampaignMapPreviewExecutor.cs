@@ -20,9 +20,8 @@ namespace AscendantEmpire.Application.Features.Maps.MapGallery.Executors;
 /// Executes <see cref="ProcessType.RenderCampaignMapPreview"/> jobs.
 /// </summary>
 /// <remarks>
-/// Reloads a campaign map's tiles from the database (using only the index id carried in the job's <c>MetadataJson</c>),
-/// rebuilds the geography/biome arrays, renders the preview PNGs via <see cref="MapPreviewRenderer"/>, and writes the
-/// resulting file paths back onto the <see cref="CampaignMapGalleryIndex"/>.
+/// Reloads a campaign map's tiles from the database (using only the index id carried in the job's <c>MetadataJson</c>), rebuilds the geography/biome arrays, 
+/// renders the preview PNGs via <see cref="MapPreviewRenderer"/>, and writes the resulting file paths back onto the <see cref="CampaignMapGalleryIndex"/>.
 /// </remarks>
 internal sealed class RenderCampaignMapPreviewExecutor(
     AscendantEmpireContext context,

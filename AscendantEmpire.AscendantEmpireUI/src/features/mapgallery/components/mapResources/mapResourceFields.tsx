@@ -131,58 +131,6 @@ export function PercentSlider({
   );
 }
 
-/**
- * A whole number dragged on a slider, for the full-width label/control rows.
- * <remarks>
- * Like PercentSlider, a dragged knob has no empty state: it reads a null as `min` and always writes a number back. So this belongs only on a
- * field that is always set — one the server insists on, or one a kind switch defaults — and a field where "not set" is a distinct choice stays
- * a WholeNumberInput.
- *
- * The caller gives the bounds, because they are the field's own rule rather than anything general: the knob cannot leave them, which is the
- * point of choosing a slider over a box for a value with a small, known range.
- * </remarks>
- */
-export function WholeNumberSlider({
-  value,
-  onChange,
-  min,
-  max,
-  disabled,
-  ariaLabel,
-  unitLabel,
-}: {
-  value: number | null;
-  onChange: (value: number) => void;
-  min: number;
-  max: number;
-  disabled?: boolean;
-  ariaLabel?: string;
-  /** Appended to the readout, e.g. "Rounds". Singular/plural is the caller's business; omit it for a bare number. */
-  unitLabel?: string;
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <input
-        type="range"
-        step={1}
-        min={min}
-        max={max}
-        className="w-full disabled:opacity-50"
-        value={value ?? min}
-        aria-label={ariaLabel}
-        disabled={disabled}
-        onChange={(e) => onChange(Number(e.target.value))}
-      />
-      {/* Fixed width so the track does not shift as the number gains or loses a digit while being dragged — the same reason PercentSlider pins
-          its readout. Wide enough for the longest unit label the page uses. */}
-      <span className={`w-20 shrink-0 text-right text-sm tabular-nums ${disabled ? "text-slate-400" : "text-slate-700"}`}>
-        {value ?? min}
-        {unitLabel ? ` ${unitLabel}` : ""}
-      </span>
-    </div>
-  );
-}
-
 /** A labelled checkbox, laid out like the Biome Manager's. */
 export function CheckboxRow({
   label,

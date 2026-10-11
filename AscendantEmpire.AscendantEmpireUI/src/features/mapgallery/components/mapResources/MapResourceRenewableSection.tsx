@@ -1,6 +1,6 @@
-import { FieldRow } from "@/components/ui";
+import { FieldRow, WholeNumberSlider } from "@/components/ui";
 import type { MapResourceType } from "@/types/map/MapResource";
-import { PercentSlider, WholeNumberSlider } from "./mapResourceFields";
+import { PercentSlider } from "./mapResourceFields";
 
 // Survival Rounds is dragged rather than typed: the useful range is small and known, and the server now takes anything from 0 up, so a slider
 // cannot produce a value a save would refuse. 20 Rounds is well past anything the design calls for and keeps the knob's steps readable.
