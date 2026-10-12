@@ -20,7 +20,7 @@ export interface NotificationLocation {
 }
 
 export type NotificationItemAction =
-  | { kind: "open-dialog"; dialog: "unit-orders" | "trade" | "city"; payload?: unknown }
+  | { kind: "open-dialog"; dialog: "unit-orders" | "trade" | "city" | "research"; payload?: unknown }
   | { kind: "none" };
 
 export interface NotificationItem {

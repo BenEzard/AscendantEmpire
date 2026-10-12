@@ -91,8 +91,8 @@ internal class GetExperienceTypesHandlerTests : InMemoryTestBase
 
     private async Task<IReadOnlyCollection<ExperienceTypeDetail>> GetAsync()
     {
-        ServiceResult<IReadOnlyCollection<ExperienceTypeDetail>> result =
-            await _handler.Handle(new GetExperienceTypesRequest(), CancellationToken.None);
+        ServiceResult<IReadOnlyCollection<ExperienceTypeDetail>> result = await _handler.Handle(new GetExperienceTypesRequest(), 
+            CancellationToken.None);
 
         Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
 

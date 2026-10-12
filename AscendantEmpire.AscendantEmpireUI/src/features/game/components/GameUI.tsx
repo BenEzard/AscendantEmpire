@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Spinner } from "@/components/ui";
 import UnitDesigner from "@/features/unitdesign/UnitDesigner";
 import MilitaryAdvisorDialog from "@/features/game/advisors/military/MilitaryAdvisorDialog";
+import ScienceAdvisorDialog from "@/features/game/advisors/science/ScienceAdvisorDialog";
 import BattleDialog from "./BattleDialog";
 import OpenGameDialog from "./OpenGameDialog";
 import VisionSettingsOffcanvas from "./VisionSettingsOffcanvas";
@@ -68,6 +69,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [notificationPanelOpen, setNotificationPanelOpen] = useState(false);
   const [showMilitaryAdvisor, setShowMilitaryAdvisor] = useState(false);
+  const [showScienceAdvisor, setShowScienceAdvisor] = useState(false);
 
   // Set once the player has been shown what they have outstanding, so the next press of End Turn ends the turn regardless. Disarmed again whenever
   // the turn ends or the player moves a force, because either makes the list they were shown out of date.
@@ -398,7 +400,18 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   }, []);
 
   const openNotificationDialog = useCallback(
-    (dialog: "unit-orders" | "trade" | "city") => {
+    (dialog: "unit-orders" | "trade" | "city" | "research") => {
+      // Research is the first of these with somewhere to go. The rest still toast, because the screens they would open
+      // do not exist yet.
+      //
+      // Opened rather than toggled: the notification is a request to see the advisor, and a toggle would close it again
+      // for a player who already had it up. The setter goes straight in rather than through the toggle callbacks below,
+      // which are declared after this one.
+      if (dialog === "research") {
+        setShowScienceAdvisor(true);
+        return;
+      }
+
       openToast(`Open dialog: ${dialog}`, "info");
     },
     [openToast],
@@ -426,14 +439,17 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const toggleUnitDesign = useCallback(() => setActivePanel((p) => (p === "unit-design" ? null : "unit-design")), []);
   const toggleMilitaryAdvisor = useCallback(() => setShowMilitaryAdvisor((shown) => !shown), []);
   const closeMilitaryAdvisor = useCallback(() => setShowMilitaryAdvisor(false), []);
+  const toggleScienceAdvisor = useCallback(() => setShowScienceAdvisor((shown) => !shown), []);
+  const closeScienceAdvisor = useCallback(() => setShowScienceAdvisor(false), []);
 
-  // Dismiss the Military Advisor and the end-turn prompt when the game closes — their toolbar buttons
+  // Dismiss the advisors and the end-turn prompt when the game closes — their toolbar buttons
   // are disabled without an open game, so an already-open dialog would otherwise be left showing stale,
   // unreopenable state. Watching `gameSelection` rather than hooking `closeGame` covers any future path
   // that clears it.
   useEffect(() => {
     if (gameSelection == null) {
       setShowMilitaryAdvisor(false);
+      setShowScienceAdvisor(false);
       // The panel empties on its own — its query is disabled without a game — so only the arming needs clearing here.
       setEndTurnArmed(false);
       // Coordinates from one game mean nothing in the next, whose map may not even be the same size.
@@ -492,6 +508,8 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     onEndTurn,
     militaryAdvisorActive: showMilitaryAdvisor,
     onToggleMilitaryAdvisor: toggleMilitaryAdvisor,
+    scienceAdvisorActive: showScienceAdvisor,
+    onToggleScienceAdvisor: toggleScienceAdvisor,
     // Remove in F-18.
     onEndTurnAndSwitchPlayer: endTurnAndSwitchPlayer,
     onEndRoundAndReturnToPlayer: endRoundAndReturnToPlayer,
@@ -613,6 +631,9 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
         />
 
         <MilitaryAdvisorDialog show={showMilitaryAdvisor} onClose={closeMilitaryAdvisor} />
+
+        {/* The ids only scope the research query's cache; the request itself takes the game and player from the game token. */}
+        <ScienceAdvisorDialog show={showScienceAdvisor} onClose={closeScienceAdvisor} gameId={gameId ?? undefined} playerId={playerId ?? undefined} />
 
         {/* Opened from a force's Battle button on the context action toolbar. */}
         <BattleDialog show={battleDialogForceId != null} forceId={battleDialogForceId} onClose={closeBattleDialog} />

@@ -65,7 +65,7 @@ public class TurnPipelineExecutionOrderTests
         [new AlertSentries(), new CheckUnitSupply(), new ReplenishMovementPoints(_dbFactory, NullLogger<ReplenishMovementPoints>.Instance)];
 
     private IPossibleActionCheck[] PossibleActionChecks() =>
-        [new CampaignRemainingMovementCheck(_dbFactory), new BattleRemainingMovementCheck(_dbFactory), new ResearchSelectionCheck(), new TradeExpiryCheck()];
+        [new CampaignRemainingMovementCheck(_dbFactory), new BattleRemainingMovementCheck(_dbFactory), new ResearchSelectionCheck(_dbFactory), new TradeExpiryCheck()];
 
     /// <summary>Sorts a pipeline the way <c>TurnServicePipeline</c> does, and returns the names in the order they would run.</summary>
     private static string[] RunOrderOf(IPipelineProcess[] processes) => [.. processes.OrderBy(p => p.ExecutionOrder).Select(p => p.ItemName)];

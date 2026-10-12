@@ -7,7 +7,7 @@ import NotificationPanel from "./components/NotificationPanel";
 export interface NotificationsHostProps {
   toolbarBottomPx: number;
   onPanTo: (x: number, y: number) => void;
-  onOpenDialog: (dialog: "unit-orders" | "trade" | "city", payload?: unknown) => void;
+  onOpenDialog: (dialog: "unit-orders" | "trade" | "city" | "research", payload?: unknown) => void;
   onPanelOpenChange?: (open: boolean) => void;
 }
 

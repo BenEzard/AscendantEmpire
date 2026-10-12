@@ -132,7 +132,7 @@ describe("acquisition cost", () => {
 
   it("lists each Asset and how much of it is needed", () => {
     const catalogue = mixedCatalogue();
-    const withCost = tech(4, { acquisitionCosts: [{ assetId: 1, assetCode: "timber", assetDisplayName: "Timber", quantity: 2500 }] });
+    const withCost = tech(4, { acquisitionCosts: [{ assetId: 1, assetCode: "timber", assetDisplayName: "Timber", assetIconPath: "", quantity: 2500 }] });
 
     renderPanel({ technology: withCost, node: nodeFor(catalogue, 4) });
 

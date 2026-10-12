@@ -1,14 +1,16 @@
-using AscendantEmpire.Api.Utilities;
+﻿using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Features.Technologies.Classes;
 using AscendantEmpire.Application.Features.Technologies.Handlers;
 using AscendantEmpire.BackendContracts.Technologies;
 using AscendantEmpire.BackendContracts.Technologies.GetExperienceTypes;
+using AscendantEmpire.BackendContracts.Technologies.GetPlayerResearch;
 using AscendantEmpire.BackendContracts.Technologies.GetTechnologies;
 using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Technologies.GetExperienceTypes;
+using AscendantEmpire.FrontendContracts.Technologies.GetPlayerResearch;
 using AscendantEmpire.FrontendContracts.Technologies.GetTechnologies;
 
 using Microsoft.AspNetCore.Authorization;
@@ -19,7 +21,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Api.Controllers;
 
 /// <summary>
-/// The technology catalogue and, in time, a Player's progress through it.
+/// The technology catalogue and a Player's progress through it.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -27,15 +29,15 @@ namespace AscendantEmpire.Api.Controllers;
 /// catalogue, which exists only to feed technologies and so sits as a nested resource rather than claiming a prefix of its own.
 /// </para>
 /// <para>
-/// Only the catalogue writes exist so far. The per-Player reads and the research-project selection wait on the handlers behind them, and will be added here
-/// under a banner comment rather than in a second controller.
+/// The catalogue endpoints are player-independent and take nothing from the caller. The per-Player research endpoints read the game and player from the
+/// caller's game token, never from the body or query string, so a client cannot ask about somebody else's research.
 /// </para>
 /// </remarks>
 [ApiController]
 [Route("[controller]")]
 public class TechnologyController : ControllerBase
 {
-    // --- Catalogue: technologies -----------------------------------------------------
+    #region Catalogue
 
     /// <summary>
     /// Get the whole technology catalogue, with each technology's costs, prerequisites, grants and experience sources.
@@ -75,6 +77,7 @@ public class TechnologyController : ControllerBase
                     AssetId = cost.AssetId,
                     AssetCode = cost.AssetCode,
                     AssetDisplayName = cost.AssetDisplayName,
+                    AssetIconPath = cost.AssetIconPath,
                     Quantity = cost.Quantity
                 })],
                 Prerequisites = [.. technology.Prerequisites.Select(prerequisite => new DTCataloguePrerequisite
@@ -128,7 +131,8 @@ public class TechnologyController : ControllerBase
         return response.ToActionResult();
     }
 
-    // --- Catalogue: experience types --------------------------------------------------
+    #endregion
+    #region Catalogue: experience types
 
     /// <summary>
     /// Get every kind of experience an action can earn, in display order.
@@ -185,4 +189,119 @@ public class TechnologyController : ControllerBase
 
         return response.ToActionResult();
     }
+
+    #endregion
+    #region Per-player research
+
+    /// <summary>
+    /// Get the calling Player's research position: their current project, their banked points, and every technology they could research now.
+    /// </summary>
+    /// <remarks>
+    /// Only technologies at Available or Unlocked come back. Locked is excluded because its prerequisites are unmet and Discovered because there is nothing
+    /// left to research, so the list is exactly what the Player can choose between. The requirement figures are this Player's own, not the catalogue's, and
+    /// an unused bucket is null rather than zero.
+    /// </remarks>
+    /// <response code="200">The Player's research position</response>
+    /// <response code="403">No game entered — call /auth/enter-game first</response>
+    /// <response code="404">The Player has no research state, or the Game has no campaign turn queue</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpGet("research")]
+    [ProducesResponseType(typeof(IPlayerResearchOverview), 200)]
+    [ProducesResponseType(403)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetPlayerResearchAsync([FromServices] IMediator mediator, CancellationToken cancelToken)
+    {
+        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
+        {
+            return contextError!;
+        }
+
+        ServiceResult<PlayerResearchOverview> response = await mediator.Send(new GetPlayerResearchRequest(gameId, playerId), cancelToken);
+
+        return response.ToActionResult(contract => new DTPlayerResearchOverview
+        {
+            CurrentTechnologyId = contract.CurrentTechnologyId,
+            CurrentTechnologyDisplayName = contract.CurrentTechnologyDisplayName,
+            NextTechnologyId = contract.NextTechnologyId,
+            NextTechnologyDisplayName = contract.NextTechnologyDisplayName,
+            UnspentDirectedPoints = contract.UnspentDirectedPoints,
+            UnspentDiffusionPoints = contract.UnspentDiffusionPoints,
+            CurrentRoundNumber = contract.CurrentRoundNumber,
+            Researchable = [.. contract.Researchable.Select(technology => new DTResearchableTechnology
+            {
+                TechnologyId = technology.TechnologyId,
+                Code = technology.Code,
+                DisplayName = technology.DisplayName,
+                Description = technology.Description,
+                IconPath = technology.IconPath,
+                Era = technology.Era,
+                Status = technology.Status,
+                DirectedRequired = technology.DirectedRequired,
+                ExperienceRequired = technology.ExperienceRequired,
+                DiffusionRequired = technology.DiffusionRequired,
+                DirectedPoints = technology.DirectedPoints,
+                ExperiencePoints = technology.ExperiencePoints,
+                DiffusionPoints = technology.DiffusionPoints,
+                AcquisitionCosts = [.. technology.AcquisitionCosts.Select(cost => new DTCatalogueAcquisitionCost
+                {
+                    AssetId = cost.AssetId,
+                    AssetCode = cost.AssetCode,
+                    AssetDisplayName = cost.AssetDisplayName,
+                    AssetIconPath = cost.AssetIconPath,
+                    Quantity = cost.Quantity
+                })],
+                Grants = [.. technology.Grants.Select(grant => new DTCatalogueGrant
+                {
+                    TargetType = grant.TargetType,
+                    TargetId = grant.TargetId,
+                    TargetCode = grant.TargetCode,
+                    TargetDisplayName = grant.TargetDisplayName,
+                    GrantEffect = grant.GrantEffect
+                })],
+                ExperienceSources = [.. technology.ExperienceSources.Select(source => new DTCatalogueExperienceSource
+                {
+                    ExperienceTypeId = source.ExperienceTypeId,
+                    ExperienceTypeCode = source.ExperienceTypeCode,
+                    ExperienceTypeDisplayName = source.ExperienceTypeDisplayName
+                })],
+                IsCurrentProject = technology.IsCurrentProject
+            })]
+        });
+    }
+
+    /// <summary>
+    /// Point the calling Player's directed research at a technology, or clear it by sending no technology id.
+    /// </summary>
+    /// <remarks>
+    /// Choosing an Available technology settles its acquisition cost and unlocks it in the same call, because directed research cannot begin until the cost
+    /// is paid and the catalogue authors none. A technology that does carry a cost is refused: nothing spends from a Player's Asset stockpile yet, so the
+    /// cost could only be waived rather than paid.
+    /// </remarks>
+    /// <response code="200">The research project was set or cleared</response>
+    /// <response code="400">The technology is Locked, already Discovered, or carries an acquisition cost that cannot be paid</response>
+    /// <response code="403">No game entered — call /auth/enter-game first</response>
+    /// <response code="404">The Player has no row for that technology, or no research state</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpPut("research-project")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(403)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> SetPlayerResearchProjectAsync(
+        [FromServices] IMediator mediator,
+        [FromBody] SetResearchProjectDto project,
+        CancellationToken cancelToken)
+    {
+        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
+        {
+            return contextError!;
+        }
+
+        ServiceResultBase response = await mediator.Send(new SetResearchProjectRequest(gameId, playerId, project.TechnologyId), cancelToken);
+
+        return response.ToActionResult();
+    }
+    #endregion
 }

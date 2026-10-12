@@ -1,7 +1,7 @@
 ﻿import { useMemo } from "react";
 import { FaChessKnight, FaPersonWalkingArrowRight, FaRegFolderOpen } from "react-icons/fa6";
 import { GoEye, GoEyeClosed } from "react-icons/go";
-import { GiRank3 } from "react-icons/gi";
+import { GiMicroscope, GiRank3 } from "react-icons/gi";
 import { GrCaretNext, GrPowerCycle } from "react-icons/gr";
 import { SlClose } from "react-icons/sl";
 import { VscNewFile } from "react-icons/vsc";
@@ -30,6 +30,8 @@ interface UseGameToolbarArgs {
   onEndTurn: () => void;
   militaryAdvisorActive: boolean;
   onToggleMilitaryAdvisor: () => void;
+  scienceAdvisorActive: boolean;
+  onToggleScienceAdvisor: () => void;
   /** Remove in F-18. Ends this player's turn and continues as whoever plays next. */
   onEndTurnAndSwitchPlayer: () => void;
   /** Remove in F-18. Ends every turn until it is this player's turn again, and continues as them. */
@@ -65,6 +67,8 @@ export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
     onEndTurn,
     militaryAdvisorActive,
     onToggleMilitaryAdvisor,
+    scienceAdvisorActive,
+    onToggleScienceAdvisor,
     onEndTurnAndSwitchPlayer,
     onEndRoundAndReturnToPlayer,
     devSwitchInProgress,
@@ -189,6 +193,14 @@ export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
             active: militaryAdvisorActive,
             onClick: onToggleMilitaryAdvisor,
           },
+          {
+            key: "science-advisor",
+            icon: <GiMicroscope />,
+            tooltip: "Science Advisor",
+            disabled: !gameOpen,
+            active: scienceAdvisorActive,
+            onClick: onToggleScienceAdvisor,
+          },
         ],
       },
     ],
@@ -212,6 +224,8 @@ export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
       onEndTurn,
       militaryAdvisorActive,
       onToggleMilitaryAdvisor,
+      scienceAdvisorActive,
+      onToggleScienceAdvisor,
       onEndTurnAndSwitchPlayer,
       onEndRoundAndReturnToPlayer,
       devSwitchInProgress,

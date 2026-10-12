@@ -10,5 +10,7 @@ public class DTCatalogueAcquisitionCost : ICatalogueAcquisitionCost
 
     public required string AssetDisplayName { get; set; }
 
+    public required string AssetIconPath { get; set; }
+
     public required int Quantity { get; set; }
 }

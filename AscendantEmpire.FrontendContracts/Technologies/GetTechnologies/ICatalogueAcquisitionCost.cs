@@ -11,5 +11,10 @@ public interface ICatalogueAcquisitionCost
 
     string AssetDisplayName { get; }
 
+    /// <summary>
+    /// The Asset's catalogue image, as a root-relative URL. Empty where the Asset has no icon.
+    /// </summary>
+    string AssetIconPath { get; }
+
     int Quantity { get; }
 }

@@ -1,5 +1,5 @@
 ﻿import type { PossibleAction } from "@/features/game/api/turnApi";
-import type { NotificationGroup, NotificationGroupType, NotificationItem } from "./types";
+import type { NotificationGroup, NotificationGroupType, NotificationItem, NotificationItemAction } from "./types";
 import { notificationGroupTypeMeta } from "./types";
 import unitIconSrc from "@/assets/units/centurion_40px.png";
 
@@ -32,6 +32,21 @@ function groupTypeFor(action: PossibleAction): NotificationGroupType {
       // Structures under military attention are the siege case; anything else military is a Force — a Unit or a Command — that still has orders to give.
       return action.recordTypeId === RECORD_TYPE_STRUCTURE ? "city-under-siege" : "unit-needs-orders";
   }
+}
+
+/**
+ * What clicking an item does, beyond panning to its tile.
+ *
+ * Research is the only group with a screen to open: it is an empire-wide decision with no tile to pan to, so without a
+ * dialog the item would do nothing at all when clicked. The others are handled on the map — a Force is given its orders
+ * where it stands — so they carry no action, and will gain one when their screens exist.
+ */
+function actionFor(groupType: NotificationGroupType): NotificationItemAction {
+  if (groupType === "research-selection") {
+    return { kind: "open-dialog", dialog: "research" };
+  }
+
+  return { kind: "none" };
 }
 
 function iconFor(groupType: NotificationGroupType): { iconSrc: string; iconAlt: string } {
@@ -68,8 +83,7 @@ export function buildEndTurnActionGroups(actions: PossibleAction[]): Notificatio
       iconSrc,
       iconAlt,
       location: action.xCoord != null && action.yCoord != null ? { x: action.xCoord, y: action.yCoord } : undefined,
-      // Clicking pans to the tile; giving the Force its orders is done on the map, so there is no dialog to open yet.
-      action: { kind: "none" },
+      action: actionFor(groupType),
       isHandled: false,
     };
 

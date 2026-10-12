@@ -40,6 +40,8 @@ export interface CatalogueAcquisitionCost {
   assetId: number;
   assetCode: string;
   assetDisplayName: string;
+  /** The Asset's catalogue image, as a root-relative URL. Empty where the Asset has no icon. */
+  assetIconPath: string;
   quantity: number;
 }
 
