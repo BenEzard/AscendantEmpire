@@ -51,7 +51,7 @@ new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "ForestFamili
 | | |
 |---|---|
 | **`Code`** | Derived from the display name: ProperCase, non-alphanumerics stripped, **no era prefix**. `"Climate Skill - Moderate"` → `ClimateSkillModerate`. It is the match key for the upsert and for every prerequisite, so **renaming a code silently orphans whatever depended on it**. |
-| **`DirectedRequired`** | `100 + depth × 100`, where depth is the longest path from a root. Tiers in use are 100 … 800. Round numbers, not balance — but staying on the curve is what keeps the file legible. |
+| **`DirectedRequired`** | `100 + depth × 100`, where depth is the longest path from a root. Tiers in use are 100 … 1100. Round numbers, not balance — but staying on the curve is what keeps the file legible. |
 | **`Era`** | `TechnologyEra.Stone` throughout. Era has one consumer, the unimplemented `RandomisedEqual` generator, so there is nothing to work out here yet. |
 | **`SortOrder`** | Left unset, derived from list position. Position therefore decides in-game ordering. |
 | **`IconPath`** | Left unset until artwork exists. |

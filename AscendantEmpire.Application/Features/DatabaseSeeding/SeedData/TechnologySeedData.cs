@@ -26,10 +26,10 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 /// <para><b>What is still a placeholder:</b></para>
 /// <list type="bullet">
 ///   <item><description>
-///     <b><c>Broken</c>.</b> A placeholder root that 44 technologies hang off because nothing ever established what their real prerequisites are. Without it
+///     <b><c>Broken</c>.</b> A placeholder root that 27 technologies hang off because nothing ever established what their real prerequisites are. Without it
 ///     they would all be Available from the first Round, handing every Player most of the Stone age at once. It is retired by giving each of its dependents
 ///     real prerequisites and deleting the row. Its <c>DirectedRequired</c> is deliberately out of reach: it is a root, so it is Available from the start, and
-///     the catalogue authors no acquisition costs - a cheap root with none would simply be researched, unlocking all 44 at a stroke.
+///     the catalogue authors no acquisition costs - a cheap root with none would simply be researched, unlocking all 27 at a stroke.
 ///     <b>Giving one of its dependents a real prerequisite replaces the <c>Broken</c> edge rather than joining it</b>, since a technology left behind both
 ///     stays gated on a root nobody can research.
 ///   </description></item>
@@ -42,11 +42,11 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 ///     <b>Research costs.</b> Round numbers, not balance decisions, and the one thing in here a reader should not trust.
 ///   </description></item>
 ///   <item><description>
-///     <b>Experience sources.</b> 27 technologies draw on a seeded <c>ExperienceType</c>, named in <c>ExperienceTypeCodes</c> and matching the "Bonus:"
+///     <b>Experience sources.</b> 61 technologies draw on a seeded <c>ExperienceType</c>, named in <c>ExperienceTypeCodes</c> and matching the "Bonus:"
 ///     annotation in their description. The rest are directed-only, because nothing connects them to a kind of experience yet.
 ///   </description></item>
 ///   <item><description>
-///     <b>Grants.</b> Around a hundred entries carry <c>Gives:</c>, <c>Asset:</c>, <c>Unit:</c>, <c>Building:</c>, <c>Specialist:</c> or <c>Action:</c>
+///     <b>Grants.</b> Fifty entries carry <c>Gives:</c>, <c>Asset:</c>, <c>Unit:</c>, <c>Building:</c>, <c>Specialist:</c> or <c>Action:</c>
 ///     annotations in their <c>Description</c>. Almost none of them name anything that exists in the Asset, unit-component or template catalogues, so they
 ///     cannot become <c>TechnologyGrant</c> rows - the upsert would reject the batch for an unresolvable target. <b>The annotation text is kept verbatim</b>
 ///     so the information is here when those targets exist, and wiring them up means growing <c>TechnologySeedStep.DependsOn</c> to cover whichever
@@ -79,18 +79,6 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "Amber",
-                DisplayName = "Amber",
-                Description = "Gives: Hematite",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "ForestFamiliarity" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
                 Code = "Banking",
                 DisplayName = "Banking",
                 Era = TechnologyEra.Stone,
@@ -102,65 +90,8 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "BasicConstruction",
-                DisplayName = "Basic Construction",
-                Description = "- Huts",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "Brickworks",
-                DisplayName = "Brickworks",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
                 Code = "CeramicArt",
                 DisplayName = "Ceramic Art",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "Ceramics",
-                DisplayName = "Ceramics",
-                Description = "Build: Kiln",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "Ceremonies",
-                DisplayName = "Ceremonies",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "CompoundInterest",
-                DisplayName = "Compound Interest",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 100,
                 Prerequisites =
@@ -214,17 +145,6 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "EarlyIndustrialFiring",
-                DisplayName = "Early Industrial Firing",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
                 Code = "ExpertMobileScavengers",
                 DisplayName = "Expert Mobile Scavengers",
                 Description = "(Extract 10% of tile on the move)",
@@ -240,7 +160,9 @@ internal static class TechnologySeedData
                 Code = "FireMaking",
                 DisplayName = "Fire-Making",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                ExperienceRequired = 50,
+                ExperienceTypeCodes = ["Exploration"]
             },
             new UpsertTechnologyDto
             {
@@ -292,7 +214,9 @@ internal static class TechnologySeedData
                 DisplayName = "Hunting",
                 Description = "Bonus: Scavenging",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                ExperienceRequired = 50,
+                ExperienceTypeCodes = ["Exploration"]
             },
             new UpsertTechnologyDto
             {
@@ -317,22 +241,12 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "Irrigation",
-                DisplayName = "Irrigation",
-                Description = "Build: Irrigation Project",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
                 Code = "Language",
                 DisplayName = "Language",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                ExperienceRequired = 50,
+                ExperienceTypeCodes = ["Exploration"]
             },
             new UpsertTechnologyDto
             {
@@ -358,17 +272,6 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "Military",
-                DisplayName = "Military",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
                 Code = "MobileScavenging",
                 DisplayName = "Mobile Scavenging",
                 Description = "(Extract 5% of tile on the move)",
@@ -385,23 +288,14 @@ internal static class TechnologySeedData
                 DisplayName = "Natural Exploration",
                 Description = "Gives: Scout (from Roving Band unit)",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                ExperienceRequired = 50,
+                ExperienceTypeCodes = ["Exploration"]
             },
             new UpsertTechnologyDto
             {
                 Code = "Pastoralist",
                 DisplayName = "Pastoralist",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "PitFiring",
-                DisplayName = "Pit Firing",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 100,
                 Prerequisites =
@@ -425,7 +319,9 @@ internal static class TechnologySeedData
                 Code = "PrimitiveCrafting1",
                 DisplayName = "Primitive Crafting 1",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100
+                DirectedRequired = 100,
+                ExperienceRequired = 50,
+                ExperienceTypeCodes = ["Exploration"]
             },
             new UpsertTechnologyDto
             {
@@ -451,28 +347,6 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "RaidingParties",
-                DisplayName = "Raiding Parties",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "RegularTrade",
-                DisplayName = "Regular Trade",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
                 Code = "SailAndMastExpensive",
                 DisplayName = "Sail and mast (expensive)",
                 Era = TechnologyEra.Stone,
@@ -486,17 +360,6 @@ internal static class TechnologySeedData
             {
                 Code = "ShrunkenHeads",
                 DisplayName = "Shrunken Heads",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "Slings",
-                DisplayName = "Slings",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 100,
                 Prerequisites =
@@ -562,17 +425,6 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "TribalWarfare",
-                DisplayName = "Tribal Warfare",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Broken" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
                 Code = "Writing",
                 DisplayName = "Writing",
                 Description = "Gives: Scribes",
@@ -607,20 +459,9 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "AnimalDomestication",
-                DisplayName = "Animal Domestication",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 200,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Hunting" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
                 Code = "BandLeadership",
                 DisplayName = "Band Leadership",
-                Description = "Action: Can split Roving Band unit into two",
+                Description = "Action: Can split Roving Band unit down to the minimum band size",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 200,
                 Prerequisites =
@@ -642,6 +483,41 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
+                Code = "Ceramics",
+                DisplayName = "Ceramics",
+                Description = "Build: Kiln",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 200,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "FireMaking" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "Charcoal",
+                DisplayName = "Charcoal",
+                Description = "Building: Charcoal Pile",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 200,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "FireMaking" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "CompoundInterest",
+                DisplayName = "Compound Interest",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 200,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Banking" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
                 Code = "EarlyDiplomacy",
                 DisplayName = "Early Diplomacy",
                 Description = "Can: Give gifts",
@@ -650,6 +526,28 @@ internal static class TechnologySeedData
                 Prerequisites =
                 [
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Language" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "EarlyIndustrialFiring",
+                DisplayName = "Early Industrial Firing",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 200,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "FireMaking" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "EarlyPlantDomestication",
+                DisplayName = "Early Plant Domestication",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 200,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "IntensiveGathering" }
                 ]
             },
             new UpsertTechnologyDto
@@ -712,6 +610,18 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
+                Code = "Jewellery",
+                DisplayName = "Jewellery",
+                Description = "Gives: Jewellery",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 200,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "PrimitiveCrafting1" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
                 Code = "MineralsI",
                 DisplayName = "Minerals I",
                 Era = TechnologyEra.Stone,
@@ -719,6 +629,17 @@ internal static class TechnologySeedData
                 Prerequisites =
                 [
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "NaturalExploration" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "Mining1",
+                DisplayName = "Mining 1",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 200,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "IntensiveGathering" }
                 ]
             },
             new UpsertTechnologyDto
@@ -747,6 +668,17 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
+                Code = "PitFiring",
+                DisplayName = "Pit Firing",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 200,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "FireMaking" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
                 Code = "Shellfish",
                 DisplayName = "Shellfish",
                 Description = "(with coastal settlement)",
@@ -754,21 +686,6 @@ internal static class TechnologySeedData
                 DirectedRequired = 200,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "IntensiveGathering" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "SlashingBurning",
-                DisplayName = "Slashing & Burning",
-                Description = "Bonus: Foraging",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 200,
-                ExperienceRequired = 100,
-                ExperienceTypeCodes = ["Extraction.Foraging"],
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "FireMaking" },
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "IntensiveGathering" }
                 ]
             },
@@ -836,7 +753,7 @@ internal static class TechnologySeedData
             {
                 Code = "WoodTools",
                 DisplayName = "Wood Tools",
-                Description = "Gives: Throwing Spear",
+                Description = "Gives: Throwing Spear Resource: Wood from Tiles",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 200,
                 Prerequisites =
@@ -857,6 +774,135 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
+                Code = "BasicShelterConstruction",
+                DisplayName = "Basic Shelter Construction",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 300,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto
+                    {
+                        PrerequisiteTechnologyCode = "GrassTools",
+                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
+                    },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Language" },
+                    new UpsertTechnologyPrerequisiteDto
+                    {
+                        PrerequisiteTechnologyCode = "WoodTools",
+                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
+                    }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeSkillArid",
+                DisplayName = "Biome Skill - Arid",
+                Description = "(on 1st settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 300,
+                ExperienceRequired = 150,
+                ExperienceTypeCodes = ["Biome.Arid"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Acclimitisation" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeSkillForest",
+                DisplayName = "Biome Skill - Forest",
+                Description = "(on 1st settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 300,
+                ExperienceRequired = 150,
+                ExperienceTypeCodes = ["Biome.Forest"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Acclimitisation" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeSkillGrassland",
+                DisplayName = "Biome Skill - Grassland",
+                Description = "(on 1st settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 300,
+                ExperienceRequired = 150,
+                ExperienceTypeCodes = ["Biome.Grassland"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Acclimitisation" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeSkillJungle",
+                DisplayName = "Biome Skill - Jungle",
+                Description = "(on 1st settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 300,
+                ExperienceRequired = 150,
+                ExperienceTypeCodes = ["Biome.Jungle"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Acclimitisation" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeSkillLake",
+                DisplayName = "Biome Skill - Lake",
+                Description = "(on 1st settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 300,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Acclimitisation" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeSkillMangrove",
+                DisplayName = "Biome Skill - Mangrove",
+                Description = "(on 1st settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 300,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Acclimitisation" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeSkillOcean",
+                DisplayName = "Biome Skill - Ocean",
+                Description = "(on 1st settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 300,
+                ExperienceRequired = 150,
+                ExperienceTypeCodes = ["Biome.Ocean"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Acclimitisation" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeSkillWoodland",
+                DisplayName = "Biome Skill - Woodland",
+                Description = "(on 1st settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 300,
+                ExperienceRequired = 150,
+                ExperienceTypeCodes = ["Biome.Woodland"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Acclimitisation" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
                 Code = "BlowPipe",
                 DisplayName = "Blow Pipe",
                 Description = "Gives: Blow Pipe",
@@ -864,45 +910,54 @@ internal static class TechnologySeedData
                 DirectedRequired = 300,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "SmallGameHunting" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BoneTools" },
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "WoodTools" }
                 ]
             },
             new UpsertTechnologyDto
             {
-                Code = "CamelDomestication",
-                DisplayName = "Camel Domestication",
-                Description = "Gives: Domesticate Camels",
+                Code = "BogOre",
+                DisplayName = "Bog Ore",
+                Description = "Gives: Bog Ore",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 300,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "AnimalDomestication" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "MineralsI" }
                 ]
             },
             new UpsertTechnologyDto
             {
-                Code = "CattleDomestication",
-                DisplayName = "Cattle Domestication",
-                Description = "Gives: Domesticate Cattle",
+                Code = "Brickworks",
+                DisplayName = "Brickworks",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 300,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "AnimalDomestication" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "EarlyIndustrialFiring" }
                 ]
             },
             new UpsertTechnologyDto
             {
-                Code = "Charcoal",
-                DisplayName = "Charcoal",
-                Description = "Building: Charcoal Pile",
+                Code = "Ceremonies",
+                DisplayName = "Ceremonies",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 300,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "FireMaking" },
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "WoodTools" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "OralTradition" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "CharcoalKiln",
+                DisplayName = "Charcoal Kiln",
+                Description = "Specialist: Collier Building: Charcoal Kiln",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 300,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Charcoal" }
                 ]
             },
             new UpsertTechnologyDto
@@ -981,6 +1036,17 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
+                Code = "Corn",
+                DisplayName = "Corn",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 300,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "EarlyPlantDomestication" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
                 Code = "DiggingStick",
                 DisplayName = "Digging Stick",
                 Description = "Bonus: Foraging",
@@ -1052,6 +1118,29 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
+                Code = "Gold",
+                DisplayName = "Gold",
+                Description = "Gives: Gold",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 300,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "MineralsI" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "HabitatModification",
+                DisplayName = "Habitat Modification",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 300,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "HabitatFamiliarisation" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
                 Code = "HideScrapers",
                 DisplayName = "Hide Scrapers",
                 Description = "Gives: Raw Hides",
@@ -1061,20 +1150,6 @@ internal static class TechnologySeedData
                 [
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BoneTools" },
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Hunting" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "Hoe",
-                DisplayName = "Hoe",
-                Description = "Bonus: Gathering",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 300,
-                ExperienceRequired = 150,
-                ExperienceTypeCodes = ["Extraction.Foraging"],
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BoneTools" }
                 ]
             },
             new UpsertTechnologyDto
@@ -1093,29 +1168,15 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "HorseDomestication",
-                DisplayName = "Horse Domestication",
-                Description = "Action: Domesticate Horses",
+                Code = "Lead",
+                DisplayName = "Lead",
+                Description = "Asset: Lead Distribution: Lead (from Stone and Wood) Trade Item: Lead",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 300,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "AnimalDomestication" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "HuntingBirds",
-                DisplayName = "Hunting Birds",
-                Description = "Gives: Hunting Birtds",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 300,
-                ExperienceRequired = 150,
-                ExperienceTypeCodes = ["Extraction.Hunting"],
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "AnimalDomestication" },
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "SmallGameHunting" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "FireMaking" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "MineralsI" }
                 ]
             },
             new UpsertTechnologyDto
@@ -1143,17 +1204,6 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "MineralsII",
-                DisplayName = "Minerals II",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 300,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "MineralsI" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
                 Code = "MultiPieceTools",
                 DisplayName = "Multi-Piece Tools",
                 Era = TechnologyEra.Stone,
@@ -1168,7 +1218,7 @@ internal static class TechnologySeedData
             {
                 Code = "Poisons",
                 DisplayName = "Poisons",
-                Description = "Bonus: Hunting",
+                Description = "Bonus: Hunting Asset, Trade Good: Poison Battle Action: Poison Weapons",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 300,
                 ExperienceRequired = 150,
@@ -1176,19 +1226,6 @@ internal static class TechnologySeedData
                 Prerequisites =
                 [
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "HerbLore" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "PoultryFarming1",
-                DisplayName = "Poultry Farming 1",
-                Description = "Asset: Birds Building: Cages",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 300,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "AnimalDomestication" },
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "SmallGameHunting" }
                 ]
             },
             new UpsertTechnologyDto
@@ -1204,17 +1241,6 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "PrimitiveLeadership",
-                DisplayName = "Primitive Leadership",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 300,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BandLeadership" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
                 Code = "PrimitiveMusicalInstruments",
                 DisplayName = "Primitive Musical Instruments",
                 Description = "Asset: Musical Instrument (Level 1)",
@@ -1222,16 +1248,8 @@ internal static class TechnologySeedData
                 DirectedRequired = 300,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto
-                    {
-                        PrerequisiteTechnologyCode = "BoneTools",
-                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
-                    },
-                    new UpsertTechnologyPrerequisiteDto
-                    {
-                        PrerequisiteTechnologyCode = "WoodTools",
-                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
-                    }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BoneTools" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "WoodTools" }
                 ]
             },
             new UpsertTechnologyDto
@@ -1250,13 +1268,14 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "SelectiveBreeding1",
-                DisplayName = "Selective Breeding 1",
+                Code = "Silver",
+                DisplayName = "Silver",
+                Description = "Gives: Silver",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 300,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "AnimalDomestication" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "MineralsI" }
                 ]
             },
             new UpsertTechnologyDto
@@ -1273,20 +1292,19 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "TerrainSkillHilly",
-                DisplayName = "Terrain Skill - Hilly",
-                Description = "(on 1st settlement)",
+                Code = "Squash",
+                DisplayName = "Squash",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 300,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "HabitatFamiliarisation" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "EarlyPlantDomestication" }
                 ]
             },
             new UpsertTechnologyDto
             {
-                Code = "TerrainSkillIce",
-                DisplayName = "Terrain Skill - Ice",
+                Code = "TerrainSkillHilly",
+                DisplayName = "Terrain Skill - Hilly",
                 Description = "(on 1st settlement)",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 300,
@@ -1309,6 +1327,19 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
+                Code = "Tin",
+                DisplayName = "Tin",
+                Description = "Asset: Tin Distribution: Tin (from Stone and Wood) Trade Item: Tin",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 300,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "FireMaking" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "MineralsI" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
                 Code = "TrackingLevel1",
                 DisplayName = "Tracking (Level 1)",
                 Description = "Ability: Tracking",
@@ -1323,7 +1354,7 @@ internal static class TechnologySeedData
             {
                 Code = "Trapping",
                 DisplayName = "Trapping",
-                Description = "Bonus: Hunting",
+                Description = "Bonus: Hunting Specialist: Trapper",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 300,
                 ExperienceRequired = 150,
@@ -1335,13 +1366,36 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
+                Code = "TribalLeadership",
+                DisplayName = "Tribal Leadership",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 300,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BandLeadership" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
                 Code = "TribalMedicine",
                 DisplayName = "Tribal Medicine",
+                Description = "Asset, Trade Good: Medicine (passive creation)",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 300,
                 Prerequisites =
                 [
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "HerbLore" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "TribalWarfare",
+                DisplayName = "Tribal Warfare",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 300,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BandLeadership" }
                 ]
             },
             new UpsertTechnologyDto
@@ -1353,17 +1407,6 @@ internal static class TechnologySeedData
                 Prerequisites =
                 [
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "ForestGardening" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "Warfare",
-                DisplayName = "Warfare",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 300,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BandLeadership" }
                 ]
             },
             new UpsertTechnologyDto
@@ -1382,6 +1425,31 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
+                Code = "Wheat",
+                DisplayName = "Wheat",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 300,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "EarlyPlantDomestication" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "AnimalTaming",
+                DisplayName = "Animal Taming",
+                Description = "Bonus: Settlement Defence Food: Dog Building: Animal Enclosure",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 400,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Hunting" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "NaturalExploration" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Trapping" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
                 Code = "AnimalWorship",
                 DisplayName = "Animal worship",
                 Era = TechnologyEra.Stone,
@@ -1393,13 +1461,123 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "BambooWhip",
-                DisplayName = "Bamboo Whip",
+                Code = "Antidotes",
+                DisplayName = "Antidotes",
+                Description = "Specialist: Healer (bonus passive Tribal Medicine production)",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 400,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Trapping" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Poisons" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "TribalMedicine" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeExpertiseArid",
+                DisplayName = "Biome Expertise - Arid",
+                Description = "(on 3rd settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 400,
+                ExperienceRequired = 200,
+                ExperienceTypeCodes = ["Biome.Arid"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeSkillArid" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeExpertiseForest",
+                DisplayName = "Biome Expertise - Forest",
+                Description = "(on 3rd settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 400,
+                ExperienceRequired = 200,
+                ExperienceTypeCodes = ["Biome.Forest"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeSkillForest" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeExpertiseGrassland",
+                DisplayName = "Biome Expertise - Grassland",
+                Description = "(on 3rd settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 400,
+                ExperienceRequired = 200,
+                ExperienceTypeCodes = ["Biome.Grassland"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeSkillGrassland" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeExpertiseJungle",
+                DisplayName = "Biome Expertise - Jungle",
+                Description = "(on 3rd settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 400,
+                ExperienceRequired = 200,
+                ExperienceTypeCodes = ["Biome.Jungle"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeSkillJungle" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeExpertiseLake",
+                DisplayName = "Biome Expertise - Lake",
+                Description = "(on 3rd settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 400,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeSkillLake" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeExpertiseMangrove",
+                DisplayName = "Biome Expertise - Mangrove",
+                Description = "(on 3rd settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 400,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeSkillMangrove" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeExpertiseOcean",
+                DisplayName = "Biome Expertise - Ocean",
+                Description = "(on 3rd settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 400,
+                ExperienceRequired = 200,
+                ExperienceTypeCodes = ["Biome.Ocean"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeSkillOcean" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeExpertiseWoodland",
+                DisplayName = "Biome Expertise - Woodland",
+                Description = "(on 3rd settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 400,
+                ExperienceRequired = 200,
+                ExperienceTypeCodes = ["Biome.Woodland"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeSkillWoodland" }
                 ]
             },
             new UpsertTechnologyDto
@@ -1430,15 +1608,14 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "CharcoalKiln",
-                DisplayName = "Charcoal Kiln",
-                Description = "Specialist: Collier",
+                Code = "ClayPit",
+                DisplayName = "Clay Pit",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 400,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Charcoal" },
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Clay" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Clay" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Mining1" }
                 ]
             },
             new UpsertTechnologyDto
@@ -1519,26 +1696,27 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "DogDomestication",
-                DisplayName = "Dog Domestication",
-                Description = "Asset: Dogs Bonus: Settlement Defence",
+                Code = "EarlyFarming",
+                DisplayName = "Early Farming",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 400,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "AnimalDomestication" },
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "MediumGameHunting" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "EarlyPlantDomestication",
-                DisplayName = "Early Plant Domestication",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 400,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "VegetablePlots" }
+                    new UpsertTechnologyPrerequisiteDto
+                    {
+                        PrerequisiteTechnologyCode = "Corn",
+                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
+                    },
+                    new UpsertTechnologyPrerequisiteDto
+                    {
+                        PrerequisiteTechnologyCode = "Squash",
+                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
+                    },
+                    new UpsertTechnologyPrerequisiteDto
+                    {
+                        PrerequisiteTechnologyCode = "Wheat",
+                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
+                    }
                 ]
             },
             new UpsertTechnologyDto
@@ -1622,32 +1800,8 @@ internal static class TechnologySeedData
                 DirectedRequired = 400,
                 Prerequisites =
                 [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Awls" },
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "MediumGameHunting" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "GoatDomestication",
-                DisplayName = "Goat Domestication",
-                Description = "Gives: Domesticate Goats",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 400,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "AnimalDomestication" },
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "MediumGameHunting" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "Gold",
-                DisplayName = "Gold",
-                Description = "Gives: Gold",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 400,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "MineralsII" }
                 ]
             },
             new UpsertTechnologyDto
@@ -1694,18 +1848,6 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "Jewellery",
-                DisplayName = "Jewellery",
-                Description = "Gives: Jewellery",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 400,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Awls" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
                 Code = "Knapping",
                 DisplayName = "Knapping",
                 Era = TechnologyEra.Stone,
@@ -1717,17 +1859,13 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "Lures",
-                DisplayName = "Lures",
-                Description = "Bonus: Fishing",
+                Code = "Military",
+                DisplayName = "Military",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 400,
-                ExperienceRequired = 200,
-                ExperienceTypeCodes = ["Extraction.Fishing"],
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Fishing" },
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "MediumGameHunting" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "TribalWarfare" }
                 ]
             },
             new UpsertTechnologyDto
@@ -1743,19 +1881,6 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "PigDomestication",
-                DisplayName = "Pig Domestication",
-                Description = "Gives: Domesticate Pigs",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 400,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "AnimalDomestication" },
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "MediumGameHunting" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
                 Code = "PunjiSticks",
                 DisplayName = "Punji Sticks",
                 Era = TechnologyEra.Stone,
@@ -1763,19 +1888,6 @@ internal static class TechnologySeedData
                 Prerequisites =
                 [
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Trapping" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "QuiltedArmour",
-                DisplayName = "Quilted Armour",
-                Description = "Gives: Quilted Armour",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 400,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Awls" },
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "PoultryFarming1" }
                 ]
             },
             new UpsertTechnologyDto
@@ -1792,12 +1904,24 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
+                Code = "RaidingParties",
+                DisplayName = "Raiding Parties",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 400,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "TribalWarfare" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
                 Code = "RawSinews",
                 DisplayName = "Raw Sinews",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 400,
                 Prerequisites =
                 [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Hunting" },
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "PrimitiveCrafting1" },
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Weaving" }
                 ]
@@ -1815,27 +1939,29 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "SheepDomestication",
-                DisplayName = "Sheep Domestication",
-                Description = "Gives: Domesticate Sheep",
+                Code = "ShadeManagement",
+                DisplayName = "Shade Management",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 400,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "AnimalDomestication" },
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "MediumGameHunting" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeSkillArid" }
                 ]
             },
             new UpsertTechnologyDto
             {
-                Code = "Silver",
-                DisplayName = "Silver",
-                Description = "Gives: Silver",
+                Code = "SlashingBurning",
+                DisplayName = "Slashing & Burning",
+                Description = "Bonus: Foraging",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 400,
+                ExperienceRequired = 200,
+                ExperienceTypeCodes = ["Extraction.Foraging"],
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "MineralsII" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "FireMaking" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "HabitatModification" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "IntensiveGathering" }
                 ]
             },
             new UpsertTechnologyDto
@@ -1871,18 +1997,6 @@ internal static class TechnologySeedData
                 Prerequisites =
                 [
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "TerrainSkillHilly" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "TerrainExpertiseIce",
-                DisplayName = "Terrain Expertise - Ice",
-                Description = "(on 3rd settlement)",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 400,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "TerrainSkillIce" }
                 ]
             },
             new UpsertTechnologyDto
@@ -1935,6 +2049,28 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
+                Code = "TribalProjects",
+                DisplayName = "Tribal Projects",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 400,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "TribalLeadership" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "WaterConservation",
+                DisplayName = "Water Conservation",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 400,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeSkillArid" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
                 Code = "Adzes",
                 DisplayName = "Adzes",
                 Description = "Bonus: Farming & Woodcutting",
@@ -1944,8 +2080,30 @@ internal static class TechnologySeedData
                 ExperienceTypeCodes = ["Extraction.Woodcutting"],
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "HandAxe" },
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Knapping" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "HandAxe" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "Amber",
+                DisplayName = "Amber",
+                Description = "Gives: Hematite",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 500,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "ForestFamiliarity" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "AnimalDomestication",
+                DisplayName = "Animal Domestication",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 500,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "AnimalTaming" }
                 ]
             },
             new UpsertTechnologyDto
@@ -1962,14 +2120,124 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "BowArrow",
-                DisplayName = "Bow & Arrow",
+                Code = "BiomeMasteryArid",
+                DisplayName = "Biome Mastery - Arid",
+                Description = "(on 3rd settlement in the biome; attack bonus on the tile)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 500,
+                ExperienceRequired = 250,
+                ExperienceTypeCodes = ["Biome.Arid"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeExpertiseArid" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeMasteryForest",
+                DisplayName = "Biome Mastery - Forest",
+                Description = "(on 3rd settlement in the biome; attack bonus on the tile)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 500,
+                ExperienceRequired = 250,
+                ExperienceTypeCodes = ["Biome.Forest"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeExpertiseForest" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeMasteryGrassland",
+                DisplayName = "Biome Mastery - Grassland",
+                Description = "(on 3rd settlement in the biome; attack bonus on the tile)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 500,
+                ExperienceRequired = 250,
+                ExperienceTypeCodes = ["Biome.Grassland"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeExpertiseGrassland" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeMasteryJungle",
+                DisplayName = "Biome Mastery - Jungle",
+                Description = "(on 3rd settlement in the biome; attack bonus on the tile)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 500,
+                ExperienceRequired = 250,
+                ExperienceTypeCodes = ["Biome.Jungle"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeExpertiseJungle" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeMasteryLake",
+                DisplayName = "Biome Mastery - Lake",
+                Description = "(bonus production)",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 500,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "MultiPieceTools" },
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "RawSinews" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeExpertiseLake" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeMasteryMangrove",
+                DisplayName = "Biome Mastery - Mangrove",
+                Description = "(on 2nd settlement in the biome; attack bonus on the tile)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 500,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeExpertiseMangrove" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeMasteryOcean",
+                DisplayName = "Biome Mastery - Ocean",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 500,
+                ExperienceRequired = 250,
+                ExperienceTypeCodes = ["Biome.Ocean"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeExpertiseOcean" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeMasteryWoodland",
+                DisplayName = "Biome Mastery - Woodland",
+                Description = "(on 3rd settlement in the biome; attack bonus on the tile)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 500,
+                ExperienceRequired = 250,
+                ExperienceTypeCodes = ["Biome.Woodland"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeExpertiseWoodland" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeSkillDesert",
+                DisplayName = "Biome Skill - Desert",
+                Description = "(on 1st settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 500,
+                ExperienceRequired = 250,
+                ExperienceTypeCodes = ["Biome.Desert"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "ShadeManagement" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "WaterConservation" }
                 ]
             },
             new UpsertTechnologyDto
@@ -2032,13 +2300,14 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "Corn",
-                DisplayName = "Corn",
+                Code = "Domestication2",
+                DisplayName = "Domestication 2",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 500,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "EarlyPlantDomestication" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "AnimalTaming" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "MediumGameHunting" }
                 ]
             },
             new UpsertTechnologyDto
@@ -2054,69 +2323,74 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "Herding",
-                DisplayName = "Herding",
-                Description = "+50% domestication birth rate",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 500,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto
-                    {
-                        PrerequisiteTechnologyCode = "CamelDomestication",
-                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
-                    },
-                    new UpsertTechnologyPrerequisiteDto
-                    {
-                        PrerequisiteTechnologyCode = "CattleDomestication",
-                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
-                    },
-                    new UpsertTechnologyPrerequisiteDto
-                    {
-                        PrerequisiteTechnologyCode = "GoatDomestication",
-                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
-                    },
-                    new UpsertTechnologyPrerequisiteDto
-                    {
-                        PrerequisiteTechnologyCode = "HorseDomestication",
-                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
-                    },
-                    new UpsertTechnologyPrerequisiteDto
-                    {
-                        PrerequisiteTechnologyCode = "PigDomestication",
-                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
-                    },
-                    new UpsertTechnologyPrerequisiteDto
-                    {
-                        PrerequisiteTechnologyCode = "SheepDomestication",
-                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
-                    }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "HuntingDogs",
-                DisplayName = "Hunting Dogs",
-                Description = "Bonus: Hunting +25% Detection",
+                Code = "HuntingBirds",
+                DisplayName = "Hunting Birds",
+                Description = "Asset: Hunting Birds Specialist: Bird Catcher",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 500,
                 ExperienceRequired = 250,
                 ExperienceTypeCodes = ["Extraction.Hunting"],
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "DogDomestication" },
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "MediumGameHunting" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "AnimalTaming" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "HuntingBow",
+                DisplayName = "Hunting Bow",
+                Description = "Weapon: Hunting Bow Asset: Arrows",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 500,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto
+                    {
+                        PrerequisiteTechnologyCode = "MultiPieceTools",
+                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
+                    },
+                    new UpsertTechnologyPrerequisiteDto
+                    {
+                        PrerequisiteTechnologyCode = "RawSinews",
+                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
+                    }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "Irrigation",
+                DisplayName = "Irrigation",
+                Description = "Build: Irrigation Project",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 500,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "EarlyFarming" }
                 ]
             },
             new UpsertTechnologyDto
             {
                 Code = "ObservationalMethods",
                 DisplayName = "Observational Methods",
+                Description = "Smart allocation - Diffusion Research",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 500,
                 Prerequisites =
                 [
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "SeasonalTrade" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "PoultryFarming1",
+                DisplayName = "Poultry Farming 1",
+                Description = "Asset: Birds Action: Domesticate Birds Building: Bird Cages",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 500,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "AnimalTaming" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "SmallGameHunting" }
                 ]
             },
             new UpsertTechnologyDto
@@ -2127,28 +2401,31 @@ internal static class TechnologySeedData
                 DirectedRequired = 500,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto
-                    {
-                        PrerequisiteTechnologyCode = "HideScrapers",
-                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
-                    },
-                    new UpsertTechnologyPrerequisiteDto
-                    {
-                        PrerequisiteTechnologyCode = "Knapping",
-                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
-                    }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "HideScrapers" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Knapping" }
                 ]
             },
             new UpsertTechnologyDto
             {
                 Code = "ProtectiveClothing",
                 DisplayName = "Protective Clothing",
-                Description = "Action: Can settle Cold region",
+                Description = "Action: Can settle Cold region No damage in cold terrain",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 500,
                 Prerequisites =
                 [
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Furs" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "RegularTrade",
+                DisplayName = "Regular Trade",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 500,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "SeasonalTrade" }
                 ]
             },
             new UpsertTechnologyDto
@@ -2188,41 +2465,13 @@ internal static class TechnologySeedData
             {
                 Code = "Sling",
                 DisplayName = "Sling",
+                Description = "Weapon: Sling",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 500,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto
-                    {
-                        PrerequisiteTechnologyCode = "RawSinews",
-                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
-                    }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "Snares",
-                DisplayName = "Snares",
-                Description = "Bonus: Hunting",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 500,
-                ExperienceRequired = 250,
-                ExperienceTypeCodes = ["Extraction.Hunting"],
                 Prerequisites =
                 [
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "RawSinews" },
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Trapping" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "Squash",
-                DisplayName = "Squash",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 500,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "EarlyPlantDomestication" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Weaving" }
                 ]
             },
             new UpsertTechnologyDto
@@ -2252,18 +2501,6 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "TerrainMasteryIce",
-                DisplayName = "Terrain Mastery - Ice",
-                Description = "(on 5th settlement; attack bonus)",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 500,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "TerrainExpertiseIce" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
                 Code = "TerrainMasteryPlain",
                 DisplayName = "Terrain Mastery - Plain",
                 Description = "(on 5th settlement; attack bonus)",
@@ -2287,17 +2524,6 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "Wheat",
-                DisplayName = "Wheat",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 500,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "EarlyPlantDomestication" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
                 Code = "ArrowNock",
                 DisplayName = "Arrow Nock",
                 Description = "Bonus: bow damage",
@@ -2305,7 +2531,7 @@ internal static class TechnologySeedData
                 DirectedRequired = 600,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BowArrow" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "HuntingBow" }
                 ]
             },
             new UpsertTechnologyDto
@@ -2317,7 +2543,63 @@ internal static class TechnologySeedData
                 DirectedRequired = 600,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BowArrow" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "HuntingBow" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BambooWhip",
+                DisplayName = "Bamboo Whip",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 600,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BambooStakes" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Trapping" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeMasteryDesert",
+                DisplayName = "Biome Mastery - Desert",
+                Description = "(attack bonus on the tile)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 600,
+                ExperienceRequired = 300,
+                ExperienceTypeCodes = ["Biome.Desert"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeSkillDesert" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeSkillIce",
+                DisplayName = "Biome Skill - Ice",
+                Description = "(on 1st settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 600,
+                ExperienceRequired = 300,
+                ExperienceTypeCodes = ["Biome.Ice"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Acclimitisation" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "ProtectiveClothing" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeSkillTundra",
+                DisplayName = "Biome Skill - Tundra",
+                Description = "(on 1st settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 600,
+                ExperienceRequired = 300,
+                ExperienceTypeCodes = ["Biome.Tundra"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Acclimitisation" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "ProtectiveClothing" }
                 ]
             },
             new UpsertTechnologyDto
@@ -2331,8 +2613,21 @@ internal static class TechnologySeedData
                 ExperienceTypeCodes = ["Extraction.Hunting"],
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BowArrow" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "HuntingBow" },
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "SmallGameHunting" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "Canoe",
+                DisplayName = "Canoe",
+                Description = "Fishing bonus in coastal tiles",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 600,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Adzes" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Rafts" }
                 ]
             },
             new UpsertTechnologyDto
@@ -2350,39 +2645,15 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "DugoutCanoe",
-                DisplayName = "Dugout Canoe",
+                Code = "DogDomestication",
+                DisplayName = "Dog Domestication",
+                Description = "Asset: Dogs Dog breeding option",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 600,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Adzes" },
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Rafts" }
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "EarlyFarming",
-                DisplayName = "Early Farming",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 600,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto
-                    {
-                        PrerequisiteTechnologyCode = "Corn",
-                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
-                    },
-                    new UpsertTechnologyPrerequisiteDto
-                    {
-                        PrerequisiteTechnologyCode = "Squash",
-                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
-                    },
-                    new UpsertTechnologyPrerequisiteDto
-                    {
-                        PrerequisiteTechnologyCode = "Wheat",
-                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
-                    }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "AnimalDomestication" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "MediumGameHunting" }
                 ]
             },
             new UpsertTechnologyDto
@@ -2394,7 +2665,7 @@ internal static class TechnologySeedData
                 DirectedRequired = 600,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BowArrow" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "HuntingBow" },
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "SmallGameHunting" }
                 ]
             },
@@ -2411,6 +2682,44 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
+                Code = "GoatDomestication",
+                DisplayName = "Goat Domestication",
+                Description = "Action: Domesticate Goats",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 600,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Domestication2" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "Hoe",
+                DisplayName = "Hoe",
+                Description = "Bonus: Gathering",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 600,
+                ExperienceRequired = 300,
+                ExperienceTypeCodes = ["Extraction.Foraging"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Adzes" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "HorseDomestication",
+                DisplayName = "Horse Domestication",
+                Description = "Action: Domesticate Horses",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 600,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "AnimalDomestication" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
                 Code = "LargeGameHunting",
                 DisplayName = "Large Game Hunting",
                 Description = "Unit: Hunting Party",
@@ -2422,34 +2731,47 @@ internal static class TechnologySeedData
                 [
                     new UpsertTechnologyPrerequisiteDto
                     {
-                        PrerequisiteTechnologyCode = "BowArrow",
+                        PrerequisiteTechnologyCode = "HuntingBow",
                         PrerequisiteKind = TechnologyPrerequisiteKind.Optional
                     },
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "MediumGameHunting" },
                     new UpsertTechnologyPrerequisiteDto
                     {
                         PrerequisiteTechnologyCode = "Spear",
                         PrerequisiteKind = TechnologyPrerequisiteKind.Optional
-                    }
+                    },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "WoodTools" }
                 ]
             },
             new UpsertTechnologyDto
             {
-                Code = "Mining1",
-                DisplayName = "Mining 1",
+                Code = "LeadSlingShot",
+                DisplayName = "Lead Sling Shot",
+                Description = "Ammo: Lead Balls (from Lead) Bonus: Sling damage and range",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 600,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Adzes" },
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "IntensiveGathering" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Lead" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Sling" }
                 ]
             },
             new UpsertTechnologyDto
             {
-                Code = "Nets",
-                DisplayName = "Nets",
-                Description = "Bonus Fishing",
+                Code = "LongBow",
+                DisplayName = "Long Bow",
+                Description = "Weapon: Long Bow",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 600,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "HuntingBow" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "Lures",
+                DisplayName = "Lures",
+                Description = "Bonus: Fishing",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 600,
                 ExperienceRequired = 300,
@@ -2457,46 +2779,88 @@ internal static class TechnologySeedData
                 Prerequisites =
                 [
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Fishing" },
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Snares" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "PoultryFarming1" }
                 ]
             },
             new UpsertTechnologyDto
             {
-                Code = "TrackingLevel2",
-                DisplayName = "Tracking (Level 2)",
-                Description = "Bonus: Tracking +100%",
+                Code = "PigDomestication",
+                DisplayName = "Pig Domestication",
+                Description = "Action: Domesticate Pigs",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 600,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto
-                    {
-                        PrerequisiteTechnologyCode = "TerrainMasteryHilly",
-                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
-                    },
-                    new UpsertTechnologyPrerequisiteDto
-                    {
-                        PrerequisiteTechnologyCode = "TerrainMasteryIce",
-                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
-                    },
-                    new UpsertTechnologyPrerequisiteDto
-                    {
-                        PrerequisiteTechnologyCode = "TerrainMasteryPlain",
-                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
-                    },
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "TrackingLevel1" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Domestication2" }
                 ]
             },
             new UpsertTechnologyDto
             {
-                Code = "ClayPit",
-                DisplayName = "Clay Pit",
+                Code = "QuiltedArmour",
+                DisplayName = "Quilted Armour",
+                Description = "Gives: Quilted Armour",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 700,
+                DirectedRequired = 600,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Clay" },
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Mining1" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Awls" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "PoultryFarming1" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "SheepDomestication",
+                DisplayName = "Sheep Domestication",
+                Description = "Action: Domesticate Sheep",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 600,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Domestication2" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "Snares",
+                DisplayName = "Snares",
+                Description = "Bonus: Hunting",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 600,
+                ExperienceRequired = 300,
+                ExperienceTypeCodes = ["Extraction.Hunting"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Rope" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Trapping" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeExpertiseTundra",
+                DisplayName = "Biome Expertise - Tundra",
+                Description = "(on 3rd settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 700,
+                ExperienceRequired = 350,
+                ExperienceTypeCodes = ["Biome.Tundra"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeSkillTundra" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeSkillCoastal",
+                DisplayName = "Biome Skill - Coastal",
+                Description = "(on 1st settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 700,
+                ExperienceRequired = 350,
+                ExperienceTypeCodes = ["Biome.Coastal"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Acclimitisation" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Canoe" }
                 ]
             },
             new UpsertTechnologyDto
@@ -2519,8 +2883,47 @@ internal static class TechnologySeedData
                 DirectedRequired = 700,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "DugoutCanoe" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Canoe" },
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "HabitatFamiliarisation" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "Domestication3",
+                DisplayName = "Domestication 3",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 700,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Domestication2" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "LargeGameHunting" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "HorseBow",
+                DisplayName = "Horse Bow",
+                Description = "Weapon: Horse Bow",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 700,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "ArrowNock" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "HorseDomestication" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "HuntingDogs",
+                DisplayName = "Hunting Dogs",
+                Description = "Bonus: Hunting +25% Detection Chassis: Man with Hunting Dog",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 700,
+                ExperienceRequired = 350,
+                ExperienceTypeCodes = ["Extraction.Hunting"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "DogDomestication" }
                 ]
             },
             new UpsertTechnologyDto
@@ -2537,20 +2940,36 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
+                Code = "Nets",
+                DisplayName = "Nets",
+                Description = "Bonus Fishing",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 700,
+                ExperienceRequired = 350,
+                ExperienceTypeCodes = ["Extraction.Fishing"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Fishing" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Snares" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
                 Code = "OutriggerCanoe",
                 DisplayName = "Outrigger Canoe",
+                Description = "Bonus: Fishing on coastal tiles",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 700,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "DugoutCanoe" }
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Canoe" }
                 ]
             },
             new UpsertTechnologyDto
             {
                 Code = "PersistenceHunting",
                 DisplayName = "Persistence Hunting",
-                Description = "Hunting Bonus",
+                Description = "Bonus: Hunting Training: Endurance (movement bonus)",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 700,
                 ExperienceRequired = 350,
@@ -2562,23 +2981,103 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "PlowAnimals",
-                DisplayName = "Plow Animals",
+                Code = "WarCanoe",
+                DisplayName = "War Canoe",
+                Description = "Unit Design Base: War Canoe",
                 Era = TechnologyEra.Stone,
                 DirectedRequired = 700,
                 Prerequisites =
                 [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Canoe" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "WarmShelterConstruction",
+                DisplayName = "Warm Shelter Construction",
+                Description = "Action: Can create a settlement in a cold region",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 700,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BasicShelterConstruction" },
                     new UpsertTechnologyPrerequisiteDto
                     {
-                        PrerequisiteTechnologyCode = "CattleDomestication",
+                        PrerequisiteTechnologyCode = "BiomeSkillIce",
                         PrerequisiteKind = TechnologyPrerequisiteKind.Optional
                     },
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "EarlyFarming" },
                     new UpsertTechnologyPrerequisiteDto
                     {
-                        PrerequisiteTechnologyCode = "HorseDomestication",
+                        PrerequisiteTechnologyCode = "BiomeSkillTundra",
                         PrerequisiteKind = TechnologyPrerequisiteKind.Optional
                     }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeExpertiseCoastal",
+                DisplayName = "Biome Expertise - Coastal",
+                Description = "(on 3rd settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 800,
+                ExperienceRequired = 400,
+                ExperienceTypeCodes = ["Biome.Coastal"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeSkillCoastal" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeExpertiseIce",
+                DisplayName = "Biome Expertise - Ice",
+                Description = "(on 3rd settlement in the biome)",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 800,
+                ExperienceRequired = 400,
+                ExperienceTypeCodes = ["Biome.Ice"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeSkillIce" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "WarmShelterConstruction" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeMasteryTundra",
+                DisplayName = "Biome Mastery - Tundra",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 800,
+                ExperienceRequired = 400,
+                ExperienceTypeCodes = ["Biome.Tundra"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeExpertiseTundra" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "WarmShelterConstruction" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "CamelDomestication",
+                DisplayName = "Camel Domestication",
+                Description = "Action: Domesticate Camels",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 800,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Domestication3" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "CattleDomestication",
+                DisplayName = "Cattle Domestication",
+                Description = "Action: Domesticate Cattle",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 800,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Domestication3" }
                 ]
             },
             new UpsertTechnologyDto
@@ -2617,6 +3116,43 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
+                Code = "LeatherCrafting",
+                DisplayName = "Leather Crafting",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 800,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "LeatherTanning" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeMasteryCoastal",
+                DisplayName = "Biome Mastery - Coastal",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 900,
+                ExperienceRequired = 450,
+                ExperienceTypeCodes = ["Biome.Coastal"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeExpertiseCoastal" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "BiomeMasteryIce",
+                DisplayName = "Biome Mastery - Ice",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 900,
+                ExperienceRequired = 450,
+                ExperienceTypeCodes = ["Biome.Ice"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BiomeExpertiseIce" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
                 Code = "CoastalMastery",
                 DisplayName = "Coastal Mastery",
                 Era = TechnologyEra.Stone,
@@ -2624,6 +3160,144 @@ internal static class TechnologySeedData
                 Prerequisites =
                 [
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "CoastalNative" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "Herding",
+                DisplayName = "Herding",
+                Description = "+50% domestication birth rate",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 900,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto
+                    {
+                        PrerequisiteTechnologyCode = "CamelDomestication",
+                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
+                    },
+                    new UpsertTechnologyPrerequisiteDto
+                    {
+                        PrerequisiteTechnologyCode = "CattleDomestication",
+                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
+                    },
+                    new UpsertTechnologyPrerequisiteDto
+                    {
+                        PrerequisiteTechnologyCode = "GoatDomestication",
+                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
+                    },
+                    new UpsertTechnologyPrerequisiteDto
+                    {
+                        PrerequisiteTechnologyCode = "HorseDomestication",
+                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
+                    },
+                    new UpsertTechnologyPrerequisiteDto
+                    {
+                        PrerequisiteTechnologyCode = "PigDomestication",
+                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
+                    },
+                    new UpsertTechnologyPrerequisiteDto
+                    {
+                        PrerequisiteTechnologyCode = "SheepDomestication",
+                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
+                    }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "PlowAnimals",
+                DisplayName = "Plow Animals",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 900,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto
+                    {
+                        PrerequisiteTechnologyCode = "CattleDomestication",
+                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
+                    },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "EarlyFarming" },
+                    new UpsertTechnologyPrerequisiteDto
+                    {
+                        PrerequisiteTechnologyCode = "HorseDomestication",
+                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
+                    }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "Stirrup",
+                DisplayName = "Stirrup",
+                Description = "Gives: Stirrup",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 900,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "HorseDomestication" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "LeatherCrafting" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "TrackingLevel2",
+                DisplayName = "Tracking (Level 2)",
+                Description = "Bonus: Tracking +100%",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 900,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto
+                    {
+                        PrerequisiteTechnologyCode = "ClimateMasteryPolar",
+                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
+                    },
+                    new UpsertTechnologyPrerequisiteDto
+                    {
+                        PrerequisiteTechnologyCode = "TerrainMasteryHilly",
+                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
+                    },
+                    new UpsertTechnologyPrerequisiteDto
+                    {
+                        PrerequisiteTechnologyCode = "TerrainMasteryPlain",
+                        PrerequisiteKind = TechnologyPrerequisiteKind.Optional
+                    },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "TrackingLevel1" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "AnimalHusbandry",
+                DisplayName = "Animal Husbandry",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 1_000,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Herding" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "SelectiveBreeding1",
+                DisplayName = "Selective Breeding 1",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 1_000,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Herding" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "Saddle",
+                DisplayName = "Saddle",
+                Description = "Gives: Saddle",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 1_100,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "AnimalHusbandry" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "HorseDomestication" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "LeatherCrafting" }
                 ]
             }
         ];
