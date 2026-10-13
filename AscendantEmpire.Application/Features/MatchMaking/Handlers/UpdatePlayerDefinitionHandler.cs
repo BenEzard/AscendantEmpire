@@ -2,18 +2,24 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Turns.Services;
+using AscendantEmpire.BackendContracts.MatchMaking;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Enums.Games;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
+
+using System.Text.RegularExpressions;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 namespace AscendantEmpire.Application.Features.MatchMaking.Handlers;
 
 /// <summary>
-/// Writes the ruler and faction identity a user has chosen for the player slot they control in one game.
+/// Writes the ruler and faction identity a user has chosen for the player slot they control in one game, and starts the game once every player has
+/// one.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -21,17 +27,30 @@ namespace AscendantEmpire.Application.Features.MatchMaking.Handlers;
 /// player. A caller who controls no slot in the game gets a 404 rather than a 403 - there is nothing there for them to be forbidden from.
 /// </para>
 /// <para>
-/// A faction colour is unique within a game (enforced by the <c>UX_Player_Game_FactionColour</c> filtered unique index); the explicit check here
-/// just turns that race into a friendly error.
+/// <b>Six values are unique within the game.</b> The five names a player authors - ruler, faction, people, demonym and culture - plus the faction
+/// colour and, once chosen, the ruler portrait. Each has a unique index behind it, and the checks here exist to turn those races into friendly
+/// errors; every clash is reported in one answer rather than one per resubmission. <see cref="Language"/> is deliberately exempt, because two
+/// peoples sharing a language is a legitimate thing to express.
+/// </para>
+/// <para>
+/// <b>The definition locks when play begins.</b> While the game is still awaiting players every field is writable; from
+/// <see cref="GamePlayStatus.InProgress"/> onward only <paramref name="RulerTitle"/> is, and the rest of the request is ignored rather than refused.
+/// The client round-trips the whole definition and renders the locked fields disabled, so an ignored field is never a change the player meant to
+/// make - where refusing would turn a legal title edit into an error over values the caller only echoed back.
+/// </para>
+/// <para>
+/// <b>The last definition to land starts the game</b>, not the last seat to be claimed: a claimed slot nobody has filled the form in for has no
+/// identity to play as. Readiness is "every active slot has a user and a completed definition", and the save and the start share one transaction for
+/// the same reason the claim once did - a start that failed must not leave the game ready and never begun.
 /// </para>
 /// <para>
 /// A blank <paramref name="RulerTitle"/> is legal and stored as <see cref="Player.DEFAULT_RULER_TITLE"/> - the title is optional in the UI, and
-/// defaulting it here keeps the placeholder in one place rather than spreading it into a database default.
+/// defaulting it here keeps the placeholder in one place rather than spreading it into a database default. That still holds after the lock: a player
+/// clearing their title mid-game is a legal edit.
 /// </para>
 /// <para>
-/// A blank <paramref name="RulerPortraitPath"/> is legal in the same way. A portrait that <i>is</i> chosen must be unique within the game, which is
-/// checked here and nowhere else: unlike the colour there is no index behind it, because the cost of losing the race is two players sharing a face
-/// rather than an unreadable map. The default is exempt, so any number of players may be undecided at once.
+/// A blank <paramref name="RulerPortraitPath"/> is legal in the same way, and stored as <see cref="Player.DEFAULT_RULER_PORTRAIT_PATH"/>. The default
+/// is exempt from the uniqueness rule, so any number of players may be undecided at once.
 /// </para>
 /// </remarks>
 public record UpdatePlayerDefinitionRequest(
@@ -113,9 +132,18 @@ internal class UpdatePlayerDefinitionRequestValidator : Validator<UpdatePlayerDe
 
 internal sealed class UpdatePlayerDefinitionHandler(
     ILogger<UpdatePlayerDefinitionHandler> logger,
-    IDbContextFactory<AscendantEmpireContext> dbFactory
+    IDbContextFactory<AscendantEmpireContext> dbFactory,
+    ICampaignRoundService campaignRoundService
 ) : IRequestHandler<UpdatePlayerDefinitionRequest, ServiceResult<Empty>>
 {
+    /// <summary>
+    /// Matches a run of one or more whitespace characters, for collapsing the middle of a name down to single spaces.
+    /// </summary>
+    /// <remarks>
+    /// Compiled because every definition save runs it five times, and the pattern never changes.
+    /// </remarks>
+    private static readonly Regex _whitespaceRuns = new(@"\s+", RegexOptions.Compiled);
+
     public async Task<ServiceResult<Empty>> Handle(UpdatePlayerDefinitionRequest request, CancellationToken cancelToken)
     {
         try
@@ -131,12 +159,25 @@ internal sealed class UpdatePlayerDefinitionHandler(
                 ? Player.DEFAULT_RULER_PORTRAIT_PATH
                 : request.RulerPortraitPath.Trim();
 
+            // The five unique names get the fuller treatment: trimmed and with internal runs of whitespace collapsed, so
+            // that "The  Vashti" cannot sit alongside "The Vashti" as a second name. See NormaliseName.
+            string rulerName = NormaliseName(request.RulerName);
+            string factionName = NormaliseName(request.FactionName);
+            string peopleName = NormaliseName(request.PeopleName);
+            string demonym = NormaliseName(request.Demonym);
+            string cultureName = NormaliseName(request.CultureName);
+
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+
+            // A game holds at most a handful of slots, so pull them all in one query: the caller's own is in there, and
+            // the rest are exactly what the six uniqueness checks and the readiness test need.
+            List<Player> slots = await context.Players
+                .Where(p => p.GameId == request.GameId)
+                .ToListAsync(cancelToken);
 
             // Resolved by (game, user) rather than by a player id in the request, so the caller
             // cannot name a slot that isn't theirs - hence a 404 here and no forbidden case.
-            Player? slot = await context.Players
-                .FirstOrDefaultAsync(p => p.GameId == request.GameId && p.UserId == request.UserId, cancelToken);
+            Player? slot = slots.FirstOrDefault(p => p.UserId == request.UserId);
 
             if (slot is null)
             {
@@ -144,38 +185,68 @@ internal sealed class UpdatePlayerDefinitionHandler(
                 return ServiceResult<Empty>.NotFound("You don't control a player in that game.");
             }
 
-            bool colourTaken = await context.Players
-                .AnyAsync(p => p.GameId == request.GameId && p.Id != slot.Id && p.FactionColour == factionColour, cancelToken);
+            GamePlayStatus playStatus = await context.GameIndex
+                .Where(g => g.Id == request.GameId)
+                .Select(g => g.PlayStatus)
+                .FirstAsync(cancelToken);
 
-            if (colourTaken)
+            // From the moment play begins, the identity is what everything else labels and attributes by, so only the
+            // title stays editable. The rest of the request is read no further - see the remarks on the request type for
+            // why that is quieter than refusing it.
+            if (playStatus is GamePlayStatus.InProgress or GamePlayStatus.Completed or GamePlayStatus.Abandoned)
             {
-                logger.LogInformation("User {UserId} tried to take colour {FactionColour} in game {GameId}, but another player already holds it.", request.UserId, factionColour, request.GameId);
-                return ServiceResult<Empty>.Conflict("That colour has already been taken by another player in this game.");
+                slot.RulerTitle = rulerTitle;
+                await context.SaveChangesAsync(cancelToken);
+
+                logger.LogInformation("User {UserId} retitled player {PlayerId} in game {GameId}; the rest of the definition is locked at play status {PlayStatus}.",
+                    request.UserId, slot.Id, request.GameId, playStatus);
+
+                return ServiceResult<Empty>.SuccessNoContent();
             }
+
+            List<Player> rivals = [.. slots.Where(p => p.Id != slot.Id)];
+
+            // Every clash in one answer: a player who has picked three taken names should be told all three rather than
+            // resubmit three times to find them out.
+            List<PlayerDefinitionFieldConflict> clashes = [];
+
+            CollectClash(clashes, rivals, "rulerName", "ruler name", rulerName, static p => p.RulerName);
+            CollectClash(clashes, rivals, "factionName", "faction name", factionName, static p => p.FactionName);
+            CollectClash(clashes, rivals, "peopleName", "people name", peopleName, static p => p.PeopleName);
+            CollectClash(clashes, rivals, "demonym", "demonym", demonym, static p => p.Demonym);
+            CollectClash(clashes, rivals, "cultureName", "culture name", cultureName, static p => p.CultureName);
+            CollectClash(clashes, rivals, "factionColour", "colour", factionColour, static p => p.FactionColour ?? string.Empty);
 
             // The default is exempt: it is the one portrait value a game may hold more than once, because any number of
-            // players can be undecided at the same time. Unlike the colour there is no unique index behind this check,
-            // so it is the whole guarantee rather than a friendlier version of one - see Player.RulerPortraitPath.
+            // players can be undecided at the same time. The index behind it is filtered to match.
             if (rulerPortraitPath != Player.DEFAULT_RULER_PORTRAIT_PATH)
             {
-                bool portraitTaken = await context.Players
-                    .AnyAsync(p => p.GameId == request.GameId && p.Id != slot.Id && p.RulerPortraitPath == rulerPortraitPath, cancelToken);
-
-                if (portraitTaken)
-                {
-                    logger.LogInformation("User {UserId} tried to take portrait {RulerPortraitPath} in game {GameId}, but another player already holds it.", request.UserId, rulerPortraitPath, request.GameId);
-                    return ServiceResult<Empty>.Conflict("That portrait has already been taken by another player in this game.");
-                }
+                CollectClash(clashes, rivals, "rulerPortraitPath", "portrait", rulerPortraitPath, static p => p.RulerPortraitPath);
             }
 
+            if (clashes.Count > 0)
+            {
+                logger.LogInformation("User {UserId} tried to define player {PlayerId} in game {GameId} with {ClashCount} value(s) rivals already hold: {Fields}.",
+                    request.UserId, slot.Id, request.GameId, clashes.Count, string.Join(", ", clashes.Select(c => c.Field)));
+
+                return ServiceResult<Empty>.Conflict(
+                    clashes.Select(c => c.Message),
+                    new PlayerDefinitionConflict { Fields = clashes });
+            }
+
+            // The save and the start it may trigger belong together. Without one transaction around both, a start that
+            // failed would leave the game ready and stuck: every player defined, so nothing further would trigger a
+            // start, and never begun.
+            await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancelToken);
+
             slot.RulerTitle = rulerTitle;
-            slot.RulerName = request.RulerName.Trim();
+            slot.RulerName = rulerName;
             slot.RulerGender = request.RulerGender;
-            slot.FactionName = request.FactionName.Trim();
+            slot.FactionName = factionName;
             slot.FactionColour = factionColour;
-            slot.PeopleName = request.PeopleName.Trim();
-            slot.Demonym = request.Demonym.Trim();
-            slot.CultureName = request.CultureName.Trim();
+            slot.PeopleName = peopleName;
+            slot.Demonym = demonym;
+            slot.CultureName = cultureName;
             slot.Language = request.Language.Trim();
             slot.RulerPortraitPath = rulerPortraitPath;
 
@@ -183,14 +254,95 @@ internal sealed class UpdatePlayerDefinitionHandler(
 
             logger.LogInformation("User {UserId} defined player {PlayerId} in game {GameId}.", request.UserId, slot.Id, request.GameId);
 
+            // Was that the last player to define themselves? Read it back rather than reasoning over the slots fetched
+            // above, so anybody who defined themselves while this request was in flight is counted. A completed
+            // definition is a non-null gender - see Player.RulerGender.
+            bool anyPlayerNotReady = await context.Players
+                .AnyAsync(p => p.GameId == request.GameId
+                            && p.Status == PlayerStatus.Active
+                            && (p.UserId == null || p.RulerGender == null), cancelToken);
+
+            if (anyPlayerNotReady == false)
+            {
+                // Everybody is in and everybody has an identity, so play begins. The service is gated on AwaitingPlayers
+                // and idempotent, so a player re-saving their definition after the game has begun cannot start it twice.
+                ServiceResultBase startResult = await campaignRoundService.StartGameAsync(context, request.GameId, cancelToken);
+
+                if (startResult.HasSucceeded == false)
+                {
+                    // Rolling back un-defines the player too, which is what makes re-saving the definition a real fix
+                    // rather than a second failure.
+                    logger.LogError("Defining the last player in game {GameId} failed to start it, so the definition was rolled back. Errors: {Errors}",
+                        request.GameId, string.Join("; ", startResult.Errors));
+
+                    return ServiceResult<Empty>.InternalServerError("Your ruler was saved but the game could not be started. Please try again.");
+                }
+            }
+
+            await transaction.CommitAsync(cancelToken);
+
             return ServiceResult<Empty>.SuccessNoContent();
         }
         catch (DbUpdateException ex)
         {
-            // Lost a race: another player took the colour between our check and the save. The unique
-            // index is the real guarantee; the check above only makes the common case friendlier.
-            logger.LogInformation(ex, "Concurrent faction colour conflict in game {GameId} for user {UserId}.", request.GameId, request.UserId);
-            return ServiceResult<Empty>.Conflict("That colour has already been taken by another player in this game.");
+            // Lost a race: a rival took one of the six unique values between our checks and the save. The indexes are the
+            // real guarantee; the checks above only make the common case friendlier, and cannot say which one it was.
+            logger.LogInformation(ex, "Concurrent player definition conflict in game {GameId} for user {UserId}.", request.GameId, request.UserId);
+            return ServiceResult<Empty>.Conflict("Another player in this game took one of those values while you were choosing. Please try again.");
         }
+    }
+
+    /// <summary>
+    /// Trims a name and collapses every run of internal whitespace to a single space, so what gets stored is the canonical form of what was typed.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Case is left to the database collation, which <see cref="Player.IDENTITY_COLLATION"/> pins case-insensitive on these columns. Spacing is not
+    /// something a collation settles - "The  Vashti" with a double space is a distinct string under any of them, and a leading space counts even though
+    /// SQL Server ignores a trailing one - so it has to be settled here instead.
+    /// </para>
+    /// <para>
+    /// This normalises the real column rather than a shadow of it, so what is stored, what is displayed and what is compared are all the same string.
+    /// </para>
+    /// </remarks>
+    private static string NormaliseName(string value)
+    {
+        return _whitespaceRuns.Replace(value.Trim(), " ");
+    }
+
+    /// <summary>
+    /// Records a clash when a rival in the same game already holds <paramref name="requestedValue"/> in the same field.
+    /// </summary>
+    /// <param name="clashes">The list being accumulated, appended to only when there is something to report.</param>
+    /// <param name="rivals">Every other slot in the game. The caller's own is excluded, so keeping a value they already hold is not a clash.</param>
+    /// <param name="field">The field as the request body spells it, e.g. "peopleName".</param>
+    /// <param name="label">How to name the field in the message shown to the player, e.g. "people name".</param>
+    /// <param name="requestedValue">The normalised value the caller is asking for.</param>
+    /// <param name="readRival">Reads the same field off a rival's slot.</param>
+    /// <remarks>
+    /// Compared here with <see cref="StringComparison.OrdinalIgnoreCase"/> rather than in the query. The slots were fetched anyway to resolve the
+    /// caller's own, a game holds a handful of them, and comparing in memory behaves the same whichever provider is underneath - where a translated
+    /// <c>==</c> is case-insensitive against SQL Server's collation but ordinal, and so case-sensitive, under the in-memory provider the tests use.
+    /// </remarks>
+    private static void CollectClash(
+        List<PlayerDefinitionFieldConflict> clashes,
+        IReadOnlyCollection<Player> rivals,
+        string field,
+        string label,
+        string requestedValue,
+        Func<Player, string> readRival)
+    {
+        bool taken = rivals.Any(p => string.Equals(readRival(p), requestedValue, StringComparison.OrdinalIgnoreCase));
+
+        if (taken == false)
+        {
+            return;
+        }
+
+        clashes.Add(new PlayerDefinitionFieldConflict
+        {
+            Field = field,
+            Message = $"That {label} has already been taken by another player in this game."
+        });
     }
 }

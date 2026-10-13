@@ -50,9 +50,26 @@ function undefinedSlot(overrides: Partial<PlayerDefinition> = {}): PlayerDefinit
     rulerPortraitPath: "",
     usedFactionColours: [{ value: TAKEN_COLOUR, usedBy: "Faction 1" }],
     usedRulerPortraits: [],
+    // The lobby state, where every field is still editable. The locked case has its own block below.
+    isLocked: false,
     ...overrides,
   };
 }
+
+/**
+ * A 409 shaped the way the definition endpoint sends one: a message per clash, plus the detail naming the fields.
+ *
+ * The dialog places each message by the field name in the detail rather than by matching the message text, so a test
+ * that omitted the detail would pass with the messages landing nowhere.
+ */
+function clashError(...fields: { field: string; message: string }[]): ApiError {
+  return new ApiError(fields.map((f) => f.message).join(" "), 409, { fields });
+}
+
+const COLOUR_TAKEN = { field: "factionColour", message: "That colour has already been taken by another player in this game." };
+const PORTRAIT_TAKEN = { field: "rulerPortraitPath", message: "That portrait has already been taken by another player in this game." };
+const PEOPLE_TAKEN = { field: "peopleName", message: "That people name has already been taken by another player in this game." };
+const DEMONYM_TAKEN = { field: "demonym", message: "That demonym has already been taken by another player in this game." };
 
 function renderDialog(definition: PlayerDefinition = undefinedSlot()) {
   vi.mocked(getPlayerDefinition).mockResolvedValue(definition);
@@ -302,9 +319,7 @@ describe("faction colours", () => {
 
   it("reports a lost colour race on the colour field, on the page that owns it", async () => {
     const user = userEvent.setup();
-    vi.mocked(updatePlayerDefinition).mockRejectedValue(
-      new ApiError("That colour has already been taken by another player in this game.", 409, undefined),
-    );
+    vi.mocked(updatePlayerDefinition).mockRejectedValue(clashError(COLOUR_TAKEN));
     const { onSaved } = renderDialog();
     await waitForLoad();
 
@@ -313,11 +328,75 @@ describe("faction colours", () => {
     await user.click(rulerTab());
     await user.click(saveButton());
 
-    await waitFor(() =>
-      expect(screen.getByText("That colour has already been taken by another player in this game.")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText(COLOUR_TAKEN.message)).toBeInTheDocument());
     expect(activeTabName()).toContain("Faction");
     expect(onSaved).not.toHaveBeenCalled();
+  });
+});
+
+describe("values a rival took while the dialog was open", () => {
+  it("reports every clash at once, so a player is not made to resubmit once per taken value", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updatePlayerDefinition).mockRejectedValue(clashError(PEOPLE_TAKEN, DEMONYM_TAKEN, COLOUR_TAKEN));
+    renderDialog();
+    await waitForLoad();
+
+    await completeTheForm(user);
+    await user.click(saveButton());
+
+    await waitFor(() => expect(screen.getByText(PEOPLE_TAKEN.message)).toBeInTheDocument());
+    expect(screen.getByText(DEMONYM_TAKEN.message)).toBeInTheDocument();
+    expect(screen.getByText(COLOUR_TAKEN.message)).toBeInTheDocument();
+  });
+
+  it("lands on the Ruler page when that is where a clash is, even though others sit on the Faction page", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updatePlayerDefinition).mockRejectedValue(clashError(PORTRAIT_TAKEN, PEOPLE_TAKEN));
+    renderDialog();
+    await waitForLoad();
+
+    // completeTheForm finishes on the Faction page, so landing on Ruler has to be the dialog's doing.
+    await completeTheForm(user);
+    await user.click(saveButton());
+
+    await waitFor(() => expect(screen.getByText(PORTRAIT_TAKEN.message)).toBeInTheDocument());
+    expect(activeTabName()).toContain("Ruler");
+  });
+
+  it("clears a clash once the value it was about is edited, rather than leaving a stale message behind", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updatePlayerDefinition).mockRejectedValue(clashError(PEOPLE_TAKEN));
+    renderDialog();
+    await waitForLoad();
+
+    await completeTheForm(user);
+    await user.click(saveButton());
+
+    await waitFor(() => expect(screen.getByText(PEOPLE_TAKEN.message)).toBeInTheDocument());
+
+    await user.type(peopleNameInput(), " of the North");
+
+    expect(screen.queryByText(PEOPLE_TAKEN.message)).not.toBeInTheDocument();
+  });
+
+  it("falls back to the banner for a 409 carrying no field detail, so the message is never swallowed", async () => {
+    const user = userEvent.setup();
+    // What the handler answers when it loses the race at the index rather than at its own check: it cannot say which
+    // value it was, so there is no field to put it on.
+    vi.mocked(updatePlayerDefinition).mockRejectedValue(
+      new ApiError("Another player in this game took one of those values while you were choosing. Please try again.", 409, undefined),
+    );
+    renderDialog();
+    await waitForLoad();
+
+    await completeTheForm(user);
+    await user.click(saveButton());
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("Another player in this game took one of those values while you were choosing. Please try again."),
+      ).toBeInTheDocument(),
+    );
   });
 });
 
@@ -438,9 +517,7 @@ describe("portraits a rival already holds", () => {
 
   it("report a lost race against the portrait field, on the Ruler page", async () => {
     const user = userEvent.setup();
-    vi.mocked(updatePlayerDefinition).mockRejectedValue(
-      new ApiError("That portrait has already been taken by another player in this game.", 409, undefined),
-    );
+    vi.mocked(updatePlayerDefinition).mockRejectedValue(clashError(PORTRAIT_TAKEN));
     const { onSaved } = renderDialog();
     await waitForLoad();
 
@@ -450,11 +527,83 @@ describe("portraits a rival already holds", () => {
     await completeTheForm(user);
     await user.click(saveButton());
 
-    await waitFor(() =>
-      expect(screen.getByText("That portrait has already been taken by another player in this game.")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText(PORTRAIT_TAKEN.message)).toBeInTheDocument());
     expect(activeTabName()).toContain("Ruler");
     expect(onSaved).not.toHaveBeenCalled();
+  });
+});
+
+describe("a game already under way", () => {
+  /** A fully defined slot in a started game — the only state the lock is ever seen in. */
+  function lockedSlot(): PlayerDefinition {
+    return undefinedSlot({
+      isLocked: true,
+      rulerTitle: "Empress",
+      rulerName: "Aelara",
+      rulerGender: "Female",
+      factionName: "The Ember Pact",
+      factionColour: "#8200db",
+      peopleName: "The Vashti",
+      demonym: "Vashti",
+      cultureName: "Vashti Highland",
+      language: "Old Vashti",
+      rulerPortraitPath: "/portraits/ruler_14.png",
+    });
+  }
+
+  it("says why the fields cannot be touched, rather than leaving the dialog looking broken", async () => {
+    renderDialog(lockedSlot());
+    await waitFor(() => expect(rulerNameInput()).toHaveValue("Aelara"));
+
+    expect(screen.getByText(/under way, so your ruler's and faction's identity is fixed/)).toBeInTheDocument();
+  });
+
+  it("disables every field but the title, which stays editable for the life of the game", async () => {
+    renderDialog(lockedSlot());
+    await waitFor(() => expect(rulerNameInput()).toHaveValue("Aelara"));
+
+    expect(rulerNameInput()).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "Female" })).toBeDisabled();
+    expect(portraitTrigger()).toBeDisabled();
+    expect(factionNameInput()).toBeDisabled();
+    expect(colourTrigger()).toBeDisabled();
+    expect(peopleNameInput()).toBeDisabled();
+    expect(demonymInput()).toBeDisabled();
+    expect(cultureNameInput()).toBeDisabled();
+    expect(languageInput()).toBeDisabled();
+
+    expect(rulerTitleInput()).toBeEnabled();
+  });
+
+  it("saves a retitle without the user having to re-answer anything", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updatePlayerDefinition).mockResolvedValue(undefined);
+    const { onSaved } = renderDialog(lockedSlot());
+    await waitFor(() => expect(rulerNameInput()).toHaveValue("Aelara"));
+
+    await user.clear(rulerTitleInput());
+    await user.type(rulerTitleInput(), "Dowager Empress");
+    await user.click(saveButton());
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(updatePlayerDefinition).mock.calls[0][1].rulerTitle).toBe("Dowager Empress");
+  });
+
+  // A slot from before the people-and-culture columns existed comes back with those blank. The lock means the player
+  // cannot fill them in, so validating them would leave a title edit permanently unsaveable.
+  it("still saves a retitle on a slot whose stored values would not pass validation", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updatePlayerDefinition).mockResolvedValue(undefined);
+    const { onSaved } = renderDialog(
+      undefinedSlot({ isLocked: true, rulerGender: "Female", peopleName: "", demonym: "", cultureName: "", language: "" }),
+    );
+    await waitForLoad();
+
+    await user.type(rulerTitleInput(), "Steward");
+    await user.click(saveButton());
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(updatePlayerDefinition).mock.calls[0][1].rulerTitle).toBe("Steward");
   });
 });
 

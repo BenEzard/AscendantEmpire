@@ -1,10 +1,6 @@
 ﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.MatchMaking.Handlers;
-using AscendantEmpire.Application.Features.Turns.Services;
-using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline;
-using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.StartRound;
-using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.StartTurn;
 using AscendantEmpire.Domain.Entities.Identity;
 using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Enums.Games;
@@ -13,24 +9,27 @@ using AscendantEmpire.Domain.Enums.Turns;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 
-using NSubstitute;
-
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 namespace AscendantEmpire.Tests.Features.MatchMaking;
 
 /// <summary>
-/// Tests for <see cref="ClaimPlayerSlotHandler"/>, and in particular for the Game starting when its last slot is taken.
+/// Tests for <see cref="ClaimPlayerSlotHandler"/>: who may take a seat, and that taking one never starts the Game.
 /// </summary>
 /// <remarks>
-/// The handler opens an explicit transaction and the start it triggers writes through <c>ExecuteUpdateAsync</c>; neither works on the
-/// in-memory provider, so these need a real SQL Server. The round service is real rather than mocked, because what these tests are for is
-/// the seam between claiming a seat and the Game actually becoming playable.
+/// <para>
+/// A claim can no longer be the last event in filling a lobby - the player still has to say who they are in the seat - so the Game start moved to
+/// <c>UpdatePlayerDefinitionHandler</c>. The tests below pin that it did not come back: a full lobby must still read as waiting.
+/// <c>StartOfGameTests</c> covers the start itself, end to end.
+/// </para>
+/// <para>
+/// Tier 3 because the fixture arranges through <c>ExecuteUpdateAsync</c> and leans on the real Game setup helpers, neither of which the in-memory
+/// provider reproduces.
+/// </para>
 /// </remarks>
 [TestFixture]
 public class ClaimPlayerSlotHandlerTests : GameSqlServerTestBase
 {
-    private ICampaignRoundService _campaignRoundService = null!;
     private ClaimPlayerSlotHandler _handler = null!;
 
     private int _gameId;
@@ -68,20 +67,7 @@ public class ClaimPlayerSlotHandlerTests : GameSqlServerTestBase
         _user1Id = await SeedUserAsync("claimer-one");
         _user2Id = await SeedUserAsync("claimer-two");
 
-        var startCampaignRoundPipeline = Substitute.For<ITurnServicePipeline<IStartCampaignRoundProcess>>();
-        var startCampaignTurnPipeline = Substitute.For<ITurnServicePipeline<IStartCampaignTurnProcess>>();
-
-        startCampaignRoundPipeline.ProcessPipelineAsync(Arg.Any<TurnPipelineContextData>()).Returns(ServiceResultBase.Succeed());
-        startCampaignTurnPipeline.ProcessPipelineAsync(Arg.Any<TurnPipelineContextData>()).Returns(ServiceResultBase.Succeed());
-
-        _campaignRoundService = new CampaignRoundService(
-            new NullLogger<CampaignRoundService>(),
-            new CampaignTurnService(new NullLogger<CampaignTurnService>(), DbFactory),
-            new PlayerTurnService(new NullLogger<PlayerTurnService>(), DbFactory),
-            startCampaignRoundPipeline,
-            startCampaignTurnPipeline);
-
-        _handler = new ClaimPlayerSlotHandler(new NullLogger<ClaimPlayerSlotHandler>(), DbFactory, _campaignRoundService);
+        _handler = new ClaimPlayerSlotHandler(new NullLogger<ClaimPlayerSlotHandler>(), DbFactory);
     }
 
     /// <summary>Seeds the Campaign Turn Queue setup would have created: Round 1, everybody Pending, no clock running.</summary>
@@ -137,7 +123,7 @@ public class ClaimPlayerSlotHandlerTests : GameSqlServerTestBase
     }
 
     // =========================================================================
-    // Claiming a slot that is not the last one
+    // Claiming a seat never starts the Game
     // =========================================================================
 
     [Test, Description("A claim that still leaves a free seat does not start the Game, because the empty seat has nobody to take its Turn.")]
@@ -158,12 +144,8 @@ public class ClaimPlayerSlotHandlerTests : GameSqlServerTestBase
         }
     }
 
-    // =========================================================================
-    // Claiming the last slot
-    // =========================================================================
-
-    [Test, Description("Claiming the last free seat starts the Game, which is the only thing that ever moves it out of the lobby.")]
-    public async Task ShouldStartTheGameWhenTheLastSlotIsClaimed()
+    [Test, Description("Claiming the last free seat leaves the Game in the lobby, because a seated player who has not defined themselves has no identity to play as.")]
+    public async Task ShouldLeaveTheGameWaitingWhenTheLastSlotIsClaimed()
     {
         await _handler.Handle(new ClaimPlayerSlotRequest(_user1Id, _gameId, _player1Id), CancellationToken.None);
 
@@ -174,12 +156,12 @@ public class ClaimPlayerSlotHandlerTests : GameSqlServerTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.HasSucceeded, Is.True);
-            Assert.That(playStatus, Is.EqualTo(GamePlayStatus.InProgress));
+            Assert.That(playStatus, Is.EqualTo(GamePlayStatus.AwaitingPlayers));
         }
     }
 
-    [Test, Description("The Game that starts is one that can actually be played: the first Player is taking their Turn and the clock is running.")]
-    public async Task ShouldHandTheFirstTurnOutWhenTheLastSlotIsClaimed()
+    [Test, Description("A full lobby hands nobody a Turn, so the Turn clock stays unset until the last player has defined themselves.")]
+    public async Task ShouldHandNobodyATurnWhenTheLastSlotIsClaimed()
     {
         await _handler.Handle(new ClaimPlayerSlotRequest(_user1Id, _gameId, _player1Id), CancellationToken.None);
         await _handler.Handle(new ClaimPlayerSlotRequest(_user2Id, _gameId, _player2Id), CancellationToken.None);
@@ -190,14 +172,14 @@ public class ClaimPlayerSlotHandlerTests : GameSqlServerTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(participant1.Status, Is.EqualTo(TurnQueueParticipantStatus.TakingTurn), "The Player with the lowest turn order should lead the Game.");
-            Assert.That(queue.CurrentTurnStartAt, Is.Not.Null, "The Turn clock should be running now that play has begun.");
-            Assert.That(queue.CurrentScheduledTurnEndAt, Is.Not.Null, "The Turn should have a scheduled end.");
+            Assert.That(participant1.Status, Is.EqualTo(TurnQueueParticipantStatus.Pending), "No Turn should have been handed out by a claim.");
+            Assert.That(queue.CurrentTurnStartAt, Is.Null, "The Turn clock must not be running before play begins.");
+            Assert.That(queue.CurrentScheduledTurnEndAt, Is.Null, "A Turn that has not begun has no scheduled end.");
         }
     }
 
     // =========================================================================
-    // Refusals - all of which must still hold now the handler also starts games
+    // Refusals
     // =========================================================================
 
     [Test, Description("A user who already holds a seat here cannot take a second one, so one person can never play a Game against themselves.")]
@@ -207,13 +189,7 @@ public class ClaimPlayerSlotHandlerTests : GameSqlServerTestBase
 
         ServiceResult<Empty> result = await _handler.Handle(new ClaimPlayerSlotRequest(_user1Id, _gameId, _player2Id), CancellationToken.None);
 
-        GamePlayStatus playStatus = await ReadPlayStatusAsync();
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Conflict));
-            Assert.That(playStatus, Is.EqualTo(GamePlayStatus.AwaitingPlayers), "A refused claim leaves a seat free, so the Game must not have started.");
-        }
+        Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Conflict));
     }
 
     [Test, Description("A seat somebody else already holds is refused, rather than being quietly handed over to the second caller.")]
@@ -249,8 +225,8 @@ public class ClaimPlayerSlotHandlerTests : GameSqlServerTestBase
         Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Conflict));
     }
 
-    [Test, Description("A Game only counts Active slots when deciding it is full, so claiming the last one that is left starts it even though a slot is unclaimed.")]
-    public async Task ShouldStartTheGameWhenTheOnlyRemainingFreeSlotIsNotActive()
+    [Test, Description("A seat left free by an inactive slot is still claimable, and taking it is still not what starts the Game.")]
+    public async Task ShouldLeaveTheGameWaitingWhenTheOnlyRemainingFreeSlotIsNotActive()
     {
         // Player 2 will never claim their seat, so Player 1's is the last one that can be taken.
         await using (AscendantEmpireContext arrangeContext = await DbFactory.CreateDbContextAsync())
@@ -267,7 +243,7 @@ public class ClaimPlayerSlotHandlerTests : GameSqlServerTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.HasSucceeded, Is.True);
-            Assert.That(playStatus, Is.EqualTo(GamePlayStatus.InProgress));
+            Assert.That(playStatus, Is.EqualTo(GamePlayStatus.AwaitingPlayers));
         }
     }
 }

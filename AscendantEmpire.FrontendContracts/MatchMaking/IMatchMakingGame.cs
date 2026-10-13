@@ -22,4 +22,13 @@ public interface IMatchMakingGame
 
     /// <summary>All active slots in the game, claimed and unclaimed alike.</summary>
     IReadOnlyCollection<IMatchMakingSlot> Slots { get; }
+
+    /// <summary>
+    /// True once the game is under way, which is the only state entering it is allowed from.
+    /// </summary>
+    /// <remarks>
+    /// A game starts when every active slot has been claimed <i>and</i> every one of those players has defined themselves, so a lobby can be full and
+    /// still not started. <see cref="IMatchMakingSlot.IsDefined"/> is what tells those two waits apart.
+    /// </remarks>
+    bool HasStarted { get; }
 }

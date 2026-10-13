@@ -799,12 +799,14 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<string>("CultureName")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(50)")
+                        .UseCollation("Latin1_General_CI_AS");
 
                     b.Property<string>("Demonym")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(50)")
+                        .UseCollation("Latin1_General_CI_AS");
 
                     b.Property<string>("FactionColour")
                         .HasMaxLength(9)
@@ -813,7 +815,8 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<string>("FactionName")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(50)")
+                        .UseCollation("Latin1_General_CI_AS");
 
                     b.Property<int>("GameId")
                         .HasColumnType("int");
@@ -826,7 +829,8 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<string>("PeopleName")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(50)")
+                        .UseCollation("Latin1_General_CI_AS");
 
                     b.Property<int?>("RulerGender")
                         .HasColumnType("int");
@@ -834,7 +838,8 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<string>("RulerName")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(50)")
+                        .UseCollation("Latin1_General_CI_AS");
 
                     b.Property<string>("RulerPortraitPath")
                         .IsRequired()
@@ -856,10 +861,35 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.HasIndex("UserId");
 
+                    b.HasIndex("GameId", "CultureName")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Player_Game_CultureName");
+
+                    b.HasIndex("GameId", "Demonym")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Player_Game_Demonym");
+
                     b.HasIndex("GameId", "FactionColour")
                         .IsUnique()
                         .HasDatabaseName("UX_Player_Game_FactionColour")
                         .HasFilter("[FactionColour] IS NOT NULL");
+
+                    b.HasIndex("GameId", "FactionName")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Player_Game_FactionName");
+
+                    b.HasIndex("GameId", "PeopleName")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Player_Game_PeopleName");
+
+                    b.HasIndex("GameId", "RulerName")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Player_Game_RulerName");
+
+                    b.HasIndex("GameId", "RulerPortraitPath")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Player_Game_RulerPortraitPath")
+                        .HasFilter("[RulerPortraitPath] <> ''");
 
                     b.HasIndex("GameId", "UserId")
                         .IsUnique()

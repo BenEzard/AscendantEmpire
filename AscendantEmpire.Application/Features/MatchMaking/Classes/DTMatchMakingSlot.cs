@@ -27,4 +27,7 @@ public class DTMatchMakingSlot : IMatchMakingSlot
 
     /// <inheritdoc />
     public bool IsClaimedByCurrentUser { get; set; }
+
+    /// <inheritdoc />
+    public bool IsDefined { get; set; }
 }

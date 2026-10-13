@@ -27,4 +27,13 @@ public record MatchMakingSlot
 
     /// <summary>True when the account making the request is the one that controls this slot.</summary>
     public bool IsClaimedByCurrentUser { get; init; }
+
+    /// <summary>
+    /// True when the player holding this slot has completed their setup, so the names and colour above are theirs rather than seeded placeholders.
+    /// </summary>
+    /// <remarks>
+    /// Read off <c>Player.RulerGender</c>, which a seeded slot deliberately leaves null. Always false on an unclaimed slot, and the other half of
+    /// what the game waits on before it starts.
+    /// </remarks>
+    public bool IsDefined { get; init; }
 }

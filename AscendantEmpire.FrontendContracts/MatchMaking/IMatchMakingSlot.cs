@@ -28,4 +28,13 @@ public interface IMatchMakingSlot
 
     /// <summary>True when the requesting account is the one that controls this slot.</summary>
     bool IsClaimedByCurrentUser { get; }
+
+    /// <summary>
+    /// True when the player holding this slot has completed their setup, so the names and colour above are theirs rather than seeded placeholders.
+    /// </summary>
+    /// <remarks>
+    /// Always false on an unclaimed slot. This is the other half of the start condition: a lobby whose every slot is claimed but not yet defined is
+    /// still waiting, and without this the listing could only say "full" and leave the wait unexplained.
+    /// </remarks>
+    bool IsDefined { get; }
 }

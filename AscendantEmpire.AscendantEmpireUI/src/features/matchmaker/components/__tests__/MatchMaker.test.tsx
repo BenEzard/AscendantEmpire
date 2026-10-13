@@ -44,6 +44,9 @@ function slot(overrides: Partial<MatchMakingSlot> & Pick<MatchMakingSlot, "playe
     rulerLabel: `Nobody Player ${overrides.playerId} (Faction ${overrides.playerId})`,
     isClaimed: false,
     isClaimedByCurrentUser: false,
+    // Defaults to defined, so a seat is "Taken" unless a test is specifically about one still setting up. An
+    // unclaimed seat's value is never read, which is why this does not have to track isClaimed.
+    isDefined: true,
     ...overrides,
   };
 }
@@ -79,6 +82,7 @@ function renderLobby(games: MatchMakingGamesResponse) {
     rulerPortraitPath: "/portraits/ruler_10.png",
     usedRulerPortraits: [],
     usedFactionColours: [],
+    isLocked: false,
   });
 
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -162,6 +166,38 @@ describe("a seat the caller already holds", () => {
 
     expect(screen.getByText("Taken")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Claim" })).not.toBeInTheDocument();
+  });
+});
+
+describe("a lobby waiting on setup rather than on seats", () => {
+  it("badges a claimed seat whose player has not been through setup apart from a finished one", async () => {
+    renderLobby(lobby([slot({ playerId: 71, isClaimed: true, isDefined: false })]));
+    await waitForLobby();
+
+    // "Taken" would read as nothing left to wait for, when this seat is exactly what the game is waiting on.
+    expect(screen.getByText("Setting up")).toBeInTheDocument();
+    expect(screen.queryByText("Taken")).not.toBeInTheDocument();
+  });
+
+  it("says how many players are still setting up, rather than only that the game has not started", async () => {
+    renderLobby(
+      lobby([
+        slot({ playerId: 71, isClaimed: true, isDefined: false }),
+        slot({ playerId: 72, isClaimed: true, isDefined: false }),
+        slot({ playerId: 73, isClaimed: true, isDefined: true }),
+      ]),
+    );
+    await waitForLobby();
+
+    expect(screen.getByText(/2 still setting up/)).toBeInTheDocument();
+    expect(screen.queryByText(/waiting to start/)).not.toBeInTheDocument();
+  });
+
+  it("falls back to waiting-to-start when the seats themselves are what is outstanding", async () => {
+    renderLobby(lobby([slot({ playerId: 71, isClaimed: true }), slot({ playerId: FREE_PLAYER_ID })]));
+    await waitForLobby();
+
+    expect(screen.getByText(/waiting to start/)).toBeInTheDocument();
   });
 });
 

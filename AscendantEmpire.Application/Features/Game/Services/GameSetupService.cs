@@ -321,8 +321,9 @@ internal class GameSetupService(
     /// </summary>
     /// <remarks>
     /// This does <b>not</b> start the Game. Setup finishes with every slot unclaimed and every Turn Queue Participant Pending, so there is
-    /// nobody to take the first Turn and the Turn clock is deliberately left unset. Claiming the last free slot is what starts play - see
-    /// <c>ClaimPlayerSlotHandler</c> and <c>ICampaignRoundService.StartGameAsync</c>.
+    /// nobody to take the first Turn and the Turn clock is deliberately left unset. The <i>last player to define themselves</i> is what starts
+    /// play - not the last seat to be claimed, since a claimed seat nobody has filled the form in for has no identity to play as. See
+    /// <c>UpdatePlayerDefinitionHandler</c> and <c>ICampaignRoundService.StartGameAsync</c>.
     /// </remarks>
     private static async Task CompleteGameSetupAsync(AscendantEmpireContext context, int gameId, CancellationToken cancellationToken)
     {

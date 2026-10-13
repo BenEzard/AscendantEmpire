@@ -47,6 +47,9 @@ public class DTPlayerDefinition : IPlayerDefinition
     /// <inheritdoc />
     public required IReadOnlyCollection<DTUsedRulerPortrait> UsedRulerPortraits { get; set; }
 
+    /// <inheritdoc />
+    public bool IsLocked { get; set; }
+
     IReadOnlyCollection<IUsedFactionColour> IPlayerDefinition.UsedFactionColours => UsedFactionColours;
 
     IReadOnlyCollection<IUsedRulerPortrait> IPlayerDefinition.UsedRulerPortraits => UsedRulerPortraits;

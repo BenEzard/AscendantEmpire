@@ -45,6 +45,29 @@ export type PlayerDefinition = {
   // Likewise never the caller's own portrait. Only portraits a rival has actually chosen appear; the default is the one
   // value a game may hold more than once, so an undecided rival takes nothing out of the set.
   usedRulerPortraits: UsedRulerPortrait[];
+  // True once play has begun, when every field but the ruler title has become read-only for the life of the game. The
+  // server enforces it either way; this is what lets the dialog disable those fields rather than fail on submit.
+  isLocked: boolean;
+};
+
+/**
+ * One field of a definition whose requested value another player in the game already holds.
+ *
+ * `field` is named as the PUT body spells it, so it keys straight into the draft without translation.
+ */
+export type PlayerDefinitionFieldConflict = {
+  field: string;
+  message: string;
+};
+
+/**
+ * The `detail` a 409 from the definition save carries: every clashing field at once.
+ *
+ * Mirrors the API's `PlayerDefinitionConflict`. Reported together rather than one at a time, so a player who picks three
+ * taken values is told all three instead of resubmitting three times.
+ */
+export type PlayerDefinitionConflict = {
+  fields: PlayerDefinitionFieldConflict[];
 };
 
 /** The PUT body. Carries no identity: the game comes from the route and the slot from the token. */

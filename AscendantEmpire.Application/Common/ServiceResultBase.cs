@@ -173,8 +173,24 @@ public record ServiceResultBase
         };
 
         /// <summary>
+        /// Conflict error reporting several clashes at once, carrying machine-readable detail for the caller to branch on.
+        /// </summary>
+        /// <param name="errors">The human-readable account of each clash.</param>
+        /// <param name="detail">Structured detail, serialized alongside the error messages. See <see cref="ServiceResultBase.ErrorDetail"/>.</param>
+        /// <remarks>
+        /// For a request that can clash on more than one value independently - a player definition whose people name and demonym are both taken - where
+        /// reporting one at a time would make the caller resubmit once per clash.
+        /// </remarks>
+        public static ServiceResult<TSuccess> Conflict(IEnumerable<string> errors, object detail) => new()
+        {
+            StatusCode = ServiceResultStatus.Conflict,
+            Errors = [.. errors],
+            ErrorDetail = detail
+        };
+
+        /// <summary>
         /// Gone error. A resource needed to complete this request was initially available, but is no longer available or removed.
-        /// </summary>        
+        /// </summary>
         public static ServiceResult<TSuccess> Gone(string error) => Gone([error]);
 
         /// <summary>

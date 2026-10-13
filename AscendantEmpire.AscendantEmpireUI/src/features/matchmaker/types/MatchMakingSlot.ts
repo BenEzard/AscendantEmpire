@@ -11,4 +11,7 @@ export type MatchMakingSlot = {
   isClaimed: boolean;
   // True when *this* logged-in user is the one controlling the slot.
   isClaimedByCurrentUser: boolean;
+  // True when the player holding the slot has been through setup, so the names and colour above are theirs rather than
+  // seeded placeholders. Always false on an unclaimed slot, and the other half of what a game waits on before starting.
+  isDefined: boolean;
 };

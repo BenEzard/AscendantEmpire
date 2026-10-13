@@ -106,6 +106,11 @@ internal class PlayerFactionColourIndexTests : SqlServerTestBase
     /// <summary>
     /// An unclaimed slot. <c>UserId</c> stays null so that <c>UX_Player_Game_User</c> never fires and only the colour index is under test.
     /// </summary>
+    /// <remarks>
+    /// Every other unique value is derived from <paramref name="campaignOffsetId"/> for the same reason: the five identity names are unique within a
+    /// game too, so a shared placeholder would have these tests failing on the wrong index. The portrait stays on the default, which is the one value
+    /// <c>UX_Player_Game_RulerPortraitPath</c> filters out.
+    /// </remarks>
     private static Player BuildPlayer(int gameId, string factionName, string? factionColour, int campaignOffsetId)
     {
         return new Player
@@ -116,11 +121,11 @@ internal class PlayerFactionColourIndexTests : SqlServerTestBase
             RulerName = factionName,
             FactionName = factionName,
             FactionColour = factionColour,
-            PeopleName = "People",
-            Demonym = "Person",
-            CultureName = "Culture",
+            PeopleName = $"People {campaignOffsetId}",
+            Demonym = $"Person {campaignOffsetId}",
+            CultureName = $"Culture {campaignOffsetId}",
             Language = "Language",
-            RulerPortraitPath = "/portraits/ruler_01.png",
+            RulerPortraitPath = Player.DEFAULT_RULER_PORTRAIT_PATH,
             Status = PlayerStatus.Active,
             CampaignOffsetId = campaignOffsetId,
         };

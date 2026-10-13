@@ -2,12 +2,10 @@
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
-using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Enums.Games;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
@@ -25,7 +23,8 @@ namespace AscendantEmpire.Application.Features.MatchMaking.Handlers;
 /// A user may hold at most one slot per Game (enforced by the <c>UX_Player_Game_User</c> filtered unique index); the explicit checks here just turn that race into a friendly error.
 /// </para>
 /// <para>
-/// Claiming the <i>last</i> free slot also starts the Game.
+/// Claiming a slot no longer starts the Game, not even the last free one. A claim can never be the last event in filling a lobby - the player still
+/// has to say who they are in that seat - so the start belongs to <c>UpdatePlayerDefinitionHandler</c>, which sees the last definition land.
 /// </para>
 /// </remarks>
 public record ClaimPlayerSlotRequest(int UserId, int GameId, int PlayerId) : IRequest<ServiceResult<ServiceResultBase.Empty>>;
@@ -47,8 +46,7 @@ internal class ClaimPlayerSlotRequestValidator : Validator<ClaimPlayerSlotReques
 
 internal class ClaimPlayerSlotHandler(
     ILogger<ClaimPlayerSlotHandler> logger,
-    IDbContextFactory<AscendantEmpireContext> dbFactory,
-    ICampaignRoundService campaignRoundService
+    IDbContextFactory<AscendantEmpireContext> dbFactory
 ) : IRequestHandler<ClaimPlayerSlotRequest, ServiceResult<Empty>>
 {
     public async Task<ServiceResult<Empty>> Handle(ClaimPlayerSlotRequest request, CancellationToken cancelToken)
@@ -56,10 +54,6 @@ internal class ClaimPlayerSlotHandler(
         try
         {
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
-
-            // The claim and the game start that may follow it belong together. Without one transaction around both, a start that failed would leave the seat taken and the game stuck:
-            // full, so nothing further could trigger a start, and never begun.
-            await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancelToken);
 
             // A user controls at most one Player per game, so reject up front if they already hold a slot here — otherwise the unique index would throw when we save.
             bool alreadyInGame = await context.Players
@@ -96,29 +90,6 @@ internal class ClaimPlayerSlotHandler(
             await context.SaveChangesAsync(cancelToken);
 
             logger.LogInformation("User {UserId} claimed slot {PlayerId} in game {GameId}.", request.UserId, request.PlayerId, request.GameId);
-
-            // Was that the last seat? Read it back rather than counting what we thought was free, so a slot claimed by somebody else while this request was in flight is included.
-            bool anySlotsLeft = await context.Players
-                .AnyAsync(p => p.GameId == request.GameId
-                            && p.Status == PlayerStatus.Active
-                            && p.UserId == null, cancelToken);
-
-            if (anySlotsLeft == false)
-            {
-                // The game is full, so play begins. The service is idempotent, so it is harmless if two final claims somehow both get here.
-                ServiceResultBase startResult = await campaignRoundService.StartGameAsync(context, request.GameId, cancelToken);
-
-                if (startResult.HasSucceeded == false)
-                {
-                    // Rolling back un-claims the seat too, which is what makes retrying the claim a real fix rather than a second failure.
-                    logger.LogError("Claiming the last slot in game {GameId} failed to start it, so the claim was rolled back. Errors: {Errors}",
-                        request.GameId, string.Join("; ", startResult.Errors));
-
-                    return ServiceResult<Empty>.InternalServerError("Your slot was claimed but the game could not be started. Please try again.");
-                }
-            }
-
-            await transaction.CommitAsync(cancelToken);
 
             return ServiceResult<Empty>.SuccessNoContent();
         }

@@ -44,6 +44,10 @@ internal class GetPlayerDefinitionHandlerTests : InMemoryTestBase
 
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
+        // The games themselves, because the definition now reports whether it is locked and that is read off the play status.
+        context.GameIndex.Add(BuildGame(_GAME_ID, "Definition Game", GamePlayStatus.AwaitingPlayers));
+        context.GameIndex.Add(BuildGame(_GAME_WITHOUT_THE_CALLER, "Someone Else's Game", GamePlayStatus.AwaitingPlayers));
+
         // The caller's own slot: defined apart from its gender, which stands in for a slot whose
         // owner has not opened the setup dialog yet.
         context.Players.Add(new Player
@@ -202,5 +206,46 @@ internal class GetPlayerDefinitionHandlerTests : InMemoryTestBase
             Assert.That(result.HasSucceeded, Is.False);
             Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.NotFound));
         }
+    }
+
+    [TestCase(GamePlayStatus.AwaitingPlayers, false, Description = "A game still filling up reports an unlocked definition, so every field stays editable in the dialog.")]
+    [TestCase(GamePlayStatus.InProgress, true, Description = "A game under way reports a locked definition, so the dialog disables the fields a save would now ignore.")]
+    [TestCase(GamePlayStatus.Completed, true, Description = "A finished game stays locked, matching the handler that writes definitions.")]
+    [TestCase(GamePlayStatus.Abandoned, true, Description = "An abandoned game stays locked, matching the handler that writes definitions.")]
+    public async Task LockMirrorsThePlayStatusAsync(GamePlayStatus playStatus, bool expectedLock)
+    {
+        await using (AscendantEmpireContext arrangeContext = await DbFactory.CreateDbContextAsync())
+        {
+            GameIndex game = await arrangeContext.GameIndex.FindAsync(_GAME_ID) ?? throw new InvalidOperationException("The game is missing.");
+            game.PlayStatus = playStatus;
+            await arrangeContext.SaveChangesAsync();
+        }
+
+        ServiceResultBase.ServiceResult<PlayerDefinition> result =
+            await _handler.Handle(new GetPlayerDefinitionRequest(_USER_ID, _GAME_ID), CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        Assert.That(result.SuccessValue!.IsLocked, Is.EqualTo(expectedLock));
+    }
+
+    /// <summary>A minimal game row with an explicit Id, so the seeded slots can point at it.</summary>
+    private static GameIndex BuildGame(int gameId, string gameName, GamePlayStatus playStatus)
+    {
+        return new GameIndex
+        {
+            Id = gameId,
+            CampaignMapIndexId = 1,
+            GameName = gameName,
+            NumberOfPlayers = 3,
+            CreationStatus = GameCreationStatus.SetupComplete,
+            PlayStatus = playStatus,
+            CreatedAt = DateTimeOffset.UtcNow,
+            GenerationSeed = 1,
+            BattleMapSize = GameIndex.MIN_BATTLE_MAP_SIZE,
+            MapWidth = 10,
+            MapHeight = 10,
+            CampaignMapOffsetId = 0,
+        };
     }
 }

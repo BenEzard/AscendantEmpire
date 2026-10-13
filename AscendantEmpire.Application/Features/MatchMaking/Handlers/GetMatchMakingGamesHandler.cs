@@ -17,6 +17,11 @@ namespace AscendantEmpire.Application.Features.MatchMaking.Handlers;
 /// <para>
 /// <paramref name="UserId"/> comes from the caller's bearer token, not the request body. It is only used to mark which slots the caller already controls; it does not filter the results.
 /// </para>
+/// <para>
+/// A game reports two separate waits, because filling a lobby takes two steps: <c>IsClaimed</c> says whether a seat is taken, and <c>IsDefined</c>
+/// whether the player in it has said who they are. A game only starts once every active slot has both, so <c>HasStarted</c> can be false on a lobby
+/// with no free seats left.
+/// </para>
 /// </remarks>
 public record GetMatchMakingGamesRequest(int UserId) : IRequest<ServiceResult<IReadOnlyCollection<MatchMakingGame>>>;
 
@@ -61,7 +66,11 @@ internal sealed class GetMatchMakingGamesHandler(
                 p.RulerName,
                 p.FactionName,
                 p.FactionColour,
-                p.UserId
+                p.UserId,
+
+                // The "has this player completed setup?" signal - see Player.RulerGender. Needed here because a full
+                // lobby is no longer a started game: the last definition to land is what starts play.
+                p.RulerGender
             }
         ).ToListAsync(cancelToken);
 
@@ -83,7 +92,8 @@ internal sealed class GetMatchMakingGamesHandler(
                 NumberOfPlayers = g.Key.NumberOfPlayers,
                 MapWidth = g.Key.MapWidth,
                 MapHeight = g.Key.MapHeight,
-                // Play can only be entered once the lobby has filled, so the UI knows to offer the Play button rather than have it fail.
+                // Play can only be entered once the game is under way, so the UI knows to offer the Play button rather than have it fail. A full lobby
+                // is not enough: the game starts when the last player defines themselves, which IsDefined below is what shows.
                 HasStarted = g.Key.PlayStatus == GamePlayStatus.InProgress,
                 Slots = [.. g
                     .Select(s => new MatchMakingSlot
@@ -96,7 +106,10 @@ internal sealed class GetMatchMakingGamesHandler(
                         RulerLabel = $"{s.RulerTitle} {s.RulerName} ({s.FactionName})",
                         // A slot with a UserId is taken; if that UserId is ours, it's our seat.
                         IsClaimed = s.UserId != null,
-                        IsClaimedByCurrentUser = s.UserId == request.UserId
+                        IsClaimedByCurrentUser = s.UserId == request.UserId,
+                        // Claimed is not the same as ready: a seated player who has not filled the setup form in is still
+                        // carrying the placeholders their slot was seeded with, and the game is still waiting on them.
+                        IsDefined = s.RulerGender != null
                     })
                     // Ordered by id, not by label: players rename themselves once they claim a seat, and ordering by the label would make the rows jump about between refreshes while a lobby fills.
                     .OrderBy(s => s.PlayerId)]

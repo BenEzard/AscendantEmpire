@@ -185,6 +185,7 @@ function GameCard({ game, busyPlayerId, onClaim, onPlay, onEdit }: GameCardProps
   // A user may hold only one slot per game, so once they've claimed one here, the rest lock.
   const userHasSlotHere = game.slots.some((slot) => slot.isClaimedByCurrentUser);
   const claimedCount = game.slots.filter((slot) => slot.isClaimed).length;
+  const undefinedCount = game.slots.filter((slot) => slot.isClaimed && !slot.isDefined).length;
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -192,8 +193,9 @@ function GameCard({ game, busyPlayerId, onClaim, onPlay, onEdit }: GameCardProps
         <h2 className="text-lg font-semibold text-slate-800">{game.gameName}</h2>
         <span className="text-xs text-slate-500">
           {game.mapWidth}×{game.mapHeight} • {claimedCount}/{game.slots.length} slots taken
-          {/* Says out loud why the Play buttons below are disabled, rather than leaving it to the tooltip alone. */}
-          {!game.hasStarted && " • waiting to start"}
+          {/* Says out loud why the Play buttons below are disabled, rather than leaving it to the tooltip alone. A full
+              lobby is not a started game, so name which of the two waits it is actually in. */}
+          {!game.hasStarted && (undefinedCount > 0 ? ` • ${undefinedCount} still setting up` : " • waiting to start")}
         </span>
       </div>
 
@@ -218,7 +220,8 @@ function GameCard({ game, busyPlayerId, onClaim, onPlay, onEdit }: GameCardProps
 interface SlotRowProps {
   slot: MatchMakingSlot;
   userHasSlotHere: boolean;
-  // A game only starts once its last slot is claimed, so until then there is nothing to enter.
+  // A game only starts once every slot is claimed *and* every one of those players has set their ruler up, so until
+  // then there is nothing to enter.
   hasStarted: boolean;
   isBusy: boolean;
   onClaim: () => void;
@@ -248,7 +251,7 @@ function SlotRow({ slot, userHasSlotHere, hasStarted, isBusy, onClaim, onPlay, o
             Edit
           </Button>
           {/* The API refuses entry to a game that hasn't started, so don't offer a button that could only fail. */}
-          <Tooltip content={hasStarted ? undefined : "The game starts once every slot has been claimed"}>
+          <Tooltip content={hasStarted ? undefined : "The game starts once every player has claimed a slot and set their ruler up"}>
             <span>
               <Button
                 variant="primary"
@@ -261,8 +264,13 @@ function SlotRow({ slot, userHasSlotHere, hasStarted, isBusy, onClaim, onPlay, o
           </Tooltip>
         </div>
       ) : slot.isClaimed ? (
-        // Someone else holds it — shown as unavailable without revealing who.
-        <Badge label="Taken" textColor="#475569" backgroundColor="#e2e8f0" />
+        // Someone else holds it — shown as unavailable without revealing who. A seat taken by somebody who has not been
+        // through setup is badged apart, because that is what the whole game is waiting on.
+        <Badge
+          label={slot.isDefined ? "Taken" : "Setting up"}
+          textColor="#475569"
+          backgroundColor="#e2e8f0"
+        />
       ) : (
         // A free seat: claimable unless the user already holds a slot in this game.
         <Tooltip content={userHasSlotHere ? "You already hold a slot in this game" : undefined}>

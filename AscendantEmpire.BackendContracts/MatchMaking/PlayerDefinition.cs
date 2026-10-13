@@ -47,4 +47,20 @@ public record PlayerDefinition
 
     /// <summary>The portraits the other players in this game have already chosen; never includes the caller's own.</summary>
     public required IReadOnlyCollection<UsedRulerPortrait> UsedRulerPortraits { get; init; }
+
+    /// <summary>
+    /// True once play has begun, when every field but <see cref="RulerTitle"/> has become read-only.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Travels with the definition so the setup dialog can render the locked fields disabled rather than let a player edit them and find out on
+    /// submit. The server enforces the lock regardless - see <c>UpdatePlayerDefinitionHandler</c>, which from this point reads nothing out of a
+    /// request but the title.
+    /// </para>
+    /// <para>
+    /// The title is the one exception because it is expected to change as an empire grows, where the names around it are what everything else labels
+    /// and attributes by for the life of the game.
+    /// </para>
+    /// </remarks>
+    public bool IsLocked { get; init; }
 }

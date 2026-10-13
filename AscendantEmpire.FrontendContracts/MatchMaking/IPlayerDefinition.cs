@@ -48,4 +48,13 @@ public interface IPlayerDefinition
 
     /// <summary>The portraits the other players in this game have already chosen; never includes the caller's own.</summary>
     IReadOnlyCollection<IUsedRulerPortrait> UsedRulerPortraits { get; }
+
+    /// <summary>
+    /// True once play has begun, when every field but <see cref="RulerTitle"/> has become read-only for the life of the game.
+    /// </summary>
+    /// <remarks>
+    /// Here so the setup dialog can render the locked fields disabled rather than let a player edit them and find out on submit. The server enforces
+    /// the lock either way.
+    /// </remarks>
+    bool IsLocked { get; }
 }

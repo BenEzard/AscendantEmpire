@@ -172,6 +172,67 @@ internal class GetMatchMakingGamesHandlerTests : InMemoryTestBase
         }
     }
 
+    [Test, Description("Each slot reports whether its player has completed setup, which is the other half of what a game waits on before it starts.")]
+    public async Task ListingReportsWhetherEachSlotIsDefinedAsync()
+    {
+        ServiceResultBase.ServiceResult<IReadOnlyCollection<MatchMakingGame>> result =
+            await _handler.Handle(new GetMatchMakingGamesRequest(_USER_ID), CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        MatchMakingGame game = result.SuccessValue!.Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(game.Slots.Single(s => s.PlayerId == 1).IsDefined, Is.True, "Seat 1's player has a gender, so they have been through setup.");
+            Assert.That(game.Slots.Single(s => s.PlayerId == 2).IsDefined, Is.False, "A slot nobody has claimed cannot have been defined.");
+        }
+    }
+
+    [Test, Description("A claimed seat whose player has not been through setup reads as taken but undefined, so the lobby can say what it is still waiting for.")]
+    public async Task ClaimedButUndefinedSlotIsReportedAsBothAsync()
+    {
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            Player free = await context.Players.FindAsync(2) ?? throw new InvalidOperationException("The free slot is missing.");
+            free.UserId = 12;
+            free.RulerGender = null;
+            await context.SaveChangesAsync();
+        }
+
+        ServiceResultBase.ServiceResult<IReadOnlyCollection<MatchMakingGame>> result =
+            await _handler.Handle(new GetMatchMakingGamesRequest(_USER_ID), CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        MatchMakingSlot slot = result.SuccessValue!.Single().Slots.Single(s => s.PlayerId == 2);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(slot.IsClaimed, Is.True);
+            Assert.That(slot.IsDefined, Is.False);
+        }
+    }
+
+    [TestCase(GamePlayStatus.AwaitingPlayers, false, Description = "A game still waiting on seats or definitions reports as not started, so the Play button stays out of reach.")]
+    [TestCase(GamePlayStatus.InProgress, true, Description = "A game under way reports as started, which is the only state entering it is allowed from.")]
+    public async Task ListingReportsWhetherTheGameHasStartedAsync(GamePlayStatus playStatus, bool expectedHasStarted)
+    {
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            GameIndex game = await context.GameIndex.FindAsync(_GAME_ID) ?? throw new InvalidOperationException("The game is missing.");
+            game.PlayStatus = playStatus;
+            await context.SaveChangesAsync();
+        }
+
+        ServiceResultBase.ServiceResult<IReadOnlyCollection<MatchMakingGame>> result =
+            await _handler.Handle(new GetMatchMakingGamesRequest(_USER_ID), CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        Assert.That(result.SuccessValue!.Single().HasStarted, Is.EqualTo(expectedHasStarted));
+    }
+
     [Test, Description("Each slot carries its faction colour, which is what the lobby draws its colour chips from.")]
     public async Task ListingCarriesEachSlotsFactionColourAsync()
     {

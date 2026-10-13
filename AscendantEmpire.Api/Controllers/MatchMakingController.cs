@@ -57,6 +57,7 @@ public class MatchMakingController : ControllerBase
                 NumberOfPlayers = g.NumberOfPlayers,
                 MapWidth = g.MapWidth,
                 MapHeight = g.MapHeight,
+                HasStarted = g.HasStarted,
                 Slots = [.. g.Slots.Select(s => new DTMatchMakingSlot
                 {
                     PlayerId = s.PlayerId,
@@ -67,6 +68,7 @@ public class MatchMakingController : ControllerBase
                     RulerLabel = s.RulerLabel,
                     IsClaimed = s.IsClaimed,
                     IsClaimedByCurrentUser = s.IsClaimedByCurrentUser,
+                    IsDefined = s.IsDefined,
                 })]
             }).ToList() ?? []
         });
@@ -75,6 +77,9 @@ public class MatchMakingController : ControllerBase
     /// <summary>
     /// Claim an unassigned player slot for the logged-in user.
     /// </summary>
+    /// <remarks>
+    /// Claiming a seat no longer starts the game, not even the last free one - the player still has to define themselves in it. See the PUT below.
+    /// </remarks>
     /// <response code="204">Slot claimed.</response>
     /// <response code="400">Validation error</response>
     /// <response code="401">Missing or invalid token</response>
@@ -168,7 +173,8 @@ public class MatchMakingController : ControllerBase
             {
                 Value = c.Value,
                 UsedBy = c.UsedBy
-            })]
+            })],
+            IsLocked = definition.IsLocked
         });
     }
 
@@ -180,13 +186,25 @@ public class MatchMakingController : ControllerBase
     /// The body carries no identity at all - the game comes from the route and the slot from the token - so it cannot name a slot the caller does
     /// not own. A caller who controls no slot in the game gets a 404, since there is nothing there to forbid them from.
     /// </para>
+    /// <para>
+    /// Six of the values are unique within the game: the five names the player authors, plus the faction colour and, once chosen, the ruler portrait.
+    /// A clash answers 409 carrying a <see cref="PlayerDefinitionConflict"/> that names every clashing field at once, so a caller does not have to
+    /// resubmit once per taken value. The language is deliberately exempt.
+    /// </para>
+    /// <para>
+    /// Once the game is under way the definition is locked and only the ruler title is read out of the body; the other values are ignored rather than
+    /// refused, because the client sends the whole object back. <c>IsLocked</c> on the GET above says when that is so.
+    /// </para>
+    /// <para>
+    /// Saving the <i>last</i> outstanding definition in a game also starts it.
+    /// </para>
     /// </remarks>
     /// <param name="gameId">The game whose slot the caller wants to define.</param>
     /// <response code="204">Player definition saved.</response>
     /// <response code="400">Validation error</response>
     /// <response code="401">Missing or invalid token</response>
     /// <response code="404">The caller does not control a player in that game</response>
-    /// <response code="409">Another player in that game already holds the requested faction colour</response>
+    /// <response code="409">Another player in that game already holds one or more of the requested values</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [Authorize(Policy = nameof(PermissionType.JoinGame))]
     [HttpPut("games/{gameId:int}/my-player")]
@@ -194,7 +212,7 @@ public class MatchMakingController : ControllerBase
     [ProducesResponseType(typeof(IApiErrorResult), 400)]
     [ProducesResponseType(401)]
     [ProducesResponseType(typeof(IApiErrorResult), 404)]
-    [ProducesResponseType(typeof(IApiErrorResult), 409)]
+    [ProducesResponseType(typeof(PlayerDefinitionConflict), 409)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
     public async Task<IActionResult> UpdateMyPlayerAsync(
         [FromServices] IMediator mediator,

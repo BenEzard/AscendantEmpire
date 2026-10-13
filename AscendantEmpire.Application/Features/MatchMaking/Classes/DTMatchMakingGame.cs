@@ -22,5 +22,8 @@ public class DTMatchMakingGame : IMatchMakingGame
     /// <inheritdoc />
     public required IReadOnlyCollection<DTMatchMakingSlot> Slots { get; set; }
 
+    /// <inheritdoc />
+    public bool HasStarted { get; set; }
+
     IReadOnlyCollection<IMatchMakingSlot> IMatchMakingGame.Slots => Slots;
 }

@@ -114,6 +114,15 @@ internal abstract class PlayerTurnTestBase : SqlServerTestBase
         return result.SuccessValue;
     }
 
+    /// <summary>
+    /// A slot carrying placeholders, with every value that has to be unique within a game derived from
+    /// <paramref name="campaignOffsetId"/>.
+    /// </summary>
+    /// <remarks>
+    /// The five identity names are unique per game - see UX_Player_Game_CultureName and its siblings - so a shared
+    /// placeholder would have these fixtures failing on an insert rather than on the Turn behaviour they are about. The
+    /// portrait stays on the default, the one value that rule exempts.
+    /// </remarks>
     private static Player BuildPlayer(int gameId, string factionName, int campaignOffsetId)
     {
         return new Player
@@ -124,11 +133,11 @@ internal abstract class PlayerTurnTestBase : SqlServerTestBase
             RulerName = factionName,
             FactionName = factionName,
             FactionColour = null,
-            PeopleName = "People",
-            Demonym = "Person",
-            CultureName = "Culture",
+            PeopleName = $"People {campaignOffsetId}",
+            Demonym = $"Person {campaignOffsetId}",
+            CultureName = $"Culture {campaignOffsetId}",
             Language = "Language",
-            RulerPortraitPath = "/portraits/ruler_01.png",
+            RulerPortraitPath = Player.DEFAULT_RULER_PORTRAIT_PATH,
             Status = PlayerStatus.Active,
             CampaignOffsetId = campaignOffsetId,
         };

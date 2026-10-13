@@ -20,7 +20,7 @@ namespace AscendantEmpire.Application.Features.Turns.Services;
 /// <para>
 /// Every method takes the caller's <see cref="AscendantEmpireContext"/> rather than making its own, so the work joins
 /// whatever transaction the caller has open. That matters for <see cref="StartGameAsync"/>, which runs inside the same
-/// transaction as the slot claim that triggered it.
+/// transaction as the player definition that triggered it.
 /// </para>
 /// </remarks>
 public interface ICampaignRoundService
@@ -48,13 +48,13 @@ public interface ICampaignRoundService
     Task<ServiceResultBase> StartNextTurnAsync(AscendantEmpireContext context, CurrentCampaignTurn newTurn);
 
     /// <summary>
-    /// Starts a Game whose slots have all been claimed: moves it to
+    /// Starts a Game every one of whose Players has been claimed and defined: moves it to
     /// <see cref="GamePlayStatus.InProgress"/> and opens its first Round.
     /// </summary>
     /// <remarks>
     /// Idempotent. A Game that is already past <see cref="GamePlayStatus.AwaitingPlayers"/> is left
-    /// exactly as it is and the call still succeeds, so two callers racing on the last claimed slot cannot start the same
-    /// Game twice.
+    /// exactly as it is and the call still succeeds, so two callers racing on the last definition cannot start the same
+    /// Game twice - and a Player re-saving their definition once play has begun cannot restart it.
     /// </remarks>
     /// <param name="context">The database context the changes are written through, including any open transaction.</param>
     /// <param name="gameId">The Game to start.</param>

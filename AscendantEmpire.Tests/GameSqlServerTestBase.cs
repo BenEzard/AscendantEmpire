@@ -487,11 +487,15 @@ public class GameSqlServerTestBase : SqlServerTestBase
                 RulerTitle = "King",
                 RulerName = $"Player {i}",
                 FactionName = $"Faction {i}",
-                PeopleName = "People",
-                Demonym = "Person",
-                CultureName = "Culture",
+                // Indexed per slot like the names above, because the five identity names are unique within a game — see
+                // UX_Player_Game_PeopleName and its siblings. The language is deliberately shared, as it is allowed to be.
+                PeopleName = $"People {i}",
+                Demonym = $"Person {i}",
+                CultureName = $"Culture {i}",
                 Language = "Language",
-                RulerPortraitPath = "/portraits/ruler_01.png",
+                // The default rather than a real path: a chosen portrait is unique within a game too, and its index
+                // filters out only this value, so seeding the same real portrait into every slot would be rejected.
+                RulerPortraitPath = Domain.Entities.Games.Player.DEFAULT_RULER_PORTRAIT_PATH,
                 Status = Domain.Enums.Games.PlayerStatus.Active
             });
         }
@@ -501,18 +505,18 @@ public class GameSqlServerTestBase : SqlServerTestBase
     }
 
     /// <summary>
-    /// Moves a Game that has finished setup into play, standing in for the slot claim that would normally start it.
+    /// Moves a Game that has finished setup into play, standing in for the player definition that would normally start it.
     /// </summary>
     /// <remarks>
     /// <para>
     /// <see cref="GameSetupService.SetupGameAsync"/> leaves a Game on <see cref="GamePlayStatus.AwaitingPlayers"/>: setup builds the Game,
-    /// but play only begins when the last Player slot is claimed. Anything that happens during a Game - spawning a unit, reading a Player's
-    /// view of the map, ending a Turn - looks the Game up through a filter that requires it to be in progress, so a fixture that sets a Game
-    /// up and then plays with it has to start it too.
+    /// but play only begins once every slot is claimed <i>and</i> every one of those players has defined themselves. Anything that happens during a
+    /// Game - spawning a unit, reading a Player's view of the map, ending a Turn - looks the Game up through a filter that requires it to be in
+    /// progress, so a fixture that sets a Game up and then plays with it has to start it too.
     /// </para>
     /// <para>
     /// Use this where the Game starting is scaffolding rather than the thing under test. Where it <i>is</i> the thing under test, claim the
-    /// slots for real instead - see <c>StartOfGameTests</c>.
+    /// slots and define the players for real instead - see <c>StartOfGameTests</c>.
     /// </para>
     /// </remarks>
     public async Task StartGameAsync(int gameId)

@@ -198,7 +198,7 @@ internal class CampaignRoundService(
         try
         {
             // Move the Game on only if it is still waiting for Players. Making the status change the thing that decides whether we go on is what keeps this safe:
-            // if two final slot claims interleave, the database lets exactly one of them past this update, and the loser leaves the Game alone rather than opening Round 1 a second time.
+            // if two final player definitions interleave, the database lets exactly one of them past this update, and the loser leaves the Game alone rather than opening Round 1 a second time.
             int gamesStarted = await context.GameIndex
                 .Where(g => g.Id == gameId)
                 .Where(g => g.PlayStatus == GamePlayStatus.AwaitingPlayers)

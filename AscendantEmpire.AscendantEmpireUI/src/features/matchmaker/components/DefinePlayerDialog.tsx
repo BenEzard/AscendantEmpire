@@ -19,7 +19,7 @@ import {
 import { ApiError } from "@/api/http";
 import { useValidatedCommit } from "@/hooks/useValidatedCommit";
 import { getPlayerDefinition, updatePlayerDefinition } from "../api/matchMakingApi";
-import type { PlayerDefinition } from "../types/PlayerDefinition";
+import type { PlayerDefinition, PlayerDefinitionConflict } from "../types/PlayerDefinition";
 import { RULER_GENDERS, titlesFor, type RulerGender } from "../types/RulerGender";
 import { RULER_PORTRAITS } from "../types/RulerPortrait";
 
@@ -32,13 +32,13 @@ import { RULER_PORTRAITS } from "../types/RulerPortrait";
 const PLACEHOLDER_RULER_TITLE = "Nobody";
 
 /**
- * The message the API returns when a 409 is about the portrait rather than the colour.
+ * Explains the disabled fields on a game that has already begun.
  *
- * Mirrors the string in `UpdatePlayerDefinitionHandler`, the same arrangement as {@link PLACEHOLDER_RULER_TITLE}.
- * Both uniqueness rules come back as a 409 with nothing but a message to tell them apart, and a clash shown against
- * the wrong field would send the player to a page with nothing wrong on it.
+ * The lock is the server's, not this dialog's — a save from here would quietly ignore those fields rather than refuse
+ * them — so the banner has to say why they cannot be touched, or the dialog reads as broken.
  */
-const PORTRAIT_TAKEN_MESSAGE = "That portrait has already been taken by another player in this game.";
+const LOCKED_MESSAGE =
+  "This game is under way, so your ruler's and faction's identity is fixed for the rest of it. Only the title can still be changed.";
 
 /** The portraits offered, in the shape the picker takes them. The stored path doubles as the image URL. */
 const PORTRAIT_ITEMS: ImagePickerItem[] = RULER_PORTRAITS.map((portrait) => ({ value: portrait.path, label: portrait.label }));
@@ -64,6 +64,34 @@ type Draft = {
 };
 
 type FieldErrors = Partial<Record<keyof Draft, string>>;
+
+/** The draft keys the Ruler page holds. A clash or validation failure on one of these sends the user there. */
+const RULER_PAGE_FIELDS: readonly (keyof Draft)[] = ["rulerName", "rulerGender", "rulerTitle", "rulerPortraitPath"];
+
+/**
+ * Turns the `detail` on a 409 into per-field messages.
+ *
+ * The server names each clashing field exactly as the PUT body spells it, which is also how the draft keys them, so the
+ * messages land on their own fields without a lookup table. Narrowed defensively rather than cast: `detail` is typed
+ * `unknown` precisely because its shape is per-endpoint, and a 409 from anywhere else must not throw here.
+ */
+function conflictsFromDetail(detail: unknown): FieldErrors {
+  const fields = (detail as PlayerDefinitionConflict | null)?.fields;
+
+  if (!Array.isArray(fields)) {
+    return {};
+  }
+
+  const errors: FieldErrors = {};
+
+  for (const clash of fields) {
+    if (typeof clash?.field === "string" && typeof clash?.message === "string") {
+      errors[clash.field as keyof Draft] = clash.message;
+    }
+  }
+
+  return errors;
+}
 
 const EMPTY_DRAFT: Draft = {
   rulerTitle: "",
@@ -152,17 +180,21 @@ export interface DefinePlayerDialogProps {
  *
  * Deliberately fetches its own definition on open rather than taking it from the lobby listing the caller already
  * holds: that listing is a cached react-query result, and a stale reading of the used colours would offer one that has
- * since been taken. A save that loses that race anyway comes back as a 409 and is shown against the colour field.
+ * since been taken. A save that loses that race anyway comes back as a 409 naming every clashing field, and each
+ * message is shown against the field it belongs to.
+ *
+ * Seven values have to be unique within the game — the five identity names, the colour and a chosen portrait — and
+ * every one of them except the ruler title becomes read-only once play begins. The lock is the server's; this mirrors it
+ * so the fields render disabled rather than quietly having a save ignore them.
  */
 export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: DefinePlayerDialogProps) {
   const queryClient = useQueryClient();
 
   const [activeSection, setActiveSection] = useState<DefinePlayerSection>("ruler");
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
-  // A clash on either unique value is only knowable at save time, so both are held apart from the pure field
-  // validation - and apart from each other, since they sit on different pages.
-  const [colourConflict, setColourConflict] = useState<string | null>(null);
-  const [portraitConflict, setPortraitConflict] = useState<string | null>(null);
+  // A clash on any of the seven unique values is only knowable at save time, so they are held apart from the pure field
+  // validation. Keyed by field because a single save can come back with several at once.
+  const [conflicts, setConflicts] = useState<FieldErrors>({});
 
   const definitionQuery = useQuery<PlayerDefinition, Error>({
     queryKey: playerDefinitionQueryKey(gameId),
@@ -182,8 +214,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
     }
 
     setActiveSection("ruler");
-    setColourConflict(null);
-    setPortraitConflict(null);
+    setConflicts({});
 
     if (!definition) {
       setDraft(EMPTY_DRAFT);
@@ -209,9 +240,15 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
     });
   }, [open, definition]);
 
+  // Editing a field clears the clash reported against it: the message was about the value that has just changed.
   const setField = <K extends keyof Draft>(key: K, value: Draft[K]) => {
     setDraft((current) => ({ ...current, [key]: value }));
+    setConflicts((current) => (current[key] === undefined ? current : { ...current, [key]: undefined }));
   };
+
+  // Everything but the title is read-only once play has begun. Defaults to unlocked while the definition is in flight,
+  // so a slow fetch shows fields that are about to become editable rather than ones that look permanently dead.
+  const isLocked = definition?.isLocked === true;
 
   const usedColours = useMemo<UsedColor[]>(
     () => (definition?.usedFactionColours ?? []).map((used) => ({ value: used.value, usedBy: used.usedBy })),
@@ -246,14 +283,14 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
     },
     onError: (error: Error) => {
       if (error instanceof ApiError && error.status === 409) {
-        // Someone took the colour or the portrait between the read and the save. Show it where the fix is, and refetch
-        // so whichever tile or swatch lost the race comes back struck through.
-        if (error.message === PORTRAIT_TAKEN_MESSAGE) {
-          setPortraitConflict(error.message);
-          setActiveSection("ruler");
-        } else {
-          setColourConflict(error.message);
-          setActiveSection("faction");
+        // Someone took one or more of the unique values between the read and the save. Show each where its fix is, and
+        // refetch so whichever tile or swatch lost the race comes back struck through.
+        const clashes = conflictsFromDetail(error.detail);
+
+        setConflicts(clashes);
+
+        if (Object.keys(clashes).length > 0) {
+          setActiveSection(RULER_PAGE_FIELDS.some((field) => clashes[field]) ? "ruler" : "faction");
         }
 
         void queryClient.invalidateQueries({ queryKey: playerDefinitionQueryKey(gameId) });
@@ -261,31 +298,38 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
     },
   });
 
-  const fieldErrors = validate(draft);
+  // Nothing the validation covers is editable on a locked game, and the title it does not cover is the only thing the
+  // server will read. Validating anyway would strand a player on a slot whose stored values no longer pass - a slot from
+  // before the people-and-culture columns existed, say - with a title edit they could never save.
+  const fieldErrors = isLocked ? {} : validate(draft);
 
   const { submitted, attemptCommit } = useValidatedCommit({
     open,
     isValid: Object.keys(fieldErrors).length === 0,
     // Send the user to the page holding the first problem; the ruler page comes first, so it wins ties.
-    locate: () => setActiveSection(fieldErrors.rulerName || fieldErrors.rulerGender ? "ruler" : "faction"),
+    locate: () => setActiveSection(RULER_PAGE_FIELDS.some((field) => fieldErrors[field]) ? "ruler" : "faction"),
     onValid: () => {
-      setColourConflict(null);
-      setPortraitConflict(null);
+      setConflicts({});
       saveMutation.mutate();
     },
   });
 
-  const shownErrors: FieldErrors = submitted ? fieldErrors : {};
+  // A clash message belongs on its field whether or not a save has been attempted since, where a validation message is
+  // only revealed by pressing Save.
+  const shownErrors: FieldErrors = { ...conflicts, ...(submitted ? fieldErrors : {}) };
 
-  // A clash message belongs on its field whether or not a save has been attempted since.
-  const colourError = shownErrors.factionColour ?? colourConflict ?? undefined;
-  const portraitError = portraitConflict ?? undefined;
+  // A clash the server attributed to particular fields is shown on those fields, so the banner must not repeat it.
+  // Derived from the error rather than from `conflicts`, which empties as the user edits the offending values - reading
+  // that would make the message jump into the banner the moment they started fixing it.
+  const saveErrorIsAttributed =
+    saveMutation.error instanceof ApiError &&
+    saveMutation.error.status === 409 &&
+    Object.keys(conflictsFromDetail(saveMutation.error.detail)).length > 0;
 
-  // A failure that is not the colour clash has no field to sit on, so it goes in the banner instead.
-  const bannerError =
-    saveMutation.error && !(saveMutation.error instanceof ApiError && saveMutation.error.status === 409)
-      ? saveMutation.error.message
-      : definitionQuery.error?.message;
+  // Everything else goes in the banner, a 409 the server could not attribute included: losing the race at the index
+  // rather than at the handler's own check leaves it nothing to name, and swallowing that would make the Save button
+  // look as though it had done nothing at all.
+  const bannerError = saveMutation.error && !saveErrorIsAttributed ? saveMutation.error.message : definitionQuery.error?.message;
 
   return (
     <PagedDialog<DefinePlayerSection>
@@ -299,7 +343,13 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
       onCommit={attemptCommit}
       activeSection={activeSection}
       onSectionChange={setActiveSection}
-      header={bannerError ? <Alert variant="danger">{bannerError}</Alert> : undefined}
+      header={
+        bannerError ? (
+          <Alert variant="danger">{bannerError}</Alert>
+        ) : isLocked ? (
+          <Alert variant="info">{LOCKED_MESSAGE}</Alert>
+        ) : undefined
+      }
       footer={
         <>
           <Button variant="secondary" onClick={onCancel} disabled={saveMutation.isPending}>
@@ -316,7 +366,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
         {
           key: "ruler",
           label: "Ruler",
-          invalid: !!(shownErrors.rulerName || shownErrors.rulerGender || portraitError),
+          invalid: !!(shownErrors.rulerName || shownErrors.rulerGender || shownErrors.rulerPortraitPath),
           content: definitionQuery.isLoading ? (
             <div className="flex items-center gap-2 text-slate-600">
               <Spinner size="sm" />
@@ -329,6 +379,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
                   className={errorClass(!!shownErrors.rulerName)}
                   value={draft.rulerName}
                   aria-label="Ruler Name"
+                  disabled={isLocked}
                   onChange={(e) => setField("rulerName", e.target.value)}
                 />
               </FieldRow>
@@ -343,6 +394,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
                         name="rulerGender"
                         value={gender}
                         checked={draft.rulerGender === gender}
+                        disabled={isLocked}
                         onChange={() => setField("rulerGender", gender)}
                       />
                       {gender}
@@ -351,6 +403,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
                 </div>
               </FieldRow>
 
+              {/* The one field that stays editable for the life of the game, so it carries no disabled state. */}
               <FieldRow label="Ruler Title" hint="(This will evolve as your empire grows)">
                 <FreeTextComboBox
                   value={draft.rulerTitle}
@@ -363,13 +416,10 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
 
               {/* Last on the page because it is the only field that is a picture rather than words, and because
                   gender has to stay directly above the title whose suggestions it drives. */}
-              <FieldRow label="Ruler Portrait" hint="(The face your rivals will see; portraits already taken are struck through)" error={portraitError}>
+              <FieldRow label="Ruler Portrait" hint="(The face your rivals will see; portraits already taken are struck through)" error={shownErrors.rulerPortraitPath}>
                 <ImagePicker
                   value={draft.rulerPortraitPath}
-                  onChange={(next) => {
-                    setPortraitConflict(null);
-                    setField("rulerPortraitPath", next);
-                  }}
+                  onChange={(next) => setField("rulerPortraitPath", next)}
                   items={PORTRAIT_ITEMS}
                   usedValues={usedPortraits}
                   // Optional, so there has to be something to show for having chosen nothing. The crown is what the
@@ -377,6 +427,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
                   emptyIcon={<GiCrown size={32} />}
                   columns={5}
                   title="Ruler portrait"
+                  disabled={isLocked}
                 />
               </FieldRow>
             </>
@@ -385,7 +436,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
         {
           key: "faction",
           label: "Faction",
-          invalid: !!(shownErrors.factionName || colourError || shownErrors.peopleName || shownErrors.demonym || shownErrors.cultureName || shownErrors.language),
+          invalid: !!(shownErrors.factionName || shownErrors.factionColour || shownErrors.peopleName || shownErrors.demonym || shownErrors.cultureName || shownErrors.language),
           content: (
             <>
               <FieldRow label="Faction Name" error={shownErrors.factionName}>
@@ -393,22 +444,21 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
                   className={errorClass(!!shownErrors.factionName)}
                   value={draft.factionName}
                   aria-label="Faction Name"
+                  disabled={isLocked}
                   onChange={(e) => setField("factionName", e.target.value)}
                 />
               </FieldRow>
 
-              <FieldRow label="Faction Colour" hint="(Colours already taken are struck through)" error={colourError}>
+              <FieldRow label="Faction Colour" hint="(Colours already taken are struck through)" error={shownErrors.factionColour}>
                 <ColorPicker
                   value={draft.factionColour}
-                  onChange={(next) => {
-                    setColourConflict(null);
-                    setField("factionColour", next);
-                  }}
+                  onChange={(next) => setField("factionColour", next)}
                   palettes={DistinctColors.palettes()}
                   usedColors={usedColours}
                   columns={DistinctColors.BandSize}
                   swatchSize={22}
                   title="Faction colour"
+                  disabled={isLocked}
                 />
               </FieldRow>
 
@@ -420,12 +470,14 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
               )}
 
               {/* The people behind the faction. Four free-text names with no suggestions behind them: there is no
-                  catalogue to draw from, and each one's hint carries the question it answers. */}
-              <FieldRow label="People Name" hint="(What do these people call themselves?)" error={shownErrors.peopleName}>
+                  catalogue to draw from, and each one's hint carries the question it answers. Three of them have to be
+                  unique within the game; the language deliberately does not, since two peoples may share one. */}
+              <FieldRow label="People Name" hint="(What do these people call themselves? No two factions alike)" error={shownErrors.peopleName}>
                 <input
                   className={errorClass(!!shownErrors.peopleName)}
                   value={draft.peopleName}
                   aria-label="People Name"
+                  disabled={isLocked}
                   onChange={(e) => setField("peopleName", e.target.value)}
                 />
               </FieldRow>
@@ -435,6 +487,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
                   className={errorClass(!!shownErrors.demonym)}
                   value={draft.demonym}
                   aria-label="Demonym"
+                  disabled={isLocked}
                   onChange={(e) => setField("demonym", e.target.value)}
                 />
               </FieldRow>
@@ -444,15 +497,17 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
                   className={errorClass(!!shownErrors.cultureName)}
                   value={draft.cultureName}
                   aria-label="Culture Name"
+                  disabled={isLocked}
                   onChange={(e) => setField("cultureName", e.target.value)}
                 />
               </FieldRow>
 
-              <FieldRow label="Language" hint="(What language do they speak?)" error={shownErrors.language}>
+              <FieldRow label="Language" hint="(What language do they speak? Factions may share one)" error={shownErrors.language}>
                 <input
                   className={errorClass(!!shownErrors.language)}
                   value={draft.language}
                   aria-label="Language"
+                  disabled={isLocked}
                   onChange={(e) => setField("language", e.target.value)}
                 />
               </FieldRow>

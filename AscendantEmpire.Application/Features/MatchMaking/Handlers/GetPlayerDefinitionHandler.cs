@@ -4,6 +4,7 @@ using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.MatchMaking;
 using AscendantEmpire.Domain.Entities.Games;
+using AscendantEmpire.Domain.Enums.Games;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -23,6 +24,10 @@ namespace AscendantEmpire.Application.Features.MatchMaking.Handlers;
 /// <para>
 /// The used-colour list is taken here rather than derived from the lobby listing the frontend already holds: that listing is cached client-side, and
 /// a stale reading would offer a colour that has since been taken.
+/// </para>
+/// <para>
+/// The game's play status travels with it as <c>IsLocked</c>, so the dialog can disable the fields a save would now ignore. It mirrors the lock in
+/// <c>UpdatePlayerDefinitionHandler</c> rather than being the thing that enforces it.
 /// </para>
 /// </remarks>
 public record GetPlayerDefinitionRequest(int UserId, int GameId) : IRequest<ServiceResult<PlayerDefinition>>;
@@ -83,6 +88,13 @@ internal sealed class GetPlayerDefinitionHandler(
             })
             .OrderBy(p => p.UsedBy)];
 
+        // Mirrors the lock UpdatePlayerDefinitionHandler applies, so the dialog disables what the save would ignore rather
+        // than letting the player edit a field and find out on submit.
+        GamePlayStatus playStatus = await context.GameIndex
+            .Where(g => g.Id == request.GameId)
+            .Select(g => g.PlayStatus)
+            .FirstAsync(cancelToken);
+
         PlayerDefinition definition = new()
         {
             PlayerId = ownSlot.Id,
@@ -98,7 +110,8 @@ internal sealed class GetPlayerDefinitionHandler(
             Language = ownSlot.Language,
             RulerPortraitPath = ownSlot.RulerPortraitPath,
             UsedFactionColours = usedColours,
-            UsedRulerPortraits = usedPortraits
+            UsedRulerPortraits = usedPortraits,
+            IsLocked = playStatus is GamePlayStatus.InProgress or GamePlayStatus.Completed or GamePlayStatus.Abandoned
         };
 
         return ServiceResult<PlayerDefinition>.Succeed(definition);
