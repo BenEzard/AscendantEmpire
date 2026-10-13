@@ -50,7 +50,7 @@ internal static class AssetSeedData
     }
 
     // ---------------------------------------------------------------------------------------------------------------------------------------------------
-    // Construction Materials - timber and stone, both grouped so the tickers show a labelled row per group.
+    // Construction Materials
     // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
     private static UpsertAssetMetaCategoryDto BuildConstructionMaterials()
@@ -301,8 +301,7 @@ internal static class AssetSeedData
     }
 
     // ---------------------------------------------------------------------------------------------------------------------------------------------------
-    // Raw Materials - a flat list for now. Splitting it into animal products, pigments and fibres is a design decision left for later; because the seed is
-    // code-matched, regrouping these later re-parents the existing rows rather than duplicating them.
+    // Raw Materials
     // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
     private static UpsertAssetMetaCategoryDto BuildRawMaterials()
@@ -392,6 +391,140 @@ internal static class AssetSeedData
                         {
                             DisplayName = "Tallow",
                             Description = "Animal fat rendered from slaughtered livestock. Tallow is used in candle-making, soap production, and as a lubricant for machinery and weapons."
+                        }
+                    ]
+                }
+            ]
+        };
+    }
+
+    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+    // Raw Materials
+    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+    private static UpsertAssetMetaCategoryDto BuildSociety()
+    {
+        return new UpsertAssetMetaCategoryDto
+        {
+            Code = "Society",
+            DisplayName = "Society",
+            IconPath = "/resources/wood/oak-log_40px.png",
+            Categories =
+            [
+                new UpsertAssetCategoryDto
+                {
+                    Code = "Society.Experience",
+                    DisplayName = "Experience",
+                    CategoryType = AssetCategoryType.StandaloneAssets,
+                    Assets =
+                    [
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Technology",
+                            IconPath = "/resources/other/fishbone.svg",
+                            Description = ""
+                        },
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Culture",
+                            IconPath = "/resources/other/high-grass.svg",
+                            Description = ""
+                        },
+                    ]
+                },
+                new UpsertAssetCategoryDto
+                {
+                    Code = "Society.Population",
+                    DisplayName = "Population",
+                    CategoryType = AssetCategoryType.GroupedAssets,
+                    Groups =
+                    [
+                        new UpsertAssetGroupDto
+                        {
+                            Code = "Society.Population.MyPeople",
+                            DisplayName = "My People",
+                            Assets =
+                            [
+                                new UpsertAssetDto
+                                {
+                                    DisplayName = "Civilians",
+                                    IconPath = "/resources/wood/oak-log_40px.png",
+                                    Description = ""
+                                },
+                                new UpsertAssetDto
+                                {
+                                    DisplayName = "Military",
+                                    IconPath = "/resources/wood/pine-log_40px.png",
+                                    Description = ""
+                                },
+                            ]
+                        },
+                    ]
+                },
+                new UpsertAssetCategoryDto
+                {
+                    Code = "ConstructionMaterials.Stone",
+                    DisplayName = "Stone",
+                    CategoryType = AssetCategoryType.GroupedAssets,
+                    Groups =
+                    [
+                        new UpsertAssetGroupDto
+                        {
+                            Code = "ConstructionMaterials.Stone.RawRock",
+                            DisplayName = "Raw Rock",
+                            Assets =
+                            [
+                                new UpsertAssetDto
+                                {
+                                    DisplayName = "Limestone",
+                                    Description = "A sedimentary rock abundant throughout the empire. Limestone is the foundation of basic construction and is crushed to produce mortar and quicklime."
+                                },
+                                new UpsertAssetDto
+                                {
+                                    DisplayName = "Sandstone",
+                                    IconPath = "/resources/stone/sandstone-rocks_40px.png",
+                                    Description = "A soft, workable stone gathered from arid regions. Easier to cut than granite, sandstone is commonly used in desert architecture."
+                                },
+                                new UpsertAssetDto
+                                {
+                                    DisplayName = "Granite",
+                                    Description = "An exceptionally hard igneous rock quarried from mountain deposits. Granite resists weathering and is ideal for fortifications and public monuments."
+                                },
+                                new UpsertAssetDto
+                                {
+                                    DisplayName = "Flint",
+                                    Description = "A fine-grained sedimentary rock that fractures with a sharp edge. Flint is used in early toolmaking, fire-starting, and as a cheap cutting material."
+                                },
+                                new UpsertAssetDto
+                                {
+                                    DisplayName = "Obsidian",
+                                    IconPath = "/resources/stone/obsidian-pile_40px.png",
+                                    Description = "Volcanic glass formed from rapidly cooled lava. Obsidian is razor-sharp when fractured and is prized for specialist blades and ritual objects."
+                                },
+                                new UpsertAssetDto
+                                {
+                                    DisplayName = "Slate",
+                                    IconPath = "/resources/stone/slate-pile_40px.png",
+                                    Description = "A fine-grained metamorphic rock that cleaves into thin sheets. Slate is the material of choice for roofing tiles and writing tablets."
+                                },
+                                new UpsertAssetDto
+                                {
+                                    DisplayName = "Marble",
+                                    IconPath = "/resources/stone/marble-pile_40px.png",
+                                    Description = "Raw marble extracted from prized quarries. Highly sought after for prestige architecture, sculptures, and civic monuments."
+                                },
+                                new UpsertAssetDto
+                                {
+                                    DisplayName = "Basalt",
+                                    Description = "A dense volcanic rock with superior hardness. Basalt is prized for road paving, millstones, and heavy defensive structures."
+                                },
+                                new UpsertAssetDto
+                                {
+                                    DisplayName = "Generic Rock",
+                                    IconPath = "/resources/stone/generic-rock-pile_40px.png",
+                                    Description = "Rough, unprocessed stone quarried from surface deposits. Used as bulk fill, rubble, and a basic ingredient in early-stage construction."
+                                }
+                            ]
                         }
                     ]
                 }
