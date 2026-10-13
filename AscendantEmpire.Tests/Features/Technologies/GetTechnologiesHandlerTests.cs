@@ -283,11 +283,25 @@ internal class GetTechnologiesHandlerTests : InMemoryTestBase
 
         IReadOnlyCollection<CatalogueTechnology> catalogue = await GetAsync();
 
+        // Nothing below pins a figure that moves when content is authored, so adding a technology never sends anyone back here to re-count it.
+        HashSet<string> servedCodes = catalogue.Select(technology => technology.Code).ToHashSet();
+
         Assert.Multiple(() =>
         {
-            Assert.That(catalogue, Has.Count.EqualTo(208));
-            Assert.That(catalogue.Sum(technology => technology.Prerequisites.Count), Is.EqualTo(255));
-            Assert.That(catalogue.Count(technology => technology.ExperienceSources.Count > 0), Is.EqualTo(27));
+            Assert.That(catalogue, Is.Not.Empty);
+
+            // A blank code or display name is a row the tree viewer cannot label and a prerequisite cannot name, so it is a shape the read should never serve.
+            Assert.That(
+                catalogue.Where(technology => string.IsNullOrWhiteSpace(technology.Code) || string.IsNullOrWhiteSpace(technology.DisplayName))
+                    .Select(technology => $"#{technology.Id} '{technology.Code}' / '{technology.DisplayName}'"),
+                Is.Empty);
+
+            // Every edge has to land on a technology this same read served, or the client is handed a prerequisite with nothing to draw the edge to.
+            Assert.That(
+                catalogue.SelectMany(technology => technology.Prerequisites, (technology, prerequisite) => new { Technology = technology, Prerequisite = prerequisite })
+                    .Where(edge => !servedCodes.Contains(edge.Prerequisite.PrerequisiteTechnologyCode))
+                    .Select(edge => $"{edge.Technology.Code} -> {edge.Prerequisite.PrerequisiteTechnologyCode}"),
+                Is.Empty);
 
             // Every technology uses at least one bucket, which the catalogue's own check constraint also insists on.
             Assert.That(

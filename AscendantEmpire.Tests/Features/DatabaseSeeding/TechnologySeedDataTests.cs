@@ -1,7 +1,6 @@
 using AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.BackendContracts.Technologies;
-using AscendantEmpire.Domain.Enums.Technologies;
 
 namespace AscendantEmpire.Tests.Features.DatabaseSeeding;
 
@@ -46,41 +45,17 @@ internal class TechnologySeedDataTests
         "NaturalExploration"
     ];
 
-    /// <summary>
-    /// The placeholder root the technologies with no established prerequisites are parented to.
-    /// </summary>
-    private const string _BROKEN_CODE = "Broken";
-
     private readonly IReadOnlyCollection<UpsertTechnologyDto> _technologies = TechnologySeedData.Build();
     private readonly IReadOnlyCollection<UpsertExperienceTypeDto> _experienceTypes = ExperienceTypeSeedData.Build();
 
-    [Test, Description("Exactly the six intended technologies and the Broken placeholder are authored without a prerequisite, since that is what decides a Player's opening research choice.")]
-    public void ShouldLeaveOnlyTheStartingTechnologiesAndTheBrokenPlaceholderWithoutPrerequisites()
+    [Test, Description("Exactly the six intended technologies are authored without a prerequisite, since that is what decides a Player's opening research choice.")]
+    public void ShouldLeaveOnlyTheStartingTechnologiesWithoutPrerequisites()
     {
         string[] withoutPrerequisites = [.. _technologies
             .Where(technology => technology.Prerequisites.Count == 0)
             .Select(technology => technology.Code)];
 
-        // Broken belongs in here: it is a root by construction, which is the whole reason it can hold the technologies behind it out of reach.
-        string[] expected = [.. _STARTING_AVAILABLE_TECHNOLOGY_CODES, _BROKEN_CODE];
-
-        Assert.That(withoutPrerequisites, Is.EquivalentTo(expected));
-    }
-
-    [Test, Description("Every technology the Broken placeholder holds back names it as a mandatory prerequisite, because an optional one alone would be satisfiable.")]
-    public void ShouldHoldTheBrokenPlaceholdersDependentsBackMandatorily()
-    {
-        UpsertTechnologyPrerequisiteDto[] brokenEdges = [.. _technologies
-            .SelectMany(technology => technology.Prerequisites)
-            .Where(prerequisite => prerequisite.PrerequisiteTechnologyCode == _BROKEN_CODE)];
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(brokenEdges, Is.Not.Empty, "nothing is parented to the placeholder, so it has no reason to exist");
-
-            Assert.That(brokenEdges.All(edge => edge.PrerequisiteKind == TechnologyPrerequisiteKind.Mandatory), Is.True,
-                "an optional edge is met by any one of a technology's optional prerequisites, so it would not hold anything back");
-        });
+        Assert.That(withoutPrerequisites, Is.EquivalentTo(_STARTING_AVAILABLE_TECHNOLOGY_CODES));
     }
 
     [Test, Description("Every experience type code a technology names resolves to a seeded ExperienceType, so a typo fails here rather than rejecting the whole seed batch.")]

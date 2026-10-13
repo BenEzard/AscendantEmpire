@@ -1175,18 +1175,6 @@ internal static class TechnologySeedData
             },
             new UpsertTechnologyDto
             {
-                Code = "EarlySpiritualBeliefs",
-                DisplayName = "Early Spiritual Beliefs",
-                Description = "",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 300,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "Language" },
-                ]
-            },
-            new UpsertTechnologyDto
-            {
                 Code = "Animinism",
                 DisplayName = "Animinism",
                 Description = "",
@@ -1194,19 +1182,7 @@ internal static class TechnologySeedData
                 DirectedRequired = 300,
                 Prerequisites =
                 [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "EarlySpiritualBeliefs" },
-                ]
-            },
-            new UpsertTechnologyDto
-            {
-                Code = "AnimalWorship",
-                DisplayName = "Animal Worship",
-                Description = "",
-                Era = TechnologyEra.Stone,
-                DirectedRequired = 300,
-                Prerequisites =
-                [
-                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "EarlySpiritualBeliefs" },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "EarlyBeliefSystems" },
                 ]
             },
             new UpsertTechnologyDto
@@ -3503,7 +3479,7 @@ internal static class TechnologySeedData
                 [
                     new UpsertTechnologyPrerequisiteDto
                     {
-                        PrerequisiteTechnologyCode = "ClimateMasteryPolar",
+                        PrerequisiteTechnologyCode = "PolarMastery",
                         PrerequisiteKind = TechnologyPrerequisiteKind.Optional
                     },
                     new UpsertTechnologyPrerequisiteDto
