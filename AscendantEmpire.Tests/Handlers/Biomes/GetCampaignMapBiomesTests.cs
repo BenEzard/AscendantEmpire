@@ -37,7 +37,6 @@ internal class GetCampaignMapBiomesTests
 
         // Handler now takes IDbContextFactory<AscendantEmpireContext>
         _handler = new GetCampaignMapBiomesHandler(
-            new NullLogger<GetCampaignMapBiomesHandler>(),
             _dbFactory
         );
     }

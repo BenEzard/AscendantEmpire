@@ -27,7 +27,7 @@ internal class GetExperienceTypesHandlerTests : InMemoryTestBase
     public async Task SetUpHandler()
     {
         _context = await DbFactory.CreateDbContextAsync();
-        _handler = new GetExperienceTypesHandler(new NullLogger<GetExperienceTypesHandler>(), DbFactory);
+        _handler = new GetExperienceTypesHandler(DbFactory);
     }
 
     [TearDown]

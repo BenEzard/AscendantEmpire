@@ -157,7 +157,7 @@ internal class UserPermissionHandlerTests : InMemoryTestBase
             await context.SaveChangesAsync();
         }
 
-        GetUsersHandler handler = new(NullLogger<GetUsersHandler>.Instance, DbFactory);
+        GetUsersHandler handler = new(DbFactory);
 
         ServiceResult<IReadOnlyCollection<BackendContracts.Authentication.GetUsers.AuthUser>> result =
             await handler.Handle(new GetUsersRequest(), CancellationToken.None);

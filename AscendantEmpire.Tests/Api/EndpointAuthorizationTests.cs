@@ -164,6 +164,8 @@ public sealed class EndpointAuthorizationTests
 
         "GET /technology",
         "GET /technology/experience-types",
+        "GET /technology/research",
+        "PUT /technology/research-project",
 
         "POST /force-orders/move",
         "POST /force-orders/step",

@@ -55,60 +55,52 @@ internal class RegisterUserHandler(
 
     public async Task<ServiceResult<AuthenticatedUser>> Handle(RegisterUserRequest request, CancellationToken cancelToken)
     {
-        try
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+
+        // Usernames are the login key, so reject duplicates up front with a clear message.
+        // (The unique index is the real guarantee; this just gives a friendlier error.)
+        string username = request.Username.Trim();
+        bool usernameTaken = await context.Users.AnyAsync(u => u.Username == username, cancelToken);
+
+        if (usernameTaken)
         {
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
-
-            // Usernames are the login key, so reject duplicates up front with a clear message.
-            // (The unique index is the real guarantee; this just gives a friendlier error.)
-            string username = request.Username.Trim();
-            bool usernameTaken = await context.Users.AnyAsync(u => u.Username == username, cancelToken);
-
-            if (usernameTaken)
-            {
-                logger.LogInformation("Registration rejected: username {Username} is already taken.", username);
-                return ServiceResult<AuthenticatedUser>.Conflict("That username is already taken.");
-            }
-
-            User user = new()
-            {
-                Username = username,
-                Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim(),
-                // Never store the plaintext password — only the hash.
-                PasswordHash = string.Empty,
-                CreatedAt = DateTimeOffset.UtcNow,
-                InactiveReasonType = InactiveReasonType.Active,
-            };
-
-            user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
-
-            context.Users.Add(user);
-            await context.SaveChangesAsync(cancelToken);
-
-            // Grant the two ordinary player capabilities so a new account can play straight away. The three
-            // developer-tool permissions are never automatic — someone with the System panel grants those.
-            DateTimeOffset grantedAt = DateTimeOffset.UtcNow;
-
-            foreach (PermissionType permission in DefaultPermissions)
-            {
-                context.UserPermissions.Add(new UserPermission
-                {
-                    UserId = user.Id,
-                    Permission = permission,
-                    GrantedAt = grantedAt,
-                });
-            }
-
-            await context.SaveChangesAsync(cancelToken);
-
-            logger.LogInformation("Registered new user {Username} (Id {UserId}).", user.Username, user.Id);
-
-            return ServiceResult<AuthenticatedUser>.Created(new AuthenticatedUser(user.Id, user.Username, DefaultPermissions));
+            logger.LogInformation("Registration rejected: username {Username} is already taken.", username);
+            return ServiceResult<AuthenticatedUser>.Conflict("That username is already taken.");
         }
-        catch (Exception ex)
+
+        User user = new()
         {
-            logger.LogError(ex, "An error occurred while handling {RequestName}.", nameof(RegisterUserRequest));
-            return ServiceResult<AuthenticatedUser>.InternalServerError("An unexpected error occurred while registering the account.");
+            Username = username,
+            Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim(),
+            // Never store the plaintext password — only the hash.
+            PasswordHash = string.Empty,
+            CreatedAt = DateTimeOffset.UtcNow,
+            InactiveReasonType = InactiveReasonType.Active,
+        };
+
+        user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
+
+        context.Users.Add(user);
+        await context.SaveChangesAsync(cancelToken);
+
+        // Grant the two ordinary player capabilities so a new account can play straight away. The three
+        // developer-tool permissions are never automatic — someone with the System panel grants those.
+        DateTimeOffset grantedAt = DateTimeOffset.UtcNow;
+
+        foreach (PermissionType permission in DefaultPermissions)
+        {
+            context.UserPermissions.Add(new UserPermission
+            {
+                UserId = user.Id,
+                Permission = permission,
+                GrantedAt = grantedAt,
+            });
         }
+
+        await context.SaveChangesAsync(cancelToken);
+
+        logger.LogInformation("Registered new user {Username} (Id {UserId}).", user.Username, user.Id);
+
+        return ServiceResult<AuthenticatedUser>.Created(new AuthenticatedUser(user.Id, user.Username, DefaultPermissions));
     }
 }

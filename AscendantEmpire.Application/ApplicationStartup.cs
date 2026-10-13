@@ -50,6 +50,10 @@ public static class ApplicationStartup
         // request it validates.
         services.AddValidatorsFromAssembly(typeof(ApplicationStartup).Assembly);
 
+        // Turns anything a handler throws into a logged 500 failure result carrying a correlation id. Registered first, which makes it the outermost
+        // behaviour, so it covers validation and every other behaviour as well as the handler itself.
+        services.AddTransient(typeof(IPipelineBehaviour<,>), typeof(ExceptionHandlingBehaviour<,>));
+
         // Runs those validators ahead of the handler, answering a 400 failure result rather than letting an invalid request through. Constrained to
         // responses that are a ServiceResultBase, so the container closes it only for requests that can carry a failure result.
         services.AddTransient(typeof(IPipelineBehaviour<,>), typeof(ValidationBehaviour<,>));

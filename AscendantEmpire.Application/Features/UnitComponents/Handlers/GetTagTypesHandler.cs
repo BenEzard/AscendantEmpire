@@ -4,7 +4,6 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetTagTypes;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
@@ -16,42 +15,32 @@ namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 public record GetTagTypesRequest() : IRequest<ServiceResult<GetTagTypesResult>>;
 
 internal class GetTagTypesHandler(
-    ILogger<GetTagTypesHandler> logger,
     IDbContextFactory<AscendantEmpireContext> dbFactory
 ) : IRequestHandler<GetTagTypesRequest, ServiceResult<GetTagTypesResult>>
 {
     public async Task<ServiceResult<GetTagTypesResult>> Handle(GetTagTypesRequest request, CancellationToken cancelToken)
     {
-        try
-        {
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            List<TagTypeView> tagTypes = await context.TagTypeInfos
-                .AsNoTracking()
-                .OrderBy(t => t.TagTypeId)
-                .Select(t => new TagTypeView
-                {
-                    TagTypeId = t.TagTypeId,
-                    DisplayName = t.DisplayName,
-                    Description = t.Description,
-                    IsInheritedToBase = t.IsInheritedToBase,
-                    Colour = t.Colour,
-                    Icon = t.Icon,
-                })
-                .ToListAsync(cancelToken);
-
-            var result = new GetTagTypesResult
+        List<TagTypeView> tagTypes = await context.TagTypeInfos
+            .AsNoTracking()
+            .OrderBy(t => t.TagTypeId)
+            .Select(t => new TagTypeView
             {
-                TagTypes = tagTypes,
-            };
+                TagTypeId = t.TagTypeId,
+                DisplayName = t.DisplayName,
+                Description = t.Description,
+                IsInheritedToBase = t.IsInheritedToBase,
+                Colour = t.Colour,
+                Icon = t.Icon,
+            })
+            .ToListAsync(cancelToken);
 
-            return ServiceResult<GetTagTypesResult>.Succeed(result);
-        }
-        catch (Exception ex)
+        var result = new GetTagTypesResult
         {
-            const string error = "An exception occurred while processing " + nameof(GetTagTypesHandler) + ".";
-            logger.LogError(ex, error);
-            return ServiceResult<GetTagTypesResult>.InternalServerError(ex, error);
-        }
+            TagTypes = tagTypes,
+        };
+
+        return ServiceResult<GetTagTypesResult>.Succeed(result);
     }
 }

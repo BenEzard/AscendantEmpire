@@ -40,75 +40,66 @@ internal class PublishCampaignMapUpdatesHandler(
 
     public async Task<ServiceResultBase> Handle(PublishCampaignMapUpdatesRequest request, CancellationToken cancellationToken)
     {
-        try
+        await using AscendantEmpireContext db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+
+        // Load gallery tiles for the requested index into a lookup by (x,y). This is the "source of truth" we’re pushing into games.
+        List<GalleryTileDto> galleryTiles = await db.CampaignMapGallery
+            .Where(g => g.CampaignMapGalleryIndexId == request.MapGalleryIndex)
+            .Select(g => new GalleryTileDto(
+                g.XCoord,
+                g.YCoord,
+                g.BiomeTypeId,
+                g.CampaignMapGeographyTypeId,
+                g.SouthRiver,
+                g.EastRiver
+            ))
+            .ToListAsync(cancellationToken);
+
+        if (galleryTiles.Count == 0)
         {
-            await using AscendantEmpireContext db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+            logger.LogWarning("No map found for CampaignMapGalleryIndexId {IndexId}", request.MapGalleryIndex);
+            return ServiceResultBase.NotFound("Unable to find the requested map.");
+        }
 
-            // Load gallery tiles for the requested index into a lookup by (x,y). This is the "source of truth" we’re pushing into games.
-            List<GalleryTileDto> galleryTiles = await db.CampaignMapGallery
-                .Where(g => g.CampaignMapGalleryIndexId == request.MapGalleryIndex)
-                .Select(g => new GalleryTileDto(
-                    g.XCoord,
-                    g.YCoord,
-                    g.BiomeTypeId,
-                    g.CampaignMapGeographyTypeId,
-                    g.SouthRiver,
-                    g.EastRiver
-                ))
-                .ToListAsync(cancellationToken);
+        Dictionary<CoordKey, GalleryTileDto> galleryByCoord = galleryTiles.ToDictionary(x => new CoordKey(x.X, x.Y));
 
-            if (galleryTiles.Count == 0)
-            {
-                logger.LogWarning("No map found for CampaignMapGalleryIndexId {IndexId}", request.MapGalleryIndex);
-                return ServiceResultBase.NotFound("Unable to find the requested map.");
-            }
+        // Find eligible games that need updating.
+        List<int> eligibleGameIds = await db.GameIndex
+            .AsNoTracking()
+            .Where(g => g.CampaignMapIndexId == request.MapGalleryIndex)
+            .Where(g => g.PlayStatus == GamePlayStatus.InProgress)
+            .Select(g => g.Id)
+            .ToListAsync(cancellationToken);
 
-            Dictionary<CoordKey, GalleryTileDto> galleryByCoord = galleryTiles.ToDictionary(x => new CoordKey(x.X, x.Y));
-
-            // Find eligible games that need updating.
-            List<int> eligibleGameIds = await db.GameIndex
-                .AsNoTracking()
-                .Where(g => g.CampaignMapIndexId == request.MapGalleryIndex)
-                .Where(g => g.PlayStatus == GamePlayStatus.InProgress)
-                .Select(g => g.Id)
-                .ToListAsync(cancellationToken);
-
-            if (eligibleGameIds.Count == 0)
-            {
-                return ServiceResultBase.SuccessNoContent();
-            }
-
-            // Process games in batches (keeps memory + tracking stable)
-            foreach (int[] gameIdBatch in eligibleGameIds.Chunk(_gameBatchSize))
-            {
-                await using IDbContextTransaction transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-
-                await UpdateCampaignMapTilesAsync(
-                    db,
-                    gameIds: gameIdBatch,
-                    galleryTiles: galleryTiles,
-                    tileBatchSize: _tileBatchSize,
-                    cancellationToken);
-
-                await UpdatePlayerCampaignMapTilesAsync(
-                    db,
-                    gameIds: gameIdBatch,
-                    galleryByCoord: galleryByCoord,
-                    cancellationToken);
-
-                await db.SaveChangesAsync(cancellationToken);
-                await transaction.CommitAsync(cancellationToken);
-                db.ChangeTracker.Clear();
-            }
-
+        if (eligibleGameIds.Count == 0)
+        {
             return ServiceResultBase.SuccessNoContent();
         }
-        catch (Exception ex)
+
+        // Process games in batches (keeps memory + tracking stable)
+        foreach (int[] gameIdBatch in eligibleGameIds.Chunk(_gameBatchSize))
         {
-            const string error = "An error occurred while publishing Campaign Map updates.";
-            logger.LogError(ex, error);
-            return ServiceResultBase.InternalServerError(error);
+            await using IDbContextTransaction transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
+            await UpdateCampaignMapTilesAsync(
+                db,
+                gameIds: gameIdBatch,
+                galleryTiles: galleryTiles,
+                tileBatchSize: _tileBatchSize,
+                cancellationToken);
+
+            await UpdatePlayerCampaignMapTilesAsync(
+                db,
+                gameIds: gameIdBatch,
+                galleryByCoord: galleryByCoord,
+                cancellationToken);
+
+            await db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            db.ChangeTracker.Clear();
         }
+
+        return ServiceResultBase.SuccessNoContent();
     }
 
     private static async Task UpdateCampaignMapTilesAsync(

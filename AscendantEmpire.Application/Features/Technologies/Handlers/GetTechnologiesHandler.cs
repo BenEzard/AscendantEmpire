@@ -5,7 +5,6 @@ using AscendantEmpire.Application.Features.Technologies.Services;
 using AscendantEmpire.BackendContracts.Technologies.GetTechnologies;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
@@ -29,7 +28,6 @@ public record GetTechnologiesRequest() : IRequest<ServiceResult<IReadOnlyCollect
 /// </para>
 /// </remarks>
 internal class GetTechnologiesHandler(
-    ILogger<GetTechnologiesHandler> logger,
     IDbContextFactory<AscendantEmpireContext> dbFactory
 ) : IRequestHandler<GetTechnologiesRequest, ServiceResult<IReadOnlyCollection<CatalogueTechnology>>>
 {
@@ -37,120 +35,110 @@ internal class GetTechnologiesHandler(
         GetTechnologiesRequest request,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancellationToken);
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancellationToken);
 
-            // Projected rather than loaded as an entity graph: the grants need resolving against five unrelated catalogues afterwards, so there is nothing
-            // to gain from tracking, and Include-ing four child collections would multiply the rows out.
-            var technologies = await context.Technologies
-                .AsNoTracking()
-                .OrderBy(technology => technology.Era)
-                .ThenBy(technology => technology.SortOrder)
-                .Select(technology => new
-                {
-                    technology.Id,
-                    technology.Code,
-                    technology.DisplayName,
-                    technology.Description,
-                    technology.IconPath,
-                    technology.Era,
-                    technology.SortOrder,
-                    technology.TreeColumn,
-                    technology.TreeRow,
-                    technology.DirectedRequired,
-                    technology.ExperienceRequired,
-                    technology.DiffusionRequired,
-                    AcquisitionCosts = technology.AcquisitionCosts
-                        .OrderBy(cost => cost.Asset.DisplayName)
-                        .Select(cost => new CatalogueAcquisitionCost
-                        {
-                            AssetId = cost.AssetId,
-                            AssetCode = cost.Asset.Code,
-                            AssetDisplayName = cost.Asset.DisplayName,
-                            AssetIconPath = cost.Asset.IconPath,
-                            Quantity = cost.Quantity
-                        })
-                        .ToList(),
-                    Prerequisites = technology.Prerequisites
-                        .OrderBy(prerequisite => prerequisite.PrerequisiteTechnology.DisplayName)
-                        .Select(prerequisite => new CataloguePrerequisite
-                        {
-                            PrerequisiteTechnologyId = prerequisite.PrerequisiteTechnologyId,
-                            PrerequisiteTechnologyCode = prerequisite.PrerequisiteTechnology.Code,
-                            PrerequisiteTechnologyDisplayName = prerequisite.PrerequisiteTechnology.DisplayName,
-                            PrerequisiteKind = prerequisite.PrerequisiteKind
-                        })
-                        .ToList(),
-                    ExperienceSources = technology.ExperienceTypes
-                        .OrderBy(mapping => mapping.ExperienceType.SortOrder)
-                        .Select(mapping => new CatalogueExperienceSource
-                        {
-                            ExperienceTypeId = mapping.ExperienceTypeId,
-                            ExperienceTypeCode = mapping.ExperienceType.Code,
-                            ExperienceTypeDisplayName = mapping.ExperienceType.DisplayName
-                        })
-                        .ToList(),
-                    RawGrants = technology.Grants
-                        .Select(grant => new
-                        {
-                            grant.TargetType,
-                            grant.TargetId,
-                            grant.GrantEffect
-                        })
-                        .ToList()
-                })
-                .ToListAsync(cancellationToken);
-
-            GrantTargetNames targetNames = await TechnologyGrantTargetResolver.LoadAsync(
-                context,
-                [.. technologies.SelectMany(technology => technology.RawGrants).Select(grant => (grant.TargetType, grant.TargetId))],
-                cancellationToken);
-
-            List<CatalogueTechnology> catalogue = [.. technologies.Select(technology => new CatalogueTechnology
+        // Projected rather than loaded as an entity graph: the grants need resolving against five unrelated catalogues afterwards, so there is nothing
+        // to gain from tracking, and Include-ing four child collections would multiply the rows out.
+        var technologies = await context.Technologies
+            .AsNoTracking()
+            .OrderBy(technology => technology.Era)
+            .ThenBy(technology => technology.SortOrder)
+            .Select(technology => new
             {
-                Id = technology.Id,
-                Code = technology.Code,
-                DisplayName = technology.DisplayName,
-                Description = technology.Description,
-                IconPath = technology.IconPath,
-                Era = technology.Era,
-                SortOrder = technology.SortOrder,
-                TreeColumn = technology.TreeColumn,
-                TreeRow = technology.TreeRow,
-                DirectedRequired = technology.DirectedRequired,
-                ExperienceRequired = technology.ExperienceRequired,
-                DiffusionRequired = technology.DiffusionRequired,
-                AcquisitionCosts = technology.AcquisitionCosts,
-                Prerequisites = technology.Prerequisites,
-                ExperienceSources = technology.ExperienceSources,
-                Grants = [.. technology.RawGrants
-                    .Select(grant =>
+                technology.Id,
+                technology.Code,
+                technology.DisplayName,
+                technology.Description,
+                technology.IconPath,
+                technology.Era,
+                technology.SortOrder,
+                technology.TreeColumn,
+                technology.TreeRow,
+                technology.DirectedRequired,
+                technology.ExperienceRequired,
+                technology.DiffusionRequired,
+                AcquisitionCosts = technology.AcquisitionCosts
+                    .OrderBy(cost => cost.Asset.DisplayName)
+                    .Select(cost => new CatalogueAcquisitionCost
                     {
-                        (string? code, string? displayName) = targetNames.Resolve(grant.TargetType, grant.TargetId);
-
-                        return new CatalogueGrant
-                        {
-                            TargetType = grant.TargetType,
-                            TargetId = grant.TargetId,
-                            TargetCode = code,
-                            TargetDisplayName = displayName,
-                            GrantEffect = grant.GrantEffect
-                        };
+                        AssetId = cost.AssetId,
+                        AssetCode = cost.Asset.Code,
+                        AssetDisplayName = cost.Asset.DisplayName,
+                        AssetIconPath = cost.Asset.IconPath,
+                        Quantity = cost.Quantity
                     })
-                    // Ordered after resolution rather than in the query, since the name being ordered by is not in the grant row.
-                    .OrderBy(grant => grant.TargetType)
-                    .ThenBy(grant => grant.TargetDisplayName)]
-            })];
+                    .ToList(),
+                Prerequisites = technology.Prerequisites
+                    .OrderBy(prerequisite => prerequisite.PrerequisiteTechnology.DisplayName)
+                    .Select(prerequisite => new CataloguePrerequisite
+                    {
+                        PrerequisiteTechnologyId = prerequisite.PrerequisiteTechnologyId,
+                        PrerequisiteTechnologyCode = prerequisite.PrerequisiteTechnology.Code,
+                        PrerequisiteTechnologyDisplayName = prerequisite.PrerequisiteTechnology.DisplayName,
+                        PrerequisiteKind = prerequisite.PrerequisiteKind
+                    })
+                    .ToList(),
+                ExperienceSources = technology.ExperienceTypes
+                    .OrderBy(mapping => mapping.ExperienceType.SortOrder)
+                    .Select(mapping => new CatalogueExperienceSource
+                    {
+                        ExperienceTypeId = mapping.ExperienceTypeId,
+                        ExperienceTypeCode = mapping.ExperienceType.Code,
+                        ExperienceTypeDisplayName = mapping.ExperienceType.DisplayName
+                    })
+                    .ToList(),
+                RawGrants = technology.Grants
+                    .Select(grant => new
+                    {
+                        grant.TargetType,
+                        grant.TargetId,
+                        grant.GrantEffect
+                    })
+                    .ToList()
+            })
+            .ToListAsync(cancellationToken);
 
-            return ServiceResult<IReadOnlyCollection<CatalogueTechnology>>.Succeed(catalogue);
-        }
-        catch (Exception ex)
+        GrantTargetNames targetNames = await TechnologyGrantTargetResolver.LoadAsync(
+            context,
+            [.. technologies.SelectMany(technology => technology.RawGrants).Select(grant => (grant.TargetType, grant.TargetId))],
+            cancellationToken);
+
+        List<CatalogueTechnology> catalogue = [.. technologies.Select(technology => new CatalogueTechnology
         {
-            const string error = "An error occurred while retrieving technologies.";
-            logger.LogError(ex, error);
+            Id = technology.Id,
+            Code = technology.Code,
+            DisplayName = technology.DisplayName,
+            Description = technology.Description,
+            IconPath = technology.IconPath,
+            Era = technology.Era,
+            SortOrder = technology.SortOrder,
+            TreeColumn = technology.TreeColumn,
+            TreeRow = technology.TreeRow,
+            DirectedRequired = technology.DirectedRequired,
+            ExperienceRequired = technology.ExperienceRequired,
+            DiffusionRequired = technology.DiffusionRequired,
+            AcquisitionCosts = technology.AcquisitionCosts,
+            Prerequisites = technology.Prerequisites,
+            ExperienceSources = technology.ExperienceSources,
+            Grants = [.. technology.RawGrants
+                .Select(grant =>
+                {
+                    (string? code, string? displayName) = targetNames.Resolve(grant.TargetType, grant.TargetId);
 
-            return ServiceResult<IReadOnlyCollection<CatalogueTechnology>>.Fail(error);
-        }
+                    return new CatalogueGrant
+                    {
+                        TargetType = grant.TargetType,
+                        TargetId = grant.TargetId,
+                        TargetCode = code,
+                        TargetDisplayName = displayName,
+                        GrantEffect = grant.GrantEffect
+                    };
+                })
+                // Ordered after resolution rather than in the query, since the name being ordered by is not in the grant row.
+                .OrderBy(grant => grant.TargetType)
+                .ThenBy(grant => grant.TargetDisplayName)]
+        })];
+
+        return ServiceResult<IReadOnlyCollection<CatalogueTechnology>>.Succeed(catalogue);
     }
 }

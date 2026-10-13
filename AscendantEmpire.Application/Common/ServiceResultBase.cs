@@ -199,18 +199,6 @@ public record ServiceResultBase
             StatusCode = ServiceResultStatus.InternalServerError,
             Errors = [.. errors]
         };
-
-        /// <summary>
-        /// Internal server error. Indicates that something has gone wrong on the backend, such as an exception being thrown.
-        /// </summary>
-        public static ServiceResult<TSuccess> InternalServerError(Exception ex, string context)
-        {
-            var list = new List<string> { context, ex.Message };
-            if (ex.InnerException != null)
-                list.Add(ex.InnerException.Message);
-
-            return InternalServerError(list);
-        }
     }
 
     /// <summary>
@@ -366,22 +354,6 @@ public record ServiceResultBase
             StatusCode = ServiceResultStatus.InternalServerError,
             Errors = [.. errors]
         };
-
-        /// <summary>
-        /// Creates a service result representing an internal server error with the specified exception details and
-        /// context.
-        /// </summary>
-        /// <param name="ex">The exception that caused the internal server error. Cannot be <see langword="null"/>.</param>
-        /// <param name="context">A string providing additional context about the error. Cannot be <see langword="null"/> or empty.</param>
-        /// <returns>A <see cref="ServiceResult{TSuccess, TError}"/> instance representing the internal server error, containing the exception message, context, and any inner exception messages.</returns>
-        public static new ServiceResult<TSuccess, TError> InternalServerError(Exception ex, string context)
-        {
-            var list = new List<string> { context, ex.Message };
-            if (ex.InnerException != null)
-                list.Add(ex.InnerException.Message);
-
-            return InternalServerError(list);
-        }
 
         /// <summary>
         /// Creates a new <see cref="ServiceResult{TSuccess, TError}"/> instance based on an existing  <see

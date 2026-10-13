@@ -5,7 +5,6 @@ using AscendantEmpire.BackendContracts.Military.GetOfficerRanks;
 using AscendantEmpire.Domain.Enums.Maps;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
@@ -23,67 +22,57 @@ namespace AscendantEmpire.Application.Features.Military.Handlers;
 public record GetOfficerRanksRequest(int PlayerId) : IRequest<ServiceResult<GetOfficerRanksResult>>;
 
 internal class GetOfficerRanksHandler(
-    ILogger<GetOfficerRanksHandler> logger,
     IDbContextFactory<AscendantEmpireContext> dbFactory
 ) : IRequestHandler<GetOfficerRanksRequest, ServiceResult<GetOfficerRanksResult>>
 {
     public async Task<ServiceResult<GetOfficerRanksResult>> Handle(GetOfficerRanksRequest request, CancellationToken cancelToken)
     {
-        try
-        {
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            List<OfficerRankView> persisted = await context.PlayerOfficerRanks
-                .AsNoTracking()
-                .Where(r => r.PlayerId == request.PlayerId)
-                .OrderBy(r => r.MovementDomain)
-                .ThenBy(r => r.Level)
-                .Select(r => new OfficerRankView
-                {
-                    MovementDomain = r.MovementDomain,
-                    Level = r.Level,
-                    Title = r.Title,
-                    MaxSoldiers = r.MaxSoldiers,
-                    MaxAttachedSpecialists = r.MaxAttachedSpecialists,
-                    InUse = r.InUse,
-                })
-                .ToListAsync(cancelToken);
-
-            // Fill in any seeded domain that has no persisted rows with the code defaults, so the page always
-            // has a complete ladder to show for every domain it offers.
-            List<OfficerRankView> ranks = [.. persisted];
-            HashSet<DomainType> domainsWithRows = [.. persisted.Select(r => r.MovementDomain)];
-
-            foreach (DomainType domain in MilitaryOrganisationDefaults.SeededDomains)
+        List<OfficerRankView> persisted = await context.PlayerOfficerRanks
+            .AsNoTracking()
+            .Where(r => r.PlayerId == request.PlayerId)
+            .OrderBy(r => r.MovementDomain)
+            .ThenBy(r => r.Level)
+            .Select(r => new OfficerRankView
             {
-                if (domainsWithRows.Contains(domain))
-                {
-                    continue;
-                }
+                MovementDomain = r.MovementDomain,
+                Level = r.Level,
+                Title = r.Title,
+                MaxSoldiers = r.MaxSoldiers,
+                MaxAttachedSpecialists = r.MaxAttachedSpecialists,
+                InUse = r.InUse,
+            })
+            .ToListAsync(cancelToken);
 
-                ranks.AddRange(MilitaryOrganisationDefaults.RanksForDomain(domain).Select(d => new OfficerRankView
-                {
-                    MovementDomain = domain,
-                    Level = d.Level,
-                    Title = d.Title,
-                    MaxSoldiers = d.MaxSoldiers,
-                    MaxAttachedSpecialists = d.MaxAttachedSpecialists,
-                    InUse = true,
-                }));
+        // Fill in any seeded domain that has no persisted rows with the code defaults, so the page always
+        // has a complete ladder to show for every domain it offers.
+        List<OfficerRankView> ranks = [.. persisted];
+        HashSet<DomainType> domainsWithRows = [.. persisted.Select(r => r.MovementDomain)];
+
+        foreach (DomainType domain in MilitaryOrganisationDefaults.SeededDomains)
+        {
+            if (domainsWithRows.Contains(domain))
+            {
+                continue;
             }
 
-            var result = new GetOfficerRanksResult
+            ranks.AddRange(MilitaryOrganisationDefaults.RanksForDomain(domain).Select(d => new OfficerRankView
             {
-                Ranks = [.. ranks.OrderBy(r => r.MovementDomain).ThenBy(r => r.Level)],
-            };
+                MovementDomain = domain,
+                Level = d.Level,
+                Title = d.Title,
+                MaxSoldiers = d.MaxSoldiers,
+                MaxAttachedSpecialists = d.MaxAttachedSpecialists,
+                InUse = true,
+            }));
+        }
 
-            return ServiceResult<GetOfficerRanksResult>.Succeed(result);
-        }
-        catch (Exception ex)
+        var result = new GetOfficerRanksResult
         {
-            const string error = "An exception occurred while processing " + nameof(GetOfficerRanksHandler) + ".";
-            logger.LogError(ex, error);
-            return ServiceResult<GetOfficerRanksResult>.InternalServerError(ex, error);
-        }
+            Ranks = [.. ranks.OrderBy(r => r.MovementDomain).ThenBy(r => r.Level)],
+        };
+
+        return ServiceResult<GetOfficerRanksResult>.Succeed(result);
     }
 }

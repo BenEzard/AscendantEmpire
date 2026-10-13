@@ -4,7 +4,6 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.Technologies.GetExperienceTypes;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
@@ -20,7 +19,6 @@ public record GetExperienceTypesRequest() : IRequest<ServiceResult<IReadOnlyColl
 /// may as well hold all of it.
 /// </remarks>
 internal class GetExperienceTypesHandler(
-    ILogger<GetExperienceTypesHandler> logger,
     IDbContextFactory<AscendantEmpireContext> dbFactory
 ) : IRequestHandler<GetExperienceTypesRequest, ServiceResult<IReadOnlyCollection<ExperienceTypeDetail>>>
 {
@@ -28,33 +26,23 @@ internal class GetExperienceTypesHandler(
         GetExperienceTypesRequest request,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancellationToken);
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancellationToken);
 
-            List<ExperienceTypeDetail> experienceTypes = await context.ExperienceTypes
-                .AsNoTracking()
-                .OrderBy(experienceType => experienceType.SortOrder)
-                .ThenBy(experienceType => experienceType.DisplayName)
-                .Select(experienceType => new ExperienceTypeDetail
-                {
-                    Id = experienceType.Id,
-                    Code = experienceType.Code,
-                    DisplayName = experienceType.DisplayName,
-                    Description = experienceType.Description,
-                    IconPath = experienceType.IconPath,
-                    SortOrder = experienceType.SortOrder
-                })
-                .ToListAsync(cancellationToken);
+        List<ExperienceTypeDetail> experienceTypes = await context.ExperienceTypes
+            .AsNoTracking()
+            .OrderBy(experienceType => experienceType.SortOrder)
+            .ThenBy(experienceType => experienceType.DisplayName)
+            .Select(experienceType => new ExperienceTypeDetail
+            {
+                Id = experienceType.Id,
+                Code = experienceType.Code,
+                DisplayName = experienceType.DisplayName,
+                Description = experienceType.Description,
+                IconPath = experienceType.IconPath,
+                SortOrder = experienceType.SortOrder
+            })
+            .ToListAsync(cancellationToken);
 
-            return ServiceResult<IReadOnlyCollection<ExperienceTypeDetail>>.Succeed(experienceTypes);
-        }
-        catch (Exception ex)
-        {
-            const string error = "An error occurred while retrieving experience types.";
-            logger.LogError(ex, error);
-
-            return ServiceResult<IReadOnlyCollection<ExperienceTypeDetail>>.Fail(error);
-        }
+        return ServiceResult<IReadOnlyCollection<ExperienceTypeDetail>>.Succeed(experienceTypes);
     }
 }

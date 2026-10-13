@@ -224,4 +224,4 @@ The total amount of each resource on a tile is:
 Percentages add together rather than compound, and apply to the base only. The summed percentage
 is floored at −100% and the resulting value at `0`.
 
-For empire-specific multiplier examples, see [assets-data-model.md](../../assets-data-model.md).
+For empire-specific multiplier examples, see [assets-data-model.md](../assets-data-model.md).

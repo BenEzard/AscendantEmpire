@@ -29,60 +29,51 @@ internal class UpdateTagHandler(
 {
     public async Task<ServiceResult<TagView>> Handle(UpdateTagRequest request, CancellationToken cancelToken)
     {
-        try
+        UpsertTagDto dto = request.Tag;
+
+        // Shape validation first, so a malformed request never touches the database.
+        List<string> errors = TagValidation.Validate(dto);
+
+        if (errors.Count > 0)
         {
-            UpsertTagDto dto = request.Tag;
-
-            // Shape validation first, so a malformed request never touches the database.
-            List<string> errors = TagValidation.Validate(dto);
-
-            if (errors.Count > 0)
-            {
-                logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(UpdateTagRequest), string.Join("; ", errors));
-                return ServiceResult<TagView>.Fail(errors);
-            }
-
-            Tag? tag = await context.Tags.FirstOrDefaultAsync(t => t.Id == request.Id, cancelToken);
-
-            if (tag is null)
-            {
-                return ServiceResult<TagView>.NotFound($"No tag exists with id {request.Id}.");
-            }
-
-            // If the code is being changed, make sure no *other* tag already uses the new code.
-            if (tag.Code != dto.Code)
-            {
-                bool codeTaken = await context.Tags.AnyAsync(t => t.Code == dto.Code && t.Id != request.Id, cancelToken);
-
-                if (codeTaken)
-                {
-                    return ServiceResult<TagView>.Conflict($"A tag with code '{dto.Code}' already exists.");
-                }
-            }
-
-            tag.Code = dto.Code;
-            tag.DisplayName = dto.DisplayName;
-            tag.Description = dto.Description;
-            tag.TagType = dto.TagType;
-            tag.MovementDomain = dto.MovementDomain;
-            tag.LeadershipModel = dto.LeadershipModel;
-            tag.UnledBaseSize = dto.UnledBaseSize;
-            tag.UnledDefaultSize = dto.UnledDefaultSize;
-            tag.UnledMaxSize = dto.UnledMaxSize;
-            tag.SystemCreated = dto.SystemCreated;
-
-            await context.SaveChangesAsync(cancelToken);
-
-            logger.LogInformation("Updated tag '{Code}' (id {Id}).", tag.Code, tag.Id);
-
-            return ServiceResult<TagView>.Succeed(ToView(tag));
+            logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(UpdateTagRequest), string.Join("; ", errors));
+            return ServiceResult<TagView>.Fail(errors);
         }
-        catch (Exception ex)
+
+        Tag? tag = await context.Tags.FirstOrDefaultAsync(t => t.Id == request.Id, cancelToken);
+
+        if (tag is null)
         {
-            const string error = "An exception occurred while processing " + nameof(UpdateTagHandler) + ".";
-            logger.LogError(ex, error);
-            return ServiceResult<TagView>.InternalServerError(ex, error);
+            return ServiceResult<TagView>.NotFound($"No tag exists with id {request.Id}.");
         }
+
+        // If the code is being changed, make sure no *other* tag already uses the new code.
+        if (tag.Code != dto.Code)
+        {
+            bool codeTaken = await context.Tags.AnyAsync(t => t.Code == dto.Code && t.Id != request.Id, cancelToken);
+
+            if (codeTaken)
+            {
+                return ServiceResult<TagView>.Conflict($"A tag with code '{dto.Code}' already exists.");
+            }
+        }
+
+        tag.Code = dto.Code;
+        tag.DisplayName = dto.DisplayName;
+        tag.Description = dto.Description;
+        tag.TagType = dto.TagType;
+        tag.MovementDomain = dto.MovementDomain;
+        tag.LeadershipModel = dto.LeadershipModel;
+        tag.UnledBaseSize = dto.UnledBaseSize;
+        tag.UnledDefaultSize = dto.UnledDefaultSize;
+        tag.UnledMaxSize = dto.UnledMaxSize;
+        tag.SystemCreated = dto.SystemCreated;
+
+        await context.SaveChangesAsync(cancelToken);
+
+        logger.LogInformation("Updated tag '{Code}' (id {Id}).", tag.Code, tag.Id);
+
+        return ServiceResult<TagView>.Succeed(ToView(tag));
     }
 
     /// <summary>

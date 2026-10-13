@@ -4,7 +4,6 @@ using AscendantEmpire.BackendContracts.Games.GetGames;
 using AscendantEmpire.Domain.Enums.Games;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
@@ -27,43 +26,33 @@ namespace AscendantEmpire.Application.Features.Game.Handlers;
 public record GetAllGamesRequest() : IRequest<ServiceResult<IReadOnlyCollection<GameSummary>>>;
 
 internal sealed class GetAllGamesHandler(
-    ILogger<GetAllGamesHandler> logger,
     IDbContextFactory<AscendantEmpireContext> dbFactory
 ) : IRequestHandler<GetAllGamesRequest, ServiceResult<IReadOnlyCollection<GameSummary>>>
 {
     public async Task<ServiceResult<IReadOnlyCollection<GameSummary>>> Handle(GetAllGamesRequest request, CancellationToken cancelToken)
     {
-        try
-        {
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            // NumberOfPlayers is the slot count the game was set up with; the claimed count is how many of those slots someone is actually sitting in.
-            // A slot is claimed when it carries a UserId, and only active players count - an eliminated or banned player is not occupying a seat that
-            // anyone else could take.
-            List<GameSummary> games = await context.GameIndex
-                .AsNoTracking()
-                .Select(gi => new GameSummary
-                {
-                    GameId = gi.Id,
-                    GameName = gi.GameName,
-                    NumberOfPlayers = gi.NumberOfPlayers,
-                    ClaimedPlayerCount = context.Players.Count(p => p.GameId == gi.Id && p.UserId != null && p.Status == PlayerStatus.Active),
-                    CreationStatus = gi.CreationStatus,
-                    PlayStatus = gi.PlayStatus,
-                    CreatedAt = gi.CreatedAt
-                })
-                // Newest first: a game someone has just broken is the one they are most likely to have come here to delete.
-                .OrderByDescending(g => g.CreatedAt)
-                .ThenByDescending(g => g.GameId)
-                .ToListAsync(cancelToken);
+        // NumberOfPlayers is the slot count the game was set up with; the claimed count is how many of those slots someone is actually sitting in.
+        // A slot is claimed when it carries a UserId, and only active players count - an eliminated or banned player is not occupying a seat that
+        // anyone else could take.
+        List<GameSummary> games = await context.GameIndex
+            .AsNoTracking()
+            .Select(gi => new GameSummary
+            {
+                GameId = gi.Id,
+                GameName = gi.GameName,
+                NumberOfPlayers = gi.NumberOfPlayers,
+                ClaimedPlayerCount = context.Players.Count(p => p.GameId == gi.Id && p.UserId != null && p.Status == PlayerStatus.Active),
+                CreationStatus = gi.CreationStatus,
+                PlayStatus = gi.PlayStatus,
+                CreatedAt = gi.CreatedAt
+            })
+            // Newest first: a game someone has just broken is the one they are most likely to have come here to delete.
+            .OrderByDescending(g => g.CreatedAt)
+            .ThenByDescending(g => g.GameId)
+            .ToListAsync(cancelToken);
 
-            return ServiceResult<IReadOnlyCollection<GameSummary>>.Succeed(games);
-        }
-        catch (Exception ex)
-        {
-            const string error = "An error occurred while fetching the list of games.";
-            logger.LogError(ex, error);
-            return ServiceResult<IReadOnlyCollection<GameSummary>>.InternalServerError(error);
-        }
+        return ServiceResult<IReadOnlyCollection<GameSummary>>.Succeed(games);
     }
 }

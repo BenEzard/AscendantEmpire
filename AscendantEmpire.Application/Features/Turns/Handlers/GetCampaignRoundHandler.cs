@@ -110,13 +110,5 @@ internal class GetCampaignRoundHandler(
 
             return ServiceResult<CampaignRound>.Fail(error);
         }
-        catch (Exception ex)
-        {
-            const string error = "Unhandled exception getting Campaign Round Info.";
-
-            logger.LogError(ex, error);
-
-            return ServiceResult<CampaignRound>.Fail([error, ex.Message]);
-        }
     }
 }

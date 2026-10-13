@@ -50,82 +50,73 @@ internal class UpdateCampaignMapRiversHandler(
 {
     public async Task<ServiceResult<int>> Handle(UpdateCampaignMapRiversRequest request, CancellationToken cancellationToken)
     {
-        try
+        ServiceResult<DTCampaignMapGalleryIndex> indexResult =
+            await mediator.Send(new GetCampaignMapGalleryIndexRequest(request.CampaignMapGalleryIndexId), cancellationToken);
+
+        if (indexResult.HasSucceeded == false || indexResult.SuccessValue is null)
         {
-            ServiceResult<DTCampaignMapGalleryIndex> indexResult =
-                await mediator.Send(new GetCampaignMapGalleryIndexRequest(request.CampaignMapGalleryIndexId), cancellationToken);
+            logger.LogWarning(
+                "Failed to retrieve Campaign Map Gallery Index {CampaignMapGalleryIndexId} while setting river edges. Error: {Error}",
+                request.CampaignMapGalleryIndexId,
+                string.Join(Environment.NewLine, indexResult.Errors));
 
-            if (indexResult.HasSucceeded == false || indexResult.SuccessValue is null)
-            {
-                logger.LogWarning(
-                    "Failed to retrieve Campaign Map Gallery Index {CampaignMapGalleryIndexId} while setting river edges. Error: {Error}",
-                    request.CampaignMapGalleryIndexId,
-                    string.Join(Environment.NewLine, indexResult.Errors));
-
-                return ServiceResult<int>.NotFound($"Map {request.CampaignMapGalleryIndexId} was not found.");
-            }
-
-            DTCampaignMapGalleryIndex index = indexResult.SuccessValue;
-
-            if (index.CreationStatus != MapCreationStatus.Complete)
-            {
-                return ServiceResult<int>.Fail($"The map is {index.CreationStatus}, not Complete.");
-            }
-
-            var geometry = new CampaignMapGeometry(
-                CampaignMapOffsetId: index.CampaignMapOffsetId,
-                Width: index.Width,
-                Height: index.Height,
-                WrapsHorizontally: index.HorizontalWrap,
-                WrapsVertically: index.VerticalWrap);
-
-            // Coordinates are checked before anything is loaded, because an off-map coordinate would otherwise become a tile that quietly is not there.
-            // Negative values are already refused by the validator; this is the other half of the same test.
-            List<string> offMapCoordinates =
-            [
-                .. request.Changes
-                    .Where(change => change.X >= geometry.Width || change.Y >= geometry.Height)
-                    .Select(change => $"({change.X}, {change.Y})")
-                    .Distinct()
-            ];
-
-            if (offMapCoordinates.Count > 0)
-            {
-                return ServiceResult<int>.Fail($"Off the {geometry.Width} x {geometry.Height} map: {string.Join(", ", offMapCoordinates)}.");
-            }
-
-            // Every edge that already carries a river, which is what the authoring rules are judged against once the batch has been folded in. Only the
-            // tiles that actually have one are read; on any real map that is a small minority of them.
-            Dictionary<RiverEdgeKey, RiverWidth> riverEdges = await LoadExistingRiverEdgesAsync(request.CampaignMapGalleryIndexId, cancellationToken);
-
-            Dictionary<RiverEdgeKey, RiverWidth> originalWidths = new(riverEdges);
-
-            ApplyChanges(request.Changes, riverEdges);
-
-            ServiceResult<IReadOnlySet<Coord>> waterResult = await LoadWaterTilesAsync(request.CampaignMapGalleryIndexId, riverEdges.Keys, geometry, cancellationToken);
-
-            if (waterResult.HasSucceeded == false || waterResult.SuccessValue is null)
-            {
-                return ServiceResult<int>.Fail(waterResult.Errors);
-            }
-
-            IReadOnlyCollection<RiverRuleViolation> violations = RiverNetworkRules.Validate(riverEdges, geometry, waterResult.SuccessValue);
-
-            if (violations.Count > 0)
-            {
-                return Refuse(violations, originalWidths);
-            }
-
-            int edgesUpdated = await WriteChangesAsync(request, geometry, cancellationToken);
-
-            return ServiceResult<int>.Succeed(edgesUpdated);
+            return ServiceResult<int>.NotFound($"Map {request.CampaignMapGalleryIndexId} was not found.");
         }
-        catch (Exception ex)
+
+        DTCampaignMapGalleryIndex index = indexResult.SuccessValue;
+
+        if (index.CreationStatus != MapCreationStatus.Complete)
         {
-            const string error = "The river edges could not be saved.";
-            logger.LogError(ex, error + " CampaignMapGalleryIndexId: {CampaignMapGalleryIndexId}", request.CampaignMapGalleryIndexId);
-            return ServiceResult<int>.InternalServerError(error);
+            return ServiceResult<int>.Fail($"The map is {index.CreationStatus}, not Complete.");
         }
+
+        var geometry = new CampaignMapGeometry(
+            CampaignMapOffsetId: index.CampaignMapOffsetId,
+            Width: index.Width,
+            Height: index.Height,
+            WrapsHorizontally: index.HorizontalWrap,
+            WrapsVertically: index.VerticalWrap);
+
+        // Coordinates are checked before anything is loaded, because an off-map coordinate would otherwise become a tile that quietly is not there.
+        // Negative values are already refused by the validator; this is the other half of the same test.
+        List<string> offMapCoordinates =
+        [
+            .. request.Changes
+                .Where(change => change.X >= geometry.Width || change.Y >= geometry.Height)
+                .Select(change => $"({change.X}, {change.Y})")
+                .Distinct()
+        ];
+
+        if (offMapCoordinates.Count > 0)
+        {
+            return ServiceResult<int>.Fail($"Off the {geometry.Width} x {geometry.Height} map: {string.Join(", ", offMapCoordinates)}.");
+        }
+
+        // Every edge that already carries a river, which is what the authoring rules are judged against once the batch has been folded in. Only the
+        // tiles that actually have one are read; on any real map that is a small minority of them.
+        Dictionary<RiverEdgeKey, RiverWidth> riverEdges = await LoadExistingRiverEdgesAsync(request.CampaignMapGalleryIndexId, cancellationToken);
+
+        Dictionary<RiverEdgeKey, RiverWidth> originalWidths = new(riverEdges);
+
+        ApplyChanges(request.Changes, riverEdges);
+
+        ServiceResult<IReadOnlySet<Coord>> waterResult = await LoadWaterTilesAsync(request.CampaignMapGalleryIndexId, riverEdges.Keys, geometry, cancellationToken);
+
+        if (waterResult.HasSucceeded == false || waterResult.SuccessValue is null)
+        {
+            return ServiceResult<int>.Fail(waterResult.Errors);
+        }
+
+        IReadOnlyCollection<RiverRuleViolation> violations = RiverNetworkRules.Validate(riverEdges, geometry, waterResult.SuccessValue);
+
+        if (violations.Count > 0)
+        {
+            return Refuse(violations, originalWidths);
+        }
+
+        int edgesUpdated = await WriteChangesAsync(request, geometry, cancellationToken);
+
+        return ServiceResult<int>.Succeed(edgesUpdated);
     }
 
     /// <summary>

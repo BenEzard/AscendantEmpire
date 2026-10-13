@@ -202,7 +202,7 @@ internal class GalleryMapResourceHandlerTests : SqlServerTestBase
     private async Task<ServiceResult<GalleryMapResource>> PlaceAsync(int mapId, int x, int y, int typeId)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
-        var handler = new PlaceGalleryMapResourceHandler(new NullLogger<PlaceGalleryMapResourceHandler>(), context);
+        var handler = new PlaceGalleryMapResourceHandler(context);
 
         return await handler.Handle(new PlaceGalleryMapResourceRequest(mapId, new PlaceGalleryMapResourceDto { XCoord = x, YCoord = y, MapResourceTypeId = typeId }), CancellationToken.None);
     }
@@ -210,7 +210,7 @@ internal class GalleryMapResourceHandlerTests : SqlServerTestBase
     private async Task<ServiceResult<GalleryMapResource>> UpdateAsync(int mapId, int placementId, UpdateGalleryMapResourceDto specifics)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
-        var handler = new UpdateGalleryMapResourceHandler(new NullLogger<UpdateGalleryMapResourceHandler>(), context);
+        var handler = new UpdateGalleryMapResourceHandler(context);
 
         return await handler.Handle(new UpdateGalleryMapResourceRequest(mapId, placementId, specifics), CancellationToken.None);
     }
@@ -218,14 +218,14 @@ internal class GalleryMapResourceHandlerTests : SqlServerTestBase
     private async Task<ServiceResultBase> DeleteAsync(int mapId, int placementId)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
-        var handler = new DeleteGalleryMapResourceHandler(new NullLogger<DeleteGalleryMapResourceHandler>(), context);
+        var handler = new DeleteGalleryMapResourceHandler(context);
 
         return await handler.Handle(new DeleteGalleryMapResourceRequest(mapId, placementId), CancellationToken.None);
     }
 
     private async Task<IReadOnlyCollection<GalleryMapResource>> GetAsync(int mapId)
     {
-        var handler = new GetGalleryMapResourcesHandler(new NullLogger<GetGalleryMapResourcesHandler>(), DbFactory);
+        var handler = new GetGalleryMapResourcesHandler(DbFactory);
 
         return (await handler.Handle(new GetGalleryMapResourcesRequest(mapId), CancellationToken.None)).SuccessValue!;
     }

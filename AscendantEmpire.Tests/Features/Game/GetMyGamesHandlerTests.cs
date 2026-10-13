@@ -63,7 +63,7 @@ internal class GetMyGamesHandlerTests : InMemoryTestBase
     [SetUp]
     public async Task SeedGamesAsync()
     {
-        _handler = new GetMyGamesHandler(NullLogger<GetMyGamesHandler>.Instance, DbFactory);
+        _handler = new GetMyGamesHandler(DbFactory);
 
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 

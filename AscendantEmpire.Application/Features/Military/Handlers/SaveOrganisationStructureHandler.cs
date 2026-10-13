@@ -30,105 +30,96 @@ internal class SaveOrganisationStructureHandler(
 {
     public async Task<ServiceResultBase> Handle(SaveOrganisationStructureRequest request, CancellationToken cancelToken)
     {
-        try
+        // The tag must exist and be an organisation group.
+        Tag? tag = await context.Tags
+            .FirstOrDefaultAsync(t => t.Id == request.TagId, cancelToken);
+
+        if (tag is null || tag.TagType != TagType.MilitaryOrganisationalGroup)
         {
-            // The tag must exist and be an organisation group.
-            Tag? tag = await context.Tags
-                .FirstOrDefaultAsync(t => t.Id == request.TagId, cancelToken);
-
-            if (tag is null || tag.TagType != TagType.MilitaryOrganisationalGroup)
-            {
-                return ServiceResultBase.NotFound($"No military organisation tag exists with id {request.TagId}.");
-            }
-
-            List<string> errors = Validate(request.Tiers);
-            if (errors.Count > 0)
-            {
-                logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(SaveOrganisationStructureRequest), string.Join("; ", errors));
-                return ServiceResultBase.Fail(errors);
-            }
-
-            // Domain-derived tier cap: a tier maps positionally to an officer rank, so the tier count may not
-            // exceed what the tag's domain's rank ladder allows (max(1, in-use ranks - 1)). A tag with no domain
-            // is only bound by the structural maximum already checked above.
-            if (tag.MovementDomain is not null)
-            {
-                IReadOnlyList<string> rankTitles = await OfficerRankLadder.GetInUseRankTitlesAsync(context, request.PlayerId, tag.MovementDomain.Value, cancelToken);
-                int maxTiers = MilitaryOrganisationDefaults.MaxTiersForRankCount(rankTitles.Count);
-
-                if (request.Tiers.Count > maxTiers)
-                {
-                    logger.LogWarning("Rejected organisation save: {Count} tiers exceed the {Max}-tier cap for domain {Domain}.",
-                        request.Tiers.Count, maxTiers, tag.MovementDomain.Value);
-                    return ServiceResultBase.Fail(
-                        $"This organisation group's domain allows at most {maxTiers} tier(s); {request.Tiers.Count} were supplied.");
-                }
-            }
-
-            PlayerOrganisationStructure? structure = await context.PlayerOrganisationStructures
-                .Include(s => s.Tiers)
-                .FirstOrDefaultAsync(s => s.PlayerId == request.PlayerId && s.TagId == request.TagId, cancelToken);
-
-            if (structure is null)
-            {
-                structure = new PlayerOrganisationStructure
-                {
-                    PlayerId = request.PlayerId,
-                    TagId = request.TagId,
-                };
-                context.PlayerOrganisationStructures.Add(structure);
-            }
-
-            // Upsert tiers by TierIndex: update the overlap in place (keeping their ids), insert new indices,
-            // and delete any indices the request dropped. Only genuinely added/removed tiers churn; the
-            // structure row itself always keeps its id. (For a freshly-created structure, Tiers is empty, so
-            // every request tier is an insert.)
-            Dictionary<int, PlayerOrganisationStructureTier> existingByIndex =
-                structure.Tiers.ToDictionary(t => t.TierIndex);
-
-            HashSet<int> requestIndices = [.. request.Tiers.Select(t => t.TierIndex)];
-
-            foreach (SaveOrganisationTierDto tier in request.Tiers.OrderBy(t => t.TierIndex))
-            {
-                if (existingByIndex.TryGetValue(tier.TierIndex, out PlayerOrganisationStructureTier? row))
-                {
-                    row.Name = tier.Name;
-                    row.Multiplier = tier.Multiplier;
-                }
-                else
-                {
-                    structure.Tiers.Add(new PlayerOrganisationStructureTier
-                    {
-                        TierIndex = tier.TierIndex,
-                        Name = tier.Name,
-                        Multiplier = tier.Multiplier,
-                    });
-                }
-            }
-
-            // Delete the tiers whose index is no longer present in the request.
-            List<PlayerOrganisationStructureTier> tiersToRemove =
-                [.. existingByIndex.Values.Where(t => !requestIndices.Contains(t.TierIndex))];
-
-            foreach (PlayerOrganisationStructureTier tier in tiersToRemove)
-            {
-                structure.Tiers.Remove(tier);
-                context.PlayerOrganisationStructureTiers.Remove(tier);
-            }
-
-            await context.SaveChangesAsync(cancelToken);
-
-            logger.LogInformation("Saved organisation structure ({TierCount} tiers) for player {PlayerId}, tag {TagId}.",
-                request.Tiers.Count, request.PlayerId, request.TagId);
-
-            return ServiceResultBase.SuccessNoContent();
+            return ServiceResultBase.NotFound($"No military organisation tag exists with id {request.TagId}.");
         }
-        catch (Exception ex)
+
+        List<string> errors = Validate(request.Tiers);
+        if (errors.Count > 0)
         {
-            const string error = "An exception occurred while processing " + nameof(SaveOrganisationStructureHandler) + ".";
-            logger.LogError(ex, error);
-            return ServiceResultBase.InternalServerError(error);
+            logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(SaveOrganisationStructureRequest), string.Join("; ", errors));
+            return ServiceResultBase.Fail(errors);
         }
+
+        // Domain-derived tier cap: a tier maps positionally to an officer rank, so the tier count may not
+        // exceed what the tag's domain's rank ladder allows (max(1, in-use ranks - 1)). A tag with no domain
+        // is only bound by the structural maximum already checked above.
+        if (tag.MovementDomain is not null)
+        {
+            IReadOnlyList<string> rankTitles = await OfficerRankLadder.GetInUseRankTitlesAsync(context, request.PlayerId, tag.MovementDomain.Value, cancelToken);
+            int maxTiers = MilitaryOrganisationDefaults.MaxTiersForRankCount(rankTitles.Count);
+
+            if (request.Tiers.Count > maxTiers)
+            {
+                logger.LogWarning("Rejected organisation save: {Count} tiers exceed the {Max}-tier cap for domain {Domain}.",
+                    request.Tiers.Count, maxTiers, tag.MovementDomain.Value);
+                return ServiceResultBase.Fail(
+                    $"This organisation group's domain allows at most {maxTiers} tier(s); {request.Tiers.Count} were supplied.");
+            }
+        }
+
+        PlayerOrganisationStructure? structure = await context.PlayerOrganisationStructures
+            .Include(s => s.Tiers)
+            .FirstOrDefaultAsync(s => s.PlayerId == request.PlayerId && s.TagId == request.TagId, cancelToken);
+
+        if (structure is null)
+        {
+            structure = new PlayerOrganisationStructure
+            {
+                PlayerId = request.PlayerId,
+                TagId = request.TagId,
+            };
+            context.PlayerOrganisationStructures.Add(structure);
+        }
+
+        // Upsert tiers by TierIndex: update the overlap in place (keeping their ids), insert new indices,
+        // and delete any indices the request dropped. Only genuinely added/removed tiers churn; the
+        // structure row itself always keeps its id. (For a freshly-created structure, Tiers is empty, so
+        // every request tier is an insert.)
+        Dictionary<int, PlayerOrganisationStructureTier> existingByIndex =
+            structure.Tiers.ToDictionary(t => t.TierIndex);
+
+        HashSet<int> requestIndices = [.. request.Tiers.Select(t => t.TierIndex)];
+
+        foreach (SaveOrganisationTierDto tier in request.Tiers.OrderBy(t => t.TierIndex))
+        {
+            if (existingByIndex.TryGetValue(tier.TierIndex, out PlayerOrganisationStructureTier? row))
+            {
+                row.Name = tier.Name;
+                row.Multiplier = tier.Multiplier;
+            }
+            else
+            {
+                structure.Tiers.Add(new PlayerOrganisationStructureTier
+                {
+                    TierIndex = tier.TierIndex,
+                    Name = tier.Name,
+                    Multiplier = tier.Multiplier,
+                });
+            }
+        }
+
+        // Delete the tiers whose index is no longer present in the request.
+        List<PlayerOrganisationStructureTier> tiersToRemove =
+            [.. existingByIndex.Values.Where(t => !requestIndices.Contains(t.TierIndex))];
+
+        foreach (PlayerOrganisationStructureTier tier in tiersToRemove)
+        {
+            structure.Tiers.Remove(tier);
+            context.PlayerOrganisationStructureTiers.Remove(tier);
+        }
+
+        await context.SaveChangesAsync(cancelToken);
+
+        logger.LogInformation("Saved organisation structure ({TierCount} tiers) for player {PlayerId}, tag {TagId}.",
+            request.Tiers.Count, request.PlayerId, request.TagId);
+
+        return ServiceResultBase.SuccessNoContent();
     }
 
     /// <summary>

@@ -4,6 +4,7 @@ using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Common.Validation;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
@@ -79,14 +80,17 @@ internal class ValidationWiringTests
         Assert.That(provider.GetService<IValidator<ProbeRequest>>(), Is.SameAs(provider.GetService<IValidator<ProbeRequest>>()));
     }
 
-    [Test, Description("Exactly one validation behaviour is in the pipeline — a second copy would report every broken rule to the user twice.")]
-    public void ShouldRegisterTheValidationBehaviourExactlyOnce()
+    [Test, Description("The pipeline is exception handling then validation, each once — a second copy would report every broken rule to the user twice.")]
+    public void ShouldComposeThePipelineInOrderWithEachBehaviourRegisteredOnce()
     {
         ServiceCollection services = new();
 
-        // The same two calls Program.cs makes, in the same order, so this pins what the running API actually composes.
+        // The same two calls Program.cs makes, in the same order, so this pins what the running API actually composes. Logging and the host environment come
+        // from the host in the real application; here they are the minimum ExceptionHandlingBehaviour needs to be constructible.
         services.AddMediator(typeof(ApplicationStartup).Assembly);
         services.AddApplicationServices();
+        services.AddLogging();
+        services.AddSingleton<IHostEnvironment>(new StubHostEnvironment(StubHostEnvironment.PRODUCTION));
 
         using ServiceProvider provider = services.BuildServiceProvider();
 
@@ -94,8 +98,12 @@ internal class ValidationWiringTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(behaviours, Has.Length.EqualTo(1));
-            Assert.That(behaviours[0], Is.TypeOf<ValidationBehaviour<ProbeRequest, ServiceResult<int>>>());
+            Assert.That(behaviours, Has.Length.EqualTo(2));
+
+            // Registration order is the order the mediator wraps them in, first registered outermost. Exception handling has to be the outer one, or an
+            // exception thrown by a validator would escape the pipeline instead of being answered.
+            Assert.That(behaviours[0], Is.TypeOf<ExceptionHandlingBehaviour<ProbeRequest, ServiceResult<int>>>());
+            Assert.That(behaviours[1], Is.TypeOf<ValidationBehaviour<ProbeRequest, ServiceResult<int>>>());
         }
     }
 

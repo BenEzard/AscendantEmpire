@@ -174,7 +174,7 @@ internal class UnitDesignReadEndpointsTests : SqlServerTestBase
     {
         await SeedAsync();
 
-        var handler = new GetUnlockedBodiesHandler(new NullLogger<GetUnlockedBodiesHandler>(), DbFactory);
+        var handler = new GetUnlockedBodiesHandler(DbFactory);
         ServiceResult<UnlockedBodiesResult> result =
             await handler.Handle(new GetUnlockedBodiesRequest(_gameId, _playerId), CancellationToken.None);
 
@@ -198,7 +198,7 @@ internal class UnitDesignReadEndpointsTests : SqlServerTestBase
     {
         await SeedAsync();
 
-        var handler = new GetSlotCandidateComponentsHandler(new NullLogger<GetSlotCandidateComponentsHandler>(), DbFactory);
+        var handler = new GetSlotCandidateComponentsHandler(DbFactory);
         ServiceResult<SlotCandidateComponentsResult> result =
             await handler.Handle(new GetSlotCandidateComponentsRequest(_gameId, _playerId, _bodyId, _slotId), CancellationToken.None);
 
@@ -222,7 +222,7 @@ internal class UnitDesignReadEndpointsTests : SqlServerTestBase
     {
         await SeedAsync();
 
-        var handler = new GetSlotCandidateComponentsHandler(new NullLogger<GetSlotCandidateComponentsHandler>(), DbFactory);
+        var handler = new GetSlotCandidateComponentsHandler(DbFactory);
         ServiceResult<SlotCandidateComponentsResult> result =
             await handler.Handle(new GetSlotCandidateComponentsRequest(_gameId, _playerId, _bodyId, _slotId + 1000), CancellationToken.None);
 

@@ -37,141 +37,132 @@ internal class BulkUpsertGlobalUnitTemplatesHandler(
 {
     public async Task<ServiceResult<BulkUpsertGlobalUnitTemplatesResult>> Handle(BulkUpsertGlobalUnitTemplatesRequest request, CancellationToken cancelToken)
     {
-        try
+        CatalogueTemplatesDocument document = request.Document;
+
+        // An empty payload is a valid no-op (e.g. a components-only export re-imported).
+        if (document.Templates.Count == 0)
         {
-            CatalogueTemplatesDocument document = request.Document;
-
-            // An empty payload is a valid no-op (e.g. a components-only export re-imported).
-            if (document.Templates.Count == 0)
-            {
-                return ServiceResult<BulkUpsertGlobalUnitTemplatesResult>.Succeed(new BulkUpsertGlobalUnitTemplatesResult
-                {
-                    AddedCount = 0,
-                    UpdatedCount = 0,
-                    UpdatedCodes = [],
-                });
-            }
-
-            // Duplicate codes within the payload would make the upsert ambiguous — reject up front.
-            string[] duplicateCodes = [.. document.Templates
-                .GroupBy(t => t.Code)
-                .Where(g => g.Count() > 1)
-                .Select(g => g.Key)];
-
-            if (duplicateCodes.Length > 0)
-            {
-                return ServiceResult<BulkUpsertGlobalUnitTemplatesResult>.Fail($"Duplicate template code(s) in the payload: {string.Join(", ", duplicateCodes)}");
-            }
-
-            // Resolve + validate every template against the catalogue before writing anything, so a rejected
-            // request writes nothing. Resolution reads the (already-upserted) components and builds the
-            // fitted-component rows, applying the same assembly rules as the create/update handlers.
-            Dictionary<string, UnitTemplateAssembly.ResolvedAssembly> resolvedByCode = [];
-            List<string> errors = [];
-
-            foreach (CatalogueTemplateDto templateDto in document.Templates)
-            {
-                ServiceResult<UnitTemplateAssembly.ResolvedAssembly> resolved = await UnitTemplateAssembly.ResolveAsync(
-                    context, playerId: null, templateDto.DisplayName, templateDto.MapImagePath, templateDto.BaseCode, templateDto.SlotComponentCodes, cancelToken);
-
-                if (resolved.HasSucceeded)
-                {
-                    resolvedByCode[templateDto.Code] = resolved.SuccessValue!;
-                }
-                else
-                {
-                    errors.AddRange(resolved.Errors.Select(e => $"Template '{templateDto.Code}': {e}"));
-                }
-            }
-
-            if (errors.Count > 0)
-            {
-                logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(BulkUpsertGlobalUnitTemplatesRequest), string.Join("; ", errors));
-                return ServiceResult<BulkUpsertGlobalUnitTemplatesResult>.Fail(errors);
-            }
-
-            // Load any catalogue templates that already exist for the payload's codes, with their fitted
-            // components so those can be replaced on update.
-            string[] codes = [.. document.Templates.Select(t => t.Code)];
-
-            Dictionary<string, UnitTemplate> existingByCode = await context.UnitTemplates
-                .Where(t => t.Code != null && t.GameId == null && t.PlayerId == null && codes.Contains(t.Code))
-                .Include(t => t.Components)
-                .ToDictionaryAsync(t => t.Code!, cancelToken);
-
-            // Upsert + compile atomically: every upserted template must end up with a fresh snapshot, so a compile
-            // failure part-way through must roll back the whole import. CompileUnitTemplateHandler shares this
-            // request scope's context, so one transaction covers everything; disposing without Commit rolls back.
-            await using var transaction = await context.Database.BeginTransactionAsync(cancelToken);
-
-            // A code -> template map (existing + newly built) lets the supersession step wire links by
-            // navigation, so EF assigns foreign keys even for brand-new templates on save.
-            Dictionary<string, UnitTemplate> templatesByCode = new(existingByCode);
-            List<string> addedCodes = [];
-            List<string> updatedCodes = [];
-
-            foreach (CatalogueTemplateDto templateDto in document.Templates)
-            {
-                UnitTemplateAssembly.ResolvedAssembly assembly = resolvedByCode[templateDto.Code];
-
-                if (existingByCode.TryGetValue(templateDto.Code, out UnitTemplate? existing))
-                {
-                    UpdateTemplate(existing, templateDto, assembly);
-                    updatedCodes.Add(templateDto.Code);
-                }
-                else
-                {
-                    UnitTemplate built = BuildTemplate(templateDto, assembly);
-                    context.UnitTemplates.Add(built);
-                    templatesByCode[templateDto.Code] = built;
-                    addedCodes.Add(templateDto.Code);
-                }
-            }
-
-            // Reconcile the template supersession (upgrade) links from the payload.
-            if (document.TemplateSupersessions.Count > 0)
-            {
-                await ReconcileTemplateSupersessionsAsync(document, templatesByCode, cancelToken);
-            }
-
-            await context.SaveChangesAsync(cancelToken);
-
-            // (Re)compile every upserted template's snapshot — templates loaded only for supersession links are
-            // untouched, so their existing snapshots remain valid. Ids exist now that the save has run.
-            foreach (string code in addedCodes.Concat(updatedCodes))
-            {
-                ServiceResult<int> compiled = await mediator.Send(
-                    new CompileUnitTemplateRequest(UnitTemplateId: templatesByCode[code].Id, CompiledOnTurn: 0), cancelToken);
-
-                if (!compiled.HasSucceeded)
-                {
-                    logger.LogWarning("Compilation failed for template '{Code}' during {Request}. Errors: {Errors}",
-                        code, nameof(BulkUpsertGlobalUnitTemplatesRequest), string.Join("; ", compiled.Errors));
-                    return new ServiceResult<BulkUpsertGlobalUnitTemplatesResult>
-                    {
-                        StatusCode = compiled.StatusCode,
-                        Errors = [.. compiled.Errors.Select(e => $"Template '{code}': {e}")],
-                    };
-                }
-            }
-
-            await transaction.CommitAsync(cancelToken);
-
-            logger.LogInformation("Bulk upserted catalogue templates: {AddedCount} added, {UpdatedCount} updated.", addedCodes.Count, updatedCodes.Count);
-
             return ServiceResult<BulkUpsertGlobalUnitTemplatesResult>.Succeed(new BulkUpsertGlobalUnitTemplatesResult
             {
-                AddedCount = addedCodes.Count,
-                UpdatedCount = updatedCodes.Count,
-                UpdatedCodes = updatedCodes,
+                AddedCount = 0,
+                UpdatedCount = 0,
+                UpdatedCodes = [],
             });
         }
-        catch (Exception ex)
+
+        // Duplicate codes within the payload would make the upsert ambiguous — reject up front.
+        string[] duplicateCodes = [.. document.Templates
+            .GroupBy(t => t.Code)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)];
+
+        if (duplicateCodes.Length > 0)
         {
-            const string error = "An exception occurred while processing " + nameof(BulkUpsertGlobalUnitTemplatesHandler) + ".";
-            logger.LogError(ex, error);
-            return ServiceResult<BulkUpsertGlobalUnitTemplatesResult>.InternalServerError(ex, error);
+            return ServiceResult<BulkUpsertGlobalUnitTemplatesResult>.Fail($"Duplicate template code(s) in the payload: {string.Join(", ", duplicateCodes)}");
         }
+
+        // Resolve + validate every template against the catalogue before writing anything, so a rejected
+        // request writes nothing. Resolution reads the (already-upserted) components and builds the
+        // fitted-component rows, applying the same assembly rules as the create/update handlers.
+        Dictionary<string, UnitTemplateAssembly.ResolvedAssembly> resolvedByCode = [];
+        List<string> errors = [];
+
+        foreach (CatalogueTemplateDto templateDto in document.Templates)
+        {
+            ServiceResult<UnitTemplateAssembly.ResolvedAssembly> resolved = await UnitTemplateAssembly.ResolveAsync(
+                context, playerId: null, templateDto.DisplayName, templateDto.MapImagePath, templateDto.BaseCode, templateDto.SlotComponentCodes, cancelToken);
+
+            if (resolved.HasSucceeded)
+            {
+                resolvedByCode[templateDto.Code] = resolved.SuccessValue!;
+            }
+            else
+            {
+                errors.AddRange(resolved.Errors.Select(e => $"Template '{templateDto.Code}': {e}"));
+            }
+        }
+
+        if (errors.Count > 0)
+        {
+            logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(BulkUpsertGlobalUnitTemplatesRequest), string.Join("; ", errors));
+            return ServiceResult<BulkUpsertGlobalUnitTemplatesResult>.Fail(errors);
+        }
+
+        // Load any catalogue templates that already exist for the payload's codes, with their fitted
+        // components so those can be replaced on update.
+        string[] codes = [.. document.Templates.Select(t => t.Code)];
+
+        Dictionary<string, UnitTemplate> existingByCode = await context.UnitTemplates
+            .Where(t => t.Code != null && t.GameId == null && t.PlayerId == null && codes.Contains(t.Code))
+            .Include(t => t.Components)
+            .ToDictionaryAsync(t => t.Code!, cancelToken);
+
+        // Upsert + compile atomically: every upserted template must end up with a fresh snapshot, so a compile
+        // failure part-way through must roll back the whole import. CompileUnitTemplateHandler shares this
+        // request scope's context, so one transaction covers everything; disposing without Commit rolls back.
+        await using var transaction = await context.Database.BeginTransactionAsync(cancelToken);
+
+        // A code -> template map (existing + newly built) lets the supersession step wire links by
+        // navigation, so EF assigns foreign keys even for brand-new templates on save.
+        Dictionary<string, UnitTemplate> templatesByCode = new(existingByCode);
+        List<string> addedCodes = [];
+        List<string> updatedCodes = [];
+
+        foreach (CatalogueTemplateDto templateDto in document.Templates)
+        {
+            UnitTemplateAssembly.ResolvedAssembly assembly = resolvedByCode[templateDto.Code];
+
+            if (existingByCode.TryGetValue(templateDto.Code, out UnitTemplate? existing))
+            {
+                UpdateTemplate(existing, templateDto, assembly);
+                updatedCodes.Add(templateDto.Code);
+            }
+            else
+            {
+                UnitTemplate built = BuildTemplate(templateDto, assembly);
+                context.UnitTemplates.Add(built);
+                templatesByCode[templateDto.Code] = built;
+                addedCodes.Add(templateDto.Code);
+            }
+        }
+
+        // Reconcile the template supersession (upgrade) links from the payload.
+        if (document.TemplateSupersessions.Count > 0)
+        {
+            await ReconcileTemplateSupersessionsAsync(document, templatesByCode, cancelToken);
+        }
+
+        await context.SaveChangesAsync(cancelToken);
+
+        // (Re)compile every upserted template's snapshot — templates loaded only for supersession links are
+        // untouched, so their existing snapshots remain valid. Ids exist now that the save has run.
+        foreach (string code in addedCodes.Concat(updatedCodes))
+        {
+            ServiceResult<int> compiled = await mediator.Send(
+                new CompileUnitTemplateRequest(UnitTemplateId: templatesByCode[code].Id, CompiledOnTurn: 0), cancelToken);
+
+            if (!compiled.HasSucceeded)
+            {
+                logger.LogWarning("Compilation failed for template '{Code}' during {Request}. Errors: {Errors}",
+                    code, nameof(BulkUpsertGlobalUnitTemplatesRequest), string.Join("; ", compiled.Errors));
+                return new ServiceResult<BulkUpsertGlobalUnitTemplatesResult>
+                {
+                    StatusCode = compiled.StatusCode,
+                    Errors = [.. compiled.Errors.Select(e => $"Template '{code}': {e}")],
+                };
+            }
+        }
+
+        await transaction.CommitAsync(cancelToken);
+
+        logger.LogInformation("Bulk upserted catalogue templates: {AddedCount} added, {UpdatedCount} updated.", addedCodes.Count, updatedCodes.Count);
+
+        return ServiceResult<BulkUpsertGlobalUnitTemplatesResult>.Succeed(new BulkUpsertGlobalUnitTemplatesResult
+        {
+            AddedCount = addedCodes.Count,
+            UpdatedCount = updatedCodes.Count,
+            UpdatedCodes = updatedCodes,
+        });
     }
 
     /// <summary>

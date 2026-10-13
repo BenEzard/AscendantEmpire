@@ -49,80 +49,71 @@ internal class GetPlayerKnownForcesHandler(
 {
     public async Task<ServiceResult<IReadOnlyCollection<KnownForce>>> Handle(GetPlayerKnownForcesRequest request, CancellationToken cancelToken)
     {
-        try
+        // Validate the request object
+        var validator = new GetPlayerKnownForcesRequestValidator();
+        ValidationResult validationResult = validator.Validate(request);
+
+        if (validationResult.IsValid == false)
         {
-            // Validate the request object
-            var validator = new GetPlayerKnownForcesRequestValidator();
-            ValidationResult validationResult = validator.Validate(request);
+            IEnumerable<string> errors = validationResult.Errors.Select(e => e.ErrorMessage);
+            string error = $"Validation failed for {nameof(GetPlayerKnownForcesRequest)}.";
+            logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
 
-            if (validationResult.IsValid == false)
+            return ServiceResult<IReadOnlyCollection<KnownForce>>.Fail(errors.Prepend(error));
+        }
+
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+
+        bool isPlayerInGame = await context.Players.AnyAsync(player => player.Id == request.PlayerId && player.GameId == request.GameId, cancelToken);
+
+        if (isPlayerInGame == false)
+        {
+            string error = $"Player Id {request.PlayerId} was not found in Game Id {request.GameId}.";
+            logger.LogWarning("{Error}", error);
+
+            return ServiceResult<IReadOnlyCollection<KnownForce>>.NotFound(error);
+        }
+
+        CampaignMapGeometry? geometry = await sightDataReader.GetGeometryAsync(context, request.GameId, cancelToken);
+
+        if (geometry is null)
+        {
+            string error = $"Game Id {request.GameId} was not found while reading known Forces.";
+            logger.LogWarning("{Error}", error);
+
+            return ServiceResult<IReadOnlyCollection<KnownForce>>.NotFound(error);
+        }
+
+        // Oldest sighting first, so the client can draw fresher markers on top when two share a tile.
+        var knownForceRows = await (from known in context.PlayerKnownForces.AsNoTracking()
+                                    join turn in context.PlayerTurns.AsNoTracking()
+                                        on known.LastSeenPlayerTurnId equals turn.Id
+                                    where known.GameId == request.GameId && known.PlayerId == request.PlayerId
+                                    orderby known.LastSeenPlayerTurnId, known.LastSeenTurnSequence, known.Id
+                                    select new { Known = known, turn.RoundNumber }).ToListAsync(cancelToken);
+
+        List<KnownForce> disclosedForces =
+        [
+            .. knownForceRows.Select(row => SightingDisclosure.Disclose(new StoredKnownForce
             {
-                IEnumerable<string> errors = validationResult.Errors.Select(e => e.ErrorMessage);
-                string error = $"Validation failed for {nameof(GetPlayerKnownForcesRequest)}.";
-                logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
-
-                return ServiceResult<IReadOnlyCollection<KnownForce>>.Fail(errors.Prepend(error));
-            }
-
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
-
-            bool isPlayerInGame = await context.Players.AnyAsync(player => player.Id == request.PlayerId && player.GameId == request.GameId, cancelToken);
-
-            if (isPlayerInGame == false)
-            {
-                string error = $"Player Id {request.PlayerId} was not found in Game Id {request.GameId}.";
-                logger.LogWarning("{Error}", error);
-
-                return ServiceResult<IReadOnlyCollection<KnownForce>>.NotFound(error);
-            }
-
-            CampaignMapGeometry? geometry = await sightDataReader.GetGeometryAsync(context, request.GameId, cancelToken);
-
-            if (geometry is null)
-            {
-                string error = $"Game Id {request.GameId} was not found while reading known Forces.";
-                logger.LogWarning("{Error}", error);
-
-                return ServiceResult<IReadOnlyCollection<KnownForce>>.NotFound(error);
-            }
-
-            // Oldest sighting first, so the client can draw fresher markers on top when two share a tile.
-            var knownForceRows = await (from known in context.PlayerKnownForces.AsNoTracking()
-                                        join turn in context.PlayerTurns.AsNoTracking()
-                                            on known.LastSeenPlayerTurnId equals turn.Id
-                                        where known.GameId == request.GameId && known.PlayerId == request.PlayerId
-                                        orderby known.LastSeenPlayerTurnId, known.LastSeenTurnSequence, known.Id
-                                        select new { Known = known, turn.RoundNumber }).ToListAsync(cancelToken);
-
-            List<KnownForce> disclosedForces =
-            [
-                .. knownForceRows.Select(row => SightingDisclosure.Disclose(new StoredKnownForce
+                Status = row.Known.Status,
+                Fidelity = row.Known.Fidelity,
+                LastSeenLocation = geometry.GetCoord(row.Known.LastSeenCampaignMapTileId),
+                LastSeenPlayerTurnId = row.Known.LastSeenPlayerTurnId,
+                LastSeenRoundNumber = row.RoundNumber,
+                LastSeenTurnSequence = row.Known.LastSeenTurnSequence,
+                ExitDirection = row.Known.ExitDirection,
+                StillVisible = row.Known.StillVisible,
+                Subject = new SightingSubject
                 {
-                    Status = row.Known.Status,
-                    Fidelity = row.Known.Fidelity,
-                    LastSeenLocation = geometry.GetCoord(row.Known.LastSeenCampaignMapTileId),
-                    LastSeenPlayerTurnId = row.Known.LastSeenPlayerTurnId,
-                    LastSeenRoundNumber = row.RoundNumber,
-                    LastSeenTurnSequence = row.Known.LastSeenTurnSequence,
-                    ExitDirection = row.Known.ExitDirection,
-                    StillVisible = row.Known.StillVisible,
-                    Subject = new SightingSubject
-                    {
-                        UnitInstanceId = row.Known.UnitInstanceId,
-                        OwnerPlayerId = row.Known.OwnerPlayerId,
-                        UnitTemplateId = row.Known.UnitTemplateId,
-                        HealthyTroops = row.Known.HealthyTroops
-                    }
-                }))
-            ];
+                    UnitInstanceId = row.Known.UnitInstanceId,
+                    OwnerPlayerId = row.Known.OwnerPlayerId,
+                    UnitTemplateId = row.Known.UnitTemplateId,
+                    HealthyTroops = row.Known.HealthyTroops
+                }
+            }))
+        ];
 
-            return ServiceResult<IReadOnlyCollection<KnownForce>>.Succeed(disclosedForces);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "An error occurred while handling {RequestName}.", nameof(GetPlayerKnownForcesRequest));
-
-            return ServiceResult<IReadOnlyCollection<KnownForce>>.Fail("An unexpected error occurred while retrieving known Forces.");
-        }
+        return ServiceResult<IReadOnlyCollection<KnownForce>>.Succeed(disclosedForces);
     }
 }

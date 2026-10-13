@@ -25,37 +25,28 @@ internal class GetProcessingStatusHandler(
         GetProcessingStatusRequest request,
         CancellationToken cancellationToken)
     {
-        try
+        Processing? processing = await context.Processing
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.ProcessingId == request.ProcessingId, cancellationToken);
+
+        if (processing is null)
         {
-            Processing? processing = await context.Processing
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.ProcessingId == request.ProcessingId, cancellationToken);
-
-            if (processing is null)
-            {
-                string notFound = $"Processing record {request.ProcessingId} not found.";
-                logger.LogWarning("{Error}", notFound);
-                return ServiceResult<DTProcessingStatus>.NotFound(notFound);
-            }
-
-            var dto = new DTProcessingStatus
-            {
-                ProcessingId = processing.ProcessingId,
-                ProcessType = processing.ProcessType,
-                Status = processing.Status,
-                ProgressPercent = processing.ProgressPercent,
-                StartedAt = processing.StartedAt,
-                CompletedAt = processing.CompletedAt,
-                ErrorMessage = processing.ErrorMessage
-            };
-
-            return ServiceResult<DTProcessingStatus>.Succeed(dto);
+            string notFound = $"Processing record {request.ProcessingId} not found.";
+            logger.LogWarning("{Error}", notFound);
+            return ServiceResult<DTProcessingStatus>.NotFound(notFound);
         }
-        catch (Exception ex)
+
+        var dto = new DTProcessingStatus
         {
-            const string error = "An error occurred while retrieving the processing status.";
-            logger.LogError(ex, error + " ProcessingId: {ProcessingId}", request.ProcessingId);
-            return ServiceResult<DTProcessingStatus>.InternalServerError(error);
-        }
+            ProcessingId = processing.ProcessingId,
+            ProcessType = processing.ProcessType,
+            Status = processing.Status,
+            ProgressPercent = processing.ProgressPercent,
+            StartedAt = processing.StartedAt,
+            CompletedAt = processing.CompletedAt,
+            ErrorMessage = processing.ErrorMessage
+        };
+
+        return ServiceResult<DTProcessingStatus>.Succeed(dto);
     }
 }

@@ -412,7 +412,7 @@ internal class GetFullCatalogueHandlerTests : SqlServerTestBase
     /// </summary>
     private async Task<FullCatalogueResult> FetchCatalogueAsync()
     {
-        var handler = new GetFullCatalogueHandler(new NullLogger<GetFullCatalogueHandler>(), DbFactory);
+        var handler = new GetFullCatalogueHandler(DbFactory);
         ServiceResult<FullCatalogueResult> result = await handler.Handle(new GetFullCatalogueRequest(), CancellationToken.None);
 
         Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Success), () => string.Join("; ", result.Errors));

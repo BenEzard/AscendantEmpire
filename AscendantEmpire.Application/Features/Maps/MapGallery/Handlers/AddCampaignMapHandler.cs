@@ -45,81 +45,72 @@ internal class AddCampaignMapHandler(
 {
     public async Task<ServiceResult<AddCampaignMapResponse>> Handle(AddCampaignMapRequest request, CancellationToken cancellationToken)
     {
-        try
+        await using var context = await dbFactory.CreateDbContextAsync(cancellationToken);
+
+        // Normalize inputs
+        string mapName = request.MapName.Trim();
+        string description = request.Description?.Trim() ?? string.Empty;
+        string propsJson = request.Parameters != null
+            ? JsonSerializer.Serialize(request.Parameters)
+            : string.Empty;
+
+        // A map name is how a player tells one map from another in the gallery, so a duplicate makes the listing ambiguous. This check used to sit in
+        // the request validator, where it ran only for callers arriving through the request pipeline; here it holds for every caller.
+        bool nameIsTaken = await context.CampaignMapGalleryIndex.AnyAsync(x => x.MapName == mapName, cancellationToken);
+
+        if (nameIsTaken)
         {
-            await using var context = await dbFactory.CreateDbContextAsync(cancellationToken);
-
-            // Normalize inputs
-            string mapName = request.MapName.Trim();
-            string description = request.Description?.Trim() ?? string.Empty;
-            string propsJson = request.Parameters != null
-                ? JsonSerializer.Serialize(request.Parameters)
-                : string.Empty;
-
-            // A map name is how a player tells one map from another in the gallery, so a duplicate makes the listing ambiguous. This check used to sit in
-            // the request validator, where it ran only for callers arriving through the request pipeline; here it holds for every caller.
-            bool nameIsTaken = await context.CampaignMapGalleryIndex.AnyAsync(x => x.MapName == mapName, cancellationToken);
-
-            if (nameIsTaken)
-            {
-                return ServiceResult<AddCampaignMapResponse>.Fail("A campaign map with this name already exists.");
-            }
-
-            int pendingMapsCount = await context.CampaignMapGalleryIndex.CountAsync(x => x.CreationStatus == MapCreationStatus.Pending, cancellationToken);
-
-            var newIndexRecord = new CampaignMapGalleryIndex
-            {
-                MapName = mapName,
-                Description = description,
-                Width = request.Width,
-                Height = request.Height,
-                CreationStatus = MapCreationStatus.Pending,
-                CreationEngine = request.CreationEngine,
-                Status = $"Pending creation (#{pendingMapsCount + 1} in queue)",
-                ErrorMessage = string.Empty,
-                PropertiesJson = propsJson,
-                CampaignMapOffsetId = -1, // default until creation completes
-                HorizontalWrap = request.Parameters != null
-                    && request.Parameters.TryGetValue("HorizontalWrap", out var hWrap)
-                    && bool.TryParse(hWrap, out var hWrapBool) ? hWrapBool : false,
-                VerticalWrap = request.Parameters != null
-                    && request.Parameters.TryGetValue("VerticalWrap", out var vWrap)
-                    && bool.TryParse(vWrap, out var vWrapBool) ? vWrapBool : false,
-            };
-
-            context.CampaignMapGalleryIndex.Add(newIndexRecord);
-            await context.SaveChangesAsync(cancellationToken);
-
-            // Queue the generation job. A Processing record gives the caller a processId to poll,
-            // and writing its id to the channel hands the job to the BackgroundProcessingService.
-            string metadataJson = JsonSerializer.Serialize(new { campaignMapGalleryIndexId = newIndexRecord.Id });
-
-            var processing = new Processing
-            {
-                ProcessType = ProcessType.GenerateCampaignMap,
-                Status = ProcessingStatus.Pending,
-                // StartedAt is overwritten when the background service begins; set now to satisfy the non-null column.
-                StartedAt = DateTime.UtcNow,
-                MetadataJson = metadataJson
-            };
-
-            context.Processing.Add(processing);
-            await context.SaveChangesAsync(cancellationToken);
-
-            await processingChannel.Writer.WriteAsync(processing.ProcessingId, cancellationToken);
-
-            logger.LogInformation(
-                "Campaign map generation queued. CampaignMapGalleryIndexId: {IndexId}, ProcessingId: {ProcessingId}",
-                newIndexRecord.Id, processing.ProcessingId);
-
-            return ServiceResult<AddCampaignMapResponse>.Created(
-                new AddCampaignMapResponse(newIndexRecord.Id, processing.ProcessingId));
+            return ServiceResult<AddCampaignMapResponse>.Fail("A campaign map with this name already exists.");
         }
-        catch (Exception ex)
+
+        int pendingMapsCount = await context.CampaignMapGalleryIndex.CountAsync(x => x.CreationStatus == MapCreationStatus.Pending, cancellationToken);
+
+        var newIndexRecord = new CampaignMapGalleryIndex
         {
-            const string error = "Error creating Campaign Map Gallery Index record.";
-            logger.LogError(ex, error);
-            return ServiceResult<AddCampaignMapResponse>.InternalServerError(error);
-        }
+            MapName = mapName,
+            Description = description,
+            Width = request.Width,
+            Height = request.Height,
+            CreationStatus = MapCreationStatus.Pending,
+            CreationEngine = request.CreationEngine,
+            Status = $"Pending creation (#{pendingMapsCount + 1} in queue)",
+            ErrorMessage = string.Empty,
+            PropertiesJson = propsJson,
+            CampaignMapOffsetId = -1, // default until creation completes
+            HorizontalWrap = request.Parameters != null
+                && request.Parameters.TryGetValue("HorizontalWrap", out var hWrap)
+                && bool.TryParse(hWrap, out var hWrapBool) ? hWrapBool : false,
+            VerticalWrap = request.Parameters != null
+                && request.Parameters.TryGetValue("VerticalWrap", out var vWrap)
+                && bool.TryParse(vWrap, out var vWrapBool) ? vWrapBool : false,
+        };
+
+        context.CampaignMapGalleryIndex.Add(newIndexRecord);
+        await context.SaveChangesAsync(cancellationToken);
+
+        // Queue the generation job. A Processing record gives the caller a processId to poll,
+        // and writing its id to the channel hands the job to the BackgroundProcessingService.
+        string metadataJson = JsonSerializer.Serialize(new { campaignMapGalleryIndexId = newIndexRecord.Id });
+
+        var processing = new Processing
+        {
+            ProcessType = ProcessType.GenerateCampaignMap,
+            Status = ProcessingStatus.Pending,
+            // StartedAt is overwritten when the background service begins; set now to satisfy the non-null column.
+            StartedAt = DateTime.UtcNow,
+            MetadataJson = metadataJson
+        };
+
+        context.Processing.Add(processing);
+        await context.SaveChangesAsync(cancellationToken);
+
+        await processingChannel.Writer.WriteAsync(processing.ProcessingId, cancellationToken);
+
+        logger.LogInformation(
+            "Campaign map generation queued. CampaignMapGalleryIndexId: {IndexId}, ProcessingId: {ProcessingId}",
+            newIndexRecord.Id, processing.ProcessingId);
+
+        return ServiceResult<AddCampaignMapResponse>.Created(
+            new AddCampaignMapResponse(newIndexRecord.Id, processing.ProcessingId));
     }
 }

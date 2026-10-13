@@ -15,6 +15,39 @@ This document describes the asset hierarchy — how it is structured in the data
 | `AssetGroup` | `Id` | Sub-grouping within a grouped category, e.g. "Logs" within "Wood". |
 | `Asset` | `Id` | The actual asset, e.g. "Oak", "Marble", "Coal". |
 
+Every table above is **global**. None of them carries a `GameId` or a `PlayerId`, and `Code` is unique across the whole
+catalogue, so the same four tables serve every game.
+
+### Player-scoped tables
+
+| Table | Primary Key | Description |
+|---|---|---|
+| `PlayerUnlockedAsset` | `(PlayerId, AssetId)` | The Asset is unlocked for that Player. No row means they have never had it. `ObsoleteOnRound` is future-dated: the Asset is available while it is null *or* still ahead of the current Round. |
+| `PlayerUnlockedAssetMetaCategory` | `(PlayerId, AssetMetaCategoryId)` | Whether the meta-category's icon appears in the Player's Assets toolbar at all. Categories and groups have no unlock rows — they are shown when they hold at least one available Asset. |
+
+These say what a Player can *see*, not what they *hold*. There is no holdings table yet: `Amount` and the six fields
+beside it are contract placeholders (see **Read Path** below).
+
+#### Population, and the subject player
+
+Population is the one part of the catalogue where an amount needs **two** players attached to it — who holds these
+people, and whose people they are — and the four global tables have nowhere to put the second. **This is designed but
+not built**; `RS-20` covers it. The shape it settles on:
+
+- A holdings ledger keyed `(HolderPlayerId, AssetId, SubjectPlayerId)`, where `SubjectPlayerId` is null for every asset
+  that has no subject — which is every asset outside the `Society` meta-category.
+- The same ledger is read on two axes. Rows where `HolderPlayerId` is me and `SubjectPlayerId` is another player become
+  one category per discovered player, labelled from that player's `PeopleName`, holding Slaves / Interned / P.o.W.
+  Rows where `SubjectPlayerId` is me, summed across every holder, become the Slaves / Interned / P.o.W. entries under
+  `My People` — members of my people held by somebody else.
+- That second axis tells a player how many of their people an enemy is holding without their having scouted anything.
+  That disclosure is **deliberate**: it is what puts pressure on a player to negotiate for their release.
+- Civilians, Army, Airforce and Navy share the panel but are not ledger rows at all — they come from settlement
+  populations and the force rosters.
+
+The per-player categories are a **read-time projection** built in `GetPlayerAssetsHandler`, not catalogue rows. The
+catalogue stays global and holds one template category that each discovered player's category is stamped from.
+
 ---
 
 ## Hierarchy Paths

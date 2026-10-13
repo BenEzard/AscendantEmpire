@@ -98,4 +98,4 @@ from conquest. An Asset obtainable from the map is simply one that some MapResou
 yield; nothing on the Asset itself records this.
 
 The catalogue behind all of this — the meta-categories, categories, groups and Assets themselves —
-is described in [assets-data-model.md](../assets-data-model.md).
+is described in [assets-data-model.md](assets-data-model.md).

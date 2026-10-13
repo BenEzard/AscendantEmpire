@@ -6,7 +6,6 @@ using AscendantEmpire.Application.Features.Maps.MapResources.Handlers;
 using AscendantEmpire.BackendContracts.MapResources.PutMapResourceCatalogue;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
@@ -29,38 +28,28 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.Handlers;
 public record SeedMapResourceTypesRequest() : IRequest<ServiceResultBase>;
 
 internal class SeedMapResourceTypesHandler(
-    ILogger<SeedMapResourceTypesHandler> logger,
     AscendantEmpireContext context,
     IMediator mediator
 ) : IRequestHandler<SeedMapResourceTypesRequest, ServiceResultBase>
 {
     public async Task<ServiceResultBase> Handle(SeedMapResourceTypesRequest request, CancellationToken cancellationToken)
     {
-        try
+        IReadOnlyCollection<string> assetCodes = MapResourceTypeSeedData.AssetCodes;
+
+        Dictionary<string, int> assetIdsByCode = await context.Assets
+            .AsNoTracking()
+            .Where(asset => assetCodes.Contains(asset.Code))
+            .ToDictionaryAsync(asset => asset.Code, asset => asset.Id, cancellationToken);
+
+        string[] missingAssetCodes = [.. assetCodes.Except(assetIdsByCode.Keys, StringComparer.OrdinalIgnoreCase)];
+
+        if (missingAssetCodes.Length > 0)
         {
-            IReadOnlyCollection<string> assetCodes = MapResourceTypeSeedData.AssetCodes;
-
-            Dictionary<string, int> assetIdsByCode = await context.Assets
-                .AsNoTracking()
-                .Where(asset => assetCodes.Contains(asset.Code))
-                .ToDictionaryAsync(asset => asset.Code, asset => asset.Id, cancellationToken);
-
-            string[] missingAssetCodes = [.. assetCodes.Except(assetIdsByCode.Keys, StringComparer.OrdinalIgnoreCase)];
-
-            if (missingAssetCodes.Length > 0)
-            {
-                return Fail($"Asset(s) not found in the catalogue: {string.Join(", ", missingAssetCodes)}. Run the Assets database seed from the Entity Setup Tool first.");
-            }
-
-            PutMapResourceCatalogueDto catalogue = MapResourceTypeSeedData.Build(assetIdsByCode);
-
-            return await mediator.Send(new PutMapResourceCatalogueRequest(catalogue), cancellationToken);
+            return Fail($"Asset(s) not found in the catalogue: {string.Join(", ", missingAssetCodes)}. Run the Assets database seed from the Entity Setup Tool first.");
         }
-        catch (Exception ex)
-        {
-            const string error = "An error occurred while seeding the MapResource types.";
-            logger.LogError(ex, error);
-            return InternalServerError(error);
-        }
+
+        PutMapResourceCatalogueDto catalogue = MapResourceTypeSeedData.Build(assetIdsByCode);
+
+        return await mediator.Send(new PutMapResourceCatalogueRequest(catalogue), cancellationToken);
     }
 }

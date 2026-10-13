@@ -21,65 +21,56 @@ internal class UpsertCampaignMapGeographiesHandler(
 {
     public async Task<ServiceResultBase> Handle(UpsertCampaignMapGeographiesRequest request, CancellationToken cancellationToken)
     {
-        try
+        // Validate the request objects
+        ServiceResultBase validation = CampaignMapGeographyValidator.ValidateGeographies(context, request.Geographies);
+
+        if (validation.HasSucceeded == false)
         {
-            // Validate the request objects
-            ServiceResultBase validation = CampaignMapGeographyValidator.ValidateGeographies(context, request.Geographies);
-
-            if (validation.HasSucceeded == false)
-            {
-                logger.LogWarning("Validation failed for " + nameof(UpsertCampaignMapGeographiesRequest) + ": {Errors}", string.Join(Environment.NewLine, validation.Errors));
-                return ServiceResult.Fail(validation.Errors);
-            }
-
-            CampaignGeography[] existingGeographies = [.. context.CampaignGeographies.Where(b => request.Geographies.Select(rb => rb.CampaignMapGeographyType).Contains(b.CampaignMapGeographyTypeId))];
-
-            CampaignMapGeographyType[] existingGeographyTypeIds = [.. existingGeographies.Select(b => b.CampaignMapGeographyTypeId)];
-
-            // Get any Geographies that aren't in the database
-            AddOrUpdateCampaignMapGeographyDto[] missingGeographies = [.. request.Geographies
-                .Where(g => existingGeographyTypeIds.Contains(g.CampaignMapGeographyType) == false)
-                .Select(g => new AddOrUpdateCampaignMapGeographyDto
-                {
-                    CampaignMapGeographyType = g.CampaignMapGeographyType,
-                    RelativeElevation = g.RelativeElevation,
-                    Name = g.Name,
-                    MovementCost = g.MovementCost,
-                    MapEditorIcon = g.MapEditorIcon,
-                    IsPaintableOnCampaignMap = g.IsPaintableOnCampaignMap
-                })];
-
-            if (missingGeographies.Length != 0)
-            {
-                ServiceResultBase insertResult = await mediator.Send(new AddCampaignMapGeographyRequest(missingGeographies));
-                if (insertResult.HasSucceeded == false)
-                {
-                    logger.LogWarning("Failed to insert missing Geographies during " + nameof(UpsertCampaignMapGeographiesRequest) + ": {Errors}", string.Join(Environment.NewLine, insertResult.Errors));
-                    return insertResult;
-                }
-            }
-
-            Dictionary<CampaignMapGeographyType, AddOrUpdateCampaignMapGeographyDto> requestedUpdates = request.Geographies.ToDictionary(b => b.CampaignMapGeographyType);
-
-            foreach (CampaignGeography existingGeography in existingGeographies)
-            {
-                AddOrUpdateCampaignMapGeographyDto updatedValues = requestedUpdates[existingGeography.CampaignMapGeographyTypeId];
-
-                existingGeography.RelativeElevation = updatedValues.RelativeElevation;
-                existingGeography.Name = updatedValues.Name;
-                existingGeography.MovementCost = updatedValues.MovementCost;
-                existingGeography.MapEditorIcon = updatedValues.MapEditorIcon;
-                existingGeography.IsPaintableOnCampaignMap = updatedValues.IsPaintableOnCampaignMap;
-            }
-
-            await context.SaveChangesAsync(CancellationToken.None);
+            logger.LogWarning("Validation failed for " + nameof(UpsertCampaignMapGeographiesRequest) + ": {Errors}", string.Join(Environment.NewLine, validation.Errors));
+            return ServiceResult.Fail(validation.Errors);
         }
-        catch (Exception ex)
+
+        CampaignGeography[] existingGeographies = [.. context.CampaignGeographies.Where(b => request.Geographies.Select(rb => rb.CampaignMapGeographyType).Contains(b.CampaignMapGeographyTypeId))];
+
+        CampaignMapGeographyType[] existingGeographyTypeIds = [.. existingGeographies.Select(b => b.CampaignMapGeographyTypeId)];
+
+        // Get any Geographies that aren't in the database
+        AddOrUpdateCampaignMapGeographyDto[] missingGeographies = [.. request.Geographies
+            .Where(g => existingGeographyTypeIds.Contains(g.CampaignMapGeographyType) == false)
+            .Select(g => new AddOrUpdateCampaignMapGeographyDto
+            {
+                CampaignMapGeographyType = g.CampaignMapGeographyType,
+                RelativeElevation = g.RelativeElevation,
+                Name = g.Name,
+                MovementCost = g.MovementCost,
+                MapEditorIcon = g.MapEditorIcon,
+                IsPaintableOnCampaignMap = g.IsPaintableOnCampaignMap
+            })];
+
+        if (missingGeographies.Length != 0)
         {
-            const string error = "Error updating Campaign Map Geographies.";
-            logger.LogError(ex, error);
-            return InternalServerError(error);
+            ServiceResultBase insertResult = await mediator.Send(new AddCampaignMapGeographyRequest(missingGeographies));
+            if (insertResult.HasSucceeded == false)
+            {
+                logger.LogWarning("Failed to insert missing Geographies during " + nameof(UpsertCampaignMapGeographiesRequest) + ": {Errors}", string.Join(Environment.NewLine, insertResult.Errors));
+                return insertResult;
+            }
         }
+
+        Dictionary<CampaignMapGeographyType, AddOrUpdateCampaignMapGeographyDto> requestedUpdates = request.Geographies.ToDictionary(b => b.CampaignMapGeographyType);
+
+        foreach (CampaignGeography existingGeography in existingGeographies)
+        {
+            AddOrUpdateCampaignMapGeographyDto updatedValues = requestedUpdates[existingGeography.CampaignMapGeographyTypeId];
+
+            existingGeography.RelativeElevation = updatedValues.RelativeElevation;
+            existingGeography.Name = updatedValues.Name;
+            existingGeography.MovementCost = updatedValues.MovementCost;
+            existingGeography.MapEditorIcon = updatedValues.MapEditorIcon;
+            existingGeography.IsPaintableOnCampaignMap = updatedValues.IsPaintableOnCampaignMap;
+        }
+
+        await context.SaveChangesAsync(CancellationToken.None);
 
         return SuccessNoContent();
     }

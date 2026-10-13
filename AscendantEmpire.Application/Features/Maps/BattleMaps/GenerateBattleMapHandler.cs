@@ -48,160 +48,150 @@ internal sealed class GenerateBattleMapHandler(
 
     public async Task<ServiceResult<int>> Handle(GenerateBattleMapRequest request, CancellationToken cancellationToken)
     {
-        try
+        // ── Guard: already generated? ─────────────────────────────────────
+        BattleMapIndex? existing = await context.BattleMapIndex
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                bmi => bmi.CampaignMapId == request.CampaignMapId,
+                cancellationToken);
+
+        if (existing is not null)
         {
-            // ── Guard: already generated? ─────────────────────────────────────
-            BattleMapIndex? existing = await context.BattleMapIndex
-                .AsNoTracking()
-                .FirstOrDefaultAsync(
-                    bmi => bmi.CampaignMapId == request.CampaignMapId,
-                    cancellationToken);
-
-            if (existing is not null)
+            if (existing.GenerationStatus == MapCreationStatus.Complete)
             {
-                if (existing.GenerationStatus == MapCreationStatus.Complete)
-                {
-                    return ServiceResult<int>.Succeed(existing.Id);
-                }
-
-                // An unfinished row is what a generation that failed part-way leaves behind: the index row is inserted as Creating before its tiles are written, and only marked Complete
-                // after. Left in place it would make every later attempt collide with the unique index on CampaignMapId, so the tile could never have a battle map at all. Its tiles go
-                // first (they may have been written before the Complete update failed), then the row, and the map is generated afresh below.
-                //
-                // This assumes nothing else is generating the same tile at this moment. Battles only start on the moving player's own step, so two generations of one tile at once is
-                // not something play can produce today.
-                logger.LogWarning(
-                    "Battle Map Index Id {BattleMapIndexId} for Campaign Map Id {CampaignMapId} in game {GameId} was left {GenerationStatus}; clearing it and generating again.",
-                    existing.Id,
-                    request.CampaignMapId,
-                    request.GameId,
-                    existing.GenerationStatus);
-
-                await context.BattleMap
-                    .Where(tile => tile.BattleMapIndexId == existing.Id)
-                    .ExecuteDeleteAsync(cancellationToken);
-
-                await context.BattleMapIndex
-                    .Where(index => index.Id == existing.Id)
-                    .ExecuteDeleteAsync(cancellationToken);
+                return ServiceResult<int>.Succeed(existing.Id);
             }
 
-            // ── Load the game index ───────────────────────────────────────────
-            GameIndex? gameIndex = await context.GameIndex
-                .AsNoTracking()
-                .FirstOrDefaultAsync(g => g.Id == request.GameId, cancellationToken);
+            // An unfinished row is what a generation that failed part-way leaves behind: the index row is inserted as Creating before its tiles are written, and only marked Complete
+            // after. Left in place it would make every later attempt collide with the unique index on CampaignMapId, so the tile could never have a battle map at all. Its tiles go
+            // first (they may have been written before the Complete update failed), then the row, and the map is generated afresh below.
+            //
+            // This assumes nothing else is generating the same tile at this moment. Battles only start on the moving player's own step, so two generations of one tile at once is
+            // not something play can produce today.
+            logger.LogWarning(
+                "Battle Map Index Id {BattleMapIndexId} for Campaign Map Id {CampaignMapId} in game {GameId} was left {GenerationStatus}; clearing it and generating again.",
+                existing.Id,
+                request.CampaignMapId,
+                request.GameId,
+                existing.GenerationStatus);
 
-            if (gameIndex is null)
-            {
-                return ServiceResult<int>.Fail($"GameIndex {request.GameId} not found.");
-            }
+            await context.BattleMap
+                .Where(tile => tile.BattleMapIndexId == existing.Id)
+                .ExecuteDeleteAsync(cancellationToken);
 
-            // ── Load the campaign tile from the game's map ────────────────────
-            CampaignMap? tile = await context.CampaignMaps
-                .AsNoTracking()
-                .FirstOrDefaultAsync(
-                    cm => cm.CampaignMapId == request.CampaignMapId && cm.GameId == request.GameId,
-                    cancellationToken);
-
-            if (tile is null)
-            {
-                return ServiceResult<int>.Fail($"CampaignMap {request.CampaignMapId} not found for game {request.GameId}.");
-            }
-
-            int tileX = tile.XCoord;
-            int tileY = tile.YCoord;
-
-            // ── Load the parent campaign map gallery index ────────────────────
-            // Required for the master seed, which drives terrain continuity and lives nowhere else. The map dimensions are deliberately not taken from here: one
-            // gallery row is shared by every game copied from it and can be edited afterwards, so the game's own snapshot is what describes this game's map.
-            CampaignMapGalleryIndex? campaignIndex = await context.CampaignMapGalleryIndex
-                .AsNoTracking()
-                .FirstOrDefaultAsync(cmi => cmi.Id == gameIndex.CampaignMapIndexId, cancellationToken);
-
-            if (campaignIndex is null)
-            {
-                return ServiceResult<int>.Fail($"CampaignMapGalleryIndex {gameIndex.CampaignMapIndexId} not found.");
-            }
-
-            // ── Parse the master seed from PropertiesJson ─────────────────────
-            Dictionary<string, string>? props = JsonSerializer.Deserialize<Dictionary<string, string>>(campaignIndex.PropertiesJson);
-
-            if (props is null)
-            {
-                return ServiceResult<int>.Fail("CampaignMapGalleryIndex.PropertiesJson is missing or invalid.");
-            }
-
-            if (!props.TryGetValue("seed", out var seedStr) || !long.TryParse(seedStr, out long masterSeed))
-            {
-                return ServiceResult<int>.Fail("Master seed not found in PropertiesJson. Was the campaign map generated with PerlinNoiseV1?");
-            }
-
-            // ── Load orthogonal neighbours' geography from game.CampaignMap ───
-            // Required so the edge-blending pass can bias altitude near shared edges.
-            // Null means no neighbour exists (edge of the campaign map).
-            // Order: [Left, Right, Up, Down]
-            int[] neighbourDx = [-1, 1, 0,  0];
-            int[] neighbourDy = [ 0, 0, -1, 1];
-
-            var neighbourGeos = new CampaignMapGeographyType?[4];
-            for (int i = 0; i < 4; i++)
-            {
-                int nx = tileX + neighbourDx[i];
-                int ny = tileY + neighbourDy[i];
-
-                if (nx < 0 || nx >= gameIndex.MapWidth || ny < 0 || ny >= gameIndex.MapHeight)
-                {
-                    // No neighbour at this edge — leave null.
-                    continue;
-                }
-
-                CampaignMap? neighbour = await context.CampaignMaps
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(
-                        cm => cm.GameId == request.GameId && cm.XCoord == nx && cm.YCoord == ny,
-                        cancellationToken);
-
-                neighbourGeos[i] = neighbour?.CampaignMapGeographyTypeId;
-            }
-
-            // ── Run the generator ─────────────────────────────────────────────
-            BattleMapGenerator.BattleMapData data = _generator.Generate(
-                masterSeed:     masterSeed,
-                gameSeed:       gameIndex.GenerationSeed,
-                camX:           tileX,
-                camY:           tileY,
-                battleSize:     gameIndex.BattleMapSize,
-                campaignWidth:  gameIndex.MapWidth,
-                campaignHeight: gameIndex.MapHeight,
-                tileGeo:        tile.CampaignMapGeographyTypeId,
-                tileBiome:      tile.BiomeTypeId,
-                neighbourGeo:   neighbourGeos);
-
-            // ── Persist the BattleMapIndex row ────────────────────────────────
-            int battleMapIndexId = await InsertBattleMapIndexAsync(request.CampaignMapId, cancellationToken);
-
-            // ── Bulk-insert all BattleMap tiles ───────────────────────────────
-            // Reserving the id range and writing the tiles happen together, inside one transaction, so the range cannot be handed out twice.
-            int tileStartId = await BulkInsertBattleTilesAsync(battleMapIndexId, gameIndex.BattleMapSize, data.Altitudes, data.Biomes, cancellationToken);
-
-            // ── Mark the index row as Complete ────────────────────────────────
             await context.BattleMapIndex
-                .Where(bmi => bmi.Id == battleMapIndexId)
-                .ExecuteUpdateAsync(set => set
-                    .SetProperty(bmi => bmi.GenerationStatus, MapCreationStatus.Complete)
-                    .SetProperty(bmi => bmi.Status, "Generation complete")
-                    .SetProperty(bmi => bmi.BattleMapOffsetId, tileStartId),
+                .Where(index => index.Id == existing.Id)
+                .ExecuteDeleteAsync(cancellationToken);
+        }
+
+        // ── Load the game index ───────────────────────────────────────────
+        GameIndex? gameIndex = await context.GameIndex
+            .AsNoTracking()
+            .FirstOrDefaultAsync(g => g.Id == request.GameId, cancellationToken);
+
+        if (gameIndex is null)
+        {
+            return ServiceResult<int>.Fail($"GameIndex {request.GameId} not found.");
+        }
+
+        // ── Load the campaign tile from the game's map ────────────────────
+        CampaignMap? tile = await context.CampaignMaps
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                cm => cm.CampaignMapId == request.CampaignMapId && cm.GameId == request.GameId,
+                cancellationToken);
+
+        if (tile is null)
+        {
+            return ServiceResult<int>.Fail($"CampaignMap {request.CampaignMapId} not found for game {request.GameId}.");
+        }
+
+        int tileX = tile.XCoord;
+        int tileY = tile.YCoord;
+
+        // ── Load the parent campaign map gallery index ────────────────────
+        // Required for the master seed, which drives terrain continuity and lives nowhere else. The map dimensions are deliberately not taken from here: one
+        // gallery row is shared by every game copied from it and can be edited afterwards, so the game's own snapshot is what describes this game's map.
+        CampaignMapGalleryIndex? campaignIndex = await context.CampaignMapGalleryIndex
+            .AsNoTracking()
+            .FirstOrDefaultAsync(cmi => cmi.Id == gameIndex.CampaignMapIndexId, cancellationToken);
+
+        if (campaignIndex is null)
+        {
+            return ServiceResult<int>.Fail($"CampaignMapGalleryIndex {gameIndex.CampaignMapIndexId} not found.");
+        }
+
+        // ── Parse the master seed from PropertiesJson ─────────────────────
+        Dictionary<string, string>? props = JsonSerializer.Deserialize<Dictionary<string, string>>(campaignIndex.PropertiesJson);
+
+        if (props is null)
+        {
+            return ServiceResult<int>.Fail("CampaignMapGalleryIndex.PropertiesJson is missing or invalid.");
+        }
+
+        if (!props.TryGetValue("seed", out var seedStr) || !long.TryParse(seedStr, out long masterSeed))
+        {
+            return ServiceResult<int>.Fail("Master seed not found in PropertiesJson. Was the campaign map generated with PerlinNoiseV1?");
+        }
+
+        // ── Load orthogonal neighbours' geography from game.CampaignMap ───
+        // Required so the edge-blending pass can bias altitude near shared edges.
+        // Null means no neighbour exists (edge of the campaign map).
+        // Order: [Left, Right, Up, Down]
+        int[] neighbourDx = [-1, 1, 0,  0];
+        int[] neighbourDy = [ 0, 0, -1, 1];
+
+        var neighbourGeos = new CampaignMapGeographyType?[4];
+        for (int i = 0; i < 4; i++)
+        {
+            int nx = tileX + neighbourDx[i];
+            int ny = tileY + neighbourDy[i];
+
+            if (nx < 0 || nx >= gameIndex.MapWidth || ny < 0 || ny >= gameIndex.MapHeight)
+            {
+                // No neighbour at this edge — leave null.
+                continue;
+            }
+
+            CampaignMap? neighbour = await context.CampaignMaps
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    cm => cm.GameId == request.GameId && cm.XCoord == nx && cm.YCoord == ny,
                     cancellationToken);
 
-            return ServiceResult<int>.Succeed(battleMapIndexId);
+            neighbourGeos[i] = neighbour?.CampaignMapGeographyTypeId;
         }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error generating BattleMap for CampaignMapId {CampaignMapId} in game {GameId}.",
-                request.CampaignMapId, request.GameId);
 
-            return ServiceResult<int>.Fail($"BattleMap generation failed: {ex.Message}");
-        }
+        // ── Run the generator ─────────────────────────────────────────────
+        BattleMapGenerator.BattleMapData data = _generator.Generate(
+            masterSeed:     masterSeed,
+            gameSeed:       gameIndex.GenerationSeed,
+            camX:           tileX,
+            camY:           tileY,
+            battleSize:     gameIndex.BattleMapSize,
+            campaignWidth:  gameIndex.MapWidth,
+            campaignHeight: gameIndex.MapHeight,
+            tileGeo:        tile.CampaignMapGeographyTypeId,
+            tileBiome:      tile.BiomeTypeId,
+            neighbourGeo:   neighbourGeos);
+
+        // ── Persist the BattleMapIndex row ────────────────────────────────
+        int battleMapIndexId = await InsertBattleMapIndexAsync(request.CampaignMapId, cancellationToken);
+
+        // ── Bulk-insert all BattleMap tiles ───────────────────────────────
+        // Reserving the id range and writing the tiles happen together, inside one transaction, so the range cannot be handed out twice.
+        int tileStartId = await BulkInsertBattleTilesAsync(battleMapIndexId, gameIndex.BattleMapSize, data.Altitudes, data.Biomes, cancellationToken);
+
+        // ── Mark the index row as Complete ────────────────────────────────
+        await context.BattleMapIndex
+            .Where(bmi => bmi.Id == battleMapIndexId)
+            .ExecuteUpdateAsync(set => set
+                .SetProperty(bmi => bmi.GenerationStatus, MapCreationStatus.Complete)
+                .SetProperty(bmi => bmi.Status, "Generation complete")
+                .SetProperty(bmi => bmi.BattleMapOffsetId, tileStartId),
+                cancellationToken);
+
+        return ServiceResult<int>.Succeed(battleMapIndexId);
     }
 
     // ──────────────────────────────────────────────────────────────────────────

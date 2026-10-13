@@ -29,7 +29,7 @@ internal class GetStructureDisplayInfoHandlerTests : InMemoryTestBase
             await context.SaveChangesAsync();
         }
 
-        var handler = new GetStructureDisplayInfoHandler(NullLogger<GetStructureDisplayInfoHandler>.Instance, DbFactory);
+        var handler = new GetStructureDisplayInfoHandler(DbFactory);
 
         ServiceResult<IReadOnlyCollection<StructureDisplayInfo>> result = await handler.Handle(new GetStructureDisplayInfoRequest(), CancellationToken.None);
 

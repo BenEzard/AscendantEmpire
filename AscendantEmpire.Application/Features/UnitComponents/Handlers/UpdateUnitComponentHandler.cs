@@ -36,107 +36,98 @@ internal class UpdateUnitComponentHandler(
 {
     public async Task<ServiceResult<UnitComponentView>> Handle(UpdateUnitComponentRequest request, CancellationToken cancelToken)
     {
-        try
+        UnitComponentDto dto = request.Request.Component;
+
+        // Shape validation first, so a malformed request never touches the database.
+        List<string> errors = [];
+        UnitComponentReconciler.ValidateComponent(dto, errors);
+
+        // The route decides which component is being edited; a payload disagreeing with it is a mistake
+        // worth surfacing rather than quietly honouring one side.
+        if (!string.Equals(request.Code, dto.Code, StringComparison.Ordinal))
         {
-            UnitComponentDto dto = request.Request.Component;
-
-            // Shape validation first, so a malformed request never touches the database.
-            List<string> errors = [];
-            UnitComponentReconciler.ValidateComponent(dto, errors);
-
-            // The route decides which component is being edited; a payload disagreeing with it is a mistake
-            // worth surfacing rather than quietly honouring one side.
-            if (!string.Equals(request.Code, dto.Code, StringComparison.Ordinal))
-            {
-                errors.Add($"The component code in the route ('{request.Code}') does not match the code in the payload ('{dto.Code}').");
-            }
-
-            if (errors.Count > 0)
-            {
-                logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(UpdateUnitComponentRequest), string.Join("; ", errors));
-                return ServiceResult<UnitComponentView>.Fail(errors);
-            }
-
-            UnitComponent? existing = await UnitComponentReconciler
-                .WithFullGraph(context.UnitComponents.Where(component => component.Code == request.Code))
-                .FirstOrDefaultAsync(cancelToken);
-
-            if (existing is null)
-            {
-                return ServiceResult<UnitComponentView>.NotFound($"No component exists with code '{request.Code}'.");
-            }
-
-            Dictionary<string, Tag> tagsByCode = await UnitComponentReconciler.LoadTagsByCodeAsync(context, dto.TagCodes, cancelToken);
-
-            UnitComponentReconciler.ValidateTagReferences(dto, tagsByCode.Keys, errors);
-            UnitComponentReconciler.ValidateTypeUnchanged(dto, existing, errors);
-            UnitComponentReconciler.ValidateSlots(dto, existing, errors);
-
-            List<ComponentSupersessionDto> supersessions = CreateUnitComponentHandler.ToSupersessionDtos(dto.Code, request.Request.SupersededBy);
-            Dictionary<string, UnitComponent> componentsByCode = await LoadSuccessorsAsync(supersessions, cancelToken);
-
-            UnitComponentReconciler.ValidateSupersessionsForPredecessor(dto.Code, supersessions, componentsByCode, errors);
-
-            if (errors.Count > 0)
-            {
-                logger.LogWarning("Reference validation failed for {Request}. Errors: {Errors}", nameof(UpdateUnitComponentRequest), string.Join("; ", errors));
-                return ServiceResult<UnitComponentView>.Fail(errors);
-            }
-
-            // Collected before the save: removing a slot deletes the fitted rows that are the only link
-            // between this component and the templates using it.
-            List<int> affectedTemplateIds = await AffectedTemplateRecompiler.FindAffectedTemplateIdsAsync(context, [existing.Id], cancelToken);
-
-            List<UnitComponentSlot> removedSlots = [];
-            UnitComponentReconciler.Update(context, existing, dto, tagsByCode, removedSlots);
-
-            List<string> unfittedTemplateNames = await UnitComponentReconciler.RemoveSlotsAndDependentsAsync(context, removedSlots, cancelToken);
-
-            if (unfittedTemplateNames.Count > 0)
-            {
-                logger.LogWarning(
-                    "Removing {SlotCount} slot(s) from component '{Code}' also cleared fitted components from {TemplateCount} saved template(s): {TemplateNames}.",
-                    removedSlots.Count, existing.Code, unfittedTemplateNames.Count, string.Join(", ", unfittedTemplateNames));
-            }
-
-            await UnitComponentReconciler.ReconcileSupersessionsForPredecessorAsync(context, existing, supersessions, componentsByCode, cancelToken);
-
-            // Single SaveChanges => the component, its extensions, its slots, the cascaded deletions and the
-            // supersession links all land in one transaction.
-            await context.SaveChangesAsync(cancelToken);
-
-            // Snapshots of templates built on this component are now stale. Recompiling after the commit
-            // means each one reads the component as it actually is; a template whose assembly no longer
-            // validates is reported rather than undoing a save the caller has already been told nothing about.
-            List<string> recompileFailures = await AffectedTemplateRecompiler.RecompileAsync(
-                context, mediator, campaignTurnService, affectedTemplateIds, cancelToken);
-
-            if (recompileFailures.Count > 0)
-            {
-                logger.LogWarning(
-                    "Component '{Code}' saved, but {FailureCount} dependent template snapshot(s) could not be recompiled: {Failures}",
-                    existing.Code, recompileFailures.Count, string.Join(" | ", recompileFailures));
-            }
-
-            logger.LogInformation("Updated unit component '{Code}' (id {Id}).", existing.Code, existing.Id);
-
-            return ServiceResult<UnitComponentView>.Succeed(new UnitComponentView
-            {
-                Id = existing.Id,
-                Code = existing.Code,
-                DisplayName = existing.DisplayName,
-                ComponentType = existing.ComponentType,
-                SlotIds = UnitComponentReconciler.OrderedSlotIds(existing),
-                RemovedSlotCount = removedSlots.Count,
-                UnfittedTemplateNames = unfittedTemplateNames,
-            });
+            errors.Add($"The component code in the route ('{request.Code}') does not match the code in the payload ('{dto.Code}').");
         }
-        catch (Exception ex)
+
+        if (errors.Count > 0)
         {
-            const string error = "An exception occurred while processing " + nameof(UpdateUnitComponentHandler) + ".";
-            logger.LogError(ex, error);
-            return ServiceResult<UnitComponentView>.InternalServerError(ex, error);
+            logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(UpdateUnitComponentRequest), string.Join("; ", errors));
+            return ServiceResult<UnitComponentView>.Fail(errors);
         }
+
+        UnitComponent? existing = await UnitComponentReconciler
+            .WithFullGraph(context.UnitComponents.Where(component => component.Code == request.Code))
+            .FirstOrDefaultAsync(cancelToken);
+
+        if (existing is null)
+        {
+            return ServiceResult<UnitComponentView>.NotFound($"No component exists with code '{request.Code}'.");
+        }
+
+        Dictionary<string, Tag> tagsByCode = await UnitComponentReconciler.LoadTagsByCodeAsync(context, dto.TagCodes, cancelToken);
+
+        UnitComponentReconciler.ValidateTagReferences(dto, tagsByCode.Keys, errors);
+        UnitComponentReconciler.ValidateTypeUnchanged(dto, existing, errors);
+        UnitComponentReconciler.ValidateSlots(dto, existing, errors);
+
+        List<ComponentSupersessionDto> supersessions = CreateUnitComponentHandler.ToSupersessionDtos(dto.Code, request.Request.SupersededBy);
+        Dictionary<string, UnitComponent> componentsByCode = await LoadSuccessorsAsync(supersessions, cancelToken);
+
+        UnitComponentReconciler.ValidateSupersessionsForPredecessor(dto.Code, supersessions, componentsByCode, errors);
+
+        if (errors.Count > 0)
+        {
+            logger.LogWarning("Reference validation failed for {Request}. Errors: {Errors}", nameof(UpdateUnitComponentRequest), string.Join("; ", errors));
+            return ServiceResult<UnitComponentView>.Fail(errors);
+        }
+
+        // Collected before the save: removing a slot deletes the fitted rows that are the only link
+        // between this component and the templates using it.
+        List<int> affectedTemplateIds = await AffectedTemplateRecompiler.FindAffectedTemplateIdsAsync(context, [existing.Id], cancelToken);
+
+        List<UnitComponentSlot> removedSlots = [];
+        UnitComponentReconciler.Update(context, existing, dto, tagsByCode, removedSlots);
+
+        List<string> unfittedTemplateNames = await UnitComponentReconciler.RemoveSlotsAndDependentsAsync(context, removedSlots, cancelToken);
+
+        if (unfittedTemplateNames.Count > 0)
+        {
+            logger.LogWarning(
+                "Removing {SlotCount} slot(s) from component '{Code}' also cleared fitted components from {TemplateCount} saved template(s): {TemplateNames}.",
+                removedSlots.Count, existing.Code, unfittedTemplateNames.Count, string.Join(", ", unfittedTemplateNames));
+        }
+
+        await UnitComponentReconciler.ReconcileSupersessionsForPredecessorAsync(context, existing, supersessions, componentsByCode, cancelToken);
+
+        // Single SaveChanges => the component, its extensions, its slots, the cascaded deletions and the
+        // supersession links all land in one transaction.
+        await context.SaveChangesAsync(cancelToken);
+
+        // Snapshots of templates built on this component are now stale. Recompiling after the commit
+        // means each one reads the component as it actually is; a template whose assembly no longer
+        // validates is reported rather than undoing a save the caller has already been told nothing about.
+        List<string> recompileFailures = await AffectedTemplateRecompiler.RecompileAsync(
+            context, mediator, campaignTurnService, affectedTemplateIds, cancelToken);
+
+        if (recompileFailures.Count > 0)
+        {
+            logger.LogWarning(
+                "Component '{Code}' saved, but {FailureCount} dependent template snapshot(s) could not be recompiled: {Failures}",
+                existing.Code, recompileFailures.Count, string.Join(" | ", recompileFailures));
+        }
+
+        logger.LogInformation("Updated unit component '{Code}' (id {Id}).", existing.Code, existing.Id);
+
+        return ServiceResult<UnitComponentView>.Succeed(new UnitComponentView
+        {
+            Id = existing.Id,
+            Code = existing.Code,
+            DisplayName = existing.DisplayName,
+            ComponentType = existing.ComponentType,
+            SlotIds = UnitComponentReconciler.OrderedSlotIds(existing),
+            RemovedSlotCount = removedSlots.Count,
+            UnfittedTemplateNames = unfittedTemplateNames,
+        });
     }
 
     /// <summary>

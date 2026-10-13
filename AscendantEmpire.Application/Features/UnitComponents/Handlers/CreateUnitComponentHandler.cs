@@ -33,73 +33,64 @@ internal class CreateUnitComponentHandler(
 {
     public async Task<ServiceResult<UnitComponentView>> Handle(CreateUnitComponentRequest request, CancellationToken cancelToken)
     {
-        try
+        UnitComponentDto dto = request.Request.Component;
+
+        // Shape validation first, so a malformed request never touches the database.
+        List<string> errors = [];
+        UnitComponentReconciler.ValidateComponent(dto, errors);
+
+        if (errors.Count > 0)
         {
-            UnitComponentDto dto = request.Request.Component;
-
-            // Shape validation first, so a malformed request never touches the database.
-            List<string> errors = [];
-            UnitComponentReconciler.ValidateComponent(dto, errors);
-
-            if (errors.Count > 0)
-            {
-                logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(CreateUnitComponentRequest), string.Join("; ", errors));
-                return ServiceResult<UnitComponentView>.Fail(errors);
-            }
-
-            // Code is the unique natural key — reject a duplicate before inserting.
-            bool codeExists = await context.UnitComponents.AnyAsync(component => component.Code == dto.Code, cancelToken);
-
-            if (codeExists)
-            {
-                return ServiceResult<UnitComponentView>.Conflict($"A component with code '{dto.Code}' already exists.");
-            }
-
-            Dictionary<string, Tag> tagsByCode = await UnitComponentReconciler.LoadTagsByCodeAsync(context, dto.TagCodes, cancelToken);
-            UnitComponentReconciler.ValidateTagReferences(dto, tagsByCode.Keys, errors);
-
-            // A brand-new component owns no slots, so any slot id the payload carries is stale or misdirected.
-            UnitComponentReconciler.ValidateSlots(dto, existing: null, errors);
-
-            // Successors must already be in the catalogue; this component isn't saved yet, so it is added to
-            // the lookup by navigation and EF resolves its foreign key on save.
-            List<ComponentSupersessionDto> supersessions = ToSupersessionDtos(dto.Code, request.Request.SupersededBy);
-            Dictionary<string, UnitComponent> componentsByCode = await LoadSuccessorsAsync(supersessions, cancelToken);
-
-            UnitComponentReconciler.ValidateSupersessionsForPredecessor(dto.Code, supersessions, componentsByCode, errors);
-
-            if (errors.Count > 0)
-            {
-                logger.LogWarning("Reference validation failed for {Request}. Errors: {Errors}", nameof(CreateUnitComponentRequest), string.Join("; ", errors));
-                return ServiceResult<UnitComponentView>.Fail(errors);
-            }
-
-            UnitComponent component = UnitComponentReconciler.Build(dto, tagsByCode);
-            context.UnitComponents.Add(component);
-            componentsByCode[dto.Code] = component;
-
-            await UnitComponentReconciler.ReconcileSupersessionsForPredecessorAsync(context, component, supersessions, componentsByCode, cancelToken);
-
-            // Single SaveChanges => the component, its extensions and its supersession links land together.
-            await context.SaveChangesAsync(cancelToken);
-
-            logger.LogInformation("Created unit component '{Code}' (id {Id}).", component.Code, component.Id);
-
-            return ServiceResult<UnitComponentView>.Created(new UnitComponentView
-            {
-                Id = component.Id,
-                Code = component.Code,
-                DisplayName = component.DisplayName,
-                ComponentType = component.ComponentType,
-                SlotIds = UnitComponentReconciler.OrderedSlotIds(component),
-            });
+            logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(CreateUnitComponentRequest), string.Join("; ", errors));
+            return ServiceResult<UnitComponentView>.Fail(errors);
         }
-        catch (Exception ex)
+
+        // Code is the unique natural key — reject a duplicate before inserting.
+        bool codeExists = await context.UnitComponents.AnyAsync(component => component.Code == dto.Code, cancelToken);
+
+        if (codeExists)
         {
-            const string error = "An exception occurred while processing " + nameof(CreateUnitComponentHandler) + ".";
-            logger.LogError(ex, error);
-            return ServiceResult<UnitComponentView>.InternalServerError(ex, error);
+            return ServiceResult<UnitComponentView>.Conflict($"A component with code '{dto.Code}' already exists.");
         }
+
+        Dictionary<string, Tag> tagsByCode = await UnitComponentReconciler.LoadTagsByCodeAsync(context, dto.TagCodes, cancelToken);
+        UnitComponentReconciler.ValidateTagReferences(dto, tagsByCode.Keys, errors);
+
+        // A brand-new component owns no slots, so any slot id the payload carries is stale or misdirected.
+        UnitComponentReconciler.ValidateSlots(dto, existing: null, errors);
+
+        // Successors must already be in the catalogue; this component isn't saved yet, so it is added to
+        // the lookup by navigation and EF resolves its foreign key on save.
+        List<ComponentSupersessionDto> supersessions = ToSupersessionDtos(dto.Code, request.Request.SupersededBy);
+        Dictionary<string, UnitComponent> componentsByCode = await LoadSuccessorsAsync(supersessions, cancelToken);
+
+        UnitComponentReconciler.ValidateSupersessionsForPredecessor(dto.Code, supersessions, componentsByCode, errors);
+
+        if (errors.Count > 0)
+        {
+            logger.LogWarning("Reference validation failed for {Request}. Errors: {Errors}", nameof(CreateUnitComponentRequest), string.Join("; ", errors));
+            return ServiceResult<UnitComponentView>.Fail(errors);
+        }
+
+        UnitComponent component = UnitComponentReconciler.Build(dto, tagsByCode);
+        context.UnitComponents.Add(component);
+        componentsByCode[dto.Code] = component;
+
+        await UnitComponentReconciler.ReconcileSupersessionsForPredecessorAsync(context, component, supersessions, componentsByCode, cancelToken);
+
+        // Single SaveChanges => the component, its extensions and its supersession links land together.
+        await context.SaveChangesAsync(cancelToken);
+
+        logger.LogInformation("Created unit component '{Code}' (id {Id}).", component.Code, component.Id);
+
+        return ServiceResult<UnitComponentView>.Created(new UnitComponentView
+        {
+            Id = component.Id,
+            Code = component.Code,
+            DisplayName = component.DisplayName,
+            ComponentType = component.ComponentType,
+            SlotIds = UnitComponentReconciler.OrderedSlotIds(component),
+        });
     }
 
     /// <summary>

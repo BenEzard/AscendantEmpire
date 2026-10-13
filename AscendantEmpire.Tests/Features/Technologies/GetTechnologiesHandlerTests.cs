@@ -32,7 +32,7 @@ internal class GetTechnologiesHandlerTests : InMemoryTestBase
     public async Task SetUpHandler()
     {
         _context = await DbFactory.CreateDbContextAsync();
-        _handler = new GetTechnologiesHandler(new NullLogger<GetTechnologiesHandler>(), DbFactory);
+        _handler = new GetTechnologiesHandler(DbFactory);
     }
 
     [TearDown]

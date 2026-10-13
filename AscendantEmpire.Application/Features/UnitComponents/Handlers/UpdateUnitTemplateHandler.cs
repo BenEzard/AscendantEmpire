@@ -36,97 +36,88 @@ internal class UpdateUnitTemplateHandler(
 {
     public async Task<ServiceResult<UnitTemplateView>> Handle(UpdateUnitTemplateRequest request, CancellationToken cancelToken)
     {
-        try
+        UnitTemplate? existing = await context.UnitTemplates
+            .Include(t => t.Components)
+            .FirstOrDefaultAsync(t => t.Id == request.TemplateId, cancelToken);
+
+        if (existing is null || existing.GameId != request.GameId || existing.PlayerId != request.PlayerId)
         {
-            UnitTemplate? existing = await context.UnitTemplates
-                .Include(t => t.Components)
-                .FirstOrDefaultAsync(t => t.Id == request.TemplateId, cancelToken);
-
-            if (existing is null || existing.GameId != request.GameId || existing.PlayerId != request.PlayerId)
-            {
-                return ServiceResult<UnitTemplateView>.NotFound($"No custom template exists with id {request.TemplateId}.");
-            }
-
-            SaveUnitTemplateDto dto = request.Template;
-
-            // A design that is already in the field can't be redrawn under the Units built from it: their stats are read from this template's compiled
-            // snapshot, so rewriting it would silently re-equip units already standing on the map. Renaming or disbanding is the way through.
-            int instanceCount = await UnitTemplateNameLookup.CountUnitInstancesAsync(context, existing.Id, cancelToken);
-
-            if (instanceCount > 0)
-            {
-                return ServiceResult<UnitTemplateView>.Conflict(
-                    $"\"{existing.DisplayName}\" cannot be changed while {FormatUnitCount(instanceCount)} built from it. "
-                    + "Choose a different name, or disband those Units first.",
-                    new TemplateNameConflict { CanOverwrite = false, ExistingDisplayName = existing.DisplayName, InstanceCount = instanceCount });
-            }
-
-            // A rename must not land on a name another design already holds. The template being updated is exempted from its own check, so keeping the
-            // current name (the overwrite case) is always allowed.
-            ServiceResult<UnitTemplateView>? nameConflict = await CheckNameIsFreeAsync(
-                dto.DisplayName, request.GameId, request.PlayerId, excludeTemplateId: existing.Id, cancelToken);
-
-            if (nameConflict != null)
-            {
-                return nameConflict;
-            }
-
-            ServiceResult<UnitTemplateAssembly.ResolvedAssembly> resolved = await UnitTemplateAssembly.ResolveAsync(
-                context, request.PlayerId, dto.DisplayName, dto.MapImagePath, dto.BaseCode, dto.SlotComponentCodes, cancelToken);
-
-            if (!resolved.HasSucceeded)
-            {
-                logger.LogWarning("Validation failed for {Request}. Errors: {Errors}",
-                    nameof(UpdateUnitTemplateRequest), string.Join("; ", resolved.Errors));
-                return new ServiceResult<UnitTemplateView> { StatusCode = resolved.StatusCode, Errors = resolved.Errors };
-            }
-
-            (UnitComponent baseComponent, List<UnitTemplateComponent> fitted) = resolved.SuccessValue!;
-
-            existing.DisplayName = dto.DisplayName;
-            existing.Description = dto.Description;
-            existing.MapImagePath = dto.MapImagePath;
-            existing.BodyComponentId = baseComponent.Id;
-
-            // Update + recompile atomically: the snapshot is the template's read model, so it must never lag the
-            // template it summarizes. CompileUnitTemplateHandler shares this request scope's context, so one
-            // transaction covers both saves; disposing without Commit (any failure path) rolls the update back too.
-            await using var transaction = await context.Database.BeginTransactionAsync(cancelToken);
-
-            // Replace the fitted-component collection wholesale; the child FK is NoAction, so the old
-            // rows must be deleted explicitly rather than just unlinked (mirrors CompileUnitTemplateHandler's
-            // handling of CompiledUnitTemplateComponents).
-            context.UnitTemplateComponents.RemoveRange(existing.Components);
-            existing.Components = fitted;
-
-            await context.SaveChangesAsync(cancelToken);
-
-            // Stamp the refreshed snapshot with the game's current campaign turn (0 if the campaign hasn't started yet).
-            int currentTurn = await campaignTurnService.GetCurrentRoundNumberAsync(request.GameId, cancelToken);
-
-            ServiceResult<int> compiled = await mediator.Send(
-                new CompileUnitTemplateRequest(UnitTemplateId: existing.Id, CompiledOnTurn: currentTurn), cancelToken);
-
-            if (!compiled.HasSucceeded)
-            {
-                logger.LogWarning("Compilation failed for {Request}. Errors: {Errors}",
-                    nameof(UpdateUnitTemplateRequest), string.Join("; ", compiled.Errors));
-                return new ServiceResult<UnitTemplateView> { StatusCode = compiled.StatusCode, Errors = compiled.Errors };
-            }
-
-            await transaction.CommitAsync(cancelToken);
-
-            logger.LogInformation("Updated custom unit template '{DisplayName}' (id {Id}) for player {PlayerId}.",
-                existing.DisplayName, existing.Id, request.PlayerId);
-
-            return ServiceResult<UnitTemplateView>.Succeed(ToView(existing, baseComponent));
+            return ServiceResult<UnitTemplateView>.NotFound($"No custom template exists with id {request.TemplateId}.");
         }
-        catch (Exception ex)
+
+        SaveUnitTemplateDto dto = request.Template;
+
+        // A design that is already in the field can't be redrawn under the Units built from it: their stats are read from this template's compiled
+        // snapshot, so rewriting it would silently re-equip units already standing on the map. Renaming or disbanding is the way through.
+        int instanceCount = await UnitTemplateNameLookup.CountUnitInstancesAsync(context, existing.Id, cancelToken);
+
+        if (instanceCount > 0)
         {
-            const string error = "An exception occurred while processing " + nameof(UpdateUnitTemplateHandler) + ".";
-            logger.LogError(ex, error);
-            return ServiceResult<UnitTemplateView>.InternalServerError(ex, error);
+            return ServiceResult<UnitTemplateView>.Conflict(
+                $"\"{existing.DisplayName}\" cannot be changed while {FormatUnitCount(instanceCount)} built from it. "
+                + "Choose a different name, or disband those Units first.",
+                new TemplateNameConflict { CanOverwrite = false, ExistingDisplayName = existing.DisplayName, InstanceCount = instanceCount });
         }
+
+        // A rename must not land on a name another design already holds. The template being updated is exempted from its own check, so keeping the
+        // current name (the overwrite case) is always allowed.
+        ServiceResult<UnitTemplateView>? nameConflict = await CheckNameIsFreeAsync(
+            dto.DisplayName, request.GameId, request.PlayerId, excludeTemplateId: existing.Id, cancelToken);
+
+        if (nameConflict != null)
+        {
+            return nameConflict;
+        }
+
+        ServiceResult<UnitTemplateAssembly.ResolvedAssembly> resolved = await UnitTemplateAssembly.ResolveAsync(
+            context, request.PlayerId, dto.DisplayName, dto.MapImagePath, dto.BaseCode, dto.SlotComponentCodes, cancelToken);
+
+        if (!resolved.HasSucceeded)
+        {
+            logger.LogWarning("Validation failed for {Request}. Errors: {Errors}",
+                nameof(UpdateUnitTemplateRequest), string.Join("; ", resolved.Errors));
+            return new ServiceResult<UnitTemplateView> { StatusCode = resolved.StatusCode, Errors = resolved.Errors };
+        }
+
+        (UnitComponent baseComponent, List<UnitTemplateComponent> fitted) = resolved.SuccessValue!;
+
+        existing.DisplayName = dto.DisplayName;
+        existing.Description = dto.Description;
+        existing.MapImagePath = dto.MapImagePath;
+        existing.BodyComponentId = baseComponent.Id;
+
+        // Update + recompile atomically: the snapshot is the template's read model, so it must never lag the
+        // template it summarizes. CompileUnitTemplateHandler shares this request scope's context, so one
+        // transaction covers both saves; disposing without Commit (any failure path) rolls the update back too.
+        await using var transaction = await context.Database.BeginTransactionAsync(cancelToken);
+
+        // Replace the fitted-component collection wholesale; the child FK is NoAction, so the old
+        // rows must be deleted explicitly rather than just unlinked (mirrors CompileUnitTemplateHandler's
+        // handling of CompiledUnitTemplateComponents).
+        context.UnitTemplateComponents.RemoveRange(existing.Components);
+        existing.Components = fitted;
+
+        await context.SaveChangesAsync(cancelToken);
+
+        // Stamp the refreshed snapshot with the game's current campaign turn (0 if the campaign hasn't started yet).
+        int currentTurn = await campaignTurnService.GetCurrentRoundNumberAsync(request.GameId, cancelToken);
+
+        ServiceResult<int> compiled = await mediator.Send(
+            new CompileUnitTemplateRequest(UnitTemplateId: existing.Id, CompiledOnTurn: currentTurn), cancelToken);
+
+        if (!compiled.HasSucceeded)
+        {
+            logger.LogWarning("Compilation failed for {Request}. Errors: {Errors}",
+                nameof(UpdateUnitTemplateRequest), string.Join("; ", compiled.Errors));
+            return new ServiceResult<UnitTemplateView> { StatusCode = compiled.StatusCode, Errors = compiled.Errors };
+        }
+
+        await transaction.CommitAsync(cancelToken);
+
+        logger.LogInformation("Updated custom unit template '{DisplayName}' (id {Id}) for player {PlayerId}.",
+            existing.DisplayName, existing.Id, request.PlayerId);
+
+        return ServiceResult<UnitTemplateView>.Succeed(ToView(existing, baseComponent));
     }
 
     /// <summary>

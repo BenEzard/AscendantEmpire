@@ -29,54 +29,45 @@ internal class CreateTagHandler(
 {
     public async Task<ServiceResult<TagView>> Handle(CreateTagRequest request, CancellationToken cancelToken)
     {
-        try
+        UpsertTagDto dto = request.Tag;
+
+        // Shape validation first, so a malformed request never touches the database.
+        List<string> errors = TagValidation.Validate(dto);
+
+        if (errors.Count > 0)
         {
-            UpsertTagDto dto = request.Tag;
-
-            // Shape validation first, so a malformed request never touches the database.
-            List<string> errors = TagValidation.Validate(dto);
-
-            if (errors.Count > 0)
-            {
-                logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(CreateTagRequest), string.Join("; ", errors));
-                return ServiceResult<TagView>.Fail(errors);
-            }
-
-            // Code is the unique natural key — reject a duplicate before inserting.
-            bool codeExists = await context.Tags.AnyAsync(t => t.Code == dto.Code, cancelToken);
-
-            if (codeExists)
-            {
-                return ServiceResult<TagView>.Conflict($"A tag with code '{dto.Code}' already exists.");
-            }
-
-            var tag = new Tag
-            {
-                Code = dto.Code,
-                DisplayName = dto.DisplayName,
-                Description = dto.Description,
-                TagType = dto.TagType,
-                MovementDomain = dto.MovementDomain,
-                LeadershipModel = dto.LeadershipModel,
-                UnledBaseSize = dto.UnledBaseSize,
-                UnledDefaultSize = dto.UnledDefaultSize,
-                UnledMaxSize = dto.UnledMaxSize,
-                SystemCreated = dto.SystemCreated,
-            };
-
-            context.Tags.Add(tag);
-            await context.SaveChangesAsync(cancelToken);
-
-            logger.LogInformation("Created tag '{Code}' (id {Id}).", tag.Code, tag.Id);
-
-            return ServiceResult<TagView>.Created(ToView(tag));
+            logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(CreateTagRequest), string.Join("; ", errors));
+            return ServiceResult<TagView>.Fail(errors);
         }
-        catch (Exception ex)
+
+        // Code is the unique natural key — reject a duplicate before inserting.
+        bool codeExists = await context.Tags.AnyAsync(t => t.Code == dto.Code, cancelToken);
+
+        if (codeExists)
         {
-            const string error = "An exception occurred while processing " + nameof(CreateTagHandler) + ".";
-            logger.LogError(ex, error);
-            return ServiceResult<TagView>.InternalServerError(ex, error);
+            return ServiceResult<TagView>.Conflict($"A tag with code '{dto.Code}' already exists.");
         }
+
+        var tag = new Tag
+        {
+            Code = dto.Code,
+            DisplayName = dto.DisplayName,
+            Description = dto.Description,
+            TagType = dto.TagType,
+            MovementDomain = dto.MovementDomain,
+            LeadershipModel = dto.LeadershipModel,
+            UnledBaseSize = dto.UnledBaseSize,
+            UnledDefaultSize = dto.UnledDefaultSize,
+            UnledMaxSize = dto.UnledMaxSize,
+            SystemCreated = dto.SystemCreated,
+        };
+
+        context.Tags.Add(tag);
+        await context.SaveChangesAsync(cancelToken);
+
+        logger.LogInformation("Created tag '{Code}' (id {Id}).", tag.Code, tag.Id);
+
+        return ServiceResult<TagView>.Created(ToView(tag));
     }
 
     /// <summary>

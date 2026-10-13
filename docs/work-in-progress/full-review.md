@@ -932,7 +932,7 @@ The folder is now `Entities/Assets/_not_used_yet/` and its types are named to ma
 (`AssetBank.cs`, `AssetBankBalance.cs`, `FactionAssetPriority.cs`, `FactionAssetState.cs`,
 `WorldAssetSnapshot.cs`, `context-changes.cs`), so the `Assets` namespace those files already
 declared is the correct one. The economy concept is called Asset throughout — see
-[assets-data-model.md](../assets-data-model.md).
+[assets-data-model.md](../design/assets-data-model.md).
 
 **AE-S6-003 · Medium · `User` can hold two contradictory representations of "inactive".**
 `InactiveAt` is `DateTimeOffset?` and `InactiveReasonType` is a non-nullable enum with an `Active`

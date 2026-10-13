@@ -40,102 +40,94 @@ internal class UpdateCampaignMapTilesHandler(
     {
         var failures = new List<TileUpdateFail>();
 
-        try
+        // If Biome is Coastal or Ocean and Geography is not provided, default the Geography.
+        CampaignMapGeographyType? mutatedGeographyType = ForceGeographyUpdate(request.BiomeType, request.CampaignMapGeographyType);
+
+        // Validate request + load required data.
+        ServiceResult<DTLoadedData> validationResult = await ValidateRequestAsync(
+            coordinates: request.Coordinates,
+            campaignMapGalleryId: request.CampaignMapGalleryIndexId,
+            biomeType: request.BiomeType,
+            geographyType: mutatedGeographyType,
+            cancellationToken: cancellationToken);
+
+        if (validationResult.HasSucceeded == false || validationResult.SuccessValue is null)
         {
-            // If Biome is Coastal or Ocean and Geography is not provided, default the Geography.
-            CampaignMapGeographyType? mutatedGeographyType = ForceGeographyUpdate(request.BiomeType, request.CampaignMapGeographyType);
-
-            // Validate request + load required data.
-            ServiceResult<DTLoadedData> validationResult = await ValidateRequestAsync(
-                coordinates: request.Coordinates,
-                campaignMapGalleryId: request.CampaignMapGalleryIndexId,
-                biomeType: request.BiomeType,
-                geographyType: mutatedGeographyType,
-                cancellationToken: cancellationToken);
-
-            if (validationResult.HasSucceeded == false || validationResult.SuccessValue is null)
-            {
-                return ServiceResult<int, IReadOnlyCollection<TileUpdateFail>?>.Fail(validationResult.Errors);
-            }
-
-            DTCampaignMapGalleryIndex index = validationResult.SuccessValue.Index;
-
-            // A paint that would strand an authored start position on water, untraversable ground or impassable geography is refused outright rather
-            // than silently invalidating it. Checked here so it covers all three write paths below.
-            ServiceResultBase startPositionCheck = await ValidateStartPositionsRemainValidAsync(
-                request: request,
-                loaded: validationResult.SuccessValue,
-                mutatedGeographyType: mutatedGeographyType,
-                cancellationToken: cancellationToken);
-
-            if (startPositionCheck.HasSucceeded == false)
-            {
-                return ServiceResult<int, IReadOnlyCollection<TileUpdateFail>?>.Fail(startPositionCheck.Errors);
-            }
-
-            EnhancedCoord[] enhancedCoordinates = MapMethods.EnhanceCoordinates(index.CampaignMapOffsetId, index.Width, request.Coordinates);
-
-            // Deduplicated because a brush stroke can name the same coordinate twice, and every id below is counted as well as matched.
-            int[] dbIds = [.. enhancedCoordinates.Select(ec => ec.DbId).Distinct()];
-
-            // Loaded for every branch, not just the ones needing per-tile validation: the MapResources a Biome implies are decided from each tile's current
-            // terrain and the terrain it is becoming.
-            //
-            // Untracked deliberately. The tiles are written below through ExecuteUpdate, which goes straight to the database and leaves the change tracker
-            // untouched - so a tracked tile read again in the same context would still report the terrain it had before an earlier paint in that context.
-            List<CampaignMapGallery> paintedTiles = await context.CampaignMapGallery
-                .AsNoTracking()
-                .Where(t => t.CampaignMapGalleryIndexId == request.CampaignMapGalleryIndexId)
-                .Where(t => dbIds.Contains(t.CampaignMapGalleryId))
-                .ToListAsync(cancellationToken);
-
-            // Which of the painted tiles may take the change. Only a single-property paint needs per-tile validation: when both Biome and Geography are
-            // given, the combination was already checked for every tile at once.
-            int[] candidateIds = SelectCandidateTiles(
-                request: request,
-                loaded: validationResult.SuccessValue,
-                mutatedGeographyType: mutatedGeographyType,
-                paintedTiles: paintedTiles,
-                failures: failures);
-
-            // What the paint would do to those tiles' implied MapResources, worked out before anything is written so a tile whose placement holds out can be
-            // left alone rather than painted and then reported.
-            BiomeImpliedResourcePlan impliedPlan = await PlanImpliedMapResourcesAsync(
-                request: request,
-                mutatedGeographyType: mutatedGeographyType,
-                paintedTiles: paintedTiles,
-                candidateIds: candidateIds,
-                cancellationToken: cancellationToken);
-
-            HashSet<int> tilesHoldingOut = [.. impliedPlan.Refusals
-                .Where(refusal => refusal.Reason == BiomeImpliedResourceRefusal.AuthorIntentBlocksRemoval)
-                .Select(refusal => refusal.CampaignMapGalleryId)];
-
-            int[] idsToWrite = [.. candidateIds.Where(id => tilesHoldingOut.Contains(id) == false)];
-
-            if (tilesHoldingOut.Count > 0)
-            {
-                failures.Add(ToContractFail(BuildHoldOutFailure(paintedTiles, tilesHoldingOut)));
-            }
-
-            int tilesUpdated = await WritePaintAsync(
-                request: request,
-                mutatedGeographyType: mutatedGeographyType,
-                idsToWrite: idsToWrite,
-                impliedPlan: impliedPlan,
-                cancellationToken: cancellationToken);
-
-            // A clean paint answers 200, a paint that left tiles behind answers 206. Branches used to disagree on this, always reporting partial success even
-            // when nothing failed.
-            return failures.Count == 0
-                ? ServiceResult<int, IReadOnlyCollection<TileUpdateFail>?>.Succeed(tilesUpdated)
-                : ServiceResult<int, IReadOnlyCollection<TileUpdateFail>?>.PartialSuccess(tilesUpdated, failures);
+            return ServiceResult<int, IReadOnlyCollection<TileUpdateFail>?>.Fail(validationResult.Errors);
         }
-        catch (Exception ex)
+
+        DTCampaignMapGalleryIndex index = validationResult.SuccessValue.Index;
+
+        // A paint that would strand an authored start position on water, untraversable ground or impassable geography is refused outright rather
+        // than silently invalidating it. Checked here so it covers all three write paths below.
+        ServiceResultBase startPositionCheck = await ValidateStartPositionsRemainValidAsync(
+            request: request,
+            loaded: validationResult.SuccessValue,
+            mutatedGeographyType: mutatedGeographyType,
+            cancellationToken: cancellationToken);
+
+        if (startPositionCheck.HasSucceeded == false)
         {
-            logger.LogError(ex, "An error occurred while updating campaign map tiles.");
-            return ServiceResult<int, IReadOnlyCollection<TileUpdateFail>?>.Fail("An error occurred while updating campaign map tiles.");
+            return ServiceResult<int, IReadOnlyCollection<TileUpdateFail>?>.Fail(startPositionCheck.Errors);
         }
+
+        EnhancedCoord[] enhancedCoordinates = MapMethods.EnhanceCoordinates(index.CampaignMapOffsetId, index.Width, request.Coordinates);
+
+        // Deduplicated because a brush stroke can name the same coordinate twice, and every id below is counted as well as matched.
+        int[] dbIds = [.. enhancedCoordinates.Select(ec => ec.DbId).Distinct()];
+
+        // Loaded for every branch, not just the ones needing per-tile validation: the MapResources a Biome implies are decided from each tile's current
+        // terrain and the terrain it is becoming.
+        //
+        // Untracked deliberately. The tiles are written below through ExecuteUpdate, which goes straight to the database and leaves the change tracker
+        // untouched - so a tracked tile read again in the same context would still report the terrain it had before an earlier paint in that context.
+        List<CampaignMapGallery> paintedTiles = await context.CampaignMapGallery
+            .AsNoTracking()
+            .Where(t => t.CampaignMapGalleryIndexId == request.CampaignMapGalleryIndexId)
+            .Where(t => dbIds.Contains(t.CampaignMapGalleryId))
+            .ToListAsync(cancellationToken);
+
+        // Which of the painted tiles may take the change. Only a single-property paint needs per-tile validation: when both Biome and Geography are
+        // given, the combination was already checked for every tile at once.
+        int[] candidateIds = SelectCandidateTiles(
+            request: request,
+            loaded: validationResult.SuccessValue,
+            mutatedGeographyType: mutatedGeographyType,
+            paintedTiles: paintedTiles,
+            failures: failures);
+
+        // What the paint would do to those tiles' implied MapResources, worked out before anything is written so a tile whose placement holds out can be
+        // left alone rather than painted and then reported.
+        BiomeImpliedResourcePlan impliedPlan = await PlanImpliedMapResourcesAsync(
+            request: request,
+            mutatedGeographyType: mutatedGeographyType,
+            paintedTiles: paintedTiles,
+            candidateIds: candidateIds,
+            cancellationToken: cancellationToken);
+
+        HashSet<int> tilesHoldingOut = [.. impliedPlan.Refusals
+            .Where(refusal => refusal.Reason == BiomeImpliedResourceRefusal.AuthorIntentBlocksRemoval)
+            .Select(refusal => refusal.CampaignMapGalleryId)];
+
+        int[] idsToWrite = [.. candidateIds.Where(id => tilesHoldingOut.Contains(id) == false)];
+
+        if (tilesHoldingOut.Count > 0)
+        {
+            failures.Add(ToContractFail(BuildHoldOutFailure(paintedTiles, tilesHoldingOut)));
+        }
+
+        int tilesUpdated = await WritePaintAsync(
+            request: request,
+            mutatedGeographyType: mutatedGeographyType,
+            idsToWrite: idsToWrite,
+            impliedPlan: impliedPlan,
+            cancellationToken: cancellationToken);
+
+        // A clean paint answers 200, a paint that left tiles behind answers 206. Branches used to disagree on this, always reporting partial success even
+        // when nothing failed.
+        return failures.Count == 0
+            ? ServiceResult<int, IReadOnlyCollection<TileUpdateFail>?>.Succeed(tilesUpdated)
+            : ServiceResult<int, IReadOnlyCollection<TileUpdateFail>?>.PartialSuccess(tilesUpdated, failures);
     }
 
     /// <summary>

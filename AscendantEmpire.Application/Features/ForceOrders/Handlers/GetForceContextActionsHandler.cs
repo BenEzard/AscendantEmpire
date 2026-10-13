@@ -52,36 +52,22 @@ internal class GetForceContextActionsHandler(
         GetForceContextActionsRequest request,
         CancellationToken cancelToken)
     {
-        try
+        var validator = new GetForceContextActionsRequestValidator();
+        ValidationResult validationResult = validator.Validate(request);
+
+        if (!validationResult.IsValid)
         {
-            var validator = new GetForceContextActionsRequestValidator();
-            ValidationResult validationResult = validator.Validate(request);
+            IEnumerable<string> errors = validationResult.Errors.Select(e => e.ErrorMessage);
+            string error = $"Validation failed for {nameof(GetForceContextActionsRequest)}.";
+            logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
 
-            if (!validationResult.IsValid)
-            {
-                IEnumerable<string> errors = validationResult.Errors.Select(e => e.ErrorMessage);
-                string error = $"Validation failed for {nameof(GetForceContextActionsRequest)}.";
-                logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
-
-                return ServiceResultBase.ServiceResult<IReadOnlyCollection<ForceContextAction>>.Fail(errors.Prepend(error));
-            }
-
-            return await contextActionService.GetAvailableActionsAsync(
-                request.GameId,
-                request.PlayerId,
-                request.ForceIds,
-                cancelToken);
+            return ServiceResultBase.ServiceResult<IReadOnlyCollection<ForceContextAction>>.Fail(errors.Prepend(error));
         }
-        catch (Exception ex)
-        {
-            const string error = "An exception occurred while resolving the context actions for a Force selection.";
 
-            logger.LogError(ex, error + " GameId: {GameId}, PlayerId: {PlayerId}, ForceIds: {ForceIds}.",
-                request.GameId,
-                request.PlayerId,
-                string.Join(", ", request.ForceIds ?? []));
-
-            return ServiceResultBase.ServiceResult<IReadOnlyCollection<ForceContextAction>>.Fail(error);
-        }
+        return await contextActionService.GetAvailableActionsAsync(
+            request.GameId,
+            request.PlayerId,
+            request.ForceIds,
+            cancelToken);
     }
 }

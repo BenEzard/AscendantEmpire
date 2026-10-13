@@ -80,97 +80,88 @@ internal class GetTileSustenanceHandler(
 {
     public async Task<ServiceResult<TileSustenance>> Handle(GetTileSustenanceRequest request, CancellationToken cancelToken)
     {
-        try
+        // Validate the request object
+        var validator = new GetTileSustenanceRequestValidator();
+        ValidationResult validationResult = validator.Validate(request);
+
+        if (validationResult.IsValid == false)
         {
-            // Validate the request object
-            var validator = new GetTileSustenanceRequestValidator();
-            ValidationResult validationResult = validator.Validate(request);
+            IEnumerable<string> errors = validationResult.Errors.Select(e => e.ErrorMessage);
+            string error = $"Validation failed for {nameof(GetTileSustenanceRequest)}.";
+            logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
 
-            if (validationResult.IsValid == false)
-            {
-                IEnumerable<string> errors = validationResult.Errors.Select(e => e.ErrorMessage);
-                string error = $"Validation failed for {nameof(GetTileSustenanceRequest)}.";
-                logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
-
-                return ServiceResult<TileSustenance>.Fail(errors.Prepend(error));
-            }
-
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
-
-            CampaignMapGeometry? geometry = await sightDataReader.GetGeometryAsync(context, request.GameId, cancelToken);
-
-            if (geometry is null)
-            {
-                string error = $"Game Id {request.GameId} was not found while reading a tile's sustenance.";
-                logger.LogWarning("{Error}", error);
-
-                return ServiceResult<TileSustenance>.NotFound(error);
-            }
-
-            // A coordinate off the edge of the map names no tile, and is not wrapped onto one.
-            if (request.X >= geometry.Width || request.Y >= geometry.Height)
-            {
-                string error = $"Tile ({request.X}, {request.Y}) is not on Game Id {request.GameId}'s {geometry.Width} x {geometry.Height} map.";
-                logger.LogWarning("{Error}", error);
-
-                return ServiceResult<TileSustenance>.NotFound(error);
-            }
-
-            ServiceResult<IReadOnlyCollection<ObserverFieldOfView>> fieldOfViewResult = await fieldOfViewService.GetPlayerFieldOfViewAsync(request.GameId, request.PlayerId, geometry, cancelToken);
-
-            if (fieldOfViewResult.HasSucceeded == false)
-            {
-                const string error = "Error working out what a Player's Observers can see while reading a tile's sustenance.";
-                logger.LogWarning(error);
-
-                return ServiceResult<TileSustenance>.Fail(fieldOfViewResult.Errors.Prepend(error));
-            }
-
-            // The tile as one of the Player's Observers sees it, if any does. Several may; they all describe the same world-map tile, so the first will do.
-            SightTerrain? seenTile = fieldOfViewResult.SuccessValue!
-                .SelectMany(view => view.SeenTiles)
-                .FirstOrDefault(tile => tile.X == request.X && tile.Y == request.Y);
-
-            if (seenTile is null)
-            {
-                return ServiceResult<TileSustenance>.Succeed(TileSustenance.NotObserved);
-            }
-
-            PlayerSustenanceValues values = await sustenanceValueReader.GetValuesAsync(context, request.PlayerId, cancelToken);
-
-            // What has been taken from the tile, by anyone. Null when the tile has never been fed on, which DepletionTaken reads as nothing taken.
-            CampaignMapDepletion? depletion = await context.CampaignMapDepletions
-                .AsNoTracking()
-                .FirstOrDefaultAsync(d => d.CampaignMapId == seenTile.CampaignMapId, cancelToken);
-
-            // Whether the tile can feed the Forces already on it. No Forces are requested, so the only way this fails is a defect in the evaluator.
-            ServiceResult<IReadOnlyDictionary<int, TileSupport?>> supportResult = await tileSupportEvaluator.EvaluateAsync(context, request.GameId, request.PlayerId, [seenTile], [], cancelToken);
-
-            if (supportResult.HasSucceeded == false)
-            {
-                const string error = "Error working out whether a tile can support the Player's Forces while reading its sustenance.";
-                logger.LogWarning(error);
-
-                return ServiceResult<TileSustenance>.Fail(supportResult.Errors.Prepend(error));
-            }
-
-            return ServiceResult<TileSustenance>.Succeed(new TileSustenance
-            {
-                IsObserved = true,
-                Forage = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Forage, depletion),
-                Hunt = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Hunt, depletion),
-                Fish = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Fish, depletion),
-                Fodder = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Fodder, depletion),
-                // The level only: the toolbar colours itself by it, and does not show the Turns the hover marker does.
-                SupportLevel = supportResult.SuccessValue![seenTile.CampaignMapId]?.Level
-            });
+            return ServiceResult<TileSustenance>.Fail(errors.Prepend(error));
         }
-        catch (Exception ex)
+
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+
+        CampaignMapGeometry? geometry = await sightDataReader.GetGeometryAsync(context, request.GameId, cancelToken);
+
+        if (geometry is null)
         {
-            logger.LogError(ex, "An error occurred while handling {RequestName}.", nameof(GetTileSustenanceRequest));
+            string error = $"Game Id {request.GameId} was not found while reading a tile's sustenance.";
+            logger.LogWarning("{Error}", error);
 
-            return ServiceResult<TileSustenance>.Fail("An unexpected error occurred while retrieving a tile's sustenance.");
+            return ServiceResult<TileSustenance>.NotFound(error);
         }
+
+        // A coordinate off the edge of the map names no tile, and is not wrapped onto one.
+        if (request.X >= geometry.Width || request.Y >= geometry.Height)
+        {
+            string error = $"Tile ({request.X}, {request.Y}) is not on Game Id {request.GameId}'s {geometry.Width} x {geometry.Height} map.";
+            logger.LogWarning("{Error}", error);
+
+            return ServiceResult<TileSustenance>.NotFound(error);
+        }
+
+        ServiceResult<IReadOnlyCollection<ObserverFieldOfView>> fieldOfViewResult = await fieldOfViewService.GetPlayerFieldOfViewAsync(request.GameId, request.PlayerId, geometry, cancelToken);
+
+        if (fieldOfViewResult.HasSucceeded == false)
+        {
+            const string error = "Error working out what a Player's Observers can see while reading a tile's sustenance.";
+            logger.LogWarning(error);
+
+            return ServiceResult<TileSustenance>.Fail(fieldOfViewResult.Errors.Prepend(error));
+        }
+
+        // The tile as one of the Player's Observers sees it, if any does. Several may; they all describe the same world-map tile, so the first will do.
+        SightTerrain? seenTile = fieldOfViewResult.SuccessValue!
+            .SelectMany(view => view.SeenTiles)
+            .FirstOrDefault(tile => tile.X == request.X && tile.Y == request.Y);
+
+        if (seenTile is null)
+        {
+            return ServiceResult<TileSustenance>.Succeed(TileSustenance.NotObserved);
+        }
+
+        PlayerSustenanceValues values = await sustenanceValueReader.GetValuesAsync(context, request.PlayerId, cancelToken);
+
+        // What has been taken from the tile, by anyone. Null when the tile has never been fed on, which DepletionTaken reads as nothing taken.
+        CampaignMapDepletion? depletion = await context.CampaignMapDepletions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(d => d.CampaignMapId == seenTile.CampaignMapId, cancelToken);
+
+        // Whether the tile can feed the Forces already on it. No Forces are requested, so the only way this fails is a defect in the evaluator.
+        ServiceResult<IReadOnlyDictionary<int, TileSupport?>> supportResult = await tileSupportEvaluator.EvaluateAsync(context, request.GameId, request.PlayerId, [seenTile], [], cancelToken);
+
+        if (supportResult.HasSucceeded == false)
+        {
+            const string error = "Error working out whether a tile can support the Player's Forces while reading its sustenance.";
+            logger.LogWarning(error);
+
+            return ServiceResult<TileSustenance>.Fail(supportResult.Errors.Prepend(error));
+        }
+
+        return ServiceResult<TileSustenance>.Succeed(new TileSustenance
+        {
+            IsObserved = true,
+            Forage = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Forage, depletion),
+            Hunt = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Hunt, depletion),
+            Fish = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Fish, depletion),
+            Fodder = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Fodder, depletion),
+            // The level only: the toolbar colours itself by it, and does not show the Turns the hover marker does.
+            SupportLevel = supportResult.SuccessValue![seenTile.CampaignMapId]?.Level
+        });
     }
 
     /// <summary>

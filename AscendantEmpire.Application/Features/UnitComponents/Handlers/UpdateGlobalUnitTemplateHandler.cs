@@ -32,90 +32,81 @@ internal class UpdateGlobalUnitTemplateHandler(
 {
     public async Task<ServiceResult<GlobalUnitTemplateView>> Handle(UpdateGlobalUnitTemplateRequest request, CancellationToken cancelToken)
     {
-        try
+        SaveGlobalUnitTemplateDto dto = request.Template;
+
+        List<string> codeErrors = ValidateCode(dto.Code);
+
+        if (codeErrors.Count > 0)
         {
-            SaveGlobalUnitTemplateDto dto = request.Template;
-
-            List<string> codeErrors = ValidateCode(dto.Code);
-
-            if (codeErrors.Count > 0)
-            {
-                logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(UpdateGlobalUnitTemplateRequest), string.Join("; ", codeErrors));
-                return ServiceResult<GlobalUnitTemplateView>.Fail(codeErrors);
-            }
-
-            UnitTemplate? existing = await context.UnitTemplates
-                .Include(t => t.Components)
-                .FirstOrDefaultAsync(t => t.Id == request.Id, cancelToken);
-
-            // A player-owned custom template (PlayerId set) is not a global template — treat it as not found here.
-            if (existing is null || existing.PlayerId != null)
-            {
-                return ServiceResult<GlobalUnitTemplateView>.NotFound($"No global template exists with id {request.Id}.");
-            }
-
-            if (existing.Code != dto.Code)
-            {
-                bool codeTaken = await context.UnitTemplates.AnyAsync(t => t.Code == dto.Code && t.Id != request.Id, cancelToken);
-
-                if (codeTaken)
-                {
-                    return ServiceResult<GlobalUnitTemplateView>.Conflict($"A template with code '{dto.Code}' already exists.");
-                }
-            }
-
-            ServiceResult<UnitTemplateAssembly.ResolvedAssembly> resolved = await UnitTemplateAssembly.ResolveAsync(
-                context, playerId: null, dto.DisplayName, dto.MapImagePath, dto.BaseCode, dto.SlotComponentCodes, cancelToken);
-
-            if (!resolved.HasSucceeded)
-            {
-                logger.LogWarning("Validation failed for {Request}. Errors: {Errors}",
-                    nameof(UpdateGlobalUnitTemplateRequest), string.Join("; ", resolved.Errors));
-                return new ServiceResult<GlobalUnitTemplateView> { StatusCode = resolved.StatusCode, Errors = resolved.Errors };
-            }
-
-            (UnitComponent baseComponent, List<UnitTemplateComponent> fitted) = resolved.SuccessValue!;
-
-            existing.Code = dto.Code;
-            existing.DisplayName = dto.DisplayName;
-            existing.Description = dto.Description;
-            existing.MapImagePath = dto.MapImagePath;
-            existing.BodyComponentId = baseComponent.Id;
-
-            // Update + recompile atomically: the snapshot is the template's read model, so it must never lag the
-            // template it summarizes. CompileUnitTemplateHandler shares this request scope's context, so one
-            // transaction covers both saves; disposing without Commit (any failure path) rolls the update back too.
-            await using var transaction = await context.Database.BeginTransactionAsync(cancelToken);
-
-            // Replace the fitted-component collection wholesale; the child FK is NoAction, so the old
-            // rows must be deleted explicitly rather than just unlinked.
-            context.UnitTemplateComponents.RemoveRange(existing.Components);
-            existing.Components = fitted;
-
-            await context.SaveChangesAsync(cancelToken);
-
-            ServiceResult<int> compiled = await mediator.Send(
-                new CompileUnitTemplateRequest(UnitTemplateId: existing.Id, CompiledOnTurn: 0), cancelToken);
-
-            if (!compiled.HasSucceeded)
-            {
-                logger.LogWarning("Compilation failed for {Request}. Errors: {Errors}",
-                    nameof(UpdateGlobalUnitTemplateRequest), string.Join("; ", compiled.Errors));
-                return new ServiceResult<GlobalUnitTemplateView> { StatusCode = compiled.StatusCode, Errors = compiled.Errors };
-            }
-
-            await transaction.CommitAsync(cancelToken);
-
-            logger.LogInformation("Updated global unit template '{Code}' (id {Id}).", existing.Code, existing.Id);
-
-            return ServiceResult<GlobalUnitTemplateView>.Succeed(ToView(existing, baseComponent));
+            logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(UpdateGlobalUnitTemplateRequest), string.Join("; ", codeErrors));
+            return ServiceResult<GlobalUnitTemplateView>.Fail(codeErrors);
         }
-        catch (Exception ex)
+
+        UnitTemplate? existing = await context.UnitTemplates
+            .Include(t => t.Components)
+            .FirstOrDefaultAsync(t => t.Id == request.Id, cancelToken);
+
+        // A player-owned custom template (PlayerId set) is not a global template — treat it as not found here.
+        if (existing is null || existing.PlayerId != null)
         {
-            const string error = "An exception occurred while processing " + nameof(UpdateGlobalUnitTemplateHandler) + ".";
-            logger.LogError(ex, error);
-            return ServiceResult<GlobalUnitTemplateView>.InternalServerError(ex, error);
+            return ServiceResult<GlobalUnitTemplateView>.NotFound($"No global template exists with id {request.Id}.");
         }
+
+        if (existing.Code != dto.Code)
+        {
+            bool codeTaken = await context.UnitTemplates.AnyAsync(t => t.Code == dto.Code && t.Id != request.Id, cancelToken);
+
+            if (codeTaken)
+            {
+                return ServiceResult<GlobalUnitTemplateView>.Conflict($"A template with code '{dto.Code}' already exists.");
+            }
+        }
+
+        ServiceResult<UnitTemplateAssembly.ResolvedAssembly> resolved = await UnitTemplateAssembly.ResolveAsync(
+            context, playerId: null, dto.DisplayName, dto.MapImagePath, dto.BaseCode, dto.SlotComponentCodes, cancelToken);
+
+        if (!resolved.HasSucceeded)
+        {
+            logger.LogWarning("Validation failed for {Request}. Errors: {Errors}",
+                nameof(UpdateGlobalUnitTemplateRequest), string.Join("; ", resolved.Errors));
+            return new ServiceResult<GlobalUnitTemplateView> { StatusCode = resolved.StatusCode, Errors = resolved.Errors };
+        }
+
+        (UnitComponent baseComponent, List<UnitTemplateComponent> fitted) = resolved.SuccessValue!;
+
+        existing.Code = dto.Code;
+        existing.DisplayName = dto.DisplayName;
+        existing.Description = dto.Description;
+        existing.MapImagePath = dto.MapImagePath;
+        existing.BodyComponentId = baseComponent.Id;
+
+        // Update + recompile atomically: the snapshot is the template's read model, so it must never lag the
+        // template it summarizes. CompileUnitTemplateHandler shares this request scope's context, so one
+        // transaction covers both saves; disposing without Commit (any failure path) rolls the update back too.
+        await using var transaction = await context.Database.BeginTransactionAsync(cancelToken);
+
+        // Replace the fitted-component collection wholesale; the child FK is NoAction, so the old
+        // rows must be deleted explicitly rather than just unlinked.
+        context.UnitTemplateComponents.RemoveRange(existing.Components);
+        existing.Components = fitted;
+
+        await context.SaveChangesAsync(cancelToken);
+
+        ServiceResult<int> compiled = await mediator.Send(
+            new CompileUnitTemplateRequest(UnitTemplateId: existing.Id, CompiledOnTurn: 0), cancelToken);
+
+        if (!compiled.HasSucceeded)
+        {
+            logger.LogWarning("Compilation failed for {Request}. Errors: {Errors}",
+                nameof(UpdateGlobalUnitTemplateRequest), string.Join("; ", compiled.Errors));
+            return new ServiceResult<GlobalUnitTemplateView> { StatusCode = compiled.StatusCode, Errors = compiled.Errors };
+        }
+
+        await transaction.CommitAsync(cancelToken);
+
+        logger.LogInformation("Updated global unit template '{Code}' (id {Id}).", existing.Code, existing.Id);
+
+        return ServiceResult<GlobalUnitTemplateView>.Succeed(ToView(existing, baseComponent));
     }
 
     private static List<string> ValidateCode(string code)

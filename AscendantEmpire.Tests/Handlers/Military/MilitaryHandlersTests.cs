@@ -120,7 +120,7 @@ internal class MilitaryHandlersTests : InMemoryTestBase
     {
         await SeedGameAndPlayerAsync();
 
-        var handler = new GetOfficerRanksHandler(new NullLogger<GetOfficerRanksHandler>(), DbFactory);
+        var handler = new GetOfficerRanksHandler(DbFactory);
         ServiceResult<GetOfficerRanksResult> result = await handler.Handle(new GetOfficerRanksRequest(_playerId), CancellationToken.None);
 
         int expected = MilitaryOrganisationDefaults.SeededDomains.Count * Domain.Entities.Military.PlayerOfficerRank.MAX_LEVEL;
@@ -152,7 +152,7 @@ internal class MilitaryHandlersTests : InMemoryTestBase
             Assert.That(saveResult.StatusCode, Is.EqualTo(ServiceResultStatus.SuccessNoContent));
         }
 
-        var getHandler = new GetOfficerRanksHandler(new NullLogger<GetOfficerRanksHandler>(), DbFactory);
+        var getHandler = new GetOfficerRanksHandler(DbFactory);
         ServiceResult<GetOfficerRanksResult> getResult = await getHandler.Handle(new GetOfficerRanksRequest(_playerId), CancellationToken.None);
 
         OfficerRankView? landLevel1 = getResult.SuccessValue!.Ranks.SingleOrDefault(r => r.MovementDomain == DomainType.Land && r.Level == 1);
@@ -192,7 +192,7 @@ internal class MilitaryHandlersTests : InMemoryTestBase
         await SeedTagAsync("infantry", "Infantry", TagType.MilitaryOrganisationalGroup);
         await SeedTagAsync("stealth", "Stealth", TagType.Combat);
 
-        var handler = new GetOrganisationTagsHandler(new NullLogger<GetOrganisationTagsHandler>(), DbFactory);
+        var handler = new GetOrganisationTagsHandler(DbFactory);
         ServiceResult<GetOrganisationTagsResult> result = await handler.Handle(new GetOrganisationTagsRequest(), CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
@@ -209,7 +209,7 @@ internal class MilitaryHandlersTests : InMemoryTestBase
         await SeedGameAndPlayerAsync();
         int tagId = await SeedTagAsync("infantry", "Infantry", TagType.MilitaryOrganisationalGroup);
 
-        var handler = new GetOrganisationStructureHandler(new NullLogger<GetOrganisationStructureHandler>(), DbFactory);
+        var handler = new GetOrganisationStructureHandler(DbFactory);
         ServiceResult<OrganisationStructureView> result = await handler.Handle(new GetOrganisationStructureRequest(_playerId, tagId), CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
@@ -226,7 +226,7 @@ internal class MilitaryHandlersTests : InMemoryTestBase
         await SeedGameAndPlayerAsync();
         int tagId = await SeedTagAsync("stealth", "Stealth", TagType.Combat);
 
-        var handler = new GetOrganisationStructureHandler(new NullLogger<GetOrganisationStructureHandler>(), DbFactory);
+        var handler = new GetOrganisationStructureHandler(DbFactory);
         ServiceResult<OrganisationStructureView> result = await handler.Handle(new GetOrganisationStructureRequest(_playerId, tagId), CancellationToken.None);
 
         Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.NotFound));
@@ -261,7 +261,7 @@ internal class MilitaryHandlersTests : InMemoryTestBase
             new() { TierIndex = 2, Name = "Squadron", Multiplier = 3 },
         ]);
 
-        var getHandler = new GetOrganisationStructureHandler(new NullLogger<GetOrganisationStructureHandler>(), DbFactory);
+        var getHandler = new GetOrganisationStructureHandler(DbFactory);
         ServiceResult<OrganisationStructureView> result = await getHandler.Handle(new GetOrganisationStructureRequest(_playerId, tagId), CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
@@ -303,7 +303,7 @@ internal class MilitaryHandlersTests : InMemoryTestBase
         int tagId = await SeedOrgTagWithDomainAsync("fighter_wing", "Fighter Wing", DomainType.Air);
         await SeedPlayerRanksAsync(DomainType.Air, 3); // 3 in-use ranks → cap 2.
 
-        var handler = new GetOrganisationStructureHandler(new NullLogger<GetOrganisationStructureHandler>(), DbFactory);
+        var handler = new GetOrganisationStructureHandler(DbFactory);
         ServiceResult<OrganisationStructureView> result = await handler.Handle(new GetOrganisationStructureRequest(_playerId, tagId), CancellationToken.None);
 
         using (Assert.EnterMultipleScope())

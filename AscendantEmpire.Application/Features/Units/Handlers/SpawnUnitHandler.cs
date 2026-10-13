@@ -72,126 +72,117 @@ internal class SpawnUnitHandler(
 {
     public async Task<ServiceResultBase> Handle(SpawnUnitRequest request, CancellationToken cancelToken)
     {
-        try
+        // Validate the request object
+        var validator = new SpawnUnitRequestValidator();
+        if (validator.Validate(request) is not { IsValid: true })
         {
-            // Validate the request object
-            var validator = new SpawnUnitRequestValidator();
-            if (validator.Validate(request) is not { IsValid: true })
-            {
-                var errors = validator.Validate(request).Errors.Select(e => e.ErrorMessage);
-                string error = $"Validation failed for {nameof(SpawnUnitRequest)}.";
-                logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
-                return ServiceResultBase.Fail(errors.Prepend(error));
-            }
-
-            // Load the game info
-            ServiceResult<IReadOnlyCollection<GameContext>> gameInfoResult = await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancelToken);
-
-            if (gameInfoResult.HasSucceeded == false)
-            {
-                const string error = "Error getting game info while trying to Spawn a Unit.";
-                logger.LogWarning(error);
-                return ServiceResultBase.Fail(gameInfoResult.Errors.Prepend(error));
-            }
-
-            GameContext? gameInfo = gameInfoResult.SuccessValue!.SingleOrDefault();
-
-            if (gameInfo == null)
-            {
-                const string error = "Game not found while trying to Spawn a Unit.";
-                logger.LogWarning(error);
-                return ServiceResultBase.NotFound(error);
-            }
-
-            GameContextPlayer thisPlayer = gameInfo.Players.Single();
-
-            cancelToken.ThrowIfCancellationRequested();
-
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
-
-            // Resolve the coordinates to this game's actual tile row rather than calculating an id from them.
-            // Deriving it would usually agree, but nothing bounds the requested coordinates against the map size, and a coordinate past the edge still produces a perfectly valid id — one
-            // belonging to another game's block, which the foreign key would happily accept. Looking the tile up rejects the coordinate instead, and is what GameSetupService already does for start
-            // positions. UX_CampaignMap_Game_X_Y covers this lookup.
-            CampaignMap? targetTile = await context.CampaignMaps
-                .AsNoTracking()
-                .FirstOrDefaultAsync(cm => cm.GameId == gameInfo.GameId
-                        && cm.XCoord == request.XCoord
-                        && cm.YCoord == request.YCoord,
-                    cancelToken);
-
-            if (targetTile is null)
-            {
-                string error = $"Coordinate ({request.XCoord}, {request.YCoord}) is not on the campaign map for Game Id {gameInfo.GameId}.";
-                logger.LogWarning("{Error}", error);
-                return ServiceResultBase.NotFound(error);
-            }
-
-            // The Unit's stats are served from the template's compiled snapshot, so a template that has never
-            // been compiled cannot be fielded. The snapshot also carries the organisation tag resolved from the
-            // template's components, which decides whether the unled sizing rules apply.
-            CompiledUnitTemplate? compiledTemplate = await context.CompiledUnitTemplates
-                .AsNoTracking()
-                .Include(c => c.OrganisationTag)
-                .FirstOrDefaultAsync(c => c.UnitTemplateId == request.UnitTemplateId, cancelToken);
-
-            if (compiledTemplate is null)
-            {
-                string error = $"Unit template {request.UnitTemplateId} has no compiled snapshot — it does not exist or has never been compiled.";
-                logger.LogWarning("{Error}", error);
-                return ServiceResultBase.NotFound(error);
-            }
-
-            // Unled units (settlers, scouts, ...) must be a whole multiple of their tag's base quantum, capped
-            // at the tag's max. Commissioned templates pass through — their tier-size rules are enforced elsewhere.
-            List<string> sizeErrors = UnledSpawnRules.ValidateSize(compiledTemplate.OrganisationTag, request.InitialStrength);
-
-            if (sizeErrors.Count > 0)
-            {
-                logger.LogWarning("Unled size validation failed for {Request}. Errors: {Errors}", nameof(SpawnUnitRequest), string.Join("; ", sizeErrors));
-                return ServiceResultBase.Fail(sizeErrors);
-            }
-
-            int currentRoundNumber = await campaignTurnService.GetCurrentRoundNumberAsync(gameInfo.GameId, cancelToken);
-
-            var spawnedUnit = new UnitInstance
-            {
-                GameId = gameInfo.GameId,
-                PlayerId = thisPlayer.PlayerId,
-                CampaignMapTileId = targetTile.CampaignMapId,
-                UnitTemplateId = request.UnitTemplateId,
-                InitialStrength = request.InitialStrength,
-                HealthyCount = request.HealthyCount,
-                InjuredCount = request.InjuredCount,
-
-                // A Unit is fielded with a full turn's movement on both maps, taken from its template's compiled snapshot.
-                CampaignMovementRemaining = compiledTemplate.CampaignMovementPoints,
-                BattleMovementRemaining = compiledTemplate.BattlefieldMovementPoints,
-
-                CampaignMovementReplenishedOnRound = currentRoundNumber,
-            };
-
-            // Recorded against whichever Turn is open, whoever's it is: a Unit spawned mid-game appears in the intelligence feeds like any other Force coming into existence. A Game with no open
-            // Turn - set up but not yet started - gets no record, exactly as the starting armies do.
-            int? openPlayerTurnId = await campaignTurnService.GetOpenPlayerTurnIdAsync(context, gameInfo.GameId, cancelToken);
-
-            // The writer saves, rather than this handler: the Unit's Created row needs the id it only gets on insert, so the writer commits the two together.
-            ServiceResultBase createResult = await forceLifecycleWriter.CreateAsync(context, [spawnedUnit], openPlayerTurnId, cancelToken);
-
-            if (createResult.HasSucceeded == false)
-            {
-                const string error = "The Unit could not be spawned.";
-                logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", createResult.Errors));
-                return ServiceResultBase.Fail(createResult.Errors.Prepend(error));
-            }
-
-            return ServiceResultBase.Created();
+            var errors = validator.Validate(request).Errors.Select(e => e.ErrorMessage);
+            string error = $"Validation failed for {nameof(SpawnUnitRequest)}.";
+            logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
+            return ServiceResultBase.Fail(errors.Prepend(error));
         }
-        catch (Exception ex)
+
+        // Load the game info
+        ServiceResult<IReadOnlyCollection<GameContext>> gameInfoResult = await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancelToken);
+
+        if (gameInfoResult.HasSucceeded == false)
         {
-            const string error = "An exception occurred while processing " + nameof(SpawnUnitHandler) + ".";
-            logger.LogError(ex, error);
-            return ServiceResultBase.Fail(error);
+            const string error = "Error getting game info while trying to Spawn a Unit.";
+            logger.LogWarning(error);
+            return ServiceResultBase.Fail(gameInfoResult.Errors.Prepend(error));
         }
+
+        GameContext? gameInfo = gameInfoResult.SuccessValue!.SingleOrDefault();
+
+        if (gameInfo == null)
+        {
+            const string error = "Game not found while trying to Spawn a Unit.";
+            logger.LogWarning(error);
+            return ServiceResultBase.NotFound(error);
+        }
+
+        GameContextPlayer thisPlayer = gameInfo.Players.Single();
+
+        cancelToken.ThrowIfCancellationRequested();
+
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+
+        // Resolve the coordinates to this game's actual tile row rather than calculating an id from them.
+        // Deriving it would usually agree, but nothing bounds the requested coordinates against the map size, and a coordinate past the edge still produces a perfectly valid id — one
+        // belonging to another game's block, which the foreign key would happily accept. Looking the tile up rejects the coordinate instead, and is what GameSetupService already does for start
+        // positions. UX_CampaignMap_Game_X_Y covers this lookup.
+        CampaignMap? targetTile = await context.CampaignMaps
+            .AsNoTracking()
+            .FirstOrDefaultAsync(cm => cm.GameId == gameInfo.GameId
+                    && cm.XCoord == request.XCoord
+                    && cm.YCoord == request.YCoord,
+                cancelToken);
+
+        if (targetTile is null)
+        {
+            string error = $"Coordinate ({request.XCoord}, {request.YCoord}) is not on the campaign map for Game Id {gameInfo.GameId}.";
+            logger.LogWarning("{Error}", error);
+            return ServiceResultBase.NotFound(error);
+        }
+
+        // The Unit's stats are served from the template's compiled snapshot, so a template that has never
+        // been compiled cannot be fielded. The snapshot also carries the organisation tag resolved from the
+        // template's components, which decides whether the unled sizing rules apply.
+        CompiledUnitTemplate? compiledTemplate = await context.CompiledUnitTemplates
+            .AsNoTracking()
+            .Include(c => c.OrganisationTag)
+            .FirstOrDefaultAsync(c => c.UnitTemplateId == request.UnitTemplateId, cancelToken);
+
+        if (compiledTemplate is null)
+        {
+            string error = $"Unit template {request.UnitTemplateId} has no compiled snapshot — it does not exist or has never been compiled.";
+            logger.LogWarning("{Error}", error);
+            return ServiceResultBase.NotFound(error);
+        }
+
+        // Unled units (settlers, scouts, ...) must be a whole multiple of their tag's base quantum, capped
+        // at the tag's max. Commissioned templates pass through — their tier-size rules are enforced elsewhere.
+        List<string> sizeErrors = UnledSpawnRules.ValidateSize(compiledTemplate.OrganisationTag, request.InitialStrength);
+
+        if (sizeErrors.Count > 0)
+        {
+            logger.LogWarning("Unled size validation failed for {Request}. Errors: {Errors}", nameof(SpawnUnitRequest), string.Join("; ", sizeErrors));
+            return ServiceResultBase.Fail(sizeErrors);
+        }
+
+        int currentRoundNumber = await campaignTurnService.GetCurrentRoundNumberAsync(gameInfo.GameId, cancelToken);
+
+        var spawnedUnit = new UnitInstance
+        {
+            GameId = gameInfo.GameId,
+            PlayerId = thisPlayer.PlayerId,
+            CampaignMapTileId = targetTile.CampaignMapId,
+            UnitTemplateId = request.UnitTemplateId,
+            InitialStrength = request.InitialStrength,
+            HealthyCount = request.HealthyCount,
+            InjuredCount = request.InjuredCount,
+
+            // A Unit is fielded with a full turn's movement on both maps, taken from its template's compiled snapshot.
+            CampaignMovementRemaining = compiledTemplate.CampaignMovementPoints,
+            BattleMovementRemaining = compiledTemplate.BattlefieldMovementPoints,
+
+            CampaignMovementReplenishedOnRound = currentRoundNumber,
+        };
+
+        // Recorded against whichever Turn is open, whoever's it is: a Unit spawned mid-game appears in the intelligence feeds like any other Force coming into existence. A Game with no open
+        // Turn - set up but not yet started - gets no record, exactly as the starting armies do.
+        int? openPlayerTurnId = await campaignTurnService.GetOpenPlayerTurnIdAsync(context, gameInfo.GameId, cancelToken);
+
+        // The writer saves, rather than this handler: the Unit's Created row needs the id it only gets on insert, so the writer commits the two together.
+        ServiceResultBase createResult = await forceLifecycleWriter.CreateAsync(context, [spawnedUnit], openPlayerTurnId, cancelToken);
+
+        if (createResult.HasSucceeded == false)
+        {
+            const string error = "The Unit could not be spawned.";
+            logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", createResult.Errors));
+            return ServiceResultBase.Fail(createResult.Errors.Prepend(error));
+        }
+
+        return ServiceResultBase.Created();
     }
 }

@@ -18,6 +18,7 @@ is settled, some of it is still a working sketch with open questions called out 
 | [starting-requirements.md](starting-requirements.md) | The catalogue content a database needs before a game can be created: the settler and scout tags, components and templates. |
 | [turn-structure.md](turn-structure.md) | The parallel "turn-based" model, rosters, and how battle rounds interleave with campaign turns. |
 | [production-and-assets.md](production-and-assets.md) | Assets, Material Classes, Material Preferences, luxury goods, and where Assets come from. |
+| [assets-data-model.md](assets-data-model.md) | The schema behind the Asset catalogue: the four global tables, the two hierarchy paths, what a Player has unlocked, and how it all reaches the toolbar. |
 | [units/military-organisation.md](units/military-organisation.md) | Ranks and organisation hierarchies, the officer economy, and how Units and Commands are sized and led. Supersedes the former `units-and-formations.md`. |
 | [units/military-organisation-implementation-notes.md](units/military-organisation-implementation-notes.md) | The implementation notes and outstanding gaps behind the organisation model. |
 | [units/unit-support-and-supply.md](units/unit-support-and-supply.md) | Supply chains and the four support types: fuel, ammunition, food, and medical. |
@@ -57,7 +58,7 @@ A few terms recur throughout these documents:
 
 - **Empire** — a player (human or AI).
 - **Asset** — anything collectable or manufacturable in the game, excluding Units. The catalogue is
-  described in [assets-data-model.md](../assets-data-model.md).
+  described in [assets-data-model.md](assets-data-model.md).
 - **Asset Bank** — where an empire's Assets are held, and what a cost is paid out of.
 - **MapResource** — the extractable thing standing on a campaign tile (a berry patch, a herd of deer,
   a coal seam). Extracting one *yields* Assets; the two are never the same word.

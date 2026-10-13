@@ -38,45 +38,34 @@ internal class SetUserInactiveHandler(
 {
     public async Task<ServiceResultBase> Handle(SetUserInactiveRequest request, CancellationToken cancelToken)
     {
-        try
+        var validator = new SetUserInactiveRequestValidator();
+        var validationResult = validator.Validate(request);
+
+        if (validationResult.IsValid == false)
         {
-            var validator = new SetUserInactiveRequestValidator();
-            var validationResult = validator.Validate(request);
+            IEnumerable<string> errors = validationResult.Errors.Select(e => e.ErrorMessage);
+            const string error = "Validation failed for SetUserInactiveRequest.";
 
-            if (validationResult.IsValid == false)
-            {
-                IEnumerable<string> errors = validationResult.Errors.Select(e => e.ErrorMessage);
-                const string error = "Validation failed for SetUserInactiveRequest.";
+            logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
 
-                logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
-
-                return ServiceResultBase.Fail(errors.Prepend(error));
-            }
-
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
-
-            User? user = await context.Users.FirstOrDefaultAsync(u => u.Id == request.UserId, cancelToken);
-            if (user is null)
-            {
-                return ServiceResultBase.NotFound($"User {request.UserId} was not found.");
-            }
-
-            user.InactiveReasonType = request.InactiveReasonType;
-            user.InactiveAt = request.InactiveReasonType == InactiveReasonType.Active
-                ? null
-                : DateTimeOffset.UtcNow;
-
-            await context.SaveChangesAsync(cancelToken);
-
-            return ServiceResultBase.SuccessNoContent();
+            return ServiceResultBase.Fail(errors.Prepend(error));
         }
-        catch (Exception ex)
+
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+
+        User? user = await context.Users.FirstOrDefaultAsync(u => u.Id == request.UserId, cancelToken);
+        if (user is null)
         {
-            const string error = "Unhandled exception setting auth user inactivity.";
-
-            logger.LogError(ex, error);
-
-            return ServiceResultBase.Fail([error, ex.Message]);
+            return ServiceResultBase.NotFound($"User {request.UserId} was not found.");
         }
+
+        user.InactiveReasonType = request.InactiveReasonType;
+        user.InactiveAt = request.InactiveReasonType == InactiveReasonType.Active
+            ? null
+            : DateTimeOffset.UtcNow;
+
+        await context.SaveChangesAsync(cancelToken);
+
+        return ServiceResultBase.SuccessNoContent();
     }
 }

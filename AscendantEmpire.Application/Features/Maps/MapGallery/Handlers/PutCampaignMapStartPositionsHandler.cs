@@ -3,7 +3,6 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Classes;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
@@ -21,7 +20,6 @@ public record PutCampaignMapStartPositionsRequest(
     : IRequest<ServiceResult<IReadOnlyCollection<DTCampaignMapStartPosition>>>;
 
 internal class PutCampaignMapStartPositionsHandler(
-    ILogger<PutCampaignMapStartPositionsHandler> logger,
     AscendantEmpireContext context)
     : IRequestHandler<PutCampaignMapStartPositionsRequest, ServiceResult<IReadOnlyCollection<DTCampaignMapStartPosition>>>
 {
@@ -31,62 +29,53 @@ internal class PutCampaignMapStartPositionsHandler(
         PutCampaignMapStartPositionsRequest request,
         CancellationToken cancellationToken)
     {
-        try
+        ServiceResult<LoadedStartPositionContext> validationResult = await ValidateAsync(request, cancellationToken);
+        if (!validationResult.HasSucceeded || validationResult.SuccessValue is null)
         {
-            ServiceResult<LoadedStartPositionContext> validationResult = await ValidateAsync(request, cancellationToken);
-            if (!validationResult.HasSucceeded || validationResult.SuccessValue is null)
+            return ServiceResult<IReadOnlyCollection<DTCampaignMapStartPosition>>.Fail(validationResult.Errors);
+        }
+
+        LoadedStartPositionContext loaded = validationResult.SuccessValue;
+
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+
+        // Replace-all semantics keep the endpoint simple for the small authored collection size.
+        await context.CampaignMapStartPositions
+            .Where(x => x.CampaignMapGalleryIndexId == request.CampaignMapGalleryIndexId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        List<Domain.Entities.Maps.CampaignMaps.CampaignMapStartPosition> entitiesToInsert = [.. request.StartPositions.Select(item => new Domain.Entities.Maps.CampaignMaps.CampaignMapStartPosition
+        {
+            CampaignMapGalleryIndexId = request.CampaignMapGalleryIndexId,
+            XCoord = item.XCoord,
+            YCoord = item.YCoord,
+            DisplayName = string.IsNullOrWhiteSpace(item.DisplayName) ? null : item.DisplayName.Trim(),
+            LocationScore = item.LocationScore
+        })];
+
+        if (entitiesToInsert.Count > 0)
+        {
+            context.CampaignMapStartPositions.AddRange(entitiesToInsert);
+            await context.SaveChangesAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+
+        List<DTCampaignMapStartPosition> response = [.. entitiesToInsert
+            .OrderBy(x => x.YCoord)
+            .ThenBy(x => x.XCoord)
+            .ThenBy(x => x.Id)
+            .Select(x => new DTCampaignMapStartPosition
             {
-                return ServiceResult<IReadOnlyCollection<DTCampaignMapStartPosition>>.Fail(validationResult.Errors);
-            }
-
-            LoadedStartPositionContext loaded = validationResult.SuccessValue;
-
-            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-
-            // Replace-all semantics keep the endpoint simple for the small authored collection size.
-            await context.CampaignMapStartPositions
-                .Where(x => x.CampaignMapGalleryIndexId == request.CampaignMapGalleryIndexId)
-                .ExecuteDeleteAsync(cancellationToken);
-
-            List<Domain.Entities.Maps.CampaignMaps.CampaignMapStartPosition> entitiesToInsert = [.. request.StartPositions.Select(item => new Domain.Entities.Maps.CampaignMaps.CampaignMapStartPosition
-            {
-                CampaignMapGalleryIndexId = request.CampaignMapGalleryIndexId,
-                XCoord = item.XCoord,
-                YCoord = item.YCoord,
-                DisplayName = string.IsNullOrWhiteSpace(item.DisplayName) ? null : item.DisplayName.Trim(),
-                LocationScore = item.LocationScore
+                Id = x.Id,
+                CampaignMapGalleryIndexId = x.CampaignMapGalleryIndexId,
+                XCoord = x.XCoord,
+                YCoord = x.YCoord,
+                DisplayName = x.DisplayName,
+                LocationScore = x.LocationScore
             })];
 
-            if (entitiesToInsert.Count > 0)
-            {
-                context.CampaignMapStartPositions.AddRange(entitiesToInsert);
-                await context.SaveChangesAsync(cancellationToken);
-            }
-
-            await transaction.CommitAsync(cancellationToken);
-
-            List<DTCampaignMapStartPosition> response = [.. entitiesToInsert
-                .OrderBy(x => x.YCoord)
-                .ThenBy(x => x.XCoord)
-                .ThenBy(x => x.Id)
-                .Select(x => new DTCampaignMapStartPosition
-                {
-                    Id = x.Id,
-                    CampaignMapGalleryIndexId = x.CampaignMapGalleryIndexId,
-                    XCoord = x.XCoord,
-                    YCoord = x.YCoord,
-                    DisplayName = x.DisplayName,
-                    LocationScore = x.LocationScore
-                })];
-
-            return ServiceResult<IReadOnlyCollection<DTCampaignMapStartPosition>>.Succeed(response);
-        }
-        catch (Exception ex)
-        {
-            const string error = "An error occurred while updating Campaign Map start positions.";
-            logger.LogError(ex, error + " MapId: {MapId}", request.CampaignMapGalleryIndexId);
-            return ServiceResult<IReadOnlyCollection<DTCampaignMapStartPosition>>.InternalServerError(error);
-        }
+        return ServiceResult<IReadOnlyCollection<DTCampaignMapStartPosition>>.Succeed(response);
     }
 
     private async Task<ServiceResult<LoadedStartPositionContext>> ValidateAsync(

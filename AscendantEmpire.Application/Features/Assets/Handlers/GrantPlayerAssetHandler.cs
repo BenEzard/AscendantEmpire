@@ -46,50 +46,42 @@ internal class GrantPlayerAssetHandler(
 {
     public async Task<ServiceResultBase> Handle(GrantPlayerAssetRequest request, CancellationToken cancellationToken)
     {
-        try
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancellationToken);
+
+        ServiceResult<PlayerAssetUnlockTargets> targets = await PlayerAssetUnlockLookup.ResolveAsync(
+            context,
+            request.AssetCodes,
+            request.MetaCategoryCodes,
+            cancellationToken);
+
+        if (targets.HasSucceeded == false)
         {
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancellationToken);
-
-            ServiceResult<PlayerAssetUnlockTargets> targets = await PlayerAssetUnlockLookup.ResolveAsync(
-                context,
-                request.AssetCodes,
-                request.MetaCategoryCodes,
-                cancellationToken);
-
-            if (targets.HasSucceeded == false)
-            {
-                return targets;
-            }
-
-            ServiceResult<int> currentRound = await PlayerAssetUnlockLookup.ReadCurrentRoundAsync(context, request.GameId, cancellationToken);
-
-            if (currentRound.HasSucceeded == false)
-            {
-                return currentRound;
-            }
-
-            int round = currentRound.SuccessValue;
-            int? obsoleteOnRound = request.ObsoleteInRounds is null ? null : round + request.ObsoleteInRounds;
-
-            await GrantAssetsAsync(context, request.PlayerId, targets.SuccessValue!.AssetIds, round, obsoleteOnRound, cancellationToken);
-            await GrantMetaCategoriesAsync(context, request.PlayerId, targets.SuccessValue.MetaCategoryIds, round, obsoleteOnRound, cancellationToken);
-
-            await context.SaveChangesAsync(cancellationToken);
-
-            logger.LogInformation(
-                "Granted {AssetCount} asset and {MetaCount} meta-category unlock(s) to player {PlayerId} on round {Round}.",
-                targets.SuccessValue.AssetIds.Length,
-                targets.SuccessValue.MetaCategoryIds.Length,
-                request.PlayerId,
-                round);
-
-            return SuccessNoContent();
+            return targets;
         }
-        catch (Exception ex)
+
+        ServiceResult<int> currentRound = await PlayerAssetUnlockLookup.ReadCurrentRoundAsync(context, request.GameId, cancellationToken);
+
+        if (currentRound.HasSucceeded == false)
         {
-            logger.LogError(ex, "Unexpected error in {Handler}.", nameof(GrantPlayerAssetHandler));
-            return InternalServerError(ex.Message);
+            return currentRound;
         }
+
+        int round = currentRound.SuccessValue;
+        int? obsoleteOnRound = request.ObsoleteInRounds is null ? null : round + request.ObsoleteInRounds;
+
+        await GrantAssetsAsync(context, request.PlayerId, targets.SuccessValue!.AssetIds, round, obsoleteOnRound, cancellationToken);
+        await GrantMetaCategoriesAsync(context, request.PlayerId, targets.SuccessValue.MetaCategoryIds, round, obsoleteOnRound, cancellationToken);
+
+        await context.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Granted {AssetCount} asset and {MetaCount} meta-category unlock(s) to player {PlayerId} on round {Round}.",
+            targets.SuccessValue.AssetIds.Length,
+            targets.SuccessValue.MetaCategoryIds.Length,
+            request.PlayerId,
+            round);
+
+        return SuccessNoContent();
     }
 
     private static async Task GrantAssetsAsync(

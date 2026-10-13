@@ -23,71 +23,62 @@ internal class SaveOfficerRanksHandler(
 {
     public async Task<ServiceResultBase> Handle(SaveOfficerRanksRequest request, CancellationToken cancelToken)
     {
-        try
+        List<string> errors = Validate(request.Ranks);
+        if (errors.Count > 0)
         {
-            List<string> errors = Validate(request.Ranks);
-            if (errors.Count > 0)
-            {
-                logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(SaveOfficerRanksRequest), string.Join("; ", errors));
-                return ServiceResultBase.Fail(errors);
-            }
-
-            // The request is the complete desired state for the domains it includes. Upsert by the natural key
-            // (domain, level): update rows that already exist in place, insert new ones, and delete any the
-            // request no longer includes. Unchanged rows keep their ids (no churn).
-            List<DomainType> requestDomains = [.. request.Ranks.Select(r => r.MovementDomain).Distinct()];
-
-            List<PlayerOfficerRank> existing = await context.PlayerOfficerRanks
-                .Where(r => r.PlayerId == request.PlayerId)
-                .Where(r => requestDomains.Contains(r.MovementDomain))
-                .ToListAsync(cancelToken);
-
-            Dictionary<(DomainType Domain, int Level), PlayerOfficerRank> existingByKey =
-                existing.ToDictionary(r => (r.MovementDomain, r.Level));
-
-            HashSet<(DomainType Domain, int Level)> requestKeys = [.. request.Ranks.Select(r => (r.MovementDomain, r.Level))];
-
-            foreach (SaveOfficerRankDto dto in request.Ranks)
-            {
-                if (existingByKey.TryGetValue((dto.MovementDomain, dto.Level), out PlayerOfficerRank? row))
-                {
-                    // Update in place — the row keeps its id.
-                    row.Title = dto.Title;
-                    row.MaxSoldiers = dto.MaxSoldiers;
-                    row.MaxAttachedSpecialists = dto.MaxAttachedSpecialists;
-                    row.InUse = dto.InUse;
-                }
-                else
-                {
-                    context.PlayerOfficerRanks.Add(new PlayerOfficerRank
-                    {
-                        PlayerId = request.PlayerId,
-                        MovementDomain = dto.MovementDomain,
-                        Level = dto.Level,
-                        Title = dto.Title,
-                        MaxSoldiers = dto.MaxSoldiers,
-                        MaxAttachedSpecialists = dto.MaxAttachedSpecialists,
-                        InUse = dto.InUse,
-                    });
-                }
-            }
-
-            // Delete any existing rows in the request's domains that the request no longer includes.
-            List<PlayerOfficerRank> toRemove = [.. existing.Where(r => !requestKeys.Contains((r.MovementDomain, r.Level)))];
-            context.PlayerOfficerRanks.RemoveRange(toRemove);
-
-            await context.SaveChangesAsync(cancelToken);
-
-            logger.LogInformation("Saved {Count} officer rank row(s) for player {PlayerId}.", request.Ranks.Count, request.PlayerId);
-
-            return ServiceResultBase.SuccessNoContent();
+            logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(SaveOfficerRanksRequest), string.Join("; ", errors));
+            return ServiceResultBase.Fail(errors);
         }
-        catch (Exception ex)
+
+        // The request is the complete desired state for the domains it includes. Upsert by the natural key
+        // (domain, level): update rows that already exist in place, insert new ones, and delete any the
+        // request no longer includes. Unchanged rows keep their ids (no churn).
+        List<DomainType> requestDomains = [.. request.Ranks.Select(r => r.MovementDomain).Distinct()];
+
+        List<PlayerOfficerRank> existing = await context.PlayerOfficerRanks
+            .Where(r => r.PlayerId == request.PlayerId)
+            .Where(r => requestDomains.Contains(r.MovementDomain))
+            .ToListAsync(cancelToken);
+
+        Dictionary<(DomainType Domain, int Level), PlayerOfficerRank> existingByKey =
+            existing.ToDictionary(r => (r.MovementDomain, r.Level));
+
+        HashSet<(DomainType Domain, int Level)> requestKeys = [.. request.Ranks.Select(r => (r.MovementDomain, r.Level))];
+
+        foreach (SaveOfficerRankDto dto in request.Ranks)
         {
-            const string error = "An exception occurred while processing " + nameof(SaveOfficerRanksHandler) + ".";
-            logger.LogError(ex, error);
-            return ServiceResultBase.InternalServerError(error);
+            if (existingByKey.TryGetValue((dto.MovementDomain, dto.Level), out PlayerOfficerRank? row))
+            {
+                // Update in place — the row keeps its id.
+                row.Title = dto.Title;
+                row.MaxSoldiers = dto.MaxSoldiers;
+                row.MaxAttachedSpecialists = dto.MaxAttachedSpecialists;
+                row.InUse = dto.InUse;
+            }
+            else
+            {
+                context.PlayerOfficerRanks.Add(new PlayerOfficerRank
+                {
+                    PlayerId = request.PlayerId,
+                    MovementDomain = dto.MovementDomain,
+                    Level = dto.Level,
+                    Title = dto.Title,
+                    MaxSoldiers = dto.MaxSoldiers,
+                    MaxAttachedSpecialists = dto.MaxAttachedSpecialists,
+                    InUse = dto.InUse,
+                });
+            }
         }
+
+        // Delete any existing rows in the request's domains that the request no longer includes.
+        List<PlayerOfficerRank> toRemove = [.. existing.Where(r => !requestKeys.Contains((r.MovementDomain, r.Level)))];
+        context.PlayerOfficerRanks.RemoveRange(toRemove);
+
+        await context.SaveChangesAsync(cancelToken);
+
+        logger.LogInformation("Saved {Count} officer rank row(s) for player {PlayerId}.", request.Ranks.Count, request.PlayerId);
+
+        return ServiceResultBase.SuccessNoContent();
     }
 
     /// <summary>

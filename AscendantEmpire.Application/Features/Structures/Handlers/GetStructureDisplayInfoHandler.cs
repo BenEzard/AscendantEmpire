@@ -4,7 +4,6 @@ using AscendantEmpire.BackendContracts.Structures.GetStructureDisplayInfo;
 using AscendantEmpire.Domain.Entities.Structures;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
@@ -28,36 +27,26 @@ public record GetStructureDisplayInfoRequest() : IRequest<ServiceResult<IReadOnl
 /// </para>
 /// </remarks>
 internal class GetStructureDisplayInfoHandler(
-    ILogger<GetStructureDisplayInfoHandler> logger,
     IDbContextFactory<AscendantEmpireContext> dbFactory
 ) : IRequestHandler<GetStructureDisplayInfoRequest, ServiceResult<IReadOnlyCollection<StructureDisplayInfo>>>
 {
     public async Task<ServiceResult<IReadOnlyCollection<StructureDisplayInfo>>> Handle(GetStructureDisplayInfoRequest request, CancellationToken cancelToken)
     {
-        try
-        {
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            // The context exposes no DbSet for the catalogue, so it is reached through Set<Structure>().
-            List<StructureDisplayInfo> structureDisplayInfo = await context.Set<Structure>()
-                .AsNoTracking()
-                .Where(structure => structure.CanBeBuiltOnCampaignMap)
-                .OrderBy(structure => structure.Id)
-                .Select(structure => new StructureDisplayInfo
-                {
-                    StructureId = structure.Id,
-                    Name = structure.Name,
-                    MapImagePath = structure.MapImagePath
-                })
-                .ToListAsync(cancelToken);
+        // The context exposes no DbSet for the catalogue, so it is reached through Set<Structure>().
+        List<StructureDisplayInfo> structureDisplayInfo = await context.Set<Structure>()
+            .AsNoTracking()
+            .Where(structure => structure.CanBeBuiltOnCampaignMap)
+            .OrderBy(structure => structure.Id)
+            .Select(structure => new StructureDisplayInfo
+            {
+                StructureId = structure.Id,
+                Name = structure.Name,
+                MapImagePath = structure.MapImagePath
+            })
+            .ToListAsync(cancelToken);
 
-            return ServiceResult<IReadOnlyCollection<StructureDisplayInfo>>.Succeed(structureDisplayInfo);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "An error occurred while handling {RequestName}.", nameof(GetStructureDisplayInfoRequest));
-
-            return ServiceResult<IReadOnlyCollection<StructureDisplayInfo>>.Fail("An unexpected error occurred while retrieving structure display information.");
-        }
+        return ServiceResult<IReadOnlyCollection<StructureDisplayInfo>>.Succeed(structureDisplayInfo);
     }
 }

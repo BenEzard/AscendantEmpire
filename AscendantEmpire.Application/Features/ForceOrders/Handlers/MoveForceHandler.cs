@@ -63,187 +63,172 @@ internal class MoveForceHandler(
 {
     public async Task<ServiceResult<MoveForceResult>> Handle(MoveForceRequest request, CancellationToken cancelToken)
     {
-        try
+        var validator = new MoveForceRequestValidator();
+        var validationResult = validator.Validate(request);
+        if (!validationResult.IsValid)
         {
-            var validator = new MoveForceRequestValidator();
-            var validationResult = validator.Validate(request);
-            if (!validationResult.IsValid)
-            {
-                IEnumerable<string> errors = validationResult.Errors.Select(e => e.ErrorMessage);
-                string error = $"Validation failed for {nameof(MoveForceRequest)}.";
-                logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
-                return ServiceResult<MoveForceResult>.Fail(errors.Prepend(error));
-            }
+            IEnumerable<string> errors = validationResult.Errors.Select(e => e.ErrorMessage);
+            string error = $"Validation failed for {nameof(MoveForceRequest)}.";
+            logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
+            return ServiceResult<MoveForceResult>.Fail(errors.Prepend(error));
+        }
 
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            UnitInstance? force = await context.UnitInstances
-                .Include(ti => ti.UnitTemplate.Compiled)
-                .FirstOrDefaultAsync(ti => ti.Id == request.UnitInstanceId && ti.GameId == request.GameId, cancelToken);
+        UnitInstance? force = await context.UnitInstances
+            .Include(ti => ti.UnitTemplate.Compiled)
+            .FirstOrDefaultAsync(ti => ti.Id == request.UnitInstanceId && ti.GameId == request.GameId, cancelToken);
 
-            ServiceResult<IReadOnlyCollection<GameContext>> gameInfoResult = await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancelToken);
+        ServiceResult<IReadOnlyCollection<GameContext>> gameInfoResult = await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancelToken);
 
-            if (gameInfoResult.HasSucceeded == false || gameInfoResult.SuccessValue is null || !gameInfoResult.SuccessValue.Any())
-            {
-                const string error = "Error getting game info while trying to move Forces";
-                logger.LogWarning(error);
-                return ServiceResult<MoveForceResult>.Fail(gameInfoResult.Errors.Prepend(error));
-            }
+        if (gameInfoResult.HasSucceeded == false || gameInfoResult.SuccessValue is null || !gameInfoResult.SuccessValue.Any())
+        {
+            const string error = "Error getting game info while trying to move Forces";
+            logger.LogWarning(error);
+            return ServiceResult<MoveForceResult>.Fail(gameInfoResult.Errors.Prepend(error));
+        }
 
-            GameContext gameInfo = gameInfoResult.SuccessValue!.Single();
+        GameContext gameInfo = gameInfoResult.SuccessValue!.Single();
 
-            // Resolve the destination to this game's actual tile row. This used to derive an id from the
-            // coordinates using the *player's* offset, which addresses the per-player map rather than the
-            // world map the Force is stored against, so it named a row in the wrong table's id space
-            // entirely. Looking the tile up also rejects a coordinate that is off the map, which nothing
-            // else checks: the validator only requires the coordinates to be non-negative.
-            CampaignMap? targetTile = await context.CampaignMaps
-                .AsNoTracking()
-                .FirstOrDefaultAsync(cm => cm.GameId == request.GameId
-                        && cm.XCoord == request.XCoord
-                        && cm.YCoord == request.YCoord,
-                    cancelToken);
-
-            if (targetTile is null)
-            {
-                string error = $"Coordinate ({request.XCoord}, {request.YCoord}) is not on the campaign map for Game Id {request.GameId}.";
-                logger.LogWarning("{Error}", error);
-                return ServiceResult<MoveForceResult>.NotFound(error);
-            }
-
-            int targetCampaignMapTileId = targetTile.CampaignMapId;
-
-            // TODO Check who's turn it is
-            ServiceResult<CurrentCampaignTurn> turnResult = await campaignTurnService.GetCurrentCampaignTurnAsync(request.GameId, cancelToken);
-
-            if (turnResult.HasSucceeded == false || turnResult.SuccessValue is null)
-            {
-                const string error = "Error getting turn info while trying to move Forces";
-                logger.LogWarning(error);
-                return ServiceResult<MoveForceResult>.Fail(turnResult.Errors.Prepend(error));
-            }
-
-            //List<RosterEntry> rosterEntriesForPlayer = [.. turnResult.SuccessValue.Where(re => re.CurrentTurnPlayerId == request.PlayerId)];
-
-
-            //ServiceResultBase secondaryValidationResult = ValidateObjects(request, Force, targetCampaignMapTileId, rosterEntriesForPlayer);
-            //if (!secondaryValidationResult.HasSucceeded || Force is null)
-            //{
-            //    logger.LogWarning("Secondary validation failed for {Request}. Errors: {Errors}", request, string.Join("; ", secondaryValidationResult.Errors));
-            //    return ServiceResult<MoveForceResult>.Fail(secondaryValidationResult.Errors);
-            //}
-
-            // TODO: Get active orders, and if there are any, cancel them.
-
-
-
-
-
-            /*            
-             *            bool hasActiveOrder = await context.ForceOrders
-                            .AnyAsync(to =>
-                                to.UnitInstanceId == request.UnitInstanceId 
-                                && (to.OrderStatus == ForceOrderStatus.Pending 
-                                    || to.OrderStatus == ForceOrderStatus.InProgress 
-                                    || to.OrderStatus == ForceOrderStatus.Paused),
-                                cancelToken);
-
-                        if (hasActiveOrder)
-                        {
-                            string error = $"Unit Instance Id {request.UnitInstanceId} already has an active order.";
-                            logger.LogWarning(error);
-                            return ServiceResult<MoveForceResult>.Fail(error);
-                        }*/
-
-            /*CampaignPathResult? pathResult = await pathFinder.FindPathAsync(
-                context,
-                request.GameId,
-                request.UnitInstanceId,
-                force.CampaignMapTileId,
-                targetCampaignMapTileId,
+        // Resolve the destination to this game's actual tile row. This used to derive an id from the
+        // coordinates using the *player's* offset, which addresses the per-player map rather than the
+        // world map the Force is stored against, so it named a row in the wrong table's id space
+        // entirely. Looking the tile up also rejects a coordinate that is off the map, which nothing
+        // else checks: the validator only requires the coordinates to be non-negative.
+        CampaignMap? targetTile = await context.CampaignMaps
+            .AsNoTracking()
+            .FirstOrDefaultAsync(cm => cm.GameId == request.GameId
+                    && cm.XCoord == request.XCoord
+                    && cm.YCoord == request.YCoord,
                 cancelToken);
 
-            if (pathResult is null || !pathResult.Steps.Any())
-            {
-                string error = $"No valid path could be found for Unit Instance Id {request.UnitInstanceId} to Campaign Map Tile Id {request.TargetCampaignMapTileId}.";
-                logger.LogWarning(error);
-                return ServiceResult<MoveForceResult>.Fail(error);
-            }
-
-            int currentTurnNumber = await context.TurnRosters
-                .Where(x => x.GameId == request.GameId)
-                .Select(x => (int?)x.CurrentTurnNumber)
-                .FirstOrDefaultAsync(cancelToken)
-                ?? 0;
-
-            var forceOrder = new ForceOrder
-            {
-                GameId = request.GameId,
-                UnitInstanceId = request.UnitInstanceId,
-                OrderType = ForceOrderType.Move,
-                OrderStatus = ForceOrderStatus.Pending,
-                TargetCampaignMapTileId = request.TargetCampaignMapTileId,
-                CurrentMovementStepIndex = 0,
-                WorkRequired = null,
-                WorkCompleted = 0,
-                CreatedTurnNumber = currentTurnNumber,
-                LastProcessedTurnNumber = null,
-                CompletedTurnNumber = null,
-                FailureReason = null,
-                CancellationReason = null
-            };
-
-            context.ForceOrders.Add(forceOrder);
-            await context.SaveChangesAsync(cancelToken);
-
-            List<ForceOrderMovementStep> movementSteps = pathResult.Steps
-                .Select((step, index) => new ForceOrderMovementStep
-                {
-                    ForceOrderId = forceOrder.Id,
-                    StepIndex = index,
-                    CampaignMapTileId = step.CampaignMapTileId,
-                    XCoord = step.XCoord,
-                    YCoord = step.YCoord,
-                    MovementCost = step.MovementCost,
-                    IsConsumed = false,
-                    ConsumedTurnNumber = null
-                })
-                .ToList();
-
-            context.ForceOrderMovementSteps.AddRange(movementSteps);
-            await context.SaveChangesAsync(cancelToken);
-
-            logger.LogInformation(
-                "Created move order {ForceOrderId} for Unit Instance Id {UnitInstanceId} in Game Id {GameId} to Campaign Map Tile Id {TargetCampaignMapTileId} with {PathStepCount} path steps.",
-                forceOrder.Id,
-                request.UnitInstanceId,
-                request.GameId,
-                request.TargetCampaignMapTileId,
-                movementSteps.Count);
-
-            var result = new MoveForceResult
-            {
-                ForceOrderId = forceOrder.Id,
-                UnitInstanceId = force.Id,
-                TargetCampaignMapTileId = request.TargetCampaignMapTileId,
-                PathStepCount = movementSteps.Count,
-                EstimatedTurns = pathResult.EstimatedTurns
-            };*/
-
-            return ServiceResult<MoveForceResult>.Succeed(null);
-        }
-        catch (Exception ex)
+        if (targetTile is null)
         {
-            const string error = "An exception occurred while trying to create a move order for Force.";
-            
-            logger.LogError(ex, error + " GameId: {request.GameId}, UnitInstanceId: {UnitInstanceId}, X: {X}, Y: {Y}.",
-                request.GameId,
-                request.UnitInstanceId,
-                request.XCoord,
-                request.YCoord);
+            string error = $"Coordinate ({request.XCoord}, {request.YCoord}) is not on the campaign map for Game Id {request.GameId}.";
+            logger.LogWarning("{Error}", error);
+            return ServiceResult<MoveForceResult>.NotFound(error);
+        }
 
+        int targetCampaignMapTileId = targetTile.CampaignMapId;
+
+        // TODO Check who's turn it is
+        ServiceResult<CurrentCampaignTurn> turnResult = await campaignTurnService.GetCurrentCampaignTurnAsync(request.GameId, cancelToken);
+
+        if (turnResult.HasSucceeded == false || turnResult.SuccessValue is null)
+        {
+            const string error = "Error getting turn info while trying to move Forces";
+            logger.LogWarning(error);
+            return ServiceResult<MoveForceResult>.Fail(turnResult.Errors.Prepend(error));
+        }
+
+        //List<RosterEntry> rosterEntriesForPlayer = [.. turnResult.SuccessValue.Where(re => re.CurrentTurnPlayerId == request.PlayerId)];
+
+
+        //ServiceResultBase secondaryValidationResult = ValidateObjects(request, Force, targetCampaignMapTileId, rosterEntriesForPlayer);
+        //if (!secondaryValidationResult.HasSucceeded || Force is null)
+        //{
+        //    logger.LogWarning("Secondary validation failed for {Request}. Errors: {Errors}", request, string.Join("; ", secondaryValidationResult.Errors));
+        //    return ServiceResult<MoveForceResult>.Fail(secondaryValidationResult.Errors);
+        //}
+
+        // TODO: Get active orders, and if there are any, cancel them.
+
+
+
+
+
+        /*            
+         *            bool hasActiveOrder = await context.ForceOrders
+                        .AnyAsync(to =>
+                            to.UnitInstanceId == request.UnitInstanceId 
+                            && (to.OrderStatus == ForceOrderStatus.Pending 
+                                || to.OrderStatus == ForceOrderStatus.InProgress 
+                                || to.OrderStatus == ForceOrderStatus.Paused),
+                            cancelToken);
+
+                    if (hasActiveOrder)
+                    {
+                        string error = $"Unit Instance Id {request.UnitInstanceId} already has an active order.";
+                        logger.LogWarning(error);
+                        return ServiceResult<MoveForceResult>.Fail(error);
+                    }*/
+
+        /*CampaignPathResult? pathResult = await pathFinder.FindPathAsync(
+            context,
+            request.GameId,
+            request.UnitInstanceId,
+            force.CampaignMapTileId,
+            targetCampaignMapTileId,
+            cancelToken);
+
+        if (pathResult is null || !pathResult.Steps.Any())
+        {
+            string error = $"No valid path could be found for Unit Instance Id {request.UnitInstanceId} to Campaign Map Tile Id {request.TargetCampaignMapTileId}.";
+            logger.LogWarning(error);
             return ServiceResult<MoveForceResult>.Fail(error);
         }
+
+        int currentTurnNumber = await context.TurnRosters
+            .Where(x => x.GameId == request.GameId)
+            .Select(x => (int?)x.CurrentTurnNumber)
+            .FirstOrDefaultAsync(cancelToken)
+            ?? 0;
+
+        var forceOrder = new ForceOrder
+        {
+            GameId = request.GameId,
+            UnitInstanceId = request.UnitInstanceId,
+            OrderType = ForceOrderType.Move,
+            OrderStatus = ForceOrderStatus.Pending,
+            TargetCampaignMapTileId = request.TargetCampaignMapTileId,
+            CurrentMovementStepIndex = 0,
+            WorkRequired = null,
+            WorkCompleted = 0,
+            CreatedTurnNumber = currentTurnNumber,
+            LastProcessedTurnNumber = null,
+            CompletedTurnNumber = null,
+            FailureReason = null,
+            CancellationReason = null
+        };
+
+        context.ForceOrders.Add(forceOrder);
+        await context.SaveChangesAsync(cancelToken);
+
+        List<ForceOrderMovementStep> movementSteps = pathResult.Steps
+            .Select((step, index) => new ForceOrderMovementStep
+            {
+                ForceOrderId = forceOrder.Id,
+                StepIndex = index,
+                CampaignMapTileId = step.CampaignMapTileId,
+                XCoord = step.XCoord,
+                YCoord = step.YCoord,
+                MovementCost = step.MovementCost,
+                IsConsumed = false,
+                ConsumedTurnNumber = null
+            })
+            .ToList();
+
+        context.ForceOrderMovementSteps.AddRange(movementSteps);
+        await context.SaveChangesAsync(cancelToken);
+
+        logger.LogInformation(
+            "Created move order {ForceOrderId} for Unit Instance Id {UnitInstanceId} in Game Id {GameId} to Campaign Map Tile Id {TargetCampaignMapTileId} with {PathStepCount} path steps.",
+            forceOrder.Id,
+            request.UnitInstanceId,
+            request.GameId,
+            request.TargetCampaignMapTileId,
+            movementSteps.Count);
+
+        var result = new MoveForceResult
+        {
+            ForceOrderId = forceOrder.Id,
+            UnitInstanceId = force.Id,
+            TargetCampaignMapTileId = request.TargetCampaignMapTileId,
+            PathStepCount = movementSteps.Count,
+            EstimatedTurns = pathResult.EstimatedTurns
+        };*/
+
+        return ServiceResult<MoveForceResult>.Succeed(null);
     }
 
     /// <summary>

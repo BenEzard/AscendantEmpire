@@ -104,39 +104,29 @@ internal class DevEndTurnAndSwitchPlayerHandler(
 
     public async Task<ServiceResult<DevSwitchedPlayer>> Handle(DevEndTurnAndSwitchPlayerRequest request, CancellationToken cancelToken)
     {
-        try
+        var validateRequest = new DevEndTurnAndSwitchPlayerRequestValidator();
+        ValidationResult validationResult = validateRequest.Validate(request);
+
+        if (validationResult.IsValid == false)
         {
-            var validateRequest = new DevEndTurnAndSwitchPlayerRequestValidator();
-            ValidationResult validationResult = validateRequest.Validate(request);
+            IEnumerable<string> errors = validationResult.Errors.Select(e => e.ErrorMessage);
+            string error = $"Validation failed for {nameof(DevEndTurnAndSwitchPlayerRequest)}.";
+            logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
 
-            if (validationResult.IsValid == false)
-            {
-                IEnumerable<string> errors = validationResult.Errors.Select(e => e.ErrorMessage);
-                string error = $"Validation failed for {nameof(DevEndTurnAndSwitchPlayerRequest)}.";
-                logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
-
-                return ServiceResult<DevSwitchedPlayer>.Fail(errors.Prepend(error));
-            }
-
-            // End the Turns. The ordinary end-turn request does all the real work — the pipelines, the Queue stamping, and starting whoever plays next —
-            // so this only decides how many times to ask for it, and on whose behalf.
-            ServiceResult<DevTurnCycleOutcome> cycleResult = await EndTurnsAsync(request, cancelToken);
-
-            if (cycleResult.HasSucceeded == false || cycleResult.SuccessValue is null)
-            {
-                return ServiceResult<DevSwitchedPlayer>.Fail(cycleResult.Errors);
-            }
-
-            // Then describe whoever is now up, in enough detail for the client to reopen the board as them.
-            return await DescribeCurrentPlayerAsync(request.GameId, cycleResult.SuccessValue, cancelToken);
+            return ServiceResult<DevSwitchedPlayer>.Fail(errors.Prepend(error));
         }
-        catch (Exception ex)
+
+        // End the Turns. The ordinary end-turn request does all the real work — the pipelines, the Queue stamping, and starting whoever plays next —
+        // so this only decides how many times to ask for it, and on whose behalf.
+        ServiceResult<DevTurnCycleOutcome> cycleResult = await EndTurnsAsync(request, cancelToken);
+
+        if (cycleResult.HasSucceeded == false || cycleResult.SuccessValue is null)
         {
-            string error = $"An error occurred while processing {nameof(DevEndTurnAndSwitchPlayerRequest)}.";
-            logger.LogError(ex, "{Error}", error);
-
-            return ServiceResult<DevSwitchedPlayer>.InternalServerError(error);
+            return ServiceResult<DevSwitchedPlayer>.Fail(cycleResult.Errors);
         }
+
+        // Then describe whoever is now up, in enough detail for the client to reopen the board as them.
+        return await DescribeCurrentPlayerAsync(request.GameId, cycleResult.SuccessValue, cancelToken);
     }
 
     /// <summary>

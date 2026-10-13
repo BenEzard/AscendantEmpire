@@ -25,7 +25,7 @@ internal class DeleteCampaignBiomesHandlerTests
         await _context.Database.EnsureDeletedAsync();
         await _context.Database.EnsureCreatedAsync();
 
-        _deleteHandler = new DeleteCampaignMapBiomeHandler(new NullLogger<DeleteCampaignMapBiomeHandler>(), _context);
+        _deleteHandler = new DeleteCampaignMapBiomeHandler(_context);
     }
 
     [TearDown]

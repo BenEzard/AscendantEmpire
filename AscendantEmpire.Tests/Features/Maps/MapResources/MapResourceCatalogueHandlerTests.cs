@@ -272,7 +272,7 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
     [Test, Description("Every Asset is listed with its meta category, in catalogue order, because the pickers render the list as it arrives.")]
     public async Task ShouldListEveryAssetAsync()
     {
-        var handler = new GetAssetsHandler(new NullLogger<GetAssetsHandler>(), DbFactory);
+        var handler = new GetAssetsHandler(DbFactory);
 
         ServiceResult<IReadOnlyCollection<AssetSummary>> result = await handler.Handle(new GetAssetsRequest(), CancellationToken.None);
 
@@ -296,7 +296,7 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
 
     private async Task<MapResourceCatalogue> GetAsync()
     {
-        var handler = new GetMapResourceCatalogueHandler(new NullLogger<GetMapResourceCatalogueHandler>(), DbFactory);
+        var handler = new GetMapResourceCatalogueHandler(DbFactory);
 
         ServiceResult<MapResourceCatalogue> result = await handler.Handle(new GetMapResourceCatalogueRequest(), CancellationToken.None);
 
@@ -306,7 +306,7 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
     private async Task<ServiceResultBase> DeleteTypeAsync(string code)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
-        var handler = new DeleteMapResourceTypeHandler(new NullLogger<DeleteMapResourceTypeHandler>(), context);
+        var handler = new DeleteMapResourceTypeHandler(context);
 
         return await handler.Handle(new DeleteMapResourceTypeRequest(code), CancellationToken.None);
     }
@@ -314,7 +314,7 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
     private async Task<ServiceResultBase> DeleteCategoryAsync(string code)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
-        var handler = new DeleteMapResourceCategoryHandler(new NullLogger<DeleteMapResourceCategoryHandler>(), context);
+        var handler = new DeleteMapResourceCategoryHandler(context);
 
         return await handler.Handle(new DeleteMapResourceCategoryRequest(code), CancellationToken.None);
     }

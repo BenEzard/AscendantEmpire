@@ -44,149 +44,141 @@ internal class UpsertTechnologiesHandler(
         UpsertTechnologiesRequest request,
         CancellationToken cancellationToken)
     {
-        try
+        if (request.Technologies.Count == 0)
         {
-            if (request.Technologies.Count == 0)
+            return Fail("At least one technology must be provided.");
+        }
+
+        // --- Step 1: Derive sort orders before touching the database. ---
+        // Numbered within the era rather than across the whole request, because the uniqueness constraint is on (Era, SortOrder).
+        var plan = request.Technologies
+            .GroupBy(dto => dto.Era)
+            .SelectMany(era => era.Select((dto, index) => new TechnologyPlan(dto, dto.SortOrder ?? (index + 1) * _SORT_ORDER_STEP)))
+            .ToArray();
+
+        List<string> errors = [];
+
+        ValidateShape(plan, errors);
+
+        if (errors.Count > 0)
+        {
+            return Fail(errors);
+        }
+
+        // --- Step 2: Load everything the request references, in bulk. ---
+        string[] requestCodes = [.. plan.Select(item => item.Dto.Code)];
+
+        Dictionary<string, Technology> existingTechnologies = await context.Technologies
+            .Where(technology => requestCodes.Contains(technology.Code))
+            .ToDictionaryAsync(technology => technology.Code, cancellationToken);
+
+        // Prerequisites may name a Technology the request does not mention, so those have to be looked up too.
+        string[] prerequisiteCodes = [.. plan
+            .SelectMany(item => item.Dto.Prerequisites)
+            .Select(prerequisite => prerequisite.PrerequisiteTechnologyCode)
+            .Distinct()
+            .Where(code => !existingTechnologies.ContainsKey(code))];
+
+        Dictionary<string, Technology> referencedTechnologies = prerequisiteCodes.Length > 0
+            ? await context.Technologies
+                .Where(technology => prerequisiteCodes.Contains(technology.Code))
+                .ToDictionaryAsync(technology => technology.Code, cancellationToken)
+            : [];
+
+        ReferenceLookups lookups = await LoadReferenceLookupsAsync(plan, cancellationToken);
+
+        // --- Step 3: Resolve every reference, collecting what cannot be resolved. ---
+        // A code in the request that is neither already in the database nor defined by this request has nothing to point at.
+        HashSet<string> knownTechnologyCodes =
+        [
+            .. requestCodes,
+            .. existingTechnologies.Keys,
+            .. referencedTechnologies.Keys
+        ];
+
+        ValidateReferences(plan, knownTechnologyCodes, lookups, errors);
+
+        if (errors.Count > 0)
+        {
+            return Fail(errors);
+        }
+
+        // --- Step 4: Reject cycles. The database cannot express this. ---
+        // A cycle makes every Technology in it permanently unreachable, and the availability reconcile never settles. Checked in code-space so that
+        // technologies being created by this request count as nodes, and against the graph as it will be once the request is applied - the request
+        // replaces a Technology's own edges, and leaves everything else's alone.
+        string[] cycle = await FindPrerequisiteCycleAsync(plan, cancellationToken);
+
+        if (cycle.Length > 0)
+        {
+            return Fail($"Prerequisites would form a cycle: {string.Join(" -> ", cycle)}");
+        }
+
+        // --- Step 5: Upsert the technologies themselves. ---
+        foreach (TechnologyPlan item in plan)
+        {
+            if (!existingTechnologies.TryGetValue(item.Dto.Code, out Technology? entity))
             {
-                return Fail("At least one technology must be provided.");
-            }
-
-            // --- Step 1: Derive sort orders before touching the database. ---
-            // Numbered within the era rather than across the whole request, because the uniqueness constraint is on (Era, SortOrder).
-            var plan = request.Technologies
-                .GroupBy(dto => dto.Era)
-                .SelectMany(era => era.Select((dto, index) => new TechnologyPlan(dto, dto.SortOrder ?? (index + 1) * _SORT_ORDER_STEP)))
-                .ToArray();
-
-            List<string> errors = [];
-
-            ValidateShape(plan, errors);
-
-            if (errors.Count > 0)
-            {
-                return Fail(errors);
-            }
-
-            // --- Step 2: Load everything the request references, in bulk. ---
-            string[] requestCodes = [.. plan.Select(item => item.Dto.Code)];
-
-            Dictionary<string, Technology> existingTechnologies = await context.Technologies
-                .Where(technology => requestCodes.Contains(technology.Code))
-                .ToDictionaryAsync(technology => technology.Code, cancellationToken);
-
-            // Prerequisites may name a Technology the request does not mention, so those have to be looked up too.
-            string[] prerequisiteCodes = [.. plan
-                .SelectMany(item => item.Dto.Prerequisites)
-                .Select(prerequisite => prerequisite.PrerequisiteTechnologyCode)
-                .Distinct()
-                .Where(code => !existingTechnologies.ContainsKey(code))];
-
-            Dictionary<string, Technology> referencedTechnologies = prerequisiteCodes.Length > 0
-                ? await context.Technologies
-                    .Where(technology => prerequisiteCodes.Contains(technology.Code))
-                    .ToDictionaryAsync(technology => technology.Code, cancellationToken)
-                : [];
-
-            ReferenceLookups lookups = await LoadReferenceLookupsAsync(plan, cancellationToken);
-
-            // --- Step 3: Resolve every reference, collecting what cannot be resolved. ---
-            // A code in the request that is neither already in the database nor defined by this request has nothing to point at.
-            HashSet<string> knownTechnologyCodes =
-            [
-                .. requestCodes,
-                .. existingTechnologies.Keys,
-                .. referencedTechnologies.Keys
-            ];
-
-            ValidateReferences(plan, knownTechnologyCodes, lookups, errors);
-
-            if (errors.Count > 0)
-            {
-                return Fail(errors);
-            }
-
-            // --- Step 4: Reject cycles. The database cannot express this. ---
-            // A cycle makes every Technology in it permanently unreachable, and the availability reconcile never settles. Checked in code-space so that
-            // technologies being created by this request count as nodes, and against the graph as it will be once the request is applied - the request
-            // replaces a Technology's own edges, and leaves everything else's alone.
-            string[] cycle = await FindPrerequisiteCycleAsync(plan, cancellationToken);
-
-            if (cycle.Length > 0)
-            {
-                return Fail($"Prerequisites would form a cycle: {string.Join(" -> ", cycle)}");
-            }
-
-            // --- Step 5: Upsert the technologies themselves. ---
-            foreach (TechnologyPlan item in plan)
-            {
-                if (!existingTechnologies.TryGetValue(item.Dto.Code, out Technology? entity))
+                entity = new Technology
                 {
-                    entity = new Technology
-                    {
-                        Code = item.Dto.Code,
-                        DisplayName = item.Dto.DisplayName,
-                        Description = item.Dto.Description,
-                        IconPath = item.Dto.IconPath ?? string.Empty,
-                        Era = item.Dto.Era,
-                        SortOrder = item.SortOrder
-                    };
+                    Code = item.Dto.Code,
+                    DisplayName = item.Dto.DisplayName,
+                    Description = item.Dto.Description,
+                    IconPath = item.Dto.IconPath ?? string.Empty,
+                    Era = item.Dto.Era,
+                    SortOrder = item.SortOrder
+                };
 
-                    context.Technologies.Add(entity);
-                    existingTechnologies[item.Dto.Code] = entity;
-                }
-                else
+                context.Technologies.Add(entity);
+                existingTechnologies[item.Dto.Code] = entity;
+            }
+            else
+            {
+                entity.DisplayName = item.Dto.DisplayName;
+                entity.Era = item.Dto.Era;
+                entity.SortOrder = item.SortOrder;
+
+                // IconPath and Description are only overwritten when supplied, to allow partial updates.
+                if (item.Dto.IconPath is not null)
                 {
-                    entity.DisplayName = item.Dto.DisplayName;
-                    entity.Era = item.Dto.Era;
-                    entity.SortOrder = item.SortOrder;
-
-                    // IconPath and Description are only overwritten when supplied, to allow partial updates.
-                    if (item.Dto.IconPath is not null)
-                    {
-                        entity.IconPath = item.Dto.IconPath;
-                    }
-
-                    if (item.Dto.Description is not null)
-                    {
-                        entity.Description = item.Dto.Description;
-                    }
+                    entity.IconPath = item.Dto.IconPath;
                 }
 
-                entity.TreeColumn = item.Dto.TreeColumn;
-                entity.TreeRow = item.Dto.TreeRow;
-                entity.DirectedRequired = item.Dto.DirectedRequired;
-                entity.ExperienceRequired = item.Dto.ExperienceRequired;
-                entity.DiffusionRequired = item.Dto.DiffusionRequired;
+                if (item.Dto.Description is not null)
+                {
+                    entity.Description = item.Dto.Description;
+                }
             }
 
-            // --- Step 6: Replace the child collections by keyed upsert. ---
-            int[] touchedTechnologyIds = [.. plan
-                .Select(item => existingTechnologies[item.Dto.Code].Id)
-                .Where(id => id != 0)];
-
-            await SyncAcquisitionCostsAsync(plan, existingTechnologies, lookups, touchedTechnologyIds, cancellationToken);
-            await SyncGrantsAsync(plan, existingTechnologies, lookups, touchedTechnologyIds, cancellationToken);
-            await SyncExperienceTypesAsync(plan, existingTechnologies, lookups, touchedTechnologyIds, cancellationToken);
-            await SyncPrerequisitesAsync(plan, existingTechnologies, referencedTechnologies, touchedTechnologyIds, cancellationToken);
-
-            await context.SaveChangesAsync(cancellationToken);
-
-            logger.LogInformation(
-                "Upserted {TechnologyCount} technologies, {CostCount} acquisition costs, {PrerequisiteCount} prerequisites, {GrantCount} grants, "
-                + "{ExperienceCount} experience mappings.",
-                plan.Length,
-                plan.Sum(item => item.Dto.AcquisitionCosts.Count),
-                plan.Sum(item => item.Dto.Prerequisites.Count),
-                plan.Sum(item => item.Dto.Grants.Count),
-                plan.Sum(item => item.Dto.ExperienceTypeCodes.Count));
-
-            return SuccessNoContent();
+            entity.TreeColumn = item.Dto.TreeColumn;
+            entity.TreeRow = item.Dto.TreeRow;
+            entity.DirectedRequired = item.Dto.DirectedRequired;
+            entity.ExperienceRequired = item.Dto.ExperienceRequired;
+            entity.DiffusionRequired = item.Dto.DiffusionRequired;
         }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Unexpected error in {Handler}.", nameof(UpsertTechnologiesHandler));
-            return InternalServerError(ex.Message);
-        }
+
+        // --- Step 6: Replace the child collections by keyed upsert. ---
+        int[] touchedTechnologyIds = [.. plan
+            .Select(item => existingTechnologies[item.Dto.Code].Id)
+            .Where(id => id != 0)];
+
+        await SyncAcquisitionCostsAsync(plan, existingTechnologies, lookups, touchedTechnologyIds, cancellationToken);
+        await SyncGrantsAsync(plan, existingTechnologies, lookups, touchedTechnologyIds, cancellationToken);
+        await SyncExperienceTypesAsync(plan, existingTechnologies, lookups, touchedTechnologyIds, cancellationToken);
+        await SyncPrerequisitesAsync(plan, existingTechnologies, referencedTechnologies, touchedTechnologyIds, cancellationToken);
+
+        await context.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Upserted {TechnologyCount} technologies, {CostCount} acquisition costs, {PrerequisiteCount} prerequisites, {GrantCount} grants, "
+            + "{ExperienceCount} experience mappings.",
+            plan.Length,
+            plan.Sum(item => item.Dto.AcquisitionCosts.Count),
+            plan.Sum(item => item.Dto.Prerequisites.Count),
+            plan.Sum(item => item.Dto.Grants.Count),
+            plan.Sum(item => item.Dto.ExperienceTypeCodes.Count));
+
+        return SuccessNoContent();
     }
 
     /// <summary>

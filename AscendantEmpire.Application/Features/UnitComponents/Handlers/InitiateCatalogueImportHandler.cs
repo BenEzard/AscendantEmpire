@@ -30,34 +30,25 @@ internal class InitiateCatalogueImportHandler(
 {
     public async Task<ServiceResult<int>> Handle(InitiateCatalogueImportRequest request, CancellationToken cancellationToken)
     {
-        try
+        // The executor reads the staged zip path back from MetadataJson.
+        string metadataJson = JsonSerializer.Serialize(new { importZipPath = request.ZipPath });
+
+        var processing = new Processing
         {
-            // The executor reads the staged zip path back from MetadataJson.
-            string metadataJson = JsonSerializer.Serialize(new { importZipPath = request.ZipPath });
+            ProcessType = ProcessType.ImportCatalogue,
+            Status = ProcessingStatus.Pending,
+            // StartedAt is overwritten when processing begins; set now so the column satisfies its non-null constraint.
+            StartedAt = DateTime.UtcNow,
+            MetadataJson = metadataJson
+        };
 
-            var processing = new Processing
-            {
-                ProcessType = ProcessType.ImportCatalogue,
-                Status = ProcessingStatus.Pending,
-                // StartedAt is overwritten when processing begins; set now so the column satisfies its non-null constraint.
-                StartedAt = DateTime.UtcNow,
-                MetadataJson = metadataJson
-            };
+        context.Processing.Add(processing);
+        await context.SaveChangesAsync(cancellationToken);
 
-            context.Processing.Add(processing);
-            await context.SaveChangesAsync(cancellationToken);
+        await processingChannel.Writer.WriteAsync(processing.ProcessingId, cancellationToken);
 
-            await processingChannel.Writer.WriteAsync(processing.ProcessingId, cancellationToken);
+        logger.LogInformation("Catalogue import job enqueued. ProcessingId: {ProcessingId}", processing.ProcessingId);
 
-            logger.LogInformation("Catalogue import job enqueued. ProcessingId: {ProcessingId}", processing.ProcessingId);
-
-            return ServiceResult<int>.Created(processing.ProcessingId);
-        }
-        catch (Exception ex)
-        {
-            const string error = "An error occurred while initiating the catalogue import.";
-            logger.LogError(ex, error);
-            return ServiceResult<int>.InternalServerError(error);
-        }
+        return ServiceResult<int>.Created(processing.ProcessingId);
     }
 }

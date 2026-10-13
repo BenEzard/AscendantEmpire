@@ -26,7 +26,7 @@ internal class UpdateCampaignMapGalleryIndexTests
         await _context.Database.EnsureDeletedAsync();
         await _context.Database.EnsureCreatedAsync();
 
-        _updateHandler = new UpdateCampaignMapIndexHandler(new NullLogger<UpdateCampaignMapIndexHandler>(), _context);
+        _updateHandler = new UpdateCampaignMapIndexHandler(_context);
     }
 
     [TearDown]

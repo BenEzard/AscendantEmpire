@@ -39,43 +39,34 @@ internal class BulkUpsertTagsHandler(
 {
     public async Task<ServiceResult<int>> Handle(BulkUpsertTagsRequest request, CancellationToken cancelToken)
     {
-        try
+        IReadOnlyCollection<TagDto> tags = request.Tags;
+
+        // Collect every problem so the caller gets a complete picture rather than one error at a time.
+        List<string> errors = ValidateRequest(tags);
+
+        if (errors.Count > 0)
         {
-            IReadOnlyCollection<TagDto> tags = request.Tags;
-
-            // Collect every problem so the caller gets a complete picture rather than one error at a time.
-            List<string> errors = ValidateRequest(tags);
-
-            if (errors.Count > 0)
-            {
-                logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(BulkUpsertTagsRequest), string.Join("; ", errors));
-                return ServiceResult<int>.Fail(errors);
-            }
-
-            // Bulk-load the tags that already exist so they can be updated in place rather than duplicated.
-            string[] tagCodes = [.. tags.Select(tag => tag.Code)];
-
-            Dictionary<string, Tag> tagsByCode = await UnitComponentReconciler.LoadTagsByCodeAsync(context, tagCodes, cancelToken);
-
-            int addedCount = TagCatalogueUpserter.Upsert(context, tags, tagsByCode);
-
-            await context.SaveChangesAsync(cancelToken);
-
-            int updatedCount = tags.Count - addedCount;
-
-            logger.LogInformation("Bulk upserted tags: {AddedCount} added, {UpdatedCount} updated.", addedCount, updatedCount);
-
-            // 201 when the request was purely new rows; 200 when it touched (updated) existing ones.
-            return updatedCount > 0
-                ? ServiceResult<int>.Succeed(tags.Count)
-                : ServiceResult<int>.Created(tags.Count);
+            logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(BulkUpsertTagsRequest), string.Join("; ", errors));
+            return ServiceResult<int>.Fail(errors);
         }
-        catch (Exception ex)
-        {
-            const string error = "An exception occurred while processing " + nameof(BulkUpsertTagsHandler) + ".";
-            logger.LogError(ex, error);
-            return ServiceResult<int>.InternalServerError(ex, error);
-        }
+
+        // Bulk-load the tags that already exist so they can be updated in place rather than duplicated.
+        string[] tagCodes = [.. tags.Select(tag => tag.Code)];
+
+        Dictionary<string, Tag> tagsByCode = await UnitComponentReconciler.LoadTagsByCodeAsync(context, tagCodes, cancelToken);
+
+        int addedCount = TagCatalogueUpserter.Upsert(context, tags, tagsByCode);
+
+        await context.SaveChangesAsync(cancelToken);
+
+        int updatedCount = tags.Count - addedCount;
+
+        logger.LogInformation("Bulk upserted tags: {AddedCount} added, {UpdatedCount} updated.", addedCount, updatedCount);
+
+        // 201 when the request was purely new rows; 200 when it touched (updated) existing ones.
+        return updatedCount > 0
+            ? ServiceResult<int>.Succeed(tags.Count)
+            : ServiceResult<int>.Created(tags.Count);
     }
 
     /// <summary>

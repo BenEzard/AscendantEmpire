@@ -32,7 +32,7 @@ internal class GetCampaignMapGeographiesTests
             await setupContext.Database.EnsureCreatedAsync();
         }
         
-        _handler = new GetCampaignMapGeographiesHandler(new NullLogger<GetCampaignMapGeographiesHandler>(), _dbFactory);
+        _handler = new GetCampaignMapGeographiesHandler(_dbFactory);
     }
 
     [TearDown]

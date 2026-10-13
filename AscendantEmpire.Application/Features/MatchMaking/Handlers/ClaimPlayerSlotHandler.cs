@@ -128,10 +128,5 @@ internal class ClaimPlayerSlotHandler(
             logger.LogInformation(ex, "Concurrent claim conflict for slot {PlayerId} in game {GameId} by user {UserId}.", request.PlayerId, request.GameId, request.UserId);
             return ServiceResult<Empty>.Conflict("That Player slot has already been claimed.");
         }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "An error occurred while handling {RequestName}.", nameof(ClaimPlayerSlotRequest));
-            return ServiceResult<Empty>.InternalServerError("An unexpected error occurred while claiming the Player slot.");
-        }
     }
 }

@@ -6,7 +6,7 @@ A **MapResource** is something on a map tile that can be extracted: a berry patc
 coal seam, a forest's mix of woods. When extracted, it gives up **one or more Assets** (e.g. a
 Berry gives `forage`; a Deer gives `medium_game` and `pelt`). Extracted Assets are held in an Asset
 Bank (see [production-and-assets.md](../production-and-assets.md) and
-[assets-data-model.md](../../assets-data-model.md)).
+[assets-data-model.md](../assets-data-model.md)).
 
 > **Naming.** Always write **MapResource** (and `MapResourceType`) for the thing on the tile, never
 > "Asset". An Asset is what extracting one *yields*: the two sit either side of extraction, and a

@@ -36,95 +36,86 @@ internal class CreateGlobalUnitTemplateHandler(
 {
     public async Task<ServiceResult<GlobalUnitTemplateView>> Handle(CreateGlobalUnitTemplateRequest request, CancellationToken cancelToken)
     {
-        try
+        SaveGlobalUnitTemplateDto dto = request.Template;
+
+        List<string> codeErrors = ValidateCode(dto.Code);
+
+        if (codeErrors.Count > 0)
         {
-            SaveGlobalUnitTemplateDto dto = request.Template;
-
-            List<string> codeErrors = ValidateCode(dto.Code);
-
-            if (codeErrors.Count > 0)
-            {
-                logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(CreateGlobalUnitTemplateRequest), string.Join("; ", codeErrors));
-                return ServiceResult<GlobalUnitTemplateView>.Fail(codeErrors);
-            }
-
-            // Code is the unique natural key, so a duplicate is settled before resolving or persisting anything else: either it ends the request with a
-            // conflict the caller can confirm past, or it redirects the save to the update path.
-            UnitTemplate? existing = await UnitTemplateNameLookup.FindGlobalTemplateByCodeAsync(context, dto.Code, cancelToken);
-
-            if (existing != null)
-            {
-                if (!dto.OverwriteExisting)
-                {
-                    // The Unit count never refuses the overwrite here — authoring the shared catalogue is this endpoint's purpose — but it is reported
-                    // so the caller's confirmation can say what the change will affect.
-                    int instanceCount = await UnitTemplateNameLookup.CountUnitInstancesAsync(context, existing.Id, cancelToken);
-
-                    return ServiceResult<GlobalUnitTemplateView>.Conflict(
-                        $"A template with code '{dto.Code}' already exists.",
-                        new TemplateNameConflict { CanOverwrite = true, ExistingDisplayName = existing.DisplayName, InstanceCount = instanceCount });
-                }
-
-                // Confirmed. The update handler owns the one update path, so the overwrite goes through it rather than being reimplemented here.
-                logger.LogInformation("Overwriting global unit template '{Code}' (id {Id}).", existing.Code, existing.Id);
-
-                return await mediator.Send(new UpdateGlobalUnitTemplateRequest(existing.Id, dto), cancelToken);
-            }
-
-            ServiceResult<UnitTemplateAssembly.ResolvedAssembly> resolved = await UnitTemplateAssembly.ResolveAsync(
-                context, playerId: null, dto.DisplayName, dto.MapImagePath, dto.BaseCode, dto.SlotComponentCodes, cancelToken);
-
-            if (!resolved.HasSucceeded)
-            {
-                logger.LogWarning("Validation failed for {Request}. Errors: {Errors}",
-                    nameof(CreateGlobalUnitTemplateRequest), string.Join("; ", resolved.Errors));
-                return new ServiceResult<GlobalUnitTemplateView> { StatusCode = resolved.StatusCode, Errors = resolved.Errors };
-            }
-
-            (UnitComponent baseComponent, List<UnitTemplateComponent> fitted) = resolved.SuccessValue!;
-
-            var template = new UnitTemplate
-            {
-                Code = dto.Code,
-                DisplayName = dto.DisplayName,
-                Description = dto.Description,
-                GameId = null,
-                PlayerId = null,
-                BodyComponentId = baseComponent.Id,
-                MapImagePath = dto.MapImagePath,
-                Components = fitted,
-            };
-
-            // Save + compile atomically: the snapshot is the template's read model, so a template must never exist without one.
-            // CompileUnitTemplateHandler shares this request scope's context, so one transaction covers both saves;
-            // disposing without Commit (any failure path) rolls the template back too.
-            await using var transaction = await context.Database.BeginTransactionAsync(cancelToken);
-
-            context.UnitTemplates.Add(template);
-            await context.SaveChangesAsync(cancelToken);
-
-            ServiceResult<int> compiled = await mediator.Send(
-                new CompileUnitTemplateRequest(UnitTemplateId: template.Id, CompiledOnTurn: 0), cancelToken);
-
-            if (!compiled.HasSucceeded)
-            {
-                logger.LogWarning("Compilation failed for {Request}. Errors: {Errors}",
-                    nameof(CreateGlobalUnitTemplateRequest), string.Join("; ", compiled.Errors));
-                return new ServiceResult<GlobalUnitTemplateView> { StatusCode = compiled.StatusCode, Errors = compiled.Errors };
-            }
-
-            await transaction.CommitAsync(cancelToken);
-
-            logger.LogInformation("Created global unit template '{Code}' (id {Id}).", template.Code, template.Id);
-
-            return ServiceResult<GlobalUnitTemplateView>.Created(ToView(template, baseComponent));
+            logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(CreateGlobalUnitTemplateRequest), string.Join("; ", codeErrors));
+            return ServiceResult<GlobalUnitTemplateView>.Fail(codeErrors);
         }
-        catch (Exception ex)
+
+        // Code is the unique natural key, so a duplicate is settled before resolving or persisting anything else: either it ends the request with a
+        // conflict the caller can confirm past, or it redirects the save to the update path.
+        UnitTemplate? existing = await UnitTemplateNameLookup.FindGlobalTemplateByCodeAsync(context, dto.Code, cancelToken);
+
+        if (existing != null)
         {
-            const string error = "An exception occurred while processing " + nameof(CreateGlobalUnitTemplateHandler) + ".";
-            logger.LogError(ex, error);
-            return ServiceResult<GlobalUnitTemplateView>.InternalServerError(ex, error);
+            if (!dto.OverwriteExisting)
+            {
+                // The Unit count never refuses the overwrite here — authoring the shared catalogue is this endpoint's purpose — but it is reported
+                // so the caller's confirmation can say what the change will affect.
+                int instanceCount = await UnitTemplateNameLookup.CountUnitInstancesAsync(context, existing.Id, cancelToken);
+
+                return ServiceResult<GlobalUnitTemplateView>.Conflict(
+                    $"A template with code '{dto.Code}' already exists.",
+                    new TemplateNameConflict { CanOverwrite = true, ExistingDisplayName = existing.DisplayName, InstanceCount = instanceCount });
+            }
+
+            // Confirmed. The update handler owns the one update path, so the overwrite goes through it rather than being reimplemented here.
+            logger.LogInformation("Overwriting global unit template '{Code}' (id {Id}).", existing.Code, existing.Id);
+
+            return await mediator.Send(new UpdateGlobalUnitTemplateRequest(existing.Id, dto), cancelToken);
         }
+
+        ServiceResult<UnitTemplateAssembly.ResolvedAssembly> resolved = await UnitTemplateAssembly.ResolveAsync(
+            context, playerId: null, dto.DisplayName, dto.MapImagePath, dto.BaseCode, dto.SlotComponentCodes, cancelToken);
+
+        if (!resolved.HasSucceeded)
+        {
+            logger.LogWarning("Validation failed for {Request}. Errors: {Errors}",
+                nameof(CreateGlobalUnitTemplateRequest), string.Join("; ", resolved.Errors));
+            return new ServiceResult<GlobalUnitTemplateView> { StatusCode = resolved.StatusCode, Errors = resolved.Errors };
+        }
+
+        (UnitComponent baseComponent, List<UnitTemplateComponent> fitted) = resolved.SuccessValue!;
+
+        var template = new UnitTemplate
+        {
+            Code = dto.Code,
+            DisplayName = dto.DisplayName,
+            Description = dto.Description,
+            GameId = null,
+            PlayerId = null,
+            BodyComponentId = baseComponent.Id,
+            MapImagePath = dto.MapImagePath,
+            Components = fitted,
+        };
+
+        // Save + compile atomically: the snapshot is the template's read model, so a template must never exist without one.
+        // CompileUnitTemplateHandler shares this request scope's context, so one transaction covers both saves;
+        // disposing without Commit (any failure path) rolls the template back too.
+        await using var transaction = await context.Database.BeginTransactionAsync(cancelToken);
+
+        context.UnitTemplates.Add(template);
+        await context.SaveChangesAsync(cancelToken);
+
+        ServiceResult<int> compiled = await mediator.Send(
+            new CompileUnitTemplateRequest(UnitTemplateId: template.Id, CompiledOnTurn: 0), cancelToken);
+
+        if (!compiled.HasSucceeded)
+        {
+            logger.LogWarning("Compilation failed for {Request}. Errors: {Errors}",
+                nameof(CreateGlobalUnitTemplateRequest), string.Join("; ", compiled.Errors));
+            return new ServiceResult<GlobalUnitTemplateView> { StatusCode = compiled.StatusCode, Errors = compiled.Errors };
+        }
+
+        await transaction.CommitAsync(cancelToken);
+
+        logger.LogInformation("Created global unit template '{Code}' (id {Id}).", template.Code, template.Id);
+
+        return ServiceResult<GlobalUnitTemplateView>.Created(ToView(template, baseComponent));
     }
 
     private static List<string> ValidateCode(string code)

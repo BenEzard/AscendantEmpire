@@ -80,60 +80,50 @@ internal class GetCampaignPossibleActionsHandler(
 
     public async Task<ServiceResult<CampaignPossibleActions>> Handle(GetCampaignPossibleActionsRequest request, CancellationToken cancelToken)
     {
-        try
+        // Validate the request object
+        var validator = new GetCampaignPossibleActionsRequestValidator();
+        ValidationResult validationResult = validator.Validate(request);
+
+        if (validationResult.IsValid == false)
         {
-            // Validate the request object
-            var validator = new GetCampaignPossibleActionsRequestValidator();
-            ValidationResult validationResult = validator.Validate(request);
+            IEnumerable<string> errors = validationResult.Errors.Select(e => e.ErrorMessage);
+            string error = $"Validation failed for {nameof(GetCampaignPossibleActionsRequest)}.";
+            logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
 
-            if (validationResult.IsValid == false)
-            {
-                IEnumerable<string> errors = validationResult.Errors.Select(e => e.ErrorMessage);
-                string error = $"Validation failed for {nameof(GetCampaignPossibleActionsRequest)}.";
-                logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
+            return ServiceResult<CampaignPossibleActions>.Fail(errors.Prepend(error));
+        }
 
-                return ServiceResult<CampaignPossibleActions>.Fail(errors.Prepend(error));
-            }
+        CampaignTurnAccess access = await campaignTurnAccessService.GetCampaignTurnAccessAsync(request.GameId, request.PlayerId, cancelToken);
 
-            CampaignTurnAccess access = await campaignTurnAccessService.GetCampaignTurnAccessAsync(request.GameId, request.PlayerId, cancelToken);
+        switch (access.Status)
+        {
+            case CampaignTurnAccessStatus.PlayerNotInGame:
+                // The one genuine refusal here. Asking about a Game you are not in is a mistake worth reporting, not an empty answer.
+                return ServiceResult<CampaignPossibleActions>.NotFound(access.Errors);
 
-            switch (access.Status)
-            {
-                case CampaignTurnAccessStatus.PlayerNotInGame:
-                    // The one genuine refusal here. Asking about a Game you are not in is a mistake worth reporting, not an empty answer.
-                    return ServiceResult<CampaignPossibleActions>.NotFound(access.Errors);
-
-                case CampaignTurnAccessStatus.NoTurnInProgress:
-                    return NotYourTurn();
-
-                case CampaignTurnAccessStatus.Failed:
-                    return ServiceResult<CampaignPossibleActions>.Fail(access.Errors);
-            }
-
-            // Granted only says a Turn is open, so whose it is still has to be checked. Another Player's Turn is answered the same way as no Turn at all:
-            // there is nothing this Player is being asked to do.
-            CurrentCampaignTurn currentTurn = access.CurrentTurn!;
-
-            if (currentTurn.PlayerId != request.PlayerId)
-            {
+            case CampaignTurnAccessStatus.NoTurnInProgress:
                 return NotYourTurn();
-            }
 
-            var possibleActionContext = new PossibleActionContext(request.GameId, request.PlayerId, currentTurn.CurrentRoundNumber);
-            IReadOnlyList<PossibleAction> possibleActions = await possibleActionService.GetPossibleActionsAsync(possibleActionContext, cancelToken);
-
-            return ServiceResult<CampaignPossibleActions>.Succeed(new CampaignPossibleActions
-            {
-                IsYourTurn = true,
-                PossibleActions = [.. possibleActions]
-            });
+            case CampaignTurnAccessStatus.Failed:
+                return ServiceResult<CampaignPossibleActions>.Fail(access.Errors);
         }
-        catch (Exception ex)
+
+        // Granted only says a Turn is open, so whose it is still has to be checked. Another Player's Turn is answered the same way as no Turn at all:
+        // there is nothing this Player is being asked to do.
+        CurrentCampaignTurn currentTurn = access.CurrentTurn!;
+
+        if (currentTurn.PlayerId != request.PlayerId)
         {
-            string error = $"An error occurred while processing {nameof(GetCampaignPossibleActionsRequest)}.";
-            logger.LogError(ex, "{Error}", error);
-
-            return ServiceResult<CampaignPossibleActions>.Fail(error);
+            return NotYourTurn();
         }
+
+        var possibleActionContext = new PossibleActionContext(request.GameId, request.PlayerId, currentTurn.CurrentRoundNumber);
+        IReadOnlyList<PossibleAction> possibleActions = await possibleActionService.GetPossibleActionsAsync(possibleActionContext, cancelToken);
+
+        return ServiceResult<CampaignPossibleActions>.Succeed(new CampaignPossibleActions
+        {
+            IsYourTurn = true,
+            PossibleActions = [.. possibleActions]
+        });
     }
 }

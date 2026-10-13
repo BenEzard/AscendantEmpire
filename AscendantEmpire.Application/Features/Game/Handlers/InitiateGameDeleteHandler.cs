@@ -46,48 +46,39 @@ internal class InitiateGameDeleteHandler(
 {
     public async Task<ServiceResult<int>> Handle(InitiateGameDeleteRequest request, CancellationToken cancellationToken)
     {
-        try
+        bool gameExists = await context.GameIndex.AnyAsync(g => g.Id == request.GameId, cancellationToken);
+
+        if (gameExists == false)
         {
-            bool gameExists = await context.GameIndex.AnyAsync(g => g.Id == request.GameId, cancellationToken);
-
-            if (gameExists == false)
-            {
-                return ServiceResult<int>.NotFound($"Game {request.GameId} was not found.");
-            }
-
-            if (await IsAlreadyBeingDeletedAsync(request.GameId, cancellationToken))
-            {
-                return ServiceResult<int>.Conflict($"Game {request.GameId} is already being deleted.");
-            }
-
-            // Persist a Pending record so the caller immediately has a processId to poll. The executor reads
-            // the target game back out of MetadataJson.
-            var processing = new Processing
-            {
-                ProcessType = ProcessType.DeleteGame,
-                Status = ProcessingStatus.Pending,
-                // StartedAt is overwritten when processing begins; set now so the column satisfies its non-null constraint.
-                StartedAt = DateTime.UtcNow,
-                MetadataJson = GameDeleteMetadata.Write(request.GameId)
-            };
-
-            context.Processing.Add(processing);
-            await context.SaveChangesAsync(cancellationToken);
-
-            await processingChannel.Writer.WriteAsync(processing.ProcessingId, cancellationToken);
-
-            logger.LogInformation(
-                "Game delete job enqueued. ProcessingId: {ProcessingId}, GameId: {GameId}",
-                processing.ProcessingId, request.GameId);
-
-            return ServiceResult<int>.Created(processing.ProcessingId);
+            return ServiceResult<int>.NotFound($"Game {request.GameId} was not found.");
         }
-        catch (Exception ex)
+
+        if (await IsAlreadyBeingDeletedAsync(request.GameId, cancellationToken))
         {
-            const string error = "An error occurred while initiating the game deletion.";
-            logger.LogError(ex, error);
-            return ServiceResult<int>.InternalServerError(error);
+            return ServiceResult<int>.Conflict($"Game {request.GameId} is already being deleted.");
         }
+
+        // Persist a Pending record so the caller immediately has a processId to poll. The executor reads
+        // the target game back out of MetadataJson.
+        var processing = new Processing
+        {
+            ProcessType = ProcessType.DeleteGame,
+            Status = ProcessingStatus.Pending,
+            // StartedAt is overwritten when processing begins; set now so the column satisfies its non-null constraint.
+            StartedAt = DateTime.UtcNow,
+            MetadataJson = GameDeleteMetadata.Write(request.GameId)
+        };
+
+        context.Processing.Add(processing);
+        await context.SaveChangesAsync(cancellationToken);
+
+        await processingChannel.Writer.WriteAsync(processing.ProcessingId, cancellationToken);
+
+        logger.LogInformation(
+            "Game delete job enqueued. ProcessingId: {ProcessingId}, GameId: {GameId}",
+            processing.ProcessingId, request.GameId);
+
+        return ServiceResult<int>.Created(processing.ProcessingId);
     }
 
     /// <summary>

@@ -37,93 +37,83 @@ internal class SetResearchProjectHandler(
         SetResearchProjectRequest request,
         CancellationToken cancellationToken)
     {
-        try
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancellationToken);
+
+        PlayerResearchState? researchState = await context.PlayerResearchStates
+            .FirstOrDefaultAsync(state => state.PlayerId == request.PlayerId, cancellationToken);
+
+        if (researchState is null)
         {
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancellationToken);
+            return ServiceResultBase.NotFound(
+                $"Player {request.PlayerId} has no research state. One is written for every Player at game setup, so this Player has not been set up.");
+        }
 
-            PlayerResearchState? researchState = await context.PlayerResearchStates
-                .FirstOrDefaultAsync(state => state.PlayerId == request.PlayerId, cancellationToken);
-
-            if (researchState is null)
-            {
-                return ServiceResultBase.NotFound(
-                    $"Player {request.PlayerId} has no research state. One is written for every Player at game setup, so this Player has not been set up.");
-            }
-
-            // Clearing is a real choice, not a no-op: a Player may legitimately go back to researching nothing, and the end-turn check reports that state.
-            if (request.TechnologyId is null)
-            {
-                researchState.CurrentTechnologyId = null;
-
-                await context.SaveChangesAsync(cancellationToken);
-
-                logger.LogInformation("Cleared the research project for player {PlayerId}.", request.PlayerId);
-
-                return ServiceResultBase.Succeed();
-            }
-
-            int technologyId = request.TechnologyId.Value;
-
-            PlayerTechnology? playerTechnology = await context.PlayerTechnologies
-                .Include(row => row.Technology)
-                .FirstOrDefaultAsync(
-                    row => row.PlayerId == request.PlayerId && row.TechnologyId == technologyId,
-                    cancellationToken);
-
-            if (playerTechnology is null)
-            {
-                // A row exists for every Player and every technology from game setup onwards, so a missing one means the technology was seeded after this
-                // game was created and nothing has reconciled since. The availability reconcile backfills it; this read-side handler deliberately does not.
-                return ServiceResultBase.NotFound(
-                    $"Player {request.PlayerId} has no row for technology {technologyId}. It was most likely seeded after this game was set up, and the "
-                    + "technology availability reconcile has not run since.");
-            }
-
-            string technologyName = playerTechnology.Technology.DisplayName;
-
-            switch (playerTechnology.Status)
-            {
-                case TechnologyStatus.Locked:
-                    return ServiceResultBase.Fail($"{technologyName} cannot be researched: its prerequisites have not been discovered.");
-
-                case TechnologyStatus.Discovered:
-                    return ServiceResultBase.Fail($"{technologyName} has already been discovered, so there is nothing left to research.");
-
-                case TechnologyStatus.Available:
-                    ServiceResultBase unlockResult = await UnlockIfFreeAsync(context, playerTechnology, technologyName, request.GameId, cancellationToken);
-
-                    if (!unlockResult.HasSucceeded)
-                    {
-                        return unlockResult;
-                    }
-
-                    break;
-
-                case TechnologyStatus.Unlocked:
-                    // Already paid for in an earlier Round. Re-stamping the Round would rewrite when the cost was settled, which is not what choosing it
-                    // again means.
-                    break;
-            }
-
-            researchState.CurrentTechnologyId = technologyId;
+        // Clearing is a real choice, not a no-op: a Player may legitimately go back to researching nothing, and the end-turn check reports that state.
+        if (request.TechnologyId is null)
+        {
+            researchState.CurrentTechnologyId = null;
 
             await context.SaveChangesAsync(cancellationToken);
 
-            logger.LogInformation(
-                "Set the research project for player {PlayerId} to technology {TechnologyId} ({TechnologyName}).",
-                request.PlayerId,
-                technologyId,
-                technologyName);
+            logger.LogInformation("Cleared the research project for player {PlayerId}.", request.PlayerId);
 
             return ServiceResultBase.Succeed();
         }
-        catch (Exception ex)
-        {
-            const string error = "An error occurred while setting the research project.";
-            logger.LogError(ex, error);
 
-            return ServiceResultBase.Fail(error);
+        int technologyId = request.TechnologyId.Value;
+
+        PlayerTechnology? playerTechnology = await context.PlayerTechnologies
+            .Include(row => row.Technology)
+            .FirstOrDefaultAsync(
+                row => row.PlayerId == request.PlayerId && row.TechnologyId == technologyId,
+                cancellationToken);
+
+        if (playerTechnology is null)
+        {
+            // A row exists for every Player and every technology from game setup onwards, so a missing one means the technology was seeded after this
+            // game was created and nothing has reconciled since. The availability reconcile backfills it; this read-side handler deliberately does not.
+            return ServiceResultBase.NotFound(
+                $"Player {request.PlayerId} has no row for technology {technologyId}. It was most likely seeded after this game was set up, and the "
+                + "technology availability reconcile has not run since.");
         }
+
+        string technologyName = playerTechnology.Technology.DisplayName;
+
+        switch (playerTechnology.Status)
+        {
+            case TechnologyStatus.Locked:
+                return ServiceResultBase.Fail($"{technologyName} cannot be researched: its prerequisites have not been discovered.");
+
+            case TechnologyStatus.Discovered:
+                return ServiceResultBase.Fail($"{technologyName} has already been discovered, so there is nothing left to research.");
+
+            case TechnologyStatus.Available:
+                ServiceResultBase unlockResult = await UnlockIfFreeAsync(context, playerTechnology, technologyName, request.GameId, cancellationToken);
+
+                if (!unlockResult.HasSucceeded)
+                {
+                    return unlockResult;
+                }
+
+                break;
+
+            case TechnologyStatus.Unlocked:
+                // Already paid for in an earlier Round. Re-stamping the Round would rewrite when the cost was settled, which is not what choosing it
+                // again means.
+                break;
+        }
+
+        researchState.CurrentTechnologyId = technologyId;
+
+        await context.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Set the research project for player {PlayerId} to technology {TechnologyId} ({TechnologyName}).",
+            request.PlayerId,
+            technologyId,
+            technologyName);
+
+        return ServiceResultBase.Succeed();
     }
 
     /// <summary>

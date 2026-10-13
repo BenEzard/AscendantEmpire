@@ -40,51 +40,43 @@ internal class WithdrawPlayerAssetHandler(
 {
     public async Task<ServiceResultBase> Handle(WithdrawPlayerAssetRequest request, CancellationToken cancellationToken)
     {
-        try
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancellationToken);
+
+        ServiceResult<PlayerAssetUnlockTargets> targets = await PlayerAssetUnlockLookup.ResolveAsync(
+            context,
+            request.AssetCodes,
+            request.MetaCategoryCodes,
+            cancellationToken);
+
+        if (targets.HasSucceeded == false)
         {
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancellationToken);
-
-            ServiceResult<PlayerAssetUnlockTargets> targets = await PlayerAssetUnlockLookup.ResolveAsync(
-                context,
-                request.AssetCodes,
-                request.MetaCategoryCodes,
-                cancellationToken);
-
-            if (targets.HasSucceeded == false)
-            {
-                return targets;
-            }
-
-            int[] assetIds = targets.SuccessValue!.AssetIds;
-            int[] metaCategoryIds = targets.SuccessValue.MetaCategoryIds;
-
-            List<PlayerUnlockedAsset> assetRows = await context.PlayerUnlockedAssets
-                .Where(u => u.PlayerId == request.PlayerId && assetIds.Contains(u.AssetId))
-                .ToListAsync(cancellationToken);
-
-            context.PlayerUnlockedAssets.RemoveRange(assetRows);
-
-            List<PlayerUnlockedAssetMetaCategory> metaCategoryRows = await context.PlayerUnlockedAssetMetaCategories
-                .Where(u => u.PlayerId == request.PlayerId && metaCategoryIds.Contains(u.AssetMetaCategoryId))
-                .ToListAsync(cancellationToken);
-
-            context.PlayerUnlockedAssetMetaCategories.RemoveRange(metaCategoryRows);
-
-            await context.SaveChangesAsync(cancellationToken);
-
-            logger.LogInformation(
-                "Withdrew {AssetCount} asset and {MetaCount} meta-category unlock(s) from player {PlayerId} in game {GameId}.",
-                assetRows.Count,
-                metaCategoryRows.Count,
-                request.PlayerId,
-                request.GameId);
-
-            return SuccessNoContent();
+            return targets;
         }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Unexpected error in {Handler}.", nameof(WithdrawPlayerAssetHandler));
-            return InternalServerError(ex.Message);
-        }
+
+        int[] assetIds = targets.SuccessValue!.AssetIds;
+        int[] metaCategoryIds = targets.SuccessValue.MetaCategoryIds;
+
+        List<PlayerUnlockedAsset> assetRows = await context.PlayerUnlockedAssets
+            .Where(u => u.PlayerId == request.PlayerId && assetIds.Contains(u.AssetId))
+            .ToListAsync(cancellationToken);
+
+        context.PlayerUnlockedAssets.RemoveRange(assetRows);
+
+        List<PlayerUnlockedAssetMetaCategory> metaCategoryRows = await context.PlayerUnlockedAssetMetaCategories
+            .Where(u => u.PlayerId == request.PlayerId && metaCategoryIds.Contains(u.AssetMetaCategoryId))
+            .ToListAsync(cancellationToken);
+
+        context.PlayerUnlockedAssetMetaCategories.RemoveRange(metaCategoryRows);
+
+        await context.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation(
+            "Withdrew {AssetCount} asset and {MetaCount} meta-category unlock(s) from player {PlayerId} in game {GameId}.",
+            assetRows.Count,
+            metaCategoryRows.Count,
+            request.PlayerId,
+            request.GameId);
+
+        return SuccessNoContent();
     }
 }

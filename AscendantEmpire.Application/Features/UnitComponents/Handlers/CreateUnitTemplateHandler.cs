@@ -34,81 +34,71 @@ internal class CreateUnitTemplateHandler(
 {
     public async Task<ServiceResult<UnitTemplateView>> Handle(CreateUnitTemplateRequest request, CancellationToken cancelToken)
     {
-        try
+        SaveUnitTemplateDto dto = request.Template;
+
+        // Name clashes are settled before anything is resolved or written: either they end the request with a conflict the caller can act on, or
+        // they redirect it to the update path.
+        ServiceResult<UnitTemplateView>? nameOutcome = await ResolveNameClashAsync(request, cancelToken);
+
+        if (nameOutcome != null)
         {
-            SaveUnitTemplateDto dto = request.Template;
-
-            // Name clashes are settled before anything is resolved or written: either they end the request with a conflict the caller can act on, or
-            // they redirect it to the update path.
-            ServiceResult<UnitTemplateView>? nameOutcome = await ResolveNameClashAsync(request, cancelToken);
-
-            if (nameOutcome != null)
-            {
-                return nameOutcome;
-            }
-
-            ServiceResult<UnitTemplateAssembly.ResolvedAssembly> resolved = await UnitTemplateAssembly.ResolveAsync(
-                context, request.PlayerId, dto.DisplayName, dto.MapImagePath, dto.BaseCode, dto.SlotComponentCodes, cancelToken);
-
-            if (!resolved.HasSucceeded)
-            {
-                logger.LogWarning("Validation failed for {Request}. Errors: {Errors}",
-                    nameof(CreateUnitTemplateRequest), 
-                    string.Join("; ", resolved.Errors));
-
-                return new ServiceResult<UnitTemplateView> { StatusCode = resolved.StatusCode, Errors = resolved.Errors };
-            }
-
-            (UnitComponent baseComponent, List<UnitTemplateComponent> fitted) = resolved.SuccessValue!;
-
-            var template = new UnitTemplate
-            {
-                Code = null,
-                DisplayName = dto.DisplayName,
-                Description = dto.Description,
-                GameId = request.GameId,
-                PlayerId = request.PlayerId,
-                BodyComponentId = baseComponent.Id,
-                MapImagePath = dto.MapImagePath,
-                Components = fitted,
-            };
-
-            // Save + compile atomically: the snapshot is the template's read model, so a template must never exist without one.
-            // CompileUnitTemplateHandler shares this request scope's context, so one transaction covers both saves;
-            // disposing without Commit (any failure path) rolls the template back too.
-            await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancelToken);
-
-            context.UnitTemplates.Add(template);
-            await context.SaveChangesAsync(cancelToken);
-
-            // Stamp the snapshot with the game's current campaign turn (0 if the campaign hasn't started yet).
-            int currentTurn = await campaignTurnService.GetCurrentRoundNumberAsync(request.GameId, cancelToken);
-
-            ServiceResult<int> compiled = await mediator.Send(new CompileUnitTemplateRequest(UnitTemplateId: template.Id, CompiledOnTurn: currentTurn), cancelToken);
-
-            if (!compiled.HasSucceeded)
-            {
-                logger.LogWarning("Compilation failed for {Request}. Errors: {Errors}", nameof(CreateUnitTemplateRequest), string.Join("; ", compiled.Errors));
-
-                return new ServiceResult<UnitTemplateView> { StatusCode = compiled.StatusCode, Errors = compiled.Errors };
-            }
-
-            await transaction.CommitAsync(cancelToken);
-
-            logger.LogInformation("Created custom unit template '{DisplayName}' (id {Id}) for player {PlayerId}.",
-                template.DisplayName, 
-                template.Id, 
-                request.PlayerId);
-
-            return ServiceResult<UnitTemplateView>.Created(ToView(template, baseComponent));
+            return nameOutcome;
         }
-        catch (Exception ex)
+
+        ServiceResult<UnitTemplateAssembly.ResolvedAssembly> resolved = await UnitTemplateAssembly.ResolveAsync(
+            context, request.PlayerId, dto.DisplayName, dto.MapImagePath, dto.BaseCode, dto.SlotComponentCodes, cancelToken);
+
+        if (!resolved.HasSucceeded)
         {
-            const string error = "An exception occurred while processing " + nameof(CreateUnitTemplateHandler) + ".";
-            logger.LogError(ex, error);
+            logger.LogWarning("Validation failed for {Request}. Errors: {Errors}",
+                nameof(CreateUnitTemplateRequest), 
+                string.Join("; ", resolved.Errors));
 
-            return ServiceResult<UnitTemplateView>.InternalServerError(ex, error);
+            return new ServiceResult<UnitTemplateView> { StatusCode = resolved.StatusCode, Errors = resolved.Errors };
         }
+
+        (UnitComponent baseComponent, List<UnitTemplateComponent> fitted) = resolved.SuccessValue!;
+
+        var template = new UnitTemplate
+        {
+            Code = null,
+            DisplayName = dto.DisplayName,
+            Description = dto.Description,
+            GameId = request.GameId,
+            PlayerId = request.PlayerId,
+            BodyComponentId = baseComponent.Id,
+            MapImagePath = dto.MapImagePath,
+            Components = fitted,
+        };
+
+        // Save + compile atomically: the snapshot is the template's read model, so a template must never exist without one.
+        // CompileUnitTemplateHandler shares this request scope's context, so one transaction covers both saves;
+        // disposing without Commit (any failure path) rolls the template back too.
+        await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync(cancelToken);
+
+        context.UnitTemplates.Add(template);
+        await context.SaveChangesAsync(cancelToken);
+
+        // Stamp the snapshot with the game's current campaign turn (0 if the campaign hasn't started yet).
+        int currentTurn = await campaignTurnService.GetCurrentRoundNumberAsync(request.GameId, cancelToken);
+
+        ServiceResult<int> compiled = await mediator.Send(new CompileUnitTemplateRequest(UnitTemplateId: template.Id, CompiledOnTurn: currentTurn), cancelToken);
+
+        if (!compiled.HasSucceeded)
+        {
+            logger.LogWarning("Compilation failed for {Request}. Errors: {Errors}", nameof(CreateUnitTemplateRequest), string.Join("; ", compiled.Errors));
+
+            return new ServiceResult<UnitTemplateView> { StatusCode = compiled.StatusCode, Errors = compiled.Errors };
+        }
+
+        await transaction.CommitAsync(cancelToken);
+
+        logger.LogInformation("Created custom unit template '{DisplayName}' (id {Id}) for player {PlayerId}.",
+            template.DisplayName, 
+            template.Id, 
+            request.PlayerId);
+
+        return ServiceResult<UnitTemplateView>.Created(ToView(template, baseComponent));
     }
 
     /// <summary>

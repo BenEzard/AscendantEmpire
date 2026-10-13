@@ -33,7 +33,7 @@ internal class CampaignMapStartPositionsHandlerTests : SqlServerTestBase
     public async Task PutShouldRejectDuplicateCoordinatesAsync()
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
-        PutCampaignMapStartPositionsHandler handler = new(new NullLogger<PutCampaignMapStartPositionsHandler>(), context);
+        PutCampaignMapStartPositionsHandler handler = new(context);
 
         ServiceResult<IReadOnlyCollection<DTCampaignMapStartPosition>> result =
             await handler.Handle(new PutCampaignMapStartPositionsRequest(_mapId,
@@ -50,7 +50,7 @@ internal class CampaignMapStartPositionsHandlerTests : SqlServerTestBase
     public async Task PutShouldRejectOutOfBoundsCoordinatesAsync()
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
-        PutCampaignMapStartPositionsHandler handler = new(new NullLogger<PutCampaignMapStartPositionsHandler>(), context);
+        PutCampaignMapStartPositionsHandler handler = new(context);
 
         ServiceResult<IReadOnlyCollection<DTCampaignMapStartPosition>> result =
             await handler.Handle(new PutCampaignMapStartPositionsRequest(_mapId,
@@ -74,7 +74,7 @@ internal class CampaignMapStartPositionsHandlerTests : SqlServerTestBase
         }
 
         await using AscendantEmpireContext runContext = await DbFactory.CreateDbContextAsync();
-        PutCampaignMapStartPositionsHandler handler = new(new NullLogger<PutCampaignMapStartPositionsHandler>(), runContext);
+        PutCampaignMapStartPositionsHandler handler = new(runContext);
 
         ServiceResult<IReadOnlyCollection<DTCampaignMapStartPosition>> result =
             await handler.Handle(new PutCampaignMapStartPositionsRequest(_mapId,
@@ -99,7 +99,7 @@ internal class CampaignMapStartPositionsHandlerTests : SqlServerTestBase
         }
 
         await using AscendantEmpireContext runContext = await DbFactory.CreateDbContextAsync();
-        PutCampaignMapStartPositionsHandler handler = new(new NullLogger<PutCampaignMapStartPositionsHandler>(), runContext);
+        PutCampaignMapStartPositionsHandler handler = new(runContext);
 
         ServiceResult<IReadOnlyCollection<DTCampaignMapStartPosition>> result =
             await handler.Handle(new PutCampaignMapStartPositionsRequest(_mapId,
@@ -128,7 +128,7 @@ internal class CampaignMapStartPositionsHandlerTests : SqlServerTestBase
         }
 
         await using AscendantEmpireContext runContext = await DbFactory.CreateDbContextAsync();
-        PutCampaignMapStartPositionsHandler handler = new(new NullLogger<PutCampaignMapStartPositionsHandler>(), runContext);
+        PutCampaignMapStartPositionsHandler handler = new(runContext);
 
         ServiceResult<IReadOnlyCollection<DTCampaignMapStartPosition>> result =
             await handler.Handle(new PutCampaignMapStartPositionsRequest(_mapId,

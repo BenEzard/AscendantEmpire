@@ -15,6 +15,7 @@ using AscendantEmpire.Tests.Features.Maps.MapResources;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
@@ -373,7 +374,11 @@ internal sealed class UpdateCampaignMapTilesHandlerTests : SqlServerTestBase
             .AddScoped(_ => DbFactory.CreateDbContext())
             .AddMediator(typeof(UpdateCampaignMapTilesHandler).Assembly)
             .AddValidatorsFromAssembly(typeof(UpdateCampaignMapTilesHandler).Assembly)
+            // The same two behaviours ApplicationStartup registers, in the same order, so a handler that throws is answered here the way it is in the running
+            // API rather than tearing the call down. The host environment is what the exception behaviour reads to decide how much of the exception to say.
+            .AddTransient(typeof(IPipelineBehaviour<,>), typeof(ExceptionHandlingBehaviour<,>))
             .AddTransient(typeof(IPipelineBehaviour<,>), typeof(ValidationBehaviour<,>))
+            .AddSingleton<IHostEnvironment>(new StubHostEnvironment(StubHostEnvironment.PRODUCTION))
             .AddLogging();
 
         if (useThrowingPlacementWrites)

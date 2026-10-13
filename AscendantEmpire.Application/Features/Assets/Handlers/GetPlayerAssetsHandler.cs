@@ -62,44 +62,35 @@ internal class GetPlayerAssetsHandler(
         GetPlayerAssetsRequest request,
         CancellationToken cancellationToken)
     {
-        try
+        // A cheap "is this Player part of this in-progress Game" probe, so a request cannot be answered out of whatever unlock rows its Player id
+        // happens to have.
+        ServiceResult<IReadOnlyCollection<GameContext>> gameContextResult =
+            await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancellationToken);
+
+        if (gameContextResult.SuccessValue is not { Count: > 0 })
         {
-            // A cheap "is this Player part of this in-progress Game" probe, so a request cannot be answered out of whatever unlock rows its Player id
-            // happens to have.
-            ServiceResult<IReadOnlyCollection<GameContext>> gameContextResult =
-                await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancellationToken);
+            string error = $"No in-progress game found for Game Id: {request.GameId} and Player Id: {request.PlayerId}.";
+            logger.LogWarning("{Error}", error);
 
-            if (gameContextResult.SuccessValue is not { Count: > 0 })
-            {
-                string error = $"No in-progress game found for Game Id: {request.GameId} and Player Id: {request.PlayerId}.";
-                logger.LogWarning("{Error}", error);
-
-                return ServiceResult<IReadOnlyCollection<PlayerAssetMetaCategory>>.NotFound(error);
-            }
-
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancellationToken);
-
-            ServiceResult<int> currentRoundResult = await PlayerAssetUnlockLookup.ReadCurrentRoundAsync(context, request.GameId, cancellationToken);
-
-            if (currentRoundResult.HasSucceeded == false)
-            {
-                return ServiceResult<IReadOnlyCollection<PlayerAssetMetaCategory>>.NotFound(currentRoundResult.Errors);
-            }
-
-            IReadOnlyCollection<PlayerAssetMetaCategory> tree = await ReadTreeAsync(
-                context,
-                request.PlayerId,
-                currentRoundResult.SuccessValue,
-                cancellationToken);
-
-            return ServiceResult<IReadOnlyCollection<PlayerAssetMetaCategory>>.Succeed(tree);
+            return ServiceResult<IReadOnlyCollection<PlayerAssetMetaCategory>>.NotFound(error);
         }
-        catch (Exception ex)
+
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancellationToken);
+
+        ServiceResult<int> currentRoundResult = await PlayerAssetUnlockLookup.ReadCurrentRoundAsync(context, request.GameId, cancellationToken);
+
+        if (currentRoundResult.HasSucceeded == false)
         {
-            logger.LogError(ex, "An error occurred while handling {RequestName}.", nameof(GetPlayerAssetsRequest));
-
-            return ServiceResult<IReadOnlyCollection<PlayerAssetMetaCategory>>.Fail("An unexpected error occurred while retrieving player assets.");
+            return ServiceResult<IReadOnlyCollection<PlayerAssetMetaCategory>>.NotFound(currentRoundResult.Errors);
         }
+
+        IReadOnlyCollection<PlayerAssetMetaCategory> tree = await ReadTreeAsync(
+            context,
+            request.PlayerId,
+            currentRoundResult.SuccessValue,
+            cancellationToken);
+
+        return ServiceResult<IReadOnlyCollection<PlayerAssetMetaCategory>>.Succeed(tree);
     }
 
     /// <summary>

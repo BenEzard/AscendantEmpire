@@ -33,34 +33,26 @@ internal class EndCampaignRoundHandler(
 {
     public async Task<ServiceResultBase> Handle(EndCampaignRoundRequest request, CancellationToken cancelToken)
     {
-        try
+        // Validate the request object
+        var validator = new EndCampaignRoundRequestValidator();
+
+        if (validator.Validate(request) is not { IsValid: true })
         {
-            // Validate the request object
-            var validator = new EndCampaignRoundRequestValidator();
-            
-            if (validator.Validate(request) is not { IsValid: true })
-            {
-                var errors = validator.Validate(request).Errors.Select(e => e.ErrorMessage);
-                string error = $"Validation failed for {nameof(EndCampaignRoundRequest)}.";
-                logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
-                return Fail(errors.Prepend(error));
-            }
-
-            // TODO: Anything that needs to happen at the end of a campaign round.
-
-            if (ShouldGameContinue())
-            {
-                // TODO: Start next Round
-                
-            }
-
-            return Succeed();
+            var errors = validator.Validate(request).Errors.Select(e => e.ErrorMessage);
+            string error = $"Validation failed for {nameof(EndCampaignRoundRequest)}.";
+            logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
+            return Fail(errors.Prepend(error));
         }
-        catch (Exception ex)
+
+        // TODO: Anything that needs to happen at the end of a campaign round.
+
+        if (ShouldGameContinue())
         {
-            logger.LogError(ex, "An exception occurred while processing {method}", nameof(EndCampaignRoundRequest));
-            return Fail("An unhandled exception occurred.");
+            // TODO: Start next Round
+
         }
+
+        return Succeed();
     }
 
     private bool ShouldGameContinue() 

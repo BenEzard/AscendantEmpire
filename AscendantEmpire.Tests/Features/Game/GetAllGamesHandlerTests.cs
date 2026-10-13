@@ -27,7 +27,7 @@ public class GetAllGamesHandlerTests : InMemoryTestBase
     [SetUp]
     public void SetUp()
     {
-        _handler = new GetAllGamesHandler(new NullLogger<GetAllGamesHandler>(), DbFactory);
+        _handler = new GetAllGamesHandler(DbFactory);
     }
 
     [Test, Description("Every game is listed whatever state it is in, because a game that failed setup or was abandoned is exactly the kind someone came here to delete.")]

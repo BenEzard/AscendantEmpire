@@ -47,46 +47,38 @@ internal class LoginHandler(
 
     public async Task<ServiceResult<AuthenticatedUser>> Handle(LoginRequest request, CancellationToken cancelToken)
     {
-        try
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+
+        string username = request.Username.Trim();
+        User? user = await context.Users.FirstOrDefaultAsync(u => u.Username == username, cancelToken);
+
+        if (user is null)
         {
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
-
-            string username = request.Username.Trim();
-            User? user = await context.Users.FirstOrDefaultAsync(u => u.Username == username, cancelToken);
-
-            if (user is null)
-            {
-                logger.LogInformation("Login failed: no user named {Username}.", username);
-                return ServiceResult<AuthenticatedUser>.Forbidden(InvalidCredentialsMessage);
-            }
-
-            PasswordVerificationResult verification = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
-
-            if (verification == PasswordVerificationResult.Failed)
-            {
-                logger.LogInformation("Login failed: wrong password for user {Username}.", username);
-                return ServiceResult<AuthenticatedUser>.Forbidden(InvalidCredentialsMessage);
-            }
-
-            // If the hasher says the stored hash uses outdated parameters, transparently upgrade it.
-            if (verification == PasswordVerificationResult.SuccessRehashNeeded)
-            {
-                user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
-                await context.SaveChangesAsync(cancelToken);
-            }
-
-            logger.LogInformation("User {Username} (Id {UserId}) logged in.", user.Username, user.Id);
-
-            // Read the grants now so the token the API mints carries them; a change made after this point
-            // takes effect on the user's next refresh.
-            IReadOnlyCollection<PermissionType> permissions = await context.GetUserPermissionsAsync(user.Id, cancelToken);
-
-            return ServiceResult<AuthenticatedUser>.Succeed(new AuthenticatedUser(user.Id, user.Username, permissions));
+            logger.LogInformation("Login failed: no user named {Username}.", username);
+            return ServiceResult<AuthenticatedUser>.Forbidden(InvalidCredentialsMessage);
         }
-        catch (Exception ex)
+
+        PasswordVerificationResult verification = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
+
+        if (verification == PasswordVerificationResult.Failed)
         {
-            logger.LogError(ex, "An error occurred while handling {RequestName}.", nameof(LoginRequest));
-            return ServiceResult<AuthenticatedUser>.InternalServerError("An unexpected error occurred while logging in.");
+            logger.LogInformation("Login failed: wrong password for user {Username}.", username);
+            return ServiceResult<AuthenticatedUser>.Forbidden(InvalidCredentialsMessage);
         }
+
+        // If the hasher says the stored hash uses outdated parameters, transparently upgrade it.
+        if (verification == PasswordVerificationResult.SuccessRehashNeeded)
+        {
+            user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
+            await context.SaveChangesAsync(cancelToken);
+        }
+
+        logger.LogInformation("User {Username} (Id {UserId}) logged in.", user.Username, user.Id);
+
+        // Read the grants now so the token the API mints carries them; a change made after this point
+        // takes effect on the user's next refresh.
+        IReadOnlyCollection<PermissionType> permissions = await context.GetUserPermissionsAsync(user.Id, cancelToken);
+
+        return ServiceResult<AuthenticatedUser>.Succeed(new AuthenticatedUser(user.Id, user.Username, permissions));
     }
 }

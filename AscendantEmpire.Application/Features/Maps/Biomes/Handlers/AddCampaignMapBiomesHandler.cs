@@ -24,50 +24,41 @@ internal class AddCampaignMapBiomesHandler(
 {
     public async Task<ServiceResultBase> Handle(AddCampaignMapBiomesRequest request, CancellationToken cancellationToken)
     {
-        try
+        // Validate the request objects
+        ServiceResultBase validation = ValidateRequestBiomes(context, request.Biomes);
+
+        if (validation.HasSucceeded == false)
         {
-            // Validate the request objects
-            ServiceResultBase validation = ValidateRequestBiomes(context, request.Biomes);
-
-            if (validation.HasSucceeded == false)
-            {
-                logger.LogWarning("Validation failed for " + nameof(AddCampaignMapBiomesRequest) + ": {Errors}", string.Join(Environment.NewLine, validation.Errors));
-                return ServiceResult.Fail(validation.Errors);
-            }
-
-            // Map the request DTOs to domain entities
-            var campaignBiomes = request.Biomes.Select(biome => new CampaignBiome
-            {
-                BiomeTypeId = biome.BiomeType,
-                Name = biome.Name,
-                MovementCost = biome.MovementCost,
-                DoesBlockSight = biome.DoesBlockSight,
-                IsWater = biome.IsWater,
-                IsTraversable = biome.IsTraversable,
-                RegenerationPercent = biome.RegenerationPercent,
-                // The DTO carries whole numbers from the UI; store them scaled so bonus math keeps precision.
-                BaseForageValue = ScaledResourceValue.ToRaw(biome.BaseForageValue),
-                BaseHuntValue = ScaledResourceValue.ToRaw(biome.BaseHuntValue),
-                BaseFishValue = ScaledResourceValue.ToRaw(biome.BaseFishValue),
-                BaseFodderValue = ScaledResourceValue.ToRaw(biome.BaseFodderValue),
-                BaseBoneValue = ScaledResourceValue.ToRaw(biome.BaseBoneValue),
-                BaseWoodValue = ScaledResourceValue.ToRaw(biome.BaseWoodValue),
-                BaseStoneValue = ScaledResourceValue.ToRaw(biome.BaseStoneValue),
-                MapEditorHtmlColor = biome.MapEditorHtmlColor,
-                CanBeElevated = biome.CanBeElevated,
-                IsPaintableOnCampaignMap = biome.IsPaintableOnCampaignMap
-            }).ToArray();
-
-            context.CampaignBiomes.AddRange(campaignBiomes);
-
-            await context.SaveChangesAsync(CancellationToken.None);
+            logger.LogWarning("Validation failed for " + nameof(AddCampaignMapBiomesRequest) + ": {Errors}", string.Join(Environment.NewLine, validation.Errors));
+            return ServiceResult.Fail(validation.Errors);
         }
-        catch (Exception ex)
+
+        // Map the request DTOs to domain entities
+        var campaignBiomes = request.Biomes.Select(biome => new CampaignBiome
         {
-            const string error = "Error adding Campaign Map Biomes.";
-            logger.LogError(ex, error);
-            return ServiceResultBase.InternalServerError(error);
-        }
+            BiomeTypeId = biome.BiomeType,
+            Name = biome.Name,
+            MovementCost = biome.MovementCost,
+            DoesBlockSight = biome.DoesBlockSight,
+            IsWater = biome.IsWater,
+            IsTraversable = biome.IsTraversable,
+            RegenerationPercent = biome.RegenerationPercent,
+            // The DTO carries whole numbers from the UI; store them scaled so bonus math keeps precision.
+            BaseForageValue = ScaledResourceValue.ToRaw(biome.BaseForageValue),
+            BaseHuntValue = ScaledResourceValue.ToRaw(biome.BaseHuntValue),
+            BaseFishValue = ScaledResourceValue.ToRaw(biome.BaseFishValue),
+            BaseFodderValue = ScaledResourceValue.ToRaw(biome.BaseFodderValue),
+            BaseBoneValue = ScaledResourceValue.ToRaw(biome.BaseBoneValue),
+            BaseWoodValue = ScaledResourceValue.ToRaw(biome.BaseWoodValue),
+            BaseStoneValue = ScaledResourceValue.ToRaw(biome.BaseStoneValue),
+            MapEditorHtmlColor = biome.MapEditorHtmlColor,
+            CanBeElevated = biome.CanBeElevated,
+            IsPaintableOnCampaignMap = biome.IsPaintableOnCampaignMap
+        }).ToArray();
+
+        context.CampaignBiomes.AddRange(campaignBiomes);
+
+        await context.SaveChangesAsync(CancellationToken.None);
 
         return ServiceResultBase.Created();
     }

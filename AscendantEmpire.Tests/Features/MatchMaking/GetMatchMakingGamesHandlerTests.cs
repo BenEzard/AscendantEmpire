@@ -47,7 +47,7 @@ internal class GetMatchMakingGamesHandlerTests : InMemoryTestBase
     [SetUp]
     public async Task SeedLobbyAsync()
     {
-        _handler = new GetMatchMakingGamesHandler(NullLogger<GetMatchMakingGamesHandler>.Instance, DbFactory);
+        _handler = new GetMatchMakingGamesHandler(DbFactory);
 
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 

@@ -143,7 +143,7 @@ internal class GetPlayerTemplatesHandlerTests : SqlServerTestBase
     {
         await SeedAsync();
 
-        var handler = new GetPlayerTemplatesHandler(new NullLogger<GetPlayerTemplatesHandler>(), DbFactory);
+        var handler = new GetPlayerTemplatesHandler(DbFactory);
         ServiceResult<PlayerTemplatesResult> result =
             await handler.Handle(new GetPlayerTemplatesRequest(_gameId, _playerId), CancellationToken.None);
 

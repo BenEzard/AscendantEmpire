@@ -46,70 +46,61 @@ internal sealed class GetPlayerDefinitionHandler(
 {
     public async Task<ServiceResult<PlayerDefinition>> Handle(GetPlayerDefinitionRequest request, CancellationToken cancelToken)
     {
-        try
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+
+        // A game holds at most a handful of slots, so pull them all in one query and split them
+        // in memory rather than making a second round trip for the rivals' colours.
+        List<Player> slots = await context.Players
+            .AsNoTracking()
+            .Where(p => p.GameId == request.GameId)
+            .ToListAsync(cancelToken);
+
+        Player? ownSlot = slots.FirstOrDefault(p => p.UserId == request.UserId);
+
+        if (ownSlot is null)
         {
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
-
-            // A game holds at most a handful of slots, so pull them all in one query and split them
-            // in memory rather than making a second round trip for the rivals' colours.
-            List<Player> slots = await context.Players
-                .AsNoTracking()
-                .Where(p => p.GameId == request.GameId)
-                .ToListAsync(cancelToken);
-
-            Player? ownSlot = slots.FirstOrDefault(p => p.UserId == request.UserId);
-
-            if (ownSlot is null)
-            {
-                logger.LogInformation("User {UserId} asked for their player definition in game {GameId} but controls no slot there.", request.UserId, request.GameId);
-                return ServiceResult<PlayerDefinition>.NotFound("You don't control a player in that game.");
-            }
-
-            List<UsedFactionColour> usedColours = [.. slots
-                .Where(p => p.Id != ownSlot.Id && string.IsNullOrWhiteSpace(p.FactionColour) == false)
-                .Select(p => new UsedFactionColour
-                {
-                    Value = p.FactionColour!,
-                    UsedBy = p.FactionName
-                })
-                .OrderBy(c => c.UsedBy)];
-
-            // Only portraits a rival has actually chosen are unavailable. A slot still on the default holds nothing
-            // to take, which is what lets every undecided player share that state.
-            List<UsedRulerPortrait> usedPortraits = [.. slots
-                .Where(p => p.Id != ownSlot.Id && p.RulerPortraitPath != Player.DEFAULT_RULER_PORTRAIT_PATH)
-                .Select(p => new UsedRulerPortrait
-                {
-                    Value = p.RulerPortraitPath,
-                    UsedBy = p.FactionName
-                })
-                .OrderBy(p => p.UsedBy)];
-
-            PlayerDefinition definition = new()
-            {
-                PlayerId = ownSlot.Id,
-                GameId = ownSlot.GameId,
-                RulerTitle = ownSlot.RulerTitle,
-                RulerName = ownSlot.RulerName,
-                RulerGender = ownSlot.RulerGender,
-                FactionName = ownSlot.FactionName,
-                FactionColour = ownSlot.FactionColour,
-                PeopleName = ownSlot.PeopleName,
-                Demonym = ownSlot.Demonym,
-                CultureName = ownSlot.CultureName,
-                Language = ownSlot.Language,
-                RulerPortraitPath = ownSlot.RulerPortraitPath,
-                UsedFactionColours = usedColours,
-                UsedRulerPortraits = usedPortraits
-            };
-
-            return ServiceResult<PlayerDefinition>.Succeed(definition);
+            logger.LogInformation("User {UserId} asked for their player definition in game {GameId} but controls no slot there.", request.UserId, request.GameId);
+            return ServiceResult<PlayerDefinition>.NotFound("You don't control a player in that game.");
         }
-        catch (Exception ex)
+
+        List<UsedFactionColour> usedColours = [.. slots
+            .Where(p => p.Id != ownSlot.Id && string.IsNullOrWhiteSpace(p.FactionColour) == false)
+            .Select(p => new UsedFactionColour
+            {
+                Value = p.FactionColour!,
+                UsedBy = p.FactionName
+            })
+            .OrderBy(c => c.UsedBy)];
+
+        // Only portraits a rival has actually chosen are unavailable. A slot still on the default holds nothing
+        // to take, which is what lets every undecided player share that state.
+        List<UsedRulerPortrait> usedPortraits = [.. slots
+            .Where(p => p.Id != ownSlot.Id && p.RulerPortraitPath != Player.DEFAULT_RULER_PORTRAIT_PATH)
+            .Select(p => new UsedRulerPortrait
+            {
+                Value = p.RulerPortraitPath,
+                UsedBy = p.FactionName
+            })
+            .OrderBy(p => p.UsedBy)];
+
+        PlayerDefinition definition = new()
         {
-            const string error = "An error occurred while fetching the player definition.";
-            logger.LogError(ex, error);
-            return ServiceResult<PlayerDefinition>.InternalServerError(error);
-        }
+            PlayerId = ownSlot.Id,
+            GameId = ownSlot.GameId,
+            RulerTitle = ownSlot.RulerTitle,
+            RulerName = ownSlot.RulerName,
+            RulerGender = ownSlot.RulerGender,
+            FactionName = ownSlot.FactionName,
+            FactionColour = ownSlot.FactionColour,
+            PeopleName = ownSlot.PeopleName,
+            Demonym = ownSlot.Demonym,
+            CultureName = ownSlot.CultureName,
+            Language = ownSlot.Language,
+            RulerPortraitPath = ownSlot.RulerPortraitPath,
+            UsedFactionColours = usedColours,
+            UsedRulerPortraits = usedPortraits
+        };
+
+        return ServiceResult<PlayerDefinition>.Succeed(definition);
     }
 }

@@ -33,69 +33,60 @@ internal class RecompileAllUnitTemplatesHandler(
 {
     public async Task<ServiceResult<RecompileAllUnitTemplatesResult>> Handle(RecompileAllUnitTemplatesRequest request, CancellationToken cancelToken)
     {
-        try
+        // Only what the loop needs: the id to compile, the game for turn-stamping, and a label for failure messages.
+        var templates = await context.UnitTemplates
+            .Select(t => new { t.Id, t.GameId, t.Code, t.DisplayName })
+            .ToListAsync(cancelToken);
+
+        // Each game's current round is looked up once, however many of its templates are recompiled.
+        Dictionary<int, int> roundByGameId = [];
+
+        int recompiledCount = 0;
+        List<string> failures = [];
+
+        foreach (var template in templates)
         {
-            // Only what the loop needs: the id to compile, the game for turn-stamping, and a label for failure messages.
-            var templates = await context.UnitTemplates
-                .Select(t => new { t.Id, t.GameId, t.Code, t.DisplayName })
-                .ToListAsync(cancelToken);
+            int currentTurn = 0;
 
-            // Each game's current round is looked up once, however many of its templates are recompiled.
-            Dictionary<int, int> roundByGameId = [];
-
-            int recompiledCount = 0;
-            List<string> failures = [];
-
-            foreach (var template in templates)
+            // Player-owned templates are stamped with their game's current campaign round; global ones stay at the 0 sentinel.
+            if (template.GameId is { } gameId)
             {
-                int currentTurn = 0;
-
-                // Player-owned templates are stamped with their game's current campaign round; global ones stay at the 0 sentinel.
-                if (template.GameId is { } gameId)
+                if (!roundByGameId.TryGetValue(gameId, out currentTurn))
                 {
-                    if (!roundByGameId.TryGetValue(gameId, out currentTurn))
-                    {
-                        currentTurn = await campaignTurnService.GetCurrentRoundNumberAsync(gameId, cancelToken);
-                        roundByGameId[gameId] = currentTurn;
-                    }
-                }
-
-                ServiceResult<int> compiled = await mediator.Send(
-                    new CompileUnitTemplateRequest(UnitTemplateId: template.Id, CompiledOnTurn: currentTurn), cancelToken);
-
-                if (compiled.HasSucceeded)
-                {
-                    recompiledCount++;
-                }
-                else
-                {
-                    // Global templates are best known by Code; custom ones have none, so fall back to name + id.
-                    string label = template.Code ?? $"{template.DisplayName} (id {template.Id})";
-                    failures.Add($"Template '{label}': {string.Join("; ", compiled.Errors)}");
+                    currentTurn = await campaignTurnService.GetCurrentRoundNumberAsync(gameId, cancelToken);
+                    roundByGameId[gameId] = currentTurn;
                 }
             }
 
-            if (failures.Count > 0)
+            ServiceResult<int> compiled = await mediator.Send(
+                new CompileUnitTemplateRequest(UnitTemplateId: template.Id, CompiledOnTurn: currentTurn), cancelToken);
+
+            if (compiled.HasSucceeded)
             {
-                logger.LogWarning("Recompiled {RecompiledCount} unit template(s); {FailedCount} failed. Failures: {Failures}",
-                    recompiledCount, failures.Count, string.Join(" | ", failures));
+                recompiledCount++;
             }
             else
             {
-                logger.LogInformation("Recompiled all {RecompiledCount} unit template(s).", recompiledCount);
+                // Global templates are best known by Code; custom ones have none, so fall back to name + id.
+                string label = template.Code ?? $"{template.DisplayName} (id {template.Id})";
+                failures.Add($"Template '{label}': {string.Join("; ", compiled.Errors)}");
             }
+        }
 
-            return ServiceResult<RecompileAllUnitTemplatesResult>.Succeed(new RecompileAllUnitTemplatesResult
-            {
-                RecompiledCount = recompiledCount,
-                Failures = failures,
-            });
-        }
-        catch (Exception ex)
+        if (failures.Count > 0)
         {
-            const string error = "An exception occurred while processing " + nameof(RecompileAllUnitTemplatesHandler) + ".";
-            logger.LogError(ex, error);
-            return ServiceResult<RecompileAllUnitTemplatesResult>.InternalServerError(ex, error);
+            logger.LogWarning("Recompiled {RecompiledCount} unit template(s); {FailedCount} failed. Failures: {Failures}",
+                recompiledCount, failures.Count, string.Join(" | ", failures));
         }
+        else
+        {
+            logger.LogInformation("Recompiled all {RecompiledCount} unit template(s).", recompiledCount);
+        }
+
+        return ServiceResult<RecompileAllUnitTemplatesResult>.Succeed(new RecompileAllUnitTemplatesResult
+        {
+            RecompiledCount = recompiledCount,
+            Failures = failures,
+        });
     }
 }

@@ -64,253 +64,244 @@ internal class GetPlayerCampaignMapHandler(
     {
         List<ObserverSight> observers = [];
 
-        try
+        // Validate the request object
+        var validator = new PlayerCampaignMapRequestValidator();
+
+        if (validator.Validate(request) is not { IsValid: true })
         {
-            // Validate the request object
-            var validator = new PlayerCampaignMapRequestValidator();
+            var errors = validator.Validate(request).Errors.Select(e => e.ErrorMessage);
+            const string error = "Validation failed for GetPlayerCampaignMapRequest.";
+            logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
+            return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(errors.Prepend(error));
+        }
 
-            if (validator.Validate(request) is not { IsValid: true })
+        // Load the game info
+        ServiceResult<IReadOnlyCollection<GameContext>> gameInfoResult = await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancelToken);
+
+        if (gameInfoResult.HasSucceeded == false)
+        {
+            const string error = "Error getting game info while trying to get a Player's view of the Campaign Map";
+            logger.LogWarning(error);
+            return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(gameInfoResult.Errors.Prepend(error));
+        }
+
+        GameContext? gameInfo = gameInfoResult.SuccessValue!.SingleOrDefault();
+
+        if (gameInfo == null)
+        {
+            const string error = "Game not found while trying to get a Player's view of the Campaign Map";
+            logger.LogWarning(error);
+            return ServiceResult<IReadOnlyCollection<ObserverSight>>.NotFound(error);
+        }
+
+        GameContextPlayer thisPlayer = gameInfo.Players.Single();
+        CampaignMapGeometry geometry = CampaignMapGeometry.From(gameInfo);
+
+        // What each of *THIS* Player's Observers - their Structures and Forces - can see. The sight rules live in FieldOfView, shared with the witness
+        // service; everything below is only what this read does with the answer.
+        ServiceResult<IReadOnlyCollection<ObserverFieldOfView>> fieldOfViewResult = await fieldOfViewService.GetPlayerFieldOfViewAsync(request.GameId, thisPlayer.PlayerId, geometry, cancelToken);
+
+        if (fieldOfViewResult.HasSucceeded == false)
+        {
+            const string error = "Error working out what a Player's Observers can see while trying to get a Player's view of the Campaign Map";
+            logger.LogWarning(error);
+            return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(fieldOfViewResult.Errors.Prepend(error));
+        }
+
+        IReadOnlyCollection<ObserverFieldOfView> fieldsOfView = fieldOfViewResult.SuccessValue!;
+
+        cancelToken.ThrowIfCancellationRequested();
+
+        // The rivers on every Tile an Observer can see. Read once for the whole set rather than per Tile, and separately from the terrain the sight rules
+        // return, because a river is not a property of a Tile: it sits on an edge that the Tile above or to the left of it owns.
+        IReadOnlyDictionary<Coord, TileRivers> riversByCoord = await GetTileRiversAsync(
+            request.GameId,
+            [.. fieldsOfView.SelectMany(view => view.SeenTiles).Select(tile => new Coord(tile.X, tile.Y)).Distinct()],
+            geometry,
+            cancelToken);
+
+        // The world-map id of every Tile in view. Structures and Forces are stored against the world map, so these look them up directly.
+        List<int> campaignMapTileIds = [.. fieldsOfView.SelectMany(view => view.SeenTiles).Select(tile => tile.CampaignMapId).Distinct()];
+
+        Dictionary<int, List<PlayerStructure>> structuresByTileId = [];
+        Dictionary<int, List<PlayerForce>> forcesByTileId = [];
+
+        if (campaignMapTileIds.Count > 0)
+        {
+            // Get *ALL* Structures and Forces on the observed map (for any Player)
+            Task<ServiceResult<IReadOnlyCollection<PlayerStructure>>> fetchAllStructuresTask = mediator.Send(new GetStructuresByLocationRequest(request.GameId, campaignMapTileIds, IncludeBattleMapStructures: false), cancelToken);
+
+            // Forces in battle are included. A Force fighting on a battle map is still standing on its campaign tile - the Battle is fought over that tile - so it is still seen there,
+            // and its owner has to be able to click it to reach its Battle button.
+            Task<ServiceResult<IReadOnlyCollection<PlayerForce>>> fetchAllForcesTask = mediator.Send(new GetForcesByLocationRequest(request.GameId, campaignMapTileIds, IncludeBattleMapForces: true), cancelToken);
+
+            await Task.WhenAll(fetchAllStructuresTask, fetchAllForcesTask);
+
+            ServiceResult<IReadOnlyCollection<PlayerStructure>> structureResult = await fetchAllStructuresTask;
+            ServiceResult<IReadOnlyCollection<PlayerForce>> forceResult = await fetchAllForcesTask;
+
+            if (structureResult.HasSucceeded == false)
             {
-                var errors = validator.Validate(request).Errors.Select(e => e.ErrorMessage);
-                const string error = "Validation failed for GetPlayerCampaignMapRequest.";
-                logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
-                return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(errors.Prepend(error));
-            }
-
-            // Load the game info
-            ServiceResult<IReadOnlyCollection<GameContext>> gameInfoResult = await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancelToken);
-
-            if (gameInfoResult.HasSucceeded == false)
-            {
-                const string error = "Error getting game info while trying to get a Player's view of the Campaign Map";
+                const string error = "Error getting all Structures by location while trying to get a Player's view of the Campaign Map";
                 logger.LogWarning(error);
-                return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(gameInfoResult.Errors.Prepend(error));
+                return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(structureResult.Errors.Prepend(error));
             }
-
-            GameContext? gameInfo = gameInfoResult.SuccessValue!.SingleOrDefault();
-
-            if (gameInfo == null)
+            else if (forceResult.HasSucceeded == false)
             {
-                const string error = "Game not found while trying to get a Player's view of the Campaign Map";
+                const string error = "Error getting all Forces by location while trying to get a Player's view of the Campaign Map";
                 logger.LogWarning(error);
-                return ServiceResult<IReadOnlyCollection<ObserverSight>>.NotFound(error);
+                return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(forceResult.Errors.Prepend(error));
             }
 
-            GameContextPlayer thisPlayer = gameInfo.Players.Single();
-            CampaignMapGeometry geometry = CampaignMapGeometry.From(gameInfo);
+            structuresByTileId = structureResult.SuccessValue!.GroupBy(s => s.CampaignMapTileId).ToDictionary(g => g.Key, g => g.ToList());
+            forcesByTileId = forceResult.SuccessValue!.GroupBy(s => s.CampaignMapTileId).ToDictionary(g => g.Key, g => g.ToList());
 
-            // What each of *THIS* Player's Observers - their Structures and Forces - can see. The sight rules live in FieldOfView, shared with the witness
-            // service; everything below is only what this read does with the answer.
-            ServiceResult<IReadOnlyCollection<ObserverFieldOfView>> fieldOfViewResult = await fieldOfViewService.GetPlayerFieldOfViewAsync(request.GameId, thisPlayer.PlayerId, geometry, cancelToken);
+            // Translate the world-map tile ids into the player's own map ids, which is what the exploration stamp is written against. Both maps are laid
+            // out in the same row-major order, so a tile sits at the same position in each block and the two offsets are all that separate them.
+            List<int> playerCampaignMapTileIds = [.. campaignMapTileIds.Select(id => id - gameInfo.CampaignMapOffsetId + thisPlayer.CampaignMapOffsetId)];
 
-            if (fieldOfViewResult.HasSucceeded == false)
+            // Note that these operations must occur in SEQUENCE.
+            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+
+            // Get a summary of the number of Tiles which are newly discovered *FOR THE PLAYER* by Biome
+            // TODO: Use this data to add Biome expertise points to the Player's Faction
+            IReadOnlyCollection<PlayerDiscoveredTileSummary> newlyDiscoveredTilesForPlayer = await CountNewlyDiscoveredTilesByBiomeAsync(context, playerCampaignMapTileIds, cancelToken);
+
+            // The Turn to stamp on what this Player just saw.
+            //
+            // Resolved once, and handed to both updates below - they run on separate contexts and must agree about which Turn this read was.
+            //
+            // TODO: Note this is still a side effect of the *read* rather than of movement. The sight rules no longer live here, but the stamp does, and
+            // relocating it onto the movement path is its own piece of work - it changes when ground becomes explored.
+            ServiceResult<int> observationTurnResult = await campaignTurnService.GetObservationTurnIdAsync(context, request.GameId, thisPlayer.PlayerId, cancelToken);
+
+            if (observationTurnResult.HasSucceeded == false)
             {
-                const string error = "Error working out what a Player's Observers can see while trying to get a Player's view of the Campaign Map";
+                // Refused before either update below runs, so a Game with no Turn to stamp against gets nothing written to its map rather than a Turn id
+                // that means nothing.
+                const string error = "Error resolving the Turn to stamp a Player's view of the Campaign Map with";
                 logger.LogWarning(error);
-                return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(fieldOfViewResult.Errors.Prepend(error));
+                return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(observationTurnResult.Errors.Prepend(error));
             }
 
-            IReadOnlyCollection<ObserverFieldOfView> fieldsOfView = fieldOfViewResult.SuccessValue!;
+            int turnId = observationTurnResult.SuccessValue;
 
-            cancelToken.ThrowIfCancellationRequested();
+            // Update the PlayerCampaignMap with Biome/Geography info, and FirstSeen/LastSeen turn info
+            Task updatePlayerMapTask = UpdatePlayerCampaignMapFromCampaignMapAsync(playerCampaignMapTileIds, turnId, cancelToken);
 
-            // The rivers on every Tile an Observer can see. Read once for the whole set rather than per Tile, and separately from the terrain the sight rules
-            // return, because a river is not a property of a Tile: it sits on an edge that the Tile above or to the left of it owns.
-            IReadOnlyDictionary<Coord, TileRivers> riversByCoord = await GetTileRiversAsync(
-                request.GameId,
-                [.. fieldsOfView.SelectMany(view => view.SeenTiles).Select(tile => new Coord(tile.X, tile.Y)).Distinct()],
+            // Update the CampaignMap with FirstSeenByPlayer/FirstSeenOnTurn info
+            // TODO: Use this data to add to Exploration achievements for the Player
+            Task<int> updateCampaignMap = UpdateCampaignMapFirstSeenAsync(playerCampaignMapTileIds, thisPlayer.PlayerId, turnId, cancelToken);
+
+            await Task.WhenAll(updatePlayerMapTask, updateCampaignMap);
+
+            int firstDiscoveredByPlayer = updateCampaignMap.Result;
+        }
+
+        observers.AddRange([.. fieldsOfView.Select(view => new ObserverSight
+        {
+            Id = view.Observer.Id,
+            RecordType = view.Observer.RecordType,
+            Location = view.Observer.Location,
+            SeenTiles = [.. view.SeenTiles.Select(seenTile =>
+            {
+                // structuresByTileId and forcesByTileId are keyed by world-map tile id, which is exactly what the seen tile carries.
+                structuresByTileId.TryGetValue(seenTile.CampaignMapId, out List<PlayerStructure>? structuresAtTile);
+                forcesByTileId.TryGetValue(seenTile.CampaignMapId, out List<PlayerForce>? forcesAtTile);
+
+                return new ObservedCampaignTile
+                {
+                    XCoord = seenTile.X,
+                    YCoord = seenTile.Y,
+                    BiomeTypeId = seenTile.BiomeType,
+                    CampaignMapGeographyTypeId = seenTile.GeographyType,
+                    // Always explored. A Tile only reaches this branch because an Observer can see it, and seeing it is what explores it — the stamp above
+                    // has already written FirstSeenOnTurnId on this very set of Tiles. Reading the flag back off the Tile row instead would report the value
+                    // from before that write, so a Tile would come back unexplored on the very read that explored it.
+                    IsExplored = true,
+                    // Terrain, like the Biome and Geography above, so it rides along with them. Falls back to "no rivers" rather than null: null means
+                    // unexplored to the client, and a Tile an Observer is looking at is explored by definition.
+                    Rivers = riversByCoord.GetValueOrDefault(new Coord(seenTile.X, seenTile.Y)) ?? TileRivers.None,
+                    Structures = structuresAtTile?.Select(os => new ObservedStructure
+                    {
+                        Id = os.StructureInstanceId,
+                        RecordType = os.RecordType,
+                        OwnerPlayerId = os.OwnerPlayerId,
+                        StructureId = os.StructureId,
+                        CompletionPercent = os.CompletionPercent,
+                        PositionOnTile = os.Position
+                    }).ToList() ?? [],
+                    Forces = forcesAtTile?.Select(ot => new ObservedForce
+                    {
+                        Id = ot.UnitInstanceId,
+                        RecordType = ot.RecordType,
+                        OwnerPlayerId = ot.PlayerId,
+                        UnitTemplateId = ot.UnitTemplateId,
+                        HealthyTroops = ot.HealthyTroops,
+                        InjuredTroops = ot.InjuredTroops,
+                        InitialStrength = ot.InitialStrength,
+                        // Masked for Forces this player doesn't own: how much movement an enemy has left is intel the vision rules never
+                        // granted. Seeing that a Force is standing there is one thing; knowing whether it can still act is another.
+                        // The numbers below are masked by the same test and more sharply so — they say exactly how far it could go.
+                        HasCampaignMovementRemaining = ot.PlayerId == thisPlayer.PlayerId ? ot.HasCampaignMovementRemaining : null,
+                        CampaignMovementRemaining = ot.PlayerId == thisPlayer.PlayerId ? ot.CampaignMovementRemaining : null,
+                        CampaignMovementPoints = ot.PlayerId == thisPlayer.PlayerId ? ot.CampaignMovementPoints : null,
+                        BattleMovementRemaining = ot.PlayerId == thisPlayer.PlayerId ? ot.BattleMovementRemaining : null,
+                    }).ToList() ?? []
+                };
+            })]
+        })]);
+
+        if (request.LoadWholeMap)
+        {
+            // Get a HashSet of all the coordinates we're already observing, so we don't get them again
+            HashSet<(int X, int Y)> alreadyObservedTiles = [.. observers.SelectMany(o => o.SeenTiles).Select(t => (t.XCoord, t.YCoord))];
+
+            List<InternalPlayerObservedTile> fetchPlayerView = await GetPlayerTilesInScopeAsync(gameInfo, thisPlayer.PlayerId, cancelToken);
+
+            // Rivers for the ground the Player remembers, and only that ground. Unexplored Tiles are left out of the request, so they disclose nothing -
+            // while an explored Tile beside one still reports the edge the two of them share, because that edge is described by both of them.
+            IReadOnlyDictionary<Coord, TileRivers> rememberedRiversByCoord = await GetTileRiversAsync(
+                gameInfo.GameId,
+                [.. fetchPlayerView
+                    .Where(tile => tile.FirstSeenByPlayerOnTurnId != null)
+                    .Where(tile => alreadyObservedTiles.Contains((tile.XCoord, tile.YCoord)) == false)
+                    .Select(tile => new Coord(tile.XCoord, tile.YCoord))],
                 geometry,
                 cancelToken);
 
-            // The world-map id of every Tile in view. Structures and Forces are stored against the world map, so these look them up directly.
-            List<int> campaignMapTileIds = [.. fieldsOfView.SelectMany(view => view.SeenTiles).Select(tile => tile.CampaignMapId).Distinct()];
-
-            Dictionary<int, List<PlayerStructure>> structuresByTileId = [];
-            Dictionary<int, List<PlayerForce>> forcesByTileId = [];
-
-            if (campaignMapTileIds.Count > 0)
+            var fullMapObserver = new ObserverSight
             {
-                // Get *ALL* Structures and Forces on the observed map (for any Player)
-                Task<ServiceResult<IReadOnlyCollection<PlayerStructure>>> fetchAllStructuresTask = mediator.Send(new GetStructuresByLocationRequest(request.GameId, campaignMapTileIds, IncludeBattleMapStructures: false), cancelToken);
-
-                // Forces in battle are included. A Force fighting on a battle map is still standing on its campaign tile - the Battle is fought over that tile - so it is still seen there,
-                // and its owner has to be able to click it to reach its Battle button.
-                Task<ServiceResult<IReadOnlyCollection<PlayerForce>>> fetchAllForcesTask = mediator.Send(new GetForcesByLocationRequest(request.GameId, campaignMapTileIds, IncludeBattleMapForces: true), cancelToken);
-
-                await Task.WhenAll(fetchAllStructuresTask, fetchAllForcesTask);
-
-                ServiceResult<IReadOnlyCollection<PlayerStructure>> structureResult = await fetchAllStructuresTask;
-                ServiceResult<IReadOnlyCollection<PlayerForce>> forceResult = await fetchAllForcesTask;
-
-                if (structureResult.HasSucceeded == false)
-                {
-                    const string error = "Error getting all Structures by location while trying to get a Player's view of the Campaign Map";
-                    logger.LogWarning(error);
-                    return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(structureResult.Errors.Prepend(error));
-                }
-                else if (forceResult.HasSucceeded == false)
-                {
-                    const string error = "Error getting all Forces by location while trying to get a Player's view of the Campaign Map";
-                    logger.LogWarning(error);
-                    return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(forceResult.Errors.Prepend(error));
-                }
-
-                structuresByTileId = structureResult.SuccessValue!.GroupBy(s => s.CampaignMapTileId).ToDictionary(g => g.Key, g => g.ToList());
-                forcesByTileId = forceResult.SuccessValue!.GroupBy(s => s.CampaignMapTileId).ToDictionary(g => g.Key, g => g.ToList());
-
-                // Translate the world-map tile ids into the player's own map ids, which is what the exploration stamp is written against. Both maps are laid
-                // out in the same row-major order, so a tile sits at the same position in each block and the two offsets are all that separate them.
-                List<int> playerCampaignMapTileIds = [.. campaignMapTileIds.Select(id => id - gameInfo.CampaignMapOffsetId + thisPlayer.CampaignMapOffsetId)];
-
-                // Note that these operations must occur in SEQUENCE.
-                await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
-
-                // Get a summary of the number of Tiles which are newly discovered *FOR THE PLAYER* by Biome
-                // TODO: Use this data to add Biome expertise points to the Player's Faction
-                IReadOnlyCollection<PlayerDiscoveredTileSummary> newlyDiscoveredTilesForPlayer = await CountNewlyDiscoveredTilesByBiomeAsync(context, playerCampaignMapTileIds, cancelToken);
-
-                // The Turn to stamp on what this Player just saw.
-                //
-                // Resolved once, and handed to both updates below - they run on separate contexts and must agree about which Turn this read was.
-                //
-                // TODO: Note this is still a side effect of the *read* rather than of movement. The sight rules no longer live here, but the stamp does, and
-                // relocating it onto the movement path is its own piece of work - it changes when ground becomes explored.
-                ServiceResult<int> observationTurnResult = await campaignTurnService.GetObservationTurnIdAsync(context, request.GameId, thisPlayer.PlayerId, cancelToken);
-
-                if (observationTurnResult.HasSucceeded == false)
-                {
-                    // Refused before either update below runs, so a Game with no Turn to stamp against gets nothing written to its map rather than a Turn id
-                    // that means nothing.
-                    const string error = "Error resolving the Turn to stamp a Player's view of the Campaign Map with";
-                    logger.LogWarning(error);
-                    return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(observationTurnResult.Errors.Prepend(error));
-                }
-
-                int turnId = observationTurnResult.SuccessValue;
-
-                // Update the PlayerCampaignMap with Biome/Geography info, and FirstSeen/LastSeen turn info
-                Task updatePlayerMapTask = UpdatePlayerCampaignMapFromCampaignMapAsync(playerCampaignMapTileIds, turnId, cancelToken);
-
-                // Update the CampaignMap with FirstSeenByPlayer/FirstSeenOnTurn info
-                // TODO: Use this data to add to Exploration achievements for the Player
-                Task<int> updateCampaignMap = UpdateCampaignMapFirstSeenAsync(playerCampaignMapTileIds, thisPlayer.PlayerId, turnId, cancelToken);
-
-                await Task.WhenAll(updatePlayerMapTask, updateCampaignMap);
-
-                int firstDiscoveredByPlayer = updateCampaignMap.Result;
-            }
-
-            observers.AddRange([.. fieldsOfView.Select(view => new ObserverSight
-            {
-                Id = view.Observer.Id,
-                RecordType = view.Observer.RecordType,
-                Location = view.Observer.Location,
-                SeenTiles = [.. view.SeenTiles.Select(seenTile =>
-                {
-                    // structuresByTileId and forcesByTileId are keyed by world-map tile id, which is exactly what the seen tile carries.
-                    structuresByTileId.TryGetValue(seenTile.CampaignMapId, out List<PlayerStructure>? structuresAtTile);
-                    forcesByTileId.TryGetValue(seenTile.CampaignMapId, out List<PlayerForce>? forcesAtTile);
-
-                    return new ObservedCampaignTile
+                Id = 0,
+                RecordType = RecordType.None,
+                Location = new Coord { X = 0, Y = 0 },
+                SeenTiles =
+                [
+                    .. fetchPlayerView
+                    .Where(pt => alreadyObservedTiles.Contains((pt.XCoord, pt.YCoord)) == false) // Exclude Tiles which are already included from the Observers above
+                    .Select(masterTile => new ObservedCampaignTile
                     {
-                        XCoord = seenTile.X,
-                        YCoord = seenTile.Y,
-                        BiomeTypeId = seenTile.BiomeType,
-                        CampaignMapGeographyTypeId = seenTile.GeographyType,
-                        // Always explored. A Tile only reaches this branch because an Observer can see it, and seeing it is what explores it — the stamp above
-                        // has already written FirstSeenOnTurnId on this very set of Tiles. Reading the flag back off the Tile row instead would report the value
-                        // from before that write, so a Tile would come back unexplored on the very read that explored it.
-                        IsExplored = true,
-                        // Terrain, like the Biome and Geography above, so it rides along with them. Falls back to "no rivers" rather than null: null means
-                        // unexplored to the client, and a Tile an Observer is looking at is explored by definition.
-                        Rivers = riversByCoord.GetValueOrDefault(new Coord(seenTile.X, seenTile.Y)) ?? TileRivers.None,
-                        Structures = structuresAtTile?.Select(os => new ObservedStructure
-                        {
-                            Id = os.StructureInstanceId,
-                            RecordType = os.RecordType,
-                            OwnerPlayerId = os.OwnerPlayerId,
-                            StructureId = os.StructureId,
-                            CompletionPercent = os.CompletionPercent,
-                            PositionOnTile = os.Position
-                        }).ToList() ?? [],
-                        Forces = forcesAtTile?.Select(ot => new ObservedForce
-                        {
-                            Id = ot.UnitInstanceId,
-                            RecordType = ot.RecordType,
-                            OwnerPlayerId = ot.PlayerId,
-                            UnitTemplateId = ot.UnitTemplateId,
-                            HealthyTroops = ot.HealthyTroops,
-                            InjuredTroops = ot.InjuredTroops,
-                            InitialStrength = ot.InitialStrength,
-                            // Masked for Forces this player doesn't own: how much movement an enemy has left is intel the vision rules never
-                            // granted. Seeing that a Force is standing there is one thing; knowing whether it can still act is another.
-                            // The numbers below are masked by the same test and more sharply so — they say exactly how far it could go.
-                            HasCampaignMovementRemaining = ot.PlayerId == thisPlayer.PlayerId ? ot.HasCampaignMovementRemaining : null,
-                            CampaignMovementRemaining = ot.PlayerId == thisPlayer.PlayerId ? ot.CampaignMovementRemaining : null,
-                            CampaignMovementPoints = ot.PlayerId == thisPlayer.PlayerId ? ot.CampaignMovementPoints : null,
-                            BattleMovementRemaining = ot.PlayerId == thisPlayer.PlayerId ? ot.BattleMovementRemaining : null,
-                        }).ToList() ?? []
-                    };
-                })]
-            })]);
+                        XCoord = masterTile.XCoord,
+                        YCoord = masterTile.YCoord,
+                        BiomeTypeId = masterTile.BiomeTypeId,
+                        CampaignMapGeographyTypeId = masterTile.GeographyTypeId,
+                        // The Player's map holds a row for every Tile in the game from the moment it is set up, so this branch hands back the
+                        // whole board — the ground they remember and the ground they have never been to alike. FirstSeenOnTurnId is what
+                        // separates the two, and this is the only place in the response where the flag is ever false.
+                        IsExplored = masterTile.FirstSeenByPlayerOnTurnId != null,
+                        // Null for ground the Player has never been to, which is why the lookup is not defaulted here: an unexplored Tile was never asked
+                        // about, and saying "no rivers" would claim knowledge of ground they have not seen.
+                        Rivers = rememberedRiversByCoord.GetValueOrDefault(new Coord(masterTile.XCoord, masterTile.YCoord)),
+                        // Tiles outside an observer's sight are terrain only: the player knows the
+                        // ground from having explored it, but not what is standing on it now.
+                        Structures = [],
+                        Forces = []
+                    })
+                ]
+            };
 
-            if (request.LoadWholeMap)
-            {
-                // Get a HashSet of all the coordinates we're already observing, so we don't get them again
-                HashSet<(int X, int Y)> alreadyObservedTiles = [.. observers.SelectMany(o => o.SeenTiles).Select(t => (t.XCoord, t.YCoord))];
-
-                List<InternalPlayerObservedTile> fetchPlayerView = await GetPlayerTilesInScopeAsync(gameInfo, thisPlayer.PlayerId, cancelToken);
-
-                // Rivers for the ground the Player remembers, and only that ground. Unexplored Tiles are left out of the request, so they disclose nothing -
-                // while an explored Tile beside one still reports the edge the two of them share, because that edge is described by both of them.
-                IReadOnlyDictionary<Coord, TileRivers> rememberedRiversByCoord = await GetTileRiversAsync(
-                    gameInfo.GameId,
-                    [.. fetchPlayerView
-                        .Where(tile => tile.FirstSeenByPlayerOnTurnId != null)
-                        .Where(tile => alreadyObservedTiles.Contains((tile.XCoord, tile.YCoord)) == false)
-                        .Select(tile => new Coord(tile.XCoord, tile.YCoord))],
-                    geometry,
-                    cancelToken);
-
-                var fullMapObserver = new ObserverSight
-                {
-                    Id = 0,
-                    RecordType = RecordType.None,
-                    Location = new Coord { X = 0, Y = 0 },
-                    SeenTiles =
-                    [
-                        .. fetchPlayerView
-                        .Where(pt => alreadyObservedTiles.Contains((pt.XCoord, pt.YCoord)) == false) // Exclude Tiles which are already included from the Observers above
-                        .Select(masterTile => new ObservedCampaignTile
-                        {
-                            XCoord = masterTile.XCoord,
-                            YCoord = masterTile.YCoord,
-                            BiomeTypeId = masterTile.BiomeTypeId,
-                            CampaignMapGeographyTypeId = masterTile.GeographyTypeId,
-                            // The Player's map holds a row for every Tile in the game from the moment it is set up, so this branch hands back the
-                            // whole board — the ground they remember and the ground they have never been to alike. FirstSeenOnTurnId is what
-                            // separates the two, and this is the only place in the response where the flag is ever false.
-                            IsExplored = masterTile.FirstSeenByPlayerOnTurnId != null,
-                            // Null for ground the Player has never been to, which is why the lookup is not defaulted here: an unexplored Tile was never asked
-                            // about, and saying "no rivers" would claim knowledge of ground they have not seen.
-                            Rivers = rememberedRiversByCoord.GetValueOrDefault(new Coord(masterTile.XCoord, masterTile.YCoord)),
-                            // Tiles outside an observer's sight are terrain only: the player knows the
-                            // ground from having explored it, but not what is standing on it now.
-                            Structures = [],
-                            Forces = []
-                        })
-                    ]
-                };
-
-                // Combine the two sets
-                observers = [.. observers, fullMapObserver];
-            }
-        }
-        catch (Exception ex)
-        {
-            const string error = "An error occurred while retrieving the Player's Campaign Map.";
-            logger.LogError(ex, error);
-            return ServiceResult<IReadOnlyCollection<ObserverSight>>.Fail(error + " Exception: " + ex.Message);
+            // Combine the two sets
+            observers = [.. observers, fullMapObserver];
         }
 
         return ServiceResult<IReadOnlyCollection<ObserverSight>>.Succeed(observers);

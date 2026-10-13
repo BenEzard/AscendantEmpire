@@ -225,7 +225,7 @@ internal class CompileUnitTemplateHandlerTests : SqlServerTestBase
         await CompileAsync(compiledOnTurn: 1);
 
         // No PlayerUnlockedComponent rows were ever seeded, yet the compiled read still returns everything.
-        var handler = new GetCompiledUnitTemplateHandler(new NullLogger<GetCompiledUnitTemplateHandler>(), DbFactory);
+        var handler = new GetCompiledUnitTemplateHandler(DbFactory);
         ServiceResult<CompiledUnitTemplateView> result =
             await handler.Handle(new GetCompiledUnitTemplateRequest(_templateId), CancellationToken.None);
 

@@ -64,7 +64,7 @@ internal class TagHandlersTests : InMemoryTestBase
         Assert.That(created.SuccessValue!.SystemCreated, Is.True, "Create should echo the flag back.");
 
         // Re-read via the get endpoint to prove the flag was actually persisted, not just projected.
-        var getHandler = new GetTagsHandler(new NullLogger<GetTagsHandler>(), DbFactory);
+        var getHandler = new GetTagsHandler(DbFactory);
         ServiceResult<GetTagsResult> fetched = await getHandler.Handle(new GetTagsRequest(), CancellationToken.None);
 
         TagView tag = fetched.SuccessValue!.Tags.Single(t => t.Code == "builtin");

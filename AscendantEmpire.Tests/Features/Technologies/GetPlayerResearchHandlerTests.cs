@@ -33,7 +33,7 @@ internal class GetPlayerResearchHandlerTests : ResearchHandlerTestBase
     [SetUp]
     public void SetUpHandler()
     {
-        _handler = new GetPlayerResearchHandler(NullLogger<GetPlayerResearchHandler>.Instance, DbFactory);
+        _handler = new GetPlayerResearchHandler(DbFactory);
     }
 
     // --- Which statuses reach the list -----------------------------------------------

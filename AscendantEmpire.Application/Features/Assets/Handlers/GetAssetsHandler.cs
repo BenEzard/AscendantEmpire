@@ -3,7 +3,6 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.Assets;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
@@ -15,38 +14,27 @@ public record GetAssetsRequest() : IRequest<ServiceResult<IReadOnlyCollection<As
 /// Lists every Asset, in meta category order and then by name, for pickers such as the MapResource Type Manager's.
 /// </summary>
 internal class GetAssetsHandler(
-    ILogger<GetAssetsHandler> logger,
     IDbContextFactory<AscendantEmpireContext> dbFactory
 ) : IRequestHandler<GetAssetsRequest, ServiceResult<IReadOnlyCollection<AssetSummary>>>
 {
     public async Task<ServiceResult<IReadOnlyCollection<AssetSummary>>> Handle(GetAssetsRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancellationToken);
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancellationToken);
 
-            List<AssetSummary> assets = await context.Assets
-                .AsNoTracking()
-                .OrderBy(r => r.MetaCategory.SortOrder)
-                .ThenBy(r => r.SortOrder)
-                .ThenBy(r => r.DisplayName)
-                .Select(r => new AssetSummary
-                {
-                    Id = r.Id,
-                    Code = r.Code,
-                    DisplayName = r.DisplayName,
-                    MetaCategoryDisplayName = r.MetaCategory.DisplayName
-                })
-                .ToListAsync(cancellationToken);
+        List<AssetSummary> assets = await context.Assets
+            .AsNoTracking()
+            .OrderBy(r => r.MetaCategory.SortOrder)
+            .ThenBy(r => r.SortOrder)
+            .ThenBy(r => r.DisplayName)
+            .Select(r => new AssetSummary
+            {
+                Id = r.Id,
+                Code = r.Code,
+                DisplayName = r.DisplayName,
+                MetaCategoryDisplayName = r.MetaCategory.DisplayName
+            })
+            .ToListAsync(cancellationToken);
 
-            return ServiceResult<IReadOnlyCollection<AssetSummary>>.Succeed(assets);
-        }
-        catch (Exception ex)
-        {
-            const string error = "An error occurred while retrieving Assets.";
-            logger.LogError(ex, error);
-
-            return ServiceResult<IReadOnlyCollection<AssetSummary>>.Fail(error);
-        }
+        return ServiceResult<IReadOnlyCollection<AssetSummary>>.Succeed(assets);
     }
 }

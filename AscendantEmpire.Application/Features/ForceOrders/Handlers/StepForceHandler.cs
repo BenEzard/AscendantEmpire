@@ -92,255 +92,241 @@ internal class StepForceHandler(
 
     public async Task<ServiceResult<StepForceResult>> Handle(StepForceRequest request, CancellationToken cancelToken)
     {
-        try
+        var validator = new StepForceRequestValidator();
+        var validationResult = validator.Validate(request);
+
+        if (!validationResult.IsValid)
         {
-            var validator = new StepForceRequestValidator();
-            var validationResult = validator.Validate(request);
+            IEnumerable<string> errors = validationResult.Errors.Select(e => e.ErrorMessage);
+            string error = $"Validation failed for {nameof(StepForceRequest)}.";
+            logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
+            return ServiceResult<StepForceResult>.Fail(errors.Prepend(error));
+        }
 
-            if (!validationResult.IsValid)
-            {
-                IEnumerable<string> errors = validationResult.Errors.Select(e => e.ErrorMessage);
-                string error = $"Validation failed for {nameof(StepForceRequest)}.";
-                logger.LogWarning("{Error} Errors: {Errors}", error, string.Join("; ", errors));
-                return ServiceResult<StepForceResult>.Fail(errors.Prepend(error));
-            }
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+        // Tracked, not AsNoTracking: this is the row the step writes back to. The current tile comes with it, because its coordinates are what the direction is applied to.
+        UnitInstance? force = await context.UnitInstances
+            .Include(f => f.CampaignMap)
+            .FirstOrDefaultAsync(f => f.Id == request.UnitInstanceId && f.GameId == request.GameId, cancelToken);
 
-            // Tracked, not AsNoTracking: this is the row the step writes back to. The current tile comes with it, because its coordinates are what the direction is applied to.
-            UnitInstance? force = await context.UnitInstances
-                .Include(f => f.CampaignMap)
-                .FirstOrDefaultAsync(f => f.Id == request.UnitInstanceId && f.GameId == request.GameId, cancelToken);
+        ServiceResult<StepForceResult>? forceRefusal = ValidateForce(request, force);
+        if (forceRefusal is not null)
+        {
+            return forceRefusal;
+        }
 
-            ServiceResult<StepForceResult>? forceRefusal = ValidateForce(request, force);
-            if (forceRefusal is not null)
-            {
-                return forceRefusal;
-            }
+        // ValidateForce has already established that the Force exists; the null-forgiving operator only tells the compiler so.
+        ForceMovementProfile? movementProfile = await GetMovementProfileAsync(context, force!.UnitTemplateId, cancelToken);
 
-            // ValidateForce has already established that the Force exists; the null-forgiving operator only tells the compiler so.
-            ForceMovementProfile? movementProfile = await GetMovementProfileAsync(context, force!.UnitTemplateId, cancelToken);
+        if (movementProfile is null)
+        {
+            // A Force cannot be spawned from an uncompiled template, so reaching here means the snapshot was removed out from under it.
+            string error = $"{DescribeForce(force)} has no compiled template, so its movement domain and allowance are unknown.";
+            logger.LogError("Unit Instance Id {UnitInstanceId} has no compiled unit template.", force.Id);
+            return ServiceResult<StepForceResult>.Fail(error);
+        }
 
-            if (movementProfile is null)
-            {
-                // A Force cannot be spawned from an uncompiled template, so reaching here means the snapshot was removed out from under it.
-                string error = $"{DescribeForce(force)} has no compiled template, so its movement domain and allowance are unknown.";
-                logger.LogError("Unit Instance Id {UnitInstanceId} has no compiled unit template.", force.Id);
-                return ServiceResult<StepForceResult>.Fail(error);
-            }
+        // The Turn id comes back with the verdict, because the step is recorded against it. The Round comes too, because a step that starts a Battle records the Round it began in.
+        (int playerTurnId, int roundNumber, ServiceResult<StepForceResult>? turnRefusal) = await ValidateItIsThisPlayersTurnAsync(request, cancelToken);
+        if (turnRefusal is not null)
+        {
+            return turnRefusal;
+        }
 
-            // The Turn id comes back with the verdict, because the step is recorded against it. The Round comes too, because a step that starts a Battle records the Round it began in.
-            (int playerTurnId, int roundNumber, ServiceResult<StepForceResult>? turnRefusal) = await ValidateItIsThisPlayersTurnAsync(request, cancelToken);
-            if (turnRefusal is not null)
-            {
-                return turnRefusal;
-            }
+        ServiceResult<IReadOnlyCollection<GameContext>> gameInfoResult = await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancelToken);
 
-            ServiceResult<IReadOnlyCollection<GameContext>> gameInfoResult = await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancelToken);
+        if (gameInfoResult.HasSucceeded == false || gameInfoResult.SuccessValue is not { Count: > 0 })
+        {
+            const string error = "Error getting game info while trying to step a Force.";
+            logger.LogWarning(error);
+            return ServiceResult<StepForceResult>.Fail(gameInfoResult.Errors.Prepend(error));
+        }
 
-            if (gameInfoResult.HasSucceeded == false || gameInfoResult.SuccessValue is not { Count: > 0 })
-            {
-                const string error = "Error getting game info while trying to step a Force.";
-                logger.LogWarning(error);
-                return ServiceResult<StepForceResult>.Fail(gameInfoResult.Errors.Prepend(error));
-            }
+        GameContext gameInfo = gameInfoResult.SuccessValue!.First();
 
-            GameContext gameInfo = gameInfoResult.SuccessValue!.First();
+        var origin = new Coord(force.CampaignMap.XCoord, force.CampaignMap.YCoord);
 
-            var origin = new Coord(force.CampaignMap.XCoord, force.CampaignMap.YCoord);
+        // The map may wrap, in which case stepping off one edge arrives at the other. Where it does not, there is simply no tile that way.
+        if (!MapDirections.TryGetNeighbour(
+                origin,
+                request.Direction,
+                gameInfo.MapWidth,
+                gameInfo.MapHeight,
+                gameInfo.HasHorizontalWrapping,
+                gameInfo.HasVerticalWrapping,
+                out Coord? destination))
+        {
+            string error = $"There is no tile {request.Direction} of {origin} — that is the edge of the map.";
+            logger.LogInformation("{Error} Unit Instance Id {UnitInstanceId}.", error, request.UnitInstanceId);
+            return ServiceResult<StepForceResult>.Fail(error);
+        }
 
-            // The map may wrap, in which case stepping off one edge arrives at the other. Where it does not, there is simply no tile that way.
-            if (!MapDirections.TryGetNeighbour(
-                    origin,
-                    request.Direction,
-                    gameInfo.MapWidth,
-                    gameInfo.MapHeight,
-                    gameInfo.HasHorizontalWrapping,
-                    gameInfo.HasVerticalWrapping,
-                    out Coord? destination))
-            {
-                string error = $"There is no tile {request.Direction} of {origin} — that is the edge of the map.";
-                logger.LogInformation("{Error} Unit Instance Id {UnitInstanceId}.", error, request.UnitInstanceId);
-                return ServiceResult<StepForceResult>.Fail(error);
-            }
+        CampaignMap? targetTile = await context.CampaignMaps
+            .AsNoTracking()
+            .Include(tile => tile.Biome)
+            .Include(tile => tile.Geography)
+            .FirstOrDefaultAsync(tile => tile.GameId == request.GameId
+                    && tile.XCoord == destination!.X
+                    && tile.YCoord == destination!.Y,
+                cancelToken);
 
-            CampaignMap? targetTile = await context.CampaignMaps
-                .AsNoTracking()
-                .Include(tile => tile.Biome)
-                .Include(tile => tile.Geography)
-                .FirstOrDefaultAsync(tile => tile.GameId == request.GameId
-                        && tile.XCoord == destination!.X
-                        && tile.YCoord == destination!.Y,
-                    cancelToken);
+        if (targetTile is null)
+        {
+            // The coordinate is inside the map's declared bounds, so a missing row is a hole in the generated map rather than a player mistake.
+            string error = $"Coordinate {destination} is not on the campaign map for Game Id {request.GameId}.";
+            logger.LogWarning("{Error}", error);
+            return ServiceResult<StepForceResult>.NotFound(error);
+        }
 
-            if (targetTile is null)
-            {
-                // The coordinate is inside the map's declared bounds, so a missing row is a hole in the generated map rather than a player mistake.
-                string error = $"Coordinate {destination} is not on the campaign map for Game Id {request.GameId}.";
-                logger.LogWarning("{Error}", error);
-                return ServiceResult<StepForceResult>.NotFound(error);
-            }
+        var target = new MovementTargetTile
+        {
+            XCoord = targetTile.XCoord,
+            YCoord = targetTile.YCoord,
+            GeographyType = targetTile.CampaignMapGeographyTypeId,
+            GeographyName = targetTile.Geography.Name,
+            GeographyMovementCost = targetTile.Geography.MovementCost,
+            BiomeName = targetTile.Biome.Name,
+            BiomeMovementCost = targetTile.Biome.MovementCost,
+            BiomeIsWater = targetTile.Biome.IsWater,
+            BiomeIsTraversable = targetTile.Biome.IsTraversable
+        };
 
-            var target = new MovementTargetTile
-            {
-                XCoord = targetTile.XCoord,
-                YCoord = targetTile.YCoord,
-                GeographyType = targetTile.CampaignMapGeographyTypeId,
-                GeographyName = targetTile.Geography.Name,
-                GeographyMovementCost = targetTile.Geography.MovementCost,
-                BiomeName = targetTile.Biome.Name,
-                BiomeMovementCost = targetTile.Biome.MovementCost,
-                BiomeIsWater = targetTile.Biome.IsWater,
-                BiomeIsTraversable = targetTile.Biome.IsTraversable
-            };
+        // The rivers around the Force decide what the step crosses and follows, and the tile it is leaving decides whether a ship is putting out from a
+        // river or sailing on open water. Everything either needs lies in the 3x3 block around the origin.
+        (RiverEdges riverEdges, bool originIsWater) = await GetStepSurroundingsAsync(context, request.GameId, origin, gameInfo, cancelToken);
 
-            // The rivers around the Force decide what the step crosses and follows, and the tile it is leaving decides whether a ship is putting out from a
-            // river or sailing on open water. Everything either needs lies in the 3x3 block around the origin.
-            (RiverEdges riverEdges, bool originIsWater) = await GetStepSurroundingsAsync(context, request.GameId, origin, gameInfo, cancelToken);
+        (int deltaX, int deltaY) = MapDirections.GetDelta(request.Direction);
 
-            (int deltaX, int deltaY) = MapDirections.GetDelta(request.Direction);
+        var step = new MovementStep
+        {
+            Target = target,
+            OriginIsWater = originIsWater,
+            IsDiagonal = deltaX != 0 && deltaY != 0,
+            Rivers = RiverMovementRules.Evaluate(riverEdges, request.Direction)
+        };
 
-            var step = new MovementStep
-            {
-                Target = target,
-                OriginIsWater = originIsWater,
-                IsDiagonal = deltaX != 0 && deltaY != 0,
-                Rivers = RiverMovementRules.Evaluate(riverEdges, request.Direction)
-            };
+        ServiceResult<StepForceResult>? terrainRefusal = ValidateStep(force, movementProfile, step);
+        if (terrainRefusal is not null)
+        {
+            return terrainRefusal;
+        }
 
-            ServiceResult<StepForceResult>? terrainRefusal = ValidateStep(force, movementProfile, step);
-            if (terrainRefusal is not null)
-            {
-                return terrainRefusal;
-            }
+        // What the step costs this Force: the tile's cost, adjusted for any river crossed or followed as its domain sees it. The stranding check and
+        // the payment below both use this one figure, so the guard can never be weighing a different price from the one charged.
+        decimal stepCost = MovementStepRules.GetStepCost(movementDomainStrategies, movementProfile.MovementDomain, step);
 
-            // What the step costs this Force: the tile's cost, adjusted for any river crossed or followed as its domain sees it. The stranding check and
-            // the payment below both use this one figure, so the guard can never be weighing a different price from the one charged.
-            decimal stepCost = MovementStepRules.GetStepCost(movementDomainStrategies, movementProfile.MovementDomain, step);
+        // The last of the refusals, and the only one that weighs what the Force is still holding against the step standing in front of it.
+        ServiceResult<StepForceResult>? strandingRefusal = ValidateItWouldNotBeStranded(force, movementProfile, target, stepCost);
+        if (strandingRefusal is not null)
+        {
+            return strandingRefusal;
+        }
 
-            // The last of the refusals, and the only one that weighs what the Force is still holding against the step standing in front of it.
-            ServiceResult<StepForceResult>? strandingRefusal = ValidateItWouldNotBeStranded(force, movementProfile, target, stepCost);
-            if (strandingRefusal is not null)
-            {
-                return strandingRefusal;
-            }
+        // Who is already standing on the tile decides whether this is a move or an attack. Both reads come before anything is staged, so refusing here leaves nothing to undo.
+        ServiceResult<StepForceResult>? battleRefusal = await ValidateNoBattleIsUnderWayAsync(context, request, force, targetTile.CampaignMapId, target, cancelToken);
+        if (battleRefusal is not null)
+        {
+            return battleRefusal;
+        }
 
-            // Who is already standing on the tile decides whether this is a move or an attack. Both reads come before anything is staged, so refusing here leaves nothing to undo.
-            ServiceResult<StepForceResult>? battleRefusal = await ValidateNoBattleIsUnderWayAsync(context, request, force, targetTile.CampaignMapId, target, cancelToken);
-            if (battleRefusal is not null)
-            {
-                return battleRefusal;
-            }
+        // Every other Player's Force on the tile. Any at all means the step is an attack and starts a Battle; none means it is an ordinary move. Tracked, because each of them is placed on
+        // the battle map if it comes to a fight.
+        List<UnitInstance> defenders = await GetEnemyForcesOnTileAsync(context, request, targetTile.CampaignMapId, cancelToken);
 
-            // Every other Player's Force on the tile. Any at all means the step is an attack and starts a Battle; none means it is an ordinary move. Tracked, because each of them is placed on
-            // the battle map if it comes to a fight.
-            List<UnitInstance> defenders = await GetEnemyForcesOnTileAsync(context, request, targetTile.CampaignMapId, cancelToken);
+        // The entry gate in docs/design/units/unit-movement.md: entry is gated on having movement left at all, not on holding some proportion of the
+        // tile's cost — ValidateForce settled that already, so no affordability check is left to make here. What remains is the payment: the
+        // whole cost comes off and the balance is allowed to go negative, so a Force dives into expensive ground and waits the debt out rather
+        // than the ground being permanently out of its reach.
+        long entryCost = ScaledAmount.FromDecimal(stepCost).RawValue;
 
-            // The entry gate in docs/design/units/unit-movement.md: entry is gated on having movement left at all, not on holding some proportion of the
-            // tile's cost — ValidateForce settled that already, so no affordability check is left to make here. What remains is the payment: the
-            // whole cost comes off and the balance is allowed to go negative, so a Force dives into expensive ground and waits the debt out rather
-            // than the ground being permanently out of its reach.
-            long entryCost = ScaledAmount.FromDecimal(stepCost).RawValue;
+        // The position goes through the lifecycle writer rather than onto the Force directly - the property is init-only, so nothing else can set it. The writer stages the new tile and the
+        // Moved row together, so the save below commits both or neither. When it refuses, nothing has been staged, and the step is refused rather than made without a record.
+        ServiceResultBase moveResult = await forceLifecycleWriter.MoveAsync(context, force, targetTile.CampaignMapId, playerTurnId, cancelToken);
 
-            // The position goes through the lifecycle writer rather than onto the Force directly - the property is init-only, so nothing else can set it. The writer stages the new tile and the
-            // Moved row together, so the save below commits both or neither. When it refuses, nothing has been staged, and the step is refused rather than made without a record.
-            ServiceResultBase moveResult = await forceLifecycleWriter.MoveAsync(context, force, targetTile.CampaignMapId, playerTurnId, cancelToken);
+        if (moveResult.HasSucceeded == false)
+        {
+            string error = $"{DescribeForce(force)} could not be moved, because the step could not be recorded.";
+            logger.LogWarning("{Error} Unit Instance Id {UnitInstanceId}. Errors: {Errors}", error, force.Id, string.Join("; ", moveResult.Errors));
+            return ServiceResult<StepForceResult>.Fail(moveResult.Errors.Prepend(error));
+        }
 
-            if (moveResult.HasSucceeded == false)
-            {
-                string error = $"{DescribeForce(force)} could not be moved, because the step could not be recorded.";
-                logger.LogWarning("{Error} Unit Instance Id {UnitInstanceId}. Errors: {Errors}", error, force.Id, string.Join("; ", moveResult.Errors));
-                return ServiceResult<StepForceResult>.Fail(moveResult.Errors.Prepend(error));
-            }
+        force.CampaignMovementRemaining -= entryCost;
 
-            force.CampaignMovementRemaining -= entryCost;
+        // An attack pays for the step and moves onto the tile exactly as an ordinary step does; what differs is how it is saved.
+        bool startedBattle = defenders.Count > 0;
 
-            // An attack pays for the step and moves onto the tile exactly as an ordinary step does; what differs is how it is saved.
-            bool startedBattle = defenders.Count > 0;
-
-            if (startedBattle)
-            {
-                // The engagement service saves, rather than this handler: the move and movement payment staged above are flushed inside the same transaction as the Battle, each Force's
-                // starting battle tile and the history rows, so the Force is never standing on the tile without the Battle having begun, nor the Battle begun without it. On failure nothing
-                // has been committed, and the context is thrown away with this handler.
-                ServiceResult<int> battleResult = await battleEngagementService.CommenceAsync(
-                    context,
-                    new BattleEngagement
-                    {
-                        GameId = request.GameId,
-                        Attacker = force,
-                        Defenders = defenders,
-                        CampaignMapTileId = targetTile.CampaignMapId,
-                        StepDirection = request.Direction,
-                        RoundNumber = roundNumber,
-                        PlayerTurnId = playerTurnId
-                    },
-                    cancelToken);
-
-                if (battleResult.HasSucceeded == false)
+        if (startedBattle)
+        {
+            // The engagement service saves, rather than this handler: the move and movement payment staged above are flushed inside the same transaction as the Battle, each Force's
+            // starting battle tile and the history rows, so the Force is never standing on the tile without the Battle having begun, nor the Battle begun without it. On failure nothing
+            // has been committed, and the context is thrown away with this handler.
+            ServiceResult<int> battleResult = await battleEngagementService.CommenceAsync(
+                context,
+                new BattleEngagement
                 {
-                    string error = $"{DescribeForce(force)} could not attack {target.Describe()}.";
-                    logger.LogWarning("{Error} Unit Instance Id {UnitInstanceId}. Errors: {Errors}", error, force.Id, string.Join("; ", battleResult.Errors));
-                    return ServiceResult<StepForceResult>.Fail(battleResult.Errors.Prepend(error));
-                }
+                    GameId = request.GameId,
+                    Attacker = force,
+                    Defenders = defenders,
+                    CampaignMapTileId = targetTile.CampaignMapId,
+                    StepDirection = request.Direction,
+                    RoundNumber = roundNumber,
+                    PlayerTurnId = playerTurnId
+                },
+                cancelToken);
 
-                logger.LogInformation(
-                    "Unit Instance Id {UnitInstanceId} attacked {DefenderCount} enemy Force(s) on ({TargetX}, {TargetY}), starting Battle Id {BattleId}.",
-                    force.Id,
-                    defenders.Count,
-                    target.XCoord,
-                    target.YCoord,
-                    battleResult.SuccessValue);
-            }
-            else
+            if (battleResult.HasSucceeded == false)
             {
-                await context.SaveChangesAsync(cancelToken);
+                string error = $"{DescribeForce(force)} could not attack {target.Describe()}.";
+                logger.LogWarning("{Error} Unit Instance Id {UnitInstanceId}. Errors: {Errors}", error, force.Id, string.Join("; ", battleResult.Errors));
+                return ServiceResult<StepForceResult>.Fail(battleResult.Errors.Prepend(error));
             }
 
             logger.LogInformation(
-                "Unit Instance Id {UnitInstanceId} stepped {Direction} from ({OriginX}, {OriginY}) to ({TargetX}, {TargetY}) for {Cost} movement points, leaving {Remaining}. "
-                + "River crossed: {RiverCrossed}; river along: {RiverAlong}.",
+                "Unit Instance Id {UnitInstanceId} attacked {DefenderCount} enemy Force(s) on ({TargetX}, {TargetY}), starting Battle Id {BattleId}.",
                 force.Id,
-                request.Direction,
-                origin.X,
-                origin.Y,
+                defenders.Count,
                 target.XCoord,
                 target.YCoord,
-                ScaledAmount.FromRaw(entryCost),
-                ScaledAmount.FromRaw(force.CampaignMovementRemaining),
-                step.Rivers.Crossed,
-                step.Rivers.Along);
-
-            IReadOnlyCollection<ObserverSight> observers = await GetRefreshedVisionAsync(request, cancelToken);
-
-            return ServiceResult<StepForceResult>.Succeed(new StepForceResult
-            {
-                UnitInstanceId = force.Id,
-                XCoord = target.XCoord,
-                YCoord = target.YCoord,
-                CampaignMovementRemaining = ScaledAmount.FromRaw(force.CampaignMovementRemaining).ToDecimal(),
-                CampaignMovementPoints = ScaledAmount.FromRaw(movementProfile.CampaignMovementPoints).ToDecimal(),
-                StepCost = stepCost,
-                // What the rivers did to the price, as the difference from what the ground alone would have cost. Worked out here rather than asked of the
-                // strategy: the strategy already priced the step, and one subtraction says the same thing for every domain without another rule to keep in step.
-                RiverMovementCost = stepCost - target.MovementCost,
-                StartedBattle = startedBattle,
-                RiverCrossed = step.Rivers.Crossed,
-                RiverAlong = step.Rivers.Along,
-                Observers = observers
-            });
+                battleResult.SuccessValue);
         }
-        catch (Exception ex)
+        else
         {
-            const string error = "An exception occurred while trying to step a Force.";
-
-            logger.LogError(ex, error + " GameId: {GameId}, UnitInstanceId: {UnitInstanceId}, Direction: {Direction}.",
-                request.GameId,
-                request.UnitInstanceId,
-                request.Direction);
-
-            return ServiceResult<StepForceResult>.Fail(error);
+            await context.SaveChangesAsync(cancelToken);
         }
+
+        logger.LogInformation(
+            "Unit Instance Id {UnitInstanceId} stepped {Direction} from ({OriginX}, {OriginY}) to ({TargetX}, {TargetY}) for {Cost} movement points, leaving {Remaining}. "
+            + "River crossed: {RiverCrossed}; river along: {RiverAlong}.",
+            force.Id,
+            request.Direction,
+            origin.X,
+            origin.Y,
+            target.XCoord,
+            target.YCoord,
+            ScaledAmount.FromRaw(entryCost),
+            ScaledAmount.FromRaw(force.CampaignMovementRemaining),
+            step.Rivers.Crossed,
+            step.Rivers.Along);
+
+        IReadOnlyCollection<ObserverSight> observers = await GetRefreshedVisionAsync(request, cancelToken);
+
+        return ServiceResult<StepForceResult>.Succeed(new StepForceResult
+        {
+            UnitInstanceId = force.Id,
+            XCoord = target.XCoord,
+            YCoord = target.YCoord,
+            CampaignMovementRemaining = ScaledAmount.FromRaw(force.CampaignMovementRemaining).ToDecimal(),
+            CampaignMovementPoints = ScaledAmount.FromRaw(movementProfile.CampaignMovementPoints).ToDecimal(),
+            StepCost = stepCost,
+            // What the rivers did to the price, as the difference from what the ground alone would have cost. Worked out here rather than asked of the
+            // strategy: the strategy already priced the step, and one subtraction says the same thing for every domain without another rule to keep in step.
+            RiverMovementCost = stepCost - target.MovementCost,
+            StartedBattle = startedBattle,
+            RiverCrossed = step.Rivers.Crossed,
+            RiverAlong = step.Rivers.Along,
+            Observers = observers
+        });
     }
 
     /// <summary>

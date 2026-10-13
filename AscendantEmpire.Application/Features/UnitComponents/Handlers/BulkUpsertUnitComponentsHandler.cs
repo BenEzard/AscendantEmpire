@@ -37,157 +37,148 @@ internal class BulkUpsertUnitComponentsHandler(
 {
     public async Task<ServiceResult<BulkUpsertUnitComponentsResult>> Handle(BulkUpsertUnitComponentsRequest request, CancellationToken cancelToken)
     {
-        try
+        BulkUpsertUnitComponentsDto catalogue = request.Catalogue;
+
+        // Request-level validation. Collect every problem so the caller gets a complete picture rather than one error at a time.
+        List<string> errors = ValidateRequest(catalogue);
+
+        if (errors.Count > 0)
         {
-            BulkUpsertUnitComponentsDto catalogue = request.Catalogue;
-
-            // Request-level validation. Collect every problem so the caller gets a complete picture rather than one error at a time.
-            List<string> errors = ValidateRequest(catalogue);
-
-            if (errors.Count > 0)
-            {
-                logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(BulkUpsertUnitComponentsRequest), string.Join("; ", errors));
-                return ServiceResult<BulkUpsertUnitComponentsResult>.Fail(errors);
-            }
-
-            // Bulk-load existing state to avoid N+1 queries. For upsert we need the full graph of any
-            // component that already exists (so its children can be reconciled) and any tags that already
-            // exist (so they can be re-used rather than duplicated).
-            string[] componentCodes = [.. catalogue.Components.Select(c => c.Code)];
-
-            Dictionary<string, UnitComponent> existingByCode = await UnitComponentReconciler
-                .WithFullGraph(context.UnitComponents.Where(c => componentCodes.Contains(c.Code)))
-                .ToDictionaryAsync(c => c.Code, cancelToken);
-
-            // All tag codes referenced anywhere in the payload, plus those defined in the Tags list.
-            string[] referencedTagCodes = [.. catalogue.Components
-                .SelectMany(c => c.TagCodes)
-                .Concat(catalogue.Tags.Select(t => t.Code))
-                .Distinct()];
-
-            Dictionary<string, Tag> tagsByCode = await UnitComponentReconciler.LoadTagsByCodeAsync(context, referencedTagCodes, cancelToken);
-
-            // Validate tag references against payload + DB now that we know what exists.
-            List<string> tagErrors = ValidateTagReferences(catalogue, tagsByCode);
-
-            if (tagErrors.Count > 0)
-            {
-                logger.LogWarning("Tag-reference validation failed for {Request}. Errors: {Errors}", nameof(BulkUpsertUnitComponentsRequest), string.Join("; ", tagErrors));
-                return ServiceResult<BulkUpsertUnitComponentsResult>.Fail(tagErrors);
-            }
-
-            // Create any tags defined in the payload that don't already exist; for those that do, let the payload re-classify them (TagType and the organisation fields are authoritative on re-import).
-            // Shared with the tags-only upsert the database seed uses, so both create and re-classify identically.
-            TagCatalogueUpserter.Upsert(context, catalogue.Tags, tagsByCode);
-
-            // A component's type is immutable, and a slot id must belong to the component carrying it. Both
-            // are checked before the graph is touched so a rejected request writes nothing.
-            List<string> graphErrors = ValidateAgainstExisting(catalogue, existingByCode);
-
-            if (graphErrors.Count > 0)
-            {
-                logger.LogWarning("Graph validation failed for {Request}. Errors: {Errors}", nameof(BulkUpsertUnitComponentsRequest), string.Join("; ", graphErrors));
-                return ServiceResult<BulkUpsertUnitComponentsResult>.Fail(graphErrors);
-            }
-
-            // Split the payload into inserts (new code) and updates (existing code). New components are
-            // built fresh; existing ones are mutated in place with their children reconciled. A
-            // code -> entity map (existing + newly built) lets the supersession step wire links by
-            // navigation, so EF assigns the foreign keys for brand-new components on save.
-            List<string> addedCodes = [];
-            List<string> updatedCodes = [];
-            Dictionary<string, UnitComponent> componentsByCode = new(existingByCode);
-
-            // Collected before the save: removing a slot deletes the fitted rows that are the only link
-            // between an updated component and the templates using it.
-            List<int> affectedTemplateIds = await AffectedTemplateRecompiler.FindAffectedTemplateIdsAsync(
-                context, [.. existingByCode.Values.Select(component => component.Id)], cancelToken);
-
-            // Slots dropped by the payload are collected across every component and deleted in one batch
-            // afterwards, so their dependent rows cost a single query rather than one per body.
-            List<UnitComponentSlot> removedSlots = [];
-
-            foreach (UnitComponentDto componentDto in catalogue.Components)
-            {
-                if (existingByCode.TryGetValue(componentDto.Code, out UnitComponent? existing))
-                {
-                    UnitComponentReconciler.Update(context, existing, componentDto, tagsByCode, removedSlots);
-                    updatedCodes.Add(componentDto.Code);
-                }
-                else
-                {
-                    UnitComponent built = UnitComponentReconciler.Build(componentDto, tagsByCode);
-                    context.UnitComponents.Add(built);
-                    componentsByCode[componentDto.Code] = built;
-                    addedCodes.Add(componentDto.Code);
-                }
-            }
-
-            List<string> unfittedTemplateNames = await UnitComponentReconciler.RemoveSlotsAndDependentsAsync(context, removedSlots, cancelToken);
-
-            if (unfittedTemplateNames.Count > 0)
-            {
-                logger.LogWarning(
-                    "Removing {SlotCount} unit-component slot(s) also cleared fitted components from {TemplateCount} saved template(s): {TemplateNames}.",
-                    removedSlots.Count, unfittedTemplateNames.Count, string.Join(", ", unfittedTemplateNames));
-            }
-
-            // Reconcile the component supersession (upgrade) links from the payload. Validation runs
-            // before any links are staged, so a rejected request still writes nothing.
-            if (catalogue.ComponentSupersessions.Count > 0)
-            {
-                await LoadComponentsReferencedBySupersessionsAsync(catalogue, componentsByCode, cancelToken);
-
-                List<string> supersessionErrors = ValidateComponentSupersessions(catalogue, componentsByCode);
-
-                if (supersessionErrors.Count > 0)
-                {
-                    logger.LogWarning("Component-supersession validation failed for {Request}. Errors: {Errors}", nameof(BulkUpsertUnitComponentsRequest), string.Join("; ", supersessionErrors));
-                    return ServiceResult<BulkUpsertUnitComponentsResult>.Fail(supersessionErrors);
-                }
-
-                await ReconcileComponentSupersessionsAsync(catalogue, componentsByCode, cancelToken);
-            }
-
-            // Single SaveChanges => the whole graph (components, extensions, slots, rules, modifiers, tags, joins and supersession links) is written in one transaction.
-            await context.SaveChangesAsync(cancelToken);
-
-            // Templates already built on the updated components now hold stale denormalised stats, so their
-            // snapshots are refreshed against the committed catalogue. Templates arriving in the same import
-            // compile themselves as they are saved, so only pre-existing ones are picked up here.
-            List<string> recompileFailures = await AffectedTemplateRecompiler.RecompileAsync(
-                context, mediator, campaignTurnService, affectedTemplateIds, cancelToken);
-
-            if (recompileFailures.Count > 0)
-            {
-                logger.LogWarning(
-                    "Components upserted, but {FailureCount} dependent template snapshot(s) could not be recompiled: {Failures}",
-                    recompileFailures.Count, string.Join(" | ", recompileFailures));
-            }
-
-            logger.LogInformation("Bulk upserted unit components: {AddedCount} added, {UpdatedCount} updated.",
-                addedCodes.Count, updatedCodes.Count);
-
-            var result = new BulkUpsertUnitComponentsResult
-            {
-                AddedCount = addedCodes.Count,
-                UpdatedCount = updatedCodes.Count,
-                UpdatedCodes = updatedCodes,
-                RemovedSlotCount = removedSlots.Count,
-                UnfittedTemplateNames = unfittedTemplateNames,
-            };
-
-            // 201 when the request was purely new rows; 200 when it touched (updated) existing ones.
-            return updatedCodes.Count > 0
-                ? ServiceResult<BulkUpsertUnitComponentsResult>.Succeed(result)
-                : ServiceResult<BulkUpsertUnitComponentsResult>.Created(result);
+            logger.LogWarning("Validation failed for {Request}. Errors: {Errors}", nameof(BulkUpsertUnitComponentsRequest), string.Join("; ", errors));
+            return ServiceResult<BulkUpsertUnitComponentsResult>.Fail(errors);
         }
-        catch (Exception ex)
+
+        // Bulk-load existing state to avoid N+1 queries. For upsert we need the full graph of any
+        // component that already exists (so its children can be reconciled) and any tags that already
+        // exist (so they can be re-used rather than duplicated).
+        string[] componentCodes = [.. catalogue.Components.Select(c => c.Code)];
+
+        Dictionary<string, UnitComponent> existingByCode = await UnitComponentReconciler
+            .WithFullGraph(context.UnitComponents.Where(c => componentCodes.Contains(c.Code)))
+            .ToDictionaryAsync(c => c.Code, cancelToken);
+
+        // All tag codes referenced anywhere in the payload, plus those defined in the Tags list.
+        string[] referencedTagCodes = [.. catalogue.Components
+            .SelectMany(c => c.TagCodes)
+            .Concat(catalogue.Tags.Select(t => t.Code))
+            .Distinct()];
+
+        Dictionary<string, Tag> tagsByCode = await UnitComponentReconciler.LoadTagsByCodeAsync(context, referencedTagCodes, cancelToken);
+
+        // Validate tag references against payload + DB now that we know what exists.
+        List<string> tagErrors = ValidateTagReferences(catalogue, tagsByCode);
+
+        if (tagErrors.Count > 0)
         {
-            const string error = "An exception occurred while processing " + nameof(BulkUpsertUnitComponentsHandler) + ".";
-            logger.LogError(ex, error);
-            return ServiceResult<BulkUpsertUnitComponentsResult>.InternalServerError(ex, error);
+            logger.LogWarning("Tag-reference validation failed for {Request}. Errors: {Errors}", nameof(BulkUpsertUnitComponentsRequest), string.Join("; ", tagErrors));
+            return ServiceResult<BulkUpsertUnitComponentsResult>.Fail(tagErrors);
         }
+
+        // Create any tags defined in the payload that don't already exist; for those that do, let the payload re-classify them (TagType and the organisation fields are authoritative on re-import).
+        // Shared with the tags-only upsert the database seed uses, so both create and re-classify identically.
+        TagCatalogueUpserter.Upsert(context, catalogue.Tags, tagsByCode);
+
+        // A component's type is immutable, and a slot id must belong to the component carrying it. Both
+        // are checked before the graph is touched so a rejected request writes nothing.
+        List<string> graphErrors = ValidateAgainstExisting(catalogue, existingByCode);
+
+        if (graphErrors.Count > 0)
+        {
+            logger.LogWarning("Graph validation failed for {Request}. Errors: {Errors}", nameof(BulkUpsertUnitComponentsRequest), string.Join("; ", graphErrors));
+            return ServiceResult<BulkUpsertUnitComponentsResult>.Fail(graphErrors);
+        }
+
+        // Split the payload into inserts (new code) and updates (existing code). New components are
+        // built fresh; existing ones are mutated in place with their children reconciled. A
+        // code -> entity map (existing + newly built) lets the supersession step wire links by
+        // navigation, so EF assigns the foreign keys for brand-new components on save.
+        List<string> addedCodes = [];
+        List<string> updatedCodes = [];
+        Dictionary<string, UnitComponent> componentsByCode = new(existingByCode);
+
+        // Collected before the save: removing a slot deletes the fitted rows that are the only link
+        // between an updated component and the templates using it.
+        List<int> affectedTemplateIds = await AffectedTemplateRecompiler.FindAffectedTemplateIdsAsync(
+            context, [.. existingByCode.Values.Select(component => component.Id)], cancelToken);
+
+        // Slots dropped by the payload are collected across every component and deleted in one batch
+        // afterwards, so their dependent rows cost a single query rather than one per body.
+        List<UnitComponentSlot> removedSlots = [];
+
+        foreach (UnitComponentDto componentDto in catalogue.Components)
+        {
+            if (existingByCode.TryGetValue(componentDto.Code, out UnitComponent? existing))
+            {
+                UnitComponentReconciler.Update(context, existing, componentDto, tagsByCode, removedSlots);
+                updatedCodes.Add(componentDto.Code);
+            }
+            else
+            {
+                UnitComponent built = UnitComponentReconciler.Build(componentDto, tagsByCode);
+                context.UnitComponents.Add(built);
+                componentsByCode[componentDto.Code] = built;
+                addedCodes.Add(componentDto.Code);
+            }
+        }
+
+        List<string> unfittedTemplateNames = await UnitComponentReconciler.RemoveSlotsAndDependentsAsync(context, removedSlots, cancelToken);
+
+        if (unfittedTemplateNames.Count > 0)
+        {
+            logger.LogWarning(
+                "Removing {SlotCount} unit-component slot(s) also cleared fitted components from {TemplateCount} saved template(s): {TemplateNames}.",
+                removedSlots.Count, unfittedTemplateNames.Count, string.Join(", ", unfittedTemplateNames));
+        }
+
+        // Reconcile the component supersession (upgrade) links from the payload. Validation runs
+        // before any links are staged, so a rejected request still writes nothing.
+        if (catalogue.ComponentSupersessions.Count > 0)
+        {
+            await LoadComponentsReferencedBySupersessionsAsync(catalogue, componentsByCode, cancelToken);
+
+            List<string> supersessionErrors = ValidateComponentSupersessions(catalogue, componentsByCode);
+
+            if (supersessionErrors.Count > 0)
+            {
+                logger.LogWarning("Component-supersession validation failed for {Request}. Errors: {Errors}", nameof(BulkUpsertUnitComponentsRequest), string.Join("; ", supersessionErrors));
+                return ServiceResult<BulkUpsertUnitComponentsResult>.Fail(supersessionErrors);
+            }
+
+            await ReconcileComponentSupersessionsAsync(catalogue, componentsByCode, cancelToken);
+        }
+
+        // Single SaveChanges => the whole graph (components, extensions, slots, rules, modifiers, tags, joins and supersession links) is written in one transaction.
+        await context.SaveChangesAsync(cancelToken);
+
+        // Templates already built on the updated components now hold stale denormalised stats, so their
+        // snapshots are refreshed against the committed catalogue. Templates arriving in the same import
+        // compile themselves as they are saved, so only pre-existing ones are picked up here.
+        List<string> recompileFailures = await AffectedTemplateRecompiler.RecompileAsync(
+            context, mediator, campaignTurnService, affectedTemplateIds, cancelToken);
+
+        if (recompileFailures.Count > 0)
+        {
+            logger.LogWarning(
+                "Components upserted, but {FailureCount} dependent template snapshot(s) could not be recompiled: {Failures}",
+                recompileFailures.Count, string.Join(" | ", recompileFailures));
+        }
+
+        logger.LogInformation("Bulk upserted unit components: {AddedCount} added, {UpdatedCount} updated.",
+            addedCodes.Count, updatedCodes.Count);
+
+        var result = new BulkUpsertUnitComponentsResult
+        {
+            AddedCount = addedCodes.Count,
+            UpdatedCount = updatedCodes.Count,
+            UpdatedCodes = updatedCodes,
+            RemovedSlotCount = removedSlots.Count,
+            UnfittedTemplateNames = unfittedTemplateNames,
+        };
+
+        // 201 when the request was purely new rows; 200 when it touched (updated) existing ones.
+        return updatedCodes.Count > 0
+            ? ServiceResult<BulkUpsertUnitComponentsResult>.Succeed(result)
+            : ServiceResult<BulkUpsertUnitComponentsResult>.Created(result);
     }
 
     /// <summary>

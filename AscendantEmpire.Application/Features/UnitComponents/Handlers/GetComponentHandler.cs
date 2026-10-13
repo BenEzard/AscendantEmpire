@@ -4,7 +4,6 @@ using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetComponent;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
@@ -17,128 +16,118 @@ namespace AscendantEmpire.Application.Features.UnitComponents.Handlers;
 public record GetComponentRequest(string Code) : IRequest<ServiceResult<EditableComponentResult>>;
 
 internal class GetComponentHandler(
-    ILogger<GetComponentHandler> logger,
     IDbContextFactory<AscendantEmpireContext> dbFactory
 ) : IRequestHandler<GetComponentRequest, ServiceResult<EditableComponentResult>>
 {
     public async Task<ServiceResult<EditableComponentResult>> Handle(GetComponentRequest request, CancellationToken cancelToken)
     {
-        try
-        {
-            await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            // Project the whole graph in one query (mirrors DesignComponentProjections, but keeps the body extension and supersession links the catalogue read drops).
-            // A single Select avoids any explicit Include and translates cleanly to SQL.
-            EditableComponentResult? result = await context.UnitComponents
-                .AsNoTracking()
-                .Where(c => c.Code == request.Code)
-                .Select(c => new EditableComponentResult
-                {
-                    Id = c.Id,
-                    Component = new UnitComponentDto
-                    {
-                        Code = c.Code,
-                        DisplayName = c.DisplayName,
-                        Description = c.Description,
-                        DesignerImagePath = c.DesignerImagePath,
-                        ComponentType = c.ComponentType,
-                        Weight = c.Weight,
-                        Sight = c.Sight,
-                        Detection = c.Detection,
-                        Visibility = c.Visibility,
-                        Body = c.Body == null
-                            ? null
-                            : new UnitComponentBodyDto
-                            {
-                                MovementDomain = c.Body.MovementDomain,
-                                CampaignMovementPoints = c.Body.CampaignMovementPoints,
-                                BattlefieldMovementPoints = c.Body.BattlefieldMovementPoints,
-                                Power = c.Body.Power,
-                                Hitpoints = c.Body.Hitpoints,
-                                // Ordered by Id for a stable presentation order. Which component sits in which slot is decided by the slot's Code, not by this ordering.
-                                Slots = c.Body.Slots
-                                    .OrderBy(s => s.Id)
-                                    .Select(s => new UnitComponentSlotDto
-                                    {
-                                        Id = s.Id,
-                                        Code = s.Code,
-                                        DisplayName = s.DisplayName,
-                                        IsVisible = s.IsVisible,
-                                        UIXPosition = s.UIXPosition,
-                                        UIYPosition = s.UIYPosition,
-                                        Rules = s.Rules
-                                            .Select(r => new UnitComponentSlotRuleDto
-                                            {
-                                                RuleType = r.RuleType,
-                                                Operator = r.Operator,
-                                                Value = r.Value,
-                                            })
-                                            .ToList(),
-                                    })
-                                    .ToList(),
-                            },
-                        Weapon = c.Weapon == null
-                            ? null
-                            : new UnitComponentWeaponDto
-                            {
-                                Attack = new DamageProfileDto
-                                {
-                                    Slash = c.Weapon.Attack.Slash,
-                                    Pierce = c.Weapon.Attack.Pierce,
-                                    Crush = c.Weapon.Attack.Crush,
-                                    Burn = c.Weapon.Attack.Burn,
-                                    Poison = c.Weapon.Attack.Poison,
-                                },
-                                MinimumRange = c.Weapon.MinimumRange,
-                                MaximumRange = c.Weapon.MaximumRange,
-                                DualWield = c.Weapon.DualWield,
-                                DomainModifiers = c.Weapon.DomainModifiers
-                                    .Select(m => new UnitComponentWeaponDomainModifierDto
-                                    {
-                                        Domain = m.Domain,
-                                        DamageMultiplier = m.DamageMultiplier,
-                                    })
-                                    .ToList(),
-                            },
-                        Armour = c.Armour == null
-                            ? null
-                            : new UnitComponentArmourDto
-                            {
-                                Resistance = new DamageProfileDto
-                                {
-                                    Slash = c.Armour.Resistance.Slash,
-                                    Pierce = c.Armour.Resistance.Pierce,
-                                    Crush = c.Armour.Resistance.Crush,
-                                    Burn = c.Armour.Resistance.Burn,
-                                    Poison = c.Armour.Resistance.Poison,
-                                },
-                            },
-                        TagCodes = c.Tags.Select(t => t.Tag.Code).ToList(),
-                    },
-                    // This component is always the predecessor here, so surface only the successor side.
-                    SupersededBy = c.SupersededBy
-                        .Select(link => new ComponentSupersessionDto
-                        {
-                            PredecessorCode = c.Code,
-                            SuccessorCode = link.Successor.Code,
-                            IsRecommended = link.IsRecommended,
-                        })
-                        .ToList(),
-                })
-                .FirstOrDefaultAsync(cancelToken);
-
-            if (result == null)
+        // Project the whole graph in one query (mirrors DesignComponentProjections, but keeps the body extension and supersession links the catalogue read drops).
+        // A single Select avoids any explicit Include and translates cleanly to SQL.
+        EditableComponentResult? result = await context.UnitComponents
+            .AsNoTracking()
+            .Where(c => c.Code == request.Code)
+            .Select(c => new EditableComponentResult
             {
-                return ServiceResult<EditableComponentResult>.NotFound($"No component found with code '{request.Code}'.");
-            }
+                Id = c.Id,
+                Component = new UnitComponentDto
+                {
+                    Code = c.Code,
+                    DisplayName = c.DisplayName,
+                    Description = c.Description,
+                    DesignerImagePath = c.DesignerImagePath,
+                    ComponentType = c.ComponentType,
+                    Weight = c.Weight,
+                    Sight = c.Sight,
+                    Detection = c.Detection,
+                    Visibility = c.Visibility,
+                    Body = c.Body == null
+                        ? null
+                        : new UnitComponentBodyDto
+                        {
+                            MovementDomain = c.Body.MovementDomain,
+                            CampaignMovementPoints = c.Body.CampaignMovementPoints,
+                            BattlefieldMovementPoints = c.Body.BattlefieldMovementPoints,
+                            Power = c.Body.Power,
+                            Hitpoints = c.Body.Hitpoints,
+                            // Ordered by Id for a stable presentation order. Which component sits in which slot is decided by the slot's Code, not by this ordering.
+                            Slots = c.Body.Slots
+                                .OrderBy(s => s.Id)
+                                .Select(s => new UnitComponentSlotDto
+                                {
+                                    Id = s.Id,
+                                    Code = s.Code,
+                                    DisplayName = s.DisplayName,
+                                    IsVisible = s.IsVisible,
+                                    UIXPosition = s.UIXPosition,
+                                    UIYPosition = s.UIYPosition,
+                                    Rules = s.Rules
+                                        .Select(r => new UnitComponentSlotRuleDto
+                                        {
+                                            RuleType = r.RuleType,
+                                            Operator = r.Operator,
+                                            Value = r.Value,
+                                        })
+                                        .ToList(),
+                                })
+                                .ToList(),
+                        },
+                    Weapon = c.Weapon == null
+                        ? null
+                        : new UnitComponentWeaponDto
+                        {
+                            Attack = new DamageProfileDto
+                            {
+                                Slash = c.Weapon.Attack.Slash,
+                                Pierce = c.Weapon.Attack.Pierce,
+                                Crush = c.Weapon.Attack.Crush,
+                                Burn = c.Weapon.Attack.Burn,
+                                Poison = c.Weapon.Attack.Poison,
+                            },
+                            MinimumRange = c.Weapon.MinimumRange,
+                            MaximumRange = c.Weapon.MaximumRange,
+                            DualWield = c.Weapon.DualWield,
+                            DomainModifiers = c.Weapon.DomainModifiers
+                                .Select(m => new UnitComponentWeaponDomainModifierDto
+                                {
+                                    Domain = m.Domain,
+                                    DamageMultiplier = m.DamageMultiplier,
+                                })
+                                .ToList(),
+                        },
+                    Armour = c.Armour == null
+                        ? null
+                        : new UnitComponentArmourDto
+                        {
+                            Resistance = new DamageProfileDto
+                            {
+                                Slash = c.Armour.Resistance.Slash,
+                                Pierce = c.Armour.Resistance.Pierce,
+                                Crush = c.Armour.Resistance.Crush,
+                                Burn = c.Armour.Resistance.Burn,
+                                Poison = c.Armour.Resistance.Poison,
+                            },
+                        },
+                    TagCodes = c.Tags.Select(t => t.Tag.Code).ToList(),
+                },
+                // This component is always the predecessor here, so surface only the successor side.
+                SupersededBy = c.SupersededBy
+                    .Select(link => new ComponentSupersessionDto
+                    {
+                        PredecessorCode = c.Code,
+                        SuccessorCode = link.Successor.Code,
+                        IsRecommended = link.IsRecommended,
+                    })
+                    .ToList(),
+            })
+            .FirstOrDefaultAsync(cancelToken);
 
-            return ServiceResult<EditableComponentResult>.Succeed(result);
-        }
-        catch (Exception ex)
+        if (result == null)
         {
-            const string error = "An exception occurred while processing " + nameof(GetComponentHandler) + ".";
-            logger.LogError(ex, error);
-            return ServiceResult<EditableComponentResult>.InternalServerError(ex, error);
+            return ServiceResult<EditableComponentResult>.NotFound($"No component found with code '{request.Code}'.");
         }
+
+        return ServiceResult<EditableComponentResult>.Succeed(result);
     }
 }

@@ -192,10 +192,5 @@ internal sealed class UpdatePlayerDefinitionHandler(
             logger.LogInformation(ex, "Concurrent faction colour conflict in game {GameId} for user {UserId}.", request.GameId, request.UserId);
             return ServiceResult<Empty>.Conflict("That colour has already been taken by another player in this game.");
         }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "An error occurred while handling {RequestName}.", nameof(UpdatePlayerDefinitionRequest));
-            return ServiceResult<Empty>.InternalServerError("An unexpected error occurred while saving the player definition.");
-        }
     }
 }

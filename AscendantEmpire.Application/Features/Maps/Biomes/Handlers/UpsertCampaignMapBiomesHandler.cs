@@ -25,88 +25,79 @@ internal class UpsertCampaignMapBiomesHandler(
 {
     public async Task<ServiceResultBase> Handle(UpsertCampaignMapBiomesRequest request, CancellationToken cancellationToken)
     {
-        try
+        // Validate the request objects
+        ServiceResultBase validation = ValidateRequestBiomes(context, request.Biomes);
+
+        if (validation.HasSucceeded == false)
         {
-            // Validate the request objects
-            ServiceResultBase validation = ValidateRequestBiomes(context, request.Biomes);
-
-            if (validation.HasSucceeded == false)
-            {
-                logger.LogWarning("Validation failed for " + nameof(UpsertCampaignMapBiomesRequest) + ": {Errors}", string.Join(Environment.NewLine, validation.Errors));
-                return ServiceResult.Fail(validation.Errors);
-            }
-
-            CampaignBiome[] existingBiomes = [.. context.CampaignBiomes.Where(b => request.Biomes.Select(rb => rb.BiomeType).Contains((BiomeType)b.BiomeTypeId))];
-
-            int[] existingBiomeTypeIds = [.. existingBiomes.Select(b => (int)b.BiomeTypeId)];
-
-            // Get any Biomes that aren't in the database
-            AddOrUpdateCampaignMapBiomeDto[] missingBiomes = [.. request.Biomes
-                .Where(b => existingBiomeTypeIds.Contains((int)b.BiomeType) == false)
-                .Select(b => new AddOrUpdateCampaignMapBiomeDto
-                {
-                    BiomeType = b.BiomeType,
-                    Name = b.Name,
-                    MovementCost = b.MovementCost,
-                    DoesBlockSight = b.DoesBlockSight,
-                    IsWater = b.IsWater,
-                    IsTraversable = b.IsTraversable,
-                    RegenerationPercent = b.RegenerationPercent,
-                    BaseForageValue = b.BaseForageValue,
-                    BaseHuntValue = b.BaseHuntValue,
-                    BaseFishValue = b.BaseFishValue,
-                    BaseFodderValue = b.BaseFodderValue,
-                    BaseBoneValue = b.BaseBoneValue,
-                    BaseWoodValue = b.BaseWoodValue,
-                    BaseStoneValue = b.BaseStoneValue,
-                    MapEditorHtmlColor = b.MapEditorHtmlColor,
-                    CanBeElevated = b.CanBeElevated,
-                    IsPaintableOnCampaignMap = b.IsPaintableOnCampaignMap
-                })];
-
-            if (missingBiomes.Length != 0)
-            {
-                ServiceResultBase insertResult = await mediator.Send(new AddCampaignMapBiomesRequest(missingBiomes));
-                if (insertResult.HasSucceeded == false)
-                {
-                    logger.LogWarning("Failed to insert missing biomes during " + nameof(UpsertCampaignMapBiomesRequest) + ": {Errors}", string.Join(Environment.NewLine, insertResult.Errors));
-                    return insertResult;
-                }
-            }
-
-            Dictionary<BiomeType, AddOrUpdateCampaignMapBiomeDto> requestedUpdates = request.Biomes.ToDictionary(b => b.BiomeType);
-
-            foreach (CampaignBiome existingBiome in existingBiomes)
-            {
-                AddOrUpdateCampaignMapBiomeDto updatedValues = requestedUpdates[(BiomeType)existingBiome.BiomeTypeId];
-
-                existingBiome.Name = updatedValues.Name;
-                existingBiome.MovementCost = updatedValues.MovementCost;
-                existingBiome.DoesBlockSight = updatedValues.DoesBlockSight;
-                existingBiome.IsWater = updatedValues.IsWater;
-                existingBiome.IsTraversable = updatedValues.IsTraversable;
-                existingBiome.RegenerationPercent = updatedValues.RegenerationPercent;
-                // The DTO carries whole numbers from the UI; store them scaled so bonus math keeps precision.
-                existingBiome.BaseForageValue = ScaledResourceValue.ToRaw(updatedValues.BaseForageValue);
-                existingBiome.BaseHuntValue = ScaledResourceValue.ToRaw(updatedValues.BaseHuntValue);
-                existingBiome.BaseFishValue = ScaledResourceValue.ToRaw(updatedValues.BaseFishValue);
-                existingBiome.BaseFodderValue = ScaledResourceValue.ToRaw(updatedValues.BaseFodderValue);
-                existingBiome.BaseBoneValue = ScaledResourceValue.ToRaw(updatedValues.BaseBoneValue);
-                existingBiome.BaseWoodValue = ScaledResourceValue.ToRaw(updatedValues.BaseWoodValue);
-                existingBiome.BaseStoneValue = ScaledResourceValue.ToRaw(updatedValues.BaseStoneValue);
-                existingBiome.MapEditorHtmlColor = updatedValues.MapEditorHtmlColor;
-                existingBiome.CanBeElevated = updatedValues.CanBeElevated;
-                existingBiome.IsPaintableOnCampaignMap = updatedValues.IsPaintableOnCampaignMap;
-            }
-
-            await context.SaveChangesAsync(CancellationToken.None);
+            logger.LogWarning("Validation failed for " + nameof(UpsertCampaignMapBiomesRequest) + ": {Errors}", string.Join(Environment.NewLine, validation.Errors));
+            return ServiceResult.Fail(validation.Errors);
         }
-        catch (Exception ex)
+
+        CampaignBiome[] existingBiomes = [.. context.CampaignBiomes.Where(b => request.Biomes.Select(rb => rb.BiomeType).Contains((BiomeType)b.BiomeTypeId))];
+
+        int[] existingBiomeTypeIds = [.. existingBiomes.Select(b => (int)b.BiomeTypeId)];
+
+        // Get any Biomes that aren't in the database
+        AddOrUpdateCampaignMapBiomeDto[] missingBiomes = [.. request.Biomes
+            .Where(b => existingBiomeTypeIds.Contains((int)b.BiomeType) == false)
+            .Select(b => new AddOrUpdateCampaignMapBiomeDto
+            {
+                BiomeType = b.BiomeType,
+                Name = b.Name,
+                MovementCost = b.MovementCost,
+                DoesBlockSight = b.DoesBlockSight,
+                IsWater = b.IsWater,
+                IsTraversable = b.IsTraversable,
+                RegenerationPercent = b.RegenerationPercent,
+                BaseForageValue = b.BaseForageValue,
+                BaseHuntValue = b.BaseHuntValue,
+                BaseFishValue = b.BaseFishValue,
+                BaseFodderValue = b.BaseFodderValue,
+                BaseBoneValue = b.BaseBoneValue,
+                BaseWoodValue = b.BaseWoodValue,
+                BaseStoneValue = b.BaseStoneValue,
+                MapEditorHtmlColor = b.MapEditorHtmlColor,
+                CanBeElevated = b.CanBeElevated,
+                IsPaintableOnCampaignMap = b.IsPaintableOnCampaignMap
+            })];
+
+        if (missingBiomes.Length != 0)
         {
-            const string error = "Error updating Campaign Map Biomes.";
-            logger.LogError(ex, error);
-            return ServiceResultBase.InternalServerError(error);
+            ServiceResultBase insertResult = await mediator.Send(new AddCampaignMapBiomesRequest(missingBiomes));
+            if (insertResult.HasSucceeded == false)
+            {
+                logger.LogWarning("Failed to insert missing biomes during " + nameof(UpsertCampaignMapBiomesRequest) + ": {Errors}", string.Join(Environment.NewLine, insertResult.Errors));
+                return insertResult;
+            }
         }
+
+        Dictionary<BiomeType, AddOrUpdateCampaignMapBiomeDto> requestedUpdates = request.Biomes.ToDictionary(b => b.BiomeType);
+
+        foreach (CampaignBiome existingBiome in existingBiomes)
+        {
+            AddOrUpdateCampaignMapBiomeDto updatedValues = requestedUpdates[(BiomeType)existingBiome.BiomeTypeId];
+
+            existingBiome.Name = updatedValues.Name;
+            existingBiome.MovementCost = updatedValues.MovementCost;
+            existingBiome.DoesBlockSight = updatedValues.DoesBlockSight;
+            existingBiome.IsWater = updatedValues.IsWater;
+            existingBiome.IsTraversable = updatedValues.IsTraversable;
+            existingBiome.RegenerationPercent = updatedValues.RegenerationPercent;
+            // The DTO carries whole numbers from the UI; store them scaled so bonus math keeps precision.
+            existingBiome.BaseForageValue = ScaledResourceValue.ToRaw(updatedValues.BaseForageValue);
+            existingBiome.BaseHuntValue = ScaledResourceValue.ToRaw(updatedValues.BaseHuntValue);
+            existingBiome.BaseFishValue = ScaledResourceValue.ToRaw(updatedValues.BaseFishValue);
+            existingBiome.BaseFodderValue = ScaledResourceValue.ToRaw(updatedValues.BaseFodderValue);
+            existingBiome.BaseBoneValue = ScaledResourceValue.ToRaw(updatedValues.BaseBoneValue);
+            existingBiome.BaseWoodValue = ScaledResourceValue.ToRaw(updatedValues.BaseWoodValue);
+            existingBiome.BaseStoneValue = ScaledResourceValue.ToRaw(updatedValues.BaseStoneValue);
+            existingBiome.MapEditorHtmlColor = updatedValues.MapEditorHtmlColor;
+            existingBiome.CanBeElevated = updatedValues.CanBeElevated;
+            existingBiome.IsPaintableOnCampaignMap = updatedValues.IsPaintableOnCampaignMap;
+        }
+
+        await context.SaveChangesAsync(CancellationToken.None);
 
         return ServiceResultBase.SuccessNoContent();
     }

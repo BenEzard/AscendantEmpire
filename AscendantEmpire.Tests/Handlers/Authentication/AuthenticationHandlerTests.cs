@@ -88,7 +88,7 @@ internal class AuthenticationHandlerTests
         User activeUser = await SeedUserAsync("alice", "password123");
         User inactiveUser = await SeedUserAsync("banned-user", "password123", inactiveAt, InactiveReasonType.Banned, "banned@example.com");
 
-        var handler = new GetUsersHandler(NullLogger<GetUsersHandler>.Instance, _dbFactory);
+        var handler = new GetUsersHandler(_dbFactory);
 
         var result = await handler.Handle(new GetUsersRequest(), CancellationToken.None);
 

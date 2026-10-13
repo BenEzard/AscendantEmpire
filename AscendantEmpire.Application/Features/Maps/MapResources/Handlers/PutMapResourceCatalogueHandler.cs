@@ -143,12 +143,6 @@ internal class PutMapResourceCatalogueHandler(
             logger.LogWarning(ex, error);
             return Fail([error]);
         }
-        catch (Exception ex)
-        {
-            const string error = "Error saving the MapResource catalogue.";
-            logger.LogError(ex, error);
-            return ServiceResultBase.InternalServerError(error);
-        }
 
         return ServiceResultBase.SuccessNoContent();
     }
