@@ -21,6 +21,12 @@ public record UpsertAssetCategoryDto
     public required AssetCategoryType CategoryType { get; init; }
 
     /// <summary>
+    /// Whether this category counts what the reading Player holds, or is a template projected once per other Player in their game.
+    /// </summary>
+    /// <remarks>Omitted means <see cref="AssetSubjectScope.Own"/>, which is every category but the population templates.</remarks>
+    public AssetSubjectScope SubjectScope { get; init; } = AssetSubjectScope.Own;
+
+    /// <summary>
     /// Optional sort order for display.
     /// </summary>
     /// <remarks>If not provided, it will be calculated automatically based on the order of the categories in the input list, with gaps for future insertions.</remarks>

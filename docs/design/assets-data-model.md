@@ -11,7 +11,7 @@ This document describes the asset hierarchy — how it is structured in the data
 | Table | Primary Key | Description |
 |---|---|---|
 | `AssetMetaCategory` | `Id` | Top-level grouping, e.g. "Construction Materials", "Food" |
-| `AssetCategory` | `Id` | Mid-level grouping, e.g. "Stone", "Wood". Has a `CategoryType` that determines how its assets are displayed. |
+| `AssetCategory` | `Id` | Mid-level grouping, e.g. "Stone", "Wood". Has a `CategoryType` that determines how its assets are displayed, and a `SubjectScope` that decides whether it is shown once or projected per other player. |
 | `AssetGroup` | `Id` | Sub-grouping within a grouped category, e.g. "Logs" within "Wood". |
 | `Asset` | `Id` | The actual asset, e.g. "Oak", "Marble", "Coal". |
 
@@ -31,22 +31,56 @@ beside it are contract placeholders (see **Read Path** below).
 #### Population, and the subject player
 
 Population is the one part of the catalogue where an amount needs **two** players attached to it — who holds these
-people, and whose people they are — and the four global tables have nowhere to put the second. **This is designed but
-not built**; `RS-20` covers it. The shape it settles on:
+people, and whose people they are — and the four global tables have nowhere to put the second.
 
-- A holdings ledger keyed `(HolderPlayerId, AssetId, SubjectPlayerId)`, where `SubjectPlayerId` is null for every asset
-  that has no subject — which is every asset outside the `Society` meta-category.
-- The same ledger is read on two axes. Rows where `HolderPlayerId` is me and `SubjectPlayerId` is another player become
-  one category per discovered player, labelled from that player's `PeopleName`, holding Slaves / Interned / P.o.W.
-  Rows where `SubjectPlayerId` is me, summed across every holder, become the Slaves / Interned / P.o.W. entries under
-  `My People` — members of my people held by somebody else.
-- That second axis tells a player how many of their people an enemy is holding without their having scouted anything.
-  That disclosure is **deliberate**: it is what puts pressure on a player to negotiate for their release.
-- Civilians, Army, Airforce and Navy share the panel but are not ledger rows at all — they come from settlement
-  populations and the force rosters.
+The catalogue does not gain a second player column. Instead `AssetCategory.SubjectScope` marks a category as a
+**template**, and `GetPlayerAssetsHandler` stamps one category out of it per other player at read time. Nothing is
+written per game, so a category list cannot go stale when a player is eliminated or renames their people.
 
-The per-player categories are a **read-time projection** built in `GetPlayerAssetsHandler`, not catalogue rows. The
-catalogue stays global and holds one template category that each discovered player's category is stamped from.
+| `AssetSubjectScope` | Int | Meaning |
+|---|---|---|
+| `Own` | 1 | Shown once, counting what the reading player holds. Every category but the population template. |
+| `PerOtherPlayer` | 2 | A template, never rendered as itself. Projected once per other player in the game. |
+
+The `Society` meta-category holds both halves:
+
+- **`Society.Population`** (`Own`) — `My People` holds Civilians / Slaves / Interred / P.o.W, and `Forces` holds
+  Army / Airforce / Navy.
+- **`Society.ForeignPopulation`** (`PerOtherPlayer`) — one group, `Subjugated`, holding Slaves / Interred / P.o.W. This
+  is the template.
+
+A projected category takes its `DisplayName` from the subject player's `PeopleName` — unique within a game and locked
+once play begins — and carries that player's id in `SubjectPlayerId`. Its `Code` is the template's code suffixed with
+the subject, e.g. `Society.ForeignPopulation.P12`. **Projections share the template's `Id`**, so `Code` is what
+identifies a category in the returned tree; everything in the frontend keys on it.
+
+The template is pruned on its own contents *before* the fan-out, so a player who has unlocked none of the foreign
+assets gets no categories rather than one empty category per opponent. Eliminated and banned slots are not projected.
+
+##### What the figures will come from
+
+`Amount` is still a placeholder (see **Read Path**), so every population figure currently reads zero. The holdings
+ledger that fills them is `RS-20` work that has not landed: a table keyed `(HolderPlayerId, AssetId, SubjectPlayerId)`,
+read on two axes. Rows where `HolderPlayerId` is me and `SubjectPlayerId` is another player fill that player's
+projected category. Rows where `SubjectPlayerId` is me, summed across every holder, fill the Slaves / Interred / P.o.W.
+entries under `My People` — members of my people held by somebody else.
+
+That second axis tells a player how many of their people an enemy is holding without their having scouted anything.
+The disclosure is **deliberate**: it is what puts pressure on a player to negotiate for their release.
+
+Civilians, Army, Airforce and Navy share the panel but will not be ledger rows at all — they come from settlement
+populations and the force rosters.
+
+##### Which players are projected
+
+`GetPlayerAssetsHandler` projects onto every other **active** player in the game. Two narrower gates are specified but
+not yet applicable:
+
+- **Only discovered players.** There is no record of one player having met another; first contact is a Diplomacy
+  concern. `PlayerKnownForce` and `PlayerKnownStructure` carry an observer and an owner, so the question is derivable,
+  but nothing durable records it.
+- **Only where the figures are above zero.** This needs the ledger. It costs nothing once it exists — no row means no
+  category.
 
 ---
 

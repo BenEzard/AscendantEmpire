@@ -192,6 +192,23 @@ internal class AssetSeedDataTests
         Assert.That(missingCodes, Is.Empty, $"Starter meta-category codes with no seeded row: {string.Join(", ", missingCodes)}");
     }
 
+    [Test, Description("A per-other-player category holds groups, since the projection copies its groups to every subject and a standalone one would give each of them a bare grid.")]
+    public void ShouldGroupTheAssetsUnderEveryPerOtherPlayerCategory()
+    {
+        UpsertAssetCategoryDto[] templates = [.. AllCategories().Where(category => category.SubjectScope == AssetSubjectScope.PerOtherPlayer)];
+
+        Assert.That(templates, Is.Not.Empty, "the population template is what the per-other-player projection exists for");
+
+        Assert.Multiple(() =>
+        {
+            foreach (UpsertAssetCategoryDto template in templates)
+            {
+                Assert.That(template.CategoryType, Is.EqualTo(AssetCategoryType.GroupedAssets), $"{template.Code} is projected per player");
+                Assert.That(template.Groups, Is.Not.Empty, $"{template.Code} would project an empty category onto every opponent");
+            }
+        });
+    }
+
     private IEnumerable<UpsertAssetCategoryDto> AllCategories()
     {
         return _metaCategories.SelectMany(metaCategory => metaCategory.Categories);

@@ -99,6 +99,8 @@ export type AssetClickArgs = {
 export type GroupedAssetCategoryData = {
   id: number;
   code: string;
+  /** The player whose people this category counts, when it was projected from a per-other-player template; null for an ordinary category. */
+  subjectPlayerId?: number | null;
   type: "grouped-assets";
   label: string;
   tickerGroups: AssetTickerGroupData[];
@@ -108,6 +110,8 @@ export type GroupedAssetCategoryData = {
 export type StandaloneAssetCategoryData = {
   id: number;
   code: string;
+  /** The player whose people this category counts, when it was projected from a per-other-player template; null for an ordinary category. */
+  subjectPlayerId?: number | null;
   type: "standalone-assets";
   label: string;
   assets: AssetTickerData[];

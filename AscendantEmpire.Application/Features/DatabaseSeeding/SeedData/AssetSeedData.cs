@@ -37,7 +37,29 @@ internal static class AssetSeedData
     private static readonly AssetGrade[] _GRADED_RESOURCE_GRADES = [AssetGrade.Low, AssetGrade.Medium, AssetGrade.High];
 
     /// <summary>
-    /// Builds the whole catalogue: three meta-categories, their categories and groups, and every Asset within them.
+    /// The population artwork, shared by the own-people and foreign-people Assets that mean the same thing.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Named constants rather than the paths written out, because each is used twice - once under <c>My People</c> and once under the foreign
+    /// template - and the two must not drift apart. The same picture in both places is deliberate: a slave is a slave, and what changes between them
+    /// is whose people they are, which the category already says.
+    /// </para>
+    /// </remarks>
+    private const string _CIVILIAN_ICON = "/resources/other/civilian.svg";
+    private const string _SLAVE_ICON = "/resources/other/slave.svg";
+    private const string _INTERRED_ICON = "/resources/other/interred.svg";
+    private const string _PRISONER_OF_WAR_ICON = "/resources/other/prisoner-of-war.svg";
+
+    /// <summary>
+    /// The artwork for the three armed services. One per service, and used once each, unlike the population icons above.
+    /// </summary>
+    private const string _ARMY_ICON = "/resources/other/army.svg";
+    private const string _AIRFORCE_ICON = "/resources/other/airforce.svg";
+    private const string _NAVY_ICON = "/resources/other/navy.svg";
+
+    /// <summary>
+    /// Builds the whole catalogue: four meta-categories, their categories and groups, and every Asset within them.
     /// </summary>
     public static IReadOnlyCollection<UpsertAssetMetaCategoryDto> Build()
     {
@@ -45,7 +67,8 @@ internal static class AssetSeedData
         [
             BuildConstructionMaterials(),
             BuildWeapons(),
-            BuildRawMaterials()
+            BuildRawMaterials(),
+            BuildSociety()
         ];
     }
 
@@ -399,7 +422,7 @@ internal static class AssetSeedData
     }
 
     // ---------------------------------------------------------------------------------------------------------------------------------------------------
-    // Raw Materials
+    // Society
     // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
     private static UpsertAssetMetaCategoryDto BuildSociety()
@@ -408,7 +431,10 @@ internal static class AssetSeedData
         {
             Code = "Society",
             DisplayName = "Society",
-            IconPath = "/resources/wood/oak-log_40px.png",
+
+            // The toolbar button for the whole meta-category. It shares the Civilians icon rather than having one of its own, which is the closest
+            // thing to "a people" in the set.
+            IconPath = _CIVILIAN_ICON,
             Categories =
             [
                 new UpsertAssetCategoryDto
@@ -448,14 +474,52 @@ internal static class AssetSeedData
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Civilians",
-                                    IconPath = "/resources/wood/oak-log_40px.png",
-                                    Description = ""
+                                    IconPath = _CIVILIAN_ICON,
+                                    Description = "Members of this people going about their own lives - everyone not serving, enslaved, interred or held prisoner."
                                 },
                                 new UpsertAssetDto
                                 {
-                                    DisplayName = "Military",
-                                    IconPath = "/resources/wood/pine-log_40px.png",
-                                    Description = ""
+                                    DisplayName = "Slaves",
+                                    IconPath = _SLAVE_ICON,
+                                    Description = "Members of this people held in slavery, wherever in the world they are held."
+                                },
+                                new UpsertAssetDto
+                                {
+                                    DisplayName = "Interred",
+                                    IconPath = _INTERRED_ICON,
+                                    Description = "Civilians of this people detained by a foreign power, wherever they are held."
+                                },
+                                new UpsertAssetDto
+                                {
+                                    DisplayName = "P.o.W",
+                                    IconPath = _PRISONER_OF_WAR_ICON,
+                                    Description = "Soldiers of this people taken prisoner, wherever they are held."
+                                },
+                            ]
+                        },
+                        new UpsertAssetGroupDto
+                        {
+                            Code = "Society.Population.Forces",
+                            DisplayName = "Forces",
+                            Assets =
+                            [
+                                new UpsertAssetDto
+                                {
+                                    DisplayName = "Army",
+                                    IconPath = _ARMY_ICON,
+                                    Description = "Members of this people serving under arms on land."
+                                },
+                                new UpsertAssetDto
+                                {
+                                    DisplayName = "Airforce",
+                                    IconPath = _AIRFORCE_ICON,
+                                    Description = "Members of this people serving in the air."
+                                },
+                                new UpsertAssetDto
+                                {
+                                    DisplayName = "Navy",
+                                    IconPath = _NAVY_ICON,
+                                    Description = "Members of this people serving at sea."
                                 },
                             ]
                         },
@@ -463,71 +527,43 @@ internal static class AssetSeedData
                 },
                 new UpsertAssetCategoryDto
                 {
-                    Code = "ConstructionMaterials.Stone",
-                    DisplayName = "Stone",
+                    Code = "Society.ForeignPopulation",
+                    DisplayName = "Foreign Population",
                     CategoryType = AssetCategoryType.GroupedAssets,
+
+                    // The template the per-player categories are stamped from. It is never rendered as itself - see the banner above
+                    // AssetSubjectScope, and the projection in GetPlayerAssetsHandler.
+                    SubjectScope = AssetSubjectScope.PerOtherPlayer,
                     Groups =
                     [
                         new UpsertAssetGroupDto
                         {
-                            Code = "ConstructionMaterials.Stone.RawRock",
-                            DisplayName = "Raw Rock",
+                            Code = "Society.ForeignPopulation.Subjugated",
+                            DisplayName = "Subjugated",
                             Assets =
                             [
                                 new UpsertAssetDto
                                 {
-                                    DisplayName = "Limestone",
-                                    Description = "A sedimentary rock abundant throughout the empire. Limestone is the foundation of basic construction and is crushed to produce mortar and quicklime."
+                                    DisplayName = "Slaves",
+                                    IconPath = _SLAVE_ICON,
+                                    Description = "Members of this foreign people held in slavery by this Player."
                                 },
                                 new UpsertAssetDto
                                 {
-                                    DisplayName = "Sandstone",
-                                    IconPath = "/resources/stone/sandstone-rocks_40px.png",
-                                    Description = "A soft, workable stone gathered from arid regions. Easier to cut than granite, sandstone is commonly used in desert architecture."
+                                    DisplayName = "Interred",
+                                    IconPath = _INTERRED_ICON,
+                                    Description = "Civilians of this foreign people interred by this Player."
                                 },
                                 new UpsertAssetDto
                                 {
-                                    DisplayName = "Granite",
-                                    Description = "An exceptionally hard igneous rock quarried from mountain deposits. Granite resists weathering and is ideal for fortifications and public monuments."
+                                    DisplayName = "P.o.W",
+                                    IconPath = _PRISONER_OF_WAR_ICON,
+                                    Description = "Soldiers of this foreign people held prisoner by this Player."
                                 },
-                                new UpsertAssetDto
-                                {
-                                    DisplayName = "Flint",
-                                    Description = "A fine-grained sedimentary rock that fractures with a sharp edge. Flint is used in early toolmaking, fire-starting, and as a cheap cutting material."
-                                },
-                                new UpsertAssetDto
-                                {
-                                    DisplayName = "Obsidian",
-                                    IconPath = "/resources/stone/obsidian-pile_40px.png",
-                                    Description = "Volcanic glass formed from rapidly cooled lava. Obsidian is razor-sharp when fractured and is prized for specialist blades and ritual objects."
-                                },
-                                new UpsertAssetDto
-                                {
-                                    DisplayName = "Slate",
-                                    IconPath = "/resources/stone/slate-pile_40px.png",
-                                    Description = "A fine-grained metamorphic rock that cleaves into thin sheets. Slate is the material of choice for roofing tiles and writing tablets."
-                                },
-                                new UpsertAssetDto
-                                {
-                                    DisplayName = "Marble",
-                                    IconPath = "/resources/stone/marble-pile_40px.png",
-                                    Description = "Raw marble extracted from prized quarries. Highly sought after for prestige architecture, sculptures, and civic monuments."
-                                },
-                                new UpsertAssetDto
-                                {
-                                    DisplayName = "Basalt",
-                                    Description = "A dense volcanic rock with superior hardness. Basalt is prized for road paving, millstones, and heavy defensive structures."
-                                },
-                                new UpsertAssetDto
-                                {
-                                    DisplayName = "Generic Rock",
-                                    IconPath = "/resources/stone/generic-rock-pile_40px.png",
-                                    Description = "Rough, unprocessed stone quarried from surface deposits. Used as bulk fill, rubble, and a basic ingredient in early-stage construction."
-                                }
                             ]
-                        }
+                        },
                     ]
-                }
+                },
             ]
         };
     }

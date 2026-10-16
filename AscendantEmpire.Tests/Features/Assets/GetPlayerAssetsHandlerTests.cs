@@ -5,7 +5,9 @@ using AscendantEmpire.Application.Features.Assets.Handlers;
 using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.BackendContracts.Assets.GetPlayerAssets;
 using AscendantEmpire.Domain.Entities.Assets;
+using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Enums.Assets;
+using AscendantEmpire.Domain.Enums.Games;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -41,6 +43,12 @@ internal class GetPlayerAssetsHandlerTests : PlayerAssetUnlockTestBase
 
     // A third meta-category, used whenever a test needs one with nothing granted beneath it.
     private const string _META_EMPTY = "RawMaterials";
+
+    // Society holds the one per-other-player template in the catalogue: a category that is never rendered as itself, but stamped out once per other
+    // Player in the game.
+    private const string _META_SOCIETY = "Society";
+    private const string _CATEGORY_FOREIGN_POPULATION = "Society.ForeignPopulation";
+    private const string _RESOURCE_FOREIGN_SLAVES = "Society.ForeignPopulation.Subjugated.Slaves";
 
     private GetPlayerAssetsHandler _handler = null!;
     private IMediator _mediator = null!;
@@ -270,6 +278,148 @@ internal class GetPlayerAssetsHandlerTests : PlayerAssetUnlockTestBase
         ServiceResult<IReadOnlyCollection<PlayerAssetMetaCategory>> result = await HandleAsync();
 
         Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.NotFound));
+    }
+
+    // ---------------------------------------------------------------------------------------------------------------------------------------------
+    // The per-other-player projection
+    // ---------------------------------------------------------------------------------------------------------------------------------------------
+
+    [Test, Description("A per-other-player template is stamped out once per other Player, each copy labelled with that Player's people name rather than the template's own.")]
+    public async Task ShouldProjectTheForeignTemplateOncePerOtherPlayer()
+    {
+        await AddOtherPlayersAsync("The Vashti", "The Keldar");
+        await GrantAsync([_RESOURCE_FOREIGN_SLAVES], [_META_SOCIETY]);
+
+        IReadOnlyCollection<PlayerAssetCategory> categories = Single(await SendAsync()).Categories;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(categories.Select(category => category.DisplayName), Is.EqualTo(new[] { "The Keldar", "The Vashti" }),
+                "the projections are ordered by people name, so the panel reads alphabetically");
+            Assert.That(categories.Select(category => category.Code),
+                Is.All.StartsWith(_CATEGORY_FOREIGN_POPULATION + "."),
+                "a projected code extends the template's, so it stays greppable back to the row it came from");
+            Assert.That(categories.Select(category => category.SubjectPlayerId), Is.All.Not.Null);
+        });
+    }
+
+    [Test, Description("A projected category names its subject Player, since the people name is a label and the id is the identity a consumer keys on.")]
+    public async Task ShouldCarryTheSubjectPlayerIdOnEachProjection()
+    {
+        int[] otherPlayerIds = await AddOtherPlayersAsync("The Vashti");
+        await GrantAsync([_RESOURCE_FOREIGN_SLAVES], [_META_SOCIETY]);
+
+        PlayerAssetCategory category = Single(Single(await SendAsync()).Categories);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(category.SubjectPlayerId, Is.EqualTo(otherPlayerIds[0]));
+            Assert.That(category.Code, Is.EqualTo($"{_CATEGORY_FOREIGN_POPULATION}.P{otherPlayerIds[0]}"));
+            Assert.That(Single(Single(category.Groups).Assets).Code, Is.EqualTo(_RESOURCE_FOREIGN_SLAVES));
+        });
+    }
+
+    [Test, Description("Two projections of one template carry the same catalogue Id, which is why Code rather than Id is what identifies a category in the returned tree.")]
+    public async Task ShouldRepeatTheTemplateIdAcrossProjectionsAndDistinguishThemByCode()
+    {
+        await AddOtherPlayersAsync("The Vashti", "The Keldar");
+        await GrantAsync([_RESOURCE_FOREIGN_SLAVES], [_META_SOCIETY]);
+
+        IReadOnlyCollection<PlayerAssetCategory> categories = Single(await SendAsync()).Categories;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(categories.Select(category => category.Id).Distinct().Count(), Is.EqualTo(1));
+            Assert.That(categories.Select(category => category.Code).Distinct().Count(), Is.EqualTo(categories.Count));
+        });
+    }
+
+    [Test, Description("The template is never rendered as itself, so a Player alone in their game sees no foreign category at all rather than an unlabelled one.")]
+    public async Task ShouldReturnNoForeignCategoryWhenThePlayerIsTheOnlyOneInTheGame()
+    {
+        await GrantAsync([_RESOURCE_FOREIGN_SLAVES], [_META_SOCIETY]);
+
+        Assert.That(Single(await SendAsync()).Categories, Is.Empty);
+    }
+
+    [Test, Description("A Player in another Game is not a subject here, so the projection cannot leak a people name across games.")]
+    public async Task ShouldIgnorePlayersBelongingToAnotherGame()
+    {
+        await AddOtherPlayersAsync("The Vashti");
+        await AddOtherPlayersAsync(gameId: _GAME_ID + 1, peopleNames: "The Outsiders");
+        await GrantAsync([_RESOURCE_FOREIGN_SLAVES], [_META_SOCIETY]);
+
+        Assert.That(Single(Single(await SendAsync()).Categories).DisplayName, Is.EqualTo("The Vashti"));
+    }
+
+    [Test, Description("An eliminated Player keeps their category, because people held from them are still held - losing it would leave the holder owning them with no way to see them.")]
+    public async Task ShouldStillProjectAPlayerWhoHasBeenEliminated()
+    {
+        await AddOtherPlayersAsync("The Vashti");
+        await AddOtherPlayersAsync(_GAME_ID, PlayerStatus.Eliminated, "The Fallen");
+        await GrantAsync([_RESOURCE_FOREIGN_SLAVES], [_META_SOCIETY]);
+
+        IReadOnlyCollection<PlayerAssetCategory> categories = Single(await SendAsync()).Categories;
+
+        Assert.That(categories.Select(category => category.DisplayName), Is.EqualTo(new[] { "The Fallen", "The Vashti" }));
+    }
+
+    [Test, Description("The template is pruned on its own contents before the fan-out, so a Player who has unlocked none of the foreign Assets gets no categories rather than one empty one per opponent.")]
+    public async Task ShouldReturnNoForeignCategoryWhenNothingBeneathTheTemplateIsUnlocked()
+    {
+        await AddOtherPlayersAsync("The Vashti", "The Keldar");
+        await GrantAsync([], [_META_SOCIETY]);
+
+        Assert.That(Single(await SendAsync()).Categories, Is.Empty);
+    }
+
+    [Test, Description("An ordinary category reports no subject Player, so a consumer can tell a projection from a plain category without consulting the catalogue.")]
+    public async Task ShouldLeaveTheSubjectPlayerNullOnAnOrdinaryCategory()
+    {
+        await GrantAsync([_RESOURCE_OAK_LOG], [_META_GROUPED]);
+
+        Assert.That(Single(Single(await SendAsync()).Categories).SubjectPlayerId, Is.Null);
+    }
+
+    /// <summary>
+    /// Adds other Players to the fixture's Game, so the per-other-player template has something to project onto.
+    /// </summary>
+    /// <returns>The ids of the Players added, in the order their names were given.</returns>
+    private Task<int[]> AddOtherPlayersAsync(params string[] peopleNames)
+    {
+        return AddOtherPlayersAsync(_GAME_ID, PlayerStatus.Active, peopleNames);
+    }
+
+    private Task<int[]> AddOtherPlayersAsync(int gameId, params string[] peopleNames)
+    {
+        return AddOtherPlayersAsync(gameId, PlayerStatus.Active, peopleNames);
+    }
+
+    private async Task<int[]> AddOtherPlayersAsync(int gameId, PlayerStatus status, params string[] peopleNames)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        Player[] players =
+        [
+            .. peopleNames.Select(peopleName => new Player
+            {
+                GameId = gameId,
+                RulerTitle = Player.DEFAULT_RULER_TITLE,
+                RulerName = $"Ruler of {peopleName}",
+                FactionName = $"Faction of {peopleName}",
+                PeopleName = peopleName,
+                Demonym = peopleName,
+                CultureName = $"Culture of {peopleName}",
+                Language = $"Tongue of {peopleName}",
+                RulerPortraitPath = Player.DEFAULT_RULER_PORTRAIT_PATH,
+                Status = status
+            })
+        ];
+
+        context.Players.AddRange(players);
+        await context.SaveChangesAsync();
+
+        return [.. players.Select(player => player.Id)];
     }
 
     /// <summary>

@@ -33,8 +33,7 @@ internal class UpsertAssetsHandler(
         }
 
         // --- Step 1: Derive all codes and sort orders from the request before touching the DB.
-        //     Working with immutable plan objects avoids repeating derivation logic and keeps
-        //     validation independent of DB state. ---
+        //     Working with immutable plan objects avoids repeating derivation logic and keeps validation independent of DB state. ---
 
         // A supplied Code is taken whole at every level rather than being prefixed by its parent, so the code a caller writes is exactly the code that
         // lands in the database and can be grepped for. Codes are the upsert's match key: derived-only would mean renaming a DisplayName inserted a
@@ -224,7 +223,8 @@ internal class UpsertAssetsHandler(
                     Code = cat.Code,
                     DisplayName = cat.Dto.DisplayName,
                     SortOrder = cat.SortOrder,
-                    CategoryType = cat.Dto.CategoryType
+                    CategoryType = cat.Dto.CategoryType,
+                    SubjectScope = cat.Dto.SubjectScope
                 };
                 // Link via navigation so EF resolves the FK before SaveChanges.
                 metaEntity.Categories.Add(catEntity);
@@ -236,6 +236,7 @@ internal class UpsertAssetsHandler(
                 catEntity.DisplayName = cat.Dto.DisplayName;
                 catEntity.SortOrder = cat.SortOrder;
                 catEntity.CategoryType = cat.Dto.CategoryType;
+                catEntity.SubjectScope = cat.Dto.SubjectScope;
                 catEntity.MetaCategory = metaEntity;
             }
         }

@@ -17,14 +17,27 @@ namespace AscendantEmpire.BackendContracts.Assets.GetPlayerAssets;
 /// </remarks>
 public record PlayerAssetCategory
 {
+    /// <summary>
+    /// The catalogue row's id.
+    /// </summary>
+    /// <remarks>
+    /// <b>Not unique across the returned tree.</b> Every category projected from the same per-other-player template carries that template's id, so
+    /// <see cref="Code"/> is what identifies a category here - see <see cref="SubjectPlayerId"/>.
+    /// </remarks>
     public required int Id { get; init; }
 
     /// <summary>
     /// The category's unique code, hierarchical and dotted, e.g. "ConstructionMaterials.Wood".
     /// </summary>
+    /// <remarks>A projected category suffixes the subject Player, e.g. "Society.ForeignPopulation.P12", so it stays unique within the tree.</remarks>
     public required string Code { get; init; }
 
     public required string DisplayName { get; init; }
+
+    /// <summary>
+    /// The Player whose people this category counts, when it is one of the per-other-player projections; <see langword="null"/> for every ordinary category.
+    /// </summary>
+    public int? SubjectPlayerId { get; init; }
 
     /// <summary>
     /// Whether this category holds groups or Assets directly, which is what picks the layout the client draws.

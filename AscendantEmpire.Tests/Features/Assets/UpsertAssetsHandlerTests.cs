@@ -122,6 +122,25 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
         });
     }
 
+    [Test, Description("A category's subject scope is stored and then updated in place, so marking an existing category as a per-other-player template does not need a new row.")]
+    public async Task ShouldStoreAndUpdateTheCategorySubjectScope()
+    {
+        await UpsertAsync(BuildCatalogue());
+
+        Assert.That(_context.AssetCategories.Single().SubjectScope, Is.EqualTo(AssetSubjectScope.Own),
+            "a category that says nothing about a subject counts what the reading Player holds");
+
+        _context.ChangeTracker.Clear();
+
+        await UpsertAsync(BuildCatalogue(subjectScope: AssetSubjectScope.PerOtherPlayer));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_context.AssetCategories.Count(), Is.EqualTo(1), "The category was duplicated rather than updated.");
+            Assert.That(_context.AssetCategories.Single().SubjectScope, Is.EqualTo(AssetSubjectScope.PerOtherPlayer));
+        });
+    }
+
     [Test, Description("Two rows resolving to the same code are refused before anything is written, so a collision cannot half-apply.")]
     public async Task ShouldRefuseACatalogueWithCollidingCodes()
     {
@@ -250,7 +269,8 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
         string categoryDisplayName = "Wood",
         string groupDisplayName = "Logs",
         int? firstAssetSortOrder = null,
-        bool includeAssetDetail = true)
+        bool includeAssetDetail = true,
+        AssetSubjectScope subjectScope = AssetSubjectScope.Own)
     {
         return
         [
@@ -266,6 +286,7 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
                         Code = "ConstructionMaterials.Wood",
                         DisplayName = categoryDisplayName,
                         CategoryType = AssetCategoryType.GroupedAssets,
+                        SubjectScope = subjectScope,
                         Groups =
                         [
                             new UpsertAssetGroupDto

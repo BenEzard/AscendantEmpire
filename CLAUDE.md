@@ -20,6 +20,20 @@ This project contains a web API backend and a React frontend.
 These are C# rules. The React frontend keeps its own idiom — `camelCase` throughout, no underscore
 prefixes, and `SCREAMING_SNAKE_CASE` reserved for module-level constants.
 
+## LINQ (C#)
+- **Prefer method syntax** — `.Where(…).Select(…)` — over query syntax (`from … where … select …`).
+- Two reasons to keep query syntax instead, and they're the only ones: the rewrite would **change the
+  query**, or it would be **harder to read**. The last one covers a genuine join between two tables with
+  no navigation between them, where `join … on … equals` beats a four-argument `.Join(…)`.
+- **Speed is not a reason.** Query syntax compiles to the same method calls, so the two forms cannot
+  differ in performance. What can differ is a careless rewrite: an explicit `join` is always an
+  `INNER JOIN`, while a navigation projection follows the FK's nullability and gives a `LEFT JOIN` on a
+  nullable one. Check the FK is required before swapping a join for a navigation.
+- Before reaching for `.Join(…)` or a `join` clause, check whether the relationship is already a mapped
+  navigation. If it is, project through it — `unlock.Asset.Code` — and let EF expand the join. That is
+  usually what turns a query-syntax join into a plain method chain rather than an ugly one.
+- Bring a query into line when you're already changing it; don't raise a separate pass for its own sake.
+
 ## API controllers
 - **One route prefix, one controller.** A controller is the single source of control for its route prefix.
   Never add a second controller hanging off a prefix an existing controller already owns — no

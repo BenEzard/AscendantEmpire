@@ -46,7 +46,7 @@ internal class GetPlayerAssetsRequestValidator : Validator<GetPlayerAssetsReques
 /// call per meta-category.
 /// </para>
 /// <para>
-/// Four flat reads assembled in memory, rather than one query with nested projections. Two reasons. The Asset read is driven from the unlock table
+/// Five flat reads assembled in memory, rather than one query with nested projections. Two reasons. The Asset read is driven from the unlock table
 /// so that <c>ObsoleteOnRound</c> is a column on the same row the availability predicate filtered, which is what stops the countdown and the
 /// availability check drifting apart; and the meta-category read consults nothing beneath it, so "an unlocked meta-category with nothing visible
 /// under it still appears" is structural rather than a rule a later edit could quietly break.
@@ -86,6 +86,7 @@ internal class GetPlayerAssetsHandler(
 
         IReadOnlyCollection<PlayerAssetMetaCategory> tree = await ReadTreeAsync(
             context,
+            request.GameId,
             request.PlayerId,
             currentRoundResult.SuccessValue,
             cancellationToken);
@@ -94,27 +95,27 @@ internal class GetPlayerAssetsHandler(
     }
 
     /// <summary>
-    /// Reads the four row sets the tree is built from, then assembles them.
+    /// Reads the five row sets the tree is built from, then assembles them.
     /// </summary>
     private static async Task<IReadOnlyCollection<PlayerAssetMetaCategory>> ReadTreeAsync(
         AscendantEmpireContext context,
+        int gameId,
         int playerId,
         int currentRound,
         CancellationToken cancellationToken)
     {
-        // The meta-categories the Player has unlocked and has not yet lost. Nothing beneath is consulted: an unlocked meta-category with nothing
-        // available under it still shows its icon over an empty panel - see PlayerUnlockedAssetMetaCategory's remarks.
-        List<UnlockedMetaCategoryRow> metaCategoryRows = await (
-            from unlock in context.PlayerUnlockedAssetMetaCategories.AsNoTracking()
-            join metaCategory in context.AssetMetaCategories.AsNoTracking() on unlock.AssetMetaCategoryId equals metaCategory.Id
-            where unlock.PlayerId == playerId
-                && (unlock.ObsoleteOnRound == null || unlock.ObsoleteOnRound > currentRound)
-            select new UnlockedMetaCategoryRow(
-                metaCategory.Id,
-                metaCategory.Code,
-                metaCategory.DisplayName,
-                metaCategory.IconPath,
-                metaCategory.SortOrder))
+        // The meta-categories the Player has unlocked and has not yet lost.
+        // Nothing beneath is consulted: an unlocked meta-category with nothing available under it still shows its icon over an empty panel - see PlayerUnlockedAssetMetaCategory's remarks.
+        List<UnlockedMetaCategoryRow> metaCategoryRows = await context.PlayerUnlockedAssetMetaCategories
+            .AsNoTracking()
+            .Where(unlock => unlock.PlayerId == playerId)
+            .Where(unlock => unlock.ObsoleteOnRound == null || unlock.ObsoleteOnRound > currentRound)
+            .Select(unlock => new UnlockedMetaCategoryRow(
+                unlock.MetaCategory.Id,
+                unlock.MetaCategory.Code,
+                unlock.MetaCategory.DisplayName,
+                unlock.MetaCategory.IconPath,
+                unlock.MetaCategory.SortOrder))
             .ToListAsync(cancellationToken);
 
         if (metaCategoryRows.Count == 0)
@@ -128,23 +129,22 @@ internal class GetPlayerAssetsHandler(
         // category chain, so filtering on it would let a mis-seeded Asset pass the meta-category gate and then be placed under a category belonging
         // to a different meta-category. Placement below goes through AssetGroupId / AssetCategoryId alone, which leaves the catalogue's
         // exclusive-or chain as the single source of truth for both gating and placement.
-        List<UnlockedAssetRow> assetRows = await (
-            from unlock in context.PlayerUnlockedAssets.AsNoTracking()
-            join asset in context.Assets.AsNoTracking() on unlock.AssetId equals asset.Id
-            where unlock.PlayerId == playerId
-                && (unlock.ObsoleteOnRound == null || unlock.ObsoleteOnRound > currentRound)
-            select new UnlockedAssetRow(
-                asset.Id,
-                asset.Code,
-                asset.DisplayName,
-                asset.Description,
-                asset.IconPath,
-                asset.IsGradedAsset,
-                asset.AssetGrade,
-                asset.SortOrder,
-                asset.NeverLuxury,
-                asset.AssetGroupId,
-                asset.AssetCategoryId,
+        List<UnlockedAssetRow> assetRows = await context.PlayerUnlockedAssets
+            .AsNoTracking()
+            .Where(unlock => unlock.PlayerId == playerId)
+            .Where(unlock => unlock.ObsoleteOnRound == null || unlock.ObsoleteOnRound > currentRound)
+            .Select(unlock => new UnlockedAssetRow(
+                unlock.Asset.Id,
+                unlock.Asset.Code,
+                unlock.Asset.DisplayName,
+                unlock.Asset.Description,
+                unlock.Asset.IconPath,
+                unlock.Asset.IsGradedAsset,
+                unlock.Asset.AssetGrade,
+                unlock.Asset.SortOrder,
+                unlock.Asset.NeverLuxury,
+                unlock.Asset.AssetGroupId,
+                unlock.Asset.AssetCategoryId,
                 unlock.ObsoleteOnRound))
             .ToListAsync(cancellationToken);
 
@@ -161,6 +161,7 @@ internal class GetPlayerAssetsHandler(
                 category.Code,
                 category.DisplayName,
                 category.CategoryType,
+                category.SubjectScope,
                 category.SortOrder))
             .ToListAsync(cancellationToken);
 
@@ -172,17 +173,70 @@ internal class GetPlayerAssetsHandler(
             .Select(group => new CatalogueGroupRow(group.Id, group.AssetCategoryId, group.Code, group.DisplayName, group.SortOrder))
             .ToListAsync(cancellationToken);
 
-        return BuildTree(metaCategoryRows, categoryRows, groupRows, assetRows, currentRound);
+        // Only read when the catalogue actually holds a template, so an ordinary game pays nothing for a feature it is not using.
+        IReadOnlyCollection<SubjectPlayerRow> subjectPlayers =
+            categoryRows.Any(category => category.SubjectScope == AssetSubjectScope.PerOtherPlayer)
+                ? await ReadSubjectPlayersAsync(context, gameId, playerId, cancellationToken)
+                : [];
+
+        return BuildTree(metaCategoryRows, categoryRows, groupRows, assetRows, subjectPlayers, currentRound);
     }
 
     /// <summary>
-    /// Assembles the four row sets into the nested tree, dropping every group and category that nothing visible landed in.
+    /// The other Players in the game whose held populations this Player gets a category for.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Both of the gates this is supposed to apply are placeholders.</b> RS-20 calls for a category per <i>discovered</i> Player, and only where
+    /// the figures beneath it are above zero. Neither can be honoured yet:
+    /// </para>
+    /// <list type="bullet">
+    /// <item>
+    /// <description>
+    /// <b>Discovery.</b> There is no record of one Player having met another. <c>PlayerKnownForce</c> and <c>PlayerKnownStructure</c> carry an
+    /// observer and an owner, so "have I ever seen anything of theirs" is derivable, but a derived answer forgets if sighting rows are ever
+    /// pruned, and first contact is a Diplomacy concern rather than something to invent here. Every other Player is returned until that lands.
+    /// </description>
+    /// </item>
+    /// <item>
+    /// <description>
+    /// <b>A figure above zero.</b> There is no holdings table - <c>Amount</c> is a placeholder the handler writes as zero for every Asset in the
+    /// catalogue. Once the ledger exists the gate is free, because no row will mean no category; until then every qualifying Player is returned and
+    /// their panel reads zero, which is how the rest of the toolbar already behaves.
+    /// </description>
+    /// </item>
+    /// </list>
+    /// <para>
+    /// <b>Status is deliberately not filtered on, eliminated Players included.</b> A people outlives the polity that spoke for it.
+    /// </para>
+    /// <para>
+    /// Once the ledger exists the rule becomes "hold rows against them, or they are a Player I have discovered". Holdings are what keep a category
+    /// alive past elimination, and an eliminated Player nobody holds anything of then drops out through the above-zero gate rather than by status.
+    /// </para>
+    /// </remarks>
+    private static async Task<IReadOnlyCollection<SubjectPlayerRow>> ReadSubjectPlayersAsync(
+        AscendantEmpireContext context,
+        int gameId,
+        int playerId,
+        CancellationToken cancellationToken)
+    {
+        return await context.Players
+            .AsNoTracking()
+            .Where(player => player.GameId == gameId)
+            .Where(player => player.Id != playerId)
+            .Select(player => new SubjectPlayerRow(player.Id, player.PeopleName))
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Assembles the five row sets into the nested tree, dropping every group and category that nothing visible landed in.
     /// </summary>
     private static IReadOnlyCollection<PlayerAssetMetaCategory> BuildTree(
         IReadOnlyCollection<UnlockedMetaCategoryRow> metaCategoryRows,
         IReadOnlyCollection<CatalogueCategoryRow> categoryRows,
         IReadOnlyCollection<CatalogueGroupRow> groupRows,
         IReadOnlyCollection<UnlockedAssetRow> assetRows,
+        IReadOnlyCollection<SubjectPlayerRow> subjectPlayers,
         int currentRound)
     {
         ILookup<int, PlayerAsset> assetsByGroupId = assetRows
@@ -212,7 +266,8 @@ internal class GetPlayerAssetsHandler(
                         categoriesByMetaCategoryId[metaCategory.Id],
                         groupsByCategoryId,
                         assetsByGroupId,
-                        assetsByCategoryId)
+                        assetsByCategoryId,
+                        subjectPlayers)
                 })
         ];
     }
@@ -220,11 +275,17 @@ internal class GetPlayerAssetsHandler(
     /// <summary>
     /// Builds one meta-category's visible categories, in display order.
     /// </summary>
+    /// <remarks>
+    /// A category marked <see cref="AssetSubjectScope.PerOtherPlayer"/> is a template and is never emitted as itself. It is stamped out once per
+    /// entry in <paramref name="subjectPlayers"/> instead, each copy carrying the same groups and Assets under that Player's people name - which is
+    /// what lets the catalogue stay global while the panel is per-game. With no subject Players the template simply yields nothing.
+    /// </remarks>
     private static IReadOnlyCollection<PlayerAssetCategory> BuildCategories(
         IEnumerable<CatalogueCategoryRow> categoryRows,
         ILookup<int, CatalogueGroupRow> groupsByCategoryId,
         ILookup<int, PlayerAsset> assetsByGroupId,
-        ILookup<int, PlayerAsset> assetsByCategoryId)
+        ILookup<int, PlayerAsset> assetsByCategoryId,
+        IReadOnlyCollection<SubjectPlayerRow> subjectPlayers)
     {
         List<PlayerAssetCategory> categories = [];
 
@@ -238,9 +299,35 @@ internal class GetPlayerAssetsHandler(
                 ? OrderAssets(assetsByCategoryId[row.Id])
                 : [];
 
-            // A category has no unlock row of its own. It is here because something beneath it is, and it goes with the last of them.
+            // A category has no unlock row of its own. It is here because something beneath it is, and it goes with the last of them. Checked before
+            // the fan-out below, so a Player who has not unlocked the population Assets gets no foreign categories at all rather than one empty one
+            // per opponent.
             if (groups.Count == 0 && assets.Count == 0)
             {
+                continue;
+            }
+
+            if (row.SubjectScope == AssetSubjectScope.PerOtherPlayer)
+            {
+                // Ordered by people name so the panel reads alphabetically. The names are unique within a game and locked once play begins (GS-11),
+                // so this is a stable order rather than one that shuffles between reads.
+                foreach (SubjectPlayerRow subject in subjectPlayers.OrderBy(player => player.PeopleName).ThenBy(player => player.PlayerId))
+                {
+                    categories.Add(new PlayerAssetCategory
+                    {
+                        // The template's own id, repeated across its projections: a projected category has no row of its own. Code is what
+                        // identifies one - see the remarks on the contract.
+                        Id = row.Id,
+                        Code = $"{row.Code}.P{subject.PlayerId}",
+                        DisplayName = subject.PeopleName,
+                        SubjectPlayerId = subject.PlayerId,
+                        CategoryType = row.CategoryType,
+                        SortOrder = row.SortOrder,
+                        Groups = groups,
+                        Assets = assets
+                    });
+                }
+
                 continue;
             }
 
@@ -249,6 +336,7 @@ internal class GetPlayerAssetsHandler(
                 Id = row.Id,
                 Code = row.Code,
                 DisplayName = row.DisplayName,
+                SubjectPlayerId = null,
                 CategoryType = row.CategoryType,
                 SortOrder = row.SortOrder,
                 Groups = groups,
@@ -340,7 +428,13 @@ internal class GetPlayerAssetsHandler(
         string Code,
         string DisplayName,
         AssetCategoryType CategoryType,
+        AssetSubjectScope SubjectScope,
         int SortOrder);
+
+    /// <summary>
+    /// One other Player in the game, and the name their people are labelled with.
+    /// </summary>
+    private sealed record SubjectPlayerRow(int PlayerId, string PeopleName);
 
     private sealed record CatalogueGroupRow(int Id, int AssetCategoryId, string Code, string DisplayName, int? SortOrder);
 

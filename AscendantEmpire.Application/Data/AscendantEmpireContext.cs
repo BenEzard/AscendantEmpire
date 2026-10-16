@@ -13,6 +13,7 @@ using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Entities.Util;
+using AscendantEmpire.Domain.Enums.Assets;
 using AscendantEmpire.Domain.Enums.Battle;
 using AscendantEmpire.Domain.Enums.Forces;
 using AscendantEmpire.Domain.Enums.MapResources;
@@ -536,6 +537,8 @@ public class AscendantEmpireContext : DbContext
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Code).HasMaxLength(AssetCategory.MAX_CODE_LENGTH).IsRequired();
             entity.Property(x => x.DisplayName).HasMaxLength(AssetCategory.MAX_DISPLAY_NAME_LENGTH).IsRequired();
+
+            entity.Property(x => x.SubjectScope).HasDefaultValue(AssetSubjectScope.Own);
 
             entity.HasIndex(x => x.Code).IsUnique();
             entity.HasIndex(x => new { x.AssetMetaCategoryId, x.DisplayName }).IsUnique();

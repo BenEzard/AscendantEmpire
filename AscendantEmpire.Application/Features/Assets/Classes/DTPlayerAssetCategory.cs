@@ -11,6 +11,8 @@ public class DTPlayerAssetCategory : IPlayerAssetCategory
 
     public required string DisplayName { get; set; }
 
+    public int? SubjectPlayerId { get; set; }
+
     public required AssetCategoryType CategoryType { get; set; }
 
     public required int SortOrder { get; set; }

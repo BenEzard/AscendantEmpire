@@ -55,9 +55,17 @@ export type PlayerAssetGroup = {
  * rendered without a null check.
  */
 export type PlayerAssetCategory = {
+  /** The catalogue row's id. NOT unique across the tree — every per-other-player projection shares its template's id, so key on `code`. */
   id: number;
   code: string;
   displayName: string;
+  /**
+   * The player whose people this category counts, or null for an ordinary category.
+   *
+   * A populated value means the category was projected from a per-other-player template, and `displayName` is that player's people name. The id is
+   * what to key on: the name is the label, not the identity.
+   */
+  subjectPlayerId: number | null;
   categoryType: AssetCategoryTypeName;
   sortOrder: number;
   groups: PlayerAssetGroup[];
@@ -132,6 +140,8 @@ function mapCategory(category: PlayerAssetCategoryWireDto): PlayerAssetCategory 
     id: category.id ?? 0,
     code: category.code ?? "",
     displayName: category.displayName ?? "",
+    // Null rather than 0 when absent: 0 is not a player id, and an ordinary category legitimately has no subject.
+    subjectPlayerId: category.subjectPlayerId ?? null,
     // Standalone is the safer default for a category the client cannot read: it renders a flat grid without needing groups.
     categoryType: category.categoryType ?? "StandaloneAssets",
     sortOrder: category.sortOrder ?? 0,

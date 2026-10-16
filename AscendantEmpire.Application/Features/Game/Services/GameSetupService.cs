@@ -64,7 +64,7 @@ internal class GameSetupService(
     /// All three, so every icon is present from the first Round. Which Assets sit under each one is <see cref="StarterAssetCodes"/>; 
     /// a meta-category with nothing available under it still shows its icon over an empty panel.
     /// </remarks>
-    public static readonly string[] StarterAssetMetaCategoryCodes = ["ConstructionMaterials", "Weapons", "RawMaterials"];
+    public static readonly string[] StarterAssetMetaCategoryCodes = ["ConstructionMaterials", "Weapons", "RawMaterials", "Society"];
 
     /// <summary>
     /// The <c>assets.Asset</c> codes every Player starts the game with unlocked — a stone-age start.
@@ -95,7 +95,20 @@ internal class GameSetupService(
         "RawMaterials.RawMaterials.Chalk",
         "RawMaterials.RawMaterials.Fodder",
         "RawMaterials.RawMaterials.Hides",
-        "RawMaterials.RawMaterials.Tallow"
+        "RawMaterials.RawMaterials.Tallow",
+
+        // Population stats; excluding Airforce and Navy which need to be unlocked.
+        // The foreign Assets are unlocked from the first Round even though nobody has met anybody yet.
+        // An unlock row names a Player and an Asset and nothing else, so there is no unlocking these per opponent: one row makes Slaves visible in every projected category.
+        // What decides whether a foreign category is drawn at all is the projection in GetPlayerAssetsHandler, not these rows.
+        "Society.Population.MyPeople.Civilians",
+        "Society.Population.MyPeople.Slaves",
+        "Society.Population.MyPeople.Interred",
+        "Society.Population.MyPeople.PoW",
+        "Society.Population.Forces.Army",
+        "Society.ForeignPopulation.Subjugated.Slaves",
+        "Society.ForeignPopulation.Subjugated.Interred",
+        "Society.ForeignPopulation.Subjugated.PoW"
     ];
 
     /// <summary>

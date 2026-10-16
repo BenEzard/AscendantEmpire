@@ -28,6 +28,15 @@ public sealed class AssetCategory
     public required AssetCategoryType CategoryType { get; set; }
 
     /// <summary>
+    /// Whether this category counts what the reading Player holds, or is a template projected once per other Player in their game.
+    /// </summary>
+    /// <remarks>
+    /// Defaults to <see cref="AssetSubjectScope.Own"/>, which is every category in the catalogue bar one: <c>Society.ForeignPopulation</c>, the
+    /// template holding the Slaves, Interred and P.o.W a Player has taken from somebody else's people.
+    /// </remarks>
+    public AssetSubjectScope SubjectScope { get; set; } = AssetSubjectScope.Own;
+
+    /// <summary>
     /// Display name, e.g. "Stone".
     /// </summary>
     public required string DisplayName { get; set; } = null!;
