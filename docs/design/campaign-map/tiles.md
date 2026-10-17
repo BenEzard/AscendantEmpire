@@ -1,6 +1,7 @@
 # Properties of tiles
 
-Part of the [Campaign Map](README.md) design.
+Part of the [Campaign Map](README.md) design. This document covers what a tile *is*; who holds it is
+in [tile-ownership.md](tile-ownership.md).
 
 ## Geography
 
@@ -199,7 +200,7 @@ can be removed later (e.g. a specialist is lost), so a Player's value is always 
 modifiers they currently hold, never accumulated. The **material values** (Bone, Wood, Stone,
 Special) are static: the same for every Player in every game.
 
-The **Regeneration Percent** is *not* player-specific. It is the biome's percentage, raised only on a claimed tile by the claimant's Settlement-scoped modifiers (see [Replenishment](replenishment.md)).
+The **Regeneration Percent** is *not* player-specific. It is the biome's percentage, raised only on an owned tile by the owner's Settlement-scoped modifiers (see [Replenishment](replenishment.md)).
 
 A modifier applies **empire-wide**, or to the **territory of one Settlement**.
 

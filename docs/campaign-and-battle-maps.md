@@ -166,7 +166,7 @@ Rows exist only for Players who have fought on the map. When a Battle commences,
 Indexes:
 - Non-unique on `(PlayerId, BattleMapIndexId)`
 
-**Who can see the battle map.** Today the Player whose Turn it is when the Battle starts (the attacker) is given full vision of the whole map, and the defenders start with none. The intended rule gives full vision to a Player whose settled territory, or an ally's, holds the tile, or who has an ambushing Force on it. Territory, alliances and ambushes aren't modelled yet, so that rule is a TODO in `BattleEngagementService`.
+**Who can see the battle map.** Today the Player whose Turn it is when the Battle starts (the attacker) is given full vision of the whole map, and the defenders start with none. The intended rule gives full vision to a Player whose settled territory, or an ally's, holds the tile, or who has an ambushing Force on it. Territory, alliances and ambushes aren't modelled yet, so that rule is a TODO in `BattleEngagementService`. The territory model is designed in [design/campaign-map/tile-ownership.md](design/campaign-map/tile-ownership.md), and ambush in [design/campaign-map/vision.md](design/campaign-map/vision.md#ambush-and-recon).
 
 ### Battle Map Generation (`BattleMapGenerator`)
 

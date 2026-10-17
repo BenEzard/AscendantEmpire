@@ -157,7 +157,38 @@ Points 1–3 determine whether a unit *may* detect an enemy on a tile; points 4�
 
 ### Hidden Forces and food
 
-> TODO (CM-45): A hidden Force still feeds, and feeding adds to the tile's shared `Taken`. That
-> lowers what every watching Player sees on the tile — the toolbar's sustenance values, the support
-> level and the turns in the [support indicator](support-indicator.md) — which signals the Force is
-> there. Going hungry must not give it away either. Waits on hiding and detection being modelled.
+A Force in **ambush** or **recon** stance takes nothing from the tile at all. It adds nothing to the
+shared `Taken`, so nothing about the tile's sustenance values gives it away, and it must be supplied
+another way instead — see [unit-support-and-supply.md](../units/unit-support-and-supply.md).
+
+> TODO (CM-45): A Force merely **hiding** still feeds, and feeding adds to the tile's shared `Taken`.
+> That lowers what every watching Player sees on the tile — the toolbar's sustenance values, the
+> support level and the turns in the [support indicator](support-indicator.md) — which signals the
+> Force is there. Going hungry must not give it away either. Waits on hiding and detection being
+> modelled.
+
+## Ambush and recon
+
+Both stances start the same way. A Force moves onto a tile without the Player holding it seeing the
+move, and then sets **ambush** or **recon**. Setting the stance takes a turn.
+
+Whether the Force then stays unseen is a calculation between its own visibility, the tile's biome and
+geography, and the watching Player's detection. That calculation yields a **percentage chance of
+being spotted, re-evaluated every round** — so concealment is never permanent, and a long stay is a
+risk that compounds.
+
+Because the roll is per round and per observer:
+
+- Two Forces hidden on the **same tile** can spot one another, which starts a battle. The Force that
+  was *seen* is the defender.
+- **Allies share vision**, so spotting by one ally reveals the Force to all of them. Non-allied
+  Players each roll for themselves and each fight for themselves.
+- Two opposing Forces share a tile without a battle **only** while at least one is hidden from the
+  other. Mutual visibility means a battle.
+
+A hidden Force asserts nothing about the ground it stands on: it never claims a tile, never asserts
+ownership, and never starts or advances the occupation timer. See
+[tile-ownership.md](tile-ownership.md#the-attrition-timer).
+
+What happens when the ambush or recon is sprung is in
+[battlefield-maps.md](../battlefield-maps.md#ambush-and-recon-battles).

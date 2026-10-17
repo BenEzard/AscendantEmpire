@@ -15,6 +15,7 @@ combat are covered separately in [battlefield-maps.md](../battlefield-maps.md).)
 | Document | Covers |
 | --- | --- |
 | [tiles.md](tiles.md) | Tile geography and biome, the assets a biome yields, Player sustenance modifiers, and the total-asset formula. |
+| [tile-ownership.md](tile-ownership.md) | Who holds a tile: claims, ownership, occupation, disputes, rebellion and abandonment, the claim supply range, enclosure, and how it is all stored. |
 | [depletion.md](depletion.md) | How units and settlements deplete a tile's food: the shared `Taken` amount, depletion rules, the end-of-turn calculation, and UI implications. |
 | [replenishment.md](replenishment.md) | How a depleted tile regrows at the end of each round, with worked examples and accepted behaviour. |
 | [food-yield.md](food-yield.md) | Regeneration and farming bonuses, productivity rates, tile bonuses, and the formula for units which consume. |

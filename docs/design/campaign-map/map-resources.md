@@ -56,7 +56,7 @@ behave. Its kinds are set by flags:
 > Extraction itself is out of scope here, apart from the rules above and the Distribution rules
 > below. In a Player's controlled area it is done by improvements
 > (or from a nearby camp or Settlement, e.g. berries, without an improvement on the tile). In
-> unclaimed or enemy land, a Force feeds from a food MapResource such as a berry patch: it is the
+> unowned or enemy land, a Force feeds from a food MapResource such as a berry patch: it is the
 > `[Additional Assets]` term in the total-asset formula in [tiles.md](tiles.md).
 
 ## Placement on tiles
@@ -111,10 +111,10 @@ otherwise one is picked as below), and a stratified MapResource's layers are alw
 
 ### Player modifiers
 
-On a **claimed** tile (within a Player's territory), the **claimant's** modifiers raise these values,
-representing good management (e.g. from tech advances, different for each MapResourceType). Unclaimed
+On an **owned** tile (within a Player's territory), the **owner's** modifiers raise these values,
+representing good management (e.g. from tech advances, different for each MapResourceType). Unowned
 tiles use the table's values, whoever is on them. This matches how
-[Replenishment](replenishment.md) treats claimed tiles.
+[Replenishment](replenishment.md) treats owned tiles.
 
 Modifiers are held in their own table, in the same shape as `game.PlayerSustenanceModifier`: one row
 per Player, source, MapResourceType, value changed (`MaximumQuantity`, `GrowthPercentage`,

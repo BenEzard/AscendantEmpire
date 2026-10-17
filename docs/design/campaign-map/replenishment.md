@@ -9,23 +9,23 @@ Part of the [Campaign Map](README.md) design. What a tile stores, and how it is 
 
 Replenishment runs **once per tile at the end of each round**, after every Player's turn, for each sustenance resource with a non-`null` base.
 
-Today this is the end-of-round `RegenerateTileSustenance` process. It reads the Game's `game.CampaignMapDepletion` rows with any `Taken` above `0` (a row regrown to `0` is kept for the next feed) and treats every tile as unclaimed. A biome with a sustenance base but no Regeneration Percent predates the validator rule; its tiles are skipped with a warning until the data is re-seeded.
+Today this is the end-of-round `RegenerateTileSustenance` process. It reads the Game's `game.CampaignMapDepletion` rows with any `Taken` above `0` (a row regrown to `0` is kept for the next feed) and treats every tile as unowned. A biome with a sustenance base but no Regeneration Percent predates the validator rule; its tiles are skipped with a warning until the data is re-seeded.
 
 ## Inputs
 
-| Input | Unclaimed tile | Claimed tile (within a Player's territory) |
+| Input | Unowned tile | Owned tile (within a Player's territory) |
 | --- | --- | --- |
-| `Base` | The biome's base value from `map.CampaignBiomes` | The **claimant's** effective value for the tile (empire-wide and Settlement-scoped modifiers) |
-| `Percent` | The biome's Regeneration Percent | The biome's Regeneration Percent plus the claimant's Settlement-scoped regeneration modifiers, in percentage points (a 25% biome with a +10 modifier regrows 35%) |
+| `Base` | The biome's base value from `map.CampaignBiomes` | The **owner's** effective value for the tile (empire-wide and Settlement-scoped modifiers) |
+| `Percent` | The biome's Regeneration Percent | The biome's Regeneration Percent plus the owner's Settlement-scoped regeneration modifiers, in percentage points (a 25% biome with a +10 modifier regrows 35%) |
 | `FedOn` | Whether anyone fed on the tile this round | same |
 
-`Base` sets how much regrows, the 10% floor and the cap. Using the claimant's values on a claimed tile is how a Player's management of their own land shows: their tech gives a higher `Base` (more food back each round, a higher floor) and their Settlements can raise `Percent`. Wild land always recovers at the biome's values, whoever was last on it.
+`Base` sets how much regrows, the 10% floor and the cap. Using the owner's values on an owned tile is how a Player's management of their own land shows: their tech gives a higher `Base` (more food back each round, a higher floor) and their Settlements can raise `Percent`. Wild land always recovers at the biome's values, whoever was last on it.
 
 > TODO: Settlement-scoped regeneration modifiers wait on Settlements, as Settlement-scoped sustenance modifiers do.
 
 A tile was **fed on** this round if any Force ended its turn on it, or passed through it (the 20% draw), **whether or not there was anything left to take**. It depends on presence, not on food extracted.
 
-> TODO: Whether a Settlement's population feeding on its own territory counts as feeding on the tile is deferred to the Settlement mechanics.
+> TODO: Whether a Settlement's population feeding on its own territory counts as feeding on the tile is deferred to the Settlement mechanics. A hostile Force **can** deny a Settlement the food it was drawing from a tile, which is what makes a ring of occupied tiles a siege — see [tile-ownership.md](tile-ownership.md#occupation).
 
 ## Calculation
 
@@ -45,11 +45,11 @@ Two rules, in order:
 >
 > **Why Rule 2 only applies when nobody fed on the tile.** Applied while a Force is still there, it would hand a stronger Player camping on the tile their surplus back every round: they eat down to their own value, the floor puts the tile back to 10% of `Base`, and their whole surplus reappears for them. The surplus grows with tech (at +100% it is a whole tile's worth every round), which would break denial — scorched earth, stripping a tile ahead of an enemy, starving besiegers — against stronger Players. This is why `FedOnRound` is kept.
 >
-> **Why `Base` rather than the highest value of any Player.** Regrowth and the floor are measured against `Base` (or the claimant's value on a claimed tile). Measuring them against the highest value any Player has would make every Player's land recover faster because of the best Player's tech.
+> **Why `Base` rather than the highest value of any Player.** Regrowth and the floor are measured against `Base` (or the owner's value on an owned tile). Measuring them against the highest value any Player has would make every Player's land recover faster because of the best Player's tech.
 
 ## Worked examples
 
-Illustrative values: an unclaimed tile, Hunt `Base` 80, Regeneration Percent 10% (8 a round). Player **Default** has Hunt 80 (no modifiers); Player **Advanced** has Hunt 100 (+25%).
+Illustrative values: an unowned tile, Hunt `Base` 80, Regeneration Percent 10% (8 a round). Player **Default** has Hunt 80 (no modifiers); Player **Advanced** has Hunt 100 (+25%).
 
 **Default, then Advanced.**
 
@@ -75,7 +75,7 @@ The order of arrival makes no difference: had Advanced taken the first 30, every
 
 Without Rule 2, the round after Advanced left would end at `Taken` 84 and Default would still see nothing.
 
-**Claimed tile.** The same tile claimed by Advanced uses `Base` 100, so it regrows 10 a round where wild land regrows 8. A Settlement-scoped +5 point regeneration modifier would make it 15.
+**Owned tile.** The same tile owned by Advanced uses `Base` 100, so it regrows 10 a round where wild land regrows 8. A Settlement-scoped +5 point regeneration modifier would make it 15.
 
 ## Accepted behaviour
 
@@ -83,14 +83,14 @@ Without Rule 2, the round after Advanced left would end at `Taken` 84 and Defaul
 - **Staying on a tile does not deny it.** A bare tile still regrows `Percent × Base` every round, and whoever is on it gets that much. Denial comes from eating the regrowth as it arrives.
 - **A stronger Player's surplus is paid off before a weaker Player sees food** for as long as someone keeps feeding there. A round left alone forgives it (Rule 2).
 - **Recovery time depends on the percentage, not the size of the tile.** A bare tile left alone is back to full in about `1 ÷ Percent` rounds (10 rounds at 10%, 4 at 25%), and is never below 10% after its first round alone.
-- **A base of `0`.** If a Player's modifiers give them a value in a biome whose base is `0` (and not `null`), an unclaimed tile regrows nothing: anything taken stays while the tile is fed on, and resets to `Taken = 0` after a round left alone.
+- **A base of `0`.** If a Player's modifiers give them a value in a biome whose base is `0` (and not `null`), an unowned tile regrows nothing: anything taken stays while the tile is fed on, and resets to `Taken = 0` after a round left alone.
 
 ---
 
 # 2. Technical detail
 
 Replenishment writes to exactly one table, and to only the four `*Taken` columns of it. It reads no
-Player state at all today, because every tile is treated as unclaimed — which is why it is a
+Player state at all today, because every tile is treated as unowned — which is why it is a
 per-Game process rather than a per-Player one.
 
 ## Database tables
@@ -188,11 +188,12 @@ get the same answer.
 
 ## Not yet implemented
 
-- **Claimed tiles.** Every tile is regrown as unclaimed: `Base` is the biome's base value and
-  `Percent` is the biome's Regeneration Percent. A claimed tile should use the claimant's effective
-  values as `Base`, and the biome's Percent plus the claimant's Settlement-scoped regeneration
-  modifiers. `TileSupportForecaster` regrows through the same values and must follow — its own TODO
-  notes that doing so would reveal a claimant's tech through the forecast.
+- **Owned tiles.** Every tile is regrown as unowned: `Base` is the biome's base value and
+  `Percent` is the biome's Regeneration Percent. An owned tile should use the owner's effective
+  values as `Base`, and the biome's Percent plus the owner's Settlement-scoped regeneration
+  modifiers. `TileSupportForecaster` regrows through the same values and must follow; that this
+  reveals an owner's tech to anyone forecasting on their land is accepted deliberately — see
+  [tile-ownership.md](tile-ownership.md#occupation).
 - **Settlement-scoped regeneration modifiers.** `PlayerSustenanceModifier` has no `SettlementId`
   scope yet.
 - **Settlement-zone tiles** being found for replenishment at all.

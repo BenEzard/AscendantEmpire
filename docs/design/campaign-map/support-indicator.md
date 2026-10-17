@@ -39,9 +39,11 @@ not feed. Before they arrive a rival can still feed there; the forecast is refet
 > forecast treats as the Forces' own, and alliances (COMM-4) will let another Player's Forces share
 > a tile. The forecast needs revisiting when either lands.
 >
-> TODO: Once a claimed tile regrows against the claimant's effective values, forecasting on a
-> rival's claimed tile would reveal how much their tech boosts food. Decide what a non-claimant is
-> shown when Settlements land.
+> TODO: An owned tile regrows against its owner's effective values, so forecasting on a rival's land
+> reveals how much their tech boosts food. A non-owner is shown those values, and the leak is
+> deliberate: an occupier collects the tile's yield at the owner's levels anyway, so standing on
+> enemy farmland is meant to tell you how good it is. See
+> [tile-ownership.md](tile-ownership.md#occupation). Waits on Settlements.
 >
 > TODO: A hidden Force's feeding must not reveal it — see
 > [Hidden Forces and food](vision.md#hidden-forces-and-food).

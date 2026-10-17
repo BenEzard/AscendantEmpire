@@ -11,6 +11,18 @@ In rough order of growth:
 - City
 - Major City
 
+## Territory
+
+A settlement owns the tiles around it. It starts with a **radius** of owned tiles, and after that
+**growth is the mechanism and selection is the direction**: growing a tier grants a number of new
+tiles, and the player chooses where they go rather than the radius simply enlarging.
+
+A tile owned through a settlement carries that settlement, which is what lets Settlement-scoped
+modifiers reach it (see [campaign-map/tiles.md](campaign-map/tiles.md#biome)). Conquering a
+settlement's own tile transfers its whole territory at once; razing it abandons that territory
+instead. The states, the transfer rules and the rebellion period are in
+[campaign-map/tile-ownership.md](campaign-map/tile-ownership.md).
+
 ## Asset banks
 
 Definitions:

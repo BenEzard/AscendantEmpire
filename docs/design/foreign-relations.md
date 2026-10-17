@@ -26,6 +26,16 @@ before** an agreement renews or ends. Letting another empire know an agreement w
 *before* it ends is considered better behaviour — there is a **diplomatic penalty** for not advising
 them earlier.
 
+An agreement is held between two empires, with its own lifetime and terms, and the tiles it covers
+are attached to it — a Defined passage is one agreement over a set of tiles, not terms copied onto
+each one. Agreements are also **scoped to a Settlement** where the arrangement concerns its
+territory, as a harvesting agreement does.
+
+A Force present under **any** organised agreement is there lawfully, so it does **not** count as
+occupying the tile and starts no occupation timer against its host. Without that, granting passage
+or harvesting rights would cost the host their own land. See
+[tile-ownership.md](campaign-map/tile-ownership.md#occupation).
+
 ### Support agreements
 
 Let a guest empire's [unit support](units/unit-support-and-supply.md) needs be met in a host empire's

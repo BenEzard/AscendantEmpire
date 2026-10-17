@@ -24,7 +24,7 @@ is settled, some of it is still a working sketch with open questions called out 
 | [units/unit-support-and-supply.md](units/unit-support-and-supply.md) | Supply chains and the four support types: fuel, ammunition, food, and medical. |
 | [units/combat.md](units/combat.md) | How combat resolves between units. |
 | [units/force-context-action-toolbar.md](units/force-context-action-toolbar.md) | The context action toolbar: how the backend decides what a selected Force can do, and how the frontend renders it. |
-| [campaign-map/](campaign-map/README.md) | The campaign map, split by topic: tile geography and biome, depletion of a biome's yields, replenishment, food yield, the support indicator, MapResources and their discovery, vision (sight & detection), and infrastructure. |
+| [campaign-map/](campaign-map/README.md) | The campaign map, split by topic: tile geography and biome, tile ownership, depletion of a biome's yields, replenishment, food yield, the support indicator, MapResources and their discovery, vision (sight & detection), and infrastructure. |
 | [intelligence-and-sightings.md](intelligence-and-sightings.md) | What a player learns while they are not looking: witnesses, tracks, fidelity, the report feed, and last-known-position intel. |
 | [battlefield-maps.md](battlefield-maps.md) | How battlefield maps are generated, fortifications, battle flow, objectives, and manoeuvres. |
 | [units/unit-movement.md](units/unit-movement.md) | The source of truth for unit movement: campaign stepping, tile costs, carry and replenishment, and battle movement. |

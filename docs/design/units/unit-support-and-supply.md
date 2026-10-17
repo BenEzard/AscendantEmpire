@@ -19,7 +19,12 @@ friendly territory.
 
 - A supply chain is **implicit** (not needed) inside the empire's own territory, or an ally's where
   a Support Agreement exists. (Assets are still deducted as support — there is just no chaining
-  required.)
+  required.) What counts as an empire's own territory is in
+  [campaign-map/tile-ownership.md](../campaign-map/tile-ownership.md).
+- A Force in **ambush** or **recon** stance takes nothing from the tile it sits on, so that its
+  feeding cannot give it away ([campaign-map/vision.md](../campaign-map/vision.md#hidden-forces-and-food)).
+  It must be supplied some other way, which means a concealed stance is only sustainable inside
+  friendly territory until supply trains exist.
 - An **intact** supply chain exists where units carrying the SUPPLY component are daisy-chained back
   to friendly territory. The chain is **broken** when it is not contiguous; any units beyond the
   break (including supply units) are unsupplied.

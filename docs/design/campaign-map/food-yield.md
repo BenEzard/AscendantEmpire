@@ -21,7 +21,7 @@ So there are three separate questions, and this document covers the first:
 
 ## Regeneration and farming bonuses
 
-Regeneration speed depends on climate: the biome's Regeneration Percent, the same for all renewable food sources on the tile. Only a claimant's Settlement-scoped modifiers raise it (see [Replenishment](replenishment.md)). Terrain improvements and equipment add yield:
+Regeneration speed depends on climate: the biome's Regeneration Percent, the same for all renewable food sources on the tile. Only an owner's Settlement-scoped modifiers raise it (see [Replenishment](replenishment.md)). Terrain improvements and equipment add yield:
 
 - Terrain improvement **Irrigation**: +50% yield.
 - Terrain improvement **Farm (with crop)**: +300% yield.
@@ -151,7 +151,7 @@ widened to `bigint` and rescaled to thousandths by `20260613204637_ScaleBiomeBas
 | --- | --- |
 | [CampaignBiome.cs](../../../AscendantEmpire.Domain/Entities/Maps/CampaignMaps/CampaignBiome.cs) | The biome row, including the base yields and `RegenerationPercent`. |
 | [PlayerSustenanceModifier.cs](../../../AscendantEmpire.Domain/Entities/Games/PlayerSustenanceModifier.cs) | One modifier row, with the reasoning for deriving the effective value rather than storing it. |
-| [SustenanceResource.cs](../../../AscendantEmpire.Domain/Enums/Resources/SustenanceResource.cs) | The four modifiable resources — the material yields are deliberately absent. |
+| [SustenanceResource.cs](../../../AscendantEmpire.Domain/Enums/Maps/SustenanceResource.cs) | The four modifiable resources — the material yields are deliberately absent. |
 | [ModifierSourceType.cs](../../../AscendantEmpire.Domain/Enums/Modifiers/ModifierSourceType.cs) | Technology / Specialist / Department. |
 
 ### Authoring and seeding the biome catalogue
@@ -227,7 +227,7 @@ available on a tile, through `GET campaign-map/player/tiles/{x}/{y}/sustenance` 
 1. What a Player can eat on a tile is their effective value less the tile's shared `Taken` amount:
    `MAX(0, Effective − Taken)` — [depletion.md](depletion.md).
 2. How much comes back each round is `RegenerationPercent × Base`, where `Base` is the biome's value
-   on unclaimed land — [replenishment.md](replenishment.md).
+   on unowned land — [replenishment.md](replenishment.md).
 3. How long a tile can feed a set of Forces plays those two forward together —
    [support-indicator.md](support-indicator.md).
 
@@ -243,7 +243,7 @@ Nothing in the codebase yet corresponds to:
 - **Tile bonuses** — Oasis on desert and Reef on coastal, each +100% food.
 - **The population formula** — food harvested, food remaining and remaining energy for units that
   consume and expand population. These wait on Settlements.
-- **Settlement-scoped modifiers**, including the regeneration modifiers that raise a claimed tile's
+- **Settlement-scoped modifiers**, including the regeneration modifiers that raise an owned tile's
   Regeneration Percent. `PlayerSustenanceModifier` has no `SettlementId` scope yet.
 - **Sources of modifiers** — Technology, Specialist and Department are named by `ModifierSourceType`
   but none is modelled, so `SourceId` carries no foreign key and nothing grants a modifier in play

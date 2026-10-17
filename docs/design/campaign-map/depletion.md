@@ -201,8 +201,8 @@ are read and written by tile id, never walked as an entity graph.
 | --- | --- |
 | [CampaignMapDepletion.cs](../../../AscendantEmpire.Domain/Entities/Games/CampaignMapDepletion.cs) | The depletion row. |
 | [PlayerSustenanceModifier.cs](../../../AscendantEmpire.Domain/Entities/Games/PlayerSustenanceModifier.cs) | One modifier to one of a Player's sustenance values. |
-| [SustenanceResource.cs](../../../AscendantEmpire.Domain/Enums/Resources/SustenanceResource.cs) | Forage, Hunt, Fish, Fodder — the four resources a Player can modify. |
-| [TileSupportLevel.cs](../../../AscendantEmpire.Domain/Enums/Resources/TileSupportLevel.cs) | Plenty / OneTurn / Insufficient / Exhausted. |
+| [SustenanceResource.cs](../../../AscendantEmpire.Domain/Enums/Maps/SustenanceResource.cs) | Forage, Hunt, Fish, Fodder — the four resources a Player can modify. |
+| [TileSupportLevel.cs](../../../AscendantEmpire.Domain/Enums/Maps/TileSupportLevel.cs) | Plenty / OneTurn / Insufficient / Exhausted. |
 
 ### Application — the depletion arithmetic
 
@@ -342,8 +342,9 @@ The rules above that have no code yet, each carried as a TODO on the process tha
 - **Food needs from unit design** rather than 1 troop = 1 food, and **Fodder** for mounted units.
 - **Force gathering bonuses** reducing what a Force draws from a tile.
 - **Settlements**: a hostile Force denying a Settlement its tile, settlement-zone tiles being found
-  for replenishment, claimed tiles regrowing against the claimant's values, and Settlement-scoped
-  modifiers.
+  for replenishment, owned tiles regrowing against the owner's values, and Settlement-scoped
+  modifiers. Who holds a tile, and what an occupier may take from it, is in
+  [tile-ownership.md](tile-ownership.md).
 - **Hidden Forces**: a hidden Force feeding raises the shared `Taken`, which signals that it is
   there.
 - **Rerun safety**: the pipeline is not transactional, so ending a turn again after a later process
