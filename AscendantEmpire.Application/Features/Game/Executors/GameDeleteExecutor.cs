@@ -413,7 +413,13 @@ internal sealed class GameDeleteExecutor(
                 .Where(d => d.GameId == gameId)
                 .ExecuteDeleteAsync(cancellationToken)),
 
-            // The maps, then the players, then the game itself. Campaign map tiles name the player who controls, first saw and last visited them, so
+            // Tile claims name both the tiles and the players, so they go before either. They carry their own GameId, and their key is the tile and the player rather than an
+            // identity, so there is nothing to reseed.
+            ("campaign map claims", () => purge.CampaignMapClaims
+                .Where(c => c.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            // The maps, then the players, then the game itself. Campaign map tiles name the player who owns, occupies, last owned, first saw and last visited them, so
             // they have to go before the players do.
             ("player map views", () => purge.PlayerCampaignMaps
                 .Where(t => t.GameId == gameId)

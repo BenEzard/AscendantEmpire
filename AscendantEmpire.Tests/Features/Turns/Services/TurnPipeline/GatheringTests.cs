@@ -285,7 +285,7 @@ internal class GatheringTests : InMemoryTestBase
             Game = null!,
             FirstVisitor = null,
             LastVisitor = null,
-            ControlledBy = null
+            OwnedBy = null
         };
     }
 

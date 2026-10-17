@@ -142,7 +142,7 @@ internal sealed class PublishCampaignMapRiversTests : SqlServerTestBase
                     Game = null!,
                     FirstVisitor = null,
                     LastVisitor = null,
-                    ControlledBy = null
+                    OwnedBy = null
                 });
             }
         }

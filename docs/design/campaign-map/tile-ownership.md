@@ -227,7 +227,7 @@ The split between exclusive and non-exclusive decides the shape:
 | Claims | `game.CampaignMapClaim`, one row per Player per tile — sparse, rows only where claimed |
 | Owned | `CampaignMap.OwnedByPlayerId`, `OwnedBySettlementId` |
 | Occupied | `CampaignMap.OccupiedByPlayerId`, `OccupiedSinceTurnId` for the timer |
-| Rebelling | a rebellion expiry on the tile |
+| Rebelling | `CampaignMap.RebellionPercentRemaining`, counted down by the per-round pass |
 | Abandoned | `CampaignMap.LastOwnedByPlayerId`, `AbandonedOnTurnId`, both cleared on revert |
 | Disputed | **derived** — a `BattleEngagement` on the tile. Never stored |
 
@@ -241,9 +241,20 @@ of this document are read *off* those columns.
 visible to some Players and not others, so two Players can correctly see the same tile differently.
 The map read resolves it per Player; there is no single cached state column on the tile.
 
-A tile carries six nullable integers for all of this, about 25 bytes, so roughly 1 MB on a
+A tile carries seven nullable integers for all of this, about 28 bytes, so roughly 1 MB on a
 40,000-tile map — the same reasoning that put the river widths on the tile
 ([tiles.md](tiles.md#rivers)). The claim junction only holds rows where something unusual is true.
+
+**Rebellion is a countdown, not an expiry Turn.** Conquest rolls `RebellionPercentRemaining` — that
+roll is where the random 1 to 5 rounds lives — and the per-round pass takes it down from there,
+setting the column back to null once it runs out. A rate the pass controls is what lets a round
+subtract nothing, which is how "a tile with a military Force on it will not rebel" is spent; a fixed
+expiry Turn could not pause.
+
+Neither the roll nor the size of the step is settled, and neither is pinned in the schema: a single
+check constraint holds the column to 1–100, so a step that varies by round, by tile or by what is
+standing on the tile is a change to the pass alone. 0 is excluded because a tile that has finished
+rebelling is nulled out rather than left resting at 0.
 
 What does cost is the **per-round pass**: claim lapse, enclosure and the attrition timers are graph
 problems over a Player's territory. They belong in a pure class run over an in-memory bitmap with
@@ -252,11 +263,15 @@ deltas written back, the way `FieldOfView` is shared between the map read and th
 
 ## Not yet implemented
 
-Nothing in this document is built. The only ownership in the codebase is
-`CampaignMap.ControlledByPlayerId`, a single nullable Player reference with one consumer
-(`BattleEngagementService`, recording who held the ground when a battle started) and one index,
-`IX_CampaignMap_Game_ControlledByPlayer`. It becomes `OwnedByPlayerId`, and callers that want the
-effective holder read `OccupiedByPlayerId ?? OwnedByPlayerId`.
+**The schema is built; none of the behaviour is.** `CampaignMap` carries every column in
+[How it is stored](#how-it-is-stored) and `game.CampaignMapClaim` exists, so nothing below is blocked
+on a migration. What no code does yet is *write* any of it: the only column anything reads is
+`OwnedByPlayerId`, in `BattleEngagementService`, recording who held the ground when a battle started.
+Callers that want the effective holder read `OccupiedByPlayerId ?? OwnedByPlayerId`.
+
+`OwnedBySettlementId` is the one column with no foreign key, because Settlements are not modelled.
+`OccupiedSinceTurnId` and `AbandonedOnTurnId` have none either, matching the Turn stamps already on
+the tile: the game purge removes `turns.PlayerTurn` before the tiles.
 
 Beyond that, every part of this waits on something:
 

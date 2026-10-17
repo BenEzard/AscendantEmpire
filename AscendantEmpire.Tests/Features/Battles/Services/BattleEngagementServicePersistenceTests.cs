@@ -472,6 +472,6 @@ internal class BattleEngagementServicePersistenceTests : GameSqlServerTestBase
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        await context.CampaignMaps.Where(t => t.CampaignMapId == tileId).ExecuteUpdateAsync(set => set.SetProperty(t => t.ControlledByPlayerId, (int?)playerId));
+        await context.CampaignMaps.Where(t => t.CampaignMapId == tileId).ExecuteUpdateAsync(set => set.SetProperty(t => t.OwnedByPlayerId, (int?)playerId));
     }
 }

@@ -240,7 +240,7 @@ internal class UnitTemplateOverwriteTests : SqlServerTestBase
             Game = game,
             FirstVisitor = null,
             LastVisitor = null,
-            ControlledBy = null,
+            OwnedBy = null,
         };
         context.Add(tile);
         await context.SaveChangesAsync();

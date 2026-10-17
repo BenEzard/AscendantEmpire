@@ -86,11 +86,14 @@ internal sealed class BattleEngagementService(
                 .Select(game => game.BattleMapSize)
                 .FirstOrDefaultAsync(cancelToken);
 
-            // Who held the ground when the fighting started. The generator has already confirmed the tile exists, so a null here means nobody controls it rather than that it is missing.
+            // Who held the ground when the fighting started. The generator has already confirmed the tile exists, so a null here means nobody owns it rather than that it is missing.
+            //
+            // The owner, not the effective holder: occupation is designed but nothing writes CampaignMap.OccupiedByPlayerId yet, so reading OccupiedByPlayerId ?? OwnedByPlayerId
+            // here would read a column that is always null. See docs/design/campaign-map/tile-ownership.md.
             int? tileControllerPlayerId = await context.CampaignMaps
                 .AsNoTracking()
                 .Where(tile => tile.GameId == engagement.GameId && tile.CampaignMapId == engagement.CampaignMapTileId)
-                .Select(tile => tile.ControlledByPlayerId)
+                .Select(tile => tile.OwnedByPlayerId)
                 .FirstOrDefaultAsync(cancelToken);
 
             // Ordered by id, so the same Forces on the same tile always produce the same placement and the same roster, whatever order the caller found them in.

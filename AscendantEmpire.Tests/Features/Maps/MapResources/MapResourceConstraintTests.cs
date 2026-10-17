@@ -91,7 +91,7 @@ internal class MapResourceConstraintTests : SqlServerTestBase
             Game = game,
             FirstVisitor = null,
             LastVisitor = null,
-            ControlledBy = null
+            OwnedBy = null
         };
 
         context.CampaignMaps.Add(tile);

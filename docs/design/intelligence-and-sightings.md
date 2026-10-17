@@ -457,7 +457,7 @@ change" rule. Four rules are worth keeping in mind.
   row, so "the battle ended" and "this is what each side lost" are separate facts on separate sequences
   with separate witness answers.
 - **Ground held is snapshotted** on the `Concluded` row rather than read from
-  `CampaignMap.ControlledByPlayerId` at fold time. That column is the position *now*, and the fold is
+  `CampaignMap.OwnedByPlayerId` at fold time. That column is the position *now*, and the fold is
   re-runnable, so a re-run after the tile changed hands again would answer the same question differently
   - the same reason `StructureHistory.CompletionPercent` is snapshotted. It is deliberately not the
   victor either: a victor may withdraw, and what a watcher on the next hill sees is whose banners are on

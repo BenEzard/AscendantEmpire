@@ -475,13 +475,13 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("CampaignMapId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("AbandonedOnTurnId")
+                        .HasColumnType("int");
+
                     b.Property<int>("BiomeTypeId")
                         .HasColumnType("int");
 
                     b.Property<int>("CampaignMapGeographyTypeId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ControlledByPlayerId")
                         .HasColumnType("int");
 
                     b.Property<byte>("EastRiver")
@@ -498,10 +498,28 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("GameId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("LastOwnedByPlayerId")
+                        .HasColumnType("int");
+
                     b.Property<int?>("LastVisitedByPlayerId")
                         .HasColumnType("int");
 
                     b.Property<int?>("LastVisitedOnTurnId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OccupiedByPlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OccupiedSinceTurnId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OwnedByPlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OwnedBySettlementId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("RebellionPercentRemaining")
                         .HasColumnType("int");
 
                     b.Property<byte>("SouthRiver")
@@ -521,20 +539,48 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.HasIndex("CampaignMapGeographyTypeId");
 
-                    b.HasIndex("ControlledByPlayerId");
-
                     b.HasIndex("FirstSeenByPlayerId");
+
+                    b.HasIndex("LastOwnedByPlayerId");
 
                     b.HasIndex("LastVisitedByPlayerId");
 
-                    b.HasIndex("GameId", "ControlledByPlayerId")
-                        .HasDatabaseName("IX_CampaignMap_Game_ControlledByPlayer");
+                    b.HasIndex("OccupiedByPlayerId");
+
+                    b.HasIndex("OwnedByPlayerId");
+
+                    b.HasIndex("GameId", "OwnedByPlayerId")
+                        .HasDatabaseName("IX_CampaignMap_Game_OwnedByPlayer");
 
                     b.HasIndex("GameId", "XCoord", "YCoord")
                         .IsUnique()
                         .HasDatabaseName("UX_CampaignMap_Game_X_Y");
 
-                    b.ToTable("CampaignMap", "game");
+                    b.ToTable("CampaignMap", "game", t =>
+                        {
+                            t.HasCheckConstraint("CK_CampaignMap_RebellionPercentRemaining", "[RebellionPercentRemaining] IS NULL OR [RebellionPercentRemaining] BETWEEN 1 AND 100");
+                        });
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.CampaignMapClaim", b =>
+                {
+                    b.Property<int>("CampaignMapId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.HasKey("CampaignMapId", "PlayerId");
+
+                    b.HasIndex("PlayerId");
+
+                    b.HasIndex("GameId", "PlayerId")
+                        .HasDatabaseName("IX_CampaignMapClaim_Game_Player");
+
+                    b.ToTable("CampaignMapClaim", "game");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.CampaignMapDepletion", b =>
@@ -4513,10 +4559,6 @@ namespace AscendantEmpire.Application.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
-                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "ControlledBy")
-                        .WithMany()
-                        .HasForeignKey("ControlledByPlayerId");
-
                     b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "FirstVisitor")
                         .WithMany()
                         .HasForeignKey("FirstSeenByPlayerId")
@@ -4528,14 +4570,29 @@ namespace AscendantEmpire.Application.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", null)
+                        .WithMany()
+                        .HasForeignKey("LastOwnedByPlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_CampaignMap_Player_LastOwnedByPlayerId");
+
                     b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "LastVisitor")
                         .WithMany()
                         .HasForeignKey("LastVisitedByPlayerId")
                         .OnDelete(DeleteBehavior.NoAction);
 
-                    b.Navigation("Biome");
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", null)
+                        .WithMany()
+                        .HasForeignKey("OccupiedByPlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_CampaignMap_Player_OccupiedByPlayerId");
 
-                    b.Navigation("ControlledBy");
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "OwnedBy")
+                        .WithMany()
+                        .HasForeignKey("OwnedByPlayerId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Biome");
 
                     b.Navigation("FirstVisitor");
 
@@ -4544,6 +4601,32 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Geography");
 
                     b.Navigation("LastVisitor");
+
+                    b.Navigation("OwnedBy");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.CampaignMapClaim", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.CampaignMap", null)
+                        .WithMany()
+                        .HasForeignKey("CampaignMapId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_CampaignMapClaim_CampaignMap_CampaignMapId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", null)
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_CampaignMapClaim_GameIndex_GameId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", null)
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_CampaignMapClaim_Player_PlayerId");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Games.CampaignMapDepletion", b =>

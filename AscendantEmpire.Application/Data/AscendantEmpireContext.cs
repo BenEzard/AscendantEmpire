@@ -145,6 +145,11 @@ public class AscendantEmpireContext : DbContext
     public DbSet<CampaignMap> CampaignMaps { get; set; }
 
     /// <summary>
+    /// Every Player's political claims on campaign map tiles, one row per (Player, tile). Sparse: rows exist only where a claim does.
+    /// </summary>
+    public DbSet<CampaignMapClaim> CampaignMapClaims { get; set; }
+
+    /// <summary>
     /// Player-specific copy of Campaign Maps for specific games.
     /// </summary>
     public DbSet<PlayerCampaignMap> PlayerCampaignMaps { get; set; }
@@ -871,7 +876,12 @@ public class AscendantEmpireContext : DbContext
         // --- CampaignMap ---------------------------------------------------------------
         modelBuilder.Entity<CampaignMap>(entity =>
         {
-            entity.ToTable("CampaignMap", schema);
+            // A rebelling tile's percentage falls until it runs out and is then set back to NULL, so 0 and anything outside the percentage range could only come from a defect.
+            // The roll it starts from and the step it falls by are deliberately not pinned here - both are values to be tuned, and varying either is a change to the per-round
+            // pass rather than to the schema.
+            entity.ToTable("CampaignMap", schema, table => table.HasCheckConstraint(
+                "CK_CampaignMap_RebellionPercentRemaining",
+                "[RebellionPercentRemaining] IS NULL OR [RebellionPercentRemaining] BETWEEN 1 AND 100"));
 
             // Tile ids are assigned by the application during game setup (see GameSetupService),
             // never by the database. A tile's id is GameIndex.CampaignMapOffsetId + X + Y * MapWidth,
@@ -911,8 +921,29 @@ public class AscendantEmpireContext : DbContext
                 .HasForeignKey(x => x.LastVisitedByPlayerId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            entity.HasIndex(x => new { x.GameId, x.ControlledByPlayerId })
-                .HasDatabaseName("IX_CampaignMap_Game_ControlledByPlayer");
+            // The ownership layers. Each is a nullable Player reference rather than a state enum, and the navigation-less ones are configured here because nothing reads them
+            // through an entity graph - see the entity's remarks. OwnedBySettlementId gets no relationship at all until Settlements are modelled.
+            entity.HasOne(x => x.OwnedBy)
+                .WithMany()
+                .HasForeignKey(x => x.OwnedByPlayerId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(x => x.OccupiedByPlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_CampaignMap_Player_OccupiedByPlayerId");
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(x => x.LastOwnedByPlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_CampaignMap_Player_LastOwnedByPlayerId");
+
+            // The renamed ownership index. The occupier, last owner and claim lookups get no composite index of their own yet: each FK brings a conventional single-column
+            // index with it, and nothing reads any of those columns until the per-round pass exists to do it.
+            entity.HasIndex(x => new { x.GameId, x.OwnedByPlayerId })
+                .HasDatabaseName("IX_CampaignMap_Game_OwnedByPlayer");
 
             // Optional but often useful for “tile identity” safety:
             entity.HasIndex(x => new { x.GameId, x.XCoord, x.YCoord })
@@ -1192,6 +1223,43 @@ public class AscendantEmpireContext : DbContext
             // The game delete's filter.
             entity.HasIndex(e => e.GameId)
                 .HasDatabaseName("IX_CampaignMapDepletion_GameId");
+        });
+
+        // --- CampaignMapClaim ----------------------------------------------------------
+        // One Player's political claim on one tile. A table rather than a column because claims are non-exclusive: several Players may claim the same tile, so there is no
+        // winner to put on the tile - see the entity's remarks.
+        modelBuilder.Entity<CampaignMapClaim>(entity =>
+        {
+            entity.ToTable("CampaignMapClaim", schema);
+
+            // The tile and the Player are the key, which is also the uniqueness rule: one claim per Player per tile. No identity column, the same as CampaignMapDepletion -
+            // nothing points at a claim row, so a surrogate key would only add a counter for the game delete to reseed.
+            entity.HasKey(e => new { e.CampaignMapId, e.PlayerId });
+
+            // No navigations, every relationship NoAction: the per-round pass reads and writes these in bulk, and GameDeleteExecutor removes them in its own hand-ordered step
+            // before both the tiles and the Players.
+            entity.HasOne<CampaignMap>()
+                .WithMany()
+                .HasForeignKey(e => e.CampaignMapId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_CampaignMapClaim_CampaignMap_CampaignMapId");
+
+            entity.HasOne<Player>()
+                .WithMany()
+                .HasForeignKey(e => e.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_CampaignMapClaim_Player_PlayerId");
+
+            entity.HasOne<GameIndex>()
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_CampaignMapClaim_GameIndex_GameId");
+
+            // The game delete's filter, and the per-round pass's: claim lapse and the supply range walk one Player's claims at a time, and the key's leaf carries the tile id
+            // along, so the walk never touches the table itself.
+            entity.HasIndex(e => new { e.GameId, e.PlayerId })
+                .HasDatabaseName("IX_CampaignMapClaim_Game_Player");
         });
 
         ConfigureMapResourceGameState(modelBuilder, schema);

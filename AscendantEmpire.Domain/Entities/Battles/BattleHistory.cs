@@ -80,7 +80,7 @@ public class BattleHistory
     /// Who was left holding the tile once the engagement ended, or null when nobody was. Set on a <see cref="BattleHistoryEventType.Concluded"/> row and on no other.
     /// </summary>
     /// <remarks>
-    /// Snapshotted here rather than read from <c>CampaignMap.ControlledByPlayerId</c> at fold time, for the same reason <c>StructureHistory.CompletionPercent</c> is snapshotted: that column is
+    /// Snapshotted here rather than read from <c>CampaignMap.OwnedByPlayerId</c> at fold time, for the same reason <c>StructureHistory.CompletionPercent</c> is snapshotted: that column is
     /// the position now, and the fold is re-runnable, so a re-run after the tile changed hands again would give a different answer to the same question.
     /// <para>
     /// Deliberately not the victor. <c>Battle.VictorId</c> already holds that, never changes after the conclusion, and is not what a distant observer perceives - whose banners are on the ground

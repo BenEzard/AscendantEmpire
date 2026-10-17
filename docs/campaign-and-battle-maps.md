@@ -58,7 +58,9 @@ Key fields: `CampaignMapGalleryId` (manual PK), `CampaignMapGalleryIndexId` (FK)
 
 The live copy of the map for a specific game. Rows are inserted from the gallery tiles at game creation via a single bulk SQL `INSERT...SELECT`.
 
-Additional fields beyond the gallery copy: `FirstSeenOnTurnId`, `FirstSeenByPlayerId`, `LastVisitedOnTurnId`, `LastVisitedByPlayerId`, `ControlledByPlayerId`.
+Additional fields beyond the gallery copy: `FirstSeenOnTurnId`, `FirstSeenByPlayerId`, `LastVisitedOnTurnId`, `LastVisitedByPlayerId`, and the ownership layers — `OwnedByPlayerId`, `OwnedBySettlementId`, `OccupiedByPlayerId`, `OccupiedSinceTurnId`, `LastOwnedByPlayerId`, `AbandonedOnTurnId`, `RebellionPercentRemaining`.
+
+Who holds a tile is in [tile-ownership.md](design/campaign-map/tile-ownership.md). The exclusive layers sit on the tile as nullable Player references; claims are non-exclusive, so they are rows in `game.CampaignMapClaim`, one per Player per tile.
 
 What has been taken from a tile (Forage, Hunt, Fish, Fodder) is not stored on the tile: it lives in `game.CampaignMapDepletion`, one row per tile that has been fed on.
 
