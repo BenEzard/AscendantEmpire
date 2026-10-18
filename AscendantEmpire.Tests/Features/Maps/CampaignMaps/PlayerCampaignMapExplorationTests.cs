@@ -73,6 +73,7 @@ internal class PlayerCampaignMapExplorationTests : GameSqlServerTestBase
             .AddScoped<IFieldOfViewService, FieldOfViewService>()
             // The map read describes the rivers on every Tile it hands back, so the handler cannot be constructed without this.
             .AddScoped<ICampaignRiverReader, CampaignRiverReader>()
+            .AddScoped<ICampaignOwnershipReader, CampaignOwnershipReader>()
             .AddScoped<IMovementDomainStrategy, LandMovementStrategy>()
             .AddScoped<IMovementDomainStrategy, WaterMovementStrategy>()
             .AddScoped<IMovementDomainStrategy, BelowWaterMovementStrategy>()

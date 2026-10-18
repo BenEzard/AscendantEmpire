@@ -39,6 +39,22 @@ public record class ObservedCampaignTile
     /// </remarks>
     public TileRivers? Rivers { get; init; }
 
+    /// <summary>
+    /// Who holds this Tile, as the requesting Player sees it, or <see langword="null"/> when they are not being told.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Resolved per viewer.</b> Claims are many-to-one and hidden Forces are visible to some Players and not others, so two Players can correctly see one Tile
+    /// differently and there is no cached state column on the Tile to send. See <c>docs/design/campaign-map/tile-ownership.md</c>.
+    /// </para>
+    /// <para>
+    /// <b>Current information, not terrain.</b> Unlike the Biome and the <see cref="Rivers"/>, a border moves, so this is reported only while an Observer can see the Tile -
+    /// the same rule the Structures and Forces below follow. Ground the Player merely remembers comes back with this <see langword="null"/>, which is why a Tile with no
+    /// ownership at all still sends <see cref="TileOwnership.Unclaimed"/>: "nobody holds this" and "you are not being told" are different answers.
+    /// </para>
+    /// </remarks>
+    public TileOwnership? Ownership { get; init; }
+
     public IReadOnlyCollection<ObservedStructure> Structures { get; init; } = null!;
     public IReadOnlyCollection<ObservedForce> Forces { get; init; } = null!;
 }

@@ -1,9 +1,11 @@
-using AscendantEmpire.Application.Common;
+﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Battles.Classes;
 using AscendantEmpire.Application.Features.Maps.BattleMaps;
 using AscendantEmpire.Application.Features.Maps.BattleMaps.Services;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
+using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.Domain.Entities.Battles;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums.Battle;
@@ -22,7 +24,8 @@ internal sealed class BattleEngagementService(
     ILogger<BattleEngagementService> logger,
     IMediator mediator,
     IBattleLifecycleWriter battleLifecycleWriter,
-    IPlayerBattleMapService playerBattleMapService) : IBattleEngagementService
+    IPlayerBattleMapService playerBattleMapService,
+    ICampaignOwnershipReader campaignOwnershipReader) : IBattleEngagementService
 {
     /// <inheritdoc />
     public async Task<ServiceResult<int>> CommenceAsync(AscendantEmpireContext context, BattleEngagement engagement, CancellationToken cancelToken = default)
@@ -86,15 +89,20 @@ internal sealed class BattleEngagementService(
                 .Select(game => game.BattleMapSize)
                 .FirstOrDefaultAsync(cancelToken);
 
-            // Who held the ground when the fighting started. The generator has already confirmed the tile exists, so a null here means nobody owns it rather than that it is missing.
+            // What the tile was when the fighting started, resolved off its ownership columns and its claims rather than read as a single column: there is none to read, because
+            // claims are many-to-one and nothing is cached on the tile. See docs/design/campaign-map/tile-ownership.md.
             //
-            // The owner, not the effective holder: occupation is designed but nothing writes CampaignMap.OccupiedByPlayerId yet, so reading OccupiedByPlayerId ?? OwnedByPlayerId
-            // here would read a column that is always null. See docs/design/campaign-map/tile-ownership.md.
-            int? tileControllerPlayerId = await context.CampaignMaps
-                .AsNoTracking()
-                .Where(tile => tile.GameId == engagement.GameId && tile.CampaignMapId == engagement.CampaignMapTileId)
-                .Select(tile => tile.OwnedByPlayerId)
-                .FirstOrDefaultAsync(cancelToken);
+            // This Battle is not written yet, so it contributes nothing to the Disputed test: the status recorded is the one the tile had before this fighting began. A tile
+            // already in battle cannot be stepped onto at all - StepForceHandler refuses it - so in practice that test only ever comes back false here.
+            IReadOnlyDictionary<int, TileOwnership> ownershipByTileId = await campaignOwnershipReader.GetTileOwnershipAsync(
+                context,
+                engagement.GameId,
+                [engagement.CampaignMapTileId],
+                cancelToken);
+
+            // The generator has already confirmed the tile exists, so a miss here would mean the map is incomplete rather than that the tile is unowned. Wilderness is still
+            // the right reading of it: nobody holds a tile there is no row for.
+            TileOwnership tileOwnership = ownershipByTileId.GetValueOrDefault(engagement.CampaignMapTileId) ?? TileOwnership.Unclaimed;
 
             // Ordered by id, so the same Forces on the same tile always produce the same placement and the same roster, whatever order the caller found them in.
             List<UnitInstance> defenders = [.. engagement.Defenders.OrderBy(defender => defender.Id)];
@@ -124,7 +132,7 @@ internal sealed class BattleEngagementService(
                 defender.BattleMapTileId = battleTileIdsByUnitId[defender.Id];
             }
 
-            Battle battle = BuildBattle(engagement, sidePlayerIds, factionNamesByPlayerId, tileControllerPlayerId);
+            Battle battle = BuildBattle(engagement, sidePlayerIds, factionNamesByPlayerId, tileOwnership);
 
             // One transaction for every write from here on. It is opened only now, after the battle map exists, because the generator holds an exclusive lock on battle.BattleMap inside its own
             // transaction on another connection, and the Player Battle Map writes below read from that table. A caller already inside a transaction keeps ownership of it; otherwise this one is
@@ -224,8 +232,8 @@ internal sealed class BattleEngagementService(
     /// Builds the new, unsaved Battle and its founding roster.
     /// </summary>
     /// <param name="sidePlayerIds">One entry per side, attacker first.</param>
-    /// <param name="tileControllerPlayerId">The Player controlling the tile when the fighting started, or <see langword="null"/> when nobody did.</param>
-    private static Battle BuildBattle(BattleEngagement engagement, int[] sidePlayerIds, Dictionary<int, string> factionNamesByPlayerId, int? tileControllerPlayerId)
+    /// <param name="tileOwnership">What the tile was when the fighting started.</param>
+    private static Battle BuildBattle(BattleEngagement engagement, int[] sidePlayerIds, Dictionary<int, string> factionNamesByPlayerId, TileOwnership tileOwnership)
     {
         DateTimeOffset now = DateTimeOffset.UtcNow;
 
@@ -236,10 +244,11 @@ internal sealed class BattleEngagementService(
             GlobalBattleName = BuildBattleName(engagement.RoundNumber, sidePlayerIds, factionNamesByPlayerId),
             CommencedAtRoundNumber = engagement.RoundNumber,
 
-            // The campaign map records only who controls a tile, not how firmly, so a controlled tile is taken as owned. Claimed, Occupied and Disputed need a per-tile ownership status
-            // the map does not have yet.
-            OriginalTileStatus = tileControllerPlayerId is null ? TileOwnershipStatus.Unclaimed : TileOwnershipStatus.Owned,
-            OriginalTileOwnerId = tileControllerPlayerId,
+            OriginalTileStatus = tileOwnership.Status,
+
+            // The effective holder rather than the owner: an occupier is drawing from the tile without owning it, and it is the side actually holding the ground that a
+            // battle over it is being fought against. Nothing writes the occupier column yet, so today this resolves to the owner either way.
+            OriginalTileOwnerId = tileOwnership.EffectiveHolderPlayerId,
 
             ConcludedAtRoundNumber = null,
             VictorId = null,

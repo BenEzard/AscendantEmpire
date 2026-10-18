@@ -1,4 +1,5 @@
 import type { TileRivers } from "@/types/map/Rivers";
+import type { TileOwnership } from "@/types/map/Ownership";
 import type { BiomeType } from "@/types/map/Biome";
 import type { CampaignMapGeographyType } from "@/types/map/Geography";
 
@@ -49,6 +50,13 @@ export type TileCell = {
   //
   // Both banks report the edge they share. RiverOverlay is what draws each edge once.
   rivers?: TileRivers;
+
+  // Who holds the tile, as this player sees it, or undefined for ground nothing of theirs is watching. Unlike the rivers above,
+  // a border is current information rather than terrain, so the API reports it only under live sight and the overlay gates on
+  // sight again before drawing — see OwnershipOverlay.
+  //
+  // Undefined on a grid with no ownership in it at all, such as the map editor's.
+  ownership?: TileOwnership;
 
   structures?: ObservedStructureTile[];
   forces?: ObservedForceTile[];

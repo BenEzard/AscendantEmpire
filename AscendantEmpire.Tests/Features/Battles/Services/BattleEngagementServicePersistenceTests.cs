@@ -4,6 +4,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Battles.Services;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Maps.BattleMaps.Services;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Players.Handlers;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Units.Services;
@@ -424,7 +425,14 @@ internal class BattleEngagementServicePersistenceTests : GameSqlServerTestBase
 
     private BattleEngagementService BuildService(IBattleLifecycleWriter battleWriter)
     {
-        return new BattleEngagementService(_engagementLogger, _mediator, battleWriter, new PlayerBattleMapService(NullLogger<PlayerBattleMapService>.Instance));
+        // The real ownership reader, not a stub: it is three projected queries over the per-test database, and what it resolves is what the Battle records as the tile's
+        // original status - so a stub would pin nothing about the status these tests save.
+        return new BattleEngagementService(
+            _engagementLogger,
+            _mediator,
+            battleWriter,
+            new PlayerBattleMapService(NullLogger<PlayerBattleMapService>.Instance),
+            new CampaignOwnershipReader());
     }
 
     /// <summary>

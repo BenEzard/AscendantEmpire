@@ -28,6 +28,15 @@ public interface IObservedCampaignTile
     /// </remarks>
     ITileRivers? Rivers { get; }
 
+    /// <summary>
+    /// Who holds this Tile, as the requesting Player sees it, or <see langword="null"/> when they are not being told.
+    /// </summary>
+    /// <remarks>
+    /// Current information rather than terrain, so it is reported only while an Observer can see the Tile - the same rule the Structures and Forces below follow, and not the
+    /// one the <see cref="Rivers"/> follow. The client draws ownership and claim borders from it; see <c>OwnershipOverlay</c>.
+    /// </remarks>
+    ITileOwnership? Ownership { get; }
+
     IReadOnlyCollection<IStructureStub>? Structures { get; }
     IReadOnlyCollection<IForceStub>? Forces { get; }
 }

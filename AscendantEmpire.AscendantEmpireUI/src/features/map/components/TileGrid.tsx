@@ -3,6 +3,7 @@ import type { Geography } from "@/types/map/Geography";
 import type { TileCell } from "./TileTypes";
 import Tile from "./Tile";
 import RiverOverlay from "./RiverOverlay";
+import OwnershipOverlay from "./OwnershipOverlay";
 import type { KnownForce, KnownStructure } from "@/features/intelligence/api/intelligenceApi";
 import type { CampaignMapGeographyType } from "@/types/map/Geography";
 
@@ -29,6 +30,11 @@ export interface TileGridProps {
    * at all. Omitted means every tile is observed, which is what a grid with no fog of war wants.
    */
   isTileObserved?: (tile: TileCell) => boolean;
+  /**
+   * Each player's faction colour, which territory borders are drawn in. Omitted means no borders at all, which is what a grid
+   * with no ownership on it — the map editor's — wants.
+   */
+  factionColourByPlayerId?: ReadonlyMap<number, string>;
   /**
    * The forces the player last saw on a tile, freshest first, for last-known-position markers. Should return the same array for an unchanged tile, or every
    * memoised tile re-renders. Omitted means no markers at all.
@@ -78,6 +84,7 @@ const TileGrid = React.memo(function TileGrid({
   unitImageSrcByUnitTemplateId,
   getVisibleForceId,
   isTileObserved,
+  factionColourByPlayerId,
   getKnownForces,
   getKnownStructures,
   currentRoundNumber,
@@ -112,6 +119,10 @@ const TileGrid = React.memo(function TileGrid({
   const tileClickHandler = onTileClick ? handleTileClick : undefined;
   const tileHoldHandler = onTileHold ? handleTileHold : undefined;
   const tileHoverHandler = onTileHover ? handleTileHover : undefined;
+
+  // The border overlay asks per tile whether it is watched, so it needs the predicate whether or not the caller supplied one. A
+  // grid with no fog — the editor's — treats every tile as observed, exactly as the tiles themselves do.
+  const isTileObservedOrAll = React.useMemo(() => isTileObserved ?? (() => true), [isTileObserved]);
   // Flatten row-major (y then x)
   const flat = React.useMemo(() => tiles2d.flat(), [tiles2d]);
 
@@ -183,6 +194,19 @@ const TileGrid = React.memo(function TileGrid({
         {/* Over the tiles, because a river runs along the boundary between two of them and belongs to neither — so it cannot be
             drawn inside either one. Before `children`, so anything a caller overlays sits above it. */}
         <RiverOverlay tiles2d={tiles2d} width={width} height={height} tileSizePx={TILE_SIZE_PX} />
+        {/* Over the rivers, because a border following a river has to stay readable where the two run along the same edge, and
+            under `children` so anything a caller overlays still sits above both. Drawn only where faction colours are in hand:
+            without them there is nothing to colour a territory with. */}
+        {factionColourByPlayerId != null && (
+          <OwnershipOverlay
+            tiles2d={tiles2d}
+            width={width}
+            height={height}
+            tileSizePx={TILE_SIZE_PX}
+            factionColourByPlayerId={factionColourByPlayerId}
+            isTileObserved={isTileObservedOrAll}
+          />
+        )}
         {children}
       </div>
     </div>

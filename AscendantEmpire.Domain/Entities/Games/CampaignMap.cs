@@ -3,6 +3,7 @@ using AscendantEmpire.Domain.Enums.Maps;
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Linq.Expressions;
 
 namespace AscendantEmpire.Domain.Entities.Games;
 
@@ -121,6 +122,25 @@ public class CampaignMap
     /// </remarks>
     public int? RebellionPercentRemaining { get; set; }
 
+    /// <summary>
+    /// Whether any Player holds a claim on this tile, which is the map read's licence to skip the claim junction for it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A denormalisation of <see cref="CampaignMapClaim"/>, and the only one on this table. The overwhelming majority of tiles on a map are claimed by nobody, so without it every map read
+    /// would have to ask the junction about ground that has never had a row in it. With it, the question is a column already in the row the read loaded anyway.
+    /// </para>
+    /// <para>
+    /// <b>A flag rather than a count.</b> All the read needs is whether to look, and "any or none" is the one fact the per-round pass can keep right without maintaining a running total that
+    /// could drift from the rows it describes. Whose claims they are, and how many, come from the junction - which is only asked when this is <see langword="true"/>.
+    /// </para>
+    /// <para>
+    /// Defaulted in the database as well as in C#, because game setup copies tiles with a raw <c>INSERT ... SELECT</c> that does not name this column - the same reason
+    /// <see cref="SouthRiver"/> carries a default.
+    /// </para>
+    /// </remarks>
+    public bool HasClaims { get; set; }
+
     public required BiomeType BiomeTypeId { get; set; }
     public required CampaignMapGeographyType CampaignMapGeographyTypeId { get; set; }
 
@@ -141,6 +161,31 @@ public class CampaignMap
     /// <see cref="CampaignMapGallery.EastRiver"/>.
     /// </remarks>
     public RiverWidth EastRiver { get; set; }
+
+    /// <summary>
+    /// Who holds this tile right now - the occupier if there is one, otherwise the owner - or <see langword="null"/> when nobody does.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The answer to "who is drawing from this tile", which is a different question from who owns it: an occupier collects the yield without taking ownership, so a caller that wants the
+    /// holder has to read the occupier first and fall back to the owner. Spelling that out at each call site is how the two get out of step.
+    /// </para>
+    /// <para>
+    /// <b>Not mapped, and not for queries.</b> EF cannot translate a property with a body, so a LINQ query reads the same rule through
+    /// <see cref="EFFECTIVE_HOLDER_PROJECTION"/> instead. The two are deliberately one line each so that they cannot disagree.
+    /// </para>
+    /// </remarks>
+    [NotMapped]
+    public int? EffectiveHolderPlayerId => OccupiedByPlayerId ?? OwnedByPlayerId;
+
+    /// <summary>
+    /// <see cref="EffectiveHolderPlayerId"/> as a projection a query can run in SQL.
+    /// </summary>
+    /// <remarks>
+    /// The database half of the helper above, for callers reading the holder off the server rather than off a materialised tile - <c>BattleEngagementService</c> among them. Used as the whole
+    /// selector, <c>.Select(CampaignMap.EFFECTIVE_HOLDER_PROJECTION)</c>, since an expression tree cannot be spliced into a lambda written inline.
+    /// </remarks>
+    public static readonly Expression<Func<CampaignMap, int?>> EFFECTIVE_HOLDER_PROJECTION = tile => tile.OccupiedByPlayerId ?? tile.OwnedByPlayerId;
 
     [ForeignKey("BiomeTypeId")]
     public required CampaignBiome Biome { get; set; }

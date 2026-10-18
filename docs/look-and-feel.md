@@ -147,6 +147,26 @@ unit turns orange too.
 
 ---
 
+## Tooltips
+
+`Tooltip` (`components/ui/Tooltip.tsx`) is the standard one: portaled, flips above or below, clamped
+to the viewport, and `whitespace-pre` so multi-line content works. Use it everywhere **except the
+campaign map's tiles**, which carry a native `title` attribute instead.
+
+That exception is deliberate. `Tooltip` holds `visible` state per instance and runs a layout effect
+and a `getBoundingClientRect` on hover, and it wraps its children in an `inline-flex` span — which on
+a tile would land between the CSS grid and its items and break the grid outright. A 30 x 20 map is
+600 tiles, and `TileGrid` is built the other way on purpose: primitive-returning accessors, memoised
+tiles, and `useHoveredTileStore` keeping the pointer *outside* React state so that hovering never
+re-renders the grid.
+
+So styling the tile tooltip is not a matter of swapping the component in. It means one instance for
+the whole grid, subscribed to the hover store already tracking the pointer and positioned from the
+hovered tile's coordinates — the shape `TileSupportMarker` already uses as a single child of the
+grid.
+
+---
+
 ## Traps
 
 **The hardcoded hexes are Tailwind v3 values.** `#eab308` was `yellow-500` in v3; in v4 `yellow-500`

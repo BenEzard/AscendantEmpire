@@ -1,4 +1,4 @@
-using AscendantEmpire.Application.Common.Messaging;
+﻿using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
@@ -57,7 +57,8 @@ internal class GetPlayerCampaignMapHandler(
     IServiceScopeFactory scopeFactory,
     ICampaignTurnService campaignTurnService,
     IFieldOfViewService fieldOfViewService,
-    ICampaignRiverReader campaignRiverReader
+    ICampaignRiverReader campaignRiverReader,
+    ICampaignOwnershipReader campaignOwnershipReader
     ) : IRequestHandler<GetPlayerCampaignMapRequest, ServiceResult<IReadOnlyCollection<ObserverSight>>>
 {
     public async Task<ServiceResult<IReadOnlyCollection<ObserverSight>>> Handle(GetPlayerCampaignMapRequest request, CancellationToken cancelToken)
@@ -122,6 +123,10 @@ internal class GetPlayerCampaignMapHandler(
 
         // The world-map id of every Tile in view. Structures and Forces are stored against the world map, so these look them up directly.
         List<int> campaignMapTileIds = [.. fieldsOfView.SelectMany(view => view.SeenTiles).Select(tile => tile.CampaignMapId).Distinct()];
+
+        // Who holds each Tile in sight. Read once for the whole set like the rivers above, and for the Tiles in sight only: a border is current information rather than
+        // terrain, so the ground the Player merely remembers reports none - see ObservedCampaignTile.Ownership.
+        IReadOnlyDictionary<int, TileOwnership> ownershipByTileId = await GetTileOwnershipAsync(request.GameId, campaignMapTileIds, cancelToken);
 
         Dictionary<int, List<PlayerStructure>> structuresByTileId = [];
         Dictionary<int, List<PlayerForce>> forcesByTileId = [];
@@ -222,6 +227,10 @@ internal class GetPlayerCampaignMapHandler(
                     // Terrain, like the Biome and Geography above, so it rides along with them. Falls back to "no rivers" rather than null: null means
                     // unexplored to the client, and a Tile an Observer is looking at is explored by definition.
                     Rivers = riversByCoord.GetValueOrDefault(new Coord(seenTile.X, seenTile.Y)) ?? TileRivers.None,
+                    // Falls back to wilderness rather than null for the same reason the rivers above fall back to None: null means "you are not being told", and a
+                    // Tile an Observer is looking at is one the Player is entitled to read the border off. A Tile with no row behind it is absent from the lookup, and
+                    // nobody holds a Tile that does not exist.
+                    Ownership = ownershipByTileId.GetValueOrDefault(seenTile.CampaignMapId) ?? TileOwnership.Unclaimed,
                     Structures = structuresAtTile?.Select(os => new ObservedStructure
                     {
                         Id = os.StructureInstanceId,
@@ -292,6 +301,7 @@ internal class GetPlayerCampaignMapHandler(
                         // Null for ground the Player has never been to, which is why the lookup is not defaulted here: an unexplored Tile was never asked
                         // about, and saying "no rivers" would claim knowledge of ground they have not seen.
                         Rivers = rememberedRiversByCoord.GetValueOrDefault(new Coord(masterTile.XCoord, masterTile.YCoord)),
+                        Ownership = null, // A border is current information, and the Player has no Observer here to read it off.
                         // Tiles outside an observer's sight are terrain only: the player knows the
                         // ground from having explored it, but not what is standing on it now.
                         Structures = [],
@@ -334,6 +344,27 @@ internal class GetPlayerCampaignMapHandler(
         await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
         return await campaignRiverReader.GetTileRiversAsync(context, gameId, coords, geometry, cancelToken);
+    }
+
+    /// <summary>
+    /// Who holds each of the given Tiles, on a context of this read's own.
+    /// </summary>
+    /// <remarks>
+    /// A thin wrapper over <see cref="ICampaignOwnershipReader"/> so the read asks for ownership on one line.
+    /// </remarks>
+    private async Task<IReadOnlyDictionary<int, TileOwnership>> GetTileOwnershipAsync(
+        int gameId,
+        IReadOnlyCollection<int> campaignMapIds,
+        CancellationToken cancelToken)
+    {
+        if (campaignMapIds.Count == 0)
+        {
+            return new Dictionary<int, TileOwnership>();
+        }
+
+        await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
+
+        return await campaignOwnershipReader.GetTileOwnershipAsync(context, gameId, campaignMapIds, cancelToken);
     }
 
     /// <summary>

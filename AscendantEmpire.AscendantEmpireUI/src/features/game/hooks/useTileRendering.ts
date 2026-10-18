@@ -3,12 +3,15 @@ import type { Biome, BiomeType } from "@/types/map/Biome";
 import type { CampaignMapGeographyType, Geography } from "@/types/map/Geography";
 import type { TileCell } from "@/features/map/components/TileTypes";
 import { describeTileRivers } from "@/types/map/Rivers";
+import { describeTileOwnership } from "@/types/map/Ownership";
 
 interface UseTileRenderingOptions {
   biomes: Biome[] | undefined;
   geographies: Geography[] | undefined;
   selectedTile: { x: number; y: number } | null;
   observedTileKeys: ReadonlySet<string>;
+  /** Each player's faction name, for naming whoever holds a tile in its tooltip. */
+  factionNameByPlayerId: ReadonlyMap<number, string>;
 }
 
 /**
@@ -42,7 +45,7 @@ const UNWATCHED_HAZE = "linear-gradient(rgba(90, 90, 90, 0.35), rgba(90, 90, 90,
  * See docs/fog-of-war.md.
  */
 export function useTileRendering(opts: UseTileRenderingOptions) {
-  const { biomes, geographies, selectedTile, observedTileKeys } = opts;
+  const { biomes, geographies, selectedTile, observedTileKeys, factionNameByPlayerId } = opts;
 
   const biomeColorByType = useMemo(() => {
     const m = new Map<BiomeType, string>();
@@ -126,15 +129,20 @@ export function useTileRendering(opts: UseTileRenderingOptions) {
       const riverLabel = describeTileRivers(t.rivers);
       const riverLines = riverLabel == null ? [] : [`Rivers: ${riverLabel}`];
 
+      // Who holds the tile, where anybody does. Absent for wilderness and for ground nothing is watching — the API reports no
+      // ownership at all off live sight, so there is nothing to print rather than a stale border to describe.
+      const ownershipLabel = describeTileOwnership(t.ownership, factionNameByPlayerId);
+      const ownershipLines = ownershipLabel == null ? [] : [ownershipLabel];
+
       // Only forces whose movement we were actually told about. The API masks the numbers for forces the player
       // doesn't own, so an enemy standing here contributes nothing to the tooltip rather than a blank or a guess.
       const movementLines = (t.forces ?? [])
         .filter((force) => force.campaignMovementRemaining != null && force.campaignMovementPoints != null)
         .map((force) => `Force #${force.id}: ${force.campaignMovementRemaining} / ${force.campaignMovementPoints} MP`);
 
-      return [`(${t.x}, ${t.y}); ${label}`, ...riverLines, ...movementLines].join("\n");
+      return [`(${t.x}, ${t.y}); ${label}`, ...ownershipLines, ...riverLines, ...movementLines].join("\n");
     },
-    [getTileTerrainLabel],
+    [getTileTerrainLabel, factionNameByPlayerId],
   );
 
   return { getTileBackground, isTileSelected, getTileTitle, getTileTerrainLabel };

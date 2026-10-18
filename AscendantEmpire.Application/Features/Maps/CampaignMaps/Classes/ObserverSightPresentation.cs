@@ -38,6 +38,12 @@ public static class ObserverSightPresentation
                 // Passed straight through, null and all: an unexplored Tile has no rivers to report, and substituting an empty set would tell the client the
                 // ground is known to have none.
                 Rivers = tile.Rivers,
+                // Passed straight through for the same reason, and the null carries just as much meaning here: a Tile no Observer can see reports no ownership at
+                // all, and standing in wilderness for it would draw a border off the back of ground nobody is watching.
+                //
+                // The record itself, claimant list and all. ObserverSightPresentationTests pins that, because this mapping lists every field by hand and one left out
+                // here reaches the client as null with nothing failing anywhere - which is exactly how the ownership borders came to be missing to begin with.
+                Ownership = tile.Ownership,
                 Structures = [.. tile.Structures?.Select(structure => new DTStructureStub
                 {
                     Id = structure.Id,

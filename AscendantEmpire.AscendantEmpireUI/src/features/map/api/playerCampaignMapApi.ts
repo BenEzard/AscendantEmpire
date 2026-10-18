@@ -1,5 +1,6 @@
 ﻿import { http } from "@/api/http";
 import { RIVER_EDGES, type RiverWidth, type TileRivers } from "@/types/map/Rivers";
+import type { TileOwnership, TileOwnershipStatus } from "@/types/map/Ownership";
 import type { BiomeType } from "@/types/map/Biome";
 import type { CampaignMapGeographyType } from "@/types/map/Geography";
 
@@ -31,6 +32,10 @@ export interface CampaignMapTileDto {
   // Terrain, so it is sent for any explored tile whether or not something is watching it. Both banks report the edge they share;
   // drawing each edge once is RiverOverlay's job.
   rivers?: TileRivers;
+  // Who holds the tile, as this player sees it, or undefined for ground no observer of theirs can see. Unlike the rivers above,
+  // a border is current information rather than terrain, so the API reports it under live sight only — remembered ground sends
+  // none at all rather than whatever it last was. A watched tile nobody holds arrives as "Unclaimed", which is a real answer.
+  ownership?: TileOwnership;
   // Always present, never omitted when empty. An empty array is the API telling us there is nothing on this tile, which is
   // different from not having heard about the tile at all — and the merges below rely on being able to tell those apart, or a
   // force that moved away would keep being drawn on the tile it left.
@@ -107,6 +112,8 @@ type CampaignMapTileWireDto = Partial<{
   // Null on the wire for an unexplored tile, and each edge is a RiverWidth member name. Partial rather than a full TileRivers,
   // because an older API sends nothing at all and a normalizer that assumed four edges would read undefined off it.
   rivers: Partial<TileRivers> | null;
+  // Null on the wire for ground nothing is watching, and partial because an older API sends nothing at all.
+  ownership: Partial<TileOwnership> | null;
   structures: ObservedStructureWireDto[];
   forces: ObservedForceWireDto[];
 }>;
@@ -187,6 +194,38 @@ function normalizeTileRivers(rivers: Partial<TileRivers> | null | undefined): Ti
   return Object.fromEntries(RIVER_EDGES.map((edge) => [edge, rivers[edge] ?? ("None" as RiverWidth)])) as TileRivers;
 }
 
+/**
+ * Fills in a tile's ownership, or gives back undefined when the API sent none.
+ *
+ * Undefined is preserved rather than flattened to an unowned record, for the same reason the rivers above preserve it: nothing
+ * being reported is what *unwatched* ground sends, and turning that into "nobody holds this tile" would put a claim about the
+ * current border behind the fog. A tile under live sight that genuinely has no holder arrives as a real `"Unclaimed"` record.
+ */
+function normalizeTileOwnership(ownership: Partial<TileOwnership> | null | undefined): TileOwnership | undefined {
+  if (ownership == null) {
+    return undefined;
+  }
+
+  return {
+    // "Unknown" is the enum's own zero member and the honest reading of a record that named no status. It draws no border and
+    // gets no tooltip line, so an API that sends a half-filled record says nothing rather than something wrong.
+    status: ownership.status ?? ("Unknown" as TileOwnershipStatus),
+    ownedByPlayerId: ownership.ownedByPlayerId ?? null,
+    occupiedByPlayerId: ownership.occupiedByPlayerId ?? null,
+    lastOwnedByPlayerId: ownership.lastOwnedByPlayerId ?? null,
+    // Re-derived locally when absent rather than defaulted to null, so the fallback cannot be lost on the way across: the
+    // occupier holds the tile if there is one, otherwise the owner.
+    effectiveHolderPlayerId: ownership.effectiveHolderPlayerId ?? ownership.occupiedByPlayerId ?? ownership.ownedByPlayerId ?? null,
+    // Defaults to empty, unlike the movement flag above: a claim we were not told about is one we must not draw, and the
+    // neutral reading of silence here is "nobody claims this" rather than "somebody does, unnamed".
+    //
+    // Copied rather than passed through, so the drawing order the server chose cannot be disturbed by anything downstream
+    // sorting the array in place. The border alternates the claimants' colours in this order and the tooltip lists them to match.
+    claimedByPlayerIds: [...(ownership.claimedByPlayerIds ?? [])],
+    isRebelling: ownership.isRebelling ?? false,
+  };
+}
+
 export function normalizeCampaignMapTile(tile: CampaignMapTileWireDto): CampaignMapTileDto {
   return {
     xCoord: tile.xCoord ?? 0,
@@ -199,6 +238,7 @@ export function normalizeCampaignMapTile(tile: CampaignMapTileWireDto): Campaign
     // ground the player has never been to — the one failure mode this flag exists to prevent.
     isExplored: tile.isExplored ?? false,
     rivers: normalizeTileRivers(tile.rivers),
+    ownership: normalizeTileOwnership(tile.ownership),
     // Always emitted, even when empty. These used to be dropped when empty, which made "this tile is clear" indistinguishable
     // from "this tile wasn't reported" — and the merges then kept whatever was there before, so a force that stepped away would
     // stay drawn on the tile it left.
@@ -250,6 +290,10 @@ export function mergeTilesByCoord(tiles: CampaignMapTileDto[]): CampaignMapTileD
       // `??` again, but for the opposite reason: rivers are terrain and never change, so an observer that reported none has
       // nothing to say about them and must not blank what another observer told us about the same tile.
       rivers: tile.rivers ?? existing.rivers,
+      // `??` like the rivers, and not because ownership never changes — it does. An observer that reported none is simply not
+      // watching this tile, and must not blank what the observer who *is* watching it told us. A border held over from a tile
+      // that has since left sight is never drawn anyway: OwnershipOverlay gates on live sight before it draws one.
+      ownership: tile.ownership ?? existing.ownership,
       structures: tile.structures ?? existing.structures,
       forces: tile.forces ?? existing.forces,
     });

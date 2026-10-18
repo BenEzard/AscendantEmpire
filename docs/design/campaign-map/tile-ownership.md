@@ -225,6 +225,7 @@ The split between exclusive and non-exclusive decides the shape:
 | Concept | Where |
 | --- | --- |
 | Claims | `game.CampaignMapClaim`, one row per Player per tile — sparse, rows only where claimed |
+| Any claims | `CampaignMap.HasClaims`, the map read's licence to skip the junction for a tile |
 | Owned | `CampaignMap.OwnedByPlayerId`, `OwnedBySettlementId` |
 | Occupied | `CampaignMap.OccupiedByPlayerId`, `OccupiedSinceTurnId` for the timer |
 | Rebelling | `CampaignMap.RebellionPercentRemaining`, counted down by the per-round pass |
@@ -237,12 +238,40 @@ Every exclusive layer is a nullable Player reference rather than a state enum, b
 combinations of parallel state enums are illegal and would have to be policed. The states at the top
 of this document are read *off* those columns.
 
-**The displayed state is per viewer, not per tile.** Claims are many-to-one and hidden Forces are
-visible to some Players and not others, so two Players can correctly see the same tile differently.
-The map read resolves it per Player; there is no single cached state column on the tile.
+**The state is read off the tile, never cached on it.** Claims are many-to-one, so there is no winner
+to record and no single state column to keep up to date.
 
-A tile carries seven nullable integers for all of this, about 28 bytes, so roughly 1 MB on a
-40,000-tile map — the same reasoning that put the river widths on the tile
+`TileOwnershipDerivation` is that resolution, and it is pure: it takes a tile's columns, its
+claimants and whether a battle is on it, and gives back the state. `CampaignOwnershipReader` is the
+query behind it, and the map read reports what it says **only for tiles an Observer can see**. A
+border is current information rather than terrain — unlike the Biome and the rivers, which stay known
+once explored, a border moves — so ground a Player merely remembers reports no ownership at all, and
+the client draws a border only where someone is watching. A Player's map carries no ownership
+columns, and deliberately so: there is no remembered border to read.
+
+**The claimants are named, not counted.** A claim is asserted by something standing on the ground — a
+totem pole, a border marker, a scout's action — so a Player who can see the tile can see whose marker
+is on it, and withholding the name would hide what they could plainly observe. The read hands back
+every claimant in Player id order, and the client draws the claim border in each claimant's own
+faction colour, alternating them along its dashes, with the same list named in the tile's tooltip.
+The order is stable because it is drawn: a shifting one would make the dashes swap colours between
+reads.
+
+**There is no viewer yet.** Resolving per Player is still the design — a hidden Force is visible to
+some Players and not others, so two of them will correctly see one tile differently — but nothing
+hides anything today. Ambush and recon wait on hiding and detection ([vision.md](vision.md#ambush-and-recon)),
+and the claimants are named to anyone who can see the ground, so what the resolution returns is
+currently the same for everybody and takes no Player. The viewer comes back as a parameter when there
+is something for it to change.
+
+`HasClaims` on the tile is what keeps that read cheap. Most of a map has never had a claim row, so
+the flag already loaded with the tile decides which ids are worth asking the junction about, and a
+read over wilderness never touches it. It is a flag rather than a count because all the read needs is
+whether to look, and "any or none" is the one fact the per-round pass can keep right without
+maintaining a total that could drift from the rows it describes.
+
+A tile carries seven nullable integers and one bit for all of this, about 28 bytes, so roughly 1 MB
+on a 40,000-tile map — the same reasoning that put the river widths on the tile
 ([tiles.md](tiles.md#rivers)). The claim junction only holds rows where something unusual is true.
 
 **Rebellion is a countdown, not an expiry Turn.** Conquest rolls `RebellionPercentRemaining` — that
@@ -263,11 +292,21 @@ deltas written back, the way `FieldOfView` is shared between the map read and th
 
 ## Not yet implemented
 
-**The schema is built; none of the behaviour is.** `CampaignMap` carries every column in
-[How it is stored](#how-it-is-stored) and `game.CampaignMapClaim` exists, so nothing below is blocked
-on a migration. What no code does yet is *write* any of it: the only column anything reads is
-`OwnedByPlayerId`, in `BattleEngagementService`, recording who held the ground when a battle started.
-Callers that want the effective holder read `OccupiedByPlayerId ?? OwnedByPlayerId`.
+**The schema is built and the states are read; what no code does yet is *write* any of them.**
+`CampaignMap` carries every column in [How it is stored](#how-it-is-stored) and
+`game.CampaignMapClaim` exists, so nothing below is blocked on a migration.
+
+The read side is in place. The map read resolves every state for the tiles in an Observer's sight and
+the campaign map draws ownership and claim borders from it, and `BattleEngagementService` records
+what a tile was when the fighting started through the same resolution. Callers that want the
+effective holder read
+`CampaignMap.EffectiveHolderPlayerId`, or `CampaignMap.EFFECTIVE_HOLDER_PROJECTION` where the
+question is being asked of the database, rather than spelling out `OccupiedByPlayerId ??
+OwnedByPlayerId` at each site.
+
+Because nothing writes the columns, every state but Owned and Unclaimed is unreachable in play today:
+the resolution handles Claimed, Occupied, Abandoned and Rebelling, and will start answering with them
+the moment the per-round pass writes them.
 
 `OwnedBySettlementId` is the one column with no foreign key, because Settlements are not modelled.
 `OccupiedSinceTurnId` and `AbandonedOnTurnId` have none either, matching the Turn stamps already on

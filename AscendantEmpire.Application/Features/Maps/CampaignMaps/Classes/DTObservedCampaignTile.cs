@@ -22,11 +22,22 @@ public class DTObservedCampaignTile : IObservedCampaignTile
     /// </remarks>
     public TileRivers? Rivers { get; set; }
 
+    /// <summary>
+    /// Who holds the Tile as the requesting Player sees it, or <see langword="null"/> for ground no Observer of theirs can see.
+    /// </summary>
+    /// <remarks>
+    /// The contract record itself rather than a copy of it, the same as <see cref="Rivers"/>: it is an immutable value with no navigation of its own, so there is nothing for
+    /// a presentation type to add.
+    /// </remarks>
+    public TileOwnership? Ownership { get; set; }
+
     public IReadOnlyCollection<DTStructureStub>? Structures { get; set; }
 
     public IReadOnlyCollection<DTForceStub>? Forces { get; set; }
 
     ITileRivers? IObservedCampaignTile.Rivers => Rivers;
+
+    ITileOwnership? IObservedCampaignTile.Ownership => Ownership;
 
     IReadOnlyCollection<IStructureStub>? IObservedCampaignTile.Structures => Structures;
 

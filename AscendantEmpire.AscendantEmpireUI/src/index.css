@@ -547,6 +547,25 @@ body {
   --map-editor-river-hover-erase: #dc2626;
 }
 
+/* Territory borders on the campaign map. Drawn inset into the tile that owns the side, so both sides of a frontier show their own
+   faction colour at once — see OwnershipOverlay.
+
+   Every border takes its colour from a faction: an owner's for owned ground, and each claimant's in turn along the dashes of a
+   claim. Those colours are the players' to choose, so the only values fixed here are the two cases with no faction behind them.
+   Each needs contrast against the terrain under it rather than against the theme, the same reasoning the river colours above are
+   fixed by.
+
+   The casing is drawn a little wider underneath every stroke, dark so that a faction colour keeps the same weight whether it
+   crosses pale sand or near-black water — the same indigo reads very differently against the two without it. It carries the
+   stroke's own dash pattern rather than being solid, because a claim's gaps are meant to let the terrain through. */
+:root {
+  --campaign-border-casing: rgba(20, 20, 20, 0.55);
+
+  /* A holder or claimant with no faction colour set. Deliberately drab: a missing colour should read as a gap in the data rather
+     than as a faction whose territory happens to be grey. */
+  --campaign-border-unknown: #9ca3af;
+}
+
 /* Two turns or more. Light enough that the bar's dark text and icons stay readable unchanged. */
 .tile-toolbar--support-plenty {
   background: var(--tile-support-plenty);

@@ -894,6 +894,10 @@ public class AscendantEmpireContext : DbContext
             entity.Property(x => x.SouthRiver).HasDefaultValue(RiverWidth.None, "DF_CampaignMap_SouthRiver");
             entity.Property(x => x.EastRiver).HasDefaultValue(RiverWidth.None, "DF_CampaignMap_EastRiver");
 
+            // Defaulted in the database for the same reason the river edges are: game setup copies tiles with a raw INSERT ... SELECT that does not name this column. A tile
+            // arrives claimed by nobody, and the per-round pass sets the flag when it writes the first claim row.
+            entity.Property(x => x.HasClaims).HasDefaultValue(false, "DF_CampaignMap_HasClaims");
+
             entity.HasOne(x => x.Game)
                 .WithMany()
                 .HasForeignKey(x => x.GameId)

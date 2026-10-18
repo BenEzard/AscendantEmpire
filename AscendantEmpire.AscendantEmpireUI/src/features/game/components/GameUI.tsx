@@ -251,6 +251,18 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   // Reports carry ids, not names. The lookups are resolved here, at read time, so a renamed faction reads correctly in reports raised before the rename.
   const factionNameByPlayerId = useMemo(() => new Map((gamePlayers ?? []).map((player) => [player.playerId, player.factionName])), [gamePlayers]);
 
+  // What territory borders are drawn in. Players with no colour set are left out rather than given a placeholder, so the overlay
+  // falls back to its own neutral and a missing colour reads as a gap instead of as somebody's territory.
+  const factionColourByPlayerId = useMemo(
+    () =>
+      new Map(
+        (gamePlayers ?? [])
+          .filter((player) => player.factionColour != null)
+          .map((player) => [player.playerId, player.factionColour as string]),
+      ),
+    [gamePlayers],
+  );
+
   // Whoever the campaign queue is waiting on, joined from the two queries already in hand. Undefined both while the players list is still loading and
   // when no turn is open at all; the indicator renders its own empty state for that rather than disappearing.
   const currentTurnPlayer = useMemo(
@@ -299,7 +311,13 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   // them there, so the map is never left showing whichever of the two spoke last.
   const { observedTileKeys } = useFogOfWar(tilesResponse?.observers);
 
-  const { getTileBackground, isTileSelected, getTileTitle, getTileTerrainLabel } = useTileRendering({ biomes, geographies, selectedTile, observedTileKeys });
+  const { getTileBackground, isTileSelected, getTileTitle, getTileTerrainLabel } = useTileRendering({
+    biomes,
+    geographies,
+    selectedTile,
+    observedTileKeys,
+    factionNameByPlayerId,
+  });
 
   // Whether the inspected tile is in live sight. Only then is its sustenance asked for: the server discloses nothing about any other tile, since what is left
   // on a tile changes as anyone feeds on it and would give away where other players' forces have been.
@@ -703,6 +721,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
                       unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId}
                       getVisibleForceId={getVisibleForceId}
                       isTileObserved={isTileObserved}
+                      factionColourByPlayerId={factionColourByPlayerId}
                       getKnownForces={getKnownForces}
                       getKnownStructures={getKnownStructures}
                       currentRoundNumber={currentRoundNumber}

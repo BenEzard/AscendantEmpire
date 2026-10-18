@@ -34,6 +34,7 @@ export function buildTiles2d(
       // definition. The grid is built at the game's full size, so most of these exist before the first tile ever arrives.
       isExplored: false,
       rivers: undefined,
+      ownership: undefined,
       structures: undefined,
       forces: undefined,
     })),
@@ -60,6 +61,7 @@ export function buildTiles2d(
             geographyTypeId: t.campaignMapGeographyTypeId,
             isExplored: t.isExplored,
             rivers: t.rivers,
+            ownership: t.ownership,
             structures: t.structures,
             forces: t.forces,
           };

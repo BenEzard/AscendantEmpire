@@ -2,12 +2,20 @@ import { renderHook } from "@testing-library/react";
 import type { TileCell } from "@/features/map/components/TileTypes";
 import type { Biome } from "@/types/map/Biome";
 import type { Geography } from "@/types/map/Geography";
+import type { TileOwnership } from "@/types/map/Ownership";
 import { useTileRendering } from "../useTileRendering";
 
 const GRASSLAND_COLOUR = "#4ade80";
 
 /** One biome with a colour, so the base background under the fog is something recognisable. */
 const BIOMES = [{ biomeType: "Grassland", name: "Grassland", mapEditorHtmlColor: GRASSLAND_COLOUR } as Biome];
+
+/** Two factions, so a tooltip naming whoever holds a tile has somebody to name and a rival to tell them apart from. */
+const FACTION_NAMES = new Map([
+  [1, "Rome"],
+  [2, "Carthage"],
+  [3, "Numidia"],
+]);
 
 function tile(x: number, y: number, isExplored: boolean): TileCell {
   // Biome and Geography arrive as their enum member names, not numbers — see BiomeType in @/types/map/Biome.
@@ -21,6 +29,7 @@ function renderTileRendering(observed: string[]) {
       geographies: [],
       selectedTile: null,
       observedTileKeys: new Set(observed),
+      factionNameByPlayerId: FACTION_NAMES,
     }),
   );
 }
@@ -85,7 +94,13 @@ describe("useTileRendering fog layers", () => {
    */
   it("keeps explored ground out of the unexplored fog when a step narrows what is observed", () => {
     const { result, rerender } = renderHook(({ observed }) =>
-      useTileRendering({ biomes: BIOMES, geographies: [], selectedTile: null, observedTileKeys: new Set(observed) }),
+      useTileRendering({
+        biomes: BIOMES,
+        geographies: [],
+        selectedTile: null,
+        observedTileKeys: new Set(observed),
+        factionNameByPlayerId: FACTION_NAMES,
+      }),
     { initialProps: { observed: ["5,5"] } });
 
     const whileWatched = result.current.getTileBackground(tile(5, 5, true));
@@ -108,7 +123,15 @@ describe("useTileRendering fog layers", () => {
  */
 describe("useTileRendering selection", () => {
   function renderWithSelection(selectedTile: { x: number; y: number } | null) {
-    return renderHook(() => useTileRendering({ biomes: BIOMES, geographies: [], selectedTile, observedTileKeys: new Set(["1,1", "2,2"]) }));
+    return renderHook(() =>
+      useTileRendering({
+        biomes: BIOMES,
+        geographies: [],
+        selectedTile,
+        observedTileKeys: new Set(["1,1", "2,2"]),
+        factionNameByPlayerId: FACTION_NAMES,
+      }),
+    );
   }
 
   it("reports only the selected tile as selected", () => {
@@ -138,7 +161,13 @@ describe("useTileRendering terrain label", () => {
 
   it("names the biome and geography together", () => {
     const { result } = renderHook(() =>
-      useTileRendering({ biomes: BIOMES, geographies: GEOGRAPHIES, selectedTile: null, observedTileKeys: new Set() }),
+      useTileRendering({
+        biomes: BIOMES,
+        geographies: GEOGRAPHIES,
+        selectedTile: null,
+        observedTileKeys: new Set(),
+        factionNameByPlayerId: FACTION_NAMES,
+      }),
     );
 
     expect(result.current.getTileTerrainLabel(tile(1, 1, true))).toBe("Grassland, Hills");
@@ -152,6 +181,7 @@ describe("useTileRendering terrain label", () => {
         geographies: [{ campaignMapGeographyType: "Unknown", name: "Unknown" } as Geography],
         selectedTile: null,
         observedTileKeys: new Set(),
+        factionNameByPlayerId: FACTION_NAMES,
       }),
     );
 
@@ -165,7 +195,15 @@ describe("useTileRendering terrain label", () => {
  */
 describe("useTileRendering river tooltip", () => {
   function renderWithTile(t: TileCell) {
-    const { result } = renderHook(() => useTileRendering({ biomes: BIOMES, geographies: [], selectedTile: null, observedTileKeys: new Set() }));
+    const { result } = renderHook(() =>
+      useTileRendering({
+        biomes: BIOMES,
+        geographies: [],
+        selectedTile: null,
+        observedTileKeys: new Set(),
+        factionNameByPlayerId: FACTION_NAMES,
+      }),
+    );
 
     return result.current.getTileTitle(t);
   }
@@ -187,5 +225,142 @@ describe("useTileRendering river tooltip", () => {
     const title = renderWithTile(tile(3, 4, false));
 
     expect(title).not.toContain("Rivers");
+  });
+});
+
+/**
+ * Ownership moves, unlike a tile's terrain, so the API reports it only under live sight and a tile the player merely remembers
+ * carries none. The tooltip is where they read whose ground they are looking at.
+ */
+describe("useTileRendering ownership tooltip", () => {
+  function renderWithTile(t: TileCell) {
+    const { result } = renderHook(() =>
+      useTileRendering({
+        biomes: BIOMES,
+        geographies: [],
+        selectedTile: null,
+        observedTileKeys: new Set(),
+        factionNameByPlayerId: FACTION_NAMES,
+      }),
+    );
+
+    return result.current.getTileTitle(t);
+  }
+
+  /** The ownership record a watched tile carries, with the layers the caller cares about overridden. */
+  function ownership(overrides: Partial<TileOwnership>): TileOwnership {
+    return {
+      status: "Unclaimed",
+      ownedByPlayerId: null,
+      occupiedByPlayerId: null,
+      lastOwnedByPlayerId: null,
+      effectiveHolderPlayerId: null,
+      claimedByPlayerIds: [],
+      isRebelling: false,
+      ...overrides,
+    };
+  }
+
+  it("names the faction holding an owned tile", () => {
+    const title = renderWithTile({
+      ...tile(3, 4, true),
+      ownership: ownership({ status: "Owned", ownedByPlayerId: 1, effectiveHolderPlayerId: 1 }),
+    });
+
+    expect(title).toContain("Owned by Rome");
+  });
+
+  /**
+   * An occupier collects the yield without taking ownership, so the holder the tooltip names is the occupier while the status
+   * beside it still says what has happened to the tile.
+   */
+  it("names the occupier rather than the owner on an occupied tile", () => {
+    const title = renderWithTile({
+      ...tile(3, 4, true),
+      ownership: ownership({ status: "Occupied", ownedByPlayerId: 1, occupiedByPlayerId: 2, effectiveHolderPlayerId: 2 }),
+    });
+
+    expect(title).toContain("Occupied by Carthage");
+    expect(title).not.toContain("Rome");
+  });
+
+  /** Rebelling is a modifier on Owned, not a state of its own, so it reads alongside the status rather than replacing it. */
+  it("marks a rebelling tile alongside its owner rather than instead of them", () => {
+    const title = renderWithTile({
+      ...tile(3, 4, true),
+      ownership: ownership({ status: "Owned", ownedByPlayerId: 1, effectiveHolderPlayerId: 1, isRebelling: true }),
+    });
+
+    expect(title).toContain("Owned by Rome (rebelling)");
+  });
+
+  /** An abandoned tile is held by nobody, but it remembers whose it was until it reverts. */
+  it("names the former owner of an abandoned tile, which nobody holds", () => {
+    const title = renderWithTile({
+      ...tile(3, 4, true),
+      ownership: ownership({ status: "Abandoned", lastOwnedByPlayerId: 1 }),
+    });
+
+    expect(title).toContain("Abandoned by Rome");
+  });
+
+  /** Wilderness is most of the map, and a line reading "Unclaimed" on every tile of it says nothing. */
+  it("leaves the ownership line out for a watched tile nobody holds", () => {
+    const title = renderWithTile({ ...tile(3, 4, true), ownership: ownership({ status: "Unclaimed" }) });
+
+    expect(title).not.toContain("Unclaimed");
+  });
+
+  /** The pinned rule: off live sight the API sends no ownership at all, so there is nothing to describe rather than a stale border. */
+  it("leaves the ownership line out for ground nothing is watching", () => {
+    const title = renderWithTile({ ...tile(3, 4, true), ownership: undefined });
+
+    expect(title).not.toContain("Owned");
+  });
+
+  it("names the faction claiming a tile", () => {
+    const title = renderWithTile({
+      ...tile(3, 4, true),
+      ownership: ownership({ status: "Claimed", claimedByPlayerIds: [2] }),
+    });
+
+    expect(title).toContain("Claimed by Carthage");
+  });
+
+  /**
+   * Claims are the only non-exclusive state, so a tile several players assert names all of them - comma-separated, in the same
+   * order their colours appear along the border's dashes.
+   */
+  it("lists every claimant of a contested tile, comma-separated", () => {
+    const title = renderWithTile({
+      ...tile(3, 4, true),
+      ownership: ownership({ status: "Claimed", claimedByPlayerIds: [1, 2, 3] }),
+    });
+
+    expect(title).toContain("Claimed by Rome, Carthage, Numidia");
+  });
+
+  /** A claimant with no name in the lookup still has to appear, or the list would silently lose a claimant the border draws. */
+  it("falls back to the player number for a claimant it has no name for", () => {
+    const title = renderWithTile({
+      ...tile(3, 4, true),
+      ownership: ownership({ status: "Claimed", claimedByPlayerIds: [1, 99] }),
+    });
+
+    expect(title).toContain("Claimed by Rome, Player #99");
+  });
+
+  /**
+   * Nobody *holds* a claimed tile, so the line is built from the claimant list rather than from the holder - which is null here,
+   * and would otherwise reduce the line to a bare "Claimed".
+   */
+  it("names claimants even though a claimed tile has no holder", () => {
+    const title = renderWithTile({
+      ...tile(3, 4, true),
+      ownership: ownership({ status: "Claimed", claimedByPlayerIds: [2], effectiveHolderPlayerId: null }),
+    });
+
+    expect(title).toContain("Claimed by Carthage");
+    expect(title).not.toMatch(/Claimed\s*$/m);
   });
 });

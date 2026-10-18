@@ -498,6 +498,11 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("GameId")
                         .HasColumnType("int");
 
+                    b.Property<bool>("HasClaims")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false, "DF_CampaignMap_HasClaims");
+
                     b.Property<int?>("LastOwnedByPlayerId")
                         .HasColumnType("int");
 
