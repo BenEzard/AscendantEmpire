@@ -63,7 +63,7 @@ internal sealed record ForceActionForce
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This is how an action tied to a piece of equipment finds out whether the Force is carrying it — <c>found-camp</c> from the settler's camping
+    /// This is how an action tied to a piece of equipment finds out whether the Force is carrying it — <c>create-early-camp</c> from the settler's camping
     /// materials, for example. Matching a capability rather than a component code or a template id means a second component granting the same
     /// ability, or a rename of the one that does today, costs no code change.
     /// </para>

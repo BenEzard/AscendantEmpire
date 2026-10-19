@@ -10,6 +10,8 @@ public class DTStructureStub : IStructureStub
     public RecordType RecordType { get; set; }
     public int OwnerPlayerId { get; init; }
     public int StructureId { get; set; }
+    public required string StructureCode { get; set; }
+    public string? SettlementName { get; set; }
 
     public PositionOnTile PositionOnTile { get; set; }
     public double CompletionPercent { get; set; }

@@ -237,6 +237,10 @@ internal class GetPlayerCampaignMapHandler(
                         RecordType = os.RecordType,
                         OwnerPlayerId = os.OwnerPlayerId,
                         StructureId = os.StructureId,
+                        StructureCode = os.Code,
+                        // Unmasked, unlike the Force movement values below: a settlement's name is not intelligence a Player can be denied once they can see the tile it
+                        // stands on, and a tile they cannot see reports no Structures at all.
+                        SettlementName = os.SettlementName,
                         CompletionPercent = os.CompletionPercent,
                         PositionOnTile = os.Position
                     }).ToList() ?? [],

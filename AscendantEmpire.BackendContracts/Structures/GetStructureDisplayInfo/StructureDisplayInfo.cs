@@ -6,6 +6,7 @@ namespace AscendantEmpire.BackendContracts.Structures.GetStructureDisplayInfo;
 public record StructureDisplayInfo : IStructureDisplayInfo
 {
     public int StructureId { get; init; }
+    public string Code { get; init; } = string.Empty;
     public string Name { get; init; } = string.Empty;
     public string MapImagePath { get; init; } = string.Empty;
 }

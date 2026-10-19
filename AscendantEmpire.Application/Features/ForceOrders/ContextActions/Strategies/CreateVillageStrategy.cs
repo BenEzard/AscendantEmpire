@@ -7,7 +7,7 @@ namespace AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strate
 /// </summary>
 /// <remarks>
 /// <para>
-/// Unlocked by the <c>found-settlement</c> capability, which the settler's <c>camping-materials</c> equipment component carries. A Force whose
+/// Unlocked by the <c>create-settlement</c> capability, which the settler's <c>camping-materials</c> equipment component carries. A Force whose
 /// template grants no such capability hides the action rather than offering a disabled button, because carrying camping gear is not something the
 /// player can change about a Force already in the field.
 /// </para>

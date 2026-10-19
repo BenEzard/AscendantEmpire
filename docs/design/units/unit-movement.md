@@ -459,6 +459,29 @@ The arithmetic lives in **two places on purpose**:
   shows the figure live as components are dragged in and out, before a save. `BattleMovementCalculatorTests.cs`
   and `battleMovement.test.ts` pin both to the same calibration cases; change one and you must change the other.
 
+### Power has a second consumer
+
+Battlefield movement is no longer the only thing that reads `Body.Power`. **Construction reads it too**, as how
+hard a body can work:
+
+```
+BuildPointsPerTurn = Power × HealthyCount × MIN(1, CampaignMovementRemaining / CampaignMovementPoints)
+```
+
+`ConstructionRateCalculator` owns that, and it is what decides how long a settlement takes to go up — see
+[settlements.md](../settlements.md#construction). Nothing else in the game reads Power: no cost and no combat
+calculation touches it, though it is copied onto the compiled snapshot and surfaced in read and export
+projections.
+
+**So the 7.0 anchor now serves two calibrations at once.** Retuning it moves every battlefield allowance *and*
+every build time, and the two are pinned by different fixtures — `BattleMovementCalculatorTests` /
+`battleMovement.test.ts` for the tiles, `ConstructionRateCalculatorTests` and `StructureSeedDataTests` for the
+build. Expect to re-anchor the `BuildPointsRequired` totals in `StructureSeedData` alongside any change to it.
+
+Note which movement figure each uses: the battlefield allowance is derived *from* Power and weight, while the
+construction rate reads Power and the **campaign** allowance. The two movement pools are separate (see
+[Two pools](#two-pools)), so a change to one does not move the other.
+
 `UnitComponentBody.BattlefieldMovementPoints` still exists as a column but is ignored; the Entity Setup Tool
 shows the derived value read-only. Removing the column is tracked as **UD-53**.
 

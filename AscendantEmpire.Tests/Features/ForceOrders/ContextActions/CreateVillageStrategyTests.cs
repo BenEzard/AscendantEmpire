@@ -9,7 +9,7 @@ namespace AscendantEmpire.Tests.Features.ForceOrders.ContextActions;
 /// Pure unit tests for <see cref="CreateVillageStrategy"/> — no database required, because the strategy reads only the context handed to it.
 /// </summary>
 /// <remarks>
-/// The numbers mirror the ticket: a settler carrying the <c>found-settlement</c> capability, needing 100 troops — four of its organisation's
+/// The numbers mirror the ticket: a settler carrying the <c>create-settlement</c> capability, needing 100 troops — four of its organisation's
 /// 25-strong base groups — and 1.0 campaign movement point (1,000 raw, on the Scale 1,000 fixed-point convention).
 /// </remarks>
 [TestFixture]
@@ -79,7 +79,7 @@ internal class CreateVillageStrategyTests
     [Test, Description("The two settlement actions carry separate capabilities so equipment can grant one without the other; camping gear alone must not unlock a village.")]
     public void ShouldHideTheActionWhenTheForceOnlyHasTheCampCapability()
     {
-        ForceActionAvailability? result = _strategy.Evaluate(Context(Force(capabilityTagCodes: ["found-camp"])));
+        ForceActionAvailability? result = _strategy.Evaluate(Context(Force(capabilityTagCodes: ["create-early-camp"])));
 
         Assert.That(result, Is.Null);
     }

@@ -1,10 +1,11 @@
-using AscendantEmpire.Application.Common;
+﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Structures.Services;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Structures;
 using AscendantEmpire.Domain.Enums.Structures;
+using AscendantEmpire.Domain.Enums.Maps;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -39,8 +40,11 @@ internal class StructureLifecycleWriterTests : InMemoryTestBase
     private const int _TILE_ID = 100;
     private const int _PLAYER_TURN_ID = 6;
 
-    /// <summary>How far built the seeded Structure is - partway, so it can both advance and finish.</summary>
-    private const double _SEEDED_COMPLETION_PERCENT = 40;
+    /// <summary>How much work the fixture's kind takes. 100, so build points and the percentage the history rows snapshot read as the same number.</summary>
+    private const long _STRUCTURE_BUILD_POINTS = 100;
+
+    /// <summary>What the seeded Structure starts with: part built, so a step can advance it and a backwards step can be refused against it.</summary>
+    private const long _SEEDED_BUILD_POINTS_PROGRESS = 40;
 
     /// <summary>Deliberately not 1, so a row stamped with a default would not pass by coincidence.</summary>
     private const int _TURN_SEQUENCE = 9;
@@ -49,8 +53,31 @@ internal class StructureLifecycleWriterTests : InMemoryTestBase
     private StructureLifecycleWriter _writer = null!;
 
     [SetUp]
-    public void SetUpWriter()
+    public async Task SetUpWriterAsync()
     {
+        // The catalogue row the writer reads the kind's total from. Authored data the app never creates, so the test stands one in.
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            context.Structures.Add(new Structure
+            {
+                Id = _STRUCTURE_TYPE_ID,
+                Code = "watchtower",
+                Name = "Watchtower",
+                RequiresSlotType = TileSlotType.Primary,
+                AllowedPositions = PositionOnTile.WholeTile,
+                CanBeBuiltOnCampaignMap = true,
+                CanBeBuiltOnBattleMap = false,
+                DualMapBuildTrigger = false,
+                BuildPointsRequired = _STRUCTURE_BUILD_POINTS,
+                SightRange = 2,
+                SightDirection = DetectionDirection.FullRadius,
+                MapImagePath = "watchtower.png",
+                FullImagePath = "watchtower-full.png"
+            });
+
+            await context.SaveChangesAsync();
+        }
+
         _playerTurnService = Substitute.For<IPlayerTurnService>();
 
         // The Turn is open by default and hands out one number.
@@ -68,10 +95,10 @@ internal class StructureLifecycleWriterTests : InMemoryTestBase
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
         StructureInstance structure = await LoadTrackedAsync(context);
 
-        ServiceResultBase result = await _writer.ProgressAsync(context, structure, completionPercent: 70, _PLAYER_TURN_ID);
+        ServiceResultBase result = await _writer.ProgressAsync(context, structure, buildPointsProgress: 70, _PLAYER_TURN_ID);
 
         Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
-        Assert.That((await ReloadStructureAsync()).CompletionPercent, Is.EqualTo(_SEEDED_COMPLETION_PERCENT), "Nothing is saved until the caller saves.");
+        Assert.That((await ReloadStructureAsync()).BuildPointsProgress, Is.EqualTo(_SEEDED_BUILD_POINTS_PROGRESS), "Nothing is saved until the caller saves.");
 
         await context.SaveChangesAsync();
 
@@ -80,7 +107,7 @@ internal class StructureLifecycleWriterTests : InMemoryTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(saved.CompletionPercent, Is.EqualTo(70));
+            Assert.That(saved.BuildPointsProgress, Is.EqualTo(70));
             Assert.That(saved.CompletedOnTurnId, Is.Null, "Still being built.");
             Assert.That(row.EventType, Is.EqualTo(StructureHistoryEventType.Progressed));
             Assert.That(row.CompletionPercent, Is.EqualTo(70), "The row snapshots the progress after the step.");
@@ -103,7 +130,7 @@ internal class StructureLifecycleWriterTests : InMemoryTestBase
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
         StructureInstance structure = await LoadTrackedAsync(context);
 
-        ServiceResultBase result = await _writer.ProgressAsync(context, structure, completionPercent: 150, _PLAYER_TURN_ID);
+        ServiceResultBase result = await _writer.ProgressAsync(context, structure, buildPointsProgress: 150, _PLAYER_TURN_ID);
 
         await context.SaveChangesAsync();
 
@@ -113,24 +140,23 @@ internal class StructureLifecycleWriterTests : InMemoryTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
-            Assert.That(saved.CompletionPercent, Is.EqualTo(100));
+            Assert.That(saved.BuildPointsProgress, Is.EqualTo(_STRUCTURE_BUILD_POINTS), "A step past the total is clamped to it.");
             Assert.That(saved.CompletedOnTurnId, Is.EqualTo(_PLAYER_TURN_ID));
             Assert.That(row.EventType, Is.EqualTo(StructureHistoryEventType.Completed));
             Assert.That(row.CompletionPercent, Is.EqualTo(100));
         }
     }
 
-    [TestCase(_SEEDED_COMPLETION_PERCENT, Description = "Progress that stands still is refused, because a row for it would tell watchers construction moved when it did not.")]
-    [TestCase(10d, Description = "Progress that goes backwards is refused, because construction is only ever undone by damage, which is not a construction step.")]
-    [TestCase(double.NaN, Description = "A progress that is not a number is refused rather than written into a column every later comparison would fail against.")]
-    public async Task ShouldRefuseProgressThatDoesNotAdvanceAsync(double completionPercent)
+    [TestCase(_SEEDED_BUILD_POINTS_PROGRESS, Description = "Progress that stands still is refused, because a row for it would tell watchers construction moved when it did not.")]
+    [TestCase(10L, Description = "Progress that goes backwards is refused, because construction is only ever undone by damage, which is not a construction step.")]
+    public async Task ShouldRefuseProgressThatDoesNotAdvanceAsync(long buildPointsProgress)
     {
         await SeedStructureAsync();
 
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
         StructureInstance structure = await LoadTrackedAsync(context);
 
-        ServiceResultBase result = await _writer.ProgressAsync(context, structure, completionPercent, _PLAYER_TURN_ID);
+        ServiceResultBase result = await _writer.ProgressAsync(context, structure, buildPointsProgress, _PLAYER_TURN_ID);
 
         using (Assert.EnterMultipleScope())
         {
@@ -143,12 +169,12 @@ internal class StructureLifecycleWriterTests : InMemoryTestBase
     [Test, Description("A Structure that is already finished cannot be built further, so its one Completed row is never followed by another.")]
     public async Task ShouldRefuseProgressOnAStructureThatIsAlreadyCompleteAsync()
     {
-        await SeedStructureAsync(completionPercent: 100);
+        await SeedStructureAsync(buildPointsProgress: _STRUCTURE_BUILD_POINTS);
 
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
         StructureInstance structure = await LoadTrackedAsync(context);
 
-        ServiceResultBase result = await _writer.ProgressAsync(context, structure, completionPercent: 100, _PLAYER_TURN_ID);
+        ServiceResultBase result = await _writer.ProgressAsync(context, structure, buildPointsProgress: 100, _PLAYER_TURN_ID);
 
         Assert.That(result.HasSucceeded, Is.False);
     }
@@ -174,7 +200,7 @@ internal class StructureLifecycleWriterTests : InMemoryTestBase
             Assert.That(row.EventType, Is.EqualTo(StructureHistoryEventType.Captured));
             Assert.That(row.PlayerId, Is.EqualTo(_CAPTOR_PLAYER_ID));
             Assert.That(row.PreviousOwnerPlayerId, Is.EqualTo(_OWNER_PLAYER_ID));
-            Assert.That(row.CompletionPercent, Is.EqualTo(_SEEDED_COMPLETION_PERCENT), "A capture does not change how far built it is.");
+            Assert.That(row.CompletionPercent, Is.EqualTo(_SEEDED_BUILD_POINTS_PROGRESS), "A capture does not change how far built it is.");
         }
     }
 
@@ -228,7 +254,7 @@ internal class StructureLifecycleWriterTests : InMemoryTestBase
 
         ServiceResultBase razeResult = await _writer.RazeAsync(context, structure, _PLAYER_TURN_ID);
         ServiceResultBase captureResult = await _writer.CaptureAsync(context, structure, _CAPTOR_PLAYER_ID, _PLAYER_TURN_ID);
-        ServiceResultBase progressResult = await _writer.ProgressAsync(context, structure, completionPercent: 90, _PLAYER_TURN_ID);
+        ServiceResultBase progressResult = await _writer.ProgressAsync(context, structure, buildPointsProgress: 90, _PLAYER_TURN_ID);
 
         using (Assert.EnterMultipleScope())
         {
@@ -291,13 +317,13 @@ internal class StructureLifecycleWriterTests : InMemoryTestBase
         Assert.That(result.HasSucceeded, Is.False);
     }
 
-    [TestCase(30d, null, Description = "A Structure placed outside any Turn is saved with no rows and the no-Turn stamp, since nobody could have watched it appear.")]
-    [TestCase(100d, 0, Description = "One placed outside any Turn already finished is stamped complete with the same no-Turn sentinel it was created with.")]
-    public async Task ShouldFoundWithoutRowsWhenThereIsNoTurnAsync(double completionPercent, int? expectedCompletedOnTurnId)
+    [TestCase(30L, null, Description = "A Structure placed outside any Turn is saved with no rows and the no-Turn stamp, since nobody could have watched it appear.")]
+    [TestCase(_STRUCTURE_BUILD_POINTS, 0, Description = "One placed outside any Turn already finished is stamped complete with the same no-Turn sentinel it was created with.")]
+    public async Task ShouldFoundWithoutRowsWhenThereIsNoTurnAsync(long buildPointsProgress, int? expectedCompletedOnTurnId)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        StructureInstance structure = NewStructure(completionPercent);
+        StructureInstance structure = NewStructure(buildPointsProgress);
 
         ServiceResultBase result = await _writer.FoundAsync(context, structure, playerTurnId: null);
 
@@ -319,7 +345,7 @@ internal class StructureLifecycleWriterTests : InMemoryTestBase
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        StructureInstance existing = NewStructure(completionPercent: 30);
+        StructureInstance existing = NewStructure(buildPointsProgress: 30);
         existing.Id = _STRUCTURE_INSTANCE_ID;
 
         ServiceResultBase result = await _writer.FoundAsync(context, existing, playerTurnId: null);
@@ -331,14 +357,13 @@ internal class StructureLifecycleWriterTests : InMemoryTestBase
         }
     }
 
-    [TestCase(-1d, Description = "A Structure cannot be founded with negative progress, which no amount of building could have produced.")]
-    [TestCase(101d, Description = "A Structure cannot be founded more than finished, which would make every later comparison against 100% lie.")]
-    [TestCase(double.NaN, Description = "A progress that is not a number is refused before it reaches a column.")]
-    public async Task ShouldRefuseToFoundWithCompletionOutsideTheRangeAsync(double completionPercent)
+    [TestCase(-1L, Description = "A Structure cannot be founded with negative progress, which no amount of building could have produced.")]
+    [TestCase(_STRUCTURE_BUILD_POINTS + 1, Description = "A Structure cannot be founded with more work done than its kind takes, which would make every later comparison against the total lie.")]
+    public async Task ShouldRefuseToFoundWithProgressOutsideTheRangeAsync(long buildPointsProgress)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        ServiceResultBase result = await _writer.FoundAsync(context, NewStructure(completionPercent), _PLAYER_TURN_ID);
+        ServiceResultBase result = await _writer.FoundAsync(context, NewStructure(buildPointsProgress), _PLAYER_TURN_ID);
 
         using (Assert.EnterMultipleScope())
         {
@@ -354,7 +379,7 @@ internal class StructureLifecycleWriterTests : InMemoryTestBase
 
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        ServiceResultBase result = await _writer.FoundAsync(context, NewStructure(completionPercent: 30), _PLAYER_TURN_ID);
+        ServiceResultBase result = await _writer.FoundAsync(context, NewStructure(buildPointsProgress: 30), _PLAYER_TURN_ID);
 
         await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
 
@@ -376,7 +401,7 @@ internal class StructureLifecycleWriterTests : InMemoryTestBase
     }
 
     /// <summary>A new, unsaved campaign map Structure belonging to the owner.</summary>
-    private static StructureInstance NewStructure(double completionPercent, int? removedOnTurnId = null, int? battleMapTileId = null)
+    private static StructureInstance NewStructure(long buildPointsProgress, int? removedOnTurnId = null, int? battleMapTileId = null)
     {
         return new StructureInstance
         {
@@ -388,17 +413,17 @@ internal class StructureLifecycleWriterTests : InMemoryTestBase
             Position = PositionOnTile.WholeTile,
             OwnedByPlayerId = _OWNER_PLAYER_ID,
             CreatedOnTurnId = 1,
-            CompletionPercent = completionPercent,
+            BuildPointsProgress = buildPointsProgress,
             RemovedOnTurnId = removedOnTurnId
         };
     }
 
     /// <summary>Saves the test Structure, as an existing row for the change tests to load.</summary>
-    private async Task SeedStructureAsync(double completionPercent = _SEEDED_COMPLETION_PERCENT, int? removedOnTurnId = null, int? battleMapTileId = null)
+    private async Task SeedStructureAsync(long buildPointsProgress = _SEEDED_BUILD_POINTS_PROGRESS, int? removedOnTurnId = null, int? battleMapTileId = null)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        StructureInstance structure = NewStructure(completionPercent, removedOnTurnId, battleMapTileId);
+        StructureInstance structure = NewStructure(buildPointsProgress, removedOnTurnId, battleMapTileId);
         structure.Id = _STRUCTURE_INSTANCE_ID;
 
         context.StructureInstances.Add(structure);

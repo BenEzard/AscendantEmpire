@@ -75,6 +75,7 @@ internal sealed class GameDeleteExecutor(
         "[game].[PlayerReport]",
         "[game].[PlayerKnownForce]",
         "[game].[PlayerKnownStructure]",
+        "[settlement].[Settlements]",
         "[game].[StructureInstances]",
         "[turns].[PlayerTurn]",
         "[turns].[TurnQueueParticipant]",
@@ -251,6 +252,20 @@ internal sealed class GameDeleteExecutor(
 
             ("commands", () => purge.Commands
                 .Where(c => c.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            // The one cycle in the whole purge, and the only step here that updates rather than deletes.
+            //
+            // A tile owned through a Settlement names it; a Settlement names its Structure; a Structure names its tile. Three real foreign keys in a ring, so no deletion
+            // order can satisfy all of them. Releasing the tile's reference is the cheapest cut: the column is nullable by design, nothing else in the ring is, and the tiles
+            // are deleted later anyway.
+            ("tile settlement ownership", () => purge.CampaignMaps
+                .Where(t => t.GameId == gameId && t.OwnedBySettlementId != null)
+                .ExecuteUpdateAsync(t => t.SetProperty(x => x.OwnedBySettlementId, (int?)null), cancellationToken)),
+
+            // Settlements name their Structure, so they go before it - and after the tile ownership above has let go of them.
+            ("settlements", () => purge.Settlements
+                .Where(s => s.GameId == gameId)
                 .ExecuteDeleteAsync(cancellationToken)),
 
             // What players have seen of a structure goes before the structure itself. So do the structure reports above, whose subject is a real foreign key to it.

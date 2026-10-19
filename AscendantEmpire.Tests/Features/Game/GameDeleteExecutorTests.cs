@@ -1,4 +1,4 @@
-﻿using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.Application.Features.Game.Executors;
 using AscendantEmpire.Application.Features.Game.Handlers;
@@ -658,6 +658,7 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             CanBeBuiltOnCampaignMap = true,
             CanBeBuiltOnBattleMap = false,
             DualMapBuildTrigger = false,
+            BuildPointsRequired = 0,
             SightRange = 2,
             SightDirection = DetectionDirection.FullRadius,
             MapImagePath = "watchtower.png",
@@ -676,8 +677,7 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             SlotType = Domain.Enums.Structures.TileSlotType.Primary,
             Position = Domain.Enums.Structures.PositionOnTile.WholeTile,
             OwnedByPlayerId = captorId,
-            CreatedOnTurnId = turn.Id,
-            CompletionPercent = 100
+            CreatedOnTurnId = turn.Id
         };
 
         context.StructureInstances.Add(structure);

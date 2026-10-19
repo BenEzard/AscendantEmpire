@@ -10,6 +10,8 @@ const GROUP_LABELS: Record<SeedTargetGroup, string> = {
   Map: "Map",
   UnitDesign: "Unit Design",
   Assets: "Resources",
+  Technology: "Technology",
+  Structures: "Structures",
 };
 
 export interface SeedSelectionDialogProps {

@@ -169,6 +169,7 @@ public sealed class EndpointAuthorizationTests
 
         "POST /force-orders/move",
         "POST /force-orders/step",
+        "POST /force-orders/settle",
         "GET /force-orders/actions",
 
         "GET /turn/campaign",

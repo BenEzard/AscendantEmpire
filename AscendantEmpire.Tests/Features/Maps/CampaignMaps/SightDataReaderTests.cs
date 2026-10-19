@@ -466,6 +466,7 @@ internal class SightDataReaderTests : InMemoryTestBase
             CanBeBuiltOnCampaignMap = true,
             CanBeBuiltOnBattleMap = false,
             DualMapBuildTrigger = false,
+            BuildPointsRequired = 0,
             SightRange = sightRange,
             SightDirection = DetectionDirection.FullRadius,
             MapImagePath = $"{code}.png",
@@ -486,7 +487,6 @@ internal class SightDataReaderTests : InMemoryTestBase
             Position = PositionOnTile.WholeTile,
             OwnedByPlayerId = ownerPlayerId,
             CreatedOnTurnId = 1,
-            CompletionPercent = 100,
             RemovedOnTurnId = removedOnTurnId
         };
     }
@@ -510,7 +510,6 @@ internal class SightDataReaderTests : InMemoryTestBase
             PlayerId = playerId,
             PreviousOwnerPlayerId = previousOwnerPlayerId,
             EventType = eventType,
-            CompletionPercent = 100,
             CampaignMapTileId = TileId(x, y),
             PlayerTurnId = playerTurnId,
             TurnSequence = turnSequence

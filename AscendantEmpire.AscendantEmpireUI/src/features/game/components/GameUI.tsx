@@ -14,6 +14,8 @@ import UnitDesigner from "@/features/unitdesign/UnitDesigner";
 import MilitaryAdvisorDialog from "@/features/game/advisors/military/MilitaryAdvisorDialog";
 import ScienceAdvisorDialog from "@/features/game/advisors/science/ScienceAdvisorDialog";
 import BattleDialog from "./BattleDialog";
+import CreateSettlementDialog from "./CreateSettlementDialog";
+import { describeFounding } from "@/features/game/hooks/useSettleForce";
 import OpenGameDialog from "./OpenGameDialog";
 import VisionSettingsOffcanvas from "./VisionSettingsOffcanvas";
 import { enterGame } from "@/features/auth/api/authApi";
@@ -122,6 +124,8 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     onForceMoved,
     battleDialogForceId,
     closeBattleDialog,
+    settlementDialogTier,
+    closeSettlementDialog,
   } = useForceSelection({ gameId, playerId, openToast });
 
   // --- Movement (numpad, and hold-to-move on the map) ---
@@ -247,6 +251,9 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const { data: gamePlayers } = useGamePlayersQuery(gameId, tilesEnabled);
   const { data: structureDisplayLookup } = useStructureDisplayInfoQuery(tilesEnabled);
   const structureNameByStructureId = structureDisplayLookup?.nameByStructureId;
+  // The map's structure artwork is keyed on the catalogue code. A live structure carries its own, so this is only for the
+  // last-known-structure markers, which carry an id alone.
+  const structureCodeByStructureId = structureDisplayLookup?.codeByStructureId;
 
   // Reports carry ids, not names. The lookups are resolved here, at read time, so a renamed faction reads correctly in reports raised before the rename.
   const factionNameByPlayerId = useMemo(() => new Map((gamePlayers ?? []).map((player) => [player.playerId, player.factionName])), [gamePlayers]);
@@ -656,6 +663,19 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
         {/* Opened from a force's Battle button on the context action toolbar. */}
         <BattleDialog show={battleDialogForceId != null} forceId={battleDialogForceId} onClose={closeBattleDialog} />
 
+        {/* Opened from the Create Village button, and from any other tier the player names. Only ever offered for a
+            single-force selection, so the settler is selectedForces[0] — a settlement takes one name, and a second force has
+            nowhere to go. An unnamed tier never reaches here: useForceSelection founds a camp straight from its button. */}
+        <CreateSettlementDialog
+          show={settlementDialogTier != null}
+          gameId={gameId ?? undefined}
+          playerId={playerId ?? undefined}
+          tier={settlementDialogTier}
+          unitInstanceId={selectedForces[0]?.id ?? null}
+          onClose={closeSettlementDialog}
+          onFounded={(result) => openToast(describeFounding(result), "success")}
+        />
+
         {/* The bars stack in one fixed column, so the bottom row sits under the action toolbar without either needing
             to know the other's height. The bottom row puts the tile bar to the left of the selection bar, centred as a
             pair.
@@ -725,6 +745,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
                       getKnownForces={getKnownForces}
                       getKnownStructures={getKnownStructures}
                       currentRoundNumber={currentRoundNumber}
+                      structureCodeByStructureId={structureCodeByStructureId}
                       onTileClick={onTileClick}
                       onTileHold={onTileHold}
                       onTileHover={onTileHover}

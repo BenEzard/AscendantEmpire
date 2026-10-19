@@ -7,6 +7,13 @@ export interface KnownStructureMarkerProps {
   knownStructures: readonly KnownStructure[];
   /** The round being played now, which the marker fades against. Null draws it fresh. */
   currentRoundNumber: number | null;
+  /**
+   * The catalogue code of each kind of structure, from /structures/display.
+   *
+   * A remembered sighting carries only a structure id, and the artwork is keyed on the code, so the marker needs this to draw
+   * the right sprite. Undefined while the catalogue is still loading, which falls back to the generic building glyph.
+   */
+  structureCodeByStructureId?: ReadonlyMap<number, string>;
 }
 
 /**
@@ -15,7 +22,7 @@ export interface KnownStructureMarkerProps {
  * Drawn only on ground nothing of the player's is watching — the tile decides that — so it never competes with the live structure. It shows no more than the
  * sighting earned: a structure whose kind was not made out is a question mark, and its progress is only drawn when that was made out too.
  */
-export default function KnownStructureMarker({ knownStructures, currentRoundNumber }: KnownStructureMarkerProps) {
+export default function KnownStructureMarker({ knownStructures, currentRoundNumber, structureCodeByStructureId }: KnownStructureMarkerProps) {
   const freshest = knownStructures[0];
 
   if (!freshest) {
@@ -23,7 +30,10 @@ export default function KnownStructureMarker({ knownStructures, currentRoundNumb
   }
 
   const isKindKnown = freshest.structureId != null;
-  const imageSrc = structureImageSrc(freshest.structureId);
+  // Two steps, because a sighting carries an id and the art is keyed on a code. A kind that was never made out has no id to
+  // look up, and one the catalogue hasn't loaded yet resolves to nothing — both fall through to a glyph below.
+  const structureCode = freshest.structureId == null ? undefined : structureCodeByStructureId?.get(freshest.structureId);
+  const imageSrc = structureImageSrc(structureCode);
   const isRazed = freshest.status === "Razed";
   // Both kinds of memory fade on the same curve, so a structure and a force seen in the same round look equally old.
   const opacity = knownForceOpacity(freshest.lastSeenRoundNumber, currentRoundNumber);

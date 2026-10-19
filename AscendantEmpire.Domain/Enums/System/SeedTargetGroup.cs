@@ -27,5 +27,10 @@ public enum SeedTargetGroup
     /// <summary>
     /// The technology tree — the experience types, and the technologies that consume them.
     /// </summary>
-    Technology = 4
+    Technology = 4,
+
+    /// <summary>
+    /// The Structure catalogue — the kinds of Structure a tile can hold.
+    /// </summary>
+    Structures = 5
 }

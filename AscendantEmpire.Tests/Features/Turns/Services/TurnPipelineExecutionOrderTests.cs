@@ -1,6 +1,7 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Intelligence.Services;
 using AscendantEmpire.Application.Features.Maps.Biomes.Services;
+using AscendantEmpire.Application.Features.Structures.Services;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions.Checks;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline;
@@ -48,7 +49,10 @@ public class TurnPipelineExecutionOrderTests
             Substitute.For<IPlayerSustenanceValueReader>(),
             Substitute.For<IUnderfedForceResolver>(),
             NullLogger<Gathering>.Instance),
-        new BuildingStructure(),
+        new BuildingStructure(
+            Substitute.For<IDbContextFactory<AscendantEmpireContext>>(),
+            Substitute.For<IStructureLifecycleWriter>(),
+            NullLogger<BuildingStructure>.Instance),
         new Fortifying(),
         new EvaluateForceOnHostileTerrain(),
         new RaiseSightingReports(

@@ -34,14 +34,14 @@ internal class GetStructureDisplayInfoHandler(
     {
         await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-        // The context exposes no DbSet for the catalogue, so it is reached through Set<Structure>().
-        List<StructureDisplayInfo> structureDisplayInfo = await context.Set<Structure>()
+        List<StructureDisplayInfo> structureDisplayInfo = await context.Structures
             .AsNoTracking()
             .Where(structure => structure.CanBeBuiltOnCampaignMap)
             .OrderBy(structure => structure.Id)
             .Select(structure => new StructureDisplayInfo
             {
                 StructureId = structure.Id,
+                Code = structure.Code,
                 Name = structure.Name,
                 MapImagePath = structure.MapImagePath
             })

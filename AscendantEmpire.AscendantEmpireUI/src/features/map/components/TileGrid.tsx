@@ -4,6 +4,7 @@ import type { TileCell } from "./TileTypes";
 import Tile from "./Tile";
 import RiverOverlay from "./RiverOverlay";
 import OwnershipOverlay from "./OwnershipOverlay";
+import SettlementLabelOverlay from "./SettlementLabelOverlay";
 import type { KnownForce, KnownStructure } from "@/features/intelligence/api/intelligenceApi";
 import type { CampaignMapGeographyType } from "@/types/map/Geography";
 
@@ -44,6 +45,13 @@ export interface TileGridProps {
   getKnownStructures?: (tile: TileCell) => readonly KnownStructure[] | undefined;
   /** The round being played now, which markers fade against. */
   currentRoundNumber?: number | null;
+  /**
+   * The catalogue code of each kind of structure, from /structures/display. Passed straight to each tile.
+   *
+   * Only the known-structure marker needs it: a live structure arrives with its own code, but a remembered one carries an id
+   * alone and the artwork is keyed on the code.
+   */
+  structureCodeByStructureId?: ReadonlyMap<number, string>;
   /** Called with the clicked tile. Its identity may change freely: the grid hands every tile one stable handler that forwards to the latest one. */
   onTileClick?: (tile: TileCell) => void;
   /** Called when a tile is held. The same stability guarantee as `onTileClick` applies. */
@@ -88,6 +96,7 @@ const TileGrid = React.memo(function TileGrid({
   getKnownForces,
   getKnownStructures,
   currentRoundNumber,
+  structureCodeByStructureId,
   onTileClick,
   onTileHold,
   onTileHover,
@@ -180,6 +189,7 @@ const TileGrid = React.memo(function TileGrid({
                 knownForces={getKnownForces?.(t)}
                 knownStructures={getKnownStructures?.(t)}
                 currentRoundNumber={currentRoundNumber}
+                structureCodeByStructureId={structureCodeByStructureId}
                 onClick={tileClickHandler}
                 onHold={tileHoldHandler}
                 onHover={tileHoverHandler}
@@ -207,6 +217,9 @@ const TileGrid = React.memo(function TileGrid({
             isTileObserved={isTileObservedOrAll}
           />
         )}
+        {/* Last of the map's own layers, so a settlement's name is never hidden behind a border, a river or a unit. Still under
+            `children`, which is a caller's to place as it likes. */}
+        <SettlementLabelOverlay tiles2d={tiles2d} width={width} height={height} tileSizePx={TILE_SIZE_PX} />
         {children}
       </div>
     </div>

@@ -38,6 +38,7 @@ Each part is a `SeedTarget` (`AscendantEmpire.Domain/Enums/System/SeedTarget.cs`
 | `ExperienceTypes` | Technology | — | `technology.ExperienceType` |
 | `Technologies` | Technology | `ExperienceTypes` | `technology.Technology` and its graph |
 | `MapResourceTypes` | Map | `MapResourceCategories`, `Biomes`, `Assets` | `map.MapResourceType` and its habitats, scenarios and yields |
+| `Structures` | Structures | — | `structure.Structures` — the kinds of Structure a tile can hold |
 
 ### Why those edges exist
 
@@ -55,6 +56,14 @@ They are real constraints, not conventions:
 
 - **`Technologies` → `ExperienceTypes`.** A technology maps the experience kinds it draws on by code,
   and the upsert resolves those against rows already committed.
+- **`Structures` has no edges.** A Structure references nothing else the seed writes, and nothing the
+  seed writes references one. What needs it is the settle order and the construction step, neither of
+  which the seed runs — so an unseeded catalogue means a founding is refused with a message naming this
+  target, rather than anything in the seed failing.
+
+  Its `BuildPointsRequired` values are a **calibration**, not arbitrary data: they are anchored against the human
+  body's Power, so retuning that means retuning these. See
+  [design/settlements.md](design/settlements.md#the-calibration).
 - **`MapResourceTypes` → `MapResourceCategories`, `Biomes`, `Assets`.** A type is listed under a
   category it names by code; a habitat and a Distribution scenario weight each point at a
   `map.CampaignBiome` row (`FK_MapResourceHabitat_CampaignBiome_BiomeTypeId` and

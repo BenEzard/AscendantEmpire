@@ -6,6 +6,7 @@ using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Maps.MapResources;
 using AscendantEmpire.Domain.Entities.Military;
 using AscendantEmpire.Domain.Entities.Assets;
+using AscendantEmpire.Domain.Entities.Settlements;
 using AscendantEmpire.Domain.Entities.Structures;
 using AscendantEmpire.Domain.Entities.Technologies;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
@@ -211,6 +212,16 @@ public class AscendantEmpireContext : DbContext
     public DbSet<PlayerKnownStructure> PlayerKnownStructures { get; set; }
 
     public DbSet<StructureInstance> StructureInstances { get; set; }
+
+    /// <summary>
+    /// The global catalogue of kinds of Structure — what each one requires, sees and looks like. No <c>GameId</c>: one catalogue serves every Game.
+    /// </summary>
+    public DbSet<Structure> Structures { get; set; }
+
+    /// <summary>
+    /// The Settlements of every Game, each sitting on the <see cref="StructureInstance"/> that stands on its tile.
+    /// </summary>
+    public DbSet<Settlement> Settlements { get; set; }
 
     /// <summary>
     /// The raw structure feed: one append-only row per Structure founded, built, captured or razed during a Turn. Lives in the <c>structure</c> schema; written only through
@@ -501,6 +512,8 @@ public class AscendantEmpireContext : DbContext
         ConfigureMapSchema(modelBuilder);
 
         ConfigureMapGallerySchema(modelBuilder);
+
+        ConfigureSettlementSchema(modelBuilder);
 
         ConfigureStructureSchema(modelBuilder);
 
@@ -926,7 +939,7 @@ public class AscendantEmpireContext : DbContext
                 .OnDelete(DeleteBehavior.NoAction);
 
             // The ownership layers. Each is a nullable Player reference rather than a state enum, and the navigation-less ones are configured here because nothing reads them
-            // through an entity graph - see the entity's remarks. OwnedBySettlementId gets no relationship at all until Settlements are modelled.
+            // through an entity graph - see the entity's remarks.
             entity.HasOne(x => x.OwnedBy)
                 .WithMany()
                 .HasForeignKey(x => x.OwnedByPlayerId)
@@ -943,6 +956,14 @@ public class AscendantEmpireContext : DbContext
                 .HasForeignKey(x => x.LastOwnedByPlayerId)
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_CampaignMap_Player_LastOwnedByPlayerId");
+
+            // The Settlement a tile is owned through, which gained a real foreign key once Settlements were modelled in CD-1. Navigation-less for the same reason as the two
+            // above: the per-round pass reads these columns in bulk, never as an entity graph.
+            entity.HasOne<Settlement>()
+                .WithMany()
+                .HasForeignKey(x => x.OwnedBySettlementId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_CampaignMap_Settlements_OwnedBySettlementId");
 
             // The renamed ownership index. The occupier, last owner and claim lookups get no composite index of their own yet: each FK brings a conventional single-column
             // index with it, and nothing reads any of those columns until the per-round pass exists to do it.
@@ -2341,6 +2362,63 @@ public class AscendantEmpireContext : DbContext
             entity.HasIndex(x => new { x.CampaignMapGalleryId, x.MapResourceTypeId })
                 .IsUnique()
                 .HasDatabaseName("UX_CampaignMapGalleryResource_Tile_Type");
+        });
+    }
+
+    private static void ConfigureSettlementSchema(ModelBuilder modelBuilder)
+    {
+        const string schema = "settlement";
+
+        // --- Settlement ----------------------------------------------------------------
+        modelBuilder.Entity<Settlement>(entity =>
+        {
+            entity.ToTable("Settlements", schema);
+
+            entity.HasKey(e => e.Id);
+
+            // Optional, because a camp carries no name - see Settlement.Name.
+            entity.Property(e => e.Name)
+                .HasMaxLength(Settlement.NAME_MAX_LENGTH);
+
+            entity.Property(e => e.Tier)
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.HasOne(e => e.Game)
+                .WithMany()
+                .HasForeignKey(e => e.GameId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_Settlements_GameIndex_GameId");
+
+            entity.HasOne(e => e.StructureInstance)
+                .WithMany()
+                .HasForeignKey(e => e.StructureInstanceId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_Settlements_StructureInstances_StructureInstanceId");
+
+            entity.HasOne(e => e.FoundedBy)
+                .WithMany()
+                .HasForeignKey(e => e.FoundingPlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_Settlements_Player_FoundingPlayerId");
+
+            // The name is unique within a Game, which is what "unique in the world" means: two Games may each hold a Riverhold, one Game may not.
+            //
+            // Case-insensitivity comes from the database's default collation rather than from an explicit one here. Every other string column in this model relies on the
+            // same default, and pinning a collation on this column alone would make it the one place where "same name" means something different.
+            //
+            // Filtered to the rows that have one, so the unnamed tiers do not collide with each other: SQL Server treats NULLs as equal in a unique index, which would
+            // otherwise let a Game hold exactly one camp.
+            entity.HasIndex(e => new { e.GameId, e.Name })
+                .IsUnique()
+                .HasFilter("[Name] IS NOT NULL")
+                .HasDatabaseName("UX_Settlement_Game_Name");
+
+            // One Settlement per Structure, and one Structure per Settlement. Unique rather than a plain index: the Structure is what stands on the tile, so two Settlements
+            // sharing one would be two Settlements on one tile with no way to tell which the map was drawing.
+            entity.HasIndex(e => e.StructureInstanceId)
+                .IsUnique()
+                .HasDatabaseName("UX_Settlement_StructureInstance");
         });
     }
 

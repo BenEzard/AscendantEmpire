@@ -499,7 +499,7 @@ that a `DropTable` was the wrong call. Every live-Force query filters on the ind
 | Route | Purpose |
 |---|---|
 | `POST /units/{unitInstanceId}/disband` | Return the soldiers, or lose them, per the ruling below. |
-| `POST /force-orders/settle` | The settler payoff: consume an unled Force carrying the settler capability and found a settlement sized by its strength. The single most-requested thing the current build cannot do. **Its toolbar affordance already exists** — UD-56 landed Create Village and Establish Camp as context actions with their full rule sets, gated on the `found-settlement` and `found-camp` capability tags; both currently raise a "not built yet" toast because there is nothing for them to create. This endpoint (or two of them, one per tier) is what they are waiting for. |
+| ~~`POST /force-orders/settle`~~ | **Landed in CD-1.** Consumes a settler and founds a settlement sized by its strength, which then goes up over the following Turns through the `BuildingStructure` end-of-Turn process, at a rate set by the settler's power, healthy strength and remaining movement. One endpoint for both tiers, taking the tier in the body; the toolbar's two buttons open one dialog, which supplies the name. See [settlements.md](../design/settlements.md#founding-one). |
 | `GET /military/events` | The between-turns feed, filterable by turn and by Force. |
 
 ### Rulings needed

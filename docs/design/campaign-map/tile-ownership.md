@@ -292,9 +292,9 @@ deltas written back, the way `FieldOfView` is shared between the map read and th
 
 ## Not yet implemented
 
-**The schema is built and the states are read; what no code does yet is *write* any of them.**
-`CampaignMap` carries every column in [How it is stored](#how-it-is-stored) and
-`game.CampaignMapClaim` exists, so nothing below is blocked on a migration.
+**The schema is built, the states are read, and one of them is written.** `CampaignMap` carries every
+column in [How it is stored](#how-it-is-stored) and `game.CampaignMapClaim` exists, so nothing below is
+blocked on a migration.
 
 The read side is in place. The map read resolves every state for the tiles in an Observer's sight and
 the campaign map draws ownership and claim borders from it, and `BattleEngagementService` records
@@ -304,19 +304,32 @@ effective holder read
 question is being asked of the database, rather than spelling out `OccupiedByPlayerId ??
 OwnedByPlayerId` at each site.
 
-Because nothing writes the columns, every state but Owned and Unclaimed is unreachable in play today:
-the resolution handles Claimed, Occupied, Abandoned and Rebelling, and will start answering with them
-the moment the per-round pass writes them.
+**Owned is written, by one caller and on one tile.** The `BuildingStructure` end-of-turn process stamps
+`OwnedByPlayerId` on a structure's own tile when its construction finishes, and `OwnedBySettlementId`
+alongside it where that structure is a Settlement's - the design's rule that finishing a structure
+asserts ownership, in its narrowest form. A structure that is nobody's Settlement owns its tile and
+carries no Settlement onto it, so no Settlement-scoped modifier applies to that ground.
 
-`OwnedBySettlementId` is the one column with no foreign key, because Settlements are not modelled.
-`OccupiedSinceTurnId` and `AbandonedOnTurnId` have none either, matching the Turn stamps already on
-the tile: the game purge removes `turns.PlayerTurn` before the tiles.
+Nothing yet does the rest of what ownership is supposed to bring with it: **the claim extinction** a tile
+becoming owned should perform, and the **radius** a Settlement should own beyond its own tile, both wait
+on the per-round pass. So every state but Owned and Unclaimed is still unreachable in play: the
+resolution handles Claimed, Occupied, Abandoned and Rebelling, and will start answering with them the
+moment that pass writes them.
+
+`OwnedBySettlementId` gained a real foreign key in CD-1, now that there is a `settlement.Settlements`
+table for it to point at. `OccupiedSinceTurnId` and `AbandonedOnTurnId` still have none, matching the
+Turn stamps already on the tile: the game purge removes `turns.PlayerTurn` before the tiles.
+
+A tile owned through a Settlement is the one **cycle** in the game purge - the tile names the Settlement,
+the Settlement names its Structure, and the Structure names the tile - so the purge releases the tile's
+reference before deleting any of the three.
 
 Beyond that, every part of this waits on something:
 
-- **Settlement territory** waits on Settlements being modelled at all
-  ([settlements.md](../settlements.md)).
-- **Structure assertion** needs the `Structure` catalogue to carry what a structure asserts.
+- **Settlement territory** - the radius beyond a Settlement's own tile - needs the per-round pass above.
+  Founding one writes a single tile; see [settlements.md](../settlements.md#territory).
+- **Structure assertion** beyond "a finished structure owns its own tile" needs the `Structure` catalogue
+  to carry what a structure asserts.
 - **Claims**, the supply range, enclosure and the attrition timers all need the per-round pass above.
 - **Organised agreements** not counting as occupation waits on the diplomatic arrangements in
   [foreign-relations.md](../foreign-relations.md), which also need Settlement scoping.

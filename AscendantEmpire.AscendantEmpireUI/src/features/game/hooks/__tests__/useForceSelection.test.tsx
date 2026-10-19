@@ -12,6 +12,15 @@ vi.mock("../../api/forceContextActionsApi", () => ({
   getForceContextActions: vi.fn(async () => []),
 }));
 
+// An unnamed tier founds without a dialog, so the hook itself posts the order. isNamedTier is kept real: which tiers carry a
+// name is the rule under test here, not something the test should get to decide.
+const settleForce = vi.hoisted(() => vi.fn());
+
+vi.mock("../../api/settleForceApi", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../api/settleForceApi")>()),
+  settleForce,
+}));
+
 const THIS_PLAYER_ID = 1;
 const OTHER_PLAYER_ID = 2;
 
@@ -92,8 +101,8 @@ function stepResult({
   };
 }
 
-function renderForceSelection() {
-  return renderHook(() => useForceSelection({ gameId: 1, playerId: THIS_PLAYER_ID, openToast: vi.fn() }), { wrapper });
+function renderForceSelection(openToast: (message: string, variant?: never) => void = vi.fn()) {
+  return renderHook(() => useForceSelection({ gameId: 1, playerId: THIS_PLAYER_ID, openToast }), { wrapper });
 }
 
 /** The selection as ids, in selection order — what nearly every assertion below is about. */
@@ -569,6 +578,118 @@ describe("useForceSelection", () => {
       act(() => result.current.closeBattleDialog());
 
       expect(result.current.battleDialogForceId).toBeNull();
+    });
+  });
+
+  /**
+   * The two settlement actions part company over whether the player names what they are founding. A village is named, so its
+   * button can only open a dialog and ask; a camp is not, so its button has nothing to ask for and founds outright.
+   */
+  describe("the settlement actions", () => {
+    beforeEach(() => {
+      settleForce.mockReset();
+    });
+
+    /** Selects one force whose only available action is the one given, and returns the hook. */
+    async function withSettlementAction(actionType: "CreateVillage" | "EstablishCamp", label: string, openToast = vi.fn()) {
+      vi.mocked(getForceContextActions).mockResolvedValueOnce([
+        { actionType, label, displayOrder: 1100, isEnabled: true, disabledReasons: [] },
+      ]);
+
+      const { result } = renderForceSelection(openToast);
+
+      act(() => {
+        result.current.selectForceFromTile(tile([force({ id: 7 })]));
+      });
+
+      await waitFor(() =>
+        expect(result.current.contextActionToolbarActions.map((action) => action.key)).toEqual([actionType]),
+      );
+
+      return result;
+    }
+
+    it("opens the settlement dialog at the Village tier, and closes it again", async () => {
+      const result = await withSettlementAction("CreateVillage", "Create Village");
+
+      expect(result.current.settlementDialogTier).toBeNull();
+
+      act(() => result.current.contextActionToolbarActions[0].onClick());
+
+      expect(result.current.settlementDialogTier).toBe("Village");
+
+      act(() => result.current.closeSettlementDialog());
+
+      expect(result.current.settlementDialogTier).toBeNull();
+    });
+
+    /** A camp is a place the settlers stopped rather than one they founded, so there is no name to collect and no dialog. */
+    it("founds a camp outright, with no name and no dialog", async () => {
+      settleForce.mockResolvedValue({
+        settlementId: 7,
+        structureInstanceId: 91,
+        name: null,
+        tier: "Camp",
+        population: 100,
+        xCoord: 4,
+        yCoord: 1,
+        completionPercent: 0,
+        turnsToComplete: 1,
+      });
+
+      const openToast = vi.fn();
+      const result = await withSettlementAction("EstablishCamp", "Establish Camp", openToast);
+
+      await act(async () => result.current.contextActionToolbarActions[0].onClick());
+
+      await waitFor(() => expect(settleForce).toHaveBeenCalledWith({ unitInstanceId: 7, tier: "Camp" }));
+
+      expect(result.current.settlementDialogTier).toBeNull();
+      await waitFor(() => expect(openToast).toHaveBeenCalledWith(expect.stringContaining("Your camp founded"), "success"));
+    });
+
+    /** There is no dialog to show a camp's refusal in, so the server's own wording goes to the toast instead. */
+    it("reports a refused camp in a toast", async () => {
+      settleForce.mockRejectedValue(new Error("This ground cannot be settled."));
+
+      const openToast = vi.fn();
+      const result = await withSettlementAction("EstablishCamp", "Establish Camp", openToast);
+
+      await act(async () => result.current.contextActionToolbarActions[0].onClick());
+
+      await waitFor(() => expect(openToast).toHaveBeenCalledWith("This ground cannot be settled.", "danger"));
+    });
+
+    /**
+     * A settlement takes one name and one population, and there is nowhere to put a second of either — so a selection of
+     * several settlers is turned away rather than pooled into one settlement or founded from an arbitrary member of it.
+     */
+    it("refuses to open for a selection of several forces, and says why", async () => {
+      vi.mocked(getForceContextActions).mockResolvedValue([
+        { actionType: "CreateVillage", label: "Create Village", displayOrder: 1100, isEnabled: true, disabledReasons: [] },
+      ]);
+
+      const openToast = vi.fn();
+      const { result } = renderForceSelection(openToast);
+
+      const first = force({ id: 7 });
+      const second = force({ id: 8 });
+
+      act(() => {
+        result.current.selectForceFromTile(tile([first, second]));
+      });
+
+      // Ctrl+click (append) adds the second force to the selection the map click started.
+      act(() => result.current.chooseForce(second, true));
+
+      expect(selectedIds(result)).toEqual([7, 8]);
+
+      await waitFor(() => expect(result.current.contextActionToolbarActions).toHaveLength(1));
+
+      act(() => result.current.contextActionToolbarActions[0].onClick());
+
+      expect(result.current.settlementDialogTier).toBeNull();
+      expect(openToast).toHaveBeenCalledWith(expect.stringContaining("Select a single force"), "info");
     });
   });
 });

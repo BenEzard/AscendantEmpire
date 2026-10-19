@@ -24,8 +24,8 @@ interface ForceActionPresentation {
 const FORCE_ACTION_PRESENTATION: Partial<Record<ForceActionType, ForceActionPresentation>> = {
   SplitForce: { icon: <GiSplitArrows />, label: "Split Force" },
 
-  // Both are offered only to a force whose compiled template grants the matching capability (found-settlement /
-  // found-camp, carried by the camping-materials component), so they simply won't be in the list for anything
+  // Both are offered only to a force whose compiled template grants the matching capability (create-settlement /
+  // create-early-camp, carried by the camping-materials component), so they simply won't be in the list for anything
   // else. Nothing here needs to know that — the backend has already decided.
   CreateVillage: { icon: <GiVillage />, label: "Create Village" },
   EstablishCamp: { icon: <GiCampingTent />, label: "Establish Camp" },

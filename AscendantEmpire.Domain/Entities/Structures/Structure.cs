@@ -37,6 +37,23 @@ public class Structure
     /// </summary>
     public required bool DualMapBuildTrigger { get; set; }
 
+    /// <summary>
+    /// How much construction work this kind of Structure takes, from founding to finished.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Work, not Turns.</b> How long a build takes depends on who is building it: the <c>BuildingStructure</c> end-of-Turn process adds the founding Force's
+    /// <see cref="Games.StructureInstance.BuildPointsPerTurn"/> each Turn until this total is met, so a bigger or fresher Force finishes sooner. See
+    /// <c>ConstructionRateCalculator</c> for the rate, and <c>docs/design/settlements.md</c> for the calibration.
+    /// </para>
+    /// <para>
+    /// 0 means "no work at all", which finishes at the end of the Turn it was founded in. A Structure placed already <i>finished</i> is a different thing: it is founded
+    /// with its <see cref="Games.StructureInstance.BuildPointsProgress"/> already at this total, which <c>IStructureLifecycleWriter.FoundAsync</c> handles, and never
+    /// reaches the construction process. The two cannot be confused, because a kind that takes no work has no total to be founded at.
+    /// </para>
+    /// </remarks>
+    public required long BuildPointsRequired { get; set; }
+
     public required int SightRange { get; set; }
     public required DetectionDirection SightDirection { get; set; }
     public required string MapImagePath { get; set; }

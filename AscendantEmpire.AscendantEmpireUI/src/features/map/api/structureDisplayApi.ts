@@ -2,6 +2,13 @@ import { http } from "@/api/http";
 
 export interface StructureDisplayInfoDto {
   structureId: number;
+  /**
+   * The kind's stable catalogue code, e.g. "village".
+   *
+   * What the artwork is keyed on. The live map read sends a code on each observed structure, but a last-known-structure
+   * marker carries only an id, so this catalogue is how that marker resolves the kind's art.
+   */
+  code: string;
   /** The kind's name — "Watchtower", "Village". Not a name for any individual structure of that kind. */
   name: string;
   mapImagePath: string;
@@ -16,6 +23,7 @@ type StructureDisplayResponseWireDto = Partial<{
 function normalizeStructureDisplayInfo(info: StructureDisplayInfoWireDto): StructureDisplayInfoDto {
   return {
     structureId: info.structureId ?? 0,
+    code: info.code ?? "",
     name: info.name ?? "",
     mapImagePath: info.mapImagePath ?? "",
   };

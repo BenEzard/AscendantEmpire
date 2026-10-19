@@ -69,5 +69,10 @@ public enum SeedTarget
     /// <summary>
     /// The <c>map.MapResourceType</c> rows and their children — Timber, and the mixes of wood a Forest, Jungle or Woodland tile can start with.
     /// </summary>
-    MapResourceTypes = 11
+    MapResourceTypes = 11,
+
+    /// <summary>
+    /// The <c>structure.Structures</c> catalogue — the kinds of Structure a tile can hold, including the camp and village a settler founds.
+    /// </summary>
+    Structures = 12
 }

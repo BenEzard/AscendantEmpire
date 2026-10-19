@@ -19,10 +19,10 @@ Village**, **Establish Camp** and **Battle** — and is built to take more.
 | Create Village and Establish Camp — availability, gated on capability tags | Built — see [The settlement strategies](#the-settlement-strategies--create-village-and-establish-camp-ud-56) |
 | Battle — availability, and a placeholder dialog | Built — see [The Battle strategy](#the-battle-strategy-comm-1) |
 | Executing a split — split handler, options endpoint and parameter dialog | Not built — **TM-4** |
-| Executing a settlement founding — needs a Settlement entity to create | Not built — [force-instances-roadmap.md](../../plans/force-instances-roadmap.md) Phase 10 |
+| Executing a settlement founding — the settle endpoint, the name dialog and construction | Built — **CD-1**, see [settlements.md](../settlements.md#founding-one) |
 
-Clicking an action whose execution is not built raises a toast saying so. See
-[Open questions](#open-questions) for what executing a split has to settle first.
+Clicking an action whose execution is not built raises a toast saying so, which now leaves only Split
+Force. See [Open questions](#open-questions) for what executing a split has to settle first.
 
 ## Terminology
 
@@ -232,7 +232,7 @@ outcomes rather than configuring one.
 | | Create Village | Establish Camp |
 |---|---|---|
 | Enum value / display order | `CreateVillage = 1100` | `EstablishCamp = 1200` |
-| Capability that unlocks it | `found-settlement` | `found-camp` |
+| Capability that unlocks it | `create-settlement` | `create-early-camp` |
 | Minimum troops | 100 — four settler base groups | 25 — one settler base group |
 
 ### Rules
@@ -273,18 +273,29 @@ Entity Setup Tool and are absent from `Features/DatabaseSeeding/SeedData/`. On a
 authored them on, no template compiles with them and both actions simply never appear. That is correct, not a
 fault — but it is the first place to look if the buttons are missing.
 
-### Executing them is out of scope
+### Executing them
 
-There is no Settlement, Village or Camp entity anywhere in the model — [settlements.md](../settlements.md) names
-the tiers and nothing more, and nothing in the codebase even creates a `StructureInstance`. So UD-56 delivers
-**availability only**: the buttons appear, correctly enabled or correctly disabled with reasons, and clicking one
-raises a "not built yet" toast exactly as Split Force does. Founding the settlement is
-[force-instances-roadmap.md](../../plans/force-instances-roadmap.md) Phase 10 (`POST /force-orders/settle`).
+UD-56 delivered **availability only**, because there was no Settlement entity to create. **CD-1 built the
+rest.** Both buttons now open one dialog — a settlement needs a name, so neither can simply post — and the
+dialog calls `POST /force-orders/settle` with the force, the tier and the name. See
+[settlements.md](../settlements.md#founding-one) for what founding does.
 
-When that is built it must found the `StructureInstance` through `IStructureLifecycleWriter` rather than adding the row itself.
-That writer records the founding in `structure.StructureHistory` as it makes it, which is what lets another player watching the
-ground be told a village went up there — see [intelligence-and-sightings.md](../intelligence-and-sightings.md). A founding
-written any other way is invisible to every other player, silently.
+Two things about it are worth knowing from here:
+
+- **The handler re-runs this very strategy** through `IForceContextActionService.EvaluateActionAsync`
+  before it founds anything, and refuses with the reasons it collects. So a refusal's wording is the
+  wording the disabled button would have shown, and the rules live in exactly one place.
+- **It founds through `IStructureLifecycleWriter`** rather than adding the row itself. That writer records
+  the founding in `structure.StructureHistory` as it makes it, which is what lets another player watching
+  the ground be told a village went up there — see
+  [intelligence-and-sightings.md](../intelligence-and-sightings.md). A founding written any other way
+  would be invisible to every other player, silently.
+
+**One force, not a selection.** A settlement takes one name and one population, so the dialog is offered
+only for a single-force selection; a larger one is turned away with a toast rather than pooled or founded
+from an arbitrary member. This is the one place the toolbar's "an action over a selection is a single
+order covering all of them" rule does not hold, and the frontend is what enforces it — the endpoint takes
+one force id, so there is nothing for the backend to aggregate.
 
 ## The Battle strategy (COMM-1)
 
@@ -398,7 +409,26 @@ That work is **TM-4**.
 | `ContextActionToolbar` | Vitest | 6 — disabled rendering, reason text, ordering, icon-only rendering |
 | `forceActionRegistry` | Vitest | 4 — every known type gets its own distinct icon and this build's label; unknown types fall back |
 | `ForceSelectionToolbar` | Vitest | 17 — ordering, troop count, fade, clickability when spent, ctrl/⌘+click, multiple pressed entries |
-| `useForceSelection` | Vitest | 10 — own-forces-only filtering, default selection, the gesture trace, pinning, id-set identity |
+| `useForceSelection` | Vitest | 13 — own-forces-only filtering, default selection, the gesture trace, pinning, id-set identity, both settlement tiers opening the dialog, a multi-force selection turned away |
+
+Executing a founding (CD-1) adds its own:
+
+| Component | Tier | Count |
+|---|---|---|
+| `SettlementTierRules` | 1 — no database | 6 — each foundable tier's action and structure code, the growth tiers refused, codes unique and all seeded |
+| `ConstructionRateCalculator` | 1 — no database | 16 — the anchor rate, each term's scaling, the movement cap, the floors, and work-to-turns rounding up |
+| `StructureSeedData` | 1 — no database | 11 — codes unique, every row buildable with art and sight, and the village and camp calibrations asserted as arithmetic |
+| `BuildingStructure` | 2 — in-memory | 13 — the per-turn step, each founder's own rate, completion, uneven division, no-work kinds, the tile claimed, only this player's, failures isolated |
+| `SettleForceHandler` | **3 — containerised** | 14 — what founding leaves behind, the settler consumed, orders cleared, the Primary slot razed, and every refusal |
+| `CreateSettlementDialog` | Vitest | 9 — the name required and trimmed, capped at 30, the refusal shown and dropped on edit, both tiers |
+| `ObservedStructure` | Vitest | 6 — art by code, the name label, no label without a settlement, the completion bar |
+| `structureImages` | Vitest | 4 — every seeded kind has its own distinct sprite, and an unknown or absent code has none |
+| `settleForceApi` | Vitest | 4 — the body carries only force, tier and name; the tier goes as its name; failures pass through |
+
+`SettleForceHandler` is the only fixture here on the containerised tier, and all three of `testing.md`'s
+triggers apply at once: the founding runs in an explicit transaction, the lifecycle writers allocate their
+sequences with raw SQL, and the name's uniqueness index is only a rule when a database is enforcing it.
+`BuildingStructure` stays on the in-memory tier by substituting the writer, which is where the raw SQL is.
 
 Keeping the rules pure confines the tier question to a single class, and that class sits on the
 in-memory tier. `CompiledUnitTemplate` owns EF complex types (`Attack`/`Resistance`) which the in-memory
@@ -416,6 +446,10 @@ Raised during implementation and deliberately left open.
 Nothing in the pipeline checks the turn, so the toolbar offers actions to a player outside their own
 turn — while stepping a Force (`StepForceHandler`) does refuse out of turn. Turn enforcement belongs in the
 context, probably as a blanket rule ahead of the per-action strategies rather than repeated in each one.
+
+Still open, and now paid for twice: `SettleForceHandler` carries the same hand-written turn check as
+`StepForceHandler`, because the toolbar would otherwise offer a player the Create Village button outside
+their own turn and the founding has to refuse it somewhere. A third write path will copy it again.
 
 ### 2. Enemy Forces on the tile are excluded, pending vision rules
 

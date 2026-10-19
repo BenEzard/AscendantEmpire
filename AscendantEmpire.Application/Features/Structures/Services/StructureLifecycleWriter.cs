@@ -1,4 +1,4 @@
-using AscendantEmpire.Application.Common;
+﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Domain.Entities.Games;
@@ -52,13 +52,21 @@ internal class StructureLifecycleWriter(
             return Refuse("A Structure cannot be founded already razed.");
         }
 
-        // NaN fails both comparisons, so it is caught by testing for the valid range rather than for the invalid one.
-        if ((structure.CompletionPercent >= 0 && structure.CompletionPercent <= _COMPLETE_PERCENT) == false)
+        // The kind carries the total the progress is measured against, so without it there is no saying whether this is a fresh foundation or a finished building.
+        if (await ResolveBuildPointsRequiredAsync(context, structure, cancelToken) is not long buildPointsRequired)
         {
-            return Refuse($"A Structure cannot be founded {structure.CompletionPercent}% complete; its completion must be from 0 to {_COMPLETE_PERCENT}.");
+            return Refuse($"Structure Id {structure.StructureId} is not in the catalogue, so how much work its kind takes is unknown.");
         }
 
-        bool isFoundedComplete = structure.CompletionPercent >= _COMPLETE_PERCENT;
+        if (structure.BuildPointsProgress < 0 || structure.BuildPointsProgress > buildPointsRequired)
+        {
+            return Refuse(
+                $"A Structure cannot be founded with {structure.BuildPointsProgress} of {buildPointsRequired} build points done; its progress must be from 0 to its kind's total.");
+        }
+
+        // A kind that takes no work has no total to be founded at, so it is never founded complete: the end-of-Turn process finishes it during the Turn it appeared in.
+        // That is what keeps "placed already finished" and "nothing to build" apart now that both would otherwise be 0 of 0.
+        bool isFoundedComplete = buildPointsRequired > 0 && structure.BuildPointsProgress >= buildPointsRequired;
 
         try
         {
@@ -99,7 +107,7 @@ internal class StructureLifecycleWriter(
                 StructureHistoryEventType.Founded,
                 ownerPlayerId: structure.OwnedByPlayerId,
                 previousOwnerPlayerId: null,
-                completionPercent: structure.CompletionPercent,
+                completionPercent: ToCompletionPercent(structure.BuildPointsProgress, buildPointsRequired),
                 playerTurnId: turnId,
                 turnSequence: sequenceResult.SuccessValue.First));
 
@@ -134,7 +142,7 @@ internal class StructureLifecycleWriter(
     }
 
     /// <inheritdoc />
-    public async Task<ServiceResultBase> ProgressAsync(AscendantEmpireContext context, StructureInstance structure, double completionPercent, int playerTurnId, CancellationToken cancelToken = default)
+    public async Task<ServiceResultBase> ProgressAsync(AscendantEmpireContext context, StructureInstance structure, long buildPointsProgress, int playerTurnId, CancellationToken cancelToken = default)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(structure);
@@ -149,22 +157,35 @@ internal class StructureLifecycleWriter(
                 return refusal;
             }
 
-            // Read through the tracker rather than off the entity, which is the same value today but is the one the tracker will save.
-            double currentPercent = entry.Property(s => s.CompletionPercent).CurrentValue;
+            if (await ResolveBuildPointsRequiredAsync(context, structure, cancelToken) is not long buildPointsRequired)
+            {
+                return Refuse($"Structure Id {structure.StructureId} is not in the catalogue, so how much work Structure Instance Id {structure.Id} takes is unknown.");
+            }
 
-            if (currentPercent >= _COMPLETE_PERCENT)
+            // Read through the tracker rather than off the entity, which is the same value today but is the one the tracker will save.
+            long currentProgress = entry.Property(s => s.BuildPointsProgress).CurrentValue;
+
+            // Either mark of being finished. The stamp is the authoritative one, and the only one a kind that takes no work ever gets, since its progress never moves;
+            // the work comparison catches a Structure whose progress is already met but was never stamped.
+            if (entry.Property(s => s.CompletedOnTurnId).CurrentValue is not null
+                || (buildPointsRequired > 0 && currentProgress >= buildPointsRequired))
             {
                 return Refuse($"Structure Instance Id {structure.Id} is already complete, so construction on it cannot advance.");
             }
 
-            // Written as "not greater than" so NaN is refused too.
-            if ((completionPercent > currentPercent) == false)
+            // A kind that takes no work is finished by the step that reaches it, though its progress never moves off 0. Everything else has to actually advance.
+            if (buildPointsRequired > 0 && buildPointsProgress <= currentProgress)
             {
-                return Refuse($"Structure Instance Id {structure.Id} is {currentPercent}% complete, so {completionPercent}% does not advance its construction.");
+                return Refuse(
+                    $"Structure Instance Id {structure.Id} has {currentProgress} of {buildPointsRequired} build points done, so {buildPointsProgress} does not advance its construction.");
             }
 
-            double newPercent = Math.Min(completionPercent, _COMPLETE_PERCENT);
-            bool isNowComplete = newPercent >= _COMPLETE_PERCENT;
+            // Not Math.Clamp, which throws when its bounds cross - and they would on a Structure already past a total the catalogue has since lowered.
+            long newProgress = Math.Min(Math.Max(buildPointsProgress, currentProgress), buildPointsRequired);
+
+            // An exact comparison, which is the whole point of storing work rather than a percentage: there is no rounding gap to close, and no step that has to look
+            // ahead to decide whether the one after it would overshoot - the bug that made a build finish a Turn early whenever the work did not divide evenly.
+            bool isNowComplete = newProgress >= buildPointsRequired;
 
             // Allocated before anything is staged, so a refusal leaves the context exactly as the caller handed it over.
             ServiceResult<TurnSequenceBlock> sequenceResult = await playerTurnService.AllocateSequenceAsync(context, playerTurnId, count: 1, cancelToken);
@@ -175,7 +196,7 @@ internal class StructureLifecycleWriter(
             }
 
             // Both properties are init-only, so this is the one place a tracked Structure's construction can be changed. Setting them through the entry marks them modified for the caller's save.
-            entry.Property(s => s.CompletionPercent).CurrentValue = newPercent;
+            entry.Property(s => s.BuildPointsProgress).CurrentValue = newProgress;
 
             if (isNowComplete)
             {
@@ -187,7 +208,8 @@ internal class StructureLifecycleWriter(
                 isNowComplete ? StructureHistoryEventType.Completed : StructureHistoryEventType.Progressed,
                 ownerPlayerId: entry.Property(s => s.OwnedByPlayerId).CurrentValue,
                 previousOwnerPlayerId: null,
-                completionPercent: newPercent,
+                // A finished Structure reads 100 whatever its kind's total, which is what keeps a zero-work kind from recording its completion as 0%.
+                completionPercent: isNowComplete ? _COMPLETE_PERCENT : ToCompletionPercent(newProgress, buildPointsRequired),
                 playerTurnId: playerTurnId,
                 turnSequence: sequenceResult.SuccessValue.First));
 
@@ -195,7 +217,7 @@ internal class StructureLifecycleWriter(
         }
         catch (Exception ex)
         {
-            string error = $"An error occurred while advancing construction on Structure Instance Id {structure.Id} to {completionPercent}%.";
+            string error = $"An error occurred while advancing construction on Structure Instance Id {structure.Id} to {buildPointsProgress} build points.";
             logger.LogError(ex, "{Error}", error);
 
             return ServiceResultBase.Fail(error);
@@ -217,6 +239,9 @@ internal class StructureLifecycleWriter(
             {
                 return refusal;
             }
+
+            // Only to work out the percentage the row snapshots; a capture does not touch how far built the Structure is.
+            long buildPointsRequired = await ResolveBuildPointsRequiredAsync(context, structure, cancelToken) ?? 0;
 
             int previousOwnerPlayerId = entry.Property(s => s.OwnedByPlayerId).CurrentValue;
 
@@ -240,7 +265,7 @@ internal class StructureLifecycleWriter(
                 StructureHistoryEventType.Captured,
                 ownerPlayerId: newOwnerPlayerId,
                 previousOwnerPlayerId: previousOwnerPlayerId,
-                completionPercent: entry.Property(s => s.CompletionPercent).CurrentValue,
+                completionPercent: CompletionPercentOf(entry, buildPointsRequired),
                 playerTurnId: playerTurnId,
                 turnSequence: sequenceResult.SuccessValue.First));
 
@@ -271,6 +296,9 @@ internal class StructureLifecycleWriter(
                 return refusal;
             }
 
+            // As in CaptureAsync: needed only for the percentage the row snapshots.
+            long buildPointsRequired = await ResolveBuildPointsRequiredAsync(context, structure, cancelToken) ?? 0;
+
             ServiceResult<TurnSequenceBlock> sequenceResult = await playerTurnService.AllocateSequenceAsync(context, playerTurnId, count: 1, cancelToken);
 
             if (sequenceResult.HasSucceeded == false)
@@ -286,7 +314,7 @@ internal class StructureLifecycleWriter(
                 StructureHistoryEventType.Razed,
                 ownerPlayerId: entry.Property(s => s.OwnedByPlayerId).CurrentValue,
                 previousOwnerPlayerId: null,
-                completionPercent: entry.Property(s => s.CompletionPercent).CurrentValue,
+                completionPercent: CompletionPercentOf(entry, buildPointsRequired),
                 playerTurnId: playerTurnId,
                 turnSequence: sequenceResult.SuccessValue.First));
 
@@ -299,6 +327,60 @@ internal class StructureLifecycleWriter(
 
             return ServiceResultBase.Fail(error);
         }
+    }
+
+    /// <summary>
+    /// How far built a tracked Structure is, as the percentage the history and intelligence snapshots record.
+    /// </summary>
+    /// <remarks>
+    /// Read through the tracker, so a row written alongside a change in the same call carries the value that change is about to save. A finished Structure reads 100
+    /// whatever its kind's total: that is what keeps a kind which takes no work - a marker rather than a building - from recording itself as 0% for ever once it is up.
+    /// </remarks>
+    private static double CompletionPercentOf(EntityEntry<StructureInstance> entry, long buildPointsRequired)
+    {
+        if (entry.Property(s => s.CompletedOnTurnId).CurrentValue is not null)
+        {
+            return _COMPLETE_PERCENT;
+        }
+
+        return ToCompletionPercent(entry.Property(s => s.BuildPointsProgress).CurrentValue, buildPointsRequired);
+    }
+
+    /// <summary>
+    /// How much work the Structure's kind takes, from the loaded navigation where the caller has one and from the catalogue otherwise.
+    /// </summary>
+    /// <remarks>
+    /// Preferring the navigation keeps the end-of-Turn process, which includes its kinds already, from paying for a query per Structure; falling back to one means no
+    /// caller has to know that it must include anything. <see langword="null"/> is a Structure whose kind is not in the catalogue at all.
+    /// </remarks>
+    private static async Task<long?> ResolveBuildPointsRequiredAsync(AscendantEmpireContext context, StructureInstance structure, CancellationToken cancelToken)
+    {
+        if (structure.Structure is not null)
+        {
+            return structure.Structure.BuildPointsRequired;
+        }
+
+        return await context.Structures
+            .Where(kind => kind.Id == structure.StructureId)
+            .Select(kind => (long?)kind.BuildPointsRequired)
+            .FirstOrDefaultAsync(cancelToken);
+    }
+
+    /// <summary>
+    /// Turns work done out of work required into the percentage the snapshots carry.
+    /// </summary>
+    /// <remarks>
+    /// A kind that takes no work reads 0 here rather than dividing by zero. It is complete or it is not, and <see cref="StructureInstance.CompletedOnTurnId"/> is what
+    /// says which - see <see cref="CompletionPercentOf"/>.
+    /// </remarks>
+    private static double ToCompletionPercent(long buildPointsProgress, long buildPointsRequired)
+    {
+        if (buildPointsRequired <= 0)
+        {
+            return 0d;
+        }
+
+        return Math.Min(_COMPLETE_PERCENT, _COMPLETE_PERCENT * buildPointsProgress / buildPointsRequired);
     }
 
     /// <summary>

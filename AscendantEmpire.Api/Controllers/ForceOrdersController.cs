@@ -6,9 +6,11 @@ using AscendantEmpire.Application.Features.ForceOrders.Handlers;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 using AscendantEmpire.BackendContracts.ForceOrders.GetForceContextActions;
 using AscendantEmpire.BackendContracts.ForceOrders.MoveForces;
+using AscendantEmpire.BackendContracts.ForceOrders.SettleForce;
 using AscendantEmpire.BackendContracts.ForceOrders.StepForce;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.ForceOrders.GetForceContextActions;
+using AscendantEmpire.FrontendContracts.ForceOrders.SettleForce;
 using AscendantEmpire.FrontendContracts.ForceOrders.StepForce;
 
 using Microsoft.AspNetCore.Authorization;
@@ -171,6 +173,65 @@ public class ForceOrdersController : ControllerBase
                     DisabledReasons = action.DisabledReasons
                 })]
             };
+        });
+    }
+
+    // --- Settling -------------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Consume a Force and found a settlement where it stood.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The payoff behind the Create Village and Establish Camp toolbar actions. The Force is consumed immediately and its people become the settlement's population; the
+    /// settlement itself goes up over the next Turn or two, advancing at the end of each of the owner's Turns.
+    /// </para>
+    /// <para>
+    /// One Force, not a selection. A settlement takes one name and one population, so founding one from several Forces at once would need a dialog that asked for both per
+    /// Force; the client only offers the action for a single-Force selection.
+    /// </para>
+    /// <para>
+    /// The tile is never sent: the settlement is founded where the Force is standing. The same rules the toolbar rendered the button from are re-run here against freshly
+    /// loaded state, so a refusal's message is the strategy's own wording and is written to be shown to the player as it stands.
+    /// </para>
+    /// </remarks>
+    /// <response code="200">The settlement was founded. Returns it, and the Structure now under construction on the tile</response>
+    /// <response code="400">Validation error, or the order was refused — the name is blank, too long or taken, the tier cannot be founded, or the Force cannot settle where it stands</response>
+    /// <response code="403">The caller has not entered a game, does not own the Force, or it is not their turn</response>
+    /// <response code="404">The Force is not in this game</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpPost("settle")]
+    [ProducesResponseType(typeof(ISettleForceResult), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 403)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> SettleForceAsync(
+        [FromServices] IMediator mediator,
+        [FromBody] SettleForceDto request,
+        CancellationToken cancelToken)
+    {
+        // Game and player come from the token, so the caller can't settle someone else's Forces. The body carries only which Force, which tier, and what to call it.
+        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
+        {
+            return contextError!;
+        }
+
+        ServiceResultBase.ServiceResult<SettleForceResult> response = await mediator.Send(
+            new SettleForceRequest(gameId, playerId, request.UnitInstanceId, request.Tier, request.Name),
+            cancelToken);
+
+        return response.ToActionResult(contract => new DTSettleForceResult
+        {
+            SettlementId = contract.SettlementId,
+            StructureInstanceId = contract.StructureInstanceId,
+            Name = contract.Name,
+            Tier = contract.Tier,
+            Population = contract.Population,
+            XCoord = contract.XCoord,
+            YCoord = contract.YCoord,
+            CompletionPercent = contract.CompletionPercent,
+            TurnsToComplete = contract.TurnsToComplete
         });
     }
 }

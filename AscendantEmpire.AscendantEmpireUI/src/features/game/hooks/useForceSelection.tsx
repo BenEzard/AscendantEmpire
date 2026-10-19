@@ -5,6 +5,8 @@ import type { ContextActionToolbarAction } from "../components/ContextActionTool
 import { getForceActionIcon, getForceActionLabel } from "../components/forceActionRegistry";
 import { useForceContextActionsQuery } from "./useForceContextActions";
 import type { ForceActionType } from "../api/forceContextActionsApi";
+import { isNamedTier, type FoundableSettlementTier } from "../api/settleForceApi";
+import { describeFounding, useSettleForceMutation } from "./useSettleForce";
 import type { MoveDirection, StepForceResponse } from "../api/forceMovementApi";
 import { directionBetween } from "@/features/map/util/mapDirections";
 import type { ToastVariant } from "@/hooks/useToast";
@@ -78,6 +80,21 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
   // because it is opened by a toolbar action, and this hook is what turns those actions into interactions.
   const [battleDialogForceId, setBattleDialogForceId] = useState<number | null>(null);
 
+  // Which settlement tier the create-settlement dialog was opened for, or null while it is closed. Held here for the same
+  // reason as the battle dialog above: a toolbar action opens it, and turning actions into interactions is this hook's job.
+  //
+  // Only ever a named tier. A camp carries no name, so there is nothing to open a dialog for and its button founds outright.
+  const [settlementDialogTier, setSettlementDialogTier] = useState<FoundableSettlementTier | null>(null);
+
+  // The unnamed tiers found from here rather than through the dialog, so this hook runs the order for them.
+  const settleMutation = useSettleForceMutation(gameId, playerId, {
+    onSuccess: (result) => openToast(describeFounding(result), "success"),
+    // The server's own wording, which is written to be read by the player: the ground cannot be settled, the force has no
+    // movement left. There is no dialog to show it in, so it goes to the toast.
+    onError: (error) =>
+      openToast(error instanceof Error ? error.message : "The settlement could not be founded.", "danger"),
+  });
+
   // Reset all force-selection state when the game closes.
   useEffect(() => {
     if (gameId == null) {
@@ -86,11 +103,15 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
       setTileByForceId({});
       setForceSelectionTile(null);
       setBattleDialogForceId(null);
+      setSettlementDialogTier(null);
     }
   }, [gameId]);
 
   /** Closes the Battle dialog. */
   const closeBattleDialog = useCallback(() => setBattleDialogForceId(null), []);
+
+  /** Closes the create-settlement dialog. */
+  const closeSettlementDialog = useCallback(() => setSettlementDialogTier(null), []);
 
   // Memoised because both the bar and every map tile take it, and Tile is memoised — a fresh Set each render
   // would defeat that and re-render the whole grid on any unrelated state change.
@@ -295,19 +316,27 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
           openToast(`Split force ${describeSelection()} — the split dialog isn't built yet.`, "info");
           break;
 
+        // One settler, one settlement: a selection of several is turned away rather than pooled, because a settlement takes
+        // one name and one population and a second force has nowhere to go.
+        //
+        // A named tier then opens the dialog to ask for the name; an unnamed one has nothing to ask, so it founds outright.
         case "CreateVillage":
-          // TODO: There is no Settlement entity in the model at all yet — settlements.md names the tiers and
-          // nothing more — so there is nothing to post to. The backend already judges whether the action is
-          // allowed; what's missing is the thing it would create. See docs/plans/force-instances-roadmap.md,
-          // Phase 10 (POST /force-orders/settle).
-          openToast(`Create a village with ${describeSelection()} — settlements aren't built yet.`, "info");
-          break;
+        case "EstablishCamp": {
+          if (selectedForces.length > 1) {
+            openToast(`Select a single force to found a settlement — ${describeSelection()} is more than one.`, "info");
+            break;
+          }
 
-        case "EstablishCamp":
-          // TODO: Same gap as CreateVillage above — a camp is the smallest settlement tier, and the tier itself
-          // doesn't exist yet.
-          openToast(`Establish a camp with ${describeSelection()} — settlements aren't built yet.`, "info");
+          const tier: FoundableSettlementTier = actionType === "CreateVillage" ? "Village" : "Camp";
+
+          if (isNamedTier(tier)) {
+            setSettlementDialogTier(tier);
+            break;
+          }
+
+          settleMutation.mutate({ unitInstanceId: selectedForces[0].id, tier });
           break;
+        }
 
         case "Battle":
           // One dialog shows one battle, so it opens for the first force in the selection. The backend only enables the
@@ -316,7 +345,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
           break;
       }
     },
-    [describeSelection, openToast, selectedForces],
+    [describeSelection, openToast, selectedForces, settleMutation],
   );
 
   /** Selects the player's force on a clicked tile, and offers every owned force there in the selection bar. */
@@ -396,5 +425,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
     onForceMoved,
     battleDialogForceId,
     closeBattleDialog,
+    settlementDialogTier,
+    closeSettlementDialog,
   };
 }

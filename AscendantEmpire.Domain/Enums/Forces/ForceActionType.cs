@@ -48,7 +48,7 @@ public enum ForceActionType
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Offered only to a Force whose compiled template grants the <c>found-settlement</c> capability, which the settler's
+    /// Offered only to a Force whose compiled template grants the <c>create-settlement</c> capability, which the settler's
     /// <c>camping-materials</c> equipment component carries. Gating on a <b>capability tag</b> rather than on a component code or a template id is
     /// deliberate: it is the first concrete case of the Capability Grants concept in <c>tags-and-modifiers.md</c>, and it means a second component
     /// granting the same ability lights the action up with no code change at all.
@@ -64,7 +64,7 @@ public enum ForceActionType
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The smaller sibling of <see cref="CreateVillage"/>, gated on the <c>found-camp</c> capability and a much lower troop requirement. The two are
+    /// The smaller sibling of <see cref="CreateVillage"/>, gated on the <c>create-early-camp</c> capability and a much lower troop requirement. The two are
     /// separate action types rather than one parameterised action because the player is choosing between two outcomes, not configuring one.
     /// </para>
     /// </remarks>

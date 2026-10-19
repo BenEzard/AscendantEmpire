@@ -6,6 +6,10 @@ import type { CampaignMapGeographyType } from "@/types/map/Geography";
 export type ObservedStructureTile = {
   id: number;
   structureId: number;
+  // The kind's catalogue code, which is what the artwork is keyed on. See structureImages.ts.
+  structureCode: string;
+  // The settlement standing here, or null when this structure is nobody's settlement.
+  settlementName: string | null;
   positionOnTile: number;
   completionPercent: number;
 };

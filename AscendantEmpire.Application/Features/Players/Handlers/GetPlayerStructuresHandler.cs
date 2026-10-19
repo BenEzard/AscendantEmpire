@@ -62,32 +62,39 @@ internal class GetPlayerStructuresHandler(
 
         await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-        List<PlayerStructure> structures = await (from si in context.StructureInstances.Include(si => si.Structure)
-                                                  join tile in context.CampaignMaps
-                                                    on si.CampaignMapTileId equals tile.CampaignMapId
-                                                  where si.GameId == gameId
-                                                    && si.OwnedByPlayerId == playerId
-                                                    && si.BattleMapTileId == null // campaign only
-                                                    && si.RemovedOnTurnId == null // active only
-                                                  select new PlayerStructure
-                                                  {
-                                                      StructureInstanceId = si.Id,
-                                                      RecordType = Domain.Enums.RecordType.Structure,
-                                                      CampaignMapTileId = si.CampaignMapTileId,
-                                                      BattleMapTileId = si.BattleMapTileId,
-                                                      XCoord = tile.XCoord,
-                                                      YCoord = tile.YCoord,
-                                                      StructureId = si.StructureId,
-                                                      SlotType = si.SlotType,
-                                                      Position = si.Position,
-                                                      Name = si.Structure.Name,
-                                                      Code = si.Structure.Code,
-                                                      CompletionPercent = si.CompletionPercent,
-                                                      OwnerPlayerId = si.OwnedByPlayerId,
-                                                      SightRange = si.Structure.SightRange,
-                                                      DetectionDirection = si.Structure.SightDirection,
-                                                      MapImagePath = si.Structure.MapImagePath
-                                                  }).ToListAsync(cancelToken);
+        List<PlayerStructure> structures = await context.StructureInstances
+            .Where(si => si.GameId == gameId
+                      && si.OwnedByPlayerId == playerId
+                      && si.BattleMapTileId == null // campaign only
+                      && si.RemovedOnTurnId == null) // active only
+            .Select(si => new PlayerStructure
+            {
+                StructureInstanceId = si.Id,
+                RecordType = Domain.Enums.RecordType.Structure,
+                CampaignMapTileId = si.CampaignMapTileId,
+                BattleMapTileId = si.BattleMapTileId,
+                XCoord = si.CampaignMap.XCoord,
+                YCoord = si.CampaignMap.YCoord,
+                StructureId = si.StructureId,
+                SlotType = si.SlotType,
+                Position = si.Position,
+                Name = si.Structure.Name,
+                Code = si.Structure.Code,
+                SettlementName = context.Settlements
+                    .Where(settlement => settlement.StructureInstanceId == si.Id)
+                    .Select(settlement => settlement.Name)
+                    .FirstOrDefault(),
+                // Derived on the way out: the Structure carries work done, and the percentage is the UI's way of reading it. A kind that takes no work has nothing to
+                // divide by and reads 0 until it is finished, which its CompletedOnTurnId says.
+                CompletionPercent = si.Structure.BuildPointsRequired <= 0
+                    ? 0d
+                    : 100d * si.BuildPointsProgress / si.Structure.BuildPointsRequired,
+                OwnerPlayerId = si.OwnedByPlayerId,
+                SightRange = si.Structure.SightRange,
+                DetectionDirection = si.Structure.SightDirection,
+                MapImagePath = si.Structure.MapImagePath
+            })
+            .ToListAsync(cancelToken);
 
         return ServiceResult<IReadOnlyCollection<PlayerStructure>>.Succeed(structures);
     }

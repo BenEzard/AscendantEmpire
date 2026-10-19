@@ -42,6 +42,7 @@ public class StructuresController : ControllerBase
                 .. (contract ?? []).Select(structure => new DTStructureDisplayInfo
                 {
                     StructureId = structure.StructureId,
+                    Code = structure.Code,
                     Name = structure.Name,
                     MapImagePath = structure.MapImagePath
                 })

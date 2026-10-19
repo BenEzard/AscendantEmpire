@@ -55,6 +55,8 @@ export type ObservedStructureDto = {
   id: number;
   ownerPlayerId: number;
   structureId: number;
+  structureCode: string;
+  settlementName: string | null;
   positionOnTile: number;
   completionPercent: number;
 };
@@ -82,6 +84,9 @@ type ObservedStructureWireDto = Partial<{
   recordType: number;
   ownerPlayerId: number;
   structureId: number;
+  structureCode: string;
+  // Null except for settlements.
+  settlementName: string | null;
   positionOnTile: number;
   completionPercent: number;
 }>;
@@ -153,6 +158,9 @@ function normalizeObservedStructure(structure: ObservedStructureWireDto): Observ
     id: structure.id ?? 0,
     ownerPlayerId: structure.ownerPlayerId ?? 0,
     structureId: structure.structureId ?? 0,
+    structureCode: structure.structureCode ?? "",
+    // Collapses "absent" and "explicitly null" to the one value the UI tests against, since neither of them is a name.
+    settlementName: structure.settlementName ?? null,
     positionOnTile: structure.positionOnTile ?? 0,
     completionPercent: structure.completionPercent ?? 0,
   };

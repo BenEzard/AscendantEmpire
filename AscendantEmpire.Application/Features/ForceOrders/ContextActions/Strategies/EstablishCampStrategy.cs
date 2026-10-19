@@ -8,7 +8,7 @@ namespace AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strate
 /// <remarks>
 /// <para>
 /// The smaller sibling of <see cref="CreateVillageStrategy"/>: same terrain and movement rules, a far lower troop requirement, and its own
-/// capability — <c>found-camp</c>, carried by the settler's <c>camping-materials</c> equipment component alongside <c>found-settlement</c>.
+/// capability — <c>create-early-camp</c>, carried by the settler's <c>camping-materials</c> equipment component alongside <c>create-settlement</c>.
 /// </para>
 /// <para>
 /// Two capabilities rather than one is what lets a future component grant camping without granting settlement, which is the whole point of gating

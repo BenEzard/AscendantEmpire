@@ -5,8 +5,14 @@ export interface ObservedStructureProps {
   structure: ObservedStructureTile;
 }
 
+/**
+ * A structure as it stands on its own tile: the sprite, and a bar while it is still going up.
+ *
+ * The settlement's name is not drawn here. It is wider than the tile and would be clipped by `.tile`'s `overflow: hidden`, so
+ * it belongs to {@link SettlementLabelOverlay}, which draws over the whole grid.
+ */
 export default function ObservedStructure({ structure }: ObservedStructureProps) {
-  const imageSrc = structureImageSrc(structure.structureId);
+  const imageSrc = structureImageSrc(structure.structureCode);
 
   // Only kinds the client has art for are drawn; the rest have nothing to show yet.
   if (!imageSrc) {

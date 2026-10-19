@@ -1,4 +1,4 @@
-using AscendantEmpire.Application.Common;
+﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Structures.Services;
@@ -40,6 +40,11 @@ internal class StructureLifecycleWriterPersistenceTests : GameSqlServerTestBase
     /// <summary>A Player Turn id no row has, for provoking the foreign key on a history row.</summary>
     private const int _MISSING_PLAYER_TURN_ID = 999_999;
 
+    /// <summary>
+    /// How much work the fixture's watchtower takes. 100, so that a Structure's build points and the percentage the history rows snapshot read as the same number.
+    /// </summary>
+    private const long _WATCHTOWER_BUILD_POINTS = 100;
+
     private int _gameId;
     private int _ownerPlayerId;
     private int _captorPlayerId;
@@ -77,6 +82,7 @@ internal class StructureLifecycleWriterPersistenceTests : GameSqlServerTestBase
             CanBeBuiltOnCampaignMap = true,
             CanBeBuiltOnBattleMap = false,
             DualMapBuildTrigger = false,
+            BuildPointsRequired = _WATCHTOWER_BUILD_POINTS,
             SightRange = 2,
             SightDirection = DetectionDirection.FullRadius,
             MapImagePath = "watchtower.png",
@@ -94,7 +100,7 @@ internal class StructureLifecycleWriterPersistenceTests : GameSqlServerTestBase
     {
         int playerTurnId = await OpenFirstPlayerTurnAsync(_gameId);
 
-        StructureInstance structure = NewStructure(completionPercent: 30);
+        StructureInstance structure = NewStructure(buildPointsProgress: 30);
 
         await FoundAsync(structure, playerTurnId);
 
@@ -117,7 +123,7 @@ internal class StructureLifecycleWriterPersistenceTests : GameSqlServerTestBase
     {
         int playerTurnId = await OpenFirstPlayerTurnAsync(_gameId);
 
-        StructureInstance structure = NewStructure(completionPercent: 100);
+        StructureInstance structure = NewStructure(buildPointsProgress: 100);
 
         await FoundAsync(structure, playerTurnId);
 
@@ -146,7 +152,7 @@ internal class StructureLifecycleWriterPersistenceTests : GameSqlServerTestBase
 
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            result = await writer.FoundAsync(context, NewStructure(completionPercent: 30), _MISSING_PLAYER_TURN_ID);
+            result = await writer.FoundAsync(context, NewStructure(buildPointsProgress: 30), _MISSING_PLAYER_TURN_ID);
         }
 
         await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
@@ -164,7 +170,7 @@ internal class StructureLifecycleWriterPersistenceTests : GameSqlServerTestBase
     {
         int playerTurnId = await OpenFirstPlayerTurnAsync(_gameId);
 
-        StructureInstance founded = NewStructure(completionPercent: 30);
+        StructureInstance founded = NewStructure(buildPointsProgress: 30);
 
         await FoundAsync(founded, playerTurnId);
 
@@ -196,7 +202,7 @@ internal class StructureLifecycleWriterPersistenceTests : GameSqlServerTestBase
     {
         int playerTurnId = await OpenFirstPlayerTurnAsync(_gameId);
 
-        StructureInstance first = NewStructure(completionPercent: 100);
+        StructureInstance first = NewStructure(buildPointsProgress: 100);
 
         await FoundAsync(first, playerTurnId);
 
@@ -211,7 +217,7 @@ internal class StructureLifecycleWriterPersistenceTests : GameSqlServerTestBase
             await context.SaveChangesAsync();
         }
 
-        StructureInstance second = NewStructure(completionPercent: 10);
+        StructureInstance second = NewStructure(buildPointsProgress: 10);
 
         await FoundAsync(second, playerTurnId);
 
@@ -228,7 +234,7 @@ internal class StructureLifecycleWriterPersistenceTests : GameSqlServerTestBase
     {
         int playerTurnId = await OpenFirstPlayerTurnAsync(_gameId);
 
-        StructureInstance founded = NewStructure(completionPercent: 30);
+        StructureInstance founded = NewStructure(buildPointsProgress: 30);
 
         await FoundAsync(founded, playerTurnId);
 
@@ -269,7 +275,7 @@ internal class StructureLifecycleWriterPersistenceTests : GameSqlServerTestBase
     {
         int playerTurnId = await OpenFirstPlayerTurnAsync(_gameId);
 
-        StructureInstance founded = NewStructure(completionPercent: 30);
+        StructureInstance founded = NewStructure(buildPointsProgress: 30);
 
         await FoundAsync(founded, playerTurnId);
 
@@ -314,7 +320,7 @@ internal class StructureLifecycleWriterPersistenceTests : GameSqlServerTestBase
     }
 
     /// <summary>A new, unsaved watchtower belonging to the first player, in the first tile's primary slot.</summary>
-    private StructureInstance NewStructure(double completionPercent)
+    private StructureInstance NewStructure(long buildPointsProgress)
     {
         return new StructureInstance
         {
@@ -324,7 +330,7 @@ internal class StructureLifecycleWriterPersistenceTests : GameSqlServerTestBase
             SlotType = TileSlotType.Primary,
             Position = PositionOnTile.WholeTile,
             OwnedByPlayerId = _ownerPlayerId,
-            CompletionPercent = completionPercent
+            BuildPointsProgress = buildPointsProgress
         };
     }
 

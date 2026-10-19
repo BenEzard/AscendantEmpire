@@ -9,9 +9,9 @@ when their turn opens.
 >
 > **Status: partly built.** The `turns.PlayerTurn` foundation landed in F-21, `units.MovementHistory` with its single writer in F-22, the witness service with its coalition seam in F-23, the Forces producer in F-24, the Structures producer in F-25, and the combat producer in F-26: `battle.BattleHistory` with its own single writer, combat reports, and the fold wired into the campaign end-of-turn step. All three producers now exist. The fidelity curve (F-31) is not built.
 >
-> Two gaps are worth naming, because both leave a producer with no production input:
+> Two notes on what feeds the producers:
 >
-> - **Nothing in play writes a structure event.** Founding, construction, capture and razing are all still to be built, and each must go through `IStructureLifecycleWriter` when it is.
+> - **Structure events are written in play, since CD-1.** Founding a settlement writes `Founded` and razes whatever held the tile's Primary slot, and the `BuildingStructure` end-of-turn process writes `Progressed` and `Completed` as a settlement goes up — all through `IStructureLifecycleWriter`. **Capture is still to be built,** and must go through it too. So the Structures producer has real production input: a village founded in another player's sight is reported to them, and its progress moves their known-structure marker.
 > - **Nothing in play writes a battle event, because there is no combat subsystem at all.** Nothing starts a battle, reinforces one, resolves one, damages a Unit or destroys a Force. Each must go through `IBattleLifecycleWriter` when it is built. The combat fold's **second host, end of battle turn, is not built either** - there is no battle turn pipeline and battle lanes open no Turns; the fold is a service precisely so that host can call it unchanged.
 >
 > Existing entities are called out where the design leans on them.
@@ -530,9 +530,9 @@ parallel workstream:
    carries `LastAllocatedSequence`. `IPlayerTurnService.AllocateSequenceAsync` hands out the
    `TurnSequence` values every raw feed row is to be stamped with, atomically. Nothing writes a feed row
    yet — that is dependency 2.
-2. ~~**A single writer for Force position and lifecycle.**~~ **Landed in F-22.** `IForceLifecycleWriter` is the only way a Force is created, moved or destroyed, and each change is written together with its `units.MovementHistory` row: if the Turn's sequence cannot be allocated, the change is not made. The step handler, the developer spawn and game setup all go through it. Pathfound order execution, retreats and settlement founding do not exist yet, and nothing destroys a Force yet; each of them must go through the writer when it is built.
+2. ~~**A single writer for Force position and lifecycle.**~~ **Landed in F-22.** `IForceLifecycleWriter` is the only way a Force is created, moved or destroyed, and each change is written together with its `units.MovementHistory` row: if the Turn's sequence cannot be allocated, the change is not made. The step handler, the developer spawn and game setup all go through it. Settlement founding destroys the settler through it, as of CD-1. Pathfound order execution and retreats do not exist yet, and each must go through the writer when it is built.
 
-   **F-25 added the Structure half,** `IStructureLifecycleWriter`, on the same terms. Nothing calls it yet either: settlement founding, the `BuildingStructure` construction step, and siege must each go through it when they are built.
+   **F-25 added the Structure half,** `IStructureLifecycleWriter`, on the same terms. Settlement founding and the `BuildingStructure` construction step both go through it, as of CD-1 - founding, razing the structure it displaces, and every step of construction. Siege and capture must go through it when they are built.
 
    **F-26 added the Battle half,** `IBattleLifecycleWriter`, again on the same terms. Nothing calls it yet: starting a battle, reinforcement, retreat and resolution must each go through it when combat is built - including `CreateBattleTurnQueueHandler`, which builds a `Battle` and its roster directly today. That handler has no production caller and no route, so it is harmless as it stands, but it is a live bypass of the writer and must not gain one.
 3. ~~**The witness service extraction** described above.~~ **Landed in F-23.** `FieldOfView` holds the sight rules, shared by the live map read and `IWitnessService`; see [The witness service](#the-witness-service).

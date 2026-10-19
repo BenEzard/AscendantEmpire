@@ -226,6 +226,7 @@ public static class ApplicationStartup
         services.AddScoped<ISeedStep, ExperienceTypeSeedStep>();
         services.AddScoped<ISeedStep, TechnologySeedStep>();
         services.AddScoped<ISeedStep, MapResourceTypeSeedStep>();
+        services.AddScoped<ISeedStep, StructureSeedStep>();
 
         // One technology requirement generator per customisation mode, so the selector finds something for every member of the enum and an unimplemented
         // mode refuses by name rather than failing as "nothing registered". Implementing a mode means swapping its registration for a real generator.

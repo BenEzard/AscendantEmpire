@@ -6,6 +6,7 @@ namespace AscendantEmpire.Application.Features.Structures.Classes;
 public class DTStructureDisplayInfo : IStructureDisplayInfo
 {
     public required int StructureId { get; set; }
+    public required string Code { get; set; }
     public required string Name { get; set; }
     public required string MapImagePath { get; set; }
 }

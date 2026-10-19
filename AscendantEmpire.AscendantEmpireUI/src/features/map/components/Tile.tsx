@@ -8,6 +8,7 @@ import ObservedStructure from "./ObservedStructure";
 import ObservedForce from "./ObservedForce";
 import KnownForceMarker from "./KnownForceMarker";
 import KnownStructureMarker from "./KnownStructureMarker";
+import { structureImageSrc } from "@/features/map/util/structureImages";
 import type { KnownForce, KnownStructure } from "@/features/intelligence/api/intelligenceApi";
 
 export interface TileProps {
@@ -35,6 +36,13 @@ export interface TileProps {
   knownStructures?: readonly KnownStructure[];
   /** The round being played now, which known-force and known-structure markers fade against. */
   currentRoundNumber?: number | null;
+  /**
+   * The catalogue code of each kind of structure, from /structures/display.
+   *
+   * Only the known-structure marker needs it: a live structure arrives from the map read with its own code, but a remembered
+   * one carries an id alone and the artwork is keyed on the code.
+   */
+  structureCodeByStructureId?: ReadonlyMap<number, string>;
   onClick?: (tile: TileCell) => void;
   onHold?: (tile: TileCell) => void;
   /** Called with the tile when the pointer enters it. Should keep one identity, like `onClick`, or every tile re-renders when it changes. */
@@ -71,6 +79,7 @@ const Tile = React.memo(function Tile({
   knownForces,
   knownStructures,
   currentRoundNumber = null,
+  structureCodeByStructureId,
   onClick,
   onHold,
   onHover,
@@ -118,7 +127,14 @@ const Tile = React.memo(function Tile({
   // Terrain survives losing sight of a tile; the things standing on it do not. The server stops reporting structures and forces
   // once nothing is watching, and the tiles cache keeps whatever was last seen there rather than blanking it — so without this
   // guard an enemy force would stay painted on ground the player can no longer see, long after it had marched off.
-  const visibleStructure = isObserved ? (tile.structures?.find((structure) => structure.structureId === 1) ?? null) : null;
+  //
+  // The first structure the client has art for, rather than a hardcoded kind. This used to look for `structureId === 1` — the
+  // one catalogue row anyone had, inserted by hand — which drew nothing at all for any other kind. ObservedStructure draws
+  // nothing for a code it has no sprite for, so picking one that it can draw is what keeps a tile from going blank when it
+  // holds, say, a totem pole as well as a village.
+  const visibleStructure = isObserved
+    ? (tile.structures?.find((structure) => structureImageSrc(structure.structureCode) != null) ?? null)
+    : null;
   const visibleForce = isObserved ? (tile.forces?.find((force) => force.id === visibleForceId) ?? tile.forces?.[0] ?? null) : null;
   const visibleForceCount = isObserved ? (tile.forces?.length ?? 0) : 0;
 
@@ -188,7 +204,13 @@ const Tile = React.memo(function Tile({
         />
       ) : null}
       {/* Before the force marker, so a force remembered on a tile is drawn over the structure remembered there. */}
-      {knownStructuresToDraw ? <KnownStructureMarker knownStructures={knownStructuresToDraw} currentRoundNumber={currentRoundNumber} /> : null}
+      {knownStructuresToDraw ? (
+        <KnownStructureMarker
+          knownStructures={knownStructuresToDraw}
+          currentRoundNumber={currentRoundNumber}
+          structureCodeByStructureId={structureCodeByStructureId}
+        />
+      ) : null}
       {knownForcesToDraw ? (
         <KnownForceMarker knownForces={knownForcesToDraw} currentRoundNumber={currentRoundNumber} unitImageSrcByUnitTemplateId={unitImageSrcByUnitTemplateId} />
       ) : null}

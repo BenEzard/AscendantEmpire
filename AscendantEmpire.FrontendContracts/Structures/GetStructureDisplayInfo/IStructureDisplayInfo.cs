@@ -12,6 +12,15 @@ public interface IStructureDisplayInfo
     public int StructureId { get; }
 
     /// <summary>
+    /// The kind's stable catalogue code, e.g. <c>village</c>.
+    /// </summary>
+    /// <remarks>
+    /// What the client's artwork is keyed on. The live map read sends a code on each observed Structure, but a last-known-structure marker carries only an id, so this is
+    /// how that marker resolves the kind's art.
+    /// </remarks>
+    public string Code { get; }
+
+    /// <summary>
     /// The kind's name, as shown to the player — "Watchtower", "Village".
     /// </summary>
     public string Name { get; }

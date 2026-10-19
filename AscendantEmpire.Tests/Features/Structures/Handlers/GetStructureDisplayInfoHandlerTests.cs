@@ -54,6 +54,7 @@ internal class GetStructureDisplayInfoHandlerTests : InMemoryTestBase
             CanBeBuiltOnCampaignMap = canBeBuiltOnCampaignMap,
             CanBeBuiltOnBattleMap = canBeBuiltOnCampaignMap == false,
             DualMapBuildTrigger = false,
+            BuildPointsRequired = 0,
             SightRange = 2,
             SightDirection = DetectionDirection.FullRadius,
             MapImagePath = $"{name}.png",

@@ -64,18 +64,51 @@ public class StructureInstance
     public int CreatedOnTurnId { get; set; }
 
     /// <summary>
-    /// How far built the Structure is, from 0 to 100.
+    /// How much construction work has gone into the Structure so far, out of its kind's <see cref="Structures.Structure.BuildPointsRequired"/>.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Init-only: construction advances it through <c>IStructureLifecycleWriter.ProgressAsync</c>.
+    /// </para>
+    /// <para>
+    /// <b>Work, not a percentage.</b> Raw fixed-point on the Scale 1,000 convention of <c>ScaledAmount</c>, the same scale as
+    /// <see cref="Structures.Structure.BuildPointsRequired"/> and <see cref="BuildPointsPerTurn"/>, so a Turn's progress is a plain addition and "finished" is an exact
+    /// integer comparison. Storing a percentage instead would divide at every step, drift as the steps accumulated, and silently re-mean every row in flight if the
+    /// catalogue's total ever changed.
+    /// </para>
+    /// <para>
+    /// The percentage the UI shows is derived on the way out - <c>100 × progress / required</c> - and is a presentation concern. The intelligence snapshots
+    /// (<c>StructureHistory</c>, <c>PlayerKnownStructure</c>, <c>PlayerReport</c>) keep their own <c>CompletionPercent</c>: an observer sees roughly how far along a
+    /// Structure is, not its build points.
+    /// </para>
     /// </remarks>
-    public double CompletionPercent { get; init; }
+    public long BuildPointsProgress { get; init; }
+
+    /// <summary>
+    /// How much construction work goes into this Structure each Turn, fixed when it was founded.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Worked out once, from the Force that founded it - its body's Power, how many of it were healthy, and how much of its Turn it had left - and then never changed. See
+    /// <c>ConstructionRateCalculator</c>.
+    /// </para>
+    /// <para>
+    /// <b>Fixed rather than re-read each Turn, because the Force is gone.</b> A settler is consumed the moment it founds, deliberately: it leaves the map before the
+    /// end-of-Turn feed, so the settlement's people never have to eat as a Force while their settlement is being built. That makes this the only record of who built the
+    /// thing, so nothing can reinforce a slow build - see <c>docs/design/settlements.md</c>.
+    /// </para>
+    /// <para>
+    /// Raw fixed-point on the Scale 1,000 convention of <c>ScaledAmount</c>, the same scale as <see cref="Structures.Structure.BuildPointsRequired"/>. 0 on a Structure that was
+    /// placed rather than founded by anybody - game setup's, say - which the construction process treats as the one-point floor so it cannot stall for ever.
+    /// </para>
+    /// </remarks>
+    public long BuildPointsPerTurn { get; init; }
 
     /// <summary>
     /// The <c>PlayerTurn</c> construction finished during, or null while it is still being built.
     /// </summary>
     /// <remarks>
-    /// Init-only, and not a foreign key, for the same reasons as <see cref="CompletionPercent"/> and <see cref="CreatedOnTurnId"/>.
+    /// Init-only, and not a foreign key, for the same reasons as <see cref="BuildPointsProgress"/> and <see cref="CreatedOnTurnId"/>.
     /// </remarks>
     public int? CompletedOnTurnId { get; init; }
 

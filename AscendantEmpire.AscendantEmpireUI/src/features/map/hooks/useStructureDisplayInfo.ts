@@ -6,6 +6,13 @@ export const structureDisplayInfoKey = ["structureDisplayInfo"] as const;
 /** What one call to /structures/display yields, keyed by structure id. */
 export interface StructureDisplayLookup {
   nameByStructureId: Map<number, string>;
+  /**
+   * The catalogue code of each kind, which is what the artwork is keyed on.
+   *
+   * Needed only by the last-known-structure marker: a live structure arrives from the map read with its code already on it,
+   * but a remembered one carries an id alone, so the marker has to come back here to find out which sprite to draw.
+   */
+  codeByStructureId: Map<number, string>;
 }
 
 /**
@@ -25,6 +32,7 @@ export function useStructureDisplayInfoQuery(enabled: boolean) {
 
       return {
         nameByStructureId: new Map(structureDisplayInfo.filter((info) => info.name).map((info) => [info.structureId, info.name])),
+        codeByStructureId: new Map(structureDisplayInfo.filter((info) => info.code).map((info) => [info.structureId, info.code])),
       };
     },
   });

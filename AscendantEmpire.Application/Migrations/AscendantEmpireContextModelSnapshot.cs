@@ -554,6 +554,8 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.HasIndex("OwnedByPlayerId");
 
+                    b.HasIndex("OwnedBySettlementId");
+
                     b.HasIndex("GameId", "OwnedByPlayerId")
                         .HasDatabaseName("IX_CampaignMap_Game_OwnedByPlayer");
 
@@ -1595,14 +1597,17 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int?>("BattleMapTileId")
                         .HasColumnType("int");
 
+                    b.Property<long>("BuildPointsPerTurn")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("BuildPointsProgress")
+                        .HasColumnType("bigint");
+
                     b.Property<int>("CampaignMapTileId")
                         .HasColumnType("int");
 
                     b.Property<int?>("CompletedOnTurnId")
                         .HasColumnType("int");
-
-                    b.Property<double>("CompletionPercent")
-                        .HasColumnType("float");
 
                     b.Property<int>("CreatedOnTurnId")
                         .HasColumnType("int");
@@ -2527,6 +2532,55 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("PlayerOrganisationStructureTier", "military");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Settlements.Settlement", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("FoundedOnRoundNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FoundedOnTurnId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FoundingPlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("Population")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StructureInstanceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Tier")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FoundingPlayerId");
+
+                    b.HasIndex("StructureInstanceId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Settlement_StructureInstance");
+
+                    b.HasIndex("GameId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Settlement_Game_Name")
+                        .HasFilter("[Name] IS NOT NULL");
+
+                    b.ToTable("Settlements", "settlement");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Structures.Structure", b =>
                 {
                     b.Property<int>("Id")
@@ -2537,6 +2591,9 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.Property<int>("AllowedPositions")
                         .HasColumnType("int");
+
+                    b.Property<long>("BuildPointsRequired")
+                        .HasColumnType("bigint");
 
                     b.Property<bool>("CanBeBuiltOnBattleMap")
                         .HasColumnType("bit");
@@ -4597,6 +4654,12 @@ namespace AscendantEmpire.Application.Migrations
                         .HasForeignKey("OwnedByPlayerId")
                         .OnDelete(DeleteBehavior.NoAction);
 
+                    b.HasOne("AscendantEmpire.Domain.Entities.Settlements.Settlement", null)
+                        .WithMany()
+                        .HasForeignKey("OwnedBySettlementId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_CampaignMap_Settlements_OwnedBySettlementId");
+
                     b.Navigation("Biome");
 
                     b.Navigation("FirstVisitor");
@@ -5507,6 +5570,36 @@ namespace AscendantEmpire.Application.Migrations
                         .HasConstraintName("FK_PlayerOrganisationStructureTier_Structure_StructureId");
 
                     b.Navigation("Structure");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Settlements.Settlement", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "FoundedBy")
+                        .WithMany()
+                        .HasForeignKey("FoundingPlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_Settlements_Player_FoundingPlayerId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.GameIndex", "Game")
+                        .WithMany()
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_Settlements_GameIndex_GameId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.StructureInstance", "StructureInstance")
+                        .WithMany()
+                        .HasForeignKey("StructureInstanceId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_Settlements_StructureInstances_StructureInstanceId");
+
+                    b.Navigation("FoundedBy");
+
+                    b.Navigation("Game");
+
+                    b.Navigation("StructureInstance");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Structures.StructureHistory", b =>

@@ -99,6 +99,9 @@ body {
   z-index: 1;
 }
 
+/* No z-index of its own, deliberately. A positioned element with one becomes a stacking context, which sealed the completion
+   bar below the force drawn on the same tile however high the bar's own z-index went. Without it the sprite still paints under
+   the force, which comes later in the tile's markup and sits at 2. */
 .observed-structure {
   position: absolute;
   inset: 8%;
@@ -107,7 +110,6 @@ body {
   justify-content: center;
   gap: 2px;
   pointer-events: none;
-  z-index: 1;
 }
 
 .observed-structure__image {
@@ -117,12 +119,15 @@ body {
   object-fit: contain;
 }
 
+/* Above the forces at 2, so a unit standing on the tile never hides how far along the building is. The same level the tile
+   support marker uses, and for the same reason. */
 .observed-structure__completion-bar {
   position: relative;
   width: 4px;
   height: 80%;
   align-self: center;
   background: rgba(0, 0, 0, 0.2);
+  z-index: 3;
 }
 
 .observed-structure__completion-fill {
@@ -131,6 +136,33 @@ body {
   right: 0;
   bottom: 0;
   background: #facc15;
+}
+
+/* Settlement names, drawn over the whole grid rather than inside the tiles. A name is almost always wider than the 50px tile
+   its settlement stands on, and `.tile` clips its own contents, so a name drawn inside one is cut down to its first few
+   letters. The layer is inert: every pointer event belongs to the tiles underneath. */
+.settlement-labels {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+/* Anchored to the centre of the bottom edge of the settlement's tile, and pulled back above it, so the name sits inside the
+   tile it belongs to while overflowing sideways as far as it needs. The halo rather than a filled background keeps the terrain
+   readable underneath, which matters at this size. */
+.settlement-label {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  white-space: nowrap;
+  font-size: 9px;
+  line-height: 1.1;
+  font-weight: 600;
+  color: #fff;
+  text-shadow:
+    0 0 2px rgba(0, 0, 0, 0.95),
+    0 0 4px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
 }
 
 /* A last-known-position marker: where the player last saw a force, on ground nothing of theirs is watching now. Dashed and desaturated so a memory never

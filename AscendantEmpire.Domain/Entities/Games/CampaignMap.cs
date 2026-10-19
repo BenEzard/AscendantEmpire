@@ -60,7 +60,8 @@ public class CampaignMap
     /// Carrying the Settlement on the tile is what lets Settlement-scoped modifiers reach it. Owned land won by a structure, by enclosure or by attrition carries none, and no
     /// Settlement-scoped modifier applies to it.
     /// <para>
-    /// <b>Not a foreign key,</b> because Settlements are not modelled yet - see <c>docs/design/settlements.md</c>. Nothing writes this column until they are.
+    /// Written when a Settlement's construction finishes, on its own tile and no other: the territory radius of <c>docs/design/settlements.md</c> is not built, so a
+    /// Settlement owns exactly the tile it stands on.
     /// </para>
     /// </remarks>
     public int? OwnedBySettlementId { get; set; }
@@ -117,7 +118,7 @@ public class CampaignMap
     /// </para>
     /// <para>
     /// A countdown rather than an expiry Turn for exactly that reason: a tile with a military Force on it will not rebel, which the pass can spend as a round that subtracts
-    /// nothing. Held as a whole percent, unlike <c>StructureInstance.CompletionPercent</c>, because nothing here needs sub-percent resolution.
+    /// nothing. Held as a whole percent, because nothing here needs sub-percent resolution.
     /// </para>
     /// </remarks>
     public int? RebellionPercentRemaining { get; set; }

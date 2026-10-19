@@ -93,6 +93,7 @@ internal class StructureSightingFoldServiceTests : GameSqlServerTestBase
                 CanBeBuiltOnCampaignMap = true,
                 CanBeBuiltOnBattleMap = false,
                 DualMapBuildTrigger = false,
+                BuildPointsRequired = 0,
                 SightRange = 2,
                 SightDirection = DetectionDirection.FullRadius,
                 MapImagePath = "watchtower.png",
@@ -119,7 +120,7 @@ internal class StructureSightingFoldServiceTests : GameSqlServerTestBase
     [Test, Description("A village founded and razed in the watcher's view within one Turn is one report saying both, and remembered as razed - the transient case that used to leave no trace.")]
     public async Task ShouldRaiseOneReportForAStructureFoundedAndRazedInViewAsync()
     {
-        int structureInstanceId = await SeedStructureAsync(x: 6, y: 1, _actingPlayerId, completionPercent: 30, removed: true);
+        int structureInstanceId = await SeedStructureAsync(x: 6, y: 1, _actingPlayerId, removed: true);
 
         await SeedHistoryAsync(
             structureInstanceId,
@@ -157,7 +158,7 @@ internal class StructureSightingFoldServiceTests : GameSqlServerTestBase
     [Test, Description("A village founded in view and still standing at the end is reported and remembered as standing and still in sight - the persistent case a Player would otherwise miss.")]
     public async Task ShouldReportAndRememberAStructureFoundedInViewAndStillStandingAsync()
     {
-        int structureInstanceId = await SeedStructureAsync(x: 6, y: 1, _actingPlayerId, completionPercent: 30);
+        int structureInstanceId = await SeedStructureAsync(x: 6, y: 1, _actingPlayerId);
 
         await SeedHistoryAsync(structureInstanceId, (StructureHistoryEventType.Founded, _actingPlayerId, PreviousOwner: null, Completion: 30, Sequence: 2));
 
@@ -184,7 +185,7 @@ internal class StructureSightingFoldServiceTests : GameSqlServerTestBase
     [Test, Description("A Structure founded and finished in one Turn is a single report flagged both ways, so the feed can say it was completed without also saying construction started.")]
     public async Task ShouldRaiseOneReportForAStructureFoundedAndFinishedInOneTurnAsync()
     {
-        int structureInstanceId = await SeedStructureAsync(x: 6, y: 1, _actingPlayerId, completionPercent: 100);
+        int structureInstanceId = await SeedStructureAsync(x: 6, y: 1, _actingPlayerId);
 
         await SeedHistoryAsync(
             structureInstanceId,
@@ -209,7 +210,7 @@ internal class StructureSightingFoldServiceTests : GameSqlServerTestBase
     [Test, Description("Construction watched advancing without starting or finishing raises no report, but the Player's memory of how far built it is still moves on.")]
     public async Task ShouldOnlyRefreshTheMemoryWhenOnlyProgressWasSeenAsync()
     {
-        int structureInstanceId = await SeedStructureAsync(x: 6, y: 1, _actingPlayerId, completionPercent: 60);
+        int structureInstanceId = await SeedStructureAsync(x: 6, y: 1, _actingPlayerId);
 
         await SeedHistoryAsync(structureInstanceId, (StructureHistoryEventType.Progressed, _actingPlayerId, PreviousOwner: null, Completion: 60, Sequence: 4));
 
@@ -227,7 +228,7 @@ internal class StructureSightingFoldServiceTests : GameSqlServerTestBase
     [Test, Description("A Player watching their own Structure captured is told who took it from them, because an event done to another Player's Structure is not hidden from that Player.")]
     public async Task ShouldReportACaptureToThePlayerWhoWatchedTheirStructureTakenAsync()
     {
-        int structureInstanceId = await SeedStructureAsync(x: 6, y: 1, _actingPlayerId, completionPercent: 100);
+        int structureInstanceId = await SeedStructureAsync(x: 6, y: 1, _actingPlayerId);
 
         await SeedHistoryAsync(structureInstanceId, (StructureHistoryEventType.Captured, _actingPlayerId, PreviousOwner: _watchingPlayerId, Completion: 100, Sequence: 4));
 
@@ -251,7 +252,7 @@ internal class StructureSightingFoldServiceTests : GameSqlServerTestBase
     [Test, Description("Folding a Turn's Structures again replaces their reports, and leaves the same Turn's Force reports alone, since each step owns only its own report type.")]
     public async Task ShouldReplaceTheTurnsStructureReportsWithoutTouchingItsForceReportsAsync()
     {
-        int structureInstanceId = await SeedStructureAsync(x: 6, y: 1, _actingPlayerId, completionPercent: 30);
+        int structureInstanceId = await SeedStructureAsync(x: 6, y: 1, _actingPlayerId);
 
         await SeedHistoryAsync(structureInstanceId, (StructureHistoryEventType.Founded, _actingPlayerId, PreviousOwner: null, Completion: 30, Sequence: 1));
         await SeedMovementAsync(_settlerId, ((5, 0), (6, 0), Sequence: 2));
@@ -274,7 +275,7 @@ internal class StructureSightingFoldServiceTests : GameSqlServerTestBase
     [Test, Description("An older sighting never overwrites a newer memory of the same Structure, so a Player's knowledge is never rolled backwards.")]
     public async Task ShouldNotOverwriteANewerKnownStructureWithAnOlderSightingAsync()
     {
-        int structureInstanceId = await SeedStructureAsync(x: 6, y: 1, _actingPlayerId, completionPercent: 30);
+        int structureInstanceId = await SeedStructureAsync(x: 6, y: 1, _actingPlayerId);
 
         await SeedHistoryAsync(structureInstanceId, (StructureHistoryEventType.Founded, _actingPlayerId, PreviousOwner: null, Completion: 30, Sequence: 1));
 
@@ -316,7 +317,7 @@ internal class StructureSightingFoldServiceTests : GameSqlServerTestBase
     [Test, Description("A Structure founded where nobody could see it raises nothing at all, so an unwatched change stays out of every feed.")]
     public async Task ShouldRaiseNothingForAStructureNobodyCouldSeeAsync()
     {
-        int structureInstanceId = await SeedStructureAsync(x: 1, y: 1, _actingPlayerId, completionPercent: 30);
+        int structureInstanceId = await SeedStructureAsync(x: 1, y: 1, _actingPlayerId);
 
         await SeedHistoryAsync(structureInstanceId, (StructureHistoryEventType.Founded, _actingPlayerId, PreviousOwner: null, Completion: 30, Sequence: 1));
 
@@ -335,7 +336,7 @@ internal class StructureSightingFoldServiceTests : GameSqlServerTestBase
     public async Task ShouldStillReportAForceWatchedByATowerRazedLaterInTheTurnAsync()
     {
         // The watcher's own tower in the west, where none of their Forces can see: it alone watches columns 0 to 4.
-        int towerId = await SeedStructureAsync(x: 2, y: 1, _watchingPlayerId, completionPercent: 100, removed: true);
+        int towerId = await SeedStructureAsync(x: 2, y: 1, _watchingPlayerId, removed: true);
 
         await SeedMovementAsync(_settlerId, ((0, 1), (1, 1), Sequence: 3));
         await SeedHistoryAsync(towerId, (StructureHistoryEventType.Razed, _watchingPlayerId, PreviousOwner: null, Completion: 100, Sequence: 9));
@@ -376,7 +377,7 @@ internal class StructureSightingFoldServiceTests : GameSqlServerTestBase
     }
 
     /// <summary>Writes a watchtower to the table and returns its id, razed during the open Turn when asked.</summary>
-    private async Task<int> SeedStructureAsync(int x, int y, int ownerPlayerId, double completionPercent, bool removed = false)
+    private async Task<int> SeedStructureAsync(int x, int y, int ownerPlayerId, bool removed = false)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
@@ -389,7 +390,6 @@ internal class StructureSightingFoldServiceTests : GameSqlServerTestBase
             Position = PositionOnTile.WholeTile,
             OwnedByPlayerId = ownerPlayerId,
             CreatedOnTurnId = _playerTurnId,
-            CompletionPercent = completionPercent,
             RemovedOnTurnId = removed ? _playerTurnId : null
         };
 

@@ -50,6 +50,8 @@ public static class ObserverSightPresentation
                     RecordType = structure.RecordType,
                     OwnerPlayerId = structure.OwnerPlayerId,
                     StructureId = structure.StructureId,
+                    StructureCode = structure.StructureCode,
+                    SettlementName = structure.SettlementName,
                     PositionOnTile = structure.PositionOnTile,
                     CompletionPercent = structure.CompletionPercent
                 }) ?? []],
