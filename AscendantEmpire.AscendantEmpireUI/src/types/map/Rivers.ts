@@ -33,27 +33,3 @@ const RIVER_WIDTH_LABELS: Record<Exclude<RiverWidth, "None">, string> = {
 export function riverWidthLabel(width: RiverWidth): string | null {
   return width === "None" ? null : RIVER_WIDTH_LABELS[width];
 }
-
-/** How an edge is named in a sentence, in the same order RIVER_EDGES lists them. */
-const RIVER_EDGE_LABELS: Record<RiverEdge, string> = {
-  north: "N",
-  east: "E",
-  south: "S",
-  west: "W",
-};
-
-/**
- * The tile's rivers as one short line for a tooltip — `"N medium, E large"` — or null when it has none.
- *
- * Returns null for a tile with no rivers at all, and for an unexplored one, so a caller can leave the line out entirely rather
- * than printing an empty label.
- */
-export function describeTileRivers(rivers: TileRivers | undefined): string | null {
-  if (rivers == null) {
-    return null;
-  }
-
-  const parts = RIVER_EDGES.filter((edge) => rivers[edge] !== "None").map((edge) => `${RIVER_EDGE_LABELS[edge]} ${riverWidthLabel(rivers[edge])}`);
-
-  return parts.length > 0 ? parts.join(", ") : null;
-}
