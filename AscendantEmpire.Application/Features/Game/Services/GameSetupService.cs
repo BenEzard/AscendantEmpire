@@ -111,11 +111,11 @@ internal class GameSetupService(
         // What decides whether a foreign category is drawn at all is the projection in GetPlayerAssetsHandler, not these rows.
         "Society.Population.MyPeople.Civilians",
         "Society.Population.MyPeople.Slaves",
-        "Society.Population.MyPeople.Interred",
+        "Society.Population.MyPeople.Interned",
         "Society.Population.MyPeople.PoW",
         "Society.Population.Forces.Army",
         "Society.ForeignPopulation.Subjugated.Slaves",
-        "Society.ForeignPopulation.Subjugated.Interred",
+        "Society.ForeignPopulation.Subjugated.Interned",
         "Society.ForeignPopulation.Subjugated.PoW"
     ];
 

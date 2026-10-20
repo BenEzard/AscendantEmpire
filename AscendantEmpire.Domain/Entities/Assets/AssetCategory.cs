@@ -32,7 +32,7 @@ public sealed class AssetCategory
     /// </summary>
     /// <remarks>
     /// Defaults to <see cref="AssetSubjectScope.Own"/>, which is every category in the catalogue bar one: <c>Society.ForeignPopulation</c>, the
-    /// template holding the Slaves, Interred and P.o.W a Player has taken from somebody else's people.
+    /// template holding the Slaves, Interned and Prisoners of War a Player has taken from somebody else's people.
     /// </remarks>
     public AssetSubjectScope SubjectScope { get; set; } = AssetSubjectScope.Own;
 

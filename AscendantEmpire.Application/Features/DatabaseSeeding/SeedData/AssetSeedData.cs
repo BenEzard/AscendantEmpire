@@ -468,25 +468,25 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Civilians",
                                     IconPath = _CIVILIAN_ICON,
-                                    Description = "Members of this people going about their own lives - everyone not serving, enslaved, interred or held prisoner."
+                                    Description = "Civilians in our Faction"
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Slaves",
                                     IconPath = _SLAVE_ICON,
-                                    Description = "Members of this people held in slavery, wherever in the world they are held."
+                                    Description = "Our people held as slaves"
                                 },
                                 new UpsertAssetDto
                                 {
-                                    DisplayName = "Interred",
+                                    DisplayName = "Interned",
                                     IconPath = _INTERNED_ICON,
-                                    Description = "Civilians of this people detained by a foreign power, wherever they are held."
+                                    Description = "Our people interned in camps"
                                 },
                                 new UpsertAssetDto
                                 {
-                                    DisplayName = "P.o.W",
+                                    DisplayName = "Prisoners of War",
                                     IconPath = _PRISONER_OF_WAR_ICON,
-                                    Description = "Soldiers of this people taken prisoner, wherever they are held."
+                                    Description = "Our forces rotting as Prisoners of War"
                                 },
                             ]
                         },
@@ -539,19 +539,19 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Slaves",
                                     IconPath = _SLAVE_ICON,
-                                    Description = "Members of this foreign people held in slavery by this Player."
+                                    Description = "People we have enslaved"
                                 },
                                 new UpsertAssetDto
                                 {
-                                    DisplayName = "Interred",
+                                    DisplayName = "Interned",
                                     IconPath = _INTERNED_ICON,
-                                    Description = "Civilians of this foreign people interred by this Player."
+                                    Description = "Civilians we have interned"
                                 },
                                 new UpsertAssetDto
                                 {
-                                    DisplayName = "P.o.W",
+                                    DisplayName = "Prisoners of War",
                                     IconPath = _PRISONER_OF_WAR_ICON,
-                                    Description = "Soldiers of this foreign people held prisoner by this Player."
+                                    Description = "Enemy combatants kept as Prisoners of War"
                                 },
                             ]
                         },
