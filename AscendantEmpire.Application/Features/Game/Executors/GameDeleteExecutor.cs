@@ -225,6 +225,13 @@ internal sealed class GameDeleteExecutor(
                 .Where(h => h.GameId == gameId)
                 .ExecuteDeleteAsync(cancellationToken)),
 
+            // Research history, the fourth raw feed, names players and player turns, so it goes up here with the other three rather than down with the research tables it otherwise belongs beside.
+            // Its PlayerTurnId is nullable - null covers game setup and maintenance recomputes - but one non-null row is enough for the database to refuse the player turns below. It carries its
+            // own GameId, so needs no scoping through the Player.
+            ("research history", () => purge.ResearchHistories
+                .Where(h => h.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
             // The intelligence feed names tiles, players, templates and player turns just as movement history does, so it goes at the same point. Path tiles before their reports, since that
             // relationship is NoAction too; like the history, neither table's Force id is a foreign key.
             ("player report path tiles", () => purge.PlayerReportPathTiles
@@ -446,10 +453,8 @@ internal sealed class GameDeleteExecutor(
 
             // Per-player technology state. Every one of these is game-scoped and carries GameId, so each purges in one statement without going through
             // the Player. The Technology and ExperienceType catalogue rows they point at are shared content and survive.
-            ("research history", () => purge.ResearchHistories
-                .Where(h => h.GameId == gameId)
-                .ExecuteDeleteAsync(cancellationToken)),
-
+            //
+            // Research history is the exception to the grouping: it belongs here by subject, but its PlayerTurnId is a real foreign key, so it is purged up with the other raw feeds instead.
             ("player research modifiers", () => purge.PlayerResearchModifiers
                 .Where(m => m.GameId == gameId)
                 .ExecuteDeleteAsync(cancellationToken)),

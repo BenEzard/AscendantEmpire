@@ -5,6 +5,7 @@ using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.Battles;
 using AscendantEmpire.Domain.Entities.Games;
+using AscendantEmpire.Domain.Entities.Technologies;
 using AscendantEmpire.Domain.Entities.Identity;
 using AscendantEmpire.Domain.Entities.Maps.BattleMaps;
 using AscendantEmpire.Domain.Entities.Turns;
@@ -19,6 +20,7 @@ using AscendantEmpire.Domain.Enums.Intelligence;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Processing;
 using AscendantEmpire.Domain.Enums.System;
+using AscendantEmpire.Domain.Enums.Technologies;
 using AscendantEmpire.Domain.Enums.Turns;
 using AscendantEmpire.Tests.Features.Maps.MapResources;
 
@@ -155,6 +157,25 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             Assert.That(await context.BattleHistory.AnyAsync(h => h.GameId == gameId), Is.False);
             Assert.That(await context.Battles.AnyAsync(b => b.GameId == gameId), Is.False);
             Assert.That(await context.BattleParticipants.AnyAsync(), Is.False, "The only battle in the database belonged to the deleted game.");
+        }
+    }
+
+    [Test, Description("Research history goes with its game, and before the player turns it names - the ordering whose absence failed real deletes on the ResearchHistory foreign key.")]
+    public async Task ShouldRemoveTheGamesResearchHistoryWhenItIsDeletedAsync()
+    {
+        int gameId = await SetupGameAsync("Doomed");
+
+        await SeedResearchHistoryAsync(gameId);
+
+        Processing job = await ExecuteDeleteAsync(gameId);
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(job.Status, Is.EqualTo(ProcessingStatus.Complete), job.ErrorMessage);
+            Assert.That(await context.ResearchHistories.AnyAsync(h => h.GameId == gameId), Is.False);
+            Assert.That(await context.PlayerTurns.AnyAsync(), Is.False, "The only player turns in the database belonged to the deleted game.");
         }
     }
 
@@ -844,6 +865,74 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
                 CampaignMapTileId = tileId,
                 PlayerTurnId = turn.Id,
                 TurnSequence = 3
+            });
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Opens a Turn in the game's campaign lane and records one Round of research history for the first player - one row per bucket, every one of them naming that Turn.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Written straight to the table rather than through the turn pipeline, for the same reason as the other feeds here: this fixture is about the purge reaching the rows rather than about how
+    /// they got there. Setup leaves no research history behind, because the first row is only written when a Turn ends.
+    /// </para>
+    /// <para>
+    /// The non-null <c>PlayerTurnId</c> is the whole point of the helper. That column is nullable - null covers game setup and any maintenance recompute - so a null row would leave the foreign key
+    /// to the player turns unexercised and the test would pass against an ordering that a real game's history refuses.
+    /// </para>
+    /// </remarks>
+    private async Task SeedResearchHistoryAsync(int gameId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        TurnQueue campaignQueue = await context.TurnQueues.SingleAsync(q => q.GameId == gameId && q.QueueType == TurnQueueType.Campaign && q.BattleId == null);
+        int playerId = await context.Players.Where(p => p.GameId == gameId).OrderBy(p => p.Id).Select(p => p.Id).FirstAsync();
+
+        var turn = new PlayerTurn
+        {
+            TurnQueueId = campaignQueue.Id,
+            PlayerId = playerId,
+            RoundNumber = campaignQueue.CurrentRoundNumber,
+            StartedAt = DateTimeOffset.UtcNow
+        };
+
+        context.PlayerTurns.Add(turn);
+        await context.SaveChangesAsync();
+
+        // Three rows, one per bucket, which is what a Round actually writes - and all three carry the Turn, so every one of them holds the foreign key open.
+        context.ResearchHistories.AddRange(
+            new ResearchHistory
+            {
+                GameId = gameId,
+                PlayerId = playerId,
+                PlayerTurnId = turn.Id,
+                RoundNumber = campaignQueue.CurrentRoundNumber,
+                Bucket = ResearchBucket.Directed,
+                Generated = 300,
+                Spent = 250,
+                Overflowed = 50
+            },
+            new ResearchHistory
+            {
+                GameId = gameId,
+                PlayerId = playerId,
+                PlayerTurnId = turn.Id,
+                RoundNumber = campaignQueue.CurrentRoundNumber,
+                Bucket = ResearchBucket.Experience,
+                Generated = 40,
+                Lost = 40
+            },
+            new ResearchHistory
+            {
+                GameId = gameId,
+                PlayerId = playerId,
+                PlayerTurnId = turn.Id,
+                RoundNumber = campaignQueue.CurrentRoundNumber,
+                Bucket = ResearchBucket.Diffusion,
+                Generated = 10,
+                Spent = 10
             });
 
         await context.SaveChangesAsync();

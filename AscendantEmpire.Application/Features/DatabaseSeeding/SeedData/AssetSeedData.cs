@@ -1,4 +1,4 @@
-using AscendantEmpire.BackendContracts.Assets;
+﻿using AscendantEmpire.BackendContracts.Assets;
 using AscendantEmpire.Domain.Enums.Assets;
 
 namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
@@ -484,6 +484,9 @@ internal static class AssetSeedData
                                 },
                                 new UpsertAssetDto
                                 {
+                                    // Spelled out rather than derived: ToProperCode would turn the display name into "PrisonersOfWar", and the starter
+                                    // assets a new game is given name this one "PoW". Game setup refuses to run without it.
+                                    Code = "Society.Population.MyPeople.PoW",
                                     DisplayName = "Prisoners of War",
                                     IconPath = _PRISONER_OF_WAR_ICON,
                                     Description = "Our forces rotting as Prisoners of War"
@@ -549,6 +552,8 @@ internal static class AssetSeedData
                                 },
                                 new UpsertAssetDto
                                 {
+                                    // Spelled out for the same reason as its counterpart under My People.
+                                    Code = "Society.ForeignPopulation.Subjugated.PoW",
                                     DisplayName = "Prisoners of War",
                                     IconPath = _PRISONER_OF_WAR_ICON,
                                     Description = "Enemy combatants kept as Prisoners of War"
