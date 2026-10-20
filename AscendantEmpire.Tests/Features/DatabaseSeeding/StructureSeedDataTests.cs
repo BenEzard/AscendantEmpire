@@ -127,4 +127,22 @@ internal class StructureSeedDataTests
             Assert.That(structure.SightRange, Is.GreaterThanOrEqualTo(1), $"{structure.Code} has a sight range of {structure.SightRange}.");
         }
     }
+
+    [Test, Description("Every kind authored so far asserts ownership over its ground, which is the behaviour the catalogue had before the column existed.")]
+    public void ShouldMakeEveryStructureAssertOwnership()
+    {
+        foreach (UpsertStructureDto structure in StructureSeedData.Build())
+        {
+            Assert.That(structure.Asserts, Is.EqualTo(StructureAssertion.Owned), $"{structure.Code} asserts {structure.Asserts}.");
+        }
+    }
+
+    [Test, Description("No kind asserts anything outside the two legal values, which the database's own check constraint also refuses.")]
+    public void ShouldAssertOnlyALegalValue()
+    {
+        foreach (UpsertStructureDto structure in StructureSeedData.Build())
+        {
+            Assert.That(structure.Asserts, Is.AnyOf(StructureAssertion.Claim, StructureAssertion.Owned), $"{structure.Code} asserts {structure.Asserts}.");
+        }
+    }
 }

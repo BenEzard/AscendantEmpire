@@ -1,3 +1,5 @@
+using AscendantEmpire.Application.Features.Settlements.Classes;
+using AscendantEmpire.Domain.Enums.Settlements;
 using AscendantEmpire.Domain.Enums.Forces;
 
 namespace AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strategies;
@@ -28,8 +30,14 @@ internal sealed class CreateVillageStrategy : IForceActionStrategy
     /// <summary>What is being founded, for the message text.</summary>
     private const string _SETTLEMENT_NOUN = "village";
 
-    /// <summary>The smallest Force that can found a village — four of the settler organisation's 25-strong base groups.</summary>
-    private const int _MINIMUM_TROOPS = 100;
+    /// <summary>
+    /// The smallest Force that can found a village — four of the settler organisation's 25-strong base groups.
+    /// </summary>
+    /// <remarks>
+    /// Read from <see cref="SettlementTierRules"/>, where every tier's minimum now lives so that the strategy and the settle handler cannot disagree about it. A village
+    /// consumes whoever founds it however large they are, so unlike a camp nothing here is ever deducted.
+    /// </remarks>
+    private static int MinimumTroops => SettlementTierRules.For(SettlementTier.Village)!.MinimumTroops;
 
     public ForceActionType ActionType => ForceActionType.CreateVillage;
 
@@ -50,6 +58,6 @@ internal sealed class CreateVillageStrategy : IForceActionStrategy
 
         // Blocked with no reasons falls back to Available, so a clean pass needs no separate branch.
         return ForceActionAvailability.Blocked(
-            SettlementFoundingRules.CollectBlockingReasons(force, _SETTLEMENT_NOUN, _MINIMUM_TROOPS));
+            SettlementFoundingRules.CollectBlockingReasons(force, _SETTLEMENT_NOUN, MinimumTroops));
     }
 }

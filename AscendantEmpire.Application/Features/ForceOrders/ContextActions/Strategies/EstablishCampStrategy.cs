@@ -1,3 +1,5 @@
+using AscendantEmpire.Application.Features.Settlements.Classes;
+using AscendantEmpire.Domain.Enums.Settlements;
 using AscendantEmpire.Domain.Enums.Forces;
 
 namespace AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strategies;
@@ -23,8 +25,14 @@ internal sealed class EstablishCampStrategy : IForceActionStrategy
     /// <summary>What is being founded, for the message text.</summary>
     private const string _SETTLEMENT_NOUN = "camp";
 
-    /// <summary>The smallest Force that can establish a camp — one of the settler organisation's 25-strong base groups.</summary>
-    private const int _MINIMUM_TROOPS = 25;
+    /// <summary>
+    /// The smallest Force that can establish a camp — one of the settler organisation's 25-strong base groups.
+    /// </summary>
+    /// <remarks>
+    /// Read from <see cref="SettlementTierRules"/> rather than authored here, because the settle handler deducts exactly this many troops when the founders split off a
+    /// large enough Force instead of being consumed by the camp. The number a Force is refused for lacking and the number taken from it have to be the same one.
+    /// </remarks>
+    private static int MinimumTroops => SettlementTierRules.For(SettlementTier.Camp)!.MinimumTroops;
 
     public ForceActionType ActionType => ForceActionType.EstablishCamp;
 
@@ -44,6 +52,6 @@ internal sealed class EstablishCampStrategy : IForceActionStrategy
 
         // Blocked with no reasons falls back to Available, so a clean pass needs no separate branch.
         return ForceActionAvailability.Blocked(
-            SettlementFoundingRules.CollectBlockingReasons(force, _SETTLEMENT_NOUN, _MINIMUM_TROOPS));
+            SettlementFoundingRules.CollectBlockingReasons(force, _SETTLEMENT_NOUN, MinimumTroops));
     }
 }

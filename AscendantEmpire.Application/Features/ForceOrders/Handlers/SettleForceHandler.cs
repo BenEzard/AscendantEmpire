@@ -25,7 +25,7 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Features.ForceOrders.Handlers;
 
 /// <summary>
-/// A request to consume a Force and found a settlement where it stood.
+/// A request to found a settlement where a Force stands, out of that Force.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -193,7 +193,7 @@ internal class SettleForceHandler(
             return ServiceResult<SettleForceResult>.Fail(error);
         }
 
-        return await FoundAsync(context, request, force, structureKind, playerTurnId, roundNumber, name, cancelToken);
+        return await FoundAsync(context, request, force, tierDefinition, structureKind, playerTurnId, roundNumber, name, cancelToken);
     }
 
     /// <summary>
@@ -202,17 +202,22 @@ internal class SettleForceHandler(
     /// <remarks>
     /// <para>
     /// One transaction over four changes, because a half-done founding is worse than none: the tile's existing Primary structure razed, the Force's standing orders cleared,
-    /// the Force destroyed, the new Structure founded, and the Settlement written.
+    /// the Force destroyed or reduced, the new Structure founded, and the Settlement written.
     /// </para>
     /// <para>
     /// The transaction is opened <b>here</b> rather than left to <c>FoundAsync</c>, which opens its own when the caller has none. Opening it first is what makes the razing
     /// and the destruction part of the same unit of work as the founding, instead of three that can each land without the others.
+    /// </para>
+    /// <para>
+    /// <b>The Force does not always die.</b> A tier that splits from its founder - a camp - takes only its minimum off a Force at least twice that size and leaves the rest
+    /// standing. Every other founding consumes the Force entirely. Either way the settlers are counted once: the Settlement's population is exactly what the Force lost.
     /// </para>
     /// </remarks>
     private async Task<ServiceResult<SettleForceResult>> FoundAsync(
         AscendantEmpireContext context,
         SettleForceRequest request,
         UnitInstance force,
+        SettlementTierDefinition tierDefinition,
         Structure structureKind,
         int playerTurnId,
         int roundNumber,
@@ -220,10 +225,18 @@ internal class SettleForceHandler(
         CancellationToken cancelToken)
     {
         int tileId = force.CampaignMapTileId;
-        int population = force.HealthyCount + force.InjuredCount;
+        int totalStrength = force.HealthyCount + force.InjuredCount;
 
-        // How fast this settlement will go up, worked out from the Force that is about to disappear into it. Fixed here because this is the only moment it can be: the
-        // settler is consumed before the end-of-Turn feed, so by the time construction advances there is no Force left to ask.
+        // Whether the founders split off or the whole Force becomes the Settlement. The threshold is the tier's, so the rule and the amount taken stay one fact.
+        bool founderSurvives = tierDefinition.WouldSurviveFounding(totalStrength);
+        int population = founderSurvives ? tierDefinition.MinimumTroops : totalStrength;
+
+        // The healthy among the settlers, who are the ones who will raise the camp. Taken from the healthy first, so a column does not found a camp out of its wounded
+        // and keep the able-bodied; what is left over of the draft comes from the injured.
+        int settlerHealthy = Math.Min(force.HealthyCount, population);
+
+        // How fast this settlement will go up, worked out from the settlers who stay with it. Fixed here because this is the only moment it can be: by the time
+        // construction advances at the end of the Turn, the founders are no longer a Force anybody can ask.
         //
         // Scalars only off the compiled template, which is what keeps the handler's own query off the EF complex types it owns - see docs/testing.md.
         ForceConstructionProfile? constructionProfile = await context.CompiledUnitTemplates
@@ -243,7 +256,7 @@ internal class SettleForceHandler(
 
         long buildPointsPerTurn = ConstructionRateCalculator.CalculateBuildPointsPerTurn(
             bodyPowerRaw: constructionProfile.PowerRaw,
-            healthyCount: force.HealthyCount,
+            healthyCount: settlerHealthy,
             campaignMovementRemainingRaw: force.CampaignMovementRemaining,
             campaignMovementPointsRaw: constructionProfile.CampaignMovementPointsRaw);
 
@@ -275,16 +288,26 @@ internal class SettleForceHandler(
             }
         }
 
-        await ClearStandingOrdersAsync(context, force.Id, cancelToken);
-
-        ServiceResultBase destroyResult = await forceLifecycleWriter.DestroyAsync(context, force, playerTurnId, cancelToken);
-
-        if (destroyResult.HasSucceeded == false)
+        if (founderSurvives)
         {
-            const string error = "The force could not be consumed, so no settlement was founded.";
-            logger.LogWarning("Could not destroy Unit Instance Id {UnitInstanceId} while settling: {Errors}", force.Id, string.Join("; ", destroyResult.Errors));
+            // The settlers are taken off the Force rather than the Force being ended, so its standing orders are left alone: it is still here and may still have
+            // somewhere to be. Written straight onto the tracked entity, the way StarvationUnderfedForceResolver writes casualties.
+            force.HealthyCount -= settlerHealthy;
+            force.InjuredCount -= population - settlerHealthy;
+        }
+        else
+        {
+            await ClearStandingOrdersAsync(context, force.Id, cancelToken);
 
-            return ServiceResult<SettleForceResult>.Fail(destroyResult.Errors.Prepend(error));
+            ServiceResultBase destroyResult = await forceLifecycleWriter.DestroyAsync(context, force, playerTurnId, cancelToken);
+
+            if (destroyResult.HasSucceeded == false)
+            {
+                const string error = "The force could not be consumed, so no settlement was founded.";
+                logger.LogWarning("Could not destroy Unit Instance Id {UnitInstanceId} while settling: {Errors}", force.Id, string.Join("; ", destroyResult.Errors));
+
+                return ServiceResult<SettleForceResult>.Fail(destroyResult.Errors.Prepend(error));
+            }
         }
 
         var structure = new StructureInstance
@@ -334,8 +357,9 @@ internal class SettleForceHandler(
         await transaction.CommitAsync(cancelToken);
 
         logger.LogInformation(
-            "Player Id {PlayerId} founded {Tier} '{Name}' (Settlement Id {SettlementId}) on Campaign Map Tile Id {TileId} with {Population} people, consuming Unit Instance Id {UnitInstanceId}.",
-            request.PlayerId, request.Tier, name, settlement.Id, tileId, population, force.Id);
+            "Player Id {PlayerId} founded {Tier} '{Name}' (Settlement Id {SettlementId}) on Campaign Map Tile Id {TileId} with {Population} people, {FounderOutcome} Unit Instance Id {UnitInstanceId}.",
+            request.PlayerId, request.Tier, name, settlement.Id, tileId, population,
+            founderSurvives ? "split from" : "consuming", force.Id);
 
         return ServiceResult<SettleForceResult>.Succeed(new SettleForceResult
         {

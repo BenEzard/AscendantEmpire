@@ -1,7 +1,16 @@
-using AscendantEmpire.Application.Common;
+﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Game.Services;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
+using AscendantEmpire.Application.Features.Settlements.Classes;
+using AscendantEmpire.Application.Features.Structures.Classes;
 using AscendantEmpire.Application.Features.Structures.Services;
+using AscendantEmpire.BackendContracts.CampaignMaps;
+using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.Domain.Entities.Games;
+using AscendantEmpire.Domain.Enums.Settlements;
+using AscendantEmpire.Domain.Enums.Structures;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -30,13 +39,17 @@ namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campa
 /// <c>docs/design/intelligence-and-sightings.md</c>.
 /// </para>
 /// <para>
-/// On completion the Structure's own tile becomes owned by the Player, and - where the Structure is a Settlement's - owned through that Settlement. The single tile only:
-/// the territory radius of <c>docs/design/settlements.md</c> is not built.
+/// On completion the Structure asserts over the ground, as its catalogue entry says it does: a claim, or ownership. A Structure that is a Settlement's asserts over the
+/// territory radius of its tier as well as its own tile, and carries that Settlement on every tile of it - see <c>SettlementTierRules</c> and "Territory" in
+/// <c>docs/design/settlements.md</c>. Ownership extinguishes every rival claim on the ground it takes.
 /// </para>
 /// </remarks>
 internal class BuildingStructure(
     IDbContextFactory<AscendantEmpireContext> dbFactory,
     IStructureLifecycleWriter structureLifecycleWriter,
+    IGameContextService gameContextService,
+    ICampaignTerritoryReader campaignTerritoryReader,
+    ITileTerritoryService tileTerritoryService,
     ILogger<BuildingStructure> logger) : IEndCampaignTurnProcess
 {
     public string ItemName => "Building Structure";
@@ -93,7 +106,10 @@ internal class BuildingStructure(
 
         List<string> failures = [];
         int advanced = 0;
-        int completed = 0;
+
+        // Collected rather than written one at a time. Two Settlements completing in the same Turn can have overlapping territory, and staging two claim stubs with the
+        // same composite key is a change-tracking exception; one accumulated delta cannot do that, because TerritoryChanges is keyed by tile and by (tile, Player).
+        List<StructureInstance> completedStructures = [];
 
         foreach (StructureInstance structure in underConstruction)
         {
@@ -130,16 +146,16 @@ internal class BuildingStructure(
 
             if (isNowComplete)
             {
-                completed++;
-
-                await ClaimTileForCompletedStructureAsync(db, structure);
+                completedStructures.Add(structure);
             }
         }
+
+        await AssertTerritoryForCompletedStructuresAsync(db, context.GameId, completedStructures);
 
         await db.SaveChangesAsync();
 
         logger.LogInformation("Advanced construction on {Advanced} structure(s) for Player Id {PlayerId} in Game Id {GameId}; {Completed} completed, {Failed} failed.",
-            advanced, playerId, context.GameId, completed, failures.Count);
+            advanced, playerId, context.GameId, completedStructures.Count, failures.Count);
 
         if (failures.Count > 0)
         {
@@ -152,41 +168,187 @@ internal class BuildingStructure(
     }
 
     /// <summary>
-    /// Makes the finished Structure's own tile owned by the Player, and owned through its Settlement where it has one.
+    /// Makes every Structure that finished this Turn assert over its ground, as its catalogue entry says it does.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// A finished structure asserting ownership is the design's own rule - see "Founding a Settlement or finishing a structure" in
-    /// <c>docs/design/campaign-map/tile-ownership.md</c> - and this is the first thing in the game to write any of those columns.
+    /// A finished Structure asserting over its ground is the design's own rule - see "Structures" and "Founding a Settlement or finishing a structure" in
+    /// <c>docs/design/campaign-map/tile-ownership.md</c>. What it asserts comes from <c>Structure.Asserts</c>, and how far it reaches comes from the tier of the
+    /// Settlement it belongs to, so neither is decided here.
     /// </para>
     /// <para>
-    /// <b>Its own tile, and nothing further.</b> A Settlement's territory radius, the claim extinction that ownership is supposed to bring with it, and the enclosure rules
-    /// all wait on the per-round pass that tile-ownership.md describes. What is written here is the one tile the structure stands on.
+    /// <b>Ownership extinguishes every rival claim on the ground it takes, and does so now rather than at the end of the Round.</b> The two never coexist on a tile, and
+    /// a Round of them coexisting would be visible: the map read would report the tile Owned while still naming the rival claimants, and the client would draw a rival's
+    /// claim border inside somebody's territory.
     /// </para>
     /// <para>
-    /// Staged on the caller's context, so it is saved with the construction that produced it.
+    /// Staged on the caller's context through the same writer the per-Round pass uses, so it is saved with the construction that produced it and "ownership trumps claim"
+    /// is spent in exactly one place in the codebase.
     /// </para>
     /// </remarks>
-    private async Task ClaimTileForCompletedStructureAsync(AscendantEmpireContext db, StructureInstance structure)
+    private async Task AssertTerritoryForCompletedStructuresAsync(AscendantEmpireContext db, int gameId, IReadOnlyCollection<StructureInstance> completedStructures)
     {
-        CampaignMap? tile = await db.CampaignMaps
-            .FirstOrDefaultAsync(t => t.CampaignMapId == structure.CampaignMapTileId);
-
-        if (tile is null)
+        if (completedStructures.Count == 0)
         {
-            // A Structure cannot stand on a tile that does not exist, so this is a hole in the map rather than anything the Turn did.
-            logger.LogError("Structure Instance Id {StructureInstanceId} completed on Campaign Map Tile Id {TileId}, which does not exist, so no ownership was written.",
-                structure.Id, structure.CampaignMapTileId);
+            return;
+        }
+
+        ServiceResultBase.ServiceResult<IReadOnlyCollection<GameContext>> gameContexts = await gameContextService.GetGameContexts(gameId, playerId: null, CancellationToken.None);
+        GameContext? game = gameContexts.SuccessValue?.FirstOrDefault();
+
+        if (game is null)
+        {
+            // Without the map's shape there is no way to work out a radius, and guessing one would move borders. Logged rather than thrown: the construction itself is
+            // already done and correct, and a Turn must still be able to end.
+            logger.LogError("Game Id {GameId} has no in-progress context, so the territory of {Count} completed Structure(s) was not asserted.",
+                gameId, completedStructures.Count);
 
             return;
         }
 
-        tile.OwnedByPlayerId = structure.OwnedByPlayerId;
+        CampaignMapGeometry geometry = CampaignMapGeometry.From(game);
 
-        // Null for a structure that is nobody's Settlement - a watch tower owns its tile but carries no Settlement, and no Settlement-scoped modifier applies to it.
-        tile.OwnedBySettlementId = await db.Settlements
-            .Where(settlement => settlement.StructureInstanceId == structure.Id)
-            .Select(settlement => (int?)settlement.Id)
-            .FirstOrDefaultAsync();
+        // What each completed Structure asserts, and over which tiles, worked out before anything is loaded so the tiles can be read in one query.
+        List<(StructureInstance Structure, int? SettlementId, IReadOnlyCollection<Coord> Tiles)> assertions = [];
+
+        foreach (StructureInstance structure in completedStructures)
+        {
+            var settlement = await db.Settlements
+                .Where(s => s.StructureInstanceId == structure.Id)
+                .Select(s => new { s.Id, s.Tier })
+                .FirstOrDefaultAsync();
+
+            int radius = GetTerritoryRadius(structure, settlement?.Tier);
+
+            Coord location;
+
+            try
+            {
+                location = geometry.GetCoord(structure.CampaignMapTileId);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                // A Structure standing on a tile outside this Game's block is a hole in the data rather than anything the Turn did.
+                logger.LogError("Structure Instance Id {StructureInstanceId} completed on Campaign Map Tile Id {TileId}, which is not on Game Id {GameId}'s map, so no territory was asserted.",
+                    structure.Id, structure.CampaignMapTileId, gameId);
+
+                continue;
+            }
+
+            assertions.Add((structure, settlement?.Id, StructureAssertionRules.GetAssertedTiles(location, radius, geometry)));
+        }
+
+        if (assertions.Count == 0)
+        {
+            return;
+        }
+
+        int[] tileIds = [.. assertions
+            .SelectMany(assertion => assertion.Tiles)
+            .Select(geometry.GetCampaignMapId)
+            .Distinct()];
+
+        IReadOnlyCollection<TerritoryTile> tiles = await campaignTerritoryReader.GetTilesAsync(db, gameId, tileIds);
+
+        if (tiles.Count == 0)
+        {
+            logger.LogError("None of the {TileCount} tile(s) asserted over by {Count} completed Structure(s) exist in Game Id {GameId}, so no territory was asserted.",
+                tileIds.Length, assertions.Count, gameId);
+
+            return;
+        }
+
+        TerritoryChanges changes = BuildAssertionChanges(geometry, tiles, assertions);
+
+        if (changes.IsEmpty)
+        {
+            return;
+        }
+
+        ServiceResultBase applied = await tileTerritoryService.ApplyAsync(db, gameId, changes);
+
+        if (applied.HasSucceeded == false)
+        {
+            logger.LogError("Could not write the territory of {Count} completed Structure(s) in Game Id {GameId}: {Errors}",
+                assertions.Count, gameId, string.Join("; ", applied.Errors));
+        }
+    }
+
+    /// <summary>
+    /// Turns every completed Structure's assertion into one accumulated diff.
+    /// </summary>
+    /// <remarks>
+    /// Run through a <see cref="TerritoryWorkingSet"/> rather than assembled by hand, so the assertions see each other: where two Settlements' territory overlaps, the
+    /// second reads what the first already took and passes over it, and "ownership trumps claim" happens in the same place it happens for the per-Round pass.
+    /// </remarks>
+    private static TerritoryChanges BuildAssertionChanges(
+        CampaignMapGeometry geometry,
+        IReadOnlyCollection<TerritoryTile> tiles,
+        IReadOnlyCollection<(StructureInstance Structure, int? SettlementId, IReadOnlyCollection<Coord> Tiles)> assertions)
+    {
+        // A partial map: only the tiles being asserted over. That is all these writes touch, and the working set never walks off them.
+        TerritoryMap map = TerritoryMap.Create(geometry, tiles);
+
+        int[] playerIds = [.. assertions.Select(assertion => assertion.Structure.OwnedByPlayerId).Distinct()];
+        TerritoryWorkingSet working = TerritoryWorkingSet.From(map, playerIds);
+
+        foreach ((StructureInstance structure, int? settlementId, IReadOnlyCollection<Coord> assertedTiles) in assertions)
+        {
+            int playerId = structure.OwnedByPlayerId;
+
+            foreach (Coord coord in assertedTiles)
+            {
+                (int X, int Y) key = (coord.X, coord.Y);
+                TerritoryTile? tile = map.Get(key);
+
+                if (tile is null)
+                {
+                    continue;
+                }
+
+                if (structure.Structure.Asserts == StructureAssertion.Owned)
+                {
+                    if (TerritoryClaimability.CanOwn(tile, working.GetOwner(key), playerId))
+                    {
+                        // The Settlement rides on every tile of its territory, not just the one the Structure stands on, which is what lets a Settlement-scoped modifier reach them.
+                        working.AssertOwnership(key, playerId, settlementId);
+                    }
+
+                    continue;
+                }
+
+                if (TerritoryClaimability.CanClaim(tile, working.GetOwner(key), playerId))
+                {
+                    working.AssertClaim(key, playerId);
+                }
+            }
+        }
+
+        return working.ToChanges();
+    }
+
+    /// <summary>
+    /// How far out a completed Structure asserts: 0 for one that is nobody's Settlement, otherwise its tier's radius.
+    /// </summary>
+    /// <remarks>
+    /// A watch tower asserts over the ground it stands on and carries no Settlement, so no Settlement-scoped modifier applies to it. A tier with no authored radius is
+    /// logged and treated as the single tile, because growth is not built and a loud log beats a silent guess at how much ground a grown city should take.
+    /// </remarks>
+    private int GetTerritoryRadius(StructureInstance structure, SettlementTier? tier)
+    {
+        if (tier is not SettlementTier settlementTier)
+        {
+            return 0;
+        }
+
+        if (SettlementTierRules.TryGetTerritoryRadius(settlementTier, out int radius))
+        {
+            return radius;
+        }
+
+        logger.LogWarning("Settlement tier {Tier} has no authored territory radius, so Structure Instance Id {StructureInstanceId} asserted over its own tile only.",
+            settlementTier, structure.Id);
+
+        return 0;
     }
 }

@@ -56,6 +56,16 @@ public class Structure
 
     public required int SightRange { get; set; }
     public required DetectionDirection SightDirection { get; set; }
+
+    /// <summary>
+    /// What a completed Structure of this kind asserts over the tile it stands on - a claim, or ownership.
+    /// </summary>
+    /// <remarks>
+    /// Read by the <c>BuildingStructure</c> end-of-Turn process when a Structure finishes, and by nothing else. It sits beside the sight values because it is the same
+    /// kind of fact: something the catalogue says about a kind rather than about any individual Structure. See <see cref="StructureAssertion"/> and "Structures" in
+    /// <c>docs/design/campaign-map/tile-ownership.md</c>.
+    /// </remarks>
+    public required StructureAssertion Asserts { get; set; }
     public required string MapImagePath { get; set; }
     public required string FullImagePath { get; set; }
 }

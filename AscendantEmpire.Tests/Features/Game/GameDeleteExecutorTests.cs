@@ -1,4 +1,4 @@
-using AscendantEmpire.Application.Data;
+﻿using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.Application.Features.Game.Executors;
 using AscendantEmpire.Application.Features.Game.Handlers;
@@ -661,6 +661,7 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             BuildPointsRequired = 0,
             SightRange = 2,
             SightDirection = DetectionDirection.FullRadius,
+            Asserts = Domain.Enums.Structures.StructureAssertion.Owned,
             MapImagePath = "watchtower.png",
             FullImagePath = "watchtower-full.png"
         };

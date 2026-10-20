@@ -103,6 +103,12 @@ public static class ApplicationStartup
         services.AddScoped<ICampaignRiverReader, CampaignRiverReader>();
         services.AddScoped<ICampaignOwnershipReader, CampaignOwnershipReader>();
 
+        // Who holds the ground, and the per-Round pass that decides it. The rules are pure (TileTerritory, in the shape of FieldOfView); these are the reader
+        // that loads a whole Game's tiles and the service that writes the diff back. ITileTerritoryService is the single writer of the ownership columns and
+        // the claim junction, so the end-of-Round pass and a Structure asserting over its ground cannot disagree about what ownership does to a claim.
+        services.AddScoped<ICampaignTerritoryReader, CampaignTerritoryReader>();
+        services.AddScoped<ITileTerritoryService, TileTerritoryService>();
+
         // A Player's effective Forage, Hunt, Fish and Fodder values: each biome's base with the Player's sustenance modifiers applied. The only place that formula is used, so depletion,
         // replenishment and the tile toolbar cannot disagree. Nothing writes modifiers yet.
         services.AddScoped<IPlayerSustenanceValueReader, PlayerSustenanceValueReader>();
@@ -189,6 +195,7 @@ public static class ApplicationStartup
         // End of a Campaign Round — runs once, after the last Player's turn in the Round.
         services.AddScoped<IEndCampaignRoundProcess, HealTroops>();
         services.AddScoped<IEndCampaignRoundProcess, RegenerateTileSustenance>();
+        services.AddScoped<IEndCampaignRoundProcess, ResolveTileTerritory>();
         services.AddScoped<IEndCampaignRoundProcess, EvaluateVictoryConditions>();
 
         // Start of a Campaign Turn — runs for the Player whose turn is beginning.

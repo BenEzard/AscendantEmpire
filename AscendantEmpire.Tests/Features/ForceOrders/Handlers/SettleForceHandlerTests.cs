@@ -1,4 +1,4 @@
-using AscendantEmpire.Application.Common;
+﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.Application.Features.ForceOrders.Handlers;
@@ -50,6 +50,9 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
 
     /// <summary>Four of the settler organisation's 25-strong base groups - the smallest Force that may found a village.</summary>
     private const int _SETTLER_SIZE = 100;
+
+    /// <summary>One base group, which is the smallest Force that may establish a camp and the number a camp takes when it splits off a larger one.</summary>
+    private const int _CAMP_MINIMUM_TROOPS = 25;
 
     /// <summary>Enough movement for the "has any movement left" rule, which is all founding needs.</summary>
     private const long _STARTING_MOVEMENT = 2_000;
@@ -126,6 +129,7 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
             BuildPointsRequired = _VILLAGE_BUILD_POINTS,
             SightRange = 2,
             SightDirection = DetectionDirection.FullRadius,
+            Asserts = StructureAssertion.Owned,
             MapImagePath = "grass-hut_40px.png",
             FullImagePath = "grass-hut_40px.png"
         };
@@ -144,6 +148,7 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
             BuildPointsRequired = _CAMP_BUILD_POINTS,
             SightRange = 1,
             SightDirection = DetectionDirection.FullRadius,
+            Asserts = StructureAssertion.Owned,
             MapImagePath = "fire_40px.png",
             FullImagePath = "fire_40px.png"
         };
@@ -225,6 +230,137 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
                 Is.True,
                 "No record, no change: the destruction is in the feed a watching player reads.");
         }
+    }
+
+    [Test, Description("A force at least twice the camp minimum drops off a camp and marches on, so a strong column is not spent founding a waystop.")]
+    public async Task ShouldLeaveTheForceStandingWhenItCanSpareACampAsync()
+    {
+        int playerTurnId = await OpenFirstPlayerTurnAsync(_gameId);
+        ItIsThisPlayersTurn(playerTurnId, roundNumber: 1);
+
+        // 100 healthy, against a camp minimum of 25: four times what a camp needs.
+        int settlerId = await SeedSettlerAsync();
+
+        ServiceResult<SettleForceResult> result = await HandleAsync(settlerId, SettlementTier.Camp);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        UnitInstance? survivor = await context.UnitInstances.FirstOrDefaultAsync(u => u.Id == settlerId);
+        Settlement settlement = await context.Settlements.SingleAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(survivor, Is.Not.Null, "The force is still here.");
+            Assert.That(survivor!.HealthyCount, Is.EqualTo(_SETTLER_SIZE - _CAMP_MINIMUM_TROOPS), "It is lighter by exactly the camp's minimum.");
+            Assert.That(settlement.Population, Is.EqualTo(_CAMP_MINIMUM_TROOPS), "And the camp holds exactly those people, so nobody is counted twice.");
+        }
+    }
+
+    [Test, Description("At exactly twice the minimum the force still survives, because what is left of it could found another camp - which is where the boundary is drawn.")]
+    public async Task ShouldLeaveTheForceStandingAtExactlyTwiceTheMinimumAsync()
+    {
+        int playerTurnId = await OpenFirstPlayerTurnAsync(_gameId);
+        ItIsThisPlayersTurn(playerTurnId, roundNumber: 1);
+
+        int settlerId = await SeedSettlerAsync(healthyCount: _CAMP_MINIMUM_TROOPS * 2);
+
+        ServiceResult<SettleForceResult> result = await HandleAsync(settlerId, SettlementTier.Camp);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        UnitInstance? survivor = await context.UnitInstances.FirstOrDefaultAsync(u => u.Id == settlerId);
+
+        Assert.That(survivor?.HealthyCount, Is.EqualTo(_CAMP_MINIMUM_TROOPS));
+    }
+
+    [Test, Description("One short of twice the minimum the whole force becomes the camp, so a party that cannot spare the settlers goes in with them.")]
+    public async Task ShouldConsumeTheForceJustBelowTwiceTheMinimumAsync()
+    {
+        int playerTurnId = await OpenFirstPlayerTurnAsync(_gameId);
+        ItIsThisPlayersTurn(playerTurnId, roundNumber: 1);
+
+        const int strength = (_CAMP_MINIMUM_TROOPS * 2) - 1;
+        int settlerId = await SeedSettlerAsync(healthyCount: strength);
+
+        ServiceResult<SettleForceResult> result = await HandleAsync(settlerId, SettlementTier.Camp);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        Settlement settlement = await context.Settlements.SingleAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await context.UnitInstances.AnyAsync(u => u.Id == settlerId), Is.False, "The force is gone.");
+            Assert.That(settlement.Population, Is.EqualTo(strength), "And every one of its soldiers is a person in the camp.");
+        }
+    }
+
+    [Test, Description("A village consumes its founder however large it is, which is the whole difference between the two foundable tiers.")]
+    public async Task ShouldConsumeTheForceFoundingAVillageHoweverLargeAsync()
+    {
+        int playerTurnId = await OpenFirstPlayerTurnAsync(_gameId);
+        ItIsThisPlayersTurn(playerTurnId, roundNumber: 1);
+
+        // Twice the village minimum, which for a camp would have been a comfortable split.
+        int settlerId = await SeedSettlerAsync(healthyCount: _SETTLER_SIZE * 2);
+
+        ServiceResult<SettleForceResult> result = await HandleAsync(settlerId, SettlementTier.Village, "Riverhold");
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await context.UnitInstances.AnyAsync(u => u.Id == settlerId), Is.False);
+            Assert.That((await context.Settlements.SingleAsync()).Population, Is.EqualTo(_SETTLER_SIZE * 2));
+        }
+    }
+
+    [Test, Description("A camp's founders are drawn from the healthy first, so a column does not settle its wounded and march on with the able-bodied.")]
+    public async Task ShouldTakeACampsFoundersFromTheHealthyFirstAsync()
+    {
+        int playerTurnId = await OpenFirstPlayerTurnAsync(_gameId);
+        ItIsThisPlayersTurn(playerTurnId, roundNumber: 1);
+
+        int settlerId = await SeedSettlerAsync(healthyCount: 60, injuredCount: 20);
+
+        ServiceResult<SettleForceResult> result = await HandleAsync(settlerId, SettlementTier.Camp);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        UnitInstance survivor = await context.UnitInstances.SingleAsync(u => u.Id == settlerId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(survivor.HealthyCount, Is.EqualTo(60 - _CAMP_MINIMUM_TROOPS), "All 25 came out of the healthy.");
+            Assert.That(survivor.InjuredCount, Is.EqualTo(20), "And none out of the wounded.");
+        }
+    }
+
+    [Test, Description("A force that survives founding a camp keeps no Destroyed row, since nothing was destroyed and a watching player must not be told otherwise.")]
+    public async Task ShouldNotRecordADestructionWhenTheForceSurvivesAsync()
+    {
+        int playerTurnId = await OpenFirstPlayerTurnAsync(_gameId);
+        ItIsThisPlayersTurn(playerTurnId, roundNumber: 1);
+
+        int settlerId = await SeedSettlerAsync();
+
+        await HandleAsync(settlerId, SettlementTier.Camp);
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        Assert.That(
+            await context.MovementHistory.AnyAsync(row => row.UnitInstanceId == settlerId && row.EventType == ForceHistoryEventType.Destroyed),
+            Is.False);
     }
 
     [Test, Description("A Founded row is written against the turn, which is what puts the founding into another player's intelligence feed if they watched it.")]
@@ -619,9 +755,12 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
     }
 
     /// <summary>A settler standing on the fixture's tile with a full turn's movement, saved and ready to settle.</summary>
-    private async Task<int> SeedSettlerAsync(int? playerId = null)
+    /// <param name="healthyCount">Defaults to the whole settler. Varied by the tests that pin which pool a camp's founders are taken from.</param>
+    private async Task<int> SeedSettlerAsync(int? playerId = null, int? healthyCount = null, int injuredCount = 0)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        int healthy = healthyCount ?? _SETTLER_SIZE;
 
         var settler = new UnitInstance
         {
@@ -629,9 +768,9 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
             PlayerId = playerId ?? _playerId,
             CampaignMapTileId = _tileId,
             UnitTemplateId = _settlerTemplateId,
-            InitialStrength = _SETTLER_SIZE,
-            HealthyCount = _SETTLER_SIZE,
-            InjuredCount = 0,
+            InitialStrength = healthy + injuredCount,
+            HealthyCount = healthy,
+            InjuredCount = injuredCount,
             CampaignMovementRemaining = _STARTING_MOVEMENT
         };
 

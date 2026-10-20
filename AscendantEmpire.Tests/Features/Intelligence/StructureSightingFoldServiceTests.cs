@@ -1,4 +1,4 @@
-using AscendantEmpire.Application.Common;
+﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Intelligence.Services;
@@ -96,6 +96,7 @@ internal class StructureSightingFoldServiceTests : GameSqlServerTestBase
                 BuildPointsRequired = 0,
                 SightRange = 2,
                 SightDirection = DetectionDirection.FullRadius,
+                Asserts = StructureAssertion.Owned,
                 MapImagePath = "watchtower.png",
                 FullImagePath = "watchtower-full.png"
             };

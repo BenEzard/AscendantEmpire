@@ -48,6 +48,11 @@ setup, another step to game deletion, and a unique key to stop an edge being sto
 Game setup copies both columns from the gallery map. What rivers do to movement is in
 [unit-movement.md](../units/unit-movement.md#rivers--built).
 
+Rivers also draw borders. An edge of **Medium or wider seals an enclosure ring**, on the same corner
+semantics a diagonal step uses, so a river is a natural boundary for an area to claim — see
+[tile-ownership.md](tile-ownership.md#enclosure). They do **not** cut the claim supply range: a chain
+crosses a river of any width freely.
+
 ### Authoring rules
 
 Rivers meet at **vertices** — tile corners, not tiles. A tile's South edge runs from corner `(x, y+1)`

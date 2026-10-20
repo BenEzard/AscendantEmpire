@@ -2592,6 +2592,9 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("AllowedPositions")
                         .HasColumnType("int");
 
+                    b.Property<int>("Asserts")
+                        .HasColumnType("int");
+
                     b.Property<long>("BuildPointsRequired")
                         .HasColumnType("bigint");
 
@@ -2636,7 +2639,10 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Structures", "structure");
+                    b.ToTable("Structures", "structure", t =>
+                        {
+                            t.HasCheckConstraint("CK_Structures_Asserts", "[Asserts] IN (1, 2)");
+                        });
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Structures.StructureHistory", b =>

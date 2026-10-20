@@ -46,6 +46,15 @@ public record UpsertStructureDto
 
     public required DetectionDirection SightDirection { get; init; }
 
+    /// <summary>
+    /// What a completed Structure of this kind asserts over the tile it stands on - a claim, or ownership.
+    /// </summary>
+    /// <remarks>
+    /// <c>required</c> on purpose, with no default: a kind that quietly asserted the wrong thing would move a border nobody asked to move, so the seed data has to say
+    /// which it is and fails to compile until it does.
+    /// </remarks>
+    public required StructureAssertion Asserts { get; init; }
+
     /// <summary>The 40px map sprite's file name, as the campaign map draws it.</summary>
     public required string MapImagePath { get; init; }
 

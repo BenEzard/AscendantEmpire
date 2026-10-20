@@ -2429,7 +2429,16 @@ public class AscendantEmpireContext : DbContext
         // --- Structure -----------------------------------------------------------------
         modelBuilder.Entity<Structure>(entity =>
         {
-            entity.ToTable("Structures", schema);
+            // Two legal values and no others. A catalogue row always asserts something, and nothing a Player builds can assert Occupied - see "Structures" in
+            // docs/design/campaign-map/tile-ownership.md. The enum already makes both unrepresentable in code; this says so in the schema as well, because the catalogue
+            // is also written by hand.
+            entity.ToTable("Structures", schema, table => table.HasCheckConstraint(
+                "CK_Structures_Asserts",
+                $"[Asserts] IN ({(int)StructureAssertion.Claim}, {(int)StructureAssertion.Owned})"));
+
+            entity.Property(e => e.Asserts)
+                .HasConversion<int>()
+                .IsRequired();
         });
 
         // --- StructureHistory ----------------------------------------------------------

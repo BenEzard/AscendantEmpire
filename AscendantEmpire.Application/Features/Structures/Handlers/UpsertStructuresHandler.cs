@@ -99,6 +99,7 @@ internal class UpsertStructuresHandler(
                     BuildPointsRequired = dto.BuildPointsRequired,
                     SightRange = dto.SightRange,
                     SightDirection = dto.SightDirection,
+                    Asserts = dto.Asserts,
                     MapImagePath = dto.MapImagePath,
                     FullImagePath = dto.FullImagePath
                 };
@@ -120,6 +121,7 @@ internal class UpsertStructuresHandler(
             entity.BuildPointsRequired = dto.BuildPointsRequired;
             entity.SightRange = dto.SightRange;
             entity.SightDirection = dto.SightDirection;
+            entity.Asserts = dto.Asserts;
             entity.MapImagePath = dto.MapImagePath;
             entity.FullImagePath = dto.FullImagePath;
         }

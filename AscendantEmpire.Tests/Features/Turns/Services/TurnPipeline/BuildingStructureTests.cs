@@ -1,5 +1,7 @@
 ﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Game.Services;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Structures.Services;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndTurn;
@@ -7,6 +9,7 @@ using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Settlements;
 using AscendantEmpire.Domain.Entities.Structures;
+using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Settlements;
 using AscendantEmpire.Domain.Enums.Structures;
@@ -68,7 +71,17 @@ internal class BuildingStructureTests : InMemoryTestBase
     /// <summary>Some work done but not all of it, for the Structures a Turn is supposed to leave exactly as it found them.</summary>
     private const long _PART_BUILT = _POINTS_PER_TURN / 5;
 
+    /// <summary>The map is 9 x 9 with its (0, 0) at id 60, which puts <see cref="_TILE_ID"/> at the middle of it rather than on an edge.</summary>
+    private const int _MAP_OFFSET_ID = 60;
+
+    private const int _MAP_WIDTH = 9;
+    private const int _MAP_HEIGHT = 9;
+
+    /// <summary>The tile every Structure in this fixture stands on: (4, 4), the centre of the grid, so a territory radius has neighbours on every side.</summary>
     private const int _TILE_ID = 100;
+
+    private const int _TILE_X = 4;
+    private const int _TILE_Y = 4;
 
     private IStructureLifecycleWriter _lifecycleWriter = null!;
     private BuildingStructure _process = null!;
@@ -103,7 +116,37 @@ internal class BuildingStructureTests : InMemoryTestBase
                 return Task.FromResult(ServiceResultBase.Succeed());
             });
 
-        _process = new BuildingStructure(DbFactory, _lifecycleWriter, NullLogger<BuildingStructure>.Instance);
+        // The geometry is substituted because IGameContextService reads the Game and its Players, none of which this fixture is about. Everything downstream of it is
+        // real: the territory reader and the writer are the ones a live Turn uses, so what is pinned here is what actually reaches the tiles.
+        IGameContextService gameContextService = Substitute.For<IGameContextService>();
+
+        gameContextService
+            .GetGameContexts(Arg.Any<int?>(), Arg.Any<int?>(), Arg.Any<CancellationToken>())
+            .Returns(ServiceResultBase.ServiceResult<IReadOnlyCollection<GameContext>>.Succeed(
+            [
+                new GameContext
+                {
+                    GameId = _GAME_ID,
+                    GameName = "Territory",
+                    NumberOfPlayers = 2,
+                    MapWidth = _MAP_WIDTH,
+                    MapHeight = _MAP_HEIGHT,
+                    CampaignMapOffsetId = _MAP_OFFSET_ID,
+                    HasHorizontalWrapping = false,
+                    HasVerticalWrapping = false,
+                    Players = []
+                }
+            ]));
+
+        ICampaignTerritoryReader territoryReader = new CampaignTerritoryReader();
+
+        ITileTerritoryService territoryService = new TileTerritoryService(
+            NullLogger<TileTerritoryService>.Instance,
+            DbFactory,
+            territoryReader,
+            gameContextService);
+
+        _process = new BuildingStructure(DbFactory, _lifecycleWriter, gameContextService, territoryReader, territoryService, NullLogger<BuildingStructure>.Instance);
     }
 
     [Test, Description("A two-turn structure gains half its build each turn, so a village founded this turn is half built when the turn ends.")]
@@ -299,6 +342,156 @@ internal class BuildingStructureTests : InMemoryTestBase
         }
     }
 
+    [Test, Description("A finished village owns a one-tile radius, so founding one gives its owner a three-by-three block rather than the ground under the hut.")]
+    public async Task ShouldOwnAOneTileRadiusForACompletedVillageAsync()
+    {
+        await SeedCatalogueAsync();
+        await SeedStructureAsync(id: 1, structureId: _ONE_TURN_STRUCTURE_ID, buildPointsProgress: 0);
+        await SeedSettlementAsync(settlementId: 50, structureInstanceId: 1, SettlementTier.Village);
+
+        await _process.ProcessAsync(Context());
+
+        using (Assert.EnterMultipleScope())
+        {
+            for (int y = _TILE_Y - 1; y <= _TILE_Y + 1; y++)
+            {
+                for (int x = _TILE_X - 1; x <= _TILE_X + 1; x++)
+                {
+                    CampaignMap tile = await ReloadTileAtAsync(x, y);
+
+                    Assert.That(tile.OwnedByPlayerId, Is.EqualTo(_PLAYER_ID), $"({x}, {y}) should be owned.");
+                    Assert.That(tile.OwnedBySettlementId, Is.EqualTo(50), $"({x}, {y}) should carry the settlement, which is what lets a settlement-scoped modifier reach it.");
+                }
+            }
+        }
+    }
+
+    [Test, Description("A village's radius stops at one tile, so the ground two tiles out stays wilderness.")]
+    public async Task ShouldNotOwnBeyondTheVillageRadiusAsync()
+    {
+        await SeedCatalogueAsync();
+        await SeedStructureAsync(id: 1, structureId: _ONE_TURN_STRUCTURE_ID, buildPointsProgress: 0);
+        await SeedSettlementAsync(settlementId: 50, structureInstanceId: 1, SettlementTier.Village);
+
+        await _process.ProcessAsync(Context());
+
+        Assert.That((await ReloadTileAtAsync(_TILE_X + 2, _TILE_Y)).OwnedByPlayerId, Is.Null);
+    }
+
+    [Test, Description("A camp owns the ground it stands on and no more, which is the whole difference between the two foundable tiers' territory.")]
+    public async Task ShouldOwnOnlyItsOwnTileForACompletedCampAsync()
+    {
+        await SeedCatalogueAsync();
+        await SeedStructureAsync(id: 1, structureId: _ONE_TURN_STRUCTURE_ID, buildPointsProgress: 0);
+        await SeedSettlementAsync(settlementId: 50, structureInstanceId: 1, SettlementTier.Camp, name: "Waystop");
+
+        await _process.ProcessAsync(Context());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await ReloadTileAsync()).OwnedByPlayerId, Is.EqualTo(_PLAYER_ID));
+            Assert.That((await ReloadTileAtAsync(_TILE_X + 1, _TILE_Y)).OwnedByPlayerId, Is.Null);
+        }
+    }
+
+    [Test, Description("A village takes a mountain and a stretch of sea in its radius, because for ownership both are ordinary terrain.")]
+    public async Task ShouldTakeMountainAndWaterInsideTheRadiusAsync()
+    {
+        await SeedCatalogueAsync();
+        await PaintTileAsync(_TILE_X + 1, _TILE_Y, geographyType: CampaignMapGeographyType.Mountainous);
+        await PaintTileAsync(_TILE_X - 1, _TILE_Y, biomeType: BiomeType.Ocean);
+        await SeedStructureAsync(id: 1, structureId: _ONE_TURN_STRUCTURE_ID, buildPointsProgress: 0);
+        await SeedSettlementAsync(settlementId: 50, structureInstanceId: 1, SettlementTier.Village);
+
+        await _process.ProcessAsync(Context());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await ReloadTileAtAsync(_TILE_X + 1, _TILE_Y)).OwnedByPlayerId, Is.EqualTo(_PLAYER_ID), "A mountain inside a border is yours.");
+            Assert.That((await ReloadTileAtAsync(_TILE_X - 1, _TILE_Y)).OwnedByPlayerId, Is.EqualTo(_PLAYER_ID), "So is the sea beside a coastal village.");
+        }
+    }
+
+    [Test, Description("A village's radius passes over the Void, a rival's ground and a tile a rival occupies, so a hemmed-in village simply gets a smaller territory.")]
+    public async Task ShouldSkipGroundItCannotTakeInsideTheRadiusAsync()
+    {
+        await SeedCatalogueAsync();
+        await PaintTileAsync(_TILE_X + 1, _TILE_Y, biomeType: BiomeType.Void);
+        await PaintTileAsync(_TILE_X - 1, _TILE_Y, ownedByPlayerId: _OTHER_PLAYER_ID);
+        await PaintTileAsync(_TILE_X, _TILE_Y + 1, occupiedByPlayerId: _OTHER_PLAYER_ID);
+        await SeedStructureAsync(id: 1, structureId: _ONE_TURN_STRUCTURE_ID, buildPointsProgress: 0);
+        await SeedSettlementAsync(settlementId: 50, structureInstanceId: 1, SettlementTier.Village);
+
+        await _process.ProcessAsync(Context());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await ReloadTileAtAsync(_TILE_X + 1, _TILE_Y)).OwnedByPlayerId, Is.Null, "Nothing can ever own the Void.");
+            Assert.That((await ReloadTileAtAsync(_TILE_X - 1, _TILE_Y)).OwnedByPlayerId, Is.EqualTo(_OTHER_PLAYER_ID), "Ownership is exclusive and earned.");
+            Assert.That((await ReloadTileAtAsync(_TILE_X, _TILE_Y + 1)).OwnedByPlayerId, Is.Null, "A rival standing on the ground holds it.");
+            Assert.That((await ReloadTileAsync()).OwnedByPlayerId, Is.EqualTo(_PLAYER_ID), "What it can take, it still takes.");
+        }
+    }
+
+    [Test, Description("Taking ownership deletes every rival claim on the ground, because a claim and ownership never coexist on one tile.")]
+    public async Task ShouldExtinguishRivalClaimsInsideTheRadiusAsync()
+    {
+        await SeedCatalogueAsync();
+        await SeedClaimAsync(_TILE_X + 1, _TILE_Y, _OTHER_PLAYER_ID);
+        await SeedStructureAsync(id: 1, structureId: _ONE_TURN_STRUCTURE_ID, buildPointsProgress: 0);
+        await SeedSettlementAsync(settlementId: 50, structureInstanceId: 1, SettlementTier.Village);
+
+        await _process.ProcessAsync(Context());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await ReloadClaimsAsync(), Is.Empty, "The rival's claim is gone.");
+            Assert.That((await ReloadTileAtAsync(_TILE_X + 1, _TILE_Y)).HasClaims, Is.False, "And the flag moved in the same save, so the map read never sees the two disagree.");
+            Assert.That((await ReloadTileAtAsync(_TILE_X + 1, _TILE_Y)).OwnedByPlayerId, Is.EqualTo(_PLAYER_ID));
+        }
+    }
+
+    [Test, Description("A kind authored to assert a claim writes claim rows rather than stamping an owner, which is the seam the scout's marker will plug into.")]
+    public async Task ShouldWriteClaimRowsForAKindThatAssertsAClaimAsync()
+    {
+        await SeedCatalogueAsync();
+        await SetAssertionAsync(_ONE_TURN_STRUCTURE_ID, StructureAssertion.Claim);
+        await SeedStructureAsync(id: 1, structureId: _ONE_TURN_STRUCTURE_ID, buildPointsProgress: 0);
+
+        await _process.ProcessAsync(Context());
+
+        CampaignMap tile = await ReloadTileAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(tile.OwnedByPlayerId, Is.Null, "A claim is not ownership.");
+            Assert.That(tile.HasClaims, Is.True);
+            Assert.That(await ReloadClaimsAsync(), Is.EquivalentTo(new[] { (_TILE_ID, _PLAYER_ID) }));
+        }
+    }
+
+    [Test, Description("Two settlements finishing in one turn with overlapping territory both land, rather than the second colliding with the first in the change tracker.")]
+    public async Task ShouldWriteBothOverlappingSettlementsInOneTurnAsync()
+    {
+        await SeedCatalogueAsync();
+
+        // Two one-turn settlements two tiles apart, so their radii share the column between them.
+        await SeedStructureAsync(id: 1, structureId: _ONE_TURN_STRUCTURE_ID, buildPointsProgress: 0);
+        await SeedStructureAsync(id: 2, structureId: _ONE_TURN_STRUCTURE_ID, buildPointsProgress: 0, campaignMapTileId: IdOf(_TILE_X + 2, _TILE_Y));
+        await SeedSettlementAsync(settlementId: 50, structureInstanceId: 1, SettlementTier.Village);
+        await SeedSettlementAsync(settlementId: 51, structureInstanceId: 2, SettlementTier.Village, name: "Eastmarch");
+
+        string failure = await _process.ProcessAsync(Context());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(failure, Is.Empty);
+            Assert.That((await ReloadTileAsync()).OwnedByPlayerId, Is.EqualTo(_PLAYER_ID));
+            Assert.That((await ReloadTileAtAsync(_TILE_X + 2, _TILE_Y)).OwnedByPlayerId, Is.EqualTo(_PLAYER_ID));
+            Assert.That((await ReloadTileAtAsync(_TILE_X + 1, _TILE_Y)).OwnedByPlayerId, Is.EqualTo(_PLAYER_ID), "The shared column belongs to whichever claimed it first.");
+        }
+    }
+
     [Test, Description("A structure still under construction claims nothing, so a half-built village gives its owner no ground until it is finished.")]
     public async Task ShouldNotClaimTheTileWhileStillUnderConstructionAsync()
     {
@@ -423,13 +616,24 @@ internal class BuildingStructureTests : InMemoryTestBase
             BuildStructureKind(_NO_WORK_STRUCTURE_ID, "totem-pole", buildPointsRequired: 0),
             BuildStructureKind(_UNEVEN_STRUCTURE_ID, "uneven-thing", buildPointsRequired: _POINTS_PER_TURN * 5 / 2));
 
-        // The terrain is incidental here - construction does not care what it is built on - but a tile needs a Biome and a Geography to exist at all.
+        // A tile needs a Biome and a Geography to exist at all. Mountainous and the water and Void biomes are seeded too, because a territory radius has to be able to
+        // pass over ground nobody can own.
         var flat = new CampaignGeography
         {
             CampaignMapGeographyTypeId = CampaignMapGeographyType.Flat,
             Name = "Flat",
             MovementCost = 1m,
             RelativeElevation = 0,
+            MapEditorIcon = null,
+            IsPaintableOnCampaignMap = true
+        };
+
+        var mountainous = new CampaignGeography
+        {
+            CampaignMapGeographyTypeId = CampaignMapGeographyType.Mountainous,
+            Name = "Mountainous",
+            MovementCost = CampaignGeography.IMPASSABLE_MOVEMENT_COST,
+            RelativeElevation = 3,
             MapEditorIcon = null,
             IsPaintableOnCampaignMap = true
         };
@@ -444,25 +648,122 @@ internal class BuildingStructureTests : InMemoryTestBase
             MapEditorHtmlColor = "#7cb342"
         };
 
-        context.CampaignGeographies.Add(flat);
-        context.CampaignBiomes.Add(grassland);
-
-        context.CampaignMaps.Add(new CampaignMap
+        var ocean = new CampaignBiome
         {
-            CampaignMapId = _TILE_ID,
-            GameId = _GAME_ID,
-            XCoord = 4,
-            YCoord = 1,
-            BiomeTypeId = grassland.BiomeTypeId,
-            CampaignMapGeographyTypeId = flat.CampaignMapGeographyTypeId,
-            Biome = grassland,
-            Geography = flat,
-            // The navigations the tile declares required but nothing here reads. Left unset rather than stood up, as the other in-memory tile fixtures do.
-            Game = null!,
-            FirstVisitor = null,
-            LastVisitor = null,
-            OwnedBy = null
+            BiomeTypeId = BiomeType.Ocean,
+            Name = "Ocean",
+            MovementCost = 1m,
+            IsWater = true,
+            IsTraversable = true,
+            MapEditorHtmlColor = "#1d64b8"
+        };
+
+        var theVoid = new CampaignBiome
+        {
+            BiomeTypeId = BiomeType.Void,
+            Name = "Void",
+            MovementCost = 1m,
+            IsWater = false,
+            IsTraversable = false,
+            MapEditorHtmlColor = "#000000"
+        };
+
+        context.CampaignGeographies.AddRange(flat, mountainous);
+        context.CampaignBiomes.AddRange(grassland, ocean, theVoid);
+
+        for (int y = 0; y < _MAP_HEIGHT; y++)
+        {
+            for (int x = 0; x < _MAP_WIDTH; x++)
+            {
+                context.CampaignMaps.Add(new CampaignMap
+                {
+                    CampaignMapId = IdOf(x, y),
+                    GameId = _GAME_ID,
+                    XCoord = x,
+                    YCoord = y,
+                    BiomeTypeId = grassland.BiomeTypeId,
+                    CampaignMapGeographyTypeId = flat.CampaignMapGeographyTypeId,
+                    Biome = grassland,
+                    Geography = flat,
+                    // The navigations the tile declares required but nothing here reads. Left unset rather than stood up, as the other in-memory tile fixtures do.
+                    Game = null!,
+                    FirstVisitor = null,
+                    LastVisitor = null,
+                    OwnedBy = null
+                });
+            }
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>The world-map id of a coordinate, by the same row-major arithmetic the geometry uses.</summary>
+    private static int IdOf(int x, int y)
+    {
+        return _MAP_OFFSET_ID + x + (y * _MAP_WIDTH);
+    }
+
+    /// <summary>Repaints one already-seeded tile, for the ground a radius is supposed to take or pass over.</summary>
+    private async Task PaintTileAsync(
+        int x,
+        int y,
+        BiomeType? biomeType = null,
+        CampaignMapGeographyType? geographyType = null,
+        int? ownedByPlayerId = null,
+        int? occupiedByPlayerId = null)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        CampaignMap tile = await context.CampaignMaps.SingleAsync(t => t.CampaignMapId == IdOf(x, y));
+
+        if (biomeType is BiomeType biome)
+        {
+            tile.BiomeTypeId = biome;
+        }
+
+        if (geographyType is CampaignMapGeographyType geography)
+        {
+            tile.CampaignMapGeographyTypeId = geography;
+        }
+
+        if (ownedByPlayerId is int owner)
+        {
+            tile.OwnedByPlayerId = owner;
+        }
+
+        if (occupiedByPlayerId is int occupier)
+        {
+            tile.OccupiedByPlayerId = occupier;
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>Changes what a seeded kind asserts, for the claim branch no catalogue row takes today.</summary>
+    private async Task SetAssertionAsync(int structureId, StructureAssertion asserts)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        Structure kind = await context.Structures.SingleAsync(s => s.Id == structureId);
+        kind.Asserts = asserts;
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>Puts a claim row on a tile, and sets the flag the map read uses to decide whether to look for one.</summary>
+    private async Task SeedClaimAsync(int x, int y, int playerId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        context.CampaignMapClaims.Add(new CampaignMapClaim
+        {
+            CampaignMapId = IdOf(x, y),
+            PlayerId = playerId,
+            GameId = _GAME_ID
         });
+
+        CampaignMap tile = await context.CampaignMaps.SingleAsync(t => t.CampaignMapId == IdOf(x, y));
+        tile.HasClaims = true;
 
         await context.SaveChangesAsync();
     }
@@ -483,6 +784,7 @@ internal class BuildingStructureTests : InMemoryTestBase
             BuildPointsRequired = buildPointsRequired,
             SightRange = 1,
             SightDirection = Domain.Enums.Maps.DetectionDirection.FullRadius,
+            Asserts = StructureAssertion.Owned,
             MapImagePath = $"{code}.png",
             FullImagePath = $"{code}.png"
         };
@@ -496,7 +798,8 @@ internal class BuildingStructureTests : InMemoryTestBase
         long? buildPointsPerTurn = null,
         int? completedOnTurnId = null,
         int? removedOnTurnId = null,
-        int? battleMapTileId = null)
+        int? battleMapTileId = null,
+        int? campaignMapTileId = null)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
@@ -504,7 +807,7 @@ internal class BuildingStructureTests : InMemoryTestBase
         {
             Id = id,
             GameId = _GAME_ID,
-            CampaignMapTileId = _TILE_ID,
+            CampaignMapTileId = campaignMapTileId ?? _TILE_ID,
             BattleMapTileId = battleMapTileId,
             StructureId = structureId,
             SlotType = TileSlotType.Primary,
@@ -520,7 +823,7 @@ internal class BuildingStructureTests : InMemoryTestBase
         await context.SaveChangesAsync();
     }
 
-    private async Task SeedSettlementAsync(int settlementId, int structureInstanceId)
+    private async Task SeedSettlementAsync(int settlementId, int structureInstanceId, SettlementTier tier = SettlementTier.Village, string name = "Riverhold")
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
@@ -530,8 +833,8 @@ internal class BuildingStructureTests : InMemoryTestBase
             GameId = _GAME_ID,
             StructureInstanceId = structureInstanceId,
             FoundingPlayerId = _PLAYER_ID,
-            Name = "Riverhold",
-            Tier = SettlementTier.Village,
+            Name = name,
+            Tier = tier,
             Population = 100,
             FoundedOnRoundNumber = _ROUND_NUMBER,
             FoundedOnTurnId = 1
@@ -549,8 +852,26 @@ internal class BuildingStructureTests : InMemoryTestBase
 
     private async Task<CampaignMap> ReloadTileAsync()
     {
+        return await ReloadTileAtAsync(_TILE_X, _TILE_Y);
+    }
+
+    private async Task<CampaignMap> ReloadTileAtAsync(int x, int y)
+    {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        return await context.CampaignMaps.AsNoTracking().SingleAsync(t => t.CampaignMapId == _TILE_ID);
+        return await context.CampaignMaps.AsNoTracking().SingleAsync(t => t.CampaignMapId == IdOf(x, y));
+    }
+
+    /// <summary>Every claim row in the Game, for the tests that pin what ownership does to a rival's claim.</summary>
+    private async Task<IReadOnlyCollection<(int CampaignMapId, int PlayerId)>> ReloadClaimsAsync()
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        var claims = await context.CampaignMapClaims
+            .AsNoTracking()
+            .Select(claim => new { claim.CampaignMapId, claim.PlayerId })
+            .ToListAsync();
+
+        return [.. claims.Select(claim => (claim.CampaignMapId, claim.PlayerId))];
     }
 }

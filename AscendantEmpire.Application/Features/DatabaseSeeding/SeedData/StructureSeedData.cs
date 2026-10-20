@@ -66,6 +66,10 @@ internal static class StructureSeedData
     /// <param name="buildPointsRequired">The work it takes, raw Scale-1,000. 0 for a marker that is placed rather than built. See <c>ConstructionRateCalculator</c> and <c>docs/design/settlements.md</c></param>
     /// <param name="sightRange">How far it sees. At least 1, since a Structure always sees the tile it stands on.</param>
     /// <param name="mapImagePath">The 40px map sprite's file name.</param>
+    /// <param name="asserts">
+    /// What a finished Structure of this kind asserts over its tile. Defaults to <see cref="StructureAssertion.Owned"/>, which every kind authored so far takes: the
+    /// claim tier exists for the markers a scout plants, and nothing plants one yet.
+    /// </param>
     private static UpsertStructureDto Structure(
         string code,
         string name,
@@ -75,7 +79,8 @@ internal static class StructureSeedData
         TileSlotType requiresSlotType = TileSlotType.Primary,
         PositionOnTile allowedPositions = PositionOnTile.WholeTile,
         bool canBeBuiltOnBattleMap = false,
-        bool dualMapBuildTrigger = false)
+        bool dualMapBuildTrigger = false,
+        StructureAssertion asserts = StructureAssertion.Owned)
     {
         return new UpsertStructureDto
         {
@@ -89,6 +94,7 @@ internal static class StructureSeedData
             BuildPointsRequired = buildPointsRequired,
             SightRange = sightRange,
             SightDirection = DetectionDirection.FullRadius,
+            Asserts = asserts,
             MapImagePath = mapImagePath,
             FullImagePath = mapImagePath
         };

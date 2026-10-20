@@ -52,7 +52,7 @@ enclosure or by attrition — carries none, and no Settlement-scoped modifier ap
 ### Structures
 
 What a structure asserts is a property of the structure itself, authored on the catalogue entry
-beside its sight values:
+beside its sight values, as `Structure.Asserts`:
 
 | Asserts | Examples |
 | --- | --- |
@@ -60,8 +60,16 @@ beside its sight values:
 | **Owned** | Foraging camp, sentry tower |
 
 Nothing a Player builds can assert Occupied, since Occupied is by definition a rival standing on
-someone else's ground. An early scout may also assert a claim directly, either as a toggleable
-action or by building a cheap one-turn marker.
+someone else's ground. `StructureAssertion` has exactly those two members and no zero, so that is
+unrepresentable rather than merely forbidden, and a check constraint says the same in the schema.
+
+`BuildingStructure` honours the column when a structure's construction finishes: it asserts over the
+structure's own tile, and over the territory radius of its Settlement's tier where it has one
+([settlements.md](../settlements.md#territory)). Every kind in the catalogue asserts **Owned** today —
+the claim tier is there for the markers a scout plants, and nothing plants one yet.
+
+An early scout may also assert a claim directly, either as a toggleable action or by building a cheap
+one-turn marker. That is the one part of this section still to be built.
 
 ## Claims
 
@@ -89,19 +97,54 @@ This is the whole of the anti-land-grab rule, and it does three jobs at once:
 Because that one number does all three, there is deliberately **no claim budget and no enclosed
 region size cap**. If claim spam becomes a problem, the number to change is the hop count.
 
-An ally's claimed and owned tiles count towards the range.
+**Only a passable tile carries a hop.** That is the whole of it — the same impassability movement
+refuses a Force on, and nothing else. Two things follow with no further rule:
+
+- an **owned mountain is a dead end rather than a bridge**: it is not a source for a chain and is
+  never walked through, so a claim on the far side of a range has to come round it;
+- a **claimed mountain** could never be reached at all, so it would lapse the round it arrived —
+  which is why in practice a mountain is only ever *owned*, never claimed, and the claimability rule
+  simply refuses to claim impassable ground.
+
+**Rivers do not cut the range.** Rivers shape enclosure and impassability shapes supply, and neither
+rule carries the other's clause: a chain crosses a river of any width freely, and stops dead at a
+mountain. Water is passable, so a chain runs across a strait of owned sea with no water clause
+anywhere.
+
+An ally's claimed and owned tiles count towards the range. There is no alliance model yet, so the
+walk takes a set of friendly Players that currently holds one id.
 
 ## Enclosure
 
 Unclaimed land surrounded by a Player's own territory becomes that Player's. The ring must be
 **complete and the Player's own**:
 
-- **Projected water** (see [Water](#water)) and **void** tiles both seal, void because nothing can
-  cross it.
 - A **rival's** border never seals. A rival tile on the region's boundary blocks absorption outright,
-  however little of the boundary it forms.
+  however little of the boundary it forms. So does **abandoned** ground, which is held by nobody but
+  is not wilderness either — absorbing it would let a neighbour inherit a razed empire.
 - The seal is tested on the **same adjacency as movement**, diagonals included, so a ring the rule
-  calls closed cannot be walked through at a corner.
+  calls closed cannot be walked through at a corner. That is what the adjacency is borrowed for: on
+  four-way adjacency a ring touching only at a corner would count as closed and a Force could slip
+  diagonally through the gap.
+
+Two different things seal, and they work differently.
+
+**Impassable terrain and void seal as boundary tiles.** They are excluded from the region and count
+as neutral — neither a ring member nor a veto — so a boundary part mountain and part one Player's
+ground still absorbs. The rule is keyed off the same impassability movement uses, which is why it is
+one sentence rather than a list naming mountains: future impassable terrain seals for free, and a map
+author who makes a mountain passable moves movement and borders together rather than making the two
+disagree.
+
+**A river edge of Medium or wider seals by removing the adjacency.** A river is a natural boundary for
+an area to claim, so a pocket closed on three sides by territory and on the fourth by a river is
+absorbed. Diagonals use the movement rules' own corner semantics: the corner is sealed only when
+**both** ways round it cross a sealing river, at the easier route's width, so a river that merely ends
+at a corner does not seal it and the seal agrees with what a diagonal step would pay.
+
+Because a sealing edge removes the adjacency rather than contributing a boundary tile, **a rival on
+the far bank of a sealing river does not veto**: as far as the rule is concerned they are not on the
+region's edge at all. That is the point of treating a river as a boundary.
 
 Only one Player can hold a complete ring around a given region, so there is no boundary-ratio or
 majority rule to apply and no tie to resolve. Territory is never granted because a neighbour moved.
@@ -110,11 +153,34 @@ The interior takes the **weakest tier in the ring**: a ring of claims yields a c
 owned all the way round is needed for an owned one. That is the same principle the
 [attrition timer](#the-attrition-timer) uses — land is only held as firmly as the land behind it.
 
-Because the rule only asks whether every boundary tile of an *unclaimed* region belongs to one
-Player, it never mentions the map edge, and **map wrapping is not a special case**: a band of
-territory around a wrapping world would absorb the rest of it, except that the rest of it holds a
-rival, whose tiles on the boundary block the absorption. A game has at least two Players, so that
-always applies.
+The tier is then applied **per tile**, because what the ring grants and what a given tile can take are
+different questions. An impassable tile cannot be claimed, so an **owned** ring absorbs a mountain in
+its interior as owned, while an **only claimed** ring leaves that mountain unclaimed rather than
+writing a claim that would lapse the same round. A mountain on a frontier, with wilderness still
+behind it, is not absorbed at all: you do not own the far slope of the wall that shelters you.
+
+**The region must also be bounded.** Having no open boundary is not the same as having been
+encircled, and the difference decides the whole rule. The complement of a small blob of territory is
+the rest of the world, which has no open boundary anywhere — so without this, founding one village
+takes the planet. Ownership has to be ground a Player encircled, not ground that merely happened to
+have nothing beyond it.
+
+A region fails to be bounded in one of two ways, which are the same fact on the two kinds of axis:
+
+- on an axis that **does not wrap**, it reaches the map's edge, and the edge of the world is not
+  anybody's territory to ring against;
+- on an axis that **wraps**, it occupies every column or row on that axis, which means it has met
+  itself the long way round — the torus's version of running off the edge.
+
+So **map wrapping is still not a special case**: a wrapping axis has no edge, and the span test is
+what stands in for one.
+
+The price is paid twice, and knowingly. A pocket genuinely held against the world's edge is not
+absorbed, and neither is a strip walled off by a band that girdles a wrapping world. In both the
+legitimate case and the pathological one the region is the same shape, and only its size tells them
+apart — so the rule refuses both rather than acquiring the region size cap this design has
+deliberately done without. Walling a strip that wraps is a late-game feat; a lone village is the
+first thing that happens in every game, and that is the case worth being strict for.
 
 A ring that is owned the whole way round grants an owned interior of **any size**, and the interior
 is not subject to the claim supply range because it is owned rather than claimed. The cost of owning
@@ -122,12 +188,24 @@ a complete perimeter is the limit on it.
 
 ### Water
 
-Ownership **projects 2 tiles out from land** into water, mirroring the tier of the land it comes
-from. Projected water counts as a hop for the claim supply range, which makes claims across a narrow
-strait possible and claims across open ocean impossible: with a 3-hop range, water more than 2 tiles
-from anyone's coast belongs to nobody and cannot be chained through.
+**Water is ordinary terrain.** It is owned by exactly the same three routes land is — a Settlement's
+radius, a structure's assertion, enclosure — and once owned it is as sticky as land. There is no
+separate water mechanic, and that is deliberate: eventually something will be buildable on water, and
+under this rule that needs no new one.
 
-**Void** tiles can never be owned or claimed. They seal an enclosure ring.
+The two things a projection rule would have been for both fall out of the general rules:
+
+- **A strait is crossable.** Water is passable, so an owned stretch of sea carries a claim supply hop
+  like any other tile.
+- **Open ocean belongs to nobody**, because nothing out there is owned to anchor a claim. A coastal
+  village owns its adjacent sea through its radius, and a claim holds within 3 hops of owned ground,
+  so a Player's reach into the ocean is about four tiles from their coast.
+
+Water is also absorbable by [enclosure](#enclosure), so **a bay ringed by one Player's coast becomes
+theirs**, while a pocket open to the sea grows into a region nobody rings and is never enclosed.
+
+**Void** tiles can never be owned or claimed by anybody. They seal an enclosure ring, and they are the
+one thing in the model with no route to ownership at all.
 
 ## Occupation
 
@@ -286,15 +364,36 @@ standing on the tile is a change to the pass alone. 0 is excluded because a tile
 rebelling is nulled out rather than left resting at 0.
 
 What does cost is the **per-round pass**: claim lapse, enclosure and the attrition timers are graph
-problems over a Player's territory. They belong in a pure class run over an in-memory bitmap with
+problems over a Player's territory. They live in a pure class run over an in-memory bitmap with
 deltas written back, the way `FieldOfView` is shared between the map read and the witness service
-([vision.md](vision.md)), not in SQL.
+([vision.md](vision.md)), not in SQL. `TileTerritory` is that class, `CampaignTerritoryReader` loads
+the bitmap, `TileTerritoryService` writes the deltas, and `ResolveTileTerritory` is the end-of-round
+process that runs it — after the tiles regrow, and before victory is judged on the borders it leaves.
+
+**`HasClaims` moves in the same save as the claim rows**, because the pass holds the complete claim
+set for the Game. It also **repairs** the flag where it disagrees with the junction: a tile flagged
+true with no rows behind it comes back in the deltas with the flag cleared, even though nothing else
+about it moved. That is the one thing `TileOwnershipDerivation` has to tolerate, and the pass is where
+it gets put right.
+
+**The pass is monotone, and therefore idempotent.** It only ever grants ownership or takes a claim
+away, and it decides both from the tile columns and the claim rows rather than from anything a
+previous run left behind — so running it twice on the same state writes nothing the second time.
+That is what lets it sit in a turn pipeline which is not transactional and carries no per-round stamp,
+unlike the accumulating processes beside it. The rest of the pass will not inherit that for free: the
+rebellion countdown, the abandoned revert and the attrition timers all accumulate, so the first of
+them to join needs the stamp the other processes are waiting on.
+
+**Where two Players could want one tile, the earlier in the turn queue takes it** —
+`TurnQueueParticipant.TurnOrder`. The per-turn writes settle it by themselves, since a Player's
+territory is written at the end of their own Turn; ordering the round pass's Players the same way is
+what stops any of it depending on which order a dictionary happened to enumerate in.
 
 ## Not yet implemented
 
-**The schema is built, the states are read, and one of them is written.** `CampaignMap` carries every
-column in [How it is stored](#how-it-is-stored) and `game.CampaignMapClaim` exists, so nothing below is
-blocked on a migration.
+**Claimed, Owned and Unclaimed are now all read and written.** `CampaignMap` carries every column in
+[How it is stored](#how-it-is-stored) and `game.CampaignMapClaim` exists, so nothing below is blocked
+on a migration.
 
 The read side is in place. The map read resolves every state for the tiles in an Observer's sight and
 the campaign map draws ownership and claim borders from it, and `BattleEngagementService` records
@@ -304,17 +403,11 @@ effective holder read
 question is being asked of the database, rather than spelling out `OccupiedByPlayerId ??
 OwnedByPlayerId` at each site.
 
-**Owned is written, by one caller and on one tile.** The `BuildingStructure` end-of-turn process stamps
-`OwnedByPlayerId` on a structure's own tile when its construction finishes, and `OwnedBySettlementId`
-alongside it where that structure is a Settlement's - the design's rule that finishing a structure
-asserts ownership, in its narrowest form. A structure that is nobody's Settlement owns its tile and
-carries no Settlement onto it, so no Settlement-scoped modifier applies to that ground.
-
-Nothing yet does the rest of what ownership is supposed to bring with it: **the claim extinction** a tile
-becoming owned should perform, and the **radius** a Settlement should own beyond its own tile, both wait
-on the per-round pass. So every state but Owned and Unclaimed is still unreachable in play: the
-resolution handles Claimed, Occupied, Abandoned and Rebelling, and will start answering with them the
-moment that pass writes them.
+The write side is in place for everything a Player does to a border on purpose, and for the two
+graph rules. Structures assert over their ground per `Structure.Asserts`, a Settlement takes the
+territory radius of its tier, ownership extinguishes every rival claim on the ground it takes,
+enclosure absorbs wilderness a Player has ringed, and a claim that cannot reach owned land lapses at
+the end of the round.
 
 `OwnedBySettlementId` gained a real foreign key in CD-1, now that there is a `settlement.Settlements`
 table for it to point at. `OccupiedSinceTurnId` and `AbandonedOnTurnId` still have none, matching the
@@ -324,17 +417,27 @@ A tile owned through a Settlement is the one **cycle** in the game purge - the t
 the Settlement names its Structure, and the Structure names the tile - so the purge releases the tile's
 reference before deleting any of the three.
 
-Beyond that, every part of this waits on something:
+**Occupied, Disputed, Abandoned and Rebelling are still unreachable in play.** The resolution handles
+all four and will start answering with them the moment something writes their columns. What each one
+waits on:
 
-- **Settlement territory** - the radius beyond a Settlement's own tile - needs the per-round pass above.
-  Founding one writes a single tile; see [settlements.md](../settlements.md#territory).
-- **Structure assertion** beyond "a finished structure owns its own tile" needs the `Structure` catalogue
-  to carry what a structure asserts.
-- **Claims**, the supply range, enclosure and the attrition timers all need the per-round pass above.
+- **A scout asserting a claim directly** — a toggleable action, or a cheap one-turn marker — needs a
+  new Force action with its own order and frontend. `StructureAssertion.Claim` and the branch that
+  writes claim rows are both built and waiting for it; nothing in the catalogue asserts Claim yet.
+- **The attrition timers** need `OccupiedSinceTurnId` written, which needs the end-of-round context to
+  carry a Turn id it currently has none of.
+- **The rebellion countdown** and the **abandoned 5-turn revert** both need to join the per-round pass,
+  and both accumulate, so the first of them brings the per-round stamp with it.
+- **Settlement growth by selection** — a grown tier granting tiles the Player places — waits on
+  Settlement growth being modelled at all; the grown tiers have no authored territory radius.
+- **Allies** counting for enclosure and for the supply range wait on there being an alliance model.
+  The supply walk already takes a set of friendly Players, so that is a change to its caller rather
+  than to the rule.
 - **Organised agreements** not counting as occupation waits on the diplomatic arrangements in
   [foreign-relations.md](../foreign-relations.md), which also need Settlement scoping.
 - **Ambush and recon stances**, which the timer and the hidden-presence rules depend on, wait on
   hiding and detection — see [vision.md](vision.md#ambush-and-recon).
 
 > TODO: The hop count (3), the attrition counts (10 and 3), the rebellion range (1–5), the abandoned
-> revert (5 turns) and the water projection (2 tiles) are all first values, chosen to be tuned.
+> revert (5 turns) are all first values, chosen to be tuned. So is the settlement territory radius
+> (1 tile for a village) and the narrowest river width that seals an enclosure ring (Medium).

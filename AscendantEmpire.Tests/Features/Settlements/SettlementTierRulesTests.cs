@@ -77,4 +77,54 @@ internal class SettlementTierRulesTests
             Assert.That(seededCodes, Does.Contain(SettlementTierRules.For(tier)!.StructureCode));
         }
     }
+
+    [Test, Description("A camp owns the ground it stands on and a village a ring around it, which is the whole difference between the two tiers' territory.")]
+    public void ShouldGiveACampNoRadiusAndAVillageOne()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(SettlementTierRules.TryGetTerritoryRadius(SettlementTier.Camp, out int campRadius), Is.True);
+            Assert.That(campRadius, Is.Zero);
+
+            Assert.That(SettlementTierRules.TryGetTerritoryRadius(SettlementTier.Village, out int villageRadius), Is.True);
+            Assert.That(villageRadius, Is.EqualTo(1));
+        });
+    }
+
+    [Test, Description("A grown tier has no authored radius and says so rather than answering zero, which would silently give a city the territory of a camp.")]
+    public void ShouldRefuseARadiusForATierThatHasNone()
+    {
+        Assert.That(SettlementTierRules.TryGetTerritoryRadius(SettlementTier.City, out _), Is.False);
+    }
+
+    [Test, Description("The minimum each tier demands is the number the settle handler deducts, so both ends read one authored value rather than two that can drift.")]
+    public void ShouldAuthorATroopMinimumForEveryFoundableTier()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(SettlementTierRules.For(SettlementTier.Camp)!.MinimumTroops, Is.EqualTo(25));
+            Assert.That(SettlementTierRules.For(SettlementTier.Village)!.MinimumTroops, Is.EqualTo(100));
+        });
+    }
+
+    [TestCase(49, false, Description = "One short of twice the minimum.")]
+    [TestCase(50, true, Description = "Exactly twice it, where what is left could still found another camp.")]
+    [TestCase(51, true, Description = "Anything above that.")]
+    [Test, Description("A camp splits off a Force holding at least twice the minimum and is consumed by anything smaller, so the boundary sits where the remainder is still a legal founding party.")]
+    public void ShouldSplitACampFromAForceOfAtLeastTwiceTheMinimum(int totalStrength, bool expectedToSurvive)
+    {
+        Assert.That(SettlementTierRules.For(SettlementTier.Camp)!.WouldSurviveFounding(totalStrength), Is.EqualTo(expectedToSurvive));
+    }
+
+    [Test, Description("A village consumes whoever founds it however large they are, which is the whole difference between the two tiers' founding.")]
+    public void ShouldNeverLeaveAForceStandingAfterFoundingAVillage()
+    {
+        SettlementTierDefinition village = SettlementTierRules.For(SettlementTier.Village)!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(village.SplitsFromFounder, Is.False);
+            Assert.That(village.WouldSurviveFounding(totalStrength: 1_000), Is.False);
+        });
+    }
 }

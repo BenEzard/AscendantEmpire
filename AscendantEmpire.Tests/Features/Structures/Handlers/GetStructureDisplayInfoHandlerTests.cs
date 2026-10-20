@@ -1,4 +1,4 @@
-using AscendantEmpire.Application.Data;
+﻿using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Structures.Handlers;
 using AscendantEmpire.BackendContracts.Structures.GetStructureDisplayInfo;
 using AscendantEmpire.Domain.Entities.Structures;
@@ -57,6 +57,7 @@ internal class GetStructureDisplayInfoHandlerTests : InMemoryTestBase
             BuildPointsRequired = 0,
             SightRange = 2,
             SightDirection = DetectionDirection.FullRadius,
+            Asserts = StructureAssertion.Owned,
             MapImagePath = $"{name}.png",
             FullImagePath = $"{name}-full.png"
         };

@@ -1,4 +1,4 @@
-using AscendantEmpire.Application.Data;
+﻿using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.BackendContracts.CampaignMaps;
@@ -469,6 +469,7 @@ internal class SightDataReaderTests : InMemoryTestBase
             BuildPointsRequired = 0,
             SightRange = sightRange,
             SightDirection = DetectionDirection.FullRadius,
+            Asserts = StructureAssertion.Owned,
             MapImagePath = $"{code}.png",
             FullImagePath = $"{code}-full.png"
         };

@@ -85,6 +85,7 @@ internal class StructureLifecycleWriterPersistenceTests : GameSqlServerTestBase
             BuildPointsRequired = _WATCHTOWER_BUILD_POINTS,
             SightRange = 2,
             SightDirection = DetectionDirection.FullRadius,
+            Asserts = StructureAssertion.Owned,
             MapImagePath = "watchtower.png",
             FullImagePath = "watchtower-full.png"
         };

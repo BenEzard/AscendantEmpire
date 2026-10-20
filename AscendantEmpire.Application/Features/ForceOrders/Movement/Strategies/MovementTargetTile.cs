@@ -1,6 +1,5 @@
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
-using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
 
 namespace AscendantEmpire.Application.Features.ForceOrders.Movement.Strategies;
@@ -52,19 +51,19 @@ internal sealed record MovementTargetTile
     /// Whether nothing can enter this tile at all, whatever its movement domain or how much movement it has left.
     /// </summary>
     /// <remarks>
-    /// Two independent markers, matching how the seed data expresses the idea: Mountainous uses the geography's
-    /// <see cref="CampaignGeography.IMPASSABLE_MOVEMENT_COST"/> sentinel, while the Void biome is simply not traversable.
+    /// The rule itself lives in <see cref="CampaignTileImpassability"/>, which the per-Round territory pass also uses, so the ground an enclosure ring is sealed by - and
+    /// which carries no claim supply hop - is exactly the ground a Force is refused.
     /// </remarks>
-    public bool IsImpassable => !BiomeIsTraversable || GeographyMovementCost >= CampaignGeography.IMPASSABLE_MOVEMENT_COST;
+    public bool IsImpassable => CampaignTileImpassability.IsImpassable(BiomeIsTraversable, GeographyMovementCost);
 
     /// <summary>
     /// Whether it is the ground itself that cannot be crossed, rather than what is painted on it.
     /// </summary>
     /// <remarks>
     /// Only Mountainous carries the sentinel today, so this is what lets a refusal name the mountain instead of falling back on the general
-    /// wording the Void biome has to use.
+    /// wording the Void biome has to use. Through <see cref="CampaignTileImpassability"/>, for the same reason <see cref="IsImpassable"/> is.
     /// </remarks>
-    public bool GeographyIsImpassable => GeographyMovementCost >= CampaignGeography.IMPASSABLE_MOVEMENT_COST;
+    public bool GeographyIsImpassable => CampaignTileImpassability.GeographyIsImpassable(GeographyMovementCost);
 
     /// <summary>
     /// What it costs to cross this tile, in movement points.

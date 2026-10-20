@@ -1,6 +1,9 @@
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Intelligence.Services;
 using AscendantEmpire.Application.Features.Maps.Biomes.Services;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
+using AscendantEmpire.Application.Features.Maps.Depletion.Services;
 using AscendantEmpire.Application.Features.Structures.Services;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions.Checks;
@@ -52,6 +55,9 @@ public class TurnPipelineExecutionOrderTests
         new BuildingStructure(
             Substitute.For<IDbContextFactory<AscendantEmpireContext>>(),
             Substitute.For<IStructureLifecycleWriter>(),
+            Substitute.For<IGameContextService>(),
+            Substitute.For<ICampaignTerritoryReader>(),
+            Substitute.For<ITileTerritoryService>(),
             NullLogger<BuildingStructure>.Instance),
         new Fortifying(),
         new EvaluateForceOnHostileTerrain(),
@@ -63,7 +69,12 @@ public class TurnPipelineExecutionOrderTests
     ];
 
     private IPipelineProcess[] EndCampaignRoundProcesses() =>
-        [new HealTroops(_dbFactory), new EvaluateVictoryConditions()];
+        [
+            new HealTroops(_dbFactory),
+            new RegenerateTileSustenance(_dbFactory, Substitute.For<IBiomeRegenerationValueReader>(), NullLogger<RegenerateTileSustenance>.Instance),
+            new ResolveTileTerritory(Substitute.For<ITileTerritoryService>(), NullLogger<ResolveTileTerritory>.Instance),
+            new EvaluateVictoryConditions()
+        ];
 
     private IPipelineProcess[] StartCampaignTurnProcesses() =>
         [new AlertSentries(), new CheckUnitSupply(), new ReplenishMovementPoints(_dbFactory, NullLogger<ReplenishMovementPoints>.Instance)];
@@ -94,10 +105,10 @@ public class TurnPipelineExecutionOrderTests
         Assert.That(attritionOrder, Is.LessThan(sightingsOrder));
     }
 
-    [Test, Description("Victory is judged last, on the state the rest of the end-of-round processing leaves behind.")]
+    [Test, Description("The wounded recover, tiles regrow and borders settle before victory is judged, because victory is judged on the state the Round leaves behind.")]
     public void ShouldRunEndCampaignRoundProcessesInDeclaredOrder()
     {
-        string[] expected = ["Heal Troops", "Evaluate Victory Conditions"];
+        string[] expected = ["Heal Troops", "Regenerate Tile Sustenance", "Resolve Tile Territory", "Evaluate Victory Conditions"];
 
         Assert.That(RunOrderOf(EndCampaignRoundProcesses()), Is.EqualTo(expected));
     }

@@ -43,8 +43,8 @@ What founding does, in one transaction:
 
 - razes whatever already held the tile's **Primary slot**, which keeps that structure's history and
   reports its loss to anyone watching. There is no confirmation yet: it is replaced silently.
-- clears the settler's standing orders, which would otherwise refuse its deletion;
-- **consumes the settler**, recording its destruction;
+- **takes the settlers out of the force** — see [What the founding costs](#what-the-founding-costs)
+  below, which decides whether the force survives it;
 - founds the settlement's structure at 0%, with the rate it will be built at;
 - writes the settlement — its name, its tier, the round it was founded in, the player who founded it,
   and its population.
@@ -67,19 +67,41 @@ is to come from — see [assets-data-model.md](assets-data-model.md#what-the-fig
 Ownership of a settlement is the **structure's** `OwnedByPlayerId`, which a capture moves. The
 settlement row records only who *founded* it, which never changes.
 
-### The settler goes immediately, not when the building is finished
+### What the founding costs
 
-Deliberate, and it is a food decision. A settler consumed at founding leaves the map before the
+A **village** takes everyone who founds it, however many they are: the force is consumed and its whole
+strength becomes the settlement's population.
+
+A **camp** is a party that stopped rather than a force that ended, so a column strong enough to spare
+them drops one off and marches on. When the force holds at least **twice the camp minimum** — 50, for a
+minimum of 25 — exactly 25 are taken out of it and the force stays on the map with the rest. Below
+that, the camp consumes it like a village does.
+
+The threshold is twice the minimum because that is the same as saying *the founders only split off when
+what remains could still found another camp*. That is what settles the boundary: at exactly 50 the
+force survives, because the 25 left behind are still a legal founding party.
+
+Either way the settlers are counted **once** — the settlement's population is exactly what the force
+lost, never its whole strength alongside a force that kept it. The founders are drawn from the healthy
+first, so a column does not settle its wounded and march on with the able-bodied.
+
+The minimum is authored per tier in `SettlementTierRules`, and is the same number twice over: what a
+force is refused for lacking, and what is deducted when it splits.
+
+### The settlers go immediately, not when the building is finished
+
+Deliberate, and it is a food decision. Settlers taken at founding leave the map before the
 end-of-turn feed, so the people who are now a settlement's population never have to eat as a *force*
 while their own settlement is being built — which they could not do, standing on one tile for several
 turns stripping it.
 
-It only solves the problem for the settler. **Any force that accompanied it still has to feed itself**
-off the tile it is standing on, for as long as it stands there, and a half-built settlement does nothing
-to help. See [campaign-map/depletion.md](campaign-map/depletion.md).
+It only solves the problem for the settlers themselves. **Any force that accompanied them still has to
+feed itself** off the tile it is standing on, for as long as it stands there, and a half-built
+settlement does nothing to help — including the remains of a force that split a camp off and chose to
+stay. See [campaign-map/depletion.md](campaign-map/depletion.md).
 
-The cost of taking the settler off the map early is that nothing is left to ask how fast the building
-should go up, which is why the rate is fixed at founding — below.
+The cost of taking the settlers off the map early is that they cannot be asked how fast the building
+should go up on any later turn, which is why the rate is fixed at founding — below.
 
 ## Construction
 
@@ -138,9 +160,10 @@ turn rather than needing an extra one to close the rounding gap.
 
 ### The rate is fixed at founding
 
-Because the settler is consumed immediately, there is no force left to ask on any later turn. So "has
-this force spent its movement?" is a question asked **once**, at the moment of founding, and the answer
-is stored.
+Because the settlers become a settlement immediately, there is nobody left to ask on any later turn. So
+"has this force spent its movement?" is a question asked **once**, at the moment of founding, and the
+answer is stored. Where a camp splits off a larger force, the rate is worked out from the **settlers
+who stayed**, not from the column that marched on — they are the ones raising it.
 
 Two consequences worth knowing:
 
@@ -193,10 +216,24 @@ A settlement owns the tiles around it. It starts with a **radius** of owned tile
 **growth is the mechanism and selection is the direction**: growing a tier grants a number of new
 tiles, and the player chooses where they go rather than the radius simply enlarging.
 
-> **The radius is not built.** A settlement owns exactly the tile it stands on, written when its
-> construction finishes: `CampaignMap.OwnedByPlayerId` and `OwnedBySettlementId` on that one tile. The
-> radius, and the claim extinction that ownership is supposed to bring with it, wait on the per-round
-> pass in [campaign-map/tile-ownership.md](campaign-map/tile-ownership.md#not-yet-implemented).
+The radius is a property of the **tier**, authored in `SettlementTierRules`: a camp owns the ground it
+stands on, and a village that tile plus a **1-tile radius** — the eight neighbours, on the same
+eight-way adjacency movement and enclosure use. The grown tiers have no authored radius yet, and a
+tier without one takes its own tile alone rather than a guessed amount of ground.
+
+The territory is written when construction finishes, by the `BuildingStructure` end-of-turn process.
+It takes every tile in the radius it can, and passes over the rest:
+
+| Tile in the radius | What happens |
+| --- | --- |
+| Unclaimed | Owned, through the settlement |
+| Claimed, by anyone | Owned, and **every claim on it is extinguished** — the two never coexist |
+| Mountain or water | Owned. Both are ordinary terrain for ownership ([tile-ownership.md](campaign-map/tile-ownership.md#water)) |
+| Void | Skipped — nothing can ever own it |
+| A rival's owned or occupied ground | Skipped. Ownership is exclusive and earned, so building beside a neighbour is not a conquest of them |
+
+So a village hemmed in by a rival, a coastline or the map's edge simply gets a smaller territory,
+rather than the founding being refused for a reason the player cannot read off the map.
 
 A tile owned through a settlement carries that settlement, which is what lets Settlement-scoped
 modifiers reach it (see [campaign-map/tiles.md](campaign-map/tiles.md#biome)). Conquering a
