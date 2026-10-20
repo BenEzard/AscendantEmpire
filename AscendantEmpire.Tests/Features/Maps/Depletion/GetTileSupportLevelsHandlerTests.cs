@@ -93,7 +93,7 @@ internal class GetTileSupportLevelsHandlerTests : InMemoryTestBase
             DbFactory,
             _sightDataReader,
             _fieldOfViewService,
-            new TileSupportEvaluator(new PlayerSustenanceValueReader(), new BiomeRegenerationValueReader()));
+            new TileSupportEvaluator(new PlayerSustenanceValueReader(), new BiomeRegenerationValueReader(), new CampaignRiverReader()));
     }
 
     [Test, Description("Every observed tile gets one entry for the selected Force: 300 troops against 500 food is one Turn, and a stripped tile is exhausted.")]

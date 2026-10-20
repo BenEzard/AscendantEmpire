@@ -5,6 +5,8 @@ using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Maps.Depletion.Classes;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
+using AscendantEmpire.BackendContracts.CampaignMaps;
+using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Enums.Maps;
 
@@ -31,13 +33,17 @@ namespace AscendantEmpire.Application.Features.Maps.Depletion.Services;
 /// Troop counts are always read here, never taken from the client.
 /// </para>
 /// </remarks>
-internal class TileSupportEvaluator(IPlayerSustenanceValueReader sustenanceValueReader, IBiomeRegenerationValueReader biomeRegenerationValueReader) : ITileSupportEvaluator
+internal class TileSupportEvaluator(
+    IPlayerSustenanceValueReader sustenanceValueReader,
+    IBiomeRegenerationValueReader biomeRegenerationValueReader,
+    ICampaignRiverReader campaignRiverReader) : ITileSupportEvaluator
 {
     public async Task<ServiceResult<IReadOnlyDictionary<int, TileSupport?>>> EvaluateAsync(
         AscendantEmpireContext context,
         int gameId,
         int playerId,
         IReadOnlyCollection<SightTerrain> tiles,
+        CampaignMapGeometry geometry,
         IReadOnlyCollection<int> forceIds,
         CancellationToken cancelToken = default)
     {
@@ -89,6 +95,11 @@ internal class TileSupportEvaluator(IPlayerSustenanceValueReader sustenanceValue
         // What each biome regrows at the end of a Round, so the forecast can count the Turns regrowth adds.
         Dictionary<BiomeType, BiomeRegenerationValues> regenerationByBiome = await biomeRegenerationValueReader.GetValuesAsync(context, cancelToken);
 
+        // The tiles' river edges, which raise a riverbank's Hunt and put Fish on it. One call however many tiles: the reader loads the North and West neighbours that own
+        // the other two edges of each.
+        Coord[] coords = [.. tiles.Select(tile => new Coord(tile.X, tile.Y)).DistinctBy(coord => (coord.X, coord.Y))];
+        IReadOnlyDictionary<Coord, TileRivers> riversByCoord = await campaignRiverReader.GetTileRiversAsync(context, gameId, coords, geometry, cancelToken);
+
         var supportByTileId = new Dictionary<int, TileSupport?>();
 
         foreach (SightTerrain tile in tiles)
@@ -118,7 +129,8 @@ internal class TileSupportEvaluator(IPlayerSustenanceValueReader sustenanceValue
                 values,
                 tile.BiomeType,
                 depletion,
-                regenerationByBiome.GetValueOrDefault(tile.BiomeType));
+                regenerationByBiome.GetValueOrDefault(tile.BiomeType),
+                riversByCoord.GetValueOrDefault(new Coord(tile.X, tile.Y)));
 
             supportByTileId.Add(tile.CampaignMapId, support);
         }

@@ -29,6 +29,7 @@ internal interface ITileSupportEvaluator
     /// <param name="gameId">The Game the tiles are in.</param>
     /// <param name="playerId">The Player whose food values and Forces are used.</param>
     /// <param name="tiles">The tiles to evaluate, as the Player sees them.</param>
+    /// <param name="geometry">The map's size, wrapping and world-map id offset, needed to read the tiles' river edges off their neighbours.</param>
     /// <param name="forceIds">
     /// Forces to count on every tile as well as those already standing on it - the Forces the Player has selected, for the hover marker. Each must be one of the Player's own
     /// Forces in the Game; any other id fails the evaluation. Empty for the tile toolbar.
@@ -39,6 +40,7 @@ internal interface ITileSupportEvaluator
         int gameId,
         int playerId,
         IReadOnlyCollection<SightTerrain> tiles,
+        CampaignMapGeometry geometry,
         IReadOnlyCollection<int> forceIds,
         CancellationToken cancelToken = default);
 }

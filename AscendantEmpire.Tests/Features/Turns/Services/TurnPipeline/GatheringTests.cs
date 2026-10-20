@@ -1,5 +1,7 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.Biomes.Services;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndTurn;
 using AscendantEmpire.Application.Features.Units.Classes;
@@ -47,6 +49,11 @@ internal class GatheringTests : InMemoryTestBase
     private const int _OCEAN_TILE_ID = 103;
     private const int _CURRENT_ROUND_NUMBER = 4;
     private const int _PLAYER_TURN_ID = 77;
+
+    /// <summary>
+    /// A one-row map whose world ids are the tile ids: <c>X + 101</c>, matching the tiles seeded below.
+    /// </summary>
+    private static readonly CampaignMapGeometry _GEOMETRY = new(CampaignMapOffsetId: 101, Width: 4, Height: 1, WrapsHorizontally: false, WrapsVertically: false);
 
     private IUnderfedForceResolver _underfedForceResolver = null!;
     private Gathering _process = null!;
@@ -100,7 +107,14 @@ internal class GatheringTests : InMemoryTestBase
 
         _underfedForceResolver = Substitute.For<IUnderfedForceResolver>();
 
-        _process = new Gathering(DbFactory, new PlayerSustenanceValueReader(), _underfedForceResolver, NullLogger<Gathering>.Instance);
+        // Substituted, because the Game row the real reader would need is not seeded here. The geometry puts the three tiles at X 0-2 of a one-row map whose world ids
+        // start at 101, so the river reader finds the rows the tests seed.
+        var sightDataReader = Substitute.For<ISightDataReader>();
+        sightDataReader
+            .GetGeometryAsync(Arg.Any<AscendantEmpireContext>(), _GAME_ID, Arg.Any<CancellationToken>())
+            .Returns(_GEOMETRY);
+
+        _process = new Gathering(DbFactory, new PlayerSustenanceValueReader(), _underfedForceResolver, sightDataReader, new CampaignRiverReader(), NullLogger<Gathering>.Instance);
     }
 
     [Test, Description("The first feed on a tile creates its depletion row, splitting the need across Forage and Hunt in proportion to what each has.")]
@@ -263,6 +277,51 @@ internal class GatheringTests : InMemoryTestBase
     }
 
     // ── arrangement ───────────────────────────────────────────────────────────
+
+    [Test, Description("Forces on a riverbank eat its Fish too: a Large river puts 30 Fish on dry Grassland, and the feed draws on it alongside Forage and Hunt.")]
+    public async Task ShouldFeedFromTheFishARiverPutsOnALandTileAsync()
+    {
+        await SetRiverAsync(_GRASSLAND_TILE_ID, RiverWidth.Large);
+        await AddForceAsync(unitInstanceId: 1, _GRASSLAND_TILE_ID, troops: 100);
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        CampaignMapDepletion depletion = await ReloadDepletionAsync(_GRASSLAND_TILE_ID);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(depletion.FishTaken, Is.GreaterThan(0), "The river's Fish is in the pool, so some of the need comes out of it.");
+            Assert.That(
+                depletion.ForageTaken + depletion.HuntTaken + depletion.FishTaken,
+                Is.EqualTo(ScaledAmount.FromWhole(100).RawValue),
+                "The whole need is still met, only split three ways instead of two.");
+        }
+    }
+
+    [Test, Description("A dry land tile is unchanged by the rule: with no river there is no Fish in its pool and none is taken.")]
+    public async Task ShouldNotFeedFromFishOnADryLandTileAsync()
+    {
+        await AddForceAsync(unitInstanceId: 1, _GRASSLAND_TILE_ID, troops: 100);
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        CampaignMapDepletion depletion = await ReloadDepletionAsync(_GRASSLAND_TILE_ID);
+
+        Assert.That(depletion.FishTaken, Is.Zero);
+    }
+
+    /// <summary>
+    /// Puts a river of the given width on the tile's own East edge, which is the one edge of it the tile's own row owns outright.
+    /// </summary>
+    private async Task SetRiverAsync(int tileId, RiverWidth width)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        CampaignMap tile = await context.CampaignMaps.SingleAsync(t => t.CampaignMapId == tileId);
+        tile.EastRiver = width;
+
+        await context.SaveChangesAsync();
+    }
 
     private static TurnPipelineContextData EndTurnContext() =>
         new(TurnPipelineType.EndCampaignTurn, _GAME_ID, _PLAYER_ID, _CURRENT_ROUND_NUMBER)

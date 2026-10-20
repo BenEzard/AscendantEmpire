@@ -48,6 +48,11 @@ setup, another step to game deletion, and a unique key to stop an edge being sto
 Game setup copies both columns from the gallery map. What rivers do to movement is in
 [unit-movement.md](../units/unit-movement.md#rivers--built).
 
+Rivers also feed the land they run through. Each river edge of a **land** tile raises its Forage,
+Hunt and Fodder by 20% and adds flat Fish — 15 for a Medium river, 30 for a Large one — so a dry tile
+on a riverbank has fish where the biome gives it none. A water tile gains nothing. The amounts, and
+how they stack across a tile's four edges, are in [food-yield.md](food-yield.md#rivers).
+
 Rivers also draw borders. An edge of **Medium or wider seals an enclosure ring**, on the same corner
 semantics a diagonal step uses, so a river is a natural boundary for an area to claim — see
 [tile-ownership.md](tile-ownership.md#enclosure). They do **not** cut the claim supply range: a chain

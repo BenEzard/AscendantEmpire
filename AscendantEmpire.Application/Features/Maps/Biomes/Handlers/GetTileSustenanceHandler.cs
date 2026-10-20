@@ -9,8 +9,9 @@ using AscendantEmpire.Application.Features.Maps.Depletion.Classes;
 using AscendantEmpire.Application.Features.Maps.Depletion.Services;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.Biomes;
+using AscendantEmpire.BackendContracts.CampaignMaps;
+using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.Domain.Entities.Games;
-using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Maps;
 
 using Microsoft.EntityFrameworkCore;
@@ -65,6 +66,10 @@ internal class GetTileSustenanceRequestValidator : Validator<GetTileSustenanceRe
 /// nothing has been taken from it.
 /// </para>
 /// <para>
+/// A land tile's rivers are added on top through <see cref="RiverSustenanceBonus"/>, so a riverbank reports the Fish a river puts there and its raised Hunt and Fodder. The
+/// rivers come from <see cref="ICampaignRiverReader"/>, the same reader the map read uses.
+/// </para>
+/// <para>
 /// The tile's <see cref="TileSustenance.SupportLevel"/> comes from <see cref="ITileSupportEvaluator"/> with no requested Forces, so the need is only the Player's own Forces
 /// already standing on the tile. The hover marker asks the same evaluator about every observed tile at once, through <c>GetTileSupportLevelsHandler</c>.
 /// </para>
@@ -75,7 +80,8 @@ internal class GetTileSustenanceHandler(
     ISightDataReader sightDataReader,
     IFieldOfViewService fieldOfViewService,
     IPlayerSustenanceValueReader sustenanceValueReader,
-    ITileSupportEvaluator tileSupportEvaluator
+    ITileSupportEvaluator tileSupportEvaluator,
+    ICampaignRiverReader campaignRiverReader
 ) : IRequestHandler<GetTileSustenanceRequest, ServiceResult<TileSustenance>>
 {
     public async Task<ServiceResult<TileSustenance>> Handle(GetTileSustenanceRequest request, CancellationToken cancelToken)
@@ -141,8 +147,22 @@ internal class GetTileSustenanceHandler(
             .AsNoTracking()
             .FirstOrDefaultAsync(d => d.CampaignMapId == seenTile.CampaignMapId, cancelToken);
 
+        // The tile's four river edges, which raise its Hunt and Fodder and put Fish on it even where the biome has none.
+        var coord = new Coord(seenTile.X, seenTile.Y);
+        IReadOnlyDictionary<Coord, TileRivers> riversByCoord = await campaignRiverReader.GetTileRiversAsync(context, request.GameId, [coord], geometry, cancelToken);
+        TileRivers? rivers = riversByCoord.GetValueOrDefault(coord);
+
+        bool isWater = CampaignTileWater.IsWater(seenTile.BiomeIsWater, seenTile.GeographyType);
+
         // Whether the tile can feed the Forces already on it. No Forces are requested, so the only way this fails is a defect in the evaluator.
-        ServiceResult<IReadOnlyDictionary<int, TileSupport?>> supportResult = await tileSupportEvaluator.EvaluateAsync(context, request.GameId, request.PlayerId, [seenTile], [], cancelToken);
+        ServiceResult<IReadOnlyDictionary<int, TileSupport?>> supportResult = await tileSupportEvaluator.EvaluateAsync(
+            context,
+            request.GameId,
+            request.PlayerId,
+            [seenTile],
+            geometry,
+            [],
+            cancelToken);
 
         if (supportResult.HasSucceeded == false)
         {
@@ -155,10 +175,10 @@ internal class GetTileSustenanceHandler(
         return ServiceResult<TileSustenance>.Succeed(new TileSustenance
         {
             IsObserved = true,
-            Forage = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Forage, depletion),
-            Hunt = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Hunt, depletion),
-            Fish = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Fish, depletion),
-            Fodder = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Fodder, depletion),
+            Forage = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Forage, depletion, rivers, isWater),
+            Hunt = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Hunt, depletion, rivers, isWater),
+            Fish = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Fish, depletion, rivers, isWater),
+            Fodder = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Fodder, depletion, rivers, isWater),
             // The level only: the toolbar colours itself by it, and does not show the Turns the hover marker does.
             SupportLevel = supportResult.SuccessValue![seenTile.CampaignMapId]?.Level
         });
@@ -167,9 +187,21 @@ internal class GetTileSustenanceHandler(
     /// <summary>
     /// One resource's available amount, presented as a decimal, or <see langword="null"/> when the resource does not exist in the biome.
     /// </summary>
-    private static decimal? GetAvailableValue(PlayerSustenanceValues values, BiomeType biome, SustenanceResource resource, CampaignMapDepletion? depletion)
+    /// <remarks>
+    /// The tile's rivers are added to the Player's effective value before anything taken is removed, the same order <see cref="TileFoodPool"/> uses, so the toolbar can never
+    /// report an amount the Forces standing there would not find.
+    /// </remarks>
+    private static decimal? GetAvailableValue(
+        PlayerSustenanceValues values,
+        BiomeType biome,
+        SustenanceResource resource,
+        CampaignMapDepletion? depletion,
+        TileRivers? rivers,
+        bool isWater)
     {
-        ScaledAmount? availableValue = SustenanceValueCalculator.CalculateAvailableValue(values.GetValue(biome, resource), DepletionTaken.GetTaken(depletion, resource));
+        ScaledAmount? effectiveValue = RiverSustenanceBonus.Apply(values.GetValue(biome, resource), resource, rivers, isWater);
+
+        ScaledAmount? availableValue = SustenanceValueCalculator.CalculateAvailableValue(effectiveValue, DepletionTaken.GetTaken(depletion, resource));
 
         return availableValue?.ToDecimal();
     }

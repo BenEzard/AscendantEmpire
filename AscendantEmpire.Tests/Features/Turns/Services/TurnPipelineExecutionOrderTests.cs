@@ -51,6 +51,8 @@ public class TurnPipelineExecutionOrderTests
             Substitute.For<IDbContextFactory<AscendantEmpireContext>>(),
             Substitute.For<IPlayerSustenanceValueReader>(),
             Substitute.For<IUnderfedForceResolver>(),
+            Substitute.For<ISightDataReader>(),
+            Substitute.For<ICampaignRiverReader>(),
             NullLogger<Gathering>.Instance),
         new BuildingStructure(
             Substitute.For<IDbContextFactory<AscendantEmpireContext>>(),
@@ -71,7 +73,12 @@ public class TurnPipelineExecutionOrderTests
     private IPipelineProcess[] EndCampaignRoundProcesses() =>
         [
             new HealTroops(_dbFactory),
-            new RegenerateTileSustenance(_dbFactory, Substitute.For<IBiomeRegenerationValueReader>(), NullLogger<RegenerateTileSustenance>.Instance),
+            new RegenerateTileSustenance(
+                _dbFactory,
+                Substitute.For<IBiomeRegenerationValueReader>(),
+                Substitute.For<ISightDataReader>(),
+                Substitute.For<ICampaignRiverReader>(),
+                NullLogger<RegenerateTileSustenance>.Instance),
             new ResolveTileTerritory(Substitute.For<ITileTerritoryService>(), NullLogger<ResolveTileTerritory>.Instance),
             new EvaluateVictoryConditions()
         ];

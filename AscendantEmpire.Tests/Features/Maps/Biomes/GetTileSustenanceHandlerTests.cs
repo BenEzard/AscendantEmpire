@@ -82,7 +82,14 @@ internal class GetTileSustenanceHandlerTests : InMemoryTestBase
         _fieldOfViewService = Substitute.For<IFieldOfViewService>();
         SetSeenTiles(BuildSeenTile(_SEEN_X, _SEEN_Y, BiomeType.Grassland));
 
-        _handler = new GetTileSustenanceHandler(NullLogger<GetTileSustenanceHandler>.Instance, DbFactory, _sightDataReader, _fieldOfViewService, new PlayerSustenanceValueReader(), new TileSupportEvaluator(new PlayerSustenanceValueReader(), new BiomeRegenerationValueReader()));
+        _handler = new GetTileSustenanceHandler(
+            NullLogger<GetTileSustenanceHandler>.Instance,
+            DbFactory,
+            _sightDataReader,
+            _fieldOfViewService,
+            new PlayerSustenanceValueReader(),
+            new TileSupportEvaluator(new PlayerSustenanceValueReader(), new BiomeRegenerationValueReader(), new CampaignRiverReader()),
+            new CampaignRiverReader());
     }
 
     [Test, Description("A tile in live sight reports the Player's values for its biome, which with no modifiers and nothing taken are the biome's base values.")]
@@ -106,6 +113,22 @@ internal class GetTileSustenanceHandlerTests : InMemoryTestBase
         ServiceResult<TileSustenance> result = await HandleAsync(_SEEN_X, _SEEN_Y);
 
         Assert.That(result.SuccessValue!.Fish, Is.Null);
+    }
+
+    [Test, Description("A riverbank reports the Fish its river puts there, with Forage, Hunt and Fodder all raised 20% by the edge.")]
+    public async Task ShouldReportTheRiverBonusOnTheSeenTileAsync()
+    {
+        await AddRiverTileAsync(_SEEN_X, _SEEN_Y, RiverWidth.Medium);
+
+        ServiceResult<TileSustenance> result = await HandleAsync(_SEEN_X, _SEEN_Y);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.SuccessValue!.Fish, Is.EqualTo(15m), "A Medium edge is worth 15 Fish on dry ground.");
+            Assert.That(result.SuccessValue.Hunt, Is.EqualTo(120m));
+            Assert.That(result.SuccessValue.Fodder, Is.EqualTo(1_200m));
+            Assert.That(result.SuccessValue.Forage, Is.EqualTo(480m));
+        }
     }
 
     [Test, Description("The values are the calling Player's own, so a modifier they hold raises what the toolbar shows them.")]
@@ -290,6 +313,36 @@ internal class GetTileSustenanceHandlerTests : InMemoryTestBase
             InitialStrength = troops,
             HealthyCount = troops,
             InjuredCount = 0
+        });
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Seeds the world-map row for a tile with a river of the given width on its own East edge.
+    /// </summary>
+    /// <remarks>
+    /// The other tests seed no map rows at all - sight is substituted - so the river reader finds nothing and every tile reads as riverless, which is what they expect.
+    /// </remarks>
+    private async Task AddRiverTileAsync(int x, int y, RiverWidth width)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        context.CampaignMaps.Add(new CampaignMap
+        {
+            CampaignMapId = 1 + (y * 10) + x,
+            GameId = _GAME_ID,
+            XCoord = x,
+            YCoord = y,
+            BiomeTypeId = BiomeType.Grassland,
+            CampaignMapGeographyTypeId = CampaignMapGeographyType.Flat,
+            EastRiver = width,
+            Biome = null!,
+            Geography = null!,
+            Game = null!,
+            FirstVisitor = null,
+            LastVisitor = null,
+            OwnedBy = null
         });
 
         await context.SaveChangesAsync();

@@ -76,8 +76,9 @@ onto an untouched grassland tile. The tile's `Taken` is `0` for every resource, 
 | --- | --- | --- | --- | --- |
 | Available to Empire A | 400 | 200 | 0 | 1000 |
 
-At end of turn, the unit needs 100 food (100 men). On land the pool is Forage and Hunt; on water it
-is Fish alone. Fodder is for animals and is not eaten by men. The pool available is `400 + 200 = 600`,
+At end of turn, the unit needs 100 food (100 men). On land the pool is Forage and Hunt — and Fish too
+where a river runs along one of the tile's edges, see [food-yield.md](food-yield.md#rivers); on water
+it is Fish alone. Fodder is for animals and is not eaten by men. The pool available is `400 + 200 = 600`,
 and the need is split in proportion to what each resource has, so `2/3 × 100 = 66.667` is taken from
 Forage and `1/3 × 100 = 33.333` from Hunt. The split is in thousandths, with any thousandth left over
 by rounding going to the resource whose share lost the most, so the amounts taken always sum exactly
@@ -211,7 +212,7 @@ Pure and database-free apart from the two readers, so the rules are tested on th
 | File | Role |
 | --- | --- |
 | [DepletionTaken.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/DepletionTaken.cs) | The one place a `SustenanceResource` is mapped to its `*Taken` column, so writers and readers cannot disagree. |
-| [TileFoodPool.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/TileFoodPool.cs) | Builds the tile's pool: Forage and Hunt on land, Fish on water, each at `MAX(0, effective − Taken)`. |
+| [TileFoodPool.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/TileFoodPool.cs) | Builds the tile's pool: Forage and Hunt on land (Fish as well on a riverbank), Fish on water, each at `MAX(0, effective − Taken)` with the tile's river bonus added to the effective value. |
 | [FoodExtractionCalculator.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/FoodExtractionCalculator.cs) | Splits a food need across the pool, or strips it bare and reports the shortfall. |
 | [ShortfallAllocator.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/ShortfallAllocator.cs) | Spreads a tile's pooled shortfall across its Forces in proportion to troops. |
 | [ProportionalSplitter.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/ProportionalSplitter.cs) | Largest-remainder split in thousandths, used for both splits above, so the parts sum exactly to the total. |
@@ -294,9 +295,10 @@ toolbar read by `Features/Maps/Biomes/GetTileSustenanceHandlerTests`.
 4. Read the Player's effective sustenance values once, through `IPlayerSustenanceValueReader`.
 5. Per tile, in tile-id order:
    1. The need is the troops of every Force on the tile, at 1 troop = 1 food.
-   2. `TileFoodPool` builds the pool — Forage and Hunt on land, Fish on water — each entry at
-      `MAX(0, effective − Taken)`. A resource the biome does not have is left out entirely, which is
-      not the same as one present but stripped, which is in the pool at 0.
+   2. `TileFoodPool` builds the pool — Forage and Hunt on land, Fish on water, and Fish on land too
+      where the tile has a river — each entry at `MAX(0, effective − Taken)`, with the tile's river
+      bonus added to the effective value first. A resource the tile does not have is left out
+      entirely, which is not the same as one present but stripped, which is in the pool at 0.
    3. `FoodExtractionCalculator` splits the need across the pool in proportion to what each resource
       has; or, when the pool cannot cover it, takes everything and reports the rest as the shortfall.
    4. Each amount taken is added to the row through `DepletionTaken.AddTaken`.

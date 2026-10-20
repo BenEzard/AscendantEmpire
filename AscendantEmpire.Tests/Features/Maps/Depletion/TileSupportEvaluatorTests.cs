@@ -2,6 +2,7 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.Biomes.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Maps.Depletion.Classes;
 using AscendantEmpire.Application.Features.Maps.Depletion.Services;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
@@ -37,6 +38,11 @@ internal class TileSupportEvaluatorTests : InMemoryTestBase
     private const int _OTHER_GRASSLAND_TILE_ID = 102;
     private const int _OCEAN_TILE_ID = 103;
     private const int _WOODLAND_TILE_ID = 104;
+
+    /// <summary>
+    /// A one-row map whose world ids are the tile ids: <c>X + 100</c>, matching the <c>tileId % 10</c> the seen tiles are built with.
+    /// </summary>
+    private static readonly CampaignMapGeometry _GEOMETRY = new(CampaignMapOffsetId: 100, Width: 10, Height: 1, WrapsHorizontally: false, WrapsVertically: false);
 
     private TileSupportEvaluator _evaluator = null!;
 
@@ -90,7 +96,7 @@ internal class TileSupportEvaluatorTests : InMemoryTestBase
             await context.SaveChangesAsync();
         }
 
-        _evaluator = new TileSupportEvaluator(new PlayerSustenanceValueReader(), new BiomeRegenerationValueReader());
+        _evaluator = new TileSupportEvaluator(new PlayerSustenanceValueReader(), new BiomeRegenerationValueReader(), new CampaignRiverReader());
     }
 
     [Test, Description("The Player's own Forces on a tile are summed into one need: 250 + 100 troops against 600 food is one Turn, where either alone would be two.")]
@@ -244,11 +250,52 @@ internal class TileSupportEvaluatorTests : InMemoryTestBase
         Assert.That(supports[_GRASSLAND_TILE_ID], Is.EqualTo(new TileSupport(TileSupportLevel.Plenty, 2)));
     }
 
+    [Test, Description("A tile's rivers reach the forecast: a Large edge adds 80 Forage, 40 Hunt and 30 Fish to Grassland's 600, turning one Turn of 335 into two.")]
+    public async Task ShouldCountTheTilesRiversIntoTheForecastAsync()
+    {
+        await AddRiverTileAsync(_GRASSLAND_TILE_ID, RiverWidth.Large);
+        await AddForceAsync(unitInstanceId: 1, _GRASSLAND_TILE_ID, troops: 335);
+
+        IReadOnlyDictionary<int, TileSupport?> supports = await EvaluateAsync([Grassland(_GRASSLAND_TILE_ID)], forceIds: []);
+
+        Assert.That(supports[_GRASSLAND_TILE_ID], Is.EqualTo(new TileSupport(TileSupportLevel.Plenty, 2)));
+    }
+
+    /// <summary>
+    /// Seeds the world-map row for a tile with a river of the given width on its own East edge.
+    /// </summary>
+    /// <remarks>
+    /// The other tests seed no map rows - the tiles are passed in as the Player sees them - so the river reader finds nothing and every tile reads as riverless.
+    /// </remarks>
+    private async Task AddRiverTileAsync(int tileId, RiverWidth width)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        context.CampaignMaps.Add(new CampaignMap
+        {
+            CampaignMapId = tileId,
+            GameId = _GAME_ID,
+            XCoord = tileId % 10,
+            YCoord = 0,
+            BiomeTypeId = BiomeType.Grassland,
+            CampaignMapGeographyTypeId = CampaignMapGeographyType.Flat,
+            EastRiver = width,
+            Biome = null!,
+            Geography = null!,
+            Game = null!,
+            FirstVisitor = null,
+            LastVisitor = null,
+            OwnedBy = null
+        });
+
+        await context.SaveChangesAsync();
+    }
+
     private async Task<ServiceResult<IReadOnlyDictionary<int, TileSupport?>>> EvaluateResultAsync(SightTerrain[] tiles, int[] forceIds)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        return await _evaluator.EvaluateAsync(context, _GAME_ID, _PLAYER_ID, tiles, forceIds);
+        return await _evaluator.EvaluateAsync(context, _GAME_ID, _PLAYER_ID, tiles, _GEOMETRY, forceIds);
     }
 
     private async Task<TileSupportLevel?> EvaluateSingleAsync(SightTerrain tile, int[]? forceIds = null)

@@ -1,9 +1,13 @@
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Maps.Biomes.Services;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Maps.Depletion.Classes;
 using AscendantEmpire.Application.Features.Maps.Depletion.Services;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
+using AscendantEmpire.BackendContracts.CampaignMaps;
+using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.Domain.Entities.Games;
-using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Maps;
 
 using Microsoft.EntityFrameworkCore;
@@ -29,10 +33,16 @@ namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campa
 /// <para>
 /// Every tile is treated as unclaimed for now: <c>Base</c> is the biome's base value and the share that regrows is the biome's Regeneration Percent.
 /// </para>
+/// <para>
+/// A land tile's rivers are part of that base, through <see cref="RiverSustenanceBonus"/>: a riverbank holds more Hunt and Fodder than its biome alone, and holds Fish its
+/// biome does not have at all, so it has to regrow both. Without this a Force would eat a riverbank's Fish once and the tile would never give it back.
+/// </para>
 /// </remarks>
 internal class RegenerateTileSustenance(
     IDbContextFactory<AscendantEmpireContext> dbFactory,
     IBiomeRegenerationValueReader biomeRegenerationValueReader,
+    ISightDataReader sightDataReader,
+    ICampaignRiverReader campaignRiverReader,
     ILogger<RegenerateTileSustenance> logger) : IEndCampaignRoundProcess
 {
     /// <summary>
@@ -70,11 +80,16 @@ internal class RegenerateTileSustenance(
 
         int[] tileIds = [.. depletions.Select(d => d.CampaignMapId)];
 
-        // Scalars only: the biome is all that is needed off each tile.
-        Dictionary<int, BiomeType> biomeTypeByTileId = await db.CampaignMaps
+        // Scalars only. The coordinates and the water facts come back alongside the biome, because a tile's rivers are part of what it regrows against and they are keyed
+        // by coordinate rather than by tile id.
+        var tiles = await db.CampaignMaps
             .Where(t => tileIds.Contains(t.CampaignMapId))
-            .Select(t => new { t.CampaignMapId, t.BiomeTypeId })
-            .ToDictionaryAsync(t => t.CampaignMapId, t => t.BiomeTypeId);
+            .Select(t => new { t.CampaignMapId, t.XCoord, t.YCoord, t.BiomeTypeId, BiomeIsWater = t.Biome.IsWater, t.CampaignMapGeographyTypeId })
+            .ToDictionaryAsync(t => t.CampaignMapId);
+
+        // The rivers on the depleted tiles, in one call. A riverbank regrows the Fish the river put there, so the base it regrows against has to carry the river too.
+        // Null when the Game's geometry could not be read, which is told apart from "no rivers" below: it must not be mistaken for a tile that lost one.
+        IReadOnlyDictionary<Coord, TileRivers>? riversByCoord = await ReadRiversAsync(db, context.GameId, tiles.Values.Select(t => new Coord(t.XCoord, t.YCoord)).ToList());
 
         // Through the reader the support forecast also uses, so the forecast regrows a tile by exactly what this process will.
         Dictionary<BiomeType, BiomeRegenerationValues> biomesByType = await biomeRegenerationValueReader.GetValuesAsync(db);
@@ -83,7 +98,7 @@ internal class RegenerateTileSustenance(
 
         foreach (CampaignMapDepletion depletion in depletions.OrderBy(d => d.CampaignMapId))
         {
-            if (biomeTypeByTileId.TryGetValue(depletion.CampaignMapId, out BiomeType biomeType) == false || biomesByType.TryGetValue(biomeType, out BiomeRegenerationValues? biome) == false)
+            if (tiles.TryGetValue(depletion.CampaignMapId, out var tile) == false || biomesByType.TryGetValue(tile.BiomeTypeId, out BiomeRegenerationValues? biome) == false)
             {
                 // A depletion row for a tile or biome that does not exist is a data defect, but failing here would stop the Round from ending at all.
                 logger.LogWarning(
@@ -100,7 +115,7 @@ internal class RegenerateTileSustenance(
                 // rule existed; re-seeding fixes it.
                 logger.LogWarning(
                     "Biome {BiomeType} has no Regeneration Percent, so depleted tile Id {CampaignMapTileId} in Game Id {GameId} did not regenerate.",
-                    biomeType,
+                    tile.BiomeTypeId,
                     depletion.CampaignMapId,
                     context.GameId);
 
@@ -110,19 +125,31 @@ internal class RegenerateTileSustenance(
             // The marker records the last Round anyone fed here, so a match means this Round.
             bool fedOn = depletion.FedOnRound == context.CurrentRoundNumber;
 
+            bool isWater = CampaignTileWater.IsWater(tile.BiomeIsWater, tile.CampaignMapGeographyTypeId);
+            TileRivers? rivers = riversByCoord?.GetValueOrDefault(new Coord(tile.XCoord, tile.YCoord));
+
             foreach (SustenanceResource resource in _SUSTENANCE_RESOURCES)
             {
-                long? baseRawValue = biome.GetBaseValue(resource);
+                // What the tile holds when full: the biome's base, plus whatever its rivers add. A riverbank regrows the Fish a river put on it, which the biome alone
+                // would never give back.
+                ScaledAmount? baseValue = RiverSustenanceBonus.Apply(biome.GetBaseValue(resource), resource, rivers, isWater);
 
-                // A resource the biome does not have is never regenerated.
-                if (baseRawValue is null)
+                if (baseValue is null)
                 {
+                    // A resource the tile does not have is never regenerated. Anything standing against it was taken while the tile still had it - a river since removed
+                    // from the map - and is cleared rather than left to be subtracted if the river is ever drawn back. Only where the rivers are actually known: a
+                    // geometry read that failed must not be read as a river that went away.
+                    if (riversByCoord is not null)
+                    {
+                        DepletionTaken.SetTaken(depletion, resource, ScaledAmount.Zero);
+                    }
+
                     continue;
                 }
 
                 ScaledAmount newTaken = TileRegenerationCalculator.Regenerate(
                     DepletionTaken.GetTaken(depletion, resource),
-                    ScaledAmount.FromRaw(baseRawValue.Value),
+                    baseValue.Value,
                     biome.RegenerationPercent.Value,
                     fedOn);
 
@@ -141,5 +168,26 @@ internal class RegenerateTileSustenance(
             context.CurrentRoundNumber);
 
         return string.Empty;
+    }
+
+    /// <summary>
+    /// The river edges of the depleted tiles, keyed by coordinate, or <see langword="null"/> when they could not be read.
+    /// </summary>
+    /// <remarks>
+    /// A Game whose geometry cannot be read is a data defect, but refusing here would stop the Round from ending at all. The tiles regrow against their biomes alone
+    /// instead, which leaves a riverbank's Fish to be picked up by the next Round's regrowth. The null is what tells that apart from a tile that truly has no river.
+    /// </remarks>
+    private async Task<IReadOnlyDictionary<Coord, TileRivers>?> ReadRiversAsync(AscendantEmpireContext db, int gameId, IReadOnlyCollection<Coord> coords)
+    {
+        CampaignMapGeometry? geometry = await sightDataReader.GetGeometryAsync(db, gameId);
+
+        if (geometry is null)
+        {
+            logger.LogWarning("Game Id {GameId}'s map geometry was not found while regenerating tiles, so no river food was regrown on any of them.", gameId);
+
+            return null;
+        }
+
+        return await campaignRiverReader.GetTileRiversAsync(db, gameId, coords, geometry);
     }
 }

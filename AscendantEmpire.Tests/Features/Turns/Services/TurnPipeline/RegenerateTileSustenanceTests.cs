@@ -1,4 +1,6 @@
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Maps.Depletion.Services;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndRound;
@@ -10,6 +12,8 @@ using AscendantEmpire.Domain.Enums.Turns;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+
+using NSubstitute;
 
 namespace AscendantEmpire.Tests.Features.Turns.Services.TurnPipeline;
 
@@ -40,6 +44,11 @@ internal class RegenerateTileSustenanceTests : InMemoryTestBase
     private const int _DESERT_TILE_ID = 104;
     private const int _OTHER_GAME_TILE_ID = 201;
     private const int _CURRENT_ROUND_NUMBER = 4;
+
+    /// <summary>
+    /// A one-row map whose world ids are the tile ids: <c>X + 101</c>, matching the tiles seeded below.
+    /// </summary>
+    private static readonly CampaignMapGeometry _GEOMETRY = new(CampaignMapOffsetId: 101, Width: 5, Height: 1, WrapsHorizontally: false, WrapsVertically: false);
 
     private RegenerateTileSustenance _process = null!;
 
@@ -106,7 +115,19 @@ internal class RegenerateTileSustenanceTests : InMemoryTestBase
             await context.SaveChangesAsync();
         }
 
-        _process = new RegenerateTileSustenance(DbFactory, new BiomeRegenerationValueReader(), NullLogger<RegenerateTileSustenance>.Instance);
+        // Substituted, because the Game row the real reader would need is not seeded here. The geometry puts the Game's four tiles at X 0-3 of a one-row map whose world
+        // ids start at 101, so the river reader finds the rows the tests seed.
+        var sightDataReader = Substitute.For<ISightDataReader>();
+        sightDataReader
+            .GetGeometryAsync(Arg.Any<AscendantEmpireContext>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+            .Returns(_GEOMETRY);
+
+        _process = new RegenerateTileSustenance(
+            DbFactory,
+            new BiomeRegenerationValueReader(),
+            sightDataReader,
+            new CampaignRiverReader(),
+            NullLogger<RegenerateTileSustenance>.Instance);
     }
 
     [Test, Description("A tile fed on this Round regrows each resource by its own Base: partly depleted Forage and bare Hunt both regrow under the Force.")]
@@ -164,8 +185,8 @@ internal class RegenerateTileSustenanceTests : InMemoryTestBase
         }
     }
 
-    [Test, Description("A resource the biome does not have is never regenerated, even if its Taken column holds something.")]
-    public async Task ShouldLeaveAResourceWithNoBaseUntouchedAsync()
+    [Test, Description("A resource the tile no longer has is cleared rather than regenerated, so Fish taken from a riverbank whose river was removed cannot linger.")]
+    public async Task ShouldClearTheTakenOfAResourceWithNoBaseAsync()
     {
         await AddDepletionAsync(_GRASSLAND_TILE_ID, forageTaken: 100_000, huntTaken: 0, fedOnRound: null, fishTaken: 5_000);
 
@@ -173,7 +194,37 @@ internal class RegenerateTileSustenanceTests : InMemoryTestBase
 
         CampaignMapDepletion depletion = await ReloadDepletionAsync(_GRASSLAND_TILE_ID);
 
-        Assert.That(depletion.FishTaken, Is.EqualTo(5_000));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(depletion.FishTaken, Is.Zero, "Grassland has no Fish and no river, so nothing can stand against it.");
+            Assert.That(depletion.ForageTaken, Is.EqualTo(60_000), "Forage still regrows on its own base: 10% of 400 gives back 40 of the 100 taken.");
+        }
+    }
+
+    [Test, Description("A riverbank regrows the Fish its river put there, which the biome's own bases would never give back: 10% of 30 returns 3 of the 10 taken.")]
+    public async Task ShouldRegrowTheFishARiverPutOnALandTileAsync()
+    {
+        await SetRiverAsync(_GRASSLAND_TILE_ID, RiverWidth.Large);
+        await AddDepletionAsync(_GRASSLAND_TILE_ID, forageTaken: 0, huntTaken: 0, fedOnRound: _CURRENT_ROUND_NUMBER, fishTaken: 10_000);
+
+        await _process.ProcessAsync(EndRoundContext(_CURRENT_ROUND_NUMBER));
+
+        CampaignMapDepletion depletion = await ReloadDepletionAsync(_GRASSLAND_TILE_ID);
+
+        Assert.That(depletion.FishTaken, Is.EqualTo(7_000));
+    }
+
+    [Test, Description("A riverbank's Hunt regrows against the raised base, not the biome's: 10% of 240 gives back 24 rather than 20.")]
+    public async Task ShouldRegrowHuntAgainstTheRaisedBaseOnARiverbankAsync()
+    {
+        await SetRiverAsync(_GRASSLAND_TILE_ID, RiverWidth.Medium);
+        await AddDepletionAsync(_GRASSLAND_TILE_ID, forageTaken: 0, huntTaken: 100_000, fedOnRound: _CURRENT_ROUND_NUMBER);
+
+        await _process.ProcessAsync(EndRoundContext(_CURRENT_ROUND_NUMBER));
+
+        CampaignMapDepletion depletion = await ReloadDepletionAsync(_GRASSLAND_TILE_ID);
+
+        Assert.That(depletion.HuntTaken, Is.EqualTo(76_000));
     }
 
     [Test, Description("Every depleted tile in the Game regrows in the one run, each at its own biome's Regeneration Percent.")]
@@ -288,6 +339,19 @@ internal class RegenerateTileSustenanceTests : InMemoryTestBase
             FishTaken = fishTaken,
             FedOnRound = fedOnRound
         });
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Puts a river of the given width on the tile's own East edge, which is the one edge of it the tile's own row owns outright.
+    /// </summary>
+    private async Task SetRiverAsync(int tileId, RiverWidth width)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        CampaignMap tile = await context.CampaignMaps.SingleAsync(t => t.CampaignMapId == tileId);
+        tile.EastRiver = width;
 
         await context.SaveChangesAsync();
     }

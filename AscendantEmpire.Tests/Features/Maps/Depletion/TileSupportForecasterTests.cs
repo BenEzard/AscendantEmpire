@@ -2,6 +2,7 @@ using AscendantEmpire.Application.Features.Maps.Biomes.Classes;
 using AscendantEmpire.Application.Features.Maps.Depletion.Classes;
 using AscendantEmpire.Application.Features.Maps.Depletion.Services;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
+using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Enums.Maps;
 
@@ -44,6 +45,22 @@ internal class TileSupportForecasterTests
         TileSupport? support = ForecastGrassland(ScaledAmount.FromDecimal(need), regenerationPercent: null);
 
         Assert.That(support, Is.EqualTo(new TileSupport(expectedLevel, expectedTurns)));
+    }
+
+    [Test, Description("A riverbank supports Forces the dry ground beside it cannot: 480 Forage, 240 Hunt and 30 Fish is 750, two Turns of 335 where 600 is only one.")]
+    public void ShouldSupportMoreTurnsOnARiverbank()
+    {
+        ScaledAmount need = ScaledAmount.FromWhole(335);
+        var rivers = new TileRivers { South = RiverWidth.Large };
+
+        TileSupport? dry = ForecastGrassland(need, regenerationPercent: null);
+        TileSupport? riverbank = ForecastGrassland(need, regenerationPercent: null, rivers);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(dry, Is.EqualTo(new TileSupport(TileSupportLevel.OneTurn, 1)));
+            Assert.That(riverbank, Is.EqualTo(new TileSupport(TileSupportLevel.Plenty, 2)));
+        }
     }
 
     [Test, Description("With no regeneration values found at all, the tile does not regrow and the forecast is plain division rather than a failure.")]
@@ -158,9 +175,9 @@ internal class TileSupportForecasterTests
     }
 
     /// <summary>Forecasts an untouched Grassland tile at the given Regeneration Percent.</summary>
-    private static TileSupport? ForecastGrassland(ScaledAmount need, decimal? regenerationPercent)
+    private static TileSupport? ForecastGrassland(ScaledAmount need, decimal? regenerationPercent, TileRivers? rivers = null)
     {
-        return TileSupportForecaster.Forecast(need, isWater: false, _VALUES, BiomeType.Grassland, depletion: null, GrasslandRegeneration(regenerationPercent));
+        return TileSupportForecaster.Forecast(need, isWater: false, _VALUES, BiomeType.Grassland, depletion: null, GrasslandRegeneration(regenerationPercent), rivers);
     }
 
     /// <summary>Grassland's regeneration values: the same bases as the Player's values, at the given Percent.</summary>

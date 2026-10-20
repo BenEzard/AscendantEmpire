@@ -1,12 +1,15 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.Biomes.Classes;
 using AscendantEmpire.Application.Features.Maps.Biomes.Services;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Maps.Depletion.Classes;
 using AscendantEmpire.Application.Features.Maps.Depletion.Services;
 using AscendantEmpire.Application.Features.Units.Classes;
 using AscendantEmpire.Application.Features.Units.Services;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
+using AscendantEmpire.BackendContracts.CampaignMaps;
+using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Enums.Maps;
 
@@ -21,6 +24,7 @@ namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campa
 /// <remarks>
 /// <para>
 /// Per tile, the Forces on it feed from one pool: Forage and Hunt on land, Fish on water (fodder is for animals, and nothing eats it yet), built by <see cref="TileFoodPool"/>.
+/// A land tile with a river on one of its edges offers Fish as well, and a richer Hunt.
 /// 1 troop needs 1 food. What is available of each resource to this Player is <c>MAX(0, effective − Taken)</c>, with the effective values read live through
 /// <see cref="IPlayerSustenanceValueReader"/>.
 /// The need is split across the pool by <see cref="FoodExtractionCalculator"/>, and any shortfall is spread across the tile's Forces by <see cref="ShortfallAllocator"/>
@@ -41,6 +45,8 @@ internal class Gathering(
     IDbContextFactory<AscendantEmpireContext> dbFactory,
     IPlayerSustenanceValueReader sustenanceValueReader,
     IUnderfedForceResolver underfedForceResolver,
+    ISightDataReader sightDataReader,
+    ICampaignRiverReader campaignRiverReader,
     ILogger<Gathering> logger) : IEndCampaignTurnProcess
 {
     public string ItemName => "Gathering";
@@ -94,11 +100,15 @@ internal class Gathering(
 
         int[] tileIds = [.. forces.Select(f => f.CampaignMapTileId).Distinct()];
 
-        // What the pool on each tile is made of depends on whether it is water, which the biome and geography decide between them.
+        // What the pool on each tile is made of depends on whether it is water, which the biome and geography decide between them. The coordinates come back too, because
+        // the rivers that enrich a tile are keyed by them rather than by the tile's id.
         var tiles = await db.CampaignMaps
             .Where(t => tileIds.Contains(t.CampaignMapId))
-            .Select(t => new { t.CampaignMapId, t.BiomeTypeId, BiomeIsWater = t.Biome.IsWater, t.CampaignMapGeographyTypeId })
+            .Select(t => new { t.CampaignMapId, t.XCoord, t.YCoord, t.BiomeTypeId, BiomeIsWater = t.Biome.IsWater, t.CampaignMapGeographyTypeId })
             .ToDictionaryAsync(t => t.CampaignMapId);
+
+        // The rivers on the tiles being fed from, in one call. A river raises a bank's Hunt and puts Fish on it, so it is part of the pool the Forces eat from.
+        IReadOnlyDictionary<Coord, TileRivers> riversByCoord = await ReadRiversAsync(db, context.GameId, tiles.Values.Select(t => new Coord(t.XCoord, t.YCoord)).ToList());
 
         // Tracked, because these rows are about to be written. A tile never fed on has no row yet, and is given one below.
         Dictionary<int, CampaignMapDepletion> depletionByTileId = await db.CampaignMapDepletions
@@ -145,7 +155,8 @@ internal class Gathering(
                 CampaignTileWater.IsWater(tile.BiomeIsWater, tile.CampaignMapGeographyTypeId),
                 values,
                 tile.BiomeTypeId,
-                depletion);
+                depletion,
+                riversByCoord.GetValueOrDefault(new Coord(tile.XCoord, tile.YCoord)));
 
             FoodExtraction extraction = FoodExtractionCalculator.Extract(need, available);
 
@@ -194,5 +205,26 @@ internal class Gathering(
             totalShortfall.ToDecimal());
 
         return string.Empty;
+    }
+
+    /// <summary>
+    /// The river edges of the tiles being fed from, keyed by coordinate.
+    /// </summary>
+    /// <remarks>
+    /// A Game whose geometry cannot be read is a data defect, but refusing here would leave the Player unable to end their Turn. The Forces feed from the biome alone
+    /// instead, which is what every tile offered before rivers enriched them.
+    /// </remarks>
+    private async Task<IReadOnlyDictionary<Coord, TileRivers>> ReadRiversAsync(AscendantEmpireContext db, int gameId, IReadOnlyCollection<Coord> coords)
+    {
+        CampaignMapGeometry? geometry = await sightDataReader.GetGeometryAsync(db, gameId);
+
+        if (geometry is null)
+        {
+            logger.LogWarning("Game Id {GameId}'s map geometry was not found while feeding Forces, so no river food was counted on any tile.", gameId);
+
+            return new Dictionary<Coord, TileRivers>();
+        }
+
+        return await campaignRiverReader.GetTileRiversAsync(db, gameId, coords, geometry);
     }
 }

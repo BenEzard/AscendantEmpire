@@ -1,8 +1,9 @@
 using AscendantEmpire.Application.Features.Maps.Biomes.Classes;
+using AscendantEmpire.Application.Features.Maps.Biomes.Services;
 using AscendantEmpire.Application.Features.Maps.Depletion.Classes;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
+using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.Domain.Entities.Games;
-using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Maps;
 
 namespace AscendantEmpire.Application.Features.Maps.Depletion.Services;
@@ -35,9 +36,6 @@ namespace AscendantEmpire.Application.Features.Maps.Depletion.Services;
 /// else feeds on the tile, which holds while the Forces stand on it - any other Player stepping on starts a Battle, and Forces in a Battle do not feed. See "Support indicator"
 /// in <c>docs/design/campaign-map/support-indicator.md</c>.
 /// </para>
-/// <para>
-/// Pure and database-free.
-/// </para>
 /// </remarks>
 internal static class TileSupportForecaster
 {
@@ -68,6 +66,7 @@ internal static class TileSupportForecaster
     /// The biome's regeneration values, or <see langword="null"/> when they could not be found. With no values, or no Regeneration Percent, the tile does not regrow and the
     /// forecast is plain available ÷ need.
     /// </param>
+    /// <param name="rivers">The tile's four river edges, or <see langword="null"/> when they are not known, which is read as no rivers.</param>
     /// <returns>The level and the Turns, or <see langword="null"/> when there is food but nobody to feed.</returns>
     public static TileSupport? Forecast(
         ScaledAmount need,
@@ -75,7 +74,8 @@ internal static class TileSupportForecaster
         PlayerSustenanceValues values,
         BiomeType biome,
         CampaignMapDepletion? depletion,
-        BiomeRegenerationValues? regeneration)
+        BiomeRegenerationValues? regeneration,
+        TileRivers? rivers = null)
     {
         // TODO: The 20% pass-through draw (see Gathering) will let Forces moving through an occupied tile eat from food this forecast treats as the Forces' own. Revisit the
         //       forecast when the draw lands, and when alliances (COMM-4) let another Player's Forces share a tile without a Battle.
@@ -92,7 +92,7 @@ internal static class TileSupportForecaster
         // A detached copy, so the forecast can feed and regrow it freely without touching the caller's row (which may be tracked).
         CampaignMapDepletion forecastDepletion = CopyTaken(depletion);
 
-        ScaledAmount totalAvailable = GetTotalAvailable(isWater, values, biome, forecastDepletion, out Dictionary<SustenanceResource, ScaledAmount> available);
+        ScaledAmount totalAvailable = GetTotalAvailable(isWater, values, biome, forecastDepletion, rivers, out Dictionary<SustenanceResource, ScaledAmount> available);
 
         // First, so a bare tile reads as bare whether or not anyone is standing on it.
         if (totalAvailable == ScaledAmount.Zero)
@@ -121,9 +121,9 @@ internal static class TileSupportForecaster
             turns++;
 
             // The end of the Round: the tile regrows before the Forces' next feed.
-            Regrow(forecastDepletion, regeneration);
+            Regrow(forecastDepletion, regeneration, rivers, isWater);
 
-            totalAvailable = GetTotalAvailable(isWater, values, biome, forecastDepletion, out available);
+            totalAvailable = GetTotalAvailable(isWater, values, biome, forecastDepletion, rivers, out available);
         }
 
         int? forecastTurns = turns > MAX_FORECAST_TURNS ? null : turns;
@@ -157,9 +157,10 @@ internal static class TileSupportForecaster
         PlayerSustenanceValues values,
         BiomeType biome,
         CampaignMapDepletion depletion,
+        TileRivers? rivers,
         out Dictionary<SustenanceResource, ScaledAmount> available)
     {
-        available = TileFoodPool.GetAvailable(isWater, values, biome, depletion);
+        available = TileFoodPool.GetAvailable(isWater, values, biome, depletion, rivers);
 
         return available.Values.Aggregate(ScaledAmount.Zero, (sum, amount) => sum + amount);
     }
@@ -168,9 +169,10 @@ internal static class TileSupportForecaster
     /// One end-of-Round regrowth of every resource the biome has, as fed on.
     /// </summary>
     /// <remarks>
-    /// Every resource with a base, not only the pool's, so the copy regrows exactly as <c>RegenerateTileSustenance</c> would regrow the tile.
+    /// Every resource with a base, not only the pool's, so the copy regrows exactly as <c>RegenerateTileSustenance</c> would regrow the tile - the tile's rivers included, or
+    /// a riverbank would be forecast to give up Fish it never got back.
     /// </remarks>
-    private static void Regrow(CampaignMapDepletion depletion, BiomeRegenerationValues? regeneration)
+    private static void Regrow(CampaignMapDepletion depletion, BiomeRegenerationValues? regeneration, TileRivers? rivers, bool isWater)
     {
         // Legacy data with no Percent is skipped at the end of the Round too, so the forecast does not regrow it either.
         if (regeneration?.RegenerationPercent is null)
@@ -180,16 +182,17 @@ internal static class TileSupportForecaster
 
         foreach (SustenanceResource resource in _SUSTENANCE_RESOURCES)
         {
-            long? baseRawValue = regeneration.GetBaseValue(resource);
+            // The base a riverbank regrows against is the biome's plus whatever its rivers add, so Fish a river put on dry land comes back like anything else.
+            ScaledAmount? baseValue = RiverSustenanceBonus.Apply(regeneration.GetBaseValue(resource), resource, rivers, isWater);
 
-            if (baseRawValue is null)
+            if (baseValue is null)
             {
                 continue;
             }
 
             ScaledAmount newTaken = TileRegenerationCalculator.Regenerate(
                 DepletionTaken.GetTaken(depletion, resource),
-                ScaledAmount.FromRaw(baseRawValue.Value),
+                baseValue.Value,
                 regeneration.RegenerationPercent.Value,
                 fedOn: true);
 

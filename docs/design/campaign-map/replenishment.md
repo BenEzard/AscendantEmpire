@@ -15,11 +15,13 @@ Today this is the end-of-round `RegenerateTileSustenance` process. It reads the 
 
 | Input | Unowned tile | Owned tile (within a Player's territory) |
 | --- | --- | --- |
-| `Base` | The biome's base value from `map.CampaignBiomes` | The **owner's** effective value for the tile (empire-wide and Settlement-scoped modifiers) |
+| `Base` | The biome's base value from `map.CampaignBiomes`, plus whatever the tile's rivers add | The **owner's** effective value for the tile (empire-wide and Settlement-scoped modifiers), plus the same river bonus |
 | `Percent` | The biome's Regeneration Percent | The biome's Regeneration Percent plus the owner's Settlement-scoped regeneration modifiers, in percentage points (a 25% biome with a +10 modifier regrows 35%) |
 | `FedOn` | Whether anyone fed on the tile this round | same |
 
 `Base` sets how much regrows, the 10% floor and the cap. Using the owner's values on an owned tile is how a Player's management of their own land shows: their tech gives a higher `Base` (more food back each round, a higher floor) and their Settlements can raise `Percent`. Wild land always recovers at the biome's values, whoever was last on it.
+
+A land tile's **rivers** are part of `Base`, on the same terms as anywhere else — +20% Forage, Hunt and Fodder per edge and flat Fish by width, from [food-yield.md](food-yield.md#rivers). A riverbank therefore regrows the Fish a Force took from it, which its biome alone would never give back, and regrows more of everything else than the dry ground beside it.
 
 > TODO: Settlement-scoped regeneration modifiers wait on Settlements, as Settlement-scoped sustenance modifiers do.
 
@@ -98,7 +100,7 @@ per-Game process rather than a per-Player one.
 | Schema | Table | Purpose |
 | --- | --- | --- |
 | `game` | `CampaignMapDepletion` | The rows regrown. Read for what has been taken and the last round the tile was fed on; the `*Taken` columns are written back. |
-| `game` | `CampaignMap` | The tile. Read for its `BiomeTypeId`, which decides the biome whose `Base` and Regeneration Percent apply. |
+| `game` | `CampaignMap` | The tile. Read for its `BiomeTypeId`, which decides the biome whose `Base` and Regeneration Percent apply, for its coordinates and water facts, and for the river edges that raise `Base`. |
 | `map` | `CampaignBiomes` | Read for each biome's four sustenance bases and its Regeneration Percent. |
 
 ### `game.CampaignMapDepletion`
@@ -123,7 +125,8 @@ regrowth that overshot; `TileRegenerationCalculator` floors at `0` so it never c
 
 | Table | Columns used | Read for |
 | --- | --- | --- |
-| `game.CampaignMap` | `CampaignMapId`, `BiomeTypeId` | Which biome's values regrow the tile. Scalars only — the biome is all that is needed off the tile. |
+| `game.CampaignMap` | `CampaignMapId`, `XCoord`, `YCoord`, `BiomeTypeId`, `Biome.IsWater`, `CampaignMapGeographyTypeId` | Which biome's values regrow the tile, whether it is water, and the coordinates its river edges are keyed by. Scalars only. |
+| `game.CampaignMap` (neighbours) | `SouthRiver`, `EastRiver` | The tile's four edges, read through `ICampaignRiverReader` in one query for all the depleted tiles. |
 | `map.CampaignBiomes` | `BiomeTypeId`, `BaseForageValue`, `BaseHuntValue`, `BaseFishValue`, `BaseFodderValue`, `RegenerationPercent` | `Base` and `Percent`. A `null` base means the biome does not have the resource, so it is never regenerated. |
 
 `RegenerationPercent` is a `decimal(18,3)` fraction (`0.25` is 25%); the base values are `bigint`
@@ -165,7 +168,9 @@ the state everything else leaves behind).
 
 1. Read the Game's tracked `CampaignMapDepletion` rows with any `*Taken` above `0`. Nothing taken
    anywhere in the Game means there is nothing to do, and the process returns.
-2. Read the `BiomeTypeId` of each of those tiles, as scalars.
+2. Read the coordinates, biome and water facts of each of those tiles, as scalars, then their four
+   river edges in one call through `ICampaignRiverReader`. A Game whose geometry cannot be read is
+   logged and the tiles regrow against their biomes alone, rather than the round failing to end.
 3. Read every biome's bases and Regeneration Percent through `IBiomeRegenerationValueReader`.
 4. Per row, in `CampaignMapId` order:
    1. A tile or biome that cannot be found is a data defect. It is logged as a warning and skipped —
@@ -174,9 +179,14 @@ the state everything else leaves behind).
       the biome has a sustenance base, and the validator requires a Percent wherever there is one:
       this is data saved before that rule existed, and re-seeding fixes it.
    3. `fedOn` is `depletion.FedOnRound == context.CurrentRoundNumber`.
-   4. For each of the four resources, a `null` base means the biome does not have it, so it is skipped
-      and its `Taken` is untouched. Otherwise `TileRegenerationCalculator.Regenerate(taken, base, percent, fedOn)`
-      returns the new amount and `DepletionTaken.SetTaken` writes it back:
+   4. For each of the four resources, `Base` is the biome's value with the tile's rivers added
+      (`RiverSustenanceBonus.Apply`). A `null` `Base` means the tile does not have the resource, so
+      nothing regrows and its `Taken` is **set to 0** — anything standing against it was taken while
+      the tile still had it, from a river since removed from the map, and clearing it stops the stale
+      amount being subtracted if the river is ever drawn back. Where the rivers could not be read at
+      all, nothing is cleared: an unread geometry must not be mistaken for a river that went away.
+      Otherwise `TileRegenerationCalculator.Regenerate(taken, base, percent, fedOn)` returns the new
+      amount and `DepletionTaken.SetTaken` writes it back:
       - **Rule 1** subtracts `floor(Base × Percent)` from `Taken`, floored at `0`.
       - **Rule 2**, only when `fedOn` is false, also caps `Taken` at `Base − floor(Base ÷ 10)`, and the
         tile keeps whichever of the two leaves less taken.

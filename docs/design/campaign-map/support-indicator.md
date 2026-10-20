@@ -3,9 +3,9 @@
 Part of the [Campaign Map](README.md) design.
 
 A tile's **support** says how many turns it can feed a set of Forces from the food available to the
-Player: the pool of Forage and Hunt on land, or Fish on water, less what has been taken — the same
-pool `Gathering` feeds from (`TileFoodPool`). The need is 1 food per troop, healthy and injured,
-counting only Forces that feed (troops left, not in a Battle).
+Player: the pool of Forage and Hunt on land (Fish as well on a riverbank), or Fish on water, less
+what has been taken — the same pool `Gathering` feeds from (`TileFoodPool`). The need is 1 food per
+troop, healthy and injured, counting only Forces that feed (troops left, not in a Battle).
 
 The turns are **forecast** one turn at a time (`TileSupportForecaster`), on a copy of the tile's
 depletion, with the same rules the turn pipeline uses:

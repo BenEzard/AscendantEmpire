@@ -1,6 +1,7 @@
 using AscendantEmpire.Application.Features.Maps.Biomes.Classes;
 using AscendantEmpire.Application.Features.Maps.Depletion.Services;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
+using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Enums.Maps;
 
@@ -41,6 +42,34 @@ internal class TileFoodPoolTests
         {
             [SustenanceResource.Forage] = ScaledAmount.FromWhole(400),
             [SustenanceResource.Hunt] = ScaledAmount.FromWhole(200)
+        }));
+    }
+
+    [Test, Description("A land tile with a river offers Fish as well, at the river's flat amount, with Forage and Hunt both raised 20% by the edge.")]
+    public void ShouldOfferFishAndARicherLandPoolOnARiverbank()
+    {
+        var rivers = new TileRivers { East = RiverWidth.Large };
+
+        Dictionary<SustenanceResource, ScaledAmount> available = TileFoodPool.GetAvailable(isWater: false, _VALUES, BiomeType.Grassland, depletion: null, rivers);
+
+        Assert.That(available, Is.EquivalentTo(new Dictionary<SustenanceResource, ScaledAmount>
+        {
+            [SustenanceResource.Forage] = ScaledAmount.FromWhole(480),
+            [SustenanceResource.Hunt] = ScaledAmount.FromWhole(240),
+            [SustenanceResource.Fish] = ScaledAmount.FromWhole(30)
+        }));
+    }
+
+    [Test, Description("A water tile at a river mouth is unchanged: the river raises its banks, not the sea it runs into.")]
+    public void ShouldLeaveAWaterTilesPoolAloneWhenARiverMeetsIt()
+    {
+        var rivers = new TileRivers { North = RiverWidth.Large };
+
+        Dictionary<SustenanceResource, ScaledAmount> available = TileFoodPool.GetAvailable(isWater: true, _VALUES, BiomeType.Ocean, depletion: null, rivers);
+
+        Assert.That(available, Is.EquivalentTo(new Dictionary<SustenanceResource, ScaledAmount>
+        {
+            [SustenanceResource.Fish] = ScaledAmount.FromWhole(300)
         }));
     }
 

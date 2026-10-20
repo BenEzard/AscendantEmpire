@@ -45,6 +45,38 @@ So a farm with machinery, plough animal, hoe, animal fertilizer, and pesticides 
 | --- | --- | --- |
 | FORAGE | 1.05 | One person collects enough food for 1.05 people. |
 
+## Rivers
+
+A river runs along the edge between two tiles, and enriches the **land** tile on either side of it —
+see the Rivers section of [tiles.md](tiles.md) for how an edge is stored and which tiles it touches.
+Running water feeds the foraging, the grazing and the game on its banks, and puts fish on a tile that
+is otherwise dry.
+
+Per river edge of a land tile:
+
+| Effect | Amount |
+| --- | --- |
+| Forage | +20%, whatever the river's width |
+| Hunt | +20%, whatever the river's width |
+| Fodder | +20%, whatever the river's width |
+| Fish | +15 flat for a Medium river, +30 flat for a Large one |
+
+A tile counts **all four** of its edges, not only the two its row owns, so both tiles either side of
+an edge are paid for it. The bonuses stack per edge and the percentages sum rather than compound, so
+a tile with one Medium and one Large river on its edges gains +40% Forage, Hunt and Fodder and +45
+Fish.
+
+Fish is the one case that gives a tile a resource its biome does not have: a dry land biome has no
+Fish base at all, and the river's flat amount creates one. The percentages do not work that way — a
+biome with no Hunt is not given Hunt by a river.
+
+A **water** tile gains nothing. It already fishes its own biome, and a river mouth does not make the
+sea richer.
+
+River fish is ordinary sustenance once it is there: Forces eat it, it is counted in the tile's shared
+`Taken`, and it regrows at the biome's Regeneration Percent against the river-raised base — so a
+riverbank gives back what was taken from it like anywhere else.
+
 ## Tile bonuses
 
 Naturally occurring tile bonuses can also boost food:
@@ -73,9 +105,10 @@ Remaining Energy (of population after collecting food) = People after growth × 
 # 2. Technical detail
 
 Of the yield mechanics above, the parts with code today are the **biome's base values**, its
-**Regeneration Percent**, and the **per-Player modifiers** that turn a base into an effective value.
-Terrain improvements, equipment chains, productivity rates, tile bonuses and the population formula
-have no schema, code or seed data yet — see [Not yet implemented](#not-yet-implemented).
+**Regeneration Percent**, the **per-Player modifiers** that turn a base into an effective value, and
+the **river bonus** that a tile's own edges add on top. Terrain improvements, equipment chains,
+productivity rates, tile bonuses and the population formula have no schema, code or seed data yet —
+see [Not yet implemented](#not-yet-implemented).
 
 ## Database tables
 
@@ -87,7 +120,7 @@ Regeneration Percent is the exception: a plain `decimal(18,3)` fraction, so `0.2
 | --- | --- | --- |
 | `map` | `CampaignBiomes` | The biome catalogue: the base yield of each resource in the biome, and the share that regrows each round. Global, authored data — the same in every game. |
 | `game` | `PlayerSustenanceModifier` | One modifier to one Player's yield for one resource, in one biome or in all of them. Per game and per Player. |
-| `game` | `CampaignMap` | The tile. Names the biome (`BiomeTypeId`) whose values apply, and the geography that decides whether it is water. |
+| `game` | `CampaignMap` | The tile. Names the biome (`BiomeTypeId`) whose values apply, the geography that decides whether it is water, and the two river edges it owns (`SouthRiver`, `EastRiver`) that raise its yield. |
 
 ### `map.CampaignBiomes` — the columns this feature uses
 
@@ -95,7 +128,7 @@ Regeneration Percent is the exception: a plain `decimal(18,3)` fraction, so `0.2
 | --- | --- | --- |
 | `BiomeTypeId` | `int`, PK (`BiomeType` enum) | The biome. |
 | `Name` | `nvarchar(50)` | Display name. |
-| `IsWater` | `bit` | Decides which resources are in a tile's food pool: Fish on water, Forage and Hunt on land. |
+| `IsWater` | `bit` | Decides which resources are in a tile's food pool: Fish on water, Forage and Hunt on land — and Fish too, on a land tile with a river. |
 | `BaseForageValue` | `bigint`, nullable | Base Forage yield. Null means the biome does not have the resource at all, which no modifier can change. |
 | `BaseHuntValue` | `bigint`, nullable | Base Hunt yield. Null as above. |
 | `BaseFishValue` | `bigint`, nullable | Base Fish yield. Null as above. |
@@ -142,6 +175,8 @@ widened to `bigint` and rescaled to thousandths by `20260613204637_ScaleBiomeBas
 | [SustenanceValueCalculator.cs](../../../AscendantEmpire.Application/Features/Maps/Biomes/Services/SustenanceValueCalculator.cs) | The one place the formula lives: `Effective = Base + Base × ΣPercent + ΣFlat`, with the summed percentage floored at −100% and the result floored at 0. Also `Available = MAX(0, Effective − Taken)`. Pure. |
 | [PlayerSustenanceValueReader.cs](../../../AscendantEmpire.Application/Features/Maps/Biomes/Services/PlayerSustenanceValueReader.cs) | Reads every biome's bases and a Player's modifiers, and produces the Player's effective value for each biome and resource. |
 | [PlayerSustenanceValues.cs](../../../AscendantEmpire.Application/Features/Maps/Biomes/Classes/PlayerSustenanceValues.cs) | The result: an effective value per (biome, resource), or null where the biome does not have the resource. |
+| [RiverSustenanceBonus.cs](../../../AscendantEmpire.Application/Features/Maps/Biomes/Services/RiverSustenanceBonus.cs) | What a land tile's river edges add on top: +20% Forage, Hunt and Fodder per edge, and +15 or +30 flat Fish by width. Holds the three amounts as constants, and is the one place a null Fish becomes a number. Pure. |
+| [ICampaignRiverReader.cs](../../../AscendantEmpire.Application/Features/Maps/CampaignMaps/Services/ICampaignRiverReader.cs) | Reads a tile's four river edges off the world map, in one query however many tiles are asked about. Shared with the map read. |
 | [BiomeRegenerationValueReader.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/BiomeRegenerationValueReader.cs) | Reads each biome's bases and Regeneration Percent, for the end-of-round regrowth and the support forecast. |
 | [ScaledAmount.cs](../../../AscendantEmpire.Application/Helpers/ScaledNumerics/ScaledAmount.cs) · [ScaledPercent.cs](../../../AscendantEmpire.Application/Helpers/ScaledNumerics/ScaledPercent.cs) · [ScaledResourceValue.cs](../../../AscendantEmpire.Application/Helpers/ScaledNumerics/ScaledResourceValue.cs) | Integer arithmetic in thousandths, and the conversion between a whole number as a user types it and the scaled value stored. |
 
@@ -189,9 +224,9 @@ available on a tile, through `GET campaign-map/player/tiles/{x}/{y}/sustenance` 
 ### Tests
 
 `AscendantEmpire.Tests/Features/Maps/Biomes/` covers the formula
-(`SustenanceValueCalculatorTests`), the reader (`PlayerSustenanceValueReaderTests`), the biome rules
-(`CampaignMapBiomeValidatorTests`) and the modifier constraints
-(`PlayerSustenanceModifierConstraintTests`).
+(`SustenanceValueCalculatorTests`), the river bonus (`RiverSustenanceBonusTests`), the reader
+(`PlayerSustenanceValueReaderTests`), the biome rules (`CampaignMapBiomeValidatorTests`) and the
+modifier constraints (`PlayerSustenanceModifierConstraintTests`).
 
 ## Process flow
 
@@ -219,15 +254,20 @@ available on a tile, through `GET campaign-map/player/tiles/{x}/{y}/sustenance` 
    - the summed percentage is floored at −100% and applies to the base alone, so percentages add
      rather than compound and never scale the flat part;
    - the result is floored at 0.
-4. Nothing is stored. Losing a source is just deleting its rows by (`SourceType`, `SourceId`), and the
+4. The caller then adds the tile's own rivers through `RiverSustenanceBonus.Apply`, reading them with
+   `ICampaignRiverReader`. That is per tile rather than per (biome, resource), so it happens at the
+   call site and not in the reader, whose values are read once for the whole map. The percentage
+   therefore applies to the Player's effective value and compounds with their own modifiers, rather
+   than summing into their total the way two modifiers do.
+5. Nothing is stored. Losing a source is just deleting its rows by (`SourceType`, `SourceId`), and the
    next read produces the new value — there is no running total to unwind.
 
 ### Yield in play
 
-1. What a Player can eat on a tile is their effective value less the tile's shared `Taken` amount:
-   `MAX(0, Effective − Taken)` — [depletion.md](depletion.md).
+1. What a Player can eat on a tile is their effective value, plus whatever its rivers add, less the
+   tile's shared `Taken` amount: `MAX(0, Effective − Taken)` — [depletion.md](depletion.md).
 2. How much comes back each round is `RegenerationPercent × Base`, where `Base` is the biome's value
-   on unowned land — [replenishment.md](replenishment.md).
+   on unowned land plus the same river bonus — [replenishment.md](replenishment.md).
 3. How long a tile can feed a set of Forces plays those two forward together —
    [support-indicator.md](support-indicator.md).
 

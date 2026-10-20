@@ -109,6 +109,7 @@ internal class GetTileSupportLevelsHandler(
             request.GameId,
             request.PlayerId,
             seenTiles,
+            geometry,
             request.ForceIds,
             cancelToken);
 
