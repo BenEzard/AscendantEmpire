@@ -18,4 +18,11 @@ internal enum StartCampaignTurnProcessOrder
     /// that verdict has to exist before the allowance is granted rather than being unpicked afterwards.
     /// </remarks>
     ReplenishMovementPoints = 30_000,
+
+    /// <summary>The Player's people produce the Turn's directed research points.</summary>
+    /// <remarks>
+    /// Last, and deliberately independent of the three before it. The figure is drawn from settlement and Force population, which nothing earlier in this
+    /// pipeline moves, so the position carries no dependency - it is simply the end of the queue.
+    /// </remarks>
+    GenerateResearchPoints = 40_000,
 }

@@ -11,9 +11,10 @@ namespace AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPos
 /// Flags when the Player has research they could be doing and no project chosen to put it into.
 /// </summary>
 /// <remarks>
-/// Both halves matter. An unselected project is only worth raising if there is something to select: a Player whose every technology is still Locked - which
-/// is every Player who has discovered nothing and sits behind the <c>Broken</c> placeholder root - would otherwise be nagged every Round about a choice they
-/// cannot make. The check therefore asks whether anything is at Available or better, not merely whether the catalogue is non-empty.
+/// Both halves matter. An unselected project is only worth raising if there is something to select: a Player with nothing at Available or better - because
+/// they have discovered everything their prerequisites reach, or because a Game has been set up with no reachable catalogue at all - would otherwise be
+/// nagged every Round about a choice they cannot make. The check therefore asks whether anything is at Available or better, not merely whether the
+/// catalogue is non-empty.
 /// </remarks>
 internal sealed class ResearchSelectionCheck(
     IDbContextFactory<AscendantEmpireContext> dbFactory) : IPossibleActionCheck

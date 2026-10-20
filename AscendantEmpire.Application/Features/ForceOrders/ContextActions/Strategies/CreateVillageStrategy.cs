@@ -1,4 +1,5 @@
 using AscendantEmpire.Application.Features.Settlements.Classes;
+using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Enums.Settlements;
 using AscendantEmpire.Domain.Enums.Forces;
 
@@ -18,15 +19,13 @@ namespace AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strate
 /// says why. Those rules live in <see cref="SettlementFoundingRules"/>, shared with <see cref="EstablishCampStrategy"/>.
 /// </para>
 /// <para>
-/// The capability tags are <b>catalogue data</b>, authored through the Entity Setup Tool rather than seeded from code. On a database where nobody
-/// has authored them, no template compiles with them and this action simply never appears — which is correct, not a fault.
+/// The capability tags are <b>catalogue data</b>: seeded from <c>TagSeedData</c>, and editable through the Entity Setup Tool afterwards. On a
+/// database where the Tags seed has not run and nobody has authored them, no template compiles with them and this action simply never appears —
+/// which is correct, not a fault.
 /// </para>
 /// </remarks>
 internal sealed class CreateVillageStrategy : IForceActionStrategy
 {
-    /// <summary>The capability that unlocks the action. Stable authored code; a rename in the catalogue is a rename here.</summary>
-    private const string _CAPABILITY_TAG_CODE = "create-settlement";
-
     /// <summary>What is being founded, for the message text.</summary>
     private const string _SETTLEMENT_NOUN = "village";
 
@@ -51,7 +50,7 @@ internal sealed class CreateVillageStrategy : IForceActionStrategy
 
         // Structural: without the capability the Force could never found a village, wherever it moves and however many troops it gathers.
         // Hidden rather than disabled, exactly as SplitForceStrategy hides itself for a commissioned organisation.
-        if (!force.HasCapability(_CAPABILITY_TAG_CODE))
+        if (!force.HasCapability(CapabilityTagCodes.CREATE_SETTLEMENT))
         {
             return null;
         }

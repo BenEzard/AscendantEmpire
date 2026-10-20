@@ -52,11 +52,10 @@ prefixes, and `SCREAMING_SNAKE_CASE` reserved for module-level constants.
   (no database → in-memory → containerised SQL Server; always use the lightest tier that suffices).
 
 ## Technology tree
-- When editing the technology catalogue — adding a technology, rewiring prerequisites, retiring the
-  `Broken` placeholder root — follow [docs/technology-tree-repairs.md](docs/technology-tree-repairs.md).
-  It covers the code and cost conventions, the mandatory/optional semantics, the rule that a real
-  prerequisite **replaces** a `Broken` edge rather than joining it, and the graph checks to run before
-  building.
+- When editing the technology catalogue — adding a technology, rewiring prerequisites, repricing one
+  that moved — follow [docs/technology-tree-repairs.md](docs/technology-tree-repairs.md). It covers the
+  code and cost conventions, the mandatory/optional semantics, the six roots the tree is allowed to
+  have, and the graph checks to run before building.
 
 ## Task tracking
 - Work on this project is tracked in the separate **Planner** app (`P:\Development\Planner`),

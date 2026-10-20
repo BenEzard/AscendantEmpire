@@ -605,7 +605,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
     {
         return new TagDto
         {
-            Code = "settler",
+            Code = OrganisationTagCodes.SETTLER,
             DisplayName = "Settler",
             TagType = TagType.MilitaryOrganisationalGroup,
             MovementDomain = DomainType.Land,
@@ -634,7 +634,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
 
         await using (AscendantEmpireContext exportContext = await DbFactory.CreateDbContextAsync())
         {
-            Tag persisted = await exportContext.Tags.SingleAsync(t => t.Code == "settler");
+            Tag persisted = await exportContext.Tags.SingleAsync(t => t.Code == OrganisationTagCodes.SETTLER);
             exported = CatalogueExportProjections.ToTagDto(persisted);
         }
 
@@ -651,7 +651,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
         Assert.That(reimported.HasSucceeded, Is.True, () => string.Join("; ", reimported.Errors));
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
-        Tag roundTripped = await verifyContext.Tags.SingleAsync(t => t.Code == "settler");
+        Tag roundTripped = await verifyContext.Tags.SingleAsync(t => t.Code == OrganisationTagCodes.SETTLER);
 
         using (Assert.EnterMultipleScope())
         {
@@ -684,7 +684,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
         {
             Assert.That(result.HasSucceeded, Is.False);
             Assert.That(result.Errors, Has.Some.Contains("whole multiple"));
-            Assert.That(await verifyContext.Tags.AnyAsync(t => t.Code == "settler"), Is.False, "A rejected import writes nothing.");
+            Assert.That(await verifyContext.Tags.AnyAsync(t => t.Code == OrganisationTagCodes.SETTLER), Is.False, "A rejected import writes nothing.");
         }
     }
 

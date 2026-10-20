@@ -129,11 +129,10 @@ export default function ScienceAdvisorDialog({ show, onClose, gameId, playerId, 
             )}
           </div>
 
-          {/* Said plainly rather than left to be inferred from a project that never advances. Nothing generates research points yet, so a
-              chosen project records intent and no more. */}
+          {/* Where the figure above comes from and what becomes of it, said plainly: both halves are invisible in the grid, and the second
+              is the one that costs a player points if they do not know it. */}
           <p className="text-xs text-slate-500">
-            Research does not accumulate yet — no points are generated at the end of a turn. Choosing a project records what you intend to
-            study, and unlocks it so study can begin once it does.
+            Directed points are produced at the start of your turn and any remaining are spent on your chosen project when the turn ends.
           </p>
 
           {loadErrors.length > 0 && (

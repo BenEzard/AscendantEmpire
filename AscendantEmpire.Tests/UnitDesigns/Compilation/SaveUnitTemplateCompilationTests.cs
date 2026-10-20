@@ -540,7 +540,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
     {
         await SeedCatalogueAsync();
         await AttachOrganisationTagAsync("test_body", "infantry");
-        int fittedTagId = await AttachOrganisationTagAsync("wpn", "settler");
+        int fittedTagId = await AttachOrganisationTagAsync("wpn", OrganisationTagCodes.SETTLER);
 
         ServiceResult<GlobalUnitTemplateView> result = await SendAsync(new CreateGlobalUnitTemplateRequest(new SaveGlobalUnitTemplateDto
         {
@@ -602,7 +602,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
     public async Task CompileRejectsAmbiguousFittedOrganisationTagsAsync()
     {
         await SeedCatalogueAsync();
-        await AttachOrganisationTagAsync("wpn", "settler");
+        await AttachOrganisationTagAsync("wpn", OrganisationTagCodes.SETTLER);
         await AttachOrganisationTagAsync("arm", "scout");
 
         ServiceResult<GlobalUnitTemplateView> result = await SendAsync(new CreateGlobalUnitTemplateRequest(new SaveGlobalUnitTemplateDto

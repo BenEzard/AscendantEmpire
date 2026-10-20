@@ -190,6 +190,7 @@ public static class ApplicationStartup
         services.AddScoped<IEndCampaignTurnProcess, BuildingStructure>();
         services.AddScoped<IEndCampaignTurnProcess, Fortifying>();
         services.AddScoped<IEndCampaignTurnProcess, EvaluateForceOnHostileTerrain>();
+        services.AddScoped<IEndCampaignTurnProcess, ApplyResearch>();
         services.AddScoped<IEndCampaignTurnProcess, RaiseSightingReports>();
 
         // End of a Campaign Round — runs once, after the last Player's turn in the Round.
@@ -202,6 +203,7 @@ public static class ApplicationStartup
         services.AddScoped<IStartCampaignTurnProcess, AlertSentries>();
         services.AddScoped<IStartCampaignTurnProcess, CheckUnitSupply>();
         services.AddScoped<IStartCampaignTurnProcess, ReplenishMovementPoints>();
+        services.AddScoped<IStartCampaignTurnProcess, GenerateResearchPoints>();
 
         // Generic background processing pipeline.
         // The channel is singleton so the same instance is shared between the handlers

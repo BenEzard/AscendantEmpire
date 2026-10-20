@@ -1,5 +1,6 @@
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strategies;
+using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Enums.Forces;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
@@ -36,7 +37,7 @@ internal class SplitForceStrategyTests
         return new ForceActionOrganisation
         {
             TagId = 9,
-            Code = "settler",
+            Code = OrganisationTagCodes.SETTLER,
             DisplayName = "Settler",
             LeadershipModel = leadershipModel,
             UnledBaseSize = unledBaseSize,

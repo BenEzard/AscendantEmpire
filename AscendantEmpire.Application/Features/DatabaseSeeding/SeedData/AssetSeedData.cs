@@ -39,16 +39,9 @@ internal static class AssetSeedData
     /// <summary>
     /// The population artwork, shared by the own-people and foreign-people Assets that mean the same thing.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Named constants rather than the paths written out, because each is used twice - once under <c>My People</c> and once under the foreign
-    /// template - and the two must not drift apart. The same picture in both places is deliberate: a slave is a slave, and what changes between them
-    /// is whose people they are, which the category already says.
-    /// </para>
-    /// </remarks>
     private const string _CIVILIAN_ICON = "/resources/other/civilian.svg";
     private const string _SLAVE_ICON = "/resources/other/slave.svg";
-    private const string _INTERRED_ICON = "/resources/other/interred.svg";
+    private const string _INTERNED_ICON = "/resources/other/interned.svg";
     private const string _PRISONER_OF_WAR_ICON = "/resources/other/prisoner-of-war.svg";
 
     /// <summary>
@@ -447,13 +440,13 @@ internal static class AssetSeedData
                         new UpsertAssetDto
                         {
                             DisplayName = "Technology",
-                            IconPath = "/resources/other/fishbone.svg",
+                            IconPath = "/resources/other/bubbling-flask.svg",
                             Description = ""
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Culture",
-                            IconPath = "/resources/other/high-grass.svg",
+                            IconPath = "/resources/other/lyre.svg",
                             Description = ""
                         },
                     ]
@@ -486,7 +479,7 @@ internal static class AssetSeedData
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Interred",
-                                    IconPath = _INTERRED_ICON,
+                                    IconPath = _INTERNED_ICON,
                                     Description = "Civilians of this people detained by a foreign power, wherever they are held."
                                 },
                                 new UpsertAssetDto
@@ -551,7 +544,7 @@ internal static class AssetSeedData
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Interred",
-                                    IconPath = _INTERRED_ICON,
+                                    IconPath = _INTERNED_ICON,
                                     Description = "Civilians of this foreign people interred by this Player."
                                 },
                                 new UpsertAssetDto

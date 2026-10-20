@@ -146,6 +146,10 @@ internal class StarterTechnologyTests : GameSqlServerTestBase
             Assert.That(states, Has.Count.EqualTo(3));
             Assert.That(states.All(state => state.CurrentTechnologyId is null), Is.True, "nothing is being researched until a Player chooses");
             Assert.That(states.All(state => state.UnspentDirectedPoints == 0), Is.True);
+            Assert.That(states.All(state => state.TechPointsPerPopulationSize == 100), Is.True,
+                "the opening divisor, written at setup rather than coalesced to on read, and positive so the first Turn's division cannot fault");
+
+            Assert.That(states.All(state => state.LastResearchGeneratedOnRound is null), Is.True);
             Assert.That(states.All(state => state.LastResearchAppliedOnRound is null), Is.True);
         }
     }

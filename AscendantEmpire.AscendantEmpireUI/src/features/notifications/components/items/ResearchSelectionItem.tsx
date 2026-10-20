@@ -15,7 +15,7 @@ export default function ResearchSelectionItem({ item, onClickItem }: Props) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="text-sm text-slate-900">{item.label}</div>
-          <div className="text-xs text-sky-600 font-medium">Awaiting a decision</div>
+          <div className="text-xs text-sky-600 font-medium">Select Project</div>
         </div>
       </div>
     </NotificationItemShell>

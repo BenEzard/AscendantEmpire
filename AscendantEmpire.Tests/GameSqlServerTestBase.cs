@@ -325,7 +325,7 @@ public class GameSqlServerTestBase : SqlServerTestBase
         // The design doc's worked sizes: settlers spawn at 200 by default, scouts are individuals.
         var settlerTag = new Tag
         {
-            Code = "settler",
+            Code = OrganisationTagCodes.SETTLER,
             DisplayName = "Settler",
             TagType = TagType.MilitaryOrganisationalGroup,
             MovementDomain = DomainType.Land,

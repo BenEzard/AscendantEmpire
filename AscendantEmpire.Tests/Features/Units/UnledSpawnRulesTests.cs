@@ -18,7 +18,7 @@ internal class UnledSpawnRulesTests
     {
         return new Tag
         {
-            Code = "settler",
+            Code = OrganisationTagCodes.SETTLER,
             DisplayName = "Settler",
             TagType = TagType.MilitaryOrganisationalGroup,
             LeadershipModel = LeadershipModel.Unled,

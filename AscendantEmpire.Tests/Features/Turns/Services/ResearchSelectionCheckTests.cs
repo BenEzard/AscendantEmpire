@@ -17,8 +17,7 @@ namespace AscendantEmpire.Tests.Features.Turns.Services;
 /// <remarks>
 /// <para>
 /// In-memory: the check is two LINQ reads. Both halves of its condition are worth pinning, and the second is the one that is easy to get wrong - a Player
-/// whose every technology is still Locked, which is every Player behind the <c>Broken</c> placeholder root, must not be nagged every Round about a choice
-/// they cannot make.
+/// whose every technology is still Locked must not be nagged every Round about a choice they cannot make.
 /// </para>
 /// <para>
 /// A Discovered technology is not researchable either, so it must not count as something to research - otherwise a Player who had finished everything

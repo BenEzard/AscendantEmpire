@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
 using AscendantEmpire.BackendContracts.UnitDesigns.GetTags;
 using AscendantEmpire.BackendContracts.UnitDesigns.UpsertTag;
+using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 
 using Microsoft.Extensions.Logging.Abstractions;
@@ -116,7 +117,7 @@ internal class TagHandlersTests : InMemoryTestBase
     public async Task CreateUnledTagRoundTripsSizingAsync()
     {
         ServiceResult<TagView> result = await CreateAsync(
-            BuildOrganisationDto("settler", LeadershipModel.Unled, baseSize: 25, defaultSize: 200, maxSize: 5000));
+            BuildOrganisationDto(OrganisationTagCodes.SETTLER, LeadershipModel.Unled, baseSize: 25, defaultSize: 200, maxSize: 5000));
 
         using (Assert.EnterMultipleScope())
         {

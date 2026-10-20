@@ -5,6 +5,7 @@ using AscendantEmpire.Application.Features.Maps.Biomes.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Maps.Depletion.Services;
 using AscendantEmpire.Application.Features.Structures.Services;
+using AscendantEmpire.Application.Features.Technologies.Services;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions.Checks;
 using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline;
@@ -63,6 +64,10 @@ public class TurnPipelineExecutionOrderTests
             NullLogger<BuildingStructure>.Instance),
         new Fortifying(),
         new EvaluateForceOnHostileTerrain(),
+        new ApplyResearch(
+            Substitute.For<IDbContextFactory<AscendantEmpireContext>>(),
+            Substitute.For<IPlayerTechnologyAvailabilityService>(),
+            NullLogger<ApplyResearch>.Instance),
         new RaiseSightingReports(
             Substitute.For<IForceSightingFoldService>(),
             Substitute.For<IStructureSightingFoldService>(),
@@ -84,7 +89,12 @@ public class TurnPipelineExecutionOrderTests
         ];
 
     private IPipelineProcess[] StartCampaignTurnProcesses() =>
-        [new AlertSentries(), new CheckUnitSupply(), new ReplenishMovementPoints(_dbFactory, NullLogger<ReplenishMovementPoints>.Instance)];
+        [
+            new AlertSentries(),
+            new CheckUnitSupply(),
+            new ReplenishMovementPoints(_dbFactory, NullLogger<ReplenishMovementPoints>.Instance),
+            new GenerateResearchPoints(_dbFactory, NullLogger<GenerateResearchPoints>.Instance)
+        ];
 
     private IPossibleActionCheck[] PossibleActionChecks() =>
         [new CampaignRemainingMovementCheck(_dbFactory), new BattleRemainingMovementCheck(_dbFactory), new ResearchSelectionCheck(_dbFactory), new TradeExpiryCheck()];
@@ -94,10 +104,18 @@ public class TurnPipelineExecutionOrderTests
 
     // ── declared run order ────────────────────────────────────────────────────
 
-    [Test, Description("Ending a turn gathers, builds and fortifies before attrition is judged on what the Force did with the turn, and writes down what others watched last of all.")]
+    [Test, Description("Ending a turn gathers, builds and fortifies before attrition is judged on what the Force did with the turn, closes the research books, and writes down what others watched last of all.")]
     public void ShouldRunEndCampaignTurnProcessesInDeclaredOrder()
     {
-        string[] expected = ["Gathering", "Building Structure", "Fortifying", "Evaluate Force on Hostile Terrain", "Raise Sighting Reports"];
+        string[] expected =
+        [
+            "Gathering",
+            "Building Structure",
+            "Fortifying",
+            "Evaluate Force on Hostile Terrain",
+            "Apply Research",
+            "Raise Sighting Reports"
+        ];
 
         Assert.That(RunOrderOf(EndCampaignTurnProcesses()), Is.EqualTo(expected));
     }
@@ -120,10 +138,10 @@ public class TurnPipelineExecutionOrderTests
         Assert.That(RunOrderOf(EndCampaignRoundProcesses()), Is.EqualTo(expected));
     }
 
-    [Test, Description("Starting a turn reports what the sentries see, then reckons supply, and only then hands out the movement allowance.")]
+    [Test, Description("Starting a turn reports what the sentries see, then reckons supply, then hands out the movement allowance, and finally counts the Player's people into research points.")]
     public void ShouldRunStartCampaignTurnProcessesInDeclaredOrder()
     {
-        string[] expected = ["Alert Sentries", "Check Unit Supply", "Replenish Movement Points"];
+        string[] expected = ["Alert Sentries", "Check Unit Supply", "Replenish Movement Points", "Generate Research Points"];
 
         Assert.That(RunOrderOf(StartCampaignTurnProcesses()), Is.EqualTo(expected));
     }

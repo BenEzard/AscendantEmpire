@@ -1,4 +1,5 @@
 using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
+using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 
@@ -177,7 +178,7 @@ internal static class UnitComponentSeedData
             ComponentType = ComponentType.Equipment,
             DesignerImagePath = "/unit-design/equipment/camping-goods_medium.png",
             Weight = 6_000,
-            TagCodes = ["settler", "create-settlement", "create-early-camp"],
+            TagCodes = [OrganisationTagCodes.SETTLER, CapabilityTagCodes.CREATE_SETTLEMENT, CapabilityTagCodes.CREATE_EARLY_CAMP],
         };
     }
 

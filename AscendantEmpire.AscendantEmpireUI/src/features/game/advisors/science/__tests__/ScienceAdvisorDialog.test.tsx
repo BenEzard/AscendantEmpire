@@ -70,14 +70,6 @@ describe("with a research position", () => {
     expect(screen.getByTestId("science-advisor")).toHaveTextContent("Researching: Nothing selected");
   });
 
-  it("warns that research does not accumulate yet", () => {
-    // Said plainly rather than left to be inferred from a project that never advances: nothing generates research
-    // points at the end of a turn, so a chosen project records intent and no more.
-    renderDialog();
-
-    expect(screen.getByTestId("science-advisor")).toHaveTextContent("Research does not accumulate yet");
-  });
-
   it("shows the banked directed points and the Round they were counted in", () => {
     renderDialog({ research: overview([researchable(1)], { unspentDirectedPoints: 1250, currentRoundNumber: 7 }) });
 

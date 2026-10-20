@@ -49,6 +49,14 @@ internal class GameSetupService(
     private const int _FIRST_ROUND_NUMBER = 1;
 
     /// <summary>
+    /// How many people every player starts the game needing for one directed research point.
+    /// </summary>
+    /// <remarks>
+    /// The opening value of <see cref="PlayerResearchState.TechPointsPerPopulationSize"/>, which moves per player as the game runs.
+    /// </remarks>
+    private const int _DEFAULT_TECH_POINTS_PER_POPULATION_SIZE = 100;
+
+    /// <summary>
     /// The global unit template codes every player starts the game with — unlocked, and spawned once each at the player's start position. 
     /// </summary>
     /// <remarks>
@@ -546,6 +554,7 @@ internal class GameSetupService(
         {
             PlayerId = player.Id,
             GameId = game.Id,
+            TechPointsPerPopulationSize = _DEFAULT_TECH_POINTS_PER_POPULATION_SIZE,
             UnspentDirectedPoints = 0,
             UnspentDiffusionPoints = 0
         }));

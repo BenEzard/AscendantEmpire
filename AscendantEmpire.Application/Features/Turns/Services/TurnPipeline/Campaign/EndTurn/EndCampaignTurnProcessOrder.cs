@@ -13,21 +13,28 @@
 internal enum EndCampaignTurnProcessOrder
 {
     /// <summary>Forces collect from the ground they hold, before anything is spent.</summary>
-    Gathering = 10000,
+    Gathering = 10_000,
 
     /// <summary>Construction advances, which may draw on what was just gathered.</summary>
-    BuildingStructure = 20000,
+    BuildingStructure = 20_000,
 
     /// <summary>Forces dig in where they stand.</summary>
-    Fortifying = 30000,
+    Fortifying = 30_000,
 
     /// <summary>Attrition is applied, judged on everything the Force did this Turn — fortifying included.</summary>
-    EvaluateForceOnHostileTerrain = 40000,
+    EvaluateForceOnHostileTerrain = 40_000,
+
+    /// <summary>The Turn's research points are poured into the Player's chosen project.</summary>
+    /// <remarks>
+    /// Position carries no dependency either way - research is an empire-wide book, and nothing before it in this pipeline moves a point. It sits after the
+    /// Force processes simply so the ledger is closed once everything that happened to the Player's Forces this Turn has happened.
+    /// </remarks>
+    ApplyResearch = 45_000,
 
     /// <summary>What other Players watched during the Turn is written down last of all.</summary>
     /// <remarks>
     /// Deliberately after <see cref="EvaluateForceOnHostileTerrain"/>. A Force seen at sequence 3 and then destroyed by attrition was still seen, and its history rows survive the delete, so it is
     /// reported - and the reports see every destruction the Turn is going to have.
     /// </remarks>
-    RaiseSightingReports = 50000,
+    RaiseSightingReports = 50_000,
 }

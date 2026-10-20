@@ -61,6 +61,31 @@ public class PlayerResearchState
     public int UnspentDiffusionPoints { get; set; }
 
     /// <summary>
+    /// How many people it takes to produce one directed research point for this Player.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The design doc's <c>TECH_POINTS_PER_POPULATION_SIZE</c>. Per Player rather than per Game because it is expected to move with a Player's own technology
+    /// as the game runs, so it sits here beside the rest of their research state rather than beside the Game's research settings on
+    /// <c>GameConfiguration</c>.
+    /// </para>
+    /// <para>
+    /// A divisor, so it is constrained positive by <c>CK_PlayerResearchState_TechPointsPerPopulationSizePositive</c> rather than left to trip a divide by
+    /// zero at the start of somebody's Turn.
+    /// </para>
+    /// </remarks>
+    public int TechPointsPerPopulationSize { get; set; }
+
+    /// <summary>
+    /// The last Round the start-of-turn research generation ran for this Player, or <see langword="null"/> if it never has.
+    /// </summary>
+    /// <remarks>
+    /// The sibling of <see cref="LastResearchAppliedOnRound"/>, which guards the end-of-turn step. Two steps need two stamps: generation and spending happen
+    /// at opposite ends of a Turn, and either may be retried without the other having run.
+    /// </remarks>
+    public int? LastResearchGeneratedOnRound { get; set; }
+
+    /// <summary>
     /// The last Round the end-of-turn research step ran for this Player, or <see langword="null"/> if it never has.
     /// </summary>
     /// <remarks>

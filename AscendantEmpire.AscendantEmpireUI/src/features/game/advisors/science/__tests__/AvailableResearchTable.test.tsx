@@ -187,8 +187,8 @@ describe("choosing a project", () => {
 
 describe("with nothing researchable", () => {
   it("explains why rather than showing an empty grid", () => {
-    // A real state for a new game: everything behind the Broken placeholder root is Locked, so a player who has discovered nothing and chosen
-    // nothing could legitimately have no options at all.
+    // A real state rather than an impossible one: a player who has discovered everything their prerequisites reach has nothing left to pick,
+    // so the grid has to say why instead of looking broken.
     renderGrid({ technologies: [] });
 
     expect(screen.getByTestId("available-research-empty")).toHaveTextContent("waiting on prerequisites");

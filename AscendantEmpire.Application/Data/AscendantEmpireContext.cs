@@ -3960,7 +3960,11 @@ public class AscendantEmpireContext : DbContext
 
         modelBuilder.Entity<PlayerResearchState>(entity =>
         {
-            entity.ToTable("PlayerResearchState", schema);
+            // The population divisor is constrained positive rather than merely non-negative: it divides, so a zero would fault the start-of-turn
+            // generation for whichever player happened to hold it.
+            entity.ToTable("PlayerResearchState", schema, t => t.HasCheckConstraint(
+                "CK_PlayerResearchState_TechPointsPerPopulationSizePositive",
+                "[TechPointsPerPopulationSize] > 0"));
 
             // Shared primary key with Player: exactly one row per player.
             entity.HasKey(e => e.PlayerId);

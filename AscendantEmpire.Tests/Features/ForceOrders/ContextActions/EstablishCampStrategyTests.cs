@@ -1,5 +1,6 @@
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strategies;
+using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Enums.Forces;
 using AscendantEmpire.Domain.Enums.Maps;
 
@@ -15,7 +16,6 @@ namespace AscendantEmpire.Tests.Features.ForceOrders.ContextActions;
 [TestFixture]
 internal class EstablishCampStrategyTests
 {
-    private const string _CAPABILITY_TAG_CODE = "create-early-camp";
     private const int _MINIMUM_TROOPS = 25;
     private const long _FULL_CAMPAIGN_MOVEMENT = 1_000;
 
@@ -46,7 +46,7 @@ internal class EstablishCampStrategyTests
             CampaignMovementRemaining = campaignMovementRemaining,
             CampaignMovementPoints = _FULL_CAMPAIGN_MOVEMENT,
             Organisation = null,
-            CapabilityTagCodes = capabilityTagCodes.Length > 0 ? capabilityTagCodes : [_CAPABILITY_TAG_CODE],
+            CapabilityTagCodes = capabilityTagCodes.Length > 0 ? capabilityTagCodes : [CapabilityTagCodes.CREATE_EARLY_CAMP],
             TileIsWater = tileIsWater,
             TileGeographyType = tileGeographyType,
             IsInBattle = false
@@ -79,7 +79,7 @@ internal class EstablishCampStrategyTests
     [Test, Description("The two settlement actions carry separate capabilities, so equipment granting only settlement must not also unlock camping.")]
     public void ShouldHideTheActionWhenTheForceOnlyHasTheSettlementCapability()
     {
-        ForceActionAvailability? result = _strategy.Evaluate(Context(Force(capabilityTagCodes: ["create-settlement"])));
+        ForceActionAvailability? result = _strategy.Evaluate(Context(Force(capabilityTagCodes: [CapabilityTagCodes.CREATE_SETTLEMENT])));
 
         Assert.That(result, Is.Null);
     }

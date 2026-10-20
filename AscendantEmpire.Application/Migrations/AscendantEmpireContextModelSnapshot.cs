@@ -2831,7 +2831,13 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int?>("LastResearchAppliedOnRound")
                         .HasColumnType("int");
 
+                    b.Property<int?>("LastResearchGeneratedOnRound")
+                        .HasColumnType("int");
+
                     b.Property<int?>("NextTechnologyId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TechPointsPerPopulationSize")
                         .HasColumnType("int");
 
                     b.Property<int>("UnspentDiffusionPoints")
@@ -2846,7 +2852,10 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.HasIndex("NextTechnologyId");
 
-                    b.ToTable("PlayerResearchState", "technology");
+                    b.ToTable("PlayerResearchState", "technology", t =>
+                        {
+                            t.HasCheckConstraint("CK_PlayerResearchState_TechPointsPerPopulationSizePositive", "[TechPointsPerPopulationSize] > 0");
+                        });
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Technologies.PlayerTechnology", b =>

@@ -49,7 +49,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         context.Tags.Add(new Tag
         {
             Id = _ORGANISATION_TAG_ID,
-            Code = "settler",
+            Code = OrganisationTagCodes.SETTLER,
             DisplayName = "Settler",
             TagType = TagType.MilitaryOrganisationalGroup,
             LeadershipModel = LeadershipModel.Unled,

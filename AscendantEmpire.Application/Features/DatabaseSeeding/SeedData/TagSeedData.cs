@@ -1,4 +1,5 @@
 using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
+using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 
@@ -29,14 +30,14 @@ internal static class TagSeedData
             // --- Ability tags -----------------------------------------------------------------
             new TagDto
             {
-                Code = "create-settlement",
+                Code = CapabilityTagCodes.CREATE_SETTLEMENT,
                 DisplayName = "Found Settlement",
                 Description = "This can found a settlement.",
                 TagType = TagType.Ability,
             },
             new TagDto
             {
-                Code = "create-early-camp",
+                Code = CapabilityTagCodes.CREATE_EARLY_CAMP,
                 DisplayName = "Found Camp",
                 Description = "Found an early camp.",
                 TagType = TagType.Ability,
@@ -57,7 +58,7 @@ internal static class TagSeedData
             // UnledDefaultSize is the spawn size a new game hands each player: 100 settlers and 1 scout.
             new TagDto
             {
-                Code = "settler",
+                Code = OrganisationTagCodes.SETTLER,
                 DisplayName = "Settler",
                 Description = "An unled civilian party.",
                 TagType = TagType.MilitaryOrganisationalGroup,

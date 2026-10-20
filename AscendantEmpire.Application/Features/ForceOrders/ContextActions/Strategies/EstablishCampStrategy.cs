@@ -1,4 +1,5 @@
 using AscendantEmpire.Application.Features.Settlements.Classes;
+using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Enums.Settlements;
 using AscendantEmpire.Domain.Enums.Forces;
 
@@ -19,9 +20,6 @@ namespace AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strate
 /// </remarks>
 internal sealed class EstablishCampStrategy : IForceActionStrategy
 {
-    /// <summary>The capability that unlocks the action. Stable authored code; a rename in the catalogue is a rename here.</summary>
-    private const string _CAPABILITY_TAG_CODE = "create-early-camp";
-
     /// <summary>What is being founded, for the message text.</summary>
     private const string _SETTLEMENT_NOUN = "camp";
 
@@ -45,7 +43,7 @@ internal sealed class EstablishCampStrategy : IForceActionStrategy
         ForceActionForce force = context.SelectedForce;
 
         // Structural: without the capability the Force could never establish a camp, so the button is hidden rather than greyed out.
-        if (!force.HasCapability(_CAPABILITY_TAG_CODE))
+        if (!force.HasCapability(CapabilityTagCodes.CREATE_EARLY_CAMP))
         {
             return null;
         }

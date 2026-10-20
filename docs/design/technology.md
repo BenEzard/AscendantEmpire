@@ -159,9 +159,37 @@ Research points can also be spent training specialists. For example, a **Researc
 - **End of turn:** distribute the experience earned during the turn, then spend remaining research points
   on the selected/unlocked technologies (the player may have spent some during the turn).
 
+### Directed points generated per turn
+
+Directed research is produced by the player's **people**, settled or still carrying their camp:
+
 ```
-Research Points Generated per Turn = [Setting: EMPIRE_BASE_RESEARCH_POINTS] + …
+Directed Research Points = Floor(
+    (Σ population of the player's settlements + Σ strength of their settler Forces)
+    / [Per-player setting: TECH_POINTS_PER_POPULATION_SIZE]
+)
 ```
+
+- A **settlement** counts its whole `Population` from the Round it is founded, before its structure
+  finishes building, because its settlers left the map and became its people at founding. A razed
+  settlement counts nothing. Ownership decides whose points they are, so a captured settlement feeds
+  its captor.
+- A **settler Force** is one whose compiled template carries `create-settlement` or
+  `create-early-camp`, and it contributes its healthy and injured troops alike. Nobody is counted
+  twice: founding a village consumes the Force, and founding a camp takes its people out of the
+  Force's strength.
+- `TECH_POINTS_PER_POPULATION_SIZE` is per player, on `PlayerResearchState`, and starts at **100**.
+  It is expected to move as a player's own technology improves.
+
+The figure is generated once per round, at the start of the player's turn, and is **spent or lost at
+the end of it** — the pool always closes the turn at zero. Spending fills the selected technology's
+buckets in order, **directed first**, then experience, then diffusion: directed research can complete
+a technology on its own, so a pool that finishes the directed bucket carries on into the passive ones
+of that same technology. Carrying what is left onto a *different* technology is overflow, which is a
+separate rule and is not done.
+
+Modifiers (`PlayerResearchModifier`) and `EMPIRE_BASE_RESEARCH_POINTS` are modelled but do not yet
+enter this figure.
 
 ---
 
@@ -203,7 +231,7 @@ game delete can purge directly, and so "which other players in this game have X?
 | Table | Description |
 | --- | --- |
 | `technology.PlayerTechnology` | One player's progress toward one technology: status, **their own** three requirement figures, the three point totals, the rounds the cost was paid and the technology discovered, and how and from whom it was discovered. |
-| `technology.PlayerResearchState` | One row per player: current and next research project, unspent directed and diffusion points, and the round the end-of-turn research step last ran. |
+| `technology.PlayerResearchState` | One row per player: current and next research project, unspent directed and diffusion points, their `TechPointsPerPopulationSize`, and the rounds the start-of-turn generation and the end-of-turn spend last ran. |
 | `technology.PendingExperienceAccrual` | Experience earned during a turn, accumulated per type, awaiting distribution. Empty between turns. |
 | `technology.PlayerUnusedExperience` | Experience that had nowhere to go, per type. Never spent. |
 | `technology.PlayerResearchModifier` | Modifiers to how many points a player generates per turn, by bucket and granting source. Mirrors `PlayerSustenanceModifier`. |
@@ -259,14 +287,10 @@ The technology catalogue lives in `TechnologySeedData.cs` and is **authored by h
 source of truth, and nothing generates it. Its own remarks record the authoring conventions and what in it
 is still a placeholder.
 
-One of those placeholders shapes the start of every game. 45 technologies have no established
-prerequisites, so they are parented to a placeholder root called **`Broken`** to keep them out of reach;
-without it they would all be available for research from the first Round. `Broken` carries a deliberately
-unreachable research requirement, since the catalogue authors no acquisition costs and a cheap root with
-none would simply be researched. It is retired by giving each of its dependents real prerequisites and
-deleting the row.
+Every technology but six hangs off a real prerequisite, so the shape of the start of a game comes out of
+the graph rather than out of a placeholder.
 
-That leaves six technologies genuinely available to research at the start of a game: Primitive Crafting 1,
+Six technologies are genuinely available to research at the start of a game: Primitive Crafting 1,
 Hunting, Fire-Making, Intensive Gathering, Language and Natural Exploration. Nothing is granted as already
 discovered — `GameSetupService.StarterTechnologyCodes` is deliberately empty.
 
@@ -275,7 +299,6 @@ discovered — `GameSetupService.StarterTechnologyCodes` is deliberately empty.
 - Should capturing a technology reveal the *entire* tech, pay the full research cost, or just the
   majority (e.g. 80%)?
 - Should tech trading be allowed when the recipient is too far behind to understand it?
-- Which prerequisites do the 45 technologies behind `Broken` actually have?
 - Which era does each technology belong to? Everything is currently `Stone`, which is wrong for the later
   entries — Copper, Metallurgy, Writing, Banking and Brickworks among them.
 - What should the research requirements actually be? They are round placeholder numbers, not balanced

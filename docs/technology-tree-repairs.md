@@ -66,20 +66,20 @@ has any `Optional` ones at all, at least one of those is too. The optional edges
 a **single** implicit "any one of these" group — there is no way to express two separate any-of groups,
 so "either A or B, and either C or D" cannot be authored.
 
-## Retiring `Broken`
+Six technologies have no prerequisites at all and are therefore available from the first Round:
+Primitive Crafting 1, Hunting, Fire-Making, Intensive Gathering, Language and Natural Exploration.
+Every other technology in the catalogue hangs off one of them.
+`TechnologySeedDataTests.ShouldLeaveOnlyTheStartingTechnologiesWithoutPrerequisites` pins that set, so
+giving a technology its first prerequisite — or taking its last one away — is a decision the suite
+makes you make on purpose.
 
-`Broken` is a placeholder root that the technologies whose real prerequisites were never established
-hang off. Its `DirectedRequired` is deliberately out of reach, so everything behind it is unreachable
-by design.
+### Repricing a technology you have just moved
 
-**Giving one of its dependents a real prerequisite replaces the `Broken` edge — it never joins it.** A
-technology left with both stays gated on a root nobody can research, so the new edge would change
-nothing in play. Once the last dependent has real prerequisites, delete the `Broken` row itself.
-
-Whether to reprice the technology being repaired is a judgement call worth raising: it moves deeper in
-the tree, so the depth curve says its cost should rise, but that is a balance decision rather than a
-mechanical one. A technology deliberately left at its original cost keeps a comment saying so, and that
-is the one case where the file's "prerequisite written before its dependent" ordering does not hold.
+Whether to reprice a technology whose prerequisites you changed is a judgement call worth raising: it
+moves deeper in the tree, so the depth curve says its cost should rise, but that is a balance decision
+rather than a mechanical one. A technology deliberately left at its original cost keeps a comment
+saying so, and that is the one case where the file's "prerequisite written before its dependent"
+ordering does not hold.
 
 ## Validate the graph before building
 
@@ -101,7 +101,8 @@ caring how many there are.
 
 What nothing checks mechanically is the **cost curve**. `DirectedRequired` is a balance number, so a
 technology sitting off `100 + depth × 100` is a judgement call rather than a failure — see
-[Retiring `Broken`](#retiring-broken), since an added prerequisite is what usually moves one off it.
+[Repricing a technology you have just moved](#repricing-a-technology-you-have-just-moved), since an
+added prerequisite is what usually moves one off it.
 
 ## Then build, and look at it
 
