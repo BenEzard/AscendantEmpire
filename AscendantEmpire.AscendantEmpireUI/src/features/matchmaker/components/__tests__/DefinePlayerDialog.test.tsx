@@ -5,7 +5,7 @@
 // The API module is mocked rather than the http client, so these exercise the dialog's own behaviour
 // without asserting anything about URL shapes — matchMakingApi is where those live.
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -30,7 +30,12 @@ const GAME_ID = 7;
 /** A rival's colour, so the picker has something to strike through. */
 const TAKEN_COLOUR = "#c10007";
 
-/** An undefined slot as the API returns one: placeholder title, no gender, no colour. */
+/**
+ * An undefined slot as the API returns one: placeholder title and names, no gender, no colour.
+ *
+ * Every name here is the game's own seeding. The dialog recognises that - no gender and no colour together mean no
+ * save has ever been through it - and opens the identity fields blank, so these values are what it must *not* show.
+ */
 function undefinedSlot(overrides: Partial<PlayerDefinition> = {}): PlayerDefinition {
   return {
     playerId: 72,
@@ -40,8 +45,8 @@ function undefinedSlot(overrides: Partial<PlayerDefinition> = {}): PlayerDefinit
     rulerGender: null,
     factionName: "Faction 3",
     factionColour: null,
-    // Seeded placeholders, like the ruler and faction names above: the API never sends these back blank for a
-    // slot a game created, so the dialog opens with all four already answered.
+    // Seeded placeholders, like the ruler and faction names above. The API never sends these back blank for a slot
+    // a game created; the dialog blanks them itself rather than making the player delete four stand-ins.
     peopleName: "People 3",
     demonym: "Person 3",
     cultureName: "Culture 3",
@@ -54,6 +59,28 @@ function undefinedSlot(overrides: Partial<PlayerDefinition> = {}): PlayerDefinit
     isLocked: false,
     ...overrides,
   };
+}
+
+/**
+ * A slot its player has already defined: every name their own, plus the gender and colour a save insists on.
+ *
+ * That pair is what tells the dialog the names are answers rather than seeding, so a block testing what it opens on
+ * has to set them - an override of the names alone would still be read as an undefined slot.
+ */
+function definedSlot(overrides: Partial<PlayerDefinition> = {}): PlayerDefinition {
+  return undefinedSlot({
+    rulerTitle: "Empress",
+    rulerName: "Aelara",
+    rulerGender: "Female",
+    factionName: "The Ember Pact",
+    factionColour: "#8200db",
+    peopleName: "The Vashti",
+    demonym: "Vashti",
+    cultureName: "Vashti Highland",
+    language: "Old Vashti",
+    rulerPortraitPath: "/portraits/ruler_14.png",
+    ...overrides,
+  });
 }
 
 /**
@@ -122,16 +149,63 @@ function activeTabName(): string {
   return current?.textContent?.trim() ?? "";
 }
 
-/** Waits for the fetched definition to have seeded the form. */
+/**
+ * Waits for the fetched definition to have landed.
+ *
+ * Anchored on the Ruler page's first field existing rather than on a value: the page shows a spinner in place of its
+ * fields while the fetch is in flight, and an undefined slot's fields are blank once it is not - so there is no value
+ * to wait for that would tell the two apart.
+ */
 async function waitForLoad() {
-  await waitFor(() => expect(rulerNameInput()).toHaveValue("Player 3"));
+  await waitFor(() => expect(rulerNameInput()).toBeInTheDocument());
 }
 
-/** Fills in everything the commit gate asks for, leaving the title blank. */
-async function completeTheForm(user: ReturnType<typeof userEvent.setup>) {
+/**
+ * Puts a value into one of the plain text inputs in a single event.
+ *
+ * Deliberately not `user.type`, which these tests use everywhere a keystroke is the point. Six names at a dozen or
+ * so characters each is ~90 simulated keystrokes per test, and in the full suite - where every file is competing for
+ * the event loop - that is enough to carry a test past the 5s default timeout, though it is comfortable when this
+ * file runs alone. The fields are plain controlled inputs with nothing per-keystroke to exercise, so the tests that
+ * only need them answered set them in one go, and the ones about typing itself still type.
+ */
+function setValue(input: HTMLElement, value: string) {
+  fireEvent.change(input, { target: { value } });
+}
+
+/** What the names get filled in with, so a save's payload can be asserted against one list. */
+const ANSWERS = {
+  rulerName: "Aelara",
+  factionName: "The Ember Pact",
+  peopleName: "The Vashti",
+  demonym: "Vashti",
+  cultureName: "Vashti Highland",
+  language: "Old Vashti",
+};
+
+/**
+ * Answers everything the commit gate asks for bar the faction colour, and finishes on the Faction page.
+ *
+ * Types every name as well as picking the gender, because an undefined slot opens with all six blank - the seeded
+ * placeholders used to answer them, leaving only the two pickers to do here. Split out from completeTheForm so a
+ * test can leave exactly one answer missing: filling nothing but the gender now strands problems on both pages.
+ */
+async function fillEverythingButTheColour(user: ReturnType<typeof userEvent.setup>) {
+  setValue(rulerNameInput(), ANSWERS.rulerName);
   await user.click(screen.getByRole("radio", { name: "Female" }));
 
   await user.click(factionTab());
+  setValue(factionNameInput(), ANSWERS.factionName);
+  setValue(peopleNameInput(), ANSWERS.peopleName);
+  setValue(demonymInput(), ANSWERS.demonym);
+  setValue(cultureNameInput(), ANSWERS.cultureName);
+  setValue(languageInput(), ANSWERS.language);
+}
+
+/** Fills in everything the commit gate asks for, leaving the title blank, and finishes on the Faction page. */
+async function completeTheForm(user: ReturnType<typeof userEvent.setup>) {
+  await fillEverythingButTheColour(user);
+
   await user.click(colourTrigger());
   await user.click(swatch("purple-700"));
 }
@@ -150,14 +224,14 @@ describe("the commit gate", () => {
     expect(vi.mocked(updatePlayerDefinition).mock.calls[0][1]).toEqual({
       // Blank, not "Nobody": the server owns the placeholder, so the client never sends it.
       rulerTitle: "",
-      rulerName: "Player 3",
+      rulerName: ANSWERS.rulerName,
       rulerGender: "Female",
-      factionName: "Faction 3",
+      factionName: ANSWERS.factionName,
       factionColour: "#8200db",
-      peopleName: "People 3",
-      demonym: "Person 3",
-      cultureName: "Culture 3",
-      language: "Language 3",
+      peopleName: ANSWERS.peopleName,
+      demonym: ANSWERS.demonym,
+      cultureName: ANSWERS.cultureName,
+      language: ANSWERS.language,
       rulerPortraitPath: "",
     });
   });
@@ -185,8 +259,9 @@ describe("the commit gate", () => {
     renderDialog();
     await waitForLoad();
 
-    // Everything on the Ruler page is answered; only the colour, on the other page, is missing.
-    await user.click(screen.getByRole("radio", { name: "Male" }));
+    // Every answer bar the colour is in, and the user is left looking at the page that is not missing one.
+    await fillEverythingButTheColour(user);
+    await user.click(rulerTab());
     await user.click(saveButton());
 
     expect(activeTabName()).toContain("Faction");
@@ -198,8 +273,8 @@ describe("the commit gate", () => {
     renderDialog();
     await waitForLoad();
 
-    await user.clear(rulerNameInput());
     await completeTheForm(user);
+    await user.clear(rulerNameInput());
     await user.click(saveButton());
 
     expect(vi.mocked(updatePlayerDefinition)).not.toHaveBeenCalled();
@@ -207,19 +282,41 @@ describe("the commit gate", () => {
   });
 });
 
-describe("the people and culture fields", () => {
-  it("opens on what the slot already holds", async () => {
+describe("the names a game seeds a slot with", () => {
+  it("opens every identity field blank, so no seeded placeholder reads as a choice already made", async () => {
     renderDialog();
     await waitForLoad();
 
-    expect(peopleNameInput()).toHaveValue("People 3");
-    expect(demonymInput()).toHaveValue("Person 3");
-    expect(cultureNameInput()).toHaveValue("Culture 3");
-    expect(languageInput()).toHaveValue("Language 3");
+    expect(rulerNameInput()).toHaveValue("");
+    expect(factionNameInput()).toHaveValue("");
+    expect(peopleNameInput()).toHaveValue("");
+    expect(demonymInput()).toHaveValue("");
+    expect(cultureNameInput()).toHaveValue("");
+    expect(languageInput()).toHaveValue("");
   });
 
-  // A slot from before these columns existed comes back with all four blank, which is the only way the dialog
-  // ever opens on an unanswered one — hence clearing the field by hand to reach the same state.
+  // The gender and the colour are the tell: nothing seeds either, and a save insists on both, so a slot holding
+  // them has been defined and its names are the player's own to read back.
+  it("keeps the stored names once the slot has been defined", async () => {
+    renderDialog(definedSlot());
+    await waitFor(() => expect(rulerNameInput()).toHaveValue("Aelara"));
+
+    expect(factionNameInput()).toHaveValue("The Ember Pact");
+    expect(peopleNameInput()).toHaveValue("The Vashti");
+  });
+
+  // A half-defined slot cannot be reached through this dialog, since a save sets both, but a colour without a gender
+  // still stops the names being taken for seeding - the conservative way round, which keeps real answers on screen.
+  it("keeps the stored names when only one of the two tells is answered", async () => {
+    renderDialog(undefinedSlot({ factionColour: "#8200db" }));
+
+    await waitFor(() => expect(rulerNameInput()).toHaveValue("Player 3"));
+  });
+});
+
+describe("the people and culture fields", () => {
+  // Blank is how the dialog now opens an undefined slot, so clearing a field by hand only stands in for the player
+  // having typed something and thought better of it.
   it.each([
     ["People Name", peopleNameInput, "Give your people a name."],
     ["Demonym", demonymInput, "Say what one of your people is called."],
@@ -317,6 +414,18 @@ describe("faction colours", () => {
     expect(swatch("purple-700")).toBeEnabled();
   });
 
+  it("does not restate the chosen colour in words beneath the picker", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await waitForLoad();
+
+    await user.click(factionTab());
+    await user.click(colourTrigger());
+    await user.click(swatch("purple-700"));
+
+    expect(screen.queryByText(/will be drawn in/i)).not.toBeInTheDocument();
+  });
+
   it("reports a lost colour race on the colour field, on the page that owns it", async () => {
     const user = userEvent.setup();
     vi.mocked(updatePlayerDefinition).mockRejectedValue(clashError(COLOUR_TAKEN));
@@ -406,6 +515,15 @@ describe("the ruler portrait", () => {
     await waitForLoad();
 
     expect(portraitTrigger().querySelector("img")).toBeNull();
+  });
+
+  // FieldRow draws a hint as an info icon whose accessible name is the hint text, so no such icon is no hint. The
+  // colour picker's own hint reads "Colours already taken", which this pattern deliberately does not match.
+  it("carries no hint tooltip beside its label", async () => {
+    renderDialog();
+    await waitForLoad();
+
+    expect(screen.queryByRole("img", { name: /portraits already taken/i })).not.toBeInTheDocument();
   });
 
   it("opens on the portrait the slot already holds", async () => {
@@ -536,19 +654,7 @@ describe("portraits a rival already holds", () => {
 describe("a game already under way", () => {
   /** A fully defined slot in a started game — the only state the lock is ever seen in. */
   function lockedSlot(): PlayerDefinition {
-    return undefinedSlot({
-      isLocked: true,
-      rulerTitle: "Empress",
-      rulerName: "Aelara",
-      rulerGender: "Female",
-      factionName: "The Ember Pact",
-      factionColour: "#8200db",
-      peopleName: "The Vashti",
-      demonym: "Vashti",
-      cultureName: "Vashti Highland",
-      language: "Old Vashti",
-      rulerPortraitPath: "/portraits/ruler_14.png",
-    });
+    return definedSlot({ isLocked: true });
   }
 
   it("says why the fields cannot be touched, rather than leaving the dialog looking broken", async () => {
@@ -609,20 +715,7 @@ describe("a game already under way", () => {
 
 describe("an already-defined slot", () => {
   it("opens on what the player chose last time", async () => {
-    renderDialog(
-      undefinedSlot({
-        rulerTitle: "Empress",
-        rulerName: "Aelara",
-        rulerGender: "Female",
-        factionName: "The Ember Pact",
-        factionColour: "#8200db",
-        peopleName: "The Vashti",
-        demonym: "Vashti",
-        cultureName: "Vashti Highland",
-        language: "Old Vashti",
-        rulerPortraitPath: "/portraits/ruler_14.png",
-      }),
-    );
+    renderDialog(definedSlot());
 
     await waitFor(() => expect(rulerNameInput()).toHaveValue("Aelara"));
 

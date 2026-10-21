@@ -93,6 +93,17 @@ function conflictsFromDetail(detail: unknown): FieldErrors {
   return errors;
 }
 
+/**
+ * True for a slot that is still carrying the names the game seeded it with, rather than any the player chose.
+ *
+ * Neither the gender nor the colour is ever seeded, and a save insists on both, so a slot holding neither cannot have
+ * been through this dialog. Derived here rather than asked of the server: nothing on the player row records "defined"
+ * as a fact of its own, and the pair this reads already travels with the definition.
+ */
+function hasNeverBeenDefined(definition: PlayerDefinition): boolean {
+  return definition.rulerGender === null && definition.factionColour === null;
+}
+
 const EMPTY_DRAFT: Draft = {
   rulerTitle: "",
   rulerName: "",
@@ -221,22 +232,28 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
       return;
     }
 
+    // A slot nobody has defined yet still holds the names the game seeded it with - "Player 3", "Faction 3",
+    // "People 3" and so on. Those are there so the lobby has something to list, not answers for the player to keep:
+    // opening on them would present them as choices already made, and make the player empty six fields before typing
+    // anything of their own. So every seeded name opens blank and its label is left to say what belongs in it.
+    const neverDefined = hasNeverBeenDefined(definition);
+
     setDraft({
       // The seeded placeholder is shown as an empty field: it is a stand-in, not something to make the player delete.
       rulerTitle: definition.rulerTitle === PLACEHOLDER_RULER_TITLE ? "" : definition.rulerTitle,
-      rulerName: definition.rulerName,
+      rulerName: neverDefined ? "" : definition.rulerName,
       rulerGender: definition.rulerGender,
       // Anything the picker no longer offers - a portrait file since removed or renamed - reads as the crown, so the
       // field never looks unset while holding a path that would be saved straight back.
       rulerPortraitPath: PORTRAIT_PATHS.has(definition.rulerPortraitPath) ? definition.rulerPortraitPath : "",
-      factionName: definition.factionName,
+      factionName: neverDefined ? "" : definition.factionName,
       factionColour: definition.factionColour,
-      // Shown exactly as stored, like the ruler and faction names beside them: a seeded slot's placeholder is
-      // something to edit, and a slot predating these columns comes back blank, which the validation then catches.
-      peopleName: definition.peopleName,
-      demonym: definition.demonym,
-      cultureName: definition.cultureName,
-      language: definition.language,
+      // Blank on a seeded slot, like the two names above, and shown exactly as stored otherwise. A slot predating
+      // these columns comes back blank of its own accord, which the validation then catches just the same.
+      peopleName: neverDefined ? "" : definition.peopleName,
+      demonym: neverDefined ? "" : definition.demonym,
+      cultureName: neverDefined ? "" : definition.cultureName,
+      language: neverDefined ? "" : definition.language,
     });
   }, [open, definition]);
 
@@ -416,7 +433,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
 
               {/* Last on the page because it is the only field that is a picture rather than words, and because
                   gender has to stay directly above the title whose suggestions it drives. */}
-              <FieldRow label="Ruler Portrait" hint="(The face your rivals will see; portraits already taken are struck through)" error={shownErrors.rulerPortraitPath}>
+              <FieldRow label="Ruler Portrait" error={shownErrors.rulerPortraitPath}>
                 <ImagePicker
                   value={draft.rulerPortraitPath}
                   onChange={(next) => setField("rulerPortraitPath", next)}
@@ -461,13 +478,6 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
                   disabled={isLocked}
                 />
               </FieldRow>
-
-              {/* The picker's trigger is a small square, so restate the choice in words under it. */}
-              {draft.factionColour && (
-                <p className="mt-1 grid grid-cols-12 gap-2 text-xs text-slate-500">
-                  <span className="col-span-7 col-start-6">Your faction will be drawn in {draft.factionColour}.</span>
-                </p>
-              )}
 
               {/* The people behind the faction. Four free-text names with no suggestions behind them: there is no
                   catalogue to draw from, and each one's hint carries the question it answers. Three of them have to be

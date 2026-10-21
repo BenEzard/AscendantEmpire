@@ -38,7 +38,6 @@ internal class TechnologySeedDataTests
     private static readonly string[] _STARTING_AVAILABLE_TECHNOLOGY_CODES =
     [
         "PrimitiveCrafting1",
-        "Hunting",
         "FireMaking",
         "IntensiveGathering",
         "Language",

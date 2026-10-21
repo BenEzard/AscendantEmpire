@@ -176,7 +176,7 @@ internal class StarterTechnologyTests : GameSqlServerTestBase
         }
     }
 
-    [Test, Description("Under Identical customisation every Player faces the same requirements, which is the correct answer for the mode rather than a stand-in.")]
+    [Test, Description("Under Identical customisation every Player faces the same requirements in all three buckets, which is the correct answer for the mode rather than a stand-in.")]
     public async Task SetupGivesEveryPlayerTheSameRequirementsUnderIdenticalAsync()
     {
         await SeedGameAsync(mapWidth: 2, mapHeight: 2, numberOfPlayers: 2);
@@ -186,17 +186,31 @@ internal class StarterTechnologyTests : GameSqlServerTestBase
 
         await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
 
-        var requirementsByTechnology = await verify.PlayerTechnologies
+        // Grouped in memory rather than in the query, because a bucket a technology does not use is null and SQL's
+        // COUNT(DISTINCT) skips nulls - so a technology off directed research entirely, of which the catalogue has
+        // several, would come back with zero distinct values and read as disagreement rather than as agreement on
+        // null. The game's rows number a few hundred, so reading them to compare them costs nothing.
+        List<PlayerTechnology> rows = await verify.PlayerTechnologies
             .Where(row => row.GameId == result.SuccessValue)
-            .GroupBy(row => row.TechnologyId)
-            .Select(group => new
-            {
-                TechnologyId = group.Key,
-                DistinctDirected = group.Select(row => row.DirectedRequired).Distinct().Count()
-            })
             .ToListAsync();
 
-        Assert.That(requirementsByTechnology.All(entry => entry.DistinctDirected == 1), Is.True);
+        Assert.That(rows, Is.Not.Empty, "nothing below says anything about an empty set");
+
+        // All three buckets, not just the directed one: the generator writes each from the same catalogue figure and
+        // the same multiplier, so any of them differing between Players would mean the mode was not identical.
+        List<IGrouping<int, PlayerTechnology>> byTechnology = [.. rows.GroupBy(row => row.TechnologyId)];
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(byTechnology.All(group => group.Select(row => row.DirectedRequired).Distinct().Count() == 1), Is.True,
+                "every Player's directed requirement for a technology, the unused null included, is the same figure");
+
+            Assert.That(byTechnology.All(group => group.Select(row => row.ExperienceRequired).Distinct().Count() == 1), Is.True,
+                "and so is the experience requirement");
+
+            Assert.That(byTechnology.All(group => group.Select(row => row.DiffusionRequired).Distinct().Count() == 1), Is.True,
+                "and the diffusion requirement");
+        }
     }
 
     [Test, Description("Setup fails loudly when the technology catalogue is empty, rather than starting a game whose Players can never research anything.")]
