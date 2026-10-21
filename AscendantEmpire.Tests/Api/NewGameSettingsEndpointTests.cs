@@ -64,6 +64,8 @@ public sealed class NewGameSettingsEndpointTests
             .Should().Be(configuration.GetValue<int>("GameSettings:BattleMapSettings:MaximumBattleMapSize"));
         battleMapSettings["defaultBattleMapSize"]!.GetValue<int>()
             .Should().Be(configuration.GetValue<int>("GameSettings:BattleMapSettings:DefaultBattleMapSize"));
+        battleMapSettings["battleMapSizeIncrement"]!.GetValue<int>()
+            .Should().Be(configuration.GetValue<int>("GameSettings:BattleMapSettings:BattleMapSizeIncrement"));
 
         technologySettings["baseResearchPoints"]!.GetValue<int>()
             .Should().Be(configuration.GetValue<int>("GameSettings:TechnologySettings:BaseResearchPoints"));
@@ -88,6 +90,33 @@ public sealed class NewGameSettingsEndpointTests
 
         minimum.Should().BeLessThan(maximum);
         battleMapSettings["defaultBattleMapSize"]!.GetValue<int>().Should().BeInRange(minimum, maximum);
+    }
+
+    [Test, Description("The shipped bounds and default all sit on the configured increment, so every notch of the dialog's slider is a size the save accepts.")]
+    public async Task GetGameSettings_BattleMapSizeBoundsAndDefault_SitOnTheConfiguredIncrement()
+    {
+        HttpClient client = _factory.CreateClientWithPermissions();
+
+        HttpResponseMessage response = await client.GetAsync("/games/settings");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        JsonNode battleMapSettings = (await response.Content.ReadFromJsonAsync<JsonNode>())!["battleMapSettings"]!;
+        int minimum = battleMapSettings["minimumBattleMapSize"]!.GetValue<int>();
+        int maximum = battleMapSettings["maximumBattleMapSize"]!.GetValue<int>();
+        int increment = battleMapSettings["battleMapSizeIncrement"]!.GetValue<int>();
+
+        using (new FluentAssertions.Execution.AssertionScope())
+        {
+            increment.Should().BeGreaterThan(0, "a zero increment would wave the save's divisibility check through entirely");
+
+            // The slider steps from the minimum, so the span is what decides whether its top notch is reachable; the two ends and the opening value
+            // all have to be multiples for the knob never to sit on a size the save refuses.
+            ((maximum - minimum) % increment).Should().Be(0, "the slider steps from the minimum, so the maximum must be a whole number of steps away");
+            (minimum % increment).Should().Be(0);
+            (maximum % increment).Should().Be(0);
+            (battleMapSettings["defaultBattleMapSize"]!.GetValue<int>() % increment).Should().Be(0);
+        }
     }
 
     [Test, Description("The player bounds leave a usable range, so the dialog's slider is never a single point or inverted.")]

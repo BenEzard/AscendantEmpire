@@ -128,7 +128,8 @@ public class GamesController : ControllerBase
             {
                 MinimumBattleMapSize = response.SuccessValue?.MinimumBattleMapSize ?? 0,
                 MaximumBattleMapSize = response.SuccessValue?.MaximumBattleMapSize ?? 0,
-                DefaultBattleMapSize = response.SuccessValue?.DefaultBattleMapSize ?? 0
+                DefaultBattleMapSize = response.SuccessValue?.DefaultBattleMapSize ?? 0,
+                BattleMapSizeIncrement = response.SuccessValue?.BattleMapSizeIncrement ?? 0
             },
             TechnologySettings = new DTTechnologySettings
             {

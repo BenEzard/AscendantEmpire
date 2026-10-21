@@ -16,15 +16,23 @@ namespace AscendantEmpire.Tests;
 /// The values are the test project's own, deliberately not read from any appsettings file. A test that pins behaviour at the minimum or maximum
 /// player count says so against these constants, so retuning the shipped configuration cannot quietly turn a boundary test into a mid-range one.
 /// </para>
+/// <para>
+/// The constants are also the test project's single answer to "a valid battle map size", for the many fixtures that build a
+/// <see cref="Domain.Entities.Games.GameIndex"/> needing a size without caring which. They reach for <see cref="MINIMUM_BATTLE_MAP_SIZE"/> rather
+/// than a literal, so a retune of the rule moves every fixture with it.
+/// </para>
 /// </remarks>
 public static class TestGameSettings
 {
     public const int MINIMUM_PLAYERS_PER_GAME = 2;
     public const int MAXIMUM_PLAYERS_PER_GAME = 10;
 
-    public const int MINIMUM_BATTLE_MAP_SIZE = 10;
-    public const int MAXIMUM_BATTLE_MAP_SIZE = 50;
-    public const int DEFAULT_BATTLE_MAP_SIZE = 50;
+    // Every one of these is a multiple of the increment below, and the span between the bounds divides by it, so a test that drags to either end of
+    // the range lands on a size the handler accepts.
+    public const int MINIMUM_BATTLE_MAP_SIZE = 18;
+    public const int MAXIMUM_BATTLE_MAP_SIZE = 51;
+    public const int DEFAULT_BATTLE_MAP_SIZE = 51;
+    public const int BATTLE_MAP_SIZE_INCREMENT = 3;
 
     public const int BASE_RESEARCH_POINTS = 100;
     public const long TECHNOLOGY_SPEED_MULTIPLIER_PERCENT = 1_000;
@@ -43,7 +51,8 @@ public static class TestGameSettings
             {
                 MinimumBattleMapSize = MINIMUM_BATTLE_MAP_SIZE,
                 MaximumBattleMapSize = MAXIMUM_BATTLE_MAP_SIZE,
-                DefaultBattleMapSize = DEFAULT_BATTLE_MAP_SIZE
+                DefaultBattleMapSize = DEFAULT_BATTLE_MAP_SIZE,
+                BattleMapSizeIncrement = BATTLE_MAP_SIZE_INCREMENT
             },
             TechnologySettings = new TechnologySettings
             {

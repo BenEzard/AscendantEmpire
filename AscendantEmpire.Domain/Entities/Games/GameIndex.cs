@@ -7,8 +7,6 @@ namespace AscendantEmpire.Domain.Entities.Games;
 public class GameIndex
 {
     public const int GAME_NAME_MAX_LENGTH = 250;
-    public const int MIN_BATTLE_MAP_SIZE  = 30;
-    public const int MAX_BATTLE_MAP_SIZE  = 60;
 
     [Key]
     public int Id { get; set; }
@@ -35,6 +33,10 @@ public class GameIndex
     /// Width and height (in tiles) of every BattleMap generated in this game.
     /// BattleMaps are always square; this value applies to both dimensions.
     /// </summary>
+    /// <remarks>
+    /// Which sizes are allowed is configuration rather than anything this entity states: the bounds, and the increment every size must be a multiple
+    /// of, live in <c>GameSettings:BattleMapSettings</c> and are enforced by <c>SetupGameHandler</c> when the game is created.
+    /// </remarks>
     public required int BattleMapSize { get; set; }
 
     /// <summary>

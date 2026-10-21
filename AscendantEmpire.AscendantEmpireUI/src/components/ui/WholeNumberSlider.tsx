@@ -12,6 +12,13 @@ export interface WholeNumberSliderProps {
   min: number;
   /** Upper bound of the track. The knob cannot leave it. */
   max: number;
+  /**
+   * The gap between the notches the knob may land on, counted from `min`. Defaults to 1 — every whole number in range.
+   *
+   * Only `min + n * step` can be produced, so a field whose server insists on a multiple (a battle map size that has to divide by three) gets that
+   * for free. Keep `max - min` a multiple of this, or the top of the track is unreachable.
+   */
+  step?: number;
   /** When true the knob can't be moved and the control is greyed out. */
   disabled?: boolean;
   ariaLabel?: string;
@@ -27,16 +34,16 @@ export interface WholeNumberSliderProps {
  * one the server insists on, or one a default supplies — and a field where "not set" is a distinct choice wants a number input instead.
  *
  * The caller gives the bounds, because they are the field's own rule rather than anything general: the knob cannot leave them, which is the point of
- * choosing a slider over a box for a value with a small, known range. It also means no invalid value can be produced, so a caller using this needs
- * no range validation or error message behind it.
+ * choosing a slider over a box for a value with a small, known range. The same goes for `step`, which pins the knob to its notches. Between them no
+ * invalid value can be produced, so a caller using this needs no range or step validation, and no error message behind it.
  * </remarks>
  */
-export default function WholeNumberSlider({ value, onChange, min, max, disabled, ariaLabel, unitLabel }: WholeNumberSliderProps) {
+export default function WholeNumberSlider({ value, onChange, min, max, step = 1, disabled, ariaLabel, unitLabel }: WholeNumberSliderProps) {
   return (
     <div className="flex items-center gap-3">
       <input
         type="range"
-        step={1}
+        step={step}
         min={min}
         max={max}
         className="w-full disabled:opacity-50"

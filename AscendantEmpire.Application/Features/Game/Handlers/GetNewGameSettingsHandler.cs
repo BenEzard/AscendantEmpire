@@ -22,6 +22,7 @@ internal sealed class GetNewGameSettingsHandler(IOptions<GameSettings> gameSetti
             MinimumBattleMapSize = gameSettings.Value.BattleMapSettings.MinimumBattleMapSize,
             MaximumBattleMapSize = gameSettings.Value.BattleMapSettings.MaximumBattleMapSize,
             DefaultBattleMapSize = gameSettings.Value.BattleMapSettings.DefaultBattleMapSize,
+            BattleMapSizeIncrement = gameSettings.Value.BattleMapSettings.BattleMapSizeIncrement,
             BaseResearchPoints = gameSettings.Value.TechnologySettings.BaseResearchPoints,
             TechnologySpeedMultiplierPercent = gameSettings.Value.TechnologySettings.TechnologySpeedMultiplierPercent,
             TechnologyFuzzinessPercent = gameSettings.Value.TechnologySettings.TechnologyFuzzinessPercent

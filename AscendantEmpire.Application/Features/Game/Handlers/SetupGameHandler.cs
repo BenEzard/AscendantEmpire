@@ -81,6 +81,14 @@ internal class SetupGameHandler(
         {
             yield return $"{nameof(request.BattleMapSize)} must be between {battleMapSettings.MinimumBattleMapSize} and {battleMapSettings.MaximumBattleMapSize}.";
         }
+
+        // Reported alongside the bounds rather than instead of them: a size that is both out of range and off the step has two things wrong with it,
+        // and naming only the first would send the caller back for a second refusal. The increment is guarded because a section that omits it binds
+        // to zero, and dividing by that would throw rather than refuse the request.
+        if (battleMapSettings.BattleMapSizeIncrement > 0 && request.BattleMapSize % battleMapSettings.BattleMapSizeIncrement != 0)
+        {
+            yield return $"{nameof(request.BattleMapSize)} must be divisible by {battleMapSettings.BattleMapSizeIncrement}.";
+        }
     }
 }
 

@@ -83,7 +83,7 @@ One row per game. Relevant fields for maps:
 | `CampaignMapIndexId` | FK to `mapgallery.CampaignMapGalleryIndex` — which gallery map this game is using |
 | `HorizontalWrap`, `VerticalWrap` | The game creator's wrapping choice (overrides the gallery recommendation) |
 | `GenerationSeed` | `long` — seed used for biome diversity in all battle maps generated for this game. Always populated; auto-generated randomly if not supplied at game creation. |
-| `BattleMapSize` | `int` — width and height (in tiles) of every battle map in this game. Square; valid range 30–60. |
+| `BattleMapSize` | `int` — width and height (in tiles) of every battle map in this game. Square. The allowed sizes are configuration, not a fixed rule: `GameSettings:BattleMapSettings` in `appsettings.json` gives the bounds and the increment every size must be a multiple of (shipped as 18–51 in steps of 3), and `SetupGameHandler` refuses anything outside them. |
 
 ---
 

@@ -96,7 +96,7 @@ internal class PlayerFactionColourIndexTests : SqlServerTestBase
             PlayStatus = GamePlayStatus.InProgress,
             CreatedAt = DateTimeOffset.UtcNow,
             GenerationSeed = 1,
-            BattleMapSize = GameIndex.MIN_BATTLE_MAP_SIZE,
+            BattleMapSize = TestGameSettings.MINIMUM_BATTLE_MAP_SIZE,
             MapWidth = 10,
             MapHeight = 10,
             CampaignMapOffsetId = 0,

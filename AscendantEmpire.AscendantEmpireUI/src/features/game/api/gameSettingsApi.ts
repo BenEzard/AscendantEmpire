@@ -1,10 +1,12 @@
 import { http } from "@/api/http";
 
-/** The bounds a new game's battle map size must sit within, and the size the New Game dialog opens on. */
+/** The bounds a new game's battle map size must sit within, the step it has to land on, and the size the New Game dialog opens on. */
 export type BattleMapSettings = {
   minimumBattleMapSize: number;
   maximumBattleMapSize: number;
   defaultBattleMapSize: number;
+  /** Every allowed size is a multiple of this, which is also the step the dialog's slider moves in. The save refuses anything off it. */
+  battleMapSizeIncrement: number;
 };
 
 /** The technology configuration a new game is created with. Reported for completeness; no screen offers these yet. */
@@ -58,6 +60,7 @@ export async function getNewGameSettings(): Promise<NewGameSettings> {
       minimumBattleMapSize: requireNumber(battleMapSettings.minimumBattleMapSize, "minimumBattleMapSize"),
       maximumBattleMapSize: requireNumber(battleMapSettings.maximumBattleMapSize, "maximumBattleMapSize"),
       defaultBattleMapSize: requireNumber(battleMapSettings.defaultBattleMapSize, "defaultBattleMapSize"),
+      battleMapSizeIncrement: requireNumber(battleMapSettings.battleMapSizeIncrement, "battleMapSizeIncrement"),
     },
     technologySettings: {
       baseResearchPoints: requireNumber(technologySettings.baseResearchPoints, "baseResearchPoints"),

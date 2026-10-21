@@ -18,6 +18,7 @@ public class DTBattleMapSettings : IBattleMapSettings
     public int MinimumBattleMapSize { get; set; }
     public int MaximumBattleMapSize { get; set; }
     public int DefaultBattleMapSize { get; set; }
+    public int BattleMapSizeIncrement { get; set; }
 }
 
 public class DTTechnologySettings : ITechnologySettings

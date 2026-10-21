@@ -13,6 +13,7 @@ public interface IBattleMapSettings
     int MinimumBattleMapSize { get; }
     int MaximumBattleMapSize { get; }
     int DefaultBattleMapSize { get; }
+    int BattleMapSizeIncrement { get; }
 }
 
 public interface ITechnologySettings

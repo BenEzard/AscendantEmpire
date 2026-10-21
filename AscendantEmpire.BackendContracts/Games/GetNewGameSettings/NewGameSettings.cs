@@ -9,6 +9,7 @@ public record NewGameSettings
     public int MinimumBattleMapSize { get; init; }
     public int MaximumBattleMapSize { get; init; }
     public int DefaultBattleMapSize { get; init; }
+    public int BattleMapSizeIncrement { get; init; }
 
     // Technology settings
     public int BaseResearchPoints { get; init; }
