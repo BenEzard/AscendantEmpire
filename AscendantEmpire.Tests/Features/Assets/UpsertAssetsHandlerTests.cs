@@ -16,7 +16,9 @@ namespace AscendantEmpire.Tests.Features.Assets;
 /// <remarks>
 /// <para>
 /// In-memory: the handler sticks to LINQ, <c>Add</c> and <c>SaveChanges</c>, and every rule exercised here is enforced in the handler rather than by a database
-/// constraint, so no container is needed. The unique indexes on <c>Code</c> are deliberately not exercised — in-memory cannot reproduce them.
+/// constraint, so no container is needed. The unique indexes on <c>Code</c> are deliberately not exercised — in-memory cannot reproduce them, and neither can
+/// it reproduce their case-insensitivity, since the provider compares strings ordinally. Anything that turns on the real collation lives in
+/// <see cref="UpsertAssetsCodeCollationTests"/> instead.
 /// </para>
 /// <para>
 /// The rename tests are the important ones. Codes exist so a seed can be re-run after an edit and update its rows instead of inserting a second set, and that
@@ -172,6 +174,42 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
         Assert.Multiple(() =>
         {
             Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(_context.Assets.Count(), Is.Zero, "Rows were written despite the collision being refused.");
+        });
+    }
+
+    [Test, Description("Two codes differing only in case are refused as a collision, because the database they are headed for indexes codes case-insensitively and would reject the second of them anyway.")]
+    public async Task ShouldRefuseACatalogueWhoseCodesCollideOnlyInCase()
+    {
+        ServiceResultBase result = await _handler.Handle(
+            new UpsertAssetsRequest(
+            [
+                new UpsertAssetMetaCategoryDto
+                {
+                    Code = "ConstructionMaterials",
+                    DisplayName = "Construction Materials",
+                    Categories =
+                    [
+                        new UpsertAssetCategoryDto
+                        {
+                            Code = "ConstructionMaterials.Wood",
+                            DisplayName = "Wood",
+                            CategoryType = AssetCategoryType.StandaloneAssets,
+                            Assets =
+                            [
+                                new UpsertAssetDto { Code = "Duplicated", DisplayName = "Oak Log" },
+                                new UpsertAssetDto { Code = "DUPLICATED", DisplayName = "Ash Log" }
+                            ]
+                        }
+                    ]
+                }
+            ]),
+            CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.HasSucceeded, Is.False, "The collision was accepted, and would have reached the unique index as an insert.");
+            Assert.That(result.Errors, Has.Some.Contains("Duplicated"), "The error has to name the colliding code, since that is all the caller has to go on.");
             Assert.That(_context.Assets.Count(), Is.Zero, "Rows were written despite the collision being refused.");
         });
     }

@@ -143,8 +143,7 @@ internal static class TechnologySeedData
                 Code = "FireMaking",
                 DisplayName = "Fire-Making",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                ExperienceRequired = 50,
+                ExperienceRequired = 2,
                 ExperienceTypeCodes = ["Exploration"]
             },
             new UpsertTechnologyDto
@@ -221,9 +220,13 @@ internal static class TechnologySeedData
                 DisplayName = "Hunting",
                 Description = "Bonus: Scavenging",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                ExperienceRequired = 50,
-                ExperienceTypeCodes = ["Exploration"]
+                ExperienceRequired = 5,
+                ExperienceTypeCodes = ["Exploration"],
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "NaturalExploration", PrerequisiteKind = TechnologyPrerequisiteKind.Optional },
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "IntensiveGathering", PrerequisiteKind = TechnologyPrerequisiteKind.Optional }
+                ]
             },
             new UpsertTechnologyDto
             {
@@ -231,8 +234,7 @@ internal static class TechnologySeedData
                 DisplayName = "Intensive Gathering",
                 Description = "Bonus: Foraging",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                ExperienceRequired = 50,
+                ExperienceRequired = 3,
                 ExperienceTypeCodes = ["Extraction.Foraging"]
             },
             new UpsertTechnologyDto
@@ -255,9 +257,7 @@ internal static class TechnologySeedData
                 Code = "Language",
                 DisplayName = "Language",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                ExperienceRequired = 50,
-                ExperienceTypeCodes = ["Exploration"]
+                DirectedRequired = 10
             },
             new UpsertTechnologyDto
             {
@@ -453,8 +453,7 @@ internal static class TechnologySeedData
                 DisplayName = "Natural Exploration",
                 Description = "Gives: Scout (from Roving Band unit)",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                ExperienceRequired = 50,
+                ExperienceRequired = 5,
                 ExperienceTypeCodes = ["Exploration"]
             },
             new UpsertTechnologyDto
@@ -484,8 +483,7 @@ internal static class TechnologySeedData
                 Code = "PrimitiveCrafting1",
                 DisplayName = "Primitive Crafting 1",
                 Era = TechnologyEra.Stone,
-                DirectedRequired = 100,
-                ExperienceRequired = 50,
+                ExperienceRequired = 3,
                 ExperienceTypeCodes = ["Exploration"]
             },
             new UpsertTechnologyDto

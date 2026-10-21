@@ -23,6 +23,28 @@ internal class UpsertAssetsHandler(
 {
     private const int _SORT_ORDER_STEP = 10;
 
+    /// <summary>
+    /// The comparer every code comparison in this handler uses, matching the collation the codes are stored and indexed under.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Codes are compared in two places that have to agree: here, in the dictionaries that decide whether a row already exists, and in SQL Server, whose
+    /// unique code indexes are case-insensitive because the database's collation is. A default ordinal dictionary disagrees with those indexes, and the
+    /// disagreement is a save failure rather than a wrong answer: the bulk load does fetch the existing row, since SQL matched it case-insensitively, but
+    /// files it under the casing the database holds, so the lookup for the request's casing misses and an insert is queued that the index then rejects as a
+    /// duplicate key.
+    /// </para>
+    /// <para>
+    /// With this, a code whose casing changed is matched and renamed like any other edit. What it does not do is restyle the stored value - <c>Code</c> is
+    /// never written back on an existing row, so the casing already in the database stays. This is the match key, not the thing matched.
+    /// </para>
+    /// <para>
+    /// It is also what the request-level duplicate checks count under, so two entries differing only in case are refused with the error naming them rather
+    /// than passing validation and colliding in the database.
+    /// </para>
+    /// </remarks>
+    private static readonly StringComparer _CODE_COMPARER = StringComparer.OrdinalIgnoreCase;
+
     public async Task<ServiceResultBase> Handle(
         UpsertAssetsRequest request,
         CancellationToken cancellationToken)
@@ -107,7 +129,7 @@ internal class UpsertAssetsHandler(
         List<string> errors = [];
 
         string[] duplicateMetaCodes = [.. metaPlan
-            .GroupBy(m => m.Code)
+            .GroupBy(m => m.Code, _CODE_COMPARER)
             .Where(g => g.Count() > 1)
             .Select(g => g.Key)];
 
@@ -117,7 +139,7 @@ internal class UpsertAssetsHandler(
         }
 
         string[] duplicateCategoryCodes = [.. categoryPlan
-            .GroupBy(c => c.Code)
+            .GroupBy(c => c.Code, _CODE_COMPARER)
             .Where(g => g.Count() > 1)
             .Select(g => g.Key)];
 
@@ -127,7 +149,7 @@ internal class UpsertAssetsHandler(
         }
 
         string[] duplicateGroupCodes = [.. groupPlan
-            .GroupBy(g => g.Code)
+            .GroupBy(g => g.Code, _CODE_COMPARER)
             .Where(g => g.Count() > 1)
             .Select(g => g.Key)];
 
@@ -141,7 +163,7 @@ internal class UpsertAssetsHandler(
                 .Concat(standaloneAssetPlan.Select(r => r.Code))];
 
         string[] duplicateAssetCodes = [.. allAssetCodes
-            .GroupBy(c => c)
+            .GroupBy(c => c, _CODE_COMPARER)
             .Where(g => g.Count() > 1)
             .Select(g => g.Key)];
 
@@ -163,23 +185,23 @@ internal class UpsertAssetsHandler(
 
         Dictionary<string, AssetMetaCategory> existingMeta = await context.AssetMetaCategories
             .Where(m => metaCodes.Contains(m.Code))
-            .ToDictionaryAsync(m => m.Code, cancellationToken);
+            .ToDictionaryAsync(m => m.Code, _CODE_COMPARER, cancellationToken);
 
         Dictionary<string, AssetCategory> existingCategories = await context.AssetCategories
             .Where(c => categoryCodes.Contains(c.Code))
-            .ToDictionaryAsync(c => c.Code, cancellationToken);
+            .ToDictionaryAsync(c => c.Code, _CODE_COMPARER, cancellationToken);
 
         Dictionary<string, AssetGroup> existingGroups = groupCodes.Length > 0
             ? await context.AssetGroups
                 .Where(g => groupCodes.Contains(g.Code))
-                .ToDictionaryAsync(g => g.Code, cancellationToken)
-            : [];
+                .ToDictionaryAsync(g => g.Code, _CODE_COMPARER, cancellationToken)
+            : new Dictionary<string, AssetGroup>(_CODE_COMPARER);
 
         Dictionary<string, Asset> existingAssets = allAssetCodes.Length > 0
             ? await context.Assets
                 .Where(r => allAssetCodes.Contains(r.Code))
-                .ToDictionaryAsync(r => r.Code, cancellationToken)
-            : [];
+                .ToDictionaryAsync(r => r.Code, _CODE_COMPARER, cancellationToken)
+            : new Dictionary<string, Asset>(_CODE_COMPARER);
 
         // --- Step 4: Upsert MetaCategories ---
 
