@@ -208,6 +208,14 @@ No `AddHealthChecks`/`MapHealthChecks`. `/system/status` is background-job statu
 there is nothing for a container orchestrator or uptime check to hit — and nothing that proves the
 database connection is good before traffic arrives.
 
+**Closed by G-26.** `GET /health` is liveness and runs no checks, so it answers while the host is up and
+cannot put every instance into a restart loop over a database outage. `GET /health/ready` is readiness and
+runs everything tagged `ready`, currently `Api/HealthChecks/DatabaseHealthCheck.cs`, which opens a
+connection through the context factory the API registers. Both are mapped `AllowAnonymous`, since the
+deny-by-default fallback policy would otherwise require a probe to hold a bearer token, and both answer
+with the bare status and no per-check detail. They sit behind `UseHttpsRedirection`, so a probe has to be
+configured against `https`.
+
 **AE-S1-006 · Low · Absolute developer-machine paths are the committed defaults.**
 `appsettings.json` ships `ExportSettings.TempDirectory` and `MapGenerationSettings.OutputDirectory`
 as `P:\Development\AscendantEmpire_Files\...`, and the connection string as

@@ -1,5 +1,6 @@
 
 using AscendantEmpire.Api.Authentication;
+using AscendantEmpire.Api.HealthChecks;
 using AscendantEmpire.Api.Middleware.ExceptionHandling;
 using AscendantEmpire.Api.Options;
 using AscendantEmpire.Api.Utilities;
@@ -12,6 +13,7 @@ using Serilog;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -26,6 +28,15 @@ namespace AscendantEmpire.Api
 {
     public class Program
     {
+        /// <summary>
+        /// Tag marking a health check as part of readiness rather than liveness.
+        /// </summary>
+        /// <remarks>
+        /// The readiness endpoint selects by this tag rather than by check name, so a second dependency — a cache, a file share — can join readiness by
+        /// being registered with the tag, without the endpoint mapping below having to name it.
+        /// </remarks>
+        private const string _READINESS_TAG = "ready";
+
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
@@ -145,6 +156,12 @@ namespace AscendantEmpire.Api
                 options.UseSqlServer(databaseConnectionString)
             );
 
+            // --- Health checks -----------------------------------------------------------------
+            // Registered after the context factory because the database check resolves it. Only the database is checked: liveness deliberately checks
+            // nothing at all (see the endpoint mapping below), and nothing else this process depends on can fail independently of it.
+            builder.Services.AddHealthChecks()
+                .AddCheck<DatabaseHealthCheck>(DatabaseHealthCheck.CHECK_NAME, tags: [_READINESS_TAG]);
+
             // --- Authentication ----------------------------------------------------------------
             // Bind the "Jwt" settings section and register the service that builds tokens.
             builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
@@ -239,6 +256,29 @@ namespace AscendantEmpire.Api
             app.UseAuthentication();
 
             app.UseAuthorization();
+
+            // Two probes with two different jobs, which is why one endpoint would not do. Liveness answers "is this process still the one that should be
+            // running" — an orchestrator restarts the container when it fails, so it must not fail over a dependency a restart cannot fix; a database
+            // outage would otherwise take every instance into a restart loop. Readiness answers "should this instance be sent traffic", and a process
+            // that cannot reach SQL Server has nothing useful to answer a request with, so that one does open a connection.
+            //
+            // AllowAnonymous is required, not decorative: the fallback policy above applies to every endpoint that carries no authorization metadata of
+            // its own, health endpoints included, and a probe that has to hold a bearer token is no probe at all.
+            //
+            // Both sit behind UseHttpsRedirection, so a probe must be configured against https — an http one is answered with a 307 rather than a status,
+            // which most orchestrators read as a failure.
+            app.MapHealthChecks("/health", new HealthCheckOptions
+            {
+                // No checks: a 200 here means the host is up and the pipeline is intact, nothing more.
+                Predicate = _ => false,
+            })
+            .AllowAnonymous();
+
+            app.MapHealthChecks("/health/ready", new HealthCheckOptions
+            {
+                Predicate = registration => registration.Tags.Contains(_READINESS_TAG),
+            })
+            .AllowAnonymous();
 
             app.MapControllers();
 

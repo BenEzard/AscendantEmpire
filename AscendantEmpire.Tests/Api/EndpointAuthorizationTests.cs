@@ -34,14 +34,24 @@ public sealed class EndpointAuthorizationTests
     /// Endpoints reachable with no token at all.
     /// </summary>
     /// <remarks>
-    /// Only the three ways of obtaining a token qualify — you cannot require a token to ask for one. Anything added here is a deliberate hole in the
+    /// <para>
+    /// Two kinds of thing qualify. The three ways of obtaining a token, because you cannot require a token to ask for one; and the health probes, because
+    /// the orchestrator or load balancer that polls them has no account and no way to obtain one. Anything else added here is a deliberate hole in the
     /// application's front door and should be justified in review.
+    /// </para>
+    /// <para>
+    /// The probes are safe to leave open because neither reveals anything: they answer with a bare <c>Healthy</c> or <c>Unhealthy</c> and no per-check
+    /// detail, so an anonymous caller learns only whether the API is up — which it can tell by calling the API.
+    /// </para>
     /// </remarks>
     private static readonly string[] AnonymousEndpoints =
     [
         "POST /auth/login",
         "POST /auth/refresh",
         "POST /auth/register",
+
+        "GET /health",
+        "GET /health/ready",
     ];
 
     /// <summary>
