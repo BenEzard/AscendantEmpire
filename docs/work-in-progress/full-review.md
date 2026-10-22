@@ -183,6 +183,12 @@ emits `DTApiErrorResult`, and consider a `ProblemDetails`-shaped alternative.
 Any non-local deployment needs a code change. Move the origin list to configuration and bind it
 alongside the other options.
 
+**Closed by G-23.** The policy is built from `Cors:AllowedOrigins`, bound to `Api/Options/CorsSettings.cs`
+and validated at startup the way `Jwt:SigningKey` and the connection string already are — an empty list,
+a trailing slash, a path or a `*` all fail the host rather than producing a policy no browser can match.
+The base `appsettings.json` carries no default, and `http://localhost:5173` moved to
+`appsettings.Development.json`.
+
 **AE-S1-003 · Medium · Options are registered ad hoc and never validated.**
 Four `builder.Services.Configure<...>` calls sit in `Program.cs` with fully-qualified type names
 ([Program.cs:101-111](../../AscendantEmpire.Api/Program.cs)) rather than inside

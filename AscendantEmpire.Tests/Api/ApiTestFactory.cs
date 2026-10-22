@@ -52,6 +52,10 @@ public sealed class ApiTestFactory : WebApplicationFactory<AscendantEmpire.Api.P
 
         // Blank keeps the startup permission grant switched off, so the host boots without touching the database.
         ["Bootstrap__AdminUsername"] = "",
+
+        // The API throws at startup when no CORS origin is configured, the same way it does for the signing key. This matches the base address
+        // CreateAnonymousClient uses, so a test can send that origin and see the policy allow it.
+        ["Cors__AllowedOrigins__0"] = "https://localhost",
     };
 
     /// <summary>

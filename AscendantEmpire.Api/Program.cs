@@ -1,6 +1,7 @@
 
 using AscendantEmpire.Api.Authentication;
 using AscendantEmpire.Api.Middleware.ExceptionHandling;
+using AscendantEmpire.Api.Options;
 using AscendantEmpire.Api.Utilities;
 using AscendantEmpire.Application;
 using AscendantEmpire.Application.Common.Messaging;
@@ -85,11 +86,23 @@ namespace AscendantEmpire.Api
                 });
             });
 
-            // Add CORS policy to allow requests from the React app (note line further down to set it up)
+            // Add CORS policy to allow requests from the React app (note line further down to set it up). The origins come from the "Cors" section rather
+            // than a literal: which host the frontend is served from belongs to the deployment, so pinning one here made every new environment a code
+            // change and a redeploy.
+            //
+            // A missing section binds to null rather than to an empty CorsSettings, so fall back to a default instance and let GetValidatedOrigins speak:
+            // "no origins configured" is the same problem whether the section is absent or present and empty, and it already says what to set.
+            CorsSettings corsSettings = builder.Configuration.GetSection(CorsSettings.SectionName).Get<CorsSettings>() ?? new CorsSettings();
+
+            // Validated here, at startup, for the reason set out on GetValidatedOrigins: a wrong origin list is invisible from the server's side, so the
+            // alternative to failing fast is a frontend that silently cannot reach the API. Not registered with Configure<> — nothing injects
+            // IOptions<CorsSettings>, because the policy is built once, here.
+            string[] allowedOrigins = corsSettings.GetValidatedOrigins();
+
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowReactApp",
-                    policy => policy.WithOrigins("http://localhost:5173")
+                    policy => policy.WithOrigins(allowedOrigins)
                     .AllowAnyMethod()
                     .AllowAnyHeader()
                     // AllowAnyHeader governs which *request* headers the browser may send. A response header stays invisible to JavaScript unless it is named
