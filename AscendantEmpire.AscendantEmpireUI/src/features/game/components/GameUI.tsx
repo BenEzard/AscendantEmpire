@@ -578,6 +578,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
             top={assets.overlayTop}
             left={assets.overlayLeft}
             categories={assets.openCategories}
+            isClickable={assets.openPanelIsClickable}
             onReorderGroupTickers={assets.reorderGroupTickers}
             onClickAsset={(code) => {
               assets.setAssetManagerSelectedId(code);

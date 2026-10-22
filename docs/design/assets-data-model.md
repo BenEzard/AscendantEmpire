@@ -33,36 +33,38 @@ beside it are contract placeholders (see **Read Path** below).
 Population is the one part of the catalogue where an amount needs **two** players attached to it — who holds these
 people, and whose people they are — and the four global tables have nowhere to put the second.
 
-The catalogue does not gain a second player column. Instead `AssetCategory.SubjectScope` marks a category as a
-**template**, and `GetPlayerAssetsHandler` stamps one category out of it per other player at read time. Nothing is
-written per game, so a category list cannot go stale when a player is eliminated or renames their people.
+The catalogue does not gain a second player column. Instead `AssetCategory.SubjectScope` marks a category's **groups**
+as templates, and `GetPlayerAssetsHandler` stamps each of them out once per other player at read time. Nothing is
+written per game, so a group list cannot go stale when a player is eliminated or renames their people.
 
 | `AssetSubjectScope` | Int | Meaning |
 |---|---|---|
-| `Own` | 1 | Shown once, counting what the reading player holds. Every category but the population template. |
-| `PerOtherPlayer` | 2 | A template, never rendered as itself. Projected once per other player in the game. |
+| `Own` | 1 | Shown once, counting what the reading player holds. Every category but the population one. |
+| `PerOtherPlayer` | 2 | Shown once under its own name; each group beneath it is projected once per other player. |
 
-The `Society` meta-category holds both halves:
+The `Society` meta-category holds both halves, as two categories and no more — however many players are in the game:
 
-- **`Society.Population`** (`Own`) — `My People` holds Civilians / Slaves / Interred / P.o.W, and `Forces` holds
-  Army / Airforce / Navy.
-- **`Society.ForeignPopulation`** (`PerOtherPlayer`) — one group, `Subjugated`, holding Slaves / Interred / P.o.W. This
-  is the template.
+- **`Society.Population`** (`Own`, shown as **My Population**) — `My People` holds Civilians / Slaves / Interred /
+  P.o.W, and `Forces` holds Army / Airforce / Navy.
+- **`Society.ForeignPopulation`** (`PerOtherPlayer`, shown as **Enemies**) — one group, `Subjugated`, holding Slaves /
+  Interred / P.o.W. That group is the template, and the category is a column per opponent once it has been stamped out.
 
-A projected category takes its `DisplayName` from the subject player's `PeopleName` — unique within a game and locked
-once play begins — and carries that player's id in `SubjectPlayerId`. Its `Code` is the template's code suffixed with
-the subject, e.g. `Society.ForeignPopulation.P12`. **Projections share the template's `Id`**, so `Code` is what
-identifies a category in the returned tree; everything in the frontend keys on it.
+A projected group takes its `DisplayName` from the subject player's `PeopleName` — unique within a game and locked once
+play begins — and carries that player's id in `SubjectPlayerId`. Its `Code` is the template's code suffixed with the
+subject, e.g. `Society.ForeignPopulation.Subjugated.P12`. **Projections share the template's `Id`**, so `Code` is what
+identifies a group in the returned tree; everything in the frontend keys on it. Groups are laid out left to right in
+the order the API returns them, so the columns read alphabetically by people name.
 
-The template is pruned on its own contents *before* the fan-out, so a player who has unlocked none of the foreign
-assets gets no categories rather than one empty category per opponent. Eliminated and banned slots are not projected.
+A template group is pruned on its own contents *before* the fan-out, so a player who has unlocked none of the foreign
+assets gets no `Enemies` category rather than one empty column per opponent. An eliminated player keeps their column:
+people held from them are still held.
 
 ##### What the figures will come from
 
 `Amount` is still a placeholder (see **Read Path**), so every population figure currently reads zero. The holdings
 ledger that fills them is `RS-20` work that has not landed: a table keyed `(HolderPlayerId, AssetId, SubjectPlayerId)`,
 read on two axes. Rows where `HolderPlayerId` is me and `SubjectPlayerId` is another player fill that player's
-projected category. Rows where `SubjectPlayerId` is me, summed across every holder, fill the Slaves / Interred / P.o.W.
+projected group. Rows where `SubjectPlayerId` is me, summed across every holder, fill the Slaves / Interred / P.o.W.
 entries under `My People` — members of my people held by somebody else.
 
 That second axis tells a player how many of their people an enemy is holding without their having scouted anything.

@@ -17,6 +17,14 @@ export function assetToolbarButtonDomId(metaCategoryCode: string): string {
 
 const ASSET_OVERLAY_OFFSET_Y = 20;
 
+/**
+ * Meta-categories whose tickers are shown but not clickable.
+ *
+ * Clicking a ticker opens the asset manager, and Society's figures are population counts with nothing to manage behind them — no distribution, no
+ * trade, no production. Listed by code rather than flagged in the catalogue: one panel is a case, not yet a rule.
+ */
+const UNCLICKABLE_META_CATEGORY_CODES: ReadonlySet<string> = new Set(["Society"]);
+
 /** Stable empty list for the render before the query lands, so the toolbar's memo is not rebuilt every render while it is loading. */
 const EMPTY_META_CATEGORIES: PlayerAssetMetaCategory[] = [];
 
@@ -56,6 +64,10 @@ export function useAssetPanels({ gameId, playerId, enabled }: UseAssetPanelsArgs
     () => (openMetaCategory != null ? mapMetaCategoryToTickerCategories(openMetaCategory) : []),
     [openMetaCategory],
   );
+
+  // Read by the panel, which withholds its click handler rather than disabling the buttons: a ticker with no handler also loses the pointer cursor
+  // and the hover highlight, so it reads as a figure instead of a control.
+  const openPanelIsClickable = openMetaCategoryCode == null || !UNCLICKABLE_META_CATEGORY_CODES.has(openMetaCategoryCode);
 
   const { top: overlayTop, left: overlayLeft } = useAnchoredOverlay(
     openMetaCategoryCode != null ? assetToolbarButtonDomId(openMetaCategoryCode) : "",
@@ -176,6 +188,7 @@ export function useAssetPanels({ gameId, playerId, enabled }: UseAssetPanelsArgs
     openMetaCategoryCode,
     openMetaCategory,
     openCategories,
+    openPanelIsClickable,
     toggleAssetPanel,
     reorderGroupTickers,
     overlayRef,

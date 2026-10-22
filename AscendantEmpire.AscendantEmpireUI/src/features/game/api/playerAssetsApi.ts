@@ -40,9 +40,18 @@ export type PlayerAsset = {
 
 /** A row of Assets inside a grouped category — the panel lays one group out per grid column. */
 export type PlayerAssetGroup = {
+  /** The catalogue row's id. NOT unique across the tree — every per-other-player projection shares its template's id, so key on `code`. */
   id: number;
   code: string;
+  /** The group's label, which on a per-other-player projection is the subject player's people name rather than the catalogue's own. */
   displayName: string;
+  /**
+   * The player whose people this group counts, or null for an ordinary group.
+   *
+   * A populated value means the group was projected from a per-other-player template. The id is what to key on: the name is the label, not the
+   * identity.
+   */
+  subjectPlayerId: number | null;
   /** Null where the group carries no explicit order, in which case the API has already sorted it after every numbered group and then by name. */
   sortOrder: number | null;
   assets: PlayerAsset[];
@@ -55,17 +64,10 @@ export type PlayerAssetGroup = {
  * rendered without a null check.
  */
 export type PlayerAssetCategory = {
-  /** The catalogue row's id. NOT unique across the tree — every per-other-player projection shares its template's id, so key on `code`. */
+  /** The catalogue row's id, unique across the tree — the per-other-player fan-out happens a level down, on the groups. */
   id: number;
   code: string;
   displayName: string;
-  /**
-   * The player whose people this category counts, or null for an ordinary category.
-   *
-   * A populated value means the category was projected from a per-other-player template, and `displayName` is that player's people name. The id is
-   * what to key on: the name is the label, not the identity.
-   */
-  subjectPlayerId: number | null;
   categoryType: AssetCategoryTypeName;
   sortOrder: number;
   groups: PlayerAssetGroup[];
@@ -130,6 +132,8 @@ function mapGroup(group: PlayerAssetGroupWireDto): PlayerAssetGroup {
     id: group.id ?? 0,
     code: group.code ?? "",
     displayName: group.displayName ?? "",
+    // Null rather than 0 when absent: 0 is not a player id, and an ordinary group legitimately has no subject.
+    subjectPlayerId: group.subjectPlayerId ?? null,
     sortOrder: group.sortOrder ?? null,
     assets: (group.assets ?? []).filter((asset) => asset.id != null).map(mapResource),
   };
@@ -140,8 +144,6 @@ function mapCategory(category: PlayerAssetCategoryWireDto): PlayerAssetCategory 
     id: category.id ?? 0,
     code: category.code ?? "",
     displayName: category.displayName ?? "",
-    // Null rather than 0 when absent: 0 is not a player id, and an ordinary category legitimately has no subject.
-    subjectPlayerId: category.subjectPlayerId ?? null,
     // Standalone is the safer default for a category the client cannot read: it renders a flat grid without needing groups.
     categoryType: category.categoryType ?? "StandaloneAssets",
     sortOrder: category.sortOrder ?? 0,

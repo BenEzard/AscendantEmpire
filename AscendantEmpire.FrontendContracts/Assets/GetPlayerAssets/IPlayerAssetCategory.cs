@@ -12,22 +12,16 @@ namespace AscendantEmpire.FrontendContracts.Assets.GetPlayerAssets;
 public interface IPlayerAssetCategory
 {
     /// <summary>
-    /// The catalogue row's id. <b>Not unique across the tree</b> - every per-other-player projection shares its template's id, so key on
-    /// <see cref="Code"/>.
+    /// The catalogue row's id, unique across the tree - the per-other-player fan-out happens a level down, on the groups.
     /// </summary>
     int Id { get; }
 
     /// <summary>
-    /// The category's unique code, hierarchical and dotted, e.g. "ConstructionMaterials.Wood". A projected category suffixes the subject Player.
+    /// The category's unique code, hierarchical and dotted, e.g. "ConstructionMaterials.Wood".
     /// </summary>
     string Code { get; }
 
     string DisplayName { get; }
-
-    /// <summary>
-    /// The Player whose people this category counts, or <see langword="null"/> for an ordinary category.
-    /// </summary>
-    int? SubjectPlayerId { get; }
 
     /// <summary>
     /// Whether this category holds groups or Assets directly, which is what picks the layout the client draws.

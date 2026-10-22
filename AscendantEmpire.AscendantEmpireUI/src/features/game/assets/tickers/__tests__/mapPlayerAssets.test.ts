@@ -1,4 +1,4 @@
-import type { PlayerAsset, PlayerAssetCategory, PlayerAssetMetaCategory } from "@/features/game/api/playerAssetsApi";
+import type { PlayerAsset, PlayerAssetCategory, PlayerAssetGroup, PlayerAssetMetaCategory } from "@/features/game/api/playerAssetsApi";
 import { mapMetaCategoryToTickerCategories } from "../mapPlayerAssets";
 
 function aAsset(overrides: Partial<PlayerAsset> = {}): PlayerAsset {
@@ -24,6 +24,18 @@ function aAsset(overrides: Partial<PlayerAsset> = {}): PlayerAsset {
   };
 }
 
+function aGroup(overrides: Partial<PlayerAssetGroup> = {}): PlayerAssetGroup {
+  return {
+    id: 100,
+    code: "Wood.Logs",
+    displayName: "Logs",
+    subjectPlayerId: null,
+    sortOrder: 1,
+    assets: [aAsset()],
+    ...overrides,
+  };
+}
+
 function aGroupedCategory(overrides: Partial<PlayerAssetCategory> = {}): PlayerAssetCategory {
   return {
     id: 10,
@@ -32,8 +44,8 @@ function aGroupedCategory(overrides: Partial<PlayerAssetCategory> = {}): PlayerA
     categoryType: "GroupedAssets",
     sortOrder: 1,
     groups: [
-      { id: 100, code: "Wood.Logs", displayName: "Logs", sortOrder: 1, assets: [aAsset()] },
-      { id: 101, code: "Wood.Planks", displayName: "Planks", sortOrder: 2, assets: [aAsset({ id: 2, code: "Wood.Planks.OakPlank" })] },
+      aGroup(),
+      aGroup({ id: 101, code: "Wood.Planks", displayName: "Planks", sortOrder: 2, assets: [aAsset({ id: 2, code: "Wood.Planks.OakPlank" })] }),
     ],
     assets: [],
     ...overrides,
@@ -118,12 +130,32 @@ describe("mapMetaCategoryToTickerCategories", () => {
     expect(mapped.type === "standalone-assets" && mapped.assets[0]).toMatchObject({ name: "Oak Log", amountAddedPerTurn: 40 });
   });
 
+  it("carries a projected group's subject player through, since the people name is the label and the id is the identity", () => {
+    // What the Enemies panel is: one category, one column per opponent, each labelled with that opponent's people name.
+    const enemies = aGroupedCategory({
+      code: "Society.ForeignPopulation",
+      displayName: "Enemies",
+      groups: [
+        aGroup({ id: 200, code: "Society.ForeignPopulation.Subjugated.P7", displayName: "Geoffs", subjectPlayerId: 7 }),
+        aGroup({ id: 200, code: "Society.ForeignPopulation.Subjugated.P9", displayName: "Romans", subjectPlayerId: 9 }),
+      ],
+    });
+
+    const [mapped] = mapMetaCategoryToTickerCategories(aTree([enemies]));
+
+    expect(mapped.label).toBe("Enemies");
+    expect(mapped.type === "grouped-assets" && mapped.tickerGroups.map((group) => [group.label, group.subjectPlayerId, group.column])).toEqual([
+      ["Geoffs", 7, 1],
+      ["Romans", 9, 2],
+    ]);
+  });
+
   it("maps a meta-category with nothing unlocked under it to an empty panel", () => {
     expect(mapMetaCategoryToTickerCategories(aTree([]))).toEqual([]);
   });
 
   it("keeps a grouped category whose group holds no assets, so the panel shows its header rather than dropping it", () => {
-    const category = aGroupedCategory({ groups: [{ id: 100, code: "Wood.Logs", displayName: "Logs", sortOrder: 1, assets: [] }] });
+    const category = aGroupedCategory({ groups: [aGroup({ assets: [] })] });
 
     const [mapped] = mapMetaCategoryToTickerCategories(aTree([category]));
 

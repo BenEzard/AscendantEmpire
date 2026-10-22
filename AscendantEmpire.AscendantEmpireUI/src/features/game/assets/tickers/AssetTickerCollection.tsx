@@ -71,6 +71,8 @@ export type AssetTickerGroupData = {
   id: number;
   code: string;
   label?: string;
+  /** The player whose people this group counts, when it was projected from a per-other-player template; null for an ordinary group. */
+  subjectPlayerId?: number | null;
   /** 1-based grid column this group occupies, taken from its position in the order the API returned. */
   column: number;
   tickers: AssetTickerData[];
@@ -99,8 +101,6 @@ export type AssetClickArgs = {
 export type GroupedAssetCategoryData = {
   id: number;
   code: string;
-  /** The player whose people this category counts, when it was projected from a per-other-player template; null for an ordinary category. */
-  subjectPlayerId?: number | null;
   type: "grouped-assets";
   label: string;
   tickerGroups: AssetTickerGroupData[];
@@ -110,8 +110,6 @@ export type GroupedAssetCategoryData = {
 export type StandaloneAssetCategoryData = {
   id: number;
   code: string;
-  /** The player whose people this category counts, when it was projected from a per-other-player template; null for an ordinary category. */
-  subjectPlayerId?: number | null;
   type: "standalone-assets";
   label: string;
   assets: AssetTickerData[];

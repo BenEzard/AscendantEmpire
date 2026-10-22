@@ -276,9 +276,8 @@ internal class GetPlayerAssetsHandler(
     /// Builds one meta-category's visible categories, in display order.
     /// </summary>
     /// <remarks>
-    /// A category marked <see cref="AssetSubjectScope.PerOtherPlayer"/> is a template and is never emitted as itself. It is stamped out once per
-    /// entry in <paramref name="subjectPlayers"/> instead, each copy carrying the same groups and Assets under that Player's people name - which is
-    /// what lets the catalogue stay global while the panel is per-game. With no subject Players the template simply yields nothing.
+    /// A category marked <see cref="AssetSubjectScope.PerOtherPlayer"/> is emitted once, under its own name. What is stamped out per subject Player
+    /// is each of its groups - see <see cref="BuildGroups"/> - so the whole fan-out is already done by the time the emptiness check below runs.
     /// </remarks>
     private static IReadOnlyCollection<PlayerAssetCategory> BuildCategories(
         IEnumerable<CatalogueCategoryRow> categoryRows,
@@ -292,42 +291,18 @@ internal class GetPlayerAssetsHandler(
         foreach (CatalogueCategoryRow row in categoryRows.OrderBy(category => category.SortOrder).ThenBy(category => category.DisplayName))
         {
             IReadOnlyCollection<PlayerAssetGroup> groups = row.CategoryType == AssetCategoryType.GroupedAssets
-                ? BuildGroups(groupsByCategoryId[row.Id], assetsByGroupId)
+                ? BuildGroups(groupsByCategoryId[row.Id], assetsByGroupId, row.SubjectScope, subjectPlayers)
                 : [];
 
             IReadOnlyCollection<PlayerAsset> assets = row.CategoryType == AssetCategoryType.StandaloneAssets
                 ? OrderAssets(assetsByCategoryId[row.Id])
                 : [];
 
-            // A category has no unlock row of its own. It is here because something beneath it is, and it goes with the last of them. Checked before
-            // the fan-out below, so a Player who has not unlocked the population Assets gets no foreign categories at all rather than one empty one
-            // per opponent.
+            // A category has no unlock row of its own. It is here because something beneath it is, and it goes with the last of them. On a
+            // per-other-player category this covers both ways its groups can come back empty - nothing beneath the templates is unlocked, or there
+            // is no other Player to stamp them onto - so the Player sees no "Enemies" category at all rather than an empty one.
             if (groups.Count == 0 && assets.Count == 0)
             {
-                continue;
-            }
-
-            if (row.SubjectScope == AssetSubjectScope.PerOtherPlayer)
-            {
-                // Ordered by people name so the panel reads alphabetically. The names are unique within a game and locked once play begins (GS-11),
-                // so this is a stable order rather than one that shuffles between reads.
-                foreach (SubjectPlayerRow subject in subjectPlayers.OrderBy(player => player.PeopleName).ThenBy(player => player.PlayerId))
-                {
-                    categories.Add(new PlayerAssetCategory
-                    {
-                        // The template's own id, repeated across its projections: a projected category has no row of its own. Code is what
-                        // identifies one - see the remarks on the contract.
-                        Id = row.Id,
-                        Code = $"{row.Code}.P{subject.PlayerId}",
-                        DisplayName = subject.PeopleName,
-                        SubjectPlayerId = subject.PlayerId,
-                        CategoryType = row.CategoryType,
-                        SortOrder = row.SortOrder,
-                        Groups = groups,
-                        Assets = assets
-                    });
-                }
-
                 continue;
             }
 
@@ -336,7 +311,6 @@ internal class GetPlayerAssetsHandler(
                 Id = row.Id,
                 Code = row.Code,
                 DisplayName = row.DisplayName,
-                SubjectPlayerId = null,
                 CategoryType = row.CategoryType,
                 SortOrder = row.SortOrder,
                 Groups = groups,
@@ -350,9 +324,19 @@ internal class GetPlayerAssetsHandler(
     /// <summary>
     /// Builds one grouped category's visible groups, in display order.
     /// </summary>
+    /// <remarks>
+    /// Beneath a category marked <see cref="AssetSubjectScope.PerOtherPlayer"/> every group is a <b>template</b> and is never emitted as itself. It
+    /// is stamped out once per entry in <paramref name="subjectPlayers"/> instead, each copy carrying the template's Assets under that Player's
+    /// people name - which is what lets the catalogue stay global while the panel is per-game. With no subject Players the templates yield nothing
+    /// and the caller drops the emptied category.
+    /// </remarks>
+    /// <param name="subjectScope">The owning category's scope, which is what decides whether these groups are templates or ordinary groups.</param>
+    /// <param name="subjectPlayers">Ignored unless <paramref name="subjectScope"/> is per-other-player.</param>
     private static IReadOnlyCollection<PlayerAssetGroup> BuildGroups(
         IEnumerable<CatalogueGroupRow> groupRows,
-        ILookup<int, PlayerAsset> assetsByGroupId)
+        ILookup<int, PlayerAsset> assetsByGroupId,
+        AssetSubjectScope subjectScope,
+        IReadOnlyCollection<SubjectPlayerRow> subjectPlayers)
     {
         List<PlayerAssetGroup> groups = [];
 
@@ -362,8 +346,33 @@ internal class GetPlayerAssetsHandler(
         {
             IReadOnlyCollection<PlayerAsset> assets = OrderAssets(assetsByGroupId[row.Id]);
 
+            // Checked before the fan-out below, so a Player who has not unlocked the foreign population Assets gets nothing here rather than one
+            // empty column per opponent.
             if (assets.Count == 0)
             {
+                continue;
+            }
+
+            if (subjectScope == AssetSubjectScope.PerOtherPlayer)
+            {
+                // Ordered by people name so the columns read alphabetically. The names are unique within a game and locked once play begins (GS-11),
+                // so this is a stable order rather than one that shuffles between reads. The fan-out is nested inside the template loop rather than
+                // outside it, which keeps one template's opponents together instead of interleaving them with the next template's.
+                foreach (SubjectPlayerRow subject in subjectPlayers.OrderBy(player => player.PeopleName).ThenBy(player => player.PlayerId))
+                {
+                    groups.Add(new PlayerAssetGroup
+                    {
+                        // The template's own id, repeated across its projections: a projected group has no row of its own. Code is what identifies
+                        // one - see the remarks on the contract.
+                        Id = row.Id,
+                        Code = $"{row.Code}.P{subject.PlayerId}",
+                        DisplayName = subject.PeopleName,
+                        SubjectPlayerId = subject.PlayerId,
+                        SortOrder = row.SortOrder,
+                        Assets = assets
+                    });
+                }
+
                 continue;
             }
 
@@ -372,6 +381,7 @@ internal class GetPlayerAssetsHandler(
                 Id = row.Id,
                 Code = row.Code,
                 DisplayName = row.DisplayName,
+                SubjectPlayerId = null,
                 SortOrder = row.SortOrder,
                 Assets = assets
             });

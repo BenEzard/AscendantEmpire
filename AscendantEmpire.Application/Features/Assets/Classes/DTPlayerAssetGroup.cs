@@ -10,6 +10,8 @@ public class DTPlayerAssetGroup : IPlayerAssetGroup
 
     public required string DisplayName { get; set; }
 
+    public int? SubjectPlayerId { get; set; }
+
     public required int? SortOrder { get; set; }
 
     public required IReadOnlyCollection<IPlayerAsset> Assets { get; set; }

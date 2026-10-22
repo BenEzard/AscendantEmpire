@@ -92,6 +92,20 @@ describe("useAssetPanels", () => {
     expect(result.current.allOpenPanelTickers.map((ticker) => ticker.code)).toEqual(["BetaCategory.One"]);
   });
 
+  it("reports the Society panel as unclickable, and an ordinary one as clickable", async () => {
+    // Society's figures are population counts with nothing behind them to manage, so its tickers are shown without a click handler.
+    getPlayerAssetsMock.mockResolvedValue([...TREE, aMetaCategory("Society", "Society.Population")]);
+
+    const { result } = renderPanels();
+    await waitFor(() => expect(result.current.metaCategories).toHaveLength(3));
+
+    act(() => result.current.toggleAssetPanel("Society"));
+    expect(result.current.openPanelIsClickable).toBe(false);
+
+    act(() => result.current.toggleAssetPanel("Alpha"));
+    expect(result.current.openPanelIsClickable).toBe(true);
+  });
+
   it("closes the panel when its own button is toggled again", async () => {
     const { result } = renderPanels();
     await waitFor(() => expect(result.current.metaCategories).toHaveLength(2));

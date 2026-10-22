@@ -202,7 +202,6 @@ public class PlayerController : ControllerBase
                             Id = c.Id,
                             Code = c.Code,
                             DisplayName = c.DisplayName,
-                            SubjectPlayerId = c.SubjectPlayerId,
                             CategoryType = c.CategoryType,
                             SortOrder = c.SortOrder,
                             Groups =
@@ -212,6 +211,7 @@ public class PlayerController : ControllerBase
                                     Id = g.Id,
                                     Code = g.Code,
                                     DisplayName = g.DisplayName,
+                                    SubjectPlayerId = g.SubjectPlayerId,
                                     SortOrder = g.SortOrder,
                                     Assets = [.. g.Assets.Select(ToWireAsset)]
                                 })

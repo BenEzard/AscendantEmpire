@@ -10,9 +10,9 @@ namespace AscendantEmpire.Domain.Enums.Assets;
 /// nowhere to put the second because it is global and knows nothing about games or players.
 /// </para>
 /// <para>
-/// <see cref="PerOtherPlayer"/> is how that is resolved without making the catalogue per-game. A category marked with it is a <b>template</b>: it is
-/// never shown as itself, and <c>GetPlayerAssetsHandler</c> stamps one category out of it per other Player in the game, labelled from that Player's
-/// PeopleName. The fan-out is a read-time projection, so nothing is written per game and a category list cannot go stale.
+/// <see cref="PerOtherPlayer"/> is how that is resolved without making the catalogue per-game. A category marked with it is shown once under its own
+/// name - "Enemies" - but every <b>group</b> beneath it is a template: <c>GetPlayerAssetsHandler</c> stamps each one out per other Player in the game,
+/// labelled from that Player's PeopleName. The fan-out is a read-time projection, so nothing is written per game and a group list cannot go stale.
 /// </para>
 /// </remarks>
 public enum AssetSubjectScope
@@ -23,7 +23,7 @@ public enum AssetSubjectScope
     Own = 1,
 
     /// <summary>
-    /// The category is a template, projected once per other Player in the game at read time.
+    /// The category is shown once, but every group beneath it is a template, projected once per other Player in the game at read time.
     /// </summary>
     PerOtherPlayer = 2
 }

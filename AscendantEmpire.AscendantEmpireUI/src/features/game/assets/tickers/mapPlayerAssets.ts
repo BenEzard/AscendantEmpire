@@ -53,6 +53,7 @@ function mapTickerGroups(category: PlayerAssetCategory): AssetTickerGroupData[] 
     id: group.id,
     code: group.code,
     label: group.displayName,
+    subjectPlayerId: group.subjectPlayerId,
     column: groupIndex + 1,
     tickers: group.assets.map(mapTicker),
   }));
@@ -63,7 +64,6 @@ function mapCategory(category: PlayerAssetCategory): AssetCategoryData {
     return {
       id: category.id,
       code: category.code,
-      subjectPlayerId: category.subjectPlayerId,
       type: "grouped-assets",
       label: category.displayName,
       tickerGroups: mapTickerGroups(category),
@@ -73,7 +73,6 @@ function mapCategory(category: PlayerAssetCategory): AssetCategoryData {
   return {
     id: category.id,
     code: category.code,
-    subjectPlayerId: category.subjectPlayerId,
     type: "standalone-assets",
     label: category.displayName,
     assets: category.assets.map(mapTicker),
@@ -86,8 +85,9 @@ function mapCategory(category: PlayerAssetCategory): AssetCategoryData {
  * A category whose own collection is empty still maps to a category, so the panel shows its header rather than silently dropping it; a meta-category
  * with no categories maps to an empty array, which renders as an empty panel.
  *
- * Several categories may share an `id`: the API projects one category per other player from a single catalogue template, labelled with that player's
- * people name, and each copy carries the template's id. `code` is unique across the tree and is what everything here keys on.
+ * Several groups may share an `id`: under the Enemies category the API projects one group per other player from a single catalogue template,
+ * labelled with that player's people name, and each copy carries the template's id. `code` is unique across the tree and is what everything here
+ * keys on.
  */
 export function mapMetaCategoryToTickerCategories(metaCategory: PlayerAssetMetaCategory): AssetCategoryData[] {
   return metaCategory.categories.map(mapCategory);

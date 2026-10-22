@@ -454,7 +454,7 @@ internal static class AssetSeedData
                 new UpsertAssetCategoryDto
                 {
                     Code = "Society.Population",
-                    DisplayName = "Population",
+                    DisplayName = "My Population",
                     CategoryType = AssetCategoryType.GroupedAssets,
                     Groups =
                     [
@@ -524,11 +524,12 @@ internal static class AssetSeedData
                 new UpsertAssetCategoryDto
                 {
                     Code = "Society.ForeignPopulation",
-                    DisplayName = "Foreign Population",
+                    DisplayName = "Enemies",
                     CategoryType = AssetCategoryType.GroupedAssets,
 
-                    // The template the per-player categories are stamped from. It is never rendered as itself - see the banner above
-                    // AssetSubjectScope, and the projection in GetPlayerAssetsHandler.
+                    // The category is shown under its own name; its groups are the templates the per-player columns are stamped from, each labelled
+                    // with that Player's people name rather than the group's own - see the banner above AssetSubjectScope, and the projection in
+                    // GetPlayerAssetsHandler.
                     SubjectScope = AssetSubjectScope.PerOtherPlayer,
                     Groups =
                     [

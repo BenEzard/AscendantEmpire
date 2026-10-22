@@ -44,10 +44,11 @@ internal class GetPlayerAssetsHandlerTests : PlayerAssetUnlockTestBase
     // A third meta-category, used whenever a test needs one with nothing granted beneath it.
     private const string _META_EMPTY = "RawMaterials";
 
-    // Society holds the one per-other-player template in the catalogue: a category that is never rendered as itself, but stamped out once per other
-    // Player in the game.
+    // Society holds the one per-other-player category in the catalogue: the Enemies panel, whose groups are never rendered as themselves but stamped
+    // out once per other Player in the game.
     private const string _META_SOCIETY = "Society";
     private const string _CATEGORY_FOREIGN_POPULATION = "Society.ForeignPopulation";
+    private const string _GROUP_FOREIGN_SUBJUGATED = "Society.ForeignPopulation.Subjugated";
     private const string _RESOURCE_FOREIGN_SLAVES = "Society.ForeignPopulation.Subjugated.Slaves";
 
     private GetPlayerAssetsHandler _handler = null!;
@@ -284,57 +285,72 @@ internal class GetPlayerAssetsHandlerTests : PlayerAssetUnlockTestBase
     // The per-other-player projection
     // ---------------------------------------------------------------------------------------------------------------------------------------------
 
-    [Test, Description("A per-other-player template is stamped out once per other Player, each copy labelled with that Player's people name rather than the template's own.")]
-    public async Task ShouldProjectTheForeignTemplateOncePerOtherPlayer()
+    [Test, Description("The per-other-player category is shown once under its own catalogue name, so the opponents sit inside one Enemies panel rather than each getting a panel of their own.")]
+    public async Task ShouldReturnTheForeignCategoryOnceUnderItsOwnName()
     {
         await AddOtherPlayersAsync("The Vashti", "The Keldar");
-        await GrantAsync([_RESOURCE_FOREIGN_SLAVES], [_META_SOCIETY]);
-
-        IReadOnlyCollection<PlayerAssetCategory> categories = Single(await SendAsync()).Categories;
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(categories.Select(category => category.DisplayName), Is.EqualTo(new[] { "The Keldar", "The Vashti" }),
-                "the projections are ordered by people name, so the panel reads alphabetically");
-            Assert.That(categories.Select(category => category.Code),
-                Is.All.StartsWith(_CATEGORY_FOREIGN_POPULATION + "."),
-                "a projected code extends the template's, so it stays greppable back to the row it came from");
-            Assert.That(categories.Select(category => category.SubjectPlayerId), Is.All.Not.Null);
-        });
-    }
-
-    [Test, Description("A projected category names its subject Player, since the people name is a label and the id is the identity a consumer keys on.")]
-    public async Task ShouldCarryTheSubjectPlayerIdOnEachProjection()
-    {
-        int[] otherPlayerIds = await AddOtherPlayersAsync("The Vashti");
         await GrantAsync([_RESOURCE_FOREIGN_SLAVES], [_META_SOCIETY]);
 
         PlayerAssetCategory category = Single(Single(await SendAsync()).Categories);
 
         Assert.Multiple(() =>
         {
-            Assert.That(category.SubjectPlayerId, Is.EqualTo(otherPlayerIds[0]));
-            Assert.That(category.Code, Is.EqualTo($"{_CATEGORY_FOREIGN_POPULATION}.P{otherPlayerIds[0]}"));
-            Assert.That(Single(Single(category.Groups).Assets).Code, Is.EqualTo(_RESOURCE_FOREIGN_SLAVES));
+            Assert.That(category.Code, Is.EqualTo(_CATEGORY_FOREIGN_POPULATION));
+            Assert.That(category.DisplayName, Is.EqualTo("Enemies"));
         });
     }
 
-    [Test, Description("Two projections of one template carry the same catalogue Id, which is why Code rather than Id is what identifies a category in the returned tree.")]
-    public async Task ShouldRepeatTheTemplateIdAcrossProjectionsAndDistinguishThemByCode()
+    [Test, Description("A per-other-player group is stamped out once per other Player, each copy labelled with that Player's people name rather than the template's own.")]
+    public async Task ShouldProjectTheForeignTemplateGroupOncePerOtherPlayer()
     {
         await AddOtherPlayersAsync("The Vashti", "The Keldar");
         await GrantAsync([_RESOURCE_FOREIGN_SLAVES], [_META_SOCIETY]);
 
-        IReadOnlyCollection<PlayerAssetCategory> categories = Single(await SendAsync()).Categories;
+        IReadOnlyCollection<PlayerAssetGroup> groups = Single(Single(await SendAsync()).Categories).Groups;
 
         Assert.Multiple(() =>
         {
-            Assert.That(categories.Select(category => category.Id).Distinct().Count(), Is.EqualTo(1));
-            Assert.That(categories.Select(category => category.Code).Distinct().Count(), Is.EqualTo(categories.Count));
+            Assert.That(groups.Select(group => group.DisplayName), Is.EqualTo(new[] { "The Keldar", "The Vashti" }),
+                "the projections are ordered by people name, so the panel reads alphabetically");
+            Assert.That(groups.Select(group => group.Code),
+                Is.All.StartsWith(_GROUP_FOREIGN_SUBJUGATED + "."),
+                "a projected code extends the template's, so it stays greppable back to the row it came from");
+            Assert.That(groups.Select(group => group.SubjectPlayerId), Is.All.Not.Null);
         });
     }
 
-    [Test, Description("The template is never rendered as itself, so a Player alone in their game sees no foreign category at all rather than an unlabelled one.")]
+    [Test, Description("A projected group names its subject Player, since the people name is a label and the id is the identity a consumer keys on.")]
+    public async Task ShouldCarryTheSubjectPlayerIdOnEachProjectedGroup()
+    {
+        int[] otherPlayerIds = await AddOtherPlayersAsync("The Vashti");
+        await GrantAsync([_RESOURCE_FOREIGN_SLAVES], [_META_SOCIETY]);
+
+        PlayerAssetGroup group = Single(Single(Single(await SendAsync()).Categories).Groups);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(group.SubjectPlayerId, Is.EqualTo(otherPlayerIds[0]));
+            Assert.That(group.Code, Is.EqualTo($"{_GROUP_FOREIGN_SUBJUGATED}.P{otherPlayerIds[0]}"));
+            Assert.That(Single(group.Assets).Code, Is.EqualTo(_RESOURCE_FOREIGN_SLAVES));
+        });
+    }
+
+    [Test, Description("Two projections of one template group carry the same catalogue Id, which is why Code rather than Id is what identifies a group in the returned tree.")]
+    public async Task ShouldRepeatTheTemplateGroupIdAcrossProjectionsAndDistinguishThemByCode()
+    {
+        await AddOtherPlayersAsync("The Vashti", "The Keldar");
+        await GrantAsync([_RESOURCE_FOREIGN_SLAVES], [_META_SOCIETY]);
+
+        IReadOnlyCollection<PlayerAssetGroup> groups = Single(Single(await SendAsync()).Categories).Groups;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(groups.Select(group => group.Id).Distinct().Count(), Is.EqualTo(1));
+            Assert.That(groups.Select(group => group.Code).Distinct().Count(), Is.EqualTo(groups.Count));
+        });
+    }
+
+    [Test, Description("The template group is never rendered as itself, so a Player alone in their game sees no Enemies category at all rather than one holding an unlabelled column.")]
     public async Task ShouldReturnNoForeignCategoryWhenThePlayerIsTheOnlyOneInTheGame()
     {
         await GrantAsync([_RESOURCE_FOREIGN_SLAVES], [_META_SOCIETY]);
@@ -349,22 +365,24 @@ internal class GetPlayerAssetsHandlerTests : PlayerAssetUnlockTestBase
         await AddOtherPlayersAsync(gameId: _GAME_ID + 1, peopleNames: "The Outsiders");
         await GrantAsync([_RESOURCE_FOREIGN_SLAVES], [_META_SOCIETY]);
 
-        Assert.That(Single(Single(await SendAsync()).Categories).DisplayName, Is.EqualTo("The Vashti"));
+        PlayerAssetGroup group = Single(Single(Single(await SendAsync()).Categories).Groups);
+
+        Assert.That(group.DisplayName, Is.EqualTo("The Vashti"));
     }
 
-    [Test, Description("An eliminated Player keeps their category, because people held from them are still held - losing it would leave the holder owning them with no way to see them.")]
+    [Test, Description("An eliminated Player keeps their column, because people held from them are still held - losing it would leave the holder owning them with no way to see them.")]
     public async Task ShouldStillProjectAPlayerWhoHasBeenEliminated()
     {
         await AddOtherPlayersAsync("The Vashti");
         await AddOtherPlayersAsync(_GAME_ID, PlayerStatus.Eliminated, "The Fallen");
         await GrantAsync([_RESOURCE_FOREIGN_SLAVES], [_META_SOCIETY]);
 
-        IReadOnlyCollection<PlayerAssetCategory> categories = Single(await SendAsync()).Categories;
+        IReadOnlyCollection<PlayerAssetGroup> groups = Single(Single(await SendAsync()).Categories).Groups;
 
-        Assert.That(categories.Select(category => category.DisplayName), Is.EqualTo(new[] { "The Fallen", "The Vashti" }));
+        Assert.That(groups.Select(group => group.DisplayName), Is.EqualTo(new[] { "The Fallen", "The Vashti" }));
     }
 
-    [Test, Description("The template is pruned on its own contents before the fan-out, so a Player who has unlocked none of the foreign Assets gets no categories rather than one empty one per opponent.")]
+    [Test, Description("The template group is pruned on its own contents before the fan-out, so a Player who has unlocked none of the foreign Assets gets no Enemies category rather than one empty column per opponent.")]
     public async Task ShouldReturnNoForeignCategoryWhenNothingBeneathTheTemplateIsUnlocked()
     {
         await AddOtherPlayersAsync("The Vashti", "The Keldar");
@@ -373,12 +391,12 @@ internal class GetPlayerAssetsHandlerTests : PlayerAssetUnlockTestBase
         Assert.That(Single(await SendAsync()).Categories, Is.Empty);
     }
 
-    [Test, Description("An ordinary category reports no subject Player, so a consumer can tell a projection from a plain category without consulting the catalogue.")]
-    public async Task ShouldLeaveTheSubjectPlayerNullOnAnOrdinaryCategory()
+    [Test, Description("An ordinary group reports no subject Player, so a consumer can tell a projection from a plain group without consulting the catalogue.")]
+    public async Task ShouldLeaveTheSubjectPlayerNullOnAnOrdinaryGroup()
     {
         await GrantAsync([_RESOURCE_OAK_LOG], [_META_GROUPED]);
 
-        Assert.That(Single(Single(await SendAsync()).Categories).SubjectPlayerId, Is.Null);
+        Assert.That(Single(Single(Single(await SendAsync()).Categories).Groups).SubjectPlayerId, Is.Null);
     }
 
     /// <summary>
