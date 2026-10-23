@@ -57,4 +57,13 @@ public record UpsertAssetDto
     /// Whether this Asset can never be treated as a luxury, however scarce it becomes.
     /// </summary>
     public bool NeverLuxury { get; init; } = false;
+
+    /// <summary>
+    /// Where the quantity behind this Asset is held - a settlement's bank, the Player, or nowhere at all.
+    /// </summary>
+    /// <remarks>
+    /// Defaults to <see cref="AssetStorageScope.SettlementBank"/>, which covers nearly the whole catalogue, so only the experience and population Assets
+    /// need state one.
+    /// </remarks>
+    public AssetStorageScope StorageScope { get; init; } = AssetStorageScope.SettlementBank;
 }

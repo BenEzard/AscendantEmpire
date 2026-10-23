@@ -1,6 +1,5 @@
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Modifiers;
-using AscendantEmpire.Domain.Enums.Maps;
 
 namespace AscendantEmpire.Domain.Entities.Games;
 

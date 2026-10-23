@@ -28,6 +28,11 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 /// <c>NeverLuxury</c> is left at its default everywhere. It says an Asset can never be classified a luxury however scarce it gets, which is a balance
 /// decision belonging with the luxury classification work rather than something this catalogue should invent.
 /// </para>
+/// <para>
+/// <c>StorageScope</c> is left at <c>SettlementBank</c> for everything tangible and stated only where it differs: the two Experience Assets are
+/// <c>Player</c>, and every Population and ForeignPopulation Asset is <c>Derived</c>. See <see cref="AssetStorageScope"/> for why that belongs on the
+/// catalogue row rather than on the bank.
+/// </para>
 /// </remarks>
 internal static class AssetSeedData
 {
@@ -435,19 +440,26 @@ internal static class AssetSeedData
                     Code = "Society.Experience",
                     DisplayName = "Experience",
                     CategoryType = AssetCategoryType.StandaloneAssets,
+
+                    // Both are held per Player for the whole game rather than in any settlement's bank, and the figures behind them already exist:
+                    // PlayerResearchState.UnspentDirectedPoints and UnspentDiffusionPoints, plus PlayerUnusedExperience for the typed-per-kind remainder.
+                    // Giving either a balance row would make a second source of truth for one number, with the research pipeline writing the one the panel
+                    // is not reading.
                     Assets =
                     [
                         new UpsertAssetDto
                         {
                             DisplayName = "Technology",
                             IconPath = "/resources/other/bubbling-flask.svg",
-                            Description = ""
+                            Description = "",
+                            StorageScope = AssetStorageScope.Player
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Culture",
                             IconPath = "/resources/other/lyre.svg",
-                            Description = ""
+                            Description = "",
+                            StorageScope = AssetStorageScope.Player
                         },
                     ]
                 },
@@ -462,25 +474,31 @@ internal static class AssetSeedData
                         {
                             Code = "Society.Population.MyPeople",
                             DisplayName = "My People",
+
+                            // Nobody banks people. Civilians comes from Settlement.Population, and Slaves / Interned / P.o.W. from the holdings ledger
+                            // RS-20 specified and did not build - so these are derived at read time rather than stored anywhere.
                             Assets =
                             [
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Civilians",
                                     IconPath = _CIVILIAN_ICON,
-                                    Description = "Civilians in our Faction"
+                                    Description = "Civilians in our Faction",
+                                    StorageScope = AssetStorageScope.Derived
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Slaves",
                                     IconPath = _SLAVE_ICON,
-                                    Description = "Our people held as slaves"
+                                    Description = "Our people held as slaves",
+                                    StorageScope = AssetStorageScope.Derived
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Interned",
                                     IconPath = _INTERNED_ICON,
-                                    Description = "Our people interned in camps"
+                                    Description = "Our people interned in camps",
+                                    StorageScope = AssetStorageScope.Derived
                                 },
                                 new UpsertAssetDto
                                 {
@@ -489,7 +507,8 @@ internal static class AssetSeedData
                                     Code = "Society.Population.MyPeople.PoW",
                                     DisplayName = "Prisoners of War",
                                     IconPath = _PRISONER_OF_WAR_ICON,
-                                    Description = "Our forces rotting as Prisoners of War"
+                                    Description = "Our forces rotting as Prisoners of War",
+                                    StorageScope = AssetStorageScope.Derived
                                 },
                             ]
                         },
@@ -497,25 +516,30 @@ internal static class AssetSeedData
                         {
                             Code = "Society.Population.Forces",
                             DisplayName = "Forces",
+
+                            // Counted off the force rosters, which already know who is serving where.
                             Assets =
                             [
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Army",
                                     IconPath = _ARMY_ICON,
-                                    Description = "Members of this people serving under arms on land."
+                                    Description = "Members of this people serving under arms on land.",
+                                    StorageScope = AssetStorageScope.Derived
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Airforce",
                                     IconPath = _AIRFORCE_ICON,
-                                    Description = "Members of this people serving in the air."
+                                    Description = "Members of this people serving in the air.",
+                                    StorageScope = AssetStorageScope.Derived
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Navy",
                                     IconPath = _NAVY_ICON,
-                                    Description = "Members of this people serving at sea."
+                                    Description = "Members of this people serving at sea.",
+                                    StorageScope = AssetStorageScope.Derived
                                 },
                             ]
                         },
@@ -537,19 +561,24 @@ internal static class AssetSeedData
                         {
                             Code = "Society.ForeignPopulation.Subjugated",
                             DisplayName = "Subjugated",
+
+                            // Derived for the same reason as their counterparts under My People: the figure comes from the holdings ledger, and these are
+                            // the rows it is read per subject Player for.
                             Assets =
                             [
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Slaves",
                                     IconPath = _SLAVE_ICON,
-                                    Description = "People we have enslaved"
+                                    Description = "People we have enslaved",
+                                    StorageScope = AssetStorageScope.Derived
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Interned",
                                     IconPath = _INTERNED_ICON,
-                                    Description = "Civilians we have interned"
+                                    Description = "Civilians we have interned",
+                                    StorageScope = AssetStorageScope.Derived
                                 },
                                 new UpsertAssetDto
                                 {
@@ -557,7 +586,8 @@ internal static class AssetSeedData
                                     Code = "Society.ForeignPopulation.Subjugated.PoW",
                                     DisplayName = "Prisoners of War",
                                     IconPath = _PRISONER_OF_WAR_ICON,
-                                    Description = "Enemy combatants kept as Prisoners of War"
+                                    Description = "Enemy combatants kept as Prisoners of War",
+                                    StorageScope = AssetStorageScope.Derived
                                 },
                             ]
                         },

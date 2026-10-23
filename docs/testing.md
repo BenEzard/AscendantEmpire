@@ -119,6 +119,57 @@ Ask, in order:
 > checking, or complex-type reads, which is why those behaviours push a test up to the
 > containerised tier.
 
+## What not to test
+
+A test earns its place by being able to **fail for a reason nobody intended**. Before writing one, ask
+what plausible edit it would catch. If the only edit that breaks it is the deliberate decision to change
+that exact value — the edit whose author would update the test in the same breath — it is a restatement,
+not a test, and it costs a line of maintenance for nothing.
+
+### A restatement of a configuration literal
+
+The usual shape is an assertion that copies a literal out of the code under test and compares it back:
+
+```csharp
+// Not worth writing: this says the same thing the configuration says, in a second place.
+Assert.That(EntityType<AssetBank>().GetSchema(), Is.EqualTo("assets"));
+Assert.That(EntityType<AssetBank>().GetTableName(), Is.EqualTo("AssetBank"));
+```
+
+Table and schema names, constant values, enum member numbers, a property's presence, a `DbSet` existing,
+`[Required]` on a column — all of these are recorded by the thing that defines them, and a migration or
+the compiler is the artifact that has to be right. A second copy in a test adds no safety.
+
+### A value whose job is already finished
+
+A related trap is asserting something that *was* load-bearing once and no longer is. The clearest case is
+a column default that exists to backfill a migration:
+
+```csharp
+// Not worth writing: this mattered for exactly one migration, and that migration has run.
+Assert.That(storageScope.GetDefaultValue(), Is.EqualTo(AssetStorageScope.SettlementBank));
+```
+
+`HasDefaultValue` on a new non-nullable column decides what lands on the rows that already exist when the
+migration is applied. Once it has been applied the question is settled for good — the rows have their
+values, and new rows get theirs from the entity's own initialiser, not from the database default. The test
+guards a window that has already closed, and it will sit there being green for the life of the project.
+
+Before writing a test about configuration, ask **when** it could fail. If the answer is "only before a
+migration that has already run", it is not protecting anything.
+
+### What is worth asserting instead
+
+The narrow case that can be worth a test is a rule the mapping **enforces** that nothing in code enforces,
+where a reasonable-looking future edit would quietly drop it — a composite key that is the whole of a
+business rule, say, rather than a name or a default. Even then, prefer a test that provokes the rule
+through the code that relies on it over one that reads the model back: a handler that refuses the second
+write proves the rule and survives a refactor of how the rule is expressed. Where such a test is written,
+the `[Description]` names the rule rather than the column.
+
+The same question applies to behaviour, not just mapping. A test that asserts a getter returns what the
+constructor was handed, or that a mapper copies a field across, is in this category too.
+
 ## Writing a test
 
 Beyond picking the right tier, every new test follows these.

@@ -99,5 +99,26 @@ public sealed class Asset
     /// </summary>
     public bool NeverLuxury { get; set; }
 
+    /// <summary>
+    /// Where the quantity behind this Asset is held - a settlement's bank, the Player, or nowhere at all.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Defaults to <see cref="AssetStorageScope.SettlementBank"/>, which is nearly everything. The exceptions are the experience points, held per Player, and
+    /// the population figures, which are derived at read time from the settlements and rosters that already record them.
+    /// </para>
+    /// <para>
+    /// This keeps the catalogue row a pure label: it says what the Asset <i>is</i>, and this column says where to go for its number. Only a
+    /// <see cref="AssetStorageScope.SettlementBank"/> Asset ever has an <see cref="AssetBankBalance"/>.
+    /// </para>
+    /// </remarks>
+    public AssetStorageScope StorageScope { get; set; } = AssetStorageScope.SettlementBank;
+
     public AssetMetaCategory MetaCategory { get; set; } = null!;
+
+    /// <summary>
+    /// The per-bank balances of this Asset, across every Player's banks.
+    /// </summary>
+    /// <remarks>Empty for an Asset that is not held in a bank, and the inverse the balance configuration's foreign key is declared against.</remarks>
+    public ICollection<AssetBankBalance> BankBalances { get; set; } = [];
 }

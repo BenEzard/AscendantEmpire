@@ -277,6 +277,21 @@ public class AscendantEmpireContext : DbContext
     /// Which Assets each Player has unlocked. The categories and groups between are derived from these rather than unlocked in their own right.
     /// </summary>
     public DbSet<PlayerUnlockedAsset> PlayerUnlockedAssets { get; set; }
+
+    /// <summary>
+    /// The pooled Asset stores, one per Player per connected settlement network.
+    /// </summary>
+    public DbSet<AssetBank> AssetBanks { get; set; }
+
+    /// <summary>
+    /// How much of each Asset each bank holds.
+    /// </summary>
+    public DbSet<AssetBankBalance> AssetBankBalances { get; set; }
+
+    /// <summary>
+    /// Which bank each Settlement currently draws on. At most one row per Settlement, enforced by the key.
+    /// </summary>
+    public DbSet<AssetBankSettlementMembership> AssetBankSettlementMemberships { get; set; }
     #endregion
 
     #region Technology Schema
@@ -605,6 +620,10 @@ public class AscendantEmpireContext : DbContext
             entity.Property(x => x.Code).HasMaxLength(Asset.MAX_CODE_LENGTH).IsRequired();
             entity.Property(x => x.DisplayName).HasMaxLength(Asset.MAX_DISPLAY_NAME_LENGTH).IsRequired();
 
+            // Defaulted in the database as well as on the entity, following SubjectScope above, so the column lands on existing rows as SettlementBank
+            // rather than as a zero that matches no member of the enum.
+            entity.Property(x => x.StorageScope).HasDefaultValue(AssetStorageScope.SettlementBank);
+
             entity.HasIndex(x => x.Code).IsUnique();
             entity.HasIndex(x => x.DisplayName);
 
@@ -666,6 +685,72 @@ public class AscendantEmpireContext : DbContext
 
             entity.HasIndex(e => e.AssetId)
                 .HasDatabaseName("IX_PlayerUnlockedAsset_Asset");
+        });
+
+        // --- Asset banks -------------------------------------------------------------
+        // The pooled stores a Player's settlements draw on. These sit in the assets schema with the catalogue they hold quantities of, rather than in the
+        // settlement schema, because a bank outlives any one settlement's membership of it and is keyed on the Player instead.
+        modelBuilder.Entity<AssetBank>(entity =>
+        {
+            entity.ToTable("AssetBank", schema);
+
+            entity.HasKey(x => x.Id);
+
+            // A real foreign key rather than a bare PlayerId index: a bank with no owning Player is meaningless, and nothing else would stop one existing.
+            // NoAction, like every other Player reference, so a cascade cannot ripple out from deleting a Player.
+            entity.HasOne(x => x.Player)
+                .WithMany()
+                .HasForeignKey(x => x.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_AssetBank_Player_PlayerId");
+
+            entity.HasIndex(x => x.PlayerId)
+                .HasDatabaseName("IX_AssetBank_Player");
+        });
+
+        modelBuilder.Entity<AssetBankBalance>(entity =>
+        {
+            entity.ToTable("AssetBankBalance", schema);
+
+            // One row per Asset per bank, so a drawdown has a single row to debit rather than a set to reconcile.
+            entity.HasKey(x => new { x.AssetBankId, x.AssetId });
+
+            entity.Property(x => x.Quantity).IsRequired();
+
+            entity.HasOne(x => x.Bank)
+                .WithMany(x => x.Balances)
+                .HasForeignKey(x => x.AssetBankId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasOne(x => x.Asset)
+                .WithMany(x => x.BankBalances)
+                .HasForeignKey(x => x.AssetId)
+                .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<AssetBankSettlementMembership>(entity =>
+        {
+            entity.ToTable("AssetBankSettlementMembership", schema);
+
+            // Keyed on the Settlement alone, which is what makes "a settlement has exactly one asset bank at any time" a schema rule rather than one a
+            // service has to remember to check.
+            entity.HasKey(x => x.SettlementId);
+
+            entity.HasOne(x => x.Bank)
+                .WithMany(x => x.SettlementMemberships)
+                .HasForeignKey(x => x.AssetBankId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // One-to-one from the Settlement's side, since the key above already caps it at one row.
+            entity.HasOne(x => x.Settlement)
+                .WithOne()
+                .HasForeignKey<AssetBankSettlementMembership>(x => x.SettlementId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_AssetBankSettlementMembership_Settlements_SettlementId");
+
+            // The membership list of one bank is read on every merge and split, and the key cannot serve it.
+            entity.HasIndex(x => x.AssetBankId)
+                .HasDatabaseName("IX_AssetBankSettlementMembership_AssetBank");
         });
     }
 

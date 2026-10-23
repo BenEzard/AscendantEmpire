@@ -45,8 +45,8 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 ///     catalogues they point at.
 ///   </description></item>
 ///   <item><description>
-///     <b>Acquisition costs.</b> None. No Asset stockpile is modelled yet - <c>AssetBank</c> and <c>AssetBankBalance</c> are unmapped - so a technology with
-///     cost rows could not be unlocked at all.
+///     <b>Acquisition costs.</b> None. <c>AssetBank</c> and <c>AssetBankBalance</c> are mapped now, but nothing credits a balance and no drawdown service
+///     spends from one, so a technology with cost rows could still not be unlocked at all.
 ///   </description></item>
 /// </list>
 /// </remarks>
@@ -1646,6 +1646,17 @@ internal static class TechnologySeedData
                 Prerequisites =
                 [
                     new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "BandLeadership" }
+                ]
+            },
+            new UpsertTechnologyDto
+            {
+                Code = "Roads",
+                DisplayName = "Roads",
+                Era = TechnologyEra.Stone,
+                DirectedRequired = 300,
+                Prerequisites =
+                [
+                    new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "TribalLeadership" }
                 ]
             },
             new UpsertTechnologyDto

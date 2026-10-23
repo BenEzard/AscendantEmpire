@@ -308,6 +308,7 @@ internal class UpsertAssetsHandler(
                     IsGradedAsset = res.Dto.IsGradedAsset,
                     AssetGrade = res.Dto.AssetGrade,
                     NeverLuxury = res.Dto.NeverLuxury,
+                    StorageScope = res.Dto.StorageScope,
                     MetaCategory = metaEntity,
                     Group = groupEntity
                 };
@@ -321,6 +322,7 @@ internal class UpsertAssetsHandler(
                 assetEntity.IsGradedAsset = res.Dto.IsGradedAsset;
                 assetEntity.AssetGrade = res.Dto.AssetGrade;
                 assetEntity.NeverLuxury = res.Dto.NeverLuxury;
+                assetEntity.StorageScope = res.Dto.StorageScope;
                 assetEntity.MetaCategory = metaEntity;
 
                 // Ensure grouped path is set and standalone path is cleared.
@@ -357,6 +359,7 @@ internal class UpsertAssetsHandler(
                     IsGradedAsset = res.Dto.IsGradedAsset,
                     AssetGrade = res.Dto.AssetGrade,
                     NeverLuxury = res.Dto.NeverLuxury,
+                    StorageScope = res.Dto.StorageScope,
                     MetaCategory = metaEntity,
                     Category = catEntity
                 };
@@ -370,6 +373,7 @@ internal class UpsertAssetsHandler(
                 assetEntity.IsGradedAsset = res.Dto.IsGradedAsset;
                 assetEntity.AssetGrade = res.Dto.AssetGrade;
                 assetEntity.NeverLuxury = res.Dto.NeverLuxury;
+                assetEntity.StorageScope = res.Dto.StorageScope;
                 assetEntity.MetaCategory = metaEntity;
 
                 // Ensure standalone path is set and grouped path is cleared.

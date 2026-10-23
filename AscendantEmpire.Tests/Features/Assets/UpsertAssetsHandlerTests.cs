@@ -288,6 +288,67 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
         });
     }
 
+    [Test, Description("The supplied storage scope is written on insert and moved on a re-run, so the catalogue is what decides where an asset's figure lives.")]
+    public async Task ShouldStoreAndUpdateTheSuppliedStorageScope()
+    {
+        await UpsertAsync(BuildScopedCatalogue(AssetStorageScope.Player));
+
+        Assert.That(_context.Assets.Single().StorageScope, Is.EqualTo(AssetStorageScope.Player));
+
+        await UpsertAsync(BuildScopedCatalogue(AssetStorageScope.Derived));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_context.Assets.Single().StorageScope, Is.EqualTo(AssetStorageScope.Derived), "a re-run should move the scope rather than keep the old one");
+            Assert.That(_context.Assets.Count(), Is.EqualTo(1), "the re-run matched on code, so it should have updated the row rather than inserted a second");
+        });
+    }
+
+    [Test, Description("An asset that states no storage scope is held in a settlement bank, which is where all but a handful of the catalogue belongs.")]
+    public async Task ShouldDefaultTheStorageScopeToSettlementBank()
+    {
+        await UpsertAsync(BuildCatalogue());
+
+        Assert.That(
+            _context.Assets.Select(asset => asset.StorageScope),
+            Is.All.EqualTo(AssetStorageScope.SettlementBank));
+    }
+
+    /// <summary>
+    /// One standalone category holding a single Asset at the given storage scope, which is the smallest shape that exercises the column.
+    /// </summary>
+    private static IReadOnlyCollection<UpsertAssetMetaCategoryDto> BuildScopedCatalogue(AssetStorageScope storageScope)
+    {
+        return
+        [
+            new UpsertAssetMetaCategoryDto
+            {
+                Code = "Society",
+                DisplayName = "Society",
+                IconPath = "/resources/other/civilian.svg",
+                Categories =
+                [
+                    new UpsertAssetCategoryDto
+                    {
+                        Code = "Society.Experience",
+                        DisplayName = "Experience",
+                        CategoryType = AssetCategoryType.StandaloneAssets,
+                        Assets =
+                        [
+                            new UpsertAssetDto
+                            {
+                                Code = "Society.Experience.Technology",
+                                DisplayName = "Technology",
+                                IconPath = "/resources/other/bubbling-flask.svg",
+                                StorageScope = storageScope
+                            }
+                        ]
+                    }
+                ]
+            }
+        ];
+    }
+
     private async Task UpsertAsync(IReadOnlyCollection<UpsertAssetMetaCategoryDto> metaCategories)
     {
         ServiceResultBase result = await _handler.Handle(new UpsertAssetsRequest(metaCategories), CancellationToken.None);

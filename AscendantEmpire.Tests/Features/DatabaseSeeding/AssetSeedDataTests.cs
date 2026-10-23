@@ -209,6 +209,68 @@ internal class AssetSeedDataTests
         });
     }
 
+    [Test, Description("The two Experience assets are held per player, so nothing gives them a bank balance that would compete with the research pipeline's columns.")]
+    public void ShouldHoldTheExperienceAssetsAtPlayerScope()
+    {
+        UpsertAssetCategoryDto experience = AllCategories().Single(category => category.Code == "Society.Experience");
+
+        Assert.That(experience.Assets, Is.Not.Empty, "the experience category is what player-scoped storage exists for");
+
+        Assert.Multiple(() =>
+        {
+            foreach (UpsertAssetDto asset in experience.Assets)
+            {
+                Assert.That(
+                    asset.StorageScope,
+                    Is.EqualTo(AssetStorageScope.Player),
+                    $"'{asset.DisplayName}' is already held as PlayerResearchState / PlayerUnusedExperience columns");
+            }
+        });
+    }
+
+    [Test, Description("Every population figure is derived, since Civilians comes from the settlements and the rest from the rosters and the holdings ledger.")]
+    public void ShouldDeriveEveryPopulationFigure()
+    {
+        string[] populationCategoryCodes = ["Society.Population", "Society.ForeignPopulation"];
+
+        UpsertAssetDto[] populationAssets =
+        [
+            .. AllCategories()
+                .Where(category => populationCategoryCodes.Contains(category.Code))
+                .SelectMany(category => category.Groups.SelectMany(group => group.Assets).Concat(category.Assets))
+        ];
+
+        Assert.That(populationAssets, Is.Not.Empty, "the population categories are what derived storage exists for");
+
+        Assert.Multiple(() =>
+        {
+            foreach (UpsertAssetDto asset in populationAssets)
+            {
+                Assert.That(asset.StorageScope, Is.EqualTo(AssetStorageScope.Derived), $"'{asset.DisplayName}' has no balance row to read");
+            }
+        });
+    }
+
+    [Test, Description("Everything outside Society is held in a settlement bank, so a tangible asset cannot be seeded somewhere the drawdown service will not look.")]
+    public void ShouldHoldEveryTangibleAssetInASettlementBank()
+    {
+        IEnumerable<UpsertAssetDto> tangibleAssets = _metaCategories
+            .Where(metaCategory => metaCategory.Code != "Society")
+            .SelectMany(metaCategory => metaCategory.Categories)
+            .SelectMany(category => category.Groups.SelectMany(group => group.Assets).Concat(category.Assets));
+
+        Assert.Multiple(() =>
+        {
+            foreach (UpsertAssetDto asset in tangibleAssets)
+            {
+                Assert.That(
+                    asset.StorageScope,
+                    Is.EqualTo(AssetStorageScope.SettlementBank),
+                    $"'{asset.DisplayName}' is a tangible asset and belongs in a bank");
+            }
+        });
+    }
+
     private IEnumerable<UpsertAssetCategoryDto> AllCategories()
     {
         return _metaCategories.SelectMany(metaCategory => metaCategory.Categories);

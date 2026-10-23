@@ -243,27 +243,38 @@ instead. The states, the transfer rules and the rebellion period are in
 
 ## Asset banks
 
-> **Not built.** Founding a settlement creates no asset bank; `AssetBank` and its siblings are still in
-> `Domain/Entities/Assets/_not_used_yet`. Everything below is the design.
+> **Partly built.** `AssetBank`, `AssetBankBalance` and `AssetBankSettlementMembership` are mapped, in
+> the `assets` schema and keyed on the player. Nothing yet creates a bank at founding, credits a
+> balance or spends from one, so the behaviour below is still the design.
 
-Definitions:
+The full rules are [asset-banks.md](asset-banks.md). What matters here is the shape:
 
-- Each settlement has an **Asset Bank** — the collection of assets the settlement holds. An asset
-  bank is created when the settlement is created.
+- An **Asset Bank** is a pool of assets belonging to a player, and a settlement is joined to one by a
+  **membership**. The bank is shared: one bank, many settlements.
 - A settlement is **linked** when connected to another settlement via a transport network (road,
   river, railroad). Coastal settlements with a harbour and ship technology are automatically linked
-  to other harboured settlements.
-- Initially each settlement forms its own **Asset Bank Group**. When settlements are linked, they
-  share an Asset Bank Group, representing the ability to share assets.
-- Settlements **not** linked cannot share assets outside their group. When a settlement is
-  separated from others, it reverts to its own asset bank (or any it is still connected to).
-- When a linked settlement lacks an asset but another in the group has it, that bank is debited.
-  If the asset isn't held in sufficient quantity across the group, the purchase cannot be made.
-- When two asset banks are merged, all their assets are combined.
+  to other harboured settlements. Links count only between a player's **own** settlements.
+- A settlement that is not linked to anything has a bank to itself. A settlement that becomes linked
+  has its membership repointed at the bank it joins, so the two settlements then draw on one pool and
+  there is nothing extra to reconcile between them.
+- A settlement cut off — a pillaged road, a dammed river — gets a membership pointing at a **new, empty**
+  bank. Restoring the link folds that bank's balances back into the shared one and deletes it.
+- A settlement's membership is keyed on the settlement, so it has **exactly one** bank at any time,
+  and that is a schema rule rather than one a service has to remember to check.
+- An expense is met from the one bank the settlement draws on. If the bank does not hold enough, the
+  purchase cannot be made.
 
-> Open idea (liked): an "internal transaction" between settlements — e.g. a mining settlement
-> exporting stone everywhere should be considered "richer" (population boom? commerce bonus?) than
-> the areas it exports to.
+> There is deliberately no second "asset bank group" table standing for a set of banks that share.
+> Sharing *is* the bank, so a merge is folding one bank's balances into another and deleting it. The
+> cost of that choice is accepted: per-settlement provenance is given up, so the game cannot say which
+> settlement a given log came from and the "a mining settlement exporting stone should be considered
+> richer" idea has nowhere to read from. Nothing uses it today, and it can be recovered from production
+> records later rather than from balances.
+
+Not everything a player holds lives in a bank. `Asset.StorageScope` says where a figure comes from:
+most assets are `SettlementBank`, the two experience points are held per player for the whole game, and
+the population figures are `Derived` — read from the settlements and rosters that already record them,
+with no balance row anywhere.
 
 ## Buildings
 
