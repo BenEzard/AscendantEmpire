@@ -190,8 +190,9 @@ known-structure marker follows the progress, and the completion is reported to t
 alone raises no report. See
 [intelligence-and-sightings.md](intelligence-and-sightings.md#structures).
 
-Construction is otherwise free. Nothing is *spent* to raise a structure — the work is the only cost —
-until the asset bank exists to draw materials from.
+Construction is otherwise free. Nothing is *spent* to raise a structure — the work is the only cost.
+A village is born with the bank such a cost would be drawn from, but no structure carries an
+acquisition cost or an upkeep for it to meet.
 
 **The settlement exists from the moment it is founded**, and is drawn on the map with its name, where it
 has one, from then on — a progress bar on the sprite is how an unfinished one is told apart from a
@@ -244,8 +245,10 @@ instead. The states, the transfer rules and the rebellion period are in
 ## Asset banks
 
 > **Partly built.** `AssetBank`, `AssetBankBalance` and `AssetBankSettlementMembership` are mapped, in
-> the `assets` schema and keyed on the player. Nothing yet creates a bank at founding, credits a
-> balance or spends from one, so the behaviour below is still the design.
+> the `assets` schema and keyed on the player. Founding a settlement of village tier or above creates
+> its bank and its membership, empty, inside the settle transaction; an expense can be drawn from a
+> bank. Nothing yet credits a balance, links or merges banks, or attaches a camp to the village whose
+> bank it draws on, so the rest of the behaviour below is still the design.
 
 The full rules are [asset-banks.md](asset-banks.md). What matters here is the shape:
 

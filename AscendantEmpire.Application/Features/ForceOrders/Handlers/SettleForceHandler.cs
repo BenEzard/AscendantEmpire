@@ -2,6 +2,7 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Assets.Services;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.Application.Features.Settlements.Classes;
 using AscendantEmpire.Application.Features.Structures.Services;
@@ -73,7 +74,8 @@ internal class SettleForceHandler(
     ICampaignTurnService campaignTurnService,
     IForceContextActionService contextActionService,
     IForceLifecycleWriter forceLifecycleWriter,
-    IStructureLifecycleWriter structureLifecycleWriter
+    IStructureLifecycleWriter structureLifecycleWriter,
+    IAssetBankProvisioningService assetBankProvisioningService
 ) : IRequestHandler<SettleForceRequest, ServiceResult<SettleForceResult>>
 {
     public async Task<ServiceResult<SettleForceResult>> Handle(SettleForceRequest request, CancellationToken cancelToken)
@@ -352,6 +354,19 @@ internal class SettleForceHandler(
         };
 
         context.Settlements.Add(settlement);
+
+        // The bank the Settlement is born with, staged on this context so it is written by the save below and inside this transaction.
+        // A camp is given no Asset Bank - it draws on the village it attaches to, which is its own ticket.
+        ServiceResultBase bankResult = await assetBankProvisioningService.ProvisionForNewSettlementAsync(context, request.PlayerId, settlement, cancelToken);
+
+        if (bankResult.HasSucceeded == false)
+        {
+            const string error = "The settlement's asset bank could not be created, so no settlement was founded.";
+            logger.LogWarning("Could not provision an asset bank for a {Tier} founded by Player Id {PlayerId}: {Errors}",
+                request.Tier, request.PlayerId, string.Join("; ", bankResult.Errors));
+
+            return ServiceResult<SettleForceResult>.Fail(bankResult.Errors.Prepend(error));
+        }
 
         await context.SaveChangesAsync(cancelToken);
         await transaction.CommitAsync(cancelToken);

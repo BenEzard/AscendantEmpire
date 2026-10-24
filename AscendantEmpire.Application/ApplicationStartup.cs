@@ -163,6 +163,9 @@ public static class ApplicationStartup
         // for commit together.
         services.AddScoped<IAssetBankDrawdownService, AssetBankDrawdownService>();
 
+        // The one place a Settlement is given the bank it is born with, called from inside the settle transaction so a founding and its bank land together.
+        services.AddScoped<IAssetBankProvisioningService, AssetBankProvisioningService>();
+
         // Force context action pipeline. Each IForceActionStrategy decides one toolbar action; the service builds the shared context once and
         // judges every strategy against it. Display order comes from ForceActionType's value, so registration order here does not matter.
         services.AddScoped<IForceContextActionService, ForceContextActionService>();

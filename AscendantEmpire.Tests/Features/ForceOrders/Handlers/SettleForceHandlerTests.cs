@@ -1,5 +1,6 @@
 ﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Assets.Services;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.Application.Features.ForceOrders.Handlers;
 using AscendantEmpire.Application.Features.Game.Handlers;
@@ -8,6 +9,7 @@ using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Units.Services;
 using AscendantEmpire.BackendContracts.ForceOrders.SettleForce;
 using AscendantEmpire.BackendContracts.Turns.GetCurrentCampaignTurn;
+using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Settlements;
 using AscendantEmpire.Domain.Entities.Structures;
@@ -723,6 +725,53 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
         }
     }
 
+    [Test, Description("Founding a village creates the empty asset bank it is born with, so the settlement holds something from its first turn and anything it builds can have a cost.")]
+    public async Task ShouldGiveANewVillageItsAssetBankAsync()
+    {
+        int playerTurnId = await OpenFirstPlayerTurnAsync(_gameId);
+        ItIsThisPlayersTurn(playerTurnId, roundNumber: 1);
+
+        int settlerId = await SeedSettlerAsync();
+
+        ServiceResult<SettleForceResult> result = await HandleAsync(settlerId, SettlementTier.Village, "Riverhold");
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        AssetBank bank = await context.AssetBanks.SingleAsync();
+        AssetBankSettlementMembership membership = await context.AssetBankSettlementMemberships.SingleAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(bank.PlayerId, Is.EqualTo(_playerId), "The bank belongs to the founding player.");
+            Assert.That(membership.SettlementId, Is.EqualTo(result.SuccessValue!.SettlementId), "And it is the new village that draws on it.");
+            Assert.That(membership.AssetBankId, Is.EqualTo(bank.Id));
+            Assert.That(await context.AssetBankBalances.AnyAsync(), Is.False, "Born empty: nothing seeds a starting quantity.");
+        }
+    }
+
+    [Test, Description("Founding a camp creates no asset bank, because a camp draws on the village it attaches to rather than banking for itself.")]
+    public async Task ShouldGiveANewCampNoAssetBankAsync()
+    {
+        int playerTurnId = await OpenFirstPlayerTurnAsync(_gameId);
+        ItIsThisPlayersTurn(playerTurnId, roundNumber: 1);
+
+        int settlerId = await SeedSettlerAsync();
+
+        ServiceResult<SettleForceResult> result = await HandleAsync(settlerId, SettlementTier.Camp);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await context.AssetBanks.AnyAsync(), Is.False);
+            Assert.That(await context.AssetBankSettlementMemberships.AnyAsync(), Is.False);
+        }
+    }
+
     // ── fixture helpers ───────────────────────────────────────────────────────
 
     /// <summary>Tells the substituted turn service that the Turn in progress is this Player's.</summary>
@@ -749,7 +798,8 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
             _campaignTurnService,
             _contextActionService,
             new ForceLifecycleWriter(NullLogger<ForceLifecycleWriter>.Instance, playerTurnService),
-            new StructureLifecycleWriter(NullLogger<StructureLifecycleWriter>.Instance, playerTurnService));
+            new StructureLifecycleWriter(NullLogger<StructureLifecycleWriter>.Instance, playerTurnService),
+            new AssetBankProvisioningService(NullLogger<AssetBankProvisioningService>.Instance));
 
         return await handler.Handle(new SettleForceRequest(_gameId, _playerId, unitInstanceId, tier, name), CancellationToken.None);
     }
