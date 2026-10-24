@@ -4,12 +4,15 @@ using AscendantEmpire.Application.Features.Players.Classes;
 using AscendantEmpire.Application.Features.Players.Handlers;
 using AscendantEmpire.Application.Features.Assets.Classes;
 using AscendantEmpire.Application.Features.Assets.Handlers;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.Players.GetPlayers;
 using AscendantEmpire.BackendContracts.Players.GetPlayerStructures;
+using AscendantEmpire.BackendContracts.Assets.GetAssetBanks;
 using AscendantEmpire.BackendContracts.Assets.GetPlayerAssets;
 using AscendantEmpire.BackendContracts.Units.GetPlayerForces;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Player;
+using AscendantEmpire.FrontendContracts.Assets.GetAssetBanks;
 using AscendantEmpire.FrontendContracts.Assets.GetPlayerAssets;
 using AscendantEmpire.FrontendContracts.Units;
 
@@ -222,6 +225,111 @@ public class PlayerController : ControllerBase
                 })
             ]
         });
+    }
+
+    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+    // Asset banks
+    //
+    // What the Player actually holds, as opposed to which Assets they can see. A bank is one pooled store shared by every connected Settlement, so these
+    // reads are keyed on a Settlement or on the Player rather than on an Asset. See docs/design/asset-banks.md.
+    //
+    // Both shapes come back with each bank's Settlement memberships alongside its balances: a quantity on its own invites a caller to add two banks
+    // together whose Settlements cannot trade with each other.
+    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Get every asset bank the Player owns, which together are everything they hold anywhere
+    /// </summary>
+    /// <remarks>
+    /// A bank per pool rather than one merged set of totals. Two banks exist precisely because their Settlements cannot reach each other, so a single
+    /// figure would advertise stock that no one build order could spend; a caller that wants one number adds them up knowing that. A Player with no
+    /// village yet owns no banks, which is an empty list rather than a 404.
+    /// </remarks>
+    /// <response code="200">Every bank the Player owns, each with its memberships and holdings</response>
+    /// <response code="403">The caller has not entered a game</response>
+    /// <response code="404">The Player is not in an in-progress Game</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpGet("asset-banks")]
+    [ProducesResponseType(typeof(IAssetBankCollection), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 403)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetPlayerAssetBanksAsync(
+        [FromServices] IMediator mediator,
+        CancellationToken cancelToken)
+    {
+        // Game and player come from the token, so the caller can't ask for someone else's data.
+        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
+        {
+            return contextError!;
+        }
+
+        ServiceResult<IReadOnlyCollection<AssetBankHoldings>> response =
+            await mediator.Send(new GetPlayerAssetBanksRequest(gameId, playerId), cancelToken);
+
+        return response.ToActionResult(banks => new DTAssetBankCollection
+        {
+            Banks = [.. (banks ?? []).Select(ToWireAssetBank)]
+        });
+    }
+
+    /// <summary>
+    /// Get the asset bank one of the Player's Settlements draws on
+    /// </summary>
+    /// <remarks>
+    /// Keyed on the Settlement rather than on the bank, because which bank a Settlement draws on moves as roads are built and pillaged - a bank id held by
+    /// a client would go stale with nothing saying so. A Settlement with no bank and a Settlement belonging to another Player are both reported as 404.
+    /// </remarks>
+    /// <response code="200">The bank, with its memberships and holdings</response>
+    /// <response code="403">The caller has not entered a game</response>
+    /// <response code="404">The Player is not in an in-progress Game, or the Settlement has no asset bank belonging to them</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpGet("asset-banks/{settlementId:int}")]
+    [ProducesResponseType(typeof(IAssetBankHoldings), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 403)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetSettlementAssetBankAsync(
+        [FromServices] IMediator mediator,
+        int settlementId,
+        CancellationToken cancelToken)
+    {
+        // Game and player come from the token, so the caller can't ask for someone else's data.
+        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
+        {
+            return contextError!;
+        }
+
+        ServiceResult<AssetBankHoldings> response =
+            await mediator.Send(new GetSettlementAssetBankRequest(gameId, playerId, settlementId), cancelToken);
+
+        return response.ToActionResult(bank => bank is null ? null : ToWireAssetBank(bank));
+    }
+
+    /// <summary>
+    /// Transcribes one asset bank onto the wire, turning its scaled balances into the whole numbers the UI speaks.
+    /// </summary>
+    /// <remarks>
+    /// Rounded down, so a bank holding nine tenths of a log reads as none of it - which is also all the drawdown would let the Player spend of it.
+    /// </remarks>
+    private static DTAssetBankHoldings ToWireAssetBank(AssetBankHoldings bank)
+    {
+        return new DTAssetBankHoldings
+        {
+            AssetBankId = bank.AssetBankId,
+            SettlementIds = [.. bank.SettlementIds],
+            Holdings =
+            [
+                .. bank.Holdings.Select(holding => new DTAssetBankHolding
+                {
+                    AssetId = holding.AssetId,
+                    AssetCode = holding.AssetCode,
+                    DisplayName = holding.DisplayName,
+                    AssetGroupId = holding.AssetGroupId,
+                    Quantity = ScaledAmount.FromRaw(holding.RawQuantity).ToWholeRoundedDown()
+                })
+            ]
+        };
     }
 
     /// <summary>

@@ -1,4 +1,5 @@
 ﻿using AscendantEmpire.Application.BackgroundServices;
+using AscendantEmpire.Application.Features.Assets.Services;
 using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.Application.Features.Battles.Services;
 using AscendantEmpire.Application.Features.DatabaseSeeding.Executors;
@@ -148,6 +149,15 @@ public static class ApplicationStartup
         // Manager takes effect with no code change. Scoped so it shares the calling handler's context, which is what lets its placement writes join that
         // handler's transaction.
         services.AddScoped<IBiomeImpliedMapResourceService, BiomeImpliedMapResourceService>();
+
+        // Asset banks. IAssetBankReader is the one place a bank's balances are read, in either of the two shapes the design doc calls for - one bank, or all
+        // of a Player's - so what a settlement panel shows and what a summary ticker adds up cannot drift apart.
+        services.AddScoped<IAssetBankReader, AssetBankReader>();
+
+        // The single spender: every build order, technology purchase and upkeep charge debits through here, which is what makes "the Player can afford this"
+        // one answer rather than several. It routes on Asset.StorageScope and works on the caller's context without saving, so a debit and whatever it paid
+        // for commit together.
+        services.AddScoped<IAssetBankDrawdownService, AssetBankDrawdownService>();
 
         // Force context action pipeline. Each IForceActionStrategy decides one toolbar action; the service builds the shared context once and
         // judges every strategy against it. Display order comes from ForceActionType's value, so registration order here does not matter.

@@ -169,6 +169,8 @@ public sealed class EndpointAuthorizationTests
         "GET /player/forces",
         "GET /player/game-players",
         "GET /player/assets",
+        "GET /player/asset-banks",
+        "GET /player/asset-banks/{settlementId}",
 
         "GET /system/status",
 

@@ -16,10 +16,10 @@ namespace AscendantEmpire.Domain.Entities.Technologies;
 /// this table, and why it is the one catalogue table a gameplay query may read live.
 /// </para>
 /// <para>
-/// <b>Nothing pays this yet.</b> The store to debit now exists - <see cref="Assets.AssetBank"/> and <see cref="Assets.AssetBankBalance"/> are mapped - but no
-/// drawdown service spends from it, and nothing credits a balance in the first place, so a Technology with cost rows still cannot be unlocked and the seeded
-/// early tree should carry none. The cost is paid out of the banks of the Player's connected settlements once drawdown lands; an Asset whose
-/// <c>StorageScope</c> is not <c>SettlementBank</c> cannot be a cost, since there is no balance to debit.
+/// <b>Nothing pays this yet.</b> Both halves now exist - <see cref="Assets.AssetBank"/> and <see cref="Assets.AssetBankBalance"/> are mapped, and the
+/// drawdown service spends from them - but no unlock path calls it with these rows, and nothing credits a balance in the first place, so a Technology with
+/// cost rows still cannot be unlocked and the seeded early tree should carry none. The cost is paid out of the bank of whichever of the Player's settlements
+/// the purchase is made at; an Asset whose <c>StorageScope</c> is not <c>SettlementBank</c> cannot be a cost, since there is no balance to debit.
 /// </para>
 /// </remarks>
 public class TechnologyAcquisitionCost

@@ -1,0 +1,228 @@
+using AscendantEmpire.Application.Common;
+using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Assets.Handlers;
+using AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
+using AscendantEmpire.Domain.Entities.Assets;
+using AscendantEmpire.Domain.Entities.Games;
+using AscendantEmpire.Domain.Entities.Technologies;
+using AscendantEmpire.Domain.Enums.Games;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+
+namespace AscendantEmpire.Tests.Features.Assets;
+
+/// <summary>
+/// A seeded asset catalogue and two Players, for the fixtures that read and spend from asset banks.
+/// </summary>
+/// <remarks>
+/// <para>
+/// In-memory: both the reader and the drawdown service stick to LINQ, Add/Remove and SaveChanges, and every rule either enforces is in code rather than in a
+/// database constraint. The catalogue is seeded through the real upsert, so the codes, sort orders and storage scopes the fixtures use are production's.
+/// </para>
+/// <para>
+/// <b>No Settlement or GameIndex rows are written.</b> A membership's Settlement foreign key is not enforced in memory and neither the reader nor the
+/// drawdown reads the Settlement itself - the bank's own PlayerId is what says who may draw on it - so settlement ids here are bare numbers.
+/// </para>
+/// </remarks>
+internal abstract class AssetBankTestBase : InMemoryTestBase
+{
+    // The Logs group and three of its Assets. Seeded sort orders space by 10 in declaration order, which puts the spend order at Oak, Generic, Cedar.
+    protected const string _GROUP_LOGS_CODE = "ConstructionMaterials.Wood.Logs";
+    protected const string _OAK_LOG_CODE = "ConstructionMaterials.Wood.Logs.OakLog";
+    protected const string _GENERIC_LOG_CODE = "ConstructionMaterials.Wood.Logs.GenericLog";
+    protected const string _CEDAR_LOG_CODE = "ConstructionMaterials.Wood.Logs.CedarLog";
+
+    // A second group, used whenever a test needs an Asset the Logs ordering must not reach.
+    protected const string _OAK_PLANK_CODE = "ConstructionMaterials.Wood.Planks.OakPlank";
+
+    // The two Assets held per Player rather than in a bank, and one that is derived from what already counts it.
+    protected const string _TECHNOLOGY_EXPERIENCE_CODE = "Society.Experience.Technology";
+    protected const string _CULTURE_EXPERIENCE_CODE = "Society.Experience.Culture";
+    protected const string _CIVILIANS_CODE = "Society.Population.MyPeople.Civilians";
+
+    protected const int _GAME_ID = 1;
+
+    /// <summary>
+    /// The Player every test spends and reads as.
+    /// </summary>
+    protected int _playerId;
+
+    /// <summary>
+    /// A second Player in the same Game, so "another Player's bank is not reachable" can be pinned rather than assumed.
+    /// </summary>
+    protected int _otherPlayerId;
+
+    [SetUp]
+    public async Task SeedCatalogueAndPlayersAsync()
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        var upsert = new UpsertAssetsHandler(NullLogger<UpsertAssetsHandler>.Instance, context);
+        ServiceResultBase seeded = await upsert.Handle(new UpsertAssetsRequest(AssetSeedData.Build()), CancellationToken.None);
+        Assert.That(seeded.HasSucceeded, Is.True, () => string.Join("; ", seeded.Errors));
+
+        Player player = BuildPlayer("Tester");
+        Player otherPlayer = BuildPlayer("Rival");
+        context.Players.AddRange(player, otherPlayer);
+
+        await context.SaveChangesAsync();
+
+        _playerId = player.Id;
+        _otherPlayerId = otherPlayer.Id;
+    }
+
+    /// <summary>
+    /// Creates a bank for a Player, points the named Settlements at it, and credits the given balances.
+    /// </summary>
+    /// <remarks>
+    /// Balances are given in whole units and scaled on the way in, because that is how a test reads: "4 Oak Logs" rather than 4,000. Pass a fractional
+    /// figure through <see cref="ScaledAmount"/> directly where a test needs sub-unit stock.
+    /// </remarks>
+    /// <param name="balances">Asset code to whole quantity. An Asset left out is one the bank has no row for at all.</param>
+    protected async Task<int> CreateBankAsync(
+        int playerId,
+        IReadOnlyCollection<int> settlementIds,
+        IReadOnlyDictionary<string, long> balances)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        var bank = new AssetBank { PlayerId = playerId };
+        context.AssetBanks.Add(bank);
+        await context.SaveChangesAsync();
+
+        foreach (int settlementId in settlementIds)
+        {
+            context.AssetBankSettlementMemberships.Add(new AssetBankSettlementMembership
+            {
+                SettlementId = settlementId,
+                AssetBankId = bank.Id
+            });
+        }
+
+        Dictionary<string, int> assetIdsByCode = await ReadAssetIdsAsync(context, [.. balances.Keys]);
+
+        foreach ((string assetCode, long wholeQuantity) in balances)
+        {
+            context.AssetBankBalances.Add(new AssetBankBalance
+            {
+                AssetBankId = bank.Id,
+                AssetId = assetIdsByCode[assetCode],
+                Quantity = ScaledAmount.FromWhole(wholeQuantity).RawValue
+            });
+        }
+
+        await context.SaveChangesAsync();
+
+        return bank.Id;
+    }
+
+    /// <summary>
+    /// Writes the Player's research state, which is the player-level store a Technology experience expense is spent out of.
+    /// </summary>
+    protected async Task CreateResearchStateAsync(int playerId, int unspentDirectedPoints, int unspentDiffusionPoints = 0)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        context.PlayerResearchStates.Add(new PlayerResearchState
+        {
+            PlayerId = playerId,
+            GameId = _GAME_ID,
+            UnspentDirectedPoints = unspentDirectedPoints,
+            UnspentDiffusionPoints = unspentDiffusionPoints,
+            TechPointsPerPopulationSize = 1
+        });
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Looks up one catalogue Asset's id by its code.
+    /// </summary>
+    protected async Task<int> GetAssetIdAsync(string assetCode)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        Dictionary<string, int> assetIdsByCode = await ReadAssetIdsAsync(context, [assetCode]);
+
+        return assetIdsByCode[assetCode];
+    }
+
+    /// <summary>
+    /// Looks up one catalogue AssetGroup's id by its code.
+    /// </summary>
+    protected async Task<int> GetAssetGroupIdAsync(string groupCode)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        int groupId = await context.AssetGroups
+            .Where(group => group.Code == groupCode)
+            .Select(group => group.Id)
+            .SingleAsync();
+
+        return groupId;
+    }
+
+    /// <summary>
+    /// Reads what one bank now holds, keyed by Asset code, with Assets the bank has no row for left out.
+    /// </summary>
+    /// <remarks>Whole units, matching how <see cref="CreateBankAsync"/> takes them, so an assertion reads in the same figures the arrangement did.</remarks>
+    protected async Task<Dictionary<string, long>> ReadBalancesAsync(int assetBankId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        // Projected into the query before the dictionary is built. ToDictionaryAsync runs its selectors client-side against materialised entities, where the
+        // Asset navigation has not been loaded, so keying straight off balance.Asset.Code would read a null.
+        List<BalanceRow> rows = await context.AssetBankBalances
+            .Where(balance => balance.AssetBankId == assetBankId)
+            .Select(balance => new BalanceRow(balance.Asset.Code, balance.Quantity))
+            .ToListAsync();
+
+        return rows.ToDictionary(row => row.AssetCode, row => ScaledAmount.FromRaw(row.Quantity).ToWholeRoundedDown());
+    }
+
+    /// <summary>
+    /// Reads the Player's unspent research and diffusion points back out of the store.
+    /// </summary>
+    protected async Task<(int DirectedPoints, int DiffusionPoints)> ReadResearchPointsAsync(int playerId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        PlayerResearchState state = await context.PlayerResearchStates.SingleAsync(row => row.PlayerId == playerId);
+
+        return (state.UnspentDirectedPoints, state.UnspentDiffusionPoints);
+    }
+
+    private static async Task<Dictionary<string, int>> ReadAssetIdsAsync(AscendantEmpireContext context, IReadOnlyCollection<string> assetCodes)
+    {
+        Dictionary<string, int> assetIdsByCode = await context.Assets
+            .Where(asset => assetCodes.Contains(asset.Code))
+            .ToDictionaryAsync(asset => asset.Code, asset => asset.Id);
+
+        string[] missingCodes = [.. assetCodes.Except(assetIdsByCode.Keys)];
+
+        Assert.That(missingCodes, Is.Empty, () => $"the seeded catalogue has no Asset for code(s): {string.Join(", ", missingCodes)}");
+
+        return assetIdsByCode;
+    }
+
+    private sealed record BalanceRow(string AssetCode, long Quantity);
+
+    private static Player BuildPlayer(string rulerName)
+    {
+        return new Player
+        {
+            GameId = _GAME_ID,
+            RulerTitle = Player.DEFAULT_RULER_TITLE,
+            RulerName = rulerName,
+            FactionName = $"{rulerName}s",
+            PeopleName = $"{rulerName} People",
+            Demonym = $"{rulerName}ian",
+            CultureName = $"{rulerName} Culture",
+            Language = $"{rulerName}ish",
+            RulerPortraitPath = "/portraits/ruler_01.png",
+            Status = PlayerStatus.Active
+        };
+    }
+}
