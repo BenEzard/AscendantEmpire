@@ -264,8 +264,12 @@ The full rules are [asset-banks.md](asset-banks.md). What matters here is the sh
   bank. Restoring the link folds that bank's balances back into the shared one and deletes it.
 - A settlement's membership is keyed on the settlement, so it has **exactly one** bank at any time,
   and that is a schema rule rather than one a service has to remember to check.
-- An expense is met from the one bank the settlement draws on. If the bank does not hold enough, the
-  purchase cannot be made.
+- An expense incurred **at a settlement** — a build order, an upkeep charge — is met from the one bank
+  that settlement draws on. If the bank does not hold enough, the purchase cannot be made.
+- An **Empire-wide** expense — a technology cost, an export — belongs to no settlement. It is met across
+  every bank the player owns, spread by levelling so the fullest pools pay and a small one keeps the stock
+  its own construction needs, and it carries no transport cost. See
+  [asset-banks.md](asset-banks.md#drawing-down-an-asset).
 
 > There is deliberately no second "asset bank group" table standing for a set of banks that share.
 > Sharing *is* the bank, so a merge is folding one bank's balances into another and deleting it. The

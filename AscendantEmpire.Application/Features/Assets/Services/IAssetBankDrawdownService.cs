@@ -13,9 +13,31 @@ namespace AscendantEmpire.Application.Features.Assets.Services;
 /// this" means. Where the amount comes <i>from</i> is production's business and not modelled here; this only spends.
 /// </para>
 /// <para>
-/// <b>It routes on <c>Asset.StorageScope</c>.</b> A <c>SettlementBank</c> Asset is debited from the bank the expense's Settlement draws on, a <c>Player</c>
-/// one from the player-level store that already holds its figure, and a <c>Derived</c> one cannot be spent at all - see
-/// <see cref="Domain.Enums.Assets.AssetStorageScope"/>. That column is why this has no list of Assets it knows to be unspendable.
+/// <b>It routes on <c>Asset.StorageScope</c>.</b> A <c>SettlementBank</c> Asset is debited from a bank, a <c>Player</c> one from the player-level store that
+/// already holds its figure, and a <c>Derived</c> one cannot be spent at all - see <see cref="Domain.Enums.Assets.AssetStorageScope"/>. That column is why
+/// this has no list of Assets it knows to be unspendable.
+/// </para>
+/// <para>
+/// <b>And then on the expense's own arm.</b> A banked Asset is spent out of the one bank the expense's Settlement draws on, or, where the expense names no
+/// Settlement, across every bank the Player owns - see <see cref="AssetExpense.IsEmpireWide"/>:
+/// </para>
+/// <list type="bullet">
+/// <item>
+/// <description>
+/// <b>At a Settlement</b> - a build order or an upkeep charge, which happens somewhere. It is met from that Settlement's bank and refused when the bank is
+/// short, rather than reaching to a bank the goods would have to travel from. RS-27 is what makes it reach, with the transport turn cost that implies.
+/// </description>
+/// </item>
+/// <item>
+/// <description>
+/// <b>Empire-wide</b> - a technology cost or an export, which belongs to no Settlement. Availability is the sum across every bank, and the debit is spread
+/// by levelling so that the fullest pools pay and a small one keeps the stock its own construction will need. It carries no transport cost.
+/// </description>
+/// </item>
+/// </list>
+/// <para>
+/// An Asset held per Player can only be spent Empire-wide. Naming a Settlement for one is a caller that has the two arms confused, and is refused as such
+/// rather than quietly ignored.
 /// </para>
 /// <para>
 /// <b>Works on the caller's context and does not save.</b> A technology purchase debits the cost and writes the unlock in one <c>SaveChangesAsync</c>, so
@@ -33,7 +55,7 @@ internal interface IAssetBankDrawdownService
     /// <para>
     /// <b>Every expense succeeds whole or changes nothing.</b> Sufficiency is settled across the entire expense before a single balance is touched, so a
     /// group expense that zeroes Oak and then finds Cedar short never happens - on refusal the context is exactly as it was handed over and the caller is
-    /// free to carry on with it.
+    /// free to carry on with it. For an Empire-wide expense that settling is across every bank at once, rather than bank by bank.
     /// </para>
     /// <para>The failure statuses are distinct on purpose, because they mean different things to a caller:</para>
     /// <list type="bullet">
@@ -49,11 +71,22 @@ internal interface IAssetBankDrawdownService
     /// </item>
     /// <item>
     /// <description>
-    /// <b>InternalServerError</b> - the expense should never have been made: a non-positive amount, or an Asset that is not spendable from where the expense
-    /// points. Debiting a <c>Derived</c> Asset is this rather than a shortfall, because population is not something a Player ran out of.
+    /// <b>InternalServerError</b> - the expense should never have been made: an Asset that is not spendable from where the expense points, or a Settlement
+    /// named for an Asset that is held per Player. Debiting a <c>Derived</c> Asset is this rather than a shortfall, because population is not something a
+    /// Player ran out of.
     /// </description>
     /// </item>
     /// </list>
+    /// <para>
+    /// <b>An expense is built from the game's own cost data, not from a request</b>, which is why those malformed cases are a server error rather than a bad
+    /// request: a cost naming a <c>Derived</c> Asset, or a fractional number of whole research points, is this code getting it wrong rather than the Player
+    /// asking for something silly. An endpoint that ever takes an Asset or group id from its caller has to validate it before building the expense, because
+    /// only the endpoint knows the id came from outside.
+    /// </para>
+    /// <para>
+    /// <b>Two mistakes are not statuses at all.</b> A non-positive amount cannot be built into an <see cref="AssetExpense"/> in the first place, and a
+    /// storage scope this has no arm for throws, because each is a build-time error rather than anything a request could provoke.
+    /// </para>
     /// </remarks>
     Task<ServiceResultBase> DebitAsync(AscendantEmpireContext context, AssetExpense expense, CancellationToken cancelToken = default);
 }

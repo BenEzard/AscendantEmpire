@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Assets.Classes;
@@ -35,13 +37,7 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
 
     public async Task<ServiceResultBase> DebitAsync(AscendantEmpireContext context, AssetExpense expense, CancellationToken cancelToken = default)
     {
-        // A zero expense is a caller that did not mean to call, and a negative one is a credit by another name - production owns those. Neither is something
-        // the Player could have done, so neither reads as a refusal.
-        if (expense.Amount <= ScaledAmount.Zero)
-        {
-            return InternalServerError($"An expense must be for a positive amount, and {expense.Amount} was requested.");
-        }
-
+        // Nothing checks the amount here: AssetExpense cannot be built with a non-positive one, so a zero or negative expense never reaches this method.
         ServiceResult<ExpenseTarget> targetResult = await ResolveTargetAsync(context, expense, cancelToken);
 
         if (targetResult.HasSucceeded == false)
@@ -53,14 +49,21 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
 
         return target.StorageScope switch
         {
-            AssetStorageScope.SettlementBank => await DebitBankAsync(context, expense, target, cancelToken),
+            // The two arms spend out of different sets of banks and refuse for different reasons, so each resolves its own rather than one read taking a
+            // conditional filter.
+            AssetStorageScope.SettlementBank => expense.IsEmpireWide
+                ? await DebitEveryBankAsync(context, expense, target, cancelToken)
+                : await DebitSettlementBankAsync(context, expense, target, cancelToken),
+
             AssetStorageScope.Player => await DebitPlayerStoreAsync(context, expense, target, cancelToken),
 
             // Not a shortfall. A Derived Asset has no stored figure anywhere - Civilians are counted off the Settlements, not banked - so there is nothing to
             // debit and never will be. A caller asking to spend one has made a mistake about what the Asset is.
-            AssetStorageScope.Derived => InternalServerError(
-                $"\"{target.DisplayName}\" is derived from what already records it and has no stored balance, so it cannot be spent."),
-            _ => InternalServerError($"\"{target.DisplayName}\" has an unrecognised storage scope ({target.StorageScope}), so it cannot be spent.")
+            AssetStorageScope.Derived => InternalServerError($"\"{target.DisplayName}\" is derived from what already records it and has no stored balance, so it cannot be spent."),
+
+            // Thrown rather than answered with a status. A scope with no arm here means an AssetStorageScope member was added and this switch was not
+            // updated, which is a build-time mistake; returning it as a result would dress it up as something a request could legitimately provoke.
+            _ => throw new UnreachableException($"\"{target.DisplayName}\" has storage scope {target.StorageScope}, which the drawdown has no arm for.")
         };
     }
 
@@ -68,36 +71,52 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
     /// Works out what the expense names, in the order it would be spent, and which store routes it.
     /// </summary>
     /// <remarks>
-    /// An Asset expense resolves to that Asset alone and routes on its own scope. A group expense resolves to the group's bankable Assets in spend order,
-    /// and always routes to a bank - the group ordering is a rule about balances, and a group of Assets that are not banked has no balances to order.
+    /// One arm per shape of <see cref="SpendTarget"/>, because the two share nothing but their return type: an Asset expense is a single catalogue row that
+    /// routes on its own storage scope, and a group expense is an ordered set of them that always routes to a bank.
     /// </remarks>
     private static async Task<ServiceResult<ExpenseTarget>> ResolveTargetAsync(AscendantEmpireContext context, AssetExpense expense, CancellationToken cancelToken)
     {
-        if (expense.AssetId is not null)
+        // A SpendTarget names exactly one of the two, its factories being the only way to build one, so the group arm is reached precisely when there is no
+        // Asset id and the group id is there to be read.
+        return expense.Target.AssetId is int assetId
+            ? await ResolveAssetAsync(context, assetId, cancelToken)
+            : await ResolveGroupAsync(context, expense.Target.AssetGroupId!.Value, cancelToken);
+    }
+
+    /// <summary>
+    /// Resolves "10 Oak Logs" to the one catalogue Asset it names.
+    /// </summary>
+    private static async Task<ServiceResult<ExpenseTarget>> ResolveAssetAsync(AscendantEmpireContext context, int assetId, CancellationToken cancelToken)
+    {
+        TargetAsset? asset = await context.Assets
+            .AsNoTracking()
+            .Where(catalogueAsset => catalogueAsset.Id == assetId)
+            .Select(catalogueAsset => new TargetAsset(
+                catalogueAsset.Id,
+                catalogueAsset.Code,
+                catalogueAsset.DisplayName,
+                catalogueAsset.StorageScope))
+            .FirstOrDefaultAsync(cancelToken);
+
+        if (asset is null)
         {
-            TargetAsset? asset = await context.Assets
-                .AsNoTracking()
-                .Where(catalogueAsset => catalogueAsset.Id == expense.AssetId.Value)
-                .Select(catalogueAsset => new TargetAsset(
-                    catalogueAsset.Id,
-                    catalogueAsset.Code,
-                    catalogueAsset.DisplayName,
-                    catalogueAsset.StorageScope))
-                .FirstOrDefaultAsync(cancelToken);
-
-            if (asset is null)
-            {
-                return ServiceResult<ExpenseTarget>.NotFound($"No Asset with id {expense.AssetId.Value} is in the catalogue.");
-            }
-
-            // The Asset's own name is what a refusal is phrased in: the caller asked for Oak Logs, so "Not enough Oak Log" is the honest message.
-            return ServiceResult<ExpenseTarget>.Succeed(new ExpenseTarget(asset.DisplayName, asset.StorageScope, [asset]));
+            return ServiceResult<ExpenseTarget>.NotFound($"No Asset with id {assetId} is in the catalogue.");
         }
 
-        int assetGroupId = expense.AssetGroupId!.Value;
+        // The Asset's own name is what a refusal is phrased in: the caller asked for Oak Logs, so "Not enough Oak Log" is the honest message.
+        return ServiceResult<ExpenseTarget>.Succeed(new ExpenseTarget(asset.DisplayName, asset.StorageScope, [asset]));
+    }
 
-        // The group's own name, because a group expense asked for Logs rather than for any particular log, and that is what the Player should be told it is
-        // short of.
+    /// <summary>
+    /// Resolves "10 Logs, any kind" to the group's bankable Assets, in the order they would be spent.
+    /// </summary>
+    /// <remarks>
+    /// Always routes to a bank, whatever the group's Assets are: the group ordering is a rule about balances, and a group of Assets that are not banked has
+    /// no balances to order.
+    /// </remarks>
+    private static async Task<ServiceResult<ExpenseTarget>> ResolveGroupAsync(AscendantEmpireContext context, int assetGroupId, CancellationToken cancelToken)
+    {
+        // The group's own name, because a group expense asked for Logs rather than for any particular log, and that is what the Player should be told it is short of.
         string? groupDisplayName = await context.AssetGroups
             .AsNoTracking()
             .Where(group => group.Id == assetGroupId)
@@ -115,8 +134,7 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
         {
             // Every population group is Derived and every Asset in it unbankable, so this is the same mistake as naming a Derived Asset outright, reported
             // against the group the caller actually passed.
-            return ServiceResult<ExpenseTarget>.InternalServerError(
-                $"AssetGroup {assetGroupId} (\"{groupDisplayName}\") holds no Asset that is kept in a settlement bank, so it cannot be spent out of one.");
+            return ServiceResult<ExpenseTarget>.InternalServerError($"AssetGroup {assetGroupId} (\"{groupDisplayName}\") holds no Asset that is kept in a settlement bank, so it cannot be spent out of one.");
         }
 
         return ServiceResult<ExpenseTarget>.Succeed(new ExpenseTarget(groupDisplayName, AssetStorageScope.SettlementBank, candidates));
@@ -154,42 +172,128 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
     }
 
     /// <summary>
-    /// Spends the expense out of the bank the Settlement draws on.
+    /// Spends the expense out of the bank the Settlement draws on, and out of that bank alone.
     /// </summary>
     /// <remarks>
-    /// Sufficiency is settled over the whole candidate set before anything is written, which is what makes a group expense all-or-nothing: the walk below
+    /// <para>
+    /// Sufficiency is settled over the whole candidate set before anything is written, which is what makes a group expense all-or-nothing: the spend below
     /// only ever runs when the total is already known to cover the amount.
+    /// </para>
+    /// <para>
+    /// <b>A bank that is short refuses the expense rather than reaching further.</b> Sourcing the remainder from the nearest bank that does hold it, and the
+    /// transport turn cost that comes with doing so, is RS-27.
+    /// </para>
     /// </remarks>
-    private async Task<ServiceResultBase> DebitBankAsync(AscendantEmpireContext context, AssetExpense expense, ExpenseTarget target, CancellationToken cancelToken)
+    private async Task<ServiceResultBase> DebitSettlementBankAsync(AscendantEmpireContext context, AssetExpense expense, ExpenseTarget target, CancellationToken cancelToken)
     {
+        int settlementId = expense.SettlementId!.Value;
+
         // Through the Bank navigation, so this is an INNER JOIN on a required foreign key and another Player's bank cannot be reached by naming their Settlement.
         int? assetBankId = await context.AssetBankSettlementMemberships
             .AsNoTracking()
-            .Where(membership => membership.SettlementId == expense.SettlementId && membership.Bank.PlayerId == expense.PlayerId)
+            .Where(membership => membership.SettlementId == settlementId && membership.Bank.PlayerId == expense.PlayerId)
             .Select(membership => (int?)membership.AssetBankId)
             .FirstOrDefaultAsync(cancelToken);
 
         if (assetBankId is null)
         {
-            return NotFound($"Settlement {expense.SettlementId} has no asset bank belonging to Player {expense.PlayerId}, so nothing can be spent there.");
+            return NotFound($"Settlement {settlementId} has no asset bank belonging to Player {expense.PlayerId}, so nothing can be spent there.");
         }
 
         int[] candidateAssetIds = [.. target.Assets.Select(asset => asset.AssetId)];
 
         // Tracked, unlike every other read here: these are the rows being written, and the caller's SaveChangesAsync is what commits them.
-        Dictionary<int, AssetBankBalance> balancesByAssetId = await context.AssetBankBalances
+        List<AssetBankBalance> balances = await context.AssetBankBalances
             .Where(balance => balance.AssetBankId == assetBankId.Value && candidateAssetIds.Contains(balance.AssetId))
-            .ToDictionaryAsync(balance => balance.AssetId, cancelToken);
+            .ToListAsync(cancelToken);
 
         // A candidate with no row holds none of it, which is the same as a zero, so the sum needs no entry for it.
-        ScaledAmount available = ScaledAmount.FromRaw(balancesByAssetId.Values.Sum(balance => balance.Quantity));
+        ScaledAmount available = ScaledAmount.FromRaw(balances.Sum(balance => balance.Quantity));
 
         if (available < expense.Amount)
         {
             return ToShortfall(expense, target, available);
         }
 
-        ScaledAmount remaining = expense.Amount;
+        Spend(context, target, expense.Amount, balances);
+
+        logger.LogInformation(
+            "Debited {Amount} {Asset} from asset bank {AssetBankId} for player {PlayerId}, at settlement {SettlementId}.",
+            expense.Amount,
+            target.DisplayName,
+            assetBankId.Value,
+            expense.PlayerId,
+            settlementId);
+
+        return SuccessNoContent();
+    }
+
+    /// <summary>
+    /// Spends the expense across every bank the Player owns, which is what an Empire-wide cost is paid out of.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A technology or an export belongs to no Settlement, so it is met out of everything the Player holds anywhere. Availability is the sum across every
+    /// bank, and two banks that cannot reach each other are deliberately added together here - an Empire-wide expense is not goods travelling to a building
+    /// site, so it carries no transport cost and no connectivity question.
+    /// </para>
+    /// <para>
+    /// <b>The spread is levelling rather than proportional</b> - see <see cref="LevelDown"/>. The point of it is that a small bank keeps the stock its own
+    /// construction will need, which is the stranding problem the Empire-wide arm would otherwise create every time it spent.
+    /// </para>
+    /// </remarks>
+    private async Task<ServiceResultBase> DebitEveryBankAsync(AscendantEmpireContext context, AssetExpense expense, ExpenseTarget target, CancellationToken cancelToken)
+    {
+        int[] candidateAssetIds = [.. target.Assets.Select(asset => asset.AssetId)];
+
+        // Filtered through the Bank navigation, so this is an INNER JOIN on a required foreign key and no other Player's balance is reachable. Tracked,
+        // unlike every other read here: these are the rows being written, and the caller's SaveChangesAsync is what commits them.
+        List<AssetBankBalance> balances = await context.AssetBankBalances
+            .Where(balance => balance.Bank.PlayerId == expense.PlayerId && candidateAssetIds.Contains(balance.AssetId))
+            .ToListAsync(cancelToken);
+
+        ScaledAmount available = ScaledAmount.FromRaw(balances.Sum(balance => balance.Quantity));
+
+        if (available < expense.Amount)
+        {
+            // A Player who owns no bank at all arrives here with nothing available, and that is a shortfall rather than a not-found: they are short of the
+            // whole amount, and the all-banks read already treats owning no bank as an empty result rather than a missing one.
+            return ToShortfall(expense, target, available);
+        }
+
+        Spend(context, target, expense.Amount, balances);
+
+        logger.LogInformation(
+            "Debited {Amount} {Asset} Empire-wide for player {PlayerId}, across the {BankCount} asset bank(s) holding any of it.",
+            expense.Amount,
+            target.DisplayName,
+            expense.PlayerId,
+            balances.Select(balance => balance.AssetBankId).Distinct().Count());
+
+        return SuccessNoContent();
+    }
+
+    /// <summary>
+    /// Takes the amount out of the balances handed over, walking the candidate Assets in spend order.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The walk is over Assets, and each step spans every bank in the set.</b> So a group expense takes every bank's Oak to nothing before any Cedar is
+    /// touched anywhere: the Player's ordering says which Asset they are willing to lose first, and it means that at whatever scale the expense is paid at.
+    /// The Settlement arm hands over one bank's rows and gets the same walk over a set of one.
+    /// </para>
+    /// <para>
+    /// Only ever called once the caller has established that the balances cover the amount, which is what makes an expense all-or-nothing: there is no
+    /// partial walk to unwind, because the walk cannot run short.
+    /// </para>
+    /// </remarks>
+    private static void Spend(AscendantEmpireContext context, ExpenseTarget target, ScaledAmount amount, IReadOnlyCollection<AssetBankBalance> balances)
+    {
+        Dictionary<int, List<AssetBankBalance>> balancesByAssetId = balances
+            .GroupBy(balance => balance.AssetId)
+            .ToDictionary(assetBalances => assetBalances.Key, assetBalances => assetBalances.ToList());
+
+        ScaledAmount remaining = amount;
 
         foreach (TargetAsset candidate in target.Assets)
         {
@@ -198,35 +302,155 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
                 break;
             }
 
-            if (balancesByAssetId.TryGetValue(candidate.AssetId, out AssetBankBalance? balance) == false)
+            if (balancesByAssetId.TryGetValue(candidate.AssetId, out List<AssetBankBalance>? held) == false)
             {
                 continue;
             }
 
-            // Each Asset is taken to nothing before the next is touched, which is what the design doc's Oak-then-Cedar walk means.
-            ScaledAmount held = ScaledAmount.FromRaw(balance.Quantity);
-            ScaledAmount taken = held <= remaining ? held : remaining;
+            remaining -= TakeOneAsset(context, held, remaining);
+        }
+    }
 
-            balance.Quantity -= taken.RawValue;
-            remaining -= taken;
+    /// <summary>
+    /// Takes as much of one Asset as the amount still calls for, and answers what it took.
+    /// </summary>
+    /// <remarks>
+    /// Taking the Asset out entirely is the common case in a group walk and needs no levelling: a partial take only ever happens on the last Asset the walk
+    /// reaches, which is the one the Player is left holding some of.
+    /// </remarks>
+    private static ScaledAmount TakeOneAsset(AscendantEmpireContext context, IReadOnlyList<AssetBankBalance> held, ScaledAmount remaining)
+    {
+        ScaledAmount total = ScaledAmount.FromRaw(held.Sum(balance => balance.Quantity));
+        ScaledAmount taken = total <= remaining ? total : remaining;
 
-            // An emptied balance is deleted rather than left as a zero. A missing row and a zero row mean the same thing to every reader, and deleting keeps
-            // a bank from accumulating a row per Asset it has ever briefly held.
+        if (taken <= ScaledAmount.Zero)
+        {
+            return ScaledAmount.Zero;
+        }
+
+        if (taken == total)
+        {
+            foreach (AssetBankBalance balance in held)
+            {
+                balance.Quantity = 0;
+            }
+        }
+        else
+        {
+            LevelDown(held, taken.RawValue);
+        }
+
+        // An emptied balance is deleted rather than left as a zero. A missing row and a zero row mean the same thing to every reader, and deleting keeps a
+        // bank from accumulating a row per Asset it has ever briefly held.
+        foreach (AssetBankBalance balance in held)
+        {
             if (balance.Quantity == 0)
             {
                 context.AssetBankBalances.Remove(balance);
             }
         }
 
-        logger.LogInformation(
-            "Debited {Amount} {Asset} from asset bank {AssetBankId} for player {PlayerId}, at settlement {SettlementId}.",
-            expense.Amount,
-            target.DisplayName,
-            assetBankId.Value,
-            expense.PlayerId,
-            expense.SettlementId);
+        return taken;
+    }
 
-        return SuccessNoContent();
+    /// <summary>
+    /// Spreads a partial take across the balances by levelling: the fullest are cut down to a common water-line and the rest are left alone.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Chosen over a proportional spread, where a bank holding a tenth of the stock would pay a tenth of the cost. Levelling takes from the richest first,
+    /// so a bank with little keeps what it has and stays able to fund its own construction.
+    /// </para>
+    /// <para>
+    /// With banks holding 50, 30 and 4 and a take of 40, the water-line falls at 20: the first two are cut to 20 each and the third is untouched. A take of
+    /// 84 out of the same banks is the whole of it and does not reach here at all.
+    /// </para>
+    /// <para>
+    /// <b>The leftover units go richest-first, then to the lower bank id.</b> A quantity is a scaled integer, so a water-line that divides exactly is the
+    /// exception and a few raw units are normally left over. The order is fixed rather than incidental, so that the same expense against the same banks
+    /// always spends the same rows.
+    /// </para>
+    /// </remarks>
+    /// <param name="takeRaw">How much to take, in raw scaled units, and strictly less than the balances hold between them.</param>
+    private static void LevelDown(IReadOnlyList<AssetBankBalance> held, long takeRaw)
+    {
+        long waterLine = FindWaterLine(held, takeRaw);
+
+        List<AssetBankBalance> inSpendOrder =
+        [
+            .. held
+                .OrderByDescending(balance => balance.Quantity)
+                .ThenBy(balance => balance.AssetBankId)
+        ];
+
+        // Everything strictly above the line comes off first. The line is the highest one that still yields enough, so what is left outstanding after this
+        // pass is fewer units than there are balances standing on the line - never more.
+        long[] deductions = new long[inSpendOrder.Count];
+        long outstanding = takeRaw;
+
+        for (int index = 0; index < inSpendOrder.Count; index++)
+        {
+            long aboveLine = Math.Max(0, inSpendOrder[index].Quantity - (waterLine + 1));
+
+            deductions[index] = aboveLine;
+            outstanding -= aboveLine;
+        }
+
+        // The remainder is one raw unit each off the balances standing on the line, richest first.
+        for (int index = 0; index < inSpendOrder.Count && outstanding > 0; index++)
+        {
+            if (inSpendOrder[index].Quantity - deductions[index] <= waterLine)
+            {
+                continue;
+            }
+
+            deductions[index]++;
+            outstanding--;
+        }
+
+        for (int index = 0; index < inSpendOrder.Count; index++)
+        {
+            inSpendOrder[index].Quantity -= deductions[index];
+        }
+    }
+
+    /// <summary>
+    /// The highest level at which cutting every balance down to it would still yield at least what is being taken.
+    /// </summary>
+    /// <remarks>
+    /// Binary searched rather than walked, because a quantity is a scaled integer and the line can sit anywhere in a range of billions. What sits above a
+    /// level only falls as the level rises, which is what makes the search sound: at zero it is everything the balances hold, which is more than is being
+    /// taken, and at the fullest balance it is nothing, so the line lies between the two and the search cannot run off either end.
+    /// </remarks>
+    private static long FindWaterLine(IReadOnlyList<AssetBankBalance> held, long takeRaw)
+    {
+        long low = 0;
+        long high = held.Max(balance => balance.Quantity);
+
+        while (low < high)
+        {
+            // Rounded up, so a two-wide range tries the upper candidate and the loop cannot sit still on the lower one.
+            long candidate = low + ((high - low + 1) / 2);
+
+            if (SumAboveLevel(held, candidate) >= takeRaw)
+            {
+                low = candidate;
+            }
+            else
+            {
+                high = candidate - 1;
+            }
+        }
+
+        return low;
+    }
+
+    /// <summary>
+    /// How much the balances hold above the given level, which is what cutting every one of them down to it would yield.
+    /// </summary>
+    private static long SumAboveLevel(IReadOnlyList<AssetBankBalance> held, long level)
+    {
+        return held.Sum(balance => Math.Max(0, balance.Quantity - level));
     }
 
     /// <summary>
@@ -234,8 +458,8 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Only a single-Asset expense reaches here, because a group expense is routed to a bank regardless of what its Assets are. Connectivity and the
-    /// expense's Settlement are both irrelevant to a figure held once per Player for the whole game.
+    /// Only a single-Asset expense reaches here, because a group expense is routed to a bank regardless of what its Assets are. Connectivity is irrelevant
+    /// to a figure held once per Player for the whole game, and so is any Settlement.
     /// </para>
     /// <para>
     /// <b>Diffusion points are deliberately not spendable.</b> <c>UnspentDirectedPoints</c> is the fungible pool - a budget the Player generates and spends -
@@ -251,18 +475,23 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
     {
         TargetAsset asset = target.Assets.Single();
 
+        // A figure held once per Player for the whole game is not spent anywhere in particular, so a Settlement expense naming one is a caller that has the
+        // two arms confused. Reported rather than quietly ignored, now that there is an Empire-wide arm which says what it means.
+        if (expense.IsEmpireWide == false)
+        {
+            return InternalServerError($"\"{asset.DisplayName}\" is held per Player, so it is spent Empire-wide rather than at Settlement {expense.SettlementId!.Value}.");
+        }
+
         if (string.Equals(asset.Code, _TECHNOLOGY_EXPERIENCE_ASSET_CODE, StringComparison.OrdinalIgnoreCase) == false)
         {
-            return InternalServerError(
-                $"\"{asset.DisplayName}\" ({asset.Code}) is held per Player, but nothing stores it yet, so it cannot be spent.");
+            return InternalServerError($"\"{asset.DisplayName}\" ({asset.Code}) is held per Player, but nothing stores it yet, so it cannot be spent.");
         }
 
         // The store counts whole points, so a fractional expense has nowhere to land. Rounding it either way would silently over- or under-charge, so the
         // caller is told it asked for something the store cannot express.
         if (expense.Amount.RemainderRaw() != 0)
         {
-            return InternalServerError(
-                $"\"{asset.DisplayName}\" is counted in whole points, so {expense.Amount} cannot be spent of it.");
+            return InternalServerError($"\"{asset.DisplayName}\" is counted in whole points, so {expense.Amount} cannot be spent of it.");
         }
 
         // Tracked: this is the row being written.
@@ -297,8 +526,14 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
     /// The refusal a Player sees when they cannot afford the expense, carrying the numbers as well as the sentence.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// A conflict rather than a bad request: the expense was well formed and is simply at odds with what the Player currently holds, which is also why
     /// retrying it after a turn of production is a sensible thing for a caller to do.
+    /// </para>
+    /// <para>
+    /// <b>Nothing in it is bank-specific, whichever arm refused.</b> An Empire-wide expense is short against everything the Player holds, and naming the
+    /// pool that happened to run out would tell them about a boundary they did not spend across.
+    /// </para>
     /// </remarks>
     private static ServiceResultBase ToShortfall(AssetExpense expense, ExpenseTarget target, ScaledAmount available)
     {
@@ -306,8 +541,8 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
 
         var detail = new AssetShortfall
         {
-            AssetId = expense.AssetId,
-            AssetGroupId = expense.AssetGroupId,
+            AssetId = expense.Target.AssetId,
+            AssetGroupId = expense.Target.AssetGroupId,
             DisplayName = target.DisplayName,
             RawRequired = expense.Amount.RawValue,
             RawAvailable = available.RawValue,

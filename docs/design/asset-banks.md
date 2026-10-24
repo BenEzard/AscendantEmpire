@@ -68,10 +68,65 @@ and it keeps the catalogue row a pure label.
 The game will need to be able to query on a specific Asset Bank, and also query on all Asset Banks.
 
 ## Drawing down an asset
-* When the requested amount does not exist, then a user-friendly error should be returned.
-* When an expense is requested to be deducted from an AssetBank it will either be expressed as an `AssetGroup` (i.e. I need 10 Logs, and I don't care which type of logs), or as a specific `Asset` (i.e. Oak log).
-* When an expense is requested in an `AssetGroup` then it should be spent based on the player's ordering of asset within the group. (e.g. if the Player has Oak, Cedar, Generic) in their AssetGroup of Logs then it should be deducted in that order. If the amount requested can't be met by what's in Oak, then Oak should be zeroed, then the remaining amount should come from Cedar, then Generic.
-* When an expense is requested as an `Asset`, then only that `Asset` should be used, irrespective of the AssetGroup ordering.
+
+An expense makes two choices, and both change what is spent.
+
+**What it names:**
+
+* An **`Asset`** — "10 Oak Logs". Only that asset is touched, whatever its group's ordering says, and a
+  shortfall on it fails the expense rather than falling through to the rest of the group: a caller naming
+  Oak has already decided it does not want Cedar.
+* An **`AssetGroup`** — "10 Logs, any kind". Spent in the player's ordering of the group, each asset taken
+  to nothing before the next is touched. With an ordering of Oak, Generic, Cedar and 4 Oak and 20 Generic
+  held, an expense of 10 takes Oak to zero and the remaining 6 out of Generic, leaving Cedar alone.
+
+**Where it is paid from:** one settlement's bank, or every bank the player owns.
+
+### At one settlement
+
+A build order or an upkeep charge happens somewhere, so the expense carries that settlement and is met
+from the one bank it draws on. Where that bank does not hold enough, the expense is refused.
+
+> Sourcing the remainder from the nearest bank that does hold it — across several where need be, with a
+> transport turn cost for the distance the assets travel — is designed and not built. It is its own task.
+
+### Empire-wide
+
+A technology cost or an export belongs to no settlement, so the expense names none and is met from
+everything the player holds anywhere. What is available is the **sum across every bank**: two banks that
+cannot reach each other are added together here, because nothing is travelling to a building site. An
+Empire-wide expense carries **no transport cost**, ever.
+
+**The debit is spread by levelling.** The fullest banks are cut down to a common water-line and the rest
+are left alone, rather than every bank paying a proportion of the cost. With banks holding 50, 30 and 4
+and a cost of 40, the line falls at 20: the first two are cut to 20 each and the third pays nothing.
+
+Levelling rather than proportional because it takes from the richest first, so a bank with little keeps
+what it has and stays able to fund its own construction. A proportional spread would take something out
+of every bank on every Empire-wide purchase, and so would regularly leave a small settlement unable to
+build what it could have built a moment earlier.
+
+A quantity is a scaled integer, so a water-line that divides exactly is the exception. The leftover raw
+units go to the richest bank first and then to the lower bank id, so the same expense against the same
+banks always spends the same rows.
+
+**A group expense orders across the empire, not within a bank.** Every bank's Oak is taken to nothing
+before any Cedar is touched anywhere: the player's ordering says which asset they are willing to lose
+first, and that holds at the scale the expense is paid at. Within each asset of that walk, the take is
+levelled across the banks holding it.
+
+### Either way
+
+* An expense succeeds **whole or changes nothing**. Sufficiency is settled across the entire expense
+  before a single balance is touched, so a group expense that zeroes Oak and then finds Cedar short never
+  happens.
+* A refusal says what was short and by how much, and **nothing in it is bank-specific**. An Empire-wide
+  expense is short against everything the player holds, and naming the pool that ran out would point at a
+  boundary the expense was never spent across.
+* A balance taken to nothing is **deleted** rather than left at zero. A missing row and a zero row mean
+  the same thing to every reader.
+* An asset whose `StorageScope` is `Player` can only be spent Empire-wide — a figure held once for the
+  whole game is not spent anywhere in particular. Naming a settlement for one is a caller error.
 
 ## Out of Scope
 * If a camp is conquered, then it should change ownership to the conqueror, and change Asset Bank to the conqueror's nearest settlement.

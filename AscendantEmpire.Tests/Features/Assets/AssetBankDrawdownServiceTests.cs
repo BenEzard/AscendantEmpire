@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace AscendantEmpire.Tests.Features.Assets;
 
 /// <summary>
-/// Tests the single spender: what an expense takes, in what order, and how it refuses what the Player cannot afford.
+/// Tests the single spender: what an expense takes, out of which banks, in what order, and how it refuses what the Player cannot afford.
 /// </summary>
 /// <remarks>
 /// <para>See <see cref="AssetBankTestBase"/> for the tier and the seeded fixture.</para>
@@ -23,7 +23,12 @@ namespace AscendantEmpire.Tests.Features.Assets;
 internal class AssetBankDrawdownServiceTests : AssetBankTestBase
 {
     private const int _SETTLEMENT_ID = 41;
+    private const int _SECOND_SETTLEMENT_ID = 42;
+    private const int _THIRD_SETTLEMENT_ID = 43;
     private const int _FAR_SETTLEMENT_ID = 77;
+
+    // Building an expense never reads the catalogue, so a bare id stands in wherever a case only cares about what the factories refuse to build.
+    private const int _ANY_ASSET_ID = 1;
 
     // The grouped arm of the population category: every Asset beneath it is Derived, so none of it is bankable.
     private const string _GROUP_MY_PEOPLE_CODE = "Society.Population.MyPeople";
@@ -36,6 +41,10 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
         _service = new AssetBankDrawdownService(NullLogger<AssetBankDrawdownService>.Instance);
     }
 
+    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+    // At one Settlement - the bank that Settlement draws on, and that bank alone.
+    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+
     [Test, Description("An Asset expense takes only the Asset it names, leaving the rest of the group alone however the ordering would have walked it.")]
     public async Task ShouldDebitOnlyTheNamedAsset()
     {
@@ -44,7 +53,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
             [_SETTLEMENT_ID],
             new Dictionary<string, long> { [_OAK_LOG_CODE] = 10, [_GENERIC_LOG_CODE] = 10 });
 
-        ServiceResultBase result = await DebitAssetAsync(_OAK_LOG_CODE, whole: 4);
+        ServiceResultBase result = await DebitAssetAtSettlementAsync(_OAK_LOG_CODE, whole: 4);
 
         Dictionary<string, long> balances = await ReadBalancesAsync(assetBankId);
 
@@ -64,7 +73,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
             [_SETTLEMENT_ID],
             new Dictionary<string, long> { [_OAK_LOG_CODE] = 4, [_GENERIC_LOG_CODE] = 100 });
 
-        ServiceResultBase result = await DebitAssetAsync(_OAK_LOG_CODE, whole: 10);
+        ServiceResultBase result = await DebitAssetAtSettlementAsync(_OAK_LOG_CODE, whole: 10);
 
         Dictionary<string, long> balances = await ReadBalancesAsync(assetBankId);
 
@@ -86,7 +95,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
             [_SETTLEMENT_ID],
             new Dictionary<string, long> { [_OAK_LOG_CODE] = 4, [_GENERIC_LOG_CODE] = 20, [_CEDAR_LOG_CODE] = 5 });
 
-        ServiceResultBase result = await DebitGroupAsync(_GROUP_LOGS_CODE, whole: 10);
+        ServiceResultBase result = await DebitGroupAtSettlementAsync(_GROUP_LOGS_CODE, whole: 10);
 
         Dictionary<string, long> balances = await ReadBalancesAsync(assetBankId);
 
@@ -107,7 +116,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
             [_SETTLEMENT_ID],
             new Dictionary<string, long> { [_OAK_LOG_CODE] = 4, [_GENERIC_LOG_CODE] = 2 });
 
-        ServiceResultBase result = await DebitGroupAsync(_GROUP_LOGS_CODE, whole: 10);
+        ServiceResultBase result = await DebitGroupAtSettlementAsync(_GROUP_LOGS_CODE, whole: 10);
 
         Dictionary<string, long> balances = await ReadBalancesAsync(assetBankId);
 
@@ -129,7 +138,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
 
         int logsGroupId = await GetAssetGroupIdAsync(_GROUP_LOGS_CODE);
 
-        ServiceResultBase result = await DebitGroupAsync(_GROUP_LOGS_CODE, whole: 10);
+        ServiceResultBase result = await DebitGroupAtSettlementAsync(_GROUP_LOGS_CODE, whole: 10);
 
         var shortfall = result.ErrorDetail as AssetShortfall;
 
@@ -151,7 +160,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     {
         int assetBankId = await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
 
-        ServiceResultBase result = await DebitAssetAsync(_OAK_LOG_CODE, whole: 4);
+        ServiceResultBase result = await DebitAssetAtSettlementAsync(_OAK_LOG_CODE, whole: 4);
 
         Dictionary<string, long> balances = await ReadBalancesAsync(assetBankId);
 
@@ -170,7 +179,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
             [_SETTLEMENT_ID],
             new Dictionary<string, long> { [_OAK_LOG_CODE] = 4, [_OAK_PLANK_CODE] = 100 });
 
-        ServiceResultBase result = await DebitGroupAsync(_GROUP_LOGS_CODE, whole: 10);
+        ServiceResultBase result = await DebitGroupAtSettlementAsync(_GROUP_LOGS_CODE, whole: 10);
 
         Dictionary<string, long> balances = await ReadBalancesAsync(assetBankId);
 
@@ -182,12 +191,241 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
         }
     }
 
+    [Test, Description("A Settlement expense is met from its own bank only, so a second bank holding plenty does not rescue it and is left untouched.")]
+    public async Task ShouldNotReachASecondBankForASettlementExpense()
+    {
+        int ownBankId = await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        int otherBankId = await CreateBankAsync(_playerId, [_SECOND_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 });
+
+        ServiceResultBase result = await DebitAssetAtSettlementAsync(_OAK_LOG_CODE, whole: 10);
+
+        Dictionary<string, long> ownBalances = await ReadBalancesAsync(ownBankId);
+        Dictionary<string, long> otherBalances = await ReadBalancesAsync(otherBankId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Conflict));
+            Assert.That(result.Errors.Single(), Does.Contain("4 available"), "only the Settlement's own bank counts towards what is available");
+            Assert.That(ownBalances[_OAK_LOG_CODE], Is.EqualTo(4));
+            Assert.That(otherBalances[_OAK_LOG_CODE], Is.EqualTo(100), "reaching the nearest bank that holds the remainder is RS-27, and is not this");
+        }
+    }
+
+    [Test, Description("A Settlement with no asset bank has nothing to spend from, which is a not-found rather than a shortfall of zero.")]
+    public async Task ShouldAnswerNotFoundWhenTheSettlementHasNoBank()
+    {
+        await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 });
+
+        ServiceResultBase result = await DebitAsync(AssetExpense.AtSettlement(
+            playerId: _playerId,
+            settlementId: _FAR_SETTLEMENT_ID,
+            target: SpendTarget.Asset(await GetAssetIdAsync(_OAK_LOG_CODE)),
+            amount: ScaledAmount.FromWhole(1)));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.NotFound));
+            Assert.That(result.Errors.Single(), Does.Contain($"Settlement {_FAR_SETTLEMENT_ID}"));
+        }
+    }
+
+    [Test, Description("Naming another Player's Settlement reaches no bank at all, so a Player cannot spend out of a rival's pool by passing their settlement id.")]
+    public async Task ShouldNotReachAnotherPlayersBank()
+    {
+        int rivalBankId = await CreateBankAsync(_otherPlayerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 });
+
+        ServiceResultBase result = await DebitAssetAtSettlementAsync(_OAK_LOG_CODE, whole: 10);
+
+        Dictionary<string, long> balances = await ReadBalancesAsync(rivalBankId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.NotFound));
+            Assert.That(balances[_OAK_LOG_CODE], Is.EqualTo(100));
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+    // Empire-wide - every bank the Player owns, spread by levelling.
+    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+    [Test, Description("An Empire-wide expense cuts the fullest banks down to a common level rather than draining one or charging each a proportion.")]
+    public async Task ShouldLevelAnEmpireWideExpenseDownToACommonWaterLine()
+    {
+        int fullBankId = await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 50 });
+        int middlingBankId = await CreateBankAsync(_playerId, [_SECOND_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 30 });
+        int smallBankId = await CreateBankAsync(_playerId, [_THIRD_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+
+        ServiceResultBase result = await DebitAssetEmpireWideAsync(_OAK_LOG_CODE, whole: 40);
+
+        Dictionary<string, long> fullBalances = await ReadBalancesAsync(fullBankId);
+        Dictionary<string, long> middlingBalances = await ReadBalancesAsync(middlingBankId);
+        Dictionary<string, long> smallBalances = await ReadBalancesAsync(smallBankId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+            Assert.That(fullBalances[_OAK_LOG_CODE], Is.EqualTo(20), "the water-line falls at 20, so the fullest bank gives 30 of the 40");
+            Assert.That(middlingBalances[_OAK_LOG_CODE], Is.EqualTo(20), "and the next fullest gives the other 10, levelling the two");
+            Assert.That(smallBalances[_OAK_LOG_CODE], Is.EqualTo(4), "a bank below the line pays nothing, and keeps the stock its own construction needs");
+        }
+    }
+
+    [Test, Description("A bank holding far less than the water-line is never touched, however lopsided the Empire's stock is.")]
+    public async Task ShouldTakeNothingFromABankBelowTheWaterLine()
+    {
+        int fullBankId = await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 });
+        int smallBankId = await CreateBankAsync(_playerId, [_SECOND_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 1 });
+
+        ServiceResultBase result = await DebitAssetEmpireWideAsync(_OAK_LOG_CODE, whole: 10);
+
+        Dictionary<string, long> fullBalances = await ReadBalancesAsync(fullBankId);
+        Dictionary<string, long> smallBalances = await ReadBalancesAsync(smallBankId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+            Assert.That(fullBalances[_OAK_LOG_CODE], Is.EqualTo(90), "the whole cost comes off the only bank above the line");
+            Assert.That(smallBalances[_OAK_LOG_CODE], Is.EqualTo(1));
+        }
+    }
+
+    [Test, Description("An Empire-wide group expense zeroes one Asset across every bank before starting the next, so the Player's ordering holds at the scale the expense is paid at.")]
+    public async Task ShouldZeroAnAssetInEveryBankBeforeMovingToTheNextInTheGroup()
+    {
+        // Spend order is Oak, Generic, Cedar. The Cedar is in the first bank so that a walk which drained a bank rather than an Asset would take it.
+        int firstBankId = await CreateBankAsync(
+            _playerId,
+            [_SETTLEMENT_ID],
+            new Dictionary<string, long> { [_OAK_LOG_CODE] = 4, [_CEDAR_LOG_CODE] = 100 });
+
+        int secondBankId = await CreateBankAsync(
+            _playerId,
+            [_SECOND_SETTLEMENT_ID],
+            new Dictionary<string, long> { [_OAK_LOG_CODE] = 3, [_GENERIC_LOG_CODE] = 20 });
+
+        ServiceResultBase result = await DebitGroupEmpireWideAsync(_GROUP_LOGS_CODE, whole: 10);
+
+        Dictionary<string, long> firstBalances = await ReadBalancesAsync(firstBankId);
+        Dictionary<string, long> secondBalances = await ReadBalancesAsync(secondBankId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+            Assert.That(firstBalances.ContainsKey(_OAK_LOG_CODE), Is.False, "every bank's Oak goes before any later Asset is touched");
+            Assert.That(secondBalances.ContainsKey(_OAK_LOG_CODE), Is.False);
+            Assert.That(secondBalances[_GENERIC_LOG_CODE], Is.EqualTo(17), "the remaining 3 comes out of the next Asset in the ordering, wherever it is held");
+            Assert.That(firstBalances[_CEDAR_LOG_CODE], Is.EqualTo(100), "the walk stops once the amount is met, rather than finishing off the bank it started in");
+        }
+    }
+
+    [Test, Description("A leftover raw unit goes to the richest bank first and then to the lower bank id, so the same expense against the same banks always spends the same rows.")]
+    public async Task ShouldSpendALeftoverRawUnitRichestFirstThenByLowerBankId()
+    {
+        // Three equal banks and a cost that does not divide by three: 5 out of 30 puts the line at 8.333, leaving two raw units to place.
+        int firstBankId = await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 });
+        int secondBankId = await CreateBankAsync(_playerId, [_SECOND_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 });
+        int thirdBankId = await CreateBankAsync(_playerId, [_THIRD_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 });
+
+        ServiceResultBase result = await DebitAssetEmpireWideAsync(_OAK_LOG_CODE, whole: 5);
+
+        Dictionary<string, long> firstBalances = await ReadRawBalancesAsync(firstBankId);
+        Dictionary<string, long> secondBalances = await ReadRawBalancesAsync(secondBankId);
+        Dictionary<string, long> thirdBalances = await ReadRawBalancesAsync(thirdBankId);
+
+        long totalRaw = firstBalances[_OAK_LOG_CODE] + secondBalances[_OAK_LOG_CODE] + thirdBalances[_OAK_LOG_CODE];
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+            Assert.That(firstBalances[_OAK_LOG_CODE], Is.EqualTo(8_333), "the two lower bank ids carry the leftover unit, every bank being equally rich");
+            Assert.That(secondBalances[_OAK_LOG_CODE], Is.EqualTo(8_333));
+            Assert.That(thirdBalances[_OAK_LOG_CODE], Is.EqualTo(8_334));
+            Assert.That(totalRaw, Is.EqualTo(ScaledAmount.FromWhole(25).RawValue), "exactly the amount asked for is spent, to the raw unit");
+        }
+    }
+
+    [Test, Description("An Empire-wide expense adds every bank up when deciding what is available, since no boundary between them is being spent across.")]
+    public async Task ShouldAddEveryBankUpWhenReportingWhatIsAvailable()
+    {
+        int firstBankId = await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        int secondBankId = await CreateBankAsync(_playerId, [_SECOND_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 2 });
+
+        ServiceResultBase result = await DebitAssetEmpireWideAsync(_OAK_LOG_CODE, whole: 10);
+
+        Dictionary<string, long> firstBalances = await ReadBalancesAsync(firstBankId);
+        Dictionary<string, long> secondBalances = await ReadBalancesAsync(secondBankId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Conflict));
+            Assert.That(result.Errors.Single(), Is.EqualTo("Not enough Oak Log: 10 needed, 6 available."), "the two banks are summed, and neither is named");
+            Assert.That(firstBalances[_OAK_LOG_CODE], Is.EqualTo(4), "a refused Empire-wide expense stages nothing in any bank");
+            Assert.That(secondBalances[_OAK_LOG_CODE], Is.EqualTo(2));
+        }
+    }
+
+    [Test, Description("A Player who owns no bank at all is short of the whole amount, which is a shortfall rather than a not-found: there is no Settlement for the expense to be missing.")]
+    public async Task ShouldRefuseAnEmpireWideExpenseAsAShortfallWhenThePlayerOwnsNoBank()
+    {
+        ServiceResultBase result = await DebitAssetEmpireWideAsync(_OAK_LOG_CODE, whole: 10);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Conflict));
+            Assert.That(result.Errors.Single(), Does.Contain("0 available"));
+        }
+    }
+
+    [Test, Description("Empire-wide means the paying Player's Empire, so a rival's banks are neither spent from nor counted towards what is available.")]
+    public async Task ShouldNotReachAnotherPlayersBankEmpireWide()
+    {
+        int ownBankId = await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        int rivalBankId = await CreateBankAsync(_otherPlayerId, [_SECOND_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 });
+
+        ServiceResultBase result = await DebitAssetEmpireWideAsync(_OAK_LOG_CODE, whole: 10);
+
+        Dictionary<string, long> ownBalances = await ReadBalancesAsync(ownBankId);
+        Dictionary<string, long> rivalBalances = await ReadBalancesAsync(rivalBankId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Conflict));
+            Assert.That(result.Errors.Single(), Does.Contain("4 available"));
+            Assert.That(ownBalances[_OAK_LOG_CODE], Is.EqualTo(4));
+            Assert.That(rivalBalances[_OAK_LOG_CODE], Is.EqualTo(100));
+        }
+    }
+
+    [Test, Description("An Empire-wide expense taking an Asset out entirely deletes every emptied row, rather than leaving a zero in each bank that held it.")]
+    public async Task ShouldDeleteEveryBalanceAnEmpireWideExpenseEmpties()
+    {
+        int firstBankId = await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        int secondBankId = await CreateBankAsync(_playerId, [_SECOND_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 6 });
+
+        ServiceResultBase result = await DebitAssetEmpireWideAsync(_OAK_LOG_CODE, whole: 10);
+
+        Dictionary<string, long> firstBalances = await ReadBalancesAsync(firstBankId);
+        Dictionary<string, long> secondBalances = await ReadBalancesAsync(secondBankId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+            Assert.That(firstBalances, Is.Empty);
+            Assert.That(secondBalances, Is.Empty);
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+    // Assets held somewhere other than a bank.
+    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+
     [Test, Description("Debiting a Derived Asset is a programming error rather than a shortfall: population is counted off what already records it and is not something a Player ran out of.")]
     public async Task ShouldRefuseADerivedAssetAsAProgrammingError()
     {
         await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long>());
 
-        ServiceResultBase result = await DebitAssetAsync(_CIVILIANS_CODE, whole: 1);
+        ServiceResultBase result = await DebitAssetAtSettlementAsync(_CIVILIANS_CODE, whole: 1);
 
         using (Assert.EnterMultipleScope())
         {
@@ -201,7 +439,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     {
         await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long>());
 
-        ServiceResultBase result = await DebitGroupAsync(_GROUP_MY_PEOPLE_CODE, whole: 1);
+        ServiceResultBase result = await DebitGroupAtSettlementAsync(_GROUP_MY_PEOPLE_CODE, whole: 1);
 
         using (Assert.EnterMultipleScope())
         {
@@ -215,7 +453,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     {
         await CreateResearchStateAsync(_playerId, unspentDirectedPoints: 10);
 
-        ServiceResultBase result = await DebitAssetAsync(_TECHNOLOGY_EXPERIENCE_CODE, whole: 4);
+        ServiceResultBase result = await DebitAssetEmpireWideAsync(_TECHNOLOGY_EXPERIENCE_CODE, whole: 4);
 
         (int directedPoints, _) = await ReadResearchPointsAsync(_playerId);
 
@@ -226,12 +464,29 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
         }
     }
 
+    [Test, Description("A figure held once per Player for the whole game cannot be spent at a Settlement, so naming one is reported rather than quietly ignored.")]
+    public async Task ShouldRefuseAPlayerScopeAssetSpentAtASettlement()
+    {
+        await CreateResearchStateAsync(_playerId, unspentDirectedPoints: 10);
+
+        ServiceResultBase result = await DebitAssetAtSettlementAsync(_TECHNOLOGY_EXPERIENCE_CODE, whole: 4);
+
+        (int directedPoints, _) = await ReadResearchPointsAsync(_playerId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.InternalServerError));
+            Assert.That(result.Errors.Single(), Does.Contain("Empire-wide"));
+            Assert.That(directedPoints, Is.EqualTo(10), "the refusal leaves the store alone rather than spending it anyway");
+        }
+    }
+
     [Test, Description("Diffusion points are not part of the spendable pool: they arrive attached to a neighbour rather than as a budget, so an expense cannot consume them.")]
     public async Task ShouldNotSpendDiffusionPoints()
     {
         await CreateResearchStateAsync(_playerId, unspentDirectedPoints: 4, unspentDiffusionPoints: 100);
 
-        ServiceResultBase result = await DebitAssetAsync(_TECHNOLOGY_EXPERIENCE_CODE, whole: 10);
+        ServiceResultBase result = await DebitAssetEmpireWideAsync(_TECHNOLOGY_EXPERIENCE_CODE, whole: 10);
 
         (int directedPoints, int diffusionPoints) = await ReadResearchPointsAsync(_playerId);
 
@@ -249,7 +504,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     {
         await CreateResearchStateAsync(_playerId, unspentDirectedPoints: 100);
 
-        ServiceResultBase result = await DebitAssetAsync(_CULTURE_EXPERIENCE_CODE, whole: 1);
+        ServiceResultBase result = await DebitAssetEmpireWideAsync(_CULTURE_EXPERIENCE_CODE, whole: 1);
 
         using (Assert.EnterMultipleScope())
         {
@@ -263,10 +518,9 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     {
         await CreateResearchStateAsync(_playerId, unspentDirectedPoints: 10);
 
-        ServiceResultBase result = await DebitAsync(AssetExpense.OfAsset(
+        ServiceResultBase result = await DebitAsync(AssetExpense.EmpireWide(
             playerId: _playerId,
-            settlementId: _SETTLEMENT_ID,
-            assetId: await GetAssetIdAsync(_TECHNOLOGY_EXPERIENCE_CODE),
+            target: SpendTarget.Asset(await GetAssetIdAsync(_TECHNOLOGY_EXPERIENCE_CODE)),
             amount: ScaledAmount.FromDecimal(0.5m)));
 
         (int directedPoints, _) = await ReadResearchPointsAsync(_playerId);
@@ -281,59 +535,30 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     [Test, Description("A Player with no research state cannot have their points spent, which is a not-found rather than a shortfall: the row should be there.")]
     public async Task ShouldAnswerNotFoundWhenThePlayerHasNoResearchState()
     {
-        ServiceResultBase result = await DebitAssetAsync(_TECHNOLOGY_EXPERIENCE_CODE, whole: 1);
+        ServiceResultBase result = await DebitAssetEmpireWideAsync(_TECHNOLOGY_EXPERIENCE_CODE, whole: 1);
 
         Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.NotFound));
     }
 
-    [TestCase(0, Description = "A zero expense is a caller that did not mean to call, so it reads as a programming error rather than as a success that changed nothing.")]
-    [TestCase(-5, Description = "A negative expense is a credit by another name, and production rather than the drawdown owns crediting a balance.")]
-    public async Task ShouldRefuseANonPositiveExpense(int whole)
+    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+    // What an expense has to be, and what the caller owns.
+    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+    [TestCase(0, Description = "A zero expense is a caller that did not mean to call, and cannot be built at all rather than being refused once it is spent.")]
+    [TestCase(-5, Description = "A negative expense is a credit by another name, which production owns, so neither factory will build one.")]
+    public void ShouldNotBuildANonPositiveExpense(int whole)
     {
-        int assetBankId = await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 });
-
-        ServiceResultBase result = await DebitAssetAsync(_OAK_LOG_CODE, whole);
-
-        Dictionary<string, long> balances = await ReadBalancesAsync(assetBankId);
+        ScaledAmount amount = ScaledAmount.FromWhole(whole);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.InternalServerError));
-            Assert.That(balances[_OAK_LOG_CODE], Is.EqualTo(10));
-        }
-    }
+            Assert.That(
+                () => AssetExpense.AtSettlement(playerId: _playerId, settlementId: _SETTLEMENT_ID, target: SpendTarget.Asset(_ANY_ASSET_ID), amount: amount),
+                Throws.InstanceOf<ArgumentOutOfRangeException>());
 
-    [Test, Description("A Settlement with no asset bank has nothing to spend from, which is a not-found rather than a shortfall of zero.")]
-    public async Task ShouldAnswerNotFoundWhenTheSettlementHasNoBank()
-    {
-        await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 });
-
-        ServiceResultBase result = await DebitAsync(AssetExpense.OfAsset(
-            playerId: _playerId,
-            settlementId: _FAR_SETTLEMENT_ID,
-            assetId: await GetAssetIdAsync(_OAK_LOG_CODE),
-            amount: ScaledAmount.FromWhole(1)));
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.NotFound));
-            Assert.That(result.Errors.Single(), Does.Contain($"Settlement {_FAR_SETTLEMENT_ID}"));
-        }
-    }
-
-    [Test, Description("Naming another Player's Settlement reaches no bank at all, so a Player cannot spend out of a rival's pool by passing their settlement id.")]
-    public async Task ShouldNotReachAnotherPlayersBank()
-    {
-        int rivalBankId = await CreateBankAsync(_otherPlayerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 });
-
-        ServiceResultBase result = await DebitAssetAsync(_OAK_LOG_CODE, whole: 10);
-
-        Dictionary<string, long> balances = await ReadBalancesAsync(rivalBankId);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.NotFound));
-            Assert.That(balances[_OAK_LOG_CODE], Is.EqualTo(100));
+            Assert.That(
+                () => AssetExpense.EmpireWide(playerId: _playerId, target: SpendTarget.Asset(_ANY_ASSET_ID), amount: amount),
+                Throws.InstanceOf<ArgumentOutOfRangeException>());
         }
     }
 
@@ -342,10 +567,10 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     {
         await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long>());
 
-        ServiceResultBase result = await DebitAsync(AssetExpense.OfAsset(
+        ServiceResultBase result = await DebitAsync(AssetExpense.AtSettlement(
             playerId: _playerId,
             settlementId: _SETTLEMENT_ID,
-            assetId: 999_999,
+            target: SpendTarget.Asset(999_999),
             amount: ScaledAmount.FromWhole(1)));
 
         Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.NotFound));
@@ -356,10 +581,10 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     {
         await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long>());
 
-        ServiceResultBase result = await DebitAsync(AssetExpense.OfGroup(
+        ServiceResultBase result = await DebitAsync(AssetExpense.AtSettlement(
             playerId: _playerId,
             settlementId: _SETTLEMENT_ID,
-            assetGroupId: 999_999,
+            target: SpendTarget.Group(999_999),
             amount: ScaledAmount.FromWhole(1)));
 
         Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.NotFound));
@@ -374,10 +599,10 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
         {
             ServiceResultBase result = await _service.DebitAsync(
                 context,
-                AssetExpense.OfAsset(
+                AssetExpense.AtSettlement(
                     playerId: _playerId,
                     settlementId: _SETTLEMENT_ID,
-                    assetId: await GetAssetIdAsync(_OAK_LOG_CODE),
+                    target: SpendTarget.Asset(await GetAssetIdAsync(_OAK_LOG_CODE)),
                     amount: ScaledAmount.FromWhole(4)),
                 CancellationToken.None);
 
@@ -389,21 +614,37 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
         Assert.That(balances[_OAK_LOG_CODE], Is.EqualTo(10));
     }
 
-    private async Task<ServiceResultBase> DebitAssetAsync(string assetCode, int whole)
+    private async Task<ServiceResultBase> DebitAssetAtSettlementAsync(string assetCode, int whole)
     {
-        return await DebitAsync(AssetExpense.OfAsset(
+        return await DebitAsync(AssetExpense.AtSettlement(
             playerId: _playerId,
             settlementId: _SETTLEMENT_ID,
-            assetId: await GetAssetIdAsync(assetCode),
+            target: SpendTarget.Asset(await GetAssetIdAsync(assetCode)),
             amount: ScaledAmount.FromWhole(whole)));
     }
 
-    private async Task<ServiceResultBase> DebitGroupAsync(string groupCode, int whole)
+    private async Task<ServiceResultBase> DebitGroupAtSettlementAsync(string groupCode, int whole)
     {
-        return await DebitAsync(AssetExpense.OfGroup(
+        return await DebitAsync(AssetExpense.AtSettlement(
             playerId: _playerId,
             settlementId: _SETTLEMENT_ID,
-            assetGroupId: await GetAssetGroupIdAsync(groupCode),
+            target: SpendTarget.Group(await GetAssetGroupIdAsync(groupCode)),
+            amount: ScaledAmount.FromWhole(whole)));
+    }
+
+    private async Task<ServiceResultBase> DebitAssetEmpireWideAsync(string assetCode, int whole)
+    {
+        return await DebitAsync(AssetExpense.EmpireWide(
+            playerId: _playerId,
+            target: SpendTarget.Asset(await GetAssetIdAsync(assetCode)),
+            amount: ScaledAmount.FromWhole(whole)));
+    }
+
+    private async Task<ServiceResultBase> DebitGroupEmpireWideAsync(string groupCode, int whole)
+    {
+        return await DebitAsync(AssetExpense.EmpireWide(
+            playerId: _playerId,
+            target: SpendTarget.Group(await GetAssetGroupIdAsync(groupCode)),
             amount: ScaledAmount.FromWhole(whole)));
     }
 

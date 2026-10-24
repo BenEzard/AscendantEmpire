@@ -170,6 +170,20 @@ internal abstract class AssetBankTestBase : InMemoryTestBase
     /// <remarks>Whole units, matching how <see cref="CreateBankAsync"/> takes them, so an assertion reads in the same figures the arrangement did.</remarks>
     protected async Task<Dictionary<string, long>> ReadBalancesAsync(int assetBankId)
     {
+        Dictionary<string, long> rawBalances = await ReadRawBalancesAsync(assetBankId);
+
+        return rawBalances.ToDictionary(balance => balance.Key, balance => ScaledAmount.FromRaw(balance.Value).ToWholeRoundedDown());
+    }
+
+    /// <summary>
+    /// Reads what one bank now holds in raw scaled units, keyed by Asset code, with Assets the bank has no row for left out.
+    /// </summary>
+    /// <remarks>
+    /// For the cases whose expected figures are not whole. A levelled Empire-wide spread normally leaves a balance a fraction of a unit off a round number,
+    /// and <see cref="ReadBalancesAsync"/> would round that away before the assertion ever saw it.
+    /// </remarks>
+    protected async Task<Dictionary<string, long>> ReadRawBalancesAsync(int assetBankId)
+    {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
         // Projected into the query before the dictionary is built. ToDictionaryAsync runs its selectors client-side against materialised entities, where the
@@ -179,7 +193,7 @@ internal abstract class AssetBankTestBase : InMemoryTestBase
             .Select(balance => new BalanceRow(balance.Asset.Code, balance.Quantity))
             .ToListAsync();
 
-        return rows.ToDictionary(row => row.AssetCode, row => ScaledAmount.FromRaw(row.Quantity).ToWholeRoundedDown());
+        return rows.ToDictionary(row => row.AssetCode, row => row.Quantity);
     }
 
     /// <summary>
