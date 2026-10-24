@@ -2062,14 +2062,38 @@ public class AscendantEmpireContext : DbContext
 
             entity.Property(x => x.TokenHash).HasMaxLength(RefreshSession.TOKEN_HASH_MAX_LENGTH).IsRequired();
 
+            // Nullable: a session that has never been refreshed has no retired hash yet.
+            entity.Property(x => x.PreviousTokenHash).HasMaxLength(RefreshSession.TOKEN_HASH_MAX_LENGTH);
+
+            // Stored as its underlying int, so the column survives members being renamed.
+            entity.Property(x => x.RevokedReason).HasConversion<int>();
+
+            // Guards the rotation against two concurrent refreshes both writing a new hash, with the loser silently overwritten.
+            entity.Property(x => x.RowVersion)
+                .IsRowVersion();
+
             // Lookups happen by token hash, so it must be unique and indexed.
             entity.HasIndex(x => x.TokenHash)
                 .IsUnique()
                 .HasDatabaseName("UX_RefreshSession_TokenHash");
 
+            // A rotation presents either the current or the retired hash, so reuse detection looks both columns up and the retired one needs an index
+            // of its own. Unique for the same reason as the live hash — a token must identify at most one session, whichever column it matches — and
+            // filtered because the nulls are the sessions that have never rotated, which are not in conflict with each other.
+            entity.HasIndex(x => x.PreviousTokenHash)
+                .IsUnique()
+                .HasFilter("[PreviousTokenHash] IS NOT NULL")
+                .HasDatabaseName("UX_RefreshSession_PreviousTokenHash");
+
+            // Read by the family revoke that detected reuse triggers.
+            entity.HasIndex(x => x.FamilyId).HasDatabaseName("IX_RefreshSession_Family");
+
             // Revocation queries hit these columns: by game (delete game / kick all) and by user.
             entity.HasIndex(x => x.GameId).HasDatabaseName("IX_RefreshSession_Game");
             entity.HasIndex(x => x.UserId).HasDatabaseName("IX_RefreshSession_User");
+
+            // The pruning sweep deletes by expiry, so it gets the index rather than scanning a table that grows with every login.
+            entity.HasIndex(x => x.ExpiresAt).HasDatabaseName("IX_RefreshSession_ExpiresAt");
 
             // Deleting a user takes their sessions with them (unlike Players, sessions are
             // disposable and carry no game state worth preserving).

@@ -1735,14 +1735,33 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<DateTimeOffset>("ExpiresAt")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<Guid>("FamilyId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<int?>("GameId")
                         .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("LastRotatedAt")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<int?>("PlayerId")
                         .HasColumnType("int");
 
+                    b.Property<string>("PreviousTokenHash")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
                     b.Property<DateTimeOffset?>("RevokedAt")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<int?>("RevokedReason")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
 
                     b.Property<string>("TokenHash")
                         .IsRequired()
@@ -1754,8 +1773,19 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ExpiresAt")
+                        .HasDatabaseName("IX_RefreshSession_ExpiresAt");
+
+                    b.HasIndex("FamilyId")
+                        .HasDatabaseName("IX_RefreshSession_Family");
+
                     b.HasIndex("GameId")
                         .HasDatabaseName("IX_RefreshSession_Game");
+
+                    b.HasIndex("PreviousTokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("UX_RefreshSession_PreviousTokenHash")
+                        .HasFilter("[PreviousTokenHash] IS NOT NULL");
 
                     b.HasIndex("TokenHash")
                         .IsUnique()

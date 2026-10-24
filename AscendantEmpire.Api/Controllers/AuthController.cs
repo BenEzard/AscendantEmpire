@@ -279,7 +279,7 @@ public class AuthController : ControllerBase
         int? sessionId = User.GetSessionId();
         if (sessionId is not null)
         {
-            await sessionService.RevokeAsync(sessionId.Value, cancelToken);
+            await sessionService.RevokeAsync(sessionId.Value, RefreshRevocationReason.Logout, cancelToken);
         }
 
         return NoContent();

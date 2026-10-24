@@ -65,6 +65,10 @@ public static class ApplicationStartup
         // Manages revocable login sessions behind refresh tokens.
         services.AddScoped<IRefreshSessionService, RefreshSessionService>();
 
+        // Housekeeping for the table that service writes to: a timer that deletes sessions whose expiry passed longer ago than the retention. Its own
+        // hosted service rather than a job on the background pipeline below, because the pipeline runs user-initiated work and has no clock.
+        services.AddHostedService<RefreshSessionPruningService>();
+
         services.AddScoped<ICampaignTurnService, CampaignTurnService>();
         services.AddScoped<ICampaignRoundService, CampaignRoundService>();
 

@@ -501,7 +501,11 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
         var executor = new GameDeleteExecutor(
             jobContext,
             DbFactory,
-            new RefreshSessionService(new NullLogger<RefreshSessionService>(), DbFactory),
+            // Default settings: this fixture exercises revoke-by-game, which the reuse grace window and retention play no part in.
+            new RefreshSessionService(
+                new NullLogger<RefreshSessionService>(),
+                DbFactory,
+                Microsoft.Extensions.Options.Options.Create(new AscendantEmpire.Application.Options.RefreshSessionSettings())),
             new NullLogger<GameDeleteExecutor>());
 
         await executor.ExecuteAsync(job, CancellationToken.None);

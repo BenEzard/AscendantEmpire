@@ -102,7 +102,8 @@ public class DevController : ControllerBase
         // stranding them logged out of a Game whose Turn never ended.
         if (callerSessionId is not null)
         {
-            await sessionService.RevokeAsync(callerSessionId.Value, cancelToken);
+            // Administrative rather than Logout: the caller did not choose to end this session, a dev tool ended it to swap them for the next Player.
+            await sessionService.RevokeAsync(callerSessionId.Value, RefreshRevocationReason.Administrative, cancelToken);
         }
 
         // Log the next Player in. The session records the Game and Player from the outset, so a later refresh re-issues a game token rather than dropping

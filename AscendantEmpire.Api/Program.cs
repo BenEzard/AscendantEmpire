@@ -140,6 +140,10 @@ namespace AscendantEmpire.Api
             builder.Services.Configure<Application.Options.BackgroundProcessingSettings>(builder.Configuration.GetSection("BackgroundProcessingSettings"));
             builder.Services.Configure<Application.Options.GameSettings>(builder.Configuration.GetSection("GameSettings"));
 
+            // Separate from the Jwt section below on purpose: that one holds what the Api decides about tokens (lifetimes, signing), while this holds
+            // what the Application layer decides for itself about the sessions behind them — reuse tolerance and row retention.
+            builder.Services.Configure<Application.Options.RefreshSessionSettings>(builder.Configuration.GetSection("RefreshSessionSettings"));
+
             // The base appsettings.json deliberately carries no connection string, so that no single machine's SQL Server becomes the silent fallback for
             // every environment. That only helps if a missing value is noticed: UseSqlServer accepts null and defers the failure to the first query, which
             // would surface as a broken request long after startup. Check it here instead, matching the fail-fast treatment Jwt:SigningKey gets below.
