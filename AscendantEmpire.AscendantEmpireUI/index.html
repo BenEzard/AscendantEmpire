@@ -34,24 +34,40 @@
         justify-content: center;
         gap: 1rem;
       }
-      a {
+      .module-card {
         /* Sized like a standard playing card (2.5" × 3.5", a 5:7 ratio). */
         width: 200px;
         height: 280px;
-        /* Centre the label both ways within the card. */
+        /* Title at the top of the card with the description directly beneath it, so the pair is
+           anchored to the top edge rather than centred in the card's height. */
         display: flex;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 1rem;
+        /* Keeps the padding inside the fixed size, so every card still measures 200 × 280. */
+        box-sizing: border-box;
         border: 1px solid #334155;
         border-radius: 0.75rem;
         color: #e2e8f0;
         text-decoration: none;
+      }
+      .module-card:hover {
+        background: #1e293b;
+      }
+      .module-card-title {
+        /* Centred across the card's width — this is the card's own heading. */
+        text-align: center;
         font-weight: 600;
         font-size: 1.25rem;
       }
-      a:hover {
-        background: #1e293b;
+      .module-card-description {
+        /* Left aligned and italic, so it reads as a caption under the heading rather than a second heading. */
+        text-align: left;
+        font-style: italic;
+        font-size: 0.9375rem;
+        line-height: 1.4;
+        /* A shade dimmer than the title, which keeps the heading dominant. */
+        color: #cbd5e1;
       }
     </style>
   </head>
@@ -59,13 +75,28 @@
     <h1>Ascendant Empire</h1>
     <nav>
       <div class="row">
-        <a href="/matchmaker/">Match-Maker</a>
-        <a href="/game/">Game</a>
-        <a href="/system/">System</a>
+        <a class="module-card" href="/matchmaker/">
+          <span class="module-card-title">Match-Maker</span>
+          <span class="module-card-description">Create games and add players to them</span>
+        </a>
+        <a class="module-card" href="/game/">
+          <span class="module-card-title">Game</span>
+          <span class="module-card-description">Play a game</span>
+        </a>
+        <a class="module-card" href="/system/">
+          <span class="module-card-title">System</span>
+          <span class="module-card-description">Manage the games, users and data</span>
+        </a>
       </div>
       <div class="row">
-        <a href="/mapeditor/">Map Editor</a>
-        <a href="/entitysetuptool/">Entity Setup Tool</a>
+        <a class="module-card" href="/mapeditor/">
+          <span class="module-card-title">Map Editor</span>
+          <span class="module-card-description">Create maps</span>
+        </a>
+        <a class="module-card" href="/entitysetuptool/">
+          <span class="module-card-title">Entity Setup Tool</span>
+          <span class="module-card-description">Adjust game entities</span>
+        </a>
       </div>
     </nav>
   </body>
