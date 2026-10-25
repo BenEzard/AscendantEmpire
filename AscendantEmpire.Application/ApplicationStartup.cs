@@ -166,6 +166,10 @@ public static class ApplicationStartup
         // The one place a Settlement is given the bank it is born with, called from inside the settle transaction so a founding and its bank land together.
         services.AddScoped<IAssetBankProvisioningService, AssetBankProvisioningService>();
 
+        // Resolves what a Player holds of each Asset for the read path, routing on the same Asset.StorageScope column the drawdown routes a debit on, so the
+        // figure a ticker reports and the figure a purchase is checked against cannot come from different places.
+        services.AddScoped<IPlayerAssetQuantityReader, PlayerAssetQuantityReader>();
+
         // Force context action pipeline. Each IForceActionStrategy decides one toolbar action; the service builds the shared context once and
         // judges every strategy against it. Display order comes from ForceActionType's value, so registration order here does not matter.
         services.AddScoped<IForceContextActionService, ForceContextActionService>();

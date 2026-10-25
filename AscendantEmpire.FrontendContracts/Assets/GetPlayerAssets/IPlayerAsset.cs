@@ -6,7 +6,7 @@ namespace AscendantEmpire.FrontendContracts.Assets.GetPlayerAssets;
 /// One Asset available to the Player, as the ticker panel needs it.
 /// </summary>
 /// <remarks>
-/// The seven fields from <see cref="Amount"/> onwards are placeholders that no table sources yet - see the banner on the backend contract.
+/// The six fields from <see cref="AmountAddedPerTurn"/> onwards are placeholders that no table sources yet - see the banner on the backend contract.
 /// </remarks>
 public interface IPlayerAsset
 {
@@ -52,8 +52,13 @@ public interface IPlayerAsset
     int? ObsoleteInRounds { get; }
 
     /// <summary>
-    /// How much of this Asset the Player holds. <b>Placeholder - always zero.</b>
+    /// How much of this Asset the Player holds, as a whole number, rounded down.
     /// </summary>
+    /// <remarks>
+    /// Summed across every bank the Player owns for a banked Asset, which is what an Empire-wide expense spends. A banked Asset the Player holds none of is
+    /// left out of the tree rather than sent as zero, so a panel lists only what they hold. Culture and every population figure do come back at zero,
+    /// because nothing records them yet.
+    /// </remarks>
     int Amount { get; }
 
     /// <summary>

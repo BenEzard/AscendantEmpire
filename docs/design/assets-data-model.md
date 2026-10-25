@@ -25,8 +25,10 @@ catalogue, so the same four tables serve every game.
 | `PlayerUnlockedAsset` | `(PlayerId, AssetId)` | The Asset is unlocked for that Player. No row means they have never had it. `ObsoleteOnRound` is future-dated: the Asset is available while it is null *or* still ahead of the current Round. |
 | `PlayerUnlockedAssetMetaCategory` | `(PlayerId, AssetMetaCategoryId)` | Whether the meta-category's icon appears in the Player's Assets toolbar at all. Categories and groups have no unlock rows — they are shown when they hold at least one available Asset. |
 
-These say what a Player can *see*, not what they *hold*. There is no holdings table yet: `Amount` and the six fields
-beside it are contract placeholders (see **Read Path** below).
+These say what a Player can *see*, not what they *hold*. What a Player holds is not in this schema at all: a banked
+figure lives in `AssetBankBalance`, a player-level one on the row that already owns it, and a derived one nowhere.
+`Asset.StorageScope` says which, and `GetPlayerAssetsHandler` resolves it at read time. The six fields beside
+`Amount` are still contract placeholders (see **Read Path** below).
 
 #### Population, and the subject player
 
@@ -61,9 +63,8 @@ people held from them are still held.
 
 ##### What the figures will come from
 
-`Amount` is still a placeholder (see **Read Path**), so every population figure currently reads zero. The holdings
-ledger that fills them is `RS-20` work that has not landed: a table keyed `(HolderPlayerId, AssetId, SubjectPlayerId)`,
-read on two axes. Rows where `HolderPlayerId` is me and `SubjectPlayerId` is another player fill that player's
+Every population figure reads zero, because the ledger behind it does not exist. The holdings ledger that fills them
+is `RS-20` work that has not landed: a table keyed `(HolderPlayerId, AssetId, SubjectPlayerId)`, read on two axes. Rows where `HolderPlayerId` is me and `SubjectPlayerId` is another player fill that player's
 projected group. Rows where `SubjectPlayerId` is me, summed across every holder, fill the Slaves / Interred / P.o.W.
 entries under `My People` — members of my people held by somebody else.
 
@@ -214,8 +215,15 @@ GET /player/assets
 - `AssetGrade` is the API's member names — `None`, `Low`, `Medium`, `High`. The bronze, silver and gold shields a ticker wears are presentation for
   Low, Medium and High.
 - `AssetTickerData.obsoleteIn` is in **rounds**, from `ObsoleteInRounds`.
-- Seven fields — `amount`, `amountAddedPerTurn`, `hasStrategicStockpile`, `isImported`, `isExported`, `demandNotMet`, `isLuxury` — are contract
-  placeholders the API sends as zero or false until their own tickets land. A zero amount renders like any other: nothing is hidden for holding none.
+- `amount` is measured, resolved per asset from whichever store its `StorageScope` names: summed across every bank the player owns for a
+  `SettlementBank` asset, `PlayerResearchState.UnspentDirectedPoints` for Technology experience, and zero for Culture and every `Derived` figure,
+  whose stores do not exist yet. Whole and rounded down, so holding nine tenths of a log reads as none of it.
+- A banked asset the player holds none of is **not in the tree at all**, so a panel lists only what they hold. The gate is on `StorageScope` rather
+  than on the figure: a `Player` asset is always sent, because Technology experience empties at the end of every turn by design and a ticker that
+  vanished each turn would read worse than one at zero, and a `Derived` figure is always sent while no ledger records it. A group left with no
+  assets drops and takes its category with it; a meta-category keeps its icon over an empty panel, which its own unlock row decides.
+- Six fields — `amountAddedPerTurn`, `hasStrategicStockpile`, `isImported`, `isExported`, `demandNotMet`, `isLuxury` — are contract
+  placeholders the API sends as zero or false until their own tickets land.
 - An asset's `distributionConfig` and `productionConfig` have no wire source, so the Resource Manager's distribution and production pages show their
   empty states.
 

@@ -1,6 +1,7 @@
 ﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Technologies.Handlers;
+using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.BackendContracts.Technologies;
 using AscendantEmpire.BackendContracts.Technologies.GetPlayerResearch;
 using AscendantEmpire.Domain.Enums.Technologies;
@@ -33,7 +34,7 @@ internal class GetPlayerResearchHandlerTests : ResearchHandlerTestBase
     [SetUp]
     public void SetUpHandler()
     {
-        _handler = new GetPlayerResearchHandler(DbFactory);
+        _handler = new GetPlayerResearchHandler(DbFactory, new CampaignTurnService(NullLogger<CampaignTurnService>.Instance, DbFactory));
     }
 
     // --- Which statuses reach the list -----------------------------------------------

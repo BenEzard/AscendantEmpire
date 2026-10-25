@@ -1,6 +1,7 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Assets.Handlers;
+using AscendantEmpire.Application.Features.Turns.Services;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -65,7 +66,10 @@ internal class WithdrawPlayerAssetHandlerTests : PlayerAssetUnlockTestBase
     {
         await GrantAsync();
 
-        var grant = new GrantPlayerAssetHandler(NullLogger<GrantPlayerAssetHandler>.Instance, DbFactory);
+        var grant = new GrantPlayerAssetHandler(
+            NullLogger<GrantPlayerAssetHandler>.Instance,
+            DbFactory,
+            new CampaignTurnService(NullLogger<CampaignTurnService>.Instance, DbFactory));
         await grant.Handle(
             new GrantPlayerAssetRequest(_GAME_ID, _playerId, ["Weapons.MeleeWeapons.StoneAxe.Low"], [], ObsoleteInRounds: null),
             CancellationToken.None);

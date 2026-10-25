@@ -2,6 +2,7 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Assets.Services;
+using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Domain.Entities.Assets;
 
 using Microsoft.EntityFrameworkCore;
@@ -41,7 +42,8 @@ public record GrantPlayerAssetRequest(
 /// </remarks>
 internal class GrantPlayerAssetHandler(
     ILogger<GrantPlayerAssetHandler> logger,
-    IDbContextFactory<AscendantEmpireContext> dbFactory
+    IDbContextFactory<AscendantEmpireContext> dbFactory,
+    ICampaignTurnService campaignTurnService
 ) : IRequestHandler<GrantPlayerAssetRequest, ServiceResultBase>
 {
     public async Task<ServiceResultBase> Handle(GrantPlayerAssetRequest request, CancellationToken cancellationToken)
@@ -59,7 +61,8 @@ internal class GrantPlayerAssetHandler(
             return targets;
         }
 
-        ServiceResult<int> currentRound = await PlayerAssetUnlockLookup.ReadCurrentRoundAsync(context, request.GameId, cancellationToken);
+        // The Round the granted rows are stamped with, read through this context so it joins the transaction the inserts below land in.
+        ServiceResult<int> currentRound = await campaignTurnService.GetCurrentRoundNumberAsync(context, request.GameId, cancellationToken);
 
         if (currentRound.HasSucceeded == false)
         {

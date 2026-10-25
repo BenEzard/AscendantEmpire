@@ -2,10 +2,10 @@
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Technologies.Services;
+using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.BackendContracts.Technologies.GetPlayerResearch;
 using AscendantEmpire.BackendContracts.Technologies.GetTechnologies;
 using AscendantEmpire.Domain.Enums.Technologies;
-using AscendantEmpire.Domain.Enums.Turns;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -24,7 +24,8 @@ public record GetPlayerResearchRequest(int GameId, int PlayerId) : IRequest<Serv
 /// </para>
 /// </remarks>
 internal class GetPlayerResearchHandler(
-    IDbContextFactory<AscendantEmpireContext> dbFactory
+    IDbContextFactory<AscendantEmpireContext> dbFactory,
+    ICampaignTurnService campaignTurnService
 ) : IRequestHandler<GetPlayerResearchRequest, ServiceResult<PlayerResearchOverview>>
 {
     public async Task<ServiceResult<PlayerResearchOverview>> Handle(GetPlayerResearchRequest request, CancellationToken cancellationToken)
@@ -52,15 +53,14 @@ internal class GetPlayerResearchHandler(
                 $"Player {request.PlayerId} has no research state. One is written for every Player at game setup, so this Player has not been set up.");
         }
 
-        int? currentRound = await context.TurnQueues
-            .AsNoTracking()
-            .Where(queue => queue.GameId == request.GameId && queue.QueueType == TurnQueueType.Campaign)
-            .Select(queue => (int?)queue.CurrentRoundNumber)
-            .FirstOrDefaultAsync(cancellationToken);
+        // The Round the Player research progress is reported against. Taken from the turn service rather than queried here, so this read agrees with
+        // every other reader about which lane is live - a completed lane still holds the Round the Game ended on.
+        ServiceResult<int> currentRound = await campaignTurnService.GetCurrentRoundNumberAsync(context, request.GameId, cancellationToken);
 
-        if (currentRound is null)
+        if (currentRound.HasSucceeded == false)
         {
-            return ServiceResult<PlayerResearchOverview>.NotFound($"Game {request.GameId} has no campaign turn queue, so its current Round is unknown.");
+            // Passed on with its own status: no live lane is a NotFound, two of them a plain failure, and flattening them would hide the second.
+            return new ServiceResult<PlayerResearchOverview> { StatusCode = currentRound.StatusCode, Errors = currentRound.Errors };
         }
 
         // Lifted into a local before the query rather than read off the projection's anonymous type inside it, so the comparison below closes over a
@@ -180,7 +180,7 @@ internal class GetPlayerResearchHandler(
             NextTechnologyDisplayName = researchState.NextTechnologyDisplayName,
             UnspentDirectedPoints = researchState.UnspentDirectedPoints,
             UnspentDiffusionPoints = researchState.UnspentDiffusionPoints,
-            CurrentRoundNumber = currentRound.Value,
+            CurrentRoundNumber = currentRound.SuccessValue,
             Researchable = researchable
         };
 

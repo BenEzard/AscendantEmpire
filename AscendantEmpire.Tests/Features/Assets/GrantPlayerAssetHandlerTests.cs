@@ -1,6 +1,7 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Assets.Handlers;
+using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Domain.Entities.Assets;
 
 using Microsoft.EntityFrameworkCore;
@@ -20,7 +21,10 @@ internal class GrantPlayerAssetHandlerTests : PlayerAssetUnlockTestBase
     [SetUp]
     public void CreateHandler()
     {
-        _handler = new GrantPlayerAssetHandler(NullLogger<GrantPlayerAssetHandler>.Instance, DbFactory);
+        _handler = new GrantPlayerAssetHandler(
+            NullLogger<GrantPlayerAssetHandler>.Instance,
+            DbFactory,
+            new CampaignTurnService(NullLogger<CampaignTurnService>.Instance, DbFactory));
     }
 
     [Test, Description("A granted asset and meta-category are stamped with the game's current round, not zero, so a mid-game unlock records when it happened.")]

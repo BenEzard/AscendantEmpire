@@ -2,6 +2,7 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Technologies.Handlers;
+using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Domain.Entities.Technologies;
 using AscendantEmpire.Domain.Enums.Technologies;
 
@@ -46,7 +47,10 @@ internal class SetResearchProjectConstraintTests : GameSqlServerTestBase
 
         (int playerId, int technologyId, int currentRound) = await ReadFirstAvailableAsync(gameId);
 
-        var handler = new SetResearchProjectHandler(NullLogger<SetResearchProjectHandler>.Instance, DbFactory);
+        var handler = new SetResearchProjectHandler(
+            NullLogger<SetResearchProjectHandler>.Instance,
+            DbFactory,
+            new CampaignTurnService(NullLogger<CampaignTurnService>.Instance, DbFactory));
 
         // The save is the assertion: a wrong-order stamp would be rejected by the check constraint, not by anything in the handler.
         ServiceResultBase result = await handler.Handle(new SetResearchProjectRequest(gameId, playerId, technologyId), CancellationToken.None);

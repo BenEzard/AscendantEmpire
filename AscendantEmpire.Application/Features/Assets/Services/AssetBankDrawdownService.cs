@@ -19,22 +19,6 @@ namespace AscendantEmpire.Application.Features.Assets.Services;
 /// <inheritdoc cref="IAssetBankDrawdownService" />
 internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService> logger) : IAssetBankDrawdownService
 {
-    /// <summary>
-    /// The one Asset held per Player that has a store to debit today: the directed research points.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Matched on the catalogue code rather than the id, because the code is the stable key - the seed's upsert matches on it and never rewrites it, so
-    /// renaming the Asset in the catalogue leaves this working.
-    /// </para>
-    /// <para>
-    /// Culture is the other <c>Player</c>-scope Asset in the catalogue and is deliberately absent: nothing stores culture points yet, so a request to spend
-    /// them is refused loudly rather than quietly written somewhere that is not the number the panel reads. Adding that store is its own ticket, and when it
-    /// lands this becomes a second entry here.
-    /// </para>
-    /// </remarks>
-    private const string _TECHNOLOGY_EXPERIENCE_ASSET_CODE = "Society.Experience.Technology";
-
     public async Task<ServiceResultBase> DebitAsync(AscendantEmpireContext context, AssetExpense expense, CancellationToken cancelToken = default)
     {
         // Nothing checks the amount here: AssetExpense cannot be built with a non-positive one, so a zero or negative expense never reaches this method.
@@ -482,7 +466,7 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
             return InternalServerError($"\"{asset.DisplayName}\" is held per Player, so it is spent Empire-wide rather than at Settlement {expense.SettlementId!.Value}.");
         }
 
-        if (string.Equals(asset.Code, _TECHNOLOGY_EXPERIENCE_ASSET_CODE, StringComparison.OrdinalIgnoreCase) == false)
+        if (string.Equals(asset.Code, PlayerStoreAssetCodes.TECHNOLOGY_EXPERIENCE, StringComparison.OrdinalIgnoreCase) == false)
         {
             return InternalServerError($"\"{asset.DisplayName}\" ({asset.Code}) is held per Player, but nothing stores it yet, so it cannot be spent.");
         }

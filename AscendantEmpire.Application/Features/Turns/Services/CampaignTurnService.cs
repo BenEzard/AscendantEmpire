@@ -202,14 +202,39 @@ public class CampaignTurnService(
 
         // FirstOrDefaultAsync over the projected round number naturally yields 0 when no active queue matches
         // (e.g. a save made before the campaign has started) — the same sentinel used for turn-stamping
-        // global/common templates, which aren't game-scoped at all.
-        return await context.TurnQueues
-            .Where(q => q.GameId == gameId)
-            .Where(q => q.QueueType == TurnQueueType.Campaign)
-            .Where(q => q.BattleId == null)
-            .Where(q => !q.IsCompleted)
+        // global/common templates, which aren't game-scoped at all. First rather than Single for the same
+        // reason: this overload promises an answer, so it must not throw on a lane nobody has tidied up.
+        return await CampaignTurnQueueQuery.Active(context, gameId)
             .Select(q => q.CurrentRoundNumber)
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public async Task<ServiceResult<int>> GetCurrentRoundNumberAsync(
+        AscendantEmpireContext context,
+        int gameId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Untracked: the lane is being read for its Round, never written through this call, so a caller mid-write keeps its change tracker to itself.
+            int? currentRound = await CampaignTurnQueueQuery.Active(context, gameId)
+                .AsNoTracking()
+                .Select(queue => (int?)queue.CurrentRoundNumber)
+                .SingleOrDefaultAsync(cancellationToken);
+
+            return currentRound is null
+                ? ServiceResult<int>.NotFound($"Game {gameId} has no active campaign turn queue, so its current Round is unknown.")
+                : ServiceResult<int>.Succeed(currentRound.Value);
+        }
+        catch (InvalidOperationException ex)
+        {
+            string error = $"Game {gameId} has more than one active Campaign Turn Queue, so its current Round is ambiguous.";
+
+            logger.LogError(ex, "{Error} Game Id: {GameId}", error, gameId);
+
+            return ServiceResult<int>.Fail(error);
+        }
     }
 
     /// <inheritdoc />

@@ -213,11 +213,7 @@ internal class CampaignRoundService(
             }
 
             // The Campaign Turn Queue and its Participants were built during setup, so Round 1 already exists and only needs opening.
-            var queue = await context.TurnQueues
-                .Where(q => q.GameId == gameId)
-                .Where(q => q.QueueType == TurnQueueType.Campaign)
-                .Where(q => q.BattleId == null)
-                .Where(q => q.IsCompleted == false)
+            var queue = await CampaignTurnQueueQuery.Active(context, gameId)
                 .Select(q => new { q.Id, q.CurrentRoundNumber })
                 .SingleOrDefaultAsync(cancelToken);
 

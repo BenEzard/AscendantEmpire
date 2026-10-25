@@ -1,5 +1,4 @@
 using AscendantEmpire.Application.Data;
-using AscendantEmpire.Domain.Enums.Turns;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -13,7 +12,7 @@ namespace AscendantEmpire.Application.Features.Assets.Services;
 internal record PlayerAssetUnlockTargets(int[] AssetIds, int[] MetaCategoryIds);
 
 /// <summary>
-/// Resolves the codes an asset unlock request carries into catalogue ids, and reads the Round a Game is on.
+/// Resolves the codes an asset unlock request carries into catalogue ids.
 /// </summary>
 /// <remarks>
 /// Shared by the grant and withdraw handlers so the code-matching and its error message live in one place. Both take codes rather than ids because a caller
@@ -59,27 +58,5 @@ internal static class PlayerAssetUnlockLookup
 
         return ServiceResult<PlayerAssetUnlockTargets>.Succeed(
             new PlayerAssetUnlockTargets([.. assetIdsByCode.Values], [.. metaCategoryIdsByCode.Values]));
-    }
-
-    /// <summary>
-    /// Reads the Round the Game's campaign lane is currently on, which is what an unlock is stamped with.
-    /// </summary>
-    /// <remarks>
-    /// Only the grant path needs this - a withdrawal removes the row outright and so records no Round. A Game always has a campaign queue, but this fails rather
-    /// than guessing a Round if one is somehow absent.
-    /// </remarks>
-    public static async Task<ServiceResult<int>> ReadCurrentRoundAsync(
-        AscendantEmpireContext context,
-        int gameId,
-        CancellationToken cancellationToken)
-    {
-        int? currentRound = await context.TurnQueues
-            .Where(q => q.GameId == gameId && q.QueueType == TurnQueueType.Campaign)
-            .Select(q => (int?)q.CurrentRoundNumber)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        return currentRound is null
-            ? ServiceResult<int>.NotFound($"Game {gameId} has no campaign turn queue, so its current Round is unknown.")
-            : ServiceResult<int>.Succeed(currentRound.Value);
     }
 }

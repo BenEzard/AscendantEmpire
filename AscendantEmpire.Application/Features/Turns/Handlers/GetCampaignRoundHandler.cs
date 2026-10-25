@@ -1,6 +1,7 @@
 ﻿using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.BackendContracts.Turns.GetCampaignRoundInfo;
 using AscendantEmpire.Domain.Enums.Turns;
 
@@ -51,11 +52,7 @@ internal class GetCampaignRoundHandler(
 
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
-            CampaignRound? round = await context.TurnQueues
-                .Where(x => x.GameId == request.GameId)
-                .Where(x => x.QueueType == TurnQueueType.Campaign)
-                .Where(x => x.BattleId == null)
-                .Where(x => x.IsCompleted == false)
+            CampaignRound? round = await CampaignTurnQueueQuery.Active(context, request.GameId)
                 .Select(x => new CampaignRound
                 {
                     GameId = x.GameId,

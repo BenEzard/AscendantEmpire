@@ -2,6 +2,9 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Assets.Handlers;
+using AscendantEmpire.Application.Features.Assets.Services;
+using AscendantEmpire.Application.Features.Turns.Services;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.BackendContracts.Assets.GetPlayerAssets;
 using AscendantEmpire.Domain.Entities.Assets;
@@ -44,6 +47,17 @@ internal class GetPlayerAssetsHandlerTests : PlayerAssetUnlockTestBase
     // A third meta-category, used whenever a test needs one with nothing granted beneath it.
     private const string _META_EMPTY = "RawMaterials";
 
+    // The two scopes the quantity gate treats differently from a banked Asset: a per-Player counter, and a figure derived from a ledger that does not
+    // exist yet. Both live under Society.
+    private const string _RESOURCE_TECHNOLOGY_EXPERIENCE = "Society.Experience.Technology";
+    private const string _RESOURCE_CIVILIANS = "Society.Population.MyPeople.Civilians";
+
+    /// <summary>
+    /// What the fixture Player holds of every banked Asset before a test says otherwise. Any positive figure does; one keeps the arithmetic obvious
+    /// wherever a test reads an amount it did not set.
+    /// </summary>
+    private const long _DEFAULT_STOCK = 1;
+
     // Society holds the one per-other-player category in the catalogue: the Enemies panel, whose groups are never rendered as themselves but stamped
     // out once per other Player in the game.
     private const string _META_SOCIETY = "Society";
@@ -54,13 +68,25 @@ internal class GetPlayerAssetsHandlerTests : PlayerAssetUnlockTestBase
     private GetPlayerAssetsHandler _handler = null!;
     private IMediator _mediator = null!;
 
+    /// <summary>The bank <see cref="StockEveryBankedAssetAsync"/> creates, which is the only one this fixture uses.</summary>
+    private int _bankId;
+
     [SetUp]
-    public void CreateHandler()
+    public async Task CreateHandlerAndStockTheBankAsync()
     {
         _mediator = Substitute.For<IMediator>();
         StubGameContext(playerIsInGame: true);
 
-        _handler = new GetPlayerAssetsHandler(NullLogger<GetPlayerAssetsHandler>.Instance, _mediator, DbFactory);
+        // The real quantity reader rather than a substitute: it has its own fixture, and what is pinned here is that a resolved figure reaches the
+        // contract, which a stub would assert about itself.
+        _handler = new GetPlayerAssetsHandler(
+            NullLogger<GetPlayerAssetsHandler>.Instance,
+            _mediator,
+            DbFactory,
+            new PlayerAssetQuantityReader(new AssetBankReader()),
+            new CampaignTurnService(NullLogger<CampaignTurnService>.Instance, DbFactory));
+
+        await StockEveryBankedAssetAsync();
     }
 
     [Test, Description("A Player who has unlocked nothing gets an empty tree rather than the whole catalogue, since the unlock rows are the only gate on visibility.")]
@@ -235,7 +261,7 @@ internal class GetPlayerAssetsHandlerTests : PlayerAssetUnlockTestBase
         Assert.That(category.Groups.Select(g => g.Code), Is.EqualTo(new[] { _GROUP_PLANKS, _GROUP_LOGS }));
     }
 
-    [Test, Description("The seven unsourced fields come back as zeros and falses, so a client wiring against the real shape cannot mistake a placeholder for measured data.")]
+    [Test, Description("The six unsourced fields come back as zeros and falses, so a client wiring against the real shape cannot mistake a placeholder for measured data.")]
     public async Task ShouldReturnEveryPlaceholderFieldAtItsUnsourcedDefault()
     {
         await GrantAsync([_RESOURCE_OAK_LOG], [_META_GROUPED]);
@@ -244,7 +270,7 @@ internal class GetPlayerAssetsHandlerTests : PlayerAssetUnlockTestBase
 
         Assert.Multiple(() =>
         {
-            Assert.That(asset.Amount, Is.Zero);
+            // Amount is not among them: it is measured, and has its own cases under the quantity gate below.
             Assert.That(asset.AmountAddedPerTurn, Is.Zero);
             Assert.That(asset.HasStrategicStockpile, Is.False);
             Assert.That(asset.IsImported, Is.False);
@@ -440,6 +466,88 @@ internal class GetPlayerAssetsHandlerTests : PlayerAssetUnlockTestBase
         return [.. players.Select(player => player.Id)];
     }
 
+    // ---------------------------------------------------------------------------------------------------------------------------------------------
+    // The quantity gate
+    //
+    // An unlock is necessary but no longer sufficient: a banked Asset also has to be one the Player holds some of. The two other storage scopes are
+    // exempt, for reasons that differ - see GetPlayerAssetsHandler.EarnsATicker.
+    // ---------------------------------------------------------------------------------------------------------------------------------------------
+
+    [Test, Description("A banked Asset carries what the Player holds of it, so a ticker shows that stock.")]
+    public async Task ShouldReportTheBankedAmountOnTheTicker()
+    {
+        await GrantAsync();
+        await SetBankedAmountAsync(_RESOURCE_CODE, wholeQuantity: 12);
+
+        IReadOnlyCollection<PlayerAssetMetaCategory> tree = await SendAsync();
+
+        Assert.That(FindAsset(tree, _RESOURCE_CODE).Amount, Is.EqualTo(12));
+    }
+
+    [Test, Description("A banked Asset the Player holds none of leaves the panel rather than reading zero, which is what keeps the toolbar to what they actually hold.")]
+    public async Task ShouldDropABankedAssetThePlayerHoldsNoneOf()
+    {
+        await GrantAsync();
+        await SetBankedAmountAsync(_RESOURCE_CODE, wholeQuantity: 0);
+
+        IReadOnlyCollection<PlayerAssetMetaCategory> tree = await SendAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Single(tree).Code, Is.EqualTo(_META_CATEGORY_CODE), "the meta-category keeps its toolbar icon, which its own unlock row decides");
+            Assert.That(Single(tree).Categories, Is.Empty, "the sword was the only Asset beneath it, so its category goes with it");
+        });
+    }
+
+    [Test, Description("A fraction of a unit is gated as none, matching the figure reported: a drawdown would not release it either.")]
+    public async Task ShouldDropABankedAssetHeldOnlyAsAFraction()
+    {
+        await GrantAsync();
+
+        // Nine tenths of one sword, which floors to none.
+        await SetBankedRawAmountAsync(_RESOURCE_CODE, rawQuantity: ScaledAmount.FromWhole(1).RawValue - (ScaledAmount.Scale / 10));
+
+        Assert.That(Single(await SendAsync()).Categories, Is.Empty);
+    }
+
+    [Test, Description("A Player-scope Asset stays on the panel at zero: the research points empty at the end of every Turn by design, so a ticker that went with them would come and go.")]
+    public async Task ShouldKeepAPlayerScopedAssetWhoseCounterIsEmpty()
+    {
+        await GrantAsync([_RESOURCE_TECHNOLOGY_EXPERIENCE], [_META_SOCIETY]);
+
+        // No research state is seeded, so the counter behind it reads nothing at all.
+        Assert.That(FindAsset(await SendAsync(), _RESOURCE_TECHNOLOGY_EXPERIENCE).Amount, Is.Zero);
+    }
+
+    [Test, Description("A Derived Asset stays on the panel at zero, because that zero is a missing ledger rather than a measurement - hiding Civilians would state something false.")]
+    public async Task ShouldKeepADerivedAssetThatNothingRecordsYet()
+    {
+        await GrantAsync([_RESOURCE_CIVILIANS], [_META_SOCIETY]);
+
+        Assert.That(FindAsset(await SendAsync(), _RESOURCE_CIVILIANS).Amount, Is.Zero);
+    }
+
+    [Test, Description("The gate prunes upwards the same way obsolescence does, so a group whose Assets are all held at none takes its category away with it.")]
+    public async Task ShouldDropTheGroupAndItsCategoryWhenTheGateEmptiesThem()
+    {
+        await GrantAsync([_RESOURCE_OAK_LOG, _RESOURCE_CEDAR_LOG], [_META_GROUPED]);
+        await SetBankedAmountAsync(_RESOURCE_OAK_LOG, wholeQuantity: 0);
+        await SetBankedAmountAsync(_RESOURCE_CEDAR_LOG, wholeQuantity: 0);
+
+        Assert.That(Single(await SendAsync()).Categories, Is.Empty, "the Logs group held both, and the Wood category held only that group");
+    }
+
+    [Test, Description("The gate is per Asset rather than per group, so a group keeps the Assets held and loses only the ones held at none.")]
+    public async Task ShouldKeepTheGroupWhenOnlySomeOfItsAssetsAreHeldAtNone()
+    {
+        await GrantAsync([_RESOURCE_OAK_LOG, _RESOURCE_CEDAR_LOG], [_META_GROUPED]);
+        await SetBankedAmountAsync(_RESOURCE_CEDAR_LOG, wholeQuantity: 0);
+
+        PlayerAssetGroup group = Single(Single(Single(await SendAsync()).Categories).Groups);
+
+        Assert.That(Single(group.Assets).Code, Is.EqualTo(_RESOURCE_OAK_LOG));
+    }
+
     /// <summary>
     /// Runs the handler and asserts it succeeded, returning the tree.
     /// </summary>
@@ -455,6 +563,95 @@ internal class GetPlayerAssetsHandlerTests : PlayerAssetUnlockTestBase
     private Task<ServiceResult<IReadOnlyCollection<PlayerAssetMetaCategory>>> HandleAsync()
     {
         return _handler.Handle(new GetPlayerAssetsRequest(_GAME_ID, _playerId), CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Gives the fixture Player one bank holding <see cref="_DEFAULT_STOCK"/> of every banked Asset in the catalogue.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Nearly every case here is about the <b>shape</b> of the tree - placement, ordering, obsolescence, the per-other-player fan-out - and the handler
+    /// now drops a banked Asset the Player holds none of. Without a stocked bank that gate would quietly remove the subject of those cases, and they
+    /// would stop proving what they claim to. A case that is about the gate sets its own figure with <see cref="SetBankedAmountAsync"/>.
+    /// </para>
+    /// <para>
+    /// No Settlement row is written and no membership points at the bank. The bank's PlayerId is what the read follows, and a membership would only say
+    /// which Settlements can reach it - which no figure on this contract depends on.
+    /// </para>
+    /// </remarks>
+    private async Task StockEveryBankedAssetAsync()
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        var bank = new AssetBank { PlayerId = _playerId };
+        context.AssetBanks.Add(bank);
+        await context.SaveChangesAsync();
+
+        _bankId = bank.Id;
+
+        // Only the banked scope. A balance row against a Player-scope or Derived Asset would be data production never writes, and the reader would not
+        // consult it anyway.
+        int[] bankedAssetIds = await context.Assets
+            .Where(asset => asset.StorageScope == AssetStorageScope.SettlementBank)
+            .Select(asset => asset.Id)
+            .ToArrayAsync();
+
+        context.AssetBankBalances.AddRange(bankedAssetIds.Select(assetId => new AssetBankBalance
+        {
+            AssetBankId = _bankId,
+            AssetId = assetId,
+            Quantity = ScaledAmount.FromWhole(_DEFAULT_STOCK).RawValue
+        }));
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Sets what the fixture Player holds of one banked Asset, in whole units.
+    /// </summary>
+    private Task SetBankedAmountAsync(string assetCode, long wholeQuantity)
+    {
+        return SetBankedRawAmountAsync(assetCode, ScaledAmount.FromWhole(wholeQuantity).RawValue);
+    }
+
+    /// <summary>
+    /// Sets what the fixture Player holds of one banked Asset, in raw scaled units, for the cases that turn on a fraction.
+    /// </summary>
+    /// <remarks>
+    /// Rewrites the balance on the one bank <see cref="StockEveryBankedAssetAsync"/> created rather than adding a second bank, so the figure a case sets
+    /// is the figure the handler reports rather than that figure plus the fixture's stock. Summing across banks is pinned in
+    /// <c>PlayerAssetQuantityReaderTests</c>, where it belongs.
+    /// </remarks>
+    private async Task SetBankedRawAmountAsync(string assetCode, long rawQuantity)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        int assetId = await context.Assets.Where(asset => asset.Code == assetCode).Select(asset => asset.Id).SingleAsync();
+
+        AssetBankBalance balance = await context.AssetBankBalances
+            .SingleAsync(row => row.AssetBankId == _bankId && row.AssetId == assetId);
+
+        balance.Quantity = rawQuantity;
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Finds the one Asset in the tree with the given code, down either placement path.
+    /// </summary>
+    private static PlayerAsset FindAsset(IReadOnlyCollection<PlayerAssetMetaCategory> tree, string assetCode)
+    {
+        PlayerAsset[] matches =
+        [
+            .. tree
+                .SelectMany(metaCategory => metaCategory.Categories)
+                .SelectMany(category => category.Assets.Concat(category.Groups.SelectMany(group => group.Assets)))
+                .Where(asset => asset.Code == assetCode)
+        ];
+
+        Assert.That(matches, Has.Length.EqualTo(1), () => $"the tree holds {matches.Length} Assets with code {assetCode}");
+
+        return matches[0];
     }
 
     /// <summary>

@@ -2,6 +2,7 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 using AscendantEmpire.Application.Features.Assets.Handlers;
+using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Enums.Games;
@@ -88,7 +89,10 @@ internal abstract class PlayerAssetUnlockTestBase : InMemoryTestBase
         IReadOnlyCollection<string> metaCategoryCodes,
         int? obsoleteInRounds = null)
     {
-        var handler = new GrantPlayerAssetHandler(NullLogger<GrantPlayerAssetHandler>.Instance, DbFactory);
+        var handler = new GrantPlayerAssetHandler(
+            NullLogger<GrantPlayerAssetHandler>.Instance,
+            DbFactory,
+            new CampaignTurnService(NullLogger<CampaignTurnService>.Instance, DbFactory));
 
         ServiceResultBase result = await handler.Handle(
             new GrantPlayerAssetRequest(_GAME_ID, _playerId, assetCodes, metaCategoryCodes, obsoleteInRounds),

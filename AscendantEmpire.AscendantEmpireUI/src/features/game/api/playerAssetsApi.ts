@@ -115,9 +115,12 @@ function mapResource(asset: PlayerAssetWireDto): PlayerAsset {
     neverLuxury: asset.neverLuxury ?? false,
     // Explicitly null rather than 0 when absent: zero would read as "obsoleting this Round", which is the one thing the field never means.
     obsoleteInRounds: asset.obsoleteInRounds ?? null,
-    // The seven fields below are contract placeholders the API always sends as zero or false until their own tickets land. A zero here is the
-    // absence of a source, not a measured value.
+    // A measured figure: summed across the player's asset banks for a banked asset, and the unspent directed research points for Technology
+    // experience. A banked asset the player holds none of never arrives, because the API leaves it out of the tree, so a zero here is a
+    // player-level or a population figure - and those read zero while their stores are still being built.
     amount: asset.amount ?? 0,
+    // The six fields below are contract placeholders the API always sends as zero or false until their own tickets land. A zero here is the
+    // absence of a source, not a measured value.
     amountAddedPerTurn: asset.amountAddedPerTurn ?? 0,
     hasStrategicStockpile: asset.hasStrategicStockpile ?? false,
     isImported: asset.isImported ?? false,

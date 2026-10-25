@@ -46,6 +46,24 @@ public interface ICampaignTurnService
     Task<int> GetCurrentRoundNumberAsync(int gameId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Returns the Round the Game's live campaign lane is on, read through the caller's own context.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The overload to reach for from a handler that already has a context open, for the reason given on
+    /// <see cref="GetFirstCampaignTurnAsync"/>: a read on a context of its own takes a second connection, which cannot see the caller's uncommitted
+    /// writes and would block on the rows they have locked.
+    /// </para>
+    /// <para>
+    /// Answers <c>NotFound</c> rather than the <c>0</c> sentinel of the overload above, because a caller stamping a Round onto a row, or measuring a
+    /// countdown against one, has nothing sensible to do with a Round that is not real. Two live lanes are reported as the data error they are rather
+    /// than silently resolved to one of them.
+    /// </para>
+    /// </remarks>
+    /// <param name="context">The database context, and therefore the transaction, to read through.</param>
+    Task<ServiceResult<int>> GetCurrentRoundNumberAsync(AscendantEmpireContext context, int gameId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// The Turn id to stamp on what a Player observes: their own current or most recent Campaign Turn, falling back to the lane's open Turn for a Player
     /// who has never taken one.
     /// </summary>

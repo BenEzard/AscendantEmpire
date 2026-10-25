@@ -1,12 +1,14 @@
 ﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Domain.Entities.Technologies;
 using AscendantEmpire.Domain.Enums.Technologies;
-using AscendantEmpire.Domain.Enums.Turns;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+
+using static AscendantEmpire.Application.Common.ServiceResultBase;
 
 namespace AscendantEmpire.Application.Features.Technologies.Handlers;
 
@@ -30,7 +32,8 @@ public record SetResearchProjectRequest(int GameId, int PlayerId, int? Technolog
 /// </remarks>
 internal class SetResearchProjectHandler(
     ILogger<SetResearchProjectHandler> logger,
-    IDbContextFactory<AscendantEmpireContext> dbFactory
+    IDbContextFactory<AscendantEmpireContext> dbFactory,
+    ICampaignTurnService campaignTurnService
 ) : IRequestHandler<SetResearchProjectRequest, ServiceResultBase>
 {
     public async Task<ServiceResultBase> Handle(
@@ -88,7 +91,13 @@ internal class SetResearchProjectHandler(
                 return ServiceResultBase.Fail($"{technologyName} has already been discovered, so there is nothing left to research.");
 
             case TechnologyStatus.Available:
-                ServiceResultBase unlockResult = await UnlockIfFreeAsync(context, playerTechnology, technologyName, request.GameId, cancellationToken);
+                ServiceResultBase unlockResult = await UnlockIfFreeAsync(
+                    context,
+                    campaignTurnService,
+                    playerTechnology,
+                    technologyName,
+                    request.GameId,
+                    cancellationToken);
 
                 if (!unlockResult.HasSucceeded)
                 {
@@ -124,8 +133,12 @@ internal class SetResearchProjectHandler(
     /// <c>CK_PlayerTechnology_StatusStamps</c> requires an Unlocked row to carry an <c>AcquisitionPaidOnRound</c> and no <c>DiscoveredOnRound</c>. A
     /// technology with no cost rows still stamps the Round it unlocked, because the cost was zero rather than unpaid.
     /// </remarks>
+    /// <param name="campaignTurnService">
+    /// Handed in rather than captured, so this can stay static: it writes only to the <paramref name="playerTechnology"/> it is given.
+    /// </param>
     private static async Task<ServiceResultBase> UnlockIfFreeAsync(
         AscendantEmpireContext context,
+        ICampaignTurnService campaignTurnService,
         PlayerTechnology playerTechnology,
         string technologyName,
         int gameId,
@@ -145,18 +158,16 @@ internal class SetResearchProjectHandler(
                 + "Nothing spends from a Player's Asset stockpile, so the cost would have to be waived rather than settled.");
         }
 
-        int? currentRound = await context.TurnQueues
-            .AsNoTracking()
-            .Where(queue => queue.GameId == gameId && queue.QueueType == TurnQueueType.Campaign)
-            .Select(queue => (int?)queue.CurrentRoundNumber)
-            .FirstOrDefaultAsync(cancellationToken);
+        // Read through the caller context so it joins the transaction the stamp below lands in.
+        ServiceResult<int> currentRound = await campaignTurnService.GetCurrentRoundNumberAsync(context, gameId, cancellationToken);
 
-        if (currentRound is null)
+        if (currentRound.HasSucceeded == false)
         {
-            return ServiceResultBase.NotFound($"Game {gameId} has no campaign turn queue, so its current Round is unknown.");
+            // Returned as it stands - a ServiceResult<int> is a ServiceResultBase, so its status and message carry through unchanged.
+            return currentRound;
         }
 
-        playerTechnology.AcquisitionPaidOnRound = currentRound.Value;
+        playerTechnology.AcquisitionPaidOnRound = currentRound.SuccessValue;
         playerTechnology.Status = TechnologyStatus.Unlocked;
 
         return ServiceResultBase.Succeed();

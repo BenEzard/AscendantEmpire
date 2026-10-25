@@ -2,7 +2,9 @@ using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
+using AscendantEmpire.Application.Features.Assets.Classes;
 using AscendantEmpire.Application.Features.Assets.Services;
+using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.BackendContracts.Games.GetGameContext;
 using AscendantEmpire.BackendContracts.Assets.GetPlayerAssets;
 using AscendantEmpire.Domain.Enums.Assets;
@@ -55,17 +57,17 @@ internal class GetPlayerAssetsRequestValidator : Validator<GetPlayerAssetsReques
 internal class GetPlayerAssetsHandler(
     ILogger<GetPlayerAssetsHandler> logger,
     IMediator mediator,
-    IDbContextFactory<AscendantEmpireContext> dbFactory
+    IDbContextFactory<AscendantEmpireContext> dbFactory,
+    IPlayerAssetQuantityReader quantityReader,
+    ICampaignTurnService campaignTurnService
 ) : IRequestHandler<GetPlayerAssetsRequest, ServiceResult<IReadOnlyCollection<PlayerAssetMetaCategory>>>
 {
     public async Task<ServiceResult<IReadOnlyCollection<PlayerAssetMetaCategory>>> Handle(
         GetPlayerAssetsRequest request,
         CancellationToken cancellationToken)
     {
-        // A cheap "is this Player part of this in-progress Game" probe, so a request cannot be answered out of whatever unlock rows its Player id
-        // happens to have.
-        ServiceResult<IReadOnlyCollection<GameContext>> gameContextResult =
-            await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancellationToken);
+        // A cheap "is this Player part of this in-progress Game" probe, so a request cannot be answered out of whatever unlock rows its Player id happens to have.
+        ServiceResult<IReadOnlyCollection<GameContext>> gameContextResult = await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancellationToken);
 
         if (gameContextResult.SuccessValue is not { Count: > 0 })
         {
@@ -77,11 +79,17 @@ internal class GetPlayerAssetsHandler(
 
         await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancellationToken);
 
-        ServiceResult<int> currentRoundResult = await PlayerAssetUnlockLookup.ReadCurrentRoundAsync(context, request.GameId, cancellationToken);
+        // The Round every obsoleting countdown on the tree is measured against, read through the one service that knows which lane is live.
+        ServiceResult<int> currentRoundResult = await campaignTurnService.GetCurrentRoundNumberAsync(context, request.GameId, cancellationToken);
 
         if (currentRoundResult.HasSucceeded == false)
         {
-            return ServiceResult<IReadOnlyCollection<PlayerAssetMetaCategory>>.NotFound(currentRoundResult.Errors);
+            // Passed on with its own status: no live lane is a NotFound, two of them a plain failure, and flattening them would hide the second.
+            return new ServiceResult<IReadOnlyCollection<PlayerAssetMetaCategory>>
+            {
+                StatusCode = currentRoundResult.StatusCode,
+                Errors = currentRoundResult.Errors
+            };
         }
 
         IReadOnlyCollection<PlayerAssetMetaCategory> tree = await ReadTreeAsync(
@@ -97,7 +105,7 @@ internal class GetPlayerAssetsHandler(
     /// <summary>
     /// Reads the five row sets the tree is built from, then assembles them.
     /// </summary>
-    private static async Task<IReadOnlyCollection<PlayerAssetMetaCategory>> ReadTreeAsync(
+    private async Task<IReadOnlyCollection<PlayerAssetMetaCategory>> ReadTreeAsync(
         AscendantEmpireContext context,
         int gameId,
         int playerId,
@@ -143,6 +151,7 @@ internal class GetPlayerAssetsHandler(
                 unlock.Asset.AssetGrade,
                 unlock.Asset.SortOrder,
                 unlock.Asset.NeverLuxury,
+                unlock.Asset.StorageScope,
                 unlock.Asset.AssetGroupId,
                 unlock.Asset.AssetCategoryId,
                 unlock.ObsoleteOnRound))
@@ -179,7 +188,19 @@ internal class GetPlayerAssetsHandler(
                 ? await ReadSubjectPlayersAsync(context, gameId, playerId, cancellationToken)
                 : [];
 
-        return BuildTree(metaCategoryRows, categoryRows, groupRows, assetRows, subjectPlayers, currentRound);
+        // What the Player actually holds of each of them, from whichever store each Asset's scope names. The reader opens no query for an empty set, so a
+        // Player with an unlocked meta-category and nothing beneath it pays nothing for this.
+        IReadOnlyDictionary<int, int> amountsByAssetId = await quantityReader.GetWholeAmountsByAssetIdAsync(
+            context,
+            playerId,
+            [.. assetRows.Select(asset => new AssetQuantityRequest(asset.Id, asset.Code, asset.StorageScope))],
+            cancellationToken);
+
+        // What earns a ticker at all. Decided here rather than inside the builders so one answer per Asset prunes everything beneath it - see
+        // EarnsATicker for why this is not simply a test on the figure.
+        List<UnlockedAssetRow> visibleAssetRows = [.. assetRows.Where(asset => EarnsATicker(asset, amountsByAssetId))];
+
+        return BuildTree(metaCategoryRows, categoryRows, groupRows, visibleAssetRows, subjectPlayers, currentRound, amountsByAssetId);
     }
 
     /// <summary>
@@ -229,23 +250,81 @@ internal class GetPlayerAssetsHandler(
     }
 
     /// <summary>
+    /// Whether an unlocked Asset earns a ticker, which is not the same question as whether the Player holds any of it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The gate is on a <b>measured</b> zero rather than on any zero, and routes on <c>Asset.StorageScope</c> - the same column
+    /// <see cref="AssetBankDrawdownService"/> routes a debit on, so what the toolbar hides and what an expense can spend are decided from one place.
+    /// </para>
+    /// <list type="bullet">
+    /// <item>
+    /// <description>
+    /// <b><see cref="AssetStorageScope.SettlementBank"/> is gated.</b> Banks summing to nothing across every Settlement is a real measurement of
+    /// nothing, and a panel listing every stone and log in the catalogue at zero is the clutter this exists to remove. The cost is that an Asset a
+    /// Settlement spends down to nothing leaves its panel until some is produced again; if that reads badly in play, the gate to reach for instead is
+    /// whether a balance row exists at all.
+    /// </description>
+    /// </item>
+    /// <item>
+    /// <description>
+    /// <b><see cref="AssetStorageScope.Player"/> is never gated.</b> The Technology experience points empty at the end of every Turn by design, and a
+    /// ticker that disappeared each Turn and came back would be worse than one reading zero: the Player loses the place they look for it. A per-Player
+    /// counter is a fixture of its panel rather than a holding.
+    /// </description>
+    /// </item>
+    /// <item>
+    /// <description>
+    /// <b><see cref="AssetStorageScope.Derived"/> is not gated yet.</b> Those figures read zero because no holdings ledger records them, not because the
+    /// Player holds none, and hiding Civilians would tell them something false. When the ledger lands this arm becomes the same test as the banked one
+    /// and the gate costs nothing: no row will mean no ticker, which is what <see cref="ReadSubjectPlayersAsync"/> already calls for, and what drops a
+    /// per-opponent Slaves column for an opponent holding none.
+    /// </description>
+    /// </item>
+    /// </list>
+    /// <para>
+    /// Applied once, before the lookups are built, so the pruning already in <see cref="BuildGroups"/> and <see cref="BuildCategories"/> carries an
+    /// emptied group and then its category away with it. A meta-category is left showing its icon over an empty panel, which is its own unlock row's
+    /// business rather than this gate's. This is also where <c>DemandNotMet</c> and <c>IsImported</c> will need carving out, since "I need this and have
+    /// none" is a ticker the Player has to see.
+    /// </para>
+    /// </remarks>
+    /// <param name="amountsByAssetId">Whole amounts by Asset id, as the quantity reader resolved them. A missing entry is none held.</param>
+    private static bool EarnsATicker(UnlockedAssetRow asset, IReadOnlyDictionary<int, int> amountsByAssetId)
+    {
+        if (asset.StorageScope != AssetStorageScope.SettlementBank)
+        {
+            return true;
+        }
+
+        return amountsByAssetId.TryGetValue(asset.Id, out int amount) && amount > 0;
+    }
+
+    /// <summary>
     /// Assembles the five row sets into the nested tree, dropping every group and category that nothing visible landed in.
     /// </summary>
+    /// <remarks>
+    /// <b>One <see cref="PlayerAsset"/> is built per Asset and shared by every group it lands in</b>, which is what the lookups below hold. That is correct
+    /// while an amount is a property of the Asset and the Player - a banked or player-level figure is the same number wherever it is shown - but it will not
+    /// survive the holdings ledger, where the Slaves held from one Player and from another are different figures on the same catalogue row. That work has to
+    /// build the contract per group rather than per Asset; see <see cref="BuildGroups"/>, which hands the same collection to every projection.
+    /// </remarks>
     private static IReadOnlyCollection<PlayerAssetMetaCategory> BuildTree(
         IReadOnlyCollection<UnlockedMetaCategoryRow> metaCategoryRows,
         IReadOnlyCollection<CatalogueCategoryRow> categoryRows,
         IReadOnlyCollection<CatalogueGroupRow> groupRows,
         IReadOnlyCollection<UnlockedAssetRow> assetRows,
         IReadOnlyCollection<SubjectPlayerRow> subjectPlayers,
-        int currentRound)
+        int currentRound,
+        IReadOnlyDictionary<int, int> amountsByAssetId)
     {
         ILookup<int, PlayerAsset> assetsByGroupId = assetRows
             .Where(asset => asset.AssetGroupId is not null)
-            .ToLookup(asset => asset.AssetGroupId!.Value, asset => ToContract(asset, currentRound));
+            .ToLookup(asset => asset.AssetGroupId!.Value, asset => ToContract(asset, currentRound, amountsByAssetId));
 
         ILookup<int, PlayerAsset> assetsByCategoryId = assetRows
             .Where(asset => asset.AssetCategoryId is not null)
-            .ToLookup(asset => asset.AssetCategoryId!.Value, asset => ToContract(asset, currentRound));
+            .ToLookup(asset => asset.AssetCategoryId!.Value, asset => ToContract(asset, currentRound, amountsByAssetId));
 
         ILookup<int, CatalogueGroupRow> groupsByCategoryId = groupRows.ToLookup(group => group.AssetCategoryId);
         ILookup<int, CatalogueCategoryRow> categoriesByMetaCategoryId = categoryRows.ToLookup(category => category.AssetMetaCategoryId);
@@ -402,7 +481,11 @@ internal class GetPlayerAssetsHandler(
         return [.. assets.OrderBy(r => r.SortOrder).ThenBy(r => r.DisplayName).ThenBy(r => r.AssetGrade)];
     }
 
-    private static PlayerAsset ToContract(UnlockedAssetRow row, int currentRound)
+    /// <summary>
+    /// Transcribes one unlocked Asset onto the contract, with the figure the Player currently holds of it.
+    /// </summary>
+    /// <param name="amountsByAssetId">Whole amounts by Asset id. A missing entry is none held, which is what an Asset nothing sources yet comes back as.</param>
+    private static PlayerAsset ToContract(UnlockedAssetRow row, int currentRound, IReadOnlyDictionary<int, int> amountsByAssetId)
     {
         return new PlayerAsset
         {
@@ -419,8 +502,11 @@ internal class GetPlayerAssetsHandler(
             // ObsoleteOnRound is future-dated, and only a row still ahead of the current Round reaches here, so this is always positive.
             ObsoleteInRounds = row.ObsoleteOnRound is null ? null : row.ObsoleteOnRound - currentRound,
 
-            // Placeholders - nothing sources these yet. See the banner on the PlayerAsset contract.
-            Amount = 0,
+            // Absent means none held, so an Asset whose scope nothing resolves yet - Culture, and every population figure - reads zero here without this
+            // having to know which those are. See the remarks on Amount.
+            Amount = amountsByAssetId.TryGetValue(row.Id, out int amount) ? amount : 0,
+
+            // Placeholders - nothing sources these six yet. See the banner on the PlayerAsset contract.
             AmountAddedPerTurn = 0,
             HasStrategicStockpile = false,
             IsImported = false,
@@ -458,6 +544,7 @@ internal class GetPlayerAssetsHandler(
         AssetGrade AssetGrade,
         int SortOrder,
         bool NeverLuxury,
+        AssetStorageScope StorageScope,
         int? AssetGroupId,
         int? AssetCategoryId,
         int? ObsoleteOnRound);

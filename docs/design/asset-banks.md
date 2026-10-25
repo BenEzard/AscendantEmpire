@@ -115,6 +115,11 @@ before any Cedar is touched anywhere: the player's ordering says which asset the
 first, and that holds at the scale the expense is paid at. Within each asset of that walk, the take is
 levelled across the banks holding it.
 
+**The toolbar reads this same sum.** `GET /player/assets` reports it as an asset's `amount`, so the figure
+on a ticker and the figure an Empire-wide purchase is met from are one number. The ticker is rounded down,
+which is also all a drawdown would release of a part unit. What one settlement can spend on a build order
+is the narrower figure, and `GET /player/asset-banks/{settlementId}` is what reports that.
+
 ### Either way
 
 * An expense succeeds **whole or changes nothing**. Sufficiency is settled across the entire expense

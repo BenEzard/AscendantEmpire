@@ -1,5 +1,6 @@
 ﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Features.Technologies.Handlers;
+using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Domain.Entities.Technologies;
 using AscendantEmpire.Domain.Enums.Technologies;
 
@@ -29,7 +30,10 @@ internal class SetResearchProjectHandlerTests : ResearchHandlerTestBase
     [SetUp]
     public void SetUpHandler()
     {
-        _handler = new SetResearchProjectHandler(NullLogger<SetResearchProjectHandler>.Instance, DbFactory);
+        _handler = new SetResearchProjectHandler(
+            NullLogger<SetResearchProjectHandler>.Instance,
+            DbFactory,
+            new CampaignTurnService(NullLogger<CampaignTurnService>.Instance, DbFactory));
     }
 
     // --- Choosing a free technology ---------------------------------------------------
