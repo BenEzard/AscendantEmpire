@@ -80,9 +80,11 @@ export const NON_GENDER_SPECIFIC_RULER_TITLES: readonly string[] = [
 /**
  * The titles to suggest for a ruler of the given gender: the gendered set first, then the ones that suit either.
  *
- * With no gender chosen yet only the non-specific titles are offered, rather than both gendered lists at once — the
- * suggestions are a shortcut, and a list that changes under the user once they pick a gender is worse than a short one.
- * The field is free text regardless, so nothing here restricts what a player can call themselves.
+ * A null gender is answered with the non-specific titles alone, rather than both gendered lists at once: the
+ * suggestions are a shortcut, and a list that changes under the user once they pick a gender is worse than a short
+ * one. That branch is there for the contract rather than for the UI — null is how the API reports a slot nobody has
+ * defined, but the setup dialog opens its gender field on a value, so it never asks for it. The field is free text
+ * regardless, so nothing here restricts what a player can call themselves.
  */
 export function titlesFor(gender: RulerGender | null): string[] {
   if (gender === "Male") {

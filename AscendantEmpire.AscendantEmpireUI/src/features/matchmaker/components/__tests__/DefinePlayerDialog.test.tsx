@@ -78,7 +78,7 @@ function definedSlot(overrides: Partial<PlayerDefinition> = {}): PlayerDefinitio
     demonym: "Vashti",
     cultureName: "Vashti Highland",
     language: "Old Vashti",
-    rulerPortraitPath: "/portraits/ruler_14.png",
+    rulerPortraitPath: "/portraits/17_blonde_queen.png",
     ...overrides,
   });
 }
@@ -137,7 +137,7 @@ const colourTrigger = () => screen.getByRole("button", { name: "Faction colour" 
 /** The portrait picker's trigger thumbnail, named by the `title` passed to it. */
 const portraitTrigger = () => screen.getByRole("button", { name: "Ruler portrait" });
 
-/** One portrait tile in the opened grid. ImagePicker labels each with the item's label, e.g. "Portrait 9". */
+/** One portrait tile in the opened grid. ImagePicker labels each with the item's label, e.g. "Viking King". */
 const portraitTile = (label: string) => screen.getByRole("button", { name: label });
 
 /** One palette swatch. ColorPicker labels each with its Tailwind description, e.g. "purple-700". */
@@ -194,6 +194,11 @@ async function fillEverythingButTheColour(user: ReturnType<typeof userEvent.setu
   setValue(rulerNameInput(), ANSWERS.rulerName);
   await user.click(screen.getByRole("radio", { name: "Female" }));
 
+  await fillTheFactionNames(user);
+}
+
+/** Types the Faction page's five names, leaving the user looking at that page with only its colour unanswered. */
+async function fillTheFactionNames(user: ReturnType<typeof userEvent.setup>) {
   await user.click(factionTab());
   setValue(factionNameInput(), ANSWERS.factionName);
   setValue(peopleNameInput(), ANSWERS.peopleName);
@@ -240,18 +245,33 @@ describe("the commit gate", () => {
     renderDialog();
     await waitForLoad();
 
-    expect(screen.queryByText("Choose a gender for your ruler.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Give your ruler a name.")).not.toBeInTheDocument();
   });
 
-  it("does not save while the gender is unpicked", async () => {
-    const user = userEvent.setup();
+  // The gender is not validated, because the field opens on a value rather than on none and the radio buttons
+  // offer no way back: a slot the server holds no gender for shows Male, so there is no unpicked state to refuse.
+  it("opens on Male for a slot the server holds no gender for", async () => {
     renderDialog();
     await waitForLoad();
 
+    expect(screen.getByRole("radio", { name: "Male" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Female" })).not.toBeChecked();
+  });
+
+  it("sends Male when the player leaves the gender alone, so a save is never held up by it", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updatePlayerDefinition).mockResolvedValue(undefined);
+    const { onSaved } = renderDialog();
+    await waitForLoad();
+
+    setValue(rulerNameInput(), ANSWERS.rulerName);
+    await fillTheFactionNames(user);
+    await user.click(colourTrigger());
+    await user.click(swatch("purple-700"));
     await user.click(saveButton());
 
-    expect(vi.mocked(updatePlayerDefinition)).not.toHaveBeenCalled();
-    expect(screen.getByText("Choose a gender for your ruler.")).toBeInTheDocument();
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(updatePlayerDefinition).mock.calls[0][1].rulerGender).toBe("Male");
   });
 
   it("moves the user to the page holding the problem when the failure is out of sight", async () => {
@@ -359,16 +379,17 @@ describe("the ruler title", () => {
     expect(rulerTitleInput()).toHaveValue("");
   });
 
-  it("suggests only the non-gendered titles until a gender is picked", async () => {
+  it("opens on the male titles, that being the gender the dialog opens on", async () => {
     const user = userEvent.setup();
     renderDialog();
     await waitForLoad();
 
     await user.click(rulerTitleInput());
 
-    expect(screen.getByRole("option", { name: "Sovereign" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "King" })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "King" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Queen" })).not.toBeInTheDocument();
+    // The non-gendered titles are offered alongside whichever gendered set is in play.
+    expect(screen.getByRole("option", { name: "Sovereign" })).toBeInTheDocument();
   });
 
   it("switches its suggestions to match the chosen gender", async () => {
@@ -527,11 +548,11 @@ describe("the ruler portrait", () => {
   });
 
   it("opens on the portrait the slot already holds", async () => {
-    renderDialog(undefinedSlot({ rulerPortraitPath: "/portraits/ruler_03.png" }));
+    renderDialog(undefinedSlot({ rulerPortraitPath: "/portraits/03_east_asian_ruler.png" }));
     await waitForLoad();
 
     // The trigger carries the chosen portrait as its image, which is the only visible statement of what is chosen.
-    expect(portraitTrigger().querySelector("img")).toHaveAttribute("src", "/portraits/ruler_03.png");
+    expect(portraitTrigger().querySelector("img")).toHaveAttribute("src", "/portraits/03_east_asian_ruler.png");
   });
 
   it("sends the portrait the player picked from the grid", async () => {
@@ -541,12 +562,15 @@ describe("the ruler portrait", () => {
     await waitForLoad();
 
     await user.click(portraitTrigger());
-    await user.click(portraitTile("Portrait 9"));
+    await user.click(portraitTile("Viking King"));
+    // completeTheForm switches the gender to Female, which would drop a male face - so answer the gender first.
     await completeTheForm(user);
+    await user.click(portraitTrigger());
+    await user.click(portraitTile("Blonde Queen"));
     await user.click(saveButton());
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
-    expect(vi.mocked(updatePlayerDefinition).mock.calls[0][1].rulerPortraitPath).toBe("/portraits/ruler_09.png");
+    expect(vi.mocked(updatePlayerDefinition).mock.calls[0][1].rulerPortraitPath).toBe("/portraits/17_blonde_queen.png");
   });
 
   // The crown is the one portrait value a game may hold more than once, so leaving it is a real answer rather than an
@@ -564,12 +588,62 @@ describe("the ruler portrait", () => {
     expect(vi.mocked(updatePlayerDefinition).mock.calls[0][1].rulerPortraitPath).toBe("");
   });
 
+  // The twenty portraits are never all on offer at once: the gallery holds the chosen gender's faces only.
+  it("offers only the faces matching the chosen gender", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await waitForLoad();
+
+    await user.click(portraitTrigger());
+
+    expect(portraitTile("Western King")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Western Queen" })).not.toBeInTheDocument();
+  });
+
+  it("swaps the gallery over when the gender changes", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    await waitForLoad();
+
+    await user.click(screen.getByRole("radio", { name: "Female" }));
+    await user.click(portraitTrigger());
+
+    expect(portraitTile("Western Queen")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Western King" })).not.toBeInTheDocument();
+  });
+
+  // Keeping it would leave the trigger showing a face the gallery no longer offers, and a save would store it.
+  it("drops a chosen portrait when the gender it belongs to is switched away from", async () => {
+    const user = userEvent.setup();
+    renderDialog(undefinedSlot({ rulerPortraitPath: "/portraits/03_east_asian_ruler.png" }));
+    await waitForLoad();
+
+    expect(portraitTrigger().querySelector("img")).not.toBeNull();
+
+    await user.click(screen.getByRole("radio", { name: "Female" }));
+
+    expect(portraitTrigger().querySelector("img")).toBeNull();
+  });
+
+  // The drop is not a toggle: coming back to the gender a face belongs to leaves the field empty rather than
+  // restoring it, since nothing remembers what was there. Pinned so making it restorable is a deliberate change.
+  it("does not bring a dropped portrait back when the gender is switched back", async () => {
+    const user = userEvent.setup();
+    renderDialog(undefinedSlot({ rulerPortraitPath: "/portraits/03_east_asian_ruler.png" }));
+    await waitForLoad();
+
+    await user.click(screen.getByRole("radio", { name: "Female" }));
+    await user.click(screen.getByRole("radio", { name: "Male" }));
+
+    expect(portraitTrigger().querySelector("img")).toBeNull();
+  });
+
   // A portrait file since removed or renamed leaves a path the picker cannot offer. Reading it as the crown is what
   // stops the field looking unset while holding a value it would save straight back.
   it("falls back to the crown for a path the picker no longer offers", async () => {
     const user = userEvent.setup();
     vi.mocked(updatePlayerDefinition).mockResolvedValue(undefined);
-    const { onSaved } = renderDialog(undefinedSlot({ rulerPortraitPath: "/portraits/ruler_99.png" }));
+    const { onSaved } = renderDialog(undefinedSlot({ rulerPortraitPath: "/portraits/99_not_shipped.png" }));
     await waitForLoad();
 
     expect(portraitTrigger().querySelector("img")).toBeNull();
@@ -583,7 +657,7 @@ describe("the ruler portrait", () => {
 });
 
 describe("portraits a rival already holds", () => {
-  const TAKEN_PORTRAIT = "/portraits/ruler_04.png";
+  const TAKEN_PORTRAIT = "/portraits/01_western_king.png";
 
   function aSlotWithARivalPortrait(overrides: Partial<PlayerDefinition> = {}): PlayerDefinition {
     return undefinedSlot({ usedRulerPortraits: [{ value: TAKEN_PORTRAIT, usedBy: "Faction 1" }], ...overrides });
@@ -596,8 +670,8 @@ describe("portraits a rival already holds", () => {
 
     await user.click(portraitTrigger());
 
-    expect(portraitTile("Portrait 4")).toBeDisabled();
-    expect(portraitTile("Portrait 1")).toBeEnabled();
+    expect(portraitTile("Western King")).toBeDisabled();
+    expect(portraitTile("Viking King")).toBeEnabled();
   });
 
   it("stay unpicked when clicked, so a save cannot carry one", async () => {
@@ -607,7 +681,7 @@ describe("portraits a rival already holds", () => {
     await waitForLoad();
 
     await user.click(portraitTrigger());
-    await user.click(portraitTile("Portrait 4"));
+    await user.click(portraitTile("Western King"));
     await completeTheForm(user);
     await user.click(saveButton());
 
@@ -629,8 +703,8 @@ describe("portraits a rival already holds", () => {
 
     await user.click(portraitTrigger());
 
-    expect(portraitTile("Portrait 4")).toBeEnabled();
-    expect(portraitTile("Portrait 4")).toHaveAttribute("aria-pressed", "true");
+    expect(portraitTile("Western King")).toBeEnabled();
+    expect(portraitTile("Western King")).toHaveAttribute("aria-pressed", "true");
   });
 
   it("report a lost race against the portrait field, on the Ruler page", async () => {
@@ -640,9 +714,12 @@ describe("portraits a rival already holds", () => {
     await waitForLoad();
 
     await user.click(portraitTrigger());
-    await user.click(portraitTile("Portrait 9"));
+    await user.click(portraitTile("Viking King"));
     // Finish on the other page, so landing back on Ruler is the dialog's doing rather than where we already were.
+    // The gender switch inside completeTheForm drops the male face, so pick a female one once it has run.
     await completeTheForm(user);
+    await user.click(portraitTrigger());
+    await user.click(portraitTile("Blonde Queen"));
     await user.click(saveButton());
 
     await waitFor(() => expect(screen.getByText(PORTRAIT_TAKEN.message)).toBeInTheDocument());
@@ -726,6 +803,6 @@ describe("an already-defined slot", () => {
     expect(demonymInput()).toHaveValue("Vashti");
     expect(cultureNameInput()).toHaveValue("Vashti Highland");
     expect(languageInput()).toHaveValue("Old Vashti");
-    expect(portraitTrigger().querySelector("img")).toHaveAttribute("src", "/portraits/ruler_14.png");
+    expect(portraitTrigger().querySelector("img")).toHaveAttribute("src", "/portraits/17_blonde_queen.png");
   });
 });

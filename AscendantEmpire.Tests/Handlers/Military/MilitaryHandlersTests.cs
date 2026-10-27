@@ -60,7 +60,7 @@ internal class MilitaryHandlersTests : InMemoryTestBase
             Demonym = "Person",
             CultureName = "Culture",
             Language = "Language",
-            RulerPortraitPath = "/portraits/ruler_01.png",
+            RulerPortraitPath = "/portraits/01_western_king.png",
             Status = PlayerStatus.Active,
         };
         context.Players.Add(player);

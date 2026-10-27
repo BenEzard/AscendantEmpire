@@ -17,7 +17,7 @@ public record class Player
     public string? FactionColour { get; init; }
 
     /// <summary>
-    /// Root-relative path to the ruler's portrait, e.g. "/portraits/ruler_07.png". Empty only on a slot predating the column.
+    /// Root-relative path to the ruler's portrait, e.g. "/portraits/07_northern_queen.png". Empty only on a slot predating the column.
     /// </summary>
     public required string RulerPortraitPath { get; init; }
 

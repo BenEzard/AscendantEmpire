@@ -164,9 +164,9 @@ internal class UpdatePlayerDefinitionRequestValidatorTests
 
     [TestCase("https://evil.example/x.png", Description = "An off-site URL is rejected: the path is rendered into an img src that every other player sees.")]
     [TestCase("//evil.example/x.png", Description = "A protocol-relative URL is rejected for the same reason.")]
-    [TestCase("/elsewhere/ruler_01.png", Description = "A path outside the portraits folder is rejected, so only the shipped set can be chosen.")]
+    [TestCase("/elsewhere/01_western_king.png", Description = "A path outside the portraits folder is rejected, so only the shipped set can be chosen.")]
     [TestCase("/portraits/../secrets.png", Description = "A traversal segment is rejected rather than normalised.")]
-    [TestCase("/portraits/ruler_01.svg", Description = "A non-png extension is rejected, since every shipped portrait is a png.")]
+    [TestCase("/portraits/01_western_king.svg", Description = "A non-png extension is rejected, since every shipped portrait is a png.")]
     public void RulerPortraitOutsideTheOfferedShapeIsRejected(string rulerPortraitPath)
     {
         ValidationResult result = _validator.Validate(BuildRequest(rulerPortraitPath: rulerPortraitPath));
@@ -174,8 +174,8 @@ internal class UpdatePlayerDefinitionRequestValidatorTests
         Assert.That(result.IsValid, Is.False);
     }
 
-    [TestCase("/portraits/ruler_01.png", Description = "The first shipped portrait passes, pinning the shape rule as permissive enough for the real values.")]
-    [TestCase("/portraits/ruler_20.png", Description = "The last shipped portrait passes too, so the rule is not accidentally anchored to one file.")]
+    [TestCase("/portraits/01_western_king.png", Description = "The first shipped portrait passes, pinning the shape rule as permissive enough for the real values.")]
+    [TestCase("/portraits/20_blue_crowned_queen.png", Description = "The last shipped portrait passes too, so the rule is not accidentally anchored to one file.")]
     public void RulerPortraitTheUiOffersIsAccepted(string rulerPortraitPath)
     {
         ValidationResult result = _validator.Validate(BuildRequest(rulerPortraitPath: rulerPortraitPath));
@@ -198,7 +198,7 @@ internal class UpdatePlayerDefinitionRequestValidatorTests
         string demonym = "Vashti",
         string cultureName = "Vashti Highland",
         string language = "Old Vashti",
-        string rulerPortraitPath = "/portraits/ruler_07.png")
+        string rulerPortraitPath = "/portraits/07_northern_queen.png")
     {
         return new UpdatePlayerDefinitionRequest(
             userId,

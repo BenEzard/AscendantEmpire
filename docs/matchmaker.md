@@ -202,7 +202,7 @@ gets a `404` rather than a `403` — there is nothing there to forbid them from.
     { "value": "#c10007", "usedBy": "Faction 2" }
   ],
   "usedRulerPortraits": [
-    { "value": "/portraits/ruler_04.png", "usedBy": "Faction 1" }
+    { "value": "/portraits/04_egyptian_queen.png", "usedBy": "Faction 1" }
   ],
   "isLocked": false              // true once play has begun; only rulerTitle is then editable
 }
@@ -234,7 +234,7 @@ own.
   "factionName": "The Ember Pact", "factionColour": "#c800de",
   "peopleName": "The Vashti", "demonym": "Vashti",
   "cultureName": "Vashti Highland", "language": "Old Vashti",
-  "rulerPortraitPath": "/portraits/ruler_07.png" }
+  "rulerPortraitPath": "/portraits/07_northern_queen.png" }
 // response: 204 No Content
 ```
 
@@ -342,7 +342,7 @@ HTML document so a tab only ever mounts one feature.
 | Main component | `src/features/matchmaker/components/MatchMaker.tsx` | Lists games/slots, claims a free slot, "Play now" / "Edit" on a held slot. |
 | Setup dialog | `src/features/matchmaker/components/DefinePlayerDialog.tsx` | Two-page `PagedDialog` for the ruler and faction; fetches and saves its own definition. |
 | API calls | `src/features/matchmaker/api/matchMakingApi.ts` | `getMatchMakingGames()`, `claimPlayerSlot()`, `getPlayerDefinition()`, `updatePlayerDefinition()`. |
-| Types | `src/features/matchmaker/types/` | Camel-cased mirrors of the frontend contracts, plus `RulerGender.ts` (the gender union and the three ruler-title lists). |
+| Types | `src/features/matchmaker/types/` | Camel-cased mirrors of the frontend contracts, plus `RulerGender.ts` (the gender union and the three ruler-title lists) and `RulerPortrait.ts` (the twenty portraits, each with its file path, display name and the gender it reads as). |
 | Landing link | `index.html` | Adds a "Match Maker" link next to Game / Map Editor. |
 
 Two shared controls were added for this and live in the UI library rather than the feature, because
@@ -375,11 +375,14 @@ tool's internals for a layout primitive is the wrong dependency direction.
    and then opens `DefinePlayerDialog` on it.
 4. The dialog fetches `GET .../my-player` on open, and saves with `PUT .../my-player`:
    - **Ruler** page — Ruler Name, Ruler Gender, Ruler Title, Ruler Portrait, *in that order*: the
-     gender decides which titles the combo box suggests, so it has to be answered first. The title
-     is free text and may be left blank. The portrait is an `ImagePicker` — a thumbnail of the
-     current choice that opens a grid of the files in the UI's `public/portraits/`, with the
-     portraits rivals already wear struck through and unpickable. It may be left unchosen, in which
-     case the trigger shows a crown.
+     gender decides both which titles the combo box suggests and which faces the portrait gallery
+     offers, so it comes first. It opens on `Male` for a slot the server holds no gender for, and
+     carries no validation — the radio pair offers no way back to none. The title is free text and
+     may be left blank. The portrait is an `ImagePicker` — a thumbnail of the current choice that
+     opens a grid of the chosen gender's portraits from the UI's `public/portraits/`, with the
+     portraits rivals already wear struck through and unpickable. Switching gender drops a held
+     portrait belonging to the gender just left, rather than leaving the trigger showing a face the
+     grid no longer offers. It may be left unchosen, in which case the trigger shows a crown.
    - **Faction** page — Faction Name, a `ColorPicker` over `DistinctColors` with the colours rivals
      already hold struck through, and then the four names for the people behind the faction: People
      Name, Demonym, Culture Name and Language.

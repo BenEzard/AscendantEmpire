@@ -151,7 +151,7 @@ public class StartOfGameTests : GameSqlServerTestBase
             Demonym: $"Person {slotNumber}",
             CultureName: $"Culture {slotNumber}",
             Language: "Shared Tongue",
-            RulerPortraitPath: $"/portraits/ruler_{slotNumber:d2}.png");
+            RulerPortraitPath: RulerPortraitPaths.Female[slotNumber - 1]);
     }
 
     [Test, Description("A Game created and then filled by real claims and definitions has a current Turn, which is the whole point: without one nobody can ever end a Turn and the Game is unplayable.")]

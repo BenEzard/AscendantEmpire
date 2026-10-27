@@ -349,7 +349,7 @@ internal class AuthenticationHandlerTests
             Demonym = "Person",
             CultureName = "Culture",
             Language = "Language",
-            RulerPortraitPath = "/portraits/ruler_01.png",
+            RulerPortraitPath = "/portraits/01_western_king.png",
             CampaignOffsetId = playerId,
         };
 

@@ -8,14 +8,14 @@ const RULER_LABEL = "Empress Aelara (The Ember Pact)";
 
 describe("a turn that is open", () => {
   it("shows the ruler's portrait and label", () => {
-    render(<CurrentTurnRulerIndicator portraitPath="/portraits/ruler_07.png" rulerLabel={RULER_LABEL} />);
+    render(<CurrentTurnRulerIndicator portraitPath="/portraits/07_northern_queen.png" rulerLabel={RULER_LABEL} />);
 
     expect(screen.getByText(RULER_LABEL)).toBeInTheDocument();
-    expect(document.querySelector("img")).toHaveAttribute("src", "/portraits/ruler_07.png");
+    expect(document.querySelector("img")).toHaveAttribute("src", "/portraits/07_northern_queen.png");
   });
 
   it("names the whole indicator as a sentence, so the portrait needs no alt text of its own", () => {
-    render(<CurrentTurnRulerIndicator portraitPath="/portraits/ruler_07.png" rulerLabel={RULER_LABEL} />);
+    render(<CurrentTurnRulerIndicator portraitPath="/portraits/07_northern_queen.png" rulerLabel={RULER_LABEL} />);
 
     expect(screen.getByLabelText(`It is ${RULER_LABEL}'s turn`)).toBeInTheDocument();
     expect(document.querySelector("img")).toHaveAttribute("alt", "");
@@ -43,7 +43,7 @@ describe("a portrait that cannot be shown", () => {
   });
 
   it("falls back to a glyph when the file will not load", () => {
-    render(<CurrentTurnRulerIndicator portraitPath="/portraits/ruler_99.png" rulerLabel={RULER_LABEL} />);
+    render(<CurrentTurnRulerIndicator portraitPath="/portraits/99_not_shipped.png" rulerLabel={RULER_LABEL} />);
 
     const image = document.querySelector("img");
     expect(image).not.toBeNull();

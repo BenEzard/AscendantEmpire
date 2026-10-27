@@ -37,7 +37,7 @@ export type PlayerDefinition = {
   demonym: string;
   cultureName: string;
   language: string;
-  // Root-relative path to the chosen portrait, e.g. "/portraits/ruler_07.png". Non-nullable server-side: a seeded
+  // Root-relative path to the chosen portrait, e.g. "/portraits/07_northern_queen.png". Non-nullable server-side: a seeded
   // slot already carries one, and a slot from before the column existed carries an empty string.
   rulerPortraitPath: string;
   // Never includes the caller's own colour, which must stay pickable.

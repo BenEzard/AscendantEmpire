@@ -37,11 +37,11 @@ public class Player
     public const int FACTION_COLOUR_MAX_LENGTH = 9;
 
     /// <summary>
-    /// Generous for "/portraits/ruler_01.png", which is all this ever holds.
+    /// Generous for "/portraits/01_western_king.png", which is all this ever holds.
     /// </summary>
     /// <remarks>
-    /// Deliberately shorter than the 500 allowed for an arbitrary catalogue icon path: this column holds one of a fixed set of generated paths, not
-    /// something a user types.
+    /// Deliberately shorter than the 500 allowed for an arbitrary catalogue icon path: this column holds one of a fixed set of shipped portrait
+    /// paths, not something a user types.
     /// </remarks>
     public const int RULER_PORTRAIT_PATH_MAX_LENGTH = 100;
 
@@ -133,7 +133,7 @@ public class Player
     public string? FactionColour { get; set; }
 
     /// <summary>
-    /// Root-relative path to the portrait chosen for this ruler, e.g. "/portraits/ruler_07.png".
+    /// Root-relative path to the portrait chosen for this ruler, e.g. "/portraits/07_northern_queen.png".
     /// </summary>
     /// <remarks>
     /// <para>

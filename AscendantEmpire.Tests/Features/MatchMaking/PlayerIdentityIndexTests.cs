@@ -28,7 +28,7 @@ namespace AscendantEmpire.Tests.Features.MatchMaking;
 /// </remarks>
 internal class PlayerIdentityIndexTests : SqlServerTestBase
 {
-    private const string _PORTRAIT = "/portraits/ruler_04.png";
+    private const string _PORTRAIT = "/portraits/04_egyptian_queen.png";
 
     private int _gameId;
     private int _otherGameId;

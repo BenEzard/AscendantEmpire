@@ -21,7 +21,7 @@ import { useValidatedCommit } from "@/hooks/useValidatedCommit";
 import { getPlayerDefinition, updatePlayerDefinition } from "../api/matchMakingApi";
 import type { PlayerDefinition, PlayerDefinitionConflict } from "../types/PlayerDefinition";
 import { RULER_GENDERS, titlesFor, type RulerGender } from "../types/RulerGender";
-import { RULER_PORTRAITS } from "../types/RulerPortrait";
+import { isRulerPortraitOffered, rulerPortraitsFor } from "../types/RulerPortrait";
 
 /**
  * The title the API seeds an undefined slot with, and stores again for a blank one.
@@ -40,20 +40,23 @@ const PLACEHOLDER_RULER_TITLE = "Nobody";
 const LOCKED_MESSAGE =
   "This game is under way, so your ruler's and faction's identity is fixed for the rest of it. Only the title can still be changed.";
 
-/** The portraits offered, in the shape the picker takes them. The stored path doubles as the image URL. */
-const PORTRAIT_ITEMS: ImagePickerItem[] = RULER_PORTRAITS.map((portrait) => ({ value: portrait.path, label: portrait.label }));
-
-/** The offered paths, for checking that what a slot already holds is still one of them. */
-const PORTRAIT_PATHS: ReadonlySet<string> = new Set(RULER_PORTRAITS.map((portrait) => portrait.path));
+/**
+ * The gender a slot that has never been defined opens on.
+ *
+ * The portrait gallery shows one gender's faces, so something has to be chosen for it to filter by. Male is the
+ * arbitrary half of that: the field is a plain pair of radio buttons, flipped before anything else on the page if
+ * the player's ruler is a woman.
+ */
+const DEFAULT_RULER_GENDER: RulerGender = "Male";
 
 /** The dialog's two pages. */
 type DefinePlayerSection = "ruler" | "faction";
 
-/** The editable form state. Gender and colour start null because a fresh slot asserts neither. */
+/** The editable form state. The colour starts null because a fresh slot asserts none; the gender always holds one. */
 type Draft = {
   rulerTitle: string;
   rulerName: string;
-  rulerGender: RulerGender | null;
+  rulerGender: RulerGender;
   rulerPortraitPath: string;
   factionName: string;
   factionColour: string | null;
@@ -66,7 +69,7 @@ type Draft = {
 type FieldErrors = Partial<Record<keyof Draft, string>>;
 
 /** The draft keys the Ruler page holds. A clash or validation failure on one of these sends the user there. */
-const RULER_PAGE_FIELDS: readonly (keyof Draft)[] = ["rulerName", "rulerGender", "rulerTitle", "rulerPortraitPath"];
+const RULER_PAGE_FIELDS: readonly (keyof Draft)[] = ["rulerName", "rulerTitle", "rulerPortraitPath"];
 
 /**
  * Turns the `detail` on a 409 into per-field messages.
@@ -96,7 +99,7 @@ function conflictsFromDetail(detail: unknown): FieldErrors {
 /**
  * True for a slot that is still carrying the names the game seeded it with, rather than any the player chose.
  *
- * Neither the gender nor the colour is ever seeded, and a save insists on both, so a slot holding neither cannot have
+ * Neither the gender nor the colour is ever seeded, and a save sets both, so a slot holding neither cannot have
  * been through this dialog. Derived here rather than asked of the server: nothing on the player row records "defined"
  * as a fact of its own, and the pair this reads already travels with the definition.
  */
@@ -107,7 +110,7 @@ function hasNeverBeenDefined(definition: PlayerDefinition): boolean {
 const EMPTY_DRAFT: Draft = {
   rulerTitle: "",
   rulerName: "",
-  rulerGender: null,
+  rulerGender: DEFAULT_RULER_GENDER,
   rulerPortraitPath: "",
   factionName: "",
   factionColour: null,
@@ -133,17 +136,14 @@ function playerDefinitionQueryKey(gameId: number): unknown[] {
  * Note what is *not* here: the ruler title and the ruler portrait are both optional. A blank title is saved as the
  * placeholder the game seeds a slot with, and no portrait is a real answer rather than a missing one - the crown stands
  * in for it, and it is the one value several players may share. A portrait somebody else has taken is kept out by the
- * picker rather than caught here.
+ * picker rather than caught here. Nor is the gender: it opens on a value and the radio buttons offer no way back to
+ * none, so there is nothing to catch.
  */
 function validate(draft: Draft): FieldErrors {
   const errors: FieldErrors = {};
 
   if (draft.rulerName.trim() === "") {
     errors.rulerName = "Give your ruler a name.";
-  }
-
-  if (draft.rulerGender === null) {
-    errors.rulerGender = "Choose a gender for your ruler.";
   }
 
   if (draft.factionName.trim() === "") {
@@ -238,14 +238,18 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
     // anything of their own. So every seeded name opens blank and its label is left to say what belongs in it.
     const neverDefined = hasNeverBeenDefined(definition);
 
+    // A slot the server holds no gender for opens on the default, so the gallery always has a half to filter down to.
+    const rulerGender = definition.rulerGender ?? DEFAULT_RULER_GENDER;
+
     setDraft({
       // The seeded placeholder is shown as an empty field: it is a stand-in, not something to make the player delete.
       rulerTitle: definition.rulerTitle === PLACEHOLDER_RULER_TITLE ? "" : definition.rulerTitle,
       rulerName: neverDefined ? "" : definition.rulerName,
-      rulerGender: definition.rulerGender,
-      // Anything the picker no longer offers - a portrait file since removed or renamed - reads as the crown, so the
-      // field never looks unset while holding a path that would be saved straight back.
-      rulerPortraitPath: PORTRAIT_PATHS.has(definition.rulerPortraitPath) ? definition.rulerPortraitPath : "",
+      rulerGender,
+      // Anything the picker no longer offers - a file since removed or renamed, or a face belonging to the gender the
+      // slot does not hold - reads as the crown, so the field never looks unset while holding a path that would be
+      // saved straight back.
+      rulerPortraitPath: isRulerPortraitOffered(definition.rulerPortraitPath, rulerGender) ? definition.rulerPortraitPath : "",
       factionName: neverDefined ? "" : definition.factionName,
       factionColour: definition.factionColour,
       // Blank on a seeded slot, like the two names above, and shown exactly as stored otherwise. A slot predating
@@ -263,6 +267,19 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
     setConflicts((current) => (current[key] === undefined ? current : { ...current, [key]: undefined }));
   };
 
+  // Changing the gender re-filters the gallery, so a portrait belonging to the gender just left has to go with it.
+  // Keeping it would leave the trigger showing a face the grid no longer offers, and a save would store it.
+  //
+  // Cleared outright rather than tested against the gender arriving, because that test could only ever fail: the
+  // draft holds either the crown or a face of the gender it is already on - the load normalises it, and the picker
+  // offers nothing else - and a radio raises this only once the gender has actually changed. The clash reported
+  // against the portrait goes too, for the reason setField drops one: it was about a value no longer there.
+  const setRulerGender = (gender: RulerGender) => {
+    setDraft((current) => ({ ...current, rulerGender: gender, rulerPortraitPath: "" }));
+
+    setConflicts((current) => (current.rulerPortraitPath === undefined ? current : { ...current, rulerPortraitPath: undefined }));
+  };
+
   // Everything but the title is read-only once play has begun. Defaults to unlocked while the definition is in flight,
   // so a slow fetch shows fields that are about to become editable rather than ones that look permanently dead.
   const isLocked = definition?.isLocked === true;
@@ -277,6 +294,13 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
     [definition],
   );
 
+  // One gender's portraits, in the shape the picker takes them. The stored path doubles as the image URL, so a tile
+  // needs no separate source of its own.
+  const portraitItems = useMemo<ImagePickerItem[]>(
+    () => rulerPortraitsFor(draft.rulerGender).map((portrait) => ({ value: portrait.path, label: portrait.label })),
+    [draft.rulerGender],
+  );
+
   const titleSuggestions = useMemo(() => titlesFor(draft.rulerGender), [draft.rulerGender]);
 
   const saveMutation = useMutation({
@@ -284,8 +308,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
       updatePlayerDefinition(gameId, {
         rulerTitle: draft.rulerTitle.trim(),
         rulerName: draft.rulerName.trim(),
-        // Safe: validation refuses to commit while the gender is unset.
-        rulerGender: draft.rulerGender!,
+        rulerGender: draft.rulerGender,
         rulerPortraitPath: draft.rulerPortraitPath,
         factionName: draft.factionName.trim(),
         factionColour: draft.factionColour!,
@@ -383,7 +406,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
         {
           key: "ruler",
           label: "Ruler",
-          invalid: !!(shownErrors.rulerName || shownErrors.rulerGender || shownErrors.rulerPortraitPath),
+          invalid: !!(shownErrors.rulerName || shownErrors.rulerPortraitPath),
           content: definitionQuery.isLoading ? (
             <div className="flex items-center gap-2 text-slate-600">
               <Spinner size="sm" />
@@ -401,8 +424,9 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
                 />
               </FieldRow>
 
-              {/* Gender sits above the title because it decides which titles are suggested. */}
-              <FieldRow label="Ruler Gender" error={shownErrors.rulerGender}>
+              {/* Gender sits above both the title and the portrait, because it decides which titles are suggested
+                  and which faces the gallery offers. */}
+              <FieldRow label="Ruler Gender">
                 <div className="flex items-center gap-4" role="radiogroup" aria-label="Ruler Gender">
                   {RULER_GENDERS.map((gender) => (
                     <label key={gender} className="flex items-center gap-1.5 text-sm text-slate-700">
@@ -412,7 +436,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
                         value={gender}
                         checked={draft.rulerGender === gender}
                         disabled={isLocked}
-                        onChange={() => setField("rulerGender", gender)}
+                        onChange={() => setRulerGender(gender)}
                       />
                       {gender}
                     </label>
@@ -437,7 +461,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
                 <ImagePicker
                   value={draft.rulerPortraitPath}
                   onChange={(next) => setField("rulerPortraitPath", next)}
-                  items={PORTRAIT_ITEMS}
+                  items={portraitItems}
                   usedValues={usedPortraits}
                   // Optional, so there has to be something to show for having chosen nothing. The crown is what the
                   // game toolbar already draws for a ruler without a portrait.

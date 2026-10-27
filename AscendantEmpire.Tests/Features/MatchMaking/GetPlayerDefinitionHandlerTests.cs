@@ -32,8 +32,8 @@ internal class GetPlayerDefinitionHandlerTests : InMemoryTestBase
     private const string _OWN_COLOUR = "#c800de";
     private const string _RIVAL_COLOUR = "#c10007";
 
-    private const string _OWN_PORTRAIT = "/portraits/ruler_07.png";
-    private const string _RIVAL_PORTRAIT = "/portraits/ruler_04.png";
+    private const string _OWN_PORTRAIT = "/portraits/07_northern_queen.png";
+    private const string _RIVAL_PORTRAIT = "/portraits/04_egyptian_queen.png";
 
     private GetPlayerDefinitionHandler _handler = null!;
 

@@ -26,7 +26,7 @@ public interface IGamePlayer
     string? FactionColour { get; }
 
     /// <summary>
-    /// Root-relative path to the ruler's portrait, e.g. "/portraits/ruler_07.png".
+    /// Root-relative path to the ruler's portrait, e.g. "/portraits/07_northern_queen.png".
     /// </summary>
     /// <remarks>
     /// Public identity like the colour beside it: the game toolbar shows the portrait of whichever player's turn is open, so every player needs to be

@@ -198,7 +198,7 @@ internal class GetPlayersHandlerTests
             Assert.That(player.RulerName, Is.EqualTo("Ruler 42"));
             Assert.That(player.FactionName, Is.EqualTo("Faction 42"));
             Assert.That(player.FactionColour, Is.EqualTo("#00002a"), "The colour is what lets the client draw a faction the way its player chose.");
-            Assert.That(player.RulerPortraitPath, Is.EqualTo("/portraits/ruler_42.png"),
+            Assert.That(player.RulerPortraitPath, Is.EqualTo("/portraits/03_east_asian_ruler.png"),
                 "The projection is the only thing that puts a portrait on this path, so dropping it here would empty the game toolbar silently.");
             Assert.That(player.Status, Is.EqualTo(PlayerStatus.Active));
             Assert.That(player.CampaignOffsetId, Is.EqualTo(999));
@@ -242,9 +242,9 @@ internal class GetPlayersHandlerTests
                 Demonym = "Person",
                 CultureName = "Culture",
                 Language = "Language",
-                // Derived from the id for the same reason as the colour: a shared value could not tell
+                // Picked by the id for the same reason the colour is derived from it: a shared value could not tell
                 // a projection that reads the right row from one that reads any row.
-                RulerPortraitPath = $"/portraits/ruler_{id:00}.png",
+                RulerPortraitPath = RulerPortraitPaths.ForIndex(id),
                 CampaignOffsetId = campaignOffsetId
             });
         }

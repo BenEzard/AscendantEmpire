@@ -35,6 +35,6 @@ public record class UpdatePlayerDefinitionDto
     /// <summary>The language this people speak, e.g. "Old Vashti".</summary>
     public required string Language { get; init; }
 
-    /// <summary>The ruler's portrait, as one of the root-relative paths the UI offers, e.g. "/portraits/ruler_07.png".</summary>
+    /// <summary>The ruler's portrait, as one of the root-relative paths the UI offers, e.g. "/portraits/07_northern_queen.png".</summary>
     public required string RulerPortraitPath { get; init; }
 }

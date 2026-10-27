@@ -42,7 +42,7 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
     private const string _RIVAL_COLOUR = "#c10007";
 
     /// <summary>The portrait the rival already holds, so the caller may not take it.</summary>
-    private const string _RIVAL_PORTRAIT = "/portraits/ruler_04.png";
+    private const string _RIVAL_PORTRAIT = "/portraits/04_egyptian_queen.png";
 
     private ICampaignRoundService _campaignRoundService = null!;
     private UpdatePlayerDefinitionHandler _handler = null!;
@@ -117,7 +117,7 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
                 demonym: "  Vashti  ",
                 cultureName: "  Vashti Highland  ",
                 language: "  Old Vashti  ",
-                rulerPortraitPath: "/portraits/ruler_12.png"),
+                rulerPortraitPath: "/portraits/12_viking_king.png"),
             CancellationToken.None);
 
         Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
@@ -135,7 +135,7 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
             Assert.That(saved.Demonym, Is.EqualTo("Vashti"));
             Assert.That(saved.CultureName, Is.EqualTo("Vashti Highland"));
             Assert.That(saved.Language, Is.EqualTo("Old Vashti"));
-            Assert.That(saved.RulerPortraitPath, Is.EqualTo("/portraits/ruler_12.png"), "The portrait the player picked, not the one their slot was seeded with.");
+            Assert.That(saved.RulerPortraitPath, Is.EqualTo("/portraits/12_viking_king.png"), "The portrait the player picked, not the one their slot was seeded with.");
         }
     }
 
@@ -361,7 +361,7 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
     public async Task PortraitHeldInAnotherGameIsAcceptedAsync()
     {
         // The slot in _otherGameId wears _RIVAL_PORTRAIT too, so this only passes if the check is scoped by game.
-        ServiceResult<Empty> result = await _handler.Handle(BuildRequest(rulerPortraitPath: "/portraits/ruler_09.png"), CancellationToken.None);
+        ServiceResult<Empty> result = await _handler.Handle(BuildRequest(rulerPortraitPath: "/portraits/09_east_asian_queen.png"), CancellationToken.None);
 
         Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
     }
@@ -417,7 +417,7 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
                 demonym: "Newcomer",
                 cultureName: "A New Culture",
                 language: "A New Tongue",
-                rulerPortraitPath: "/portraits/ruler_18.png"),
+                rulerPortraitPath: "/portraits/18_red_headband_ruler.png"),
             CancellationToken.None);
 
         Player saved = await LoadOwnSlotAsync();
@@ -434,7 +434,7 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
             Assert.That(saved.Demonym, Is.EqualTo("Vashti"));
             Assert.That(saved.CultureName, Is.EqualTo("Vashti Highland"));
             Assert.That(saved.Language, Is.EqualTo("Old Vashti"));
-            Assert.That(saved.RulerPortraitPath, Is.EqualTo("/portraits/ruler_07.png"));
+            Assert.That(saved.RulerPortraitPath, Is.EqualTo("/portraits/07_northern_queen.png"));
         }
     }
 
@@ -604,7 +604,7 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
         string demonym = "Vashti",
         string cultureName = "Vashti Highland",
         string language = "Old Vashti",
-        string rulerPortraitPath = "/portraits/ruler_07.png")
+        string rulerPortraitPath = "/portraits/07_northern_queen.png")
     {
         return new UpdatePlayerDefinitionRequest(
             userId ?? _userId,

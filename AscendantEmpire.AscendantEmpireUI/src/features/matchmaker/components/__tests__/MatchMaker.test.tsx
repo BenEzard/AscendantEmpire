@@ -79,7 +79,7 @@ function renderLobby(games: MatchMakingGamesResponse) {
     demonym: "Person 70",
     cultureName: "Culture 70",
     language: "Language 70",
-    rulerPortraitPath: "/portraits/ruler_10.png",
+    rulerPortraitPath: "/portraits/10_roman_ruler.png",
     usedRulerPortraits: [],
     usedFactionColours: [],
     isLocked: false,

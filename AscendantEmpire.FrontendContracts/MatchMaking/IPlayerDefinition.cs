@@ -40,7 +40,7 @@ public interface IPlayerDefinition
     /// <summary>The language this people speak, e.g. "Old Vashti".</summary>
     string Language { get; }
 
-    /// <summary>Root-relative path to the ruler's portrait, e.g. "/portraits/ruler_07.png". Empty only on a slot predating the column.</summary>
+    /// <summary>Root-relative path to the ruler's portrait, e.g. "/portraits/07_northern_queen.png". Empty only on a slot predating the column.</summary>
     string RulerPortraitPath { get; }
 
     /// <summary>The colours the other players in this game already hold; never includes the caller's own.</summary>

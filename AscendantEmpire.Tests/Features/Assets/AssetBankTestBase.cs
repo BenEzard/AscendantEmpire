@@ -235,7 +235,7 @@ internal abstract class AssetBankTestBase : InMemoryTestBase
             Demonym = $"{rulerName}ian",
             CultureName = $"{rulerName} Culture",
             Language = $"{rulerName}ish",
-            RulerPortraitPath = "/portraits/ruler_01.png",
+            RulerPortraitPath = "/portraits/01_western_king.png",
             Status = PlayerStatus.Active
         };
     }
