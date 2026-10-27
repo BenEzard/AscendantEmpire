@@ -222,8 +222,7 @@ internal class GameSetupService(
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Unlock the starter templates for every player and place their starting units (settler + scout)
-            // at the map's authored start positions.
+            // Unlock the starter templates for every player and place their starting units (settler + scout) at the map's authored start positions.
             ServiceResultBase starterUnitsResult = await SeedStarterUnitsAsync(context, gameId, mapProperties.Id, addedPlayers, cancellationToken);
 
             if (starterUnitsResult.HasSucceeded == false)
@@ -606,9 +605,6 @@ internal class GameSetupService(
             .Where(t => t.Code != null && StarterTemplateCodes.Contains(t.Code))
             .ToListAsync(cancellationToken);
 
-        // Compare case-insensitively: the database matches codes under its own (case-insensitive) collation,
-        // and the Unit Designer lower-cases the code it derives from the display name — so a template saved as
-        // "settler" satisfies the "SETTLER" requirement and must not be reported missing.
         string[] missingCodes = [.. StarterTemplateCodes.Except(starterTemplates.Select(t => t.Code!), StringComparer.OrdinalIgnoreCase)];
 
         if (missingCodes.Length > 0)
@@ -646,7 +642,14 @@ internal class GameSetupService(
                 return ServiceResultBase.Fail($"Starter template '{template.Code}' resolves to unled tag '{organisationTag.Code}', which has no authored UnledDefaultSize.");
             }
 
-            startersToSpawn.Add((template, organisationTag.UnledDefaultSize.Value, compiled.CampaignMovementPoints, compiled.BattlefieldMovementPoints));
+            int defaultSize = template.Code switch
+            {
+                "scout" => 1,
+                "settler" => 200,
+                _ => throw new InvalidOperationException($"Unexpected starter template code '{template.Code}'.")
+            };
+
+            startersToSpawn.Add((template, defaultSize, compiled.CampaignMovementPoints, compiled.BattlefieldMovementPoints));
         }
 
         // One start position per player, best-scored first (unscored positions come last).
