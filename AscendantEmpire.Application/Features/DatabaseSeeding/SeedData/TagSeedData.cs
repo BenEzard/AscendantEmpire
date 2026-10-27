@@ -55,7 +55,7 @@ internal static class TagSeedData
             },
 
             // --- The two starter organisations ------------------------------------------------
-            // UnledDefaultSize is the spawn size a new game hands each player: 100 settlers and 1 scout.
+            // UnledDefaultSize is the spawn size a new game hands each player: 200 settlers and 1 scout.
             new TagDto
             {
                 Code = OrganisationTagCodes.SETTLER,
@@ -65,7 +65,7 @@ internal static class TagSeedData
                 MovementDomain = DomainType.Land,
                 LeadershipModel = LeadershipModel.Unled,
                 UnledBaseSize = 25,
-                UnledDefaultSize = 100,
+                UnledDefaultSize = 200,
                 UnledMaxSize = 200,
             },
             new TagDto

@@ -605,6 +605,9 @@ internal class GameSetupService(
             .Where(t => t.Code != null && StarterTemplateCodes.Contains(t.Code))
             .ToListAsync(cancellationToken);
 
+        // Compare case-insensitively: the database matches codes under its own (case-insensitive) collation, and the Unit Designer lower-cases the code it derives from
+        // the display name — so a template saved as "settler" satisfies the "SETTLER" requirement and must not be reported missing. Nothing downstream may branch on the
+        // casing of a starter code for the same reason.
         string[] missingCodes = [.. StarterTemplateCodes.Except(starterTemplates.Select(t => t.Code!), StringComparer.OrdinalIgnoreCase)];
 
         if (missingCodes.Length > 0)
@@ -642,14 +645,9 @@ internal class GameSetupService(
                 return ServiceResultBase.Fail($"Starter template '{template.Code}' resolves to unled tag '{organisationTag.Code}', which has no authored UnledDefaultSize.");
             }
 
-            int defaultSize = template.Code switch
-            {
-                "scout" => 1,
-                "settler" => 200,
-                _ => throw new InvalidOperationException($"Unexpected starter template code '{template.Code}'.")
-            };
-
-            startersToSpawn.Add((template, defaultSize, compiled.CampaignMovementPoints, compiled.BattlefieldMovementPoints));
+            // The spawn size is the authored one, never a figure fixed here: it is the catalogue's job to say how large a settler party or a scout starts,
+            // and the check above has already established that the tag carries one.
+            startersToSpawn.Add((template, organisationTag.UnledDefaultSize.Value, compiled.CampaignMovementPoints, compiled.BattlefieldMovementPoints));
         }
 
         // One start position per player, best-scored first (unscored positions come last).
