@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace AscendantEmpire.Tests.Features.Assets;
 
 /// <summary>
-/// Tests for <see cref="AssetBankProvisioningService"/>: which tiers are born with a bank, and what the staged rows look like.
+/// Tests for <see cref="AssetBankProvisioningService"/>: that every settlement is born with a bank, and what the staged rows look like.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -64,29 +64,39 @@ internal class AssetBankProvisioningServiceTests : InMemoryTestBase
         }
     }
 
-    [Test, Description("A camp gets no bank at all, because it draws on the village it attaches to rather than banking for itself.")]
-    public async Task ShouldGiveACampNoBankAsync()
+    [Test, Description("A camp is born with a bank of its own, because the first settlement of a game is a camp and the Meeting Place built in it has to have somewhere to put what it produces.")]
+    public async Task ShouldGiveACampABankOfItsOwnAsync()
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
         Settlement camp = await AddSettlementAsync(context, SettlementTier.Camp);
 
         ServiceResultBase result = await _service.ProvisionForNewSettlementAsync(context, _PLAYER_ID, camp, CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        await using AscendantEmpireContext readContext = await DbFactory.CreateDbContextAsync();
+
+        AssetBank bank = await readContext.AssetBanks.SingleAsync();
+        AssetBankSettlementMembership membership = await readContext.AssetBankSettlementMemberships.SingleAsync();
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
-            Assert.That(context.ChangeTracker.Entries<AssetBank>(), Is.Empty, "Nothing is even staged, so a settle path founding a camp has nothing to undo.");
-            Assert.That(context.ChangeTracker.Entries<AssetBankSettlementMembership>(), Is.Empty);
+            Assert.That(bank.PlayerId, Is.EqualTo(_PLAYER_ID), "The bank belongs to the player who founded the camp.");
+            Assert.That(membership.SettlementId, Is.EqualTo(camp.Id), "And the camp draws on it, rather than on a village it may not have.");
+            Assert.That(membership.AssetBankId, Is.EqualTo(bank.Id));
+            Assert.That(await readContext.AssetBankBalances.AnyAsync(), Is.False, "Nothing seeds a starting quantity, so the bank is born empty.");
         }
     }
 
-    [TestCase(SettlementTier.Village, Description = "A village is the lowest tier that banks for itself.")]
-    [TestCase(SettlementTier.Hamlet, Description = "A hamlet keeps the bank a village had, so the rule is a threshold rather than a single tier.")]
+    [TestCase(SettlementTier.Camp, Description = "A camp banks for itself, and is the tier the first settlement of a game is.")]
+    [TestCase(SettlementTier.Village, Description = "A village banks for itself.")]
+    [TestCase(SettlementTier.Hamlet, Description = "A hamlet keeps the bank it had lower down, so growth never changes which bank a settlement draws on.")]
     [TestCase(SettlementTier.Town, Description = "A town banks for itself, so growth never leaves a settlement holding nothing.")]
     [TestCase(SettlementTier.City, Description = "A city banks for itself.")]
-    [TestCase(SettlementTier.MajorCity, Description = "The top tier banks for itself, so no tier above the threshold is overlooked.")]
-    public async Task ShouldBankForEveryTierFromVillageUpAsync(SettlementTier tier)
+    [TestCase(SettlementTier.MajorCity, Description = "The top tier banks for itself, so no tier is overlooked.")]
+    public async Task ShouldBankForEveryTierAsync(SettlementTier tier)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 

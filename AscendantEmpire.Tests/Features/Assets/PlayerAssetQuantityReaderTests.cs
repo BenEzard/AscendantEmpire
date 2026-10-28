@@ -85,7 +85,7 @@ internal class PlayerAssetQuantityReaderTests : AssetBankTestBase
         Assert.That(amounts[await GetAssetIdAsync(_OAK_LOG_CODE)], Is.EqualTo(1));
     }
 
-    [Test, Description("A Player who owns no bank reports no banked figure rather than failing, because owning none is ordinary before the first village.")]
+    [Test, Description("A Player who owns no bank reports no banked figure rather than failing, because owning none is ordinary before the first settlement.")]
     public async Task ShouldReportNothingWhenThePlayerOwnsNoBank()
     {
         IReadOnlyDictionary<int, int> amounts = await ResolveAsync(_OAK_LOG_CODE);

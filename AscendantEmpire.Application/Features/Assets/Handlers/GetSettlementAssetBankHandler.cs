@@ -47,8 +47,7 @@ internal class GetSettlementAssetBankRequestValidator : Validator<GetSettlementA
 /// </para>
 /// <para>
 /// A Settlement with no bank and a Settlement belonging to another Player are one answer, not-found: a Settlement that is not the Player's is not theirs to
-/// ask about, and distinguishing the two would answer a question they did not get to ask. A camp has no bank of its own either - it draws on the village it
-/// is attached to, and the connectivity work is what points its membership there.
+/// ask about, and distinguishing the two would answer a question they did not get to ask.
 /// </para>
 /// </remarks>
 internal class GetSettlementAssetBankHandler(

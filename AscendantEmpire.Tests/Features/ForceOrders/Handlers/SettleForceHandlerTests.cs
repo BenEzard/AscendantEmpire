@@ -751,8 +751,8 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
         }
     }
 
-    [Test, Description("Founding a camp creates no asset bank, because a camp draws on the village it attaches to rather than banking for itself.")]
-    public async Task ShouldGiveANewCampNoAssetBankAsync()
+    [Test, Description("Founding a camp creates the empty asset bank it is born with, because a camp is the first settlement of a game and what it builds has to have somewhere to bank.")]
+    public async Task ShouldGiveANewCampItsAssetBankAsync()
     {
         int playerTurnId = await OpenFirstPlayerTurnAsync(_gameId);
         ItIsThisPlayersTurn(playerTurnId, roundNumber: 1);
@@ -765,10 +765,15 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
 
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
+        AssetBank bank = await context.AssetBanks.SingleAsync();
+        AssetBankSettlementMembership membership = await context.AssetBankSettlementMemberships.SingleAsync();
+
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(await context.AssetBanks.AnyAsync(), Is.False);
-            Assert.That(await context.AssetBankSettlementMemberships.AnyAsync(), Is.False);
+            Assert.That(bank.PlayerId, Is.EqualTo(_playerId), "The bank belongs to the founding player.");
+            Assert.That(membership.SettlementId, Is.EqualTo(result.SuccessValue!.SettlementId), "And it is the new camp that draws on it.");
+            Assert.That(membership.AssetBankId, Is.EqualTo(bank.Id));
+            Assert.That(await context.AssetBankBalances.AnyAsync(), Is.False, "Born empty: nothing seeds a starting quantity.");
         }
     }
 

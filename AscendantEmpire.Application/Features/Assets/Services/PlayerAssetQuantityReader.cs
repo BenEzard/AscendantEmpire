@@ -71,7 +71,7 @@ internal sealed class PlayerAssetQuantityReader(IAssetBankReader bankReader) : I
 
         ServiceResult<IReadOnlyCollection<AssetBankHoldings>> banksResult = await bankReader.GetForPlayerAsync(context, playerId, cancelToken);
 
-        // A Player with no village owns no banks, which the reader answers as an empty list rather than as a failure, so there is no refusal to pass on here.
+        // A Player with no settlement owns no banks, which the reader answers as an empty list rather than as a failure, so there is no refusal to pass on here.
         IEnumerable<AssetBankHolding> holdings = (banksResult.SuccessValue ?? [])
             .SelectMany(bank => bank.Holdings)
             .Where(holding => bankedAssetIds.Contains(holding.AssetId));

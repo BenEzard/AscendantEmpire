@@ -245,10 +245,10 @@ instead. The states, the transfer rules and the rebellion period are in
 ## Asset banks
 
 > **Partly built.** `AssetBank`, `AssetBankBalance` and `AssetBankSettlementMembership` are mapped, in
-> the `assets` schema and keyed on the player. Founding a settlement of village tier or above creates
-> its bank and its membership, empty, inside the settle transaction; an expense can be drawn from a
-> bank. Nothing yet credits a balance, links or merges banks, or attaches a camp to the village whose
-> bank it draws on, so the rest of the behaviour below is still the design.
+> the `assets` schema and keyed on the player. Founding a settlement of any tier creates its bank and
+> its membership, empty, inside the settle transaction; an expense can be drawn from a bank. Nothing yet
+> credits a balance, repoints a membership when settlements connect, or merges two banks — which is what
+> a camp attaching to a village is — so the rest of the behaviour below is still the design.
 
 The full rules are [asset-banks.md](asset-banks.md). What matters here is the shape:
 

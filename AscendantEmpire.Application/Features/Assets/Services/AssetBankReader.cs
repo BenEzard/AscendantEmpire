@@ -50,7 +50,7 @@ internal sealed class AssetBankReader : IAssetBankReader
     {
         IReadOnlyCollection<AssetBankHoldings> banks = await ReadBanksAsync(context, playerId, assetBankId: null, cancelToken);
 
-        // A Player with no village yet owns no banks. That is an empty list, not a missing resource.
+        // A Player with no settlement yet owns no banks. That is an empty list, not a missing resource.
         return ServiceResult<IReadOnlyCollection<AssetBankHoldings>>.Succeed(banks);
     }
 

@@ -243,7 +243,7 @@ public class PlayerController : ControllerBase
     /// <remarks>
     /// A bank per pool rather than one merged set of totals. Two banks exist precisely because their Settlements cannot reach each other, so a single
     /// figure would advertise stock that no one build order could spend; a caller that wants one number adds them up knowing that. A Player with no
-    /// village yet owns no banks, which is an empty list rather than a 404.
+    /// settlement yet owns no banks, which is an empty list rather than a 404.
     /// </remarks>
     /// <response code="200">Every bank the Player owns, each with its memberships and holdings</response>
     /// <response code="403">The caller has not entered a game</response>

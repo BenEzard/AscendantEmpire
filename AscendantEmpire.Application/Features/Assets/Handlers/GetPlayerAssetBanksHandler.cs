@@ -42,7 +42,7 @@ internal class GetPlayerAssetBanksRequestValidator : Validator<GetPlayerAssetBan
 /// A bank per pool rather than one merged set of totals. Two banks exist precisely because their Settlements cannot reach each other, so a single figure
 /// would advertise stock that no one build order could spend - see <see cref="AssetBankHoldings"/> for why the memberships come back with the balances.
 /// </para>
-/// <para>A Player with no village yet owns no banks, and that is an empty list rather than a not-found.</para>
+/// <para>A Player with no settlement yet owns no banks, and that is an empty list rather than a not-found.</para>
 /// </remarks>
 internal class GetPlayerAssetBanksHandler(
     ILogger<GetPlayerAssetBanksHandler> logger,

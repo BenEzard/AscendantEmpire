@@ -5,7 +5,7 @@ namespace AscendantEmpire.Domain.Enums.Assets;
 /// </summary>
 /// <remarks>
 /// <para>
-/// A property of the catalogue row rather than of the bank holding it. Tangible stock moves into a settlement's bank the moment the first village is
+/// A property of the catalogue row rather than of the bank holding it. Tangible stock moves into a settlement's bank the moment the first settlement is
 /// founded, while research and culture points stay player-level for the whole game and population figures are never stored at all - so the scope cannot be a
 /// phase of the game or a kind of bank, because the three have to coexist from the first turn onwards.
 /// </para>

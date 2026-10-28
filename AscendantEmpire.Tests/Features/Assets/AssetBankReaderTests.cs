@@ -114,7 +114,7 @@ internal class AssetBankReaderTests : AssetBankTestBase
         Assert.That(banks.Single().AssetBankId, Is.EqualTo(ownBankId));
     }
 
-    [Test, Description("A Player who has founded no village owns no banks, and that is an empty list rather than a not-found: nothing is missing.")]
+    [Test, Description("A Player who has founded no settlement owns no banks, and that is an empty list rather than a not-found: nothing is missing.")]
     public async Task ShouldReturnAnEmptyListForAPlayerWithNoBanks()
     {
         ServiceResult<IReadOnlyCollection<AssetBankHoldings>> result = await SendForPlayerAsync(_playerId);

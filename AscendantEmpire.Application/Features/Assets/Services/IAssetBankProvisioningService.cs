@@ -14,13 +14,13 @@ namespace AscendantEmpire.Application.Features.Assets.Services;
 /// unit of work, which is why this stages onto the caller's context rather than owning a save of its own - see <see cref="ProvisionForNewSettlementAsync"/>.
 /// </para>
 /// <para>
-/// <b>It owns the tier rule, not the caller.</b> Banks apply from <c>SettlementTier.Village</c> up and never to a <c>Camp</c>, and that is an asset-bank rule
-/// rather than a fact about the tier, so it lives here instead of in <c>SettlementTierRules</c>. A caller may hand over any Settlement and get the right
-/// answer; the settle path does not need a <c>switch</c> over tiers to stay correct.
+/// <b>Every tier banks, a camp included.</b> There is no tier rule here and none for a caller to apply either: the first Settlement of a game is a camp, the
+/// Meeting Place is built in one, and a camp with no bank of its own would have nowhere to put what that building produces - with no village to draw on, since
+/// it is the Player's first Settlement. A camp coming to share a village's pool is a <i>merge</i> rather than an absence of a bank here.
 /// </para>
 /// <para>
-/// Only the bank a Settlement is <i>born</i> with. Repointing a membership when settlements connect, folding one bank's balances into another when they merge,
-/// and attaching a camp to the village it draws on are each their own ticket, and each will land as a method beside this one.
+/// Only the bank a Settlement is <i>born</i> with. Repointing a membership when settlements connect, and folding one bank's balances into another when two
+/// merge - which is what a camp attaching to its village is - are each their own ticket, and each will land as a method beside this one.
 /// </para>
 /// <para>See <c>docs/design/asset-banks.md</c> for the rules this serves.</para>
 /// </remarks>
@@ -35,8 +35,8 @@ internal interface IAssetBankProvisioningService
     /// picks up the generated key when both are written in the same <c>SaveChangesAsync</c>, and a founding that rolls back takes the bank with it.
     /// </para>
     /// <para>
-    /// <b>A tier below Village succeeds having staged nothing.</b> A camp draws on the village it attaches to rather than banking for itself, so a settle path
-    /// that founds one has nothing to do here and is not made to know that.
+    /// <b>The tier is not consulted.</b> <c>docs/design/asset-banks.md</c> gives every Settlement a bank of its own, so there is no shape of Settlement this
+    /// stages nothing for. A camp that later comes to share its village's pool keeps the membership staged here until a merge repoints it.
     /// </para>
     /// <para>
     /// <b>The bank is created empty.</b> Nothing seeds a starting quantity - a Player's starter assets grant unlocks, not amounts.

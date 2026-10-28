@@ -34,8 +34,9 @@ fractional per-turn yield accumulates without being rounded away at the balance.
 ## Where a balance lives
 
 `Asset.StorageScope` says where an asset's figure comes from. It is a property of the asset, not of a
-phase of the game: tangible stock moves into a settlement's bank as soon as the first village is founded,
-while experience points stay player-level for the whole game, so the three have to coexist from turn one.
+phase of the game: tangible stock moves into a settlement's bank as soon as the first settlement is
+founded, while experience points stay player-level for the whole game, so the three have to coexist from
+turn one.
 
 | Scope | Meaning |
 |---|---|
@@ -55,10 +56,10 @@ This is what lets a drawdown route a debit without hardcoding which assets are n
 and it keeps the catalogue row a pure label.
 
 ## Asset Bank Rules
-* Asset Banks apply to settlements of `SettlementTier` 'village' (2) or higher. They do not apply to settlements of type 'camp' (1).
+* Every settlement has an Asset Bank, whatever its `SettlementTier` — a 'camp' (1) included. A camp is the tier the first settlement of a game is, and the first building produces in one, so it banks for itself rather than drawing on a village it may not have.
 * A settlement should have exactly one Asset Bank at any time.
 * An Asset Bank should have one or more Settlements to which it belongs, which may be of any tier.
-* `SettlementTier` of 'camp' should attach to their closest 'village'. Where two villages are equi-distant, if one of them was where the Settler was created from, then the camp should attach to **that** village. Otherwise, choose the lower `settlementId`.
+* `SettlementTier` of 'camp' should attach to their closest 'village', and attaching **merges** the two banks: the camp's balances are folded into the village's bank, the camp's membership is repointed at it, and the camp's own bank is deleted — the same operation a road or river connection performs. Where two villages are equi-distant, if one of them was where the Settler was created from, then the camp should attach to **that** village. Otherwise, choose the lower `settlementId`.
 * When a settlement is connected via road or river to another settlement, then they are **connected settlements**, and share an Asset Bank. A settlement newly-connected, joins the existing Asset Bank. (A river only counts as a connection for the Player after 'Canoe' technology has been completed, and a road only after the Roads technology).
 * For the purposes of Asset Banks, connections only count for a player's own settlements, not for other players.
 * When a settlement that *was* connected is disconnected (via pillaging of a road or damming of a river), then a new Asset Bank should be created for them. This Asset Bank would start out empty. When the connection is restored, then the temporary Asset Bank should be dissolved, moving all assets into the shared asset bank.
@@ -134,5 +135,5 @@ is the narrower figure, and `GET /player/asset-banks/{settlementId}` is what rep
   whole game is not spent anywhere in particular. Naming a settlement for one is a caller error.
 
 ## Out of Scope
-* If a camp is conquered, then it should change ownership to the conqueror, and change Asset Bank to the conqueror's nearest settlement.
-* Where a camp is attached to a village, and the village is conquered, then calculate the ownership boundaries. If the the camp is still in the original owners territory, then find the nearest settlement of the Player. If the ownership boundaries change, and the camp is now in another Player's territory, then auto-destroy the camp.
+* If a camp is conquered, then it should change ownership to the conqueror, and its membership should move to the Asset Bank of the conqueror's nearest settlement. Where the camp was banking on its own, that move is a merge: its balances go with it and its own bank is deleted, so no bank is left without a settlement.
+* Where a camp is attached to a village, and the village is conquered, then calculate the ownership boundaries. If the the camp is still in the original owners territory, then find the nearest settlement of the Player. If the ownership boundaries change, and the camp is now in another Player's territory, then auto-destroy the camp — dissolving the Asset Bank it drew on if nothing else draws on it.
