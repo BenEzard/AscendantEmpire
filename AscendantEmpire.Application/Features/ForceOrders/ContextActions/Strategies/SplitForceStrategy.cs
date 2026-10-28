@@ -1,3 +1,4 @@
+using AscendantEmpire.Application.Features.Units.Classes;
 using AscendantEmpire.Domain.Enums.Forces;
 
 namespace AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strategies;
@@ -16,9 +17,6 @@ namespace AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strate
 /// </remarks>
 internal sealed class SplitForceStrategy : IForceActionStrategy
 {
-    /// <summary>The smallest number of pieces a split can produce — anything less is not a split.</summary>
-    private const int _MINIMUM_DIVISIONS = 2;
-
     public ForceActionType ActionType => ForceActionType.SplitForce;
 
     public string Label => "Split Force";
@@ -47,8 +45,10 @@ internal sealed class SplitForceStrategy : IForceActionStrategy
             return ForceActionAvailability.Blocked(reasons);
         }
 
+        // The quantum count and the division rules are one thing, so the minimum lives with the rules the write path enforces rather than in a second copy
+        // here. A button that offered a split UnledSplitRules then refused would be the worst of both.
         int baseSize = organisation.UnledBaseSize.Value;
-        int smallestSplittableSize = baseSize * _MINIMUM_DIVISIONS;
+        int smallestSplittableSize = baseSize * UnledSplitRules.MINIMUM_DIVISIONS;
 
         // The Force must be able to yield at least two whole groups; a Force of one group has nothing to divide into.
         if (force.TotalStrength < smallestSplittableSize)

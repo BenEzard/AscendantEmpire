@@ -18,11 +18,11 @@ Village**, **Establish Camp** and **Battle** — and is built to take more.
 | Split Force — availability | Built — see [The Split Force strategy](#the-split-force-strategy) |
 | Create Village and Establish Camp — availability, gated on capability tags | Built — see [The settlement strategies](#the-settlement-strategies--create-village-and-establish-camp-ud-56) |
 | Battle — availability, and a placeholder dialog | Built — see [The Battle strategy](#the-battle-strategy-comm-1) |
-| Executing a split — split handler, options endpoint and parameter dialog | Not built — **TM-4** |
+| Executing a split — split handler, options endpoint and parameter dialog | Built — **TM-4**, see [Executing a split](#executing-a-split-tm-4) |
 | Executing a settlement founding — the settle endpoint, the name dialog and construction | Built — **CD-1**, see [settlements.md](../settlements.md#founding-one) |
 
-Clicking an action whose execution is not built raises a toast saying so, which now leaves only Split
-Force. See [Open questions](#open-questions) for what executing a split has to settle first.
+Every action the toolbar offers now executes. See [Open questions](#open-questions) for what is
+deliberately left unsettled.
 
 ## Terminology
 
@@ -223,6 +223,81 @@ A tag that is `Unled` but has no authored base/max sizes is a configuration erro
 [`UnledSpawnRules`](../../../AscendantEmpire.Application/Features/Units/Classes/UnledSpawnRules.cs)
 already treats it, rather than silently skipping the guardrail.
 
+The floor is `UnledSplitRules.MINIMUM_DIVISIONS × UnledBaseSize`, read from the same constant the write
+path validates against, so the button and the handler cannot disagree about what is too small to divide.
+
+### Executing a split (TM-4)
+
+The button opens a dialog, because a split needs the sizes of the groups it is to produce and nothing else
+can supply them. The dialog reads what it needs from
+`GET /force-orders/actions/split-force/options?id=<forceId>` — the Force's display name, its healthy and
+injured counts, and the authored `UnledBaseSize`. A per-action endpoint, rather than a polymorphic payload
+on the list endpoint, keeps each action's contract to its own needs. It is served by
+`GetSplitForceOptionsHandler` through the same `IForceActionContextBuilder` the toolbar reads, so ownership
+and existence are judged exactly once and a commissioned Force is refused rather than offered a dialog
+that means nothing for it.
+
+The dialog lays the Force out as one atom per quantum, in a **row of bordered groups** — one box per Force
+the split would produce. 200 in eights of 25 becomes `25 + 75 + 100` with two cuts. It posts sizes only, to
+`POST /force-orders/split`.
+
+Three gestures compose a division, and each is aimed at the thing it changes rather than at a control
+standing in for it:
+
+- **Cut** — hovering the gap between two atoms *inside* a box draws the dashed line the cut would fall on;
+  clicking divides that group there, and the half carved off takes its place to the right.
+- **Rejoin** — hovering the gap *between* two boxes offers a plus; clicking merges those two groups. Only
+  the pair either side of the gap is affected: a rejoin is not an undo, and nothing cut elsewhere comes
+  back with it.
+- **Drag** — a quantum can be dragged out of any box and dropped on any other. This is the only gesture
+  that rebalances groups without taking the Force apart: `25 + 75 + 100` becomes `50 + 75 + 75` by moving
+  one quantum, which no sequence of cuts and rejoins reaches. A group's last quantum cannot leave, since a
+  group of nothing is not a Force.
+
+Cutting and rejoining are real buttons, so every division stays reachable by keyboard and nameable to a
+screen reader; dragging is a shortcut for what recutting can already do, never the only route to a
+composition.
+
+The model behind it is a **flat, ordered row of groups**, each holding a set of atoms — not a tree of cuts.
+A tree records how the player arrived at a division, which is only meaningful while a group is a contiguous
+run of the original row, and a dragged quantum breaks that. The row records the division itself, which is
+all the request carries anyway. Every composition it can produce satisfies the design's invariant without
+needing a check: a group is a non-empty set of atoms, so it is always at least one quantum, and the
+leftover lives on a single atom, so exactly one group is ever ragged.
+
+Under each atom sits a bar in the map's own health colours, reading the healthy and injured counts of the
+**group** the atom belongs to — a quantum is a slice of a Force, not a Force, so the bar moves with the
+division as groups are cut, rejoined and dragged about.
+
+[`UnledSplitRules`](../../../AscendantEmpire.Application/Features/Units/Classes/UnledSplitRules.cs) owns
+the invariant from [military-organisation.md](military-organisation.md): at least two groups, every group
+at least one quantum, the sizes accounting for every soldier in the Force, and at most one group carrying
+the remainder. `UnledMaxSize` is not among the checks — a split only ever shrinks a Force, so it cannot
+breach a ceiling the Force already sat under. `Max` is merging's constraint.
+
+The same class owns where the wounded land, by largest-remainder apportionment across the groups with ties
+going to the earlier one. The dialog previews that apportionment with the same algorithm but never sends
+it: letting a player choose where the casualties go would let them concentrate every one into a group they
+then disband.
+
+Three things about `SplitForceHandler` are worth knowing from here:
+
+- **It re-runs this very strategy** through `IForceContextActionService.EvaluateActionAsync` before it
+  divides anything, and refuses with the reasons it collects — the same arrangement the settlement handler
+  uses, so a refusal's wording is the wording the disabled button would have shown.
+- **The original Force survives**, holding the first group, its counts reduced to that group's share and
+  its movement spent in full. The remaining groups are created through `IForceLifecycleWriter`, which
+  records each one in `MovementHistory` as a `Created` event — a Force arriving any other way would be
+  invisible to a player watching the ground. The remainder rides on the last atom, so the group carrying
+  it is always a newly created Force rather than the survivor.
+- **A `ForceOrder` is written as a completed audit record.** `OrderStatus` is `Completed` the moment the
+  row is written, with the original as the `Primary` participant and one `Result` participant per Force
+  created. It is not a standing order; it exists because that row is what the event log reads.
+
+**One force, not a selection.** One dialog carves one Force, so a selection of several is turned away with
+a toast rather than pooled — the same exception the settlement dialog makes, and for the same reason: the
+endpoint takes one force id, so there is nothing for the backend to aggregate.
+
 ## The settlement strategies — Create Village and Establish Camp (UD-56)
 
 Two actions, one for each settlement tier the player can reach at the start of the game. They are separate
@@ -392,7 +467,11 @@ group of 25. So the button opens a dialog and only the dialog posts. The backend
 knowing a dialog exists, but it does own the numbers the dialog needs — fetched separately when the
 dialog opens, rather than bloating the list endpoint with a per-action polymorphic payload.
 
-That work is **TM-4**.
+`SplitForceDialog` is that dialog, and the quantum it lays out comes from the options endpoint rather than
+a constant, which is what makes it correct for every unled organisation and not only the Settler. Its
+composition lives entirely in memory until the player confirms: the row of groups, the sizes it resolves
+to and the casualty preview are all local, and nothing is sent until there is a division to send. See
+[Executing a split](#executing-a-split-tm-4).
 
 ## Testing
 
@@ -447,9 +526,10 @@ Nothing in the pipeline checks the turn, so the toolbar offers actions to a play
 turn — while stepping a Force (`StepForceHandler`) does refuse out of turn. Turn enforcement belongs in the
 context, probably as a blanket rule ahead of the per-action strategies rather than repeated in each one.
 
-Still open, and now paid for twice: `SettleForceHandler` carries the same hand-written turn check as
-`StepForceHandler`, because the toolbar would otherwise offer a player the Create Village button outside
-their own turn and the founding has to refuse it somewhere. A third write path will copy it again.
+Still open, and now paid for three times: `SettleForceHandler` and `SplitForceHandler` each carry the same
+hand-written turn check as `StepForceHandler`, because the toolbar would otherwise offer a player the
+button outside their own turn and the write has to refuse it somewhere. Every further write path copies it
+again until the context carries the rule.
 
 ### 2. Enemy Forces on the tile are excluded, pending vision rules
 
@@ -458,21 +538,7 @@ enemy Forces would let the toolbar confirm what is standing on a tile the player
 needs the vision rules applied first. Actions that turn on enemy presence (attack, ambush) will need
 that resolved.
 
-### 3. How does the split dialog learn its parameters? (TM-4)
-
-A 100-strong settler with `UnledBaseSize` 25 can split into 2, 3 or 4 parts, or peel off a single group
-of 25. The recommendation is a separate per-action detail endpoint fetched when the dialog opens
-(`GET …/actions/split-force/options`), rather than a polymorphic `metadata` bag on the list endpoint —
-which would make every action's contract the union of every action's needs. Carried into **TM-4**.
-
-### 4. Does splitting produce a `ForceOrder`? (TM-4)
-
-`ForceOrderType.SplitForce` exists, but the design here says splitting resolves immediately and costs
-the turn, which needs no standing order. Either the order type is written as a completed audit record,
-or it is unused and should be reconsidered. Worth settling deliberately rather than by accident; carried
-into **TM-4**.
-
-### 5. Hunt is parked
+### 3. Hunt is parked
 
 Hunt is not on the toolbar. It wants to come back as its own strategy gated on a compiled capability tag
 — see [tags-and-modifiers.md](../unit-design/tags-and-modifiers.md), concept 3. The registry carries a

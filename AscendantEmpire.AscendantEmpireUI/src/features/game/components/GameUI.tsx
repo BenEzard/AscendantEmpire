@@ -15,7 +15,9 @@ import MilitaryAdvisorDialog from "@/features/game/advisors/military/MilitaryAdv
 import ScienceAdvisorDialog from "@/features/game/advisors/science/ScienceAdvisorDialog";
 import BattleDialog from "./BattleDialog";
 import CreateSettlementDialog from "./CreateSettlementDialog";
+import SplitForceDialog from "./splitForce/SplitForceDialog";
 import { describeFounding } from "@/features/game/hooks/useSettleForce";
+import { describeSplit } from "@/features/game/hooks/useSplitForce";
 import OpenGameDialog from "./OpenGameDialog";
 import VisionSettingsOffcanvas from "./VisionSettingsOffcanvas";
 import { enterGame } from "@/features/auth/api/authApi";
@@ -126,6 +128,8 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     closeBattleDialog,
     settlementDialogTier,
     closeSettlementDialog,
+    splitDialogForceId,
+    closeSplitDialog,
   } = useForceSelection({ gameId, playerId, openToast });
 
   // --- Movement (numpad, and hold-to-move on the map) ---
@@ -675,6 +679,18 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
           unitInstanceId={selectedForces[0]?.id ?? null}
           onClose={closeSettlementDialog}
           onFounded={(result) => openToast(describeFounding(result), "success")}
+        />
+
+        {/* Opened from the Split Force button on the context action toolbar. Only ever offered for a single-force selection,
+            so the force's map image comes from selectedForces[0] — one dialog carves one force into groups. */}
+        <SplitForceDialog
+          show={splitDialogForceId != null}
+          gameId={gameId ?? undefined}
+          playerId={playerId ?? undefined}
+          forceId={splitDialogForceId}
+          unitImageSrc={selectedForces[0] != null ? unitImageSrcByUnitTemplateId?.get(selectedForces[0].unitTemplateId) : undefined}
+          onClose={closeSplitDialog}
+          onSplit={(result) => openToast(describeSplit(result), "success")}
         />
 
         {/* The bars stack in one fixed column, so the bottom row sits under the action toolbar without either needing

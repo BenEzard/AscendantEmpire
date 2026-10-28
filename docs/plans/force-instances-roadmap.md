@@ -3,8 +3,8 @@
 A fielded **Force** today is a thin thing. `units.UnitInstances` holds a template id, a tile, a headcount split
 two ways and — since F-14 — a movement counter that is refilled when its owner's turn opens; `units.Commands`
 exists but nothing can create one.
-Everything else the design describes — officers, supply, veterancy, stances, splitting, a roster the player can
-actually look at — is either doc-only or a `TODO` in a pipeline stub.
+An unled Force can be split since TM-4. Everything else the design describes — officers, supply, veterancy,
+stances, merging, a roster the player can actually look at — is either doc-only or a `TODO` in a pipeline stub.
 
 This document plans the route from there to a Force that feels present **on the map** and **in the player's
 hands**. It is a plan for *tables and endpoints*, sequenced by dependency, not a design document: where the
@@ -58,8 +58,8 @@ Three axes, and the phases below are ordered so each one leaves the game playabl
 1. **Across turns** — state that persists and advances. Movement replenishment is **done** (`TM-3`, delivered as
    `F-14`); supply is still a `TODO` in `CheckUnitSupply` and healing a `TODO` in `HealTroops`. This was the
    cheapest gap and the most visible: every Force in the selection toolbar used to render greyed out.
-2. **On the map** — what a Force *is* to the tile it stands on. Commands cannot form, nothing splits or merges,
-   there is no stance, no facing, no entrenchment, no supply marker.
+2. **On the map** — what a Force *is* to the tile it stands on. An unled Force splits (`TM-4`); Commands cannot
+   form, nothing merges, there is no stance, no facing, no entrenchment, no supply marker.
 3. **For the player** — the management layer. No officer exists as an entity, so a Command has no commander and
    none of its rank-derived limits are enforceable. There is no roster, no upkeep view, no history.
 
@@ -219,10 +219,19 @@ the Command rather than fanning it out to members.
 
 ## Phase 3 — Split and merge
 
-**Purpose.** `SplitForceStrategy` decides *whether* a Force can split. Nothing performs the split. The design
-gives two distinct mechanics, and they resolve to one player-facing action.
+**Purpose.** The design gives two distinct mechanics, and they resolve to one player-facing action.
+
+**The unled half is delivered as TM-4.** A player can carve an unled Force into any combination of its
+authored quanta from the toolbar, and the division is performed, audited and reflected on the map. What the
+dialog offers, what `UnledSplitRules` enforces and what `SplitForceHandler` writes are in
+[force-context-action-toolbar.md](../design/units/force-context-action-toolbar.md#executing-a-split-tm-4).
+The commissioned half waits on Phase 5, which gives it formations to detach along, and merging — both
+halves — is unbuilt.
 
 ### Column changes
+
+**Outstanding, and needed only by the commissioned half.** An unled split's every participant is a
+`UnitInstance`, so the existing non-null column serves it as it stands.
 
 `units.ForceOrderParticipants`:
 
@@ -239,7 +248,8 @@ it is added.
 
 | Route | Purpose |
 |---|---|
-| `POST /force-orders/split` | Body branches on leadership model. **Unled**: a list of sizes, each a multiple of the tag's `UnledBaseSize` except one remainder, every group ≥ one quantum. **Commissioned**: a tier index and a count of sub-formations to detach. |
+| `GET /force-orders/actions/split-force/options` | What the split dialog needs about one Force: its counts and the authored `UnledBaseSize`. Unled only — a commissioned Force is refused. Built. |
+| `POST /force-orders/split` | Body branches on leadership model. **Unled**: a list of sizes, each a multiple of the tag's `UnledBaseSize` except one remainder, every group ≥ one quantum. Built. **Commissioned**: a tier index and a count of sub-formations to detach. Waits on Phase 5. |
 | `POST /force-orders/combine` | Merge Forces on one tile. **Unled**: same tag only, result ≤ the tag's `UnledMaxSize`. **Commissioned**: governed by the reorganisation rules, and blocked until Phase 5 gives it formations to reorganise. |
 
 Both cost the whole turn and both resolve **immediately** rather than becoming standing orders — matching the
@@ -252,7 +262,11 @@ what the event log in Phase 10 reads.
 * **What does a split Force inherit?** Veterancy and experience (Phase 6) divide how — copied to both halves, or
   split proportionally? Copying is the generous, exploitable option (split-and-merge to launder XP).
 * **Initial Unit Strength on split.** Commissioned Units are capped by the strength they were created at. When
-  one splits, does each half carry a proportional share of that ceiling? Unled Units are explicitly exempt.
+  one splits, does each half carry a proportional share of that ceiling? Unled Units are explicitly exempt, so
+  TM-4 settled only their case: every Force a split leaves on the tile, the surviving original included,
+  carries the size of the group it holds as its initial strength. The survivor's is re-based rather than
+  kept, because the soldiers in the other groups left with them — a Force still claiming the strength it
+  was raised at would read as one that had lost those soldiers to casualties.
 
 ---
 

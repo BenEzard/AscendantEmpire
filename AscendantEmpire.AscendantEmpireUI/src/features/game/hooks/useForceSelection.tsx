@@ -86,6 +86,13 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
   // Only ever a named tier. A camp carries no name, so there is nothing to open a dialog for and its button founds outright.
   const [settlementDialogTier, setSettlementDialogTier] = useState<FoundableSettlementTier | null>(null);
 
+  // The force the split dialog is carving up, or null while it is closed. Held here for the same reason as the two dialogs
+  // above: a toolbar action opens it, and turning actions into interactions is this hook's job.
+  //
+  // Only ever one force. The dialog divides a single force into groups, and a selection of several would need a tree and a
+  // confirmation per force, so a multi-force selection is turned away rather than pooled.
+  const [splitDialogForceId, setSplitDialogForceId] = useState<number | null>(null);
+
   // The unnamed tiers found from here rather than through the dialog, so this hook runs the order for them.
   const settleMutation = useSettleForceMutation(gameId, playerId, {
     onSuccess: (result) => openToast(describeFounding(result), "success"),
@@ -104,6 +111,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
       setForceSelectionTile(null);
       setBattleDialogForceId(null);
       setSettlementDialogTier(null);
+      setSplitDialogForceId(null);
     }
   }, [gameId]);
 
@@ -112,6 +120,9 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
 
   /** Closes the create-settlement dialog. */
   const closeSettlementDialog = useCallback(() => setSettlementDialogTier(null), []);
+
+  /** Closes the split dialog, discarding whatever division was composed in it. */
+  const closeSplitDialog = useCallback(() => setSplitDialogForceId(null), []);
 
   // Memoised because both the bar and every map tile take it, and Tile is memoised — a fresh Set each render
   // would defeat that and re-render the whole grid on any unrelated state change.
@@ -308,13 +319,20 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
       if (selectedForces.length === 0) return;
 
       switch (actionType) {
-        case "SplitForce":
-          // TODO: Splitting needs parameters (how many ways, and how big each part is), so this opens a dialog
-          // rather than posting directly. The dialog and its execute endpoint are the next slice of this work —
-          // see docs/design/units/force-context-action-toolbar.md, stage 5. That work reads the selection below
-          // rather than the checkbox channel the bar used to carry, which ctrl+click replaced.
-          openToast(`Split force ${describeSelection()} — the split dialog isn't built yet.`, "info");
+        // Splitting needs parameters — how many ways, and how big each part is — so it opens a dialog rather than posting
+        // directly. The dialog works entirely in memory until the player confirms.
+        //
+        // One force, one dialog: a selection of several is turned away rather than pooled, because each force divides along
+        // its own organisation's quantum and would need its own tree and its own confirmation.
+        case "SplitForce": {
+          if (selectedForces.length > 1) {
+            openToast(`Select a single force to split — ${describeSelection()} is more than one.`, "info");
+            break;
+          }
+
+          setSplitDialogForceId(selectedForces[0].id);
           break;
+        }
 
         // One settler, one settlement: a selection of several is turned away rather than pooled, because a settlement takes
         // one name and one population and a second force has nowhere to go.
@@ -427,5 +445,7 @@ export function useForceSelection({ gameId, playerId, openToast }: UseForceSelec
     closeBattleDialog,
     settlementDialogTier,
     closeSettlementDialog,
+    splitDialogForceId,
+    closeSplitDialog,
   };
 }
