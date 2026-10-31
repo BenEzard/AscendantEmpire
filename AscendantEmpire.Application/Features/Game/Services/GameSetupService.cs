@@ -69,10 +69,10 @@ internal class GameSetupService(
     /// The <c>assets.AssetMetaCategory</c> codes every Player starts the game with unlocked, and so which icons their Assets toolbar group shows.
     /// </summary>
     /// <remarks>
-    /// All three, so every icon is present from the first Round. Which Assets sit under each one is <see cref="StarterAssetCodes"/>; 
+    /// All five, so every icon is present from the first Round. Which Assets sit under each one is <see cref="StarterAssetCodes"/>; 
     /// a meta-category with nothing available under it still shows its icon over an empty panel.
     /// </remarks>
-    public static readonly string[] StarterAssetMetaCategoryCodes = ["ConstructionMaterials", "Weapons", "RawMaterials", "Society"];
+    public static readonly string[] StarterAssetMetaCategoryCodes = ["ConstructionMaterials", "Weapons", "RawMaterials", "Foodstuffs", "Society"];
 
     /// <summary>
     /// The <c>assets.Asset</c> codes every Player starts the game with unlocked — a stone-age start.
@@ -80,7 +80,8 @@ internal class GameSetupService(
     /// <remarks>
     /// <para>
     /// Held back until Technology exists: the named timbers, every Plank and Brick, the harder and prestige stones, the spear and the sword, every Medium and
-    /// High grade (those need buildings and specialists rather than merely the material), and everything needing processing.
+    /// High grade (those need buildings and specialists rather than merely the material), everything needing processing, and every Foodstuff beyond the four
+    /// a people can pick up off the ground.
     /// </para>
     /// <para>
     /// These are <b>seeded catalogue content</b>, unlike <see cref="StarterTemplateCodes"/>: they come from <c>AssetSeedData</c>, so a game set up before the
@@ -104,6 +105,13 @@ internal class GameSetupService(
         "RawMaterials.RawMaterials.Fodder",
         "RawMaterials.RawMaterials.Hides",
         "RawMaterials.RawMaterials.Tallow",
+
+        // The foods a people gathers by hand with no tool, technique or season behind it. Hunting, fishing, digging and threshing are all held back, which
+        // is why Game, Fish, Roots and the Wild Grains are absent from a start that can still feed itself on insects, fruit, greens and berries.
+        "Foodstuffs.Meat.Insects",
+        "Foodstuffs.PlantFoods.Fruit",
+        "Foodstuffs.PlantFoods.Berries",
+        "Foodstuffs.PlantFoods.Greens",
 
         // Population stats; excluding Airforce and Navy which need to be unlocked.
         // The foreign Assets are unlocked from the first Round even though nobody has met anybody yet.

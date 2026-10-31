@@ -17,21 +17,8 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 /// it shares one DisplayName, so all three would derive the same code. Those spell theirs out with the grade suffixed.
 /// </para>
 /// <para>
-/// SortOrder is left unset throughout and derived from list position, spaced by 10, so the order things appear in this file is the order they appear in game
-/// and there is no second set of numbers to keep in step with it.
-/// </para>
-/// <para>
 /// <b>Icon paths are frontend <c>public</c> URLs, not bundled assets.</b> A path here is written straight to the database and rendered as an
 /// <c>&lt;img src&gt;</c>, so it must be root-relative with forward slashes and the file must live under <c>AscendantEmpireUI/public/resources/</c>.
-/// </para>
-/// <para>
-/// <c>NeverLuxury</c> is left at its default everywhere. It says an Asset can never be classified a luxury however scarce it gets, which is a balance
-/// decision belonging with the luxury classification work rather than something this catalogue should invent.
-/// </para>
-/// <para>
-/// <c>IsNaturallyOccurring</c> is set on what the world produces by itself and a tile can therefore yield - the Logs, Bamboo, every Raw Rock, and the
-/// gathered, quarried and hunted Raw Materials. It is left at its default on anything a Player makes out of something else, which is why the Planks and
-/// the Blocks are false, and on the Weapons and the whole of Society.
 /// </para>
 /// <para>
 /// <c>StorageScope</c> is left at <c>SettlementBank</c> for everything tangible and stated only where it differs: the two Experience Assets are
@@ -62,7 +49,7 @@ internal static class AssetSeedData
     private const string _NAVY_ICON = "/resources/other/navy.svg";
 
     /// <summary>
-    /// Builds the whole catalogue: four meta-categories, their categories and groups, and every Asset within them.
+    /// Builds the whole catalogue: meta-categories, their categories and groups, and every Asset within them.
     /// </summary>
     public static IReadOnlyCollection<UpsertAssetMetaCategoryDto> Build()
     {
@@ -71,6 +58,7 @@ internal static class AssetSeedData
             BuildConstructionMaterials(),
             BuildWeapons(),
             BuildRawMaterials(),
+            BuildFoodstuffs(),
             BuildSociety()
         ];
     }
@@ -105,42 +93,42 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Oak Log",
                                     IconPath = "/resources/wood/oak-log_40px.png",
-                                    Description = "A dense, slow-grown hardwood felled from ancient oak forests. Renowned for its strength and resistance to rot, oak logs are a cornerstone of construction and military engineering alike.",
+                                    Description = "A dense, slow-grown hardwood felled from ancient oak forests. Renowned for its strength and resistance to rot.",
                                     IsNaturallyOccurring = true
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Generic Log",
                                     IconPath = "/resources/wood/pine-log_40px.png",
-                                    Description = "Logs of mixed or unspecified timber, sourced from managed woodland reserves. Serviceable for fuel, basic construction, and rough carpentry.",
+                                    Description = "Logs of mixed or unspecified timber.",
                                     IsNaturallyOccurring = true
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Cedar Log",
                                     IconPath = "/resources/wood/cedar-log_40px.png",
-                                    Description = "A fragrant, lightweight softwood prized for its natural resistance to insects and moisture. Cedar logs are favored for interior fittings and storage chests.",
+                                    Description = "A fragrant, lightweight softwood prized for its natural resistance to insects and moisture.",
                                     IsNaturallyOccurring = true
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Ash Log",
                                     IconPath = "/resources/wood/ash-log_40px.png",
-                                    Description = "A flexible, tough hardwood cut from ash groves. Ash logs are particularly valued by weaponsmiths and wheelwrights for their shock-absorbing properties.",
+                                    Description = "A flexible, tough hardwood cut from ash groves.",
                                     IsNaturallyOccurring = true
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Ebony Log",
                                     IconPath = "/resources/wood/ebony-log_40px.png",
-                                    Description = "An exceptionally rare and heavy tropical hardwood. Ebony logs command premium prices on the open market and are reserved for luxury goods and high-status construction.",
+                                    Description = "An exceptionally rare and heavy tropical hardwood.",
                                     IsNaturallyOccurring = true
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Bamboo",
                                     IconPath = "/resources/wood/bamboo_40px.png",
-                                    Description = "A fast-regenerating grass used as a versatile construction material. Bamboo is lightweight, surprisingly strong, and grows abundantly in tropical regions.",
+                                    Description = "A fast-regenerating grass used as a versatile construction material.",
                                     IsNaturallyOccurring = true
                                 }
                             ]
@@ -155,13 +143,13 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Oak Plank",
                                     IconPath = "/resources/wood/oak-plank_40px.png",
-                                    Description = "Milled from prime oak logs, these planks provide reliable structural integrity for buildings, warships, and siege equipment. Widely traded across the empire."
+                                    Description = "Milled from prime oak logs, these planks provide reliable structural integrity for buildings, warships, and siege equipment."
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Generic Plank",
                                     IconPath = "/resources/wood/pine-plank_40px.png",
-                                    Description = "Planks cut from common-grade timber. Adequate for everyday construction needs, though less prized than specialty hardwoods."
+                                    Description = "Planks cut from common-grade timber. Adequate for everyday construction needs."
                                 },
                                 new UpsertAssetDto
                                 {
@@ -443,6 +431,193 @@ internal static class AssetSeedData
                             DisplayName = "Tallow",
                             Description = "Animal fat rendered from slaughtered livestock. Tallow is used in candle-making, soap production, and as a lubricant for machinery and weapons."
                         }
+                    ]
+                }
+            ]
+        };
+    }
+
+    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+    // Foodstuffs
+    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+    private static UpsertAssetMetaCategoryDto BuildFoodstuffs()
+    {
+        return new UpsertAssetMetaCategoryDto
+        {
+            Code = "Foodstuffs",
+            DisplayName = "Foodstuffs",
+
+            // Shares the Fodder artwork rather than carrying one of its own - the closest thing in the set to "something edible gathered off the land".
+            // Food artwork can be dropped in later without disturbing anything below it.
+            IconPath = "/resources/other/high-grass.svg",
+            Categories =
+            [
+                new UpsertAssetCategoryDto
+                {
+                    Code = "Foodstuffs.Meat",
+                    DisplayName = "Meat",
+                    CategoryType = AssetCategoryType.StandaloneAssets,
+                    Assets =
+                    [
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Game",
+                            IconPath = "/resources/food/meat-02_40px",
+                            Description = "The flesh of hunted land animals.",
+                            IsNaturallyOccurring = true
+                        },
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Birds",
+                            Description = "Wildfowl taken with net, snare or sling.",
+                            IsNaturallyOccurring = true
+                        },
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Fish",
+                            IconPath = "/resources/food/fish_40px",
+                            Description = "Freshwater and sea fish.",
+                            IsNaturallyOccurring = true
+                        },
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Shellfish",
+                            IconPath = "/resources/food/crab_40px",
+                            Description = "Mussels, clams, oysters and crabs prised off the tideline.",
+                            IsNaturallyOccurring = true
+                        },
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Insects",
+                            Description = "Grubs, locusts, termites and ant brood collected in quantity.",
+                            IsNaturallyOccurring = true
+                        }
+                    ]
+                },
+                new UpsertAssetCategoryDto
+                {
+                    Code = "Foodstuffs.PlantFoods",
+                    DisplayName = "Plant Foods",
+                    CategoryType = AssetCategoryType.StandaloneAssets,
+                    Assets =
+                    [
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Fruit",
+                            IconPath = "/resources/food/banana_40px",
+                            Description = "Tree and vine fruit picked ripe - apples, figs, plums and dates.",
+                            IsNaturallyOccurring = true
+                        },
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Berries",
+                            IconPath = "/resources/food/berries_40px",
+                            Description = "Hedgerow and scrubland berries stripped from the bush.",
+                            IsNaturallyOccurring = true
+                        },
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Roots",
+                            Description = "Edible taproots dug out of open ground.",
+                            IsNaturallyOccurring = true
+                        },
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Tubers",
+                            Description = "Starchy underground swellings - yams, water chestnuts and their like.",
+                            IsNaturallyOccurring = true
+                        },
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Greens",
+                            Description = "Wild leaves, shoots and stalks cut young.",
+                            IsNaturallyOccurring = true
+                        },
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Mushrooms",
+                            Description = "Fungi gathered from damp woodland and pasture.",
+                            IsNaturallyOccurring = true
+                        },
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Bulbs",
+                            Description = "Wild onions, garlic and lily bulbs lifted whole.",
+                            IsNaturallyOccurring = true
+                        }
+                    ]
+                },
+                new UpsertAssetCategoryDto
+                {
+                    Code = "Foodstuffs.Staples",
+                    DisplayName = "Staples",
+                    CategoryType = AssetCategoryType.StandaloneAssets,
+                    Assets =
+                    [
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Wild Grains",
+                            Description = "Seed heads beaten from wild stands of emmer, barley and rice.",
+                            IsNaturallyOccurring = true
+                        },
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Seeds",
+                            Description = "Oil-rich seeds winnowed from grasses and flowering plants.",
+                            IsNaturallyOccurring = true
+                        },
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Legumes",
+                            Description = "Wild peas, beans and vetch shelled from the pod.",
+                            IsNaturallyOccurring = true
+                        },
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Nuts",
+                            Description = "Acorns, hazelnuts, walnuts and pine nuts gathered at the autumn fall.",
+                            IsNaturallyOccurring = true
+                        }
+                    ]
+                },
+                new UpsertAssetCategoryDto
+                {
+                    Code = "Foodstuffs.SpecialFoods",
+                    DisplayName = "Special Foods",
+                    CategoryType = AssetCategoryType.StandaloneAssets,
+                    Assets =
+                    [
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Honey",
+                            Description = "Comb raided from wild hives in hollow trees and cliff faces.",
+                            IsNaturallyOccurring = true
+                        },
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Seaweed",
+                            Description = "Kelp and laver cut off the rocks at low tide and dried on frames.",
+                            IsNaturallyOccurring = true
+                        },
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Chilli Peppers",
+                            Description = "Chilli peppers gathered from the wild. Spicy and pungent, they add heat to any dish.",
+                            IsNaturallyOccurring = true
+                        },
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Wild Herbs",
+                            Description = "Aromatic and medicinal plants cut where they grow.",
+                            IsNaturallyOccurring = true
+                        },
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Poisons",
+                            Description = "Toxic substances derived from plants, animals, or minerals.",
+                            IsNaturallyOccurring = true
+                        },
                     ]
                 }
             ]
