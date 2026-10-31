@@ -112,4 +112,5 @@ export type AssetSummary = {
   code: string;
   displayName: string;
   metaCategoryDisplayName: string;
+  isNaturallyOccurring: boolean;
 };

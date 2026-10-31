@@ -19,11 +19,14 @@ export function useMapResourceCatalogueQuery() {
   });
 }
 
-/** Every Asset, for the Type Manager's pickers. Rarely changes, so it is not refetched on focus. */
+/**
+ * The Assets the Type Manager's pickers offer, narrowed to the naturally occurring ones. Rarely changes, so it is not refetched on focus.
+ */
 export function useAssetsQuery() {
   return useQuery({
     queryKey: assetsKey,
     queryFn: getAssets,
+    select: (assets) => assets.filter((asset) => asset.isNaturallyOccurring),
     staleTime: 5 * 60 * 1000,
   });
 }

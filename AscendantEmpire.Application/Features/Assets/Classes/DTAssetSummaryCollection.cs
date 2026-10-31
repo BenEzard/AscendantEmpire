@@ -16,4 +16,6 @@ public class DTAssetSummary : IAssetSummary
     public required string DisplayName { get; set; }
 
     public required string MetaCategoryDisplayName { get; set; }
+
+    public required bool IsNaturallyOccurring { get; set; }
 }

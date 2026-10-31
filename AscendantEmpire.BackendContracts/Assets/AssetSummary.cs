@@ -15,4 +15,9 @@ public record AssetSummary
     /// The display name of the meta category the Asset belongs to, for grouping the list.
     /// </summary>
     public required string MetaCategoryDisplayName { get; init; }
+
+    /// <summary>
+    /// Whether this Asset occurs in the world without human intervention, which is what the MapResourceType pickers narrow their lists by.
+    /// </summary>
+    public required bool IsNaturallyOccurring { get; init; }
 }

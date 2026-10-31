@@ -100,6 +100,16 @@ public sealed class Asset
     public bool NeverLuxury { get; set; }
 
     /// <summary>
+    /// Does this Asset occur in the world without human intervention, so a tile can yield it as it is found?
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// True for what is gathered, felled, quarried or hunted as itself - timber, raw rock, bone, hides, the plant matter a tile grows. Otherwise False.
+    /// </para>
+    /// </remarks>
+    public bool IsNaturallyOccurring { get; set; }
+
+    /// <summary>
     /// Where the quantity behind this Asset is held - a settlement's bank, the Player, or nowhere at all.
     /// </summary>
     /// <remarks>

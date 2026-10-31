@@ -29,6 +29,11 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 /// decision belonging with the luxury classification work rather than something this catalogue should invent.
 /// </para>
 /// <para>
+/// <c>IsNaturallyOccurring</c> is set on what the world produces by itself and a tile can therefore yield - the Logs, Bamboo, every Raw Rock, and the
+/// gathered, quarried and hunted Raw Materials. It is left at its default on anything a Player makes out of something else, which is why the Planks and
+/// the Blocks are false, and on the Weapons and the whole of Society.
+/// </para>
+/// <para>
 /// <c>StorageScope</c> is left at <c>SettlementBank</c> for everything tangible and stated only where it differs: the two Experience Assets are
 /// <c>Player</c>, and every Population and ForeignPopulation Asset is <c>Derived</c>. See <see cref="AssetStorageScope"/> for why that belongs on the
 /// catalogue row rather than on the bank.
@@ -100,37 +105,43 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Oak Log",
                                     IconPath = "/resources/wood/oak-log_40px.png",
-                                    Description = "A dense, slow-grown hardwood felled from ancient oak forests. Renowned for its strength and resistance to rot, oak logs are a cornerstone of construction and military engineering alike."
+                                    Description = "A dense, slow-grown hardwood felled from ancient oak forests. Renowned for its strength and resistance to rot, oak logs are a cornerstone of construction and military engineering alike.",
+                                    IsNaturallyOccurring = true
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Generic Log",
                                     IconPath = "/resources/wood/pine-log_40px.png",
-                                    Description = "Logs of mixed or unspecified timber, sourced from managed woodland reserves. Serviceable for fuel, basic construction, and rough carpentry."
+                                    Description = "Logs of mixed or unspecified timber, sourced from managed woodland reserves. Serviceable for fuel, basic construction, and rough carpentry.",
+                                    IsNaturallyOccurring = true
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Cedar Log",
                                     IconPath = "/resources/wood/cedar-log_40px.png",
-                                    Description = "A fragrant, lightweight softwood prized for its natural resistance to insects and moisture. Cedar logs are favored for interior fittings and storage chests."
+                                    Description = "A fragrant, lightweight softwood prized for its natural resistance to insects and moisture. Cedar logs are favored for interior fittings and storage chests.",
+                                    IsNaturallyOccurring = true
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Ash Log",
                                     IconPath = "/resources/wood/ash-log_40px.png",
-                                    Description = "A flexible, tough hardwood cut from ash groves. Ash logs are particularly valued by weaponsmiths and wheelwrights for their shock-absorbing properties."
+                                    Description = "A flexible, tough hardwood cut from ash groves. Ash logs are particularly valued by weaponsmiths and wheelwrights for their shock-absorbing properties.",
+                                    IsNaturallyOccurring = true
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Ebony Log",
                                     IconPath = "/resources/wood/ebony-log_40px.png",
-                                    Description = "An exceptionally rare and heavy tropical hardwood. Ebony logs command premium prices on the open market and are reserved for luxury goods and high-status construction."
+                                    Description = "An exceptionally rare and heavy tropical hardwood. Ebony logs command premium prices on the open market and are reserved for luxury goods and high-status construction.",
+                                    IsNaturallyOccurring = true
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Bamboo",
                                     IconPath = "/resources/wood/bamboo_40px.png",
-                                    Description = "A fast-regenerating grass used as a versatile construction material. Bamboo is lightweight, surprisingly strong, and grows abundantly in tropical regions."
+                                    Description = "A fast-regenerating grass used as a versatile construction material. Bamboo is lightweight, surprisingly strong, and grows abundantly in tropical regions.",
+                                    IsNaturallyOccurring = true
                                 }
                             ]
                         },
@@ -190,52 +201,61 @@ internal static class AssetSeedData
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Limestone",
-                                    Description = "A sedimentary rock abundant throughout the empire. Limestone is the foundation of basic construction and is crushed to produce mortar and quicklime."
+                                    Description = "A sedimentary rock abundant throughout the empire. Limestone is the foundation of basic construction and is crushed to produce mortar and quicklime.",
+                                    IsNaturallyOccurring = true
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Sandstone",
                                     IconPath = "/resources/stone/sandstone-rocks_40px.png",
-                                    Description = "A soft, workable stone gathered from arid regions. Easier to cut than granite, sandstone is commonly used in desert architecture."
+                                    Description = "A soft, workable stone gathered from arid regions. Easier to cut than granite, sandstone is commonly used in desert architecture.",
+                                    IsNaturallyOccurring = true
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Granite",
-                                    Description = "An exceptionally hard igneous rock quarried from mountain deposits. Granite resists weathering and is ideal for fortifications and public monuments."
+                                    Description = "An exceptionally hard igneous rock quarried from mountain deposits. Granite resists weathering and is ideal for fortifications and public monuments.",
+                                    IsNaturallyOccurring = true
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Flint",
-                                    Description = "A fine-grained sedimentary rock that fractures with a sharp edge. Flint is used in early toolmaking, fire-starting, and as a cheap cutting material."
+                                    Description = "A fine-grained sedimentary rock that fractures with a sharp edge. Flint is used in early toolmaking, fire-starting, and as a cheap cutting material.",
+                                    IsNaturallyOccurring = true
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Obsidian",
                                     IconPath = "/resources/stone/obsidian-pile_40px.png",
-                                    Description = "Volcanic glass formed from rapidly cooled lava. Obsidian is razor-sharp when fractured and is prized for specialist blades and ritual objects."
+                                    Description = "Volcanic glass formed from rapidly cooled lava. Obsidian is razor-sharp when fractured and is prized for specialist blades and ritual objects.",
+                                    IsNaturallyOccurring = true
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Slate",
                                     IconPath = "/resources/stone/slate-pile_40px.png",
-                                    Description = "A fine-grained metamorphic rock that cleaves into thin sheets. Slate is the material of choice for roofing tiles and writing tablets."
+                                    Description = "A fine-grained metamorphic rock that cleaves into thin sheets. Slate is the material of choice for roofing tiles and writing tablets.",
+                                    IsNaturallyOccurring = true
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Marble",
                                     IconPath = "/resources/stone/marble-pile_40px.png",
-                                    Description = "Raw marble extracted from prized quarries. Highly sought after for prestige architecture, sculptures, and civic monuments."
+                                    Description = "Raw marble extracted from prized quarries. Highly sought after for prestige architecture, sculptures, and civic monuments.",
+                                    IsNaturallyOccurring = true
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Basalt",
-                                    Description = "A dense volcanic rock with superior hardness. Basalt is prized for road paving, millstones, and heavy defensive structures."
+                                    Description = "A dense volcanic rock with superior hardness. Basalt is prized for road paving, millstones, and heavy defensive structures.",
+                                    IsNaturallyOccurring = true
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Generic Rock",
                                     IconPath = "/resources/stone/generic-rock-pile_40px.png",
-                                    Description = "Rough, unprocessed stone quarried from surface deposits. Used as bulk fill, rubble, and a basic ingredient in early-stage construction."
+                                    Description = "Rough, unprocessed stone quarried from surface deposits. Used as bulk fill, rubble, and a basic ingredient in early-stage construction.",
+                                    IsNaturallyOccurring = true
                                 }
                             ]
                         },
@@ -345,38 +365,45 @@ internal static class AssetSeedData
                         {
                             DisplayName = "Bone",
                             IconPath = "/resources/other/fishbone.svg",
-                            Description = "Bones collected from slaughterhouses and hunting camps. Processed into tools, needles, fertiliser, and animal glue."
+                            Description = "Bones collected from slaughterhouses and hunting camps. Processed into tools, needles, fertiliser, and animal glue.",
+                            IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Fodder",
                             IconPath = "/resources/other/high-grass.svg",
-                            Description = "Dried grasses, hay, and grain husks used to sustain livestock and working animals. A steady supply is essential for any mounted force or agricultural operation."
+                            Description = "Dried grasses, hay, and grain husks used to sustain livestock and working animals. A steady supply is essential for any mounted force or agricultural operation.",
+                            IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Ochre",
-                            Description = "A naturally occurring iron oxide pigment. Ochre is used in dyes, paints, and pottery glazes throughout the empire."
+                            Description = "A naturally occurring iron oxide pigment. Ochre is used in dyes, paints, and pottery glazes throughout the empire.",
+                            IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Chalk",
-                            Description = "A soft white limestone used as a writing material, in agriculture to neutralise acidic soils, and as a base for certain pigments."
+                            Description = "A soft white limestone used as a writing material, in agriculture to neutralise acidic soils, and as a base for certain pigments.",
+                            IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Clay",
-                            Description = "Raw earthen material gathered from riverbeds and mineral deposits. Clay is the primary ingredient in pottery, bricks, and ceramic tiles."
+                            Description = "Raw earthen material gathered from riverbeds and mineral deposits. Clay is the primary ingredient in pottery, bricks, and ceramic tiles.",
+                            IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Salt",
-                            Description = "A vital mineral harvested from salt flats and coastal evaporation pools. Salt is essential for food preservation, leather tanning, and chemical processes."
+                            Description = "A vital mineral harvested from salt flats and coastal evaporation pools. Salt is essential for food preservation, leather tanning, and chemical processes.",
+                            IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Sulfur",
-                            Description = "A yellow mineral collected from volcanic vents and mineral springs. Sulfur is a key ingredient in gunpowder, medicinal compounds, and fumigation."
+                            Description = "A yellow mineral collected from volcanic vents and mineral springs. Sulfur is a key ingredient in gunpowder, medicinal compounds, and fumigation.",
+                            IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
@@ -386,12 +413,14 @@ internal static class AssetSeedData
                         new UpsertAssetDto
                         {
                             DisplayName = "Flax",
-                            Description = "A fibrous plant cultivated for its stems and seeds. Flax is processed into linen cloth, rope, and linseed oil."
+                            Description = "A fibrous plant cultivated for its stems and seeds. Flax is processed into linen cloth, rope, and linseed oil.",
+                            IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Resin",
-                            Description = "Sticky sap harvested from conifer trees. Resin is used in varnishes, adhesives, medicines, and as a flux in metalworking."
+                            Description = "Sticky sap harvested from conifer trees. Resin is used in varnishes, adhesives, medicines, and as a flux in metalworking.",
+                            IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
@@ -406,7 +435,8 @@ internal static class AssetSeedData
                         new UpsertAssetDto
                         {
                             DisplayName = "Hides",
-                            Description = "Raw, uncured animal skins awaiting processing. Hides are the primary input for the leather-working industry."
+                            Description = "Raw, uncured animal skins awaiting processing. Hides are the primary input for the leather-working industry.",
+                            IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {

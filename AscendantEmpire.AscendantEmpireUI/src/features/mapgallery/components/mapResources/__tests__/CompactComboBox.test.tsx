@@ -92,8 +92,8 @@ describe("CompactComboBox", () => {
 
 describe("Scenarios page Resource column", () => {
   const ASSETS: AssetSummary[] = [
-    { id: 1, code: "oak", displayName: "Oak", metaCategoryDisplayName: "Wood" },
-    { id: 2, code: "cedar", displayName: "Cedar", metaCategoryDisplayName: "Wood" },
+    { id: 1, code: "oak", displayName: "Oak", metaCategoryDisplayName: "Wood", isNaturallyOccurring: true },
+    { id: 2, code: "cedar", displayName: "Cedar", metaCategoryDisplayName: "Wood", isNaturallyOccurring: true },
   ];
 
   const BIOMES = [{ biomeType: "Forest", name: "Forest", isPaintableOnCampaignMap: true } as Biome];

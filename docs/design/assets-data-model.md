@@ -18,6 +18,11 @@ This document describes the asset hierarchy — how it is structured in the data
 Every table above is **global**. None of them carries a `GameId` or a `PlayerId`, and `Code` is unique across the whole
 catalogue, so the same four tables serve every game.
 
+`Asset.IsNaturallyOccurring` marks what the world produces by itself — timber, raw rock, bone, hides, and the gathered,
+quarried and hunted raw materials. It is authoring data rather than a balance lever: nothing in play reads it and the
+database seed is its only writer. The Map Resource Type Manager's Asset pickers narrow their lists by it, so a
+MapResourceType can only be authored to yield something extraction could plausibly turn up.
+
 ### Player-scoped tables
 
 | Table | Primary Key | Description |

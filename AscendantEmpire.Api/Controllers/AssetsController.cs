@@ -59,7 +59,8 @@ public class AssetsController : ControllerBase
                 Id = asset.Id,
                 Code = asset.Code,
                 DisplayName = asset.DisplayName,
-                MetaCategoryDisplayName = asset.MetaCategoryDisplayName
+                MetaCategoryDisplayName = asset.MetaCategoryDisplayName,
+                IsNaturallyOccurring = asset.IsNaturallyOccurring
             })]
         });
     }

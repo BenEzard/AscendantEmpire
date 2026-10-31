@@ -65,6 +65,9 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<bool>("IsGradedAsset")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsNaturallyOccurring")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("NeverLuxury")
                         .HasColumnType("bit");
 

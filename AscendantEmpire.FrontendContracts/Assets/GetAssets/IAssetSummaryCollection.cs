@@ -26,4 +26,9 @@ public interface IAssetSummary
     /// The display name of the meta category the Asset belongs to, e.g. "Food", for grouping the list.
     /// </summary>
     string MetaCategoryDisplayName { get; }
+
+    /// <summary>
+    /// Whether this Asset occurs in the world without human intervention, e.g. an Oak Log but not an Oak Plank.
+    /// </summary>
+    bool IsNaturallyOccurring { get; }
 }

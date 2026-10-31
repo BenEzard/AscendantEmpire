@@ -49,13 +49,13 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
     {
         await UpsertAsync(BuildCatalogue());
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(_context.AssetMetaCategories.Single().Code, Is.EqualTo("ConstructionMaterials"));
             Assert.That(_context.AssetCategories.Single(c => c.DisplayName == "Wood").Code, Is.EqualTo("ConstructionMaterials.Wood"));
             Assert.That(_context.AssetGroups.Single().Code, Is.EqualTo("ConstructionMaterials.Wood.Logs"));
             Assert.That(_context.Assets.Single(r => r.DisplayName == "Oak Log").Code, Is.EqualTo("ConstructionMaterials.Wood.Logs.OakLog"));
-        });
+        }
     }
 
     [Test, Description("A code left unset is still derived from the parent's code and the display name, so existing callers keep working unchanged.")]
@@ -78,12 +78,12 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
             }
         ]);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(_context.AssetMetaCategories.Single().Code, Is.EqualTo("ConstructionMaterials"));
             Assert.That(_context.AssetCategories.Single().Code, Is.EqualTo("ConstructionMaterials.Wood"));
             Assert.That(_context.Assets.Single().Code, Is.EqualTo("ConstructionMaterials.Wood.OakLog"));
-        });
+        }
     }
 
     [Test, Description("Re-running an unchanged catalogue updates the same rows rather than inserting a second set, which is what makes re-seeding safe.")]
@@ -92,13 +92,13 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
         await UpsertAsync(BuildCatalogue());
         await UpsertAsync(BuildCatalogue());
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(_context.AssetMetaCategories.Count(), Is.EqualTo(1));
             Assert.That(_context.AssetCategories.Count(), Is.EqualTo(1));
             Assert.That(_context.AssetGroups.Count(), Is.EqualTo(1));
             Assert.That(_context.Assets.Count(), Is.EqualTo(2));
-        });
+        }
     }
 
     [Test, Description("Renaming a display name while keeping the code renames the existing rows at every level instead of orphaning them behind new ones.")]
@@ -111,7 +111,7 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
             categoryDisplayName: "Timber",
             groupDisplayName: "Trunks"));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(_context.AssetMetaCategories.Count(), Is.EqualTo(1), "The meta-category was duplicated rather than renamed.");
             Assert.That(_context.AssetMetaCategories.Single().DisplayName, Is.EqualTo("Building Materials"));
@@ -121,7 +121,7 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
 
             Assert.That(_context.AssetGroups.Count(), Is.EqualTo(1), "The group was duplicated rather than renamed.");
             Assert.That(_context.AssetGroups.Single().DisplayName, Is.EqualTo("Trunks"));
-        });
+        }
     }
 
     [Test, Description("A category's subject scope is stored and then updated in place, so marking an existing category as a per-other-player template does not need a new row.")]
@@ -136,11 +136,11 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
 
         await UpsertAsync(BuildCatalogue(subjectScope: AssetSubjectScope.PerOtherPlayer));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(_context.AssetCategories.Count(), Is.EqualTo(1), "The category was duplicated rather than updated.");
             Assert.That(_context.AssetCategories.Single().SubjectScope, Is.EqualTo(AssetSubjectScope.PerOtherPlayer));
-        });
+        }
     }
 
     [Test, Description("Two rows resolving to the same code are refused before anything is written, so a collision cannot half-apply.")]
@@ -171,11 +171,11 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
             ]),
             CancellationToken.None);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.HasSucceeded, Is.False);
             Assert.That(_context.Assets.Count(), Is.Zero, "Rows were written despite the collision being refused.");
-        });
+        }
     }
 
     [Test, Description("Two codes differing only in case are refused as a collision, because the database they are headed for indexes codes case-insensitively and would reject the second of them anyway.")]
@@ -206,12 +206,12 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
             ]),
             CancellationToken.None);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(result.HasSucceeded, Is.False, "The collision was accepted, and would have reached the unique index as an insert.");
             Assert.That(result.Errors, Has.Some.Contains("Duplicated"), "The error has to name the colliding code, since that is all the caller has to go on.");
             Assert.That(_context.Assets.Count(), Is.Zero, "Rows were written despite the collision being refused.");
-        });
+        }
     }
 
     [Test, Description("Assets are given sort orders spaced by ten from their position in the list, so file order is display order.")]
@@ -219,11 +219,11 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
     {
         await UpsertAsync(BuildCatalogue());
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(_context.Assets.Single(r => r.DisplayName == "Oak Log").SortOrder, Is.EqualTo(10));
             Assert.That(_context.Assets.Single(r => r.DisplayName == "Ash Log").SortOrder, Is.EqualTo(20));
-        });
+        }
     }
 
     [Test, Description("A supplied asset sort order is kept, so an explicit ordering is not overwritten by list position.")]
@@ -263,13 +263,13 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
 
         Asset[] knives = [.. _context.Assets.Where(r => r.DisplayName == "Bone Knife")];
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(knives, Has.Length.EqualTo(3));
             Assert.That(knives.Select(k => k.AssetGrade), Is.EquivalentTo(new[] { AssetGrade.Low, AssetGrade.Medium, AssetGrade.High }));
             Assert.That(knives.Select(k => k.Code), Is.Unique);
             Assert.That(knives.Select(k => k.IsGradedAsset), Is.All.True);
-        });
+        }
     }
 
     [Test, Description("An update that omits the description and icon leaves the stored ones alone, so a partial edit cannot blank flavour text.")]
@@ -281,11 +281,11 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
 
         Asset oakLog = _context.Assets.Single(r => r.DisplayName == "Oak Log");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(oakLog.Description, Is.EqualTo("A dense hardwood."));
             Assert.That(oakLog.IconPath, Is.EqualTo("/resources/wood/oak-log_40px.png"));
-        });
+        }
     }
 
     [Test, Description("The supplied storage scope is written on insert and moved on a re-run, so the catalogue is what decides where an asset's figure lives.")]
@@ -297,11 +297,11 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
 
         await UpsertAsync(BuildScopedCatalogue(AssetStorageScope.Derived));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(_context.Assets.Single().StorageScope, Is.EqualTo(AssetStorageScope.Derived), "a re-run should move the scope rather than keep the old one");
             Assert.That(_context.Assets.Count(), Is.EqualTo(1), "the re-run matched on code, so it should have updated the row rather than inserted a second");
-        });
+        }
     }
 
     [Test, Description("An asset that states no storage scope is held in a settlement bank, which is where all but a handful of the catalogue belongs.")]
@@ -312,6 +312,65 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
         Assert.That(
             _context.Assets.Select(asset => asset.StorageScope),
             Is.All.EqualTo(AssetStorageScope.SettlementBank));
+    }
+
+    [Test, Description("The naturally occurring flag is written on insert, so the catalogue is what decides which Assets a tile can yield.")]
+    public async Task ShouldStoreAndUpdateTheNaturallyOccurringFlag()
+    {
+        await UpsertAsync(BuildNaturallyOccurringCatalogue(isNaturallyOccurring: true));
+
+        Assert.That(_context.Assets.Single().IsNaturallyOccurring, Is.True);
+
+        await UpsertAsync(BuildNaturallyOccurringCatalogue(isNaturallyOccurring: false));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_context.Assets.Single().IsNaturallyOccurring, Is.False, "a re-run should clear the flag rather than keep the old one");
+            Assert.That(_context.Assets.Count(), Is.EqualTo(1), "the re-run matched on code, so it should have updated the row rather than inserted a second");
+        }
+    }
+
+    [Test, Description("An asset that states nothing about natural occurrence is not naturally occurring, so a new catalogue row cannot drift into the yield pickers.")]
+    public async Task ShouldDefaultTheNaturallyOccurringFlagToFalse()
+    {
+        await UpsertAsync(BuildCatalogue());
+
+        Assert.That(_context.Assets.Select(asset => asset.IsNaturallyOccurring), Is.All.False);
+    }
+
+    /// <summary>
+    /// One standalone category holding a single Asset carrying the given flag, which is the smallest shape that exercises the column.
+    /// </summary>
+    private static IReadOnlyCollection<UpsertAssetMetaCategoryDto> BuildNaturallyOccurringCatalogue(bool isNaturallyOccurring)
+    {
+        return
+        [
+            new UpsertAssetMetaCategoryDto
+            {
+                Code = "RawMaterials",
+                DisplayName = "Raw Materials",
+                IconPath = "/resources/other/fishbone.svg",
+                Categories =
+                [
+                    new UpsertAssetCategoryDto
+                    {
+                        Code = "RawMaterials.RawMaterials",
+                        DisplayName = "Raw Materials",
+                        CategoryType = AssetCategoryType.StandaloneAssets,
+                        Assets =
+                        [
+                            new UpsertAssetDto
+                            {
+                                Code = "RawMaterials.RawMaterials.Bone",
+                                DisplayName = "Bone",
+                                IconPath = "/resources/other/fishbone.svg",
+                                IsNaturallyOccurring = isNaturallyOccurring
+                            }
+                        ]
+                    }
+                ]
+            }
+        ];
     }
 
     /// <summary>

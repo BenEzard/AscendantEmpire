@@ -39,6 +39,11 @@ behave. Its kinds are set by flags:
   how much of each, that one unit extracted gives: a Berry gives one (`forage`); a Deer gives two
   (`medium_game` and `pelt`). A Distribution is different: it holds a separate amount of each of its
   Assets, and extracting it gives some of each (see [Distribution](#distribution)).
+- **Only naturally occurring Assets can be yielded.** An Asset carries `IsNaturallyOccurring`, set
+  on what the world produces by itself — timber, raw rock, bone, hides, the gathered and quarried
+  raw materials. The Type Manager's yield, scenario and layer pickers offer only those, so nothing
+  can author a tile that gives up an Oak Plank or a sword. See
+  [assets-data-model.md](../assets-data-model.md).
 - **Extraction method.** Each MapResourceType has one: e.g. Gather, Hunt, Fell, Mine, or **Capture**
   (horses), which succeeds with a `CaptureLikelihood`. Extracting always reduces the quantity on the
   tile.

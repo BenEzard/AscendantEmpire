@@ -31,7 +31,8 @@ internal class GetAssetsHandler(
                 Id = r.Id,
                 Code = r.Code,
                 DisplayName = r.DisplayName,
-                MetaCategoryDisplayName = r.MetaCategory.DisplayName
+                MetaCategoryDisplayName = r.MetaCategory.DisplayName,
+                IsNaturallyOccurring = r.IsNaturallyOccurring
             })
             .ToListAsync(cancellationToken);
 

@@ -59,6 +59,11 @@ public record UpsertAssetDto
     public bool NeverLuxury { get; init; } = false;
 
     /// <summary>
+    /// Whether this Asset occurs in the world without human intervention, and so can be named by a MapResourceType's yield.
+    /// </summary>
+    public bool IsNaturallyOccurring { get; init; } = false;
+
+    /// <summary>
     /// Where the quantity behind this Asset is held - a settlement's bank, the Player, or nowhere at all.
     /// </summary>
     /// <remarks>

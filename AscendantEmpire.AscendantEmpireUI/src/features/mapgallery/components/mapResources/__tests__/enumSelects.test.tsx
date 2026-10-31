@@ -28,7 +28,7 @@ const GEOGRAPHIES = [
   { campaignMapGeographyType: "Hilly", name: "Hilly", relativeElevation: 1, isPaintableOnCampaignMap: true } as Geography,
 ];
 
-const ASSETS: AssetSummary[] = [{ id: 1, code: "wood", displayName: "Wood", metaCategoryDisplayName: "Material" }];
+const ASSETS: AssetSummary[] = [{ id: 1, code: "wood", displayName: "Wood", metaCategoryDisplayName: "Material", isNaturallyOccurring: true }];
 
 /** A renewable type sitting in one Arid habitat — the state a designer is in right after adding their first habitat row. */
 function typeInArid(): MapResourceType {

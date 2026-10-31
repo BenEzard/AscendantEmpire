@@ -308,6 +308,7 @@ internal class UpsertAssetsHandler(
                     IsGradedAsset = res.Dto.IsGradedAsset,
                     AssetGrade = res.Dto.AssetGrade,
                     NeverLuxury = res.Dto.NeverLuxury,
+                    IsNaturallyOccurring = res.Dto.IsNaturallyOccurring,
                     StorageScope = res.Dto.StorageScope,
                     MetaCategory = metaEntity,
                     Group = groupEntity
@@ -322,6 +323,7 @@ internal class UpsertAssetsHandler(
                 assetEntity.IsGradedAsset = res.Dto.IsGradedAsset;
                 assetEntity.AssetGrade = res.Dto.AssetGrade;
                 assetEntity.NeverLuxury = res.Dto.NeverLuxury;
+                assetEntity.IsNaturallyOccurring = res.Dto.IsNaturallyOccurring;
                 assetEntity.StorageScope = res.Dto.StorageScope;
                 assetEntity.MetaCategory = metaEntity;
 
@@ -359,6 +361,7 @@ internal class UpsertAssetsHandler(
                     IsGradedAsset = res.Dto.IsGradedAsset,
                     AssetGrade = res.Dto.AssetGrade,
                     NeverLuxury = res.Dto.NeverLuxury,
+                    IsNaturallyOccurring = res.Dto.IsNaturallyOccurring,
                     StorageScope = res.Dto.StorageScope,
                     MetaCategory = metaEntity,
                     Category = catEntity
@@ -373,6 +376,7 @@ internal class UpsertAssetsHandler(
                 assetEntity.IsGradedAsset = res.Dto.IsGradedAsset;
                 assetEntity.AssetGrade = res.Dto.AssetGrade;
                 assetEntity.NeverLuxury = res.Dto.NeverLuxury;
+                assetEntity.IsNaturallyOccurring = res.Dto.IsNaturallyOccurring;
                 assetEntity.StorageScope = res.Dto.StorageScope;
                 assetEntity.MetaCategory = metaEntity;
 

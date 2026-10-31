@@ -46,19 +46,19 @@ internal class AssetSeedDataTests
     [Test, Description("No two rows at the same level share a code, because the upsert matches on code and would otherwise update whichever it happened to keep.")]
     public void ShouldGiveEveryRowAUniqueCodeWithinItsLevel()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(_metaCategories.Select(metaCategory => metaCategory.Code), Is.Unique, "Meta-category codes are not unique.");
             Assert.That(AllCategories().Select(category => category.Code), Is.Unique, "Category codes are not unique.");
             Assert.That(AllGroups().Select(group => group.Code), Is.Unique, "Group codes are not unique.");
             Assert.That(AllAssetCodes(), Is.Unique, "Asset codes are not unique.");
-        });
+        }
     }
 
     [Test, Description("Every code fits the column it is stored in, so the seed fails here rather than on a truncation at insert time.")]
     public void ShouldKeepEveryCodeWithinItsColumnLength()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (UpsertAssetMetaCategoryDto metaCategory in _metaCategories)
             {
@@ -79,13 +79,13 @@ internal class AssetSeedDataTests
             {
                 Assert.That(code, Has.Length.LessThanOrEqualTo(Asset.MAX_CODE_LENGTH), $"Asset code '{code}' is too long.");
             }
-        });
+        }
     }
 
     [Test, Description("Every display name and description fits its column, so no flavour text is silently truncated at insert time.")]
     public void ShouldKeepEveryNameAndDescriptionWithinItsColumnLength()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (UpsertAssetDto asset in AllAssets())
             {
@@ -99,13 +99,13 @@ internal class AssetSeedDataTests
                         $"Description of '{asset.DisplayName}' is too long.");
                 }
             }
-        });
+        }
     }
 
     [Test, Description("A category fills exactly the one child collection its CategoryType uses, so no Asset is silently dropped by the upsert.")]
     public void ShouldPopulateOnlyTheChildCollectionTheCategoryTypeUses()
     {
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (UpsertAssetCategoryDto category in AllCategories())
             {
@@ -120,7 +120,7 @@ internal class AssetSeedDataTests
                     Assert.That(category.Groups, Is.Empty, $"Standalone category '{category.DisplayName}' also lists groups, which the upsert ignores.");
                 }
             }
-        });
+        }
     }
 
     [Test, Description("A graded Asset is stocked once per grade under one display name, and each of those rows carries its own code.")]
@@ -130,7 +130,7 @@ internal class AssetSeedDataTests
             .Where(asset => asset.IsGradedAsset)
             .GroupBy(asset => asset.DisplayName);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (IGrouping<string, UpsertAssetDto> grades in gradedByName)
             {
@@ -144,7 +144,7 @@ internal class AssetSeedDataTests
                     Assert.That(asset.Code, Is.Not.Null.And.Not.Empty, $"Graded asset '{grades.Key}' must spell its code out, since every grade shares the display name.");
                 }
             }
-        });
+        }
     }
 
     [Test, Description("An ungraded Asset carries no grade, so nothing shows a quality shield on something that has no qualities.")]
@@ -164,14 +164,14 @@ internal class AssetSeedDataTests
             .OfType<string>()
             .Where(path => path.Length > 0);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (string path in iconPaths)
             {
                 Assert.That(path, Does.StartWith("/resources/"), $"Icon path '{path}' is not a root-relative public URL.");
                 Assert.That(path, Does.Not.Contain("\\"), $"Icon path '{path}' uses backslashes.");
             }
-        });
+        }
     }
 
     [Test, Description("Every starter asset code game setup demands resolves to a seeded Asset, so a rename in either file fails here rather than at game creation.")]
@@ -199,14 +199,14 @@ internal class AssetSeedDataTests
 
         Assert.That(templates, Is.Not.Empty, "the population template is what the per-other-player projection exists for");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (UpsertAssetCategoryDto template in templates)
             {
                 Assert.That(template.CategoryType, Is.EqualTo(AssetCategoryType.GroupedAssets), $"{template.Code} is projected per player");
                 Assert.That(template.Groups, Is.Not.Empty, $"{template.Code} would project an empty category onto every opponent");
             }
-        });
+        }
     }
 
     [Test, Description("The two Experience assets are held per player, so nothing gives them a bank balance that would compete with the research pipeline's columns.")]
@@ -216,7 +216,7 @@ internal class AssetSeedDataTests
 
         Assert.That(experience.Assets, Is.Not.Empty, "the experience category is what player-scoped storage exists for");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (UpsertAssetDto asset in experience.Assets)
             {
@@ -225,7 +225,7 @@ internal class AssetSeedDataTests
                     Is.EqualTo(AssetStorageScope.Player),
                     $"'{asset.DisplayName}' is already held as PlayerResearchState / PlayerUnusedExperience columns");
             }
-        });
+        }
     }
 
     [Test, Description("Every population figure is derived, since Civilians comes from the settlements and the rest from the rosters and the holdings ledger.")]
@@ -242,13 +242,13 @@ internal class AssetSeedDataTests
 
         Assert.That(populationAssets, Is.Not.Empty, "the population categories are what derived storage exists for");
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (UpsertAssetDto asset in populationAssets)
             {
                 Assert.That(asset.StorageScope, Is.EqualTo(AssetStorageScope.Derived), $"'{asset.DisplayName}' has no balance row to read");
             }
-        });
+        }
     }
 
     [Test, Description("Everything outside Society is held in a settlement bank, so a tangible asset cannot be seeded somewhere the drawdown service will not look.")]
@@ -259,7 +259,7 @@ internal class AssetSeedDataTests
             .SelectMany(metaCategory => metaCategory.Categories)
             .SelectMany(category => category.Groups.SelectMany(group => group.Assets).Concat(category.Assets));
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             foreach (UpsertAssetDto asset in tangibleAssets)
             {
@@ -268,7 +268,7 @@ internal class AssetSeedDataTests
                     Is.EqualTo(AssetStorageScope.SettlementBank),
                     $"'{asset.DisplayName}' is a tangible asset and belongs in a bank");
             }
-        });
+        }
     }
 
     private IEnumerable<UpsertAssetCategoryDto> AllCategories()
