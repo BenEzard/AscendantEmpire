@@ -64,13 +64,14 @@ export default function EditableTable<TRow>({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
+            {/* Cell padding is deliberately tight (px-1, so 8px between neighbouring cells) */}
             {columns.map((column) => (
-              <th key={column.header} className={`px-2 py-1 font-medium ${column.className ?? ""}`}>
+              <th key={column.header} className={`px-1 py-1 font-medium ${column.className ?? ""}`}>
                 {column.header}
               </th>
             ))}
             {/* The "+" add button lives in the trailing header, directly above the per-row trash buttons. */}
-            <th className="w-8 px-2 py-1 text-center">
+            <th className="w-8 px-1 py-1 text-center">
               <Tooltip content={addLabel ? `Add ${addLabel}` : "Add row"}>
                 {/* Plain icon-only control (no border/padding), matching the per-row trash buttons. */}
                 <button
@@ -90,7 +91,7 @@ export default function EditableTable<TRow>({
           {rows.length === 0 ? (
             <tr>
               {/* Span every column (data columns + the add/remove column) for the empty message. */}
-              <td colSpan={columns.length + 1} className="px-2 py-3 text-center text-xs text-slate-400">
+              <td colSpan={columns.length + 1} className="px-1 py-3 text-center text-xs text-slate-400">
                 {emptyHint ?? "No rows yet."}
               </td>
             </tr>
@@ -98,11 +99,11 @@ export default function EditableTable<TRow>({
             rows.map((row, rowIndex) => (
               <tr key={rowKey ? rowKey(row, rowIndex) : rowIndex} className="border-b border-slate-100 last:border-b-0">
                 {columns.map((column) => (
-                  <td key={column.header} className={`px-2 py-0 align-middle ${column.className ?? ""}`}>
+                  <td key={column.header} className={`px-1 py-0 align-middle ${column.className ?? ""}`}>
                     {column.renderCell(row, rowIndex)}
                   </td>
                 ))}
-                <td className="px-2 py-0 text-center align-middle">
+                <td className="px-1 py-0 text-center align-middle">
                   <Tooltip content="Remove row">
                     {/* A plain icon-only control (no border/padding) so it reads as a subtle action, not a button. */}
                     <button

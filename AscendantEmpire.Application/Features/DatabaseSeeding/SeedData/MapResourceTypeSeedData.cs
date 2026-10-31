@@ -29,7 +29,8 @@ internal static class MapResourceTypeSeedData
     /// </summary>
     private static readonly IMapResourceTypeSeed[] _RESOURCES =
     [
-        new TimberSeedData()
+        new TimberSeedData(),
+        new BerriesSeedData()
     ];
 
     /// <summary>

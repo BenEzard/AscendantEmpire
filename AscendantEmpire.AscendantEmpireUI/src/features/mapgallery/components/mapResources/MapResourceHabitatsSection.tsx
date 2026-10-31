@@ -1,8 +1,8 @@
-import { EditableTable, type EditableTableColumn } from "@/components/ui";
+import { EditableTable, HintIcon, type EditableTableColumn } from "@/components/ui";
 import type { Biome, BiomeType } from "@/types/map/Biome";
 import type { CampaignMapGeographyType, Geography } from "@/types/map/Geography";
 import type { MapResourceHabitat, MapResourceType } from "@/types/map/MapResource";
-import { canSpread, createHabitat, grows, holdsSingleQuantity, kindOf } from "../../tools/mapResourceDraft";
+import { canSpread, createHabitat, grows, holdsSingleQuantity, kindOf, type MapResourceKind } from "../../tools/mapResourceDraft";
 import { CompactSelect, PercentInput, WholeNumberInput } from "./mapResourceFields";
 
 interface MapResourceHabitatsSectionProps {
@@ -14,6 +14,36 @@ interface MapResourceHabitatsSectionProps {
 
 // The select's stand-in for a null Geography, which a <select> value cannot carry.
 const ANY_GEOGRAPHY = "any";
+
+/**
+ * One line of explanation per value column the table is showing, for the tooltip beside the section's blurb.
+ */
+function columnHintsFor(kind: MapResourceKind): string {
+  const lines: string[] = [];
+
+  if (holdsSingleQuantity(kind)) {
+    lines.push("Start Min / Start Max — the range an instance's starting quantity is rolled from when the game is created.");
+  }
+
+  if (grows(kind)) {
+    lines.push(
+      kind === "distribution"
+        ? "Max Total — the ceiling the instance's Assets add up to. Growth stops there."
+        : "Max Cap — the ceiling an instance grows to. Growth stops there, and only an instance at its cap can spread.",
+    );
+    lines.push("Growth — the share of its current quantity an instance adds each round, up to its cap.");
+  }
+
+  if (canSpread(kind)) {
+    lines.push("Spread — the chance each round that an instance at its cap spreads onto one random adjacent tile.");
+    lines.push(
+      "Limit Min / Limit Max — the range an instance's spread limit is rolled from: how many more times it may spread.\n" +
+        "    Each spread spends one, and the instance it creates inherits what is left, so each generation spreads less than the last.",
+    );
+  }
+
+  return lines.join("\n");
+}
 
 /**
  * Where the type can exist, and its values there, per Biome and optionally one Geography. No habitat means the type can never exist on, or spread
@@ -100,7 +130,8 @@ export default function MapResourceHabitatsSection({ type, biomes, geographies, 
   if (grows(kind)) {
     columns.push(
       {
-        header: kind === "distribution" ? "Max Total" : "Maximum",
+        // "Max Cap" rather than "Maximum": the value is the ceiling growth stops at, not the largest quantity that may be authored.
+        header: kind === "distribution" ? "Max Total" : "Max Cap",
         renderCell: (row, index) => (
           <WholeNumberInput
             compact
@@ -132,7 +163,7 @@ export default function MapResourceHabitatsSection({ type, biomes, geographies, 
           <PercentInput
             compact
             ariaLabel="Spread likelihood"
-            placeholder="none"
+            placeholder="0"
             value={row.spreadLikelihood}
             onChange={(value) => update(index, { spreadLikelihood: value })}
           />
@@ -165,7 +196,11 @@ export default function MapResourceHabitatsSection({ type, biomes, geographies, 
 
   return (
     <div className="w-full">
-      <p className="mb-3 text-sm text-slate-500">Specify the habitats where this Map Resource can exist.</p>
+      {/* The icon sits on the blurb's line and explains the value columns, which are not self-describing and change with the type's kind. */}
+      <p className="mb-3 flex items-center gap-1.5 text-sm text-slate-500">
+        Specify the habitats where this Map Resource can exist.
+        <HintIcon hint={columnHintsFor(kind)} />
+      </p>
 
       {kind === "stratified" ? (
         <p className="mb-2 text-xs text-slate-500">

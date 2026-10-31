@@ -15,7 +15,7 @@ export const inputClass = "w-full rounded-md border border-slate-300 px-2 py-2 t
 
 /**
  * A label/control row matching the two-column layout used by the manager dialogs.
- * The optional hint renders as a small info icon after the label, with the hint text as its tooltip
+ * The optional hint renders as a small info icon after the label, vertically centred on it, with the hint text as its tooltip
  * (e.g. "(1.0 = base)" becomes a bubble reading "1.0 = base") — see HintIcon.
  * `align` controls how the label sits against the control: "center" (default) vertically centres it,
  * while "top" pins it to the control's first line — better when the control is a tall, multi-line input.
@@ -44,9 +44,14 @@ export function FieldRow({
     <div className={`mb-2 grid grid-cols-12 gap-2 ${isTop ? "items-start" : "items-center"} ${className}`}>
       {/* When top-aligned, nudge the label down by the control's vertical padding (py-2) so its text
           lines up with the control's first line rather than the control's border. */}
-      <label className={`col-span-5 text-sm text-slate-700 ${isTop ? "pt-2" : ""}`}>
-        {label}
-        <HintIcon hint={hint} className="ml-1 align-middle" />
+      {/* The label text and its hint icon are flex items of this row rather than inline content, so that
+          `items-center` centres the icon on the label's own box. As inline content the icon could only be
+          `align-middle`, which centres it on the parent's x-height and so left it sitting a shade low
+          against a label carrying capitals and ascenders — which is nearly every label. The gap only
+          applies between items that exist, so a hintless row keeps exactly the label it had. */}
+      <label className={`col-span-5 flex items-center gap-1 text-sm text-slate-700 ${isTop ? "pt-2" : ""}`}>
+        <span>{label}</span>
+        <HintIcon hint={hint} />
       </label>
       <div className="col-span-7">
         {children}

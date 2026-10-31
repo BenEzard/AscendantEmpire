@@ -41,8 +41,9 @@ export default function MapResourceGeneralSection({ type, categories, onChange }
         <input className={inputClass} value={type.displayName} onChange={(e) => set("displayName", e.target.value)} />
       </FieldRow>
 
-      {/* The code is the key saves match on, so once saved it is fixed: changing it would add a second type rather than rename this one. */}
-      <FieldRow label="Code" hint={isSaved ? "(Fixed once saved)" : undefined}>
+      {/* The code is the key saves match on, so once saved it is fixed: changing it would add a second type rather than rename this one.
+          No hint icon for that: the greyed, read-only box is the affordance which says it, so a tooltip beside it only restated the obvious. */}
+      <FieldRow label="Code">
         {isSaved ? (
           <input className={`${inputClass} bg-slate-100 text-slate-500`} value={type.code} readOnly />
         ) : (
@@ -63,7 +64,8 @@ export default function MapResourceGeneralSection({ type, categories, onChange }
       {/* Sort Order is not edited here: the server places a new type at the end of its category, and the order is changed in the
           database by hand. It still orders the picker, so the draft carries it through untouched. */}
 
-      <FieldRow label="Map Icon" hint="(Image path; empty for none)">
+      {/* No hint icon here either: the input's placeholder already shows the shape of the path, and an empty box plainly means no icon. */}
+      <FieldRow label="Map Icon">
         <div className="flex items-center gap-2">
           <input
             className={inputClass}

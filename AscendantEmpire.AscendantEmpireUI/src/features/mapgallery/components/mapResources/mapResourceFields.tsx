@@ -149,8 +149,9 @@ export function CheckboxRow({
     <label className="mb-2 flex items-center gap-2 text-sm text-slate-700">
       <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       {label}
-      {/* Same info-icon affordance as FieldRow's hint, so a checkbox row reads identically to the rows around it. */}
-      <HintIcon hint={hint} className="align-middle" />
+      {/* Same info-icon affordance as FieldRow's hint, so a checkbox row reads identically to the rows around it.
+          This label is already a flex row, so the `items-center` above centres the icon on the text and no `align-middle` is wanted. */}
+      <HintIcon hint={hint} />
     </label>
   );
 }
