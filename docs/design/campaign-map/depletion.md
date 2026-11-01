@@ -255,7 +255,7 @@ own, and only the Force selection is the caller's to say.
 | `GET campaign-map/player/tiles/support?forceIds=1&forceIds=2` | `GetTileSupportLevelsAsync` | `TileSupportLevels` (backend), `ITileSupportLevels` / `DTTileSupportLevels` (frontend) |
 
 The biome catalogue the base values come from is maintained through `BiomesController`
-(`POST`/`PUT`/`GET biomes/campaign-map`), from the Entity Setup Tool's Biome Manager. The writes require
+(`PUT`/`GET biomes/campaign-map`), from the Entity Setup Tool's Biome Manager. The write requires
 the `EntitySetupTool` permission; the read is open, so the Map Editor can show the catalogue as a
 read-only reference table.
 

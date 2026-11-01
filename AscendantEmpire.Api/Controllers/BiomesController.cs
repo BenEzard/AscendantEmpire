@@ -20,26 +20,6 @@ namespace AscendantEmpire.Api.Controllers
     public class BiomesController : ControllerBase
     {
         /// <summary>
-        /// Add Campaign Map Biomes
-        /// </summary>
-        /// <response code="201">Campaign Map Biomes successfully created</response>
-        /// <response code="400">Validation error</response>
-        /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-        [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
-        [HttpPost("campaign-map")]
-        [ProducesResponseType(201)]
-        [ProducesResponseType(400)]
-        [ProducesResponseType(typeof(IApiErrorResult), 500)]
-        public async Task<IActionResult> AddCampaignMapBiomesAsync(
-            [FromServices] IMediator mediator,
-            [FromBody] IReadOnlyCollection<AddOrUpdateCampaignMapBiomeDto> biomes)
-        {
-            ServiceResultBase response = await mediator.Send(new AddCampaignMapBiomesRequest(biomes));
-
-            return response.ToActionResult();
-        }
-
-        /// <summary>
         /// Upsert existing Campaign Map Biomes
         /// </summary>
         /// <response code="201">Campaign Map Biomes successfully upserted</response>

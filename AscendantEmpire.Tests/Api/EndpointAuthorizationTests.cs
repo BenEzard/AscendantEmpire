@@ -100,9 +100,7 @@ public sealed class EndpointAuthorizationTests
 
         // The campaign-map biome and geography catalogues are edited from the Entity Setup Tool, not the map editor — the map editor places what these
         // define rather than defining it. Their reads stay open to any logged-in user, since the game page needs them to draw a tile.
-        ["POST /biomes/campaign-map"] = PermissionType.EntitySetupTool,
         ["PUT /biomes/campaign-map"] = PermissionType.EntitySetupTool,
-        ["POST /geography/campaign-map"] = PermissionType.EntitySetupTool,
         ["PUT /geography/campaign-map"] = PermissionType.EntitySetupTool,
 
         // Map editor: the map gallery mutations and the reference-data writes behind them.

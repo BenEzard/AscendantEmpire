@@ -21,24 +21,6 @@ namespace AscendantEmpire.Api.Controllers;
 public class GeographyController : ControllerBase
 {
     /// <summary>
-    /// Add Campaign Map Geographies
-    /// </summary>
-    /// <response code="200">Campaign Map Geographies successfully created</response>
-    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [Authorize(Policy = nameof(PermissionType.EntitySetupTool))]
-    [HttpPost("campaign-map")]
-    [ProducesResponseType(201)]
-    [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> AddCampaignMapGeographiesAsync(
-        [FromServices] IMediator mediator,
-        [FromBody] IReadOnlyCollection<AddOrUpdateCampaignMapGeographyDto> geographies)
-    {
-        ServiceResultBase response = await mediator.Send(new AddCampaignMapGeographyRequest(geographies));
-
-        return response.ToActionResult();
-    }
-
-    /// <summary>
     /// Upsert existing Campaign Map Geographies
     /// </summary>
     /// <response code="201">Campaign Map Geographies successfully upserted</response>

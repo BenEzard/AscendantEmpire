@@ -203,10 +203,9 @@ widened to `bigint` and rescaled to thousandths by `20260613204637_ScaleBiomeBas
 | Endpoint | Action | Purpose |
 | --- | --- | --- |
 | `GET biomes/campaign-map` | `GetCampaignMapBiomesAsync` | Read the biome catalogue, yields included. |
-| `POST biomes/campaign-map` | `AddCampaignMapBiomesAsync` | Add biomes. |
 | `PUT biomes/campaign-map` | `UpsertCampaignMapBiomesAsync` | Upsert biomes — how yields are edited. |
 
-All three are on [BiomesController.cs](../../../AscendantEmpire.Api/Controllers/BiomesController.cs).
+Both are on [BiomesController.cs](../../../AscendantEmpire.Api/Controllers/BiomesController.cs).
 A Player's own effective values are never returned as such; they reach the client only as the amounts
 available on a tile, through `GET campaign-map/player/tiles/{x}/{y}/sustenance` — see
 [depletion.md](depletion.md).
