@@ -43,6 +43,8 @@ internal class UpsertCampaignMapGeographiesHandler(
                 RelativeElevation = g.RelativeElevation,
                 Name = g.Name,
                 MovementCost = g.MovementCost,
+                IsWater = g.IsWater,
+                IsTraversable = g.IsTraversable,
                 MapEditorIcon = g.MapEditorIcon,
                 IsPaintableOnCampaignMap = g.IsPaintableOnCampaignMap
             })];
@@ -66,6 +68,8 @@ internal class UpsertCampaignMapGeographiesHandler(
             existingGeography.RelativeElevation = updatedValues.RelativeElevation;
             existingGeography.Name = updatedValues.Name;
             existingGeography.MovementCost = updatedValues.MovementCost;
+            existingGeography.IsWater = updatedValues.IsWater;
+            existingGeography.IsTraversable = updatedValues.IsTraversable;
             existingGeography.MapEditorIcon = updatedValues.MapEditorIcon;
             existingGeography.IsPaintableOnCampaignMap = updatedValues.IsPaintableOnCampaignMap;
         }

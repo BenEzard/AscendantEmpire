@@ -43,7 +43,9 @@ internal class BlockedSightRevealTests
             BiomeName = "Grassland",
             BiomeMovementCost = 1m,
             BiomeIsWater = false,
-            BiomeIsTraversable = true
+            GeographyIsWater = false,
+            BiomeIsTraversable = true,
+            GeographyIsTraversable = true
         };
     }
 
@@ -59,11 +61,13 @@ internal class BlockedSightRevealTests
             BiomeName = "Ocean",
             BiomeMovementCost = 1m,
             BiomeIsWater = true,
-            BiomeIsTraversable = true
+            GeographyIsWater = true,
+            BiomeIsTraversable = true,
+            GeographyIsTraversable = true
         };
     }
 
-    /// <summary>Mountainous ground, which the seed data marks impassable with a sentinel movement cost rather than a flag.</summary>
+    /// <summary>Mountainous ground, which the seed data marks untraversable. Its cost carries the same fact, and nothing reads it to answer the question.</summary>
     private static MovementTargetTile MountainTile()
     {
         return new MovementTargetTile
@@ -76,7 +80,9 @@ internal class BlockedSightRevealTests
             BiomeName = "Arid",
             BiomeMovementCost = 1m,
             BiomeIsWater = false,
-            BiomeIsTraversable = true
+            GeographyIsWater = false,
+            BiomeIsTraversable = true,
+            GeographyIsTraversable = false
         };
     }
 
@@ -99,7 +105,9 @@ internal class BlockedSightRevealTests
             BiomeName = "Void",
             BiomeMovementCost = 1m,
             BiomeIsWater = false,
-            BiomeIsTraversable = false
+            GeographyIsWater = false,
+            BiomeIsTraversable = false,
+            GeographyIsTraversable = true
         };
     }
 
@@ -113,7 +121,7 @@ internal class BlockedSightRevealTests
     {
         MovementTargetTile water = WaterTile();
 
-        Assert.That(Reveal(DomainType.Land, water), Is.EquivalentTo(new[] { water }));
+        Assert.That(Reveal(DomainType.Land, water), Is.EquivalentTo([water]));
     }
 
     [Test, Description("The mechanic being protected: dry ground beside a blinded land Force stays dark, because it can walk out of the Jungle and look back.")]
@@ -130,7 +138,7 @@ internal class BlockedSightRevealTests
 
         IReadOnlyCollection<MovementTargetTile> revealed = Reveal(DomainType.Land, LandTile(), water, mountain);
 
-        Assert.That(revealed, Is.EquivalentTo(new[] { water, mountain }));
+        Assert.That(revealed, Is.EquivalentTo([water, mountain]));
     }
 
     [Test, Description("Impassability holds for every domain alike, so ground nothing can enter is uncovered whoever is standing next to it.")]
@@ -143,7 +151,7 @@ internal class BlockedSightRevealTests
         MovementTargetTile mountain = MountainTile();
         MovementTargetTile emptiness = VoidTile();
 
-        Assert.That(Reveal(movementDomain, mountain, emptiness), Is.EquivalentTo(new[] { mountain, emptiness }));
+        Assert.That(Reveal(movementDomain, mountain, emptiness), Is.EquivalentTo([mountain, emptiness]));
     }
 
     [Test, Description("The naval mirror: a ship blinded in a Mangrove uncovers the shore it cannot beach on, for the same reason a Force uncovers the sea.")]
@@ -153,7 +161,7 @@ internal class BlockedSightRevealTests
 
         IReadOnlyCollection<MovementTargetTile> revealed = Reveal(DomainType.Water, land, WaterTile());
 
-        Assert.That(revealed, Is.EquivalentTo(new[] { land }), "Open water is the one thing a ship could have sailed to, so it is the one thing it does not get for free.");
+        Assert.That(revealed, Is.EquivalentTo([land]), "Open water is the one thing a ship could have sailed to, so it is the one thing it does not get for free.");
     }
 
     [Test, Description("A flier is barred from nothing passable, so being blinded in a Jungle uncovers no water for it however much surrounds it.")]
@@ -181,6 +189,6 @@ internal class BlockedSightRevealTests
         // The mountain survives on purpose: impassability is settled before any strategy is consulted, so it needs none to be judged. Water is the
         // interesting one — it is refused only by a strategy, and with none registered that refusal is a wiring fault rather than a fact about the
         // terrain. Reading it as "could not walk there" would hand the Player the ring around every blinded Observer they own.
-        Assert.That(revealed, Is.EquivalentTo(new[] { mountain }));
+        Assert.That(revealed, Is.EquivalentTo([mountain]));
     }
 }

@@ -96,10 +96,10 @@ internal sealed class MapRiverExportImportTests : SqlServerTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(document.Rivers.Select(r => r.RelativeId), Is.EqualTo(new[] { 5, 6 }), "Row-major ids for (0, 1) and (1, 1) on a width-5 map.");
+            Assert.That(document.Rivers.Select(r => r.RelativeId), Is.EqualTo([5, 6]), "Row-major ids for (0, 1) and (1, 1) on a width-5 map.");
             Assert.That(document.Rivers.Single(r => r.RelativeId == 5).East, Is.EqualTo(RiverWidth.Large));
             Assert.That(document.Rivers.Single(r => r.RelativeId == 6).South, Is.EqualTo(RiverWidth.Medium));
-            Assert.That(document.FormatVersion, Is.EqualTo("1.1"));
+            Assert.That(document.FormatVersion, Is.EqualTo(MapExportDocument.CURRENT_FORMAT_VERSION));
         }
     }
 
@@ -114,13 +114,13 @@ internal sealed class MapRiverExportImportTests : SqlServerTestBase
         Assert.That(document.Rivers, Is.Empty);
     }
 
-    [Test, Description("A document written before rivers existed still imports, as a map with no rivers on it.")]
+    [Test, Description("A document with no Rivers section at all still imports, as a map with no rivers on it, rather than being mistaken for a malformed one.")]
     public async Task ADocumentWithNoRiversSectionStillImportsAsync()
     {
-        // A 1.0 export has no Rivers property at all, which is a different thing from an empty one and the case worth pinning.
+        // A missing Rivers property is a different thing from an empty one, and it is the case worth pinning. The version stays current: rivers were an
+        // additive section, so their absence needs no version gate - unlike the terrain flags, whose absence is indistinguishable from a real false.
         JsonObject json = JsonSerializer.SerializeToNode(BuildCoastalDocument(rivers: []))!.AsObject();
         json.Remove(nameof(MapExportDocument.Rivers));
-        json[nameof(MapExportDocument.FormatVersion)] = "1.0";
 
         string zipPath = Path.Combine(_tempDirectory, "no-rivers.zip");
         await WriteZipAsync(json.ToJsonString(), zipPath);
@@ -369,6 +369,8 @@ internal sealed class MapRiverExportImportTests : SqlServerTestBase
                     Name = "Flat",
                     RelativeElevation = 0,
                     MovementCost = 1.0m,
+                    IsWater = false,
+                    IsTraversable = true,
                     MapEditorIcon = null,
                     IsPaintableOnCampaignMap = true
                 }

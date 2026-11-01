@@ -58,9 +58,7 @@ internal static class TileSupportForecaster
     /// Forecasts how the tile supports <paramref name="need"/>.
     /// </summary>
     /// <param name="need">The food the Forces need each Turn. Must not be negative.</param>
-    /// <param name="isWater">Whether the tile is water, from <c>CampaignTileWater.IsWater</c>.</param>
     /// <param name="values">The Player's effective sustenance values.</param>
-    /// <param name="biome">The tile's biome.</param>
     /// <param name="depletion">The tile's depletion row, or <see langword="null"/> when it has never been fed on. Never changed: the forecast plays out on a copy.</param>
     /// <param name="regeneration">
     /// The biome's regeneration values, or <see langword="null"/> when they could not be found. With no values, or no Regeneration Percent, the tile does not regrow and the

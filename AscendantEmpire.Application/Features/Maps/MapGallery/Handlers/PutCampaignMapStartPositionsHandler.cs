@@ -1,5 +1,6 @@
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Classes;
 
 using Microsoft.EntityFrameworkCore;
@@ -134,7 +135,7 @@ internal class PutCampaignMapStartPositionsHandler(
                 x.YCoord,
                 x.Biome.IsWater,
                 x.Biome.IsTraversable,
-                x.Geography.MovementCost))
+                x.Geography.IsTraversable))
             .ToListAsync(cancellationToken);
 
         Dictionary<(int XCoord, int YCoord), StartPositionTileCandidate> tileLookup = candidateTiles
@@ -153,10 +154,11 @@ internal class PutCampaignMapStartPositionsHandler(
             }
 
             // The biome can be perfectly habitable while the geography on top of it is not — a grassland mountain, for instance.
-            if (tile.GeographyMovementCost >= Domain.Entities.Maps.CampaignMaps.CampaignGeography.IMPASSABLE_MOVEMENT_COST)
+            // Through the shared rule, so the ground a start position is refused is exactly the ground a Force is.
+            if (CampaignTileTerrain.GeographyIsImpassable(tile.GeographyIsTraversable))
             {
                 return ServiceResult<LoadedStartPositionContext>.Fail(
-                    $"Start position ({xCoord}, {yCoord}) cannot be on impassable geography (movement cost {tile.GeographyMovementCost:0.##}).");
+                    $"Start position ({xCoord}, {yCoord}) cannot be on impassable geography.");
             }
         }
 
@@ -169,12 +171,12 @@ internal class PutCampaignMapStartPositionsHandler(
     /// A single candidate Tile, flattened to just the Biome and Geography values that gate whether a start position may sit on it.
     /// </summary>
     /// <remarks>
-    /// The Biome and the Geography each carry their own Movement Cost, so the Geography one is named for its source to keep the two apart.
+    /// The Biome and the Geography each carry their own traversability, so each is named for its source to keep the two apart.
     /// </remarks>
     private sealed record StartPositionTileCandidate(
         int XCoord,
         int YCoord,
         bool BiomeIsWater,
         bool BiomeIsTraversable,
-        decimal GeographyMovementCost);
+        bool GeographyIsTraversable);
 }

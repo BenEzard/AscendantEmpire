@@ -189,7 +189,9 @@ internal class StepForceHandler(
             BiomeName = targetTile.Biome.Name,
             BiomeMovementCost = targetTile.Biome.MovementCost,
             BiomeIsWater = targetTile.Biome.IsWater,
-            BiomeIsTraversable = targetTile.Biome.IsTraversable
+            GeographyIsWater = targetTile.Geography.IsWater,
+            BiomeIsTraversable = targetTile.Biome.IsTraversable,
+            GeographyIsTraversable = targetTile.Geography.IsTraversable
         };
 
         // The rivers around the Force decide what the step crosses and follows, and the tile it is leaving decides whether a ship is putting out from a
@@ -588,7 +590,7 @@ internal class StepForceHandler(
     /// even where the map wraps, because the wrapped coordinates come from <see cref="MapDirections.GetNeighbours"/>.
     /// </para>
     /// <para>
-    /// The origin's water-ness goes through <see cref="CampaignTileWater"/>, the same rule the target tile uses, so a ship putting back out from a river
+    /// The origin's water-ness goes through <see cref="CampaignTileTerrain"/>, the same rule the target tile uses, so a ship putting back out from a river
     /// and a ship on open sea are told apart by the rule everything else uses.
     /// </para>
     /// </remarks>
@@ -619,7 +621,7 @@ internal class StepForceHandler(
                 tile.SouthRiver,
                 tile.EastRiver,
                 BiomeIsWater = tile.Biome.IsWater,
-                tile.CampaignMapGeographyTypeId
+                GeographyIsWater = tile.Geography.IsWater
             })
             .ToListAsync(cancelToken);
 
@@ -631,7 +633,7 @@ internal class StepForceHandler(
 
         // The Force is standing on the origin, so it has a row. Were it somehow missing, treating it as land is the conservative reading: a ship is then
         // held to the stricter river rules rather than being let out onto land.
-        bool originIsWater = originTile is not null && CampaignTileWater.IsWater(originTile.BiomeIsWater, originTile.CampaignMapGeographyTypeId);
+        bool originIsWater = originTile is not null && CampaignTileTerrain.IsWater(originTile.BiomeIsWater, originTile.GeographyIsWater);
 
         RiverEdges riverEdges = RiverEdges.Create(
             origin,

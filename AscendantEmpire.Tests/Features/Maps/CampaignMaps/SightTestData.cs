@@ -88,7 +88,10 @@ internal sealed class SightTerrainGrid
             BiomeName = biomeType.ToString(),
             BiomeMovementCost = 1m,
             BiomeIsWater = isWater,
-            BiomeIsTraversable = isTraversable
+            // Derived from the geography, as the seeded catalogue has it: only Deep and Shallow Water are water ground.
+            GeographyIsWater = geographyType is CampaignMapGeographyType.DeepWater or CampaignMapGeographyType.ShallowWater,
+            BiomeIsTraversable = isTraversable,
+            GeographyIsTraversable = geographyType != CampaignMapGeographyType.Mountainous
         };
     }
 }

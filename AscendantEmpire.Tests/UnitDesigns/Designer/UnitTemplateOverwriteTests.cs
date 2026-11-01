@@ -221,6 +221,8 @@ internal class UnitTemplateOverwriteTests : SqlServerTestBase
             Name = "Flat",
             RelativeElevation = 0,
             MovementCost = 1.0m,
+            IsWater = false,
+            IsTraversable = true,
             MapEditorIcon = null,
             IsPaintableOnCampaignMap = true,
         });
@@ -294,8 +296,11 @@ internal class UnitTemplateOverwriteTests : SqlServerTestBase
     /// </summary>
     private static TemplateNameConflict ConflictDetail(ServiceResultBase result)
     {
-        Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Conflict), () => string.Join("; ", result.Errors));
-        Assert.That(result.ErrorDetail, Is.TypeOf<TemplateNameConflict>(), "A name clash must carry the detail the caller decides on.");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Conflict), () => string.Join("; ", result.Errors));
+            Assert.That(result.ErrorDetail, Is.TypeOf<TemplateNameConflict>(), "A name clash must carry the detail the caller decides on.");
+        }
 
         return (TemplateNameConflict)result.ErrorDetail!;
     }

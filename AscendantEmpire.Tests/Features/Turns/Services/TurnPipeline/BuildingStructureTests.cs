@@ -466,7 +466,7 @@ internal class BuildingStructureTests : InMemoryTestBase
         {
             Assert.That(tile.OwnedByPlayerId, Is.Null, "A claim is not ownership.");
             Assert.That(tile.HasClaims, Is.True);
-            Assert.That(await ReloadClaimsAsync(), Is.EquivalentTo(new[] { (_TILE_ID, _PLAYER_ID) }));
+            Assert.That(await ReloadClaimsAsync(), Is.EquivalentTo([(_TILE_ID, _PLAYER_ID)]));
         }
     }
 
@@ -522,7 +522,7 @@ internal class BuildingStructureTests : InMemoryTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That((await ReloadAsync(1)).BuildPointsProgress, Is.EqualTo(_POINTS_PER_TURN));
-            Assert.That((await ReloadAsync(2)).BuildPointsProgress, Is.EqualTo(0), "Another player's construction is theirs to advance on their own turn.");
+            Assert.That((await ReloadAsync(2)).BuildPointsProgress, Is.Zero, "Another player's construction is theirs to advance on their own turn.");
         }
     }
 
@@ -561,7 +561,7 @@ internal class BuildingStructureTests : InMemoryTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That((await ReloadAsync(1)).BuildPointsProgress, Is.EqualTo(0));
+            Assert.That((await ReloadAsync(1)).BuildPointsProgress, Is.Zero);
             Assert.That((await ReloadAsync(2)).BuildPointsProgress, Is.EqualTo(_POINTS_PER_TURN), "The second structure's turn is not lost to the first's refusal.");
             Assert.That(summary, Does.Contain("1 structure(s) could not be advanced"));
         }
@@ -590,7 +590,7 @@ internal class BuildingStructureTests : InMemoryTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(summary, Is.Not.Empty, "A refusal reports why.");
-            Assert.That((await ReloadAsync(1)).BuildPointsProgress, Is.EqualTo(0), "Nothing was advanced.");
+            Assert.That((await ReloadAsync(1)).BuildPointsProgress, Is.Zero, "Nothing was advanced.");
         }
     }
 
@@ -623,6 +623,8 @@ internal class BuildingStructureTests : InMemoryTestBase
             CampaignMapGeographyTypeId = CampaignMapGeographyType.Flat,
             Name = "Flat",
             MovementCost = 1m,
+            IsWater = false,
+            IsTraversable = true,
             RelativeElevation = 0,
             MapEditorIcon = null,
             IsPaintableOnCampaignMap = true
@@ -633,6 +635,8 @@ internal class BuildingStructureTests : InMemoryTestBase
             CampaignMapGeographyTypeId = CampaignMapGeographyType.Mountainous,
             Name = "Mountainous",
             MovementCost = CampaignGeography.IMPASSABLE_MOVEMENT_COST,
+            IsWater = false,
+            IsTraversable = false,
             RelativeElevation = 3,
             MapEditorIcon = null,
             IsPaintableOnCampaignMap = true

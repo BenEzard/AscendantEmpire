@@ -165,6 +165,7 @@ export function createMapResourceType(categoryCode: string, sortOrder: number): 
       isRenewable: false,
       isStratified: false,
       isDistribution: false,
+      isWaterResource: false,
       extractionMethod: ExtractionMethod.Gather,
       captureLikelihood: null,
       requiresResearchToExtract: false,

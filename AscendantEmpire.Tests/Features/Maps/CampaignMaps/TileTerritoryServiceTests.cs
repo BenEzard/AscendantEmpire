@@ -241,6 +241,8 @@ internal class TileTerritoryServiceTests : InMemoryTestBase
             CampaignMapGeographyTypeId = CampaignMapGeographyType.Flat,
             Name = "Flat",
             MovementCost = 1m,
+            IsWater = false,
+            IsTraversable = true,
             RelativeElevation = 0,
             MapEditorIcon = null,
             IsPaintableOnCampaignMap = true

@@ -31,6 +31,11 @@ public record class AddOrUpdateMapResourceTypeDto : IAddOrUpdateMapResourceTypeD
     public required bool IsDistribution { get; init; }
     #endregion
 
+    #region Habitat
+    /// <inheritdoc />
+    public required bool IsWaterResource { get; init; }
+    #endregion
+
     #region Extraction
     /// <inheritdoc />
     public required ExtractionMethod ExtractionMethod { get; init; }

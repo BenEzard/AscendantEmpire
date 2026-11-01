@@ -2004,6 +2004,12 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<bool>("IsPaintableOnCampaignMap")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsTraversable")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsWater")
+                        .HasColumnType("bit");
+
                     b.Property<string>("MapEditorIcon")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -2421,6 +2427,9 @@ namespace AscendantEmpire.Application.Migrations
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsStratified")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsWaterResource")
                         .HasColumnType("bit");
 
                     b.Property<int>("MapResourceCategoryId")

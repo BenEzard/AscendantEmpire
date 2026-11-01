@@ -201,7 +201,7 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
             Assert.That(structure.CampaignMapTileId, Is.EqualTo(_tileId), "The settlement goes where the force was standing.");
             Assert.That(structure.OwnedByPlayerId, Is.EqualTo(_playerId));
             Assert.That(structure.SlotType, Is.EqualTo(TileSlotType.Primary));
-            Assert.That(structure.BuildPointsProgress, Is.EqualTo(0), "Founding starts construction rather than finishing it.");
+            Assert.That(structure.BuildPointsProgress, Is.Zero, "Founding starts construction rather than finishing it.");
             Assert.That(structure.CompletedOnTurnId, Is.Null);
 
             Assert.That(structure.BuildPointsPerTurn, Is.EqualTo(_SETTLER_SIZE * _SETTLER_POWER_RAW), "The rate is fixed from the force that founded it.");
@@ -385,7 +385,7 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
             Assert.That(row.PlayerId, Is.EqualTo(_playerId));
             Assert.That(row.PlayerTurnId, Is.EqualTo(playerTurnId));
             Assert.That(row.CampaignMapTileId, Is.EqualTo(_tileId));
-            Assert.That(row.CompletionPercent, Is.EqualTo(0));
+            Assert.That(row.CompletionPercent, Is.Zero);
         }
     }
 

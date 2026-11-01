@@ -79,6 +79,9 @@ export type MapResourceType = {
   isStratified: boolean;
   isDistribution: boolean;
 
+  // Not a kind: it narrows which Biomes and Geographies the Habitats page offers, and which the server will accept.
+  isWaterResource: boolean;
+
   extractionMethod: ExtractionMethod;
   captureLikelihood: number | null;
   requiresResearchToExtract: boolean;

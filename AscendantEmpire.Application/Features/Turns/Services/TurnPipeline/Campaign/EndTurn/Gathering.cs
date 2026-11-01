@@ -23,8 +23,6 @@ namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campa
 /// </summary>
 /// <remarks>
 /// <para>
-/// Per tile, the Forces on it feed from one pool: Forage and Hunt on land, Fish on water (fodder is for animals, and nothing eats it yet), built by <see cref="TileFoodPool"/>.
-/// A land tile with a river on one of its edges offers Fish as well, and a richer Hunt.
 /// 1 troop needs 1 food. What is available of each resource to this Player is <c>MAX(0, effective − Taken)</c>, with the effective values read live through
 /// <see cref="IPlayerSustenanceValueReader"/>.
 /// The need is split across the pool by <see cref="FoodExtractionCalculator"/>, and any shortfall is spread across the tile's Forces by <see cref="ShortfallAllocator"/>
@@ -104,7 +102,7 @@ internal class Gathering(
         // the rivers that enrich a tile are keyed by them rather than by the tile's id.
         var tiles = await db.CampaignMaps
             .Where(t => tileIds.Contains(t.CampaignMapId))
-            .Select(t => new { t.CampaignMapId, t.XCoord, t.YCoord, t.BiomeTypeId, BiomeIsWater = t.Biome.IsWater, t.CampaignMapGeographyTypeId })
+            .Select(t => new { t.CampaignMapId, t.XCoord, t.YCoord, t.BiomeTypeId, BiomeIsWater = t.Biome.IsWater, GeographyIsWater = t.Geography.IsWater })
             .ToDictionaryAsync(t => t.CampaignMapId);
 
         // The rivers on the tiles being fed from, in one call. A river raises a bank's Hunt and puts Fish on it, so it is part of the pool the Forces eat from.
@@ -152,7 +150,7 @@ internal class Gathering(
             // The pool: what is available of each resource this tile offers, to this Player. Built by TileFoodPool, which the support indicator shares, so the colour a
             // tile is shown in always comes from the same pool the Forces eat from here.
             Dictionary<SustenanceResource, ScaledAmount> available = TileFoodPool.GetAvailable(
-                CampaignTileWater.IsWater(tile.BiomeIsWater, tile.CampaignMapGeographyTypeId),
+                CampaignTileTerrain.IsWater(tile.BiomeIsWater, tile.GeographyIsWater),
                 values,
                 tile.BiomeTypeId,
                 depletion,

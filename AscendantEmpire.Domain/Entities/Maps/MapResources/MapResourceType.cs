@@ -90,6 +90,29 @@ public class MapResourceType
     public bool IsDistribution { get; set; }
     #endregion
 
+    #region Habitat
+    /// <summary>
+    /// Whether the type lives in water rather than on land.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A constraint on <see cref="Habitats"/>, not a kind: it says nothing about how instances grow or are held, only where they may be authored. A water type may
+    /// name only water Biomes and water Geographies; a land type only land ones. A habitat naming no Geography (Any) is open to either, since Any is a legitimate
+    /// habitat.
+    /// </para>
+    /// <para>
+    /// The Map Resource Type Manager's Habitats page narrows both of its lists by this, and <c>PutMapResourceCatalogueHandler</c> enforces the same rule on the way
+    /// in, on both axes, since which Biomes and Geographies are water is database state the validator cannot see.
+    /// </para>
+    /// <para>
+    /// What it constrains is the terrain a habitat may name, not the tile an instance may land on. A tile is water when either axis is water, so a water Geography
+    /// painted inside a land Biome is a water tile that a land type's Any-Geography habitat still covers. Closing that belongs at instance placement; see the
+    /// outstanding decisions in <c>docs/design/campaign-map/map-resources.md</c>.
+    /// </para>
+    /// </remarks>
+    public bool IsWaterResource { get; set; }
+    #endregion
+
     #region Extraction
     /// <summary>
     /// How instances are extracted.

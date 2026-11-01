@@ -3,7 +3,6 @@ using AscendantEmpire.BackendContracts.Geographies;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging.Abstractions;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -52,15 +51,22 @@ internal class GetCampaignMapGeographiesTests
                 RelativeElevation = 0,
                 Name = "Invalid Color Geography",
                 MovementCost = 1.0m,
+                IsWater = true,
+                IsTraversable = true,
                 MapEditorIcon = "not-a-icon",
                 IsPaintableOnCampaignMap = true
             },
             new CampaignGeography
             {
                 CampaignMapGeographyTypeId = CampaignMapGeographyType.ShallowWater,
-                RelativeElevation = 1,
+
+                // Below sea level, as CampaignMapGeographyValidator requires of any water geography: a fixture the catalogue API would refuse is a fixture
+                // that stops describing the system it stands in for.
+                RelativeElevation = -1,
                 Name = "Forest",
                 MovementCost = 1.0m,
+                IsWater = true,
+                IsTraversable = true,
                 MapEditorIcon = "forest-icon",
                 IsPaintableOnCampaignMap = false
             },
@@ -95,6 +101,58 @@ internal class GetCampaignMapGeographiesTests
                 Assert.That(geographies.MapEditorIcon, Is.EqualTo(loadedGeography.MapEditorIcon), "Map Editor Icon does not match.");
                 Assert.That(geographies.IsPaintableOnCampaignMap, Is.EqualTo(loadedGeography.IsPaintableOnCampaignMap), "Is Paintable On Campaign Map does not match.");
             }
+        }
+    }
+
+    [Test, Description("Pins that both terrain flags reach the client, since the Geography Manager round-trips this exact shape straight back into the PUT.")]
+    public async Task ShouldReturnTheWaterAndTraversableFlagsAsync()
+    {
+        await using (var seedContext = await _dbFactory.CreateDbContextAsync(CancellationToken.None))
+        {
+            seedContext.CampaignGeographies.AddRange(
+                new CampaignGeography
+                {
+                    CampaignMapGeographyTypeId = CampaignMapGeographyType.DeepWater,
+                    RelativeElevation = -2,
+                    Name = "Deep Water",
+                    MovementCost = 1.0m,
+                    MapEditorIcon = null,
+                    IsPaintableOnCampaignMap = true,
+                    IsWater = true,
+                    IsTraversable = true
+                },
+                new CampaignGeography
+                {
+                    CampaignMapGeographyTypeId = CampaignMapGeographyType.Mountainous,
+                    RelativeElevation = 3,
+                    Name = "Mountainous",
+                    MovementCost = CampaignGeography.IMPASSABLE_MOVEMENT_COST,
+                    MapEditorIcon = null,
+                    IsPaintableOnCampaignMap = true,
+                    IsWater = false,
+                    IsTraversable = false
+                });
+
+            await seedContext.SaveChangesAsync();
+        }
+
+        ServiceResult<IReadOnlyCollection<CampaignMapGeography>> result = await _handler.Handle(new GetCampaignMapGeographiesRequest(), CancellationToken.None);
+
+        CampaignMapGeography? deepWater = result.SuccessValue?.SingleOrDefault(g => g.CampaignMapGeographyType == CampaignMapGeographyType.DeepWater);
+        CampaignMapGeography? mountainous = result.SuccessValue?.SingleOrDefault(g => g.CampaignMapGeographyType == CampaignMapGeographyType.Mountainous);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(deepWater, Is.Not.Null, "Deep Water was not returned.");
+            Assert.That(mountainous, Is.Not.Null, "Mountainous was not returned.");
+        }
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(deepWater!.IsWater, Is.True, "Deep Water should be water.");
+            Assert.That(deepWater.IsTraversable, Is.True, "Deep Water should be traversable - a ship enters it.");
+            Assert.That(mountainous!.IsWater, Is.False, "Mountainous should not be water.");
+            Assert.That(mountainous.IsTraversable, Is.False, "Mountainous should not be traversable.");
         }
     }
 }

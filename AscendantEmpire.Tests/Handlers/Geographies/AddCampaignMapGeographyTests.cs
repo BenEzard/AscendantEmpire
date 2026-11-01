@@ -46,6 +46,8 @@ internal class AddCampaignMapGeographyTests
                 RelativeElevation = 1,
                 Name = "Plain",
                 MovementCost = 1.0m,
+                IsWater = false,
+                IsTraversable = true,
                 MapEditorIcon = "plain-icon.png",
                 IsPaintableOnCampaignMap = true
             }
@@ -69,6 +71,8 @@ internal class AddCampaignMapGeographyTests
             RelativeElevation = 1,
             Name = "Mountainous",
             MovementCost = 3,
+            IsWater = false,
+            IsTraversable = true,
             MapEditorIcon = null,
             IsPaintableOnCampaignMap = true
         });
@@ -82,6 +86,8 @@ internal class AddCampaignMapGeographyTests
                 RelativeElevation = 1,
                 Name = "Mountainous",
                 MovementCost = 3,
+                IsWater = false,
+                IsTraversable = true,
                 MapEditorIcon = null,
                 IsPaintableOnCampaignMap = true
             }
@@ -106,6 +112,8 @@ internal class AddCampaignMapGeographyTests
                 CampaignMapGeographyType = (CampaignMapGeographyType)999, // Invalid Campaign Map Geography Type Id
                 Name = "Invalid",
                 MovementCost = 1.0m,
+                IsWater = false,
+                IsTraversable = true,
                 RelativeElevation = 0,
                 MapEditorIcon = "invalid-icon.png",
                 IsPaintableOnCampaignMap = true

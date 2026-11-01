@@ -366,3 +366,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Superpowers skill workspaces - plans, ledgers, review packages
+.superpowers/

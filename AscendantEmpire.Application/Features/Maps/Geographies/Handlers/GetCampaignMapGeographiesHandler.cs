@@ -27,6 +27,8 @@ public class GetCampaignMapGeographiesHandler(
                 RelativeElevation = g.RelativeElevation,
                 Name = g.Name,
                 MovementCost = g.MovementCost,
+                IsWater = g.IsWater,
+                IsTraversable = g.IsTraversable,
                 MapEditorIcon = g.MapEditorIcon,
                 IsPaintableOnCampaignMap = g.IsPaintableOnCampaignMap
             })

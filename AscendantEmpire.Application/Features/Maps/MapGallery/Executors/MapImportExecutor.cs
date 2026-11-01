@@ -61,6 +61,9 @@ internal sealed class MapImportExecutor(
             // --- Read and parse the export document from the staged zip -------------------
             MapExportDocument document = ReadDocument(zipPath);
 
+            // Judged before anything is written, so a refused archive leaves no rows and no half-built map behind.
+            RejectUnsupportedFormatVersion(document);
+
             await UpdateProgressAsync(processing, 15, cancellationToken);
 
             // --- Biomes (insert only the ones that don't already exist) -------------------
@@ -121,6 +124,21 @@ internal sealed class MapImportExecutor(
     /// <summary>
     /// Opens the staged zip and deserialises the <c>export.json</c> entry into a <see cref="MapExportDocument"/>.
     /// </summary>
+    /// <summary>
+    /// Throws when the archive is older than the importer can read correctly.
+    /// </summary>
+    private static void RejectUnsupportedFormatVersion(MapExportDocument document)
+    {
+        bool parsed = Version.TryParse(document.FormatVersion, out Version? found);
+
+        if (parsed == false || found < Version.Parse(MapExportDocument.MINIMUM_SUPPORTED_FORMAT_VERSION))
+        {
+            throw new InvalidOperationException(
+                $"This map archive is format version '{document.FormatVersion}', and the importer needs "
+                + $"{MapExportDocument.MINIMUM_SUPPORTED_FORMAT_VERSION} or later. Re-export the map from a current build and import that instead.");
+        }
+    }
+
     private static MapExportDocument ReadDocument(string zipPath)
     {
         using ZipArchive archive = ZipFile.OpenRead(zipPath);
@@ -229,6 +247,8 @@ internal sealed class MapImportExecutor(
                 Name = exportGeography.Name,
                 RelativeElevation = exportGeography.RelativeElevation,
                 MovementCost = exportGeography.MovementCost,
+                IsWater = exportGeography.IsWater,
+                IsTraversable = exportGeography.IsTraversable,
                 MapEditorIcon = exportGeography.MapEditorIcon,
                 IsPaintableOnCampaignMap = exportGeography.IsPaintableOnCampaignMap
             });

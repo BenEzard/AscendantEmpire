@@ -108,7 +108,10 @@ internal sealed class ForceActionContextBuilder(
                     // The tile the Force is standing on. Two scalars rather than the tile itself, which keeps the strategies pure and keeps this a
                     // projection the in-memory provider can still shape.
                     TileIsWater = force.CampaignMap.Biome.IsWater,
-                    TileGeographyType = force.CampaignMap.CampaignMapGeographyTypeId,
+                    // Off the Geography navigation rather than the FK, which is the only way to reach the flag and the name. The FK is required,
+                    // so this stays an INNER JOIN and no tile can drop out of the projection by having no geography row.
+                    TileGeographyIsTraversable = force.CampaignMap.Geography.IsTraversable,
+                    TileGeographyName = force.CampaignMap.Geography.Name,
                     // A Force on a battle map tile is in battle - the same test the campaign step refuses it on.
                     IsInBattle = force.BattleMapTileId != null
                 });

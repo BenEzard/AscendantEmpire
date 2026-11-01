@@ -370,7 +370,10 @@ internal class TileSupportEvaluatorTests : InMemoryTestBase
             BiomeName = biome.ToString(),
             BiomeMovementCost = 1m,
             BiomeIsWater = biomeIsWater,
-            BiomeIsTraversable = true
+            // Derived from the geography, as the seeded catalogue has it: only Deep and Shallow Water are water ground.
+            GeographyIsWater = geography is CampaignMapGeographyType.DeepWater or CampaignMapGeographyType.ShallowWater,
+            BiomeIsTraversable = true,
+            GeographyIsTraversable = geography != CampaignMapGeographyType.Mountainous
         };
     }
 }

@@ -57,7 +57,16 @@ internal class RegenerateTileSustenanceTests : InMemoryTestBase
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            var flat = new CampaignGeography { CampaignMapGeographyTypeId = CampaignMapGeographyType.Flat, Name = "Flat", MovementCost = 1m, MapEditorIcon = null, IsPaintableOnCampaignMap = true };
+            var flat = new CampaignGeography 
+            { 
+                CampaignMapGeographyTypeId = CampaignMapGeographyType.Flat, 
+                Name = "Flat", 
+                MovementCost = 1m, 
+                IsWater = false, 
+                IsTraversable = true, 
+                MapEditorIcon = null, 
+                IsPaintableOnCampaignMap = true 
+            };
 
             var grassland = new CampaignBiome
             {

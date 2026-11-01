@@ -1,4 +1,5 @@
-using AscendantEmpire.Domain.Enums.Maps;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
+using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 
 namespace AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strategies;
 
@@ -10,11 +11,6 @@ namespace AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strate
 /// <see cref="CreateVillageStrategy"/> and <see cref="EstablishCampStrategy"/> differ only in the capability that unlocks them and in how many
 /// troops they need. Everything else is the same question asked twice, so it is answered here once — a pure static, which keeps both strategies
 /// free of the database exactly as <see cref="IForceActionStrategy"/> requires.
-/// </para>
-/// <para>
-/// Kept separate from the movement layer's <c>MovementTargetTile</c> on purpose. That record answers whether a Force may <b>enter</b> a tile, and
-/// its notion of water is wider — it counts the DeepWater and ShallowWater geographies as well as the biome flag. Settling asks a different
-/// question of the same tile, and sharing one definition would mean a later change to the movement rules quietly moved this one too.
 /// </para>
 /// </remarks>
 internal static class SettlementFoundingRules
@@ -41,12 +37,9 @@ internal static class SettlementFoundingRules
             reasons.Add($"{force.DisplayName} is on water, and a {settlementNoun} must be founded on land.");
         }
 
-        // Currently unreachable, and written anyway. Mountainous is seeded at CampaignGeography.IMPASSABLE_MOVEMENT_COST, so no Force can stand on
-        // one to ask the question — but the rule the ticket states is about settling, not about walking, and it should already be right on the day
-        // mountains become passable.
-        if (force.TileGeographyType == CampaignMapGeographyType.Mountainous)
+        if (CampaignTileTerrain.GeographyIsImpassable(force.TileGeographyIsTraversable))
         {
-            reasons.Add($"{force.DisplayName} is in mountainous terrain, which cannot be settled.");
+            reasons.Add($"{force.DisplayName} is in {force.TileGeographyName} terrain, which cannot be settled.");
         }
 
         // Any movement left will do; this is not one of the actions that demands a whole untouched turn. Note the value can legitimately be

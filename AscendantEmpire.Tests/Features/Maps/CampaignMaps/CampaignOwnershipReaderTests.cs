@@ -66,6 +66,8 @@ internal class CampaignOwnershipReaderTests : InMemoryTestBase
             Name = "Flat",
             RelativeElevation = 0,
             MovementCost = 1m,
+            IsWater = false,
+            IsTraversable = true,
             MapEditorIcon = null,
             IsPaintableOnCampaignMap = true
         };

@@ -325,10 +325,11 @@ The last three are shared, and live in `SettlementFoundingRules` rather than bei
 Three points worth keeping straight:
 
 - **Water is the biome's flag only**, deliberately narrower than the movement layer's `MovementTargetTile.IsWater`,
-  which also counts the DeepWater and ShallowWater geographies. Entering a tile and settling it are different
-  questions, and sharing one definition would mean a later change to the movement rules quietly moved this one.
-- **The mountain rule cannot currently fire.** `Mountainous` is seeded at
-  `CampaignGeography.IMPASSABLE_MOVEMENT_COST`, so no Force can stand on one to be refused. It is written anyway,
+  which also counts a geography carrying `CampaignGeography.IsWater` — Deep Water and Shallow Water today. Entering
+  a tile and settling it are different questions, and sharing one definition would mean a later change to the
+  movement rules quietly moved this one.
+- **The mountain rule cannot currently fire.** `Mountainous` is seeded with `CampaignGeography.IsTraversable`
+  clear, so no Force can stand on one to be refused. It is written anyway,
   because the rule is about settling rather than walking and should already be right the day mountains become
   passable.
 - **Movement is *any* remaining, not a full turn** — unlike Split Force. The value can legitimately be negative

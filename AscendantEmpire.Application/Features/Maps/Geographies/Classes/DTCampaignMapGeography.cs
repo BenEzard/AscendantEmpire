@@ -12,6 +12,10 @@ public class DTCampaignMapGeography : ICampaignMapGeography
 
     public required decimal MovementCost { get; set; }
 
+    public required bool IsWater { get; set; }
+
+    public required bool IsTraversable { get; set; }
+
     public required string? MapEditorIcon { get; set; }
 
     public required bool IsPaintableOnCampaignMap { get; set; }

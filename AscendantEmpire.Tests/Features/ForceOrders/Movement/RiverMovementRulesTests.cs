@@ -79,7 +79,9 @@ internal class RiverMovementRulesTests
             BiomeName = isWater ? "Ocean" : "Grassland",
             BiomeMovementCost = 1m,
             BiomeIsWater = isWater,
-            BiomeIsTraversable = true
+            GeographyIsWater = isWater,
+            BiomeIsTraversable = true,
+            GeographyIsTraversable = true
         };
     }
 

@@ -2,7 +2,6 @@
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.BackendContracts.ForceOrders.GetForceContextActions;
 using AscendantEmpire.Domain.Enums.Forces;
-using AscendantEmpire.Domain.Enums.Maps;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -63,7 +62,8 @@ internal class ForceContextActionServiceTests
                 Organisation = null,
                 CapabilityTagCodes = [],
                 TileIsWater = false,
-                TileGeographyType = CampaignMapGeographyType.Flat,
+                TileGeographyIsTraversable = true,
+                TileGeographyName = "Flat",
                 IsInBattle = false
             },
             OtherForcesOnTile = []
@@ -95,8 +95,8 @@ internal class ForceContextActionServiceTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(actions.Select(a => a.ActionType), Is.EqualTo(new[] { _EARLIER_ACTION_TYPE, ForceActionType.SplitForce }));
-            Assert.That(actions.Select(a => a.DisplayOrder), Is.EqualTo(new[] { 500, 1000 }), "Display order should mirror the enum value.");
+            Assert.That(actions.Select(a => a.ActionType), Is.EqualTo([_EARLIER_ACTION_TYPE, ForceActionType.SplitForce]));
+            Assert.That(actions.Select(a => a.DisplayOrder), Is.EqualTo([500, 1000]), "Display order should mirror the enum value.");
         }
     }
 
@@ -108,7 +108,7 @@ internal class ForceContextActionServiceTests
 
         IReadOnlyCollection<ForceContextAction> actions = await GetActionsAsync(hidden, shown);
 
-        Assert.That(actions.Select(a => a.ActionType), Is.EqualTo(new[] { _EARLIER_ACTION_TYPE }));
+        Assert.That(actions.Select(a => a.ActionType), Is.EqualTo([_EARLIER_ACTION_TYPE]));
     }
 
     [Test, Description("A throwing strategy costs the player that one button, not the whole toolbar.")]
@@ -119,7 +119,7 @@ internal class ForceContextActionServiceTests
 
         IReadOnlyCollection<ForceContextAction> actions = await GetActionsAsync(broken, healthy);
 
-        Assert.That(actions.Select(a => a.ActionType), Is.EqualTo(new[] { ForceActionType.SplitForce }),
+        Assert.That(actions.Select(a => a.ActionType), Is.EqualTo([ForceActionType.SplitForce]),
             "The surviving strategy should still produce its action.");
     }
 
@@ -133,7 +133,7 @@ internal class ForceContextActionServiceTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(action.IsEnabled, Is.False);
-            Assert.That(action.DisabledReasons, Is.EqualTo(new[] { "Too small.", "Already moved." }));
+            Assert.That(action.DisabledReasons, Is.EqualTo(["Too small.", "Already moved."]));
             Assert.That(action.Label, Is.EqualTo(StubStrategy.LABEL));
         }
     }
@@ -177,7 +177,7 @@ internal class ForceContextActionServiceTests
         ServiceResultBase.ServiceResult<IReadOnlyCollection<ForceContextAction>> result = await BuildService(partiallyBroken, healthy)
             .GetAvailableActionsAsync(_GAME_ID, _PLAYER_ID, [_FORCE_ID, _SECOND_FORCE_ID], CancellationToken.None);
 
-        Assert.That(result.SuccessValue!.Select(a => a.ActionType), Is.EqualTo(new[] { _EARLIER_ACTION_TYPE }),
+        Assert.That(result.SuccessValue!.Select(a => a.ActionType), Is.EqualTo([_EARLIER_ACTION_TYPE]),
             "A partial verdict would judge fewer Forces than are selected, so the whole action goes.");
     }
 

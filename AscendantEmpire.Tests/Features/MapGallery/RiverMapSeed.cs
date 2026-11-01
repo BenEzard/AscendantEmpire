@@ -75,6 +75,8 @@ internal static class RiverMapSeed
             Name = "Flat",
             RelativeElevation = 0,
             MovementCost = 1.0m,
+            IsWater = false,
+            IsTraversable = true,
             MapEditorIcon = null,
             IsPaintableOnCampaignMap = true
         });

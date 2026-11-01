@@ -160,6 +160,9 @@ function GeographyManagerDialog({ open, onCancel, onSaveSuccess }: GeographyMana
                       type="number"
                       value={selectedGeography?.relativeElevation ?? ""}
                       disabled={!selectedGeography}
+                      // Capped rather than disabled while the Geography is water: Deep Water belongs at -2 and Shallow Water at -1, so the field
+                      // stays editable - it is only the positive half the catalogue rule refuses.
+                      max={selectedGeography?.isWater ? 0 : undefined}
                       onChange={(e) => handleGeographyFieldChange("relativeElevation", Number(e.target.value))}
                     />
                   </div>
@@ -189,6 +192,32 @@ function GeographyManagerDialog({ open, onCancel, onSaveSuccess }: GeographyMana
                     />
                   </div>
                 </div>
+
+                {/*
+                  The two terrain flags. Water narrows which Habitats a water MapResourceType may be authored against, and traversable
+                  is what decides whether anything can enter the ground at all — the movement cost beside it no longer answers that.
+                */}
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={selectedGeography?.isWater ?? false}
+                    // Locked above sea level, the pair CampaignMapGeographyValidator refuses. BiomeManagerDialog locks its own water/elevation pair
+                    // the same way, so lowering the elevation first is the order of operations an author already knows from that dialog.
+                    disabled={!selectedGeography || (selectedGeography?.relativeElevation ?? 0) > 0}
+                    onChange={(e) => handleGeographyFieldChange("isWater", e.target.checked)}
+                  />
+                  Is Water?
+                </label>
+
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={selectedGeography?.isTraversable ?? false}
+                    disabled={!selectedGeography}
+                    onChange={(e) => handleGeographyFieldChange("isTraversable", e.target.checked)}
+                  />
+                  Is Traversable?
+                </label>
 
                 <label className="flex items-center gap-2 text-sm text-slate-700">
                   <input

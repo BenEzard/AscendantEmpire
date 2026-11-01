@@ -59,6 +59,8 @@ internal class AddCampaignMapGeographyHandler(
             RelativeElevation = biome.RelativeElevation,
             Name = biome.Name,
             MovementCost = biome.MovementCost,
+            IsWater = biome.IsWater,
+            IsTraversable = biome.IsTraversable,
             MapEditorIcon = biome.MapEditorIcon,
             IsPaintableOnCampaignMap = biome.IsPaintableOnCampaignMap,
         }).ToArray();

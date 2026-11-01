@@ -174,7 +174,7 @@ internal class BulkUpsertSlotReconciliationTests : SqlServerTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
-            Assert.That(result.SuccessValue!.RemovedSlotCount, Is.EqualTo(0), "Adding a slot removes nothing.");
+            Assert.That(result.SuccessValue!.RemovedSlotCount, Is.Zero, "Adding a slot removes nothing.");
             Assert.That(result.SuccessValue.UnfittedTemplateNames, Is.Empty, "No template should lose a fitting.");
 
             Assert.That(orderedSlots, Has.Count.EqualTo(2), "The body should now expose both slots.");
@@ -213,7 +213,7 @@ internal class BulkUpsertSlotReconciliationTests : SqlServerTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
-            Assert.That(result.SuccessValue!.RemovedSlotCount, Is.EqualTo(0), "An edit is not a removal.");
+            Assert.That(result.SuccessValue!.RemovedSlotCount, Is.Zero, "An edit is not a removal.");
             Assert.That(slot.Id, Is.EqualTo(originalSlotId), "The slot is updated in place, not replaced.");
             Assert.That(slot.DisplayName, Is.EqualTo("Main Hand"), "Scalars are overwritten from the payload.");
             Assert.That(slot.Rules.Single().Value, Is.EqualTo(nameof(ComponentType.Equipment)), "Rules are replaced from the payload.");
@@ -252,12 +252,12 @@ internal class BulkUpsertSlotReconciliationTests : SqlServerTestBase
             Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
             Assert.That(removedSlotStillExists, Is.False, "The removed slot row is deleted.");
             Assert.That(body.Body!.Slots.Single().Id, Is.EqualTo(slotIds[1]), "The kept slot survives with its id.");
-            Assert.That(fittedCount, Is.EqualTo(0), "The fitting cannot outlive the slot it named.");
+            Assert.That(fittedCount, Is.Zero, "The fitting cannot outlive the slot it named.");
             Assert.That(templateStillExists, Is.True, "Only the fitting goes — the template itself is left alone.");
 
             // The delete is intended but must not be silent.
             Assert.That(result.SuccessValue!.RemovedSlotCount, Is.EqualTo(1), "The removal is counted.");
-            Assert.That(result.SuccessValue.UnfittedTemplateNames, Is.EqualTo(new[] { "Fitted Template" }), "The affected template is reported back.");
+            Assert.That(result.SuccessValue.UnfittedTemplateNames, Is.EqualTo(["Fitted Template"]), "The affected template is reported back.");
         }
     }
 
@@ -289,7 +289,7 @@ internal class BulkUpsertSlotReconciliationTests : SqlServerTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
-            Assert.That(result.SuccessValue!.RemovedSlotCount, Is.EqualTo(0), "Nothing is removed — the code matched.");
+            Assert.That(result.SuccessValue!.RemovedSlotCount, Is.Zero, "Nothing is removed — the code matched.");
             Assert.That(slot.Id, Is.EqualTo(originalSlotId), "The existing row is updated in place, not recreated.");
             Assert.That(slot.DisplayName, Is.EqualTo("Weapon Mount"), "The imported values are applied.");
             Assert.That(fitted, Is.Not.Null, "The template's fitted component survives the re-import.");
@@ -321,7 +321,7 @@ internal class BulkUpsertSlotReconciliationTests : SqlServerTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
-            Assert.That(result.SuccessValue!.RemovedSlotCount, Is.EqualTo(0), "A rename removes nothing.");
+            Assert.That(result.SuccessValue!.RemovedSlotCount, Is.Zero, "A rename removes nothing.");
             Assert.That(slot.Id, Is.EqualTo(originalSlotId), "Same row.");
             Assert.That(slot.Code, Is.EqualTo("main-hand"), "The code is updated.");
             Assert.That(fitted, Is.Not.Null, "The fitting is undisturbed by the rename.");

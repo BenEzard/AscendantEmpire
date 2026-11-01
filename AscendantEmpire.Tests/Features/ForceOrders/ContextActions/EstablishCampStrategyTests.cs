@@ -2,7 +2,6 @@ using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strategies;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Enums.Forces;
-using AscendantEmpire.Domain.Enums.Maps;
 
 namespace AscendantEmpire.Tests.Features.ForceOrders.ContextActions;
 
@@ -32,7 +31,8 @@ internal class EstablishCampStrategyTests
         int healthyCount = _MINIMUM_TROOPS,
         long campaignMovementRemaining = _FULL_CAMPAIGN_MOVEMENT,
         bool tileIsWater = false,
-        CampaignMapGeographyType tileGeographyType = CampaignMapGeographyType.Flat,
+        bool tileGeographyIsTraversable = true,
+        string tileGeographyName = "Flat",
         params string[] capabilityTagCodes)
     {
         return new ForceActionForce
@@ -48,7 +48,8 @@ internal class EstablishCampStrategyTests
             Organisation = null,
             CapabilityTagCodes = capabilityTagCodes.Length > 0 ? capabilityTagCodes : [CapabilityTagCodes.CREATE_EARLY_CAMP],
             TileIsWater = tileIsWater,
-            TileGeographyType = tileGeographyType,
+            TileGeographyIsTraversable = tileGeographyIsTraversable,
+            TileGeographyName = tileGeographyName,
             IsInBattle = false
         };
     }
@@ -124,14 +125,16 @@ internal class EstablishCampStrategyTests
     [Test, Description("Mountains cannot be settled, and the reason must name the terrain so the player knows to move rather than to reinforce.")]
     public void ShouldDisableTheActionWhenTheTileIsMountainous()
     {
-        ForceActionAvailability? result = _strategy.Evaluate(Context(Force(tileGeographyType: CampaignMapGeographyType.Mountainous)));
+        ForceActionForce force = Force(tileGeographyIsTraversable: false, tileGeographyName: "Mountainous");
+
+        ForceActionAvailability? result = _strategy.Evaluate(Context(force));
 
         Assert.That(result, Is.Not.Null);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result!.IsEnabled, Is.False);
-            Assert.That(result.DisabledReasons, Does.Contain("Settler is in mountainous terrain, which cannot be settled."));
+            Assert.That(result.DisabledReasons, Does.Contain("Settler is in Mountainous terrain, which cannot be settled."));
         }
     }
 

@@ -9,8 +9,8 @@ namespace AscendantEmpire.Application.Features.ForceOrders.Movement.Strategies;
 /// </summary>
 /// <remarks>
 /// <para>
-/// A flat snapshot built once by the handler, so no EF entity reaches the rule layer and a strategy never has to query anything. This mirrors
-/// <c>ForceActionContext</c>, which serves the context-action pipeline the same way.
+/// A flat snapshot built once by the handler, so no EF entity reaches the rule layer and a strategy never has to query anything. 
+/// This mirrors <c>ForceActionContext</c>, which serves the context-action pipeline the same way.
 /// </para>
 /// <para>
 /// The derived members below are the movement rules themselves. They live here rather than in the handler because they are pure arithmetic over
@@ -37,33 +37,31 @@ internal sealed record MovementTargetTile
 
     public required bool BiomeIsWater { get; init; }
 
+    /// <summary>Whether the geography itself is water, from <see cref="CampaignGeography.IsWater"/>.</summary>
+    public required bool GeographyIsWater { get; init; }
+
     public required bool BiomeIsTraversable { get; init; }
+
+    /// <summary>Whether the ground itself can be entered, from <see cref="CampaignGeography.IsTraversable"/>. False only for Mountainous today.</summary>
+    public required bool GeographyIsTraversable { get; init; }
 
     /// <summary>
     /// Whether this tile is water, for the purpose of deciding which movement domains may enter it.
     /// </summary>
     /// <remarks>
-    /// The rule itself lives in <see cref="CampaignTileWater"/>, which gathering also uses, so a tile a land Force is refused as water can never feed it as land.
+    /// The rule itself lives in <see cref="CampaignTileTerrain"/>, which gathering also uses, so a tile a land Force is refused as water can never feed it as land.
     /// </remarks>
-    public bool IsWater => CampaignTileWater.IsWater(BiomeIsWater, GeographyType);
+    public bool IsWater => CampaignTileTerrain.IsWater(BiomeIsWater, GeographyIsWater);
 
     /// <summary>
     /// Whether nothing can enter this tile at all, whatever its movement domain or how much movement it has left.
     /// </summary>
-    /// <remarks>
-    /// The rule itself lives in <see cref="CampaignTileImpassability"/>, which the per-Round territory pass also uses, so the ground an enclosure ring is sealed by - and
-    /// which carries no claim supply hop - is exactly the ground a Force is refused.
-    /// </remarks>
-    public bool IsImpassable => CampaignTileImpassability.IsImpassable(BiomeIsTraversable, GeographyMovementCost);
+    public bool IsImpassable => CampaignTileTerrain.IsImpassable(BiomeIsTraversable, GeographyIsTraversable);
 
     /// <summary>
     /// Whether it is the ground itself that cannot be crossed, rather than what is painted on it.
     /// </summary>
-    /// <remarks>
-    /// Only Mountainous carries the sentinel today, so this is what lets a refusal name the mountain instead of falling back on the general
-    /// wording the Void biome has to use. Through <see cref="CampaignTileImpassability"/>, for the same reason <see cref="IsImpassable"/> is.
-    /// </remarks>
-    public bool GeographyIsImpassable => CampaignTileImpassability.GeographyIsImpassable(GeographyMovementCost);
+    public bool GeographyIsImpassable => CampaignTileTerrain.GeographyIsImpassable(GeographyIsTraversable);
 
     /// <summary>
     /// What it costs to cross this tile, in movement points.

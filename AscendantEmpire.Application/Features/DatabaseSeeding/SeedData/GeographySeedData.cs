@@ -1,4 +1,5 @@
 using AscendantEmpire.BackendContracts.Geographies.AddCampaignMapGeography;
+using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.Maps;
 
 namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
@@ -7,8 +8,7 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 /// The initial <c>map.CampaignGeographies</c> values applied by the database seed.
 /// </summary>
 /// <remarks>
-/// Transcribed from <c>Assets/Documentation/Installation scripts/CampaignMapGeographyType.json</c>. The
-/// <see cref="CampaignMapGeographyType"/> enum has an intentional gap at value 5, so Mountainous is 6.
+/// Transcribed from <c>Assets/Documentation/Installation scripts/CampaignMapGeographyType.json</c>.
 /// </remarks>
 internal static class GeographySeedData
 {
@@ -19,12 +19,15 @@ internal static class GeographySeedData
     {
         return
         [
+            // Unknown is not paintable and stands for "no data", so it is not traversable: a data gap must not read as open ground.
             new AddOrUpdateCampaignMapGeographyDto
             {
                 CampaignMapGeographyType = CampaignMapGeographyType.Unknown,
                 Name = "Unknown",
                 RelativeElevation = 0,
                 MovementCost = 1m,
+                IsWater = false,
+                IsTraversable = false,
                 MapEditorIcon = null,
                 IsPaintableOnCampaignMap = false,
             },
@@ -34,6 +37,8 @@ internal static class GeographySeedData
                 Name = "Deep Water",
                 RelativeElevation = -2,
                 MovementCost = 1m,
+                IsWater = true,
+                IsTraversable = true,
                 MapEditorIcon = null,
                 IsPaintableOnCampaignMap = true,
             },
@@ -43,6 +48,8 @@ internal static class GeographySeedData
                 Name = "Shallow Water",
                 RelativeElevation = -1,
                 MovementCost = 1m,
+                IsWater = true,
+                IsTraversable = true,
                 MapEditorIcon = null,
                 IsPaintableOnCampaignMap = true,
             },
@@ -52,6 +59,8 @@ internal static class GeographySeedData
                 Name = "Flat",
                 RelativeElevation = 0,
                 MovementCost = 1m,
+                IsWater = false,
+                IsTraversable = true,
                 MapEditorIcon = null,
                 IsPaintableOnCampaignMap = true,
             },
@@ -61,6 +70,8 @@ internal static class GeographySeedData
                 Name = "Hilly",
                 RelativeElevation = 1,
                 MovementCost = 2m,
+                IsWater = false,
+                IsTraversable = true,
                 MapEditorIcon = "Hill",
                 IsPaintableOnCampaignMap = true,
             },
@@ -69,7 +80,9 @@ internal static class GeographySeedData
                 CampaignMapGeographyType = CampaignMapGeographyType.Mountainous,
                 Name = "Mountainous",
                 RelativeElevation = 2,
-                MovementCost = 999m,
+                MovementCost = CampaignGeography.IMPASSABLE_MOVEMENT_COST,
+                IsWater = false,
+                IsTraversable = false,
                 MapEditorIcon = "Mountain",
                 IsPaintableOnCampaignMap = true,
             },

@@ -35,7 +35,7 @@ internal class CampaignTerritoryReader : ICampaignTerritoryReader
         HasClaims = tile.HasClaims,
         BiomeTypeId = tile.BiomeTypeId,
         BiomeIsTraversable = tile.Biome.IsTraversable,
-        GeographyMovementCost = tile.Geography.MovementCost,
+        GeographyIsTraversable = tile.Geography.IsTraversable,
         SouthRiver = tile.SouthRiver,
         EastRiver = tile.EastRiver
     };
@@ -118,9 +118,7 @@ internal class CampaignTerritoryReader : ICampaignTerritoryReader
     /// </summary>
     /// <remarks>
     /// <b>Filtered by Game alone, and deliberately not by <c>HasClaims</c>.</b> <see cref="CampaignOwnershipReader"/> uses the flag because it asks about a handful of
-    /// tiles in sight and most of a map has never had a claim. The pass asks about the whole Game, so the flag would buy nothing and would cost something real: a row on
-    /// a tile whose flag had gone stale would be invisible to the pass and survive for ever. The rows are the truth and the flag is the cache the pass repairs.
-    /// <c>IX_CampaignMapClaim_Game_Player</c> serves this as a prefix, so there is no new index to add.
+    /// tiles in sight and most of a map has never had a claim. 
     /// </remarks>
     private static async Task<IReadOnlyDictionary<int, List<int>>> GetClaimantsForGameAsync(AscendantEmpireContext context, int gameId, CancellationToken cancelToken)
     {
@@ -162,7 +160,7 @@ internal class CampaignTerritoryReader : ICampaignTerritoryReader
                 HasClaims = tile.HasClaims,
                 BiomeTypeId = tile.BiomeTypeId,
                 BiomeIsTraversable = tile.BiomeIsTraversable,
-                GeographyMovementCost = tile.GeographyMovementCost,
+                GeographyIsTraversable = tile.GeographyIsTraversable,
                 Rivers = new TileRiverEdges(tile.SouthRiver, tile.EastRiver)
             });
         }

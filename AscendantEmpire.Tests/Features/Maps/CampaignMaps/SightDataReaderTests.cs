@@ -98,17 +98,56 @@ internal class SightDataReaderTests : InMemoryTestBase
             VerticalWrap = true
         });
 
-        var grassland = new CampaignBiome { BiomeTypeId = BiomeType.Grassland, Name = "Grassland", MovementCost = 1m, IsTraversable = true, MapEditorHtmlColor = "#7cb342" };
-        var jungle = new CampaignBiome { BiomeTypeId = BiomeType.Jungle, Name = "Jungle", MovementCost = 2m, DoesBlockSight = true, IsTraversable = true, MapEditorHtmlColor = "#006400" };
+        var grassland = new CampaignBiome 
+        { 
+            BiomeTypeId = BiomeType.Grassland, 
+            Name = "Grassland", 
+            MovementCost = 1m, 
+            IsTraversable = true, 
+            MapEditorHtmlColor = "#7cb342" 
+        };
 
-        var flat = new CampaignGeography { CampaignMapGeographyTypeId = CampaignMapGeographyType.Flat, Name = "Flat", RelativeElevation = 0, MovementCost = 1m, MapEditorIcon = null, IsPaintableOnCampaignMap = true };
-        var hilly = new CampaignGeography { CampaignMapGeographyTypeId = CampaignMapGeographyType.Hilly, Name = "Hilly", RelativeElevation = 1, MovementCost = 2m, MapEditorIcon = null, IsPaintableOnCampaignMap = true };
+        var jungle = new CampaignBiome 
+        { 
+            BiomeTypeId = BiomeType.Jungle, 
+            Name = "Jungle", 
+            MovementCost = 2m, 
+            DoesBlockSight = true, 
+            IsTraversable = true, 
+            MapEditorHtmlColor = "#006400" 
+        };
+
+        var flat = new CampaignGeography 
+        { 
+            CampaignMapGeographyTypeId = CampaignMapGeographyType.Flat, 
+            Name = "Flat", 
+            RelativeElevation = 0, 
+            MovementCost = 1m, 
+            IsWater = false, 
+            IsTraversable = true, 
+            MapEditorIcon = null, 
+            IsPaintableOnCampaignMap = true 
+        };
+        var hilly = new CampaignGeography 
+        { 
+            CampaignMapGeographyTypeId = CampaignMapGeographyType.Hilly, 
+            Name = "Hilly", 
+            RelativeElevation = 1, 
+            MovementCost = 2m, 
+            IsWater = false, 
+            IsTraversable = true, 
+            MapEditorIcon = null, 
+            IsPaintableOnCampaignMap = true 
+        };
+
         var mountainous = new CampaignGeography
         {
             CampaignMapGeographyTypeId = CampaignMapGeographyType.Mountainous,
             Name = "Mountainous",
             RelativeElevation = 3,
             MovementCost = CampaignGeography.IMPASSABLE_MOVEMENT_COST,
+            IsWater = false,
+            IsTraversable = false,
             MapEditorIcon = null,
             IsPaintableOnCampaignMap = true
         };
@@ -211,7 +250,7 @@ internal class SightDataReaderTests : InMemoryTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(terrain.Keys, Is.EquivalentTo(new[] { (1, 1), (2, 2) }));
+            Assert.That(terrain.Keys, Is.EquivalentTo([(1, 1), (2, 2)]));
             Assert.That(terrain[(1, 1)].CampaignMapId, Is.EqualTo(TileId(1, 1)));
             Assert.That(terrain[(1, 1)].DoesBlockSight, Is.True, "The Jungle's blocking flag comes through from its Biome.");
             Assert.That(terrain[(1, 1)].BiomeName, Is.EqualTo("Jungle"));
@@ -231,7 +270,7 @@ internal class SightDataReaderTests : InMemoryTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(observers.Select(observer => observer.Id), Is.EquivalentTo(new[] { _STANDING_STRUCTURE_ID, _UNIT_IN_JUNGLE_ID, _FAR_UNIT_ID }),
+            Assert.That(observers.Select(observer => observer.Id), Is.EquivalentTo([_STANDING_STRUCTURE_ID, _UNIT_IN_JUNGLE_ID, _FAR_UNIT_ID]),
                 "Removed and battle-map Structures watch nothing on the campaign map, and another Player's Observers are not this Player's.");
 
             Assert.That(structure.RecordType, Is.EqualTo(RecordType.Structure), "Structures come first, as the map read has always reported them.");
@@ -262,7 +301,7 @@ internal class SightDataReaderTests : InMemoryTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(observers.Select(observer => observer.Id), Is.EquivalentTo(new[] { _STANDING_STRUCTURE_ID, _UNIT_IN_JUNGLE_ID, _DESTROYED_UNIT_ID }),
+            Assert.That(observers.Select(observer => observer.Id), Is.EquivalentTo([_STANDING_STRUCTURE_ID, _UNIT_IN_JUNGLE_ID, _DESTROYED_UNIT_ID]),
                 "Not another Player's, not anything off the searched tiles, and not a Unit destroyed in some other Turn.");
 
             Assert.That(destroyed.DestroyedAtSequence, Is.EqualTo(_DESTROYED_AT_SEQUENCE));
@@ -307,15 +346,15 @@ internal class SightDataReaderTests : InMemoryTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(observers.Select(observer => observer.Id), Is.EquivalentTo(new[]
-            {
+            Assert.That(observers.Select(observer => observer.Id), Is.EquivalentTo(
+            [
                 _STANDING_STRUCTURE_ID,
                 _UNIT_IN_JUNGLE_ID,
                 _DESTROYED_UNIT_ID,
                 _RAZED_THIS_TURN_STRUCTURE_ID,
                 _CAPTURED_THIS_TURN_STRUCTURE_ID,
                 _CAPTURED_THEN_RAZED_STRUCTURE_ID
-            }), "Not a Structure razed in some other Turn, which the Player had already lost before this one began.");
+            ]), "Not a Structure razed in some other Turn, which the Player had already lost before this one began.");
 
             Assert.That(razed.RecordType, Is.EqualTo(RecordType.Structure));
             Assert.That(razed.PlayerId, Is.EqualTo(_PLAYER_ID));
@@ -370,7 +409,7 @@ internal class SightDataReaderTests : InMemoryTestBase
 
         IEnumerable<RecordType> sharingTheId = observers.Where(observer => observer.Id == _RAZED_THIS_TURN_STRUCTURE_ID).Select(observer => observer.RecordType);
 
-        Assert.That(sharingTheId, Is.EquivalentTo(new[] { RecordType.Structure, RecordType.Unit }));
+        Assert.That(sharingTheId, Is.EquivalentTo([RecordType.Structure, RecordType.Unit]));
     }
 
     [Test, Description("The search box reaches the best Sight among the Players' Observers plus the highest ground a Force can stand on, never a Mountain.")]

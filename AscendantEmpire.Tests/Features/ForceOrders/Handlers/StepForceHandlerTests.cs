@@ -194,14 +194,16 @@ internal class StepForceHandlerTests : InMemoryTestBase
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
         // Costs and flags copied from the seeded catalogue so the arithmetic under test is the arithmetic the game actually uses.
-        var flat = new CampaignGeography { CampaignMapGeographyTypeId = CampaignMapGeographyType.Flat, Name = "Flat", MovementCost = 1m, MapEditorIcon = null, IsPaintableOnCampaignMap = true };
-        var hilly = new CampaignGeography { CampaignMapGeographyTypeId = CampaignMapGeographyType.Hilly, Name = "Hilly", MovementCost = 2m, MapEditorIcon = null, IsPaintableOnCampaignMap = true };
-        var deepWater = new CampaignGeography { CampaignMapGeographyTypeId = CampaignMapGeographyType.DeepWater, Name = "Deep Water", MovementCost = 1m, MapEditorIcon = null, IsPaintableOnCampaignMap = true };
+        var flat = new CampaignGeography { CampaignMapGeographyTypeId = CampaignMapGeographyType.Flat, Name = "Flat", MovementCost = 1m, IsWater = false, IsTraversable = true, MapEditorIcon = null, IsPaintableOnCampaignMap = true };
+        var hilly = new CampaignGeography { CampaignMapGeographyTypeId = CampaignMapGeographyType.Hilly, Name = "Hilly", MovementCost = 2m, IsWater = false, IsTraversable = true, MapEditorIcon = null, IsPaintableOnCampaignMap = true };
+        var deepWater = new CampaignGeography { CampaignMapGeographyTypeId = CampaignMapGeographyType.DeepWater, Name = "Deep Water", MovementCost = 1m, IsWater = true, IsTraversable = true, MapEditorIcon = null, IsPaintableOnCampaignMap = true };
         var mountainous = new CampaignGeography
         {
             CampaignMapGeographyTypeId = CampaignMapGeographyType.Mountainous,
             Name = "Mountainous",
             MovementCost = CampaignGeography.IMPASSABLE_MOVEMENT_COST,
+            IsWater = false,
+            IsTraversable = false,
             MapEditorIcon = null,
             IsPaintableOnCampaignMap = true
         };
@@ -638,8 +640,11 @@ internal class StepForceHandlerTests : InMemoryTestBase
 
         List<MovementHistory> history = await LoadHistoryAsync();
 
-        Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
-        Assert.That(history, Has.Count.EqualTo(1), "One step, one row.");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
+            Assert.That(history, Has.Count.EqualTo(1), "One step, one row.");
+        }
 
         MovementHistory row = history.Single();
 
@@ -751,7 +756,7 @@ internal class StepForceHandlerTests : InMemoryTestBase
             Assert.That(engagement.Attacker.CampaignMapTileId, Is.EqualTo(TileId(_START_X + 1, _START_Y)), "The move is staged before the Battle is commenced, so the two save together.");
             Assert.That(engagement.Attacker.CampaignMovementRemaining, Is.EqualTo(1_000), "And so is the payment for the step.");
 
-            Assert.That(engagement.Defenders.Select(defender => defender.Id), Is.EqualTo(new[] { _ENEMY_FORCE_ID }));
+            Assert.That(engagement.Defenders.Select(defender => defender.Id), Is.EqualTo([_ENEMY_FORCE_ID]));
         }
     }
 
@@ -898,7 +903,7 @@ internal class StepForceHandlerTests : InMemoryTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
-            Assert.That(moved.CampaignMovementRemaining, Is.EqualTo(0), "Flat grassland at 1.0 plus 1.0 for the crossing uses all 2.0.");
+            Assert.That(moved.CampaignMovementRemaining, Is.Zero, "Flat grassland at 1.0 plus 1.0 for the crossing uses all 2.0.");
             Assert.That(result.SuccessValue!.RiverCrossed, Is.EqualTo(RiverWidth.Medium));
             Assert.That(result.SuccessValue.RiverAlong, Is.EqualTo(RiverWidth.None));
         }

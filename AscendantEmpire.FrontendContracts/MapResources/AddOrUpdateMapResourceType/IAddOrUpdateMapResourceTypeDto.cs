@@ -63,6 +63,13 @@ public interface IAddOrUpdateMapResourceTypeDto
     bool IsDistribution { get; }
     #endregion
 
+    #region Habitat
+    /// <summary>
+    /// Can be in water rather than on land, which narrows the Biomes and Geographies its habitats may name.
+    /// </summary>
+    bool IsWaterResource { get; }
+    #endregion
+
     #region Extraction
     /// <summary>
     /// How instances are extracted.

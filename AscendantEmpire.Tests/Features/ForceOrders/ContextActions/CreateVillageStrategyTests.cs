@@ -2,7 +2,6 @@ using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strategies;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Enums.Forces;
-using AscendantEmpire.Domain.Enums.Maps;
 
 namespace AscendantEmpire.Tests.Features.ForceOrders.ContextActions;
 
@@ -32,7 +31,8 @@ internal class CreateVillageStrategyTests
         int healthyCount = _MINIMUM_TROOPS,
         long campaignMovementRemaining = _FULL_CAMPAIGN_MOVEMENT,
         bool tileIsWater = false,
-        CampaignMapGeographyType tileGeographyType = CampaignMapGeographyType.Flat,
+        bool tileGeographyIsTraversable = true,
+        string tileGeographyName = "Flat",
         params string[] capabilityTagCodes)
     {
         return new ForceActionForce
@@ -48,7 +48,8 @@ internal class CreateVillageStrategyTests
             Organisation = null,
             CapabilityTagCodes = capabilityTagCodes.Length > 0 ? capabilityTagCodes : [CapabilityTagCodes.CREATE_SETTLEMENT],
             TileIsWater = tileIsWater,
-            TileGeographyType = tileGeographyType,
+            TileGeographyIsTraversable = tileGeographyIsTraversable,
+            TileGeographyName = tileGeographyName,
             IsInBattle = false
         };
     }

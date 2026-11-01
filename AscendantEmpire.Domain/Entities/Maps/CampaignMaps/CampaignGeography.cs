@@ -11,16 +11,8 @@ public class CampaignGeography
     public const int MAP_EDITOR_ICON_MAX_LENGTH = 50;
 
     /// <summary>
-    /// The <see cref="MovementCost"/> at or above which a Geography is treated as impassable rather than merely expensive.
+    /// The <see cref="MovementCost"/> an untraversable Geography carries, as the convention the authored map data follows for "you cannot walk here".
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Mountainous is seeded at exactly this value, and it is the convention the authored map data follows for "you cannot walk here".
-    /// </para>
-    /// <para>
-    /// This gates where a start position may be placed, and which Geographies may be painted over an existing one.
-    /// </para>
-    /// </remarks>
     public const decimal IMPASSABLE_MOVEMENT_COST = 999m;
 
     /// <summary>
@@ -44,6 +36,16 @@ public class CampaignGeography
     /// Movement Cost of this Geography, used to determine how difficult it is to traverse this Tile.
     /// </summary>
     public required decimal MovementCost { get; set; }
+
+    /// <summary>
+    /// Is this Geography water? (i.e. Deep Water, Shallow Water)
+    /// </summary>
+    public required bool IsWater { get; set; }
+
+    /// <summary>
+    /// Is this Geography traversable? (i.e. can a Unit move through it)
+    /// </summary>
+    public required bool IsTraversable { get; set; }
 
     /// <summary>
     /// Icon used in the MapEditor to show the Geography.

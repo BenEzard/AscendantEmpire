@@ -1,10 +1,10 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
-using AscendantEmpire.Application.Common.Validation;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.MapResources.Services;
 using AscendantEmpire.Application.Features.Maps.MapResources.Validators;
 using AscendantEmpire.Domain.Entities.Maps.MapResources;
+using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.FrontendContracts.MapResources.AddOrUpdateMapResourceType;
 using AscendantEmpire.FrontendContracts.MapResources.PutMapResourceCatalogue;
 
@@ -89,6 +89,8 @@ internal class PutMapResourceCatalogueHandler(
             {
                 errors.Add($"There is no Asset {missing}.");
             }
+
+            errors.AddRange(await WaterHabitatErrorsAsync(catalogue, cancellationToken));
 
             if (errors.Count != 0)
             {
@@ -188,6 +190,74 @@ internal class PutMapResourceCatalogueHandler(
             .GroupBy(code => code, StringComparer.OrdinalIgnoreCase)
             .Where(group => group.Count() > 1)
             .Select(group => group.Key);
+    }
+
+    /// <summary>
+    /// One error per habitat whose Biome or Geography disagrees with its type's <c>IsWaterResource</c>.
+    /// </summary>
+    private async Task<List<string>> WaterHabitatErrorsAsync(IPutMapResourceCatalogueDto catalogue, CancellationToken cancellationToken)
+    {
+        // Only the terrain this request actually names, which is a handful at most on either axis.
+        HashSet<BiomeType> namedBiomes = [.. catalogue.Types.SelectMany(t => t.Habitats).Select(h => h.BiomeType)];
+
+        HashSet<CampaignMapGeographyType> namedGeographies =
+            [.. catalogue.Types.SelectMany(t => t.Habitats).Select(h => h.GeographyType).OfType<CampaignMapGeographyType>()];
+
+        if (namedBiomes.Count == 0 && namedGeographies.Count == 0)
+        {
+            return [];
+        }
+
+        Dictionary<BiomeType, bool> isWaterByBiome = await context.CampaignBiomes
+            .AsNoTracking()
+            .Where(b => namedBiomes.Contains(b.BiomeTypeId))
+            .ToDictionaryAsync(b => b.BiomeTypeId, b => b.IsWater, cancellationToken);
+
+        Dictionary<CampaignMapGeographyType, bool> isWaterByGeography = await context.CampaignGeographies
+            .AsNoTracking()
+            .Where(g => namedGeographies.Contains(g.CampaignMapGeographyTypeId))
+            .ToDictionaryAsync(g => g.CampaignMapGeographyTypeId, g => g.IsWater, cancellationToken);
+
+        List<string> errors = [];
+
+        foreach (IAddOrUpdateMapResourceTypeDto type in catalogue.Types)
+        {
+            foreach (BiomeType biome in type.Habitats.Select(h => h.BiomeType).Distinct())
+            {
+                if (DisagreesWithKind(isWaterByBiome, biome, type.IsWaterResource))
+                {
+                    errors.Add(WrongKindError(type.Code, biome.ToString(), type.IsWaterResource));
+                }
+            }
+
+            foreach (CampaignMapGeographyType geography in type.Habitats.Select(h => h.GeographyType).OfType<CampaignMapGeographyType>().Distinct())
+            {
+                if (DisagreesWithKind(isWaterByGeography, geography, type.IsWaterResource))
+                {
+                    errors.Add(WrongKindError(type.Code, geography.ToString(), type.IsWaterResource));
+                }
+            }
+        }
+
+        return errors;
+    }
+
+    /// <summary>
+    /// Whether terrain the catalogue holds is of the opposite water-ness to the type naming it.
+    /// </summary>
+    private static bool DisagreesWithKind<TTerrain>(Dictionary<TTerrain, bool> isWaterByTerrain, TTerrain terrain, bool isWaterResource) where TTerrain : notnull
+    {
+        return isWaterByTerrain.TryGetValue(terrain, out bool isWater) && isWater != isWaterResource;
+    }
+
+    /// <summary>
+    /// The message for a habitat naming terrain of the wrong kind, phrased from the type's side so the author reads what to change.
+    /// </summary>
+    private static string WrongKindError(string typeCode, string terrain, bool isWaterResource)
+    {
+        return isWaterResource
+            ? $"{typeCode}: {terrain} is not water, and a water MapResource can only live in water."
+            : $"{typeCode}: {terrain} is water, and only a water MapResource can live there.";
     }
 
     /// <summary>

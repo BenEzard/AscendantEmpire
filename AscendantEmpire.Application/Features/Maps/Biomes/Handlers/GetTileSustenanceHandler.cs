@@ -152,7 +152,7 @@ internal class GetTileSustenanceHandler(
         IReadOnlyDictionary<Coord, TileRivers> riversByCoord = await campaignRiverReader.GetTileRiversAsync(context, request.GameId, [coord], geometry, cancelToken);
         TileRivers? rivers = riversByCoord.GetValueOrDefault(coord);
 
-        bool isWater = CampaignTileWater.IsWater(seenTile.BiomeIsWater, seenTile.GeographyType);
+        bool isWater = CampaignTileTerrain.IsWater(seenTile.BiomeIsWater, seenTile.GeographyIsWater);
 
         // Whether the tile can feed the Forces already on it. No Forces are requested, so the only way this fails is a defect in the evaluator.
         ServiceResult<IReadOnlyDictionary<int, TileSupport?>> supportResult = await tileSupportEvaluator.EvaluateAsync(

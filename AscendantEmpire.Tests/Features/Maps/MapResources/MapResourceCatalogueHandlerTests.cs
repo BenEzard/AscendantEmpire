@@ -82,6 +82,44 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
         Assert.That(stored.MaximumQuantity, Is.EqualTo(500_000));
     }
 
+    [Test, Description("Pins that the water-resource flag survives a catalogue save and reload, since it is what the Habitats page filters its Biome and Geography lists by.")]
+    public async Task ShouldRoundTripTheWaterResourceFlagAsync()
+    {
+        await using (AscendantEmpireContext seed = await DbFactory.CreateDbContextAsync())
+        {
+            await MapResourceTestSeed.EnsureBiomeAsync(seed, BiomeType.Ocean);
+            await MapResourceTestSeed.EnsureGeographyAsync(seed, CampaignMapGeographyType.DeepWater);
+        }
+
+        // The habitats have to be water too, or the handler's own water rule would refuse the save before the flag could round-trip.
+        AddOrUpdateMapResourceTypeDto waterBerry = Berry() with
+        {
+            IsWaterResource = true,
+            Habitats = [ForestHabitat() with { BiomeType = BiomeType.Ocean, GeographyType = CampaignMapGeographyType.DeepWater }],
+        };
+
+        ServiceResultBase result = await PutAsync(Catalogue([Category("Food")], [waterBerry]));
+
+        MapResourceTypeDetail berry = (await GetAsync()).Categories.Single().Types.Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
+            Assert.That(berry.IsWaterResource, Is.True, "Read back through the catalogue, which is what the Habitats page filters against.");
+            Assert.That(await ReadAsync(c => c.MapResourceTypes.Select(t => t.IsWaterResource).SingleAsync()), Is.True, "And stored, not merely echoed.");
+        }
+    }
+
+    [Test, Description("Pins that a type saved without the flag is land, so an existing catalogue row is not quietly turned into a water resource.")]
+    public async Task ShouldDefaultTheWaterResourceFlagToLandAsync()
+    {
+        await PutAsync(Catalogue([Category("Food")], [Berry()]));
+
+        MapResourceTypeDetail berry = (await GetAsync()).Categories.Single().Types.Single();
+
+        Assert.That(berry.IsWaterResource, Is.False);
+    }
+
     [Test, Description("Saving again updates children in place: a removed habitat goes, a kept one keeps its row, and a changed yield changes.")]
     public async Task ShouldUpdateChildrenInPlaceAsync()
     {
@@ -103,7 +141,7 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
         {
             Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
             Assert.That(berry.Habitats, Has.Count.EqualTo(1));
-            Assert.That(berry.Yields.Select(y => (y.AssetId, y.AmountPerUnit)), Is.EquivalentTo(new[] { (_berriesId, 5), (_peltId, 1) }));
+            Assert.That(berry.Yields.Select(y => (y.AssetId, y.AmountPerUnit)), Is.EquivalentTo([(_berriesId, 5), (_peltId, 1)]));
             Assert.That(await ReadAsync(c => c.MapResourceHabitats.Select(h => h.Id).SingleAsync()), Is.EqualTo(keptHabitatId), "The kept habitat is updated, not replaced.");
         }
     }
@@ -181,6 +219,80 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
             Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.GenericError));
             Assert.That(result.Errors, Has.Some.Contains("must not be in use by any map or game"));
         }
+    }
+
+    [TestCase(true, false, Description = "Pins that a water resource cannot name a land Geography, so the API enforces what the Habitats page offers rather than leaving the rule in the UI.")]
+    [TestCase(false, true, Description = "Pins that a land resource cannot name a water Geography, the same rule in the other direction.")]
+    public async Task ShouldFailWhenAHabitatNamesAGeographyOfTheWrongWaternessAsync(bool isWaterResource, bool geographyIsWater)
+    {
+        CampaignMapGeographyType geography = geographyIsWater ? CampaignMapGeographyType.DeepWater : CampaignMapGeographyType.Hilly;
+
+        await using (AscendantEmpireContext seed = await DbFactory.CreateDbContextAsync())
+        {
+            await MapResourceTestSeed.EnsureGeographyAsync(seed, geography);
+        }
+
+        AddOrUpdateMapResourceTypeDto type = Berry() with
+        {
+            IsWaterResource = isWaterResource,
+            Habitats = [ForestHabitat() with { GeographyType = geography }],
+        };
+
+        ServiceResultBase result = await PutAsync(Catalogue([Category("Food")], [type]));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Has.Some.Contains(geography.ToString()), "The message has to name the Geography, since a type can have many habitats.");
+        }
+    }
+
+    [TestCase(true, false, Description = "Pins that a water resource cannot name a land Biome, so flipping the water flag on an existing land type is refused rather than quietly storing its land habitats.")]
+    [TestCase(false, true, Description = "Pins that a land resource cannot name a water Biome, the same rule in the other direction.")]
+    public async Task ShouldFailWhenAHabitatNamesABiomeOfTheWrongWaternessAsync(bool isWaterResource, bool biomeIsWater)
+    {
+        BiomeType biome = biomeIsWater ? BiomeType.Ocean : BiomeType.Forest;
+
+        await using (AscendantEmpireContext seed = await DbFactory.CreateDbContextAsync())
+        {
+            await MapResourceTestSeed.EnsureBiomeAsync(seed, biome);
+        }
+
+        AddOrUpdateMapResourceTypeDto type = Berry() with
+        {
+            IsWaterResource = isWaterResource,
+
+            // No Geography, so the Biome is the only axis left to check - and it is the case the Habitats page cannot police on its own, because its filter
+            // narrows the options a row offers and never the value a row already holds.
+            Habitats = [ForestHabitat() with { BiomeType = biome }],
+        };
+
+        ServiceResultBase result = await PutAsync(Catalogue([Category("Food")], [type]));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Has.Some.Contains(biome.ToString()), "The message has to name the Biome, since a type can have many habitats.");
+        }
+    }
+
+    [Test, Description("Pins that a habitat with no Geography is accepted, since Any is a legitimate habitat: the Geography half of the rule has nothing to read and the Biome half decides alone.")]
+    public async Task ShouldSucceedWhenAHabitatNamesNoGeographyAsync()
+    {
+        await using (AscendantEmpireContext seed = await DbFactory.CreateDbContextAsync())
+        {
+            await MapResourceTestSeed.EnsureBiomeAsync(seed, BiomeType.Ocean);
+        }
+
+        AddOrUpdateMapResourceTypeDto type = Berry() with
+        {
+            IsWaterResource = true,
+            Habitats = [ForestHabitat() with { BiomeType = BiomeType.Ocean }],
+        };
+
+        ServiceResultBase result = await PutAsync(Catalogue([Category("Food")], [type]));
+
+        Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
     }
 
     [Test, Description("A type naming a category that neither exists nor is in the request is refused.")]
@@ -264,7 +376,7 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
         {
             Assert.That(refused.Errors, Has.Some.Contains("still has 1 MapResourceType(s)"));
             Assert.That(deleted.HasSucceeded, Is.True, string.Join("; ", deleted.Errors));
-            Assert.That(await ReadAsync(c => c.MapResourceCategories.Select(cat => cat.Code).ToListAsync()), Is.EqualTo(new[] { "Food" }));
+            Assert.That(await ReadAsync(c => c.MapResourceCategories.Select(cat => cat.Code).ToListAsync()), Is.EqualTo(["Food"]));
         }
     }
     #endregion
@@ -280,7 +392,7 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
         {
             // Seeded as Berries, Pelt, Oak with SortOrder 10, 20, 30. Alphabetically that would be Berries, Oak, Pelt, so this also pins
             // that SortOrder beats DisplayName — the pickers do not sort, and firstAssetId takes whatever came first.
-            Assert.That(result.SuccessValue!.Select(r => r.DisplayName), Is.EqualTo(new[] { "Berries", "Pelt", "Oak" }), "Within a meta category, by SortOrder.");
+            Assert.That(result.SuccessValue!.Select(r => r.DisplayName), Is.EqualTo(["Berries", "Pelt", "Oak"]), "Within a meta category, by SortOrder.");
             Assert.That(result.SuccessValue!.Select(r => r.MetaCategoryDisplayName), Is.All.EqualTo("Test Meta"));
         }
     }
@@ -388,6 +500,7 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
             IsRenewable = true,
             IsStratified = false,
             IsDistribution = false,
+            IsWaterResource = false,
             ExtractionMethod = ExtractionMethod.Gather,
             RequiresResearchToExtract = true,
             IsDiscoverableByDefault = true,
@@ -434,6 +547,7 @@ internal class MapResourceCatalogueHandlerTests : SqlServerTestBase
             IsRenewable = true,
             IsStratified = false,
             IsDistribution = true,
+            IsWaterResource = false,
             ExtractionMethod = ExtractionMethod.Fell,
             RequiresResearchToExtract = false,
             IsDiscoverableByDefault = true,

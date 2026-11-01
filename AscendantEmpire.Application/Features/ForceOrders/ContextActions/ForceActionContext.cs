@@ -1,4 +1,4 @@
-using AscendantEmpire.Domain.Enums.Maps;
+using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 
 namespace AscendantEmpire.Application.Features.ForceOrders.ContextActions;
@@ -74,15 +74,13 @@ internal sealed record ForceActionForce
     public required IReadOnlyCollection<string> CapabilityTagCodes { get; init; }
 
     /// <summary>Whether the biome of the tile the Force stands on is water.</summary>
-    /// <remarks>
-    /// Only the biome's own flag, deliberately not the broader "is this tile water" used by movement, which also counts the DeepWater and
-    /// ShallowWater geographies. The two questions are different — whether a Force may <i>enter</i> a tile, versus whether it may <i>settle</i> it —
-    /// so they are kept apart rather than sharing one definition that a later movement change could silently widen.
-    /// </remarks>
     public required bool TileIsWater { get; init; }
 
-    /// <summary>The geography of the tile the Force stands on.</summary>
-    public required CampaignMapGeographyType TileGeographyType { get; init; }
+    /// <summary>Whether the ground the Force stands on can be crossed at all, from <see cref="CampaignGeography.IsTraversable"/>.</summary>
+    public required bool TileGeographyIsTraversable { get; init; }
+
+    /// <summary>The geography's display name, used to explain a refusal in terms the player recognises.</summary>
+    public required string TileGeographyName { get; init; }
 
     /// <summary>Whether the Force is fighting in a Battle, which is to say standing on a battle map tile.</summary>
     /// <remarks>

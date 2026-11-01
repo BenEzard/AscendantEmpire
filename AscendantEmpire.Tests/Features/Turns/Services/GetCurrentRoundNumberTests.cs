@@ -39,7 +39,7 @@ public class GetCurrentRoundNumberTests : CampaignTurnServiceTestBase
 
         int roundNumber = await Service.GetCurrentRoundNumberAsync(gameId);
 
-        Assert.That(roundNumber, Is.EqualTo(0), "Should return the 0 sentinel when no Campaign TurnQueue exists.");
+        Assert.That(roundNumber, Is.Zero, "Should return the 0 sentinel when no Campaign TurnQueue exists.");
     }
 
     /// <summary>
@@ -80,7 +80,7 @@ public class GetCurrentRoundNumberTests : CampaignTurnServiceTestBase
 
         int roundNumber = await Service.GetCurrentRoundNumberAsync(gameId);
 
-        Assert.That(roundNumber, Is.EqualTo(0), "A completed queue is not active, so the lookup should return the 0 sentinel.");
+        Assert.That(roundNumber, Is.Zero, "A completed queue is not active, so the lookup should return the 0 sentinel.");
     }
 
     // --- The context-scoped overload -------------------------------------------------

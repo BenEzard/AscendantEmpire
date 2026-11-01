@@ -6,7 +6,6 @@ using AscendantEmpire.Application.Features.UnitComponents.Handlers;
 using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 using AscendantEmpire.BackendContracts.UnitDesigns.UpsertUnitComponent;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
-using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 using AscendantEmpire.Tests.UnitDesigns.Shared;
 
@@ -103,7 +102,7 @@ internal class UpsertUnitComponentHandlerTests : SqlServerTestBase
         {
             Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Created), "A new component reports Created.");
             Assert.That(result.SuccessValue!.Id, Is.EqualTo(persisted.Id));
-            Assert.That(result.SuccessValue.SlotIds, Is.EqualTo(new[] { persisted.Body!.Slots.Single().Id }), "The saved slot ids come back for the client to reuse.");
+            Assert.That(result.SuccessValue.SlotIds, Is.EqualTo([persisted.Body!.Slots.Single().Id]), "The saved slot ids come back for the client to reuse.");
             Assert.That(persisted.Body.Slots.Single().DisplayName, Is.EqualTo("Weapon 1"));
             Assert.That(persisted.Body.Slots.Single().Rules.Single().Value, Is.EqualTo(nameof(ComponentType.Weapon)));
         }
@@ -160,7 +159,7 @@ internal class UpsertUnitComponentHandlerTests : SqlServerTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
-            Assert.That(result.SuccessValue!.RemovedSlotCount, Is.EqualTo(0));
+            Assert.That(result.SuccessValue!.RemovedSlotCount, Is.Zero);
             Assert.That(result.SuccessValue.UnfittedTemplateNames, Is.Empty);
             Assert.That(updated.Body!.Slots, Has.Count.EqualTo(2), "Both slots are present.");
             Assert.That(fitted, Is.Not.Null, "The fitting survives.");
@@ -204,11 +203,11 @@ internal class UpsertUnitComponentHandlerTests : SqlServerTestBase
             // the sibling bulk test proves the reconciler deletes the rows, but it asserts against a different
             // result type. This is the only cover for UnitComponentView carrying a non-zero removal.
             Assert.That(result.SuccessValue!.RemovedSlotCount, Is.EqualTo(1), "The removal is counted.");
-            Assert.That(result.SuccessValue.UnfittedTemplateNames, Is.EqualTo(new[] { "Fitted Template" }), "The affected template is named back to the caller.");
+            Assert.That(result.SuccessValue.UnfittedTemplateNames, Is.EqualTo(["Fitted Template"]), "The affected template is named back to the caller.");
 
             Assert.That(droppedSlotStillExists, Is.False, "The dropped slot row is deleted.");
             Assert.That(updated.Body!.Slots.Single().Id, Is.EqualTo(slotIds[1]), "The kept slot survives with its id.");
-            Assert.That(fittedCount, Is.EqualTo(0), "The fitting cannot outlive the slot it named.");
+            Assert.That(fittedCount, Is.Zero, "The fitting cannot outlive the slot it named.");
             Assert.That(templateStillExists, Is.True, "Only the fitting goes — the template itself is left alone.");
         }
     }

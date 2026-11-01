@@ -1,7 +1,6 @@
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strategies;
 using AscendantEmpire.Domain.Enums.Forces;
-using AscendantEmpire.Domain.Enums.Maps;
 
 namespace AscendantEmpire.Tests.Features.ForceOrders.ContextActions;
 
@@ -35,7 +34,8 @@ internal class BattleStrategyTests
             Organisation = null,
             CapabilityTagCodes = [],
             TileIsWater = false,
-            TileGeographyType = CampaignMapGeographyType.Flat,
+            TileGeographyIsTraversable = true,
+            TileGeographyName = "Flat",
             IsInBattle = isInBattle
         };
     }

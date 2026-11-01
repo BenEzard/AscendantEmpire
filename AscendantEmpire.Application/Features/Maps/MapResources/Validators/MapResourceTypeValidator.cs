@@ -24,7 +24,8 @@ namespace AscendantEmpire.Application.Features.Maps.MapResources.Validators;
 /// </list>
 /// </para>
 /// <para>
-/// Whether the Assets and category named exist is the handler's check, since it needs the database. The database itself enforces the two flag rules as well
+/// Whether the Assets and category named exist is the handler's check, since it needs the database, and so is whether a habitat's Geography agrees with the type's
+/// <c>IsWaterResource</c> - which Geographies are water is catalogue state this validator cannot see. The database itself enforces the two flag rules as well
 /// (<c>CK_MapResourceType_RenewableOrStratified</c> and <c>CK_MapResourceType_DistributionIsRenewable</c>).
 /// </para>
 /// </remarks>

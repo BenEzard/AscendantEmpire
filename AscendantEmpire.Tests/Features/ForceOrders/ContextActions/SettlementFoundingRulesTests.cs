@@ -1,6 +1,5 @@
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strategies;
-using AscendantEmpire.Domain.Enums.Maps;
 
 namespace AscendantEmpire.Tests.Features.ForceOrders.ContextActions;
 
@@ -22,7 +21,8 @@ internal class SettlementFoundingRulesTests
         int healthyCount = _MINIMUM_TROOPS,
         long campaignMovementRemaining = _FULL_CAMPAIGN_MOVEMENT,
         bool tileIsWater = false,
-        CampaignMapGeographyType tileGeographyType = CampaignMapGeographyType.Flat)
+        bool tileGeographyIsTraversable = true,
+        string tileGeographyName = "Flat")
     {
         return new ForceActionForce
         {
@@ -37,7 +37,8 @@ internal class SettlementFoundingRulesTests
             Organisation = null,
             CapabilityTagCodes = ["found-camp"],
             TileIsWater = tileIsWater,
-            TileGeographyType = tileGeographyType,
+            TileGeographyIsTraversable = tileGeographyIsTraversable,
+            TileGeographyName = tileGeographyName,
             IsInBattle = false
         };
     }
@@ -58,21 +59,33 @@ internal class SettlementFoundingRulesTests
     {
         List<string> reasons = Collect(Force(tileIsWater: true));
 
-        Assert.That(reasons, Is.EqualTo(new[] { "Settler is on water, and a camp must be founded on land." }));
+        Assert.That(reasons, Is.EqualTo(["Settler is on water, and a camp must be founded on land."]));
     }
 
-    [Test, Description("Mountains are named as unsettleable by the ticket, and the rule must hold even though nothing can currently stand on one to test it in play.")]
+    [Test, Description("Mountains are named as unsettleable by the ticket, and the reason names the terrain so the player knows to move rather than to reinforce.")]
     public void ShouldBlockWhenTheTileIsMountainous()
     {
-        List<string> reasons = Collect(Force(tileGeographyType: CampaignMapGeographyType.Mountainous));
+        List<string> reasons = Collect(Force(tileGeographyIsTraversable: false, tileGeographyName: "Mountainous"));
 
-        Assert.That(reasons, Is.EqualTo(new[] { "Settler is in mountainous terrain, which cannot be settled." }));
+        Assert.That(reasons, Is.EqualTo(["Settler is in Mountainous terrain, which cannot be settled."]));
     }
 
-    [Test, Description("Hills are elevated but explicitly not excluded, so widening the mountain rule to any raised ground would refuse a legal site.")]
-    public void ShouldAllowWhenTheTileIsMerelyHilly()
+    [Test, Description("Any ground the catalogue marks untraversable is unsettleable, so clearing the flag on a geography that is not Mountainous is refused without the rule being touched.")]
+    public void ShouldBlockWhenTheGroundIsUntraversable()
     {
-        Assert.That(Collect(Force(tileGeographyType: CampaignMapGeographyType.Hilly)), Is.Empty);
+        // Hilly rather than Mountainous on purpose. Mountainous is the only geography the seed ships untraversable, so a rule written against the
+        // enum satisfies every test that uses it and still refuses nothing the day the Geography Manager clears the flag on another one.
+        List<string> reasons = Collect(Force(tileGeographyIsTraversable: false, tileGeographyName: "Hilly"));
+
+        Assert.That(reasons, Is.EqualTo(["Settler is in Hilly terrain, which cannot be settled."]));
+    }
+
+    [Test, Description("Elevation is not what the rule reads, so traversable high ground stays a legal site however steep the catalogue says it is.")]
+    public void ShouldAllowWhenTheGroundIsTraversable()
+    {
+        ForceActionForce force = Force(tileGeographyIsTraversable: true, tileGeographyName: "Hilly");
+
+        Assert.That(Collect(force), Is.Empty);
     }
 
     [Test, Description("Founding costs movement, so a Force that has spent its whole allowance must wait for the next turn.")]
@@ -80,7 +93,7 @@ internal class SettlementFoundingRulesTests
     {
         List<string> reasons = Collect(Force(campaignMovementRemaining: 0));
 
-        Assert.That(reasons, Is.EqualTo(new[] { "Settler has no campaign movement left this turn." }));
+        Assert.That(reasons, Is.EqualTo(["Settler has no campaign movement left this turn."]));
     }
 
     [Test, Description("Movement can legitimately go negative since entering a tile costs half but spends all, and a Force in that debt has less than nothing left to spend.")]
@@ -88,7 +101,7 @@ internal class SettlementFoundingRulesTests
     {
         List<string> reasons = Collect(Force(campaignMovementRemaining: -500));
 
-        Assert.That(reasons, Is.EqualTo(new[] { "Settler has no campaign movement left this turn." }));
+        Assert.That(reasons, Is.EqualTo(["Settler has no campaign movement left this turn."]));
     }
 
     [Test, Description("A fraction of a point is still movement left, so the rule is 'any remaining' rather than 'a whole point'.")]
@@ -108,7 +121,7 @@ internal class SettlementFoundingRulesTests
     {
         List<string> reasons = Collect(Force(healthyCount: _MINIMUM_TROOPS - 1));
 
-        Assert.That(reasons, Is.EqualTo(new[] { "Settler has 24 troops, and a camp needs at least 25." }));
+        Assert.That(reasons, Is.EqualTo(["Settler has 24 troops, and a camp needs at least 25."]));
     }
 
     [Test, Description("Injured soldiers are still soldiers, so a Force at the threshold only because some of it is hurt still qualifies.")]
@@ -126,14 +139,15 @@ internal class SettlementFoundingRulesTests
             healthyCount: 1,
             campaignMovementRemaining: 0,
             tileIsWater: true,
-            tileGeographyType: CampaignMapGeographyType.Mountainous));
+            tileGeographyIsTraversable: false,
+            tileGeographyName: "Mountainous"));
 
-        Assert.That(reasons, Is.EqualTo(new[]
-        {
+        Assert.That(reasons, Is.EqualTo(
+        [
             "Settler is on water, and a camp must be founded on land.",
-            "Settler is in mountainous terrain, which cannot be settled.",
+            "Settler is in Mountainous terrain, which cannot be settled.",
             "Settler has no campaign movement left this turn.",
             "Settler has 1 troops, and a camp needs at least 25."
-        }));
+        ]));
     }
 }

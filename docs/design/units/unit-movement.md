@@ -115,9 +115,14 @@ reveals and what a step refuses can never disagree.
 
 **Impassable tiles are refused for every domain**, before any domain rule is consulted:
 
-- a geography whose movement cost is at or above `CampaignGeography.IMPASSABLE_MOVEMENT_COST` (999) — only
-  **Mountainous** today, refused as "Mountain terrain cannot be entered.";
+- a geography with `IsTraversable = false` — only **Mountainous** today, refused as "Mountain terrain cannot be entered.";
 - a biome with `IsTraversable = false` — only **Void** today.
+
+The ground and what is painted on it each answer for themselves, and either one is enough. The one rule that
+combines them is `CampaignTileImpassability`, which the per-Round territory pass reads too, so the ground a Force
+is refused is exactly the ground that seals an enclosure ring. **Movement cost does not decide this**:
+`CampaignGeography.IMPASSABLE_MOVEMENT_COST` (999) is the cost an untraversable geography carries as data, and the
+geography validator holds the two in step, but nothing reads the cost to answer the question.
 
 **Then the domain decides**, through one `IMovementDomainStrategy` per `DomainType`:
 
@@ -150,7 +155,7 @@ cost of 1 (`MovementTargetTile.MovementCost`). The seeded values:
 | Flat | 1 | | Grassland, Arid, Ice, Tundra, Woodland, Coastal, Ocean | 1 |
 | Hilly | 2 | | Desert | 1.1 |
 | Deep Water, Shallow Water | 1 | | Forest | 2 |
-| Mountainous | 999 (impassable) | | Jungle | 3 |
+| Mountainous | 999 (not traversable) | | Jungle | 3 |
 | | | | Void | 99 (not traversable) |
 
 So Flat Grassland costs 1, Flat Desert 1.1, Hilly Forest 3, and **Hilly Jungle 4** — the dearest passable tile

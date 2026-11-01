@@ -8,21 +8,15 @@ namespace AscendantEmpire.Application.Features.Maps.Biomes.Services;
 /// What the rivers on a land tile's edges add to its sustenance values.
 /// </summary>
 /// <remarks>
-/// <para>
-/// Running water feeds the foraging, the grazing and the game on its banks, and puts fish on a tile that is otherwise dry. Per river edge, whatever its width, Forage, Hunt
-/// and Fodder gain <c>+20%</c>; and each edge adds a flat amount of Fish by width - <c>+15</c> for a Medium river, <c>+30</c> for a Large one.
-/// </para>
-/// <para>
-/// The bonuses stack per edge, so a tile with one Medium and one Large river on its edges gains <c>+40%</c> Forage, Hunt and Fodder and <c>+45</c> Fish. A tile counts all
-/// four of its edges (<see cref="TileRivers"/>), not only the two its row owns, so both tiles either side of a river are paid for it.
+/// The bonuses stack per edge. 
 /// </para>
 /// <para>
 /// <b>Land only.</b> A water tile is returned unchanged: it already fishes its own biome, and a river mouth is not meant to make the sea richer.
 /// </para>
 /// <para>
-/// Applied to a Player's <i>effective</i> value, after <see cref="SustenanceValueCalculator.CalculateEffectiveValue"/> has folded in their own modifiers, so the percentage
-/// compounds with those rather than summing into their total the way two Player modifiers do. It is also applied to a biome's regeneration base, so a riverbank regrows the
-/// fish it just gave up.
+/// Applied to a Player's <i>effective</i> value, after <see cref="SustenanceValueCalculator.CalculateEffectiveValue"/> has folded in their own modifiers, 
+/// so the percentage compounds with those rather than summing into their total the way two Player modifiers do. 
+/// It is also applied to a biome's regeneration base, so a riverbank regrows the fish it just gave up.
 /// </para>
 /// </remarks>
 internal static class RiverSustenanceBonus
@@ -58,7 +52,6 @@ internal static class RiverSustenanceBonus
     /// <param name="value">The value to adjust - a Player's effective value, or a biome's regeneration base. <see langword="null"/> when the biome has no such resource.</param>
     /// <param name="resource">Which resource <paramref name="value"/> belongs to.</param>
     /// <param name="rivers">The tile's four edges, or <see langword="null"/> when they are not known, which is read as no rivers.</param>
-    /// <param name="isWater">Whether the tile is water, from <c>CampaignTileWater.IsWater</c>. A water tile gets no river bonus.</param>
     /// <returns>The adjusted value, or <see langword="null"/> where there is nothing to adjust and no Fish to add.</returns>
     internal static ScaledAmount? Apply(ScaledAmount? value, SustenanceResource resource, TileRivers? rivers, bool isWater)
     {
@@ -91,7 +84,6 @@ internal static class RiverSustenanceBonus
     /// <param name="rawValue">The value to adjust, scaled by <see cref="ScaledAmount.Scale"/>, or <see langword="null"/> when the biome has no such resource.</param>
     /// <param name="resource">Which resource <paramref name="rawValue"/> belongs to.</param>
     /// <param name="rivers">The tile's four edges, or <see langword="null"/> when they are not known, which is read as no rivers.</param>
-    /// <param name="isWater">Whether the tile is water, from <c>CampaignTileWater.IsWater</c>. A water tile gets no river bonus.</param>
     internal static ScaledAmount? Apply(long? rawValue, SustenanceResource resource, TileRivers? rivers, bool isWater)
     {
         return Apply(rawValue is null ? null : ScaledAmount.FromRaw(rawValue.Value), resource, rivers, isWater);

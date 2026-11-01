@@ -51,7 +51,13 @@ internal sealed record SightTerrain
 
     public required bool BiomeIsWater { get; init; }
 
+    /// <summary>Whether the Geography itself is water, from <see cref="Domain.Entities.Maps.CampaignMaps.CampaignGeography.IsWater"/>.</summary>
+    public required bool GeographyIsWater { get; init; }
+
     public required bool BiomeIsTraversable { get; init; }
+
+    /// <summary>Whether the ground itself can be entered, from <see cref="Domain.Entities.Maps.CampaignMaps.CampaignGeography.IsTraversable"/>.</summary>
+    public required bool GeographyIsTraversable { get; init; }
 
     /// <summary>
     /// The same tile in the shape the movement rules judge entry against.
@@ -68,7 +74,9 @@ internal sealed record SightTerrain
             BiomeName = BiomeName,
             BiomeMovementCost = BiomeMovementCost,
             BiomeIsWater = BiomeIsWater,
-            BiomeIsTraversable = BiomeIsTraversable
+            GeographyIsWater = GeographyIsWater,
+            BiomeIsTraversable = BiomeIsTraversable,
+            GeographyIsTraversable = GeographyIsTraversable
         };
     }
 }

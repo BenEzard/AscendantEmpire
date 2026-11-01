@@ -132,8 +132,13 @@ An export carries a `Rivers` section, one entry per tile that owns at least one 
 
 `RelativeId` is the row-major tile index, `Y * Width + X`, the same one the `Tiles` section uses. The
 section is **sparse** — a tile with no rivers is simply absent — and a map with no rivers at all has an
-empty one. This is format version **1.1**; a 1.0 document has no `Rivers` section and imports as a map
-with no rivers, which is what every map written before rivers existed was.
+empty one. A document with no `Rivers` section at all imports as a map with no rivers.
+
+The archive format is version **1.2**, and the importer **refuses** anything older. Each `Geographies`
+entry carries `IsWater` and `IsTraversable`, and an absent flag deserialises as `false` — so importing a
+pre-1.2 archive into a database holding no geographies would create Deep Water as dry, walkable land with
+nothing to say so. The refusal happens before any row is written and names the version found. Re-export
+the map from a current build.
 
 An import runs the same authoring rules as the editor and **fails** on a document whose rivers break
 them, before any tile is written. Whether a biome counts as water is read from the importing database,

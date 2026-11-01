@@ -106,11 +106,11 @@ internal class GetTileSupportLevelsHandlerTests : InMemoryTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.HasSucceeded, Is.True, string.Join("; ", result.Errors));
-            Assert.That(result.SuccessValue!.Tiles, Is.EqualTo(new[]
-            {
+            Assert.That(result.SuccessValue!.Tiles, Is.EqualTo(
+            [
                 new TileSupportLevelEntry { X = _FORCE_X, Y = _Y, SupportLevel = TileSupportLevel.OneTurn, Turns = 1 },
                 new TileSupportLevelEntry { X = _FORCE_X + 1, Y = _Y, SupportLevel = TileSupportLevel.Exhausted, Turns = 0 }
-            }));
+            ]));
         }
     }
 
@@ -252,7 +252,9 @@ internal class GetTileSupportLevelsHandlerTests : InMemoryTestBase
             BiomeName = "Grassland",
             BiomeMovementCost = 1m,
             BiomeIsWater = false,
-            BiomeIsTraversable = true
+            GeographyIsWater = false,
+            BiomeIsTraversable = true,
+            GeographyIsTraversable = true
         };
     }
 }

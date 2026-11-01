@@ -22,6 +22,16 @@ public interface IAddOrUpdateCampaignMapGeographyDto
     decimal MovementCost { get; }
 
     /// <summary>
+    /// Whether this Geography is water, e.g. Deep Water or Shallow Water.
+    /// </summary>
+    bool IsWater { get; }
+
+    /// <summary>
+    /// Whether anything can enter this Geography at all. False for Mountainous.
+    /// </summary>
+    bool IsTraversable { get; }
+
+    /// <summary>
     /// Icon used in the MapEditor to show the Geography.
     /// </summary>
     string? MapEditorIcon { get; }

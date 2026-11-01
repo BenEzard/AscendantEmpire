@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 using AscendantEmpire.Application.BackgroundServices;
 using AscendantEmpire.Application.Data;
@@ -58,8 +59,11 @@ internal sealed class MapImportExecutorTests : SqlServerTestBase
         await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
 
         Processing persisted = await verify.Processing.AsNoTracking().SingleAsync(p => p.ProcessingId == processingId);
-        Assert.That(persisted.Status, Is.EqualTo(ProcessingStatus.Complete));
-        Assert.That(persisted.ResultReference, Is.Not.Null.And.Not.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(persisted.Status, Is.EqualTo(ProcessingStatus.Complete));
+            Assert.That(persisted.ResultReference, Is.Not.Null.And.Not.Empty);
+        }
 
         int newIndexId = int.Parse(persisted.ResultReference!);
         Assert.That(newIndexId, Is.Not.EqualTo(sourceIndexId), "Import should create a brand-new index.");
@@ -86,7 +90,7 @@ internal sealed class MapImportExecutorTests : SqlServerTestBase
             Assert.That(tiles, Has.Count.EqualTo(4));
             // Coordinates are reconstructed from each tile's row-major RelativeId.
             Assert.That(tiles.Select(t => (t.XCoord, t.YCoord)),
-                Is.EqualTo(new[] { (0, 0), (1, 0), (0, 1), (1, 1) }));
+                Is.EqualTo([(0, 0), (1, 0), (0, 1), (1, 1)]));
             // Each tile gets a distinct, globally-unique CampaignMapGalleryId.
             Assert.That(tiles.Select(t => t.CampaignMapGalleryId).Distinct().Count(), Is.EqualTo(4));
             Assert.That(newIndex.CampaignMapOffsetId, Is.EqualTo(tiles.Min(t => t.CampaignMapGalleryId)));
@@ -98,11 +102,11 @@ internal sealed class MapImportExecutorTests : SqlServerTestBase
             .ToListAsync();
 
         Assert.That(starts.Select(s => (s.XCoord, s.YCoord, s.DisplayName, s.LocationScore)),
-            Is.EqualTo(new[]
-            {
+            Is.EqualTo(
+            [
                 (0, 0, "North", 30 as int?),
                 (1, 1, "South", 10 as int?)
-            }));
+            ]));
 
         // A preview-render job should have been enqueued for the new map.
         bool renderQueued = await verify.Processing.AsNoTracking()
@@ -171,6 +175,8 @@ internal sealed class MapImportExecutorTests : SqlServerTestBase
                 Name = "Existing Flat",
                 RelativeElevation = 0,
                 MovementCost = 1.0m,
+                IsWater = false,
+                IsTraversable = true,
                 MapEditorIcon = null,
                 IsPaintableOnCampaignMap = true
             });
@@ -197,6 +203,74 @@ internal sealed class MapImportExecutorTests : SqlServerTestBase
         {
             Assert.That(biome.Name, Is.EqualTo("Existing Grassland"));
             Assert.That(biome.BaseForageValue, Is.EqualTo(99_000), "Existing biome value must not be overwritten by import.");
+        }
+    }
+
+    [Test, Description("Pins that an archive written before the terrain flags existed is refused, because importing it into an empty database would create DeepWater as land with no error.")]
+    public async Task ShouldFailTheImportWhenTheArchivePredatesTheTerrainFlagsAsync()
+    {
+        // A 1.1 document is structurally valid and would deserialise cleanly - its Geographies simply have no flags on them, so every one would
+        // silently arrive as land you can walk on. That is the case the version gate exists to catch.
+        MapExportDocument document = BuildDocument(baseForageWholeValue: 50);
+
+        JsonObject json = JsonSerializer.SerializeToNode(document)!.AsObject();
+        json[nameof(MapExportDocument.FormatVersion)] = "1.1";
+
+        string zipPath = Path.Combine(_tempDirectory, "pre-flags.zip");
+        await WriteZipAsync(json.ToJsonString(), zipPath);
+        int processingId = await SeedImportProcessingAsync(zipPath);
+
+        await RunImportAsync(processingId);
+
+        await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
+
+        Processing persisted = await verify.Processing.AsNoTracking().SingleAsync(p => p.ProcessingId == processingId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(persisted.Status, Is.EqualTo(ProcessingStatus.Failed));
+            Assert.That(persisted.ErrorMessage, Does.Contain("1.1"), "The message has to name the version found, or the author cannot tell which archive to re-export.");
+            Assert.That(await verify.CampaignGeographies.AsNoTracking().AnyAsync(), Is.False, "The gate runs before any row is written, so a refused archive leaves nothing behind.");
+        }
+    }
+
+    [Test, Description("Pins that the terrain flags survive an export and re-import, so a map moved between databases keeps the geography it was authored against.")]
+    public async Task ShouldRoundTripTheTerrainFlagsAsync()
+    {
+        int sourceIndexId = await SeedTerrainFlagMapAsync();
+        string zipPath = await ExportToZipAsync(sourceIndexId);
+
+        // Import inserts a Geography only where one is missing, so the flags are only read back from a database holding none. Clearing the catalogue - and the
+        // map standing on it - is what makes this a round trip between two databases rather than a no-op against rows that are already right.
+        await using (AscendantEmpireContext clear = await DbFactory.CreateDbContextAsync())
+        {
+            await clear.CampaignMapGallery.Where(t => t.CampaignMapGalleryIndexId == sourceIndexId).ExecuteDeleteAsync();
+            await clear.CampaignMapStartPositions.Where(s => s.CampaignMapGalleryIndexId == sourceIndexId).ExecuteDeleteAsync();
+            await clear.CampaignMapGalleryIndex.Where(i => i.Id == sourceIndexId).ExecuteDeleteAsync();
+            await clear.CampaignGeographies.ExecuteDeleteAsync();
+        }
+
+        int processingId = await SeedImportProcessingAsync(zipPath);
+
+        await RunImportAsync(processingId);
+
+        await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
+
+        Processing persisted = await verify.Processing.AsNoTracking().SingleAsync(p => p.ProcessingId == processingId);
+        Assert.That(persisted.Status, Is.EqualTo(ProcessingStatus.Complete), persisted.ErrorMessage);
+
+        CampaignGeography water = await verify.CampaignGeographies.AsNoTracking()
+            .SingleAsync(g => g.CampaignMapGeographyTypeId == CampaignMapGeographyType.DeepWater);
+
+        CampaignGeography mountain = await verify.CampaignGeographies.AsNoTracking()
+            .SingleAsync(g => g.CampaignMapGeographyTypeId == CampaignMapGeographyType.Mountainous);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(water.IsWater, Is.True);
+            Assert.That(water.IsTraversable, Is.True);
+            Assert.That(mountain.IsWater, Is.False);
+            Assert.That(mountain.IsTraversable, Is.False);
         }
     }
 
@@ -282,6 +356,8 @@ internal sealed class MapImportExecutorTests : SqlServerTestBase
             Name = "Flat",
             RelativeElevation = 0,
             MovementCost = 1.0m,
+            IsWater = false,
+            IsTraversable = true,
             MapEditorIcon = null,
             IsPaintableOnCampaignMap = true
         });
@@ -352,6 +428,110 @@ internal sealed class MapImportExecutorTests : SqlServerTestBase
         return index.Id;
     }
 
+    /// <summary>
+    /// Seeds a 1x2 source map painted DeepWater and Mountainous, the two Geographies whose terrain flags differ from the defaults.
+    /// </summary>
+    /// <remarks>
+    /// Separate from <see cref="SeedSourceMapAsync"/>, which is Flat Grassland throughout and is what the other fixtures assert tile counts and ids against.
+    /// The export carries only the Geographies its tiles use, so pinning the flags needs a map that actually paints them.
+    /// </remarks>
+    private async Task<int> SeedTerrainFlagMapAsync()
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        context.CampaignBiomes.Add(new CampaignBiome
+        {
+            BiomeTypeId = BiomeType.Grassland,
+            Name = "Grassland",
+            MapEditorHtmlColor = "#90ee90",
+            MovementCost = 1.0m,
+            IsTraversable = true,
+            RegenerationPercent = 0.1m,
+            IsPaintableOnCampaignMap = true,
+            CanBeElevated = true,
+            BaseForageValue = 50_000
+        });
+
+        context.CampaignGeographies.AddRange(
+            new CampaignGeography
+            {
+                CampaignMapGeographyTypeId = CampaignMapGeographyType.DeepWater,
+                Name = "Deep Water",
+                RelativeElevation = -2,
+                MovementCost = 1.0m,
+                IsWater = true,
+                IsTraversable = true,
+                MapEditorIcon = null,
+                IsPaintableOnCampaignMap = true
+            },
+            new CampaignGeography
+            {
+                CampaignMapGeographyTypeId = CampaignMapGeographyType.Mountainous,
+                Name = "Mountainous",
+                RelativeElevation = 2,
+                MovementCost = CampaignGeography.IMPASSABLE_MOVEMENT_COST,
+                IsWater = false,
+                IsTraversable = false,
+                MapEditorIcon = null,
+                IsPaintableOnCampaignMap = true
+            });
+
+        await context.SaveChangesAsync();
+
+        CampaignMapGalleryIndex index = new()
+        {
+            MapName = "Terrain Flag Source",
+            Description = "Source map for the terrain flag round trip",
+            Width = 2,
+            Height = 1,
+            CreationStatus = MapCreationStatus.Complete,
+            ProgressPercent = 100,
+            CreationEngine = MapCreationEngine.BlankMap,
+            Status = "Complete",
+            PropertiesJson = "{}",
+            CampaignMapOffsetId = 2,
+            HorizontalWrap = false,
+            VerticalWrap = false
+        };
+
+        context.CampaignMapGalleryIndex.Add(index);
+        await context.SaveChangesAsync();
+
+        CampaignBiome grassland = await context.CampaignBiomes.SingleAsync(b => b.BiomeTypeId == BiomeType.Grassland);
+        CampaignGeography deepWater = await context.CampaignGeographies.SingleAsync(g => g.CampaignMapGeographyTypeId == CampaignMapGeographyType.DeepWater);
+        CampaignGeography mountainous = await context.CampaignGeographies.SingleAsync(g => g.CampaignMapGeographyTypeId == CampaignMapGeographyType.Mountainous);
+
+        context.CampaignMapGallery.AddRange(
+            new CampaignMapGallery
+            {
+                // The key is assigned by hand, as the other seeder does: the column is not an identity, so two rows left at zero collide in the tracker.
+                CampaignMapGalleryId = 1,
+                CampaignMapGalleryIndexId = index.Id,
+                XCoord = 0,
+                YCoord = 0,
+                BiomeTypeId = BiomeType.Grassland,
+                CampaignMapGeographyTypeId = CampaignMapGeographyType.DeepWater,
+                Biome = grassland,
+                Geography = deepWater,
+                Index = index
+            },
+            new CampaignMapGallery
+            {
+                CampaignMapGalleryId = 2,
+                CampaignMapGalleryIndexId = index.Id,
+                XCoord = 1,
+                YCoord = 0,
+                BiomeTypeId = BiomeType.Grassland,
+                CampaignMapGeographyTypeId = CampaignMapGeographyType.Mountainous,
+                Biome = grassland,
+                Geography = mountainous,
+                Index = index
+            });
+
+        await context.SaveChangesAsync();
+        return index.Id;
+    }
+
     /// <summary>Builds a portable 2x2 export document referencing a single Grassland/Flat tile palette.</summary>
     private static MapExportDocument BuildDocument(int baseForageWholeValue)
     {
@@ -401,6 +581,8 @@ internal sealed class MapImportExecutorTests : SqlServerTestBase
                     Name = "Flat",
                     RelativeElevation = 0,
                     MovementCost = 1.0m,
+                    IsWater = false,
+                    IsTraversable = true,
                     MapEditorIcon = null,
                     IsPaintableOnCampaignMap = true
                 }
@@ -412,8 +594,12 @@ internal sealed class MapImportExecutorTests : SqlServerTestBase
     /// <summary>Writes the given document as <c>export.json</c> inside a zip at <paramref name="path"/>.</summary>
     private static async Task WriteExportZipAsync(MapExportDocument document, string path)
     {
-        string json = JsonSerializer.Serialize(document);
+        await WriteZipAsync(JsonSerializer.Serialize(document), path);
+    }
 
+    /// <summary>Writes raw <c>export.json</c> text into a zip, for a document a test has edited past the serialiser.</summary>
+    private static async Task WriteZipAsync(string json, string path)
+    {
         await using FileStream fileStream = new(path, FileMode.Create, FileAccess.Write, FileShare.None);
         using ZipArchive archive = new(fileStream, ZipArchiveMode.Create, leaveOpen: false);
 

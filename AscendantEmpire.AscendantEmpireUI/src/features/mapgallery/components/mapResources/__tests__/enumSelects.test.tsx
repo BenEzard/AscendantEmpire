@@ -17,15 +17,20 @@ import MapResourceGeneralSection from "../MapResourceGeneralSection";
 import MapResourceHabitatsSection from "../MapResourceHabitatsSection";
 import MapResourceScenariosSection from "../MapResourceScenariosSection";
 
-/** Two paintable Biomes whose names sort Arid-then-Forest, so Arid is the first option exactly as it is in the real catalogue. */
+/**
+ * Two paintable Biomes whose names sort Arid-then-Forest, so Arid is the first option exactly as it is in the real catalogue.
+ *
+ * Both are land, as are the Geographies below, because the types in this file are land types: the Habitats page narrows both lists
+ * by water-ness, so a Biome with no isWater at all would be filtered out and leave the selects empty.
+ */
 const BIOMES = [
-  { biomeType: "Arid", name: "Arid", isPaintableOnCampaignMap: true } as Biome,
-  { biomeType: "Forest", name: "Forest", isPaintableOnCampaignMap: true } as Biome,
+  { biomeType: "Arid", name: "Arid", isWater: false, isPaintableOnCampaignMap: true } as Biome,
+  { biomeType: "Forest", name: "Forest", isWater: false, isPaintableOnCampaignMap: true } as Biome,
 ];
 
 const GEOGRAPHIES = [
-  { campaignMapGeographyType: "Flat", name: "Flat", relativeElevation: 0, isPaintableOnCampaignMap: true } as Geography,
-  { campaignMapGeographyType: "Hilly", name: "Hilly", relativeElevation: 1, isPaintableOnCampaignMap: true } as Geography,
+  { campaignMapGeographyType: "Flat", name: "Flat", relativeElevation: 0, isWater: false, isPaintableOnCampaignMap: true } as Geography,
+  { campaignMapGeographyType: "Hilly", name: "Hilly", relativeElevation: 1, isWater: false, isPaintableOnCampaignMap: true } as Geography,
 ];
 
 const ASSETS: AssetSummary[] = [{ id: 1, code: "wood", displayName: "Wood", metaCategoryDisplayName: "Material", isNaturallyOccurring: true }];

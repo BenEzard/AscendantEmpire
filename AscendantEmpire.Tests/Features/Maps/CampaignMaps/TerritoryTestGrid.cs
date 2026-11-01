@@ -10,8 +10,8 @@ namespace AscendantEmpire.Tests.Features.Maps.CampaignMaps;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The sibling of <see cref="SightTerrainGrid"/>, and the terrain facts mirror the seed data in the same way: Ocean is water and traversable, Mountainous carries the
-/// impassable movement cost, and the Void is not traversable. So a rule that passes against this grid is describing terrain that exists.
+/// The sibling of <see cref="SightTerrainGrid"/>, and the terrain facts mirror the seed data in the same way: Ocean is water and traversable, Mountainous is
+/// untraversable ground, and the Void is an untraversable biome. So a rule that passes against this grid is describing terrain that exists.
 /// </para>
 /// <para>
 /// Rivers are set by the edge a test is thinking of - including North and West, which are translated onto the neighbour that actually owns them - so a fixture never has
@@ -60,7 +60,7 @@ internal sealed class TerritoryTestGrid
     /// <summary>Makes one tile a mountain - ownable, but impassable, so it seals a ring and carries no supply hop.</summary>
     internal TerritoryTestGrid Mountain(int x, int y)
     {
-        _tiles[(x, y)] = _tiles[(x, y)] with { GeographyMovementCost = _IMPASSABLE_COST };
+        _tiles[(x, y)] = _tiles[(x, y)] with { GeographyIsTraversable = false };
 
         return this;
     }
@@ -184,9 +184,6 @@ internal sealed class TerritoryTestGrid
         return TerritoryWorkingSet.From(ToMap(), playerIdsInTurnOrder);
     }
 
-    /// <summary>The movement cost the seed data gives Mountainous, which is the convention for "you cannot walk here".</summary>
-    private const decimal _IMPASSABLE_COST = 999m;
-
     private static bool IsTraversable(BiomeType biomeType)
     {
         // The Void is the absence of terrain rather than a kind of it, and is the only biome the seed data marks untraversable.
@@ -204,7 +201,7 @@ internal sealed class TerritoryTestGrid
             HasClaims = false,
             BiomeTypeId = biomeType,
             BiomeIsTraversable = IsTraversable(biomeType),
-            GeographyMovementCost = geographyType == CampaignMapGeographyType.Mountainous ? _IMPASSABLE_COST : 1m,
+            GeographyIsTraversable = geographyType != CampaignMapGeographyType.Mountainous,
             Rivers = new TileRiverEdges(RiverWidth.None, RiverWidth.None)
         };
     }

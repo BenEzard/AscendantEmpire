@@ -173,6 +173,8 @@ internal sealed class MapExportExecutor(
                 Name = g.Name,
                 RelativeElevation = g.RelativeElevation,
                 MovementCost = g.MovementCost,
+                IsWater = g.IsWater,
+                IsTraversable = g.IsTraversable,
                 MapEditorIcon = g.MapEditorIcon,
                 IsPaintableOnCampaignMap = g.IsPaintableOnCampaignMap
             })];

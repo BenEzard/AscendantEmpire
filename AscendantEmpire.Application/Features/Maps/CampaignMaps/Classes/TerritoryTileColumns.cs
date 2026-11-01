@@ -31,7 +31,7 @@ internal sealed record TerritoryTileColumns
 
     public required bool BiomeIsTraversable { get; init; }
 
-    public required decimal GeographyMovementCost { get; init; }
+    public required bool GeographyIsTraversable { get; init; }
 
     public required RiverWidth SouthRiver { get; init; }
 

@@ -33,6 +33,16 @@ behave. Its kinds are set by flags:
 
 - `Renewable` and `Stratified` are **mutually exclusive**, enforced by the MapResourceType validator.
 - A `Distribution` must also be `Renewable`, and must not spread (no `SpreadLikelihood`).
+- **Water or land.** A separate flag, `IsWaterResource`, says where the type lives. It is not a kind: it
+  says nothing about how instances grow or are held, only which habitats may be authored. A water type's
+  habitats may name only water Biomes and water Geographies, and a land type's only land ones. A habitat
+  that names **no Geography** is allowed either way, since Any is a legitimate habitat. The Type Manager's
+  Habitats page narrows both of its lists by the flag, and `PutMapResourceCatalogueHandler` enforces the
+  same rule on both the Biomes and the Geographies a habitat names — which of them are water is catalogue
+  state the validator cannot see.
+- The rule constrains what a habitat may **name**, not where an instance may **land**. A tile is water when
+  *either* of its axes is water, so a water Geography painted inside a land Biome is a water tile that a land
+  type's Any-Geography habitat still covers. See [Outstanding decisions](#outstanding-decisions).
 - **Icon.** Most MapResourceTypes show an icon on the tile. Some, such as a Distribution of wood in a
   forest, have none: the biome already says "forest".
 - **Yield.** Every MapResourceType gives up **one or more Assets**. It lists the Assets, and
@@ -436,6 +446,7 @@ The six Assets it draws on are `assets.Asset` rows the Asset catalogue already h
 | IsRenewable | 1 |
 | IsDistribution | 1 |
 | IsStratified | 0 |
+| IsWaterResource | 0 — timber grows on land, so its habitats name land Biomes and Geographies |
 | ExtractionMethod | Fell |
 | CaptureLikelihood | `NULL` |
 | RequiresResearchToExtract | 0 |
@@ -598,4 +609,5 @@ has nothing to improve. No research item is generated for a type found on sight.
 | Nothing checks that a scenario pinned on a gallery placement is weighted in that tile's Biome, so a bamboo scenario can be pinned onto a Forest tile. Habitat compatibility is checked per type, which cannot see it. | `UpdateGalleryMapResourceHandler` |
 | A Distribution instance's total is not stored. `MapResourceInstance.Quantity` is null and the total is summed from `MapResourceInstanceAmount` wherever it is needed, including growth. | [Instances](#instances) |
 | Importing a map creates its tiles but none of the placements their Biomes imply, so an imported Forest map starts with no Timber until a tile is repainted. Generation and the editor's Biome brush both pre-assign it; import has no equivalent pass, and the export document carries no placements to restore either. | `MapImportExecutor` |
+| A habitat naming no Geography can still land on a tile of the wrong water-ness. A tile is water when either its Biome or its Geography is, so a land type whose habitat names a land Biome and Any Geography covers a water Geography painted inside that Biome. The catalogue rule cannot close it: the habitat names nothing wrong. It belongs where an instance is placed, which is also where the Biome-implied placement rules already read the tile. | `BiomeImpliedResourceRules` |
 | Only Timber is seeded. The seed's **Map Resources** target writes every resource registered in `MapResourceTypeSeedData`, and Timber — its habitats and its 45 generated scenarios — is the only one so far; Berry, Deer, Coal Seam and the rest are still authored by hand in the MapResource Type Manager. Adding one is a seed-data file plus a line of that registry. | `MapResourceTypeSeedData` |

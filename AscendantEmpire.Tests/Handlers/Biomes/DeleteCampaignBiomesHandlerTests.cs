@@ -51,7 +51,7 @@ internal class DeleteCampaignBiomesHandlerTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(deleteResult.HasSucceeded, Is.True, "Biome deletion failed, when it should have succeeded.");
-            Assert.That(_context.CampaignBiomes.Count(), Is.EqualTo(0), "No biomes were deleted to the context, when they should be.");
+            Assert.That(_context.CampaignBiomes.Count(), Is.Zero, "No biomes were deleted to the context, when they should be.");
         }
     }
 

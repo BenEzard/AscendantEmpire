@@ -133,7 +133,7 @@ internal sealed class UpdateCampaignMapTilesHandlerTests : SqlServerTestBase
             Assert.That(refused, Has.Length.EqualTo(2), "Both mountainous tiles should be named, where they used to collapse into one.");
             Assert.That(
                 refused.Select(tile => tile.DbId),
-                Is.EquivalentTo(new[] { TileId(0, 0), TileId(1, 0) }),
+                Is.EquivalentTo([TileId(0, 0), TileId(1, 0)]),
                 "Each refusal should carry the tile's own id, not the map's.");
             Assert.That(refused.Select(tile => tile.Coord.Y), Is.All.Zero, "Both refused tiles are on row 0.");
         }
@@ -596,6 +596,9 @@ internal sealed class UpdateCampaignMapTilesHandlerTests : SqlServerTestBase
             Name = geography.ToString(),
             RelativeElevation = relativeElevation,
             MovementCost = 1m,
+            // IsWater follows the type, so a caller painting water gets a water Geography rather than land wearing a water name.
+            IsWater = geography is CampaignMapGeographyType.DeepWater or CampaignMapGeographyType.ShallowWater,
+            IsTraversable = true,
             MapEditorIcon = null,
             IsPaintableOnCampaignMap = true
         };

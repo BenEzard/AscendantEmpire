@@ -3,11 +3,9 @@ namespace AscendantEmpire.Application.Features.Maps.MapGallery.Classes.Export;
 /// <summary>
 /// Root document serialised as <c>export.json</c> inside the export zip.
 /// <para>
-/// Versioning: increment <see cref="FormatVersion"/> when the schema changes in a
-/// backwards-incompatible way so that importers can handle older files gracefully.
+/// Versioning: increment <see cref="FormatVersion"/> when the schema changes in a backwards-incompatible way so that importers can handle older files gracefully.
 /// </para>
-/// New map features (terrain bonuses, location-based resources) are added as
-/// new top-level collections on this class, each referencing tile
+/// New map features (terrain bonuses, location-based resources) are added as new top-level collections on this class, each referencing tile
 /// <see cref="MapExportTile.RelativeId"/> values, as <see cref="Rivers"/> does.
 /// </summary>
 public class MapExportDocument
@@ -15,11 +13,15 @@ public class MapExportDocument
     /// <summary>
     /// Schema version of this export format.
     /// </summary>
-    /// <remarks>
-    /// 1.1 added <see cref="Rivers"/>. A 1.0 document still imports: a missing section means a map with no rivers on it, which is
-    /// exactly what every map written before they existed was.
-    /// </remarks>
-    public string FormatVersion { get; init; } = "1.1";
+    public string FormatVersion { get; init; } = CURRENT_FORMAT_VERSION;
+
+    /// <summary>The version every export written by this build carries.</summary>
+    public const string CURRENT_FORMAT_VERSION = "1.2";
+
+    /// <summary>
+    /// The oldest version the importer accepts.
+    /// </summary>
+    public const string MINIMUM_SUPPORTED_FORMAT_VERSION = "1.2";
 
     /// <summary>UTC timestamp at which the export was created.</summary>
     public DateTime ExportedAt { get; init; }

@@ -32,7 +32,9 @@ internal class MovementDomainStrategyTests
             BiomeName = "Grassland",
             BiomeMovementCost = 1m,
             BiomeIsWater = false,
-            BiomeIsTraversable = true
+            GeographyIsWater = false,
+            BiomeIsTraversable = true,
+            GeographyIsTraversable = true
         };
     }
 
@@ -48,7 +50,9 @@ internal class MovementDomainStrategyTests
             BiomeName = "Ocean",
             BiomeMovementCost = 1m,
             BiomeIsWater = true,
-            BiomeIsTraversable = true
+            GeographyIsWater = true,
+            BiomeIsTraversable = true,
+            GeographyIsTraversable = true
         };
     }
 

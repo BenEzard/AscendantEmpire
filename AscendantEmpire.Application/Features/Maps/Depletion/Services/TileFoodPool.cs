@@ -12,16 +12,7 @@ namespace AscendantEmpire.Application.Features.Maps.Depletion.Services;
 /// </summary>
 /// <remarks>
 /// <para>
-/// A land tile's pool is Forage and Hunt; a water tile's is Fish. Fodder is for animals, and nothing eats it yet. What is available of each resource is
-/// <c>MAX(0, effective − Taken)</c>, through <see cref="SustenanceValueCalculator.CalculateAvailableValue"/>.
-/// </para>
-/// <para>
-/// A land tile with a river on any of its edges offers <b>Fish as well</b>, and its Forage and Hunt are raised, both through <see cref="RiverSustenanceBonus"/>. Fish joins
-/// the pool only where there is a river, so a dry land tile behaves exactly as it always has.
-/// </para>
-/// <para>
-/// The one place the pool is built, shared by the end-of-Turn feed (<c>Gathering</c>) and the support indicator (<see cref="ITileSupportEvaluator"/>), so the colour a
-/// tile is shown in can never be worked out from a different pool than the one the Forces actually eat from.
+/// The one place the pool is built, shared by the end-of-Turn feed (<c>Gathering</c>) and the support indicator (<see cref="ITileSupportEvaluator"/>).
 /// </para>
 /// </remarks>
 internal static class TileFoodPool
@@ -44,7 +35,6 @@ internal static class TileFoodPool
     /// <summary>
     /// What is available to the Player of each resource in the tile's pool.
     /// </summary>
-    /// <param name="isWater">Whether the tile is water, from <c>CampaignTileWater.IsWater</c>.</param>
     /// <param name="values">The Player's effective sustenance values.</param>
     /// <param name="biome">The tile's biome.</param>
     /// <param name="depletion">The tile's depletion row, or <see langword="null"/> when it has never been fed on.</param>

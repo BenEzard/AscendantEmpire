@@ -17,6 +17,12 @@ public record AddOrUpdateCampaignMapGeographyDto : IAddOrUpdateCampaignMapGeogra
     public required decimal MovementCost { get; set; }
 
     /// <inheritdoc />
+    public required bool IsWater { get; set; }
+
+    /// <inheritdoc />
+    public required bool IsTraversable { get; set; }
+
+    /// <inheritdoc />
     public required string? MapEditorIcon { get; set; }
 
     /// <inheritdoc />

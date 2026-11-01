@@ -12,7 +12,7 @@ interface GeographyListDialogProps {
 /**
  * A read-only reference table of the geography catalogue, opened from the Map Editor's Geographies button. The catalogue
  * itself is authored in the Entity Setup Tool, so nothing here is editable - this exists purely so a map designer can look
- * up a geography's movement cost without leaving the editor.
+ * up what a geography costs and does without leaving the editor.
  *
  * Hand-rolls its table for the same reasons as BiomeListDialog: the shared tables are dark-themed and built around
  * activatable or add/remove rows, neither of which suits a fixed read-only grid on the modal's white panel.
@@ -39,13 +39,15 @@ export default function GeographyListDialog({ show, geographies, onClose }: Geog
               <th className="px-2 py-2 text-center">Icon</th>
               <th className="px-2 py-2">Name</th>
               <th className="px-2 py-2 text-center whitespace-nowrap">Movement Cost</th>
+              <th className="px-2 py-2 text-center">Water</th>
+              <th className="px-2 py-2 text-center">Traversable</th>
             </tr>
           </thead>
 
           <tbody>
             {orderedGeographies.length === 0 ? (
               <tr>
-                <td className="px-2 py-4 text-slate-500" colSpan={3}>
+                <td className="px-2 py-4 text-slate-500" colSpan={5}>
                   No geographies.
                 </td>
               </tr>
@@ -65,6 +67,13 @@ export default function GeographyListDialog({ show, geographies, onClose }: Geog
                     </td>
                     <td className="px-2 py-1.5">{geography.name}</td>
                     <td className="px-2 py-1.5 text-center">{geography.movementCost}</td>
+                    {/*
+                      The two flags that govern what the ground does, beside the cost that no longer answers either question: water
+                      decides which movement domains may enter and which Habitats a water resource may be authored against, and
+                      traversable decides whether anything can enter at all.
+                    */}
+                    <td className="px-2 py-1.5 text-center">{geography.isWater ? "Yes" : "No"}</td>
+                    <td className="px-2 py-1.5 text-center">{geography.isTraversable ? "Yes" : "No"}</td>
                   </tr>
                 );
               })

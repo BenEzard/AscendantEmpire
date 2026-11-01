@@ -84,7 +84,7 @@ internal class RegenerateTileSustenance(
         // by coordinate rather than by tile id.
         var tiles = await db.CampaignMaps
             .Where(t => tileIds.Contains(t.CampaignMapId))
-            .Select(t => new { t.CampaignMapId, t.XCoord, t.YCoord, t.BiomeTypeId, BiomeIsWater = t.Biome.IsWater, t.CampaignMapGeographyTypeId })
+            .Select(t => new { t.CampaignMapId, t.XCoord, t.YCoord, t.BiomeTypeId, BiomeIsWater = t.Biome.IsWater, GeographyIsWater = t.Geography.IsWater })
             .ToDictionaryAsync(t => t.CampaignMapId);
 
         // The rivers on the depleted tiles, in one call. A riverbank regrows the Fish the river put there, so the base it regrows against has to carry the river too.
@@ -125,7 +125,7 @@ internal class RegenerateTileSustenance(
             // The marker records the last Round anyone fed here, so a match means this Round.
             bool fedOn = depletion.FedOnRound == context.CurrentRoundNumber;
 
-            bool isWater = CampaignTileWater.IsWater(tile.BiomeIsWater, tile.CampaignMapGeographyTypeId);
+            bool isWater = CampaignTileTerrain.IsWater(tile.BiomeIsWater, tile.GeographyIsWater);
             TileRivers? rivers = riversByCoord?.GetValueOrDefault(new Coord(tile.XCoord, tile.YCoord));
 
             foreach (SustenanceResource resource in _SUSTENANCE_RESOURCES)

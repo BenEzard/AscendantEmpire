@@ -72,7 +72,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
             Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Created), "Should report Created.");
             Assert.That(result.SuccessValue, Is.Not.Null);
             Assert.That(result.SuccessValue!.AddedCount, Is.EqualTo(3), "All three components are new.");
-            Assert.That(result.SuccessValue.UpdatedCount, Is.EqualTo(0), "Nothing should be updated.");
+            Assert.That(result.SuccessValue.UpdatedCount, Is.Zero, "Nothing should be updated.");
 
             // --- Body extension shares the parent PK; slots (now on the component) + rules ---
             Assert.That(body.Body, Is.Not.Null);
@@ -163,9 +163,9 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
         {
             // --- Result summary: everything updated, nothing added; 200 because existing rows were touched. ---
             Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Success), "Should report 200 when existing rows are updated.");
-            Assert.That(result.SuccessValue!.AddedCount, Is.EqualTo(0), "Nothing new on the second run.");
+            Assert.That(result.SuccessValue!.AddedCount, Is.Zero, "Nothing new on the second run.");
             Assert.That(result.SuccessValue.UpdatedCount, Is.EqualTo(3), "All three are updated.");
-            Assert.That(result.SuccessValue.UpdatedCodes, Is.EquivalentTo(new[] { BODY_CODE, WEAPON_CODE, ARMOUR_CODE }));
+            Assert.That(result.SuccessValue.UpdatedCodes, Is.EquivalentTo([BODY_CODE, WEAPON_CODE, ARMOUR_CODE]));
 
             // --- No duplicate rows written. ---
             Assert.That(componentCount, Is.EqualTo(3), "No duplicate components written.");

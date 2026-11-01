@@ -179,7 +179,7 @@ internal class GetTileSustenanceHandlerTests : InMemoryTestBase
 
         ServiceResult<TileSustenance> result = await HandleAsync(_SEEN_X, _SEEN_Y);
 
-        Assert.That(result.SuccessValue!.Hunt, Is.EqualTo(0m));
+        Assert.That(result.SuccessValue!.Hunt, Is.Zero);
     }
 
     [Test, Description("Depletion is read for the tile asked about only, so another tile having been fed on changes nothing here.")]
@@ -391,7 +391,9 @@ internal class GetTileSustenanceHandlerTests : InMemoryTestBase
             BiomeName = biome.ToString(),
             BiomeMovementCost = 1m,
             BiomeIsWater = false,
-            BiomeIsTraversable = true
+            GeographyIsWater = false,
+            BiomeIsTraversable = true,
+            GeographyIsTraversable = true
         };
     }
 }

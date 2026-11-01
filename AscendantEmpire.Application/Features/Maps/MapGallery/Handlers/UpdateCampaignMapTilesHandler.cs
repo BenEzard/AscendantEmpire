@@ -2,6 +2,7 @@
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.Biomes.Handlers;
+using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Maps.Geographies.Handlers;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Classes;
 using AscendantEmpire.Application.Features.Maps.MapResources.Classes;
@@ -533,7 +534,7 @@ internal class UpdateCampaignMapTilesHandler(
         if (mutatedGeographyType is not null)
         {
             CampaignMapGeography requestGeography = loaded.Geographies.First(g => g.CampaignMapGeographyType == mutatedGeographyType);
-            if (requestGeography.MovementCost >= CampaignGeography.IMPASSABLE_MOVEMENT_COST)
+            if (CampaignTileTerrain.GeographyIsImpassable(requestGeography.IsTraversable))
             {
                 reasons.Add($"Geography '{requestGeography.Name}' is impassable and cannot hold a start position");
             }

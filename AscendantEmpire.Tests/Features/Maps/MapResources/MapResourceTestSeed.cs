@@ -235,7 +235,10 @@ internal static class MapResourceTestSeed
     {
         if (await context.CampaignBiomes.AnyAsync(b => b.BiomeTypeId == biome) == false)
         {
-            context.CampaignBiomes.Add(new CampaignBiome { BiomeTypeId = biome, Name = biome.ToString(), MovementCost = 1m, IsTraversable = true, MapEditorHtmlColor = "#228b22" });
+            // IsWater follows the type, as it does in EnsureGeographyAsync, so a caller seeding a water habitat gets a water Biome - which the habitat rules read.
+            bool isWater = biome is BiomeType.Ocean or BiomeType.Coastal;
+
+            context.CampaignBiomes.Add(new CampaignBiome { BiomeTypeId = biome, Name = biome.ToString(), MovementCost = 1m, IsWater = isWater, IsTraversable = true, MapEditorHtmlColor = "#228b22" });
             await context.SaveChangesAsync();
         }
     }
@@ -247,7 +250,10 @@ internal static class MapResourceTestSeed
     {
         if (await context.CampaignGeographies.AnyAsync(g => g.CampaignMapGeographyTypeId == geography) == false)
         {
-            context.CampaignGeographies.Add(new CampaignGeography { CampaignMapGeographyTypeId = geography, Name = geography.ToString(), MovementCost = 1m, MapEditorIcon = null, IsPaintableOnCampaignMap = true });
+            // IsWater follows the type so a caller seeding a water habitat gets a water Geography, which the habitat rules read.
+            bool isWater = geography is CampaignMapGeographyType.DeepWater or CampaignMapGeographyType.ShallowWater;
+
+            context.CampaignGeographies.Add(new CampaignGeography { CampaignMapGeographyTypeId = geography, Name = geography.ToString(), MovementCost = 1m, IsWater = isWater, IsTraversable = true, MapEditorIcon = null, IsPaintableOnCampaignMap = true });
             await context.SaveChangesAsync();
         }
     }

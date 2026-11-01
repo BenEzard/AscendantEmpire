@@ -3,7 +3,6 @@ using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Games;
-using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Structures;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums;
@@ -37,7 +36,9 @@ internal class SightDataReader : ISightDataReader
         BiomeName = tile.Biome.Name,
         BiomeMovementCost = tile.Biome.MovementCost,
         BiomeIsWater = tile.Biome.IsWater,
-        BiomeIsTraversable = tile.Biome.IsTraversable
+        GeographyIsWater = tile.Geography.IsWater,
+        BiomeIsTraversable = tile.Biome.IsTraversable,
+        GeographyIsTraversable = tile.Geography.IsTraversable
     };
 
     /// <summary>
@@ -207,7 +208,7 @@ internal class SightDataReader : ISightDataReader
         // High ground adds its elevation to an Observer's range. Only Geographies a Force can enter count: nothing stands on a Mountain to take the bonus.
         int? maxEnterableElevation = await context.CampaignGeographies
             .AsNoTracking()
-            .Where(geography => geography.MovementCost < CampaignGeography.IMPASSABLE_MOVEMENT_COST)
+            .Where(geography => geography.IsTraversable)
             .Select(geography => (int?)geography.RelativeElevation)
             .MaxAsync(cancelToken);
 

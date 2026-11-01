@@ -46,6 +46,27 @@ function columnHintsFor(kind: MapResourceKind): string {
 }
 
 /**
+ * The options one row's select offers: the ones the type's own water-ness allows, plus the row's current value when the filter excludes it.
+ *
+ * A habitat authored before "Water Resource?" was flipped still names terrain of the old kind. The filter narrows the options a row offers, never the value a
+ * row already holds, so leaving that value out makes the select report its first option while state keeps the old one - hiding from the author the very row
+ * PutMapResourceCatalogueHandler is about to refuse. Showing it, marked, keeps the row honest instead of quietly discarding what was authored.
+ */
+function withStaleValue<TValue extends number | string>(
+  options: { value: TValue; label: string }[],
+  value: TValue | null,
+  staleName: string | undefined,
+  isWaterResource: boolean,
+): { value: TValue; label: string }[] {
+  if (value == null || options.some((option) => option.value === value)) {
+    return options;
+  }
+
+  // First, not last: it is the one thing on the row that needs changing.
+  return [{ value, label: `${staleName ?? value} (${isWaterResource ? "not water" : "water"})` }, ...options];
+}
+
+/**
  * Where the type can exist, and its values there, per Biome and optionally one Geography. No habitat means the type can never exist on, or spread
  * onto, that tile. A Geography-specific habitat wins over the Biome-wide one.
  *
@@ -59,17 +80,24 @@ export default function MapResourceHabitatsSection({ type, biomes, geographies, 
   const update = (index: number, patch: Partial<MapResourceHabitat>) =>
     setHabitats(type.habitats.map((row, i) => (i === index ? { ...row, ...patch } : row)));
 
-  const paintableBiomes = biomes.filter((b) => b.isPaintableOnCampaignMap).sort((a, b) => a.name.localeCompare(b.name));
+  // A water type can only live in water and a land type only on land, so both lists are narrowed by the type's own water-ness as well as by
+  // what a map designer may paint. The server applies the same rule to both axes a habitat names, since which terrain is water is its data.
+  const paintableBiomes = biomes
+    .filter((b) => b.isPaintableOnCampaignMap && b.isWater === type.isWaterResource)
+    .sort((a, b) => a.name.localeCompare(b.name));
   const biomeOptions = paintableBiomes.map((b) => ({ value: b.biomeType, label: b.name }));
   const geographyOptions = [
+    // Any survives the filter for either kind, because a habitat naming no Geography is legitimate. It is not a guarantee about the tile: a tile is water
+    // when either axis is water, so a water Geography painted inside a land Biome still falls under a land type's Any habitat.
     { value: ANY_GEOGRAPHY, label: "Any" },
     ...geographies
-      .filter((g) => g.isPaintableOnCampaignMap)
+      .filter((g) => g.isPaintableOnCampaignMap && g.isWater === type.isWaterResource)
       .sort((a, b) => a.relativeElevation - b.relativeElevation)
       .map((g) => ({ value: g.campaignMapGeographyType, label: g.name })),
   ];
 
   // New rows take the first Biome with no Biome-wide habitat yet; a Geography-specific one can then be added by changing its Geography.
+  // Off the filtered list, or a water type's new row would start on a land Biome its own select cannot even show.
   const biomeWide = new Set(type.habitats.filter((h) => h.geographyType == null).map((h) => h.biomeType));
   const nextBiome = paintableBiomes.find((b) => biomeWide.has(b.biomeType) === false)?.biomeType ?? paintableBiomes[0]?.biomeType;
 
@@ -80,7 +108,7 @@ export default function MapResourceHabitatsSection({ type, biomes, geographies, 
         <CompactSelect
           ariaLabel="Biome"
           value={row.biomeType}
-          options={biomeOptions}
+          options={withStaleValue(biomeOptions, row.biomeType, biomes.find((b) => b.biomeType === row.biomeType)?.name, type.isWaterResource)}
           // Cast, not Number(): a BiomeType is an enum name, so the <select>'s string value already is one. Coercing it gave NaN, which matched
           // no option, so the select silently snapped back to the first Biome and the choice never stuck.
           onChange={(value) => update(index, { biomeType: value as BiomeType })}
@@ -93,7 +121,12 @@ export default function MapResourceHabitatsSection({ type, biomes, geographies, 
         <CompactSelect
           ariaLabel="Geography"
           value={row.geographyType ?? ANY_GEOGRAPHY}
-          options={geographyOptions}
+          options={withStaleValue(
+            geographyOptions,
+            row.geographyType,
+            geographies.find((g) => g.campaignMapGeographyType === row.geographyType)?.name,
+            type.isWaterResource,
+          )}
           onChange={(value) => update(index, { geographyType: value === ANY_GEOGRAPHY ? null : (value as CampaignMapGeographyType) })}
         />
       ),

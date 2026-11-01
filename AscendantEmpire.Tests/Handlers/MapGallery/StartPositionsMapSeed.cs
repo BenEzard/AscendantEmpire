@@ -59,6 +59,8 @@ internal static class StartPositionsMapSeed
                 Name = "Flat",
                 RelativeElevation = 0,
                 MovementCost = 1.0m,
+                IsWater = false,
+                IsTraversable = true,
                 MapEditorIcon = null,
                 IsPaintableOnCampaignMap = true
             },
@@ -69,6 +71,8 @@ internal static class StartPositionsMapSeed
                 Name = "Mountainous",
                 RelativeElevation = 2,
                 MovementCost = 999m,
+                IsWater = false,
+                IsTraversable = false,
                 MapEditorIcon = "Mountain",
                 IsPaintableOnCampaignMap = true
             });

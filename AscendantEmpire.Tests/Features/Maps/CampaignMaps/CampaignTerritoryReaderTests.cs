@@ -79,7 +79,7 @@ internal class CampaignTerritoryReaderTests : InMemoryTestBase
             Assert.That(tile.OwnedByPlayerId, Is.EqualTo(_FIRST_PLAYER_ID));
             Assert.That(tile.BiomeTypeId, Is.EqualTo(BiomeType.Void));
             Assert.That(tile.BiomeIsTraversable, Is.False);
-            Assert.That(tile.GeographyMovementCost, Is.EqualTo(CampaignGeography.IMPASSABLE_MOVEMENT_COST));
+            Assert.That(tile.GeographyIsTraversable, Is.False);
             Assert.That(tile.Rivers.South, Is.EqualTo(RiverWidth.Large));
             Assert.That(tile.Rivers.East, Is.EqualTo(RiverWidth.Medium));
             Assert.That(tile.IsVoid, Is.True);
@@ -98,7 +98,7 @@ internal class CampaignTerritoryReaderTests : InMemoryTestBase
 
         TerritoryTile tile = (await _reader.GetTerritoryAsync(context, _GAME_ID)).Single(t => t.CampaignMapId == IdOf(2, 2));
 
-        Assert.That(tile.ClaimantPlayerIds, Is.EqualTo(new[] { _FIRST_PLAYER_ID, _SECOND_PLAYER_ID }).AsCollection);
+        Assert.That(tile.ClaimantPlayerIds, Is.EqualTo([_FIRST_PLAYER_ID, _SECOND_PLAYER_ID]).AsCollection);
     }
 
     [Test, Description("A claim row on a tile whose HasClaims flag is false is still read, because the junction is the truth and the flag is only a cache the pass repairs.")]
@@ -140,7 +140,7 @@ internal class CampaignTerritoryReaderTests : InMemoryTestBase
 
         IReadOnlyCollection<int> playerIds = await _reader.GetPlayerIdsInTurnOrderAsync(context, _GAME_ID);
 
-        Assert.That(playerIds, Is.EqualTo(new[] { _SECOND_PLAYER_ID, _FIRST_PLAYER_ID }).AsCollection, "Seeded with the second Player first in the queue.");
+        Assert.That(playerIds, Is.EqualTo([_SECOND_PLAYER_ID, _FIRST_PLAYER_ID]).AsCollection, "Seeded with the second Player first in the queue.");
     }
 
     [Test, Description("A Player who has dropped out of the lane is left out, since a pass that granted them ground would be resolving a Player who is no longer playing.")]
@@ -164,6 +164,8 @@ internal class CampaignTerritoryReaderTests : InMemoryTestBase
             CampaignMapGeographyTypeId = CampaignMapGeographyType.Flat,
             Name = "Flat",
             MovementCost = 1m,
+            IsWater = false,
+            IsTraversable = true,
             RelativeElevation = 0,
             MapEditorIcon = null,
             IsPaintableOnCampaignMap = true
@@ -174,6 +176,8 @@ internal class CampaignTerritoryReaderTests : InMemoryTestBase
             CampaignMapGeographyTypeId = CampaignMapGeographyType.Mountainous,
             Name = "Mountainous",
             MovementCost = CampaignGeography.IMPASSABLE_MOVEMENT_COST,
+            IsWater = false,
+            IsTraversable = false,
             RelativeElevation = 3,
             MapEditorIcon = null,
             IsPaintableOnCampaignMap = true

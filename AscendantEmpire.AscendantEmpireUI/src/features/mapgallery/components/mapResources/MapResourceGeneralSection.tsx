@@ -112,6 +112,14 @@ export default function MapResourceGeneralSection({ type, categories, onChange }
         </FieldRow>
       ) : null}
 
+      {/* Beside Kind rather than among the kind options: it says where the type may live, not how its instances behave. */}
+      <CheckboxRow
+        label="Water Resource?"
+        hint="(Restricts the Habitats page to water Biomes and Geographies)"
+        checked={type.isWaterResource}
+        onChange={(checked) => set("isWaterResource", checked)}
+      />
+
       <CheckboxRow
         label="Discoverable by default"
         hint="(Off for e.g. uranium, until a tech switches it on)"

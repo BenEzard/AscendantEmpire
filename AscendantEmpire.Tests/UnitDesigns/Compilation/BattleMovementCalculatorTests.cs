@@ -63,7 +63,7 @@ internal class BattleMovementCalculatorTests
     {
         long movementPoints = BattleMovementCalculator.CalculateBattlefieldMovementPoints(HUMAN_BODY_POWER, HUMAN_BODY_POWER);
 
-        Assert.That(movementPoints, Is.EqualTo(0), "Weight equal to power should leave exactly zero movement points.");
+        Assert.That(movementPoints, Is.Zero, "Weight equal to power should leave exactly zero movement points.");
     }
 
     [Test, Description("An over-loaded design is floored at zero rather than going negative.")]

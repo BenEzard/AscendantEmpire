@@ -310,7 +310,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
 
         CompiledUnitTemplate snapshot = await LoadSnapshotAsync(result.SuccessValue!.Id);
 
-        Assert.That(snapshot.CompiledOnTurn, Is.EqualTo(0), "No active campaign queue yields the 0 sentinel.");
+        Assert.That(snapshot.CompiledOnTurn, Is.Zero, "No active campaign queue yields the 0 sentinel.");
     }
 
     [Test, Description("Updating a custom template recompiles its snapshot in place — new stats, still one row, children replaced.")]
@@ -337,7 +337,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(snapshotCount, Is.EqualTo(1), "Recompile upserts in place — still one snapshot row.");
-            Assert.That(snapshot.Attack.Slash, Is.EqualTo(0), "The weapon is gone.");
+            Assert.That(snapshot.Attack.Slash, Is.Zero, "The weapon is gone.");
             Assert.That(snapshot.Resistance.Pierce, Is.EqualTo(250), "From the newly fitted armour.");
             Assert.That(snapshot.TotalWeight, Is.EqualTo(130), "Body 100 + armour 30.");
             Assert.That(snapshot.Components.Count(c => c.UnitComponentSlotId != null), Is.EqualTo(1), "Children replaced, not appended.");
@@ -373,11 +373,11 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(afterCreate.CompiledOnTurn, Is.EqualTo(0), "Global templates are stamped with the turn-0 sentinel.");
+            Assert.That(afterCreate.CompiledOnTurn, Is.Zero, "Global templates are stamped with the turn-0 sentinel.");
             Assert.That(afterCreate.Attack.Slash, Is.EqualTo(1000), "From the fitted weapon.");
-            Assert.That(afterUpdate.CompiledOnTurn, Is.EqualTo(0));
+            Assert.That(afterUpdate.CompiledOnTurn, Is.Zero);
             Assert.That(afterUpdate.Resistance.Pierce, Is.EqualTo(250), "The update's recompile reflects the swapped-in armour.");
-            Assert.That(afterUpdate.Attack.Slash, Is.EqualTo(0), "The weapon is gone.");
+            Assert.That(afterUpdate.Attack.Slash, Is.Zero, "The weapon is gone.");
         }
     }
 
@@ -450,7 +450,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
         {
             Assert.That(snapshotA.Attack.Slash, Is.EqualTo(1000), "bulk_a was imported fitting the weapon.");
             Assert.That(snapshotB.Resistance.Pierce, Is.EqualTo(250), "bulk_b was imported fitting the armour.");
-            Assert.That(snapshotAAfterReimport.Attack.Slash, Is.EqualTo(0), "The re-import removed bulk_a's weapon.");
+            Assert.That(snapshotAAfterReimport.Attack.Slash, Is.Zero, "The re-import removed bulk_a's weapon.");
             Assert.That(snapshotAAfterReimport.Resistance.Pierce, Is.EqualTo(250), "The re-import fitted bulk_a with the armour.");
         }
     }
@@ -503,7 +503,7 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
             Assert.That(playerSnapshot.Attack.Slash, Is.EqualTo(2000), "The rebalanced weapon propagated to the player template's snapshot.");
             Assert.That(globalSnapshot.Attack.Slash, Is.EqualTo(2000), "And to the global template's snapshot.");
             Assert.That(playerSnapshot.CompiledOnTurn, Is.EqualTo(9), "Player-owned templates re-stamp with their game's current round.");
-            Assert.That(globalSnapshot.CompiledOnTurn, Is.EqualTo(0), "Global templates keep the turn-0 sentinel.");
+            Assert.That(globalSnapshot.CompiledOnTurn, Is.Zero, "Global templates keep the turn-0 sentinel.");
         }
     }
 

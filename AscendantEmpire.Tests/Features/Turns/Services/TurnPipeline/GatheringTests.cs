@@ -63,8 +63,26 @@ internal class GatheringTests : InMemoryTestBase
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {
-            var flat = new CampaignGeography { CampaignMapGeographyTypeId = CampaignMapGeographyType.Flat, Name = "Flat", MovementCost = 1m, MapEditorIcon = null, IsPaintableOnCampaignMap = true };
-            var deepWater = new CampaignGeography { CampaignMapGeographyTypeId = CampaignMapGeographyType.DeepWater, Name = "Deep Water", MovementCost = 1m, MapEditorIcon = null, IsPaintableOnCampaignMap = true };
+            var flat = new CampaignGeography 
+            { 
+                CampaignMapGeographyTypeId = CampaignMapGeographyType.Flat, 
+                Name = "Flat", MovementCost = 1m, 
+                IsWater = false, 
+                IsTraversable = true, 
+                MapEditorIcon = null, 
+                IsPaintableOnCampaignMap = true 
+            };
+            
+            var deepWater = new CampaignGeography 
+            { 
+                CampaignMapGeographyTypeId = CampaignMapGeographyType.DeepWater, 
+                Name = "Deep Water", 
+                MovementCost = 1m, 
+                IsWater = true, 
+                IsTraversable = true, 
+                MapEditorIcon = null, 
+                IsPaintableOnCampaignMap = true 
+            };
 
             var grassland = new CampaignBiome
             {
@@ -243,11 +261,11 @@ internal class GatheringTests : InMemoryTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(results, Is.EquivalentTo(new[]
-            {
+            Assert.That(results, Is.EquivalentTo(
+            [
                 new ForceFeedingResult(1, _GRASSLAND_TILE_ID, ScaledAmount.FromWhole(600), ScaledAmount.FromWhole(450), ScaledAmount.FromWhole(150)),
                 new ForceFeedingResult(2, _GRASSLAND_TILE_ID, ScaledAmount.FromWhole(200), ScaledAmount.FromWhole(150), ScaledAmount.FromWhole(50))
-            }));
+            ]));
 
             await _underfedForceResolver.Received(1).ResolveAsync(
                 Arg.Any<AscendantEmpireContext>(),

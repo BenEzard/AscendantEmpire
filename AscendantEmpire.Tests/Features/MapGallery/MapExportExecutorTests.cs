@@ -63,9 +63,12 @@ internal sealed class MapExportExecutorTests : InMemoryTestBase
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
         Processing persisted = await verifyContext.Processing.AsNoTracking().SingleAsync(x => x.ProcessingId == processingId);
 
-        Assert.That(persisted.Status, Is.EqualTo(ProcessingStatus.Complete));
-        Assert.That(persisted.ResultReference, Is.Not.Null.And.Not.Empty);
-        Assert.That(File.Exists(persisted.ResultReference!), Is.True);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(persisted.Status, Is.EqualTo(ProcessingStatus.Complete));
+            Assert.That(persisted.ResultReference, Is.Not.Null.And.Not.Empty);
+            Assert.That(File.Exists(persisted.ResultReference!), Is.True);
+        }
 
         using ZipArchive archive = ZipFile.OpenRead(persisted.ResultReference!);
         ZipArchiveEntry exportEntry = archive.GetEntry("export.json")!;
@@ -77,11 +80,11 @@ internal sealed class MapExportExecutorTests : InMemoryTestBase
 
         Assert.That(document, Is.Not.Null);
         Assert.That(document!.StartPositions.Select(x => (x.XCoord, x.YCoord, x.DisplayName, x.LocationScore)),
-            Is.EqualTo(new[]
-            {
+            Is.EqualTo(
+            [
                 (0, 0, "North", 30 as int?),
                 (1, 1, "South", 10 as int?)
-            }));
+            ]));
     }
 
     [Test, Description("Preview images are bundled under stable names, with bytes compared so a geography/biome mix-up would fail.")]
@@ -128,11 +131,14 @@ internal sealed class MapExportExecutorTests : InMemoryTestBase
         ZipArchiveEntry? geographyEntry = archive.GetEntry("geography.png");
         ZipArchiveEntry? biomeEntry = archive.GetEntry("biomes.png");
 
-        Assert.That(geographyEntry, Is.Not.Null);
-        Assert.That(biomeEntry, Is.Not.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(geographyEntry, Is.Not.Null);
+            Assert.That(biomeEntry, Is.Not.Null);
 
-        Assert.That(await ReadEntryBytesAsync(geographyEntry!), Is.EqualTo(geographyBytes));
-        Assert.That(await ReadEntryBytesAsync(biomeEntry!), Is.EqualTo(biomeBytes));
+            Assert.That(await ReadEntryBytesAsync(geographyEntry!), Is.EqualTo(geographyBytes));
+            Assert.That(await ReadEntryBytesAsync(biomeEntry!), Is.EqualTo(biomeBytes));
+        }
     }
 
     [Test, Description("Previews are optional, so a map exported before any render produces a smaller archive, not a failure.")]
@@ -159,10 +165,13 @@ internal sealed class MapExportExecutorTests : InMemoryTestBase
 
         using ZipArchive archive = ZipFile.OpenRead(persisted.ResultReference!);
 
-        // No preview paths on the index → the zip carries just the JSON, no preview entries.
-        Assert.That(archive.GetEntry("export.json"), Is.Not.Null);
-        Assert.That(archive.GetEntry("geography.png"), Is.Null);
-        Assert.That(archive.GetEntry("biomes.png"), Is.Null);
+        using (Assert.EnterMultipleScope())
+        {
+            // No preview paths on the index → the zip carries just the JSON, no preview entries.
+            Assert.That(archive.GetEntry("export.json"), Is.Not.Null);
+            Assert.That(archive.GetEntry("geography.png"), Is.Null);
+            Assert.That(archive.GetEntry("biomes.png"), Is.Null);
+        }
     }
 
     private static async Task<byte[]> ReadEntryBytesAsync(ZipArchiveEntry entry)
@@ -197,6 +206,8 @@ internal sealed class MapExportExecutorTests : InMemoryTestBase
             Name = "Flat",
             RelativeElevation = 0,
             MovementCost = 1.0m,
+            IsWater = false,
+            IsTraversable = true,
             MapEditorIcon = null,
             IsPaintableOnCampaignMap = true
         });

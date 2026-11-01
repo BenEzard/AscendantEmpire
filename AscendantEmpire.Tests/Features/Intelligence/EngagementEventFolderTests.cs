@@ -162,7 +162,7 @@ internal class EngagementEventFolderTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(sighting.TroopsLost, Is.EqualTo(0));
+            Assert.That(sighting.TroopsLost, Is.Zero);
             Assert.That(sighting.SideLeftInView, Is.True);
         }
     }

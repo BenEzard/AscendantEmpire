@@ -142,7 +142,7 @@ internal class UpdateCampaignMapRiversHandlerTests : InMemoryTestBase
         Assert.Multiple(() =>
         {
             Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
-            Assert.That(result.SuccessValue, Is.EqualTo(0));
+            Assert.That(result.SuccessValue, Is.Zero);
         });
     }
 

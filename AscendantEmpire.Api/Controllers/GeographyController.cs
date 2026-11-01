@@ -52,9 +52,9 @@ public class GeographyController : ControllerBase
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
     public async Task<IActionResult> UpsertCampaignMapGeographiesAsync(
         [FromServices] IMediator mediator,
-        [FromBody] IReadOnlyCollection<AddOrUpdateCampaignMapGeographyDto> biomes)
+        [FromBody] IReadOnlyCollection<AddOrUpdateCampaignMapGeographyDto> geographies)
     {
-        ServiceResultBase response = await mediator.Send(new UpsertCampaignMapGeographiesRequest(biomes));
+        ServiceResultBase response = await mediator.Send(new UpsertCampaignMapGeographiesRequest(geographies));
 
         return response.ToActionResult();
     }
@@ -71,19 +71,21 @@ public class GeographyController : ControllerBase
     {
         ServiceResult<IReadOnlyCollection<CampaignMapGeography>> response = await mediator.Send(new GetCampaignMapGeographiesRequest(), cancelToken);
 
-        return response.ToActionResult(Contract =>
+        return response.ToActionResult(geographies =>
         {
             return new DTCampaignMapGeographyCollection
             {
-                Geographies = response.SuccessValue.Select(g => new DTCampaignMapGeography
+                Geographies = geographies.Select(g => new DTCampaignMapGeography
                 {
                     CampaignMapGeographyType = g.CampaignMapGeographyType,
                     RelativeElevation = g.RelativeElevation,
                     Name = g.Name,
                     MovementCost = g.MovementCost,
+                    IsWater = g.IsWater,
+                    IsTraversable = g.IsTraversable,
                     MapEditorIcon = g.MapEditorIcon,
                     IsPaintableOnCampaignMap = g.IsPaintableOnCampaignMap
-                }).ToList() ?? []
+                }).ToList()
             };
         });
     }

@@ -38,6 +38,7 @@ internal static class MapResourceTypeMapper
             IsRenewable = type.IsRenewable,
             IsStratified = type.IsStratified,
             IsDistribution = type.IsDistribution,
+            IsWaterResource = type.IsWaterResource,
             ExtractionMethod = type.ExtractionMethod,
             CaptureLikelihood = type.CaptureLikelihood,
             RequiresResearchToExtract = type.RequiresResearchToExtract,
@@ -124,6 +125,7 @@ internal static class MapResourceTypeMapper
         type.IsRenewable = dto.IsRenewable;
         type.IsStratified = dto.IsStratified;
         type.IsDistribution = dto.IsDistribution;
+        type.IsWaterResource = dto.IsWaterResource;
         type.ExtractionMethod = dto.ExtractionMethod;
         type.CaptureLikelihood = dto.CaptureLikelihood;
         type.RequiresResearchToExtract = dto.RequiresResearchToExtract;

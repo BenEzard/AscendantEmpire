@@ -128,6 +128,8 @@ internal class GetSplitForceOptionsHandlerTests : InMemoryTestBase
             CampaignMapGeographyTypeId = CampaignMapGeographyType.Flat,
             Name = "Flat",
             MovementCost = 1m,
+            IsWater = false,
+            IsTraversable = true,
             MapEditorIcon = null,
             IsPaintableOnCampaignMap = true
         };

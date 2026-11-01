@@ -9,8 +9,7 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 /// <remarks>
 /// <para>
 /// Matched by code, so re-running the seed renames or re-orders a row rather than duplicating it, and never removes one added by hand. Codes are spelled out
-/// explicitly at the meta-category, category and group levels because everything below them derives its own code from that prefix - pinning them keeps a
-/// rename of a DisplayName from re-keying the whole subtree.
+/// explicitly at the meta-category, category and group levels because everything below them derives its own code from that prefix - pinning them.
 /// </para>
 /// <para>
 /// Assets mostly leave <c>Code</c> unset and let the upsert derive it from the parent's code and their DisplayName. A graded Asset cannot: every grade of
@@ -62,10 +61,6 @@ internal static class AssetSeedData
             BuildSociety()
         ];
     }
-
-    // ---------------------------------------------------------------------------------------------------------------------------------------------------
-    // Construction Materials
-    // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
     private static UpsertAssetMetaCategoryDto BuildConstructionMaterials()
     {
@@ -273,10 +268,6 @@ internal static class AssetSeedData
         };
     }
 
-    // ---------------------------------------------------------------------------------------------------------------------------------------------------
-    // Weapons - every melee weapon is graded, so each contributes one Asset per grade rather than a single row.
-    // ---------------------------------------------------------------------------------------------------------------------------------------------------
-
     private static UpsertAssetMetaCategoryDto BuildWeapons()
     {
         return new UpsertAssetMetaCategoryDto
@@ -437,10 +428,6 @@ internal static class AssetSeedData
         };
     }
 
-    // ---------------------------------------------------------------------------------------------------------------------------------------------------
-    // Foodstuffs
-    // ---------------------------------------------------------------------------------------------------------------------------------------------------
-
     private static UpsertAssetMetaCategoryDto BuildFoodstuffs()
     {
         return new UpsertAssetMetaCategoryDto
@@ -463,7 +450,7 @@ internal static class AssetSeedData
                         new UpsertAssetDto
                         {
                             DisplayName = "Game",
-                            IconPath = "/resources/food/meat-02_40px",
+                            IconPath = "/resources/food/meat-02_40px.png",
                             Description = "The flesh of hunted land animals.",
                             IsNaturallyOccurring = true
                         },
@@ -476,14 +463,14 @@ internal static class AssetSeedData
                         new UpsertAssetDto
                         {
                             DisplayName = "Fish",
-                            IconPath = "/resources/food/fish_40px",
+                            IconPath = "/resources/food/fish_40px.png",
                             Description = "Freshwater and sea fish.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Shellfish",
-                            IconPath = "/resources/food/crab_40px",
+                            IconPath = "/resources/food/crab_40px.png",
                             Description = "Mussels, clams, oysters and crabs prised off the tideline.",
                             IsNaturallyOccurring = true
                         },
@@ -505,14 +492,14 @@ internal static class AssetSeedData
                         new UpsertAssetDto
                         {
                             DisplayName = "Fruit",
-                            IconPath = "/resources/food/banana_40px",
+                            IconPath = "/resources/food/apple_40px.png",
                             Description = "Tree and vine fruit picked ripe - apples, figs, plums and dates.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Berries",
-                            IconPath = "/resources/food/berries_40px",
+                            IconPath = "/resources/food/berries_40px.png",
                             Description = "Hedgerow and scrubland berries stripped from the bush.",
                             IsNaturallyOccurring = true
                         },

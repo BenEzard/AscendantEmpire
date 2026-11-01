@@ -125,7 +125,7 @@ internal class TileSupportEvaluator(
 
             TileSupport? support = TileSupportForecaster.Forecast(
                 need,
-                CampaignTileWater.IsWater(tile.BiomeIsWater, tile.GeographyType),
+                CampaignTileTerrain.IsWater(tile.BiomeIsWater, tile.GeographyIsWater),
                 values,
                 tile.BiomeType,
                 depletion,

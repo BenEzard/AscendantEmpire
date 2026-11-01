@@ -81,6 +81,8 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
             CampaignMapGeographyTypeId = CampaignMapGeographyType.Flat,
             Name = "Flat",
             MovementCost = 1m,
+            IsWater = false,
+            IsTraversable = true,
             MapEditorIcon = null,
             IsPaintableOnCampaignMap = true
         };
@@ -90,6 +92,8 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
             CampaignMapGeographyTypeId = CampaignMapGeographyType.Mountainous,
             Name = "Mountainous",
             MovementCost = CampaignGeography.IMPASSABLE_MOVEMENT_COST,
+            IsWater = false,
+            IsTraversable = false,
             MapEditorIcon = null,
             IsPaintableOnCampaignMap = true
         };
@@ -274,7 +278,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result!.SelectedForce.CapabilityTagCodes, Is.EquivalentTo(new[] { "found-settlement", "found-camp" }));
+            Assert.That(result!.SelectedForce.CapabilityTagCodes, Is.EquivalentTo(["found-settlement", "found-camp"]));
             Assert.That(result.SelectedForce.HasCapability("found-camp"), Is.True);
             Assert.That(result.SelectedForce.HasCapability("hunting"), Is.False,
                 "A capability the template does not grant must not be reported, however many others it has.");
@@ -300,7 +304,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         }
     }
 
-    [Test, Description("Terrain rules are judged against the tile the Force is standing on, so its water flag and geography have to be projected onto the Force.")]
+    [Test, Description("Terrain rules are judged against the tile the Force is standing on, so its water flag, traversability and geography name have to be projected onto the Force.")]
     public async Task ShouldFlattenTheTilesTerrainWhenTheForceIsLoadedAsync()
     {
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
@@ -317,14 +321,18 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(onLand!.SelectedForce.TileIsWater, Is.False);
-            Assert.That(onLand.SelectedForce.TileGeographyType, Is.EqualTo(CampaignMapGeographyType.Flat));
+            Assert.That(onLand.SelectedForce.TileGeographyIsTraversable, Is.True);
+            Assert.That(onLand.SelectedForce.TileGeographyName, Is.EqualTo("Flat"));
 
             Assert.That(onWater!.SelectedForce.TileIsWater, Is.True,
                 "The flag comes off the biome, so an ocean tile over flat geography still counts as water.");
-            Assert.That(onWater.SelectedForce.TileGeographyType, Is.EqualTo(CampaignMapGeographyType.Flat));
+            Assert.That(onWater.SelectedForce.TileGeographyName, Is.EqualTo("Flat"));
 
             Assert.That(onMountain!.SelectedForce.TileIsWater, Is.False);
-            Assert.That(onMountain.SelectedForce.TileGeographyType, Is.EqualTo(CampaignMapGeographyType.Mountainous));
+            Assert.That(onMountain.SelectedForce.TileGeographyIsTraversable, Is.False,
+                "The settling rules read this rather than the geography type, so it has to come off the catalogue row and not be inferred here.");
+            Assert.That(onMountain.SelectedForce.TileGeographyName, Is.EqualTo("Mountainous"),
+                "The refusal names the terrain, so the display name has to be the catalogue's and not the enum member's.");
         }
     }
 
@@ -379,7 +387,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
 
         ForceActionContext? result = await BuildSingleAsync(5);
 
-        Assert.That(result!.OtherForcesOnTile.Select(t => t.UnitInstanceId), Is.EquivalentTo(new[] { 6 }),
+        Assert.That(result!.OtherForcesOnTile.Select(t => t.UnitInstanceId), Is.EquivalentTo([6]),
             "Only the player's other forces on the same tile should be gathered.");
     }
 
@@ -463,7 +471,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         IReadOnlyCollection<ForceActionContext>? result =
             await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, [7, 5, 6], CancellationToken.None);
 
-        Assert.That(result!.Select(c => c.SelectedForce.UnitInstanceId), Is.EqualTo(new[] { 5, 6, 7 }));
+        Assert.That(result!.Select(c => c.SelectedForce.UnitInstanceId), Is.EqualTo([5, 6, 7]));
     }
 
     [Test, Description("Each selected force sees its own tile-mates, including the other selected forces standing beside it.")]
@@ -480,9 +488,9 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result[0].OtherForcesOnTile.Select(f => f.UnitInstanceId), Is.EquivalentTo(new[] { 6 }),
+            Assert.That(result[0].OtherForcesOnTile.Select(f => f.UnitInstanceId), Is.EquivalentTo([6]),
                 "Being selected alongside a force does not remove it from the tile.");
-            Assert.That(result[1].OtherForcesOnTile.Select(f => f.UnitInstanceId), Is.EquivalentTo(new[] { 5 }));
+            Assert.That(result[1].OtherForcesOnTile.Select(f => f.UnitInstanceId), Is.EquivalentTo([5]));
         }
     }
 
@@ -500,7 +508,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result[0].OtherForcesOnTile.Select(f => f.UnitInstanceId), Is.EquivalentTo(new[] { 6 }));
+            Assert.That(result[0].OtherForcesOnTile.Select(f => f.UnitInstanceId), Is.EquivalentTo([6]));
             Assert.That(result[1].OtherForcesOnTile, Is.Empty, "The force alone on its tile should see no tile-mates.");
         }
     }
@@ -538,7 +546,7 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
         IReadOnlyCollection<ForceActionContext>? result =
             await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, [5, 5], CancellationToken.None);
 
-        Assert.That(result!.Select(c => c.SelectedForce.UnitInstanceId), Is.EqualTo(new[] { 5 }));
+        Assert.That(result!.Select(c => c.SelectedForce.UnitInstanceId), Is.EqualTo([5]));
     }
 
     [Test, Description("An empty selection yields no contexts, which the service reports as not-found rather than an empty toolbar.")]

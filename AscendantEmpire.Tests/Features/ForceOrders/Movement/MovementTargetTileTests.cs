@@ -41,7 +41,9 @@ internal class MovementTargetTileTests
             BiomeName = "Grassland",
             BiomeMovementCost = biomeMovementCost,
             BiomeIsWater = biomeIsWater,
-            BiomeIsTraversable = biomeIsTraversable
+            GeographyIsWater = geographyType is CampaignMapGeographyType.DeepWater or CampaignMapGeographyType.ShallowWater,
+            BiomeIsTraversable = biomeIsTraversable,
+            GeographyIsTraversable = geographyType != CampaignMapGeographyType.Mountainous
         };
     }
 
@@ -63,17 +65,15 @@ internal class MovementTargetTileTests
         Assert.That(tile.MovementCost, Is.EqualTo(expectedCost));
     }
 
-    [Test, Description("Mountainous marks itself impassable through the geography cost sentinel rather than by any flag, so the sentinel has to be honoured.")]
-    public void ShouldTreatTheImpassableCostSentinelAsImpassable()
+    [Test, Description("Mountainous is untraversable ground, so the geography flag alone has to refuse the tile however ordinary the biome on it is.")]
+    public void ShouldTreatUntraversableGroundAsImpassable()
     {
-        MovementTargetTile tile = Tile(
-            geographyType: CampaignMapGeographyType.Mountainous,
-            geographyMovementCost: CampaignGeography.IMPASSABLE_MOVEMENT_COST);
+        MovementTargetTile tile = Tile(geographyType: CampaignMapGeographyType.Mountainous);
 
         Assert.That(tile.IsImpassable, Is.True);
     }
 
-    [Test, Description("The Void biome marks itself impassable with a flag instead, so both markers have to be checked and not just the cost one.")]
+    [Test, Description("The Void is impassable through its biome on perfectly ordinary ground, so both markers have to be checked and not just the geography's.")]
     public void ShouldTreatANonTraversableBiomeAsImpassable()
     {
         MovementTargetTile tile = Tile(biomeMovementCost: 99m, biomeIsTraversable: false);
@@ -84,9 +84,7 @@ internal class MovementTargetTileTests
     [Test, Description("A refusal names the mountain only when the ground is the blocker, so an impassable biome must not be mistaken for one.")]
     public void ShouldTellImpassableGroundApartFromAnImpassableBiome()
     {
-        MovementTargetTile mountain = Tile(
-            geographyType: CampaignMapGeographyType.Mountainous,
-            geographyMovementCost: CampaignGeography.IMPASSABLE_MOVEMENT_COST);
+        MovementTargetTile mountain = Tile(geographyType: CampaignMapGeographyType.Mountainous);
 
         MovementTargetTile voidTile = Tile(biomeMovementCost: 99m, biomeIsTraversable: false);
 

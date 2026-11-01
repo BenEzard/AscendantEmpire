@@ -1,6 +1,5 @@
 ﻿using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.Domain.Enums.Forces;
-using AscendantEmpire.Domain.Enums.Maps;
 
 namespace AscendantEmpire.Tests.Features.ForceOrders.ContextActions;
 
@@ -39,7 +38,8 @@ internal class ForceActionAggregatorTests
                 Organisation = null,
                 CapabilityTagCodes = [],
                 TileIsWater = false,
-                TileGeographyType = CampaignMapGeographyType.Flat,
+                TileGeographyIsTraversable = true,
+                TileGeographyName = "Flat",
                 IsInBattle = false
             },
             OtherForcesOnTile = []
@@ -121,12 +121,12 @@ internal class ForceActionAggregatorTests
             Verdict(3, "Warband", availability: null)
         ]);
 
-        Assert.That(result!.DisabledReasons, Is.EqualTo(new[]
-        {
+        Assert.That(result!.DisabledReasons, Is.EqualTo(
+        [
             "Settler A is too small to split.",
             "Settler B has already moved this turn.",
             "'Split Force' does not apply to Warband."
-        }), "Reasons should arrive in the order the Forces were judged, which the builder fixes by Force id.");
+        ]), "Reasons should arrive in the order the Forces were judged, which the builder fixes by Force id.");
     }
 
     [Test, Description("A reason about the organisation rather than the Force is reported once, not once per Force sharing the tag.")]
@@ -140,7 +140,7 @@ internal class ForceActionAggregatorTests
             Verdict(2, "Settler B", ForceActionAvailability.Blocked([CONFIGURATION_ERROR]))
         ]);
 
-        Assert.That(result!.DisabledReasons, Is.EqualTo(new[] { CONFIGURATION_ERROR }),
+        Assert.That(result!.DisabledReasons, Is.EqualTo([CONFIGURATION_ERROR]),
             "A fact about the tag is one fact however many Forces carry that tag.");
     }
 
