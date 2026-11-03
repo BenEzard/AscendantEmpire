@@ -170,6 +170,10 @@ public static class ApplicationStartup
         // each other with nothing in the schema to catch it.
         services.AddScoped<IAssetNetworkConnectivityService, AssetNetworkConnectivityService>();
 
+        // Moves a captured Settlement's bank to its conqueror and recomputes both empires' networks. Unlike the services above it saves, because a recompute
+        // reads ownership from the database and so cannot see a hand-over that has only been staged.
+        services.AddScoped<IAssetBankConquestService, AssetBankConquestService>();
+
         // Resolves what a Player holds of each Asset for the read path, routing on the same Asset.StorageScope column the drawdown routes a debit on, so the
         // figure a ticker reports and the figure a purchase is checked against cannot come from different places.
         services.AddScoped<IPlayerAssetQuantityReader, PlayerAssetQuantityReader>();

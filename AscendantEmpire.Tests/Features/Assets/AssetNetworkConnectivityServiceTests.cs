@@ -44,6 +44,22 @@ internal class AssetNetworkConnectivityServiceTests : AssetBankTestBase
         Assert.That(bank.NetworkKey, Is.Not.EqualTo(Guid.Empty));
     }
 
+    [Test, Description("A captured bank is given a fresh key rather than keeping its old one, so it cannot stay in a network with the banks its former owner still holds.")]
+    public void ShouldAssignAFreshKeyToACapturedBank()
+    {
+        var bank = new AssetBank { PlayerId = _playerId, SettlementId = _SETTLEMENT_ID, NetworkKey = Guid.NewGuid() };
+
+        Guid keyBeforeCapture = bank.NetworkKey;
+
+        _service.AssignKeyToCapturedBank(bank);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(bank.NetworkKey, Is.Not.EqualTo(keyBeforeCapture));
+            Assert.That(bank.NetworkKey, Is.Not.EqualTo(Guid.Empty), "An unkeyed bank would reach nothing at all, its own Settlement included.");
+        }
+    }
+
     [Test, Description("An unkeyed bank is keyed by a recompute, so a bank saved before anything keyed it does not stay cut off from its own settlement.")]
     public async Task ShouldKeyAnUnkeyedBankWhenRecomputing()
     {

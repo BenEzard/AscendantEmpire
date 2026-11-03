@@ -24,8 +24,8 @@ namespace AscendantEmpire.Application.Features.Assets.Services;
 /// <para>
 /// Only the bank a Settlement is <i>born</i> with. A Settlement's bank is its bank for the Settlement's whole life, so there is no later founding to do:
 /// what changes afterwards is the network it sits in, which <see cref="IAssetNetworkConnectivityService"/> owns, and who owns it, which a conquest moves
-/// through <c>AssetBank.PlayerId</c> (RS-34). A camp coming to share a village's stock is a shared <c>NetworkKey</c> plus a feeder designation (RS-35),
-/// never a merge of two banks.
+/// through <c>AssetBank.PlayerId</c> - see <see cref="IAssetBankConquestService"/>. A camp coming to share a village's stock is a shared <c>NetworkKey</c>
+/// plus a feeder designation (RS-35), never a merge of two banks.
 /// </para>
 /// <para>See <c>docs/design/asset-banks.md</c> for the rules this serves.</para>
 /// </remarks>

@@ -33,7 +33,8 @@ public sealed class AssetBank
     /// </summary>
     /// <remarks>
     /// Connectivity is assessed per Player, so two neighbouring settlements of different Players never share a network however well they are joined by road.
-    /// This is also the column a conquest moves, which is what hands a captured Settlement's stock to its new owner.
+    /// This is also the column a conquest moves, which is what hands a captured Settlement's stock to its new owner - see
+    /// <c>IAssetBankConquestService</c>, which moves it and then re-keys both empires' networks.
     /// </remarks>
     public int PlayerId { get; set; }
 

@@ -13,14 +13,20 @@ namespace AscendantEmpire.Application.Features.Assets.Services;
 /// <inheritdoc cref="IAssetNetworkConnectivityService" />
 /// <remarks>
 /// <b>Connectivity is isolation.</b> Nothing in the codebase joins two Settlements - there is no road at all, and the river and coastline walks are CM-64,
-/// RS-48 and RS-49 - so the only correct arrangement today is one network per bank. Both methods below are written against that single rule, and both read it
-/// from <see cref="FindFault"/> so that the three transport tasks have one place to replace.
+/// RS-48 and RS-49 - so the only correct arrangement today is one network per bank. The recompute and the consistency check are both written against that
+/// single rule, and both read it from <see cref="FindFault"/> so that the three transport tasks have one place to replace. A conquest adds nothing to it: the
+/// captured bank is isolated and then recomputed with the rest of the conqueror's, so where it lands is still this one decision.
 /// </remarks>
 internal sealed class AssetNetworkConnectivityService(ILogger<AssetNetworkConnectivityService> logger) : IAssetNetworkConnectivityService
 {
     public void AssignKeyToNewBank(AssetBank bank)
     {
-        bank.NetworkKey = Guid.NewGuid();
+        AssignFreshKey(bank);
+    }
+
+    public void AssignKeyToCapturedBank(AssetBank bank)
+    {
+        AssignFreshKey(bank);
     }
 
     public async Task<ServiceResultBase> RecomputeForPlayerAsync(AscendantEmpireContext context, int playerId, CancellationToken cancelToken = default)
@@ -102,6 +108,18 @@ internal sealed class AssetNetworkConnectivityService(ILogger<AssetNetworkConnec
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Puts a bank into a network of its own.
+    /// </summary>
+    /// <remarks>
+    /// One implementation behind the two public entry points, which differ in why they are called rather than in what they do: a founding has no network to
+    /// join yet, and a conquest must not keep the one it was taken out of.
+    /// </remarks>
+    private static void AssignFreshKey(AssetBank bank)
+    {
+        bank.NetworkKey = Guid.NewGuid();
     }
 
     private sealed record BankRow(int AssetBankId, int SettlementId, Guid NetworkKey);

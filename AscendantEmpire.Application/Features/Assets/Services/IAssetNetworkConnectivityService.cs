@@ -38,6 +38,23 @@ internal interface IAssetNetworkConnectivityService
     void AssignKeyToNewBank(AssetBank bank);
 
     /// <summary>
+    /// Isolates a bank that has just changed hands, so the network it sits in is the conqueror's rather than the one it was taken out of.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The key a conquest leaves behind is the one thing a recompute cannot catch.</b> Connectivity is assessed per Player, so where the losing Player held two connected Settlements and only
+    /// one was taken, the captured bank keeps a key the loser's remaining bank still carries - and <see cref="FindFaultsForPlayerAsync"/> walks one Player at a time, so neither side ever reports
+    /// it. Two empires would draw on each other with nothing in the schema or in the check to say so.
+    /// </para>
+    /// <para>
+    /// <b>A network of one, not the conqueror's network.</b> Which of the conqueror's banks the captured one can actually reach is <see cref="RecomputeForPlayerAsync"/>'s to decide, and a
+    /// conquest calls it straight afterwards. Choosing here instead would make the conquest a second writer of connectivity policy, which is the thing this interface exists to prevent.
+    /// </para>
+    /// <para>Synchronous, and takes the entity, for the same reason as <see cref="AssignKeyToNewBank"/>: the caller is mid-change, and its save is what commits the new key.</para>
+    /// </remarks>
+    void AssignKeyToCapturedBank(AssetBank bank);
+
+    /// <summary>
     /// Re-keys one Player's banks to match what their Settlements can currently reach.
     /// </summary>
     /// <remarks>
@@ -47,11 +64,11 @@ internal interface IAssetNetworkConnectivityService
     /// <para>
     /// <b>An ownership move has to be saved before this runs.</b> Which banks belong to the Player is read from the database rather than from the change
     /// tracker, so a conquest that sets <c>AssetBank.PlayerId</c> and recomputes in the same unit of work would assess both players against the ownership they
-    /// no longer have, and leave both with a stale key. RS-34 saves the hand-over first, then recomputes for each side.
+    /// no longer have, and leave both with a stale key. <see cref="IAssetBankConquestService"/> saves the hand-over first, then recomputes for each side.
     /// </para>
     /// <para>
     /// <b>Idempotent.</b> A second run changes nothing, which is what lets a caller recompute both sides of a conquest without ordering the two calls - see
-    /// RS-34.
+    /// <see cref="IAssetBankConquestService"/>.
     /// </para>
     /// </remarks>
     /// <param name="playerId">The Player whose banks to re-key. Another Player's are never touched, since connectivity is assessed per Player.</param>

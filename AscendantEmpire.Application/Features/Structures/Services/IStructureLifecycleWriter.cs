@@ -25,7 +25,9 @@ namespace AscendantEmpire.Application.Features.Structures.Services;
 /// </list>
 /// </para>
 /// <para>
-/// <b><see cref="CaptureAsync"/> has no caller.</b> Nothing in play takes a Structure from its owner; siege and capture must go through it when they are built. <see cref="RazeAsync"/>
+/// <b><see cref="CaptureAsync"/> has no caller.</b> Nothing in play takes a Structure from its owner; siege and capture must go through it when they are built, and through
+/// <c>IAssetBankConquestService</c> alongside it where the Structure is a Settlement: this writer moves who holds the Structure, and that service moves the Settlement's stock and re-keys both
+/// empires' networks. Wiring one without the other leaves a Settlement whose new owner cannot spend what is stored there, or stock a defeated Player is still spending. <see cref="RazeAsync"/>
 /// is called only to clear a tile for a settlement - razing a Structure as an act of war is likewise still to be built.
 /// </para>
 /// <para>

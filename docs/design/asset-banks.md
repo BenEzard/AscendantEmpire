@@ -89,6 +89,28 @@ tasks. So every bank is currently a network of one. These are the rules those ta
 * A `SettlementTier` of 'camp' attaches to its closest village, which **sets a feeder parent** (**RS-35**): the camp shares the parent's `NetworkKey`, so it can spend from the parent's stock, and pushes its own production to the parent each turn because its own capacity is tiny. Where two villages are equi-distant, if one of them was where the Settler was created from, the camp attaches to **that** village; otherwise the lower `settlementId` wins. The designation is stored, never recomputed — the settler-origin tiebreaker is history that a later recompute cannot see.
 * A settlement that is connected to nothing is its own network of one, banking normally.
 
+## Conquest
+
+A settlement changing hands moves three things, and the third is the one that is easy to miss.
+
+* **The bank changes owner, and nothing else.** `AssetBank.PlayerId` moves to the conqueror. `SettlementId` does not move, no
+  bank is created or dissolved, and no balance row is read or divided — so the conqueror receives the full stock simply because
+  the stock never went anywhere. There is no pillage wastage.
+* **The captured settlement is re-keyed** into a network of its own, and the conqueror's recompute is what joins it to whatever
+  they can actually reach — which is nothing today, since no transport link exists yet. Keeping the loser's key instead would
+  leave the captured bank sharing a network across the ownership boundary, and connectivity is assessed one player at a time, so
+  no consistency check could ever see it.
+* **The losing player's remaining network is recomputed too, and may split in two.** If the captured settlement was the bridge
+  between two halves of their empire, losing it partitions them. A conquest therefore recomputes for **both** players.
+
+`IAssetBankConquestService` is where this happens, and it is the one asset service that saves. The connectivity service reads
+ownership from the database rather than from the change tracker, so the hand-over has to be committed before either recompute
+runs; both saves land inside one transaction, and a recompute that fails takes the hand-over back with it.
+
+**Nothing calls it yet.** No siege or capture exists in the code, so taking a settlement has to go through this service *and*
+through `IStructureLifecycleWriter.CaptureAsync`, which is what moves who holds the structure. Wiring one without the other
+leaves a settlement whose new owner cannot spend its stock, or stock a defeated player is still spending.
+
 ## Querying requirements
 The game will need to be able to query on a specific Asset Bank, and also query on all Asset Banks.
 
@@ -161,11 +183,3 @@ spends first.
   the same thing to every reader.
 * An asset whose `StorageScope` is `Player` can only be spent Empire-wide — a figure held once for the
   whole game is not spent anywhere in particular. Naming a settlement for one is a caller error.
-
-## Out of Scope
-
-Conquest, which is **RS-34**. Two rules, and both are short — moving a bank is an ownership change and a
-re-key, with no balance to divide and no bank to dissolve:
-
-* A conquered settlement's bank changes hands by moving `AssetBank.PlayerId`. Its balances travel with it, in full, and the captured settlement is re-keyed into the conqueror's network — a network of one unless the conqueror actually has a connection to it.
-* The losing player's remaining network is re-keyed too, and may split in two: if the captured settlement was the bridge between two halves of their empire, losing it partitions them. A conquest therefore recomputes for **both** players.
