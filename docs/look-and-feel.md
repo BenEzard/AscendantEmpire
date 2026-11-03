@@ -3,6 +3,11 @@
 Conventions for the React frontend's visual language. This is about *how things look and why*, not
 about component structure.
 
+Every choice here also has to clear [WCAG.md](WCAG.md), which lists the WCAG 2.2 Level A and AA
+criteria that apply to this app and the contrast ratios this palette actually measures. Read it
+before adding a colour, a focus style or a hover affordance — the two documents meet on contrast,
+which is why the selection tokens below carry the warnings they do.
+
 The first section it covers is **selection** — the single most repeated visual state in the app, and
 currently the most fragmented.
 
@@ -174,12 +179,15 @@ is `#f0b100`. Writing `border-yellow-500` next to an existing `rgba(234, 179, 8,
 two *different* yellows that look like they should match. This is the strongest argument for the
 token: **use `selection`, never `yellow-*`.**
 
-**Selection tokens are for edges and fills, never text.** `#eab308` on white is roughly 1.9:1, far
-below the 4.5:1 needed for body text.
+**Selection tokens are for edges and fills, never text.** `#eab308` on white is 1.92:1, far below the
+4.5:1 that WCAG 1.4.3 needs for body text. The edge densities fare no better as a boundary: `/55`
+measures 1.44:1 and `/60` 1.49:1 against white, under 1.4.11's 3:1 floor for a control's
+state indicator.
 
 **Colour must never be the only signal.** The app already gets this right — `aria-pressed` on the
 force bar's entries, `aria-current="page"` on `PagedDialog`'s nav — and new selection UI should keep
-carrying the state in the markup as well as the paint.
+carrying the state in the markup as well as the paint. Given the ratios above, that ARIA state is
+not a nicety: it is what makes the yellow conform. See [WCAG.md](WCAG.md) §2.
 
 **Translucent tokens assume a light surface.** `:root` in `index.css` sets a dark
 `background-color: #242424` and `color: rgba(255,255,255,0.87)`, which several components explicitly
