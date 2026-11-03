@@ -154,8 +154,8 @@ public static class ApplicationStartup
         // handler's transaction.
         services.AddScoped<IBiomeImpliedMapResourceService, BiomeImpliedMapResourceService>();
 
-        // Asset banks. IAssetBankReader is the one place a bank's balances are read, in either of the two shapes the design doc calls for - one bank, or all
-        // of a Player's - so what a settlement panel shows and what a summary ticker adds up cannot drift apart.
+        // Asset banks. IAssetBankReader is the one place a bank's balances are read, in either of the two shapes the design doc calls for - one
+        // Settlement's network, or all of a Player's banks - so what a settlement panel shows and what a summary ticker adds up cannot drift apart.
         services.AddScoped<IAssetBankReader, AssetBankReader>();
 
         // The single spender: every build order, technology purchase and upkeep charge debits through here, which is what makes "the Player can afford this"
@@ -165,6 +165,10 @@ public static class ApplicationStartup
 
         // The one place a Settlement is given the bank it is born with, called from inside the settle transaction so a founding and its bank land together.
         services.AddScoped<IAssetBankProvisioningService, AssetBankProvisioningService>();
+
+        // The only writer of AssetBank.NetworkKey, which is derived data with no referential integrity: a second writer would let the wrong Settlements reach
+        // each other with nothing in the schema to catch it.
+        services.AddScoped<IAssetNetworkConnectivityService, AssetNetworkConnectivityService>();
 
         // Resolves what a Player holds of each Asset for the read path, routing on the same Asset.StorageScope column the drawdown routes a debit on, so the
         // figure a ticker reports and the figure a purchase is checked against cannot come from different places.

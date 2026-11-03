@@ -244,39 +244,36 @@ instead. The states, the transfer rules and the rebellion period are in
 
 ## Asset banks
 
-> **Partly built.** `AssetBank`, `AssetBankBalance` and `AssetBankSettlementMembership` are mapped, in
-> the `assets` schema and keyed on the player. Founding a settlement of any tier creates its bank and
-> its membership, empty, inside the settle transaction; an expense can be drawn from a bank. Nothing yet
-> credits a balance, repoints a membership when settlements connect, or merges two banks — which is what
-> a camp attaching to a village is — so the rest of the behaviour below is still the design.
+> **Partly built.** `AssetBank` and `AssetBankBalance` are mapped, in the `assets` schema and keyed on
+> the player. Founding a settlement of any tier creates its bank, empty, inside the settle transaction,
+> and an expense can be drawn from it. Nothing yet credits a balance, and nothing connects two
+> settlements, so every bank is a network of one and the connectivity half of the behaviour below is
+> still the design.
 
 The full rules are [asset-banks.md](asset-banks.md). What matters here is the shape:
 
-- An **Asset Bank** is a pool of assets belonging to a player, and a settlement is joined to one by a
-  **membership**. The bank is shared: one bank, many settlements.
-- A settlement is **linked** when connected to another settlement via a transport network (road,
-  river, railroad). Coastal settlements with a harbour and ship technology are automatically linked
-  to other harboured settlements. Links count only between a player's **own** settlements.
-- A settlement that is not linked to anything has a bank to itself. A settlement that becomes linked
-  has its membership repointed at the bank it joins, so the two settlements then draw on one pool and
-  there is nothing extra to reconcile between them.
-- A settlement cut off — a pillaged road, a dammed river — gets a membership pointing at a **new, empty**
-  bank. Restoring the link folds that bank's balances back into the shared one and deletes it.
-- A settlement's membership is keyed on the settlement, so it has **exactly one** bank at any time,
-  and that is a schema rule rather than one a service has to remember to check.
-- An expense incurred **at a settlement** — a build order, an upkeep charge — is met from the one bank
-  that settlement draws on. If the bank does not hold enough, the purchase cannot be made.
+- An **Asset Bank** is one settlement's store of assets, owned by a player. `AssetBank.SettlementId` is
+  unique, so a settlement has **exactly one** bank — a schema rule rather than one a service has to
+  remember to check — and it keeps that bank for its whole life.
+- Banks carrying the same `NetworkKey` form a **network**, and a settlement can draw on every bank in
+  its own. Two of a player's settlements joined by a transport link share a key, as do coastal
+  settlements within a per-player sea range. Connections count only between a player's **own**
+  settlements, so a road running through a neighbour's village connects nothing.
+- A settlement connected to nothing is its own network of one, banking normally.
+- Connecting and disconnecting — a road built, a road pillaged, a river dammed — are **re-keys**. No
+  balance moves and no bank is created or deleted, so a settlement cut off keeps everything it was
+  holding and only loses its reach.
+- An expense incurred **at a settlement** — a build order, an upkeep charge — is met from that
+  settlement's own bank. If the bank does not hold enough, the purchase cannot be made.
 - An **Empire-wide** expense — a technology cost, an export — belongs to no settlement. It is met across
-  every bank the player owns, spread by levelling so the fullest pools pay and a small one keeps the stock
+  every bank the player owns, spread by levelling so the fullest banks pay and a small one keeps the stock
   its own construction needs, and it carries no transport cost. See
   [asset-banks.md](asset-banks.md#drawing-down-an-asset).
 
-> There is deliberately no second "asset bank group" table standing for a set of banks that share.
-> Sharing *is* the bank, so a merge is folding one bank's balances into another and deleting it. The
-> cost of that choice is accepted: per-settlement provenance is given up, so the game cannot say which
-> settlement a given log came from and the "a mining settlement exporting stone should be considered
-> richer" idea has nowhere to read from. Nothing uses it today, and it can be recovered from production
-> records later rather than from balances.
+> There is deliberately no network table standing for a set of banks that share. Sharing *is* the key,
+> so a row standing for a relationship that lasts only as long as the connection does would outlive what
+> it describes. Keeping a settlement's stock with the settlement is also what per-settlement capacity
+> needs: a cap has a row to bind to, and a deposit has rows to spread across.
 
 Not everything a player holds lives in a bank. `Asset.StorageScope` says where a figure comes from:
 most assets are `SettlementBank`, the two experience points are held per player for the whole game, and

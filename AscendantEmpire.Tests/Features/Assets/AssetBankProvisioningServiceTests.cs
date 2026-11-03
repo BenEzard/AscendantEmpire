@@ -15,8 +15,8 @@ namespace AscendantEmpire.Tests.Features.Assets;
 /// </summary>
 /// <remarks>
 /// <para>
-/// In-memory, per <c>testing.md</c>: the service does nothing but one LINQ query and two <c>Add</c>s, and the one rule a database would enforce for it - a
-/// settlement cannot hold two memberships - is checked in code here precisely so the refusal is a message rather than a primary key violation.
+/// In-memory, per <c>testing.md</c>: the service does nothing but one LINQ query and one <c>Add</c>, and the one rule a database would enforce for it - a
+/// settlement cannot have two banks - is checked in code here precisely so the refusal is a message rather than a unique index violation.
 /// </para>
 /// <para>
 /// <b>No Game, Structure or Player rows are written.</b> Foreign keys are not enforced in memory and the service reads none of those tables, so the ids on the
@@ -35,7 +35,9 @@ internal class AssetBankProvisioningServiceTests : InMemoryTestBase
     [SetUp]
     public void BuildService()
     {
-        _service = new AssetBankProvisioningService(NullLogger<AssetBankProvisioningService>.Instance);
+        _service = new AssetBankProvisioningService(
+            NullLogger<AssetBankProvisioningService>.Instance,
+            new AssetNetworkConnectivityService(NullLogger<AssetNetworkConnectivityService>.Instance));
     }
 
     [Test, Description("A village is born with a bank of its own, owned by the founding player and holding nothing.")]
@@ -53,15 +55,32 @@ internal class AssetBankProvisioningServiceTests : InMemoryTestBase
         await using AscendantEmpireContext readContext = await DbFactory.CreateDbContextAsync();
 
         AssetBank bank = await readContext.AssetBanks.SingleAsync();
-        AssetBankSettlementMembership membership = await readContext.AssetBankSettlementMemberships.SingleAsync();
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(bank.PlayerId, Is.EqualTo(_PLAYER_ID), "The bank belongs to the player who founded the settlement.");
-            Assert.That(membership.SettlementId, Is.EqualTo(village.Id), "And the settlement draws on it.");
-            Assert.That(membership.AssetBankId, Is.EqualTo(bank.Id));
+            Assert.That(bank.SettlementId, Is.EqualTo(village.Id), "And it is that settlement's own store.");
             Assert.That(await readContext.AssetBankBalances.AnyAsync(), Is.False, "Nothing seeds a starting quantity, so the bank is born empty.");
         }
+    }
+
+    [Test, Description("A provisioned bank arrives keyed, because an unkeyed bank reaches nothing and the connectivity service is the only thing allowed to write the key.")]
+    public async Task ShouldStageTheBankAlreadyKeyedAsync()
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        Settlement village = await AddSettlementAsync(context, SettlementTier.Village);
+
+        ServiceResultBase result = await _service.ProvisionForNewSettlementAsync(context, _PLAYER_ID, village, CancellationToken.None);
+        await context.SaveChangesAsync();
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        await using AscendantEmpireContext readContext = await DbFactory.CreateDbContextAsync();
+
+        AssetBank bank = await readContext.AssetBanks.SingleAsync();
+
+        Assert.That(bank.NetworkKey, Is.Not.EqualTo(Guid.Empty));
     }
 
     [Test, Description("A camp is born with a bank of its own, because the first settlement of a game is a camp and the Meeting Place built in it has to have somewhere to put what it produces.")]
@@ -79,13 +98,11 @@ internal class AssetBankProvisioningServiceTests : InMemoryTestBase
         await using AscendantEmpireContext readContext = await DbFactory.CreateDbContextAsync();
 
         AssetBank bank = await readContext.AssetBanks.SingleAsync();
-        AssetBankSettlementMembership membership = await readContext.AssetBankSettlementMemberships.SingleAsync();
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(bank.PlayerId, Is.EqualTo(_PLAYER_ID), "The bank belongs to the player who founded the camp.");
-            Assert.That(membership.SettlementId, Is.EqualTo(camp.Id), "And the camp draws on it, rather than on a village it may not have.");
-            Assert.That(membership.AssetBankId, Is.EqualTo(bank.Id));
+            Assert.That(bank.SettlementId, Is.EqualTo(camp.Id), "And it is the camp's own store, rather than a village's it may not have.");
             Assert.That(await readContext.AssetBankBalances.AnyAsync(), Is.False, "Nothing seeds a starting quantity, so the bank is born empty.");
         }
     }
@@ -109,15 +126,15 @@ internal class AssetBankProvisioningServiceTests : InMemoryTestBase
 
         await using AscendantEmpireContext readContext = await DbFactory.CreateDbContextAsync();
 
-        Assert.That(await readContext.AssetBankSettlementMemberships.AnyAsync(m => m.SettlementId == settlement.Id), Is.True);
+        Assert.That(await readContext.AssetBanks.AnyAsync(bank => bank.SettlementId == settlement.Id), Is.True);
     }
 
-    [Test, Description("The membership picks up an unsaved settlement's generated key, which is what lets a founding stage the settlement and its bank and commit them together.")]
-    public async Task ShouldJoinTheMembershipToASettlementThatIsNotSavedYetAsync()
+    [Test, Description("The bank picks up an unsaved settlement's generated key, which is what lets a founding stage the settlement and its bank and commit them together.")]
+    public async Task ShouldJoinTheBankToASettlementThatIsNotSavedYetAsync()
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        // Added but deliberately not saved, exactly as the settle handler leaves it: the settlement has no id to point a membership at yet.
+        // Added but deliberately not saved, exactly as the settle handler leaves it: the settlement has no id for a bank to carry yet.
         Settlement village = BuildSettlement(SettlementTier.Village);
         context.Settlements.Add(village);
 
@@ -130,12 +147,12 @@ internal class AssetBankProvisioningServiceTests : InMemoryTestBase
 
         await using AscendantEmpireContext readContext = await DbFactory.CreateDbContextAsync();
 
-        AssetBankSettlementMembership membership = await readContext.AssetBankSettlementMemberships.SingleAsync();
+        AssetBank bank = await readContext.AssetBanks.SingleAsync();
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(village.Id, Is.Not.Zero, "The settlement was given its key by the save.");
-            Assert.That(membership.SettlementId, Is.EqualTo(village.Id), "And the membership carries that same key rather than a zero.");
+            Assert.That(bank.SettlementId, Is.EqualTo(village.Id), "And the bank carries that same key rather than a zero.");
         }
     }
 
@@ -159,7 +176,7 @@ internal class AssetBankProvisioningServiceTests : InMemoryTestBase
         }
     }
 
-    [Test, Description("A settlement already drawing on a bank is refused rather than given a second one, so a merge mistaken for a founding says so instead of failing on a key violation.")]
+    [Test, Description("A settlement that already has a bank is refused rather than given a second one, so a re-key mistaken for a founding says so instead of failing on a unique index violation.")]
     public async Task ShouldRefuseASettlementThatAlreadyDrawsOnABankAsync()
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
@@ -168,15 +185,11 @@ internal class AssetBankProvisioningServiceTests : InMemoryTestBase
 
         var existingBank = new AssetBank
         {
-            PlayerId = _OTHER_PLAYER_ID
+            PlayerId = _OTHER_PLAYER_ID,
+            SettlementId = village.Id
         };
 
         context.AssetBanks.Add(existingBank);
-        context.AssetBankSettlementMemberships.Add(new AssetBankSettlementMembership
-        {
-            Bank = existingBank,
-            SettlementId = village.Id
-        });
 
         await context.SaveChangesAsync();
 

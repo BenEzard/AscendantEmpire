@@ -4,8 +4,9 @@ namespace AscendantEmpire.FrontendContracts.Assets.GetAssetBanks;
 /// Every asset bank a Player holds, which together are everything they own anywhere.
 /// </summary>
 /// <remarks>
-/// A list of banks rather than one merged set of totals. Two banks are two pools precisely because their Settlements cannot reach each other, so summing
-/// them into a single figure would advertise stock that no single build order can spend. A summary ticker that wants one number adds them up knowing that.
+/// A bank per Settlement rather than one merged set of totals, because capacity and locality are both per Settlement. Which of them can reach each other is
+/// <see cref="IAssetBankHoldings.NetworkKey"/>: summing banks across two keys advertises stock no single build order can spend. A summary ticker that wants
+/// one number adds them up knowing that.
 /// </remarks>
 public interface IAssetBankCollection
 {
@@ -13,16 +14,46 @@ public interface IAssetBankCollection
 }
 
 /// <summary>
-/// One asset bank: what it holds, and which Settlements draw on it.
+/// Every bank one Settlement can draw on: its own, and any other sharing its network.
+/// </summary>
+/// <remarks>
+/// <see cref="SiteAssetBankId"/> is called out because the site's own bank is spent first and the rest of the network only covers the remainder, so the two
+/// are not interchangeable.
+/// </remarks>
+public interface IAssetNetworkHoldings
+{
+    /// <summary>
+    /// The network these banks share. <see cref="Guid.Empty"/> where the site's bank is in no network at all, in which case it is the only bank returned.
+    /// </summary>
+    /// <remarks>
+    /// Carried here as well as on each bank so a client can tell "the same network, new balances" from "a different network" in one comparison - which is
+    /// what a road built or pillaged between turns changes. Every bank in <see cref="Banks"/> carries this same key.
+    /// </remarks>
+    Guid NetworkKey { get; }
+
+    /// <summary>The bank of the Settlement that was asked about, which is always one of <see cref="Banks"/>.</summary>
+    int SiteAssetBankId { get; }
+
+    /// <summary>Every bank in the network, in ascending bank id order. A network of one is the normal case.</summary>
+    IReadOnlyCollection<IAssetBankHoldings> Banks { get; }
+}
+
+/// <summary>
+/// One Settlement's asset bank: what it holds, and which network it sits in.
 /// </summary>
 public interface IAssetBankHoldings
 {
     int AssetBankId { get; }
 
     /// <summary>
-    /// Every Settlement whose membership points at this bank, in ascending id order.
+    /// The one Settlement whose store this is.
     /// </summary>
-    IReadOnlyCollection<int> SettlementIds { get; }
+    int SettlementId { get; }
+
+    /// <summary>
+    /// The network this bank belongs to. Banks of one Player sharing a key may draw on each other.
+    /// </summary>
+    Guid NetworkKey { get; }
 
     /// <summary>
     /// What the bank holds, in display order. An Asset with no entry is one the bank holds none of.

@@ -1,12 +1,16 @@
 namespace AscendantEmpire.Domain.Entities.Assets;
 
 /// <summary>
-/// How much of one Asset a given <see cref="AssetBank"/> currently holds.
+/// How much of one Asset one Settlement's <see cref="AssetBank"/> currently holds.
 /// </summary>
 /// <remarks>
 /// <para>
 /// Composite primary key on (AssetBankId, AssetId), so a bank holds at most one balance per Asset and a drawdown has a single row to debit rather than a set
 /// to reconcile.
+/// </para>
+/// <para>
+/// <b>A balance never moves to another bank.</b> Connecting and disconnecting Settlements re-key <see cref="AssetBank.NetworkKey"/> and touch no row here, so
+/// stock stays with the Settlement that produced it. The one sanctioned exception anywhere in the model is the camp feeder push (RS-35).
 /// </para>
 /// <para>
 /// <b>No row means none held.</b> A balance is not created until something is first credited to it, and a debit that would empty one may delete it rather

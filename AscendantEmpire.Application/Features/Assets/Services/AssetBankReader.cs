@@ -12,35 +12,51 @@ namespace AscendantEmpire.Application.Features.Assets.Services;
 /// <inheritdoc cref="IAssetBankReader" />
 internal sealed class AssetBankReader : IAssetBankReader
 {
-    public async Task<ServiceResult<AssetBankHoldings>> GetForSettlementAsync(
+    public async Task<ServiceResult<AssetNetworkHoldings>> GetForSettlementAsync(
         AscendantEmpireContext context,
         int playerId,
         int settlementId,
         CancellationToken cancelToken = default)
     {
-        // Projected through the Bank navigation rather than joined, and so an INNER JOIN on a required foreign key: a membership whose bank is another
-        // Player's drops out here, which is what makes "not yours" and "no bank" one answer rather than two.
-        int? assetBankId = await context.AssetBankSettlementMemberships
+        // Both columns in the predicate, so naming another Player's Settlement cannot reach their bank. That is what makes "not yours" and "no bank" one
+        // answer rather than two.
+        SiteRow? site = await context.AssetBanks
             .AsNoTracking()
-            .Where(membership => membership.SettlementId == settlementId && membership.Bank.PlayerId == playerId)
-            .Select(membership => (int?)membership.AssetBankId)
+            .Where(bank => bank.SettlementId == settlementId && bank.PlayerId == playerId)
+            .Select(bank => new SiteRow(bank.Id, bank.NetworkKey))
             .FirstOrDefaultAsync(cancelToken);
 
-        if (assetBankId is null)
+        if (site is null)
         {
-            return ServiceResult<AssetBankHoldings>.NotFound($"Settlement {settlementId} has no asset bank belonging to Player {playerId}.");
+            return ServiceResult<AssetNetworkHoldings>.NotFound($"Settlement {settlementId} has no asset bank belonging to Player {playerId}.");
         }
 
-        IReadOnlyCollection<AssetBankHoldings> banks = await ReadBanksAsync(context, playerId, assetBankId.Value, cancelToken);
+        // Guid.Empty is the absence of a key, not a network two banks share, so an unkeyed bank reaches nothing but itself. Grouping on it would hand one
+        // Settlement every other bank of the Player's that had not been keyed yet.
+        int[] networkBankIds = site.NetworkKey == Guid.Empty
+            ? [site.AssetBankId]
+            : [.. await context.AssetBanks
+                .AsNoTracking()
+                .Where(bank => bank.PlayerId == playerId && bank.NetworkKey == site.NetworkKey)
+                .Select(bank => bank.Id)
+                .ToListAsync(cancelToken)];
 
-        // The membership above proved the bank exists and is this Player's, so exactly one bank comes back. A miss here would mean the row vanished between
-        // the two reads, which is a failure rather than an empty result.
-        if (banks.Count != 1)
+        IReadOnlyCollection<AssetBankHoldings> banks = await ReadBanksAsync(context, playerId, networkBankIds, cancelToken);
+
+        // The site read above proved the bank exists and is this Player's, so it is always among them. A miss here would mean the row vanished between the
+        // two reads, which is a failure rather than an empty result.
+        if (!banks.Any(bank => bank.AssetBankId == site.AssetBankId))
         {
-            return ServiceResult<AssetBankHoldings>.NotFound($"Asset bank {assetBankId.Value}, which Settlement {settlementId} draws on, could not be read.");
+            return ServiceResult<AssetNetworkHoldings>.NotFound($"Asset bank {site.AssetBankId}, which Settlement {settlementId} draws on, could not be read.");
         }
 
-        return ServiceResult<AssetBankHoldings>.Succeed(banks.Single());
+        return ServiceResult<AssetNetworkHoldings>.Succeed(new AssetNetworkHoldings
+        {
+            NetworkKey = site.NetworkKey,
+            PlayerId = playerId,
+            SiteAssetBankId = site.AssetBankId,
+            Banks = banks
+        });
     }
 
     public async Task<ServiceResult<IReadOnlyCollection<AssetBankHoldings>>> GetForPlayerAsync(
@@ -48,37 +64,40 @@ internal sealed class AssetBankReader : IAssetBankReader
         int playerId,
         CancellationToken cancelToken = default)
     {
-        IReadOnlyCollection<AssetBankHoldings> banks = await ReadBanksAsync(context, playerId, assetBankId: null, cancelToken);
+        IReadOnlyCollection<AssetBankHoldings> banks = await ReadBanksAsync(context, playerId, assetBankIds: null, cancelToken);
 
         // A Player with no settlement yet owns no banks. That is an empty list, not a missing resource.
         return ServiceResult<IReadOnlyCollection<AssetBankHoldings>>.Succeed(banks);
     }
 
     /// <summary>
-    /// Reads the Player's banks, optionally narrowed to one, and assembles them.
+    /// Reads the Player's banks, optionally narrowed to a set, and assembles them.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Three flat reads joined in memory rather than one query with nested collection projections, which is the shape <c>GetPlayerAssetsHandler</c> already
-    /// uses for the asset tree. A Player holds a handful of banks and each holds at most a few hundred balances, so the assembly is cheap, and keeping the
-    /// membership read separate means a bank with no memberships still comes back - which it has to, because an orphaned bank still holds stock.
+    /// Two flat reads joined in memory rather than one query with a nested collection projection, which is the shape <c>GetPlayerAssetsHandler</c> already
+    /// uses for the asset tree. A Player holds a handful of banks and each holds at most a few hundred balances, so the assembly is cheap.
     /// </para>
     /// <para>The Player filter is applied to the banks themselves, so narrowing by id cannot reach another Player's bank even when the id is theirs.</para>
     /// </remarks>
-    /// <param name="assetBankId">The single bank to read, or <see langword="null"/> for every bank the Player owns.</param>
-    private static async Task<IReadOnlyCollection<AssetBankHoldings>> ReadBanksAsync(AscendantEmpireContext context, int playerId, int? assetBankId, CancellationToken cancelToken)
+    /// <param name="assetBankIds">The banks to read, or <see langword="null"/> for every bank the Player owns.</param>
+    private static async Task<IReadOnlyCollection<AssetBankHoldings>> ReadBanksAsync(
+        AscendantEmpireContext context,
+        int playerId,
+        IReadOnlyCollection<int>? assetBankIds,
+        CancellationToken cancelToken)
     {
         IQueryable<AssetBank> banks = context.AssetBanks
             .AsNoTracking()
             .Where(bank => bank.PlayerId == playerId);
 
-        if (assetBankId is not null)
+        if (assetBankIds is not null)
         {
-            banks = banks.Where(bank => bank.Id == assetBankId.Value);
+            banks = banks.Where(bank => assetBankIds.Contains(bank.Id));
         }
 
         List<BankRow> bankRows = await banks
-            .Select(bank => new BankRow(bank.Id, bank.PlayerId))
+            .Select(bank => new BankRow(bank.Id, bank.PlayerId, bank.SettlementId, bank.NetworkKey))
             .ToListAsync(cancelToken);
 
         if (bankRows.Count == 0)
@@ -87,12 +106,6 @@ internal sealed class AssetBankReader : IAssetBankReader
         }
 
         int[] bankIds = [.. bankRows.Select(bank => bank.AssetBankId)];
-
-        List<MembershipRow> membershipRows = await context.AssetBankSettlementMemberships
-            .AsNoTracking()
-            .Where(membership => bankIds.Contains(membership.AssetBankId))
-            .Select(membership => new MembershipRow(membership.AssetBankId, membership.SettlementId))
-            .ToListAsync(cancelToken);
 
         // Projected through the Asset navigation, which EF expands into the join. The catalogue columns come back on the balance row rather than from a
         // second read, so a holding can never be reported under a name belonging to a different Asset.
@@ -110,7 +123,6 @@ internal sealed class AssetBankReader : IAssetBankReader
                 balance.Quantity))
             .ToListAsync(cancelToken);
 
-        ILookup<int, MembershipRow> membershipsByBankId = membershipRows.ToLookup(membership => membership.AssetBankId);
         ILookup<int, HoldingRow> holdingsByBankId = holdingRows.ToLookup(holding => holding.AssetBankId);
 
         return
@@ -121,12 +133,8 @@ internal sealed class AssetBankReader : IAssetBankReader
                 {
                     AssetBankId = bank.AssetBankId,
                     PlayerId = bank.PlayerId,
-                    SettlementIds =
-                    [
-                        .. membershipsByBankId[bank.AssetBankId]
-                            .Select(membership => membership.SettlementId)
-                            .OrderBy(settlementId => settlementId)
-                    ],
+                    SettlementId = bank.SettlementId,
+                    NetworkKey = bank.NetworkKey,
                     Holdings = ToHoldings(holdingsByBankId[bank.AssetBankId])
                 })
         ];
@@ -158,9 +166,9 @@ internal sealed class AssetBankReader : IAssetBankReader
         ];
     }
 
-    private sealed record BankRow(int AssetBankId, int PlayerId);
+    private sealed record SiteRow(int AssetBankId, Guid NetworkKey);
 
-    private sealed record MembershipRow(int AssetBankId, int SettlementId);
+    private sealed record BankRow(int AssetBankId, int PlayerId, int SettlementId, Guid NetworkKey);
 
     private sealed record HoldingRow(
         int AssetBankId,

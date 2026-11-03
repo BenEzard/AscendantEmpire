@@ -1,12 +1,16 @@
 namespace AscendantEmpire.BackendContracts.Assets.GetAssetBanks;
 
 /// <summary>
-/// One asset bank: what it holds, and which Settlements can reach it.
+/// One Settlement's asset bank: what it holds, whose Settlement it is, and which network it sits in.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>The memberships travel with the balances deliberately.</b> A bank's holdings only mean something alongside the Settlements that draw on it, so a reader
-/// handed a bare quantity could add two banks together whose Settlements cannot trade with each other and report a pool that nothing is able to spend.
+/// <b>The Settlement travels with the balances deliberately.</b> A bank is one Settlement's store, so a reader handed a bare quantity has no way to say
+/// where the stock physically is - which is what per-Settlement capacity and a local-first spend both turn on.
+/// </para>
+/// <para>
+/// <b><see cref="NetworkKey"/> is what says which banks can reach each other.</b> Two banks of one Player carrying the same key may draw on each other;
+/// two carrying different keys cannot, however much they add up to.
 /// </para>
 /// <para>
 /// Only Assets whose <c>StorageScope</c> is <c>SettlementBank</c> ever appear here. A player-level or derived figure is held elsewhere entirely - see
@@ -23,13 +27,15 @@ public record AssetBankHoldings
     public required int PlayerId { get; init; }
 
     /// <summary>
-    /// Every Settlement whose membership points at this bank, in ascending id order.
+    /// The one Settlement whose store this is.
     /// </summary>
-    /// <remarks>
-    /// Empty is a real state rather than a bug: a bank whose last membership has been repointed by a connection is waiting to be folded into the bank it
-    /// joined and deleted, and it still holds its balances until that happens.
-    /// </remarks>
-    public required IReadOnlyCollection<int> SettlementIds { get; init; }
+    public required int SettlementId { get; init; }
+
+    /// <summary>
+    /// The network the bank belongs to, shared with every other bank its Settlement can draw on.
+    /// </summary>
+    /// <remarks><see cref="System.Guid.Empty"/> means the bank has not been keyed yet, and so reaches nothing but itself.</remarks>
+    public required Guid NetworkKey { get; init; }
 
     /// <summary>
     /// What the bank holds, in the order the Assets are displayed in.

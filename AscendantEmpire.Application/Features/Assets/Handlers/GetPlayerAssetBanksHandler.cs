@@ -39,8 +39,9 @@ internal class GetPlayerAssetBanksRequestValidator : Validator<GetPlayerAssetBan
 /// </summary>
 /// <remarks>
 /// <para>
-/// A bank per pool rather than one merged set of totals. Two banks exist precisely because their Settlements cannot reach each other, so a single figure
-/// would advertise stock that no one build order could spend - see <see cref="AssetBankHoldings"/> for why the memberships come back with the balances.
+/// A bank per Settlement rather than one merged set of totals, because capacity and locality are both per Settlement. Which of them can reach each other is
+/// each bank's <c>NetworkKey</c>: a single figure summed across two keys would advertise stock that no one build order could spend - see
+/// <see cref="AssetBankHoldings"/> for why the Settlement and the key come back with the balances.
 /// </para>
 /// <para>A Player with no settlement yet owns no banks, and that is an empty list rather than a not-found.</para>
 /// </remarks>
@@ -55,9 +56,8 @@ internal class GetPlayerAssetBanksHandler(
         GetPlayerAssetBanksRequest request,
         CancellationToken cancellationToken)
     {
-        // The same cheap "is this Player part of this in-progress Game" probe the asset tree read starts with.
-        ServiceResult<IReadOnlyCollection<GameContext>> gameContextResult =
-            await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancellationToken);
+        // Cheap "is this Player part of this in-progress Game" probe
+        ServiceResult<IReadOnlyCollection<GameContext>> gameContextResult = await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancellationToken);
 
         if (gameContextResult.SuccessValue is not { Count: > 0 })
         {

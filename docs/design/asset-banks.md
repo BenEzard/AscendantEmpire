@@ -2,31 +2,46 @@
 
 The purpose of this document is to describe the game concept of Asset Banks.
 
-An Asset Bank is a collection of assets which one or more settlements has access to.
+An Asset Bank is one settlement's store of assets. A settlement can also draw on every other bank in its
+**network**, which is the set of banks sharing a `NetworkKey`.
 
 See also `assets-data-model.md` which describes the asset model.
 
 ## The model
 
-Three tables in the `assets` schema, keyed on the player:
+Two tables in the `assets` schema, keyed on the player:
 
 | Table | Key | What it holds |
 |---|---|---|
-| `AssetBank` | `Id` | One pool, owned by a `Player`. Carries a `NetworkKey` token that nothing reads yet. |
-| `AssetBankBalance` | `(AssetBankId, AssetId)` | How much of one asset the pool holds. |
-| `AssetBankSettlementMembership` | `SettlementId` | Which bank a settlement draws on. |
+| `AssetBank` | `Id` | One settlement's store, owned by a `Player`. Carries `SettlementId` (unique) and the `NetworkKey` that says what it can reach. |
+| `AssetBankBalance` | `(AssetBankId, AssetId)` | How much of one asset that store holds. |
 
-**One bank, many settlements.** Sharing is the bank itself, and a membership is what joins a settlement
-to it — so connecting two settlements repoints a membership, and merging two banks is folding one's
-balances into the other and deleting it. There is no separate "bank group" table: a group row would
-stand for a relationship that lasts no longer than the connection does.
+**One bank, one settlement, for the settlement's whole life.** `AssetBank.SettlementId` never changes, and
+the unique index on it is what makes "a settlement has exactly one Asset Bank at any time" a schema rule —
+a second bank for the same settlement cannot be inserted. A conquest moves `AssetBank.PlayerId` instead, so
+a settlement's stock travels with the settlement.
 
-Keying the membership on `SettlementId` alone is what makes "a settlement has exactly one Asset Bank at
-any time" a schema rule — a second bank for the same settlement cannot be inserted.
+Per-settlement capacity is what forces this shape: a cap needs a per-settlement row to bind to, and a
+deposit needs per-settlement rows to spread across. Keeping a settlement's stock with the settlement is
+also what makes a severed road harmless — the settlement still holds everything it had, and only loses its
+reach.
 
-**Every bank is a settlement bank.** There is no player-level stockpile variant. Such a bank would never
-merge, never split, hold no memberships and have to be excluded from every settlement query — a bank in
-name only. What it was reaching for belongs on the asset instead, below.
+**Sharing is the key, not the bank.** Banks carrying the same `NetworkKey` may draw on each other, so
+connecting or disconnecting settlements is a **re-key**: no balance row is touched, and no bank is created
+or deleted. There is deliberately no network table — a row standing for a relationship that lasts only as
+long as the connection does would outlive what it describes.
+
+`NetworkKey` is derived data with no referential integrity, so a stale key would let the wrong settlements
+reach each other and nothing in the schema would catch it. Two things mitigate that: it has exactly one
+writer, the connectivity service, and that service can also report any bank whose key disagrees with what a
+recompute would give it — an unkeyed bank (`Guid.Empty`), or one sharing a key with a bank it cannot reach.
+
+**Balances never move between banks.** The one sanctioned exception anywhere in the model is the camp feeder
+push.
+
+**Every bank is a settlement bank.** There is no player-level stockpile variant. Such a bank would have no
+settlement to point at and would have to be excluded from every settlement query — a bank in name only.
+What it was reaching for belongs on the asset instead, below.
 
 `Quantity` is a `long` scaled by `ScaledAmount.Scale` (1,000), like every other amount in the game, so a
 fractional per-turn yield accumulates without being rounded away at the balance.
@@ -56,14 +71,23 @@ This is what lets a drawdown route a debit without hardcoding which assets are n
 and it keeps the catalogue row a pure label.
 
 ## Asset Bank Rules
-* Every settlement has an Asset Bank, whatever its `SettlementTier` — a 'camp' (1) included. A camp is the tier the first settlement of a game is, and the first building produces in one, so it banks for itself rather than drawing on a village it may not have.
-* A settlement should have exactly one Asset Bank at any time.
-* An Asset Bank should have one or more Settlements to which it belongs, which may be of any tier.
-* `SettlementTier` of 'camp' should attach to their closest 'village', and attaching **merges** the two banks: the camp's balances are folded into the village's bank, the camp's membership is repointed at it, and the camp's own bank is deleted — the same operation a road or river connection performs. Where two villages are equi-distant, if one of them was where the Settler was created from, then the camp should attach to **that** village. Otherwise, choose the lower `settlementId`.
-* When a settlement is connected via road or river to another settlement, then they are **connected settlements**, and share an Asset Bank. A settlement newly-connected, joins the existing Asset Bank. (A river only counts as a connection for the Player after 'Canoe' technology has been completed, and a road only after the Roads technology).
-* For the purposes of Asset Banks, connections only count for a player's own settlements, not for other players.
-* When a settlement that *was* connected is disconnected (via pillaging of a road or damming of a river), then a new Asset Bank should be created for them. This Asset Bank would start out empty. When the connection is restored, then the temporary Asset Bank should be dissolved, moving all assets into the shared asset bank.
-* When a settlement is not connected, then it gets its own Asset Bank.
+
+**Built:**
+
+* Every settlement is born with an Asset Bank, whatever its `SettlementTier` — a 'camp' (1) included. A camp is the tier the first settlement of a game is, and the first building produces in one, so it banks for itself rather than drawing on a village it may not have.
+* A settlement has exactly one Asset Bank, for its whole life. Every Asset Bank has exactly one settlement, which may be of any tier.
+* A bank is born into a network of its own, and the connectivity service is the only thing that writes `NetworkKey`.
+
+**Designed, not built.** Nothing in the code connects two settlements yet: there is no road anywhere in the
+codebase — no structure, no seed row, no tile feature — and the river and coastline walks are their own
+tasks. So every bank is currently a network of one. These are the rules those tasks build to:
+
+* Two of a player's settlements joined by a transport link are **connected settlements**, and share a `NetworkKey`. A connection is transitive, so A–B and B–C puts all three in one network — "which settlements share a key" is a connected-components walk over one player's settlements.
+* **Roads** connect only once the player has the Roads technology (**CM-64**, which must introduce the road itself). **Rivers** only after Canoe (**RS-48**). **Coastlines** join two coastal settlements within a per-player sea range that technology raises (**RS-49**).
+* Connections count only between a player's **own** settlements. A road running through a neighbour's village connects nothing.
+* Connecting and disconnecting — a road built, a road pillaged, a river dammed — are **re-keys**. No balance moves, no bank is created or deleted. A settlement cut off keeps everything it was holding and simply stops reaching the rest.
+* A `SettlementTier` of 'camp' attaches to its closest village, which **sets a feeder parent** (**RS-35**): the camp shares the parent's `NetworkKey`, so it can spend from the parent's stock, and pushes its own production to the parent each turn because its own capacity is tiny. Where two villages are equi-distant, if one of them was where the Settler was created from, the camp attaches to **that** village; otherwise the lower `settlementId` wins. The designation is stored, never recomputed — the settler-origin tiebreaker is history that a later recompute cannot see.
+* A settlement that is connected to nothing is its own network of one, banking normally.
 
 ## Querying requirements
 The game will need to be able to query on a specific Asset Bank, and also query on all Asset Banks.
@@ -81,15 +105,17 @@ An expense makes two choices, and both change what is spent.
   to nothing before the next is touched. With an ordering of Oak, Generic, Cedar and 4 Oak and 20 Generic
   held, an expense of 10 takes Oak to zero and the remaining 6 out of Generic, leaving Cedar alone.
 
-**Where it is paid from:** one settlement's bank, or every bank the player owns.
+**Where it is paid from:** one settlement's own bank, or every bank the player owns.
 
 ### At one settlement
 
-A build order or an upkeep charge happens somewhere, so the expense carries that settlement and is met
-from the one bank it draws on. Where that bank does not hold enough, the expense is refused.
+A build order or an upkeep charge happens somewhere, so the expense carries that settlement and is met from
+that settlement's own bank. Where that bank does not hold enough, the expense is refused.
 
-> Sourcing the remainder from the nearest bank that does hold it — across several where need be, with a
-> transport turn cost for the distance the assets travel — is designed and not built. It is its own task.
+> Draining the site's own bank first and taking the remainder from the rest of its network — richest-first,
+> rebalancing nothing — is designed and not built (**RS-36**). Adding a transport turn cost for the distance
+> the assets travel is a further task of its own (**RS-27**), and is what turns that remainder ordering into
+> nearest-first.
 
 ### Empire-wide
 
@@ -118,8 +144,10 @@ levelled across the banks holding it.
 
 **The toolbar reads this same sum.** `GET /player/assets` reports it as an asset's `amount`, so the figure
 on a ticker and the figure an Empire-wide purchase is met from are one number. The ticker is rounded down,
-which is also all a drawdown would release of a part unit. What one settlement can spend on a build order
-is the narrower figure, and `GET /player/asset-banks/{settlementId}` is what reports that.
+which is also all a drawdown would release of a part unit. What one settlement can spend on a build order is
+the narrower figure, and `GET /player/asset-banks/{settlementId}` is what reports it: every bank in that
+settlement's network, with the settlement's own bank named as the site, since the site is what a build order
+spends first.
 
 ### Either way
 
@@ -127,7 +155,7 @@ is the narrower figure, and `GET /player/asset-banks/{settlementId}` is what rep
   before a single balance is touched, so a group expense that zeroes Oak and then finds Cedar short never
   happens.
 * A refusal says what was short and by how much, and **nothing in it is bank-specific**. An Empire-wide
-  expense is short against everything the player holds, and naming the pool that ran out would point at a
+  expense is short against everything the player holds, and naming the bank that ran out would point at a
   boundary the expense was never spent across.
 * A balance taken to nothing is **deleted** rather than left at zero. A missing row and a zero row mean
   the same thing to every reader.
@@ -135,5 +163,9 @@ is the narrower figure, and `GET /player/asset-banks/{settlementId}` is what rep
   whole game is not spent anywhere in particular. Naming a settlement for one is a caller error.
 
 ## Out of Scope
-* If a camp is conquered, then it should change ownership to the conqueror, and its membership should move to the Asset Bank of the conqueror's nearest settlement. Where the camp was banking on its own, that move is a merge: its balances go with it and its own bank is deleted, so no bank is left without a settlement.
-* Where a camp is attached to a village, and the village is conquered, then calculate the ownership boundaries. If the the camp is still in the original owners territory, then find the nearest settlement of the Player. If the ownership boundaries change, and the camp is now in another Player's territory, then auto-destroy the camp — dissolving the Asset Bank it drew on if nothing else draws on it.
+
+Conquest, which is **RS-34**. Two rules, and both are short — moving a bank is an ownership change and a
+re-key, with no balance to divide and no bank to dissolve:
+
+* A conquered settlement's bank changes hands by moving `AssetBank.PlayerId`. Its balances travel with it, in full, and the captured settlement is re-keyed into the conqueror's network — a network of one unless the conqueror actually has a connection to it.
+* The losing player's remaining network is re-keyed too, and may split in two: if the captured settlement was the bridge between two halves of their empire, losing it partitions them. A conquest therefore recomputes for **both** players.

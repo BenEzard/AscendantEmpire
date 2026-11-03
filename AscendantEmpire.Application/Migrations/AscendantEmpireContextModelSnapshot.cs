@@ -112,10 +112,17 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("PlayerId")
                         .HasColumnType("int");
 
+                    b.Property<int>("SettlementId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("PlayerId")
-                        .HasDatabaseName("IX_AssetBank_Player");
+                    b.HasIndex("SettlementId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AssetBank_Settlement");
+
+                    b.HasIndex("PlayerId", "NetworkKey")
+                        .HasDatabaseName("IX_AssetBank_Player_NetworkKey");
 
                     b.ToTable("AssetBank", "assets");
                 });
@@ -136,22 +143,6 @@ namespace AscendantEmpire.Application.Migrations
                     b.HasIndex("AssetId");
 
                     b.ToTable("AssetBankBalance", "assets");
-                });
-
-            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.AssetBankSettlementMembership", b =>
-                {
-                    b.Property<int>("SettlementId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("AssetBankId")
-                        .HasColumnType("int");
-
-                    b.HasKey("SettlementId");
-
-                    b.HasIndex("AssetBankId")
-                        .HasDatabaseName("IX_AssetBankSettlementMembership_AssetBank");
-
-                    b.ToTable("AssetBankSettlementMembership", "assets");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.AssetCategory", b =>
@@ -4587,7 +4578,16 @@ namespace AscendantEmpire.Application.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_AssetBank_Player_PlayerId");
 
+                    b.HasOne("AscendantEmpire.Domain.Entities.Settlements.Settlement", "Settlement")
+                        .WithOne()
+                        .HasForeignKey("AscendantEmpire.Domain.Entities.Assets.AssetBank", "SettlementId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_AssetBank_Settlements_SettlementId");
+
                     b.Navigation("Player");
+
+                    b.Navigation("Settlement");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.AssetBankBalance", b =>
@@ -4607,26 +4607,6 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Asset");
 
                     b.Navigation("Bank");
-                });
-
-            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.AssetBankSettlementMembership", b =>
-                {
-                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.AssetBank", "Bank")
-                        .WithMany("SettlementMemberships")
-                        .HasForeignKey("AssetBankId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("AscendantEmpire.Domain.Entities.Settlements.Settlement", "Settlement")
-                        .WithOne()
-                        .HasForeignKey("AscendantEmpire.Domain.Entities.Assets.AssetBankSettlementMembership", "SettlementId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired()
-                        .HasConstraintName("FK_AssetBankSettlementMembership_Settlements_SettlementId");
-
-                    b.Navigation("Bank");
-
-                    b.Navigation("Settlement");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.AssetCategory", b =>
@@ -6602,8 +6582,6 @@ namespace AscendantEmpire.Application.Migrations
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.AssetBank", b =>
                 {
                     b.Navigation("Balances");
-
-                    b.Navigation("SettlementMemberships");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.AssetCategory", b =>

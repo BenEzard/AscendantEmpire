@@ -14,29 +14,34 @@ namespace AscendantEmpire.Application.Features.Assets.Services;
 /// unit of work, which is why this stages onto the caller's context rather than owning a save of its own - see <see cref="ProvisionForNewSettlementAsync"/>.
 /// </para>
 /// <para>
-/// <b>Every tier banks, a camp included.</b> There is no tier rule here and none for a caller to apply either: the first Settlement of a game is a camp, the
-/// Meeting Place is built in one, and a camp with no bank of its own would have nowhere to put what that building produces - with no village to draw on, since
-/// it is the Player's first Settlement. A camp coming to share a village's pool is a <i>merge</i> rather than an absence of a bank here.
+/// <b>It does not write <c>NetworkKey</c>.</b> The key comes from <see cref="IAssetNetworkConnectivityService.AssignKeyToNewBank"/>, which is its only
+/// writer: a second one would let the wrong Settlements reach each other with nothing in the schema to catch it.
 /// </para>
 /// <para>
-/// Only the bank a Settlement is <i>born</i> with. Repointing a membership when settlements connect, and folding one bank's balances into another when two
-/// merge - which is what a camp attaching to its village is - are each their own ticket, and each will land as a method beside this one.
+/// <b>Every tier banks, a camp included.</b> There is no tier rule here and none for a caller to apply either: the first Settlement of a game is a camp, the
+/// Meeting Place is built in one, and a camp with no bank of its own would have nowhere to put what that building produces.
+/// </para>
+/// <para>
+/// Only the bank a Settlement is <i>born</i> with. A Settlement's bank is its bank for the Settlement's whole life, so there is no later founding to do:
+/// what changes afterwards is the network it sits in, which <see cref="IAssetNetworkConnectivityService"/> owns, and who owns it, which a conquest moves
+/// through <c>AssetBank.PlayerId</c> (RS-34). A camp coming to share a village's stock is a shared <c>NetworkKey</c> plus a feeder designation (RS-35),
+/// never a merge of two banks.
 /// </para>
 /// <para>See <c>docs/design/asset-banks.md</c> for the rules this serves.</para>
 /// </remarks>
 internal interface IAssetBankProvisioningService
 {
     /// <summary>
-    /// Stages the empty bank a newly founded Settlement draws on, and its membership of it.
+    /// Stages the empty bank a newly founded Settlement is born with, keyed into a network of its own.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>Works on the caller's context and does not save.</b> The Settlement may still be unsaved: the membership is joined through its navigation, so EF
-    /// picks up the generated key when both are written in the same <c>SaveChangesAsync</c>, and a founding that rolls back takes the bank with it.
+    /// <b>Works on the caller's context and does not save.</b> The Settlement may still be unsaved: the bank is joined through its navigation, so EF picks up
+    /// the generated key when both are written in the same <c>SaveChangesAsync</c>, and a founding that rolls back takes the bank with it.
     /// </para>
     /// <para>
     /// <b>The tier is not consulted.</b> <c>docs/design/asset-banks.md</c> gives every Settlement a bank of its own, so there is no shape of Settlement this
-    /// stages nothing for. A camp that later comes to share its village's pool keeps the membership staged here until a merge repoints it.
+    /// stages nothing for.
     /// </para>
     /// <para>
     /// <b>The bank is created empty.</b> Nothing seeds a starting quantity - a Player's starter assets grant unlocks, not amounts.
@@ -47,8 +52,8 @@ internal interface IAssetBankProvisioningService
     /// records who founded the Settlement and keeps saying so after a conquest moves it.
     /// </param>
     /// <returns>
-    /// <c>InternalServerError</c> when the Settlement is already in a bank, which the membership's primary key would refuse anyway: a caller provisioning
-    /// twice has mistaken a merge or a repointing for a founding.
+    /// <c>InternalServerError</c> when the Settlement already has a bank, which the unique index on <c>AssetBank.SettlementId</c> would refuse anyway: a
+    /// caller provisioning twice has mistaken a re-key or a conquest for a founding.
     /// </returns>
     Task<ServiceResultBase> ProvisionForNewSettlementAsync(AscendantEmpireContext context, int playerId, Settlement settlement, CancellationToken cancelToken = default);
 }

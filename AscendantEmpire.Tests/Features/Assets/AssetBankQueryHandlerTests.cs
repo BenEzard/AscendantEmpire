@@ -26,10 +26,11 @@ namespace AscendantEmpire.Tests.Features.Assets;
 internal class AssetBankQueryHandlerTests : AssetBankTestBase
 {
     private const int _SETTLEMENT_ID = 41;
+    private const int _FAR_SETTLEMENT_ID = 77;
 
     private IMediator _mediator = null!;
     private GetPlayerAssetBanksHandler _playerBanksHandler = null!;
-    private GetSettlementAssetBankHandler _settlementBankHandler = null!;
+    private GetSettlementAssetNetworkHandler _settlementNetworkHandler = null!;
 
     [SetUp]
     public void CreateHandlers()
@@ -45,18 +46,18 @@ internal class AssetBankQueryHandlerTests : AssetBankTestBase
             DbFactory,
             reader);
 
-        _settlementBankHandler = new GetSettlementAssetBankHandler(
-            NullLogger<GetSettlementAssetBankHandler>.Instance,
+        _settlementNetworkHandler = new GetSettlementAssetNetworkHandler(
+            NullLogger<GetSettlementAssetNetworkHandler>.Instance,
             _mediator,
             DbFactory,
             reader);
     }
 
-    [Test, Description("The all-banks read hands back every bank the Player owns, so a summary ticker has each pool rather than one merged total.")]
+    [Test, Description("The all-banks read hands back every bank the Player owns, so a summary ticker has each one rather than a merged total.")]
     public async Task ShouldReturnEveryBankThePlayerOwns()
     {
-        int firstBankId = await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
-        int secondBankId = await CreateBankAsync(_playerId, [], new Dictionary<string, long> { [_CEDAR_LOG_CODE] = 6 });
+        int firstBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        int secondBankId = await CreateBankAsync(_playerId, _FAR_SETTLEMENT_ID, new Dictionary<string, long> { [_CEDAR_LOG_CODE] = 6 });
 
         ServiceResult<IReadOnlyCollection<AssetBankHoldings>> result = await _playerBanksHandler.Handle(
             new GetPlayerAssetBanksRequest(_GAME_ID, _playerId),
@@ -69,27 +70,27 @@ internal class AssetBankQueryHandlerTests : AssetBankTestBase
         });
     }
 
-    [Test, Description("The one-bank read hands back the bank the named Settlement draws on, with the memberships that say who else can reach it.")]
-    public async Task ShouldReturnTheBankTheSettlementDrawsOn()
+    [Test, Description("The one-network read hands back the named Settlement's own bank as the site, with the network key that says what else can reach it.")]
+    public async Task ShouldReturnTheNetworkTheSettlementDrawsOn()
     {
-        int assetBankId = await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        int assetBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
 
-        ServiceResult<AssetBankHoldings> result = await _settlementBankHandler.Handle(
-            new GetSettlementAssetBankRequest(_GAME_ID, _playerId, _SETTLEMENT_ID),
+        ServiceResult<AssetNetworkHoldings> result = await _settlementNetworkHandler.Handle(
+            new GetSettlementAssetNetworkRequest(_GAME_ID, _playerId, _SETTLEMENT_ID),
             CancellationToken.None);
 
         Assert.Multiple(() =>
         {
             Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
-            Assert.That(result.SuccessValue!.AssetBankId, Is.EqualTo(assetBankId));
-            Assert.That(result.SuccessValue.SettlementIds, Is.EqualTo(new[] { _SETTLEMENT_ID }));
+            Assert.That(result.SuccessValue!.SiteAssetBankId, Is.EqualTo(assetBankId));
+            Assert.That(result.SuccessValue.Banks.Single().SettlementId, Is.EqualTo(_SETTLEMENT_ID));
         });
     }
 
     [Test, Description("The all-banks read is refused when the Player is not in the named in-progress Game, so a stale token cannot be answered out of whatever banks its Player id owns.")]
     public async Task ShouldRefuseTheAllBanksReadWhenThePlayerIsNotInTheGame()
     {
-        await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
         StubGameContext(playerIsInGame: false);
 
         ServiceResult<IReadOnlyCollection<AssetBankHoldings>> result = await _playerBanksHandler.Handle(
@@ -99,14 +100,14 @@ internal class AssetBankQueryHandlerTests : AssetBankTestBase
         Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.NotFound));
     }
 
-    [Test, Description("The one-bank read is refused on the same terms as the all-banks read, so the two cannot disagree about who is allowed to ask.")]
+    [Test, Description("The settlement network read is refused on the same terms as the all-banks read, so the two cannot disagree about who is allowed to ask.")]
     public async Task ShouldRefuseTheOneBankReadWhenThePlayerIsNotInTheGame()
     {
-        await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
         StubGameContext(playerIsInGame: false);
 
-        ServiceResult<AssetBankHoldings> result = await _settlementBankHandler.Handle(
-            new GetSettlementAssetBankRequest(_GAME_ID, _playerId, _SETTLEMENT_ID),
+        ServiceResult<AssetNetworkHoldings> result = await _settlementNetworkHandler.Handle(
+            new GetSettlementAssetNetworkRequest(_GAME_ID, _playerId, _SETTLEMENT_ID),
             CancellationToken.None);
 
         Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.NotFound));

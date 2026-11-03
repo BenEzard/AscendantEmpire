@@ -1,15 +1,21 @@
 using AscendantEmpire.Domain.Entities.Games;
+using AscendantEmpire.Domain.Entities.Settlements;
 
 namespace AscendantEmpire.Domain.Entities.Assets;
 
 /// <summary>
-/// One pooled store of Assets belonging to a Player, shared by every Settlement whose membership points at it.
+/// One Settlement's store of Assets, owned by a Player and reachable by every bank sharing its <see cref="NetworkKey"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <b>One bank, many settlements</b> - the bank is the pool and <see cref="AssetBankSettlementMembership"/> is what joins a Settlement to it, so connecting
-/// two settlements by road moves a membership and merging two banks is folding one's balances into the other and deleting it. There is deliberately no
-/// second "bank group" table: a group would be a permanent row standing for a relationship that only ever lasts as long as the connection does.
+/// <b>One bank, one Settlement, for the Settlement's whole life.</b> <see cref="SettlementId"/> is a unique foreign key and never changes; a conquest moves
+/// <see cref="PlayerId"/> instead, so a Settlement's stock travels with the Settlement. Per-Settlement capacity is what forces this shape: a pooled row has
+/// no per-Settlement place for a cap to bind, and no way to spread a deposit across the Settlements paying into it.
+/// </para>
+/// <para>
+/// <b>Sharing is the key, not the bank.</b> Banks carrying one <see cref="NetworkKey"/> may draw on each other, so connecting or disconnecting Settlements
+/// is a re-key that moves no balance and creates or deletes no bank. There is deliberately no network table: a row standing for a relationship that lasts
+/// only as long as the connection does would outlive what it describes.
 /// </para>
 /// <para>
 /// <b>Every bank is a settlement bank.</b> There is no player-level stockpile variant: an Asset that is held per Player rather than per network says so on
@@ -26,22 +32,33 @@ public sealed class AssetBank
     /// The Player who owns the bank, and the only one who may draw on it.
     /// </summary>
     /// <remarks>
-    /// Connectivity is assessed per Player, so two neighbouring settlements of different Players never share a bank however well they are joined by road.
+    /// Connectivity is assessed per Player, so two neighbouring settlements of different Players never share a network however well they are joined by road.
+    /// This is also the column a conquest moves, which is what hands a captured Settlement's stock to its new owner.
     /// </remarks>
     public int PlayerId { get; set; }
 
     /// <summary>
-    /// A token shared by the banks of one connected network, so a regrouping can find its siblings without walking the road graph again.
+    /// The one Settlement whose store this is. Unique, and never changes.
     /// </summary>
     /// <remarks>
-    /// Carried over from the original sketch and not yet read by anything. The connectivity work decides whether it is needed at all or whether the bank id
-    /// alone is enough, so it is left in place rather than guessed at here.
+    /// The unique index on this column is what makes "a Settlement has exactly one Asset Bank at any time" a schema rule rather than one a service has to
+    /// remember to check.
     /// </remarks>
-    public Guid NetworkKey { get; set; } = Guid.NewGuid();
+    public int SettlementId { get; set; }
+
+    /// <summary>
+    /// The network this bank belongs to. Banks of one Player sharing a key may draw on each other.
+    /// </summary>
+    /// <remarks>
+    /// Derived data with no referential integrity, so a stale key lets the wrong Settlements reach each other and nothing in the schema catches it. That is
+    /// why <c>IAssetNetworkConnectivityService</c> is its only writer, and why there is deliberately no default here: a bank arrives as
+    /// <see cref="Guid.Empty"/> - unkeyed - and the connectivity service is what keys it.
+    /// </remarks>
+    public Guid NetworkKey { get; set; }
 
     public ICollection<AssetBankBalance> Balances { get; set; } = [];
 
-    public ICollection<AssetBankSettlementMembership> SettlementMemberships { get; set; } = [];
-
     public Player Player { get; set; } = null!;
+
+    public Settlement Settlement { get; set; } = null!;
 }

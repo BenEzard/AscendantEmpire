@@ -36,8 +36,8 @@ internal class PlayerAssetQuantityReaderTests : AssetBankTestBase
     [Test, Description("A banked Asset reports the total across every bank the Player owns, because that sum is what an Empire-wide expense is met from.")]
     public async Task ShouldSumABankedAssetAcrossEveryBank()
     {
-        await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
-        await CreateBankAsync(_playerId, [_FAR_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 6 });
+        await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        await CreateBankAsync(_playerId, _FAR_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 6 });
 
         IReadOnlyDictionary<int, int> amounts = await ResolveAsync(_OAK_LOG_CODE);
 
@@ -47,8 +47,8 @@ internal class PlayerAssetQuantityReaderTests : AssetBankTestBase
     [Test, Description("Another Player's bank is not counted, so a figure can never include stock its reader has no claim on.")]
     public async Task ShouldNotCountAnotherPlayersBank()
     {
-        await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
-        await CreateBankAsync(_otherPlayerId, [_FAR_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 50 });
+        await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        await CreateBankAsync(_otherPlayerId, _FAR_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 50 });
 
         IReadOnlyDictionary<int, int> amounts = await ResolveAsync(_OAK_LOG_CODE);
 
@@ -58,7 +58,7 @@ internal class PlayerAssetQuantityReaderTests : AssetBankTestBase
     [Test, Description("An Asset the bank has no row for is left out, because no row and a zero mean the same thing to every reader of a balance.")]
     public async Task ShouldLeaveOutAnAssetWithNoBalanceRow()
     {
-        await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
 
         IReadOnlyDictionary<int, int> amounts = await ResolveAsync(_OAK_LOG_CODE, _CEDAR_LOG_CODE);
 
@@ -127,7 +127,7 @@ internal class PlayerAssetQuantityReaderTests : AssetBankTestBase
     [Test, Description("A Derived Asset is left out, because the holdings ledger and roster reads its figure is to come from do not exist yet.")]
     public async Task ShouldLeaveOutADerivedAsset()
     {
-        await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
 
         IReadOnlyDictionary<int, int> amounts = await ResolveAsync(_CIVILIANS_CODE);
 
@@ -137,7 +137,7 @@ internal class PlayerAssetQuantityReaderTests : AssetBankTestBase
     [Test, Description("All three scopes are answered in one call, so a read path needs no knowledge of which store answers for which Asset.")]
     public async Task ShouldResolveEveryScopeInOneCall()
     {
-        await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
         await CreateResearchStateAsync(_playerId, unspentDirectedPoints: 7);
 
         IReadOnlyDictionary<int, int> amounts = await ResolveAsync(_OAK_LOG_CODE, _TECHNOLOGY_EXPERIENCE_CODE, _CIVILIANS_CODE);

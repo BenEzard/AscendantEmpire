@@ -628,8 +628,11 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
 
         ServiceResult<SettleForceResult> result = await HandleAsync(await SeedSettlerAsync(), SettlementTier.City, "Riverhold");
 
-        Assert.That(result.HasSucceeded, Is.False);
-        Assert.That(string.Join(" ", result.Errors), Does.Contain("City"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(string.Join(" ", result.Errors), Does.Contain("City"));
+        }
     }
 
     [Test, Description("Another player's force cannot be settled, since the game token ties the caller to their own forces and the handler checks rather than trusting it.")]
@@ -740,13 +743,12 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
         AssetBank bank = await context.AssetBanks.SingleAsync();
-        AssetBankSettlementMembership membership = await context.AssetBankSettlementMemberships.SingleAsync();
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(bank.PlayerId, Is.EqualTo(_playerId), "The bank belongs to the founding player.");
-            Assert.That(membership.SettlementId, Is.EqualTo(result.SuccessValue!.SettlementId), "And it is the new village that draws on it.");
-            Assert.That(membership.AssetBankId, Is.EqualTo(bank.Id));
+            Assert.That(bank.SettlementId, Is.EqualTo(result.SuccessValue!.SettlementId), "And it is the new village's own store.");
+            Assert.That(bank.NetworkKey, Is.Not.EqualTo(Guid.Empty), "Keyed on the way out of the real pipeline, not only in the service in isolation.");
             Assert.That(await context.AssetBankBalances.AnyAsync(), Is.False, "Born empty: nothing seeds a starting quantity.");
         }
     }
@@ -766,18 +768,14 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
         AssetBank bank = await context.AssetBanks.SingleAsync();
-        AssetBankSettlementMembership membership = await context.AssetBankSettlementMemberships.SingleAsync();
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(bank.PlayerId, Is.EqualTo(_playerId), "The bank belongs to the founding player.");
-            Assert.That(membership.SettlementId, Is.EqualTo(result.SuccessValue!.SettlementId), "And it is the new camp that draws on it.");
-            Assert.That(membership.AssetBankId, Is.EqualTo(bank.Id));
+            Assert.That(bank.SettlementId, Is.EqualTo(result.SuccessValue!.SettlementId), "And it is the new camp's own store.");
             Assert.That(await context.AssetBankBalances.AnyAsync(), Is.False, "Born empty: nothing seeds a starting quantity.");
         }
     }
-
-    // ── fixture helpers ───────────────────────────────────────────────────────
 
     /// <summary>Tells the substituted turn service that the Turn in progress is this Player's.</summary>
     private void ItIsThisPlayersTurn(int playerTurnId, int roundNumber)
@@ -804,7 +802,9 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
             _contextActionService,
             new ForceLifecycleWriter(NullLogger<ForceLifecycleWriter>.Instance, playerTurnService),
             new StructureLifecycleWriter(NullLogger<StructureLifecycleWriter>.Instance, playerTurnService),
-            new AssetBankProvisioningService(NullLogger<AssetBankProvisioningService>.Instance));
+            new AssetBankProvisioningService(
+                NullLogger<AssetBankProvisioningService>.Instance,
+                new AssetNetworkConnectivityService(NullLogger<AssetNetworkConnectivityService>.Instance)));
 
         return await handler.Handle(new SettleForceRequest(_gameId, _playerId, unitInstanceId, tier, name), CancellationToken.None);
     }

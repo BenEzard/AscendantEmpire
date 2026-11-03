@@ -17,7 +17,8 @@ namespace AscendantEmpire.Domain.Enums.Assets;
 public enum AssetStorageScope
 {
     /// <summary>
-    /// Held in <c>AssetBankBalance</c>, in the bank of whichever settlement network holds it, and so subject to road and river connectivity.
+    /// Held in <c>AssetBankBalance</c>, in the bank of the settlement that holds it, and spendable across whatever that settlement's network reaches - so
+    /// subject to road and river connectivity.
     /// </summary>
     /// <remarks>The default, and nearly every Asset in the catalogue.</remarks>
     SettlementBank = 1,

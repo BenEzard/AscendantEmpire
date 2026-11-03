@@ -7,11 +7,22 @@ public class DTAssetBankCollection : IAssetBankCollection
     public required IReadOnlyCollection<IAssetBankHoldings> Banks { get; set; }
 }
 
+public class DTAssetNetworkHoldings : IAssetNetworkHoldings
+{
+    public required Guid NetworkKey { get; set; }
+
+    public required int SiteAssetBankId { get; set; }
+
+    public required IReadOnlyCollection<IAssetBankHoldings> Banks { get; set; }
+}
+
 public class DTAssetBankHoldings : IAssetBankHoldings
 {
     public required int AssetBankId { get; set; }
 
-    public required IReadOnlyCollection<int> SettlementIds { get; set; }
+    public required int SettlementId { get; set; }
+
+    public required Guid NetworkKey { get; set; }
 
     public required IReadOnlyCollection<IAssetBankHolding> Holdings { get; set; }
 }

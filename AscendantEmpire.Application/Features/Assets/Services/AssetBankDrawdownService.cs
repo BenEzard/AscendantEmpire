@@ -156,7 +156,7 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
     }
 
     /// <summary>
-    /// Spends the expense out of the bank the Settlement draws on, and out of that bank alone.
+    /// Spends the expense out of the Settlement's own bank, and out of that bank alone.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -164,19 +164,19 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
     /// only ever runs when the total is already known to cover the amount.
     /// </para>
     /// <para>
-    /// <b>A bank that is short refuses the expense rather than reaching further.</b> Sourcing the remainder from the nearest bank that does hold it, and the
-    /// transport turn cost that comes with doing so, is RS-27.
+    /// <b>A bank that is short refuses the expense rather than reaching into the rest of its network.</b> Draining the site first and taking the remainder
+    /// from the banks sharing its <c>NetworkKey</c> is RS-36; the transport turn cost for the distance assets travel is RS-27.
     /// </para>
     /// </remarks>
     private async Task<ServiceResultBase> DebitSettlementBankAsync(AscendantEmpireContext context, AssetExpense expense, ExpenseTarget target, CancellationToken cancelToken)
     {
         int settlementId = expense.SettlementId!.Value;
 
-        // Through the Bank navigation, so this is an INNER JOIN on a required foreign key and another Player's bank cannot be reached by naming their Settlement.
-        int? assetBankId = await context.AssetBankSettlementMemberships
+        // Both columns in the predicate, so naming another Player's Settlement cannot reach their bank.
+        int? assetBankId = await context.AssetBanks
             .AsNoTracking()
-            .Where(membership => membership.SettlementId == settlementId && membership.Bank.PlayerId == expense.PlayerId)
-            .Select(membership => (int?)membership.AssetBankId)
+            .Where(bank => bank.SettlementId == settlementId && bank.PlayerId == expense.PlayerId)
+            .Select(bank => (int?)bank.Id)
             .FirstOrDefaultAsync(cancelToken);
 
         if (assetBankId is null)

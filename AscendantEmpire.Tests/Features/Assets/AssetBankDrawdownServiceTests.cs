@@ -45,12 +45,28 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     // At one Settlement - the bank that Settlement draws on, and that bank alone.
     // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
+    [Test, Description("A settlement expense is met from the bank carrying that SettlementId, so a spend lands on the Settlement's own store.")]
+    public async Task ShouldDebitTheBankKeyedOnTheSettlement()
+    {
+        int assetBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 });
+
+        ServiceResultBase result = await DebitAssetAtSettlementAsync(_OAK_LOG_CODE, whole: 4);
+
+        Dictionary<string, long> balances = await ReadBalancesAsync(assetBankId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+            Assert.That(balances[_OAK_LOG_CODE], Is.EqualTo(6));
+        }
+    }
+
     [Test, Description("An Asset expense takes only the Asset it names, leaving the rest of the group alone however the ordering would have walked it.")]
     public async Task ShouldDebitOnlyTheNamedAsset()
     {
         int assetBankId = await CreateBankAsync(
             _playerId,
-            [_SETTLEMENT_ID],
+            _SETTLEMENT_ID,
             new Dictionary<string, long> { [_OAK_LOG_CODE] = 10, [_GENERIC_LOG_CODE] = 10 });
 
         ServiceResultBase result = await DebitAssetAtSettlementAsync(_OAK_LOG_CODE, whole: 4);
@@ -70,7 +86,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     {
         int assetBankId = await CreateBankAsync(
             _playerId,
-            [_SETTLEMENT_ID],
+            _SETTLEMENT_ID,
             new Dictionary<string, long> { [_OAK_LOG_CODE] = 4, [_GENERIC_LOG_CODE] = 100 });
 
         ServiceResultBase result = await DebitAssetAtSettlementAsync(_OAK_LOG_CODE, whole: 10);
@@ -92,7 +108,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
         // Seeded sort orders space by 10 in declaration order, so the spend order is Oak, Generic, Cedar.
         int assetBankId = await CreateBankAsync(
             _playerId,
-            [_SETTLEMENT_ID],
+            _SETTLEMENT_ID,
             new Dictionary<string, long> { [_OAK_LOG_CODE] = 4, [_GENERIC_LOG_CODE] = 20, [_CEDAR_LOG_CODE] = 5 });
 
         ServiceResultBase result = await DebitGroupAtSettlementAsync(_GROUP_LOGS_CODE, whole: 10);
@@ -113,7 +129,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     {
         int assetBankId = await CreateBankAsync(
             _playerId,
-            [_SETTLEMENT_ID],
+            _SETTLEMENT_ID,
             new Dictionary<string, long> { [_OAK_LOG_CODE] = 4, [_GENERIC_LOG_CODE] = 2 });
 
         ServiceResultBase result = await DebitGroupAtSettlementAsync(_GROUP_LOGS_CODE, whole: 10);
@@ -133,7 +149,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     {
         await CreateBankAsync(
             _playerId,
-            [_SETTLEMENT_ID],
+            _SETTLEMENT_ID,
             new Dictionary<string, long> { [_OAK_LOG_CODE] = 4, [_GENERIC_LOG_CODE] = 2 });
 
         int logsGroupId = await GetAssetGroupIdAsync(_GROUP_LOGS_CODE);
@@ -158,7 +174,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     [Test, Description("A balance taken to nothing is deleted rather than left at zero, so a bank does not accumulate a row per Asset it has ever briefly held.")]
     public async Task ShouldDeleteABalanceTakenToNothing()
     {
-        int assetBankId = await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        int assetBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
 
         ServiceResultBase result = await DebitAssetAtSettlementAsync(_OAK_LOG_CODE, whole: 4);
 
@@ -176,7 +192,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     {
         int assetBankId = await CreateBankAsync(
             _playerId,
-            [_SETTLEMENT_ID],
+            _SETTLEMENT_ID,
             new Dictionary<string, long> { [_OAK_LOG_CODE] = 4, [_OAK_PLANK_CODE] = 100 });
 
         ServiceResultBase result = await DebitGroupAtSettlementAsync(_GROUP_LOGS_CODE, whole: 10);
@@ -194,8 +210,8 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     [Test, Description("A Settlement expense is met from its own bank only, so a second bank holding plenty does not rescue it and is left untouched.")]
     public async Task ShouldNotReachASecondBankForASettlementExpense()
     {
-        int ownBankId = await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
-        int otherBankId = await CreateBankAsync(_playerId, [_SECOND_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 });
+        int ownBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        int otherBankId = await CreateBankAsync(_playerId, _SECOND_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 });
 
         ServiceResultBase result = await DebitAssetAtSettlementAsync(_OAK_LOG_CODE, whole: 10);
 
@@ -214,7 +230,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     [Test, Description("A Settlement with no asset bank has nothing to spend from, which is a not-found rather than a shortfall of zero.")]
     public async Task ShouldAnswerNotFoundWhenTheSettlementHasNoBank()
     {
-        await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 });
+        await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 });
 
         ServiceResultBase result = await DebitAsync(AssetExpense.AtSettlement(
             playerId: _playerId,
@@ -232,7 +248,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     [Test, Description("Naming another Player's Settlement reaches no bank at all, so a Player cannot spend out of a rival's pool by passing their settlement id.")]
     public async Task ShouldNotReachAnotherPlayersBank()
     {
-        int rivalBankId = await CreateBankAsync(_otherPlayerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 });
+        int rivalBankId = await CreateBankAsync(_otherPlayerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 });
 
         ServiceResultBase result = await DebitAssetAtSettlementAsync(_OAK_LOG_CODE, whole: 10);
 
@@ -252,9 +268,9 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     [Test, Description("An Empire-wide expense cuts the fullest banks down to a common level rather than draining one or charging each a proportion.")]
     public async Task ShouldLevelAnEmpireWideExpenseDownToACommonWaterLine()
     {
-        int fullBankId = await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 50 });
-        int middlingBankId = await CreateBankAsync(_playerId, [_SECOND_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 30 });
-        int smallBankId = await CreateBankAsync(_playerId, [_THIRD_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        int fullBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 50 });
+        int middlingBankId = await CreateBankAsync(_playerId, _SECOND_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 30 });
+        int smallBankId = await CreateBankAsync(_playerId, _THIRD_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
 
         ServiceResultBase result = await DebitAssetEmpireWideAsync(_OAK_LOG_CODE, whole: 40);
 
@@ -274,8 +290,8 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     [Test, Description("A bank holding far less than the water-line is never touched, however lopsided the Empire's stock is.")]
     public async Task ShouldTakeNothingFromABankBelowTheWaterLine()
     {
-        int fullBankId = await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 });
-        int smallBankId = await CreateBankAsync(_playerId, [_SECOND_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 1 });
+        int fullBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 });
+        int smallBankId = await CreateBankAsync(_playerId, _SECOND_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 1 });
 
         ServiceResultBase result = await DebitAssetEmpireWideAsync(_OAK_LOG_CODE, whole: 10);
 
@@ -296,12 +312,12 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
         // Spend order is Oak, Generic, Cedar. The Cedar is in the first bank so that a walk which drained a bank rather than an Asset would take it.
         int firstBankId = await CreateBankAsync(
             _playerId,
-            [_SETTLEMENT_ID],
+            _SETTLEMENT_ID,
             new Dictionary<string, long> { [_OAK_LOG_CODE] = 4, [_CEDAR_LOG_CODE] = 100 });
 
         int secondBankId = await CreateBankAsync(
             _playerId,
-            [_SECOND_SETTLEMENT_ID],
+            _SECOND_SETTLEMENT_ID,
             new Dictionary<string, long> { [_OAK_LOG_CODE] = 3, [_GENERIC_LOG_CODE] = 20 });
 
         ServiceResultBase result = await DebitGroupEmpireWideAsync(_GROUP_LOGS_CODE, whole: 10);
@@ -323,9 +339,9 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     public async Task ShouldSpendALeftoverRawUnitRichestFirstThenByLowerBankId()
     {
         // Three equal banks and a cost that does not divide by three: 5 out of 30 puts the line at 8.333, leaving two raw units to place.
-        int firstBankId = await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 });
-        int secondBankId = await CreateBankAsync(_playerId, [_SECOND_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 });
-        int thirdBankId = await CreateBankAsync(_playerId, [_THIRD_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 });
+        int firstBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 });
+        int secondBankId = await CreateBankAsync(_playerId, _SECOND_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 });
+        int thirdBankId = await CreateBankAsync(_playerId, _THIRD_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 });
 
         ServiceResultBase result = await DebitAssetEmpireWideAsync(_OAK_LOG_CODE, whole: 5);
 
@@ -348,8 +364,8 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     [Test, Description("An Empire-wide expense adds every bank up when deciding what is available, since no boundary between them is being spent across.")]
     public async Task ShouldAddEveryBankUpWhenReportingWhatIsAvailable()
     {
-        int firstBankId = await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
-        int secondBankId = await CreateBankAsync(_playerId, [_SECOND_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 2 });
+        int firstBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        int secondBankId = await CreateBankAsync(_playerId, _SECOND_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 2 });
 
         ServiceResultBase result = await DebitAssetEmpireWideAsync(_OAK_LOG_CODE, whole: 10);
 
@@ -380,8 +396,8 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     [Test, Description("Empire-wide means the paying Player's Empire, so a rival's banks are neither spent from nor counted towards what is available.")]
     public async Task ShouldNotReachAnotherPlayersBankEmpireWide()
     {
-        int ownBankId = await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
-        int rivalBankId = await CreateBankAsync(_otherPlayerId, [_SECOND_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 });
+        int ownBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        int rivalBankId = await CreateBankAsync(_otherPlayerId, _SECOND_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 });
 
         ServiceResultBase result = await DebitAssetEmpireWideAsync(_OAK_LOG_CODE, whole: 10);
 
@@ -400,8 +416,8 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     [Test, Description("An Empire-wide expense taking an Asset out entirely deletes every emptied row, rather than leaving a zero in each bank that held it.")]
     public async Task ShouldDeleteEveryBalanceAnEmpireWideExpenseEmpties()
     {
-        int firstBankId = await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
-        int secondBankId = await CreateBankAsync(_playerId, [_SECOND_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 6 });
+        int firstBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        int secondBankId = await CreateBankAsync(_playerId, _SECOND_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 6 });
 
         ServiceResultBase result = await DebitAssetEmpireWideAsync(_OAK_LOG_CODE, whole: 10);
 
@@ -423,7 +439,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     [Test, Description("Debiting a Derived Asset is a programming error rather than a shortfall: population is counted off what already records it and is not something a Player ran out of.")]
     public async Task ShouldRefuseADerivedAssetAsAProgrammingError()
     {
-        await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long>());
+        await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long>());
 
         ServiceResultBase result = await DebitAssetAtSettlementAsync(_CIVILIANS_CODE, whole: 1);
 
@@ -437,7 +453,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     [Test, Description("A group whose every Asset is Derived has no balances to order, so naming it is the same mistake as naming a Derived Asset outright.")]
     public async Task ShouldRefuseAGroupWithNoBankableAssetAsAProgrammingError()
     {
-        await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long>());
+        await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long>());
 
         ServiceResultBase result = await DebitGroupAtSettlementAsync(_GROUP_MY_PEOPLE_CODE, whole: 1);
 
@@ -565,7 +581,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     [Test, Description("An Asset that is not in the catalogue is a not-found, so a stale id reads as a missing row rather than as an empty balance.")]
     public async Task ShouldAnswerNotFoundForAnUnknownAsset()
     {
-        await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long>());
+        await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long>());
 
         ServiceResultBase result = await DebitAsync(AssetExpense.AtSettlement(
             playerId: _playerId,
@@ -579,7 +595,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     [Test, Description("An AssetGroup that is not in the catalogue is a not-found, reported against the group rather than silently resolving to no candidates.")]
     public async Task ShouldAnswerNotFoundForAnUnknownAssetGroup()
     {
-        await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long>());
+        await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long>());
 
         ServiceResultBase result = await DebitAsync(AssetExpense.AtSettlement(
             playerId: _playerId,
@@ -593,7 +609,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     [Test, Description("The debit is staged on the caller's context and not saved, so a purchase that abandons its own save leaves the balance alone.")]
     public async Task ShouldNotCommitTheDebitWithoutTheCallersSave()
     {
-        int assetBankId = await CreateBankAsync(_playerId, [_SETTLEMENT_ID], new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 });
+        int assetBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 });
 
         await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
         {

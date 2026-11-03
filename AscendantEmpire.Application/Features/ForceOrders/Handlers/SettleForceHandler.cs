@@ -356,7 +356,7 @@ internal class SettleForceHandler(
         context.Settlements.Add(settlement);
 
         // The bank the Settlement is born with, staged on this context so it is written by the save below and inside this transaction.
-        // Whatever its tier: a camp banks for itself too, and comes to share a village's pool by a merge rather than by having been given no bank here.
+        // Whatever its tier: a camp banks for itself too, and comes to share a village's stock through a shared NetworkKey rather than by having no bank here.
         ServiceResultBase bankResult = await assetBankProvisioningService.ProvisionForNewSettlementAsync(context, request.PlayerId, settlement, cancelToken);
 
         if (bankResult.HasSucceeded == false)

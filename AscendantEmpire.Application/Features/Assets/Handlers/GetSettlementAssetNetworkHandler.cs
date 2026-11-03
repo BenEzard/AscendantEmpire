@@ -14,17 +14,17 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Features.Assets.Handlers;
 
 /// <summary>
-/// Reads the one asset bank a Settlement draws on, which is what that Settlement and everything connected to it can spend.
+/// Reads every asset bank a Settlement can draw on, which is what that Settlement and everything connected to it can spend.
 /// </summary>
 /// <param name="GameId">The Game the Player belongs to, checked so a request cannot be answered out of whatever bank its Player id happens to reach.</param>
-public record GetSettlementAssetBankRequest(int GameId, int PlayerId, int SettlementId) : IRequest<ServiceResult<AssetBankHoldings>>;
+public record GetSettlementAssetNetworkRequest(int GameId, int PlayerId, int SettlementId) : IRequest<ServiceResult<AssetNetworkHoldings>>;
 
 /// <remarks>
 /// Registered and run by <c>ValidationBehaviour</c> before the handler is reached, so the handler does not invoke it itself.
 /// </remarks>
-internal class GetSettlementAssetBankRequestValidator : Validator<GetSettlementAssetBankRequest>
+internal class GetSettlementAssetNetworkRequestValidator : Validator<GetSettlementAssetNetworkRequest>
 {
-    public GetSettlementAssetBankRequestValidator()
+    public GetSettlementAssetNetworkRequestValidator()
     {
         RuleFor(x => x.GameId)
             .GreaterThan(0).WithMessage("Game Id is required.");
@@ -38,39 +38,38 @@ internal class GetSettlementAssetBankRequestValidator : Validator<GetSettlementA
 }
 
 /// <summary>
-/// The one-bank read of the two the design doc calls for: what this Settlement's group holds.
+/// The one-network read of the two the design doc calls for: what this Settlement can reach.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Keyed on the Settlement rather than on the bank, because that is what a caller has. Which bank a Settlement draws on moves as roads are built and
-/// pillaged, so a bank id held by a client would go stale without anything saying so.
+/// Keyed on the Settlement rather than on the bank, because that is what a caller has. A Settlement's own bank never changes, but which network it sits in
+/// moves as roads are built and pillaged, so the set of banks this returns is not something a client can cache.
 /// </para>
 /// <para>
 /// A Settlement with no bank and a Settlement belonging to another Player are one answer, not-found: a Settlement that is not the Player's is not theirs to
 /// ask about, and distinguishing the two would answer a question they did not get to ask.
 /// </para>
 /// </remarks>
-internal class GetSettlementAssetBankHandler(
-    ILogger<GetSettlementAssetBankHandler> logger,
+internal class GetSettlementAssetNetworkHandler(
+    ILogger<GetSettlementAssetNetworkHandler> logger,
     IMediator mediator,
     IDbContextFactory<AscendantEmpireContext> dbFactory,
     IAssetBankReader bankReader
-) : IRequestHandler<GetSettlementAssetBankRequest, ServiceResult<AssetBankHoldings>>
+) : IRequestHandler<GetSettlementAssetNetworkRequest, ServiceResult<AssetNetworkHoldings>>
 {
-    public async Task<ServiceResult<AssetBankHoldings>> Handle(
-        GetSettlementAssetBankRequest request,
+    public async Task<ServiceResult<AssetNetworkHoldings>> Handle(
+        GetSettlementAssetNetworkRequest request,
         CancellationToken cancellationToken)
     {
-        // The same cheap "is this Player part of this in-progress Game" probe the asset tree read starts with.
-        ServiceResult<IReadOnlyCollection<GameContext>> gameContextResult =
-            await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancellationToken);
+        // Cheap "is this Player part of this in-progress Game" probe
+        ServiceResult<IReadOnlyCollection<GameContext>> gameContextResult = await mediator.Send(new GetGameContextRequest(request.GameId, request.PlayerId), cancellationToken);
 
         if (gameContextResult.SuccessValue is not { Count: > 0 })
         {
             string error = $"No in-progress game found for Game Id: {request.GameId} and Player Id: {request.PlayerId}.";
             logger.LogWarning("{Error}", error);
 
-            return ServiceResult<AssetBankHoldings>.NotFound(error);
+            return ServiceResult<AssetNetworkHoldings>.NotFound(error);
         }
 
         await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancellationToken);

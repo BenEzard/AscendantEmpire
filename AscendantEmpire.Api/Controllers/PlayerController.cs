@@ -230,22 +230,22 @@ public class PlayerController : ControllerBase
     // ---------------------------------------------------------------------------------------------------------------------------------------------------
     // Asset banks
     //
-    // What the Player actually holds, as opposed to which Assets they can see. A bank is one pooled store shared by every connected Settlement, so these
-    // reads are keyed on a Settlement or on the Player rather than on an Asset. See docs/design/asset-banks.md.
+    // What the Player actually holds, as opposed to which Assets they can see. A bank is one Settlement's own store, so these reads are keyed on a
+    // Settlement or on the Player rather than on an Asset. See docs/design/asset-banks.md.
     //
-    // Both shapes come back with each bank's Settlement memberships alongside its balances: a quantity on its own invites a caller to add two banks
-    // together whose Settlements cannot trade with each other.
+    // Both shapes come back with each bank's Settlement and NetworkKey alongside its balances: a quantity on its own invites a caller to add two banks
+    // together whose Settlements cannot reach each other.
     // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
     /// <summary>
     /// Get every asset bank the Player owns, which together are everything they hold anywhere
     /// </summary>
     /// <remarks>
-    /// A bank per pool rather than one merged set of totals. Two banks exist precisely because their Settlements cannot reach each other, so a single
-    /// figure would advertise stock that no one build order could spend; a caller that wants one number adds them up knowing that. A Player with no
-    /// settlement yet owns no banks, which is an empty list rather than a 404.
+    /// A bank per Settlement rather than one merged set of totals, with each bank's <c>networkKey</c> saying which of them can reach each other. 
+    /// A single figure would advertise stock that no one build order could spend; a caller that wants one number adds them up knowing that. 
+    /// A Player with no settlement yet owns no banks, which is an empty list rather than a 404.
     /// </remarks>
-    /// <response code="200">Every bank the Player owns, each with its memberships and holdings</response>
+    /// <response code="200">Every bank the Player owns, each with its Settlement, network key and holdings</response>
     /// <response code="403">The caller has not entered a game</response>
     /// <response code="404">The Player is not in an in-progress Game</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
@@ -274,22 +274,23 @@ public class PlayerController : ControllerBase
     }
 
     /// <summary>
-    /// Get the asset bank one of the Player's Settlements draws on
+    /// Get every asset bank one of the Player's Settlements can draw on
     /// </summary>
     /// <remarks>
-    /// Keyed on the Settlement rather than on the bank, because which bank a Settlement draws on moves as roads are built and pillaged - a bank id held by
-    /// a client would go stale with nothing saying so. A Settlement with no bank and a Settlement belonging to another Player are both reported as 404.
+    /// Keyed on the Settlement rather than on the bank: a Settlement's own bank never changes, but which network it sits in moves as roads are built and
+    /// pillaged, so the set of banks returned is not something a client can cache. A Settlement with no bank and a Settlement belonging to another Player are
+    /// both reported as 404.
     /// </remarks>
-    /// <response code="200">The bank, with its memberships and holdings</response>
+    /// <response code="200">The network, with the site's own bank named and every bank's holdings</response>
     /// <response code="403">The caller has not entered a game</response>
     /// <response code="404">The Player is not in an in-progress Game, or the Settlement has no asset bank belonging to them</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [HttpGet("asset-banks/{settlementId:int}")]
-    [ProducesResponseType(typeof(IAssetBankHoldings), 200)]
+    [ProducesResponseType(typeof(IAssetNetworkHoldings), 200)]
     [ProducesResponseType(typeof(IApiErrorResult), 403)]
     [ProducesResponseType(typeof(IApiErrorResult), 404)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
-    public async Task<IActionResult> GetSettlementAssetBankAsync(
+    public async Task<IActionResult> GetSettlementAssetNetworkAsync(
         [FromServices] IMediator mediator,
         int settlementId,
         CancellationToken cancelToken)
@@ -300,10 +301,27 @@ public class PlayerController : ControllerBase
             return contextError!;
         }
 
-        ServiceResult<AssetBankHoldings> response =
-            await mediator.Send(new GetSettlementAssetBankRequest(gameId, playerId, settlementId), cancelToken);
+        ServiceResult<AssetNetworkHoldings> response =
+            await mediator.Send(new GetSettlementAssetNetworkRequest(gameId, playerId, settlementId), cancelToken);
 
-        return response.ToActionResult(bank => bank is null ? null : ToWireAssetBank(bank));
+        return response.ToActionResult(ToWireAssetNetwork);
+    }
+
+    /// <summary>
+    /// Builds the response for one Settlement's network: the key the banks share, which of them is the site, and each bank's holdings.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="AssetNetworkHoldings.PlayerId"/> is deliberately not carried. Game and Player both come off the caller's token, so echoing the Player back
+    /// tells a client only what it supplied, and no other response in this controller carries it either.
+    /// </remarks>
+    private static DTAssetNetworkHoldings ToWireAssetNetwork(AssetNetworkHoldings network)
+    {
+        return new DTAssetNetworkHoldings
+        {
+            NetworkKey = network.NetworkKey,
+            SiteAssetBankId = network.SiteAssetBankId,
+            Banks = [.. network.Banks.Select(ToWireAssetBank)]
+        };
     }
 
     /// <summary>
@@ -317,7 +335,8 @@ public class PlayerController : ControllerBase
         return new DTAssetBankHoldings
         {
             AssetBankId = bank.AssetBankId,
-            SettlementIds = [.. bank.SettlementIds],
+            SettlementId = bank.SettlementId,
+            NetworkKey = bank.NetworkKey,
             Holdings =
             [
                 .. bank.Holdings.Select(holding => new DTAssetBankHolding

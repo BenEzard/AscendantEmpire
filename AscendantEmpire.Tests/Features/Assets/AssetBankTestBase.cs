@@ -22,8 +22,8 @@ namespace AscendantEmpire.Tests.Features.Assets;
 /// database constraint. The catalogue is seeded through the real upsert, so the codes, sort orders and storage scopes the fixtures use are production's.
 /// </para>
 /// <para>
-/// <b>No Settlement or GameIndex rows are written.</b> A membership's Settlement foreign key is not enforced in memory and neither the reader nor the
-/// drawdown reads the Settlement itself - the bank's own PlayerId is what says who may draw on it - so settlement ids here are bare numbers.
+/// <b>No Settlement or GameIndex rows are written.</b> The bank's Settlement foreign key is not enforced in memory and neither the reader nor the drawdown
+/// reads the Settlement itself - the bank's own PlayerId is what says who may draw on it - so settlement ids here are bare numbers.
 /// </para>
 /// </remarks>
 internal abstract class AssetBankTestBase : InMemoryTestBase
@@ -74,32 +74,34 @@ internal abstract class AssetBankTestBase : InMemoryTestBase
     }
 
     /// <summary>
-    /// Creates a bank for a Player, points the named Settlements at it, and credits the given balances.
+    /// Creates a bank for a Player, keys it on the named Settlement, and credits the given balances.
     /// </summary>
     /// <remarks>
     /// Balances are given in whole units and scaled on the way in, because that is how a test reads: "4 Oak Logs" rather than 4,000. Pass a fractional
     /// figure through <see cref="ScaledAmount"/> directly where a test needs sub-unit stock.
     /// </remarks>
     /// <param name="balances">Asset code to whole quantity. An Asset left out is one the bank has no row for at all.</param>
+    /// <param name="networkKey">
+    /// The network to put the bank in, so a fixture can build two banks that can reach each other. Left null, the bank gets a network of its own; pass
+    /// <see cref="Guid.Empty"/> for a bank the connectivity service has not keyed yet.
+    /// </param>
     protected async Task<int> CreateBankAsync(
         int playerId,
-        IReadOnlyCollection<int> settlementIds,
-        IReadOnlyDictionary<string, long> balances)
+        int settlementId,
+        IReadOnlyDictionary<string, long> balances,
+        Guid? networkKey = null)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        var bank = new AssetBank { PlayerId = playerId };
+        var bank = new AssetBank
+        {
+            PlayerId = playerId,
+            SettlementId = settlementId,
+            NetworkKey = networkKey ?? Guid.NewGuid()
+        };
+
         context.AssetBanks.Add(bank);
         await context.SaveChangesAsync();
-
-        foreach (int settlementId in settlementIds)
-        {
-            context.AssetBankSettlementMemberships.Add(new AssetBankSettlementMembership
-            {
-                SettlementId = settlementId,
-                AssetBankId = bank.Id
-            });
-        }
 
         Dictionary<string, int> assetIdsByCode = await ReadAssetIdsAsync(context, [.. balances.Keys]);
 
