@@ -4,6 +4,7 @@ using AscendantEmpire.Application.Features.Assets.Services;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.Application.Features.ForceOrders.Handlers;
 using AscendantEmpire.Application.Features.Game.Handlers;
+using AscendantEmpire.Application.Features.Settlements.Services;
 using AscendantEmpire.Application.Features.Structures.Services;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Units.Services;
@@ -86,6 +87,7 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
     private int _playerId;
     private int _otherPlayerId;
     private int _tileId;
+    private int _neighbouringTileId;
     private int _villageStructureId;
     private int _campStructureId;
     private int _settlerTemplateId;
@@ -114,7 +116,12 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
 
         _playerId = playerIds[0];
         _otherPlayerId = playerIds[1];
-        _tileId = await context.CampaignMaps.Where(t => t.GameId == _gameId).OrderBy(t => t.CampaignMapId).Select(t => t.CampaignMapId).FirstAsync();
+        int[] tileIds = await context.CampaignMaps.Where(t => t.GameId == _gameId).OrderBy(t => t.CampaignMapId).Select(t => t.CampaignMapId).Take(2).ToArrayAsync();
+
+        _tileId = tileIds[0];
+
+        // A second tile, so a camp can be founded beside a settlement rather than on top of it - a settlement takes the tile's Primary slot and razes what is there.
+        _neighbouringTileId = tileIds[1];
         _settlerTemplateId = await context.UnitTemplates.Where(t => t.Code == "SETTLER").Select(t => t.Id).SingleAsync();
 
         // The Structure catalogue is seeded data rather than migrated, so the fixture stands the village in as the seed would.
@@ -777,6 +784,75 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
         }
     }
 
+    [Test, Description("A camp founded beside a village is designated to feed it and comes out sharing its network, which is what lets the per-Turn delivery run at all.")]
+    public async Task ShouldAttachANewCampToTheVillageItWillFeedAsync()
+    {
+        int playerTurnId = await OpenFirstPlayerTurnAsync(_gameId);
+        ItIsThisPlayersTurn(playerTurnId, roundNumber: 1);
+
+        ServiceResult<SettleForceResult> village = await HandleAsync(await SeedSettlerAsync(), SettlementTier.Village, "Riverhold");
+        Assert.That(village.HasSucceeded, Is.True, () => string.Join("; ", village.Errors));
+
+        ServiceResult<SettleForceResult> camp = await HandleAsync(
+            await SeedSettlerAsync(tileId: _neighbouringTileId),
+            SettlementTier.Camp);
+
+        Assert.That(camp.HasSucceeded, Is.True, () => string.Join("; ", camp.Errors));
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        Settlement campRow = await context.Settlements.AsNoTracking().SingleAsync(s => s.Id == camp.SuccessValue!.SettlementId);
+
+        Guid campKey = await context.AssetBanks.Where(bank => bank.SettlementId == campRow.Id).Select(bank => bank.NetworkKey).SingleAsync();
+        Guid villageKey = await context.AssetBanks.Where(bank => bank.SettlementId == village.SuccessValue!.SettlementId).Select(bank => bank.NetworkKey).SingleAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(campRow.ParentSettlementId, Is.EqualTo(village.SuccessValue!.SettlementId));
+            Assert.That(campKey, Is.EqualTo(villageKey), "The founding re-keys the camp into its parent's network; the designation alone would not.");
+            Assert.That(campKey, Is.Not.EqualTo(Guid.Empty));
+        }
+    }
+
+    [Test, Description("The first camp of a game feeds nobody, because the opening settlement is a camp with nothing above it standing to attach to.")]
+    public async Task ShouldLeaveTheFirstCampWithNoParentSettlementAsync()
+    {
+        int playerTurnId = await OpenFirstPlayerTurnAsync(_gameId);
+        ItIsThisPlayersTurn(playerTurnId, roundNumber: 1);
+
+        ServiceResult<SettleForceResult> result = await HandleAsync(await SeedSettlerAsync(), SettlementTier.Camp);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        Settlement campRow = await context.Settlements.AsNoTracking().SingleAsync(s => s.Id == result.SuccessValue!.SettlementId);
+
+        Assert.That(campRow.ParentSettlementId, Is.Null);
+    }
+
+    [Test, Description("A camp is never designated to feed another camp, since delivering a small store into another small store would gain the player nothing.")]
+    public async Task ShouldNotAttachACampToAnotherCampAsync()
+    {
+        int playerTurnId = await OpenFirstPlayerTurnAsync(_gameId);
+        ItIsThisPlayersTurn(playerTurnId, roundNumber: 1);
+
+        ServiceResult<SettleForceResult> first = await HandleAsync(await SeedSettlerAsync(), SettlementTier.Camp);
+        Assert.That(first.HasSucceeded, Is.True, () => string.Join("; ", first.Errors));
+
+        ServiceResult<SettleForceResult> second = await HandleAsync(
+            await SeedSettlerAsync(tileId: _neighbouringTileId),
+            SettlementTier.Camp);
+
+        Assert.That(second.HasSucceeded, Is.True, () => string.Join("; ", second.Errors));
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        Settlement secondCamp = await context.Settlements.AsNoTracking().SingleAsync(s => s.Id == second.SuccessValue!.SettlementId);
+
+        Assert.That(secondCamp.ParentSettlementId, Is.Null);
+    }
+
     /// <summary>Tells the substituted turn service that the Turn in progress is this Player's.</summary>
     private void ItIsThisPlayersTurn(int playerTurnId, int roundNumber)
     {
@@ -804,14 +880,17 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
             new StructureLifecycleWriter(NullLogger<StructureLifecycleWriter>.Instance, playerTurnService),
             new AssetBankProvisioningService(
                 NullLogger<AssetBankProvisioningService>.Instance,
-                new AssetNetworkConnectivityService(NullLogger<AssetNetworkConnectivityService>.Instance)));
+                new AssetNetworkConnectivityService(NullLogger<AssetNetworkConnectivityService>.Instance)),
+            new CampParentResolver(NullLogger<CampParentResolver>.Instance),
+            new AssetNetworkConnectivityService(NullLogger<AssetNetworkConnectivityService>.Instance));
 
         return await handler.Handle(new SettleForceRequest(_gameId, _playerId, unitInstanceId, tier, name), CancellationToken.None);
     }
 
     /// <summary>A settler standing on the fixture's tile with a full turn's movement, saved and ready to settle.</summary>
     /// <param name="healthyCount">Defaults to the whole settler. Varied by the tests that pin which pool a camp's founders are taken from.</param>
-    private async Task<int> SeedSettlerAsync(int? playerId = null, int? healthyCount = null, int injuredCount = 0)
+    /// <param name="tileId">Defaults to the fixture's tile. Varied by the tests that need two settlements standing at once.</param>
+    private async Task<int> SeedSettlerAsync(int? playerId = null, int? healthyCount = null, int injuredCount = 0, int? tileId = null)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
@@ -821,7 +900,7 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
         {
             GameId = _gameId,
             PlayerId = playerId ?? _playerId,
-            CampaignMapTileId = _tileId,
+            CampaignMapTileId = tileId ?? _tileId,
             UnitTemplateId = _settlerTemplateId,
             InitialStrength = healthy + injuredCount,
             HealthyCount = healthy,

@@ -5,6 +5,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Assets.Services;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.Application.Features.Settlements.Classes;
+using AscendantEmpire.Application.Features.Settlements.Services;
 using AscendantEmpire.Application.Features.Structures.Services;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Units.Services;
@@ -75,7 +76,9 @@ internal class SettleForceHandler(
     IForceContextActionService contextActionService,
     IForceLifecycleWriter forceLifecycleWriter,
     IStructureLifecycleWriter structureLifecycleWriter,
-    IAssetBankProvisioningService assetBankProvisioningService
+    IAssetBankProvisioningService assetBankProvisioningService,
+    ICampParentResolver campParentResolver,
+    IAssetNetworkConnectivityService connectivityService
 ) : IRequestHandler<SettleForceRequest, ServiceResult<SettleForceResult>>
 {
     public async Task<ServiceResult<SettleForceResult>> Handle(SettleForceRequest request, CancellationToken cancelToken)
@@ -366,6 +369,40 @@ internal class SettleForceHandler(
                 request.Tier, request.PlayerId, string.Join("; ", bankResult.Errors));
 
             return ServiceResult<SettleForceResult>.Fail(bankResult.Errors.Prepend(error));
+        }
+
+        // Which Settlement this camp will deliver its production to each Turn, decided once here and then stored - see ICampParentResolver. Only a camp carries a parent, and
+        // this branch is the only thing that knows the tier, so the resolver is simply not asked for any other one. Staged before the save below, so a founding that rolls
+        // back takes the designation with it. A null answer is the ordinary first camp of a Game, with nothing yet to feed.
+        if (settlement.Tier == SettlementTier.Camp)
+        {
+            ServiceResult<int?> parentResult = await campParentResolver.ResolveAsync(context, request.GameId, request.PlayerId, structure.Id, cancelToken);
+
+            if (parentResult.HasSucceeded == false)
+            {
+                const string error = "The camp could not be given a settlement to feed, so no settlement was founded.";
+                logger.LogWarning("Could not resolve a parent settlement for a camp founded by Player Id {PlayerId}: {Errors}",
+                    request.PlayerId, string.Join("; ", parentResult.Errors));
+
+                return ServiceResult<SettleForceResult>.Fail(parentResult.Errors.Prepend(error));
+            }
+
+            settlement.ParentSettlementId = parentResult.SuccessValue;
+        }
+
+        await context.SaveChangesAsync(cancelToken);
+
+        // The bank is born into a network of its own, so a camp that has just been designated is not yet in its parent's network. The recompute is what joins it, and it
+        // reads ownership and designations from the database - hence after the save, and inside the same transaction, the order IAssetBankConquestService establishes.
+        ServiceResultBase reKeyResult = await connectivityService.RecomputeForPlayerAsync(context, request.PlayerId, cancelToken);
+
+        if (reKeyResult.HasSucceeded == false)
+        {
+            const string error = "The settlement's asset network could not be recomputed, so no settlement was founded.";
+            logger.LogWarning("Could not recompute asset networks for Player Id {PlayerId} after founding a {Tier}: {Errors}",
+                request.PlayerId, request.Tier, string.Join("; ", reKeyResult.Errors));
+
+            return ServiceResult<SettleForceResult>.Fail(reKeyResult.Errors.Prepend(error));
         }
 
         await context.SaveChangesAsync(cancelToken);

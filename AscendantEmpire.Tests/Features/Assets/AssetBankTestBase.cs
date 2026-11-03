@@ -5,8 +5,10 @@ using AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.Games;
+using AscendantEmpire.Domain.Entities.Settlements;
 using AscendantEmpire.Domain.Entities.Technologies;
 using AscendantEmpire.Domain.Enums.Games;
+using AscendantEmpire.Domain.Enums.Settlements;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -22,8 +24,9 @@ namespace AscendantEmpire.Tests.Features.Assets;
 /// database constraint. The catalogue is seeded through the real upsert, so the codes, sort orders and storage scopes the fixtures use are production's.
 /// </para>
 /// <para>
-/// <b>No Settlement or GameIndex rows are written.</b> The bank's Settlement foreign key is not enforced in memory and neither the reader nor the drawdown
-/// reads the Settlement itself - the bank's own PlayerId is what says who may draw on it - so settlement ids here are bare numbers.
+/// <b>No GameIndex rows are written, and a Settlement row only where a fixture asks for one.</b> The bank's Settlement foreign key is not enforced in memory, and
+/// neither the reader nor the drawdown reads the Settlement itself - the bank's own PlayerId is what says who may draw on it - so settlement ids are otherwise bare
+/// numbers. Connectivity and the delivery do read it, for the camp's parent designation, and call <see cref="CreateSettlementAsync"/> for the rows they need.
 /// </para>
 /// </remarks>
 internal abstract class AssetBankTestBase : InMemoryTestBase
@@ -118,6 +121,39 @@ internal abstract class AssetBankTestBase : InMemoryTestBase
         await context.SaveChangesAsync();
 
         return bank.Id;
+    }
+
+    /// <summary>
+    /// Writes the Settlement row a bank's <c>SettlementId</c> points at, for the services that read a settlement's tier or its parent designation.
+    /// </summary>
+    /// <remarks>
+    /// The id is set explicitly rather than generated, because a fixture arranges its banks against settlement ids of its own choosing and the two have to agree. The
+    /// structure, tile and Turn stamps are bare numbers: nothing that reads these rows looks at them, and no foreign key is enforced in memory.
+    /// </remarks>
+    /// <param name="parentSettlementId">The Settlement this one delivers its production to, or null for one that feeds nobody.</param>
+    protected async Task CreateSettlementAsync(
+        int settlementId,
+        SettlementTier tier = SettlementTier.Village,
+        int? parentSettlementId = null,
+        int? foundingPlayerId = null)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        context.Settlements.Add(new Settlement
+        {
+            Id = settlementId,
+            GameId = _GAME_ID,
+            StructureInstanceId = settlementId,
+            FoundingPlayerId = foundingPlayerId ?? _playerId,
+            Name = tier == SettlementTier.Camp ? null : $"Settlement {settlementId}",
+            Tier = tier,
+            Population = 25,
+            FoundedOnRoundNumber = 1,
+            FoundedOnTurnId = 1,
+            ParentSettlementId = parentSettlementId
+        });
+
+        await context.SaveChangesAsync();
     }
 
     /// <summary>

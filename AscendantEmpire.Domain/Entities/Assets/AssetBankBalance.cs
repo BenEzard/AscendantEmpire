@@ -10,7 +10,7 @@ namespace AscendantEmpire.Domain.Entities.Assets;
 /// </para>
 /// <para>
 /// <b>A balance never moves to another bank.</b> Connecting and disconnecting Settlements re-key <see cref="AssetBank.NetworkKey"/> and touch no row here, so
-/// stock stays with the Settlement that produced it. The one sanctioned exception anywhere in the model is the camp feeder push (RS-35).
+/// stock stays with the Settlement that produced it. The one sanctioned exception anywhere in the model is a camp delivery (RS-35).
 /// </para>
 /// <para>
 /// <b>No row means none held.</b> A balance is not created until something is first credited to it, and a debit that would empty one may delete it rather

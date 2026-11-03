@@ -18,6 +18,13 @@ internal enum EndCampaignTurnProcessOrder
     /// <summary>Construction advances, which may draw on what was just gathered.</summary>
     BuildingStructure = 20_000,
 
+    /// <summary>Each camp empties its store into the Settlement it feeds.</summary>
+    /// <remarks>
+    /// After <see cref="BuildingStructure"/> on purpose. A camp spends on its own construction out of its own bank first, so the remainder is what is swept to the
+    /// parent; emptying it beforehand would send the same stock across the network and straight back for the same build order.
+    /// </remarks>
+    DeliverCampProduction = 25_000,
+
     /// <summary>Forces dig in where they stand.</summary>
     Fortifying = 30_000,
 

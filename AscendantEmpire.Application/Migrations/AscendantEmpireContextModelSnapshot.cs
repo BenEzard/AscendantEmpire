@@ -2650,6 +2650,9 @@ namespace AscendantEmpire.Application.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<int?>("ParentSettlementId")
+                        .HasColumnType("int");
+
                     b.Property<int>("Population")
                         .HasColumnType("int");
 
@@ -2662,6 +2665,8 @@ namespace AscendantEmpire.Application.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("FoundingPlayerId");
+
+                    b.HasIndex("ParentSettlementId");
 
                     b.HasIndex("StructureInstanceId")
                         .IsUnique()
@@ -5737,6 +5742,12 @@ namespace AscendantEmpire.Application.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_Settlements_GameIndex_GameId");
 
+                    b.HasOne("AscendantEmpire.Domain.Entities.Settlements.Settlement", "ParentSettlement")
+                        .WithMany()
+                        .HasForeignKey("ParentSettlementId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_Settlements_Settlements_ParentSettlementId");
+
                     b.HasOne("AscendantEmpire.Domain.Entities.Games.StructureInstance", "StructureInstance")
                         .WithMany()
                         .HasForeignKey("StructureInstanceId")
@@ -5747,6 +5758,8 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("FoundedBy");
 
                     b.Navigation("Game");
+
+                    b.Navigation("ParentSettlement");
 
                     b.Navigation("StructureInstance");
                 });

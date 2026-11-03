@@ -2495,6 +2495,15 @@ public class AscendantEmpireContext : DbContext
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_Settlements_Player_FoundingPlayerId");
 
+            // Self-referencing and optional: only a camp carries a parent settlement, and a camp founded where there is nothing to attach to carries none.
+            //
+            // NoAction to match every other foreign key here, and the only legal choice besides: SQL Server refuses a cascade that returns to the same table.
+            entity.HasOne(e => e.ParentSettlement)
+                .WithMany()
+                .HasForeignKey(e => e.ParentSettlementId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_Settlements_Settlements_ParentSettlementId");
+
             // The name is unique within a Game, which is what "unique in the world" means: two Games may each hold a Riverhold, one Game may not.
             //
             // Case-insensitivity comes from the database's default collation rather than from an explicit one here. Every other string column in this model relies on the

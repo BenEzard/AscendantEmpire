@@ -16,13 +16,14 @@ namespace AscendantEmpire.Application.Features.Assets.Services;
 /// other and nothing in the schema catches it. <see cref="FindFaultsForPlayerAsync"/> exists because that is a real risk rather than a theoretical one.
 /// </para>
 /// <para>
-/// <b>Every bank is its own network of one today.</b> Nothing in the codebase connects two Settlements: there is no road anywhere - no Structure, no seed
-/// row, no tile feature - and the river and coastline walks are their own work. This is the seam those three fill, so that each one changes what connectivity
-/// means in a single place. See CM-64 (roads), RS-48 (rivers) and RS-49 (coastline), and <c>docs/design/asset-banks.md</c> for the rules they build to.
+/// <b>A camp and its parent settlement are the only banks that share a network today.</b> Nothing else in the codebase connects two Settlements: there is no road
+/// anywhere - no Structure, no seed row, no tile feature - and the river and coastline walks are their own work. This is the seam those three fill, so that each
+/// one changes what connectivity means in a single place. See CM-64 (roads), RS-48 (rivers) and RS-49 (coastline), and <c>docs/design/asset-banks.md</c> for the
+/// rules they build to.
 /// </para>
 /// <para>
 /// <b>Balances never move.</b> Connecting and disconnecting Settlements are re-keys, so no balance row is touched and no bank is created or deleted. The one
-/// sanctioned exception anywhere in the model is the camp feeder push (RS-35), which is not a re-key at all.
+/// sanctioned exception anywhere in the model is a camp delivery, which is not a re-key at all and lives in <c>IAssetBankDeliveryService</c>.
 /// </para>
 /// </remarks>
 internal interface IAssetNetworkConnectivityService
@@ -31,9 +32,15 @@ internal interface IAssetNetworkConnectivityService
     /// Gives a freshly staged bank the network it is born into.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// <b>A network of its own, even for a camp with a parent settlement.</b> Joining the parent's network is <see cref="RecomputeForPlayerAsync"/>'s to do, and it reads
+    /// ownership from the database, so a founding stages the bank, saves, and recomputes - the order <c>IAssetBankConquestService</c> already establishes.
+    /// </para>
+    /// <para>
     /// Synchronous, and takes the entity rather than an id, because the bank a founding stages has not been saved: a database recompute could not see it, and
     /// saving first so that one could would let a Settlement be committed with no key at all. Provisioning therefore calls this instead of writing the column
     /// itself, which is what keeps the single-writer rule true at founding as well as at a re-key.
+    /// </para>
     /// </remarks>
     void AssignKeyToNewBank(AssetBank bank);
 

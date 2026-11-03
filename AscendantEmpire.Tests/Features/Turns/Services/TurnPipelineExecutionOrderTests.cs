@@ -1,4 +1,5 @@
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Assets.Services;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Intelligence.Services;
 using AscendantEmpire.Application.Features.Maps.Biomes.Services;
@@ -62,6 +63,10 @@ public class TurnPipelineExecutionOrderTests
             Substitute.For<ICampaignTerritoryReader>(),
             Substitute.For<ITileTerritoryService>(),
             NullLogger<BuildingStructure>.Instance),
+        new DeliverCampProduction(
+            Substitute.For<IDbContextFactory<AscendantEmpireContext>>(),
+            Substitute.For<IAssetBankDeliveryService>(),
+            NullLogger<DeliverCampProduction>.Instance),
         new Fortifying(),
         new EvaluateForceOnHostileTerrain(),
         new ApplyResearch(
@@ -104,13 +109,14 @@ public class TurnPipelineExecutionOrderTests
 
     // ── declared run order ────────────────────────────────────────────────────
 
-    [Test, Description("Ending a turn gathers, builds and fortifies before attrition is judged on what the Force did with the turn, closes the research books, and writes down what others watched last of all.")]
+    [Test, Description("Ending a turn gathers, builds, sweeps each camp into the settlement it feeds and fortifies before attrition is judged, closes the research books, and writes down what others watched last of all.")]
     public void ShouldRunEndCampaignTurnProcessesInDeclaredOrder()
     {
         string[] expected =
         [
             "Gathering",
             "Building Structure",
+            "Deliver Camp Production",
             "Fortifying",
             "Evaluate Force on Hostile Terrain",
             "Apply Research",

@@ -34,10 +34,10 @@ long as the connection does would outlive what it describes.
 `NetworkKey` is derived data with no referential integrity, so a stale key would let the wrong settlements
 reach each other and nothing in the schema would catch it. Two things mitigate that: it has exactly one
 writer, the connectivity service, and that service can also report any bank whose key disagrees with what a
-recompute would give it — an unkeyed bank (`Guid.Empty`), or one sharing a key with a bank it cannot reach.
+recompute would give it — an unkeyed bank (`Guid.Empty`), one sharing a key with a bank it cannot reach, or
+one sitting in a network of its own when it should be sharing one.
 
-**Balances never move between banks.** The one sanctioned exception anywhere in the model is the camp feeder
-push.
+**Balances never move between banks.** The one sanctioned exception anywhere in the model is a camp delivery.
 
 **Every bank is a settlement bank.** There is no player-level stockpile variant. Such a bank would have no
 settlement to point at and would have to be excluded from every settlement query — a bank in name only.
@@ -77,17 +77,66 @@ and it keeps the catalogue row a pure label.
 * Every settlement is born with an Asset Bank, whatever its `SettlementTier` — a 'camp' (1) included. A camp is the tier the first settlement of a game is, and the first building produces in one, so it banks for itself rather than drawing on a village it may not have.
 * A settlement has exactly one Asset Bank, for its whole life. Every Asset Bank has exactly one settlement, which may be of any tier.
 * A bank is born into a network of its own, and the connectivity service is the only thing that writes `NetworkKey`.
+* A `SettlementTier` of 'camp' attaches to a parent settlement when it is founded, which both puts it in that settlement's network and makes it deliver its production there each turn — see [Camp deliveries](#camp-deliveries).
 
-**Designed, not built.** Nothing in the code connects two settlements yet: there is no road anywhere in the
-codebase — no structure, no seed row, no tile feature — and the river and coastline walks are their own
-tasks. So every bank is currently a network of one. These are the rules those tasks build to:
+**One connection is built, and it is not a transport link.** A camp shares its parent settlement's `NetworkKey`,
+so those two banks reach each other. Nothing else in the code connects two settlements: there is no road anywhere
+in the codebase — no structure, no seed row, no tile feature — and the river and coastline walks are their own
+tasks. So every other bank is a network of one. These are the rules those tasks build to:
 
 * Two of a player's settlements joined by a transport link are **connected settlements**, and share a `NetworkKey`. A connection is transitive, so A–B and B–C puts all three in one network — "which settlements share a key" is a connected-components walk over one player's settlements.
 * **Roads** connect only once the player has the Roads technology (**CM-64**, which must introduce the road itself). **Rivers** only after Canoe (**RS-48**). **Coastlines** join two coastal settlements within a per-player sea range that technology raises (**RS-49**).
 * Connections count only between a player's **own** settlements. A road running through a neighbour's village connects nothing.
 * Connecting and disconnecting — a road built, a road pillaged, a river dammed — are **re-keys**. No balance moves, no bank is created or deleted. A settlement cut off keeps everything it was holding and simply stops reaching the rest.
-* A `SettlementTier` of 'camp' attaches to its closest village, which **sets a feeder parent** (**RS-35**): the camp shares the parent's `NetworkKey`, so it can spend from the parent's stock, and pushes its own production to the parent each turn because its own capacity is tiny. Where two villages are equi-distant, if one of them was where the Settler was created from, the camp attaches to **that** village; otherwise the lower `settlementId` wins. The designation is stored, never recomputed — the settler-origin tiebreaker is history that a later recompute cannot see.
 * A settlement that is connected to nothing is its own network of one, banking normally.
+
+## Camp deliveries
+
+A camp keeps its own bank and collects into it, and delivers everything it collects to a parent settlement each
+turn. This is the one sanctioned exception to balances never moving between banks — an explicit per-turn
+transfer, not churn from a graph re-key.
+
+**Why a delivery is needed at all.** A camp shares its parent's `NetworkKey`, so it can already *spend* from the
+parent's stock without anything moving. What it cannot do is *store*: a camp's capacity is tiny, so its own
+production would hit the cap and be wasted. The delivery exists to get stock out of a small store and into a
+large one.
+
+**Only one of the two directions is a delivery.** The camp's delivery *moves balances* — rows leave its bank and
+arrive in its parent's, once a turn. The parent's stock funding the camp's construction moves nothing at all:
+the camp spends out of a pool the two share because they carry one `NetworkKey`. So the camp delivers, and the
+parent only ever receives.
+
+**Who the parent is.** The nearest settlement of a tier above camp that the player still holds, by wrap-aware
+map distance; where two are equidistant, the lower `settlementId` wins. Ownership is read off the structure, so
+a village that has changed hands is not offered to its founder's camps. Another camp is never a parent, because
+delivering a small store into another small store would gain nothing.
+
+> The design puts a third rule between those two: where two candidates are equidistant and one of them is where
+> the settler was created from, the camp attaches to **that** one. Nothing records which settlement a force was
+> raised at, and nothing produces forces at a settlement yet, so that middle rule is not applied.
+
+**The parent is stored, not recomputed.** `Settlement.ParentSettlementId` carries it, written once when
+the camp is founded. The settler-origin rule above is history, so a later recompute could not reproduce it and
+would quietly re-attach the camp to the other candidate.
+
+**A delivery runs only when the deliverer is a camp, its designated parent is not, *and* the two banks share a
+`NetworkKey`.** Sever the link and delivery simply stops: the camp keeps collecting to its own cap and loses
+nothing it was holding, and the designation does not change. Reconnect and it resumes. A camp with no parent at
+all is its own network of one and banks normally — the first settlement of a game is a camp, and the Meeting
+Place is built in one.
+
+Both tiers are checked at delivery time rather than trusted from whatever set the designation, because nothing
+clears the column when a settlement changes tier. A settlement that grew out of camp tier would otherwise keep
+emptying itself into its old parent, and a camp designated to another camp would be a chain — emptying the
+middle one first destroys the stock behind it rather than moving it on.
+
+**Deliver everything, keep nothing.** The camp is left holding no balance row at all, which costs it nothing while
+it still draws on the network it shares. The accepted consequence runs the other way: a severed camp fills its
+small store and then wastes production, and that is the intended pain.
+
+It runs at the end of a turn, after production and after construction, so a camp spends on its own build order
+out of its own bank before the remainder is swept to the parent. Running it twice in one turn moves the same
+stock once, because a camp emptied by the first run has nothing left for the second.
 
 ## Conquest
 

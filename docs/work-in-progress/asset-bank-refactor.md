@@ -12,7 +12,7 @@ all sixteen, the alternatives already rejected, the agreed vocabulary, and the o
 
 These hold across every step. A step that appears to need one broken has found something the design did not anticipate — raise it rather than quietly making an exception.
 
-* **Balances never move between banks**, with exactly one sanctioned exception: the camp feeder push (`RS-35`). Connecting, disconnecting, merging and conquering are all re-keys or
+* **Balances never move between banks**, with exactly one sanctioned exception: camp deliveries (`RS-35`). Connecting, disconnecting, merging and conquering are all re-keys or
   ownership changes, never transfers.
 * **`NetworkKey` has exactly one writer** — the connectivity service. It is derived data with no referential integrity, so a second writer means the wrong settlements can reach each
   other and nothing in the schema catches it. A bank arrives as `Guid.Empty` — unkeyed — and the service is what keys it, which is why provisioning calls `AssignKeyToNewBank`
@@ -55,7 +55,7 @@ Use these names. Sixteen sessions inventing sixteen synonyms is the main thing t
 |---|---|
 | **Network** | The set of banks sharing a `NetworkKey`. What a settlement can draw on. Also what a Command's units' banks form. |
 | **Re-key** | Changing which network a bank belongs to. Never moves a balance. |
-| **Feeder parent** | The settlement a camp pushes its production to each turn (`Settlement.FeederParentSettlementId`). Stored, never recomputed. |
+| **Parent settlement** | The settlement a camp delivers its production to each turn (`Settlement.ParentSettlementId`). Stored, never recomputed. The camp delivers; the parent only receives, and its stock funding the camp's construction is the shared network rather than a flow back. |
 | **Storage class** | How an asset is kept, as against what it is. `Asset.StorageClassId`, required, exactly one. |
 | **Specialist store** | Capacity granted for one storage class by a building — the armoury, the oil dump. |
 | **Generic pool** | Tier-granted capacity any class overflows into. The storehouse. |
@@ -69,7 +69,7 @@ Use these names. Sixteen sessions inventing sixteen synonyms is the main thing t
 
 ```
 RS-33  bank per settlement + NetworkKey   ─┬─> RS-34  conquest re-key
-                                           ├─> RS-35  camp feeder
+                                           ├─> RS-35  camp deliveries
                                            ├─> RS-36  local-first debit
                                            ├─> RS-42  unit banks
                                            ├─> CM-64  roads, and road networking

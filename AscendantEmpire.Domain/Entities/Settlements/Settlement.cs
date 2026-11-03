@@ -90,6 +90,35 @@ public class Settlement
     /// </remarks>
     public int FoundedOnTurnId { get; set; }
 
+    /// <summary>
+    /// The Settlement this one delivers everything it produces to at the end of each Turn, or <see langword="null"/> where it feeds nobody.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Only a camp carries one.</b> A camp can already <i>spend</i> from its parent's stock by sharing its network, so what it cannot do is <i>store</i>: its own
+    /// capacity is tiny, and its production would hit that cap and be wasted. The delivery exists to get stock out of a small store and into a large one, and is the one
+    /// sanctioned exception to balances never moving between banks.
+    /// </para>
+    /// <para>
+    /// <b>The flow this records runs one way.</b> Only the camp's delivery moves a balance. Its parent's stock paying for the camp's construction is not the reverse of this
+    /// column at all - the two banks share an <c>AssetBank.NetworkKey</c>, so nothing travels and there is nothing here to record.
+    /// </para>
+    /// <para>
+    /// <b>Stored, never recomputed.</b> Where two candidates are equidistant the camp attaches to the one its settler was created from, which is history - a later
+    /// recompute cannot see it, and would quietly re-attach the camp to the other one.
+    /// </para>
+    /// <para>
+    /// <b>The name is deliberately plain.</b> The direction belongs to the verb - a camp <i>delivers</i> to its parent - because a name that carried its own direction read
+    /// backwards instead. A later settlement-to-settlement hierarchy, growth absorbing a camp say, wants a column of its own rather than this one.
+    /// </para>
+    /// <para>
+    /// <b>A designation is not a connection.</b> A delivery also needs the two banks to share an <c>AssetBank.NetworkKey</c>, which only
+    /// <c>IAssetNetworkConnectivityService</c> decides. Sever the link and delivery stops while this column stays exactly as it was; reconnect and it resumes.
+    /// </para>
+    /// <para>See "Asset Bank Rules" in <c>docs/design/asset-banks.md</c> for the attachment rule this records the outcome of.</para>
+    /// </remarks>
+    public int? ParentSettlementId { get; set; }
+
     [ForeignKey("GameId")]
     public GameIndex Game { get; set; } = null!;
 
@@ -98,4 +127,7 @@ public class Settlement
 
     [ForeignKey("FoundingPlayerId")]
     public Player FoundedBy { get; set; } = null!;
+
+    [ForeignKey("ParentSettlementId")]
+    public Settlement? ParentSettlement { get; set; }
 }

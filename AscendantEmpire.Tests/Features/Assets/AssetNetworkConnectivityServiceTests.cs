@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Assets.Classes;
 using AscendantEmpire.Application.Features.Assets.Services;
 using AscendantEmpire.Domain.Entities.Assets;
+using AscendantEmpire.Domain.Enums.Settlements;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -12,8 +13,8 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Tests.Features.Assets;
 
 /// <summary>
-/// Tests for <see cref="AssetNetworkConnectivityService"/>: that it keys a new bank, isolates banks that should not share a network, and reports the two ways
-/// a derived key goes stale.
+/// Tests for <see cref="AssetNetworkConnectivityService"/>: that it keys a new bank, groups a camp with the settlement it feeds, isolates banks that should not
+/// share a network, and reports the three ways a derived key goes stale.
 /// </summary>
 /// <remarks>
 /// In-memory, per <c>testing.md</c>: the service does nothing but read the Player's banks, compare keys and assign new ones, and no rule it enforces lives in
@@ -25,6 +26,10 @@ internal class AssetNetworkConnectivityServiceTests : AssetBankTestBase
     private const int _SETTLEMENT_ID = 41;
     private const int _SECOND_SETTLEMENT_ID = 42;
     private const int _FAR_SETTLEMENT_ID = 77;
+
+    // A camp and the village it feeds. The camp takes the lower id, so the village keeping the camp's key is the ordering rule working rather than a coincidence.
+    private const int _CAMP_SETTLEMENT_ID = 11;
+    private const int _PARENT_SETTLEMENT_ID = 12;
 
     private AssetNetworkConnectivityService _service = null!;
 
@@ -193,6 +198,92 @@ internal class AssetNetworkConnectivityServiceTests : AssetBankTestBase
             await _service.FindFaultsForPlayerAsync(context, _playerId, CancellationToken.None);
 
         Assert.That(result.SuccessValue, Is.Empty);
+    }
+
+    [Test, Description("A camp is re-keyed into its parent settlement's network, because sharing the parent's key is what lets it spend from the parent's stock.")]
+    public async Task ShouldPutACampInItsParentSettlementsNetworkWhenRecomputing()
+    {
+        await CreateSettlementAsync(_CAMP_SETTLEMENT_ID, SettlementTier.Camp, parentSettlementId: _PARENT_SETTLEMENT_ID);
+        await CreateSettlementAsync(_PARENT_SETTLEMENT_ID);
+
+        Guid campKey = Guid.NewGuid();
+
+        int campBankId = await CreateBankAsync(_playerId, _CAMP_SETTLEMENT_ID, new Dictionary<string, long>(), campKey);
+        int parentBankId = await CreateBankAsync(_playerId, _PARENT_SETTLEMENT_ID, new Dictionary<string, long>());
+
+        await RecomputeAsync(_playerId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await ReadKeyAsync(campBankId), Is.EqualTo(campKey), "The network's lowest bank id is what keeps its key.");
+            Assert.That(await ReadKeyAsync(parentBankId), Is.EqualTo(campKey), "And the parent joins it rather than the other way round.");
+        }
+    }
+
+    [Test, Description("A camp and its parent recomputed twice change nothing the second time, so a founding and a later conquest do not churn the network they agree about.")]
+    public async Task ShouldChangeNothingWhenACampGroupIsRecomputedTwice()
+    {
+        await CreateSettlementAsync(_CAMP_SETTLEMENT_ID, SettlementTier.Camp, parentSettlementId: _PARENT_SETTLEMENT_ID);
+        await CreateSettlementAsync(_PARENT_SETTLEMENT_ID);
+
+        int campBankId = await CreateBankAsync(_playerId, _CAMP_SETTLEMENT_ID, new Dictionary<string, long>());
+        int parentBankId = await CreateBankAsync(_playerId, _PARENT_SETTLEMENT_ID, new Dictionary<string, long>());
+
+        await RecomputeAsync(_playerId);
+
+        Guid campKeyAfterOneRun = await ReadKeyAsync(campBankId);
+
+        await RecomputeAsync(_playerId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await ReadKeyAsync(campBankId), Is.EqualTo(campKeyAfterOneRun));
+            Assert.That(await ReadKeyAsync(parentBankId), Is.EqualTo(campKeyAfterOneRun));
+        }
+    }
+
+    [Test, Description("A camp whose parent settlement is now another Player's is put in a network of its own, which is what stops its deliveries and leaves it banking for itself.")]
+    public async Task ShouldIsolateACampWhoseParentSettlementBelongsToAnotherPlayer()
+    {
+        await CreateSettlementAsync(_CAMP_SETTLEMENT_ID, SettlementTier.Camp, parentSettlementId: _PARENT_SETTLEMENT_ID);
+        await CreateSettlementAsync(_PARENT_SETTLEMENT_ID);
+
+        Guid sharedKey = Guid.NewGuid();
+
+        int campBankId = await CreateBankAsync(_playerId, _CAMP_SETTLEMENT_ID, new Dictionary<string, long>(), sharedKey);
+        await CreateBankAsync(_otherPlayerId, _PARENT_SETTLEMENT_ID, new Dictionary<string, long>(), sharedKey);
+
+        await RecomputeAsync(_playerId);
+
+        Assert.That(await ReadKeyAsync(campBankId), Is.EqualTo(sharedKey),
+            "Its own key is left alone - it is the only bank of this Player, so there is nothing for it to be at odds with.");
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        ServiceResult<IReadOnlyCollection<AssetNetworkFault>> result = await _service.FindFaultsForPlayerAsync(context, _playerId, CancellationToken.None);
+
+        Assert.That(result.SuccessValue, Is.Empty, "And a key the other Player happens to carry is not this Player's fault to fix.");
+    }
+
+    [Test, Description("A camp in a network of its own when it should be in its parent's is reported as Unjoined, which costs the Player reach rather than letting them overspend.")]
+    public async Task ShouldReportACampThatHasNotJoinedItsParentSettlement()
+    {
+        await CreateSettlementAsync(_CAMP_SETTLEMENT_ID, SettlementTier.Camp, parentSettlementId: _PARENT_SETTLEMENT_ID);
+        await CreateSettlementAsync(_PARENT_SETTLEMENT_ID);
+
+        await CreateBankAsync(_playerId, _CAMP_SETTLEMENT_ID, new Dictionary<string, long>());
+        int parentBankId = await CreateBankAsync(_playerId, _PARENT_SETTLEMENT_ID, new Dictionary<string, long>());
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        ServiceResult<IReadOnlyCollection<AssetNetworkFault>> result = await _service.FindFaultsForPlayerAsync(context, _playerId, CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        Assert.That(result.SuccessValue!.Select(fault => (fault.AssetBankId, fault.Kind)), Is.EquivalentTo(new[]
+        {
+            (parentBankId, AssetNetworkFaultKind.Unjoined)
+        }), "The camp holds the key the network should carry, so it is the parent that is out of place.");
     }
 
     /// <summary>Recomputes on its own context and saves, which is what the caller of a re-key does.</summary>

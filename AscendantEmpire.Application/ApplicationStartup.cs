@@ -20,6 +20,7 @@ using AscendantEmpire.Application.Features.UnitComponents.Executors;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions.Strategies;
 using AscendantEmpire.Application.Features.ForceOrders.Movement.Strategies;
+using AscendantEmpire.Application.Features.Settlements.Services;
 using AscendantEmpire.Application.Features.Structures.Services;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions;
@@ -174,6 +175,14 @@ public static class ApplicationStartup
         // reads ownership from the database and so cannot see a hand-over that has only been staged.
         services.AddScoped<IAssetBankConquestService, AssetBankConquestService>();
 
+        // Camp deliveries: the one sanctioned transfer of balances between banks, run once per Turn from the DeliverCampProduction end-of-Turn process.
+        services.AddScoped<IAssetBankDeliveryService, AssetBankDeliveryService>();
+
+        // Chooses which Settlement a new camp will feed, inside the settle transaction. The answer is stored on the camp and never recomputed, because the
+        // tiebreaker between two equidistant candidates is history. Registered under Settlements rather than Assets: the question it answers is a Settlement's, and
+        // the network that designation implies is the connectivity service's to work out. It resolves only - the settle handler stores the answer.
+        services.AddScoped<ICampParentResolver, CampParentResolver>();
+
         // Resolves what a Player holds of each Asset for the read path, routing on the same Asset.StorageScope column the drawdown routes a debit on, so the
         // figure a ticker reports and the figure a purchase is checked against cannot come from different places.
         services.AddScoped<IPlayerAssetQuantityReader, PlayerAssetQuantityReader>();
@@ -217,6 +226,7 @@ public static class ApplicationStartup
         // End of a Campaign Turn — runs for the Player whose turn is ending.
         services.AddScoped<IEndCampaignTurnProcess, Gathering>();
         services.AddScoped<IEndCampaignTurnProcess, BuildingStructure>();
+        services.AddScoped<IEndCampaignTurnProcess, DeliverCampProduction>();
         services.AddScoped<IEndCampaignTurnProcess, Fortifying>();
         services.AddScoped<IEndCampaignTurnProcess, EvaluateForceOnHostileTerrain>();
         services.AddScoped<IEndCampaignTurnProcess, ApplyResearch>();
