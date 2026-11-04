@@ -74,5 +74,10 @@ public enum SeedTarget
     /// <summary>
     /// The <c>structure.Structures</c> catalogue — the kinds of Structure a tile can hold, including the camp and village a settler founds.
     /// </summary>
-    Structures = 12
+    Structures = 12,
+
+    /// <summary>
+    /// The <c>assets.StorageClass</c> catalogue — how an Asset is kept, which capacity binds against.
+    /// </summary>
+    StorageClasses = 13
 }
