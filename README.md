@@ -1,18 +1,26 @@
 # Ascendant Empire
 
-A turn-based 4X strategy game — a campaign map you explore, settle and fight over, with battles that
-zoom into the tile they happen on.
+One day in high school a friend mentioned he'd discovered a new game called [Civilization](https://en.wikipedia.org/wiki/Civilization_(video_game)). He was then suspiciously "sick" for the rest of the week. It wasn't long before I too was craving "just one more turn".
+
+And then there was [Sid Meier's Alpha Centauri](https://en.wikipedia.org/wiki/Sid_Meier%27s_Alpha_Centauri), which to my mind is *still* noteworthy and worth a recommend, even though it was released in 1999.
+
+**Ascendant Empire** is my contribution to the 4X strategy genre, and finally delivering on my "I wish I could..." thought bubbles that have pursued me for decades. 
+
+Disclaimer: I am **one** developer; this project is AI-assisted, but I'm the one steering.
 
 > ### ⚠️ Not playable yet
 >
-> **Ascendant Empire is in active development and is not a game you can sit down and play.** There is
-> no win condition, no AI opponent, and no tactical battle layer — selecting *Battle* opens a
-> placeholder dialog. A great deal of the surrounding machinery is real and working (map generation,
-> lobbies, turns, movement, vision and intelligence, settlement founding, the technology tree, the
-> unit designer), but it does not yet add up to a complete game loop. Treat this repository as a work
-> in progress rather than a release.
+> **Ascendant Empire is in active development and is not playable yet.** Treat this repository as a work in progress rather than a release.
 
----
+## Characteristics
+* **Web-based**: partly as a development learning-and-exploration tool for me, and partly because the ultimate dream would be to scale to a MMO game. (Which at the moment is well beyond it's scope and architecture).
+* Play style is what I call **parallel turn-based**. Players take turns on a Campaign Map where strategy plays out, but when two enemies enter the same Campaign Map tile, the game zooms in to a higher resolution, persistent, Battle Map where the Players can employ tactics to win the battle. Turns on the Battle Map happen parallel to the main Campaign Map game. Actions on the Campaign Map can affect the Battle (i.e. if you cut off an enemy's supply lines).
+* I plan reasonably deep realism: **logistics**, **resource management**, **complex diplomacy model**.
+* **This is a GAME**: The period will go from caveman to future techs, but it won't force you down the same path as humanity has passed. The idea is that your Empire becomes Ascendant (dominant) --- how that occurs is the player's choice. Villain or hero, the choice is yours.
+* **Games are dynamic**: You choose a Campaign Map from a gallery, but there are many dynamic variations that will occur in game setup. (No two games will be the same, unless you provide the same random seed).
+* Customisable **Unit Design**: After saying Alpha Centauri was the *G.O.A.T*, this was a must.
+* Customisable **military hierarchy**: You move "forces" around the Campaign Map, which could either be a *Unit* (i.e. 20 archers) or it could be a *Command* (50 archers, 10-each under the command of an officer, and 20 spearmen, each in squads of 5 --- all in a customisable military hierarchy)
+* Support for multiple games occurring at once.
 
 ## What exists today
 
@@ -24,9 +32,6 @@ Enough to start a game and move around in it:
 - Receive sighting reports about what happened while you were not looking.
 - Found a village or establish a camp, split a Force, and spend research in the technology tree.
 - Assemble unit designs from components on the Unit Designer bench.
-
-What is missing is the part that makes it a *game*: combat resolution, the battle map, production and
-economy loops at full depth, and any opponent that is not another human taking a hot-seat turn.
 
 ---
 
@@ -76,12 +81,9 @@ channel and tracked as a row in `system.Processing` that the client polls for st
 
 - **.NET 10** / C# — `net10.0` across every project
 - **ASP.NET Core** Web API, controller-based routing
-- **Entity Framework Core 10** on **SQL Server**, 76 migrations, with a schema-per-area layout
-  (`game`, `auth`, `turns`, `mapgallery`, `unitdesigns`, `military`, `assets`, `technology`,
-  `settlement`, `battle`, `system`, …)
+- **Entity Framework Core 10** on **SQL Server**, with a schema-per-area layout
 - **JWT bearer authentication** (`Microsoft.AspNetCore.Authentication.JwtBearer`)
 - **Serilog** for structured logging, with a file sink
-- **Swashbuckle / Swagger UI**, fed from XML doc comments, with a bearer-token *Authorize* button
 - **SkiaSharp** for rendering campaign map previews to PNG
 - **ASP.NET Core health checks** — liveness, plus a tag-selected readiness check over the database
 
@@ -149,21 +151,6 @@ happens in two steps: `POST /auth/login` issues a **user token** that proves who
 `POST /auth/enter-game` exchanges it for a **game token** that also carries the game and player. Both
 are signed from the same key; refresh sessions add reuse detection and pruning.
 
-### The backend decides what a Force can do
-
-When a Force is selected, the server evaluates strategy objects against that Force's current context
-and returns which actions are available *and why the others are not*. The frontend decides how that
-looks and what interaction follows, but never whether an action is legal. A multi-Force selection is
-judged as a whole by the same aggregator.
-
-### Three buckets of research
-
-Each technology needs between one and three kinds of research filled: **directed** (deliberate study),
-**experience-based** (a byproduct of doing things) and **diffusion-based** (a byproduct of trade and
-proximity). A technology either uses a bucket or has no requirement for it at all, so "does this need
-experience?" and "how much?" are the same question. Prerequisites are individually mandatory or
-optional: all the mandatory ones, plus at least one of the optional ones.
-
 ### Hand-rolled mediator and validation
 
 There is no MediatR and no FluentValidation. The solution carries its own small `IMediator`, a pipeline
@@ -189,7 +176,7 @@ The frontend declares colour under Tailwind v4's `@theme` in the `--color-*` nam
 token serves both hand-written CSS (`var(--color-selection)`) and generated utilities
 (`bg-selection`, `ring-selection/50`). Every colour, focus style and hover affordance has to clear the
 WCAG 2.2 Level A and AA criteria catalogued in [`docs/WCAG.md`](docs/WCAG.md), against measured
-contrast ratios rather than assumed ones.
+contrast ratios rather than assumed ones. [Work in Progress to make compliant].
 
 ### Tests pick the lightest tier that works
 
@@ -198,14 +185,6 @@ InMemory**, then a **containerised SQL Server** only when the test genuinely nee
 enforcement, bulk `ExecuteUpdate`/`ExecuteDelete`, raw SQL, explicit transactions or EF complex types.
 Standing up more than necessary makes the suite slower and more fragile for no benefit. The rules — and
 the measured limits of the in-memory provider — are in [`docs/testing.md`](docs/testing.md).
-
-### Vocabulary is enforced
-
-A **Unit** is one fielded body of soldiers; a **Command** is several Units under one officer; a
-**Force** is whichever of the two occupies a tile and moves as one — a category, not a type, carried in
-code as a `RecordType` discriminator rather than a base class. Retired terms (`Formation`,
-`Contingent`) are documented as retired so they cannot creep back. See
-[`docs/Terminology.md`](docs/Terminology.md).
 
 ---
 
@@ -286,4 +265,3 @@ The `docs/` folder is substantial, and describes how things are now rather than 
 | Testing tiers | [`docs/testing.md`](docs/testing.md) |
 | UI look and feel | [`docs/look-and-feel.md`](docs/look-and-feel.md) |
 | Accessibility | [`docs/WCAG.md`](docs/WCAG.md) |
-| Technology tree maintenance | [`docs/technology-tree-repairs.md`](docs/technology-tree-repairs.md) |
