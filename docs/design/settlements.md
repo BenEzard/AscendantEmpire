@@ -263,8 +263,10 @@ The full rules are [asset-banks.md](asset-banks.md). What matters here is the sh
 - Connecting and disconnecting — a road built, a road pillaged, a river dammed — are **re-keys**. No
   balance moves and no bank is created or deleted, so a settlement cut off keeps everything it was
   holding and only loses its reach.
-- An expense incurred **at a settlement** — a build order, an upkeep charge — is met from that
-  settlement's own bank. If the bank does not hold enough, the purchase cannot be made.
+- An expense incurred **at a settlement** — a build order, an upkeep charge — drains that settlement's
+  own bank first and takes the remainder from the rest of its network, levelled across those banks. It is
+  refused only where the network between them does not hold enough, and nothing is moved or topped up, so
+  the settlement that paid stays depleted until production re-levels it.
 - An **Empire-wide** expense — a technology cost, an export — belongs to no settlement. It is met across
   every bank the player owns, spread by levelling so the fullest banks pay and a small one keeps the stock
   its own construction needs, and it carries no transport cost. See

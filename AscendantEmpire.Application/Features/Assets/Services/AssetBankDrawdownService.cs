@@ -37,7 +37,7 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
             // conditional filter.
             AssetStorageScope.SettlementBank => expense.IsEmpireWide
                 ? await DebitEveryBankAsync(context, expense, target, cancelToken)
-                : await DebitSettlementBankAsync(context, expense, target, cancelToken),
+                : await DebitSettlementNetworkAsync(context, expense, target, cancelToken),
 
             AssetStorageScope.Player => await DebitPlayerStoreAsync(context, expense, target, cancelToken),
 
@@ -156,39 +156,73 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
     }
 
     /// <summary>
-    /// Spends the expense out of the Settlement's own bank, and out of that bank alone.
+    /// Spends the expense out of the Settlement's own bank first, and the remainder out of the rest of its network.
     /// </summary>
     /// <remarks>
     /// <para>
     /// Sufficiency is settled over the whole candidate set before anything is written, which is what makes a group expense all-or-nothing: the spend below
-    /// only ever runs when the total is already known to cover the amount.
+    /// only ever runs when the network's total is already known to cover the amount.
     /// </para>
     /// <para>
-    /// <b>A bank that is short refuses the expense rather than reaching into the rest of its network.</b> Draining the site first and taking the remainder
-    /// from the banks sharing its <c>NetworkKey</c> is RS-36; the transport turn cost for the distance assets travel is RS-27.
+    /// <b>Local-first: the site's own bank is drained before any other is touched</b>, because goods already standing where the building is going up do not
+    /// travel. The remainder comes out of the banks sharing the site's <c>NetworkKey</c>, levelled - see <see cref="LevelDown"/> - so it is taken from the
+    /// richest and a poor Settlement keeps the stock its own construction will need.
+    /// </para>
+    /// <para>
+    /// <b>The debit moves nothing and rebalances nothing.</b> No bank is topped up and the depleted site stays depleted. Levelling lives on the credit path,
+    /// where next round's production favours the emptiest banks and re-levels the network over time - RS-38.
+    /// </para>
+    /// <para>
+    /// <b>Asset preference outranks locality</b> - see <see cref="Spend"/>, which walks the Assets outermost. The site's Cedar is not taken before the
+    /// network's Oak.
+    /// </para>
+    /// <para>
+    /// An unkeyed bank reaches nothing but itself. <see cref="Guid.Empty"/> is the absence of a key rather than a network two banks share, so it is never
+    /// grouped on.
+    /// </para>
+    /// <para>
+    /// <b>The site's own bank id is prepended rather than read back out of the network query.</b> Nothing holds a snapshot across the two reads, so a re-key
+    /// landing between them would otherwise drop the site out of its own network: the whole expense would come off the peers, which is local-first inverted
+    /// and reported as a success.
+    /// </para>
+    /// <para>
+    /// RS-27 adds the transport turn cost the distance implies, and it is the remainder ordering rather than the reaching that it turns into nearest-first,
+    /// with the site at distance zero.
     /// </para>
     /// </remarks>
-    private async Task<ServiceResultBase> DebitSettlementBankAsync(AscendantEmpireContext context, AssetExpense expense, ExpenseTarget target, CancellationToken cancelToken)
+    private async Task<ServiceResultBase> DebitSettlementNetworkAsync(AscendantEmpireContext context, AssetExpense expense, ExpenseTarget target, CancellationToken cancelToken)
     {
         int settlementId = expense.SettlementId!.Value;
 
         // Both columns in the predicate, so naming another Player's Settlement cannot reach their bank.
-        int? assetBankId = await context.AssetBanks
+        SiteBank? site = await context.AssetBanks
             .AsNoTracking()
             .Where(bank => bank.SettlementId == settlementId && bank.PlayerId == expense.PlayerId)
-            .Select(bank => (int?)bank.Id)
+            .Select(bank => new SiteBank(bank.Id, bank.NetworkKey))
             .FirstOrDefaultAsync(cancelToken);
 
-        if (assetBankId is null)
+        if (site is null)
         {
+            // Still a not-found however much the rest of the network holds: the expense happens at this Settlement, and one that cannot bank cannot be spent at.
             return NotFound($"Settlement {settlementId} has no asset bank belonging to Player {expense.PlayerId}, so nothing can be spent there.");
         }
+
+        // PlayerId as well as the key, because the index is (PlayerId, NetworkKey) and a key alone would let a conquest caught mid-recompute reach a rival's stock.
+        int[] peerBankIds = site.NetworkKey == Guid.Empty
+            ? []
+            : [.. await context.AssetBanks
+                .AsNoTracking()
+                .Where(bank => bank.PlayerId == expense.PlayerId && bank.NetworkKey == site.NetworkKey && bank.Id != site.AssetBankId)
+                .Select(bank => bank.Id)
+                .ToListAsync(cancelToken)];
+
+        int[] networkBankIds = [site.AssetBankId, .. peerBankIds];
 
         int[] candidateAssetIds = [.. target.Assets.Select(asset => asset.AssetId)];
 
         // Tracked, unlike every other read here: these are the rows being written, and the caller's SaveChangesAsync is what commits them.
         List<AssetBankBalance> balances = await context.AssetBankBalances
-            .Where(balance => balance.AssetBankId == assetBankId.Value && candidateAssetIds.Contains(balance.AssetId))
+            .Where(balance => networkBankIds.Contains(balance.AssetBankId) && candidateAssetIds.Contains(balance.AssetId))
             .ToListAsync(cancelToken);
 
         // A candidate with no row holds none of it, which is the same as a zero, so the sum needs no entry for it.
@@ -199,15 +233,21 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
             return ToShortfall(expense, target, available);
         }
 
-        Spend(context, target, expense.Amount, balances);
+        List<AssetBankBalance> siteBalances = [.. balances.Where(balance => balance.AssetBankId == site.AssetBankId)];
+        List<AssetBankBalance> peerBalances = [.. balances.Where(balance => balance.AssetBankId != site.AssetBankId)];
 
+        Spend(context, target, expense.Amount, [siteBalances, peerBalances]);
+
+        // The peer count is what the remainder could have come from, not what it did: the site covers the whole expense often enough that naming the peers as
+        // payers would misreport the common case.
         logger.LogInformation(
-            "Debited {Amount} {Asset} from asset bank {AssetBankId} for player {PlayerId}, at settlement {SettlementId}.",
+            "Debited {Amount} {Asset} for player {PlayerId} at settlement {SettlementId}, from its own asset bank {AssetBankId}, with {PeerBankCount} other bank(s) in its network available for the remainder.",
             expense.Amount,
             target.DisplayName,
-            assetBankId.Value,
             expense.PlayerId,
-            settlementId);
+            settlementId,
+            site.AssetBankId,
+            peerBankIds.Length);
 
         return SuccessNoContent();
     }
@@ -245,7 +285,7 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
             return ToShortfall(expense, target, available);
         }
 
-        Spend(context, target, expense.Amount, balances);
+        Spend(context, target, expense.Amount, [balances]);
 
         logger.LogInformation(
             "Debited {Amount} {Asset} Empire-wide for player {PlayerId}, across the {BankCount} asset bank(s) holding any of it.",
@@ -262,36 +302,50 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
     /// </summary>
     /// <remarks>
     /// <para>
-    /// <b>The walk is over Assets, and each step spans every bank in the set.</b> So a group expense takes every bank's Oak to nothing before any Cedar is
-    /// touched anywhere: the Player's ordering says which Asset they are willing to lose first, and it means that at whatever scale the expense is paid at.
-    /// The Settlement arm hands over one bank's rows and gets the same walk over a set of one.
+    /// <b>The walk is over Assets outermost, and each Asset is taken from the tiers in order before the next Asset is reached.</b> So a group expense takes
+    /// every bank's Oak to nothing before any Cedar is touched anywhere, and a Settlement's own Cedar is not taken before its network's Oak: the Player's
+    /// ordering says which Asset they are willing to lose first, and asset preference outranks locality.
     /// </para>
     /// <para>
     /// Only ever called once the caller has established that the balances cover the amount, which is what makes an expense all-or-nothing: there is no
     /// partial walk to unwind, because the walk cannot run short.
     /// </para>
     /// </remarks>
-    private static void Spend(AscendantEmpireContext context, ExpenseTarget target, ScaledAmount amount, IReadOnlyCollection<AssetBankBalance> balances)
+    /// <param name="tiers">
+    /// The balance sets in locality order: each Asset comes out of each tier as far as it goes before the next is touched. A single tier is a set with no
+    /// locality in it, which is what an Empire-wide expense spends out of.
+    /// </param>
+    private static void Spend(
+        AscendantEmpireContext context,
+        ExpenseTarget target,
+        ScaledAmount amount,
+        IReadOnlyList<IReadOnlyCollection<AssetBankBalance>> tiers)
     {
-        Dictionary<int, List<AssetBankBalance>> balancesByAssetId = balances
-            .GroupBy(balance => balance.AssetId)
-            .ToDictionary(assetBalances => assetBalances.Key, assetBalances => assetBalances.ToList());
+        List<Dictionary<int, List<AssetBankBalance>>> heldByAssetIdPerTier =
+        [
+            .. tiers.Select(tier => tier
+                .GroupBy(balance => balance.AssetId)
+                .ToDictionary(assetBalances => assetBalances.Key, assetBalances => assetBalances.ToList()))
+        ];
 
         ScaledAmount remaining = amount;
 
         foreach (TargetAsset candidate in target.Assets)
         {
-            if (remaining <= ScaledAmount.Zero)
+            foreach (Dictionary<int, List<AssetBankBalance>> heldByAssetId in heldByAssetIdPerTier)
             {
-                break;
-            }
+                if (remaining <= ScaledAmount.Zero)
+                {
+                    return;
+                }
 
-            if (balancesByAssetId.TryGetValue(candidate.AssetId, out List<AssetBankBalance>? held) == false)
-            {
-                continue;
-            }
+                if (heldByAssetId.TryGetValue(candidate.AssetId, out List<AssetBankBalance>? held) == false)
+                {
+                    continue;
+                }
 
-            remaining -= TakeOneAsset(context, held, remaining);
+                remaining -= TakeOneAsset(context, held, remaining);
+            }
         }
     }
 
@@ -544,4 +598,9 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
     private sealed record ExpenseTarget(string DisplayName, AssetStorageScope StorageScope, IReadOnlyList<TargetAsset> Assets);
 
     private sealed record TargetAsset(int AssetId, string Code, string DisplayName, AssetStorageScope StorageScope);
+
+    /// <summary>
+    /// The bank a Settlement expense is paid at, and the network that bank sits in.
+    /// </summary>
+    private sealed record SiteBank(int AssetBankId, Guid NetworkKey);
 }

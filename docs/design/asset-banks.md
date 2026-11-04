@@ -176,17 +176,34 @@ An expense makes two choices, and both change what is spent.
   to nothing before the next is touched. With an ordering of Oak, Generic, Cedar and 4 Oak and 20 Generic
   held, an expense of 10 takes Oak to zero and the remaining 6 out of Generic, leaving Cedar alone.
 
-**Where it is paid from:** one settlement's own bank, or every bank the player owns.
+**Where it is paid from:** the network one settlement sits in, or every bank the player owns.
 
 ### At one settlement
 
-A build order or an upkeep charge happens somewhere, so the expense carries that settlement and is met from
-that settlement's own bank. Where that bank does not hold enough, the expense is refused.
+A build order or an upkeep charge happens somewhere, so the expense carries that settlement. It drains
+**that settlement's own bank first**, then takes the remainder from the rest of its network — the banks of
+the same player sharing its `NetworkKey`. An unkeyed bank reaches nothing but itself, so a settlement the
+connectivity service has not keyed pays out of its own stock alone.
 
-> Draining the site's own bank first and taking the remainder from the rest of its network — richest-first,
-> rebalancing nothing — is designed and not built (**RS-36**). Adding a transport turn cost for the distance
-> the assets travel is a further task of its own (**RS-27**), and is what turns that remainder ordering into
-> nearest-first.
+What is available is the **sum across that network**, and the expense is refused only where the banks
+between them do not hold enough. A settlement with no bank of its own cannot be spent at however much its
+network holds: the expense happens there.
+
+**The debit moves nothing and rebalances nothing.** No bank is topped up and the settlement that just paid
+stays depleted. Levelling lives on the credit path instead: next round's production favours the emptiest
+banks, so the settlement that paid for a building takes a larger share and the network re-levels over time
+(**RS-38**).
+
+The remainder is **levelled across the rest of the network**, which takes it from the richest banks first —
+the same spread, and the same reason, as the Empire-wide arm below: a settlement with little keeps the stock
+its own construction will need.
+
+**Asset preference outranks locality.** For a group expense the walk is, for each asset in the player's
+ordering: the site's own bank, then the remainder across the network. The site's Cedar is not taken before
+the network's Oak.
+
+> Adding a transport turn cost for the distance the assets travel is a task of its own (**RS-27**). It is
+> the remainder ordering, not the reaching, that it turns into nearest-first, with the site at distance zero.
 
 ### Empire-wide
 

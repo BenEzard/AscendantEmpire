@@ -42,7 +42,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     }
 
     // ---------------------------------------------------------------------------------------------------------------------------------------------------
-    // At one Settlement - the bank that Settlement draws on, and that bank alone.
+    // At one Settlement - the site's own bank first, then the rest of its network.
     // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
     [Test, Description("A settlement expense is met from the bank carrying that SettlementId, so a spend lands on the Settlement's own store.")]
@@ -207,7 +207,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
         }
     }
 
-    [Test, Description("A Settlement expense is met from its own bank only, so a second bank holding plenty does not rescue it and is left untouched.")]
+    [Test, Description("A bank in another network does not rescue a short settlement expense, so stock the site cannot reach is neither spent nor counted.")]
     public async Task ShouldNotReachASecondBankForASettlementExpense()
     {
         int ownBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
@@ -221,9 +221,9 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Conflict));
-            Assert.That(result.Errors.Single(), Does.Contain("4 available"), "only the Settlement's own bank counts towards what is available");
+            Assert.That(result.Errors.Single(), Does.Contain("4 available"), "only the Settlement's own network counts towards what is available");
             Assert.That(ownBalances[_OAK_LOG_CODE], Is.EqualTo(4));
-            Assert.That(otherBalances[_OAK_LOG_CODE], Is.EqualTo(100), "reaching the nearest bank that holds the remainder is RS-27, and is not this");
+            Assert.That(otherBalances[_OAK_LOG_CODE], Is.EqualTo(100), "a bank sharing no NetworkKey is unreachable, whatever it holds");
         }
     }
 
@@ -258,6 +258,170 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
         {
             Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.NotFound));
             Assert.That(balances[_OAK_LOG_CODE], Is.EqualTo(100));
+        }
+    }
+
+    [Test, Description("A settlement expense empties the site's own bank before it touches a peer, so goods already on site are what pay for a building there.")]
+    public async Task ShouldDrainTheSiteBankBeforeAnyPeerInTheNetwork()
+    {
+        Guid networkKey = Guid.NewGuid();
+        int siteBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 }, networkKey);
+        int peerBankId = await CreateBankAsync(_playerId, _SECOND_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 }, networkKey);
+
+        ServiceResultBase result = await DebitAssetAtSettlementAsync(_OAK_LOG_CODE, whole: 10);
+
+        Dictionary<string, long> siteBalances = await ReadBalancesAsync(siteBankId);
+        Dictionary<string, long> peerBalances = await ReadBalancesAsync(peerBankId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+            Assert.That(siteBalances.ContainsKey(_OAK_LOG_CODE), Is.False, "the site gives everything it has first, and the emptied row is deleted");
+            Assert.That(peerBalances[_OAK_LOG_CODE], Is.EqualTo(94), "the peer covers only the remainder, and the site is not topped back up");
+        }
+    }
+
+    [Test, Description("The remainder is levelled across the peers rather than drained out of the richest, so a peer with little keeps what its own construction needs.")]
+    public async Task ShouldLevelTheRemainderAcrossThePeerBanks()
+    {
+        Guid networkKey = Guid.NewGuid();
+        int siteBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 }, networkKey);
+        int fullPeerBankId = await CreateBankAsync(_playerId, _SECOND_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 50 }, networkKey);
+        int middlingPeerBankId = await CreateBankAsync(_playerId, _THIRD_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 30 }, networkKey);
+        int smallPeerBankId = await CreateBankAsync(_playerId, _FAR_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 }, networkKey);
+
+        ServiceResultBase result = await DebitAssetAtSettlementAsync(_OAK_LOG_CODE, whole: 50);
+
+        Dictionary<string, long> siteBalances = await ReadBalancesAsync(siteBankId);
+        Dictionary<string, long> fullBalances = await ReadBalancesAsync(fullPeerBankId);
+        Dictionary<string, long> middlingBalances = await ReadBalancesAsync(middlingPeerBankId);
+        Dictionary<string, long> smallBalances = await ReadBalancesAsync(smallPeerBankId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+            Assert.That(siteBalances.ContainsKey(_OAK_LOG_CODE), Is.False, "the site's 10 goes first, leaving 40 to find");
+            Assert.That(fullBalances[_OAK_LOG_CODE], Is.EqualTo(20), "the water-line falls at 20, so the fullest peer gives 30 of the 40");
+            Assert.That(middlingBalances[_OAK_LOG_CODE], Is.EqualTo(20), "and the next gives the other 10");
+            Assert.That(smallBalances[_OAK_LOG_CODE], Is.EqualTo(4), "a peer below the line pays nothing");
+        }
+    }
+
+    [Test, Description("A group expense walks the Player's asset ordering before locality, so a peer's preferred Asset goes before the site's less-preferred one.")]
+    public async Task ShouldPreferTheGroupsAssetOrderOverTheSitesOwnStock()
+    {
+        Guid networkKey = Guid.NewGuid();
+        int siteBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_CEDAR_LOG_CODE] = 100 }, networkKey);
+        int peerBankId = await CreateBankAsync(_playerId, _SECOND_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 }, networkKey);
+
+        ServiceResultBase result = await DebitGroupAtSettlementAsync(_GROUP_LOGS_CODE, whole: 10);
+
+        Dictionary<string, long> siteBalances = await ReadBalancesAsync(siteBankId);
+        Dictionary<string, long> peerBalances = await ReadBalancesAsync(peerBankId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+            Assert.That(peerBalances[_OAK_LOG_CODE], Is.EqualTo(90), "Oak comes before Cedar in the ordering, wherever it is held");
+            Assert.That(siteBalances[_CEDAR_LOG_CODE], Is.EqualTo(100), "and the site's Cedar is not taken first merely for being on site");
+        }
+    }
+
+    [Test, Description("What is available to a settlement expense is the whole network's holding, so the refusal counts a peer's stock towards it.")]
+    public async Task ShouldCountEveryBankInTheNetworkTowardsWhatIsAvailable()
+    {
+        Guid networkKey = Guid.NewGuid();
+        int siteBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 }, networkKey);
+        int peerBankId = await CreateBankAsync(_playerId, _SECOND_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 3 }, networkKey);
+
+        ServiceResultBase result = await DebitAssetAtSettlementAsync(_OAK_LOG_CODE, whole: 10);
+
+        Dictionary<string, long> siteBalances = await ReadBalancesAsync(siteBankId);
+        Dictionary<string, long> peerBalances = await ReadBalancesAsync(peerBankId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Conflict));
+            Assert.That(result.Errors.Single(), Does.Contain("7 available"), "the network is the pool, so both banks count");
+            Assert.That(siteBalances[_OAK_LOG_CODE], Is.EqualTo(4), "a refused expense stages nothing in the site bank");
+            Assert.That(peerBalances[_OAK_LOG_CODE], Is.EqualTo(3), "nor in a peer the walk would have reached second");
+        }
+    }
+
+    [Test, Description("An unkeyed bank reaches nothing but itself, so two banks the connectivity service has not keyed are not one network.")]
+    public async Task ShouldReachOnlyItselfWhenTheSiteBankIsUnkeyed()
+    {
+        int siteBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 }, Guid.Empty);
+        int unkeyedBankId = await CreateBankAsync(_playerId, _SECOND_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 }, Guid.Empty);
+
+        ServiceResultBase result = await DebitAssetAtSettlementAsync(_OAK_LOG_CODE, whole: 10);
+
+        Dictionary<string, long> siteBalances = await ReadBalancesAsync(siteBankId);
+        Dictionary<string, long> unkeyedBalances = await ReadBalancesAsync(unkeyedBankId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Conflict));
+            Assert.That(result.Errors.Single(), Does.Contain("4 available"), "Guid.Empty is the absence of a key, not a network two banks share");
+            Assert.That(siteBalances[_OAK_LOG_CODE], Is.EqualTo(4));
+            Assert.That(unkeyedBalances[_OAK_LOG_CODE], Is.EqualTo(100));
+        }
+    }
+
+    [Test, Description("A rival's bank is never reached through a shared NetworkKey, since connectivity is assessed per Player and the query filters on both columns.")]
+    public async Task ShouldNotReachARivalsBankSharingTheNetworkKey()
+    {
+        Guid networkKey = Guid.NewGuid();
+        int siteBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 }, networkKey);
+        int rivalBankId = await CreateBankAsync(_otherPlayerId, _SECOND_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 }, networkKey);
+
+        ServiceResultBase result = await DebitAssetAtSettlementAsync(_OAK_LOG_CODE, whole: 10);
+
+        Dictionary<string, long> siteBalances = await ReadBalancesAsync(siteBankId);
+        Dictionary<string, long> rivalBalances = await ReadBalancesAsync(rivalBankId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Conflict));
+            Assert.That(result.Errors.Single(), Does.Contain("4 available"));
+            Assert.That(siteBalances[_OAK_LOG_CODE], Is.EqualTo(4));
+            Assert.That(rivalBalances[_OAK_LOG_CODE], Is.EqualTo(100));
+        }
+    }
+
+    [Test, Description("A settlement holding no row for the Asset pays the whole amount out of its network, rather than refusing for having none on site.")]
+    public async Task ShouldPayEntirelyFromThePeersWhenTheSiteHoldsNoneOfTheAsset()
+    {
+        Guid networkKey = Guid.NewGuid();
+        int siteBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long>(), networkKey);
+        int peerBankId = await CreateBankAsync(_playerId, _SECOND_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 }, networkKey);
+
+        ServiceResultBase result = await DebitAssetAtSettlementAsync(_OAK_LOG_CODE, whole: 10);
+
+        Dictionary<string, long> siteBalances = await ReadBalancesAsync(siteBankId);
+        Dictionary<string, long> peerBalances = await ReadBalancesAsync(peerBankId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+            Assert.That(siteBalances.ContainsKey(_OAK_LOG_CODE), Is.False, "nothing is written to the site, which is not topped up either");
+            Assert.That(peerBalances[_OAK_LOG_CODE], Is.EqualTo(90));
+        }
+    }
+
+    [Test, Description("A Settlement with no bank of its own cannot be spent at however much its network holds, since the expense happens there.")]
+    public async Task ShouldAnswerNotFoundWhenTheSettlementHasNoBankButAPeerDoes()
+    {
+        int peerBankId = await CreateBankAsync(_playerId, _SECOND_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 });
+
+        ServiceResultBase result = await DebitAssetAtSettlementAsync(_OAK_LOG_CODE, whole: 10);
+
+        Dictionary<string, long> peerBalances = await ReadBalancesAsync(peerBankId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.NotFound));
+            Assert.That(peerBalances[_OAK_LOG_CODE], Is.EqualTo(100));
         }
     }
 

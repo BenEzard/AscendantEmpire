@@ -18,14 +18,15 @@ namespace AscendantEmpire.Application.Features.Assets.Services;
 /// this has no list of Assets it knows to be unspendable.
 /// </para>
 /// <para>
-/// <b>And then on the expense's own arm.</b> A banked Asset is spent out of the one bank the expense's Settlement draws on, or, where the expense names no
+/// <b>And then on the expense's own arm.</b> A banked Asset is spent out of the network the expense's Settlement draws on, or, where the expense names no
 /// Settlement, across every bank the Player owns - see <see cref="AssetExpense.IsEmpireWide"/>:
 /// </para>
 /// <list type="bullet">
 /// <item>
 /// <description>
-/// <b>At a Settlement</b> - a build order or an upkeep charge, which happens somewhere. It is met from that Settlement's bank and refused when the bank is
-/// short, rather than reaching to a bank the goods would have to travel from. RS-27 is what makes it reach, with the transport turn cost that implies.
+/// <b>At a Settlement</b> - a build order or an upkeep charge, which happens somewhere. It drains that Settlement's own bank first and takes the remainder
+/// from the rest of its network, refused only when the network between them is short. Nothing is moved and no bank is topped up, so the depleted site stays
+/// depleted. RS-27 adds the transport turn cost the distance implies.
 /// </description>
 /// </item>
 /// <item>
@@ -55,7 +56,8 @@ internal interface IAssetBankDrawdownService
     /// <para>
     /// <b>Every expense succeeds whole or changes nothing.</b> Sufficiency is settled across the entire expense before a single balance is touched, so a
     /// group expense that zeroes Oak and then finds Cedar short never happens - on refusal the context is exactly as it was handed over and the caller is
-    /// free to carry on with it. For an Empire-wide expense that settling is across every bank at once, rather than bank by bank.
+    /// free to carry on with it. That settling is across every bank the expense can reach at once - the Settlement's network, or every bank the Player owns -
+    /// rather than bank by bank.
     /// </para>
     /// <para>The failure statuses are distinct on purpose, because they mean different things to a caller:</para>
     /// <list type="bullet">
