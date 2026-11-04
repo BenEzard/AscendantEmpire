@@ -1,4 +1,4 @@
-﻿using AscendantEmpire.Domain.Enums.Assets;
+using AscendantEmpire.Domain.Enums.Assets;
 
 using System.ComponentModel.DataAnnotations;
 
@@ -121,8 +121,28 @@ public sealed class Asset
     /// This keeps the catalogue row a pure label: it says what the Asset <i>is</i>, and this column says where to go for its number. Only a
     /// <see cref="AssetStorageScope.SettlementBank"/> Asset ever has an <see cref="AssetBankBalance"/>.
     /// </para>
+    /// <para>
+    /// Not to be confused with <see cref="StorageClassId"/>. This says where the number comes from; that says how the thing is kept once it is in a bank.
+    /// </para>
     /// </remarks>
     public AssetStorageScope StorageScope { get; set; } = AssetStorageScope.SettlementBank;
+
+    /// <summary>
+    /// The storage class this Asset is kept under, which is what a capacity cap binds against.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Exactly one, and required. Nullable only until the migration that fills it on existing rows has run, after which the column itself is what enforces
+    /// the guarantee - which is the whole reason this is a foreign key rather than a tag.
+    /// </para>
+    /// <para>
+    /// Every Asset carries one, including those no bank ever holds: the experience points and the population figures are classed because the column requires
+    /// it, not because anything will ever grant them capacity.
+    /// </para>
+    /// </remarks>
+    public int? StorageClassId { get; set; }
+
+    public StorageClass? StorageClass { get; set; }
 
     public AssetMetaCategory MetaCategory { get; set; } = null!;
 

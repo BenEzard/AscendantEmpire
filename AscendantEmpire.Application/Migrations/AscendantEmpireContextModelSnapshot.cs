@@ -74,6 +74,9 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("SortOrder")
                         .HasColumnType("int");
 
+                    b.Property<int?>("StorageClassId")
+                        .HasColumnType("int");
+
                     b.Property<int>("StorageScope")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
@@ -91,6 +94,8 @@ namespace AscendantEmpire.Application.Migrations
                         .IsUnique();
 
                     b.HasIndex("DisplayName");
+
+                    b.HasIndex("StorageClassId");
 
                     b.ToTable("Asset", "assets", t =>
                         {
@@ -306,6 +311,37 @@ namespace AscendantEmpire.Application.Migrations
                         .HasDatabaseName("IX_PlayerUnlockedAssetMetaCategory_AssetMetaCategory");
 
                     b.ToTable("PlayerUnlockedAssetMetaCategory", "assets");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.StorageClass", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("UX_StorageClass_Code");
+
+                    b.HasIndex("DisplayName")
+                        .IsUnique()
+                        .HasDatabaseName("UX_StorageClass_DisplayName");
+
+                    b.ToTable("StorageClass", "assets");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.BackgroundProcessing.Processing", b =>
@@ -4567,11 +4603,18 @@ namespace AscendantEmpire.Application.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.StorageClass", "StorageClass")
+                        .WithMany("Assets")
+                        .HasForeignKey("StorageClassId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.Navigation("Category");
 
                     b.Navigation("Group");
 
                     b.Navigation("MetaCategory");
+
+                    b.Navigation("StorageClass");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.AssetBank", b =>
@@ -6612,6 +6655,11 @@ namespace AscendantEmpire.Application.Migrations
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.AssetMetaCategory", b =>
                 {
                     b.Navigation("Categories");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.StorageClass", b =>
+                {
+                    b.Navigation("Assets");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Battles.Battle", b =>

@@ -1,4 +1,4 @@
-﻿using AscendantEmpire.Domain.Entities.Battles;
+using AscendantEmpire.Domain.Entities.Battles;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Identity;
 using AscendantEmpire.Domain.Entities.Maps.BattleMaps;
@@ -267,6 +267,11 @@ public class AscendantEmpireContext : DbContext
     public DbSet<AssetCategory> AssetCategories { get; set; }
     public DbSet<AssetGroup> AssetGroups { get; set; }
     public DbSet<Asset> Assets { get; set; }
+
+    /// <summary>
+    /// How each Asset is kept, as against what it is. What a per-settlement capacity cap binds against.
+    /// </summary>
+    public DbSet<StorageClass> StorageClasses { get; set; }
 
     /// <summary>
     /// Which AssetMetaCategories each Player has unlocked, and so which icons their Assets toolbar group shows.
@@ -545,6 +550,21 @@ public class AscendantEmpireContext : DbContext
         const string schema = "assets";
 
 
+        // Not a level of the hierarchy below - a sibling catalogue the Assets point at, placed first because they do. Both columns are uniquely indexed:
+        // Code because it is the upsert's match key, DisplayName because a capacity refusal names the class that bound and two classes reading alike
+        // would make that message unexplainable.
+        modelBuilder.Entity<StorageClass>(entity =>
+        {
+            entity.ToTable("StorageClass", schema);
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Code).HasMaxLength(StorageClass.MAX_CODE_LENGTH).IsRequired();
+            entity.Property(x => x.DisplayName).HasMaxLength(StorageClass.MAX_DISPLAY_NAME_LENGTH).IsRequired();
+
+            entity.HasIndex(x => x.Code).IsUnique().HasDatabaseName("UX_StorageClass_Code");
+            entity.HasIndex(x => x.DisplayName).IsUnique().HasDatabaseName("UX_StorageClass_DisplayName");
+        });
+
         // Code is the match key every asset upsert works from, so it is length-capped and uniquely indexed at all four levels. Without the unique index
         // nothing stops two rows sharing a code, and the upsert would then silently update whichever the dictionary happened to keep.
         modelBuilder.Entity<AssetMetaCategory>(entity =>
@@ -632,6 +652,12 @@ public class AscendantEmpireContext : DbContext
             entity.HasOne(x => x.Category)
                 .WithMany(x => x.Assets)
                 .HasForeignKey(x => x.AssetCategoryId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // NoAction, following every other row that names a catalogue type, so a class an Asset still names cannot be deleted.
+            entity.HasOne(x => x.StorageClass)
+                .WithMany(x => x.Assets)
+                .HasForeignKey(x => x.StorageClassId)
                 .OnDelete(DeleteBehavior.NoAction);
         });
 
