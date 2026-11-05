@@ -195,6 +195,22 @@ internal abstract class AssetBankTestBase : InMemoryTestBase
     }
 
     /// <summary>
+    /// Looks up the storage class one catalogue Asset is kept under.
+    /// </summary>
+    /// <remarks>By Asset code rather than by class code, because a fixture arranges its stock in Assets and capacity answers in classes.</remarks>
+    protected async Task<int> GetStorageClassIdAsync(string assetCode)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        int storageClassId = await context.Assets
+            .Where(asset => asset.Code == assetCode)
+            .Select(asset => asset.StorageClassId)
+            .SingleAsync();
+
+        return storageClassId;
+    }
+
+    /// <summary>
     /// Looks up one catalogue AssetGroup's id by its code.
     /// </summary>
     protected async Task<int> GetAssetGroupIdAsync(string groupCode)

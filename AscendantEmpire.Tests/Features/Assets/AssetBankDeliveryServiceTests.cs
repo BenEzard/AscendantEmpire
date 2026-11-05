@@ -1,6 +1,8 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Assets.Classes;
 using AscendantEmpire.Application.Features.Assets.Services;
+using AscendantEmpire.Application.Features.Settlements.Classes;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.Domain.Enums.Settlements;
 
 using Microsoft.EntityFrameworkCore;
@@ -28,12 +30,18 @@ internal class AssetBankDeliveryServiceTests : AssetBankTestBase
     /// <summary>A Settlement above camp tier that still carries a designation, which is what a camp that has grown would look like.</summary>
     private const int _GROWN_SETTLEMENT_ID = 24;
 
+    /// <summary>A village's whole generic pool, in the whole units the fixture arranges stock in - the figure a clamped delivery fills the parent up to.</summary>
+    /// <remarks>Read from the rules rather than restated, so repricing a tier moves these cases with it instead of failing them.</remarks>
+    private static readonly long _VILLAGE_POOL_WHOLE_UNITS = VillagePoolInWholeUnits();
+
     private AssetBankDeliveryService _service = null!;
 
     [SetUp]
     public void BuildService()
     {
-        _service = new AssetBankDeliveryService(NullLogger<AssetBankDeliveryService>.Instance);
+        _service = new AssetBankDeliveryService(
+            new AssetBankCapacityService(NullLogger<AssetBankCapacityService>.Instance),
+            NullLogger<AssetBankDeliveryService>.Instance);
     }
 
     [Test, Description("An eligible camp's whole store moves to its parent and the camp is left holding no balance row at all, which is what 'deliver everything, keep nothing' means.")]
@@ -62,7 +70,7 @@ internal class AssetBankDeliveryServiceTests : AssetBankTestBase
                 [_OAK_LOG_CODE] = 4,
                 [_CEDAR_LOG_CODE] = 6
             }));
-            Assert.That(outcome, Is.EqualTo(new AssetDeliveryOutcome(1, 2)));
+            Assert.That(outcome, Is.EqualTo(new AssetDeliveryOutcome(1, 2, 0)));
         }
     }
 
@@ -119,7 +127,7 @@ internal class AssetBankDeliveryServiceTests : AssetBankTestBase
         {
             Assert.That(await ReadBalancesAsync(campBankId), Is.EquivalentTo(new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 }));
             Assert.That(await ReadBalancesAsync(parentBankId), Is.Empty);
-            Assert.That(outcome, Is.EqualTo(new AssetDeliveryOutcome(0, 0)));
+            Assert.That(outcome, Is.EqualTo(new AssetDeliveryOutcome(0, 0, 0)));
         }
     }
 
@@ -162,7 +170,7 @@ internal class AssetBankDeliveryServiceTests : AssetBankTestBase
         {
             Assert.That(await ReadBalancesAsync(campBankId), Is.EquivalentTo(new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 }));
             Assert.That(await ReadBalancesAsync(parentBankId), Is.Empty);
-            Assert.That(outcome, Is.EqualTo(new AssetDeliveryOutcome(0, 0)));
+            Assert.That(outcome, Is.EqualTo(new AssetDeliveryOutcome(0, 0, 0)));
         }
     }
 
@@ -183,7 +191,7 @@ internal class AssetBankDeliveryServiceTests : AssetBankTestBase
         {
             Assert.That(await ReadBalancesAsync(grownBankId), Is.EquivalentTo(new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 }));
             Assert.That(await ReadBalancesAsync(parentBankId), Is.Empty);
-            Assert.That(outcome, Is.EqualTo(new AssetDeliveryOutcome(0, 0)));
+            Assert.That(outcome, Is.EqualTo(new AssetDeliveryOutcome(0, 0, 0)));
         }
     }
 
@@ -204,7 +212,7 @@ internal class AssetBankDeliveryServiceTests : AssetBankTestBase
         {
             Assert.That(await ReadBalancesAsync(campBankId), Is.EquivalentTo(new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 }));
             Assert.That(await ReadBalancesAsync(parentCampBankId), Is.Empty);
-            Assert.That(outcome, Is.EqualTo(new AssetDeliveryOutcome(0, 0)));
+            Assert.That(outcome, Is.EqualTo(new AssetDeliveryOutcome(0, 0, 0)));
         }
     }
 
@@ -225,7 +233,7 @@ internal class AssetBankDeliveryServiceTests : AssetBankTestBase
         {
             Assert.That(await ReadBalancesAsync(campBankId), Is.EquivalentTo(new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 }));
             Assert.That(await ReadBalancesAsync(parentBankId), Is.Empty);
-            Assert.That(outcome, Is.EqualTo(new AssetDeliveryOutcome(0, 0)));
+            Assert.That(outcome, Is.EqualTo(new AssetDeliveryOutcome(0, 0, 0)));
         }
     }
 
@@ -243,7 +251,7 @@ internal class AssetBankDeliveryServiceTests : AssetBankTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(await ReadBalancesAsync(campBankId), Is.EquivalentTo(new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 }));
-            Assert.That(outcome, Is.EqualTo(new AssetDeliveryOutcome(0, 0)));
+            Assert.That(outcome, Is.EqualTo(new AssetDeliveryOutcome(0, 0, 0)));
         }
     }
 
@@ -264,7 +272,95 @@ internal class AssetBankDeliveryServiceTests : AssetBankTestBase
         using (Assert.EnterMultipleScope())
         {
             Assert.That(await ReadBalancesAsync(parentBankId), Is.EquivalentTo(new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 }));
-            Assert.That(secondOutcome, Is.EqualTo(new AssetDeliveryOutcome(0, 0)), "The camp has nothing left for the second run to move.");
+            Assert.That(secondOutcome, Is.EqualTo(new AssetDeliveryOutcome(0, 0, 0)), "The camp has nothing left for the second run to move.");
+        }
+    }
+
+    [Test, Description("A delivery the parent has only partial room for moves what fits and leaves the remainder in the camp, so nothing is destroyed by being undeliverable.")]
+    public async Task ShouldLeaveTheRemainderInTheCampWhenTheParentIsNearlyFull()
+    {
+        Guid networkKey = Guid.NewGuid();
+
+        await CreateSettlementAsync(_CAMP_SETTLEMENT_ID, SettlementTier.Camp, parentSettlementId: _PARENT_SETTLEMENT_ID);
+        await CreateSettlementAsync(_PARENT_SETTLEMENT_ID);
+
+        int campBankId = await CreateBankAsync(_playerId, _CAMP_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 }, networkKey);
+
+        int parentBankId = await CreateBankAsync(
+            _playerId,
+            _PARENT_SETTLEMENT_ID,
+            new Dictionary<string, long> { [_OAK_LOG_CODE] = _VILLAGE_POOL_WHOLE_UNITS - 3 },
+            networkKey);
+
+        AssetDeliveryOutcome outcome = await DeliverAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await ReadBalancesAsync(parentBankId), Is.EquivalentTo(new Dictionary<string, long> { [_OAK_LOG_CODE] = _VILLAGE_POOL_WHOLE_UNITS }));
+            Assert.That(await ReadBalancesAsync(campBankId), Is.EquivalentTo(new Dictionary<string, long> { [_OAK_LOG_CODE] = 7 }));
+            Assert.That(outcome, Is.EqualTo(new AssetDeliveryOutcome(0, 1, 1)));
+        }
+    }
+
+    [Test, Description("A camp whose parent can take nothing keeps every row exactly where it is, rather than losing rows a delivery moved nothing out of.")]
+    public async Task ShouldLeaveEveryRowInPlaceWhenTheParentIsFull()
+    {
+        Guid networkKey = Guid.NewGuid();
+
+        await CreateSettlementAsync(_CAMP_SETTLEMENT_ID, SettlementTier.Camp, parentSettlementId: _PARENT_SETTLEMENT_ID);
+        await CreateSettlementAsync(_PARENT_SETTLEMENT_ID);
+
+        int campBankId = await CreateBankAsync(_playerId, _CAMP_SETTLEMENT_ID, new Dictionary<string, long>
+        {
+            [_OAK_LOG_CODE] = 4,
+            [_CEDAR_LOG_CODE] = 6
+        }, networkKey);
+
+        int parentBankId = await CreateBankAsync(
+            _playerId,
+            _PARENT_SETTLEMENT_ID,
+            new Dictionary<string, long> { [_OAK_LOG_CODE] = _VILLAGE_POOL_WHOLE_UNITS },
+            networkKey);
+
+        AssetDeliveryOutcome outcome = await DeliverAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await ReadBalancesAsync(campBankId), Is.EquivalentTo(new Dictionary<string, long>
+            {
+                [_OAK_LOG_CODE] = 4,
+                [_CEDAR_LOG_CODE] = 6
+            }));
+            Assert.That(await ReadBalancesAsync(parentBankId), Is.EquivalentTo(new Dictionary<string, long> { [_OAK_LOG_CODE] = _VILLAGE_POOL_WHOLE_UNITS }));
+            Assert.That(outcome, Is.EqualTo(new AssetDeliveryOutcome(0, 0, 2)));
+        }
+    }
+
+    [Test, Description("The second camp feeding one parent sees what the first delivered, because both take from one capacity for that parent.")]
+    public async Task ShouldAccountForAnEarlierCampsDeliveryWhenASecondCampFeedsTheSameParent()
+    {
+        Guid networkKey = Guid.NewGuid();
+
+        long eachCampHolds = (_VILLAGE_POOL_WHOLE_UNITS / 2) + 1_000;
+
+        await CreateSettlementAsync(_CAMP_SETTLEMENT_ID, SettlementTier.Camp, parentSettlementId: _PARENT_SETTLEMENT_ID);
+        await CreateSettlementAsync(_SECOND_CAMP_SETTLEMENT_ID, SettlementTier.Camp, parentSettlementId: _PARENT_SETTLEMENT_ID);
+        await CreateSettlementAsync(_PARENT_SETTLEMENT_ID);
+
+        int firstCampBankId = await CreateBankAsync(_playerId, _CAMP_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = eachCampHolds }, networkKey);
+        int secondCampBankId = await CreateBankAsync(_playerId, _SECOND_CAMP_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = eachCampHolds }, networkKey);
+        int parentBankId = await CreateBankAsync(_playerId, _PARENT_SETTLEMENT_ID, new Dictionary<string, long>(), networkKey);
+
+        AssetDeliveryOutcome outcome = await DeliverAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await ReadBalancesAsync(parentBankId), Is.EquivalentTo(new Dictionary<string, long> { [_OAK_LOG_CODE] = _VILLAGE_POOL_WHOLE_UNITS }));
+            Assert.That(await ReadBalancesAsync(firstCampBankId), Is.Empty);
+            Assert.That(
+                await ReadBalancesAsync(secondCampBankId),
+                Is.EquivalentTo(new Dictionary<string, long> { [_OAK_LOG_CODE] = (eachCampHolds * 2) - _VILLAGE_POOL_WHOLE_UNITS }));
+            Assert.That(outcome, Is.EqualTo(new AssetDeliveryOutcome(1, 2, 1)));
         }
     }
 
@@ -280,5 +376,12 @@ internal class AssetBankDeliveryServiceTests : AssetBankTestBase
         await context.SaveChangesAsync();
 
         return result.SuccessValue!;
+    }
+
+    private static long VillagePoolInWholeUnits()
+    {
+        Assert.That(SettlementStorageRules.TryGetGenericPoolCapacity(SettlementTier.Village, out long rawCapacity), Is.True);
+
+        return ScaledAmount.FromRaw(rawCapacity).ToWholeRoundedDown();
     }
 }

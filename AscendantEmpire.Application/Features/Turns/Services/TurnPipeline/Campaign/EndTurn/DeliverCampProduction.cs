@@ -10,16 +10,16 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndTurn;
 
 /// <summary>
-/// Empties each of the Player's camps into the Settlement it feeds, now that the Turn's production and construction are settled.
+/// Delivers each of the Player's camps into the Settlement it feeds, now that the Turn's production and construction are settled.
 /// </summary>
 /// <remarks>
 /// <para>
 /// All the rules live in <see cref="IAssetBankDeliveryService"/>; this is the slot in the ordering and nothing else. A camp that is not designated, or that has been
-/// cut off from its parent, is simply not among the ones it moves.
+/// cut off from its parent, is simply not among the ones it moves - and one whose parent has no room keeps whatever would not fit.
 /// </para>
 /// <para>
-/// <b>Safe to re-run.</b> A camp emptied by one run has nothing left for the next, so a retried end-of-Turn moves the same stock once - unlike <c>Gathering</c>, which
-/// has to guard against exactly that.
+/// <b>Safe to re-run.</b> A run moves what the parent can hold and the next run sees that already delivered, so a retried end-of-Turn moves the same stock once -
+/// unlike <c>Gathering</c>, which has to guard against exactly that.
 /// </para>
 /// </remarks>
 internal class DeliverCampProduction(

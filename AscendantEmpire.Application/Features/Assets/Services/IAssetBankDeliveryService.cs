@@ -22,8 +22,10 @@ namespace AscendantEmpire.Application.Features.Assets.Services;
 /// resumes. A camp with no parent at all is its own network of one and banks normally - the first Settlement of a game is a camp, and the Meeting Place is built in one.
 /// </para>
 /// <para>
-/// <b>Deliver everything, keep nothing.</b> The camp is left holding no balance row at all, which costs it nothing because it still draws on the network it shares. The
-/// accepted consequence is the other way round: a severed camp fills its small store and then wastes production, and that is the intended pain.
+/// <b>Deliver everything the parent can hold.</b> A camp is normally left holding no balance row at all, which costs it nothing because it still draws on the network it
+/// shares. Where the parent has no room, the delivery is <b>clamped</b>: it takes what fits and the camp keeps the remainder to offer again next Turn, because destroying
+/// stock for being undeliverable is worse than leaving it in a small store. The accepted consequence is the other way round: a severed camp fills its own store and then
+/// wastes production, and that is the intended pain.
 /// </para>
 /// </remarks>
 internal interface IAssetBankDeliveryService
@@ -37,12 +39,9 @@ internal interface IAssetBankDeliveryService
     /// unit of work takes them back.
     /// </para>
     /// <para>
-    /// <b>Not guarded against a second run in one Turn.</b> It does not need to be: a camp emptied by the first run has nothing left for the second to move, so running
-    /// it twice moves the same stock once. That is the one thing that makes it safe inside a pipeline with no retry story - see <c>Gathering</c>, which is not.
-    /// </para>
-    /// <para>
-    /// <b>Nothing is clamped.</b> Per-Settlement capacity is RS-29 and does not exist yet, so a delivery cannot overfill a parent today. When it does, the cap belongs on
-    /// the credit path with the rest of the spreading rules (RS-38), not here.
+    /// <b>Clamped against the parent's capacity</b>, per Asset in ascending Asset id, through <c>IAssetBankCapacityService</c>. One capacity per parent Settlement is
+    /// taken from as each row lands, so several Assets of one storage class cannot each be told the whole store is free and a second camp feeding one parent sees what
+    /// the first delivered. Spreading a credit across the rest of a network is RS-38 and is not done here.
     /// </para>
     /// </remarks>
     /// <param name="gameId">The Game to deliver within, since a bank is located by its Settlement and a Player holds Settlements in one Game.</param>

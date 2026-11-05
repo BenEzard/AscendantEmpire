@@ -286,6 +286,14 @@ with no balance row anywhere.
 
 Buildings are constructed within a settlement and provide outputs or capabilities.
 
+**Building, structure, infrastructure are three different things, and the words are not
+interchangeable.** A **building** is inside a settlement, and is what grants it capabilities — an
+output each turn, a storage class it can keep, a unit design or component unlocked, a specialist
+employable, technology or culture points. A **structure** is on a campaign map tile: the object with
+artwork, a tile slot, a sight range and build points, which is also what stands on a settlement's own
+tile to draw it. **Infrastructure** is the structures built on the tiles surrounding a settlement, and
+is linked back to the settlement that raised it.
+
 | Building | Acquisition Cost | Upkeep | Requires | Provides | Description |
 | --- | --- | --- | --- | --- | --- |
 | Meeting Place | | | Built in: Camp | 10 units of craft materials per turn | Where the tribe gathers, and consequently where they output craft. |

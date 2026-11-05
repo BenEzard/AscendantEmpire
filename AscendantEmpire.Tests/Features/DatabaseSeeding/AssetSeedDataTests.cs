@@ -284,6 +284,20 @@ internal class AssetSeedDataTests
         Assert.That(unknownClassCodes, Is.Empty, $"Storage class code(s) no class is seeded for: {string.Join(", ", unknownClassCodes)}");
     }
 
+    [TestCase(StorageClassSeedData.PEOPLE, Description = "No population status is banked, so capacity never has to exempt the People class.")]
+    [TestCase(StorageClassSeedData.INTANGIBLE, Description = "Experience points and the Force rows are kept nowhere, so capacity never has to exempt the Intangible class.")]
+    public void ShouldSeedNoSettlementBankAssetInTheClass(string storageClassCode)
+    {
+        // These two classes exist because Asset.StorageClassId is required, not because anything stores them. Nothing reaches AssetBankBalance, which is what
+        // lets per-settlement capacity ignore them instead of carrying a special case.
+        string[] bankedAssets = [.. AllAssets()
+            .Where(asset => string.Equals(asset.StorageClassCode, storageClassCode, StringComparison.OrdinalIgnoreCase))
+            .Where(asset => asset.StorageScope == AssetStorageScope.SettlementBank)
+            .Select(asset => asset.DisplayName)];
+
+        Assert.That(bankedAssets, Is.Empty, $"'{storageClassCode}' asset(s) scoped to a settlement bank: {string.Join(", ", bankedAssets)}");
+    }
+
     private IEnumerable<UpsertAssetCategoryDto> AllCategories()
     {
         return _metaCategories.SelectMany(metaCategory => metaCategory.Categories);

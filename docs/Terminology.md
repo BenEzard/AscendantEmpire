@@ -23,3 +23,13 @@
 * `Unit Component` - a component (body, weapon, engine, armour, equipment, radar, system, fitting, training, special) that can be put onto a `Unit Template`.
 
 * `Unit Template` - the configuration of `Unit Components` that a `Unit` has. The Unit Template may be pre-specified or player-specified. The player-specified may be from scratch, or starting from a pre-specified template.
+
+## What is built — three words, three things
+
+* `Building` - something built **inside** a settlement, and what grants the settlement its capabilities: an output each turn, a storage class it can keep, a unit design or component unlocked, a specialist employable, technology or culture points. There is no building entity yet. See [design/settlements.md](design/settlements.md#buildings).
+
+* `Structure` - something that stands on a **campaign map tile**: the object with artwork, a tile slot, a position, a sight range and build points. Modelled by the `Structure` catalogue and the `StructureInstance` world row. A settlement's own tile carries one to draw it, which is why a village and a camp are structures while everything a settlement contains is not. `Structure` is also a `RecordType`, and note that it is not a `Force`.
+
+* `Infrastructure` - the `Structures` built on the tiles **surrounding** a settlement, linked back to the settlement that raised them. The terrain improvements: roads, farms, mines, an offshore rig. See [design/campaign-map/infrastructure.md](design/campaign-map/infrastructure.md).
+
+The three are not interchangeable. Only a building grants a dedicated store; a structure never does.

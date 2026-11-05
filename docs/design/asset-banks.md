@@ -78,6 +78,7 @@ and it keeps the catalogue row a pure label.
 * A settlement has exactly one Asset Bank, for its whole life. Every Asset Bank has exactly one settlement, which may be of any tier.
 * A bank is born into a network of its own, and the connectivity service is the only thing that writes `NetworkKey`.
 * A `SettlementTier` of 'camp' attaches to a parent settlement when it is founded, which both puts it in that settlement's network and makes it deliver its production there each turn — see [Camp deliveries](#camp-deliveries).
+* A settlement's `SettlementTier` grants it a generic storage pool, and a credit is cut back to what will fit in it — see [Capacity](#capacity).
 
 **One connection is built, and it is not a transport link.** A camp shares its parent settlement's `NetworkKey`,
 so those two banks reach each other. Nothing else in the code connects two settlements: there is no road anywhere
@@ -90,6 +91,51 @@ tasks. So every other bank is a network of one. These are the rules those tasks 
 * Connecting and disconnecting — a road built, a road pillaged, a river dammed — are **re-keys**. No balance moves, no bank is created or deleted. A settlement cut off keeps everything it was holding and simply stops reaching the rest.
 * A settlement that is connected to nothing is its own network of one, banking normally.
 
+## Capacity
+
+A settlement can hold only so much of each storage class, and a credit that would exceed what it can hold is cut
+back to what fits. Capacity keys on **(settlement, storage class)** — one lookup, because every asset carries
+exactly one required `Asset.StorageClassId`. It binds **per settlement, not per network**: a network is what a
+settlement may draw *on*, not somewhere to put things.
+
+**Nothing is stored.** Capacity is derived on demand from the settlement's tier and what its bank holds, so there
+is no capacity table and no row to keep in step with a balance. `IAssetBankCapacityService` builds it and
+`SettlementStorageCapacity` answers it.
+
+**The generic pool is the tier's grant.** Every tier grants a pool — the storehouse — that any class overflows
+into once its own store is full, and that serves every class with no store of its own. `SettlementStorageRules`
+authors one for all six tiers, in whole units, and those figures are **not repeated here**: a pool is repriced by
+editing that one table, and a copy in this document would be a second place to get it wrong.
+
+What the calibration has to hold is the shape. A camp's pool is a fraction of a village's — small enough that
+delivering to a parent is the point of a camp, large enough that a camp's first turn of production is not thrown
+away before it has one — and each tier above grants more than the one below it.
+
+**A dedicated store is granted by a building**, for one class — the armoury, the fuel dump. A building is
+something inside a settlement, as against a structure on a map tile (see
+[Terminology](../Terminology.md)). There is no building model in the codebase, so **no settlement has a
+dedicated store today** and the generic pool is the whole of its capacity. The arithmetic for both levels is
+built and tested; what is missing is anything to grant the first level.
+
+**An asset fills its dedicated store first, then the pool, and placement is derived rather than recorded.** What
+sits in the pool is simply what each class holds above its own cap, which does not depend on the order the
+classes are read — so no balance row carries a "where is this kept" column, and there is nothing to reconcile.
+Two levels and not a nested chain, because a refusal has to name one thing: *"Fuel dump full, 1,980/2,000, and
+general storage full at Hilltown"*.
+
+Caps are the same scaled `long` as a balance, so the two compare directly. **Capacity enforcement is also the
+overflow guard**: with caps enforced at the credit path a scaled `long` tops out around 9×10¹⁵ units, unreachable
+under any sane cap, so what needs validating is the caps rather than the amounts.
+
+**Enforcement is on the credit path only.** A settlement holding more than a cap allows keeps it and simply
+cannot add to it. Nothing sweeps such a holding and no migration adjusts one.
+
+The `People` and `Intangible` storage classes need no exemption: no asset in either is scoped to a settlement
+bank, so none ever reaches a balance row.
+
+Spreading a credit across the rest of a network, and what a credit that cannot be placed in full does, are
+**RS-38**.
+
 ## Camp deliveries
 
 A camp keeps its own bank and collects into it, and delivers everything it collects to a parent settlement each
@@ -97,9 +143,9 @@ turn. This is the one sanctioned exception to balances never moving between bank
 transfer, not churn from a graph re-key.
 
 **Why a delivery is needed at all.** A camp shares its parent's `NetworkKey`, so it can already *spend* from the
-parent's stock without anything moving. What it cannot do is *store*: a camp's capacity is tiny, so its own
-production would hit the cap and be wasted. The delivery exists to get stock out of a small store and into a
-large one.
+parent's stock without anything moving. What it cannot do is *store*: a camp's pool is 2,000 units against a
+village's 10,000, so its own production fills it quickly and then has nowhere to go. The delivery exists to get
+stock out of a small store and into a large one.
 
 **Only one of the two directions is a delivery.** The camp's delivery *moves balances* — rows leave its bank and
 arrive in its parent's, once a turn. The parent's stock funding the camp's construction moves nothing at all:
@@ -130,9 +176,23 @@ clears the column when a settlement changes tier. A settlement that grew out of 
 emptying itself into its old parent, and a camp designated to another camp would be a chain — emptying the
 middle one first destroys the stock behind it rather than moving it on.
 
-**Deliver everything, keep nothing.** The camp is left holding no balance row at all, which costs it nothing while
-it still draws on the network it shares. The accepted consequence runs the other way: a severed camp fills its
-small store and then wastes production, and that is the intended pain.
+**Deliver everything the parent can hold.** The camp is normally left holding no balance row at all, which costs
+it nothing while it still draws on the network it shares. The accepted consequence runs the other way: a severed
+camp fills its own store and then wastes production, and that is the intended pain.
+
+**A delivery clamps.** Where the parent has no room, the parent takes what fits — per asset, in ascending asset
+id — and the camp keeps the remainder to offer again next turn. A camp row the parent took in full is deleted; a
+row it could only take part of stays, holding a real quantity rather than a zero. Destroying stock for being
+undeliverable is worse than leaving it in a small store, and it is the one thing a delivery must not do.
+Several camps feeding one parent take from one capacity for that parent, so the second sees what the first
+delivered.
+
+Ascending asset id is an arbitrary order, and it decides what survives: a hunting camp delivering into a full
+village delivers its bones and its hides and loses its meat, because that is the order the catalogue declares
+them in. **The clamp is silent today** — it is logged and counted, and nothing reaches the player. Reporting it
+is **RS-51**, which is also where a domestic event feed would come from; the ordering is deliberately left as it
+is until then, because the failure a player meets is the loss being invisible rather than the order it happened
+in.
 
 It runs at the end of a turn, after production and after construction, so a camp spends on its own build order
 out of its own bank before the remainder is swept to the parent. Running it twice in one turn moves the same
