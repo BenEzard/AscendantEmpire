@@ -10,7 +10,7 @@ namespace AscendantEmpire.Application.Features.Assets.Services;
 /// <remarks>
 /// <para>
 /// The single place anything is debited, so a build order, a technology purchase and an upkeep charge cannot disagree about what "the Player can afford
-/// this" means. Where the amount comes <i>from</i> is production's business and not modelled here; this only spends.
+/// this" means. Where the amount comes <i>from</i> is production's business and <see cref="IAssetBankCreditService"/>'s; this only spends.
 /// </para>
 /// <para>
 /// <b>It routes on <c>Asset.StorageScope</c>.</b> A <c>SettlementBank</c> Asset is debited from a bank, a <c>Player</c> one from the player-level store that

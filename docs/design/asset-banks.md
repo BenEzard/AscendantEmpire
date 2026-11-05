@@ -79,6 +79,7 @@ and it keeps the catalogue row a pure label.
 * A bank is born into a network of its own, and the connectivity service is the only thing that writes `NetworkKey`.
 * A `SettlementTier` of 'camp' attaches to a parent settlement when it is founded, which both puts it in that settlement's network and makes it deliver its production there each turn — see [Camp deliveries](#camp-deliveries).
 * A settlement's `SettlementTier` grants it a generic storage pool, and a credit is cut back to what will fit in it — see [Capacity](#capacity).
+* A credit arriving at a settlement is spread across that settlement's network, favouring the emptiest banks and bounded at each one by what that settlement can hold — see [Crediting an asset](#crediting-an-asset).
 
 **One connection is built, and it is not a transport link.** A camp shares its parent settlement's `NetworkKey`,
 so those two banks reach each other. Nothing else in the code connects two settlements: there is no road anywhere
@@ -133,8 +134,52 @@ cannot add to it. Nothing sweeps such a holding and no migration adjusts one.
 The `People` and `Intangible` storage classes need no exemption: no asset in either is scoped to a settlement
 bank, so none ever reaches a balance row.
 
-Spreading a credit across the rest of a network, and what a credit that cannot be placed in full does, are
-**RS-38**.
+What a credit does with the capacity it is bounded by is [Crediting an asset](#crediting-an-asset).
+
+## Crediting an asset
+
+Production arrives at a settlement, and a credit is placed across **that settlement's network** — the banks
+of the same player sharing its `NetworkKey`. An unkeyed bank reaches nothing but itself, so a settlement the
+connectivity service has not keyed banks its own production alone. `IAssetBankCreditService` is the single
+place anything is credited, and `AssetCredit` is one quantity of one asset arriving at one settlement.
+
+**There is no Empire-wide credit** to mirror the Empire-wide debit. A debit can be met out of everything a
+player holds because nothing is travelling to meet it; a credit is stock that was extracted somewhere and has
+to be put down in a bank with room for it. Nor is there a group credit: a group on the debit path is the
+player's ordering of what they are willing to lose first, and a credit is a quantity of one thing.
+
+**The spread favours the emptiest banks.** The lowest balances of that asset are filled up to a common
+water-line and the fullest are left alone — the mirror of the debit's levelling, and the only place levelling
+lives. With banks holding 4, 30 and 50 and a credit of 40, the line falls at 37: the first two are filled to
+37 each and the third is untouched.
+
+This is what re-levels a network after a local-first expense. The settlement that just paid for a building
+holds least of what it spent, so it takes the largest share of the next credit, and the network evens out over
+the turns that follow rather than on the debit that caused it. A proportional spread would hand every bank a
+share of every credit, which would leave the settlement that emptied itself no better off than the one that
+spent nothing.
+
+**Each bank is bounded by its own settlement's capacity**, for the storage class the asset is kept under.
+Capacity binds per settlement and not per network, so a bank that fills before the line stops there and the
+rest of the credit goes to the others. A bank with no room takes nothing.
+
+A quantity is a scaled integer, so a water-line that divides exactly is the exception. The leftover raw units
+go to the emptiest bank first and then to the lower bank id — the drawdown's tie-break inverted — so the same
+credit against the same banks always writes the same rows.
+
+**A credit places what fits and reports the rest.** Where every bank the spread reaches is full for that class
+the remainder is *unplaced*: nothing is written for it, and the figure comes back on the placement. It is
+deliberately not a refusal, because a one-unit overflow would otherwise throw away a whole turn's yield.
+Wasting the remainder, or refusing before the next extraction, is the caller's decision, and the pre-flight it
+would refuse on is the same `SettlementStorageCapacity` the credit places through — so no second code path can
+answer differently from the one that commits.
+
+**Every credit of one unit of work goes in one call.** The credits are applied in order against one capacity
+per settlement and one set of balance rows, so a second credit sees what the first placed. That is what stops
+two assets of one storage class each being told the whole store is free.
+
+A credit of an asset whose `StorageScope` is `Player` or `Derived` is a caller error, not a shortfall: there is
+no balance row to add to and never will be.
 
 ## Camp deliveries
 
@@ -176,16 +221,25 @@ clears the column when a settlement changes tier. A settlement that grew out of 
 emptying itself into its old parent, and a camp designated to another camp would be a chain — emptying the
 middle one first destroys the stock behind it rather than moving it on.
 
-**Deliver everything the parent can hold.** The camp is normally left holding no balance row at all, which costs
-it nothing while it still draws on the network it shares. The accepted consequence runs the other way: a severed
-camp fills its own store and then wastes production, and that is the intended pain.
+**Deliver everything the parent's network can hold.** The camp is normally left holding no balance row at all,
+which costs it nothing while it still draws on the network it shares. The accepted consequence runs the other way:
+a severed camp fills its own store and then wastes production, and that is the intended pain.
 
-**A delivery clamps.** Where the parent has no room, the parent takes what fits — per asset, in ascending asset
-id — and the camp keeps the remainder to offer again next turn. A camp row the parent took in full is deleted; a
-row it could only take part of stays, holding a real quantity rather than a zero. Destroying stock for being
-undeliverable is worse than leaving it in a small store, and it is the one thing a delivery must not do.
-Several camps feeding one parent take from one capacity for that parent, so the second sees what the first
-delivered.
+**A delivery is a credit to the parent's settlement**, so the spread decides which bank in the parent's network
+actually takes each row — see [Crediting an asset](#crediting-an-asset). One credit is raised per camp balance
+row, and where the parent is full the stock lands in the rest of the network instead of staying in the camp.
+That is strictly better than stranding it: the delivery exists to get stock out of a small store, and a village
+two roads away is still a large one.
+
+**No camp is ever a destination**, the delivering one included. Moving stock out of one small store and into
+another would gain nothing, which is the same reason another camp is never a parent, so the spread is told to
+leave every camp bank the player holds alone.
+
+**A delivery clamps.** Where the network has no room, it moves what fits — per asset, in ascending asset id —
+and the camp keeps the remainder to offer again next turn. A camp row taken in full is deleted; a row only part
+of which could be taken stays, holding a real quantity rather than a zero. Destroying stock for being
+undeliverable is worse than leaving it in a small store, and it is the one thing a delivery must not do. Every
+camp's credits go in one call, so a second camp feeding the same network sees what the first delivered.
 
 Ascending asset id is an arbitrary order, and it decides what survives: a hunting camp delivering into a full
 village delivers its bones and its hides and loses its meat, because that is the order the catalogue declares
@@ -250,9 +304,9 @@ between them do not hold enough. A settlement with no bank of its own cannot be 
 network holds: the expense happens there.
 
 **The debit moves nothing and rebalances nothing.** No bank is topped up and the settlement that just paid
-stays depleted. Levelling lives on the credit path instead: next round's production favours the emptiest
-banks, so the settlement that paid for a building takes a larger share and the network re-levels over time
-(**RS-38**).
+stays depleted. Levelling up lives on the credit path instead: the next round's production favours the
+emptiest banks, so the settlement that paid for a building takes a larger share and the network re-levels over
+time — see [Crediting an asset](#crediting-an-asset).
 
 The remainder is **levelled across the rest of the network**, which takes it from the richest banks first —
 the same spread, and the same reason, as the Empire-wide arm below: a settlement with little keeps the stock

@@ -13,12 +13,13 @@ using static AscendantEmpire.Application.Common.ServiceResultBase;
 namespace AscendantEmpire.Tests.Features.Assets;
 
 /// <summary>
-/// Tests for <see cref="AssetBankDeliveryService"/>: that an eligible camp empties into the settlement it feeds, and that every way of being ineligible leaves
-/// its stock exactly where it is.
+/// Tests for <see cref="AssetBankDeliveryService"/>: that an eligible camp empties into the network the settlement it feeds sits in, and that every way of being
+/// ineligible leaves its stock exactly where it is.
 /// </summary>
 /// <remarks>
-/// In-memory, per <c>testing.md</c>: the service reads two projections, adds and removes balance rows, and leaves the save to its caller. The composite key it
-/// relies on is enforced in code - it looks a parent's row up before inserting one - rather than left to the database to refuse.
+/// In-memory, per <c>testing.md</c>: the service reads two projections, removes balance rows and hands the placing to the real
+/// <see cref="AssetBankCreditService"/>, leaving the save to its caller. The credit service is the real one rather than a double, because what a delivery clamps
+/// to is the spread's arithmetic and a double would only restate the expectation.
 /// </remarks>
 [TestFixture]
 internal class AssetBankDeliveryServiceTests : AssetBankTestBase
@@ -26,6 +27,9 @@ internal class AssetBankDeliveryServiceTests : AssetBankTestBase
     private const int _CAMP_SETTLEMENT_ID = 21;
     private const int _SECOND_CAMP_SETTLEMENT_ID = 22;
     private const int _PARENT_SETTLEMENT_ID = 23;
+
+    /// <summary>A second settlement above camp tier in the parent's network, for the cases that pin where a clamped delivery overflows to.</summary>
+    private const int _NETWORK_VILLAGE_SETTLEMENT_ID = 25;
 
     /// <summary>A Settlement above camp tier that still carries a designation, which is what a camp that has grown would look like.</summary>
     private const int _GROWN_SETTLEMENT_ID = 24;
@@ -40,7 +44,9 @@ internal class AssetBankDeliveryServiceTests : AssetBankTestBase
     public void BuildService()
     {
         _service = new AssetBankDeliveryService(
-            new AssetBankCapacityService(NullLogger<AssetBankCapacityService>.Instance),
+            new AssetBankCreditService(
+                new AssetBankCapacityService(NullLogger<AssetBankCapacityService>.Instance),
+                NullLogger<AssetBankCreditService>.Instance),
             NullLogger<AssetBankDeliveryService>.Instance);
     }
 
@@ -361,6 +367,60 @@ internal class AssetBankDeliveryServiceTests : AssetBankTestBase
                 await ReadBalancesAsync(secondCampBankId),
                 Is.EquivalentTo(new Dictionary<string, long> { [_OAK_LOG_CODE] = (eachCampHolds * 2) - _VILLAGE_POOL_WHOLE_UNITS }));
             Assert.That(outcome, Is.EqualTo(new AssetDeliveryOutcome(1, 2, 1)));
+        }
+    }
+
+    [Test, Description("A delivery the parent has no room for lands in the rest of the parent's network, so stock reaches a store that has room rather than being stranded in a camp.")]
+    public async Task ShouldSpreadIntoTheRestOfTheNetworkWhenTheParentIsFull()
+    {
+        Guid networkKey = Guid.NewGuid();
+
+        await CreateSettlementAsync(_CAMP_SETTLEMENT_ID, SettlementTier.Camp, parentSettlementId: _PARENT_SETTLEMENT_ID);
+        await CreateSettlementAsync(_PARENT_SETTLEMENT_ID);
+        await CreateSettlementAsync(_NETWORK_VILLAGE_SETTLEMENT_ID);
+
+        int campBankId = await CreateBankAsync(_playerId, _CAMP_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 }, networkKey);
+
+        int parentBankId = await CreateBankAsync(
+            _playerId,
+            _PARENT_SETTLEMENT_ID,
+            new Dictionary<string, long> { [_OAK_LOG_CODE] = _VILLAGE_POOL_WHOLE_UNITS },
+            networkKey);
+
+        int networkVillageBankId = await CreateBankAsync(_playerId, _NETWORK_VILLAGE_SETTLEMENT_ID, new Dictionary<string, long>(), networkKey);
+
+        AssetDeliveryOutcome outcome = await DeliverAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await ReadBalancesAsync(campBankId), Is.Empty);
+            Assert.That(await ReadBalancesAsync(parentBankId), Is.EquivalentTo(new Dictionary<string, long> { [_OAK_LOG_CODE] = _VILLAGE_POOL_WHOLE_UNITS }));
+            Assert.That(await ReadBalancesAsync(networkVillageBankId), Is.EquivalentTo(new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 }));
+            Assert.That(outcome, Is.EqualTo(new AssetDeliveryOutcome(1, 1, 0)));
+        }
+    }
+
+    [Test, Description("No camp in the network is ever a destination, because moving stock out of one small store and into another would gain nothing.")]
+    public async Task ShouldNotDeliverIntoAnotherCampInTheNetwork()
+    {
+        Guid networkKey = Guid.NewGuid();
+
+        await CreateSettlementAsync(_CAMP_SETTLEMENT_ID, SettlementTier.Camp, parentSettlementId: _PARENT_SETTLEMENT_ID);
+        await CreateSettlementAsync(_SECOND_CAMP_SETTLEMENT_ID, SettlementTier.Camp);
+        await CreateSettlementAsync(_PARENT_SETTLEMENT_ID);
+
+        int campBankId = await CreateBankAsync(_playerId, _CAMP_SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 }, networkKey);
+        int otherCampBankId = await CreateBankAsync(_playerId, _SECOND_CAMP_SETTLEMENT_ID, new Dictionary<string, long>(), networkKey);
+        int parentBankId = await CreateBankAsync(_playerId, _PARENT_SETTLEMENT_ID, new Dictionary<string, long>(), networkKey);
+
+        AssetDeliveryOutcome outcome = await DeliverAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await ReadBalancesAsync(campBankId), Is.Empty);
+            Assert.That(await ReadBalancesAsync(otherCampBankId), Is.Empty);
+            Assert.That(await ReadBalancesAsync(parentBankId), Is.EquivalentTo(new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 }));
+            Assert.That(outcome, Is.EqualTo(new AssetDeliveryOutcome(1, 1, 0)));
         }
     }
 

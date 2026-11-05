@@ -19,8 +19,8 @@ namespace AscendantEmpire.Application.Features.Assets.Services;
 /// and no cache to invalidate. See <see cref="SettlementStorageCapacity"/> for the two-level arithmetic.
 /// </para>
 /// <para>
-/// <b>The pre-flight query and the enforcement are the same object.</b> Production asks before it extracts and places afterwards through the same
-/// <see cref="SettlementStorageCapacity"/>, so no second code path can answer differently from the one that commits.
+/// <b>The pre-flight query and the enforcement are the same object.</b> Production asks before it extracts and <see cref="IAssetBankCreditService"/> places
+/// afterwards through the same <see cref="SettlementStorageCapacity"/>, so no second code path can answer differently from the one that commits.
 /// </para>
 /// </remarks>
 internal interface IAssetBankCapacityService

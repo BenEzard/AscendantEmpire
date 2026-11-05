@@ -169,8 +169,8 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
     /// richest and a poor Settlement keeps the stock its own construction will need.
     /// </para>
     /// <para>
-    /// <b>The debit moves nothing and rebalances nothing.</b> No bank is topped up and the depleted site stays depleted. Levelling lives on the credit path,
-    /// where next round's production favours the emptiest banks and re-levels the network over time - RS-38.
+    /// <b>The debit moves nothing and rebalances nothing.</b> No bank is topped up and the depleted site stays depleted. Levelling up lives on the credit path,
+    /// where the next round's production favours the emptiest banks and re-levels the network over time - see <see cref="IAssetBankCreditService"/>.
     /// </para>
     /// <para>
     /// <b>Asset preference outranks locality</b> - see <see cref="Spend"/>, which walks the Assets outermost. The site's Cedar is not taken before the

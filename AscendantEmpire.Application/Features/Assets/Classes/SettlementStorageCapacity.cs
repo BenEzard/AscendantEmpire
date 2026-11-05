@@ -10,8 +10,8 @@ namespace AscendantEmpire.Application.Features.Assets.Classes;
 /// there is nothing to reconcile.
 /// </para>
 /// <para>
-/// <b>Capacity does not bind per network.</b> A network is what a Settlement may draw <i>on</i>; it is not somewhere to put things. Spreading a credit across one
-/// is RS-38.
+/// <b>Capacity does not bind per network.</b> A network is what a Settlement may draw <i>on</i>; it is not somewhere to put things. A credit spread across a network
+/// takes one of these per Settlement in it - see <c>IAssetBankCreditService</c>.
 /// </para>
 /// <para>
 /// <b>One instance per Settlement per operation, and not thread-safe.</b> <see cref="Store"/> mutates what is held so that the next question sees the last answer -

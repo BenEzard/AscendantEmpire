@@ -111,6 +111,7 @@ public static class ApplicationStartup
         services.AddScoped<IAssetNetworkConnectivityService, AssetNetworkConnectivityService>();
         services.AddScoped<IAssetBankConquestService, AssetBankConquestService>();
         services.AddScoped<IAssetBankCapacityService, AssetBankCapacityService>();
+        services.AddScoped<IAssetBankCreditService, AssetBankCreditService>();
         services.AddScoped<IAssetBankDeliveryService, AssetBankDeliveryService>();
         services.AddScoped<IPlayerAssetQuantityReader, PlayerAssetQuantityReader>();
 
