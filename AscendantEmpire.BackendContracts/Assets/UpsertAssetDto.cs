@@ -64,6 +64,20 @@ public record UpsertAssetDto
     public bool IsNaturallyOccurring { get; init; } = false;
 
     /// <summary>
+    /// The <c>Code</c> of the storage class this Asset is kept under, e.g. "StorageYard".
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Resolved against storage classes already committed, and an unknown code fails the whole request rather than that one Asset.
+    /// </para>
+    /// <para>
+    /// Required, with no derivation and no partial-update preservation. The column behind it is a non-null FK with no sensible default, and "leave it alone
+    /// if omitted" would let a new Asset through with nothing to resolve.
+    /// </para>
+    /// </remarks>
+    public required string StorageClassCode { get; init; }
+
+    /// <summary>
     /// Where the quantity behind this Asset is held - a settlement's bank, the Player, or nowhere at all.
     /// </summary>
     /// <remarks>

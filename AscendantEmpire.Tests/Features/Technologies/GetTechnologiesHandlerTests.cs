@@ -362,7 +362,8 @@ internal class GetTechnologiesHandlerTests : InMemoryTestBase
             IsGradedAsset = false,
             SortOrder = 10,
             MetaCategory = metaCategory,
-            Category = category
+            Category = category,
+            StorageClass = new StorageClass { Code = $"{code}.Class", DisplayName = $"{displayName} Class" }
         };
 
         _context.Assets.Add(asset);

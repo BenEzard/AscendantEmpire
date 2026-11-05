@@ -150,6 +150,12 @@ internal static class MapResourceTestSeed
         context.AssetCategories.Add(category);
         await context.SaveChangesAsync();
 
+        // One class shared by every Asset here. These fixtures run against SQL Server, so Asset.StorageClassId needs a real row behind it, and the unique
+        // index on Code means one row rather than one per Asset.
+        var storageClass = new StorageClass { Code = "TestStorageClass", DisplayName = "Test Storage Class" };
+        context.StorageClasses.Add(storageClass);
+        await context.SaveChangesAsync();
+
         // Sort orders are spaced by 10 from the caller's order, matching how the real catalogue is seeded.
         List<Asset> assets = [.. names.Select((name, index) => new Asset
         {
@@ -159,7 +165,8 @@ internal static class MapResourceTestSeed
             SortOrder = (index + 1) * 10,
             IsGradedAsset = false,
             AssetMetaCategoryId = meta.Id,
-            AssetCategoryId = category.Id
+            AssetCategoryId = category.Id,
+            StorageClassId = storageClass.Id
         })];
 
         context.Assets.AddRange(assets);

@@ -271,6 +271,19 @@ internal class AssetSeedDataTests
         }
     }
 
+    [Test, Description("Every seeded Asset names a storage class the storage-class seed builds, so a rename in either file fails here rather than at seed time.")]
+    public void ShouldNameASeededStorageClassForEveryAsset()
+    {
+        string[] seededClassCodes = [.. StorageClassSeedData.Build().Select(storageClass => storageClass.Code)];
+
+        string[] unknownClassCodes = [.. AllAssets()
+            .Select(asset => asset.StorageClassCode)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Except(seededClassCodes, StringComparer.OrdinalIgnoreCase)];
+
+        Assert.That(unknownClassCodes, Is.Empty, $"Storage class code(s) no class is seeded for: {string.Join(", ", unknownClassCodes)}");
+    }
+
     private IEnumerable<UpsertAssetCategoryDto> AllCategories()
     {
         return _metaCategories.SelectMany(metaCategory => metaCategory.Categories);

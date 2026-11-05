@@ -190,7 +190,8 @@ internal abstract class ResearchHandlerTestBase : InMemoryTestBase
                 SortOrder = 10,
                 CategoryType = AssetCategoryType.StandaloneAssets,
                 MetaCategory = metaCategory
-            }
+            },
+            StorageClass = new StorageClass { Code = $"{code}.Class", DisplayName = $"{displayName} Class" }
         });
 
         await Context.SaveChangesAsync();

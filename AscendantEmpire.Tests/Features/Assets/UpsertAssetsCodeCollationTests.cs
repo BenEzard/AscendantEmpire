@@ -42,6 +42,25 @@ internal class UpsertAssetsCodeCollationTests : SqlServerTestBase
     private const string _ASSET_CODE = "ConstructionMaterials.Wood.Logs.OakLog";
 
     /// <summary>
+    /// The storage class the one asset names. Not re-cased by <see cref="CodeCasing"/> - it is not a level of the hierarchy, and nothing here is about it.
+    /// </summary>
+    private const string _STORAGE_CLASS_CODE = "StorageYard";
+
+    [SetUp]
+    public async Task SeedStorageClassAsync()
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        var handler = new UpsertStorageClassesHandler(new NullLogger<UpsertStorageClassesHandler>(), context);
+
+        ServiceResultBase result = await handler.Handle(
+            new UpsertStorageClassesRequest([new UpsertStorageClassDto { Code = _STORAGE_CLASS_CODE, DisplayName = "Storage Yard" }]),
+            CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.True, $"Seeding the storage class failed: {string.Join("; ", result.Errors)}");
+    }
+
+    /// <summary>
     /// How <see cref="BuildCatalogue"/> should case the codes it writes.
     /// </summary>
     /// <remarks>
@@ -179,7 +198,8 @@ internal class UpsertAssetsCodeCollationTests : SqlServerTestBase
                                     {
                                         Code = AssetCode(_ASSET_CODE),
                                         DisplayName = assetDisplayName,
-                                        IconPath = "/resources/wood/oak-log_40px.png"
+                                        IconPath = "/resources/wood/oak-log_40px.png",
+                                        StorageClassCode = _STORAGE_CLASS_CODE
                                     }
                                 ]
                             }

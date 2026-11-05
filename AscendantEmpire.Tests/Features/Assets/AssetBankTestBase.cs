@@ -62,6 +62,13 @@ internal abstract class AssetBankTestBase : InMemoryTestBase
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
+        // Every Asset names a storage class against a non-null FK, so the classes have to be committed before the catalogue that resolves against them.
+        var storageClasses = new UpsertStorageClassesHandler(NullLogger<UpsertStorageClassesHandler>.Instance, context);
+        ServiceResultBase classesSeeded = await storageClasses.Handle(
+            new UpsertStorageClassesRequest(StorageClassSeedData.Build()),
+            CancellationToken.None);
+        Assert.That(classesSeeded.HasSucceeded, Is.True, () => string.Join("; ", classesSeeded.Errors));
+
         var upsert = new UpsertAssetsHandler(NullLogger<UpsertAssetsHandler>.Instance, context);
         ServiceResultBase seeded = await upsert.Handle(new UpsertAssetsRequest(AssetSeedData.Build()), CancellationToken.None);
         Assert.That(seeded.HasSucceeded, Is.True, () => string.Join("; ", seeded.Errors));

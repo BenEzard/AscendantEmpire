@@ -113,6 +113,18 @@ public class GameSqlServerTestBase : SqlServerTestBase
     {
         await using AscendantEmpireContext ctx = await DbFactory.CreateDbContextAsync();
 
+        // Every Asset names a storage class against a non-null FK, so the classes have to be committed before the catalogue that resolves against them.
+        var storageClassHandler = new UpsertStorageClassesHandler(NullLogger<UpsertStorageClassesHandler>.Instance, ctx);
+
+        ServiceResultBase storageClassResult = await storageClassHandler.Handle(
+            new UpsertStorageClassesRequest(StorageClassSeedData.Build()),
+            CancellationToken.None);
+
+        if (storageClassResult.HasSucceeded == false)
+        {
+            throw new InvalidOperationException($"Seeding the storage classes for the test failed: {string.Join("; ", storageClassResult.Errors)}");
+        }
+
         var handler = new UpsertAssetsHandler(NullLogger<UpsertAssetsHandler>.Instance, ctx);
 
         ServiceResultBase result = await handler.Handle(new UpsertAssetsRequest(AssetSeedData.Build()), CancellationToken.None);

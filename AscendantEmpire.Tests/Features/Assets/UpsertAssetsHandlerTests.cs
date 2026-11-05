@@ -28,6 +28,12 @@ namespace AscendantEmpire.Tests.Features.Assets;
 [TestFixture]
 internal class UpsertAssetsHandlerTests : InMemoryTestBase
 {
+    /// <summary>
+    /// The two storage classes every catalogue built here names. Two, because moving an Asset from one class to another needs somewhere to move it to.
+    /// </summary>
+    private const string _STORAGE_YARD_CODE = "StorageYard";
+    private const string _ARMOURY_CODE = "Armoury";
+
     private AscendantEmpireContext _context = null!;
     private UpsertAssetsHandler _handler = null!;
 
@@ -36,6 +42,22 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
     {
         _context = await DbFactory.CreateDbContextAsync();
         _handler = new UpsertAssetsHandler(new NullLogger<UpsertAssetsHandler>(), _context);
+
+        // Asset.StorageClassId is a non-null FK resolved against committed rows, so the classes have to exist before any asset payload names one. Seeded
+        // through the real upsert rather than added directly, so these rows match what the seed writes.
+        var storageClasses = new UpsertStorageClassesHandler(new NullLogger<UpsertStorageClassesHandler>(), _context);
+
+        ServiceResultBase seeded = await storageClasses.Handle(
+            new UpsertStorageClassesRequest(
+            [
+                new UpsertStorageClassDto { Code = _STORAGE_YARD_CODE, DisplayName = "Storage Yard" },
+                new UpsertStorageClassDto { Code = _ARMOURY_CODE, DisplayName = "Armoury" }
+            ]),
+            CancellationToken.None);
+
+        Assert.That(seeded.HasSucceeded, Is.True, () => string.Join("; ", seeded.Errors));
+
+        _context.ChangeTracker.Clear();
     }
 
     [TearDown]
@@ -72,7 +94,7 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
                     {
                         DisplayName = "Wood",
                         CategoryType = AssetCategoryType.StandaloneAssets,
-                        Assets = [new UpsertAssetDto { DisplayName = "Oak Log" }]
+                        Assets = [new UpsertAssetDto { DisplayName = "Oak Log", StorageClassCode = _STORAGE_YARD_CODE }]
                     }
                 ]
             }
@@ -162,8 +184,8 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
                             CategoryType = AssetCategoryType.StandaloneAssets,
                             Assets =
                             [
-                                new UpsertAssetDto { Code = "Duplicated", DisplayName = "Oak Log" },
-                                new UpsertAssetDto { Code = "Duplicated", DisplayName = "Ash Log" }
+                                new UpsertAssetDto { Code = "Duplicated", DisplayName = "Oak Log", StorageClassCode = _STORAGE_YARD_CODE },
+                                new UpsertAssetDto { Code = "Duplicated", DisplayName = "Ash Log", StorageClassCode = _STORAGE_YARD_CODE }
                             ]
                         }
                     ]
@@ -197,8 +219,8 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
                             CategoryType = AssetCategoryType.StandaloneAssets,
                             Assets =
                             [
-                                new UpsertAssetDto { Code = "Duplicated", DisplayName = "Oak Log" },
-                                new UpsertAssetDto { Code = "DUPLICATED", DisplayName = "Ash Log" }
+                                new UpsertAssetDto { Code = "Duplicated", DisplayName = "Oak Log", StorageClassCode = _STORAGE_YARD_CODE },
+                                new UpsertAssetDto { Code = "DUPLICATED", DisplayName = "Ash Log", StorageClassCode = _STORAGE_YARD_CODE }
                             ]
                         }
                     ]
@@ -338,6 +360,63 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
         Assert.That(_context.Assets.Select(asset => asset.IsNaturallyOccurring), Is.All.False);
     }
 
+    [Test, Description("An Asset is written against the storage class its code names, since capacity binds on that class and a wrong one would misfile the stock.")]
+    public async Task ShouldResolveTheStorageClassFromItsCode()
+    {
+        await UpsertAsync(BuildCatalogue());
+
+        Asset oakLog = _context.Assets
+            .Include(asset => asset.StorageClass)
+            .Single(asset => asset.DisplayName == "Oak Log");
+
+        Assert.That(oakLog.StorageClass!.Code, Is.EqualTo(_STORAGE_YARD_CODE));
+    }
+
+    [Test, Description("A storage class code that resolves to nothing fails the result naming it, rather than throwing out of a dictionary lookup as a 500.")]
+    public async Task ShouldRefuseWhenAStorageClassCodeIsUnknown()
+    {
+        ServiceResultBase result = await _handler.Handle(
+            new UpsertAssetsRequest(BuildCatalogue(storageClassCode: "NoSuchClass")),
+            CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Has.Some.Contains("NoSuchClass"), "The error has to name the code, since that is all the caller has to go on.");
+            Assert.That(_context.Assets.Count(), Is.Zero, "Rows were written despite the class being unresolvable.");
+        }
+    }
+
+    [Test, Description("A storage class code differing only in case resolves, because the unique index is case-insensitive and the catalogue's casing is what counts.")]
+    public async Task ShouldResolveAStorageClassCodeCaseInsensitively()
+    {
+        await UpsertAsync(BuildCatalogue(storageClassCode: _STORAGE_YARD_CODE.ToUpperInvariant()));
+
+        Asset oakLog = _context.Assets
+            .Include(asset => asset.StorageClass)
+            .Single(asset => asset.DisplayName == "Oak Log");
+
+        Assert.That(oakLog.StorageClass!.Code, Is.EqualTo(_STORAGE_YARD_CODE));
+    }
+
+    [Test, Description("An Asset keeps the class the request names on a re-upsert, so re-seeding re-files nothing by accident.")]
+    public async Task ShouldUpdateTheStorageClassOnAnExistingAsset()
+    {
+        await UpsertAsync(BuildCatalogue());
+
+        await UpsertAsync(BuildCatalogue(storageClassCode: _ARMOURY_CODE));
+
+        Asset oakLog = _context.Assets
+            .Include(asset => asset.StorageClass)
+            .Single(asset => asset.DisplayName == "Oak Log");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_context.Assets.Count(), Is.EqualTo(2), "the re-run matched on code, so it should have updated the rows rather than inserting more");
+            Assert.That(oakLog.StorageClass!.Code, Is.EqualTo(_ARMOURY_CODE));
+        }
+    }
+
     /// <summary>
     /// One standalone category holding a single Asset carrying the given flag, which is the smallest shape that exercises the column.
     /// </summary>
@@ -364,7 +443,8 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
                                 Code = "RawMaterials.RawMaterials.Bone",
                                 DisplayName = "Bone",
                                 IconPath = "/resources/other/fishbone.svg",
-                                IsNaturallyOccurring = isNaturallyOccurring
+                                IsNaturallyOccurring = isNaturallyOccurring,
+                                StorageClassCode = _STORAGE_YARD_CODE
                             }
                         ]
                     }
@@ -399,7 +479,8 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
                                 Code = "Society.Experience.Technology",
                                 DisplayName = "Technology",
                                 IconPath = "/resources/other/bubbling-flask.svg",
-                                StorageScope = storageScope
+                                StorageScope = storageScope,
+                                StorageClassCode = _STORAGE_YARD_CODE
                             }
                         ]
                     }
@@ -422,13 +503,15 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
     /// One meta-category holding one grouped category with a group of two logs, which is enough shape to exercise all four levels at once.
     /// </summary>
     /// <param name="includeAssetDetail">False omits each asset's description and icon, to exercise the partial-update rule.</param>
+    /// <param name="storageClassCode">The class both assets name. Defaults to the storage yard; pass another to exercise resolution or a refusal.</param>
     private static IReadOnlyCollection<UpsertAssetMetaCategoryDto> BuildCatalogue(
         string metaDisplayName = "Construction Materials",
         string categoryDisplayName = "Wood",
         string groupDisplayName = "Logs",
         int? firstAssetSortOrder = null,
         bool includeAssetDetail = true,
-        AssetSubjectScope subjectScope = AssetSubjectScope.Own)
+        AssetSubjectScope subjectScope = AssetSubjectScope.Own,
+        string storageClassCode = _STORAGE_YARD_CODE)
     {
         return
         [
@@ -459,12 +542,14 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
                                         DisplayName = "Oak Log",
                                         IconPath = includeAssetDetail ? "/resources/wood/oak-log_40px.png" : null,
                                         Description = includeAssetDetail ? "A dense hardwood." : null,
-                                        SortOrder = firstAssetSortOrder
+                                        SortOrder = firstAssetSortOrder,
+                                        StorageClassCode = storageClassCode
                                     },
                                     new UpsertAssetDto
                                     {
                                         Code = "ConstructionMaterials.Wood.Logs.AshLog",
-                                        DisplayName = "Ash Log"
+                                        DisplayName = "Ash Log",
+                                        StorageClassCode = storageClassCode
                                     }
                                 ]
                             }
@@ -482,7 +567,8 @@ internal class UpsertAssetsHandlerTests : InMemoryTestBase
             Code = $"Weapons.MeleeWeapons.BoneKnife.{grade}",
             DisplayName = "Bone Knife",
             IsGradedAsset = true,
-            AssetGrade = grade
+            AssetGrade = grade,
+            StorageClassCode = _ARMOURY_CODE
         };
     }
 }

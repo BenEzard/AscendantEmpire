@@ -24,6 +24,11 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 /// <c>Player</c>, and every Population and ForeignPopulation Asset is <c>Derived</c>. See <see cref="AssetStorageScope"/> for why that belongs on the
 /// catalogue row rather than on the bank.
 /// </para>
+/// <para>
+/// <c>StorageClassCode</c> is stated on every Asset, because there is no default to fall back on - and a class spans the hierarchy freely rather than
+/// following it. The storage yard covers two categories and four groups; the fuel dump takes four rows out of the middle of a flat one. See
+/// <see cref="StorageClassSeedData"/> for what each class is for.
+/// </para>
 /// </remarks>
 internal static class AssetSeedData
 {
@@ -88,6 +93,7 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Oak Log",
                                     IconPath = "/resources/wood/oak-log_40px.png",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "A dense, slow-grown hardwood felled from ancient oak forests. Renowned for its strength and resistance to rot.",
                                     IsNaturallyOccurring = true
                                 },
@@ -95,6 +101,7 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Generic Log",
                                     IconPath = "/resources/wood/pine-log_40px.png",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "Logs of mixed or unspecified timber.",
                                     IsNaturallyOccurring = true
                                 },
@@ -102,6 +109,7 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Cedar Log",
                                     IconPath = "/resources/wood/cedar-log_40px.png",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "A fragrant, lightweight softwood prized for its natural resistance to insects and moisture.",
                                     IsNaturallyOccurring = true
                                 },
@@ -109,6 +117,7 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Ash Log",
                                     IconPath = "/resources/wood/ash-log_40px.png",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "A flexible, tough hardwood cut from ash groves.",
                                     IsNaturallyOccurring = true
                                 },
@@ -116,6 +125,7 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Ebony Log",
                                     IconPath = "/resources/wood/ebony-log_40px.png",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "An exceptionally rare and heavy tropical hardwood.",
                                     IsNaturallyOccurring = true
                                 },
@@ -123,6 +133,7 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Bamboo",
                                     IconPath = "/resources/wood/bamboo_40px.png",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "A fast-regenerating grass used as a versatile construction material.",
                                     IsNaturallyOccurring = true
                                 }
@@ -138,30 +149,35 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Oak Plank",
                                     IconPath = "/resources/wood/oak-plank_40px.png",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "Milled from prime oak logs, these planks provide reliable structural integrity for buildings, warships, and siege equipment."
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Generic Plank",
                                     IconPath = "/resources/wood/pine-plank_40px.png",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "Planks cut from common-grade timber. Adequate for everyday construction needs."
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Cedar Plank",
                                     IconPath = "/resources/wood/cedar-plank_40px.png",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "Planks milled from cedar logs. Lightweight and aromatic, they are popular for lining storage facilities and crafting furniture."
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Ash Plank",
                                     IconPath = "/resources/wood/ash-plank_40px.png",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "Planks produced from ash logs. Used in the production of tool handles, weapon shafts, and lightweight vehicle components."
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Ebony Plank",
                                     IconPath = "/resources/wood/ebony-plank_40px.png",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "Finely milled planks of ebony. Sought after by master craftsmen for decorative inlays, fine furniture, and prestigious buildings."
                                 }
                             ]
@@ -184,6 +200,7 @@ internal static class AssetSeedData
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Limestone",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "A sedimentary rock abundant throughout the empire. Limestone is the foundation of basic construction and is crushed to produce mortar and quicklime.",
                                     IsNaturallyOccurring = true
                                 },
@@ -191,18 +208,21 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Sandstone",
                                     IconPath = "/resources/stone/sandstone-rocks_40px.png",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "A soft, workable stone gathered from arid regions. Easier to cut than granite, sandstone is commonly used in desert architecture.",
                                     IsNaturallyOccurring = true
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Granite",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "An exceptionally hard igneous rock quarried from mountain deposits. Granite resists weathering and is ideal for fortifications and public monuments.",
                                     IsNaturallyOccurring = true
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Flint",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "A fine-grained sedimentary rock that fractures with a sharp edge. Flint is used in early toolmaking, fire-starting, and as a cheap cutting material.",
                                     IsNaturallyOccurring = true
                                 },
@@ -210,6 +230,7 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Obsidian",
                                     IconPath = "/resources/stone/obsidian-pile_40px.png",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "Volcanic glass formed from rapidly cooled lava. Obsidian is razor-sharp when fractured and is prized for specialist blades and ritual objects.",
                                     IsNaturallyOccurring = true
                                 },
@@ -217,6 +238,7 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Slate",
                                     IconPath = "/resources/stone/slate-pile_40px.png",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "A fine-grained metamorphic rock that cleaves into thin sheets. Slate is the material of choice for roofing tiles and writing tablets.",
                                     IsNaturallyOccurring = true
                                 },
@@ -224,12 +246,14 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Marble",
                                     IconPath = "/resources/stone/marble-pile_40px.png",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "Raw marble extracted from prized quarries. Highly sought after for prestige architecture, sculptures, and civic monuments.",
                                     IsNaturallyOccurring = true
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Basalt",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "A dense volcanic rock with superior hardness. Basalt is prized for road paving, millstones, and heavy defensive structures.",
                                     IsNaturallyOccurring = true
                                 },
@@ -237,6 +261,7 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Generic Rock",
                                     IconPath = "/resources/stone/generic-rock-pile_40px.png",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "Rough, unprocessed stone quarried from surface deposits. Used as bulk fill, rubble, and a basic ingredient in early-stage construction.",
                                     IsNaturallyOccurring = true
                                 }
@@ -252,12 +277,14 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Sandstone Block",
                                     IconPath = "/resources/stone/sandstone-block_40px.png",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "Dressed sandstone blocks shaped for construction. Widely used in the southern provinces for walls, temples, and public buildings."
                                 },
                                 new UpsertAssetDto
                                 {
                                     DisplayName = "Marble Block",
                                     IconPath = "/resources/stone/marble-block_40px.png",
+                                    StorageClassCode = StorageClassSeedData.STORAGE_YARD,
                                     Description = "Cut and dressed marble blocks, ready for use in grand construction projects. A symbol of wealth and refined taste."
                                 }
                             ]
@@ -344,6 +371,7 @@ internal static class AssetSeedData
                         {
                             DisplayName = "Bone",
                             IconPath = "/resources/other/fishbone.svg",
+                            StorageClassCode = StorageClassSeedData.SUNDRIES,
                             Description = "Bones collected from slaughterhouses and hunting camps. Processed into tools, needles, fertiliser, and animal glue.",
                             IsNaturallyOccurring = true
                         },
@@ -351,75 +379,88 @@ internal static class AssetSeedData
                         {
                             DisplayName = "Fodder",
                             IconPath = "/resources/other/high-grass.svg",
+                            StorageClassCode = StorageClassSeedData.GRANARY,
                             Description = "Dried grasses, hay, and grain husks used to sustain livestock and working animals. A steady supply is essential for any mounted force or agricultural operation.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Ochre",
+                            StorageClassCode = StorageClassSeedData.SUNDRIES,
                             Description = "A naturally occurring iron oxide pigment. Ochre is used in dyes, paints, and pottery glazes throughout the empire.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Chalk",
+                            StorageClassCode = StorageClassSeedData.SUNDRIES,
                             Description = "A soft white limestone used as a writing material, in agriculture to neutralise acidic soils, and as a base for certain pigments.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Clay",
+                            StorageClassCode = StorageClassSeedData.SUNDRIES,
                             Description = "Raw earthen material gathered from riverbeds and mineral deposits. Clay is the primary ingredient in pottery, bricks, and ceramic tiles.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Salt",
+                            StorageClassCode = StorageClassSeedData.SUNDRIES,
                             Description = "A vital mineral harvested from salt flats and coastal evaporation pools. Salt is essential for food preservation, leather tanning, and chemical processes.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Sulfur",
+                            StorageClassCode = StorageClassSeedData.SUNDRIES,
                             Description = "A yellow mineral collected from volcanic vents and mineral springs. Sulfur is a key ingredient in gunpowder, medicinal compounds, and fumigation.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Pitch",
+                            StorageClassCode = StorageClassSeedData.FUEL_DUMP,
                             Description = "A thick, dark tar extracted from pine trees or coal deposits. Pitch waterproofs ships and barrels, seals building joints, and fuels incendiary weapons."
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Flax",
+                            StorageClassCode = StorageClassSeedData.SUNDRIES,
                             Description = "A fibrous plant cultivated for its stems and seeds. Flax is processed into linen cloth, rope, and linseed oil.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Resin",
+                            StorageClassCode = StorageClassSeedData.FUEL_DUMP,
                             Description = "Sticky sap harvested from conifer trees. Resin is used in varnishes, adhesives, medicines, and as a flux in metalworking.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Tar",
+                            StorageClassCode = StorageClassSeedData.FUEL_DUMP,
                             Description = "A dense, viscous liquid derived from the destructive distillation of wood or coal. Tar preserves timber, waterproofs hulls, and serves as a base for road surfaces."
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Leather",
+                            StorageClassCode = StorageClassSeedData.SUNDRIES,
                             Description = "Cured animal hides processed into a durable and flexible material. Leather is indispensable for armour, harnesses, footwear, and bookbinding."
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Hides",
+                            StorageClassCode = StorageClassSeedData.SUNDRIES,
                             Description = "Raw, uncured animal skins awaiting processing. Hides are the primary input for the leather-working industry.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Tallow",
+                            StorageClassCode = StorageClassSeedData.FUEL_DUMP,
                             Description = "Animal fat rendered from slaughtered livestock. Tallow is used in candle-making, soap production, and as a lubricant for machinery and weapons."
                         }
                     ]
@@ -451,12 +492,14 @@ internal static class AssetSeedData
                         {
                             DisplayName = "Game",
                             IconPath = "/resources/food/meat-02_40px.png",
+                            StorageClassCode = StorageClassSeedData.LARDER,
                             Description = "The flesh of hunted land animals.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Birds",
+                            StorageClassCode = StorageClassSeedData.LARDER,
                             Description = "Wildfowl taken with net, snare or sling.",
                             IsNaturallyOccurring = true
                         },
@@ -464,6 +507,7 @@ internal static class AssetSeedData
                         {
                             DisplayName = "Fish",
                             IconPath = "/resources/food/fish_40px.png",
+                            StorageClassCode = StorageClassSeedData.LARDER,
                             Description = "Freshwater and sea fish.",
                             IsNaturallyOccurring = true
                         },
@@ -471,12 +515,14 @@ internal static class AssetSeedData
                         {
                             DisplayName = "Shellfish",
                             IconPath = "/resources/food/crab_40px.png",
+                            StorageClassCode = StorageClassSeedData.LARDER,
                             Description = "Mussels, clams, oysters and crabs prised off the tideline.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Insects",
+                            StorageClassCode = StorageClassSeedData.LARDER,
                             Description = "Grubs, locusts, termites and ant brood collected in quantity.",
                             IsNaturallyOccurring = true
                         }
@@ -493,6 +539,7 @@ internal static class AssetSeedData
                         {
                             DisplayName = "Fruit",
                             IconPath = "/resources/food/apple_40px.png",
+                            StorageClassCode = StorageClassSeedData.LARDER,
                             Description = "Tree and vine fruit picked ripe - apples, figs, plums and dates.",
                             IsNaturallyOccurring = true
                         },
@@ -500,36 +547,42 @@ internal static class AssetSeedData
                         {
                             DisplayName = "Berries",
                             IconPath = "/resources/food/berries_40px.png",
+                            StorageClassCode = StorageClassSeedData.LARDER,
                             Description = "Hedgerow and scrubland berries stripped from the bush.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Roots",
+                            StorageClassCode = StorageClassSeedData.LARDER,
                             Description = "Edible taproots dug out of open ground.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Tubers",
+                            StorageClassCode = StorageClassSeedData.LARDER,
                             Description = "Starchy underground swellings - yams, water chestnuts and their like.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Greens",
+                            StorageClassCode = StorageClassSeedData.LARDER,
                             Description = "Wild leaves, shoots and stalks cut young.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Mushrooms",
+                            StorageClassCode = StorageClassSeedData.LARDER,
                             Description = "Fungi gathered from damp woodland and pasture.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Bulbs",
+                            StorageClassCode = StorageClassSeedData.LARDER,
                             Description = "Wild onions, garlic and lily bulbs lifted whole.",
                             IsNaturallyOccurring = true
                         }
@@ -545,24 +598,28 @@ internal static class AssetSeedData
                         new UpsertAssetDto
                         {
                             DisplayName = "Wild Grains",
+                            StorageClassCode = StorageClassSeedData.GRANARY,
                             Description = "Seed heads beaten from wild stands of emmer, barley and rice.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Seeds",
+                            StorageClassCode = StorageClassSeedData.GRANARY,
                             Description = "Oil-rich seeds winnowed from grasses and flowering plants.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Legumes",
+                            StorageClassCode = StorageClassSeedData.GRANARY,
                             Description = "Wild peas, beans and vetch shelled from the pod.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Nuts",
+                            StorageClassCode = StorageClassSeedData.GRANARY,
                             Description = "Acorns, hazelnuts, walnuts and pine nuts gathered at the autumn fall.",
                             IsNaturallyOccurring = true
                         }
@@ -578,30 +635,35 @@ internal static class AssetSeedData
                         new UpsertAssetDto
                         {
                             DisplayName = "Honey",
+                            StorageClassCode = StorageClassSeedData.SUNDRIES,
                             Description = "Comb raided from wild hives in hollow trees and cliff faces.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Seaweed",
+                            StorageClassCode = StorageClassSeedData.SUNDRIES,
                             Description = "Kelp and laver cut off the rocks at low tide and dried on frames.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Chilli Peppers",
+                            StorageClassCode = StorageClassSeedData.SUNDRIES,
                             Description = "Chilli peppers gathered from the wild. Spicy and pungent, they add heat to any dish.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Wild Herbs",
+                            StorageClassCode = StorageClassSeedData.SUNDRIES,
                             Description = "Aromatic and medicinal plants cut where they grow.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
                         {
                             DisplayName = "Poisons",
+                            StorageClassCode = StorageClassSeedData.SUNDRIES,
                             Description = "Toxic substances derived from plants, animals, or minerals.",
                             IsNaturallyOccurring = true
                         },
@@ -643,6 +705,7 @@ internal static class AssetSeedData
                         {
                             DisplayName = "Technology",
                             IconPath = "/resources/other/bubbling-flask.svg",
+                            StorageClassCode = StorageClassSeedData.INTANGIBLE,
                             Description = "",
                             StorageScope = AssetStorageScope.Player
                         },
@@ -650,6 +713,7 @@ internal static class AssetSeedData
                         {
                             DisplayName = "Culture",
                             IconPath = "/resources/other/lyre.svg",
+                            StorageClassCode = StorageClassSeedData.INTANGIBLE,
                             Description = "",
                             StorageScope = AssetStorageScope.Player
                         },
@@ -675,6 +739,7 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Civilians",
                                     IconPath = _CIVILIAN_ICON,
+                                    StorageClassCode = StorageClassSeedData.PEOPLE,
                                     Description = "Civilians in our Faction",
                                     StorageScope = AssetStorageScope.Derived
                                 },
@@ -682,6 +747,7 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Slaves",
                                     IconPath = _SLAVE_ICON,
+                                    StorageClassCode = StorageClassSeedData.PEOPLE,
                                     Description = "Our people held as slaves",
                                     StorageScope = AssetStorageScope.Derived
                                 },
@@ -689,6 +755,7 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Interned",
                                     IconPath = _INTERNED_ICON,
+                                    StorageClassCode = StorageClassSeedData.PEOPLE,
                                     Description = "Our people interned in camps",
                                     StorageScope = AssetStorageScope.Derived
                                 },
@@ -699,6 +766,7 @@ internal static class AssetSeedData
                                     Code = "Society.Population.MyPeople.PoW",
                                     DisplayName = "Prisoners of War",
                                     IconPath = _PRISONER_OF_WAR_ICON,
+                                    StorageClassCode = StorageClassSeedData.PEOPLE,
                                     Description = "Our forces rotting as Prisoners of War",
                                     StorageScope = AssetStorageScope.Derived
                                 },
@@ -716,6 +784,7 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Army",
                                     IconPath = _ARMY_ICON,
+                                    StorageClassCode = StorageClassSeedData.INTANGIBLE,
                                     Description = "Members of this people serving under arms on land.",
                                     StorageScope = AssetStorageScope.Derived
                                 },
@@ -723,6 +792,7 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Airforce",
                                     IconPath = _AIRFORCE_ICON,
+                                    StorageClassCode = StorageClassSeedData.INTANGIBLE,
                                     Description = "Members of this people serving in the air.",
                                     StorageScope = AssetStorageScope.Derived
                                 },
@@ -730,6 +800,7 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Navy",
                                     IconPath = _NAVY_ICON,
+                                    StorageClassCode = StorageClassSeedData.INTANGIBLE,
                                     Description = "Members of this people serving at sea.",
                                     StorageScope = AssetStorageScope.Derived
                                 },
@@ -762,6 +833,7 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Slaves",
                                     IconPath = _SLAVE_ICON,
+                                    StorageClassCode = StorageClassSeedData.PEOPLE,
                                     Description = "People we have enslaved",
                                     StorageScope = AssetStorageScope.Derived
                                 },
@@ -769,6 +841,7 @@ internal static class AssetSeedData
                                 {
                                     DisplayName = "Interned",
                                     IconPath = _INTERNED_ICON,
+                                    StorageClassCode = StorageClassSeedData.PEOPLE,
                                     Description = "Civilians we have interned",
                                     StorageScope = AssetStorageScope.Derived
                                 },
@@ -778,6 +851,7 @@ internal static class AssetSeedData
                                     Code = "Society.ForeignPopulation.Subjugated.PoW",
                                     DisplayName = "Prisoners of War",
                                     IconPath = _PRISONER_OF_WAR_ICON,
+                                    StorageClassCode = StorageClassSeedData.PEOPLE,
                                     Description = "Enemy combatants kept as Prisoners of War",
                                     StorageScope = AssetStorageScope.Derived
                                 },
@@ -804,11 +878,13 @@ internal static class AssetSeedData
         string iconPath,
         string description)
     {
+        // The armoury is hardcoded because every graded Asset in the catalogue is a weapon. A graded Asset of some other class would need the code passed in.
         return _GRADED_RESOURCE_GRADES.Select(grade => new UpsertAssetDto
         {
             Code = $"{categoryCode}.{codeStem}.{grade}",
             DisplayName = displayName,
             IconPath = iconPath,
+            StorageClassCode = StorageClassSeedData.ARMOURY,
             Description = description,
             IsGradedAsset = true,
             AssetGrade = grade

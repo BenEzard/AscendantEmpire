@@ -11,8 +11,9 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.Steps;
 /// Seeds the <c>assets</c> schema catalogue — the meta-categories, categories, groups and Assets themselves.
 /// </summary>
 /// <remarks>
-/// Stands alone: the catalogue references nothing else, and it is what the MapResource Type Manager's yields and scenarios point at rather than the other way
-/// round. Runs through the same upsert the Entity Setup Tool's editor does, so seeding and hand-editing cannot diverge in how a row is matched or written.
+/// Nothing above it in the catalogue references anything else, and it is what the MapResource Type Manager's yields and scenarios point at rather than the
+/// other way round. Runs through the same upsert the Entity Setup Tool's editor does, so seeding and hand-editing cannot diverge in how a row is matched or
+/// written.
 /// </remarks>
 internal sealed class AssetSeedStep : ISeedStep
 {
@@ -24,7 +25,11 @@ internal sealed class AssetSeedStep : ISeedStep
 
     public string Description => "The resource catalogue — construction materials, weapons and raw materials, with their categories and groups.";
 
-    public IReadOnlyCollection<SeedTarget> DependsOn => [];
+    /// <remarks>
+    /// A real constraint rather than a convention: <c>Asset.StorageClassId</c> is a non-null FK, so a migrated but unseeded class table fails every Asset
+    /// insert at the database. The same edge, and the same reason, as Tags depending on TagTypes.
+    /// </remarks>
+    public IReadOnlyCollection<SeedTarget> DependsOn => [SeedTarget.StorageClasses];
 
     public int SortOrder => 10;
 

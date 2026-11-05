@@ -203,6 +203,22 @@ internal class UpsertAssetsHandler(
                 .ToDictionaryAsync(r => r.Code, _CODE_COMPARER, cancellationToken)
             : new Dictionary<string, Asset>(_CODE_COMPARER);
 
+        // Storage classes are resolved against committed rows rather than anything in this request, so the lookup belongs with the other bulk loads: one
+        // query, and every unresolved code named at once instead of throwing out of a dictionary lookup part-way through the asset loops. The whole table
+        // is loaded rather than the request's codes, because filtering server-side would make the case-insensitive match depend on the database's collation.
+        Dictionary<string, StorageClass> storageClasses = await context.StorageClasses
+            .ToDictionaryAsync(storageClass => storageClass.Code, _CODE_COMPARER, cancellationToken);
+
+        string[] unknownStorageClassCodes = [.. groupedAssetPlan.Select(r => r.Dto.StorageClassCode)
+            .Concat(standaloneAssetPlan.Select(r => r.Dto.StorageClassCode))
+            .Distinct(_CODE_COMPARER)
+            .Where(code => storageClasses.ContainsKey(code) == false)];
+
+        if (unknownStorageClassCodes.Length > 0)
+        {
+            return Fail($"Unknown storage class code(s): {string.Join(", ", unknownStorageClassCodes)}");
+        }
+
         // --- Step 4: Upsert MetaCategories ---
 
         foreach (var meta in metaPlan)
@@ -311,6 +327,7 @@ internal class UpsertAssetsHandler(
                     IsNaturallyOccurring = res.Dto.IsNaturallyOccurring,
                     StorageScope = res.Dto.StorageScope,
                     MetaCategory = metaEntity,
+                    StorageClass = storageClasses[res.Dto.StorageClassCode],
                     Group = groupEntity
                 };
                 context.Assets.Add(assetEntity);
@@ -326,6 +343,7 @@ internal class UpsertAssetsHandler(
                 assetEntity.IsNaturallyOccurring = res.Dto.IsNaturallyOccurring;
                 assetEntity.StorageScope = res.Dto.StorageScope;
                 assetEntity.MetaCategory = metaEntity;
+                assetEntity.StorageClass = storageClasses[res.Dto.StorageClassCode];
 
                 // Ensure grouped path is set and standalone path is cleared.
                 assetEntity.Group = groupEntity;
@@ -364,6 +382,7 @@ internal class UpsertAssetsHandler(
                     IsNaturallyOccurring = res.Dto.IsNaturallyOccurring,
                     StorageScope = res.Dto.StorageScope,
                     MetaCategory = metaEntity,
+                    StorageClass = storageClasses[res.Dto.StorageClassCode],
                     Category = catEntity
                 };
                 context.Assets.Add(assetEntity);
@@ -379,6 +398,7 @@ internal class UpsertAssetsHandler(
                 assetEntity.IsNaturallyOccurring = res.Dto.IsNaturallyOccurring;
                 assetEntity.StorageScope = res.Dto.StorageScope;
                 assetEntity.MetaCategory = metaEntity;
+                assetEntity.StorageClass = storageClasses[res.Dto.StorageClassCode];
 
                 // Ensure standalone path is set and grouped path is cleared.
                 assetEntity.Category = catEntity;
