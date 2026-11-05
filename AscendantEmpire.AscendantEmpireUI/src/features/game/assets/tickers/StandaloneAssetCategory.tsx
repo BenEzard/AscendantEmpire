@@ -37,7 +37,7 @@ export default function StandaloneAssetCategory({
               IsLuxury={asset.isLuxury}
               isImported={asset.isImported}
               isExported={asset.isExported}
-              hasStrategicStockpile={asset.hasStrategicStockpile}
+              hasStrategicReserve={asset.hasStrategicReserve}
               obsoleteIn={asset.obsoleteIn}
               demandNotMet={asset.demandNotMet}
               grade={asset.grade}

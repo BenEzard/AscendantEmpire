@@ -16,7 +16,7 @@ function aTicker(overrides: Partial<AssetTickerData> = {}): AssetTickerData {
     isLuxury: false,
     isImported: false,
     isExported: false,
-    hasStrategicStockpile: false,
+    hasStrategicReserve: false,
     demandNotMet: false,
     grade: "None",
     ...overrides,

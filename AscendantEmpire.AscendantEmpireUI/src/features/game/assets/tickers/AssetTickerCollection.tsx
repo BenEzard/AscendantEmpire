@@ -57,7 +57,7 @@ export type AssetTickerData = {
   isLuxury: boolean;
   isImported: boolean;
   isExported: boolean;
-  hasStrategicStockpile: boolean;
+  hasStrategicReserve: boolean;
   // Number of rounds until this asset becomes obsolete; omit or 0 means not obsoleting
   obsoleteIn?: number;
   demandNotMet: boolean;

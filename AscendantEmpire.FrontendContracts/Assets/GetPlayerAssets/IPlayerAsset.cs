@@ -67,9 +67,9 @@ public interface IPlayerAsset
     int AmountAddedPerTurn { get; }
 
     /// <summary>
-    /// Whether part of this Asset is held back in a strategic reserve. <b>Placeholder - always false.</b>
+    /// Whether part of this Asset is held in a strategic reserve. <b>Placeholder - always false.</b>
     /// </summary>
-    bool HasStrategicStockpile { get; }
+    bool HasStrategicReserve { get; }
 
     /// <summary>
     /// Whether the Player is importing this Asset. <b>Placeholder - always false.</b>

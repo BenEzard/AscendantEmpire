@@ -31,7 +31,7 @@ export type PlayerAsset = {
   obsoleteInRounds: number | null;
   amount: number;
   amountAddedPerTurn: number;
-  hasStrategicStockpile: boolean;
+  hasStrategicReserve: boolean;
   isImported: boolean;
   isExported: boolean;
   demandNotMet: boolean;
@@ -122,7 +122,7 @@ function mapResource(asset: PlayerAssetWireDto): PlayerAsset {
     // The six fields below are contract placeholders the API always sends as zero or false until their own tickets land. A zero here is the
     // absence of a source, not a measured value.
     amountAddedPerTurn: asset.amountAddedPerTurn ?? 0,
-    hasStrategicStockpile: asset.hasStrategicStockpile ?? false,
+    hasStrategicReserve: asset.hasStrategicReserve ?? false,
     isImported: asset.isImported ?? false,
     isExported: asset.isExported ?? false,
     demandNotMet: asset.demandNotMet ?? false,

@@ -15,7 +15,7 @@ function aAsset(overrides: Partial<PlayerAsset> = {}): PlayerAsset {
     obsoleteInRounds: null,
     amount: 0,
     amountAddedPerTurn: 0,
-    hasStrategicStockpile: false,
+    hasStrategicReserve: false,
     isImported: false,
     isExported: false,
     demandNotMet: false,

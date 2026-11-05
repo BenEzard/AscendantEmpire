@@ -39,7 +39,7 @@ one sitting in a network of its own when it should be sharing one.
 
 **Balances never move between banks.** The one sanctioned exception anywhere in the model is a camp delivery.
 
-**Every bank is a settlement bank.** There is no player-level stockpile variant. Such a bank would have no
+**Every bank is a settlement bank.** There is no player-level bank variant. Such a bank would have no
 settlement to point at and would have to be excluded from every settlement query — a bank in name only.
 What it was reaching for belongs on the asset instead, below.
 

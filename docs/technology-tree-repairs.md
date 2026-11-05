@@ -57,7 +57,7 @@ new UpsertTechnologyPrerequisiteDto { PrerequisiteTechnologyCode = "ForestFamili
 | **`IconPath`** | Left unset until artwork exists. |
 | **List position** | Ordered by cost tier, then alphabetically **by code** within the tier. Put a new entry where its code sorts in its tier. |
 | **`ExperienceRequired` / `ExperienceTypeCodes`** | Only where a technology genuinely draws on a seeded `ExperienceType`. A requirement with no source can never fill, and the tree viewer flags it. |
-| **Acquisition costs and grants** | Leave empty. No Asset stockpile is modelled, and almost no grant target exists yet; the intent is carried as `Description` text instead. |
+| **Acquisition costs and grants** | Leave empty. No Asset spending is modelled, and almost no grant target exists yet; the intent is carried as `Description` text instead. |
 
 ## Prerequisite semantics
 

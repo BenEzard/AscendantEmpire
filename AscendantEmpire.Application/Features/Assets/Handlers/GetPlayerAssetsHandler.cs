@@ -508,7 +508,7 @@ internal class GetPlayerAssetsHandler(
 
             // Placeholders - nothing sources these six yet. See the banner on the PlayerAsset contract.
             AmountAddedPerTurn = 0,
-            HasStrategicStockpile = false,
+            HasStrategicReserve = false,
             IsImported = false,
             IsExported = false,
             DemandNotMet = false,

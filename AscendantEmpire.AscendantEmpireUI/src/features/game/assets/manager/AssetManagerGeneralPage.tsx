@@ -66,10 +66,10 @@ export default function AssetManagerGeneralPage({ selectedTicker }: AssetManager
         tooltipText="This resource is exported to foreign markets."
       />
     ),
-    selectedTicker.hasStrategicStockpile && (
+    selectedTicker.hasStrategicReserve && (
       <Badge
-        key="stockpile"
-        label="Strategic Stockpile"
+        key="reserve"
+        label="Strategic Reserve"
         textColor="#1c1917"
         backgroundColor="#e7e5e4"
         tooltipText="A strategic reserve of this resource is maintained."

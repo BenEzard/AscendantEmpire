@@ -124,7 +124,7 @@ export async function getPlayerResearch(signal?: AbortSignal): Promise<PlayerRes
  *
  * Choosing an Available technology also settles its acquisition cost and unlocks it, because directed research cannot
  * begin until that cost is paid. The server refuses a technology that actually carries a cost, since nothing spends
- * from a player's Asset stockpile yet.
+ * from a player's Asset banks yet.
  */
 export async function setResearchProject(technologyId: number | null): Promise<void> {
   await http.put("/technology/research-project", { technologyId });

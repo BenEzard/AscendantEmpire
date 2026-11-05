@@ -275,7 +275,7 @@ public class TechnologyController : ControllerBase
     /// </summary>
     /// <remarks>
     /// Choosing an Available technology settles its acquisition cost and unlocks it in the same call, because directed research cannot begin until the cost
-    /// is paid and the catalogue authors none. A technology that does carry a cost is refused: nothing spends from a Player's Asset stockpile yet, so the
+    /// is paid and the catalogue authors none. A technology that does carry a cost is refused: nothing spends from a Player's Asset banks yet, so the
     /// cost could only be waived rather than paid.
     /// </remarks>
     /// <response code="200">The research project was set or cleared</response>

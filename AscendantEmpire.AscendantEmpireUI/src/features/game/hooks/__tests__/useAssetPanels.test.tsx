@@ -47,7 +47,7 @@ function aMetaCategory(code: string, categoryCode: string): PlayerAssetMetaCateg
             obsoleteInRounds: null,
             amount: 0,
             amountAddedPerTurn: 0,
-            hasStrategicStockpile: false,
+            hasStrategicReserve: false,
             isImported: false,
             isExported: false,
             demandNotMet: false,

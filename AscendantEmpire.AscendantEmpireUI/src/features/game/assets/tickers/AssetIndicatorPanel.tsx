@@ -4,13 +4,13 @@ import { ASSET_INDICATOR_COLORS } from "./AssetConstants";
 export interface AssetIndicatorPanelProps {
   isImported?: boolean;
   isExported?: boolean;
-  hasStrategicStockpile?: boolean;
+  hasStrategicReserve?: boolean;
 }
 
 export default function AssetIndicatorPanel({
   isImported = false,
   isExported = false,
-  hasStrategicStockpile = false,
+  hasStrategicReserve = false,
 }: AssetIndicatorPanelProps) {
   return (
     <span className="asset-indicator-panel" aria-label="Resource state indicators">
@@ -29,10 +29,10 @@ export default function AssetIndicatorPanel({
         shape="triangle-up"
       />
       <AssetIndicator
-        active={hasStrategicStockpile}
-        activeColor={ASSET_INDICATOR_COLORS.strategicStockpile}
+        active={hasStrategicReserve}
+        activeColor={ASSET_INDICATOR_COLORS.strategicReserve}
         inactiveColor={ASSET_INDICATOR_COLORS.inactive}
-        label={hasStrategicStockpile ? "Strategic stockpile available" : "No strategic stockpile"}
+        label={hasStrategicReserve ? "Strategic reserve available" : "No strategic reserve"}
       />
     </span>
   );

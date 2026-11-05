@@ -30,7 +30,7 @@ export interface AssetTickerProps {
   IsLuxury?: boolean;
   isImported?: boolean;
   isExported?: boolean;
-  hasStrategicStockpile?: boolean;
+  hasStrategicReserve?: boolean;
   // Number of rounds until this asset becomes obsolete; omit or 0 means not obsoleting
   obsoleteIn?: number;
   demandNotMet?: boolean;
@@ -50,7 +50,7 @@ export default function AssetTicker({
   IsLuxury,
   isImported,
   isExported,
-  hasStrategicStockpile,
+  hasStrategicReserve,
   obsoleteIn,
   demandNotMet,
   amountOrientation = "horizontal",
@@ -64,7 +64,7 @@ export default function AssetTicker({
     tooltip,
     isImported,
     isExported,
-    hasStrategicStockpile,
+    hasStrategicReserve,
     obsoleteIn,
     demandNotMet,
   });
@@ -90,7 +90,7 @@ export default function AssetTicker({
     <Tooltip content={tip}>
       <span className={isDisabled ? "asset-ticker-wrapper asset-ticker-wrapper--disabled" : "asset-ticker-wrapper"}>
         <span className="asset-ticker-shell">
-          <AssetIndicatorPanel isImported={isImported} isExported={isExported} hasStrategicStockpile={hasStrategicStockpile} />
+          <AssetIndicatorPanel isImported={isImported} isExported={isExported} hasStrategicReserve={hasStrategicReserve} />
           <button
             type="button"
             className={className}

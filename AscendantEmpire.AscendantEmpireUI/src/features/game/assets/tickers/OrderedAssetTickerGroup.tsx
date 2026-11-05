@@ -157,7 +157,7 @@ export default function OrderedAssetTickerGroup({
                   IsLuxury={ticker.isLuxury}
                   isImported={ticker.isImported}
                   isExported={ticker.isExported}
-                  hasStrategicStockpile={ticker.hasStrategicStockpile}
+                  hasStrategicReserve={ticker.hasStrategicReserve}
                   obsoleteIn={ticker.obsoleteIn}
                   demandNotMet={ticker.demandNotMet}
                   grade={ticker.grade}

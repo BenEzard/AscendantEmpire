@@ -34,7 +34,7 @@ function mapTicker(asset: PlayerAsset): AssetTickerData {
     isLuxury: asset.isLuxury,
     isImported: asset.isImported,
     isExported: asset.isExported,
-    hasStrategicStockpile: asset.hasStrategicStockpile,
+    hasStrategicReserve: asset.hasStrategicReserve,
     // The API sends null rather than zero when nothing is scheduled, and a set value is always positive, so there is nothing to clamp here.
     obsoleteIn: asset.obsoleteInRounds ?? undefined,
     demandNotMet: asset.demandNotMet,

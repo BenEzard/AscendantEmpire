@@ -29,7 +29,7 @@ public class DTPlayerAsset : IPlayerAsset
 
     public required int AmountAddedPerTurn { get; set; }
 
-    public required bool HasStrategicStockpile { get; set; }
+    public required bool HasStrategicReserve { get; set; }
 
     public required bool IsImported { get; set; }
 

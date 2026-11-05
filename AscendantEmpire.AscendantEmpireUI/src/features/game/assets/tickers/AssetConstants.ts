@@ -2,7 +2,7 @@ export const ASSET_INDICATOR_COLORS = {
   inactive: "#c7d0e0",
   imported: "#60a5fa",
   exported: "#4ade80",
-  strategicStockpile: "#111827",
+  strategicReserve: "#111827",
 } as const;
 
 export const ASSET_TICKER_BACKGROUNDS = {

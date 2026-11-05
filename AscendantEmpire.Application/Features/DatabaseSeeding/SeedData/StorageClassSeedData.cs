@@ -23,7 +23,7 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 /// </para>
 /// <para>
 /// <b><see cref="PEOPLE"/> and <see cref="INTANGIBLE"/> exist because the FK is required, not because anything stores them.</b> Population statuses are
-/// counted rather than stockpiled, and experience points and the three Force rows are not kept anywhere at all; they still need a class, so they get an
+/// counted rather than stored, and experience points and the three Force rows are not kept anywhere at all; they still need a class, so they get an
 /// honest one rather than being forced into a store. Keeping the Forces out of <see cref="PEOPLE"/> leaves that class as exactly the population statuses
 /// that capacity, <c>Asset.Weight</c> and population segments will all come to mean something by.
 /// </para>

@@ -22,7 +22,7 @@ public record SetResearchProjectRequest(int GameId, int PlayerId, int? Technolog
 /// Directed research requires <see cref="TechnologyStatus.Unlocked"/>, which means prerequisites discovered <i>and</i> the acquisition cost settled - so
 /// choosing an <see cref="TechnologyStatus.Available"/> technology has to settle that cost before it can become the project. The design doc has a free
 /// technology moving straight from available to unlocked, and the catalogue authors no acquisition costs at all, so in practice every choice takes that
-/// path. A technology that does carry cost rows is refused rather than unlocked for nothing: there is no Asset stockpile to spend from yet, and silently
+/// path. A technology that does carry cost rows is refused rather than unlocked for nothing: there is nothing in the Asset banks to spend from yet, and silently
 /// waiving a cost would be a rule invented here.
 /// </para>
 /// <para>
@@ -155,7 +155,7 @@ internal class SetResearchProjectHandler(
         {
             return ServiceResultBase.Fail(
                 $"{technologyName} costs {string.Join(", ", costs)} to unlock, and acquisition costs cannot be paid yet. "
-                + "Nothing spends from a Player's Asset stockpile, so the cost would have to be waived rather than settled.");
+                + "Nothing spends from a Player's Asset banks, so the cost would have to be waived rather than settled.");
         }
 
         // Read through the caller context so it joins the transaction the stamp below lands in.

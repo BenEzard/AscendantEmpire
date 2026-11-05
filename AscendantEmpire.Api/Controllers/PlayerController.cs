@@ -373,7 +373,7 @@ public class PlayerController : ControllerBase
             ObsoleteInRounds = asset.ObsoleteInRounds,
             Amount = asset.Amount,
             AmountAddedPerTurn = asset.AmountAddedPerTurn,
-            HasStrategicStockpile = asset.HasStrategicStockpile,
+            HasStrategicReserve = asset.HasStrategicReserve,
             IsImported = asset.IsImported,
             IsExported = asset.IsExported,
             DemandNotMet = asset.DemandNotMet,

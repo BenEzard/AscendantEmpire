@@ -8,12 +8,16 @@ The sixteen steps live in Planner, in the **Asset Bank refactor** group under Re
 each step does and whether it is done.** Nothing here restates a task. What is here is the cross-cutting material a single task description cannot carry: the invariants that span
 all sixteen, the alternatives already rejected, the agreed vocabulary, and the order.
 
+The Vocabulary section below is a working copy kept close to the tasks that use it. **[`docs/Terminology.md`](../Terminology.md) is the authority** — every term here is defined there
+too, and where the two disagree, this file is the one that is wrong.
+
 ## Invariants
 
 These hold across every step. A step that appears to need one broken has found something the design did not anticipate — raise it rather than quietly making an exception.
 
 * **Balances never move between banks**, with exactly one sanctioned exception: camp deliveries (`RS-35`). Connecting, disconnecting, merging and conquering are all re-keys or
-  ownership changes, never transfers.
+  ownership changes, never transfers. **Choosing where to place a new credit is not a move**, which is why the reserve share of production can be placed in a bank outside the
+  producing settlement's network (`RS-40`) without becoming a second exception. `RS-52` is the one place that will need one, because it moves stock that has already landed.
 * **`NetworkKey` has exactly one writer** — the connectivity service. It is derived data with no referential integrity, so a second writer means the wrong settlements can reach each
   other and nothing in the schema catches it. A bank arrives as `Guid.Empty` — unkeyed — and the service is what keys it, which is why provisioning calls `AssignKeyToNewBank`
   rather than setting the column itself. **`Guid.Empty` is never grouped on**: it is the absence of a key, not a network two banks share, so an unkeyed bank reaches nothing but
@@ -23,7 +27,7 @@ These hold across every step. A step that appears to need one broken has found s
   information.
 * **Asset preference outranks locality.** In a group expense the player's ordering of the group is walked first, and locality decides only which bank each asset comes out of.
 * **Levelling lives on the credit path, not the debit path.** A debit never rebalances; the next credit re-levels by favouring the emptiest banks.
-* **Three different mechanisms keep a quantity out of "what I have", and they are not interchangeable**: the strategic stockpile is a different *column* (`StockpiledQuantity`),
+* **Three different mechanisms keep a quantity out of "what I have", and they are not interchangeable**: the strategic reserve is a different *column* (`ReservedQuantity`),
   force cargo is a different *bank kind* (`AssetBank.Kind`), and Player/Derived assets are a different *source* entirely (`Asset.StorageScope`). Do not try to unify them.
 * **The asset catalogue stays static and seedable.** It has no `GameId` and knows nothing about games or players. Anything per-game or per-opponent is a read-time projection — see
   `AssetSubjectScope.PerOtherPlayer`.
@@ -39,13 +43,18 @@ Each of these was argued out. Re-opening one needs a new reason, not a fresh loo
 | Delete a balance at zero | Keep zero rows with `LastDepositOnRound` and a cleanup worker | Capacity does not live on the balance row, so a zero row holds nothing. A per-round process whose only job is to delete rows we chose to keep is circular. |
 | `StorageClass`, one required class per asset | Declare capacity against MetaCategory / Category / Group nodes | The hierarchy classifies what a thing *is*, for display; storage classifies how it is *kept*. An armoury spans categories, a timber yard spans groups. |
 | `StorageClass` as its own catalogue | Reuse `Tag` / `TagType` with a new type | A tag is many-to-many and optional; a storage class is exactly one per asset and required, which only a non-null FK can enforce. `Tag` is also a unit-design concept. |
-| Dedicated store, then a generic pool | Full ancestor-chain nested budgets | Two levels keep a refusal explainable. With four nested budgets a player cannot see which one bound. |
+| Dedicated storage, then generic storage | Full ancestor-chain nested budgets | Two levels keep a refusal explainable. With four nested budgets a player cannot see which one bound. |
 | A credit fills in ascending asset id, and a clamp is **reported** rather than reordered (`RS-51`) | A player credit preference, mirroring "asset preference outranks locality" on the debit path; or a proportional split across the contending rows | Ascending asset id is arbitrary — a hunting camp delivering into a full village delivers its bones and loses its meat, because that is the order the catalogue declares them in. But both alternatives add a mechanism to fix the wrong half of the problem: the failure a player actually meets is that the loss is **invisible**. Reporting it is the fix, and it is the one that stays true whichever ordering a later ticket chooses. |
 | A credit places what fits and reports the unplaced remainder | Refuse a credit that cannot be placed in full, at the credit or at extraction | A refusal makes a one-unit overflow throw away a whole turn's yield, and a turn has to end either way. Reporting the figure leaves wasting it or refusing before the next extraction with the caller, and it stays true whichever a later ticket chooses. The pre-flight for refusing before extraction is the same `SettlementStorageCapacity` the credit places through, so the two cannot disagree. |
 | A camp delivery credits the parent's **network**, with every camp bank excluded | Credit the parent's bank alone, as `RS-29` clamped to | Stranding stock in a camp because one village is full is the stranding problem the network exists to solve, and a village two roads away is still a large store. Excluding camps is the same rule as "another camp is never a parent" — moving a small store into a small store gains nothing — and it excludes the delivering camp as a consequence rather than as a special case. |
 | Local-first debit, remainder richest-first | Level the whole network on every settlement expense | Levelling on the debit path did work the credit path does for free, and it ignored that goods already on site do not travel. |
 | Unit banks attach to `UnitInstance`; a Command is a network of its units' banks | A bank that points at either a Unit or a Command | Force is a category, not a type — there is no shared table. Capacity is per-Unit anyway, and `ForceOrderParticipant` sets the precedent. |
-| Stockpile as a reserved column on the balance | A player-level stockpile store, or a separate reserve table | Every bank is a settlement bank; the reserve physically sits where its building stands. A second column is invisible to existing readers by construction, so "not in totals" costs nothing. |
+| Strategic reserve as a second column on the balance | A player-level reserve store, or a separate reserve table | Every bank is a settlement bank; the reserved quantity physically sits where its building stands. A second column is invisible to existing readers by construction, so "not in totals" costs nothing. |
+| The reserve share of production may be placed **outside** the producing settlement's network | Reserve capacity scoped per bank, or scoped per network | Per bank leaves an empire-wide target a player can rarely fill: production is spread across the network, so only the one bank with the building could divert any of it. Per network fills easily but dissolves the reserve's locality, and a strategic reserve has to be somewhere an enemy can seize. Widening where a credit may be *placed* breaks no invariant, and the distance it travels becomes a transport delay (`RS-53`). |
+| Diversion splits the reserve share **at** the production credit | A diversion process after the credits, with its own slot in the turn pipeline | After the credit there is nothing left to find: `RS-38` has already spread the production across banks that mostly hold no reserve. Splitting at the credit also costs the pipeline one fewer slot. |
+| One empire-wide figure per asset, placed emptiest-first, with the unplaced remainder handed back **proportionally** | Placing each settlement's share as that settlement's production is credited | Per settlement, whichever is processed first takes the last of the reserve space — the same arbitrary ordering `RS-38`'s ascending-asset-id clamp has, for the same reason. One aggregate figure makes a player-wide policy actually player-wide, and a proportional hand-back avoids inventing a second ordering to undo the first. |
+| A camp never holds a strategic reserve, and a camp's reserve share is split at the **delivery to its parent** | Splitting at extraction, making the camp a dispatch point in its own right | With no reserve at a camp there is nothing there for a share to be placed into, and taking the share at extraction would give a camp a second outbound route beside the delivery it already has. Splitting at the delivery needs no camp special case at all: *the split happens wherever production is first credited to a settlement bank*, which for a camp is the parent's network. |
+| The effective reserve target is `MIN(target, capacity)`, computed at use | Clamping the stored target down to capacity | A player who later builds more reserve capacity should get the target they asked for, not the clamp that applied while they were short of room. `RS-54` reports the mismatch in both directions. |
 | `PopulationSegment (AssetBankId, AssetId, NationalityPlayerId, Quantity)` | A `PopulationType` enum beside the asset id | The status *is* the catalogue row, which also supplies the name, icon and `Asset.Weight`. An enum would be a second source of truth for what kinds of people exist. |
 | Population keyed on `AssetBankId` | Locating people by settlement or unit id directly | Keying both stores on the bank makes every "what is here, what does it weigh, who owns it now" question a union over two tables of the same shape. |
 | Own people in the same table as foreign-held | Foreign-held only | `MyPeople.Interned` is *our* people in *someone else's* camps — a row whose location is an enemy bank and whose nationality is us. It cannot be expressed otherwise. |
@@ -60,13 +69,16 @@ Use these names. Sixteen sessions inventing sixteen synonyms is the main thing t
 | **Re-key** | Changing which network a bank belongs to. Never moves a balance. |
 | **Parent settlement** | The settlement a camp delivers its production to each turn (`Settlement.ParentSettlementId`). Stored, never recomputed. The camp delivers; the parent only receives, and its stock funding the camp's construction is the shared network rather than a flow back. |
 | **Storage class** | How an asset is kept, as against what it is. `Asset.StorageClassId`, required, exactly one. |
-| **Building** | Something inside a settlement, as against a **structure**, which stands on a campaign map tile. Only a building grants a dedicated store; a structure never does. See "Buildings" in `docs/design/settlements.md`. |
-| **Dedicated store** | Capacity granted for one storage class by a building — the armoury, the oil dump. |
-| **Generic pool** | Tier-granted capacity any class overflows into. The storehouse. |
-| **Sundries** | The catch-all *storage class*, for goods that earn no store of their own. Not the generic pool: that is the storehouse, and the two words are not interchangeable. |
+| **Building** | Something inside a settlement, as against a **structure**, which stands on a campaign map tile. Only a building grants dedicated storage; a structure never does. See "Buildings" in `docs/design/settlements.md`. |
+| **Stockpile** | A settlement's ordinary storage taken as a whole: its dedicated storage plus its generic storage. A strategic reserve is deliberately not part of it. |
+| **Dedicated storage** | Capacity granted for one storage class by a building — the armoury, the oil dump. Not "dedicated store". |
+| **Generic storage** | Tier-granted capacity any class overflows into. The storehouse. Never "general stockpile". |
+| **Sundries** | The catch-all *storage class*, for goods that earn no store of their own. Not generic storage: that is the storehouse, and the two are not interchangeable. |
 | **Local-first** | A settlement expense drains the site's own bank before touching the rest of its network. |
 | **Levelling** | Cutting the fullest banks to a common water-line (debit), or filling the emptiest first (credit). |
-| **Reserved** | `AssetBankBalance.StockpiledQuantity` — held back from circulation and from every total until released. |
+| **Strategic Reserve** | The building that holds a quantity out of circulation, and the mechanism around it. Its storage class is designated per instance at build time; its capacity is a budget separate from the settlement's stockpile. Never "Strategic Stockpile". |
+| **Reserved**, in reserve | `AssetBankBalance.ReservedQuantity` — out of circulation and out of every total. The only state a quantity is in before it is released. Never "stockpiled" or "locked". |
+| **Released** | Moved from `ReservedQuantity` back to `Quantity`, which is the single act that makes a reserved quantity available and visible in totals. Whole or partial, by player order (`RS-40`) or by the conquest rule (`RS-39`). Never "unlocked". |
 | **Cargo** | What a unit bank holds. Excluded from empire totals until deposited, even inside a settlement. |
 | **Segment** | One `PopulationSegment` row: a quantity of one status, of one nationality, in one bank. |
 
@@ -81,7 +93,7 @@ RS-33  bank per settlement + NetworkKey   ─┬─> RS-34  conquest re-key
                                            ├─> RS-48  river networking
                                            └─> RS-49  coastline networking
 RS-37  StorageClass ──> RS-29  settlement capacity ──┬─> RS-38  credit spreading
-                                                     ├─> RS-39  stockpile store ──> RS-40  building, diversion, release
+                                                     ├─> RS-39  reserve column ──> RS-40  building, diversion, release
                                                      └─> RS-42  unit banks
 RS-41  Asset.Weight ────────────────────────────────────> RS-42  unit banks ──> RS-43  cargo orders
 RS-42 + RS-33 ──> RS-44  PopulationSegment ──┬─> RS-45  collapse duplicated population codes
@@ -101,6 +113,6 @@ technology. `CM-64` carries the most, because no road exists anywhere in the cod
 Recorded on the task that will hit them, repeated here so they are not re-discovered from scratch.
 
 * Whether carried prisoners share the one weight budget with goods or get their own (`RS-43`). Sharing is simpler and makes a loot-laden force unable to also take captives.
-* What happens to reserved quantity when its Strategic Stockpile is razed (`RS-40`).
+* What happens to a reserved quantity when its Strategic Reserve is razed (`RS-40`).
 * Whether a player can see their own people held in an enemy's camps, given those rows live in the enemy's bank (`RS-47`). An intelligence question, but `MyPeople.Interned` is
   unlocked from round one.

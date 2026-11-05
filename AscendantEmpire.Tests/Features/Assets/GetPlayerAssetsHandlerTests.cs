@@ -272,7 +272,7 @@ internal class GetPlayerAssetsHandlerTests : PlayerAssetUnlockTestBase
         {
             // Amount is not among them: it is measured, and has its own cases under the quantity gate below.
             Assert.That(asset.AmountAddedPerTurn, Is.Zero);
-            Assert.That(asset.HasStrategicStockpile, Is.False);
+            Assert.That(asset.HasStrategicReserve, Is.False);
             Assert.That(asset.IsImported, Is.False);
             Assert.That(asset.IsExported, Is.False);
             Assert.That(asset.DemandNotMet, Is.False);

@@ -6,7 +6,7 @@ export interface BuildAssetTooltipArgs {
   tooltip?: string;
   isImported?: boolean;
   isExported?: boolean;
-  hasStrategicStockpile?: boolean;
+  hasStrategicReserve?: boolean;
   // Number of turns until this asset becomes obsolete; omit or 0 means not obsoleting
   obsoleteIn?: number;
   demandNotMet?: boolean;
@@ -29,14 +29,14 @@ export function buildAssetTooltip({
   tooltip,
   isImported,
   isExported,
-  hasStrategicStockpile,
+  hasStrategicReserve,
   obsoleteIn,
   demandNotMet,
 }: BuildAssetTooltipArgs): string {
   const states = [
     isImported ? "Imported" : null,
     isExported ? "Exported" : null,
-    hasStrategicStockpile ? "Stockpiled" : null,
+    hasStrategicReserve ? "Reserved" : null,
     obsoleteIn != null && obsoleteIn > 0 ? `Obsolete In: ${obsoleteIn} rounds` : null,
     demandNotMet ? "Demand Not Met" : null,
   ].filter((value): value is string => value != null);

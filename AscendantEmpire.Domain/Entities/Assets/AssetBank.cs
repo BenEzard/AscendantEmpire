@@ -18,7 +18,7 @@ namespace AscendantEmpire.Domain.Entities.Assets;
 /// only as long as the connection does would outlive what it describes.
 /// </para>
 /// <para>
-/// <b>Every bank is a settlement bank.</b> There is no player-level stockpile variant: an Asset that is held per Player rather than per network says so on
+/// <b>Every bank is a settlement bank.</b> There is no player-level bank variant: an Asset that is held per Player rather than per network says so on
 /// its own catalogue row, as <c>Asset.StorageScope</c>, because that is a property of the Asset and not of a phase of the game - see
 /// <see cref="Enums.Assets.AssetStorageScope"/>.
 /// </para>

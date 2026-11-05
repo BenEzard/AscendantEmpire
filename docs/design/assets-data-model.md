@@ -49,7 +49,7 @@ enforce. The list is flat and does not nest, so a capacity refusal names one thi
 `Sundries` is the catch-all, and is deliberately not called the storehouse — that word means the tier-granted generic
 pool a class overflows into, so reusing it would make a capacity refusal read as one thing failing twice. `People` and
 `Intangible` exist because the FK is required rather than because anything stores them: population statuses are counted
-rather than stockpiled, and experience points and the Force rows are not kept anywhere.
+rather than stored, and experience points and the Force rows are not kept anywhere.
 
 The catalogue has no endpoint of its own. It is maintained by the database seed's Storage Classes target, which dispatches
 the same upsert any endpoint would.
@@ -261,7 +261,7 @@ GET /player/assets
   than on the figure: a `Player` asset is always sent, because Technology experience empties at the end of every turn by design and a ticker that
   vanished each turn would read worse than one at zero, and a `Derived` figure is always sent while no ledger records it. A group left with no
   assets drops and takes its category with it; a meta-category keeps its icon over an empty panel, which its own unlock row decides.
-- Six fields — `amountAddedPerTurn`, `hasStrategicStockpile`, `isImported`, `isExported`, `demandNotMet`, `isLuxury` — are contract
+- Six fields — `amountAddedPerTurn`, `hasStrategicReserve`, `isImported`, `isExported`, `demandNotMet`, `isLuxury` — are contract
   placeholders the API sends as zero or false until their own tickets land.
 - An asset's `distributionConfig` and `productionConfig` have no wire source, so the Resource Manager's distribution and production pages show their
   empty states.

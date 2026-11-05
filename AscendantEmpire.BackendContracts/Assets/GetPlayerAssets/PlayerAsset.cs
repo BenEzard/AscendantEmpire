@@ -127,9 +127,9 @@ public record PlayerAsset
     public required int AmountAddedPerTurn { get; init; }
 
     /// <summary>
-    /// Whether part of this Asset is held back in a strategic reserve. <b>Placeholder - always false</b>, awaiting the strategic stockpile ticket.
+    /// Whether part of this Asset is held in a strategic reserve. <b>Placeholder - always false</b>, awaiting the strategic reserve ticket.
     /// </summary>
-    public required bool HasStrategicStockpile { get; init; }
+    public required bool HasStrategicReserve { get; init; }
 
     /// <summary>
     /// Whether the Player is importing this Asset. <b>Placeholder - always false</b>, awaiting the trade ticket.
