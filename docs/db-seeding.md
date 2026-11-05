@@ -34,7 +34,8 @@ Each part is a `SeedTarget` (`AscendantEmpire.Domain/Enums/System/SeedTarget.cs`
 | `Tags` | Unit Design | `TagTypes` | `unitdesigns.Tag` |
 | `UnitComponents` | Unit Design | `Tags` | `unitdesigns.UnitComponent` and its graph |
 | `StarterTemplates` | Unit Design | `UnitComponents` | global `unitdesigns.UnitTemplate` |
-| `Assets` | Assets | — | the `assets` schema catalogue |
+| `StorageClasses` | Assets | — | `assets.StorageClass` — how each Asset is kept |
+| `Assets` | Assets | `StorageClasses` | the `assets` schema catalogue |
 | `ExperienceTypes` | Technology | — | `technology.ExperienceType` |
 | `Technologies` | Technology | `ExperienceTypes` | `technology.Technology` and its graph |
 | `MapResourceTypes` | Map | `MapResourceCategories`, `Biomes`, `Assets` | `map.MapResourceType` and its habitats, scenarios and yields |
@@ -56,6 +57,9 @@ They are real constraints, not conventions:
 
 - **`Technologies` → `ExperienceTypes`.** A technology maps the experience kinds it draws on by code,
   and the upsert resolves those against rows already committed.
+- **`Assets` → `StorageClasses`.** Every Asset names the storage class it is kept under by code, and
+  `Asset.StorageClassId` is a non-null FK with `DeleteBehavior.NoAction` — so a migrated but unseeded
+  class table fails every Asset insert at the database, not just the resolution in the handler.
 - **`Structures` has no edges.** A Structure references nothing else the seed writes, and nothing the
   seed writes references one. What needs it is the settle order and the construction step, neither of
   which the seed runs — so an unseeded catalogue means a founding is refused with a message naming this
@@ -70,8 +74,8 @@ They are real constraints, not conventions:
   `FK_MapResourceDistributionScenarioBiomeWeight_CampaignBiome_BiomeTypeId`); and a scenario's amounts
   name `assets.Asset` rows by id, which `SeedMapResourceTypesHandler` resolves from codes.
 
-`Geographies`, `Biomes`, `TagTypes`, `Assets` and `ExperienceTypes` are genuinely independent of
-each other and of everything else.
+`Geographies`, `Biomes`, `TagTypes`, `StorageClasses` and `ExperienceTypes` are genuinely independent
+of each other and of everything else.
 
 ---
 

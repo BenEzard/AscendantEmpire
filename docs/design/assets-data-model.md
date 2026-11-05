@@ -14,14 +14,45 @@ This document describes the asset hierarchy — how it is structured in the data
 | `AssetCategory` | `Id` | Mid-level grouping, e.g. "Stone", "Wood". Has a `CategoryType` that determines how its assets are displayed, and a `SubjectScope` that decides whether it is shown once or projected per other player. |
 | `AssetGroup` | `Id` | Sub-grouping within a grouped category, e.g. "Logs" within "Wood". |
 | `Asset` | `Id` | The actual asset, e.g. "Oak", "Marble", "Coal". |
+| `StorageClass` | `Id` | How an Asset is kept, as against what it is — the storage yard, the armoury, the granary. `Code` and `DisplayName` are both uniquely indexed. |
 
 Every table above is **global**. None of them carries a `GameId` or a `PlayerId`, and `Code` is unique across the whole
-catalogue, so the same four tables serve every game.
+catalogue, so the same five tables serve every game.
 
 `Asset.IsNaturallyOccurring` marks what the world produces by itself — timber, raw rock, bone, hides, and the gathered,
 quarried and hunted raw materials. It is authoring data rather than a balance lever: nothing in play reads it and the
 database seed is its only writer. The Map Resource Type Manager's Asset pickers narrow their lists by it, so a
 MapResourceType can only be authored to yield something extraction could plausibly turn up.
+
+### Storage classes
+
+Every `Asset` names exactly one `StorageClass` through `Asset.StorageClassId`, a non-null FK with `DeleteBehavior.NoAction`,
+so a class still in use cannot be deleted. The storage class is what a capacity cap binds against.
+
+It is deliberately **not** a level of the hierarchy and **not** a tag. The hierarchy classifies what a thing *is*, for
+display; a storage class says how it is *kept*, and the two cut across each other — the storage yard spans two categories
+and four groups, while the fuel dump takes four rows out of the middle of a single flat one. A tag would be the wrong
+shape as well: tags are many-to-many and optional, where this is exactly one and required, which only a non-null FK can
+enforce. The list is flat and does not nest, so a capacity refusal names one thing.
+
+| Code | Display name | What it holds |
+|---|---|---|
+| `Armoury` | Armoury | Every melee weapon, at all three grades. |
+| `FuelDump` | Fuel Dump | Pitch, resin, tar and tallow. |
+| `Granary` | Granary | Fodder and the dry staples — wild grains, seeds, legumes, nuts. |
+| `Intangible` | Intangible | What is kept nowhere at all: the two experience points, and the three armed services. |
+| `Larder` | Larder | Perishable food — meat, fish and the gathered plant foods. |
+| `People` | People | The seven population statuses, our own and those we hold. |
+| `StorageYard` | Storage Yard | Timber and masonry — logs, planks, raw rock, bricks. |
+| `Sundries` | Sundries | The catch-all: small, odd goods that earn no store of their own, plus the special foods. |
+
+`Sundries` is the catch-all, and is deliberately not called the storehouse — that word means the tier-granted generic
+pool a class overflows into, so reusing it would make a capacity refusal read as one thing failing twice. `People` and
+`Intangible` exist because the FK is required rather than because anything stores them: population statuses are counted
+rather than stockpiled, and experience points and the Force rows are not kept anywhere.
+
+The catalogue has no endpoint of its own. It is maintained by the database seed's Storage Classes target, which dispatches
+the same upsert any endpoint would.
 
 ### Player-scoped tables
 
@@ -144,6 +175,9 @@ AssetCategory (1)
 
 AssetGroup (1)
   └──< Asset (N)             [FK: Asset.AssetGroupId]            — GroupedAssets only
+
+StorageClass (1)
+  └──< Asset (N)             [FK: Asset.StorageClassId]          — required, cuts across the hierarchy
 ```
 
 ---
@@ -247,3 +281,8 @@ UpsertAssetMetaCategoryDto
 ```
 
 All codes are derived automatically from `DisplayName` (ProperCase, non-alpha stripped) if not explicitly supplied. Category codes are hierarchical: `MetaCode.CategoryCode`. Group codes extend further: `MetaCode.CategoryCode.GroupCode`.
+
+`UpsertAssetDto.StorageClassCode` is the one required field with no derivation and no partial-update preservation: the
+column behind it is a non-null FK with no sensible default. It is resolved against `StorageClass` rows already committed,
+and an unknown code fails the whole request naming every unresolved code at once. Those rows are written by the database
+seed's Storage Classes target rather than over HTTP — the catalogue has no endpoint.

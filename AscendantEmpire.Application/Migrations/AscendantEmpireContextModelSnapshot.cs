@@ -74,7 +74,7 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("SortOrder")
                         .HasColumnType("int");
 
-                    b.Property<int?>("StorageClassId")
+                    b.Property<int>("StorageClassId")
                         .HasColumnType("int");
 
                     b.Property<int>("StorageScope")
@@ -4606,7 +4606,8 @@ namespace AscendantEmpire.Application.Migrations
                     b.HasOne("AscendantEmpire.Domain.Entities.Assets.StorageClass", "StorageClass")
                         .WithMany("Assets")
                         .HasForeignKey("StorageClassId")
-                        .OnDelete(DeleteBehavior.NoAction);
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
 
                     b.Navigation("Category");
 

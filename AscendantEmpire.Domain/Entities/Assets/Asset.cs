@@ -132,17 +132,20 @@ public sealed class Asset
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Exactly one, and required. Nullable only until the migration that fills it on existing rows has run, after which the column itself is what enforces
-    /// the guarantee - which is the whole reason this is a foreign key rather than a tag.
+    /// Exactly one, always - the non-null column is what enforces that, which is the whole reason this is a foreign key rather than a tag.
+    /// </para>
+    /// <para>
+    /// <c>required</c> rather than a plain <c>int</c>, so a construction site that states no class is a compile error instead of a zero that passes
+    /// in-memory and violates the foreign key only against SQL Server.
     /// </para>
     /// <para>
     /// Every Asset carries one, including those no bank ever holds: the experience points and the population figures are classed because the column requires
     /// it, not because anything will ever grant them capacity.
     /// </para>
     /// </remarks>
-    public int? StorageClassId { get; set; }
+    public required int StorageClassId { get; set; }
 
-    public StorageClass? StorageClass { get; set; }
+    public StorageClass StorageClass { get; set; } = null!;
 
     public AssetMetaCategory MetaCategory { get; set; } = null!;
 

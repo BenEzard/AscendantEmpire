@@ -59,6 +59,7 @@ Use these names. Sixteen sessions inventing sixteen synonyms is the main thing t
 | **Storage class** | How an asset is kept, as against what it is. `Asset.StorageClassId`, required, exactly one. |
 | **Specialist store** | Capacity granted for one storage class by a building — the armoury, the oil dump. |
 | **Generic pool** | Tier-granted capacity any class overflows into. The storehouse. |
+| **Sundries** | The catch-all *storage class*, for goods that earn no store of their own. Not the generic pool: that is the storehouse, and the two words are not interchangeable. |
 | **Local-first** | A settlement expense drains the site's own bank before touching the rest of its network. |
 | **Levelling** | Cutting the fullest banks to a common water-line (debit), or filling the emptiest first (credit). |
 | **Reserved** | `AssetBankBalance.StockpiledQuantity` — held back from circulation and from every total until released. |

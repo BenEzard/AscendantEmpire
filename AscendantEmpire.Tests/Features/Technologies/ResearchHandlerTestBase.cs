@@ -175,6 +175,11 @@ internal abstract class ResearchHandlerTestBase : InMemoryTestBase
             IconPath = string.Empty
         };
 
+        // Saved ahead of the Asset, because StorageClassId is required and so cannot wait for the navigation to be fixed up at SaveChanges.
+        var storageClass = new StorageClass { Code = $"{code}.Class", DisplayName = $"{displayName} Class" };
+        Context.StorageClasses.Add(storageClass);
+        await Context.SaveChangesAsync();
+
         Context.Assets.Add(new Asset
         {
             Code = code,
@@ -191,7 +196,7 @@ internal abstract class ResearchHandlerTestBase : InMemoryTestBase
                 CategoryType = AssetCategoryType.StandaloneAssets,
                 MetaCategory = metaCategory
             },
-            StorageClass = new StorageClass { Code = $"{code}.Class", DisplayName = $"{displayName} Class" }
+            StorageClassId = storageClass.Id
         });
 
         await Context.SaveChangesAsync();

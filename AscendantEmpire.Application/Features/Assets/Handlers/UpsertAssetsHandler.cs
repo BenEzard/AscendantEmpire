@@ -327,7 +327,10 @@ internal class UpsertAssetsHandler(
                     IsNaturallyOccurring = res.Dto.IsNaturallyOccurring,
                     StorageScope = res.Dto.StorageScope,
                     MetaCategory = metaEntity,
-                    StorageClass = storageClasses[res.Dto.StorageClassCode],
+
+                    // The id rather than the navigation, unlike the rows above: a storage class is always already committed, so its key is known here,
+                    // while a meta-category or group may have been added by this same request and have none until SaveChanges.
+                    StorageClassId = storageClasses[res.Dto.StorageClassCode].Id,
                     Group = groupEntity
                 };
                 context.Assets.Add(assetEntity);
@@ -343,7 +346,7 @@ internal class UpsertAssetsHandler(
                 assetEntity.IsNaturallyOccurring = res.Dto.IsNaturallyOccurring;
                 assetEntity.StorageScope = res.Dto.StorageScope;
                 assetEntity.MetaCategory = metaEntity;
-                assetEntity.StorageClass = storageClasses[res.Dto.StorageClassCode];
+                assetEntity.StorageClassId = storageClasses[res.Dto.StorageClassCode].Id;
 
                 // Ensure grouped path is set and standalone path is cleared.
                 assetEntity.Group = groupEntity;
@@ -382,7 +385,7 @@ internal class UpsertAssetsHandler(
                     IsNaturallyOccurring = res.Dto.IsNaturallyOccurring,
                     StorageScope = res.Dto.StorageScope,
                     MetaCategory = metaEntity,
-                    StorageClass = storageClasses[res.Dto.StorageClassCode],
+                    StorageClassId = storageClasses[res.Dto.StorageClassCode].Id,
                     Category = catEntity
                 };
                 context.Assets.Add(assetEntity);
@@ -398,7 +401,7 @@ internal class UpsertAssetsHandler(
                 assetEntity.IsNaturallyOccurring = res.Dto.IsNaturallyOccurring;
                 assetEntity.StorageScope = res.Dto.StorageScope;
                 assetEntity.MetaCategory = metaEntity;
-                assetEntity.StorageClass = storageClasses[res.Dto.StorageClassCode];
+                assetEntity.StorageClassId = storageClasses[res.Dto.StorageClassCode].Id;
 
                 // Ensure standalone path is set and grouped path is cleared.
                 assetEntity.Category = catEntity;

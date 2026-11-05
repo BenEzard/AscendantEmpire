@@ -354,6 +354,11 @@ internal class GetTechnologiesHandlerTests : InMemoryTestBase
             MetaCategory = metaCategory
         };
 
+        // Saved ahead of the Asset, because StorageClassId is required and so cannot wait for the navigation to be fixed up at SaveChanges.
+        var storageClass = new StorageClass { Code = $"{code}.Class", DisplayName = $"{displayName} Class" };
+        _context.StorageClasses.Add(storageClass);
+        await _context.SaveChangesAsync();
+
         var asset = new Asset
         {
             Code = code,
@@ -363,7 +368,7 @@ internal class GetTechnologiesHandlerTests : InMemoryTestBase
             SortOrder = 10,
             MetaCategory = metaCategory,
             Category = category,
-            StorageClass = new StorageClass { Code = $"{code}.Class", DisplayName = $"{displayName} Class" }
+            StorageClassId = storageClass.Id
         };
 
         _context.Assets.Add(asset);
