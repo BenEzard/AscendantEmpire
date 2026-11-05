@@ -186,6 +186,18 @@ namespace AscendantEmpire.Api
                     "Jwt:SigningKey is not configured. Set it via user-secrets or an environment variable.");
             }
 
+            // Measured in bytes rather than characters, because that is what the algorithm sees and what its own error reports.
+            int signingKeyBytes = Encoding.UTF8.GetByteCount(jwtSettings.SigningKey);
+
+            if (signingKeyBytes < JwtSettings.MINIMUM_SIGNING_KEY_BYTES)
+            {
+                // Checked here because HS256 does not: a short key passes configuration binding and throws on the first token signed, which surfaces as a
+                // failed login rather than a failed boot.
+                throw new InvalidOperationException(
+                    $"Jwt:SigningKey is {signingKeyBytes} bytes; HS256 needs at least {JwtSettings.MINIMUM_SIGNING_KEY_BYTES}. "
+                    + "Set a longer one via user-secrets or an environment variable.");
+            }
+
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
                 {

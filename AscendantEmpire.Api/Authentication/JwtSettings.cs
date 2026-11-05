@@ -8,6 +8,15 @@ public class JwtSettings
     public const string SectionName = "Jwt";
 
     /// <summary>
+    /// The shortest signing key HS256 will accept, in UTF-8 bytes.
+    /// </summary>
+    /// <remarks>
+    /// Fixed by the algorithm rather than chosen: HMAC-SHA256 refuses a key below its own 256-bit output size, so a shorter one throws out of
+    /// <c>CreateKeyedHashAlgorithm</c> when the first token is signed. Startup checks against this so a short key is caught on boot instead.
+    /// </remarks>
+    public const int MINIMUM_SIGNING_KEY_BYTES = 32;
+
+    /// <summary>
     /// Who issues the token (this API). 
     /// </summary>
     /// <remarks>Validated on incoming tokens.</remarks>
@@ -17,10 +26,12 @@ public class JwtSettings
     public string Audience { get; init; } = string.Empty;
 
     /// <summary>
-    /// The secret key used to sign and verify tokens. 
+    /// The secret key used to sign and verify tokens.
     /// </summary>
     /// <remarks>
-    /// Keep this out of source control — set it via user-secrets or an environment variable. Must be long (32+ chars).
+    /// Keep this out of source control — set it via user-secrets or an environment variable. At least
+    /// <see cref="MINIMUM_SIGNING_KEY_BYTES"/> bytes, which startup enforces.
+    /// </remarks>
     public string SigningKey { get; init; } = string.Empty;
 
     /// <summary>
