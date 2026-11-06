@@ -29,7 +29,7 @@ export default function MapResourcePalette({ categories, selectedTypeId, onSelec
       <button
         type="button"
         role="menuitem"
-        className={`mb-2 flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm hover:bg-slate-100 ${selectedTypeId == null ? "bg-slate-100" : ""}`}
+        className={`mb-2 flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm text-slate-800 hover:bg-slate-100 ${selectedTypeId == null ? "bg-slate-100" : ""}`}
         onClick={() => choose(null)}>
         <span className="inline-block h-5 w-5" />
         <span>{"<none>"}</span>
@@ -54,7 +54,7 @@ export default function MapResourcePalette({ categories, selectedTypeId, onSelec
                         <button
                           type="button"
                           role="menuitem"
-                          className={`flex w-full items-center gap-2 rounded px-1 py-1 text-left text-sm hover:bg-slate-100 ${active ? "bg-slate-100 font-medium" : ""}`}
+                          className={`flex w-full items-center gap-2 rounded px-1 py-1 text-left text-sm text-slate-800 hover:bg-slate-100 ${active ? "bg-slate-100 font-medium" : ""}`}
                           onClick={() => choose(type.id!)}>
                           <MapResourceIcon iconPath={type.iconPath} size={20} />
                           <span className="whitespace-nowrap">{type.displayName}</span>

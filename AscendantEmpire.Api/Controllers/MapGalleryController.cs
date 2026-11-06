@@ -734,7 +734,7 @@ public class MapGalleryController : ControllerBase
     /// <response code="200">The map's MapResources</response>
     /// <response code="404">Campaign Map not found</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
-    [HttpGet("{id:int}/map-assets")]
+    [HttpGet("{id:int}/map-resources")]
     [ProducesResponseType(typeof(IGalleryMapResourceCollection), 200)]
     [ProducesResponseType(typeof(IApiErrorResult), 404)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]
@@ -757,7 +757,7 @@ public class MapGalleryController : ControllerBase
     /// <response code="404">No such tile or type</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [Authorize(Policy = nameof(PermissionType.MapEditor))]
-    [HttpPost("{id:int}/map-assets")]
+    [HttpPost("{id:int}/map-resources")]
     [ProducesResponseType(typeof(IGalleryMapResource), 201)]
     [ProducesResponseType(typeof(IApiErrorResult), 400)]
     [ProducesResponseType(typeof(IApiErrorResult), 404)]
@@ -777,7 +777,7 @@ public class MapGalleryController : ControllerBase
     /// <response code="404">That MapResource is not on this map</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [Authorize(Policy = nameof(PermissionType.MapEditor))]
-    [HttpPut("{id:int}/map-assets/{placementId:int}")]
+    [HttpPut("{id:int}/map-resources/{placementId:int}")]
     [ProducesResponseType(typeof(IGalleryMapResource), 200)]
     [ProducesResponseType(typeof(IApiErrorResult), 400)]
     [ProducesResponseType(typeof(IApiErrorResult), 404)]
@@ -800,7 +800,7 @@ public class MapGalleryController : ControllerBase
     /// <response code="404">That MapResource is not on this map</response>
     /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
     [Authorize(Policy = nameof(PermissionType.MapEditor))]
-    [HttpDelete("{id:int}/map-assets/{placementId:int}")]
+    [HttpDelete("{id:int}/map-resources/{placementId:int}")]
     [ProducesResponseType(204)]
     [ProducesResponseType(typeof(IApiErrorResult), 404)]
     [ProducesResponseType(typeof(IApiErrorResult), 500)]

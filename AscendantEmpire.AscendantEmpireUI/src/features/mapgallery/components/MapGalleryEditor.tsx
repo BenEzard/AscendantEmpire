@@ -11,10 +11,10 @@ import MapResourceTypeManagerDialog from "./MapResourceTypeManagerDialog";
 import type { CampaignMapGalleryIndex } from "../api/mapGalleryApi";
 import { useMapResourceCatalogueQuery } from "../hooks/useMapResourceCatalogue";
 import { useGalleryMapResourceMutations, useGalleryMapResourcesQuery } from "../hooks/useGalleryMapResources";
-import MapResourcePlacementDialog from "./mapResources/MapResourcePlacementDialog";
+import MapResourcePlacementDialog, { type MapResourcePlacementEdit } from "./mapResources/MapResourcePlacementDialog";
 import type { TileMapResourceMarker } from "./Tile";
 import { placementsByTile, resolvePlacementClick, tileKey, typesById } from "../tools/mapResourcePlacement";
-import type { GalleryMapResourceSpecifics } from "../api/galleryMapResourcesApi";
+import type { GalleryMapResource } from "../api/galleryMapResourcesApi";
 import { apiErrorMessages } from "@/util/apiErrors";
 import { useCampaignMapTilesQuery, type CampaignMapTileDto } from "@/features/mapgallery/hooks/useCampaignMapTiles";
 import { useCampaignMapGeographiesQuery } from "@/hooks/useCampaignMapGeographies";
@@ -36,6 +36,9 @@ import MapPropertiesDialog from "./MapPropertiesDialog";
 import { useUpdateCampaignMapRiversMutation } from "../hooks/useUpdateCampaignMapRivers";
 import { currentWidthOf, toCanonicalEdge, type MapEdgeGeometry, type TileEdgeRef } from "../tools/riverEdgePicking";
 import type { DrawableRiverWidth } from "@/components/map/RiverStrokeLayer";
+
+/** One shared empty list, so "this tile holds nothing" keeps the same identity between renders. */
+const EMPTY_PLACEMENTS: GalleryMapResource[] = [];
 
 function buildTiles2d(width: number, height: number, tiles: CampaignMapTileDto[]): TileCell[][] {
   const grid: TileCell[][] = Array.from({ length: height }, (_, y) =>
@@ -194,36 +197,65 @@ function MapGalleryEditor() {
     return markers;
   }, [placementsByTileKey, mapResourceTypesById]);
 
-  // The placement whose dialog is open. Kept as an id, so the dialog always shows the placement as last fetched.
-  const [editingPlacementId, setEditingPlacementId] = useState<number | null>(null);
-  const [placementErrors, setPlacementErrors] = useState<string[]>([]);
-  const editingPlacement = galleryMapResources?.find((placement) => placement.id === editingPlacementId) ?? null;
+  // The tile whose MapResource dialog is open, held as coordinates rather than placement ids so the dialog follows the tile as resources are added
+  // to it and removed from it.
+  const [editingTile, setEditingTile] = useState<{ x: number; y: number } | null>(null);
+  const [placementErrors, setPlacementErrors] = useState<ReadonlyMap<number, string[]>>(new Map());
+  // Memoized because the dialog seeds its drafts from this array: a fresh [] every render would re-seed on every render.
+  const editingPlacements = useMemo(
+    () => (editingTile ? (placementsByTileKey.get(tileKey(editingTile.x, editingTile.y)) ?? EMPTY_PLACEMENTS) : EMPTY_PLACEMENTS),
+    [editingTile, placementsByTileKey],
+  );
 
-  const openPlacement = useCallback((placementId: number) => {
-    setPlacementErrors([]);
-    setEditingPlacementId(placementId);
+  const openTilePlacements = useCallback((x: number, y: number) => {
+    setPlacementErrors(new Map());
+    setEditingTile({ x, y });
   }, []);
 
   const closePlacement = useCallback(() => {
-    setPlacementErrors([]);
-    setEditingPlacementId(null);
+    setPlacementErrors(new Map());
+    setEditingTile(null);
   }, []);
 
-  const savePlacement = useCallback(
-    (specifics: GalleryMapResourceSpecifics) => {
-      if (editingPlacementId == null) return;
-      placementMutations.update.mutate(
-        { placementId: editingPlacementId, specifics },
-        { onSuccess: closePlacement, onError: (error) => setPlacementErrors(apiErrorMessages(error)) },
-      );
+  // Written one at a time, stopping at the first refusal so a partial save shows which resource the server would not take.
+  const savePlacements = useCallback(
+    async (edits: MapResourcePlacementEdit[]) => {
+      setPlacementErrors(new Map());
+
+      for (const edit of edits) {
+        try {
+          await placementMutations.update.mutateAsync(edit);
+        } catch (error) {
+          setPlacementErrors(new Map([[edit.placementId, apiErrorMessages(error)]]));
+          return;
+        }
+      }
+
+      closePlacement();
     },
-    [editingPlacementId, placementMutations.update, closePlacement],
+    [placementMutations.update, closePlacement],
   );
 
-  const deletePlacement = useCallback(() => {
-    if (!editingPlacement) return;
-    placementMutations.remove.mutate(editingPlacement, { onSuccess: closePlacement, onError: (error) => setPlacementErrors(apiErrorMessages(error)) });
-  }, [editingPlacement, placementMutations.remove, closePlacement]);
+  const deletePlacement = useCallback(
+    (placementId: number) => {
+      const placement = editingPlacements.find((candidate) => candidate.id === placementId);
+
+      if (!placement) {
+        return;
+      }
+
+      placementMutations.remove.mutate(placement, {
+        // The dialog is the tile's, so it stays open while the tile still holds something.
+        onSuccess: () => {
+          if (editingPlacements.length <= 1) {
+            closePlacement();
+          }
+        },
+        onError: (error) => setPlacementErrors(new Map([[placementId, apiErrorMessages(error)]])),
+      });
+    },
+    [editingPlacements, placementMutations.remove, closePlacement],
+  );
 
   // ---------------------------
   // Open map / tiles (above the click handlers, which read the grid to decide what a click does)
@@ -313,6 +345,12 @@ function MapGalleryEditor() {
     (t: TileCell) => {
       if (activeTool === "inspect") {
         onInspectTileClick(t, { openToast, biomeNameByType, geographyNameByType });
+
+        // The terrain toast reports every tile; one carrying MapResources also opens them for editing.
+        if ((placementsByTileKey.get(tileKey(t.x, t.y)) ?? []).length > 0) {
+          openTilePlacements(t.x, t.y);
+        }
+
         return;
       }
 
@@ -344,18 +382,18 @@ function MapGalleryEditor() {
           return;
         }
 
-        // Clicking a tile that already holds the chosen MapResource opens it; otherwise it is placed, and its dialog opens for its specifics.
+        // Clicking a tile that already holds the chosen MapResource opens the tile; otherwise it is placed, and the tile opens for its specifics.
         const click = resolvePlacementClick(mapResourceMapSelection, placementsByTileKey.get(tileKey(t.x, t.y)));
 
         if (click.action === "none") {
           openToast(click.reason, "warning");
         } else if (click.action === "edit") {
-          openPlacement(click.placement.id);
+          openTilePlacements(t.x, t.y);
         } else {
           placementMutations.place.mutate(
             { xCoord: t.x, yCoord: t.y, mapResourceTypeId: mapResourceMapSelection! },
             {
-              onSuccess: (placed) => openPlacement(placed.id),
+              onSuccess: (placed) => openTilePlacements(placed.xCoord, placed.yCoord),
               // The server says why a tile was refused (no habitat for it, or it is full).
               onError: (error) => openToast(apiErrorMessages(error).join(" "), "danger"),
             },
@@ -403,7 +441,7 @@ function MapGalleryEditor() {
       putStartPositionsMutation,
       mapResourceMapSelection,
       placementsByTileKey,
-      openPlacement,
+      openTilePlacements,
       placementMutations.place,
     ],
   );
@@ -536,21 +574,19 @@ function MapGalleryEditor() {
       <GeographyListDialog show={activeDialog === "geographies"} geographies={geographies ?? []} onClose={() => setActiveDialog(null)} />
 
       {(() => {
-        // The edited placement's tile, for the habitat its starting quantity would be rolled from.
-        const tile = editingPlacement ? (tiles2d?.[editingPlacement.yCoord]?.[editingPlacement.xCoord] ?? null) : null;
-        const biomeName = tile?.biomeTypeId != null ? biomeNameByType.get(tile.biomeTypeId) : undefined;
-        const geographyName = tile?.geographyTypeId != null ? geographyNameByType.get(tile.geographyTypeId) : undefined;
+        // The edited tile, for the habitats each starting quantity would be rolled from.
+        const tile = editingTile ? (tiles2d?.[editingTile.y]?.[editingTile.x] ?? null) : null;
 
         return (
           <MapResourcePlacementDialog
-            placement={editingPlacement}
-            type={editingPlacement ? mapResourceTypesById.get(editingPlacement.mapResourceTypeId) : undefined}
+            tile={editingTile}
+            placements={editingPlacements}
+            typesById={mapResourceTypesById}
             biomeType={tile?.biomeTypeId ?? null}
             geographyType={tile?.geographyTypeId ?? null}
-            tileDescription={[geographyName, biomeName].filter(Boolean).join(" ") || "unknown terrain"}
             busy={placementMutations.update.isPending || placementMutations.remove.isPending}
             errors={placementErrors}
-            onSave={savePlacement}
+            onSave={savePlacements}
             onDelete={deletePlacement}
             onClose={closePlacement}
           />

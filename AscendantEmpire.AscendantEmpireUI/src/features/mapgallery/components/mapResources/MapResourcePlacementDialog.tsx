@@ -1,153 +1,145 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, FieldRow, Modal, inputClass } from "@/components/ui";
+import { Button, Modal } from "@/components/ui";
 import type { MapResourceType } from "@/types/map/MapResource";
-import type { GalleryMapResource, GalleryMapResourceSpecifics } from "../../api/galleryMapResourcesApi";
-import { holdsSingleQuantity, kindOf } from "../../tools/mapResourceDraft";
-import { habitatFor } from "../../tools/mapResourcePlacement";
-import MapResourceIcon from "./MapResourceIcon";
-import { WholeNumberInput } from "./mapResourceFields";
 import type { BiomeType } from "@/types/map/Biome";
 import type { CampaignMapGeographyType } from "@/types/map/Geography";
+import type { GalleryMapResource, GalleryMapResourceSpecifics } from "../../api/galleryMapResourcesApi";
+import { holdsSingleQuantity, kindOf } from "../../tools/mapResourceDraft";
+import { hasSettableSpecifics } from "../../tools/mapResourcePlacement";
+import MapResourcePlacementSection from "./MapResourcePlacementSection";
+
+/** One placement's specifics, as Save hands them back for writing. */
+export type MapResourcePlacementEdit = {
+  placementId: number;
+  specifics: GalleryMapResourceSpecifics;
+};
 
 interface MapResourcePlacementDialogProps {
-  /** The placement being edited; the dialog is closed while null. */
-  placement: GalleryMapResource | null;
-  /** Its type, from the catalogue. Undefined only if the catalogue has not loaded. */
-  type: MapResourceType | undefined;
+  /** The tile being edited; the dialog is closed while null. */
+  tile: { x: number; y: number } | null;
+  /** Every MapResource on that tile, ordered by slot — one or two of them, and empty while the dialog is closed. */
+  placements: GalleryMapResource[];
+  /** The catalogue by type id, for each placement's name, icon and kind. */
+  typesById: ReadonlyMap<number, MapResourceType>;
   /** The tile's Biome and Geography, to find the habitat whose range an empty starting quantity is rolled from. */
   biomeType: BiomeType | null;
   geographyType: CampaignMapGeographyType | null;
-  /** How the tile reads, e.g. "Hilly Forest". */
-  tileDescription: string;
   busy: boolean;
-  errors: string[];
-  onSave: (specifics: GalleryMapResourceSpecifics) => void;
-  onDelete: () => void;
+  /** What the server said, by placement id, so a refusal shows against the resource it refused. */
+  errors: ReadonlyMap<number, string[]>;
+  onSave: (edits: MapResourcePlacementEdit[]) => void;
+  onDelete: (placementId: number) => void;
   onClose: () => void;
 }
 
 /**
- * The specifics of one MapResource placed on the map. What can be set depends on the type's kind: a starting quantity for a type holding a single
- * quantity, or a Distribution's scenario. Anything left empty is decided when a game is created - the quantity rolled from the habitat's range, the
- * scenario picked weighted by Biome. A stratified MapResource has nothing to set: its layers are always rolled.
+ * The MapResources on one tile, a section each, with the specifics of every one editable at once.
+ *
+ * Scoped to the tile rather than to a single placement because a tile holds at most two MapResources, so both fit without a chooser or a list. Save
+ * writes only the sections whose values differ from the server's, so editing one of two resources stays a single request.
  */
 export default function MapResourcePlacementDialog({
-  placement,
-  type,
+  tile,
+  placements,
+  typesById,
   biomeType,
   geographyType,
-  tileDescription,
   busy,
   errors,
   onSave,
   onDelete,
   onClose,
 }: MapResourcePlacementDialogProps) {
-  const [initialQuantity, setInitialQuantity] = useState<number | null>(null);
-  const [scenarioNumber, setScenarioNumber] = useState<number | null>(null);
+  const [drafts, setDrafts] = useState<ReadonlyMap<number, GalleryMapResourceSpecifics>>(new Map());
 
-  // Taken from the placement each time a different one opens, so a cancelled edit does not linger into the next.
+  // Seeded per placement, keeping any edit already in progress: the placements refetch after every write, and a refetch must not discard what is
+  // being typed in the other section. A closed dialog is handed no placements, so closing clears the drafts and a cancelled edit cannot linger
+  // into the next tile.
   useEffect(() => {
-    setInitialQuantity(placement?.initialQuantity ?? null);
-    setScenarioNumber(placement?.distributionScenarioNumber ?? null);
-  }, [placement]);
+    setDrafts((previous) => {
+      const next = new Map<number, GalleryMapResourceSpecifics>();
 
-  const kind = type ? kindOf(type) : null;
-  const habitat = type ? habitatFor(type, biomeType, geographyType) : undefined;
+      for (const placement of placements) {
+        next.set(
+          placement.id,
+          previous.get(placement.id) ?? {
+            initialQuantity: placement.initialQuantity,
+            distributionScenarioNumber: placement.distributionScenarioNumber,
+          },
+        );
+      }
+
+      // Same placements, same drafts: keep the old map so re-seeding cannot itself cause another render.
+      const unchanged = next.size === previous.size && [...next].every(([id, specifics]) => previous.get(id) === specifics);
+
+      return unchanged ? previous : next;
+    });
+  }, [placements]);
+
+  // Only the values the kind actually uses are sent; the rest go as null, as a placement left to the game to decide does.
+  const specificsFor = (placement: GalleryMapResource): GalleryMapResourceSpecifics => {
+    const draft = drafts.get(placement.id);
+    const type = typesById.get(placement.mapResourceTypeId);
+    const kind = type ? kindOf(type) : null;
+
+    return {
+      initialQuantity: kind != null && holdsSingleQuantity(kind) ? (draft?.initialQuantity ?? null) : null,
+      distributionScenarioNumber: kind === "distribution" ? (draft?.distributionScenarioNumber ?? null) : null,
+    };
+  };
 
   const handleSave = () => {
-    onSave({
-      initialQuantity: kind && holdsSingleQuantity(kind) ? initialQuantity : null,
-      distributionScenarioNumber: kind === "distribution" ? scenarioNumber : null,
-    });
+    const edits = placements
+      .map((placement) => ({ placement, specifics: specificsFor(placement) }))
+      .filter(
+        ({ placement, specifics }) =>
+          specifics.initialQuantity !== placement.initialQuantity || specifics.distributionScenarioNumber !== placement.distributionScenarioNumber,
+      )
+      .map(({ placement, specifics }) => ({ placementId: placement.id, specifics }));
+
+    onSave(edits);
   };
+
+  // A tile holding nothing but stratified MapResources has no values to write, so Save would have nothing to do.
+  const anythingToSave = placements.some((placement) => hasSettableSpecifics(typesById.get(placement.mapResourceTypeId)));
 
   return (
     <Modal
-      open={placement != null}
-      title="Map Resource"
+      open={tile != null}
+      title={tile ? `Map Resources (Tile ${tile.x}, ${tile.y})` : "Map Resources"}
       size="md"
       onClose={() => {
-        if (!busy) onClose();
+        if (!busy) {
+          onClose();
+        }
       }}
       footer={
         <>
-          <div className="mr-auto">
-            <Button variant="danger" disabled={busy} onClick={onDelete}>
-              Delete
-            </Button>
-          </div>
           <Button variant="secondary" disabled={busy} onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="success" disabled={busy || kind === "stratified"} onClick={handleSave}>
+          <Button variant="success" disabled={busy || !anythingToSave} onClick={handleSave}>
             {busy ? "Saving..." : "Save"}
           </Button>
         </>
       }>
-      {placement ? (
-        <div className="w-full">
-          <div className="mb-4 flex items-center gap-3">
-            <MapResourceIcon iconPath={type?.iconPath ?? null} size={32} />
-            <div>
-              <div className="font-semibold">{type?.displayName ?? `MapResource ${placement.mapResourceTypeId}`}</div>
-              <div className="text-xs text-slate-500">
-                Tile ({placement.xCoord}, {placement.yCoord}) · {tileDescription} · slot {placement.slot}
-              </div>
-            </div>
+      <div className="w-full">
+        {placements.map((placement, index) => (
+          <div key={placement.id} className={index > 0 ? "mt-4 border-t border-slate-200 pt-4" : ""}>
+            <MapResourcePlacementSection
+              placement={placement}
+              type={typesById.get(placement.mapResourceTypeId)}
+              biomeType={biomeType}
+              geographyType={geographyType}
+              specifics={drafts.get(placement.id) ?? { initialQuantity: placement.initialQuantity, distributionScenarioNumber: placement.distributionScenarioNumber }}
+              onChange={(specifics) => setDrafts((previous) => new Map(previous).set(placement.id, specifics))}
+              errors={errors.get(placement.id) ?? []}
+              busy={busy}
+              onDelete={() => onDelete(placement.id)}
+            />
           </div>
-
-          {errors.length > 0 ? (
-            <Alert variant="danger">
-              <ul className="list-disc pl-5">
-                {errors.map((message, i) => (
-                  <li key={i}>{message}</li>
-                ))}
-              </ul>
-            </Alert>
-          ) : null}
-
-          {kind && holdsSingleQuantity(kind) ? (
-            <>
-              <FieldRow label="Starting Quantity" hint="(Empty: rolled per game)">
-                <WholeNumberInput
-                  value={initialQuantity}
-                  ariaLabel="Starting quantity"
-                  placeholder={
-                    habitat?.initialQuantityMin != null && habitat.initialQuantityMax != null
-                      ? `Roll ${habitat.initialQuantityMin}–${habitat.initialQuantityMax}`
-                      : "Roll per game"
-                  }
-                  onChange={setInitialQuantity}
-                />
-              </FieldRow>
-              {kind === "renewable" && habitat?.maximumQuantity != null ? (
-                <p className="text-xs text-slate-500">Grows to at most {habitat.maximumQuantity} here.</p>
-              ) : null}
-            </>
-          ) : null}
-
-          {kind === "distribution" && type ? (
-            <FieldRow label="Scenario">
-              <select
-                className={inputClass}
-                value={scenarioNumber ?? ""}
-                onChange={(e) => setScenarioNumber(e.target.value === "" ? null : Number(e.target.value))}>
-                <option value="">Picked per game (weighted by Biome)</option>
-                {type.distributionScenarios.map((scenario) => (
-                  <option key={scenario.scenarioNumber} value={scenario.scenarioNumber}>
-                    {`Scenario ${scenario.scenarioNumber}${scenario.displayName ? ` – ${scenario.displayName}` : ""}`}
-                  </option>
-                ))}
-              </select>
-            </FieldRow>
-          ) : null}
-
-          {kind === "stratified" ? (
-            <p className="text-sm text-slate-600">A stratified MapResource's layers are rolled when each game is created, so there is nothing to set here.</p>
-          ) : null}
-        </div>
-      ) : null}
+        ))}
+      </div>
     </Modal>
   );
 }

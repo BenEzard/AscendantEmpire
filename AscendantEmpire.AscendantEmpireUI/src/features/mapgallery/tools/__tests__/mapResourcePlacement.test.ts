@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { MapResourceType } from "@/types/map/MapResource";
 import type { GalleryMapResource } from "../../api/galleryMapResourcesApi";
 import { createHabitat, createMapResourceType } from "../mapResourceDraft";
-import { habitatFor, placementsByTile, resolvePlacementClick, tileKey, typesById } from "../mapResourcePlacement";
+import { habitatFor, hasSettableSpecifics, placementsByTile, resolvePlacementClick, tileKey, typesById } from "../mapResourcePlacement";
 
 // Biome and Geography arrive as their enum member names rather than numbers — see BiomeType in @/types/map/Biome.
 const FOREST = "Forest";
@@ -72,5 +72,18 @@ describe("resolvePlacementClick", () => {
   it("places the selected type otherwise, leaving a full or incompatible tile for the server to refuse", () => {
     expect(resolvePlacementClick(7, [placement(4, 0, 0, 1, 8), placement(5, 0, 0, 2, 9)]).action).toBe("place");
     expect(resolvePlacementClick(7, undefined).action).toBe("place");
+  });
+});
+
+describe("hasSettableSpecifics", () => {
+  it("holds for the kinds a designer can pin, and not for a stratified type whose layers are always rolled", () => {
+    expect(hasSettableSpecifics(berry())).toBe(true);
+    expect(hasSettableSpecifics(createMapResourceType("food", 1))).toBe(true);
+    expect(hasSettableSpecifics({ ...createMapResourceType("materials", 1), isDistribution: true })).toBe(true);
+    expect(hasSettableSpecifics({ ...createMapResourceType("materials", 1), isStratified: true })).toBe(false);
+  });
+
+  it("holds for no type at all, so a catalogue that has not loaded cannot enable Save", () => {
+    expect(hasSettableSpecifics(undefined)).toBe(false);
   });
 });

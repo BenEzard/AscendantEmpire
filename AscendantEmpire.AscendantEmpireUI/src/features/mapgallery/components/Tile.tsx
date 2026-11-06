@@ -92,7 +92,7 @@ const Tile = React.memo(function Tile({
       {mapResources && mapResources.length > 0 ? (
         <span className="tile-map-resources" aria-hidden>
           {mapResources.map((marker) => (
-            <MapResourceIcon key={marker.key} iconPath={marker.iconPath} size={Math.round(sizePx * 0.36)} className="tile-map-resource-icon" />
+            <MapResourceIcon key={marker.key} iconPath={marker.iconPath} size={Math.round(sizePx * 0.36)} />
           ))}
         </span>
       ) : null}

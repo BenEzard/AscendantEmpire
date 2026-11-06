@@ -1,11 +1,12 @@
 /**
- * Pure helpers for placing MapResources on a gallery map in the editor: grouping placements by tile, finding the habitat that applies to a tile, and
- * deciding what a click with the MapResource tool should do.
+ * Pure helpers for placing MapResources on a gallery map in the editor: grouping placements by tile, finding the habitat that applies to a tile,
+ * deciding what a click with the MapResource tool should do, and whether a placement has anything to set.
  */
 import type { MapResourceCategory, MapResourceHabitat, MapResourceType } from "@/types/map/MapResource";
 import type { GalleryMapResource } from "../api/galleryMapResourcesApi";
 import type { BiomeType } from "@/types/map/Biome";
 import type { CampaignMapGeographyType } from "@/types/map/Geography";
+import { holdsSingleQuantity, kindOf } from "./mapResourceDraft";
 
 /** The "x,y" key tiles are indexed by, as start positions are. */
 export function tileKey(x: number, y: number): string {
@@ -41,6 +42,22 @@ export function habitatFor(type: MapResourceType, biomeType: BiomeType | null, g
   const inBiome = type.habitats.filter((habitat) => habitat.biomeType === biomeType);
 
   return inBiome.find((habitat) => habitat.geographyType != null && habitat.geographyType === geographyType) ?? inBiome.find((habitat) => habitat.geographyType == null);
+}
+
+/**
+ * Whether the type has anything a designer can set on a placement.
+ *
+ * A stratified MapResource's layers are always rolled when a game is created, so a tile holding only stratified resources has nothing to save. The
+ * placement dialog uses this to decide whether its Save button does anything.
+ */
+export function hasSettableSpecifics(type: MapResourceType | undefined): boolean {
+  if (type == null) {
+    return false;
+  }
+
+  const kind = kindOf(type);
+
+  return holdsSingleQuantity(kind) || kind === "distribution";
 }
 
 /** What a click on a tile with the MapResource tool does. */
