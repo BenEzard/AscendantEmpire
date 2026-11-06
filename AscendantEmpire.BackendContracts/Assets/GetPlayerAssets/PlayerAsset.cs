@@ -12,7 +12,8 @@ namespace AscendantEmpire.BackendContracts.Assets.GetPlayerAssets;
 /// never both.
 /// </para>
 /// <para>
-/// Most of this record is catalogue data. <see cref="Amount"/> is measured, and the six fields under the placeholder banner are neither - nothing sources
+/// Most of this record is catalogue data. <see cref="Amount"/> and <see cref="HasStrategicReserve"/> are measured, and the five fields under the placeholder
+/// banner are neither - nothing sources
 /// them yet.
 /// </para>
 /// </remarks>
@@ -112,10 +113,20 @@ public record PlayerAsset
     /// </remarks>
     public required int Amount { get; init; }
 
+    /// <summary>
+    /// Whether any bank of the Player's holds a strategic reserve of this Asset.
+    /// </summary>
+    /// <remarks>
+    /// <b>A flag, not a figure, and deliberately so.</b> A reserved quantity is out of circulation and absent from <see cref="Amount"/> until it is released,
+    /// so sending the amount here is how the two would come to be added together. The ticker shows the indicator; the figure belongs to the screen that can
+    /// also release it.
+    /// </remarks>
+    public required bool HasStrategicReserve { get; init; }
+
     // -------------------------------------------------------------------------------------------------------------------------------------------------
     // Placeholders
     //
-    // Nothing sources any of the six fields below yet and no table holds them. They are on the contract from the start so the ticker panel can be
+    // Nothing sources any of the five fields below yet and no table holds them. They are on the contract from the start so the ticker panel can be
     // wired against the final shape and the tickers render, rather than being omitted and changing the contract later. Each is filled in by its own
     // ticket. Until then a zero here is the absence of a source, not a measured value.
     // -------------------------------------------------------------------------------------------------------------------------------------------------
@@ -125,11 +136,6 @@ public record PlayerAsset
     /// production and consumption ticket.
     /// </summary>
     public required int AmountAddedPerTurn { get; init; }
-
-    /// <summary>
-    /// Whether part of this Asset is held in a strategic reserve. <b>Placeholder - always false</b>, awaiting the strategic reserve ticket.
-    /// </summary>
-    public required bool HasStrategicReserve { get; init; }
 
     /// <summary>
     /// Whether the Player is importing this Asset. <b>Placeholder - always false</b>, awaiting the trade ticket.

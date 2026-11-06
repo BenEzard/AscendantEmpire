@@ -44,6 +44,70 @@ internal class PlayerAssetQuantityReaderTests : AssetBankTestBase
         Assert.That(amounts[await GetAssetIdAsync(_OAK_LOG_CODE)], Is.EqualTo(10));
     }
 
+    [Test, Description("A reserved quantity is left out of the amount reported, which is the whole of what 'does not appear in totals' has to mean.")]
+    public async Task ShouldNotCountAReservedQuantityInTheAmount()
+    {
+        await CreateBankAsync(
+            _playerId,
+            _SETTLEMENT_ID,
+            new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 },
+            reserves: new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 });
+
+        IReadOnlyDictionary<int, int> amounts = await ResolveAsync(_OAK_LOG_CODE);
+
+        Assert.That(amounts[await GetAssetIdAsync(_OAK_LOG_CODE)], Is.EqualTo(4), "Only the spendable quantity counts; the reserve is out of circulation.");
+    }
+
+    [Test, Description("A bank holding nothing but a reserve reports no amount at all, so a reserve can never be mistaken for stock an expense could be met from.")]
+    public async Task ShouldReportNoAmountForABankHoldingOnlyAReserve()
+    {
+        await CreateBankAsync(
+            _playerId,
+            _SETTLEMENT_ID,
+            new Dictionary<string, long>(),
+            reserves: new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 });
+
+        IReadOnlyDictionary<int, int> amounts = await ResolveAsync(_OAK_LOG_CODE);
+
+        Assert.That(amounts.ContainsKey(await GetAssetIdAsync(_OAK_LOG_CODE)), Is.False);
+    }
+
+    [Test, Description("Only the Assets a Player actually holds a reserve of come back as held in reserve, which is what the ticker's indicator is driven from.")]
+    public async Task ShouldReportOnlyTheAssetsHeldInReserveAsync()
+    {
+        await CreateBankAsync(
+            _playerId,
+            _SETTLEMENT_ID,
+            new Dictionary<string, long> { [_OAK_LOG_CODE] = 4, [_CEDAR_LOG_CODE] = 9 },
+            reserves: new Dictionary<string, long> { [_CEDAR_LOG_CODE] = 100 });
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        IReadOnlySet<int> heldInReserve = await _reader.GetAssetIdsHeldInReserveAsync(context, _playerId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(heldInReserve, Does.Contain(await GetAssetIdAsync(_CEDAR_LOG_CODE)));
+            Assert.That(heldInReserve, Does.Not.Contain(await GetAssetIdAsync(_OAK_LOG_CODE)), "Holding an Asset is not holding a reserve of it.");
+        }
+    }
+
+    [Test, Description("Another Player's reserve is not reported as held in reserve, so one Player's ticker cannot light up for another's stock.")]
+    public async Task ShouldNotReportAnotherPlayersReserveAsync()
+    {
+        await CreateBankAsync(
+            _otherPlayerId,
+            _FAR_SETTLEMENT_ID,
+            new Dictionary<string, long>(),
+            reserves: new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 });
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        IReadOnlySet<int> heldInReserve = await _reader.GetAssetIdsHeldInReserveAsync(context, _playerId);
+
+        Assert.That(heldInReserve, Is.Empty);
+    }
+
     [Test, Description("Another Player's bank is not counted, so a figure can never include stock its reader has no claim on.")]
     public async Task ShouldNotCountAnotherPlayersBank()
     {

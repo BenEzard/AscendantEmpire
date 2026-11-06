@@ -95,11 +95,16 @@ internal abstract class AssetBankTestBase : InMemoryTestBase
     /// The network to put the bank in, so a fixture can build two banks that can reach each other. Left null, the bank gets a network of its own; pass
     /// <see cref="Guid.Empty"/> for a bank the connectivity service has not keyed yet.
     /// </param>
+    /// <param name="reserves">
+    /// What the bank holds in strategic reserve, in whole units, by Asset code. An Asset here and not in <paramref name="balances"/> gets a row holding
+    /// nothing but a reserve, which is a state the drawdown and the quantity reader both have to handle.
+    /// </param>
     protected async Task<int> CreateBankAsync(
         int playerId,
         int settlementId,
         IReadOnlyDictionary<string, long> balances,
-        Guid? networkKey = null)
+        Guid? networkKey = null,
+        IReadOnlyDictionary<string, long>? reserves = null)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
@@ -113,15 +118,20 @@ internal abstract class AssetBankTestBase : InMemoryTestBase
         context.AssetBanks.Add(bank);
         await context.SaveChangesAsync();
 
-        Dictionary<string, int> assetIdsByCode = await ReadAssetIdsAsync(context, [.. balances.Keys]);
+        string[] assetCodes = [.. balances.Keys.Union(reserves?.Keys ?? [])];
 
-        foreach ((string assetCode, long wholeQuantity) in balances)
+        Dictionary<string, int> assetIdsByCode = await ReadAssetIdsAsync(context, assetCodes);
+
+        foreach (string assetCode in assetCodes)
         {
             context.AssetBankBalances.Add(new AssetBankBalance
             {
                 AssetBankId = bank.Id,
                 AssetId = assetIdsByCode[assetCode],
-                Quantity = ScaledAmount.FromWhole(wholeQuantity).RawValue
+                Quantity = ScaledAmount.FromWhole(balances.TryGetValue(assetCode, out long wholeQuantity) ? wholeQuantity : 0).RawValue,
+                ReservedQuantity = ScaledAmount
+                    .FromWhole(reserves is not null && reserves.TryGetValue(assetCode, out long wholeReserved) ? wholeReserved : 0)
+                    .RawValue
             });
         }
 
@@ -255,6 +265,21 @@ internal abstract class AssetBankTestBase : InMemoryTestBase
             .ToListAsync();
 
         return rows.ToDictionary(row => row.AssetCode, row => row.Quantity);
+    }
+
+    /// <summary>
+    /// Reads what one bank now holds in strategic reserve, in whole units, keyed by Asset code, with Assets the bank has no row for left out.
+    /// </summary>
+    protected async Task<Dictionary<string, long>> ReadReservesAsync(int assetBankId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        List<BalanceRow> rows = await context.AssetBankBalances
+            .Where(balance => balance.AssetBankId == assetBankId)
+            .Select(balance => new BalanceRow(balance.Asset.Code, balance.ReservedQuantity))
+            .ToListAsync();
+
+        return rows.ToDictionary(row => row.AssetCode, row => ScaledAmount.FromRaw(row.Quantity).ToWholeRoundedDown());
     }
 
     /// <summary>

@@ -143,6 +143,11 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<long>("Quantity")
                         .HasColumnType("bigint");
 
+                    b.Property<long>("ReservedQuantity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L);
+
                     b.HasKey("AssetBankId", "AssetId");
 
                     b.HasIndex("AssetId");
@@ -267,6 +272,31 @@ namespace AscendantEmpire.Application.Migrations
                         .IsUnique();
 
                     b.ToTable("AssetMetaCategory", "assets");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.PlayerStrategicReservePolicy", b =>
+                {
+                    b.Property<int>("PlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AssetId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DiversionPercent")
+                        .HasColumnType("int");
+
+                    b.Property<long>("TargetQuantity")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("PlayerId", "AssetId");
+
+                    b.HasIndex("AssetId")
+                        .HasDatabaseName("IX_PlayerStrategicReservePolicy_Asset");
+
+                    b.ToTable("PlayerStrategicReservePolicy", "assets", t =>
+                        {
+                            t.HasCheckConstraint("CK_PlayerStrategicReservePolicy_DiversionPercent", "[DiversionPercent] >= 0 AND [DiversionPercent] <= 100");
+                        });
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.PlayerUnlockedAsset", b =>
@@ -4678,6 +4708,27 @@ namespace AscendantEmpire.Application.Migrations
                         .IsRequired();
 
                     b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.PlayerStrategicReservePolicy", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.Asset", "Asset")
+                        .WithMany()
+                        .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerStrategicReservePolicy_Asset_AssetId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Games.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_PlayerStrategicReservePolicy_Player_PlayerId");
+
+                    b.Navigation("Asset");
+
+                    b.Navigation("Player");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.PlayerUnlockedAsset", b =>

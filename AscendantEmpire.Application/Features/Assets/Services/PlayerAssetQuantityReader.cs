@@ -35,6 +35,21 @@ internal sealed class PlayerAssetQuantityReader(IAssetBankReader bankReader) : I
         return amountsByAssetId;
     }
 
+    public async Task<IReadOnlySet<int>> GetAssetIdsHeldInReserveAsync(
+        AscendantEmpireContext context,
+        int playerId,
+        CancellationToken cancelToken = default)
+    {
+        ServiceResult<IReadOnlyCollection<AssetBankHoldings>> banksResult = await bankReader.GetForPlayerAsync(context, playerId, cancelToken);
+
+        // Read through the bank reader for the same reason the amounts are, so what a Settlement's panel shows and what the ticker flags are the same rows.
+        return new HashSet<int>(
+            (banksResult.SuccessValue ?? [])
+                .SelectMany(bank => bank.Holdings)
+                .Where(holding => holding.RawReserved > 0)
+                .Select(holding => holding.AssetId));
+    }
+
     /// <summary>
     /// Adds the figure for every requested Asset held in the Player's banks, summed across all of them.
     /// </summary>

@@ -24,11 +24,20 @@ public record AssetBankHolding
     public required int? AssetGroupId { get; init; }
 
     /// <summary>
-    /// The amount held, scaled by <c>ScaledAmount.Scale</c> (1,000), exactly as the column stores it.
+    /// The amount held, scaled by <c>ScaledAmount.Scale</c> (1,000).
     /// </summary>
     /// <remarks>
     /// Raw rather than whole because this is the figure a drawdown compares an expense against, and rounding it here would let a bank holding 0.4 Oak Logs
     /// read as empty to one caller and as sufficient to another. Convert at the edge: the UI and the API still speak whole numbers.
     /// </remarks>
     public required long RawQuantity { get; init; }
+
+    /// <summary>
+    /// How much of the amount held is in a strategic reserve, scaled by <c>ScaledAmount.Scale</c> (1,000).
+    /// </summary>
+    /// <remarks>
+    /// <b>Not part of <see cref="RawQuantity"/>, and not spendable.</b> It is carried so that a caller can tell a bank holding nothing but a reserve from an
+    /// empty one, and so the ticker can say an Asset has a reserve at all; a drawdown still prices an expense against <see cref="RawQuantity"/> alone.
+    /// </remarks>
+    public required long RawReserved { get; init; }
 }

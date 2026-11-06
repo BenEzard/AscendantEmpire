@@ -45,12 +45,17 @@ internal class AssetBankConquestServicePersistenceTests : GameSqlServerTestBase
     private const long _OAK_LOGS_HELD = 4_000;
     private const long _CEDAR_LOGS_HELD = 11_500;
 
+    // Small enough that a release always fits a Village's stockpile, so the reserve cases pin the release rule rather than a capacity clamp.
+    private const long _CAPTURED_OAK_RESERVE = 6_000;
+    private const long _CONQUEROR_OAK_TARGET = 2_000;
+
     private int _gameId;
     private int _losingPlayerId;
     private int _conqueringPlayerId;
     private int _capturedSettlementId;
     private int _capturedBankId;
     private Guid _keyBeforeCapture;
+    private int _structureTypeId;
 
     /// <summary>What the database said the captured bank's owner was each time a recompute ran, in the order the recomputes happened.</summary>
     private readonly List<RecomputeObservation> _recomputes = [];
@@ -84,17 +89,17 @@ internal class AssetBankConquestServicePersistenceTests : GameSqlServerTestBase
         _losingPlayerId = playerIds[0];
         _conqueringPlayerId = playerIds[1];
 
-        int structureTypeId = await SeedSettlementHallAsync(context);
+        _structureTypeId = await SeedSettlementHallAsync(context);
 
         (_capturedSettlementId, _capturedBankId, _keyBeforeCapture) = await SeedSettlementWithBankAsync(
             context,
-            structureTypeId,
+            _structureTypeId,
             _losingPlayerId,
             "Riverhold",
             new Dictionary<string, long> { [_OAK_LOG_CODE] = _OAK_LOGS_HELD, [_CEDAR_LOG_CODE] = _CEDAR_LOGS_HELD });
 
         // A second Settlement the loser keeps, so "the loser is recomputed too" is asked of a Player who still has banks after the conquest.
-        await SeedSettlementWithBankAsync(context, structureTypeId, _losingPlayerId, "Stonewatch", new Dictionary<string, long>());
+        await SeedSettlementWithBankAsync(context, _structureTypeId, _losingPlayerId, "Stonewatch", new Dictionary<string, long>());
 
         BuildService();
     }
@@ -164,7 +169,7 @@ internal class AssetBankConquestServicePersistenceTests : GameSqlServerTestBase
             await _conquestService.TransferOnConquestAsync(context, _capturedSettlementId, _conqueringPlayerId);
         }
 
-        Assert.That(_recomputes.Select(recompute => recompute.PlayerId), Is.EquivalentTo(new[] { _losingPlayerId, _conqueringPlayerId }));
+        Assert.That(_recomputes.Select(recompute => recompute.PlayerId), Is.EquivalentTo([_losingPlayerId, _conqueringPlayerId]));
     }
 
     [Test, Description("Every recompute sees the hand-over already saved, since a recompute reads ownership from the database and would otherwise assess both players against banks they no longer hold.")]
@@ -207,6 +212,107 @@ internal class AssetBankConquestServicePersistenceTests : GameSqlServerTestBase
         }
     }
 
+    [Test, Description("A captured reserve is released in full where the conqueror has no policy for that Asset, because holding it would leave them stock they never asked to set aside.")]
+    public async Task ShouldReleaseAWholeCapturedReserveWhenTheConquerorHasNoPolicyAsync()
+    {
+        await GiveCapturedBankAReserveAsync(_CAPTURED_OAK_RESERVE);
+
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            ServiceResultBase result = await _conquestService.TransferOnConquestAsync(context, _capturedSettlementId, _conqueringPlayerId);
+
+            Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+        }
+
+        (long quantity, long reserved) = await ReadBalanceAsync(_capturedBankId, _OAK_LOG_CODE);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(reserved, Is.Zero, "With no policy to hold it against, the whole reserve should have been released.");
+            Assert.That(quantity, Is.EqualTo(_OAK_LOGS_HELD + _CAPTURED_OAK_RESERVE), "A released quantity becomes ordinary stock rather than vanishing.");
+        }
+    }
+
+    [Test, Description("A captured reserve is held up to the conqueror's own target and the excess released, so the policy that decides is the conqueror's rather than the loser's.")]
+    public async Task ShouldHoldACapturedReserveUpToTheConquerorsTargetAsync()
+    {
+        await GiveCapturedBankAReserveAsync(_CAPTURED_OAK_RESERVE);
+
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            await SeedReservePolicyAsync(context, _conqueringPlayerId, _OAK_LOG_CODE, _CONQUEROR_OAK_TARGET);
+        }
+
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            ServiceResultBase result = await _conquestService.TransferOnConquestAsync(context, _capturedSettlementId, _conqueringPlayerId);
+
+            Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+        }
+
+        (long quantity, long reserved) = await ReadBalanceAsync(_capturedBankId, _OAK_LOG_CODE);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(reserved, Is.EqualTo(_CONQUEROR_OAK_TARGET), "The target is the ceiling on what stays in reserve.");
+            Assert.That(
+                quantity,
+                Is.EqualTo(_OAK_LOGS_HELD + (_CAPTURED_OAK_RESERVE - _CONQUEROR_OAK_TARGET)),
+                "Only the excess over the target should have been released.");
+        }
+    }
+
+    [Test, Description("A target already met by reserves the conqueror holds elsewhere leaves no headroom, so the captured reserve is released in full rather than counted twice.")]
+    public async Task ShouldReleaseACapturedReserveWhenTheConquerorsTargetIsAlreadyMetElsewhereAsync()
+    {
+        await GiveCapturedBankAReserveAsync(_CAPTURED_OAK_RESERVE);
+
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            await SeedReservePolicyAsync(context, _conqueringPlayerId, _OAK_LOG_CODE, _CONQUEROR_OAK_TARGET);
+
+            // The conqueror's own Settlement, already holding the whole target in reserve.
+            await SeedSettlementWithBankAsync(
+                context,
+                _structureTypeId,
+                _conqueringPlayerId,
+                "Oakfast",
+                new Dictionary<string, long>(),
+                new Dictionary<string, long> { [_OAK_LOG_CODE] = _CONQUEROR_OAK_TARGET });
+        }
+
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            ServiceResultBase result = await _conquestService.TransferOnConquestAsync(context, _capturedSettlementId, _conqueringPlayerId);
+
+            Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+        }
+
+        (long quantity, long reserved) = await ReadBalanceAsync(_capturedBankId, _OAK_LOG_CODE);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(reserved, Is.Zero, "The target was already met elsewhere, so the captured reserve had no headroom to sit in.");
+            Assert.That(quantity, Is.EqualTo(_OAK_LOGS_HELD + _CAPTURED_OAK_RESERVE), "The whole reserve should have been released.");
+        }
+    }
+
+    /// <summary>
+    /// Puts a reserve on the captured bank's Oak Log balance, which the fixture otherwise seeds holding none.
+    /// </summary>
+    private async Task GiveCapturedBankAReserveAsync(long rawReserved)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        AssetBankBalance balance = await context.AssetBankBalances
+            .Where(row => row.AssetBankId == _capturedBankId && row.Asset.Code == _OAK_LOG_CODE)
+            .SingleAsync();
+
+        balance.ReservedQuantity = rawReserved;
+
+        await context.SaveChangesAsync();
+    }
+
     /// <summary>
     /// Builds the service against a connectivity substitute that reports what each recompute saw, and still writes a real key.
     /// </summary>
@@ -224,7 +330,12 @@ internal class AssetBankConquestServicePersistenceTests : GameSqlServerTestBase
             .RecomputeForPlayerAsync(Arg.Any<AscendantEmpireContext>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(call => ObserveRecomputeAsync(call.Arg<AscendantEmpireContext>(), call.ArgAt<int>(1)));
 
-        _conquestService = new AssetBankConquestService(NullLogger<AssetBankConquestService>.Instance, _connectivityService);
+        _conquestService = new AssetBankConquestService(
+            NullLogger<AssetBankConquestService>.Instance,
+            _connectivityService,
+            new AssetBankCreditService(
+                new AssetBankCapacityService(NullLogger<AssetBankCapacityService>.Instance),
+                NullLogger<AssetBankCreditService>.Instance));
     }
 
     /// <summary>
@@ -284,7 +395,8 @@ internal class AssetBankConquestServicePersistenceTests : GameSqlServerTestBase
         int structureTypeId,
         int playerId,
         string name,
-        IReadOnlyDictionary<string, long> balances)
+        IReadOnlyDictionary<string, long> balances,
+        IReadOnlyDictionary<string, long>? reserves = null)
     {
         int tileId = await context.CampaignMaps
             .Where(tile => tile.GameId == _gameId
@@ -335,16 +447,58 @@ internal class AssetBankConquestServicePersistenceTests : GameSqlServerTestBase
         context.AssetBanks.Add(bank);
         await context.SaveChangesAsync();
 
-        foreach ((string assetCode, long quantity) in balances)
+        // Walked over the union of the two dictionaries, so a bank can be seeded holding nothing but a reserve - which is the state the release rule has to
+        // find, and the one a drawdown must not delete.
+        foreach (string assetCode in balances.Keys.Union(reserves?.Keys ?? []))
         {
             int assetId = await context.Assets.Where(asset => asset.Code == assetCode).Select(asset => asset.Id).SingleAsync();
 
-            context.AssetBankBalances.Add(new AssetBankBalance { AssetBankId = bank.Id, AssetId = assetId, Quantity = quantity });
+            context.AssetBankBalances.Add(new AssetBankBalance
+            {
+                AssetBankId = bank.Id,
+                AssetId = assetId,
+                Quantity = balances.TryGetValue(assetCode, out long quantity) ? quantity : 0,
+                ReservedQuantity = reserves is not null && reserves.TryGetValue(assetCode, out long reserved) ? reserved : 0
+            });
         }
 
         await context.SaveChangesAsync();
 
         return (settlement.Id, bank.Id, bank.NetworkKey);
+    }
+
+    /// <summary>
+    /// Gives a Player an empire-wide reserve intent for one Asset.
+    /// </summary>
+    private static async Task SeedReservePolicyAsync(AscendantEmpireContext context, int playerId, string assetCode, long targetQuantity)
+    {
+        int assetId = await context.Assets.Where(asset => asset.Code == assetCode).Select(asset => asset.Id).SingleAsync();
+
+        context.PlayerStrategicReservePolicies.Add(new PlayerStrategicReservePolicy
+        {
+            PlayerId = playerId,
+            AssetId = assetId,
+            TargetQuantity = targetQuantity,
+            DiversionPercent = 10
+        });
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Reads one bank's spendable and reserved figures for one Asset, as the database has them.
+    /// </summary>
+    private async Task<(long Quantity, long ReservedQuantity)> ReadBalanceAsync(int assetBankId, string assetCode)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        var balance = await context.AssetBankBalances
+            .AsNoTracking()
+            .Where(row => row.AssetBankId == assetBankId && row.Asset.Code == assetCode)
+            .Select(row => new { row.Quantity, row.ReservedQuantity })
+            .SingleAsync();
+
+        return (balance.Quantity, balance.ReservedQuantity);
     }
 
     private async Task<AssetBank> ReloadBankAsync(int assetBankId)

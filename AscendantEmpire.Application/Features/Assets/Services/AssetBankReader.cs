@@ -120,7 +120,8 @@ internal sealed class AssetBankReader : IAssetBankReader
                 balance.Asset.AssetGroupId,
                 balance.Asset.SortOrder,
                 balance.Asset.AssetGrade,
-                balance.Quantity))
+                balance.Quantity,
+                balance.ReservedQuantity))
             .ToListAsync(cancelToken);
 
         ILookup<int, HoldingRow> holdingsByBankId = holdingRows.ToLookup(holding => holding.AssetBankId);
@@ -161,7 +162,8 @@ internal sealed class AssetBankReader : IAssetBankReader
                     AssetCode = holding.AssetCode,
                     DisplayName = holding.DisplayName,
                     AssetGroupId = holding.AssetGroupId,
-                    RawQuantity = holding.Quantity
+                    RawQuantity = holding.Quantity,
+                    RawReserved = holding.ReservedQuantity
                 })
         ];
     }
@@ -178,5 +180,6 @@ internal sealed class AssetBankReader : IAssetBankReader
         int? AssetGroupId,
         int SortOrder,
         AssetGrade AssetGrade,
-        long Quantity);
+        long Quantity,
+        long ReservedQuantity);
 }

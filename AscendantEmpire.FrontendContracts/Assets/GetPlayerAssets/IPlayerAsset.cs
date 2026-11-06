@@ -6,7 +6,8 @@ namespace AscendantEmpire.FrontendContracts.Assets.GetPlayerAssets;
 /// One Asset available to the Player, as the ticker panel needs it.
 /// </summary>
 /// <remarks>
-/// The six fields from <see cref="AmountAddedPerTurn"/> onwards are placeholders that no table sources yet - see the banner on the backend contract.
+/// The fields from <see cref="IsImported"/> onwards are placeholders that no table sources yet - see the banner on the backend contract.
+/// <see cref="AmountAddedPerTurn"/> is one of them; <see cref="HasStrategicReserve"/> is not, and is measured.
 /// </remarks>
 public interface IPlayerAsset
 {
@@ -67,7 +68,8 @@ public interface IPlayerAsset
     int AmountAddedPerTurn { get; }
 
     /// <summary>
-    /// Whether part of this Asset is held in a strategic reserve. <b>Placeholder - always false.</b>
+    /// Whether any bank of the Player's holds a strategic reserve of this Asset. A flag rather than a figure: the amount is out of circulation and absent
+    /// from <see cref="Amount"/> until it is released.
     /// </summary>
     bool HasStrategicReserve { get; }
 

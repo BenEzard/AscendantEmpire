@@ -292,6 +292,11 @@ public class AscendantEmpireContext : DbContext
     /// How much of each Asset each bank holds.
     /// </summary>
     public DbSet<AssetBankBalance> AssetBankBalances { get; set; }
+
+    /// <summary>
+    /// Each Player's empire-wide strategic reserve intent, one row per Asset they have stated one for.
+    /// </summary>
+    public DbSet<PlayerStrategicReservePolicy> PlayerStrategicReservePolicies { get; set; }
     #endregion
 
     #region Technology Schema
@@ -751,6 +756,9 @@ public class AscendantEmpireContext : DbContext
 
             entity.Property(x => x.Quantity).IsRequired();
 
+            // Defaulted so that every row the refactor's earlier steps already wrote reads as holding no reserve, rather than needing a backfill.
+            entity.Property(x => x.ReservedQuantity).IsRequired().HasDefaultValue(0L);
+
             entity.HasOne(x => x.Bank)
                 .WithMany(x => x.Balances)
                 .HasForeignKey(x => x.AssetBankId)
@@ -760,6 +768,34 @@ public class AscendantEmpireContext : DbContext
                 .WithMany(x => x.BankBalances)
                 .HasForeignKey(x => x.AssetId)
                 .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<PlayerStrategicReservePolicy>(entity =>
+        {
+            entity.ToTable("PlayerStrategicReservePolicy", schema, table => table.HasCheckConstraint(
+                "CK_PlayerStrategicReservePolicy_DiversionPercent",
+                $"[DiversionPercent] >= 0 AND [DiversionPercent] <= {PlayerStrategicReservePolicy.MAX_DIVERSION_PERCENT}"));
+
+            // One intent per Player per Asset. The policy is empire-wide, so there is deliberately no Settlement in this key.
+            entity.HasKey(x => new { x.PlayerId, x.AssetId });
+
+            entity.Property(x => x.TargetQuantity).IsRequired();
+            entity.Property(x => x.DiversionPercent).IsRequired();
+
+            entity.HasOne(x => x.Player)
+                .WithMany()
+                .HasForeignKey(x => x.PlayerId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerStrategicReservePolicy_Player_PlayerId");
+
+            entity.HasOne(x => x.Asset)
+                .WithMany()
+                .HasForeignKey(x => x.AssetId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_PlayerStrategicReservePolicy_Asset_AssetId");
+
+            entity.HasIndex(x => x.AssetId)
+                .HasDatabaseName("IX_PlayerStrategicReservePolicy_Asset");
         });
 
     }

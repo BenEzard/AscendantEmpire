@@ -196,11 +196,22 @@ internal class GetPlayerAssetsHandler(
             [.. assetRows.Select(asset => new AssetQuantityRequest(asset.Id, asset.Code, asset.StorageScope))],
             cancellationToken);
 
+        // Which of them the Player holds a reserve of. A separate read because a reserved quantity is out of every total: it cannot be carried in the amounts
+        // above without something eventually adding the two together.
+        IReadOnlySet<int> assetIdsHeldInReserve = await quantityReader.GetAssetIdsHeldInReserveAsync(context, playerId, cancellationToken);
+
         // What earns a ticker at all. Decided here rather than inside the builders so one answer per Asset prunes everything beneath it - see
         // EarnsATicker for why this is not simply a test on the figure.
         List<UnlockedAssetRow> visibleAssetRows = [.. assetRows.Where(asset => EarnsATicker(asset, amountsByAssetId))];
 
-        return BuildTree(metaCategoryRows, categoryRows, groupRows, visibleAssetRows, subjectPlayers, currentRound, amountsByAssetId);
+        return BuildTree(metaCategoryRows, 
+            categoryRows, 
+            groupRows, 
+            visibleAssetRows, 
+            subjectPlayers, 
+            currentRound, 
+            amountsByAssetId, 
+            assetIdsHeldInReserve);
     }
 
     /// <summary>
@@ -316,15 +327,16 @@ internal class GetPlayerAssetsHandler(
         IReadOnlyCollection<UnlockedAssetRow> assetRows,
         IReadOnlyCollection<SubjectPlayerRow> subjectPlayers,
         int currentRound,
-        IReadOnlyDictionary<int, int> amountsByAssetId)
+        IReadOnlyDictionary<int, int> amountsByAssetId,
+        IReadOnlySet<int> assetIdsHeldInReserve)
     {
         ILookup<int, PlayerAsset> assetsByGroupId = assetRows
             .Where(asset => asset.AssetGroupId is not null)
-            .ToLookup(asset => asset.AssetGroupId!.Value, asset => ToContract(asset, currentRound, amountsByAssetId));
+            .ToLookup(asset => asset.AssetGroupId!.Value, asset => ToContract(asset, currentRound, amountsByAssetId, assetIdsHeldInReserve));
 
         ILookup<int, PlayerAsset> assetsByCategoryId = assetRows
             .Where(asset => asset.AssetCategoryId is not null)
-            .ToLookup(asset => asset.AssetCategoryId!.Value, asset => ToContract(asset, currentRound, amountsByAssetId));
+            .ToLookup(asset => asset.AssetCategoryId!.Value, asset => ToContract(asset, currentRound, amountsByAssetId, assetIdsHeldInReserve));
 
         ILookup<int, CatalogueGroupRow> groupsByCategoryId = groupRows.ToLookup(group => group.AssetCategoryId);
         ILookup<int, CatalogueCategoryRow> categoriesByMetaCategoryId = categoryRows.ToLookup(category => category.AssetMetaCategoryId);
@@ -485,7 +497,12 @@ internal class GetPlayerAssetsHandler(
     /// Transcribes one unlocked Asset onto the contract, with the figure the Player currently holds of it.
     /// </summary>
     /// <param name="amountsByAssetId">Whole amounts by Asset id. A missing entry is none held, which is what an Asset nothing sources yet comes back as.</param>
-    private static PlayerAsset ToContract(UnlockedAssetRow row, int currentRound, IReadOnlyDictionary<int, int> amountsByAssetId)
+    /// <param name="assetIdsHeldInReserve">The Assets the Player holds a strategic reserve of. Absence is no reserve.</param>
+    private static PlayerAsset ToContract(
+        UnlockedAssetRow row,
+        int currentRound,
+        IReadOnlyDictionary<int, int> amountsByAssetId,
+        IReadOnlySet<int> assetIdsHeldInReserve)
     {
         return new PlayerAsset
         {
@@ -506,9 +523,12 @@ internal class GetPlayerAssetsHandler(
             // having to know which those are. See the remarks on Amount.
             Amount = amountsByAssetId.TryGetValue(row.Id, out int amount) ? amount : 0,
 
-            // Placeholders - nothing sources these six yet. See the banner on the PlayerAsset contract.
+            // Whether any bank of theirs holds a reserve of it. The figure itself is deliberately not reported: it is out of circulation and out of Amount
+            // above until it is released.
+            HasStrategicReserve = assetIdsHeldInReserve.Contains(row.Id),
+
+            // Placeholders - nothing sources these five yet. See the banner on the PlayerAsset contract.
             AmountAddedPerTurn = 0,
-            HasStrategicReserve = false,
             IsImported = false,
             IsExported = false,
             DemandNotMet = false,

@@ -44,7 +44,14 @@ internal class AssetBankConquestServiceTests : AssetBankTestBase
             .RecomputeForPlayerAsync(Arg.Any<AscendantEmpireContext>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Succeed());
 
-        _service = new AssetBankConquestService(NullLogger<AssetBankConquestService>.Instance, _connectivityService);
+        // Real, not substituted: every case in this fixture is refused before the reserve is settled, so the credit service is never reached and a stub would
+        // only hide a reordering that let one through.
+        _service = new AssetBankConquestService(
+            NullLogger<AssetBankConquestService>.Instance,
+            _connectivityService,
+            new AssetBankCreditService(
+                new AssetBankCapacityService(NullLogger<AssetBankCapacityService>.Instance),
+                NullLogger<AssetBankCreditService>.Instance));
     }
 
     [Test, Description("A capture naming a Settlement that has no bank is refused as NotFound, because every Settlement is born with one and a missing bank means the wrong Settlement.")]

@@ -1,5 +1,7 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Assets.Classes;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.Domain.Entities.Assets;
 
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +15,8 @@ namespace AscendantEmpire.Application.Features.Assets.Services;
 /// <inheritdoc cref="IAssetBankConquestService" />
 internal sealed class AssetBankConquestService(
     ILogger<AssetBankConquestService> logger,
-    IAssetNetworkConnectivityService connectivityService
+    IAssetNetworkConnectivityService connectivityService,
+    IAssetBankCreditService creditService
 ) : IAssetBankConquestService
 {
     public async Task<ServiceResultBase> TransferOnConquestAsync(
@@ -82,6 +85,18 @@ internal sealed class AssetBankConquestService(
                 }
             }
 
+            // After the recompute, so a released quantity spreads across whatever network the captured bank now belongs to rather than being trapped in the
+            // network of one it was handed over as.
+            ServiceResultBase reserveResult = await SettleCapturedReserveAsync(context, bank, newOwnerPlayerId, cancelToken);
+
+            if (reserveResult.HasSucceeded == false)
+            {
+                string error = $"Settlement Id {settlementId}'s asset bank was handed to Player Id {newOwnerPlayerId}, but its strategic reserve could not be settled against their policy.";
+                logger.LogError("{Error} Errors: {Errors}", error, string.Join("; ", reserveResult.Errors));
+
+                return Fail(reserveResult.Errors.Prepend(error));
+            }
+
             await context.SaveChangesAsync(cancelToken);
 
             if (ownTransaction is not null)
@@ -102,5 +117,109 @@ internal sealed class AssetBankConquestService(
 
             return Fail(error);
         }
+    }
+
+    /// <summary>
+    /// Decides how much of a captured bank's strategic reserve the conqueror keeps in reserve, and releases the rest into circulation.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The conqueror's policy decides, not the loser's.</b> A reserve is kept up to the conqueror's own target for that Asset, counting what they already
+    /// hold in reserve everywhere else, and the excess is released. Where they have stated no policy for the Asset the whole reserve is released.
+    /// </para>
+    /// <para>
+    /// <b>The release goes through the credit path.</b> A released quantity becomes ordinary stock and so has to fit the Settlement's stockpile, which is a
+    /// different budget from the reserve it was sitting in. Crediting it means capacity binds and an overflow is reported rather than silently exceeding the
+    /// store; what will not fit is lost, which is the honest outcome of capturing more than you can keep.
+    /// </para>
+    /// </remarks>
+    private async Task<ServiceResultBase> SettleCapturedReserveAsync(
+        AscendantEmpireContext context,
+        AssetBank capturedBank,
+        int newOwnerPlayerId,
+        CancellationToken cancelToken)
+    {
+        // Tracked, because the reserve column on these rows is what gets written down.
+        List<AssetBankBalance> reservedBalances = await context.AssetBankBalances
+            .Where(balance => balance.AssetBankId == capturedBank.Id && balance.ReservedQuantity > 0)
+            .ToListAsync(cancelToken);
+
+        if (reservedBalances.Count == 0)
+        {
+            return Succeed();
+        }
+
+        int[] assetIds = [.. reservedBalances.Select(balance => balance.AssetId)];
+
+        Dictionary<int, long> targetByAssetId = await context.PlayerStrategicReservePolicies
+            .AsNoTracking()
+            .Where(policy => policy.PlayerId == newOwnerPlayerId && assetIds.Contains(policy.AssetId))
+            .ToDictionaryAsync(policy => policy.AssetId, policy => policy.TargetQuantity, cancelToken);
+
+        // What the conqueror already holds in reserve elsewhere, which the target is measured against. The captured bank is excluded because it is theirs
+        // only as of a moment ago: counting it would have the reserve crowd out its own headroom.
+        Dictionary<int, long> alreadyReservedByAssetId = await context.AssetBankBalances
+            .AsNoTracking()
+            .Where(balance =>
+                balance.Bank.PlayerId == newOwnerPlayerId
+                && balance.AssetBankId != capturedBank.Id
+                && assetIds.Contains(balance.AssetId))
+            .GroupBy(balance => balance.AssetId)
+            .Select(group => new { AssetId = group.Key, RawReserved = group.Sum(balance => balance.ReservedQuantity) })
+            .ToDictionaryAsync(row => row.AssetId, row => row.RawReserved, cancelToken);
+
+        List<AssetCredit> releases = [];
+
+        foreach (AssetBankBalance balance in reservedBalances)
+        {
+            long keptRaw = 0;
+
+            if (targetByAssetId.TryGetValue(balance.AssetId, out long targetRaw))
+            {
+                alreadyReservedByAssetId.TryGetValue(balance.AssetId, out long alreadyReservedRaw);
+
+                long headroomRaw = Math.Max(0, targetRaw - alreadyReservedRaw);
+                keptRaw = Math.Min(balance.ReservedQuantity, headroomRaw);
+            }
+
+            long releasedRaw = balance.ReservedQuantity - keptRaw;
+
+            if (releasedRaw == 0)
+            {
+                continue;
+            }
+
+            balance.ReservedQuantity = keptRaw;
+
+            releases.Add(AssetCredit.AtSettlement(
+                newOwnerPlayerId,
+                capturedBank.SettlementId,
+                balance.AssetId,
+                ScaledAmount.FromRaw(releasedRaw)));
+        }
+
+        if (releases.Count == 0)
+        {
+            return Succeed();
+        }
+
+        ServiceResult<IReadOnlyList<AssetCreditPlacement>> creditResult = await creditService.CreditAsync(context, releases, cancelToken);
+
+        if (creditResult.HasSucceeded == false)
+        {
+            return Fail(creditResult.Errors);
+        }
+
+        foreach (AssetCreditPlacement placement in creditResult.SuccessValue ?? [])
+        {
+            if (placement.RawUnplaced > 0)
+            {
+                logger.LogWarning(
+                    "Releasing a captured reserve of Asset Id {AssetId} at Settlement Id {SettlementId} for Player Id {PlayerId} lost {RawUnplaced} raw for want of storage.",
+                    placement.Credit.AssetId, capturedBank.SettlementId, newOwnerPlayerId, placement.RawUnplaced);
+            }
+        }
+
+        return Succeed();
     }
 }

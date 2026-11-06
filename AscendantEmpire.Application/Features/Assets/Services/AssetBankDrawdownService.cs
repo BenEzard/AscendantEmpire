@@ -382,7 +382,9 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
         // bank from accumulating a row per Asset it has ever briefly held.
         foreach (AssetBankBalance balance in held)
         {
-            if (balance.Quantity == 0)
+            // ReservedQuantity is checked as well as Quantity, because a reserve is the one thing a row can hold that a debit never touches. A bank spent
+            // down to nothing but its strategic reserve has to keep the row, or the drawdown would destroy a reserve it is not allowed to reach.
+            if (balance.Quantity == 0 && balance.ReservedQuantity == 0)
             {
                 context.AssetBankBalances.Remove(balance);
             }

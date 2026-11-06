@@ -42,4 +42,22 @@ internal interface IPlayerAssetQuantityReader
         int playerId,
         IReadOnlyCollection<AssetQuantityRequest> assets,
         CancellationToken cancelToken = default);
+
+    /// <summary>
+    /// Reads which Assets the Player holds a strategic reserve of, anywhere in their empire.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A set rather than a figure, because the only question anything asks today is whether a reserve exists: that is what the Assets ticker's indicator and
+    /// <c>PlayerAsset.HasStrategicReserve</c> report. The amount deliberately does not come back here - it is out of every total until it is released, and
+    /// handing it to the ticker alongside the spendable amount is how the two would get added together by mistake.
+    /// </para>
+    /// <para>
+    /// An Asset absent from the set has no reserve. A Player with no settlement owns no banks and so reserves nothing, which comes back as an empty set.
+    /// </para>
+    /// </remarks>
+    Task<IReadOnlySet<int>> GetAssetIdsHeldInReserveAsync(
+        AscendantEmpireContext context,
+        int playerId,
+        CancellationToken cancelToken = default);
 }

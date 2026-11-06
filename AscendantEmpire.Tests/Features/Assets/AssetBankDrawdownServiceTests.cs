@@ -61,6 +61,49 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
         }
     }
 
+    [Test, Description("A balance spent down to nothing keeps its row while it still holds a reserve, because deleting it would destroy stock the debit is not allowed to reach.")]
+    public async Task ShouldKeepAnEmptiedBalanceRowThatStillHoldsAReserve()
+    {
+        int assetBankId = await CreateBankAsync(
+            _playerId,
+            _SETTLEMENT_ID,
+            new Dictionary<string, long> { [_OAK_LOG_CODE] = 10 },
+            reserves: new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 });
+
+        ServiceResultBase result = await DebitAssetAtSettlementAsync(_OAK_LOG_CODE, whole: 10);
+
+        Dictionary<string, long> balances = await ReadBalancesAsync(assetBankId);
+        Dictionary<string, long> reserves = await ReadReservesAsync(assetBankId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+            Assert.That(balances.ContainsKey(_OAK_LOG_CODE), Is.True, "The row has to survive, or the reserve on it goes with it.");
+            Assert.That(balances[_OAK_LOG_CODE], Is.Zero);
+            Assert.That(reserves[_OAK_LOG_CODE], Is.EqualTo(100), "A debit never touches the reserve column.");
+        }
+    }
+
+    [Test, Description("An expense is refused where the only holding is a reserve, since a reserve is out of circulation until it is released and cannot meet a cost.")]
+    public async Task ShouldRefuseAnExpenseAgainstAReserveOnlyBalance()
+    {
+        int assetBankId = await CreateBankAsync(
+            _playerId,
+            _SETTLEMENT_ID,
+            new Dictionary<string, long>(),
+            reserves: new Dictionary<string, long> { [_OAK_LOG_CODE] = 100 });
+
+        ServiceResultBase result = await DebitAssetAtSettlementAsync(_OAK_LOG_CODE, whole: 4);
+
+        Dictionary<string, long> reserves = await ReadReservesAsync(assetBankId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False, "A reserve is not spendable, so this is a shortfall rather than a cost met.");
+            Assert.That(reserves[_OAK_LOG_CODE], Is.EqualTo(100), "A refused expense leaves every balance untouched, the reserve included.");
+        }
+    }
+
     [Test, Description("An Asset expense takes only the Asset it names, leaving the rest of the group alone however the ordering would have walked it.")]
     public async Task ShouldDebitOnlyTheNamedAsset()
     {
