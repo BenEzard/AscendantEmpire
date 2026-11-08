@@ -535,6 +535,37 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Every figure the tile offers on one line: the food, then the MapResources found here. */
+.tile-toolbar__amounts {
+  display: flex;
+  align-items: flex-end; /* An item with no amount under it is shorter, so they hang from a common top rather than drifting out of line. */
+  gap: 8px;
+}
+
+/* The MapResources discovered here, grouped so they read as a set apart from the food — a patch holds a stock to extract rather than a rate to feed at. */
+.tile-toolbar__map-resources {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+/* Only when the food is there to be divided from. */
+.tile-toolbar__sustenance + .tile-toolbar__map-resources {
+  padding-left: 8px;
+  border-left: 1px solid rgba(15, 23, 42, 0.15);
+}
+
+/* Wraps one resource, so the icon and its amount carry a single label for screen readers. */
+.tile-toolbar__map-resource-item {
+  display: inline-flex;
+}
+
+/* Stands in for the icon of a type the biome already says. Sized like the amount beneath it, since it is text doing an icon's job in an icon's space. */
+.tile-toolbar__map-resource-name {
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
 /* The last line, a secondary detail: regular weight and muted. */
 .tile-toolbar__coordinates {
   /* Much smaller than the rest of the bar: the coordinates are rarely what the player is looking for. */

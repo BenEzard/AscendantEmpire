@@ -38,11 +38,15 @@ public record PlayerMapResourceEntry
     public required bool IsObserved { get; init; }
 
     /// <summary>
-    /// What this Player is shown in place of the true quantity, scaled by <c>ScaledAmount.Scale</c>.
+    /// What this Player is shown in place of the true quantity, in whole units.
     /// </summary>
     /// <remarks>
+    /// Descaled here rather than on the wire, as <c>GetTileSustenanceHandler</c> does with its amounts, so no client carries knowledge of
+    /// <c>ScaledAmount.Scale</c>.
+    /// <para>
     /// Null where there is no number to give: the tile is not observed, a stratified instance holds its quantity in layers the Player must survey, a
     /// Distribution holds its own in per-Asset amounts, or the type was authored with no fuzzy range. The true quantity is never sent.
+    /// </para>
     /// </remarks>
-    public required long? EstimatedQuantity { get; init; }
+    public required decimal? EstimatedQuantity { get; init; }
 }

@@ -13,7 +13,8 @@ interface MapResourceIconProps {
  * A MapResourceType's image, or the palette's fish when it has none (or the image fails to load).
  *
  * The fish is the editor's stand-in only: a type with no icon (e.g. a forest's wood) shows nothing to Players, but a designer still needs to see where
- * they placed one.
+ * they placed one. The game map therefore never hands this component a null path — it leaves such a resource off the tile altogether and names it in the
+ * tile's hover title instead, so the fish cannot reach a Player.
  */
 export default function MapResourceIcon({ iconPath, size, className, title }: MapResourceIconProps) {
   // Remembered per path, so fixing a broken path in the Type Manager shows the new image.

@@ -1,8 +1,10 @@
 // src/features/map-gallery/components/Tile.tsx
 import React from "react";
 import type { Geography } from "@/types/map/Geography";
-import type { TileCell } from "./TileTypes";
+import type { TileCell, TileMapResourceMarker } from "./TileTypes";
 import { iconMap } from "./mapEditorIcons";
+import MapResourceIcon from "@/components/map/MapResourceIcon";
+import { describeMapResources } from "@/features/map/util/mapResourceMarkers";
 import { cssColorToRgba, pickTextColorOnBg } from "@/util/color";
 import ObservedStructure from "./ObservedStructure";
 import ObservedForce from "./ObservedForce";
@@ -43,6 +45,16 @@ export interface TileProps {
    * one carries an id alone and the artwork is keyed on the code.
    */
   structureCodeByStructureId?: ReadonlyMap<number, string>;
+  /**
+   * The MapResources the player has discovered on this tile, in slot order. Drawn in the tile's bottom-right corner, exactly as the map editor's tile draws
+   * its placements, so a berry patch looks the same in both.
+   *
+   * Not gated on sight, unlike the forces and structures above: what the player found is a fact about the map they have learned, and a patch does not stop
+   * existing because they marched away from it. Only its quantity waits on an observer, and that absence is already in the marker.
+   *
+   * Should keep one identity for an unchanged tile, like `knownForces`, or every memoised tile re-renders.
+   */
+  mapResources?: readonly TileMapResourceMarker[];
   onClick?: (tile: TileCell) => void;
   onHold?: (tile: TileCell) => void;
   /** Called with the tile when the pointer enters it. Should keep one identity, like `onClick`, or every tile re-renders when it changes. */
@@ -80,6 +92,7 @@ const Tile = React.memo(function Tile({
   knownStructures,
   currentRoundNumber = null,
   structureCodeByStructureId,
+  mapResources,
   onClick,
   onHold,
   onHover,
@@ -148,11 +161,24 @@ const Tile = React.memo(function Tile({
   const bgForContrast = rgba && rgba.a < 0.2 ? "#ffffff" : tileBackground;
   const iconColor = pickTextColorOnBg(bgForContrast);
 
+  // Ground the player has never been to says nothing about itself: it is drawn as solid fog over a placeholder biome, so a resource on it would be the one
+  // thing showing through. The server withholds them as well; this keeps the fog honest whatever a later discovery rule reports.
+  const knownMapResources = tile.isExplored ? mapResources : undefined;
+
+  // Only a resource with an icon of its own is drawn. A type the biome already says — a forest's wood — has none, and MapResourceIcon's fish stand-in is
+  // for the map editor, so those are left off the tile and named in its title instead.
+  const drawnMapResources = knownMapResources?.filter((marker) => marker.iconPath != null);
+
+  // The title names the tile's MapResources after whatever the caller's title says, the same way the map editor's tile does, and with each estimate where
+  // there is one to give.
+  const mapResourcesTitle = knownMapResources != null && knownMapResources.length > 0 ? `MapResources: ${describeMapResources(knownMapResources)}` : null;
+  const titleWithMapResources = [title, mapResourcesTitle].filter(Boolean).join("\n") || undefined;
+
   return (
     <div
       className={combinedClassName}
       role={clickable ? "button" : undefined}
-      title={title}
+      title={titleWithMapResources}
       onPointerDown={(event) => {
         holdTriggeredRef.current = false;
         clearHoldTimer();
@@ -194,6 +220,14 @@ const Tile = React.memo(function Tile({
       }}
       style={style}>
       {Icon ? <Icon className="tile-icon-fill" aria-hidden style={{ color: iconColor }} /> : null}
+      {/* Before the structure and the force, so anything standing on the tile is drawn over its resources rather than hidden behind them. */}
+      {drawnMapResources != null && drawnMapResources.length > 0 ? (
+        <span className="tile-map-resources" aria-hidden>
+          {drawnMapResources.map((marker) => (
+            <MapResourceIcon key={marker.slot} iconPath={marker.iconPath} size={Math.round(sizePx * 0.36)} />
+          ))}
+        </span>
+      ) : null}
       {visibleStructure ? <ObservedStructure structure={visibleStructure} /> : null}
       {visibleForce ? (
         <ObservedForce

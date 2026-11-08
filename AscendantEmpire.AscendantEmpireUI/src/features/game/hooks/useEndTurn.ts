@@ -5,6 +5,7 @@ import { unitDisplayInfoKey } from "@/features/map/hooks/useUnitDisplayInfo";
 import { knownForcesKey, knownStructuresKey, sightingReportsKey } from "@/features/intelligence/hooks/useIntelligenceQueries";
 import { TILE_SUSTENANCE_KEY_PREFIX } from "@/features/map/hooks/useTileSustenance";
 import { TILE_SUPPORT_KEY_PREFIX } from "@/features/map/hooks/useTileSupportLevels";
+import { playerMapResourcesKey } from "@/features/map/hooks/usePlayerMapResources";
 import { currentCampaignTurnKey } from "./useCurrentCampaignTurn";
 import { campaignPossibleActionsKey } from "./useCampaignPossibleActions";
 import { playerAssetsKey } from "./usePlayerAssets";
@@ -69,6 +70,10 @@ export function useEndTurnMutation(
 
         // The hover marker's support levels are worked out from the same food, so they go stale with it. The bare prefix: each selection is cached separately.
         queryClient.invalidateQueries({ queryKey: TILE_SUPPORT_KEY_PREFIX });
+
+        // MapResource quantities grow back and are extracted from as the round turns, and the player's sight has moved with their forces, so both the
+        // estimates and which resources carry one are stale.
+        queryClient.invalidateQueries({ queryKey: playerMapResourcesKey(gameId, playerId) });
       }
 
       opts?.onSuccess?.(outcome);

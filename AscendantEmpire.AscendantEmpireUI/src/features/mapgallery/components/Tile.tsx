@@ -5,7 +5,7 @@ import type { TileCell } from "../types/TileTypes";
 import { iconMap } from "./mapEditorIcons";
 import type { Geography } from "@/types/map/Geography";
 import { cssColorToRgba, pickTextColorOnBg } from "@/util/color";
-import MapResourceIcon from "./mapResources/MapResourceIcon";
+import MapResourceIcon from "@/components/map/MapResourceIcon";
 
 /** A MapResource placed on the tile, as the tile draws it. */
 export type TileMapResourceMarker = {

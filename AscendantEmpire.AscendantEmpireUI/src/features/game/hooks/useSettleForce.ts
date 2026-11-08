@@ -3,6 +3,7 @@ import { settleForce, type SettleForceRequest, type SettleForceResult } from "@/
 import { playerCampaignTilesKey } from "@/features/map/hooks/useCampaignMapTiles";
 import { TILE_SUSTENANCE_KEY_PREFIX } from "@/features/map/hooks/useTileSustenance";
 import { TILE_SUPPORT_KEY_PREFIX } from "@/features/map/hooks/useTileSupportLevels";
+import { playerMapResourcesKey } from "@/features/map/hooks/usePlayerMapResources";
 
 /**
  * Founds a settlement, consuming the settler, and refreshes everything the founding changed.
@@ -48,6 +49,9 @@ export function useSettleForceMutation(
       // A force left the tile, so what the tile can support, and what is drawing on it, have both changed.
       queryClient.invalidateQueries({ queryKey: TILE_SUSTENANCE_KEY_PREFIX });
       queryClient.invalidateQueries({ queryKey: TILE_SUPPORT_KEY_PREFIX });
+
+      // A settlement watches further than the force that founded it, and a MapResource estimate is only reported for a tile in sight.
+      queryClient.invalidateQueries({ queryKey: playerMapResourcesKey(gameId, playerId) });
 
       opts?.onSuccess?.(data);
     },

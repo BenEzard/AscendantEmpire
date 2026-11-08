@@ -46,6 +46,8 @@ import { useGameToolbar } from "./useGameToolbar";
 import AssetPanel from "./AssetPanel";
 import { describeRiverStep } from "./describeRiverStep";
 import { useKnownForcesQuery, useKnownStructuresQuery, useSightingReportsQuery } from "@/features/intelligence/hooks/useIntelligenceQueries";
+import { usePlayerMapResourcesQuery } from "@/features/map/hooks/usePlayerMapResources";
+import { groupMapResourcesByTile } from "@/features/map/util/mapResourceMarkers";
 import { groupKnownForcesByUnobservedTile } from "@/features/intelligence/knownForceMarkers";
 import { groupKnownStructuresByUnobservedTile } from "@/features/intelligence/knownStructureMarkers";
 import { useStructureDisplayInfoQuery } from "@/features/map/hooks/useStructureDisplayInfo";
@@ -251,6 +253,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const { data: sightingReports } = useSightingReportsQuery(gameId, playerId, tilesEnabled);
   const { data: knownForces } = useKnownForcesQuery(gameId, playerId, tilesEnabled);
   const { data: knownStructures } = useKnownStructuresQuery(gameId, playerId, tilesEnabled);
+  const { data: playerMapResources } = usePlayerMapResourcesQuery(gameId, playerId, tilesEnabled);
   const { data: currentCampaignTurn } = useCurrentCampaignTurnQuery(gameId, tilesEnabled);
   const { data: gamePlayers } = useGamePlayersQuery(gameId, tilesEnabled);
   const { data: structureDisplayLookup } = useStructureDisplayInfoQuery(tilesEnabled);
@@ -337,6 +340,11 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   // What the player could feed on at the inspected tile. Asked for per tile on selection and cached, rather than loaded for the whole map — see the hook.
   const { data: inspectedTileSustenance } = useTileSustenanceQuery(gameId, playerId, inspectedTileCoords, tilesEnabled && isInspectedTileObserved);
 
+  // The MapResources the player has discovered, grouped by tile once per read so both the grid and the toolbar are a lookup. Not narrowed by sight, unlike
+  // the last-known markers further down: what the player found stays on their map wherever they go, and it is only the quantity beside it that waits on an
+  // observer.
+  const mapResourcesByTileKey = useMemo(() => groupMapResourcesByTile(playerMapResources ?? []), [playerMapResources]);
+
   // What the tile toolbar draws. Looked up from the current grid on every rebuild rather than captured at click time, so a
   // tile explored under the bar (a force stepping next to it, say) shows its real terrain rather than the placeholder.
   const tileToolbarTile = useMemo<TileToolbarTile | null>(() => {
@@ -352,8 +360,12 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     // Sustenance is dropped the moment the tile leaves sight, rather than left showing whatever was cached while it was watched.
     const sustenance = isInspectedTileObserved ? (inspectedTileSustenance ?? null) : null;
 
-    return { x: cell.x, y: cell.y, terrainLabel: getTileTerrainLabel(cell), sustenance };
-  }, [inspectedTileCoords, tiles2d, getTileTerrainLabel, isInspectedTileObserved, inspectedTileSustenance]);
+    // Kept whether or not the tile is watched, for the reason the grouping above gives — but never for ground the player has never been to, which discloses
+    // nothing about itself.
+    const mapResources = cell.isExplored ? mapResourcesByTileKey.get(`${cell.x},${cell.y}`) : undefined;
+
+    return { x: cell.x, y: cell.y, terrainLabel: getTileTerrainLabel(cell), sustenance, mapResources };
+  }, [inspectedTileCoords, tiles2d, getTileTerrainLabel, isInspectedTileObserved, inspectedTileSustenance, mapResourcesByTileKey]);
 
   // --- Hover marker: could the hovered tile feed the selected forces? ---
   // Where the pointer is, held outside React state so hovering never re-renders this page or the grid — only the marker subscribes to it. The store's
@@ -394,6 +406,9 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   const knownStructuresByTileKey = useMemo(() => groupKnownStructuresByUnobservedTile(knownStructures ?? [], observedTileKeys), [knownStructures, observedTileKeys]);
 
   const getKnownStructures = useCallback((tile: TileCell) => knownStructuresByTileKey.get(`${tile.x},${tile.y}`), [knownStructuresByTileKey]);
+
+  // Grouped further up, because the tile toolbar reads it too.
+  const getMapResources = useCallback((tile: TileCell) => mapResourcesByTileKey.get(`${tile.x},${tile.y}`), [mapResourcesByTileKey]);
 
   // --- Map panning (used by the notifications panel) ---
   const panMapTo = useCallback((x: number, y: number) => {
@@ -760,6 +775,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
                       isTileObserved={isTileObserved}
                       factionColourByPlayerId={factionColourByPlayerId}
                       getKnownForces={getKnownForces}
+                      getMapResources={getMapResources}
                       getKnownStructures={getKnownStructures}
                       currentRoundNumber={currentRoundNumber}
                       structureCodeByStructureId={structureCodeByStructureId}

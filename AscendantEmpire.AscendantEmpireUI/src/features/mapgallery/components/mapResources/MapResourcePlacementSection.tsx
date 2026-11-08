@@ -7,7 +7,7 @@ import type { CampaignMapGeographyType } from "@/types/map/Geography";
 import type { GalleryMapResource, GalleryMapResourceSpecifics } from "../../api/galleryMapResourcesApi";
 import { holdsSingleQuantity, kindOf } from "../../tools/mapResourceDraft";
 import { habitatFor } from "../../tools/mapResourcePlacement";
-import MapResourceIcon from "./MapResourceIcon";
+import MapResourceIcon from "@/components/map/MapResourceIcon";
 import { WholeNumberInput } from "./mapResourceFields";
 
 interface MapResourcePlacementSectionProps {

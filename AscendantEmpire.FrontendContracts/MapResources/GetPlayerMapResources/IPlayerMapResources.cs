@@ -8,9 +8,10 @@ namespace AscendantEmpire.FrontendContracts.MapResources.GetPlayerMapResources;
 /// Fetched once for the whole map, so drawing a tile is a lookup rather than a request per tile.
 /// </para>
 /// <para>
-/// A resource the Player has not discovered is never included. One they have stays included wherever they go, because what they found is a fact about the map
-/// they have learned — but it carries a quantity only while the tile is observed, since a quantity changes as it is extracted and would otherwise leak what
-/// other Players have been doing there. <c>IsObserved</c> says which it is.
+/// A resource the Player has not discovered is never included, and neither is one on ground they have never explored — an unexplored tile discloses nothing
+/// at all. One they have found on ground they have been to stays included wherever they go, because what they found is a fact about the map they have learned
+/// — but it carries a quantity only while the tile is observed, since a quantity changes as it is extracted and would otherwise leak what other Players have
+/// been doing there. <c>IsObserved</c> says which it is.
 /// </para>
 /// </remarks>
 public interface IPlayerMapResources

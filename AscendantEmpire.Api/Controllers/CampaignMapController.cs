@@ -191,9 +191,9 @@ public class CampaignMapController : ControllerBase
     /// Get the MapResources the Player has discovered on the Campaign Map.
     /// </summary>
     /// <remarks>
-    /// Fetched once for the whole map so drawing a tile is a lookup. An instance the Player has not discovered is never included; one they have stays included
-    /// wherever they are, but carries an <c>estimatedQuantity</c> only while the tile is observed, which <c>isObserved</c> reports. Quantities are this
-    /// Player's own estimate, never the true amount on the tile.
+    /// Fetched once for the whole map so drawing a tile is a lookup. An instance the Player has not discovered is never included, nor is one on a tile they
+    /// have never explored; one they have found on ground they have been to stays included wherever they are, but carries an <c>estimatedQuantity</c> only
+    /// while the tile is observed, which <c>isObserved</c> reports. Quantities are this Player's own estimate, never the true amount on the tile.
     /// </remarks>
     /// <response code="200">The MapResources visible to the Player</response>
     /// <response code="400">Validation error</response>

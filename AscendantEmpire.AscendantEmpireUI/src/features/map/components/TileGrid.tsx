@@ -1,6 +1,6 @@
 import React from "react";
 import type { Geography } from "@/types/map/Geography";
-import type { TileCell } from "./TileTypes";
+import type { TileCell, TileMapResourceMarker } from "./TileTypes";
 import Tile from "./Tile";
 import RiverOverlay from "./RiverOverlay";
 import OwnershipOverlay from "./OwnershipOverlay";
@@ -43,6 +43,11 @@ export interface TileGridProps {
   getKnownForces?: (tile: TileCell) => readonly KnownForce[] | undefined;
   /** The structures the player last saw change on a tile, freshest first. The same stability rule as `getKnownForces` applies. */
   getKnownStructures?: (tile: TileCell) => readonly KnownStructure[] | undefined;
+  /**
+   * The MapResources the player has discovered on a tile, in slot order. The same stability rule as `getKnownForces` applies. Omitted means none at all,
+   * which is what a grid with no discoveries behind it — the map editor's — wants.
+   */
+  getMapResources?: (tile: TileCell) => readonly TileMapResourceMarker[] | undefined;
   /** The round being played now, which markers fade against. */
   currentRoundNumber?: number | null;
   /**
@@ -95,6 +100,7 @@ const TileGrid = React.memo(function TileGrid({
   factionColourByPlayerId,
   getKnownForces,
   getKnownStructures,
+  getMapResources,
   currentRoundNumber,
   structureCodeByStructureId,
   onTileClick,
@@ -188,6 +194,7 @@ const TileGrid = React.memo(function TileGrid({
                 isObserved={isTileObserved?.(t) ?? true}
                 knownForces={getKnownForces?.(t)}
                 knownStructures={getKnownStructures?.(t)}
+                mapResources={getMapResources?.(t)}
                 currentRoundNumber={currentRoundNumber}
                 structureCodeByStructureId={structureCodeByStructureId}
                 onClick={tileClickHandler}

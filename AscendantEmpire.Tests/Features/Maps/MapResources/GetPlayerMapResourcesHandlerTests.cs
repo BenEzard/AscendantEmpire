@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Maps.MapResources.Handlers;
 using AscendantEmpire.Application.Features.Maps.MapResources.Services;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.BackendContracts.MapResources.GetPlayerMapResources;
 using AscendantEmpire.Domain.Entities.Games;
@@ -49,6 +50,12 @@ internal sealed class GetPlayerMapResourcesHandlerTests : InMemoryTestBase
 
     private const int _UNSEEN_X = 8;
     private const int _UNSEEN_Y = 9;
+
+    /// <summary>The turn a tile the Player has explored was first seen on. Any value will do: it is the presence of one that marks the tile explored.</summary>
+    private const int _FIRST_SEEN_TURN_ID = 1;
+
+    /// <summary>How many ids each Player's tile rows are given, so two Players' rows for one tile cannot collide on the hand-assigned key.</summary>
+    private const int _PLAYER_TILE_ID_RANGE = 1_000;
 
     private const long _TRUE_QUANTITY = 1_000_000;
     private const decimal _FUZZY_FACTOR = 0.100m;
@@ -200,10 +207,50 @@ internal sealed class GetPlayerMapResourcesHandlerTests : InMemoryTestBase
         Assert.That(result.SuccessValue!.Resources, Is.Empty);
     }
 
+    [Test, Description("A discovery on ground the Player has never been to is withheld, so a new Game does not hand them the whole map's resources.")]
+    public async Task ShouldOmitADiscoveryOnAnUnexploredTileAsync()
+    {
+        await PlaceAndDiscoverAsync(_berryTypeId, _UNSEEN_X, _UNSEEN_Y, _PLAYER_ID, isExplored: false);
+
+        ServiceResult<PlayerMapResources> result = await HandleAsync();
+
+        Assert.That(result.SuccessValue!.Resources, Is.Empty);
+    }
+
+    [Test, Description("A tile in sight counts as seen before the explored stamp is written, so a patch beside a start position shows on the Game's first turn.")]
+    public async Task ShouldReportADiscoveryOnAnUnstampedTileInSightAsync()
+    {
+        // What a new Game looks like on its first read: the start tile is in plain sight, and FirstSeenOnTurnId is written by the map read, not by setup.
+        await PlaceAndDiscoverAsync(_berryTypeId, _SEEN_X, _SEEN_Y, _PLAYER_ID, isExplored: false);
+
+        ServiceResult<PlayerMapResources> result = await HandleAsync();
+
+        PlayerMapResourceEntry entry = result.SuccessValue!.Resources.Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(entry.IsObserved, Is.True);
+            Assert.That(entry.EstimatedQuantity, Is.Not.Null, "A tile in sight carries an estimate, stamp or no stamp.");
+        }
+    }
+
+    [Test, Description("Exploring a tile is enough to be told what was discovered on it, without anything of the Player's still watching it.")]
+    public async Task ShouldReportADiscoveryOnAnExploredButUnwatchedTileAsync()
+    {
+        await PlaceAndDiscoverAsync(_berryTypeId, _UNSEEN_X, _UNSEEN_Y, _PLAYER_ID);
+
+        ServiceResult<PlayerMapResources> result = await HandleAsync();
+
+        Assert.That(result.SuccessValue!.Resources, Has.Count.EqualTo(1));
+    }
+
     [Test, Description("Another Player's discovery is not the caller's, so one Player finding a seam tells the others nothing.")]
     public async Task ShouldOmitAnotherPlayersDiscoveryAsync()
     {
         await PlaceAndDiscoverAsync(_berryTypeId, _SEEN_X, _SEEN_Y, _OTHER_PLAYER_ID);
+
+        // The caller has explored the tile themselves, so it is the missing discovery that withholds the resource and not the missing exploration.
+        await AddPlayerTileAsync(_SEEN_X, _SEEN_Y, _PLAYER_ID, isExplored: true);
 
         ServiceResult<PlayerMapResources> result = await HandleAsync();
 
@@ -237,9 +284,24 @@ internal sealed class GetPlayerMapResourcesHandlerTests : InMemoryTestBase
 
         ServiceResult<PlayerMapResources> result = await HandleAsync();
 
-        long? expected = MapResourceEstimationRules.Estimate(_GAME_SEED, instanceId, _PLAYER_ID, _TRUE_QUANTITY, _FUZZY_FACTOR);
+        long rawEstimate = MapResourceEstimationRules.Estimate(_GAME_SEED, instanceId, _PLAYER_ID, _TRUE_QUANTITY, _FUZZY_FACTOR)!.Value;
 
-        Assert.That(result.SuccessValue!.Resources.Single().EstimatedQuantity, Is.EqualTo(expected));
+        Assert.That(result.SuccessValue!.Resources.Single().EstimatedQuantity, Is.EqualTo(ScaledAmount.FromRaw(rawEstimate).ToDecimal()));
+    }
+
+    [Test, Description("The estimate leaves in whole units, so no client has to know the scale the quantity is stored at.")]
+    public async Task ShouldReportTheEstimateInWholeUnitsAsync()
+    {
+        await PlaceAndDiscoverAsync(_berryTypeId, _SEEN_X, _SEEN_Y, _PLAYER_ID);
+
+        ServiceResult<PlayerMapResources> result = await HandleAsync();
+
+        // Within the fuzzy factor of the true quantity descaled: a raw figure would be a thousand times larger than this range.
+        decimal trueWhole = ScaledAmount.FromRaw(_TRUE_QUANTITY).ToDecimal();
+
+        Assert.That(
+            result.SuccessValue!.Resources.Single().EstimatedQuantity,
+            Is.EqualTo(trueWhole).Within(trueWhole * _FUZZY_FACTOR));
     }
 
     [Test, Description("A stratified instance reports no quantity, because its quantity lives in layers a Player has to survey.")]
@@ -306,8 +368,13 @@ internal sealed class GetPlayerMapResourcesHandlerTests : InMemoryTestBase
     }
 
     /// <summary>
-    /// Adds an instance on the tile and records that the Player knows of it.
+    /// Adds an instance on the tile, records that the Player knows of it, and — unless <paramref name="isExplored"/> says otherwise — that they have been to
+    /// the tile.
     /// </summary>
+    /// <remarks>
+    /// Explored by default because that is the ordinary state of a tile a Player has found something on. Pass <see langword="false"/> to reproduce what game
+    /// setup actually leaves behind: discovery is seeded map-wide, so a Player starts out knowing of instances on ground they have never visited.
+    /// </remarks>
     /// <returns>The instance's id.</returns>
     private async Task<int> PlaceAndDiscoverAsync(
         int mapResourceTypeId,
@@ -315,7 +382,8 @@ internal sealed class GetPlayerMapResourcesHandlerTests : InMemoryTestBase
         int y,
         int playerId,
         long? quantity = _TRUE_QUANTITY,
-        decimal? fuzzyFactor = _FUZZY_FACTOR)
+        decimal? fuzzyFactor = _FUZZY_FACTOR,
+        bool isExplored = true)
     {
         int instanceId = await PlaceInstanceAsync(mapResourceTypeId, x, y, quantity, fuzzyFactor);
 
@@ -331,7 +399,47 @@ internal sealed class GetPlayerMapResourcesHandlerTests : InMemoryTestBase
 
         await context.SaveChangesAsync();
 
+        await AddPlayerTileAsync(x, y, playerId, isExplored);
+
         return instanceId;
+    }
+
+    /// <summary>
+    /// Adds the Player's own map row for the tile, either explored or never visited.
+    /// </summary>
+    /// <remarks>
+    /// Navigations are left null: the in-memory provider enforces no foreign keys, and the handler reads only the scalar columns — the same shortcut the
+    /// river tiles in <c>GetTileSustenanceHandlerTests</c> take.
+    /// <para>
+    /// The key is set by hand because <c>PlayerCampaignMapId</c> is <c>ValueGeneratedNever</c>: production reserves a range of ids per Player, and this
+    /// stands in for that with one id per Player and tile.
+    /// </para>
+    /// </remarks>
+    private async Task AddPlayerTileAsync(int x, int y, int playerId, bool isExplored)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        int campaignMapId = _OFFSET + (y * _MAP_WIDTH) + x;
+
+        context.PlayerCampaignMaps.Add(new PlayerCampaignMap
+        {
+            PlayerCampaignMapId = (playerId * _PLAYER_TILE_ID_RANGE) + campaignMapId,
+            GameId = _GAME_ID,
+            PlayerId = playerId,
+            CampaignMapId = campaignMapId,
+            XCoord = x,
+            YCoord = y,
+            BiomeTypeId = BiomeType.Grassland,
+            CampaignMapGeographyTypeId = CampaignMapGeographyType.Flat,
+            FirstSeenOnTurnId = isExplored ? _FIRST_SEEN_TURN_ID : null,
+            CampaignMap = null!,
+            Biome = null!,
+            Geography = null!,
+            Game = null!,
+            Player = null!
+        });
+
+        await context.SaveChangesAsync();
     }
 
     private void SetSeenTiles(params SightTerrain[] seenTiles)

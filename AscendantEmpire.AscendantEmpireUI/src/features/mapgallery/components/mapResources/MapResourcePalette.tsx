@@ -1,6 +1,6 @@
 import { FaCheck } from "react-icons/fa6";
 import type { MapResourceCategory } from "@/types/map/MapResource";
-import MapResourceIcon from "./MapResourceIcon";
+import MapResourceIcon from "@/components/map/MapResourceIcon";
 
 interface MapResourcePaletteProps {
   categories: MapResourceCategory[];

@@ -1,6 +1,14 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import TileToolbar from "../TileToolbar";
-import { formatSustenanceAmount } from "../formatSustenanceAmount";
+import type { TileMapResourceMarker } from "@/features/map/components/TileTypes";
+
+const berries = (overrides: Partial<TileMapResourceMarker> = {}): TileMapResourceMarker => ({
+  slot: 1,
+  name: "Berries",
+  iconPath: "/resources/food/berries_40px.png",
+  estimatedQuantity: 1250,
+  ...overrides,
+});
 
 describe("TileToolbar", () => {
   it("renders nothing without a tile", () => {
@@ -61,7 +69,7 @@ describe("TileToolbar", () => {
 
     const lineClasses = Array.from(screen.getByLabelText("Tile toolbar").children).map((line) => line.className);
 
-    expect(lineClasses).toEqual(["tile-toolbar__terrain", "tile-toolbar__sustenance", "tile-toolbar__coordinates"]);
+    expect(lineClasses).toEqual(["tile-toolbar__terrain", "tile-toolbar__amounts", "tile-toolbar__coordinates"]);
   });
 
   /** Hovering the apple is the only place the individual amounts are shown, so this pins the sum the tooltip spells out and the order it lists them in. */
@@ -126,18 +134,96 @@ describe("TileToolbar", () => {
 
     expect(screen.queryByLabelText("Sustenance available")).not.toBeInTheDocument();
   });
-});
 
-describe("formatSustenanceAmount", () => {
-  /** Always rounded down, so the bar never promises food the tile doesn't have. */
-  it.each([
-    [0, "0"],
-    [334.9, "334"],
-    [999.99, "999"],
-    [1000, "1k"],
-    [1299, "1.2k"],
-    [12345, "12.3k"],
-  ])("formats %d as %s", (value, expected) => {
-    expect(formatSustenanceAmount(value)).toBe(expected);
+  /** One item per resource, in slot order, each with its own estimate — not a total, which would add a berry patch to a copper seam. */
+  it("draws an item per MapResource with its estimate", () => {
+    render(
+      <TileToolbar
+        tile={{ x: 3, y: 4, terrainLabel: "Grassland, Hills", mapResources: [berries(), berries({ slot: 2, name: "Copper", estimatedQuantity: 340 })] }}
+      />,
+    );
+
+    const line = screen.getByLabelText("MapResources found here");
+
+    expect(Array.from(line.children).map((item) => item.getAttribute("aria-label"))).toEqual(["Berries (1.2k)", "Copper (340)"]);
+  });
+
+  /** An unwatched tile gives no quantity, and the resource is still drawn: the player found it, and it has not stopped existing. */
+  it("draws a MapResource with no amount when there is no estimate", () => {
+    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Hills", mapResources: [berries({ estimatedQuantity: null })] }} />);
+
+    expect(screen.getByLabelText("Berries")).toBeInTheDocument();
+    expect(screen.getByLabelText("MapResources found here").querySelectorAll(".tile-toolbar__sustenance-amount")).toHaveLength(0);
+  });
+
+  /** A type the biome already says has no icon to draw, so the bar names it instead of leaving the player a blank to interpret. */
+  it("names a MapResource whose type has no icon", () => {
+    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Forest, Hills", mapResources: [berries({ name: "Wood", iconPath: null })] }} />);
+
+    const line = screen.getByLabelText("MapResources found here");
+
+    expect(line.querySelector(".tile-toolbar__map-resource-name")?.textContent).toBe("Wood");
+    expect(line.querySelector("img")).not.toBeInTheDocument();
+  });
+
+  /** Sight gates the quantity, not the resource. Nothing here says whether the tile is watched, so an unwatched tile with a discovery still draws the line. */
+  it("draws MapResources on a tile whose sustenance is withheld", () => {
+    render(
+      <TileToolbar
+        tile={{
+          x: 3,
+          y: 4,
+          terrainLabel: "Grassland, Hills",
+          sustenance: { isObserved: false, forage: null, hunt: null, fish: null, fodder: null, supportLevel: null },
+          mapResources: [berries({ estimatedQuantity: null })],
+        }}
+      />,
+    );
+
+    expect(screen.queryByLabelText("Sustenance available")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("MapResources found here")).toBeInTheDocument();
+  });
+
+  it("draws no MapResource line on a tile with none", () => {
+    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", mapResources: [] }} />);
+
+    expect(screen.queryByLabelText("MapResources found here")).not.toBeInTheDocument();
+  });
+
+  /** The resources sit beside the food on the one line of figures, not on a line of their own under it. */
+  it("draws the MapResources alongside the sustenance on one line", () => {
+    render(
+      <TileToolbar
+        tile={{
+          x: 3,
+          y: 4,
+          terrainLabel: "Grassland, Flat",
+          sustenance: { isObserved: true, forage: 400, hunt: null, fish: null, fodder: null, supportLevel: null },
+          mapResources: [berries()],
+        }}
+      />,
+    );
+
+    const toolbar = screen.getByLabelText("Tile toolbar");
+
+    expect(Array.from(toolbar.children).map((line) => line.className)).toEqual([
+      "tile-toolbar__terrain",
+      "tile-toolbar__amounts",
+      "tile-toolbar__coordinates",
+    ]);
+
+    expect(Array.from(toolbar.querySelector(".tile-toolbar__amounts")!.children).map((group) => group.className)).toEqual([
+      "tile-toolbar__sustenance",
+      "tile-toolbar__map-resources",
+    ]);
+  });
+
+  /** Hovering an item is where a resource is named in full, since the line itself carries only the icon and the number. */
+  it("names a MapResource and its estimate in a tooltip when it is hovered", async () => {
+    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Hills", mapResources: [berries()] }} />);
+
+    fireEvent.mouseEnter(screen.getByLabelText("Berries (1.2k)").querySelector(".tile-toolbar__sustenance-stack")!);
+
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Berries (1.2k)");
   });
 });

@@ -20,5 +20,5 @@ public class DTPlayerMapResourceEntry : IPlayerMapResourceEntry
 
     public bool IsObserved { get; set; }
 
-    public long? EstimatedQuantity { get; set; }
+    public decimal? EstimatedQuantity { get; set; }
 }

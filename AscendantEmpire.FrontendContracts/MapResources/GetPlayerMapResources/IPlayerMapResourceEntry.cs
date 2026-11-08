@@ -35,12 +35,12 @@ public interface IPlayerMapResourceEntry
     bool IsObserved { get; }
 
     /// <summary>
-    /// What this Player is shown in place of the true quantity, in thousandths.
+    /// What this Player is shown in place of the true quantity, in whole units.
     /// </summary>
     /// <remarks>
     /// An estimate, not the truth: it is the quantity moved by this Player's own fixed error, within the instance's fuzzy factor. Null where there is no
     /// number to give — the tile is not observed, a stratified instance's quantity is in layers that must be surveyed, or a Distribution's is in per-Asset
     /// amounts.
     /// </remarks>
-    long? EstimatedQuantity { get; }
+    decimal? EstimatedQuantity { get; }
 }

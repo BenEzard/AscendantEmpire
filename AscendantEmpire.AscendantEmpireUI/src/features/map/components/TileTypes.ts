@@ -37,6 +37,27 @@ export type ObservedForceTile = {
   battleMovementRemaining: number | null;
 };
 
+/**
+ * A MapResource the player has discovered on a tile, as the tile draws it.
+ *
+ * Flattened from the whole-map read into exactly what one tile needs, so the grid can hand each memoised tile a stable array — see
+ * groupMapResourcesByTile.
+ */
+export type TileMapResourceMarker = {
+  /** Which of the tile's two places it takes, 1 or 2. Unique within a tile, so it both keys the marker and orders it. */
+  slot: number;
+
+  name: string;
+
+  // Null for a type the biome already says, such as a forest's wood. No marker is drawn for those; the tile's hover title still names them, because the
+  // player has discovered the resource and the title is where that knowledge is kept.
+  iconPath: string | null;
+
+  // The player's own estimate, in whole units, or null where there is no number to give: the tile is out of sight, or the resource holds its quantity in
+  // layers to survey or in per-asset amounts. Never the true quantity, which the server does not send.
+  estimatedQuantity: number | null;
+};
+
 export type TileCell = {
   x: number;
   y: number;

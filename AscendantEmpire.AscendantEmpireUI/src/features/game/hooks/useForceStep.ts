@@ -4,6 +4,7 @@ import { mergeTiles, playerCampaignTilesKey } from "@/features/map/hooks/useCamp
 import type { CampaignMapTilesResponse } from "@/features/map/api/playerCampaignMapApi";
 import { TILE_SUSTENANCE_KEY_PREFIX } from "@/features/map/hooks/useTileSustenance";
 import { TILE_SUPPORT_KEY_PREFIX } from "@/features/map/hooks/useTileSupportLevels";
+import { playerMapResourcesKey } from "@/features/map/hooks/usePlayerMapResources";
 
 /**
  * Steps a single force one tile and folds the result back into the cached map.
@@ -45,6 +46,10 @@ export function useForceStepMutation(
       // The hover marker's support levels cover only tiles in sight, and a tile's need includes the forces standing on it — a step changes both. The bare
       // prefix: each selection is cached separately.
       queryClient.invalidateQueries({ queryKey: TILE_SUPPORT_KEY_PREFIX });
+
+      // A discovered MapResource is drawn either way, but its estimate is only reported for a tile in sight — so a force walking up to a known patch has to
+      // re-read before the number appears beside it, and walking away before it goes.
+      queryClient.invalidateQueries({ queryKey: playerMapResourcesKey(gameId, playerId) });
 
       opts?.onSuccess?.(data);
     },
