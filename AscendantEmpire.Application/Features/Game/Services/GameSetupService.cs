@@ -42,7 +42,8 @@ internal class GameSetupService(
     IEnumerable<ITechnologyRequirementGenerator> technologyRequirementGenerators,
     IPlayerTechnologyAvailabilityService technologyAvailabilityService,
     IOptions<GameSettings> gameSettings,
-    IMapResourceInstantiationService mapResourceInstantiationService
+    IMapResourceInstantiationService mapResourceInstantiationService,
+    IPlayerMapResourceDiscoveryService playerMapResourceDiscoveryService
 ) : IGameSetupService
 {
     /// <summary>
@@ -223,6 +224,20 @@ internal class GameSetupService(
                 const string error = "An error occurred while creating the Game's MapResources during Game setup.";
                 logger.LogError("{Error} Errors: {Errors}", error, string.Join("; ", mapResourceResult.Errors));
                 return ServiceResult<int>.Fail(mapResourceResult.Errors.Prepend(error));
+            }
+
+            // What the Players start out knowing of those MapResources. After the instances because it records the rows they were given ids by.
+            ServiceResult<int> discoveryResult = await playerMapResourceDiscoveryService.SeedDefaultDiscoveriesAsync(
+                context,
+                gameId,
+                [.. addedPlayers.Select(player => player.Id)],
+                cancellationToken);
+
+            if (discoveryResult.HasSucceeded == false)
+            {
+                const string error = "An error occurred while recording the Players' known MapResources during Game setup.";
+                logger.LogError("{Error} Errors: {Errors}", error, string.Join("; ", discoveryResult.Errors));
+                return ServiceResult<int>.Fail(discoveryResult.Errors.Prepend(error));
             }
 
             cancellationToken.ThrowIfCancellationRequested();

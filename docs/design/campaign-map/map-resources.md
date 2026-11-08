@@ -328,7 +328,26 @@ Many MapResources are not automatically visible and must be **discovered**.
   MapResourceType. For a MapResourceType that requires research before extraction, the Player
   **cannot extract** it until this is researched (e.g. no berries before Berry research).
 - An instance created by **spread** is automatically discovered by every Player who had discovered
-  the instance it spread from, but it is only **seen** while within one of their Observers' vision.
+  the instance it spread from.
+
+### What a discovered MapResource shows
+
+Discovery and observation decide different things, so a discovered MapResource is drawn in one of
+two states depending on whether the Player can see its tile right now:
+
+- **The MapResource itself is drawn once discovered**, on every later view of the tile, whether or
+  not the Player is watching it. What they found is a fact about the map they have learned, and a
+  berry patch does not stop existing because they marched away from it.
+- **Its estimated quantity is shown only while the tile is observed** — within one of that Player's
+  Observers' vision at the moment of the read. A quantity moves as anyone extracts from the
+  MapResource or as it grows back, so reporting one for an unwatched tile would disclose what other
+  Players have been doing there.
+
+A Player who finds a berry patch and moves on therefore keeps the patch on their map with no number
+against it, until something of theirs can see the tile again.
+
+Observation is derived live from the Player's Observers and never stored; discovery is stored, in
+`game.PlayerKnownMapResource`.
 
 ### Estimated quantity
 

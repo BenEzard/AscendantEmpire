@@ -7,12 +7,16 @@ using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Handlers;
 using AscendantEmpire.Application.Features.Maps.Depletion.Classes;
 using AscendantEmpire.Application.Features.Maps.Depletion.Handlers;
+using AscendantEmpire.Application.Features.Maps.MapResources.Classes;
+using AscendantEmpire.Application.Features.Maps.MapResources.Handlers;
 using AscendantEmpire.BackendContracts.Biomes;
 using AscendantEmpire.BackendContracts.CampaignMaps.GetPlayerCampaignMap;
+using AscendantEmpire.BackendContracts.MapResources.GetPlayerMapResources;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.Biomes.GetTileSupportLevels;
 using AscendantEmpire.FrontendContracts.Biomes.GetTileSustenance;
 using AscendantEmpire.FrontendContracts.CampaignMaps;
+using AscendantEmpire.FrontendContracts.MapResources.GetPlayerMapResources;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -179,6 +183,52 @@ public class CampaignMapController : ControllerBase
                 Y = tile.Y,
                 SupportLevel = tile.SupportLevel,
                 Turns = tile.Turns
+            })]
+        });
+    }
+
+    /// <summary>
+    /// Get the MapResources the Player has discovered on the Campaign Map.
+    /// </summary>
+    /// <remarks>
+    /// Fetched once for the whole map so drawing a tile is a lookup. An instance the Player has not discovered is never included; one they have stays included
+    /// wherever they are, but carries an <c>estimatedQuantity</c> only while the tile is observed, which <c>isObserved</c> reports. Quantities are this
+    /// Player's own estimate, never the true amount on the tile.
+    /// </remarks>
+    /// <response code="200">The MapResources visible to the Player</response>
+    /// <response code="400">Validation error</response>
+    /// <response code="403">The caller has not entered a game</response>
+    /// <response code="404">Game not found</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpGet("player/map-resources")]
+    [ProducesResponseType(typeof(IPlayerMapResources), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 403)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetPlayerMapResourcesAsync([FromServices] IMediator mediator, CancellationToken cancelToken)
+    {
+        // Game and player come from the token: what is visible is decided by this Player's own discoveries and their own sight.
+        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
+        {
+            return contextError!;
+        }
+
+        ServiceResult<PlayerMapResources> response = await mediator.Send(new GetPlayerMapResourcesRequest(gameId, playerId), cancelToken);
+
+        return response.ToActionResult(contract => new DTPlayerMapResources
+        {
+            Resources = [.. contract.Resources.Select(resource => new DTPlayerMapResourceEntry
+            {
+                X = resource.X,
+                Y = resource.Y,
+                Slot = resource.Slot,
+                MapResourceTypeId = resource.MapResourceTypeId,
+                Code = resource.Code,
+                DisplayName = resource.DisplayName,
+                IconPath = resource.IconPath,
+                IsObserved = resource.IsObserved,
+                EstimatedQuantity = resource.EstimatedQuantity
             })]
         });
     }

@@ -33,4 +33,7 @@ public enum RandomPurpose
 
     /// <summary>Whether each layer of a stratified MapResource instance is empty, what it holds, and how well it can be judged.</summary>
     MapResourceLayerContents = 2004,
+
+    /// <summary>How far one Player's view of a MapResource instance's quantity is off, within the instance's fuzzy factor.</summary>
+    MapResourceEstimationError = 2005,
 }

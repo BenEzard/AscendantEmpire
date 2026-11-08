@@ -112,7 +112,7 @@ internal sealed class MapResourceInstantiationService(
     }
 
     /// <summary>
-    /// Removes every MapResource row the Game holds.
+    /// Removes every MapResource row the Game holds, and what its Players knew of them.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -125,15 +125,17 @@ internal sealed class MapResourceInstantiationService(
     /// and the roll-back only happens where setup is failing, which leaves the Game unplayable in any case.
     /// </para>
     /// </remarks>
-    /// <returns>How many rows were removed, across the three tables.</returns>
+    /// <returns>How many rows were removed, across the four tables.</returns>
     internal static async Task<int> RollBackGameMapResourcesAsync(AscendantEmpireContext context, int gameId, CancellationToken cancellationToken)
     {
-        // Children first: the foreign keys do not cascade, and the parents cannot go while rows point at them.
+        // Children first: the foreign keys do not cascade, and the parents cannot go while rows point at them. The Players' discoveries name the instances as
+        // much as the layers and amounts do, so they go with them.
+        int discoveries = await context.PlayerKnownMapResources.Where(known => known.GameId == gameId).ExecuteDeleteAsync(cancellationToken);
         int layers = await context.MapResourceInstanceLayers.Where(layer => layer.GameId == gameId).ExecuteDeleteAsync(cancellationToken);
         int amounts = await context.MapResourceInstanceAmounts.Where(amount => amount.GameId == gameId).ExecuteDeleteAsync(cancellationToken);
         int instances = await context.MapResourceInstances.Where(instance => instance.GameId == gameId).ExecuteDeleteAsync(cancellationToken);
 
-        return layers + amounts + instances;
+        return discoveries + layers + amounts + instances;
     }
 
     /// <summary>

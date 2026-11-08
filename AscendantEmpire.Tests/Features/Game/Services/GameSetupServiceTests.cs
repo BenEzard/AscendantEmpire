@@ -43,7 +43,8 @@ public partial class GameSetupServiceTests
             [new IdenticalTechnologyRequirementGenerator()],
             Substitute.For<IPlayerTechnologyAvailabilityService>(),
             TestGameSettings.Create(),
-            Substitute.For<IMapResourceInstantiationService>()
+            Substitute.For<IMapResourceInstantiationService>(),
+            Substitute.For<IPlayerMapResourceDiscoveryService>()
         );
     }
 

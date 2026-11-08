@@ -83,11 +83,16 @@ public class GameSqlServerTestBase : SqlServerTestBase
     /// <param name="mapResourceInstantiation">
     /// A substitute for the MapResource step, for the fixtures that need it to fail. The real service otherwise.
     /// </param>
+    /// <param name="playerMapResourceDiscovery">
+    /// A substitute for the step recording what the Players know of those MapResources, for the same reason. The real service otherwise.
+    /// </param>
     /// <remarks>
     /// The collaborators are real rather than substituted so that fixtures building on this base can assert on the rows setup writes. Exposed as a method
     /// rather than built inline in <see cref="SeedGameAsync"/> so a fixture can swap one collaborator without restating the other six.
     /// </remarks>
-    internal GameSetupService BuildGameSetupService(IMapResourceInstantiationService? mapResourceInstantiation = null)
+    internal GameSetupService BuildGameSetupService(
+        IMapResourceInstantiationService? mapResourceInstantiation = null,
+        IPlayerMapResourceDiscoveryService? playerMapResourceDiscovery = null)
     {
         // The real writer over the real turn service. Setup places its starting Forces with no Turn, so the turn service is never actually asked for a sequence here; it is real rather than
         // substituted so that fixtures building on this base, which do open Turns, get the genuine allocator.
@@ -111,7 +116,8 @@ public class GameSqlServerTestBase : SqlServerTestBase
             requirementGenerators,
             new PlayerTechnologyAvailabilityService(NullLogger<PlayerTechnologyAvailabilityService>.Instance),
             TestGameSettings.Create(),
-            mapResourceInstantiation ?? new MapResourceInstantiationService(NullLogger<MapResourceInstantiationService>.Instance, DbFactory));
+            mapResourceInstantiation ?? new MapResourceInstantiationService(NullLogger<MapResourceInstantiationService>.Instance, DbFactory),
+            playerMapResourceDiscovery ?? new PlayerMapResourceDiscoveryService());
     }
 
     /// <summary>

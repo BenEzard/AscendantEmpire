@@ -5,9 +5,9 @@ namespace AscendantEmpire.Domain.Entities.Games;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Discovered is not the same as seen. Once discovered, an instance stays discovered, even if a mechanic later switches off discovery of its type; whether the Player can
-/// see it right now is derived live from their Observers' vision and never stored, the same as sustenance. See "Discovery" in
-/// <c>docs/design/campaign-map/map-resources.md</c>.
+/// Discovered is not the same as seen, and the two decide different things. A row here means the Player is shown the MapResource on the tile from then on, whether or not
+/// they are watching it. Whether they are watching it is derived live from their Observers' vision and never stored, the same as sustenance, and decides only whether its
+/// estimated quantity comes with it. See "What a discovered MapResource shows" in <c>docs/design/campaign-map/map-resources.md</c>.
 /// </para>
 /// <para>
 /// An instance created by spread is discovered at once by every Player who had discovered the instance it spread from, so these rows are copied when it spreads, and

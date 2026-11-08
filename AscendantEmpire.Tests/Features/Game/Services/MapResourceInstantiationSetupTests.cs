@@ -153,6 +153,29 @@ internal sealed class MapResourceInstantiationSetupTests : GameSqlServerTestBase
         }
     }
 
+    [Test, Description("Setting up a Game records what its Players already know, so a default-discoverable resource needs no searching for.")]
+    public async Task ShouldRecordDefaultDiscoveriesWhenGameIsSetUpAsync()
+    {
+        await SeedForestMapWithPlacementsAsync();
+
+        ServiceResultBase.ServiceResult<int> result = await _service.SetupGameAsync(BuildRequest("Discovery Setup Game", seed: 779), CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
+
+        List<PlayerKnownMapResource> known = await verify.PlayerKnownMapResources
+            .Where(row => row.GameId == result.SuccessValue)
+            .ToListAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            // Three placements, each of a type the test catalogue makes discoverable by default, seen by both Players.
+            Assert.That(known, Has.Count.EqualTo(6), "Every Player must start out knowing every default-discoverable instance.");
+            Assert.That(known.Select(row => row.DiscoveredOnRound), Is.All.Zero, "Known before the Game began means Round 0.");
+        }
+    }
+
     [Test, Description("Two Games from one map and one seed hold identical resources, so a seed reproduces a Game exactly.")]
     public async Task ShouldCreateIdenticalInstancesWhenSeedAndMapRepeatAsync()
     {

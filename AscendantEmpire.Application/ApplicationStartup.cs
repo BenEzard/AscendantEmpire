@@ -106,6 +106,7 @@ public static class ApplicationStartup
 
         // Takes the context factory rather than a context: it is called from game setup, which owns its own context and bulk-copies on its own connection.
         services.AddScoped<IMapResourceInstantiationService, MapResourceInstantiationService>();
+        services.AddScoped<IPlayerMapResourceDiscoveryService, PlayerMapResourceDiscoveryService>();
 
         // Asset banks.
         services.AddScoped<IAssetBankReader, AssetBankReader>();
