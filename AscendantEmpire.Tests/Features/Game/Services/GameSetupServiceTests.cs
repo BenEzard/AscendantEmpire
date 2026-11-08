@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
+using AscendantEmpire.Application.Features.Maps.MapResources.Services;
 using AscendantEmpire.Application.Features.Units.Services;
 using AscendantEmpire.Domain.Enums.Maps;
 
@@ -41,7 +42,8 @@ public partial class GameSetupServiceTests
             Substitute.For<IForceLifecycleWriter>(),
             [new IdenticalTechnologyRequirementGenerator()],
             Substitute.For<IPlayerTechnologyAvailabilityService>(),
-            TestGameSettings.Create()
+            TestGameSettings.Create(),
+            Substitute.For<IMapResourceInstantiationService>()
         );
     }
 

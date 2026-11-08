@@ -124,6 +124,13 @@ the one the editor set, if any; otherwise it is rolled from the `InitialQuantity
 is created. A Distribution instead starts at its scenario's amounts (the editor may pin a scenario,
 otherwise one is picked as below), and a stratified MapResource's layers are always rolled.
 
+A placement the catalogue can no longer honour is skipped rather than failing the game's creation,
+and logged as a warning naming the type: a tile repainted to a Biome the type has no habitat for, a
+Distribution whose tile's Biome carries no scenario weight, a pinned scenario belonging to another
+type, a stratified type with no layers, or a single-quantity type whose habitat names no
+`InitialQuantity` range on a placement the editor set no quantity on. The first two are a map to
+repair; the rest are a catalogue the type's own validator should have refused.
+
 ### Player modifiers
 
 On an **owned** tile (within a Player's territory), the **owner's** modifiers raise these values,
@@ -363,9 +370,11 @@ As with modifiers, losing a source just deletes its rows.
 
 ## Randomness
 
-Every roll (spread, spread direction, survival, capture, discovery, `SpreadLimit`, estimation error)
-is derived from the game's seed, `GameIndex.GenerationSeed`, so the results can be reproduced and
-tested. No roll's result is stored.
+Every roll — spread, spread direction, survival, capture, discovery, initial quantity, `SpreadLimit`,
+which Distribution scenario an instance is created from, estimation error, and a stratified layer's
+contents — is derived from the game's seed, `GameIndex.GenerationSeed`, so the results can be
+reproduced and tested. A roll taken again each round stores nothing; a roll taken once, when an instance is created,
+is stored on the instance, because the values it settles are then worked on by extraction and growth.
 
 A roll's key is the seed plus whatever tells that roll apart from every other roll drawn from the
 same seed. What that takes depends on whether the roll is taken once or taken again:
@@ -376,10 +385,25 @@ same seed. What that takes depends on whether the roll is taken once or taken ag
 | Spread, and spread direction | seed + instance `Id` + **round** + roll name | Taken once a round while the instance has spreads left. The direction must vary from round to round as well, so it carries the round too. |
 | Discovery | seed + instance `Id` + Player `Id` + **round** + roll name | Taken per Player, per round one of their units enters or rests on the tile, so a round that fails does not fix the outcome for every later round. A stratified type rolls per layer, which the roll name carries. |
 | Capture | seed + instance `Id` + Player `Id` + **round** + roll name | Taken per extraction attempt, so a failed capture is not failed identically for good. |
-| `SpreadLimit`, initial quantity, Distribution scenario, `EstimationFuzzyFactor` | seed + instance `Id` + roll name | Rolled once, when the instance is created, and fixed for its life — so these carry no round. `EstimationFuzzyFactor` depends on it: it is recomputed on every view rather than stored, which only holds while the key gives the same answer every time it is asked. |
+| `SpreadLimit`, initial quantity, Distribution scenario, `EstimationFuzzyFactor`, a stratified layer's contents | seed + tile `XCoord` + tile `YCoord` + `Slot` + roll name | Rolled once, when the instance is created, and stored — so these carry no round. A layer's roll carries its `LayerNumber` too, so two layers of one instance never roll alike. |
 
 The **roll name** separates two rolls that would otherwise share a key, such as a spread and its
 direction in the same round.
+
+### Why a creation roll keys on the tile, not the instance
+
+The rolls taken when an instance is created cannot key on its `Id`: `MapResourceInstance.Id` is an
+identity column, so at game setup it does not exist yet. Nor can they key on `CampaignMapId`, which
+is derived from `GameIndex.CampaignMapOffsetId` and so depends on how many maps the database already
+holds — one seed and one map would then produce different games in different databases, which is the
+one thing the seed exists to prevent. The tile's coordinates and slot are known before the insert and
+mean the same thing everywhere, so they are what a creation roll keys on. Rolls taken over an
+instance's life key on the `Id`, which by then exists.
+
+The same argument settles what the weighted scenario pick walks in order of. The candidates are
+ordered by `MapResourceDistributionScenario.ScenarioNumber`, never by `Id` and never as the database
+returned them, because the cumulative walk a weighted pick makes gives a different answer for a
+different order — and scenario identity is as much a per-database accident as `CampaignMapId` is.
 
 ## Data model
 
@@ -532,8 +556,8 @@ the same tile's second slot, so tile 48813 is full.
 Two adjacent Forest tiles from one placement each, rolled onto **different scenarios** — one mixed
 oak, one an ebony stand. `Quantity` is null because the amounts are in child rows, `SpreadLimit` is
 null because a Distribution never spreads, and each `EstimationFuzzyFactor` was rolled from the
-type's 0.050–0.150 range keyed on the seed and the instance `Id`. Another game from the same map
-rolls both again.
+type's own range keyed on the seed and the tile's coordinates and slot. Another game from the same
+map rolls both again.
 
 **`game.MapResourceInstanceAmount`** — each instance's own copy of its scenario:
 
@@ -604,7 +628,7 @@ has nothing to improve. No research item is generated for a type found on sight.
 | Tech-gating a Distribution's Assets. `PlayerMapResourceSwitch` already carries an `AssetId`, so this needs a switch kind and an extraction rule rather than a schema change — but a per-Asset default has nowhere to live, since a Distribution type's Asset set exists only as the union of its scenarios' amounts. A type-level list of the Assets a Distribution can hold, each with its own default, would give the default a home and let the validator check that every scenario amount names a declared Asset. | [Switches](#switches) |
 | The tile icon for a Distribution whose majority Asset, ignoring generic, is one particular wood. It can be derived per view from the instance's amounts and drawn from `assets.Asset.IconPath`, with no new column: `EstimationFuzzyFactor` is per instance and `Error` is per seed, Player and instance, so every Asset is scaled by the same multiplier and the majority a Player sees is the true one. What share counts as a majority is undecided. | [Distribution](#distribution) |
 | Whether a Distribution implied by its Biome should take a tile slot at all, or whether the ceiling of 2 should rise. | [Placement on tiles](#placement-on-tiles) |
-| Jittering the copied amounts at game creation, by a share keyed on the seed and the instance `Id`, so two tiles drawing the same scenario do not start identical. `MapResourceInstanceAmount` is already an independent copy and the scenario is never read back, so nothing downstream assumes they match. The lever to reach for if a fixed set of scenarios reads too uniform across hundreds of tiles. | [Distribution](#distribution) |
+| Jittering the copied amounts at game creation, by a share keyed on the seed and the tile's coordinates and slot, so two tiles drawing the same scenario do not start identical. `MapResourceInstanceAmount` is already an independent copy and the scenario is never read back, so nothing downstream assumes they match. The lever to reach for if a fixed set of scenarios reads too uniform across hundreds of tiles. | [Distribution](#distribution) |
 | `SurvivalRounds` and `ReseedLikelihood` are on the MapResourceType, so a stripped jungle and a stripped woodland must recover at the same rate. They are habitat-shaped values, and moving them onto `MapResourceHabitat` alongside `GrowthPercentage` would let dormancy vary by Biome for every renewable type. | [Exhaustion and survival](#exhaustion-and-survival) |
 | Nothing checks that a scenario pinned on a gallery placement is weighted in that tile's Biome, so a bamboo scenario can be pinned onto a Forest tile. Habitat compatibility is checked per type, which cannot see it. | `UpdateGalleryMapResourceHandler` |
 | A Distribution instance's total is not stored. `MapResourceInstance.Quantity` is null and the total is summed from `MapResourceInstanceAmount` wherever it is needed, including growth. | [Instances](#instances) |

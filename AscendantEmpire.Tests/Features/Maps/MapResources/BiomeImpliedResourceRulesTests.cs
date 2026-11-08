@@ -26,6 +26,8 @@ internal sealed class BiomeImpliedResourceRulesTests
 
     private const int _TILE_ID = 48812;
 
+    #region Plan
+
     [Test, Description("A Biome-wide habitat covers every Geography in that Biome, so a Forest tile of any Geography is given the MapResource.")]
     public void ShouldPlanAPlacementWhenTheBiomeHasABiomeWideHabitat()
     {
@@ -164,6 +166,10 @@ internal sealed class BiomeImpliedResourceRulesTests
         Assert.That(plan.IsEmpty, Is.True, "A wooded tile that already holds wood and a bare tile that should stay bare both need nothing.");
     }
 
+    #endregion
+
+    #region HasHabitat
+
     [Test, Description("A Biome-wide habitat and one naming a Geography both count, so adding the specific row never narrows what the Biome-wide row already covered.")]
     public void ShouldFindAHabitatWhenEitherTheBiomeWideOrTheGeographyRowCovers()
     {
@@ -188,7 +194,49 @@ internal sealed class BiomeImpliedResourceRulesTests
         }
     }
 
-    // ---------------------------------------------------------------------
+    #endregion
+
+    #region FindHabitat
+
+    [Test, Description("FindHabitat prefers the Geography-specific habitat over the Biome-wide one, so a tile is valued by the row that names it.")]
+    public void ShouldPreferGeographySpecificHabitatWhenBothCover()
+    {
+        HabitatScope biomeWide = new(BiomeType.Forest, null);
+        HabitatScope hillyOnly = new(BiomeType.Forest, CampaignMapGeographyType.Hilly);
+
+        // Biome-wide first, so a match that merely took the first covering row would pick the wrong one.
+        HabitatScope? found = BiomeImpliedResourceRules.FindHabitat([biomeWide, hillyOnly], BiomeType.Forest, CampaignMapGeographyType.Hilly);
+
+        Assert.That(found, Is.EqualTo(hillyOnly), "The row naming Hilly is the more specific of the two and should win.");
+    }
+
+    [Test, Description("FindHabitat falls back to the Biome-wide habitat when no row names the tile's Geography, since Biome-wide covers every Geography.")]
+    public void ShouldReturnBiomeWideHabitatWhenNoGeographySpecificRowExists()
+    {
+        HabitatScope biomeWide = new(BiomeType.Forest, null);
+
+        HabitatScope? found = BiomeImpliedResourceRules.FindHabitat(
+            [biomeWide, new HabitatScope(BiomeType.Forest, CampaignMapGeographyType.Hilly)],
+            BiomeType.Forest,
+            CampaignMapGeographyType.Flat);
+
+        Assert.That(found, Is.EqualTo(biomeWide), "No row names Flat, so the Biome-wide row covers it.");
+    }
+
+    [Test, Description("FindHabitat returns null when no habitat covers the tile, which is what makes a MapResourceType non-compatible with it.")]
+    public void ShouldReturnNullWhenNoHabitatCoversTile()
+    {
+        HabitatScope? found = BiomeImpliedResourceRules.FindHabitat(
+            [new HabitatScope(BiomeType.Forest, null)],
+            BiomeType.Desert,
+            CampaignMapGeographyType.Flat);
+
+        Assert.That(found, Is.Null, "Berries have no Desert habitat, so nothing covers a Desert tile.");
+    }
+
+    #endregion
+
+    #region Helpers
 
     private static TileResourceState BuildTile(BiomeType biome, CampaignMapGeographyType geography, params TilePlacementState[] placements)
     {
@@ -199,4 +247,6 @@ internal sealed class BiomeImpliedResourceRulesTests
     {
         return new TilePlacementState(id, mapResourceTypeId, slot, carriesAuthorIntent);
     }
+
+    #endregion
 }

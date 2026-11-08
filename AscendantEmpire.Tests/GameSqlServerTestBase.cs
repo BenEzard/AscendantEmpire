@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
+using AscendantEmpire.Application.Features.Maps.MapResources.Services;
 using AscendantEmpire.Application.Features.Assets.Handlers;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Units.Services;
@@ -73,6 +74,21 @@ public class GameSqlServerTestBase : SqlServerTestBase
 
         _capturingLogger = new CapturingLogger<GameSetupService>();
 
+        _service = BuildGameSetupService();
+    }
+
+    /// <summary>
+    /// A <see cref="GameSetupService"/> over this fixture's database, with every collaborator real.
+    /// </summary>
+    /// <param name="mapResourceInstantiation">
+    /// A substitute for the MapResource step, for the fixtures that need it to fail. The real service otherwise.
+    /// </param>
+    /// <remarks>
+    /// The collaborators are real rather than substituted so that fixtures building on this base can assert on the rows setup writes. Exposed as a method
+    /// rather than built inline in <see cref="SeedGameAsync"/> so a fixture can swap one collaborator without restating the other six.
+    /// </remarks>
+    internal GameSetupService BuildGameSetupService(IMapResourceInstantiationService? mapResourceInstantiation = null)
+    {
         // The real writer over the real turn service. Setup places its starting Forces with no Turn, so the turn service is never actually asked for a sequence here; it is real rather than
         // substituted so that fixtures building on this base, which do open Turns, get the genuine allocator.
         var forceLifecycleWriter = new ForceLifecycleWriter(
@@ -87,14 +103,15 @@ public class GameSqlServerTestBase : SqlServerTestBase
             new UnimplementedTechnologyRequirementGenerator(TechnologyCustomisation.FullyRandomised)
         ];
 
-        _service = new GameSetupService(
+        return new GameSetupService(
             _capturingLogger,
             DbFactory,
             _mapGalleryService,
             forceLifecycleWriter,
             requirementGenerators,
             new PlayerTechnologyAvailabilityService(NullLogger<PlayerTechnologyAvailabilityService>.Instance),
-            TestGameSettings.Create());
+            TestGameSettings.Create(),
+            mapResourceInstantiation ?? new MapResourceInstantiationService(NullLogger<MapResourceInstantiationService>.Instance, DbFactory));
     }
 
     /// <summary>

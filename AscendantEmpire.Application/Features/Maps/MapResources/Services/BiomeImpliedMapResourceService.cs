@@ -337,30 +337,46 @@ internal sealed class BiomeImpliedMapResourceService(
     /// </remarks>
     private async Task BulkInsertPlacementsAsync(BiomeImpliedResourcePlan plan, CancellationToken cancellationToken)
     {
-        var table = new DataTable();
-        table.Columns.Add("CampaignMapGalleryId", typeof(int));
-        table.Columns.Add("MapResourceTypeId", typeof(int));
-        table.Columns.Add("Slot", typeof(byte));
-
-        foreach (PlacementToAdd placement in plan.ToAdd)
-        {
-            table.Rows.Add(placement.CampaignMapGalleryId, plan.MapResourceTypeId, placement.Slot);
-        }
+        DataTable table = BuildPlacementTable(plan);
 
         await using var connection = new SqlConnection(context.Database.GetConnectionString());
         await connection.OpenAsync(cancellationToken);
 
         using var bulkCopy = new SqlBulkCopy(connection, SqlBulkCopyOptions.TableLock, null)
         {
-            DestinationTableName = "[mapgallery].[CampaignMapGalleryResource]",
+            DestinationTableName = context.SchemaQualifiedTableName<CampaignMapGalleryResource>(),
             BatchSize = _BULK_INSERT_BATCH_SIZE
         };
 
-        bulkCopy.ColumnMappings.Add(sourceColumn: "CampaignMapGalleryId", destinationColumn: "CampaignMapGalleryId");
-        bulkCopy.ColumnMappings.Add(sourceColumn: "MapResourceTypeId", destinationColumn: "MapResourceTypeId");
-        bulkCopy.ColumnMappings.Add(sourceColumn: "Slot", destinationColumn: "Slot");
+        // Mapped by column name, so the order the columns were added in cannot matter.
+        foreach (DataColumn column in table.Columns)
+        {
+            bulkCopy.ColumnMappings.Add(column.ColumnName, column.ColumnName);
+        }
 
         await bulkCopy.WriteToServerAsync(table, cancellationToken);
+    }
+
+    /// <summary>
+    /// The placement rows to copy in, one per tile the plan decided.
+    /// </summary>
+    /// <remarks>
+    /// Column names come from the entity's properties rather than literals, so a renamed property is a compile error instead of a bulk copy that fails when a
+    /// map is generated. The nullable authored quantity and pinned scenario are left out, those being the editor's to set and not this path's.
+    /// </remarks>
+    internal static DataTable BuildPlacementTable(BiomeImpliedResourcePlan plan)
+    {
+        var table = new DataTable();
+        table.Columns.Add(nameof(CampaignMapGalleryResource.CampaignMapGalleryId), typeof(int));
+        table.Columns.Add(nameof(CampaignMapGalleryResource.MapResourceTypeId), typeof(int));
+        table.Columns.Add(nameof(CampaignMapGalleryResource.Slot), typeof(byte));
+
+        foreach (PlacementToAdd placement in plan.ToAdd)
+        {
+            table.Rows.Add(placement.CampaignMapGalleryId, plan.MapResourceTypeId, placement.Slot);
+        }
+
+        return table;
     }
 
     /// <summary>

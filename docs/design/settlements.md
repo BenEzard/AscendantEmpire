@@ -284,7 +284,10 @@ with no balance row anywhere.
 
 ## Buildings
 
-Buildings are constructed within a settlement and provide outputs or capabilities.
+Buildings are constructed within a settlement and provide outputs or capabilities. The full design —
+the catalogue, how one is unlocked and where it may be built, what it costs, how it goes up, and what
+its effects are — is [buildings.md](buildings.md). What follows is the distinction the rest of this
+document depends on, and the catalogue content authored so far.
 
 **Building, structure, infrastructure are three different things, and the words are not
 interchangeable.** A **building** is inside a settlement, and is what grants it capabilities — an

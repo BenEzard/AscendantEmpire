@@ -29,7 +29,8 @@ is settled, some of it is still a working sketch with open questions called out 
 | [battlefield-maps.md](battlefield-maps.md) | How battlefield maps are generated, fortifications, battle flow, objectives, and manoeuvres. |
 | [units/unit-movement.md](units/unit-movement.md) | The source of truth for unit movement: campaign stepping, tile costs, carry and replenishment, and battle movement. |
 | [units/unit-mechanics.md](units/unit-mechanics.md) | Positioning/facing, tactics, fog of war, strength, and ranged attack. |
-| [settlements.md](settlements.md) | Settlement types, asset banks, and buildings. |
+| [settlements.md](settlements.md) | Settlement types, founding, construction, territory, and asset banks. |
+| [buildings.md](buildings.md) | Buildings: the catalogue, tech unlocking, footprint against construction capacity, co-existence limits, costs, construction, and effects. |
 | [specialists.md](specialists.md) | Specialists and military commanders. |
 | [technology.md](technology.md) | The three-bucket research model, the seven methods of technological advancement, how experience is earned, and the schema and API behind them. |
 | [foreign-relations.md](foreign-relations.md) | Inter-empire relationships and diplomatic arrangements. |

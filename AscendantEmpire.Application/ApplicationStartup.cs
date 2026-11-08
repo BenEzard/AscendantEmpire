@@ -104,6 +104,9 @@ public static class ApplicationStartup
         // Scoped so it shares the calling handler's context, which is what lets its placement writes join that handler's transaction.
         services.AddScoped<IBiomeImpliedMapResourceService, BiomeImpliedMapResourceService>();
 
+        // Takes the context factory rather than a context: it is called from game setup, which owns its own context and bulk-copies on its own connection.
+        services.AddScoped<IMapResourceInstantiationService, MapResourceInstantiationService>();
+
         // Asset banks.
         services.AddScoped<IAssetBankReader, AssetBankReader>();
         services.AddScoped<IAssetBankDrawdownService, AssetBankDrawdownService>();

@@ -1,7 +1,7 @@
 namespace AscendantEmpire.Domain.Entities.Games;
 
 /// <summary>
-/// A MapResource on one campaign map tile in a game: an instance of a <c>MapResourceType</c>, such as the berry patch on tile (4,5).
+/// A MapResource on one campaign map tile in a game: an instance of a <c>MapResourceType</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -18,10 +18,10 @@ namespace AscendantEmpire.Domain.Entities.Games;
 /// </list>
 /// </para>
 /// <para>
-/// Every roll concerning an instance (spread, survival, capture, discovery, a Player's estimation error) is derived from the game's seed and the instance's <see cref="Id"/>,
-/// so no roll's result is stored. A roll taken again for the same instance — survival, spread, discovery, capture — also keys on the Round, since without it every Round
-/// would draw the same number. A roll taken once keys on the instance alone: the estimation error in particular is recomputed on every view, which keeps it fixed without a
-/// column that could drift. See the Randomness section of the design doc.
+/// Every roll concerning an instance (spread, survival, capture, discovery, a Player's estimation error) is derived from the game's seed. A roll taken again for the same
+/// instance — survival, spread, discovery, capture — keys on the <see cref="Id"/> and the Round, since without the Round every Round would draw the same number, and stores
+/// nothing. A roll taken once, when the instance is created, keys on the tile's coordinates and <see cref="Slot"/> instead and is stored on the row: the <see cref="Id"/> is
+/// an identity column and so does not exist at that point. See the Randomness section of the design doc.
 /// </para>
 /// <para>
 /// No navigation properties, the same as <see cref="CampaignMapDepletion"/>: the rows are read and written by tile and game, never walked as an entity graph.

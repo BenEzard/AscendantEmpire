@@ -2,6 +2,7 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
+using AscendantEmpire.Application.Features.Maps.MapResources.Services;
 using AscendantEmpire.Application.Features.Military;
 using AscendantEmpire.Application.Features.Technologies.Services;
 using AscendantEmpire.Application.Features.Units.Services;
@@ -40,7 +41,8 @@ internal class GameSetupService(
     IForceLifecycleWriter forceLifecycleWriter,
     IEnumerable<ITechnologyRequirementGenerator> technologyRequirementGenerators,
     IPlayerTechnologyAvailabilityService technologyAvailabilityService,
-    IOptions<GameSettings> gameSettings
+    IOptions<GameSettings> gameSettings,
+    IMapResourceInstantiationService mapResourceInstantiationService
 ) : IGameSetupService
 {
     /// <summary>
@@ -204,6 +206,23 @@ internal class GameSetupService(
                     gameId);
 
                 return ServiceResult<int>.Fail($"The number of records inserted into the Campaign Map was less than expected. Something went wrong.");
+            }
+
+            // The MapResources the map was authored with, rolled from this Game's seed. After the map because it addresses the tiles the copy above created,
+            // and before the Player maps because the MapResources are world state that the Players' views of it follow.
+            ServiceResult<int> mapResourceResult = await mapResourceInstantiationService.InstantiateForGameAsync(
+                gameId,
+                mapProperties.Id,
+                newGameIndex.GenerationSeed,
+                newGameIndex.CampaignMapOffsetId,
+                newGameIndex.MapWidth,
+                cancellationToken);
+
+            if (mapResourceResult.HasSucceeded == false)
+            {
+                const string error = "An error occurred while creating the Game's MapResources during Game setup.";
+                logger.LogError("{Error} Errors: {Errors}", error, string.Join("; ", mapResourceResult.Errors));
+                return ServiceResult<int>.Fail(mapResourceResult.Errors.Prepend(error));
             }
 
             cancellationToken.ThrowIfCancellationRequested();

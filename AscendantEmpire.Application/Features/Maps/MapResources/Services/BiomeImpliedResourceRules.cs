@@ -24,14 +24,38 @@ internal static class BiomeImpliedResourceRules
     /// Whether a MapResourceType's habitats cover a tile's Biome and Geography.
     /// </summary>
     /// <remarks>
-    /// A Biome-wide habitat (no Geography) covers every Geography in that Biome; a habitat naming a Geography covers only that one. No covering row means the
-    /// type can never exist on the tile. The same rule is applied as a database query, for one tile at a time, by
-    /// <c>PlaceGalleryMapResourceHandler</c> - change both together.
+    /// Asks <see cref="FindHabitat"/>, which carries the rule, so a caller that only needs the yes or no cannot answer it differently from one that needs the
+    /// habitat's values.
     /// </remarks>
     internal static bool HasHabitat(IReadOnlyCollection<HabitatScope> habitats, BiomeType biome, CampaignMapGeographyType geography)
     {
-        return habitats.Any(habitat => habitat.BiomeTypeId == biome
+        return FindHabitat(habitats, biome, geography) != null;
+    }
+
+    /// <summary>
+    /// The habitat covering a tile's Biome and Geography, or <see langword="null"/> when none does.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A Biome-wide habitat (no Geography) covers every Geography in that Biome; a habitat naming a Geography covers only that one. Where both cover a tile the
+    /// specific one wins, which is what lets an author give hilly forest its own values. No covering row means the type can never exist on the tile, and cannot
+    /// spread onto it. The same rule is applied as a database query, for one tile at a time, by <c>PlaceGalleryMapResourceHandler</c> - change both together.
+    /// </para>
+    /// <para>
+    /// Returns the scope rather than the habitat row, because <c>UX_MapResourceHabitat_Type_Biome_Geography</c> makes the scope a unique key within a type: a
+    /// caller needing the habitat's quantity and spread ranges looks them up by what this returns.
+    /// </para>
+    /// </remarks>
+    internal static HabitatScope? FindHabitat(IEnumerable<HabitatScope> habitats, BiomeType biome, CampaignMapGeographyType geography)
+    {
+        IEnumerable<HabitatScope> covering = habitats.Where(habitat => habitat.BiomeTypeId == biome
             && (habitat.CampaignMapGeographyTypeId == null || habitat.CampaignMapGeographyTypeId == geography));
+
+        // Ordered rather than taken as it comes, so the specific row wins however the rows were read.
+        return covering
+            .OrderByDescending(habitat => habitat.CampaignMapGeographyTypeId.HasValue)
+            .Select(habitat => (HabitatScope?)habitat)
+            .FirstOrDefault();
     }
 
     /// <summary>
