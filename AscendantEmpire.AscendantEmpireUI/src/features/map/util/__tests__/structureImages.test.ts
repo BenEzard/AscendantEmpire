@@ -32,10 +32,7 @@ describe("structureImageSrc", () => {
    * An API too old to send a code normalizes to an empty string, and a kind can legitimately be absent. Neither is a lookup
    * worth making, so both answer undefined rather than reaching the map at all.
    */
-  it.each([["", "an empty code"], [null, "null"], [undefined, "undefined"]])(
-    "has nothing for %s (%s)",
-    (code) => {
-      expect(structureImageSrc(code as string | null | undefined)).toBeUndefined();
-    },
-  );
+  it.each([[""], [null], [undefined]])("has nothing for %j", (code) => {
+    expect(structureImageSrc(code)).toBeUndefined();
+  });
 });

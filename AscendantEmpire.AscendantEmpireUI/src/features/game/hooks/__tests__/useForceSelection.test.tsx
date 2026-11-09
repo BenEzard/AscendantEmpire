@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ObservedForceTile, TileCell } from "@/features/map/components/TileTypes";
+import type { ToastVariant } from "@/hooks/useToast";
 import { getForceContextActions } from "../../api/forceContextActionsApi";
 import type { StepForceResponse } from "../../api/forceMovementApi";
 import { useForceSelection } from "../useForceSelection";
@@ -101,7 +102,7 @@ function stepResult({
   };
 }
 
-function renderForceSelection(openToast: (message: string, variant?: never) => void = vi.fn()) {
+function renderForceSelection(openToast: (message: string, variant?: ToastVariant) => void = vi.fn()) {
   return renderHook(() => useForceSelection({ gameId: 1, playerId: THIS_PLAYER_ID, openToast }), { wrapper });
 }
 
