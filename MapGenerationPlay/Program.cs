@@ -1,8 +1,7 @@
 using System.Globalization;
 using MapGenerationPlay.Generation;
 using MapGenerationPlay.Noise;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
+using SkiaSharp;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // MapGenerationPlay — prototype console app for the Perlin Noise map generator.
@@ -176,22 +175,31 @@ static MapResult GenerateMap(
 // Output helpers
 // ──────────────────────────────────────────────────────────────────────────────
 
+/// <summary>
+/// Encodes a row-major pixel buffer as a PNG.
+/// </summary>
+static void SavePng(SKColor[] pixels, int width, int height, string path)
+{
+    using SKBitmap bitmap = new SKBitmap(width, height);
+    bitmap.Pixels = pixels;
+
+    using SKImage image = SKImage.FromBitmap(bitmap);
+    using SKData encoded = image.Encode(SKEncodedImageFormat.Png, 100);
+    using FileStream file = File.Create(path);
+
+    encoded.SaveTo(file);
+}
+
 static void SaveHeightmapPng(double[] heightmap, int width, int height, string path)
 {
-    using var image = new Image<L8>(width, height);
-    image.ProcessPixelRows(accessor =>
+    SKColor[] pixels = new SKColor[width * height];
+    for (int i = 0; i < pixels.Length; i++)
     {
-        for (int y = 0; y < height; y++)
-        {
-            var row = accessor.GetRowSpan(y);
-            for (int x = 0; x < width; x++)
-            {
-                byte luma = (byte)(heightmap[y * width + x] * 255);
-                row[x] = new L8(luma);
-            }
-        }
-    });
-    image.SaveAsPng(path);
+        byte luma = (byte)(heightmap[i] * 255);
+        pixels[i] = new SKColor(luma, luma, luma);
+    }
+
+    SavePng(pixels, width, height, path);
 }
 
 static void SaveHeightmapCsv(double[] heightmap, int width, int height, string path)
@@ -218,27 +226,21 @@ static void SaveHeightmapCsv(double[] heightmap, int width, int height, string p
 /// </summary>
 static void SaveGeographyPng(GeographyType[] geography, int width, int height, string path)
 {
-    using var image = new Image<Rgb24>(width, height);
-    image.ProcessPixelRows(accessor =>
+    SKColor[] pixels = new SKColor[width * height];
+    for (int i = 0; i < pixels.Length; i++)
     {
-        for (int y = 0; y < height; y++)
+        pixels[i] = geography[i] switch
         {
-            var row = accessor.GetRowSpan(y);
-            for (int x = 0; x < width; x++)
-            {
-                row[x] = geography[y * width + x] switch
-                {
-                    GeographyType.DeepWater    => new Rgb24(0x1a, 0x3a, 0x6b),
-                    GeographyType.ShallowWater => new Rgb24(0x5a, 0xbc, 0xb4),
-                    GeographyType.Flat         => new Rgb24(0x6a, 0xaa, 0x3c),
-                    GeographyType.Hilly        => new Rgb24(0xc8, 0xa8, 0x47),
-                    GeographyType.Mountainous  => new Rgb24(0x8a, 0x8a, 0x8a),
-                    _                          => new Rgb24(0xff, 0x00, 0xff),  // magenta = bug
-                };
-            }
-        }
-    });
-    image.SaveAsPng(path);
+            GeographyType.DeepWater => new SKColor(0x1a, 0x3a, 0x6b),
+            GeographyType.ShallowWater => new SKColor(0x5a, 0xbc, 0xb4),
+            GeographyType.Flat => new SKColor(0x6a, 0xaa, 0x3c),
+            GeographyType.Hilly => new SKColor(0xc8, 0xa8, 0x47),
+            GeographyType.Mountainous => new SKColor(0x8a, 0x8a, 0x8a),
+            _ => new SKColor(0xff, 0x00, 0xff),  // magenta = bug
+        };
+    }
+
+    SavePng(pixels, width, height, path);
 }
 
 /// <summary>
@@ -342,28 +344,13 @@ static void GenerateAndSaveBattleMaps(
 /// </summary>
 static void SaveAltitudePng(BattleMapAltitude[] altitudes, int width, int height, string path)
 {
-    using var image = new Image<Rgb24>(width, height);
-    image.ProcessPixelRows(accessor =>
+    SKColor[] pixels = new SKColor[width * height];
+    for (int i = 0; i < pixels.Length; i++)
     {
-        for (int y = 0; y < height; y++)
-        {
-            var row = accessor.GetRowSpan(y);
-            for (int x = 0; x < width; x++)
-            {
-                row[x] = altitudes[y * width + x] switch
-                {
-                    BattleMapAltitude.BelowWater => new Rgb24(0x1a, 0x3a, 0x6b),
-                    BattleMapAltitude.Ground     => new Rgb24(0x6a, 0xaa, 0x3c),
-                    BattleMapAltitude.Low        => new Rgb24(0xc8, 0xd0, 0x40),
-                    BattleMapAltitude.Medium     => new Rgb24(0xd0, 0x80, 0x20),
-                    BattleMapAltitude.High       => new Rgb24(0xa0, 0x40, 0x10),
-                    BattleMapAltitude.Peak       => new Rgb24(0xf0, 0xf0, 0xf0),
-                    _                            => new Rgb24(0xff, 0x00, 0xff),
-                };
-            }
-        }
-    });
-    image.SaveAsPng(path);
+        pixels[i] = AltitudeColour(altitudes[i]);
+    }
+
+    SavePng(pixels, width, height, path);
 }
 
 /// <summary>
@@ -374,40 +361,35 @@ static void SaveAltitudePngStitched(
     BattleMapAltitude[] left, BattleMapAltitude[] right, int size, string path)
 {
     int totalWidth = size * 2 + 2;  // 2px divider
-    using var image = new Image<Rgb24>(totalWidth, size);
-    image.ProcessPixelRows(accessor =>
-    {
-        for (int y = 0; y < size; y++)
-        {
-            var row = accessor.GetRowSpan(y);
+    SKColor[] pixels = new SKColor[totalWidth * size];
+    SKColor divider = new SKColor(0xff, 0x00, 0x00);
 
-            // Left tile
-            for (int x = 0; x < size; x++)
-            {
-                row[x] = AltitudeColour(left[y * size + x]);
-            }
-            // Red divider
-            row[size]     = new Rgb24(0xff, 0x00, 0x00);
-            row[size + 1] = new Rgb24(0xff, 0x00, 0x00);
-            // Right tile
-            for (int x = 0; x < size; x++)
-            {
-                row[size + 2 + x] = AltitudeColour(right[y * size + x]);
-            }
+    for (int y = 0; y < size; y++)
+    {
+        int rowStart = y * totalWidth;
+
+        for (int x = 0; x < size; x++)
+        {
+            pixels[rowStart + x] = AltitudeColour(left[y * size + x]);
+            pixels[rowStart + size + 2 + x] = AltitudeColour(right[y * size + x]);
         }
-    });
-    image.SaveAsPng(path);
+
+        pixels[rowStart + size] = divider;
+        pixels[rowStart + size + 1] = divider;
+    }
+
+    SavePng(pixels, totalWidth, size, path);
 }
 
-static Rgb24 AltitudeColour(BattleMapAltitude alt) => alt switch
+static SKColor AltitudeColour(BattleMapAltitude alt) => alt switch
 {
-    BattleMapAltitude.BelowWater => new Rgb24(0x1a, 0x3a, 0x6b),
-    BattleMapAltitude.Ground     => new Rgb24(0x6a, 0xaa, 0x3c),
-    BattleMapAltitude.Low        => new Rgb24(0xc8, 0xd0, 0x40),
-    BattleMapAltitude.Medium     => new Rgb24(0xd0, 0x80, 0x20),
-    BattleMapAltitude.High       => new Rgb24(0xa0, 0x40, 0x10),
-    BattleMapAltitude.Peak       => new Rgb24(0xf0, 0xf0, 0xf0),
-    _                            => new Rgb24(0xff, 0x00, 0xff),
+    BattleMapAltitude.BelowWater => new SKColor(0x1a, 0x3a, 0x6b),
+    BattleMapAltitude.Ground => new SKColor(0x6a, 0xaa, 0x3c),
+    BattleMapAltitude.Low => new SKColor(0xc8, 0xd0, 0x40),
+    BattleMapAltitude.Medium => new SKColor(0xd0, 0x80, 0x20),
+    BattleMapAltitude.High => new SKColor(0xa0, 0x40, 0x10),
+    BattleMapAltitude.Peak => new SKColor(0xf0, 0xf0, 0xf0),
+    _ => new SKColor(0xff, 0x00, 0xff),
 };
 
 /// <summary>
@@ -416,32 +398,26 @@ static Rgb24 AltitudeColour(BattleMapAltitude alt) => alt switch
 /// </summary>
 static void SaveBiomePng(BiomeType[] biomes, int width, int height, string path)
 {
-    using var image = new Image<Rgb24>(width, height);
-    image.ProcessPixelRows(accessor =>
+    SKColor[] pixels = new SKColor[width * height];
+    for (int i = 0; i < pixels.Length; i++)
     {
-        for (int y = 0; y < height; y++)
+        pixels[i] = biomes[i] switch
         {
-            var row = accessor.GetRowSpan(y);
-            for (int x = 0; x < width; x++)
-            {
-                row[x] = biomes[y * width + x] switch
-                {
-                    BiomeType.Ocean     => new Rgb24(0x1a, 0x3a, 0x6b),  // dark blue
-                    BiomeType.Coastal   => new Rgb24(0x5a, 0xbc, 0xb4),  // teal
-                    BiomeType.Ice       => new Rgb24(0xe8, 0xf0, 0xff),  // near-white
-                    BiomeType.Tundra    => new Rgb24(0x9b, 0xab, 0x9c),  // grey-green
-                    BiomeType.Grassland => new Rgb24(0x7e, 0xc8, 0x50),  // bright green
-                    BiomeType.Forest    => new Rgb24(0x2d, 0x6e, 0x2a),  // dark green
-                    BiomeType.Jungle    => new Rgb24(0x1a, 0x4d, 0x1a),  // very dark green
-                    BiomeType.Woodland  => new Rgb24(0x5a, 0x8a, 0x3c),  // medium green
-                    BiomeType.Arid      => new Rgb24(0xc8, 0xb0, 0x60),  // light tan
-                    BiomeType.Desert    => new Rgb24(0xe8, 0xd2, 0x7a),  // sandy yellow
-                    _                   => new Rgb24(0xff, 0x00, 0xff),  // magenta = bug
-                };
-            }
-        }
-    });
-    image.SaveAsPng(path);
+            BiomeType.Ocean => new SKColor(0x1a, 0x3a, 0x6b),  // dark blue
+            BiomeType.Coastal => new SKColor(0x5a, 0xbc, 0xb4),  // teal
+            BiomeType.Ice => new SKColor(0xe8, 0xf0, 0xff),  // near-white
+            BiomeType.Tundra => new SKColor(0x9b, 0xab, 0x9c),  // grey-green
+            BiomeType.Grassland => new SKColor(0x7e, 0xc8, 0x50),  // bright green
+            BiomeType.Forest => new SKColor(0x2d, 0x6e, 0x2a),  // dark green
+            BiomeType.Jungle => new SKColor(0x1a, 0x4d, 0x1a),  // very dark green
+            BiomeType.Woodland => new SKColor(0x5a, 0x8a, 0x3c),  // medium green
+            BiomeType.Arid => new SKColor(0xc8, 0xb0, 0x60),  // light tan
+            BiomeType.Desert => new SKColor(0xe8, 0xd2, 0x7a),  // sandy yellow
+            _ => new SKColor(0xff, 0x00, 0xff),  // magenta = bug
+        };
+    }
+
+    SavePng(pixels, width, height, path);
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

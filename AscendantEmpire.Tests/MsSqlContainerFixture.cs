@@ -38,8 +38,7 @@ public sealed class MsSqlContainerFixture
         // engine's reported API version so negotiation succeeds regardless of engine age.
         await PinDockerApiVersionAsync();
 
-        _container = new MsSqlBuilder()
-            .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
+        _container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
             .WithPortBinding(14330, MsSqlBuilder.MsSqlPort)
             .Build();
 

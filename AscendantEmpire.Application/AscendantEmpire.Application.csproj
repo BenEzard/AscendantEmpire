@@ -13,6 +13,8 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.9" />
+    <!-- Pinned ahead of the version EF Core asks for: 6.1.8 is the first to take a patched System.Security.Cryptography.Pkcs (9.0.21). -->
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.8" />
     <!-- Provides PasswordHasher<T> for secure password hashing without the full ASP.NET Identity stack. -->
     <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.9" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.9">

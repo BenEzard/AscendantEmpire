@@ -249,7 +249,7 @@ internal class RuleBuilderExtensionsTests
         SampleModel model = new SampleModel() with { Items = [1, 1, 2] };
 
         string[] messages = MessagesFrom(
-            v => v.On(x => x.Items).Must(items => items!.Distinct().Count() == items.Count).WithMessage("Duplicate Player Ids are not allowed."),
+            v => v.On(x => x.Items).Must(items => items is not null && items.Distinct().Count() == items.Count).WithMessage("Duplicate Player Ids are not allowed."),
             model);
 
         Assert.That(messages, Is.EqualTo(new[] { "Duplicate Player Ids are not allowed." }));

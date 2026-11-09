@@ -29,7 +29,7 @@ public class CampaignRoundServiceTests : GameSqlServerTestBase
     private ITurnServicePipeline<IStartCampaignRoundProcess> _startCampaignRoundPipeline = null!;
     private ITurnServicePipeline<IStartCampaignTurnProcess> _startCampaignTurnPipeline = null!;
     private ICampaignTurnService _campaignTurnService = null!;
-    private ICampaignRoundService _service = null!;
+    private ICampaignRoundService _campaignRoundService = null!;
 
     private int _gameId;
     private int _queueId;
@@ -68,7 +68,7 @@ public class CampaignRoundServiceTests : GameSqlServerTestBase
 
         _playerTurnService = new PlayerTurnService(new NullLogger<PlayerTurnService>(), DbFactory);
 
-        _service = new CampaignRoundService(
+        _campaignRoundService = new CampaignRoundService(
             new NullLogger<CampaignRoundService>(),
             _campaignTurnService,
             _playerTurnService,
@@ -143,7 +143,7 @@ public class CampaignRoundServiceTests : GameSqlServerTestBase
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        ServiceResultBase result = await _service.StartRoundAsync(context, _queueId, roundNumber: 1, _gameId);
+        ServiceResultBase result = await _campaignRoundService.StartRoundAsync(context, _queueId, roundNumber: 1, _gameId);
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
         TurnQueueParticipant participant1 = verifyContext.TurnQueueParticipants.First(p => p.Id == _participant1Id);
@@ -161,7 +161,7 @@ public class CampaignRoundServiceTests : GameSqlServerTestBase
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        await _service.StartRoundAsync(context, _queueId, roundNumber: 1, _gameId);
+        await _campaignRoundService.StartRoundAsync(context, _queueId, roundNumber: 1, _gameId);
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
         TurnQueueParticipant participant2 = verifyContext.TurnQueueParticipants.First(p => p.Id == _participant2Id);
@@ -182,7 +182,7 @@ public class CampaignRoundServiceTests : GameSqlServerTestBase
 
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        ServiceResultBase result = await _service.StartRoundAsync(context, _queueId, roundNumber: 2, _gameId);
+        ServiceResultBase result = await _campaignRoundService.StartRoundAsync(context, _queueId, roundNumber: 2, _gameId);
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
         TurnQueueParticipant participant1 = verifyContext.TurnQueueParticipants.First(p => p.Id == _participant1Id);
@@ -203,7 +203,7 @@ public class CampaignRoundServiceTests : GameSqlServerTestBase
 
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        await _service.StartRoundAsync(context, _queueId, roundNumber: 3, _gameId);
+        await _campaignRoundService.StartRoundAsync(context, _queueId, roundNumber: 3, _gameId);
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
         TurnQueue queue = verifyContext.TurnQueues.First(q => q.Id == _queueId);
@@ -221,7 +221,7 @@ public class CampaignRoundServiceTests : GameSqlServerTestBase
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        await _service.StartRoundAsync(context, _queueId, roundNumber: 1, _gameId);
+        await _campaignRoundService.StartRoundAsync(context, _queueId, roundNumber: 1, _gameId);
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
         TurnQueue queue = verifyContext.TurnQueues.First(q => q.Id == _queueId);
@@ -235,7 +235,7 @@ public class CampaignRoundServiceTests : GameSqlServerTestBase
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        await _service.StartRoundAsync(context, _queueId, roundNumber: 1, _gameId);
+        await _campaignRoundService.StartRoundAsync(context, _queueId, roundNumber: 1, _gameId);
 
         ServiceResultBase.ServiceResult<BackendContracts.Turns.GetCurrentCampaignTurn.CurrentCampaignTurn> currentTurn =
             await _campaignTurnService.GetCurrentCampaignTurnAsync(_gameId);
@@ -256,7 +256,7 @@ public class CampaignRoundServiceTests : GameSqlServerTestBase
 
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        ServiceResultBase result = await _service.StartRoundAsync(context, _queueId, roundNumber: 1, _gameId);
+        ServiceResultBase result = await _campaignRoundService.StartRoundAsync(context, _queueId, roundNumber: 1, _gameId);
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
         TurnQueueParticipant participant1 = verifyContext.TurnQueueParticipants.First(p => p.Id == _participant1Id);
@@ -279,7 +279,7 @@ public class CampaignRoundServiceTests : GameSqlServerTestBase
 
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        ServiceResultBase result = await _service.StartGameAsync(context, _gameId);
+        ServiceResultBase result = await _campaignRoundService.StartGameAsync(context, _gameId);
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
         GamePlayStatus playStatus = verifyContext.GameIndex.First(g => g.Id == _gameId).PlayStatus;
@@ -298,7 +298,7 @@ public class CampaignRoundServiceTests : GameSqlServerTestBase
 
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        await _service.StartGameAsync(context, _gameId);
+        await _campaignRoundService.StartGameAsync(context, _gameId);
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
         TurnQueue queue = verifyContext.TurnQueues.First(q => q.Id == _queueId);
@@ -318,7 +318,7 @@ public class CampaignRoundServiceTests : GameSqlServerTestBase
 
         await using (AscendantEmpireContext startContext = await DbFactory.CreateDbContextAsync())
         {
-            await _service.StartGameAsync(startContext, _gameId);
+            await _campaignRoundService.StartGameAsync(startContext, _gameId);
         }
 
         // Player 1 plays on: the Turn has moved to Player 2 by the time the second caller arrives.
@@ -334,7 +334,7 @@ public class CampaignRoundServiceTests : GameSqlServerTestBase
 
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        ServiceResultBase result = await _service.StartGameAsync(context, _gameId);
+        ServiceResultBase result = await _campaignRoundService.StartGameAsync(context, _gameId);
 
         await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
         TurnQueueParticipant participant1 = verifyContext.TurnQueueParticipants.First(p => p.Id == _participant1Id);
@@ -362,7 +362,7 @@ public class CampaignRoundServiceTests : GameSqlServerTestBase
 
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        ServiceResultBase result = await _service.StartGameAsync(context, _gameId);
+        ServiceResultBase result = await _campaignRoundService.StartGameAsync(context, _gameId);
 
         Assert.That(result.HasSucceeded, Is.False);
     }
