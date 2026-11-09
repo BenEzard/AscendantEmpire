@@ -120,10 +120,24 @@ export default function FreeTextComboBox({
     };
   }, [open, filtered.length]);
 
+  /**
+   * Set while `pick` hands focus back to the field, so the focus event that follows does not reopen the list the pick
+   * has just closed.
+   *
+   * A ref rather than state because it has to be readable by the handler the same `focus()` call dispatches, before any
+   * re-render. The focus has to move: the option carries `tabIndex`, so it holds focus until the pick unmounts it, and
+   * leaving it there would drop focus to the body and restart tabbing from the top of the dialog.
+   */
+  const refocusingAfterPick = useRef(false);
+
   const pick = (suggestion: string) => {
     onChange(suggestion);
     setOpen(false);
+
+    refocusingAfterPick.current = true;
     inputRef.current?.focus();
+    // Cleared again in case the field already held focus, where `focus()` dispatches nothing to consume the flag.
+    refocusingAfterPick.current = false;
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -177,7 +191,14 @@ export default function FreeTextComboBox({
         value={value}
         placeholder={placeholder}
         disabled={disabled}
-        onFocus={() => setOpen(true)}
+        onFocus={() => {
+          if (refocusingAfterPick.current) {
+            refocusingAfterPick.current = false;
+            return;
+          }
+
+          setOpen(true);
+        }}
         // Re-opens the list after Escape closed it, where onFocus won't fire again (the input kept focus).
         onClick={() => setOpen(true)}
         onChange={(e) => {
