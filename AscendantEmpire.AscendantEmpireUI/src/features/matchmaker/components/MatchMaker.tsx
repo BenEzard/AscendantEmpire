@@ -5,6 +5,7 @@ import { enterGame } from "@/features/auth/api/authApi";
 import { getMatchMakingGames } from "../api/matchMakingApi";
 import { claimPlayerSlot } from "../api/matchMakingApi";
 import DefinePlayerDialog from "./DefinePlayerDialog";
+import NewGameDialog from "./NewGameDialog";
 import type { MatchMakingGamesResponse } from "../types/MatchMakingGamesResponse";
 import type { MatchMakingGame } from "../types/MatchMakingGame";
 import type { MatchMakingSlot } from "../types/MatchMakingSlot";
@@ -18,8 +19,13 @@ type ToastState = {
 };
 
 /**
- * The MatchMaker landing screen (shown once logged in via AuthGate). Lists joinable games and
+ * The MatchMaker landing screen (shown once logged in via AuthGate). Creates games, lists the joinable ones and
  * their player slots, lets the user claim a free slot, then jump straight into a slot they hold.
+ *
+ * <remarks>
+ * Creation lives here rather than on the game screen's toolbar because the slots a new game is created with are what
+ * this screen hands out: the whole lobby, from setting a game up to entering it, is one place.
+ * </remarks>
  */
 export default function MatchMaker() {
   const queryClient = useQueryClient();
@@ -31,6 +37,7 @@ export default function MatchMaker() {
   // The game whose slot is being defined, or null when the setup dialog is closed. Only the game is
   // needed: the server resolves which slot in it is ours from the token.
   const [definingGameId, setDefiningGameId] = useState<number | null>(null);
+  const [showNewGame, setShowNewGame] = useState(false);
 
   const { data, isLoading, isFetching, error, refetch } = useQuery<MatchMakingGamesResponse, Error>({
     queryKey: GAMES_QUERY_KEY,
@@ -106,7 +113,10 @@ export default function MatchMaker() {
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
-          <Button variant="outline-secondary" onClick={() => refetch()} disabled={isLoading || isFetching}>
+          <Button variant="primary" className="shrink-0" onClick={() => setShowNewGame(true)}>
+            New Game
+          </Button>
+          <Button variant="outline-secondary" className="shrink-0" onClick={() => refetch()} disabled={isLoading || isFetching}>
             Refresh
           </Button>
         </div>
@@ -162,6 +172,16 @@ export default function MatchMaker() {
           }}
         />
       )}
+
+      <NewGameDialog
+        show={showNewGame}
+        onClose={() => setShowNewGame(false)}
+        onCreateSuccess={async (message) => {
+          // The created game arrives with every slot free, so it has to join the list for its seats to be claimable.
+          await queryClient.invalidateQueries({ queryKey: GAMES_QUERY_KEY });
+          setToast({ message: message ?? "Game created.", variant: "success" });
+        }}
+      />
 
       <ToastViewport>
         {toast && (

@@ -26,7 +26,6 @@ import ForceSelectionToolbar from "./ForceSelectionToolbar";
 import TileToolbar, { type TileToolbarTile } from "./TileToolbar";
 import NotificationsHost from "@/features/notifications/NotificationsHost";
 import { NotificationsProvider } from "@/features/notifications/useNotifications";
-import NewGameDialog from "./NewGameDialog";
 import { useToast } from "@/hooks/useToast";
 import { useElementBottomPx } from "@/hooks/useElementBottomPx";
 import { useGameSession } from "../hooks/useGameSession";
@@ -478,7 +477,6 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   );
 
   // --- Toolbar wiring ---
-  const openNewGame = useCallback(() => setActiveDialog("newGame"), [setActiveDialog]);
   const openOpenGame = useCallback(() => setActiveDialog("openGame"), [setActiveDialog]);
   const toggleUnitDesign = useCallback(() => setActivePanel((p) => (p === "unit-design" ? null : "unit-design")), []);
   const toggleMilitaryAdvisor = useCallback(() => setShowMilitaryAdvisor((shown) => !shown), []);
@@ -537,7 +535,6 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
 
   const toolBarGroups = useGameToolbar({
     gameOpen: gameSelection != null,
-    onNewGame: openNewGame,
     onOpenGame: openOpenGame,
     onCloseGame: closeGame,
     onClearVision: clearVision,
@@ -613,12 +610,6 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
           setVisionRadius={setVisionRadius}
           visionLoadWholeMap={visionLoadWholeMap}
           setVisionLoadWholeMap={setVisionLoadWholeMap}
-        />
-
-        <NewGameDialog
-          show={activeDialog === "newGame"}
-          onClose={() => setActiveDialog(null)}
-          onCreateSuccess={(msg) => openToast(msg ?? "Game created", "success")}
         />
 
         <OpenGameDialog

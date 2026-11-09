@@ -4,7 +4,6 @@ import { GoEye, GoEyeClosed } from "react-icons/go";
 import { GiMicroscope, GiRank3 } from "react-icons/gi";
 import { GrCaretNext, GrPowerCycle } from "react-icons/gr";
 import { SlClose } from "react-icons/sl";
-import { VscNewFile } from "react-icons/vsc";
 import type { ToolBarGroup } from "@/components/ui/toolbar/Toolbar";
 import { HamburgerMenu } from "@/components/ui";
 import { useAccountMenu } from "@/features/auth/hooks/useAccountMenu";
@@ -13,7 +12,6 @@ import { buildAssetToolbarButtons } from "./assetToolbarButtons";
 
 interface UseGameToolbarArgs {
   gameOpen: boolean;
-  onNewGame: () => void;
   onOpenGame: () => void;
   onCloseGame: () => void;
   onClearVision: () => void;
@@ -52,7 +50,6 @@ const SHOW_DEV_HOT_SEAT_BUTTONS = import.meta.env.DEV;
 export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
   const {
     gameOpen,
-    onNewGame,
     onOpenGame,
     onCloseGame,
     onClearVision,
@@ -93,7 +90,7 @@ export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
                   {
                     label: "Game",
                     items: [
-                      { key: "new", icon: <VscNewFile />, label: "New", tooltip: "New Game", onClick: onNewGame },
+                      // No "New" here: a game is created on the Match Maker screen, which is also where its slots are handed out.
                       { key: "open", icon: <FaRegFolderOpen />, label: "Open", tooltip: "Open Game", onClick: onOpenGame },
                       { key: "close", icon: <SlClose />, label: "Close", tooltip: "Close Game", disabled: !gameOpen, onClick: onCloseGame },
                     ],
@@ -207,7 +204,6 @@ export function useGameToolbar(args: UseGameToolbarArgs): ToolBarGroup[] {
     // onEndTurnAndSwitchPlayer, onEndRoundAndReturnToPlayer and devSwitchInProgress: remove in F-18.
     [
       gameOpen,
-      onNewGame,
       onOpenGame,
       onCloseGame,
       onClearVision,

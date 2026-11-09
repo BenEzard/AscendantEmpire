@@ -4,7 +4,7 @@ import { Alert, Button, FieldRow, PagedDialog, WholeNumberSlider, errorClass } f
 import { http } from "@/api/http";
 import { useValidatedCommit } from "@/hooks/useValidatedCommit";
 import SelectCampaignMap from "@/features/mapgallery/components/SelectCampaignMap";
-import { useNewGameSettingsQuery } from "@/features/game/hooks/useNewGameSettings";
+import { useNewGameSettingsQuery } from "../hooks/useNewGameSettings";
 
 export interface NewGameDialogProps {
   show: boolean;

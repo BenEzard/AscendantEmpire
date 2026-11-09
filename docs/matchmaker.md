@@ -1,10 +1,13 @@
 # Match Maker
 
-The Match Maker lets a person create an account, log in, and **claim a player slot** in an open
-game — closing the "linking users to players" gap called out in
+The Match Maker lets a person create an account, log in, **set a game up** and **claim a player slot**
+in an open game — closing the "linking users to players" gap called out in
 [authentication-and-authorisation.md](authentication-and-authorisation.md). Claiming a slot and then
 defining the ruler and faction in it is what fills a lobby; once every player has done both, the game
 starts and they can jump in.
+
+Creating a game belongs here because the slots it is created with are exactly what this screen hands
+out: setting a game up, filling it and entering it are one screen rather than three.
 
 This document covers the concept, the backend endpoints, the frontend subsystem, and how it fits
 with the existing auth flow.
@@ -30,11 +33,11 @@ Claiming does **not** change the auth model — it just fills in the `UserId` th
 SQL; now the Match Maker does it.
 
 ```
- register / log in     claim a slot          define yourself           enter the game
- (user token)          (Player.UserId)       (the identity)            (game token)        play
-   AuthGate   ─────▶   POST .../claim ─────▶ PUT .../my-player ─────▶ POST /auth/enter-game ─────▶ /game/
-                                                    │
-                                        the last one of these starts the game
+   log in        set a game up          claim a slot        define yourself        enter the game
+   (user token)  (empty slots)          (Player.UserId)     (the identity)         (game token)     play
+   AuthGate ───▶ POST /games/setup ───▶ POST .../claim ───▶ PUT .../my-player ───▶ POST /auth/enter-game ───▶ /game/
+                                                                    │
+                                                  the last one of these starts the game
 ```
 
 ### When a game starts
@@ -339,9 +342,11 @@ HTML document so a tab only ever mounts one feature.
 | HTML entry | `AscendantEmpire.AscendantEmpireUI/matchmaker/index.html` | The page served at `/matchmaker/`. |
 | Vite input | `vite.config.ts` (`rollupOptions.input.matchmaker`) | Registers the page for the build. |
 | React entry | `src/entries/matchmaker.tsx` | Mounts `MatchMaker` inside `AuthGate` + `AppProviders`. |
-| Main component | `src/features/matchmaker/components/MatchMaker.tsx` | Lists games/slots, claims a free slot, "Play now" / "Edit" on a held slot. |
+| Main component | `src/features/matchmaker/components/MatchMaker.tsx` | Creates a game, lists games/slots, claims a free slot, "Play now" / "Edit" on a held slot. |
 | Setup dialog | `src/features/matchmaker/components/DefinePlayerDialog.tsx` | Two-page `PagedDialog` for the ruler and faction; fetches and saves its own definition. |
+| New game dialog | `src/features/matchmaker/components/NewGameDialog.tsx` | Two-page `PagedDialog` for the game's name, player count, battle map size and seed, plus the campaign map it is played on; posts `/games/setup`. |
 | API calls | `src/features/matchmaker/api/matchMakingApi.ts` | `getMatchMakingGames()`, `claimPlayerSlot()`, `getPlayerDefinition()`, `updatePlayerDefinition()`. |
+| New game settings | `src/features/matchmaker/api/gameSettingsApi.ts` + `hooks/useNewGameSettings.ts` | `GET /games/settings`, cached indefinitely and not requested until the dialog is first opened. The bounds the new game form is built from, so it never hardcodes one the save would refuse. |
 | Types | `src/features/matchmaker/types/` | Camel-cased mirrors of the frontend contracts, plus `RulerGender.ts` (the gender union and the three ruler-title lists) and `RulerPortrait.ts` (the twenty portraits, each with its file path, display name and the gender it reads as). |
 | Landing link | `index.html` | Adds a "Match Maker" link next to Game / Map Editor. |
 
@@ -371,9 +376,13 @@ tool's internals for a layout primitive is the wrong dependency direction.
    The card's header says `n/m slots taken`, then either `• n still setting up` or
    `• waiting to start` — naming which of the two waits the lobby is actually in rather than only
    that it has not started.
-3. **Claim** calls `POST /match-making/claim`, refetches the list so the seat flips to "your slot",
+3. **New Game**, beside the filter row's **Refresh**, opens `NewGameDialog` — the game's name, player
+   count, battle map size and seed on one page, the campaign map it is played on the other. Creating
+   posts `/games/setup` (authorised on the `CreateGame` permission) and refetches the listing, so the
+   seats the new game was created with are claimable without a manual refresh.
+4. **Claim** calls `POST /match-making/claim`, refetches the list so the seat flips to "your slot",
    and then opens `DefinePlayerDialog` on it.
-4. The dialog fetches `GET .../my-player` on open, and saves with `PUT .../my-player`:
+5. The dialog fetches `GET .../my-player` on open, and saves with `PUT .../my-player`:
    - **Ruler** page — Ruler Name, Ruler Gender, Ruler Title, Ruler Portrait, *in that order*: the
      gender decides both which titles the combo box suggests and which faces the portrait gallery
      offers, so it comes first. It opens on `Male` for a slot the server holds no gender for, and
@@ -396,7 +405,7 @@ tool's internals for a layout primitive is the wrong dependency direction.
    - **Cancel** keeps the slot, carrying whatever the game seeded it with. That is only reasonable
      because of the **Edit** button, which reopens the same dialog — the two are one guarantee. Note
      that a slot left undefined holds the whole game up, since the last definition is what starts it.
-5. **Play now** calls `enterGame(gameId)` (from the shared auth API) to swap the user token for a
+6. **Play now** calls `enterGame(gameId)` (from the shared auth API) to swap the user token for a
    game token, then redirects to `/game/`.
 
 Auth reuse is deliberate: registration, login, the token store (`src/api/authToken.ts`), and the

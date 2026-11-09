@@ -13,9 +13,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http } from "@/api/http";
 import NewGameDialog from "../NewGameDialog";
 // vi.mock below is hoisted above this import, so this binding is already the mocked function.
-import { getNewGameSettings, type NewGameSettings } from "@/features/game/api/gameSettingsApi";
+import { getNewGameSettings, type NewGameSettings } from "../../api/gameSettingsApi";
 
-vi.mock("@/features/game/api/gameSettingsApi", () => ({
+vi.mock("../../api/gameSettingsApi", () => ({
   getNewGameSettings: vi.fn(),
 }));
 

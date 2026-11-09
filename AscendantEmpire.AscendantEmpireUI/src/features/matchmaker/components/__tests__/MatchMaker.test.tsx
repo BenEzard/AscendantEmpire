@@ -1,5 +1,6 @@
-// Wiring tests for the lobby: that claiming a seat leads straight into setting your ruler up, that
-// there is a way back into that afterwards, and that backing out of it keeps the seat.
+// Wiring tests for the lobby: that a game can be created from here, that claiming a seat leads straight
+// into setting your ruler up, that there is a way back into that afterwards, and that backing out of it
+// keeps the seat.
 //
 // The last two are the point of the Edit button. Cancelling the setup dialog deliberately leaves the
 // slot carrying the placeholders the game seeded it with, which is only reasonable while there is a
@@ -24,6 +25,27 @@ vi.mock("../../api/matchMakingApi", () => ({
 
 vi.mock("@/features/auth/api/authApi", () => ({
   enterGame: vi.fn(),
+}));
+
+/** What the real dialog hands back on a successful create, so the toast is asserted on the message it would carry. */
+const CREATED_MESSAGE = vi.hoisted(() => 'Game "Second Blood" created successfully.');
+
+// Stands in for the New Game dialog: something to assert it opened, and a button that reports a created game. That is
+// the whole of MatchMaker's side of the contract — what the form itself validates and sends is NewGameDialog.test's.
+vi.mock("../NewGameDialog", () => ({
+  default: ({ show, onClose, onCreateSuccess }: { show: boolean; onClose: () => void; onCreateSuccess: (message?: string) => void }) =>
+    show ? (
+      <div>
+        <span>New Game dialog</span>
+        <button
+          onClick={() => {
+            onCreateSuccess(CREATED_MESSAGE);
+            onClose();
+          }}>
+          Create the game
+        </button>
+      </div>
+    ) : null,
 }));
 
 // Nothing in the vitest config clears mocks between tests, and these assert on call counts.
@@ -100,10 +122,43 @@ const editButton = () => screen.getByRole("button", { name: "Edit" });
 /** The setup dialog, identified by its title. */
 const setupDialog = () => screen.queryByText("Define your Ruler and Faction");
 
+/** The stubbed New Game dialog, named apart from the button that opens it. */
+const newGameDialog = () => screen.queryByText("New Game dialog");
+
 /** Waits for the lobby listing to have rendered. */
 async function waitForLobby() {
   await waitFor(() => expect(screen.getByText("First Blood")).toBeInTheDocument());
 }
+
+describe("creating a game", () => {
+  it("opens the New Game dialog from the lobby itself, creation having left the game screen's toolbar", async () => {
+    const user = userEvent.setup();
+    renderLobby(A_FREE_SEAT);
+    await waitForLobby();
+
+    expect(newGameDialog()).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "New Game" }));
+
+    await waitFor(() => expect(newGameDialog()).toBeInTheDocument());
+  });
+
+  it("brings the created game into the listing, so its seats are claimable without a manual refresh", async () => {
+    const user = userEvent.setup();
+    renderLobby(A_FREE_SEAT);
+    await waitForLobby();
+    expect(vi.mocked(getMatchMakingGames)).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole("button", { name: "New Game" }));
+    await waitFor(() => expect(newGameDialog()).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Create the game" }));
+
+    // The listing is what hands the new game's slots out, so a create that left it stale would hide them.
+    await waitFor(() => expect(vi.mocked(getMatchMakingGames)).toHaveBeenCalledTimes(2));
+    expect(screen.getByText(CREATED_MESSAGE)).toBeInTheDocument();
+    expect(newGameDialog()).not.toBeInTheDocument();
+  });
+});
 
 describe("claiming a seat", () => {
   it("opens the ruler setup dialog once the claim succeeds", async () => {

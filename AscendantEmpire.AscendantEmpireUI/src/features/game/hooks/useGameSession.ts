@@ -4,10 +4,10 @@ import { playerCampaignTilesKey } from "@/features/map/hooks/useCampaignMapTiles
 import { clearGameSelection, loadGameSelection, matchesGameToken, saveGameSelection } from "../storage/gameSelectionStorage";
 import type { OpenGameSelection } from "../types/OpenGameSelection";
 
-export type GameActiveDialog = "openGame" | "newGame" | null;
+export type GameActiveDialog = "openGame" | null;
 
 /**
- * Owns the currently selected game and the game-level dialog (open/new). The selection is
+ * Owns the currently selected game and the game-level dialog. The selection is
  * persisted to localStorage (see `gameSelectionStorage`) so a page refresh restores the open game
  * instead of forcing a re-pick; the initial state is rehydrated from there, but only when it still
  * matches the live game token. `closeGame` cancels + removes the open game's tile query so a late

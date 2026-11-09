@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getNewGameSettings, type NewGameSettings } from "@/features/game/api/gameSettingsApi";
+import { getNewGameSettings, type NewGameSettings } from "../api/gameSettingsApi";
 
 export const newGameSettingsKey = ["newGameSettings"] as const;
 
