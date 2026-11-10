@@ -261,7 +261,6 @@ internal static class IntelligenceReadTestData
             FactionName = $"Faction {id}",
             PeopleName = "People",
             Demonym = "Person",
-            CultureName = "Culture",
             Language = "Language",
             RulerPortraitPath = "/portraits/01_western_king.png",
             Status = PlayerStatus.Active

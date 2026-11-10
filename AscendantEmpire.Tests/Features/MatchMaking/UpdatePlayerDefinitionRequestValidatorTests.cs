@@ -115,15 +115,6 @@ internal class UpdatePlayerDefinitionRequestValidatorTests
         Assert.That(result.IsValid, Is.False);
     }
 
-    [TestCase("", Description = "A culture name is required.")]
-    [TestCase("   ", Description = "A whitespace-only culture name counts as missing.")]
-    public void BlankCultureNameIsRejected(string cultureName)
-    {
-        ValidationResult result = _validator.Validate(BuildRequest(cultureName: cultureName));
-
-        Assert.That(result.IsValid, Is.False);
-    }
-
     [TestCase("", Description = "A language is required.")]
     [TestCase("   ", Description = "A whitespace-only language counts as missing.")]
     public void BlankLanguageIsRejected(string language)
@@ -133,14 +124,13 @@ internal class UpdatePlayerDefinitionRequestValidatorTests
         Assert.That(result.IsValid, Is.False);
     }
 
-    [Test, Description("Each people-and-culture name is length-checked against its own column, so none of the four can reach the database over-long.")]
-    public void OverLongPeopleAndCultureNamesAreRejected()
+    [Test, Description("Each people name is length-checked against its own column, so none of them can reach the database over-long.")]
+    public void OverLongPeopleNamesAreRejected()
     {
         using (Assert.EnterMultipleScope())
         {
             Assert.That(_validator.Validate(BuildRequest(peopleName: new string('a', Player.PEOPLE_NAME_MAX_LENGTH + 1))).IsValid, Is.False);
             Assert.That(_validator.Validate(BuildRequest(demonym: new string('a', Player.DEMONYM_MAX_LENGTH + 1))).IsValid, Is.False);
-            Assert.That(_validator.Validate(BuildRequest(cultureName: new string('a', Player.CULTURE_NAME_MAX_LENGTH + 1))).IsValid, Is.False);
             Assert.That(_validator.Validate(BuildRequest(language: new string('a', Player.LANGUAGE_MAX_LENGTH + 1))).IsValid, Is.False);
         }
     }
@@ -196,7 +186,6 @@ internal class UpdatePlayerDefinitionRequestValidatorTests
         string factionColour = "#c800de",
         string peopleName = "The Vashti",
         string demonym = "Vashti",
-        string cultureName = "Vashti Highland",
         string language = "Old Vashti",
         string rulerPortraitPath = "/portraits/07_northern_queen.png")
     {
@@ -210,7 +199,6 @@ internal class UpdatePlayerDefinitionRequestValidatorTests
             factionColour,
             peopleName,
             demonym,
-            cultureName,
             language,
             rulerPortraitPath);
     }

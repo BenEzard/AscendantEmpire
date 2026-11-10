@@ -106,7 +106,6 @@ internal sealed class GetPlayerDefinitionHandler(
             FactionColour = ownSlot.FactionColour,
             PeopleName = ownSlot.PeopleName,
             Demonym = ownSlot.Demonym,
-            CultureName = ownSlot.CultureName,
             Language = ownSlot.Language,
             RulerPortraitPath = ownSlot.RulerPortraitPath,
             UsedFactionColours = usedColours,

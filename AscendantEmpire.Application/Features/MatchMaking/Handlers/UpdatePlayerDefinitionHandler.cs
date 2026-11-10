@@ -27,8 +27,8 @@ namespace AscendantEmpire.Application.Features.MatchMaking.Handlers;
 /// player. A caller who controls no slot in the game gets a 404 rather than a 403 - there is nothing there for them to be forbidden from.
 /// </para>
 /// <para>
-/// <b>Six values are unique within the game.</b> The five names a player authors - ruler, faction, people, demonym and culture - plus the faction
-/// colour and, once chosen, the ruler portrait. Each has a unique index behind it, and the checks here exist to turn those races into friendly
+/// <b>Several values are unique within the game.</b> The names a player authors, plus the faction colour and, once chosen, the ruler
+/// portrait. Each has a unique index behind it, and the checks here exist to turn those races into friendly
 /// errors; every clash is reported in one answer rather than one per resubmission. <see cref="Language"/> is deliberately exempt, because two
 /// peoples sharing a language is a legitimate thing to express.
 /// </para>
@@ -63,7 +63,6 @@ public record UpdatePlayerDefinitionRequest(
     string FactionColour,
     string PeopleName,
     string Demonym,
-    string CultureName,
     string Language,
     string RulerPortraitPath
 ) : IRequest<ServiceResult<Empty>>;
@@ -98,7 +97,7 @@ internal class UpdatePlayerDefinitionRequestValidator : Validator<UpdatePlayerDe
             .NotEmpty().WithMessage("Faction Colour is required.")
             .Matches("^#[0-9a-fA-F]{6}$").WithMessage("Faction Colour must be a hex colour such as #1d293d.");
 
-        // The four people-and-culture names are required in the same way the faction's own name is: free text the
+        // The people names are required in the same way the faction's own name is: free text the
         // player authors, checked only for presence and length because nothing is ever looked up by them.
         RuleFor(x => x.PeopleName)
             .NotEmpty().WithMessage("People Name is required.")
@@ -107,10 +106,6 @@ internal class UpdatePlayerDefinitionRequestValidator : Validator<UpdatePlayerDe
         RuleFor(x => x.Demonym)
             .NotEmpty().WithMessage("Demonym is required.")
             .MaximumLength(Player.DEMONYM_MAX_LENGTH).WithMessage($"Demonym cannot be longer than {Player.DEMONYM_MAX_LENGTH} characters.");
-
-        RuleFor(x => x.CultureName)
-            .NotEmpty().WithMessage("Culture Name is required.")
-            .MaximumLength(Player.CULTURE_NAME_MAX_LENGTH).WithMessage($"Culture Name cannot be longer than {Player.CULTURE_NAME_MAX_LENGTH} characters.");
 
         RuleFor(x => x.Language)
             .NotEmpty().WithMessage("Language is required.")
@@ -140,7 +135,7 @@ internal sealed class UpdatePlayerDefinitionHandler(
     /// Matches a run of one or more whitespace characters, for collapsing the middle of a name down to single spaces.
     /// </summary>
     /// <remarks>
-    /// Compiled because every definition save runs it five times, and the pattern never changes.
+    /// Compiled because every definition save runs it once per unique name, and the pattern never changes.
     /// </remarks>
     private static readonly Regex _whitespaceRuns = new(@"\s+", RegexOptions.Compiled);
 
@@ -159,18 +154,17 @@ internal sealed class UpdatePlayerDefinitionHandler(
                 ? Player.DEFAULT_RULER_PORTRAIT_PATH
                 : request.RulerPortraitPath.Trim();
 
-            // The five unique names get the fuller treatment: trimmed and with internal runs of whitespace collapsed, so
+            // The unique names get the fuller treatment: trimmed and with internal runs of whitespace collapsed, so
             // that "The  Vashti" cannot sit alongside "The Vashti" as a second name. See NormaliseName.
             string rulerName = NormaliseName(request.RulerName);
             string factionName = NormaliseName(request.FactionName);
             string peopleName = NormaliseName(request.PeopleName);
             string demonym = NormaliseName(request.Demonym);
-            string cultureName = NormaliseName(request.CultureName);
 
             await using AscendantEmpireContext context = await dbFactory.CreateDbContextAsync(cancelToken);
 
             // A game holds at most a handful of slots, so pull them all in one query: the caller's own is in there, and
-            // the rest are exactly what the six uniqueness checks and the readiness test need.
+            // the rest are exactly what the uniqueness checks and the readiness test need.
             List<Player> slots = await context.Players
                 .Where(p => p.GameId == request.GameId)
                 .ToListAsync(cancelToken);
@@ -214,7 +208,6 @@ internal sealed class UpdatePlayerDefinitionHandler(
             CollectClash(clashes, rivals, "factionName", "faction name", factionName, static p => p.FactionName);
             CollectClash(clashes, rivals, "peopleName", "people name", peopleName, static p => p.PeopleName);
             CollectClash(clashes, rivals, "demonym", "demonym", demonym, static p => p.Demonym);
-            CollectClash(clashes, rivals, "cultureName", "culture name", cultureName, static p => p.CultureName);
             CollectClash(clashes, rivals, "factionColour", "colour", factionColour, static p => p.FactionColour ?? string.Empty);
 
             // The default is exempt: it is the one portrait value a game may hold more than once, because any number of
@@ -246,7 +239,6 @@ internal sealed class UpdatePlayerDefinitionHandler(
             slot.FactionColour = factionColour;
             slot.PeopleName = peopleName;
             slot.Demonym = demonym;
-            slot.CultureName = cultureName;
             slot.Language = request.Language.Trim();
             slot.RulerPortraitPath = rulerPortraitPath;
 
@@ -285,7 +277,7 @@ internal sealed class UpdatePlayerDefinitionHandler(
         }
         catch (DbUpdateException ex)
         {
-            // Lost a race: a rival took one of the six unique values between our checks and the save. The indexes are the
+            // Lost a race: a rival took one of the unique values between our checks and the save. The indexes are the
             // real guarantee; the checks above only make the common case friendlier, and cannot say which one it was.
             logger.LogInformation(ex, "Concurrent player definition conflict in game {GameId} for user {UserId}.", request.GameId, request.UserId);
             return ServiceResult<Empty>.Conflict("Another player in this game took one of those values while you were choosing. Please try again.");

@@ -161,7 +161,6 @@ public class MatchMakingController : ControllerBase
             FactionColour = definition.FactionColour,
             PeopleName = definition.PeopleName,
             Demonym = definition.Demonym,
-            CultureName = definition.CultureName,
             Language = definition.Language,
             RulerPortraitPath = definition.RulerPortraitPath,
             UsedRulerPortraits = [.. definition.UsedRulerPortraits.Select(p => new DTUsedRulerPortrait
@@ -179,7 +178,7 @@ public class MatchMakingController : ControllerBase
     }
 
     /// <summary>
-    /// Define the caller's own ruler and faction in a game. A full replacement of all ten values, not a patch.
+    /// Define the caller's own ruler and faction in a game. A full replacement of every value, not a patch.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -187,7 +186,7 @@ public class MatchMakingController : ControllerBase
     /// not own. A caller who controls no slot in the game gets a 404, since there is nothing there to forbid them from.
     /// </para>
     /// <para>
-    /// Six of the values are unique within the game: the five names the player authors, plus the faction colour and, once chosen, the ruler portrait.
+    /// Several of the values are unique within the game: the names the player authors, plus the faction colour and, once chosen, the ruler portrait.
     /// A clash answers 409 carrying a <see cref="PlayerDefinitionConflict"/> that names every clashing field at once, so a caller does not have to
     /// resubmit once per taken value. The language is deliberately exempt.
     /// </para>
@@ -237,7 +236,6 @@ public class MatchMakingController : ControllerBase
                 FactionColour: request.FactionColour,
                 PeopleName: request.PeopleName,
                 Demonym: request.Demonym,
-                CultureName: request.CultureName,
                 Language: request.Language,
                 RulerPortraitPath: request.RulerPortraitPath),
             cancelToken);

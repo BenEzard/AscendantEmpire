@@ -33,9 +33,6 @@ public class DTPlayerDefinition : IPlayerDefinition
     public required string Demonym { get; set; }
 
     /// <inheritdoc />
-    public required string CultureName { get; set; }
-
-    /// <inheritdoc />
     public required string Language { get; set; }
 
     /// <inheritdoc />

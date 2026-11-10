@@ -119,7 +119,7 @@ internal abstract class PlayerTurnTestBase : SqlServerTestBase
     /// <paramref name="campaignOffsetId"/>.
     /// </summary>
     /// <remarks>
-    /// The five identity names are unique per game - see UX_Player_Game_CultureName and its siblings - so a shared
+    /// The identity names are unique per game - see UX_Player_Game_PeopleName and its siblings - so a shared
     /// placeholder would have these fixtures failing on an insert rather than on the Turn behaviour they are about. The
     /// portrait stays on the default, the one value that rule exempts.
     /// </remarks>
@@ -135,7 +135,6 @@ internal abstract class PlayerTurnTestBase : SqlServerTestBase
             FactionColour = null,
             PeopleName = $"People {campaignOffsetId}",
             Demonym = $"Person {campaignOffsetId}",
-            CultureName = $"Culture {campaignOffsetId}",
             Language = "Language",
             RulerPortraitPath = Player.DEFAULT_RULER_PORTRAIT_PATH,
             Status = PlayerStatus.Active,

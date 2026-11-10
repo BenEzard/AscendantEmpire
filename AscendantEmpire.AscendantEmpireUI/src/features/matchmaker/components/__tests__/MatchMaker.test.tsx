@@ -99,7 +99,6 @@ function renderLobby(games: MatchMakingGamesResponse) {
     factionColour: null,
     peopleName: "People 70",
     demonym: "Person 70",
-    cultureName: "Culture 70",
     language: "Language 70",
     rulerPortraitPath: "/portraits/10_roman_ruler.png",
     usedRulerPortraits: [],

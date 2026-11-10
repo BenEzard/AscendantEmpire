@@ -1156,7 +1156,7 @@ public class AscendantEmpireContext : DbContext
                 .HasFilter("[FactionColour] IS NOT NULL")
                 .HasDatabaseName("UX_Player_Game_FactionColour");
 
-            // The five identity names a player authors are each unique within their game, so anything that labels or
+            // The identity names a player authors are each unique within their game, so anything that labels or
             // attributes by one of them picks out exactly one faction for the whole game. Language is deliberately
             // absent: two peoples sharing a language is a legitimate thing to express, and nothing attributes by it.
             //
@@ -1168,7 +1168,6 @@ public class AscendantEmpireContext : DbContext
             entity.Property(p => p.FactionName).UseCollation(Player.IDENTITY_COLLATION);
             entity.Property(p => p.PeopleName).UseCollation(Player.IDENTITY_COLLATION);
             entity.Property(p => p.Demonym).UseCollation(Player.IDENTITY_COLLATION);
-            entity.Property(p => p.CultureName).UseCollation(Player.IDENTITY_COLLATION);
 
             // Unfiltered, unlike the colour above: these columns are non-nullable and the validator refuses a blank, so
             // there is no "undecided" value for a filter to spare.
@@ -1187,10 +1186,6 @@ public class AscendantEmpireContext : DbContext
             entity.HasIndex(p => new { p.GameId, p.Demonym })
                 .IsUnique()
                 .HasDatabaseName("UX_Player_Game_Demonym");
-
-            entity.HasIndex(p => new { p.GameId, p.CultureName })
-                .IsUnique()
-                .HasDatabaseName("UX_Player_Game_CultureName");
 
             // The portrait is unique within a game too, but filtered: the default stands for "not chosen yet", which
             // every undecided player holds at once. Same shape as the colour index above, with an empty string in the

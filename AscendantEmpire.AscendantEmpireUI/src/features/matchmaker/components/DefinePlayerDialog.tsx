@@ -62,7 +62,6 @@ type Draft = {
   factionColour: string | null;
   peopleName: string;
   demonym: string;
-  cultureName: string;
   language: string;
 };
 
@@ -116,7 +115,6 @@ const EMPTY_DRAFT: Draft = {
   factionColour: null,
   peopleName: "",
   demonym: "",
-  cultureName: "",
   language: "",
 };
 
@@ -162,10 +160,6 @@ function validate(draft: Draft): FieldErrors {
     errors.demonym = "Say what one of your people is called.";
   }
 
-  if (draft.cultureName.trim() === "") {
-    errors.cultureName = "Give your people's culture a name.";
-  }
-
   if (draft.language.trim() === "") {
     errors.language = "Name the language your people speak.";
   }
@@ -194,7 +188,7 @@ export interface DefinePlayerDialogProps {
  * since been taken. A save that loses that race anyway comes back as a 409 naming every clashing field, and each
  * message is shown against the field it belongs to.
  *
- * Seven values have to be unique within the game — the five identity names, the colour and a chosen portrait — and
+ * Several values have to be unique within the game — the identity names, the colour and a chosen portrait — and
  * every one of them except the ruler title becomes read-only once play begins. The lock is the server's; this mirrors it
  * so the fields render disabled rather than quietly having a save ignore them.
  */
@@ -203,7 +197,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
 
   const [activeSection, setActiveSection] = useState<DefinePlayerSection>("ruler");
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
-  // A clash on any of the seven unique values is only knowable at save time, so they are held apart from the pure field
+  // A clash on any of the unique values is only knowable at save time, so they are held apart from the pure field
   // validation. Keyed by field because a single save can come back with several at once.
   const [conflicts, setConflicts] = useState<FieldErrors>({});
 
@@ -234,7 +228,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
 
     // A slot nobody has defined yet still holds the names the game seeded it with - "Player 3", "Faction 3",
     // "People 3" and so on. Those are there so the lobby has something to list, not answers for the player to keep:
-    // opening on them would present them as choices already made, and make the player empty six fields before typing
+    // opening on them would present them as choices already made, and make the player empty every field before typing
     // anything of their own. So every seeded name opens blank and its label is left to say what belongs in it.
     const neverDefined = hasNeverBeenDefined(definition);
 
@@ -256,7 +250,6 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
       // these columns comes back blank of its own accord, which the validation then catches just the same.
       peopleName: neverDefined ? "" : definition.peopleName,
       demonym: neverDefined ? "" : definition.demonym,
-      cultureName: neverDefined ? "" : definition.cultureName,
       language: neverDefined ? "" : definition.language,
     });
   }, [open, definition]);
@@ -314,7 +307,6 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
         factionColour: draft.factionColour!,
         peopleName: draft.peopleName.trim(),
         demonym: draft.demonym.trim(),
-        cultureName: draft.cultureName.trim(),
         language: draft.language.trim(),
       }),
     onSuccess: async () => {
@@ -340,7 +332,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
 
   // Nothing the validation covers is editable on a locked game, and the title it does not cover is the only thing the
   // server will read. Validating anyway would strand a player on a slot whose stored values no longer pass - a slot from
-  // before the people-and-culture columns existed, say - with a title edit they could never save.
+  // before the people columns existed, say - with a title edit they could never save.
   const fieldErrors = isLocked ? {} : validate(draft);
 
   const { submitted, attemptCommit } = useValidatedCommit({
@@ -376,7 +368,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
       open={open}
       title="Define your Ruler and Faction"
       width={720}
-      // Tall enough for the Faction page's six rows - still the taller of the two, the Ruler page's portrait being
+      // Tall enough for the Faction page's rows - still the taller of the two, the Ruler page's portrait being
       // a thumbnail that opens a popover - so neither page scrolls and the dialog never resizes between them.
       height={420}
       onCancel={onCancel}
@@ -477,7 +469,7 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
         {
           key: "faction",
           label: "Faction",
-          invalid: !!(shownErrors.factionName || shownErrors.factionColour || shownErrors.peopleName || shownErrors.demonym || shownErrors.cultureName || shownErrors.language),
+          invalid: !!(shownErrors.factionName || shownErrors.factionColour || shownErrors.peopleName || shownErrors.demonym || shownErrors.language),
           content: (
             <>
               <FieldRow label="Faction Name" error={shownErrors.factionName}>
@@ -503,8 +495,8 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
                 />
               </FieldRow>
 
-              {/* The people behind the faction. Four free-text names with no suggestions behind them: there is no
-                  catalogue to draw from, and each one's hint carries the question it answers. Three of them have to be
+              {/* The people behind the faction. Free-text names with no suggestions behind them: there is no
+                  catalogue to draw from, and each one's hint carries the question it answers. Most have to be
                   unique within the game; the language deliberately does not, since two peoples may share one. */}
               <FieldRow label="People Name" hint="(What do these people call themselves? No two factions alike)" error={shownErrors.peopleName}>
                 <input
@@ -523,16 +515,6 @@ export default function DefinePlayerDialog({ open, gameId, onCancel, onSaved }: 
                   aria-label="Demonym"
                   disabled={isLocked}
                   onChange={(e) => setField("demonym", e.target.value)}
-                />
-              </FieldRow>
-
-              <FieldRow label="Culture Name" hint="(What is the name of their culture?)" error={shownErrors.cultureName}>
-                <input
-                  className={errorClass(!!shownErrors.cultureName)}
-                  value={draft.cultureName}
-                  aria-label="Culture Name"
-                  disabled={isLocked}
-                  onChange={(e) => setField("cultureName", e.target.value)}
                 />
               </FieldRow>
 

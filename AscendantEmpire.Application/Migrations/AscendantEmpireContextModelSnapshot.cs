@@ -975,12 +975,6 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<int>("CampaignOffsetId")
                         .HasColumnType("int");
 
-                    b.Property<string>("CultureName")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
-                        .UseCollation("Latin1_General_CI_AS");
-
                     b.Property<string>("Demonym")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -1039,10 +1033,6 @@ namespace AscendantEmpire.Application.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("UserId");
-
-                    b.HasIndex("GameId", "CultureName")
-                        .IsUnique()
-                        .HasDatabaseName("UX_Player_Game_CultureName");
 
                     b.HasIndex("GameId", "Demonym")
                         .IsUnique()

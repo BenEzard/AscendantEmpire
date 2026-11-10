@@ -319,7 +319,6 @@ internal abstract class AssetBankTestBase : InMemoryTestBase
             FactionName = $"{rulerName}s",
             PeopleName = $"{rulerName} People",
             Demonym = $"{rulerName}ian",
-            CultureName = $"{rulerName} Culture",
             Language = $"{rulerName}ish",
             RulerPortraitPath = "/portraits/01_western_king.png",
             Status = PlayerStatus.Active

@@ -7,8 +7,8 @@ using Microsoft.EntityFrameworkCore;
 namespace AscendantEmpire.Tests.Features.MatchMaking;
 
 /// <summary>
-/// Tests that the database, not just the handler, refuses two players in one game the same ruler name, faction name, people name, demonym, culture
-/// name or chosen portrait - and that it compares them case-insensitively.
+/// Tests that the database, not just the handler, refuses two players in one game the same ruler name, faction name, people name, demonym or chosen
+/// portrait - and that it compares them case-insensitively.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -52,7 +52,6 @@ internal class PlayerIdentityIndexTests : SqlServerTestBase
     [TestCase("FactionName", Description = "Two slots in one game cannot hold the same faction name, whatever order the saves arrive in.")]
     [TestCase("PeopleName", Description = "Two slots in one game cannot hold the same people name, which used to be shareable flavour text.")]
     [TestCase("Demonym", Description = "Two slots in one game cannot hold the same demonym, whatever order the saves arrive in.")]
-    [TestCase("CultureName", Description = "Two slots in one game cannot hold the same culture name, whatever order the saves arrive in.")]
     public async Task DuplicateNameInOneGameIsRejectedByTheDatabaseAsync(string field)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
@@ -71,7 +70,6 @@ internal class PlayerIdentityIndexTests : SqlServerTestBase
     [TestCase("FactionName", Description = "The faction name index is case-insensitive, so the same name in different capitals is one name rather than two.")]
     [TestCase("PeopleName", Description = "The people name index is case-insensitive, so \"The Vashti\" and \"the vashti\" cannot both be taken.")]
     [TestCase("Demonym", Description = "The demonym index is case-insensitive, so the same demonym in different capitals is one rather than two.")]
-    [TestCase("CultureName", Description = "The culture name index is case-insensitive, so the same name in different capitals is one rather than two.")]
     public async Task NameDifferingOnlyInCaseIsRejectedByTheDatabaseAsync(string field)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
@@ -152,7 +150,7 @@ internal class PlayerIdentityIndexTests : SqlServerTestBase
         Assert.That(await context.Players.CountAsync(p => p.GameId == _gameId), Is.EqualTo(3));
     }
 
-    /// <summary>Reads one of the five unique names off a slot by name, so a single test case can stand for all five.</summary>
+    /// <summary>Reads one of the unique names off a slot by name, so a single test case can stand for all of them.</summary>
     private static string ReadField(Player player, string field)
     {
         return field switch
@@ -161,12 +159,11 @@ internal class PlayerIdentityIndexTests : SqlServerTestBase
             "FactionName" => player.FactionName,
             "PeopleName" => player.PeopleName,
             "Demonym" => player.Demonym,
-            "CultureName" => player.CultureName,
-            _ => throw new ArgumentOutOfRangeException(nameof(field), field, "Not one of the five unique identity names.")
+            _ => throw new ArgumentOutOfRangeException(nameof(field), field, "Not one of the unique identity names.")
         };
     }
 
-    /// <summary>Writes one of the five unique names on a slot by name. The counterpart to <see cref="ReadField"/>.</summary>
+    /// <summary>Writes one of the unique names on a slot by name. The counterpart to <see cref="ReadField"/>.</summary>
     private static void SetField(Player player, string field, string value)
     {
         switch (field)
@@ -183,11 +180,8 @@ internal class PlayerIdentityIndexTests : SqlServerTestBase
             case "Demonym":
                 player.Demonym = value;
                 break;
-            case "CultureName":
-                player.CultureName = value;
-                break;
             default:
-                throw new ArgumentOutOfRangeException(nameof(field), field, "Not one of the five unique identity names.");
+                throw new ArgumentOutOfRangeException(nameof(field), field, "Not one of the unique identity names.");
         }
     }
 
@@ -231,7 +225,6 @@ internal class PlayerIdentityIndexTests : SqlServerTestBase
             FactionColour = null,
             PeopleName = $"People {suffix}",
             Demonym = $"Person {suffix}",
-            CultureName = $"Culture {suffix}",
             Language = $"Language {suffix}",
             RulerPortraitPath = Player.DEFAULT_RULER_PORTRAIT_PATH,
             Status = PlayerStatus.Active,

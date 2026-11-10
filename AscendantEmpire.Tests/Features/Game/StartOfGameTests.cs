@@ -149,7 +149,6 @@ public class StartOfGameTests : GameSqlServerTestBase
             FactionColour: $"#c800{slotNumber:d2}",
             PeopleName: $"People {slotNumber}",
             Demonym: $"Person {slotNumber}",
-            CultureName: $"Culture {slotNumber}",
             Language: "Shared Tongue",
             RulerPortraitPath: RulerPortraitPaths.Female[slotNumber - 1]);
     }

@@ -60,10 +60,9 @@ internal class GetPlayerDefinitionHandlerTests : InMemoryTestBase
             FactionName = "Faction 1",
             FactionColour = _OWN_COLOUR,
             // Distinct from the other slots' placeholders, so the read-back assertions below would catch the
-            // handler reading these four off the wrong row.
+            // handler reading these off the wrong row.
             PeopleName = "The Vashti",
             Demonym = "Vashti",
-            CultureName = "Vashti Highland",
             Language = "Old Vashti",
             RulerPortraitPath = _OWN_PORTRAIT,
             RulerGender = null,
@@ -83,7 +82,6 @@ internal class GetPlayerDefinitionHandlerTests : InMemoryTestBase
             FactionColour = _RIVAL_COLOUR,
             PeopleName = "People",
             Demonym = "Person",
-            CultureName = "Culture",
             Language = "Language",
             RulerPortraitPath = _RIVAL_PORTRAIT,
             RulerGender = RulerGender.Female,
@@ -101,7 +99,6 @@ internal class GetPlayerDefinitionHandlerTests : InMemoryTestBase
             FactionName = "Faction 3",
             PeopleName = "People",
             Demonym = "Person",
-            CultureName = "Culture",
             Language = "Language",
             // Still on the default, like every slot a game seeds: holds no portrait, so takes none out of the set.
             RulerPortraitPath = Player.DEFAULT_RULER_PORTRAIT_PATH,
@@ -120,7 +117,6 @@ internal class GetPlayerDefinitionHandlerTests : InMemoryTestBase
             FactionName = "Other Faction",
             PeopleName = "People",
             Demonym = "Person",
-            CultureName = "Culture",
             Language = "Language",
             // The caller's own portrait, in a game they hold no slot in: it must not appear as taken.
             RulerPortraitPath = _OWN_PORTRAIT,
@@ -152,7 +148,6 @@ internal class GetPlayerDefinitionHandlerTests : InMemoryTestBase
             Assert.That(definition.FactionColour, Is.EqualTo(_OWN_COLOUR));
             Assert.That(definition.PeopleName, Is.EqualTo("The Vashti"));
             Assert.That(definition.Demonym, Is.EqualTo("Vashti"));
-            Assert.That(definition.CultureName, Is.EqualTo("Vashti Highland"));
             Assert.That(definition.Language, Is.EqualTo("Old Vashti"));
             Assert.That(definition.RulerPortraitPath, Is.EqualTo(_OWN_PORTRAIT), "The caller's own portrait, which the rivals' differs from.");
         }

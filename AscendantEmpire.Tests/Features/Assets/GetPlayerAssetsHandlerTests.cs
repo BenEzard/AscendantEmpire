@@ -453,7 +453,6 @@ internal class GetPlayerAssetsHandlerTests : PlayerAssetUnlockTestBase
                 FactionName = $"Faction of {peopleName}",
                 PeopleName = peopleName,
                 Demonym = peopleName,
-                CultureName = $"Culture of {peopleName}",
                 Language = $"Tongue of {peopleName}",
                 RulerPortraitPath = Player.DEFAULT_RULER_PORTRAIT_PATH,
                 Status = status

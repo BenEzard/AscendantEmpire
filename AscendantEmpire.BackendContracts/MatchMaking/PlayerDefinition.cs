@@ -36,7 +36,6 @@ public record PlayerDefinition
 
     public required string PeopleName { get; init; }
     public required string Demonym { get; init; }
-    public required string CultureName { get; init; }
     public required string Language { get; init; }
 
     /// <summary>Root-relative path to the ruler's portrait, e.g. "/portraits/07_northern_queen.png". Empty only on a slot predating the column.</summary>

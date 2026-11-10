@@ -466,10 +466,9 @@ internal class GameSetupService(
                 RulerName = $"Player {i}",
                 FactionName = $"Faction {i}",
                 // Placeholders in the same shape as the names above: a seeded slot has to read as *something* in the
-                // lobby, and the setup dialog makes the player replace all four before it will save.
+                // lobby, and the setup dialog makes the player replace all values before it will save.
                 PeopleName = $"People {i}",
                 Demonym = $"Person {i}",
-                CultureName = $"Culture {i}",
                 Language = $"Language {i}",
                 // Not a placeholder in the shape of the names above, but genuinely nothing: a portrait is the one value
                 // that must be unique within the game once chosen, so seeding real ones would have the slots hold every

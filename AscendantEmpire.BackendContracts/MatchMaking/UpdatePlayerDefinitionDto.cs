@@ -3,7 +3,7 @@ using AscendantEmpire.Domain.Enums.Games;
 namespace AscendantEmpire.BackendContracts.MatchMaking;
 
 /// <summary>
-/// Request body for defining the player slot the caller controls in a game. A full replacement of all ten values, not a patch.
+/// Request body for defining the player slot the caller controls in a game. A full replacement of every value, not a patch.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -28,9 +28,6 @@ public record class UpdatePlayerDefinitionDto
 
     /// <summary>What one member of that people is called, e.g. "Vashti".</summary>
     public required string Demonym { get; init; }
-
-    /// <summary>The name of this people's culture, e.g. "Vashti Highland".</summary>
-    public required string CultureName { get; init; }
 
     /// <summary>The language this people speak, e.g. "Old Vashti".</summary>
     public required string Language { get; init; }

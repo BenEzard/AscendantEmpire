@@ -153,7 +153,6 @@ public class GetAllGamesHandlerTests : InMemoryTestBase
             FactionName = $"Faction {Guid.NewGuid():N}",
             PeopleName = "People",
             Demonym = "Person",
-            CultureName = "Culture",
             Language = "Language",
             RulerPortraitPath = "/portraits/01_western_king.png",
             Status = status

@@ -54,7 +54,7 @@ player re-saving their definition after play has begun cannot start it twice.
 
 ### Unique within a game
 
-Seven values of a definition belong to one player for the life of the game, each with a unique index
+These values of a definition belong to one player for the life of the game, each with a unique index
 on `game.Player` behind it:
 
 | Value | Index | Notes |
@@ -63,14 +63,13 @@ on `game.Player` behind it:
 | `FactionName` | `UX_Player_Game_FactionName` | |
 | `PeopleName` | `UX_Player_Game_PeopleName` | |
 | `Demonym` | `UX_Player_Game_Demonym` | |
-| `CultureName` | `UX_Player_Game_CultureName` | |
 | `FactionColour` | `UX_Player_Game_FactionColour` | Filtered: `NULL` means "not picked yet" |
 | `RulerPortraitPath` | `UX_Player_Game_RulerPortraitPath` | Filtered: `''` means "not chosen yet" |
 
 `Language` is deliberately **exempt** — two peoples sharing a language is a legitimate thing for a
 player to express, and nothing attributes anything by language.
 
-The five names compare **case-insensitively**, which rests on `Latin1_General_CI_AS` being pinned on
+The names compare **case-insensitively**, which rests on `Latin1_General_CI_AS` being pinned on
 those columns via `Player.IDENTITY_COLLATION`. Nothing else in the solution sets a collation, so
 without that the rule would mean whatever the server that created the database was configured for.
 Spacing is not something a collation settles, so the handler also collapses runs of internal
@@ -197,7 +196,6 @@ gets a `404` rather than a `403` — there is nothing there to forbid them from.
   "factionColour": null,
   "peopleName": "People 3",
   "demonym": "Person 3",
-  "cultureName": "Culture 3",
   "language": "Language 3",
   "rulerPortraitPath": "",          // "" = no portrait chosen; the client draws a crown
   "usedFactionColours": [
@@ -225,7 +223,7 @@ It never includes the caller's own colour, which must stay pickable.
 
 ### `PUT /match-making/games/{gameId}/my-player`
 
-Defines the caller's own ruler and faction. A full replacement of all ten values, not a patch.
+Defines the caller's own ruler and faction. A full replacement of every value, not a patch.
 
 Gated on `JoinGame`, the same permission as claiming. The body carries **no** identity at all — the
 game comes from the route and the slot from the token — so it cannot name a slot the caller does not
@@ -236,7 +234,7 @@ own.
 { "rulerTitle": "Empress", "rulerName": "Aelara", "rulerGender": "Female",
   "factionName": "The Ember Pact", "factionColour": "#c800de",
   "peopleName": "The Vashti", "demonym": "Vashti",
-  "cultureName": "Vashti Highland", "language": "Old Vashti",
+  "language": "Old Vashti",
   "rulerPortraitPath": "/portraits/07_northern_queen.png" }
 // response: 204 No Content
 ```
@@ -286,12 +284,12 @@ own check — it cannot say which value it was, so the client shows that message
 - The colour is **not** checked against the frontend's palette. Doing so would mean keeping a copy
   of that palette in C# forever, and the worst a hostile client achieves by sending something else
   is an ugly colour.
-- **`peopleName`, `demonym`, `cultureName` and `language` are all required**, each capped at 50
-  characters. They are free text the player authors — nothing is looked up by them — but the first
-  three are **unique within the game**, as are `rulerName` and `factionName`. `language` is the one
-  exemption. See [Unique within a game](#unique-within-a-game). `GameSetupService` seeds each with a
+- **`peopleName`, `demonym` and `language` are all required**, each capped at 50
+  characters. They are free text the player authors — nothing is looked up by them — but `peopleName`
+  and `demonym` are **unique within the game**, as are `rulerName` and `factionName`. `language` is the
+  one exemption. See [Unique within a game](#unique-within-a-game). `GameSetupService` seeds each with a
   placeholder, so a slot never reads as blank in the lobby before it is claimed.
-- The five unique names are stored **trimmed and with internal whitespace collapsed**, so
+- The unique names are stored **trimmed and with internal whitespace collapsed**, so
   `"The  Vashti"` cannot sit alongside `"The Vashti"` as a second name. `language` is trimmed only.
 - **`rulerPortraitPath` is optional**, like the ruler title. Blank (or omitted) is a valid choice and is
   stored as the empty string, which is what `GameSetupService` seeds every slot with. The client draws a
@@ -317,7 +315,7 @@ own check — it cannot say which value it was, so the client shows that message
 | `GetMatchMakingGamesHandler` | `AscendantEmpire.Application/Features/MatchMaking/Handlers/` | Lists joinable games + slots, deriving the claim flags per slot. |
 | `ClaimPlayerSlotHandler` | `AscendantEmpire.Application/Features/MatchMaking/Handlers/` | Assigns `Player.UserId`; guards "already taken" / "already in this game". Does not start the game. |
 | `GetPlayerDefinitionHandler` | `AscendantEmpire.Application/Features/MatchMaking/Handlers/` | Reads the caller's own slot plus the rivals' colours, in one query, and whether it is locked. |
-| `UpdatePlayerDefinitionHandler` | `AscendantEmpire.Application/Features/MatchMaking/Handlers/` | Writes the ten identity values; defaults a blank title, aggregates the seven uniqueness clashes, applies the lock, and starts the game on the last definition. |
+| `UpdatePlayerDefinitionHandler` | `AscendantEmpire.Application/Features/MatchMaking/Handlers/` | Writes the identity values; defaults a blank title, aggregates the uniqueness clashes, applies the lock, and starts the game on the last definition. |
 | Backend contracts | `AscendantEmpire.BackendContracts/MatchMaking/` | `MatchMakingGame`, `MatchMakingSlot`, `PlayerDefinition`, `UsedFactionColour`, `PlayerDefinitionConflict` (handler output); `ClaimPlayerSlotDto`, `UpdatePlayerDefinitionDto` (request bodies). |
 | Frontend contracts | `AscendantEmpire.FrontendContracts/MatchMaking/` | `IMatchMakingGameCollection`, `IMatchMakingGame`, `IMatchMakingSlot`, `IPlayerDefinition`, `IUsedFactionColour`. |
 | DTOs | `AscendantEmpire.Application/Features/MatchMaking/Classes/` | `DTMatchMakingGameCollection` etc. — the serialized shapes. |
@@ -393,15 +391,15 @@ tool's internals for a layout primitive is the wrong dependency direction.
      portrait belonging to the gender just left, rather than leaving the trigger showing a face the
      grid no longer offers. It may be left unchosen, in which case the trigger shows a crown.
    - **Faction** page — Faction Name, a `ColorPicker` over `DistinctColors` with the colours rivals
-     already hold struck through, and then the four names for the people behind the faction: People
-     Name, Demonym, Culture Name and Language.
+     already hold struck through, and then the names for the people behind the faction: People
+     Name, Demonym and Language.
    - **Clashes** — a `409` names every field it refused, and each message is shown against its own
      field, with the page switched to whichever one holds a clash (Ruler wins ties). Editing a field
      clears the message reported against it. A `409` the server could not attribute goes in the
      dialog's banner instead, so the refusal is never swallowed.
    - **A game under way** renders every field but the title disabled, with a banner explaining why,
      and skips the validation those fields would otherwise be held to — so a title edit still saves
-     on a slot whose stored values predate the people-and-culture columns.
+     on a slot whose stored values predate the people columns.
    - **Cancel** keeps the slot, carrying whatever the game seeded it with. That is only reasonable
      because of the **Edit** button, which reopens the same dialog — the two are one guarantee. Note
      that a slot left undefined holds the whole game up, since the last definition is what starts it.
@@ -425,7 +423,7 @@ just adds the claim step on top.
 - **`/games/open` is unchanged** — it stays anonymous and only lists `Active` players. The Match
   Maker uses its own authorised listing so it can compute the per-user claim flags.
 - **Slot identity is the player's** — a seeded slot carries only placeholders (`"Nobody"`,
-  `"Player 3"`, `"Faction 3"`, `"People 3"`, `"Person 3"`, `"Culture 3"`, `"Language 3"`, no portrait,
+  `"Player 3"`, `"Faction 3"`, `"People 3"`, `"Person 3"`, `"Language 3"`, no portrait,
   no gender, no colour), and the two `my-player` endpoints above let the claimant replace them once,
   before play begins. Each placeholder is numbered per slot precisely because the real values are
   unique within the game — see [Unique within a game](#unique-within-a-game).

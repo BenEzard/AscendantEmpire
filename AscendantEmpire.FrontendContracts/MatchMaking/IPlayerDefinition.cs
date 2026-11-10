@@ -34,9 +34,6 @@ public interface IPlayerDefinition
     /// <summary>What one member of that people is called, e.g. "Vashti".</summary>
     string Demonym { get; }
 
-    /// <summary>The name of this people's culture, e.g. "Vashti Highland".</summary>
-    string CultureName { get; }
-
     /// <summary>The language this people speak, e.g. "Old Vashti".</summary>
     string Language { get; }
 

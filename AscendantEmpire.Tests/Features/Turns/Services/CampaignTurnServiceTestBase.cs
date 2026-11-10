@@ -73,7 +73,6 @@ public abstract class CampaignTurnServiceTestBase : InMemoryTestBase
                 FactionName = $"Faction {playerNumber}",
                 PeopleName = "People",
                 Demonym = "Person",
-                CultureName = "Culture",
                 Language = "Language",
                 RulerPortraitPath = "/portraits/01_western_king.png",
                 Status = PlayerStatus.Active

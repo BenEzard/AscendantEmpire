@@ -347,7 +347,6 @@ internal class AuthenticationHandlerTests
             FactionName = $"Faction {playerId}",
             PeopleName = "People",
             Demonym = "Person",
-            CultureName = "Culture",
             Language = "Language",
             RulerPortraitPath = "/portraits/01_western_king.png",
             CampaignOffsetId = playerId,

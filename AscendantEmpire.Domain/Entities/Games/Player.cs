@@ -12,7 +12,6 @@ public class Player
     public const int FACTION_NAME_MAX_LENGTH = 50;
     public const int PEOPLE_NAME_MAX_LENGTH = 50;
     public const int DEMONYM_MAX_LENGTH = 50;
-    public const int CULTURE_NAME_MAX_LENGTH = 50;
     public const int LANGUAGE_MAX_LENGTH = 50;
 
     /// <summary>
@@ -183,16 +182,6 @@ public class Player
     /// </remarks>
     [MaxLength(DEMONYM_MAX_LENGTH)]
     public required string Demonym { get; set; }
-
-    /// <summary>
-    /// The name of this people's culture, e.g. "Vashti Highland".
-    /// </summary>
-    /// <remarks>
-    /// Distinct from <see cref="PeopleName"/>: a people and the culture they carry are named separately so that the two can diverge as a game runs on.
-    /// <b>Unique within a game</b>, compared case-insensitively - see the UX_Player_Game_CultureName index and <see cref="IDENTITY_COLLATION"/>.
-    /// </remarks>
-    [MaxLength(CULTURE_NAME_MAX_LENGTH)]
-    public required string CultureName { get; set; }
 
     /// <summary>
     /// The language this people speak, e.g. "Old Vashti".

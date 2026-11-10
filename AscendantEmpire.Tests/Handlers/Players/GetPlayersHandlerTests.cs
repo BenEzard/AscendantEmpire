@@ -240,7 +240,6 @@ internal class GetPlayersHandlerTests
                 FactionColour = $"#{id:x6}",
                 PeopleName = "People",
                 Demonym = "Person",
-                CultureName = "Culture",
                 Language = "Language",
                 // Picked by the id for the same reason the colour is derived from it: a shared value could not tell
                 // a projection that reads the right row from one that reads any row.

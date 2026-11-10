@@ -31,11 +31,10 @@ export type PlayerDefinition = {
   factionName: string;
   // Null until the player has picked one.
   factionColour: string | null;
-  // The four people-and-culture names. Non-nullable server-side: a seeded slot carries a placeholder, and a slot
+  // The people names. Non-nullable server-side: a seeded slot carries a placeholder, and a slot
   // from before the columns existed carries an empty string.
   peopleName: string;
   demonym: string;
-  cultureName: string;
   language: string;
   // Root-relative path to the chosen portrait, e.g. "/portraits/07_northern_queen.png". Non-nullable server-side: a seeded
   // slot already carries one, and a slot from before the column existed carries an empty string.
@@ -80,7 +79,6 @@ export type UpdatePlayerDefinitionBody = {
   factionColour: string;
   peopleName: string;
   demonym: string;
-  cultureName: string;
   language: string;
   rulerPortraitPath: string;
 };

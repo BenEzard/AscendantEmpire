@@ -526,11 +526,10 @@ public class GameSqlServerTestBase : SqlServerTestBase
                 RulerTitle = "King",
                 RulerName = $"Player {i}",
                 FactionName = $"Faction {i}",
-                // Indexed per slot like the names above, because the five identity names are unique within a game — see
+                // Indexed per slot like the names above, because the identity names are unique within a game — see
                 // UX_Player_Game_PeopleName and its siblings. The language is deliberately shared, as it is allowed to be.
                 PeopleName = $"People {i}",
                 Demonym = $"Person {i}",
-                CultureName = $"Culture {i}",
                 Language = "Language",
                 // The default rather than a real path: a chosen portrait is unique within a game too, and its index
                 // filters out only this value, so seeding the same real portrait into every slot would be rejected.

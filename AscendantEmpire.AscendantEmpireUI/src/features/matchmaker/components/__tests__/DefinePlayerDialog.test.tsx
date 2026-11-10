@@ -46,10 +46,9 @@ function undefinedSlot(overrides: Partial<PlayerDefinition> = {}): PlayerDefinit
     factionName: "Faction 3",
     factionColour: null,
     // Seeded placeholders, like the ruler and faction names above. The API never sends these back blank for a slot
-    // a game created; the dialog blanks them itself rather than making the player delete four stand-ins.
+    // a game created; the dialog blanks them itself rather than making the player delete the stand-ins.
     peopleName: "People 3",
     demonym: "Person 3",
-    cultureName: "Culture 3",
     language: "Language 3",
     // Empty, which is how a game seeds every slot: the crown stands in until the player picks a face.
     rulerPortraitPath: "",
@@ -76,7 +75,6 @@ function definedSlot(overrides: Partial<PlayerDefinition> = {}): PlayerDefinitio
     factionColour: "#8200db",
     peopleName: "The Vashti",
     demonym: "Vashti",
-    cultureName: "Vashti Highland",
     language: "Old Vashti",
     rulerPortraitPath: "/portraits/17_blonde_queen.png",
     ...overrides,
@@ -122,7 +120,6 @@ const rulerTitleInput = () => screen.getByRole("combobox", { name: "Ruler Title"
 const factionNameInput = () => screen.getByRole("textbox", { name: "Faction Name" });
 const peopleNameInput = () => screen.getByRole("textbox", { name: "People Name" });
 const demonymInput = () => screen.getByRole("textbox", { name: "Demonym" });
-const cultureNameInput = () => screen.getByRole("textbox", { name: "Culture Name" });
 const languageInput = () => screen.getByRole("textbox", { name: "Language" });
 
 // Nav buttons render as "<number> <label>" (plus "has validation errors" when the page is marked
@@ -163,8 +160,8 @@ async function waitForLoad() {
 /**
  * Puts a value into one of the plain text inputs in a single event.
  *
- * Deliberately not `user.type`, which these tests use everywhere a keystroke is the point. Six names at a dozen or
- * so characters each is ~90 simulated keystrokes per test, and in the full suite - where every file is competing for
+ * Deliberately not `user.type`, which these tests use everywhere a keystroke is the point. Every name at a dozen or
+ * so characters each adds up to a great many simulated keystrokes per test, and in the full suite - where every file is competing for
  * the event loop - that is enough to carry a test past the 5s default timeout, though it is comfortable when this
  * file runs alone. The fields are plain controlled inputs with nothing per-keystroke to exercise, so the tests that
  * only need them answered set them in one go, and the ones about typing itself still type.
@@ -179,14 +176,13 @@ const ANSWERS = {
   factionName: "The Ember Pact",
   peopleName: "The Vashti",
   demonym: "Vashti",
-  cultureName: "Vashti Highland",
   language: "Old Vashti",
 };
 
 /**
  * Answers everything the commit gate asks for bar the faction colour, and finishes on the Faction page.
  *
- * Types every name as well as picking the gender, because an undefined slot opens with all six blank - the seeded
+ * Types every name as well as picking the gender, because an undefined slot opens with every one blank - the seeded
  * placeholders used to answer them, leaving only the two pickers to do here. Split out from completeTheForm so a
  * test can leave exactly one answer missing: filling nothing but the gender now strands problems on both pages.
  */
@@ -197,13 +193,12 @@ async function fillEverythingButTheColour(user: ReturnType<typeof userEvent.setu
   await fillTheFactionNames(user);
 }
 
-/** Types the Faction page's five names, leaving the user looking at that page with only its colour unanswered. */
+/** Types the Faction page's names, leaving the user looking at that page with only its colour unanswered. */
 async function fillTheFactionNames(user: ReturnType<typeof userEvent.setup>) {
   await user.click(factionTab());
   setValue(factionNameInput(), ANSWERS.factionName);
   setValue(peopleNameInput(), ANSWERS.peopleName);
   setValue(demonymInput(), ANSWERS.demonym);
-  setValue(cultureNameInput(), ANSWERS.cultureName);
   setValue(languageInput(), ANSWERS.language);
 }
 
@@ -235,7 +230,6 @@ describe("the commit gate", () => {
       factionColour: "#8200db",
       peopleName: ANSWERS.peopleName,
       demonym: ANSWERS.demonym,
-      cultureName: ANSWERS.cultureName,
       language: ANSWERS.language,
       rulerPortraitPath: "",
     });
@@ -311,7 +305,6 @@ describe("the names a game seeds a slot with", () => {
     expect(factionNameInput()).toHaveValue("");
     expect(peopleNameInput()).toHaveValue("");
     expect(demonymInput()).toHaveValue("");
-    expect(cultureNameInput()).toHaveValue("");
     expect(languageInput()).toHaveValue("");
   });
 
@@ -334,13 +327,12 @@ describe("the names a game seeds a slot with", () => {
   });
 });
 
-describe("the people and culture fields", () => {
+describe("the people fields", () => {
   // Blank is how the dialog now opens an undefined slot, so clearing a field by hand only stands in for the player
   // having typed something and thought better of it.
   it.each([
     ["People Name", peopleNameInput, "Give your people a name."],
     ["Demonym", demonymInput, "Say what one of your people is called."],
-    ["Culture Name", cultureNameInput, "Give your people's culture a name."],
     ["Language", languageInput, "Name the language your people speak."],
   ])("refuses to save with a blank %s", async (_label, input, message) => {
     const user = userEvent.setup();
@@ -752,7 +744,6 @@ describe("a game already under way", () => {
     expect(colourTrigger()).toBeDisabled();
     expect(peopleNameInput()).toBeDisabled();
     expect(demonymInput()).toBeDisabled();
-    expect(cultureNameInput()).toBeDisabled();
     expect(languageInput()).toBeDisabled();
 
     expect(rulerTitleInput()).toBeEnabled();
@@ -772,13 +763,13 @@ describe("a game already under way", () => {
     expect(vi.mocked(updatePlayerDefinition).mock.calls[0][1].rulerTitle).toBe("Dowager Empress");
   });
 
-  // A slot from before the people-and-culture columns existed comes back with those blank. The lock means the player
+  // A slot from before the people columns existed comes back with those blank. The lock means the player
   // cannot fill them in, so validating them would leave a title edit permanently unsaveable.
   it("still saves a retitle on a slot whose stored values would not pass validation", async () => {
     const user = userEvent.setup();
     vi.mocked(updatePlayerDefinition).mockResolvedValue(undefined);
     const { onSaved } = renderDialog(
-      undefinedSlot({ isLocked: true, rulerGender: "Female", peopleName: "", demonym: "", cultureName: "", language: "" }),
+      undefinedSlot({ isLocked: true, rulerGender: "Female", peopleName: "", demonym: "", language: "" }),
     );
     await waitForLoad();
 
@@ -801,7 +792,6 @@ describe("an already-defined slot", () => {
     expect(factionNameInput()).toHaveValue("The Ember Pact");
     expect(peopleNameInput()).toHaveValue("The Vashti");
     expect(demonymInput()).toHaveValue("Vashti");
-    expect(cultureNameInput()).toHaveValue("Vashti Highland");
     expect(languageInput()).toHaveValue("Old Vashti");
     expect(portraitTrigger().querySelector("img")).toHaveAttribute("src", "/portraits/17_blonde_queen.png");
   });

@@ -31,7 +31,7 @@ namespace AscendantEmpire.Tests.Features.MatchMaking;
 /// <c>StartOfGameTests</c>' job, and what matters here is only whether this handler reaches for it.
 /// </para>
 /// <para>
-/// The six uniqueness rules are checked by the handler as well as by indexes, so the refusals below are the handler's own. The indexes behind them are
+/// The uniqueness rules are checked by the handler as well as by indexes, so the refusals below are the handler's own. The indexes behind them are
 /// <see cref="PlayerIdentityIndexTests"/>' subject.
 /// </para>
 /// </remarks>
@@ -104,7 +104,7 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
     // Saving a definition
     // =========================================================================
 
-    [Test, Description("A save writes all ten values to the caller's own slot, storing the colour lower-cased so a later clash check cannot miss it.")]
+    [Test, Description("A save writes every value to the caller's own slot, storing the colour lower-cased so a later clash check cannot miss it.")]
     public async Task SaveWritesEveryValueToTheCallersOwnSlotAsync()
     {
         ServiceResult<Empty> result = await _handler.Handle(
@@ -115,7 +115,6 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
                 factionColour: "#C800DE",
                 peopleName: "  The Vashti  ",
                 demonym: "  Vashti  ",
-                cultureName: "  Vashti Highland  ",
                 language: "  Old Vashti  ",
                 rulerPortraitPath: "/portraits/12_viking_king.png"),
             CancellationToken.None);
@@ -133,7 +132,6 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
             Assert.That(saved.FactionColour, Is.EqualTo("#c800de"), "Colours are stored lower-cased, so a clash is detectable whatever the database collation.");
             Assert.That(saved.PeopleName, Is.EqualTo("The Vashti"));
             Assert.That(saved.Demonym, Is.EqualTo("Vashti"));
-            Assert.That(saved.CultureName, Is.EqualTo("Vashti Highland"));
             Assert.That(saved.Language, Is.EqualTo("Old Vashti"));
             Assert.That(saved.RulerPortraitPath, Is.EqualTo("/portraits/12_viking_king.png"), "The portrait the player picked, not the one their slot was seeded with.");
         }
@@ -168,7 +166,7 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
     // Whitespace normalisation
     // =========================================================================
 
-    [Test, Description("Runs of internal whitespace in the five unique names are collapsed to single spaces, so a double space cannot stand in for a second name.")]
+    [Test, Description("Runs of internal whitespace in the unique names are collapsed to single spaces, so a double space cannot stand in for a second name.")]
     public async Task InternalWhitespaceInTheUniqueNamesIsCollapsedAsync()
     {
         ServiceResult<Empty> result = await _handler.Handle(
@@ -176,8 +174,7 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
                 rulerName: "Ael  ara",
                 factionName: "The   Ember\tPact",
                 peopleName: "The  Vashti",
-                demonym: "Vash  ti",
-                cultureName: "Vashti\t\tHighland"),
+                demonym: "Vash  ti"),
             CancellationToken.None);
 
         Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
@@ -190,7 +187,6 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
             Assert.That(saved.FactionName, Is.EqualTo("The Ember Pact"));
             Assert.That(saved.PeopleName, Is.EqualTo("The Vashti"));
             Assert.That(saved.Demonym, Is.EqualTo("Vash ti"));
-            Assert.That(saved.CultureName, Is.EqualTo("Vashti Highland"));
         }
     }
 
@@ -216,7 +212,6 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
     [TestCase("factionName", Description = "A faction name another player in the game already holds is rejected before the save.")]
     [TestCase("peopleName", Description = "A people name another player in the game already holds is rejected, where it used to be shareable flavour text.")]
     [TestCase("demonym", Description = "A demonym another player in the game already holds is rejected before the save.")]
-    [TestCase("cultureName", Description = "A culture name another player in the game already holds is rejected before the save.")]
     public async Task NameHeldByAnotherPlayerInTheGameIsRejectedAsync(string field)
     {
         const string taken = "Vashti";
@@ -225,15 +220,13 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
             rulerName: field == "rulerName" ? taken : "Rival Ruler",
             factionName: field == "factionName" ? taken : "Rival Faction",
             peopleName: field == "peopleName" ? taken : "Rival People",
-            demonym: field == "demonym" ? taken : "Rival Person",
-            cultureName: field == "cultureName" ? taken : "Rival Culture");
+            demonym: field == "demonym" ? taken : "Rival Person");
 
         UpdatePlayerDefinitionRequest request = BuildRequest(
             rulerName: field == "rulerName" ? taken : "Aelara",
             factionName: field == "factionName" ? taken : "The Ember Pact",
             peopleName: field == "peopleName" ? taken : "The Vashti",
-            demonym: field == "demonym" ? taken : "Vashti One",
-            cultureName: field == "cultureName" ? taken : "Vashti Highland");
+            demonym: field == "demonym" ? taken : "Vashti One");
 
         ServiceResult<Empty> result = await _handler.Handle(request, CancellationToken.None);
 
@@ -264,16 +257,16 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
     [Test, Description("Every clash is reported in one answer, so a player who picks three taken values is told all three rather than resubmitting three times.")]
     public async Task EveryClashIsReportedTogetherAsync()
     {
-        await DefineRivalAsync(peopleName: "The Vashti", demonym: "Vashti", cultureName: "Vashti Highland");
+        await DefineRivalAsync(factionName: "The Ember Pact", peopleName: "The Vashti", demonym: "Vashti");
 
         ServiceResult<Empty> result = await _handler.Handle(
-            BuildRequest(peopleName: "The Vashti", demonym: "Vashti", cultureName: "Vashti Highland"),
+            BuildRequest(factionName: "The Ember Pact", peopleName: "The Vashti", demonym: "Vashti"),
             CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.Conflict));
-            Assert.That(ClashingFields(result), Is.EquivalentTo(new[] { "peopleName", "demonym", "cultureName" }));
+            Assert.That(ClashingFields(result), Is.EquivalentTo(new[] { "factionName", "peopleName", "demonym" }));
             Assert.That(result.Errors, Has.Count.EqualTo(3), "One message per clash, so every one of them can be shown.");
         }
     }
@@ -415,7 +408,6 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
                 factionColour: "#010203",
                 peopleName: "A New People",
                 demonym: "Newcomer",
-                cultureName: "A New Culture",
                 language: "A New Tongue",
                 rulerPortraitPath: "/portraits/18_red_headband_ruler.png"),
             CancellationToken.None);
@@ -432,7 +424,6 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
             Assert.That(saved.FactionColour, Is.EqualTo("#c800de"));
             Assert.That(saved.PeopleName, Is.EqualTo("The Vashti"));
             Assert.That(saved.Demonym, Is.EqualTo("Vashti"));
-            Assert.That(saved.CultureName, Is.EqualTo("Vashti Highland"));
             Assert.That(saved.Language, Is.EqualTo("Old Vashti"));
             Assert.That(saved.RulerPortraitPath, Is.EqualTo("/portraits/07_northern_queen.png"));
         }
@@ -602,7 +593,6 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
         string factionColour = "#c800de",
         string peopleName = "The Vashti",
         string demonym = "Vashti",
-        string cultureName = "Vashti Highland",
         string language = "Old Vashti",
         string rulerPortraitPath = "/portraits/07_northern_queen.png")
     {
@@ -616,7 +606,6 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
             factionColour,
             peopleName,
             demonym,
-            cultureName,
             language,
             rulerPortraitPath);
     }
@@ -635,7 +624,6 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
         string? factionName = null,
         string? peopleName = null,
         string? demonym = null,
-        string? cultureName = null,
         string? language = null)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
@@ -646,7 +634,6 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
         rival.FactionName = factionName ?? rival.FactionName;
         rival.PeopleName = peopleName ?? rival.PeopleName;
         rival.Demonym = demonym ?? rival.Demonym;
-        rival.CultureName = cultureName ?? rival.CultureName;
         rival.Language = language ?? rival.Language;
 
         await context.SaveChangesAsync();
@@ -714,7 +701,7 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
     /// A slot carrying the placeholders game setup seeds, suffixed per slot.
     /// </summary>
     /// <remarks>
-    /// The suffix is what keeps the five unique names apart within one game, exactly as <c>GameSetupService</c> does it. The portrait stays on the
+    /// The suffix is what keeps the unique names apart within one game, exactly as <c>GameSetupService</c> does it. The portrait stays on the
     /// default, which is the one value the uniqueness rule exempts.
     /// </remarks>
     private static Player BuildSlot(int gameId, int? userId, int suffix, int campaignOffsetId)
@@ -728,7 +715,6 @@ internal class UpdatePlayerDefinitionHandlerTests : SqlServerTestBase
             FactionName = $"Faction {suffix}",
             PeopleName = $"People {suffix}",
             Demonym = $"Person {suffix}",
-            CultureName = $"Culture {suffix}",
             Language = $"Language {suffix}",
             RulerPortraitPath = Player.DEFAULT_RULER_PORTRAIT_PATH,
             Status = PlayerStatus.Active,
