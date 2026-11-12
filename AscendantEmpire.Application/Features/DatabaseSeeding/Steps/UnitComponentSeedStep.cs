@@ -28,7 +28,7 @@ internal sealed class UnitComponentSeedStep : ISeedStep
 
     public string Description => "The human body and its slots, the camping materials and recon training, and the primitive spear and club.";
 
-    public IReadOnlyCollection<SeedTarget> DependsOn => [SeedTarget.Tags];
+    public IReadOnlyCollection<SeedTarget> DependsOn => [SeedTarget.Tags, SeedTarget.SupplySets];
 
     public int SortOrder => 30;
 

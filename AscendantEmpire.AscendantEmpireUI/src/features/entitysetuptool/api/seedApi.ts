@@ -19,7 +19,9 @@ export type SeedTarget =
   | "ExperienceTypes"
   | "Technologies"
   | "MapResourceTypes"
-  | "Structures";
+  | "Structures"
+  | "StorageClasses"
+  | "SupplySets";
 
 /** The heading a target is listed under. Mirrors the backend SeedTargetGroup enum. */
 export type SeedTargetGroup = "Map" | "UnitDesign" | "Assets" | "Technology" | "Structures";

@@ -3,7 +3,7 @@
 // permission by its entry point — and is intentionally separate from the game-side `unitdesign`
 // feature. The real functionality will be filled in later.
 import { useEffect, useMemo, useState } from "react";
-import { FaDatabase, FaMountain, FaPlus, FaSitemap, FaTags, FaTree } from "react-icons/fa6";
+import { FaBoxesStacked, FaDatabase, FaMountain, FaPlus, FaSitemap, FaTags, FaTree } from "react-icons/fa6";
 import { HiArrowPath, HiMagnifyingGlass, HiXMark } from "react-icons/hi2";
 import { GiGearHammer } from "react-icons/gi";
 
@@ -29,6 +29,7 @@ import GeographyManagerDialog from "./GeographyManagerDialog";
 import TagSetupDialog from "./TagSetupDialog";
 import TagTypeSetupDialog from "./TagTypeSetupDialog";
 import SeedSelectionDialog from "./SeedSelectionDialog";
+import SupplySetManagerDialog from "./SupplySetManagerDialog";
 import TechnologyTreeViewer from "./technologytree/TechnologyTreeViewer";
 import UnitDesigner from "@/features/unitdesign/UnitDesigner";
 
@@ -56,6 +57,9 @@ export default function EntitySetupTool() {
   // Controls the BiomeManagerDialog opened by the Map group's "Biomes" button. The dialog loads the biome
   // catalogue itself, so there is nothing else to hold here.
   const [showBiomeManager, setShowBiomeManager] = useState(false);
+
+  // Controls the SupplySetManagerDialog opened by the Supply group's button. The dialog loads the catalogue itself.
+  const [showSupplySetManager, setShowSupplySetManager] = useState(false);
 
   // Controls the GeographyManagerDialog opened by the Map group's "Geographies" button, which loads its own
   // catalogue in the same way.
@@ -111,6 +115,7 @@ export default function EntitySetupTool() {
   const [tagSuccessMessage, setTagSuccessMessage] = useState<string | null>(null);
   const [tagTypeSuccessMessage, setTagTypeSuccessMessage] = useState<string | null>(null);
   const [biomeSuccessMessage, setBiomeSuccessMessage] = useState<string | null>(null);
+  const [supplySetSuccessMessage, setSupplySetSuccessMessage] = useState<string | null>(null);
   const [geographySuccessMessage, setGeographySuccessMessage] = useState<string | null>(null);
 
   // Load the tag type catalogue once on mount so it's ready for both the Tag Type manager and the Tag
@@ -386,6 +391,19 @@ export default function EntitySetupTool() {
         ],
       },
       {
+        caption: "Supply",
+        buttons: [
+          {
+            key: "supply-sets",
+            icon: <FaBoxesStacked />,
+            tooltip: "Supply Sets",
+            // The groups of Assets a component's food, fuel and repair needs may be met with. Authored here because a set is configuration a component
+            // then references by code.
+            onClick: () => setShowSupplySetManager(true),
+          },
+        ],
+      },
+      {
         caption: "Map",
         buttons: [
           {
@@ -532,6 +550,8 @@ export default function EntitySetupTool() {
         error={tagTypeError}
       />
 
+      <SupplySetManagerDialog open={showSupplySetManager} onCancel={() => setShowSupplySetManager(false)} onSaveSuccess={setSupplySetSuccessMessage} />
+
       <BiomeManagerDialog open={showBiomeManager} onCancel={() => setShowBiomeManager(false)} onSaveSuccess={setBiomeSuccessMessage} />
 
       <GeographyManagerDialog open={showGeographyManager} onCancel={() => setShowGeographyManager(false)} onSaveSuccess={setGeographySuccessMessage} />
@@ -596,6 +616,13 @@ export default function EntitySetupTool() {
         <Toast open={tagSuccessMessage !== null} message={tagSuccessMessage} variant="success" onClose={() => setTagSuccessMessage(null)} />
         <Toast open={tagTypeSuccessMessage !== null} message={tagTypeSuccessMessage} variant="success" onClose={() => setTagTypeSuccessMessage(null)} />
         <Toast open={biomeSuccessMessage !== null} message={biomeSuccessMessage} variant="success" onClose={() => setBiomeSuccessMessage(null)} />
+
+        <Toast
+          open={supplySetSuccessMessage !== null}
+          message={supplySetSuccessMessage}
+          variant="success"
+          onClose={() => setSupplySetSuccessMessage(null)}
+        />
         <Toast open={geographySuccessMessage !== null} message={geographySuccessMessage} variant="success" onClose={() => setGeographySuccessMessage(null)} />
         <Toast open={templateSuccessMessage !== null} message={templateSuccessMessage} variant="success" onClose={() => setTemplateSuccessMessage(null)} />
         <Toast open={templateErrorMessage !== null} message={templateErrorMessage} variant="danger" onClose={() => setTemplateErrorMessage(null)} />

@@ -5,6 +5,7 @@ using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.UnitComponents.Services;
 using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 using AscendantEmpire.BackendContracts.UnitDesigns.UpsertUnitComponent;
+using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 
 using Microsoft.EntityFrameworkCore;
@@ -66,7 +67,11 @@ internal class UpdateUnitComponentHandler(
 
         Dictionary<string, Tag> tagsByCode = await UnitComponentReconciler.LoadTagsByCodeAsync(context, dto.TagCodes, cancelToken);
 
+        string[] supplySetCodes = [.. dto.SupplyRequirements.Select(requirement => requirement.SupplySetCode)];
+        Dictionary<string, SupplySet> supplySetsByCode = await UnitComponentReconciler.LoadSupplySetsByCodeAsync(context, supplySetCodes, cancelToken);
+
         UnitComponentReconciler.ValidateTagReferences(dto, tagsByCode.Keys, errors);
+        UnitComponentReconciler.ValidateSupplyRequirements(dto, supplySetsByCode.Keys, errors);
         UnitComponentReconciler.ValidateTypeUnchanged(dto, existing, errors);
         UnitComponentReconciler.ValidateSlots(dto, existing, errors);
 
@@ -86,7 +91,7 @@ internal class UpdateUnitComponentHandler(
         List<int> affectedTemplateIds = await AffectedTemplateRecompiler.FindAffectedTemplateIdsAsync(context, [existing.Id], cancelToken);
 
         List<UnitComponentSlot> removedSlots = [];
-        UnitComponentReconciler.Update(context, existing, dto, tagsByCode, removedSlots);
+        UnitComponentReconciler.Update(context, existing, dto, tagsByCode, supplySetsByCode, removedSlots);
 
         List<string> unfittedTemplateNames = await UnitComponentReconciler.RemoveSlotsAndDependentsAsync(context, removedSlots, cancelToken);
 

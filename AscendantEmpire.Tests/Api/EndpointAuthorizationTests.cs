@@ -94,6 +94,8 @@ public sealed class EndpointAuthorizationTests
         ["PUT /global-unit-templates/{id}"] = PermissionType.EntitySetupTool,
         ["POST /global-unit-templates/recompile-all"] = PermissionType.EntitySetupTool,
         ["PUT /assets"] = PermissionType.EntitySetupTool,
+        ["POST /supply-sets"] = PermissionType.EntitySetupTool,
+        ["PUT /supply-sets/{id}"] = PermissionType.EntitySetupTool,
         ["PUT /technology"] = PermissionType.EntitySetupTool,
         ["PUT /technology/experience-types"] = PermissionType.EntitySetupTool,
         ["POST /units/temporary-dev-only/spawn"] = PermissionType.EntitySetupTool,
@@ -140,6 +142,7 @@ public sealed class EndpointAuthorizationTests
         "GET /map-resources/catalogue",
         "GET /map-gallery/{id}/map-resources",
         "GET /assets",
+        "GET /supply-sets",
 
         "POST /campaign-map/player",
         "POST /campaign-map/player/clear",

@@ -133,6 +133,8 @@ function mapComponent(component: UnitComponent) {
     weapon: component.weapon != null ? mapWeapon(component.weapon) : null,
     armour: component.armour != null ? mapArmour(component.armour) : null,
     tagCodes: component.tagCodes,
+    // Only a Body may carry a requirement, and the backend refuses one on anything else, so a stale list left over from toggling type is dropped here.
+    supplyRequirements: component.componentType === "Body" ? component.supplyRequirements : [],
   };
 }
 
@@ -251,6 +253,7 @@ interface ComponentWire {
   weapon: WeaponWire | null;
   armour: ArmourWire | null;
   tagCodes: string[];
+  supplyRequirements?: { supplySetCode: string; quantity: number }[];
 }
 
 interface EditableComponentWire {
@@ -346,6 +349,7 @@ export function mapEditableComponentToModel(wire: EditableComponentWire): UnitCo
     armour: component.armour != null ? mapArmourFromWire(component.armour) : null,
     tagCodes: component.tagCodes,
     supersededBy,
+    supplyRequirements: component.supplyRequirements ?? [],
   };
 }
 

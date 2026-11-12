@@ -29,6 +29,7 @@ function carriedComponent(code: string, weight: number): UnitComponent {
     armour: null,
     tagCodes: [],
     supersededBy: [],
+    supplyRequirements: [],
   };
 }
 

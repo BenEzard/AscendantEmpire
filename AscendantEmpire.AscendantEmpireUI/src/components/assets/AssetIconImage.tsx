@@ -22,12 +22,17 @@ interface AssetIconImageProps {
  *
  * The path is rendered straight into `src` because these are root-relative URLs served from `public/`, seeded as each row's `IconPath` by
  * `AssetSeedData` on the API side — not bundled assets with an import to resolve.
+ *
+ * Lives under `components/` rather than with the game feature because the Entity Setup Tool's supply set picker draws Assets as tiles too, and a
+ * dev tool reaching into a player-facing feature for a presentational primitive is the wrong dependency direction.
  */
 export default function AssetIconImage({ iconPath, size, alt = "", className }: AssetIconImageProps) {
   // Remembered per path, so a catalogue fix to a broken path shows the new image rather than staying on the fallback.
   const [failedPath, setFailedPath] = useState<string | null>(null);
 
-  if (iconPath !== "" && iconPath !== failedPath) {
+  // Truthiness rather than a comparison with "": an API that predates the field on a given read sends no path at all, and `src={undefined}` renders as an
+  // empty box rather than falling back to the glyph.
+  if (iconPath && iconPath !== failedPath) {
     return (
       <img
         src={iconPath}

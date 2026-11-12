@@ -36,6 +36,14 @@ internal static class CatalogueExportProjections
             Armour = component.Armour is { } armour ? ToArmourDto(armour) : null,
             // Tag join rows carry the Tag navigation; export just the stable codes.
             TagCodes = [.. component.Tags.Select(t => t.Tag.Code)],
+            // Supply sets are not part of the export, so a requirement travels as the set's code and resolves against the importing database's own sets.
+            SupplyRequirements = [.. component.SupplyRequirements
+                .OrderBy(requirement => requirement.SupplySet.Code)
+                .Select(requirement => new UnitComponentSupplyRequirementDto
+                {
+                    SupplySetCode = requirement.SupplySet.Code,
+                    Quantity = requirement.Quantity,
+                })],
         };
     }
 

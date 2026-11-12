@@ -1,5 +1,5 @@
 import "./AssetTicker.css";
-import AssetIconImage from "../AssetIconImage";
+import AssetIconImage from "@/components/assets/AssetIconImage";
 import AssetIndicatorPanel from "./AssetIndicatorPanel";
 import AssetAmountLabel from "./AssetAmountLabel";
 import { getAssetTickerBackground, type AssetGrade } from "./AssetConstants";

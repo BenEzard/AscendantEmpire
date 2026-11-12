@@ -29,6 +29,15 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 internal static class UnitComponentSeedData
 {
     /// <summary>
+    /// What one human costs in food per turn — one unit of the <c>human-food</c> set, scaled.
+    /// </summary>
+    /// <remarks>
+    /// A unit of the set rather than of an Asset, so what actually feeds the man depends on which of the set's Assets the tile holds; Berries cost more of
+    /// themselves per unit than meat does. See <c>docs/design/units/unit-support-and-supply.md</c>.
+    /// </remarks>
+    private const long _HUMAN_FOOD_PER_TROOP = 1_000;
+
+    /// <summary>
     /// Builds the component catalogue payload to seed.
     /// </summary>
     /// <remarks>
@@ -71,6 +80,17 @@ internal static class UnitComponentSeedData
             Sight = 1_000,
             Detection = 1_000,
             TagCodes = ["infantry"],
+
+            // Stated here rather than left to the designer because the bulk upsert reconciles requirements to exactly the payload: a seed that named none
+            // would delete the body's food need every time this target was re-run, and nothing would say so.
+            SupplyRequirements =
+            [
+                new UnitComponentSupplyRequirementDto
+                {
+                    SupplySetCode = SupplySetSeedData.HUMAN_FOOD,
+                    Quantity = _HUMAN_FOOD_PER_TROOP,
+                }
+            ],
             Body = new UnitComponentBodyDto
             {
                 MovementDomain = DomainType.Land,

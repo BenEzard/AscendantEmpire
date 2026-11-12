@@ -207,6 +207,20 @@ export interface UnitComponent {
   tagCodes: string[];
   /** Upgrade links where this component is the predecessor — the newer components that supersede it. */
   supersededBy: ComponentSupersessionLink[];
+  /** What this component consumes, as quantities of supply sets. Only a Body may carry any. */
+  supplyRequirements: UnitComponentSupplyRequirement[];
+}
+
+/**
+ * One ongoing need a component has, as a quantity of one supply set.
+ */
+/* What the quantity is measured per comes from the set's supplyType — per troop for Food, per movement
+   point for Fuel, per damage point for Repair — so there is no basis to carry here. */
+export interface UnitComponentSupplyRequirement {
+  /** Code of the supply set the need draws on; must resolve to a set in the catalogue. */
+  supplySetCode: string;
+  /** Raw Scale-1,000 — 1,000 is one unit of the need. */
+  quantity: number;
 }
 
 /** A zeroed DamageProfile — used when first switching a component to weapon/armour. */
@@ -384,5 +398,6 @@ export function createEmptyComponent(): UnitComponent {
     armour: null,
     tagCodes: [],
     supersededBy: [],
+    supplyRequirements: [],
   };
 }

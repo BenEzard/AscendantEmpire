@@ -1,7 +1,7 @@
 import { FaCheck } from "react-icons/fa6";
 
 import { Tooltip } from "@/components/ui";
-import AssetIconImage from "@/features/game/assets/AssetIconImage";
+import AssetIconImage from "@/components/assets/AssetIconImage";
 import type { ResearchableTechnology, ResearchGrant } from "./scienceApi";
 
 /**

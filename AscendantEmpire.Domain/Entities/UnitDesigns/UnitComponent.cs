@@ -95,6 +95,14 @@ public class UnitComponent
     public ICollection<UnitComponentTag> Tags { get; set; } = [];
 
     /// <summary>
+    /// What this component consumes, as quantities of SupplySets (0 or more).
+    /// </summary>
+    /// <remarks>
+    /// Only a Body may carry one today, which <c>UnitComponentReconciler</c> enforces rather than the schema.
+    /// </remarks>
+    public ICollection<UnitComponentSupplyRequirement> SupplyRequirements { get; set; } = [];
+
+    /// <summary>
     /// Supersession links where this component is the predecessor — i.e. the newer components that
     /// supersede this one (what supersedes me).
     /// </summary>

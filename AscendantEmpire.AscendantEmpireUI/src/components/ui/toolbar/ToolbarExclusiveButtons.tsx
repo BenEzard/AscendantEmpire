@@ -14,6 +14,8 @@ export type ToolbarExclusiveItem =
       key: ExclusiveToolKey;
       icon: ReactNode;
       tooltip?: string;
+      /** Names an icon-only button for assistive tech, which cannot read the tooltip. */
+      ariaLabel?: string;
       onSelect?: () => void;
     }
   | {
@@ -138,6 +140,7 @@ export default function ToolbarExclusiveButtons({
                 type="button"
                 className={className}
                 disabled={effectiveDisabled}
+                aria-label={item.ariaLabel}
                 aria-pressed={active}
                 role="radio"
                 aria-checked={active}

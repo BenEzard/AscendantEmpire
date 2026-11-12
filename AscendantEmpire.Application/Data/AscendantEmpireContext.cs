@@ -274,6 +274,16 @@ public class AscendantEmpireContext : DbContext
     public DbSet<StorageClass> StorageClasses { get; set; }
 
     /// <summary>
+    /// Groups of Assets that each satisfy one ongoing need — the foods a man will eat, the fuels an engine will burn.
+    /// </summary>
+    public DbSet<SupplySet> SupplySets { get; set; }
+
+    /// <summary>
+    /// The Assets in each SupplySet, with what one unit of the need costs in each and how heavily it is weighted in a draw.
+    /// </summary>
+    public DbSet<SupplySetAsset> SupplySetAssets { get; set; }
+
+    /// <summary>
     /// Which AssetMetaCategories each Player has unlocked, and so which icons their Assets toolbar group shows.
     /// </summary>
     public DbSet<PlayerUnlockedAssetMetaCategory> PlayerUnlockedAssetMetaCategories { get; set; }
@@ -437,6 +447,11 @@ public class AscendantEmpireContext : DbContext
     public DbSet<UnitComponentTag> UnitComponentTags { get; set; }
 
     /// <summary>
+    /// What each component consumes, as a quantity of one SupplySet.
+    /// </summary>
+    public DbSet<UnitComponentSupplyRequirement> UnitComponentSupplyRequirements { get; set; }
+
+    /// <summary>
     /// Directed "successor supersedes predecessor" links between components (upgrade paths).
     /// </summary>
     public DbSet<ComponentSupersession> ComponentSupersessions { get; set; }
@@ -591,7 +606,11 @@ public class AscendantEmpireContext : DbContext
             entity.Property(x => x.Code).HasMaxLength(AssetCategory.MAX_CODE_LENGTH).IsRequired();
             entity.Property(x => x.DisplayName).HasMaxLength(AssetCategory.MAX_DISPLAY_NAME_LENGTH).IsRequired();
 
-            entity.Property(x => x.SubjectScope).HasDefaultValue(AssetSubjectScope.Own);
+            // Sentinel stated for the same reason as Asset.StorageScope below: 0 matches no member, so it can only mean "unset" and the store default is
+            // always the right answer on insert.
+            entity.Property(x => x.SubjectScope)
+                .HasDefaultValue(AssetSubjectScope.Own)
+                .HasSentinel((AssetSubjectScope)0);
 
             entity.HasIndex(x => x.Code).IsUnique();
             entity.HasIndex(x => new { x.AssetMetaCategoryId, x.DisplayName }).IsUnique();
@@ -641,8 +660,10 @@ public class AscendantEmpireContext : DbContext
             entity.Property(x => x.DisplayName).HasMaxLength(Asset.MAX_DISPLAY_NAME_LENGTH).IsRequired();
 
             // Defaulted in the database as well as on the entity, following SubjectScope above, so the column lands on existing rows as SettlementBank
-            // rather than as a zero that matches no member of the enum.
-            entity.Property(x => x.StorageScope).HasDefaultValue(AssetStorageScope.SettlementBank);
+            // rather than as a zero that matches no member of the enum. The sentinel says that a zero means "unset", which EF cannot infer and warns about.
+            entity.Property(x => x.StorageScope)
+                .HasDefaultValue(AssetStorageScope.SettlementBank)
+                .HasSentinel((AssetStorageScope)0);
 
             entity.HasIndex(x => x.Code).IsUnique();
             entity.HasIndex(x => x.DisplayName);
@@ -798,6 +819,59 @@ public class AscendantEmpireContext : DbContext
                 .HasDatabaseName("IX_PlayerStrategicReservePolicy_Asset");
         });
 
+        ConfigureSupplySets(modelBuilder, schema);
+    }
+
+    /// <summary>
+    /// Configures the supply sets and their members.
+    /// </summary>
+    /// <remarks>
+    /// A grouping of Assets rather than a unit design concern, so it belongs beside the catalogue it draws from. What consumes a set lives in
+    /// <c>unitdesigns</c> — see <c>UnitComponentSupplyRequirement</c> in <see cref="ConfigureUnitComponentCatalogue"/>.
+    /// </remarks>
+    private static void ConfigureSupplySets(ModelBuilder modelBuilder, string schema)
+    {
+        modelBuilder.Entity<SupplySet>(entity =>
+        {
+            entity.ToTable("SupplySet", schema);
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Code).HasMaxLength(SupplySet.CODE_MAX_LENGTH).IsRequired();
+            entity.Property(x => x.DisplayName).HasMaxLength(SupplySet.DISPLAY_NAME_MAX_LENGTH).IsRequired();
+            entity.Property(x => x.SupplyType).HasConversion<int>().IsRequired();
+
+            // Code is the key seed data and every requirement match on, so nothing may share one.
+            entity.HasIndex(x => x.Code).IsUnique().HasDatabaseName("UX_SupplySet_Code");
+        });
+
+        modelBuilder.Entity<SupplySetAsset>(entity =>
+        {
+            entity.ToTable("SupplySetAsset", schema);
+
+            // An Asset belongs to a set at most once, which the key enforces rather than the upsert alone.
+            entity.HasKey(x => new { x.SupplySetId, x.AssetId });
+
+            entity.Property(x => x.AmountPerUnit).IsRequired();
+
+            // No store default: EF's sentinel for an int is 0, so a column default would make an author's explicit "never draw this" indistinguishable
+            // from an unset value on insert and write 1 instead. The entity's own initialiser carries the default.
+            entity.Property(x => x.SelectionWeight).IsRequired();
+
+            entity.HasOne(x => x.SupplySet)
+                .WithMany(x => x.Assets)
+                .HasForeignKey(x => x.SupplySetId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_SupplySetAsset_SupplySet_SupplySetId");
+
+            entity.HasOne(x => x.Asset)
+                .WithMany()
+                .HasForeignKey(x => x.AssetId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_SupplySetAsset_Asset_AssetId");
+
+            entity.HasIndex(x => x.AssetId)
+                .HasDatabaseName("IX_SupplySetAsset_Asset");
+        });
     }
 
     private static void ConfigureBattleSchema(ModelBuilder modelBuilder)
@@ -2070,7 +2144,12 @@ public class AscendantEmpireContext : DbContext
             entity.Property(x => x.Username).HasMaxLength(User.USERNAME_MAX_LENGTH).IsRequired();
             entity.Property(x => x.Email).HasMaxLength(User.EMAIL_MAX_LENGTH);
             entity.Property(x => x.PasswordHash).HasMaxLength(User.PASSWORD_HASH_MAX_LENGTH).IsRequired();
-            entity.Property(x => x.InactiveReasonType).HasDefaultValue(Domain.Enums.Authentication.InactiveReasonType.Active);
+            // The sentinel sits outside the enum because 0 is a real member here, PreActivation. Left implicit, EF reads "the author set PreActivation" and
+            // "the author set nothing" as the same thing and writes the store default over both, so an account awaiting activation was inserted as Active.
+            // No value ever equals -1, so the CLR value is always what lands; the column default now only covers inserts that bypass EF.
+            entity.Property(x => x.InactiveReasonType)
+                .HasDefaultValue(Domain.Enums.Authentication.InactiveReasonType.Active)
+                .HasSentinel((Domain.Enums.Authentication.InactiveReasonType)(-1));
 
             // Usernames are the login key, so they must be unique.
             entity.HasIndex(x => x.Username).IsUnique();
@@ -3566,6 +3645,39 @@ public class AscendantEmpireContext : DbContext
 
             entity.HasIndex(e => e.UnitComponentId)
                 .HasDatabaseName("IX_PlayerUnlockedComponent_UnitComponent");
+        });
+
+        // --- UnitComponentSupplyRequirement ----------------------------------------
+        // Keyed to the component rather than to its Body extension, though only a Body may carry one today: the reconciler enforces that, so moving a
+        // need onto another component type stays a validation change. The set it points at lives in the assets schema.
+        modelBuilder.Entity<UnitComponentSupplyRequirement>(entity =>
+        {
+            entity.ToTable("UnitComponentSupplyRequirement", schema);
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Quantity).IsRequired();
+
+            entity.HasOne(e => e.UnitComponent)
+                .WithMany(e => e.SupplyRequirements)
+                .HasForeignKey(e => e.UnitComponentId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitComponentSupplyRequirement_UnitComponent_UnitComponentId");
+
+            entity.HasOne(e => e.SupplySet)
+                .WithMany()
+                .HasForeignKey(e => e.SupplySetId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitComponentSupplyRequirement_SupplySet_SupplySetId");
+
+            // Unique rather than a plain index on the component: two rows for one set would double the need, and the reconciler keys its merge on the set,
+            // so a duplicate would make the component un-editable. It covers lookups by component as well.
+            entity.HasIndex(e => new { e.UnitComponentId, e.SupplySetId })
+                .IsUnique()
+                .HasDatabaseName("UX_UnitComponentSupplyRequirement_Component_SupplySet");
+
+            entity.HasIndex(e => e.SupplySetId)
+                .HasDatabaseName("IX_UnitComponentSupplyRequirement_SupplySet");
         });
     }
 

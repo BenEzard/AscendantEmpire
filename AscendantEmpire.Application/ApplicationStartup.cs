@@ -194,6 +194,7 @@ public static class ApplicationStartup
         services.AddScoped<ISeedStep, StarterTemplateSeedStep>();
         services.AddScoped<ISeedStep, StorageClassSeedStep>();
         services.AddScoped<ISeedStep, AssetSeedStep>();
+        services.AddScoped<ISeedStep, SupplySetSeedStep>();
         services.AddScoped<ISeedStep, ExperienceTypeSeedStep>();
         services.AddScoped<ISeedStep, TechnologySeedStep>();
         services.AddScoped<ISeedStep, MapResourceTypeSeedStep>();

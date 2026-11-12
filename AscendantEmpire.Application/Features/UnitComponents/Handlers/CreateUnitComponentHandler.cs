@@ -4,6 +4,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.UnitComponents.Services;
 using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 using AscendantEmpire.BackendContracts.UnitDesigns.UpsertUnitComponent;
+using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 
 using Microsoft.EntityFrameworkCore;
@@ -56,6 +57,10 @@ internal class CreateUnitComponentHandler(
         Dictionary<string, Tag> tagsByCode = await UnitComponentReconciler.LoadTagsByCodeAsync(context, dto.TagCodes, cancelToken);
         UnitComponentReconciler.ValidateTagReferences(dto, tagsByCode.Keys, errors);
 
+        string[] supplySetCodes = [.. dto.SupplyRequirements.Select(requirement => requirement.SupplySetCode)];
+        Dictionary<string, SupplySet> supplySetsByCode = await UnitComponentReconciler.LoadSupplySetsByCodeAsync(context, supplySetCodes, cancelToken);
+        UnitComponentReconciler.ValidateSupplyRequirements(dto, supplySetsByCode.Keys, errors);
+
         // A brand-new component owns no slots, so any slot id the payload carries is stale or misdirected.
         UnitComponentReconciler.ValidateSlots(dto, existing: null, errors);
 
@@ -72,7 +77,7 @@ internal class CreateUnitComponentHandler(
             return ServiceResult<UnitComponentView>.Fail(errors);
         }
 
-        UnitComponent component = UnitComponentReconciler.Build(dto, tagsByCode);
+        UnitComponent component = UnitComponentReconciler.Build(dto, tagsByCode, supplySetsByCode);
         context.UnitComponents.Add(component);
         componentsByCode[dto.Code] = component;
 

@@ -374,6 +374,58 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("StorageClass", "assets");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.SupplySet", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("SupplyType")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("UX_SupplySet_Code");
+
+                    b.ToTable("SupplySet", "assets");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.SupplySetAsset", b =>
+                {
+                    b.Property<int>("SupplySetId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AssetId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("AmountPerUnit")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("SelectionWeight")
+                        .HasColumnType("int");
+
+                    b.HasKey("SupplySetId", "AssetId");
+
+                    b.HasIndex("AssetId")
+                        .HasDatabaseName("IX_SupplySetAsset_Asset");
+
+                    b.ToTable("SupplySetAsset", "assets");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.BackgroundProcessing.Processing", b =>
                 {
                     b.Property<int>("ProcessingId")
@@ -4046,6 +4098,35 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("UnitComponentSlotRule", "unitdesigns");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentSupplyRequirement", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<long>("Quantity")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("SupplySetId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UnitComponentId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SupplySetId")
+                        .HasDatabaseName("IX_UnitComponentSupplyRequirement_SupplySet");
+
+                    b.HasIndex("UnitComponentId", "SupplySetId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_UnitComponentSupplyRequirement_Component_SupplySet");
+
+                    b.ToTable("UnitComponentSupplyRequirement", "unitdesigns");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentTag", b =>
                 {
                     b.Property<int>("UnitComponentId")
@@ -4761,6 +4842,27 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("MetaCategory");
 
                     b.Navigation("Player");
+                });
+
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.SupplySetAsset", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.Asset", "Asset")
+                        .WithMany()
+                        .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_SupplySetAsset_Asset_AssetId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.SupplySet", "SupplySet")
+                        .WithMany("Assets")
+                        .HasForeignKey("SupplySetId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_SupplySetAsset_SupplySet_SupplySetId");
+
+                    b.Navigation("Asset");
+
+                    b.Navigation("SupplySet");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Battles.Battle", b =>
@@ -6381,6 +6483,27 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Slot");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentSupplyRequirement", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.SupplySet", "SupplySet")
+                        .WithMany()
+                        .HasForeignKey("SupplySetId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_UnitComponentSupplyRequirement_SupplySet_SupplySetId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponent", "UnitComponent")
+                        .WithMany("SupplyRequirements")
+                        .HasForeignKey("UnitComponentId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_UnitComponentSupplyRequirement_UnitComponent_UnitComponentId");
+
+                    b.Navigation("SupplySet");
+
+                    b.Navigation("UnitComponent");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentTag", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.Tag", "Tag")
@@ -6704,6 +6827,11 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("Assets");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.SupplySet", b =>
+                {
+                    b.Navigation("Assets");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Battles.Battle", b =>
                 {
                     b.Navigation("BattleParticipants");
@@ -6801,6 +6929,8 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("SupersededBy");
 
                     b.Navigation("Supersedes");
+
+                    b.Navigation("SupplyRequirements");
 
                     b.Navigation("Tags");
 

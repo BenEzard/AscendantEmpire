@@ -1,6 +1,6 @@
 import type { ToolBarButton } from "@/components/ui/toolbar/Toolbar";
 import type { PlayerAssetMetaCategory } from "@/features/game/api/playerAssetsApi";
-import AssetIconImage from "@/features/game/assets/AssetIconImage";
+import AssetIconImage from "@/components/assets/AssetIconImage";
 import { assetToolbarButtonDomId } from "@/features/game/hooks/useAssetPanels";
 
 /** Rendered size of a meta-category's icon, matching the 1.5rem the toolbar's glyph icons come out at. An image gets no em sizing for free. */

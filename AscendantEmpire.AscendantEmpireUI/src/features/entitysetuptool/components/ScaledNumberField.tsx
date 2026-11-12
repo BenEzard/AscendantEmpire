@@ -17,12 +17,15 @@ export default function ScaledNumberField({
   onChange,
   nullable,
   onBlur,
+  ariaLabel,
 }: {
   rawValue: number | null;
   onChange: (next: number | null) => void;
   nullable?: boolean;
   /** Fired when the input loses focus (e.g. so callers can auto-commit a composed entry). */
   onBlur?: () => void;
+  /** Names the field where no associated label sits beside it — FieldRow's label is not wired to its control. */
+  ariaLabel?: string;
 }) {
   // Show the decimal form of the stored raw value; blank when null.
   const display = rawValue == null ? "" : String(rawToScaled(rawValue));
@@ -40,6 +43,7 @@ export default function ScaledNumberField({
   return (
     <input
       className={inputClass}
+      aria-label={ariaLabel}
       type="number"
       step="0.001"
       value={display}

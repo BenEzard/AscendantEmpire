@@ -1,5 +1,5 @@
 import type { AssetTickerData } from "../tickers/AssetTickerCollection";
-import AssetIconImage from "../AssetIconImage";
+import AssetIconImage from "@/components/assets/AssetIconImage";
 import { Badge } from "@/components/ui";
 
 const DEFAULT_DESCRIPTION =

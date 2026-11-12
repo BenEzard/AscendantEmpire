@@ -35,7 +35,10 @@ import ImageSection from "./sections/ImageSection";
 import PropertiesSection from "./sections/PropertiesSection";
 import SlotsSection from "./sections/SlotsSection";
 import SupersessionSection from "./sections/SupersessionSection";
+import SupplySection from "./sections/SupplySection";
 import TagsSection from "./sections/TagsSection";
+
+import { getSupplySets, type SupplySetView } from "../api/supplySetApi";
 
 interface ComponentSetupDialogProps {
   open: boolean;
@@ -70,6 +73,11 @@ export default function ComponentSetupDialog({ open, onCancel, initialComponent,
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [tagsLoading, setTagsLoading] = useState(false);
   const [tagsError, setTagsError] = useState<string | null>(null);
+
+  // The supply set catalogue the Supply page's picker offers, loaded on each open for the same reason as the tags.
+  const [availableSupplySets, setAvailableSupplySets] = useState<SupplySetView[]>([]);
+  const [supplySetsLoading, setSupplySetsLoading] = useState(false);
+  const [supplySetsError, setSupplySetsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -113,6 +121,38 @@ export default function ComponentSetupDialog({ open, onCancel, initialComponent,
     };
   }, [open]);
 
+  // Load the supply set catalogue whenever the dialog opens. A failure surfaces in the Supply page's picker (non-fatal).
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    let cancelled = false;
+    setSupplySetsLoading(true);
+    setSupplySetsError(null);
+    getSupplySets()
+      .then((sets) => {
+        if (!cancelled) {
+          setAvailableSupplySets(sets);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setSupplySetsError("Failed to load supply sets.");
+          console.error("Failed to load supply sets.", err);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSupplySetsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
   // Changing the component type makes sure the newly-active type has an extension object to edit, but
   // deliberately keeps the other extensions populated so toggling type never loses in-progress edits.
   // The inactive extensions are collapsed away at Save time (see handleCommit).
@@ -139,6 +179,8 @@ export default function ComponentSetupDialog({ open, onCancel, initialComponent,
     const keepBodyArmour = isBody && component.armour != null && damageProfileHasPositiveValue(component.armour.resistance);
     onCommit?.({
       ...component,
+      // Only a Body may consume anything, so a list left over from toggling type away from Body is dropped rather than refused by the backend.
+      supplyRequirements: isBody ? component.supplyRequirements : [],
       body: isBody ? component.body : null,
       weapon: componentType === "Weapon" ? component.weapon : keepBodyWeapon ? component.weapon : null,
       armour: componentType === "Armour" ? component.armour : keepBodyArmour ? component.armour : null,
@@ -233,6 +275,24 @@ export default function ComponentSetupDialog({ open, onCancel, initialComponent,
               tagTypes={tagTypes}
               loading={tagsLoading}
               error={tagsError}
+            />
+          ),
+        },
+        {
+          // Only a body consumes anything, so this page is disabled (greyed) for every other component type.
+          key: "supply",
+          label: "Supply",
+          disabled: component.componentType !== "Body",
+          count: component.supplyRequirements.length,
+          content: (
+            <SupplySection
+              key={openInstance}
+              componentType={component.componentType}
+              requirements={component.supplyRequirements}
+              onChange={(supplyRequirements) => setComponent((prev) => ({ ...prev, supplyRequirements }))}
+              availableSets={availableSupplySets}
+              loading={supplySetsLoading}
+              error={supplySetsError}
             />
           ),
         },

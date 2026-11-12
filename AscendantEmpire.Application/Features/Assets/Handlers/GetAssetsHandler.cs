@@ -32,6 +32,7 @@ internal class GetAssetsHandler(
                 Code = r.Code,
                 DisplayName = r.DisplayName,
                 MetaCategoryDisplayName = r.MetaCategory.DisplayName,
+                IconPath = r.IconPath,
                 IsNaturallyOccurring = r.IsNaturallyOccurring
             })
             .ToListAsync(cancellationToken);

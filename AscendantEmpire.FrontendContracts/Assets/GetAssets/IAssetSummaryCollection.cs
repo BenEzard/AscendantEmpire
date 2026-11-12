@@ -28,6 +28,11 @@ public interface IAssetSummary
     string MetaCategoryDisplayName { get; }
 
     /// <summary>
+    /// Root-relative URL of the Asset's catalogue image, or empty where the row has none.
+    /// </summary>
+    string IconPath { get; }
+
+    /// <summary>
     /// Whether this Asset occurs in the world without human intervention, e.g. an Oak Log but not an Oak Plank.
     /// </summary>
     bool IsNaturallyOccurring { get; }

@@ -3,7 +3,9 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.UnitComponents.Handlers;
 using AscendantEmpire.Application.Features.UnitComponents.Services;
 using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
+using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
+using AscendantEmpire.Domain.Enums.Assets;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 using AscendantEmpire.Tests.UnitDesigns.Shared;
@@ -42,6 +44,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
     private const string WEAPON_CODE = UnitDesignPayloads.WEAPON_CODE;
     private const string ARMOUR_CODE = "test_armour";
     private const string TAG_CODE = "amphibious";
+    private const string _HUMAN_FOOD = "human-food";
 
     [Test, Description("Inserting a full component graph persists the parent, its 1:1 extension, child rows and tag joins.")]
     public async Task FullGraphInsertPersistsEntireGraphAsync()
@@ -769,4 +772,91 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
             ],
         };
     }
+
+    #region Supply requirements
+
+    [Test, Description("A supply requirement survives an export and re-import, which is the only way a catalogue moves between databases.")]
+    public async Task SupplyRequirementRoundTripsThroughCatalogueAsync()
+    {
+        await SeedSupplySetAsync(_HUMAN_FOOD);
+
+        UnitComponentDto body = BuildBodyWithSlots() with
+        {
+            SupplyRequirements = [new UnitComponentSupplyRequirementDto { SupplySetCode = _HUMAN_FOOD, Quantity = 1_500 }]
+        };
+
+        BulkUpsertUnitComponentsHandler handler = await DbFactory.CreateBulkUpsertHandlerAsync();
+        ServiceResult<BulkUpsertUnitComponentsResult> imported = await handler.Handle(
+            new BulkUpsertUnitComponentsRequest(new BulkUpsertUnitComponentsDto { Components = [body] }), CancellationToken.None);
+
+        Assert.That(imported.HasSucceeded, Is.True, () => string.Join("; ", imported.Errors));
+
+        UnitComponentDto exported;
+
+        await using (AscendantEmpireContext exportContext = await DbFactory.CreateDbContextAsync())
+        {
+            UnitComponent persisted = await UnitComponentReconciler
+                .WithFullGraph(exportContext.UnitComponents.Where(c => c.Code == BODY_CODE))
+                .SingleAsync();
+
+            exported = CatalogueExportProjections.ToUnitComponentDto(persisted);
+        }
+
+        // Re-importing the exported DTO is the move-between-databases path; the requirement must survive it rather than being reconciled away.
+        BulkUpsertUnitComponentsHandler reimportHandler = await DbFactory.CreateBulkUpsertHandlerAsync();
+        ServiceResult<BulkUpsertUnitComponentsResult> reimported = await reimportHandler.Handle(
+            new BulkUpsertUnitComponentsRequest(new BulkUpsertUnitComponentsDto { Components = [exported] }), CancellationToken.None);
+
+        Assert.That(reimported.HasSucceeded, Is.True, () => string.Join("; ", reimported.Errors));
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+
+        List<UnitComponentSupplyRequirement> roundTripped = await verifyContext.UnitComponentSupplyRequirements
+            .Include(requirement => requirement.SupplySet)
+            .ToListAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(exported.SupplyRequirements.Single().SupplySetCode, Is.EqualTo(_HUMAN_FOOD), "The export projection carries the set's code.");
+            Assert.That(exported.SupplyRequirements.Single().Quantity, Is.EqualTo(1_500), "It carries the quantity.");
+            Assert.That(roundTripped, Has.Count.EqualTo(1), "The re-import neither drops nor doubles the row.");
+            Assert.That(roundTripped.Single().Quantity, Is.EqualTo(1_500));
+        }
+    }
+
+    [Test, Description("A catalogue naming a supply set the importing database lacks is refused by name, rather than silently importing a component with no needs.")]
+    public async Task UnknownSupplySetFailsTheImportAsync()
+    {
+        UnitComponentDto body = BuildBodyWithSlots() with
+        {
+            SupplyRequirements = [new UnitComponentSupplyRequirementDto { SupplySetCode = "NoSuchSet", Quantity = 1_000 }]
+        };
+
+        BulkUpsertUnitComponentsHandler handler = await DbFactory.CreateBulkUpsertHandlerAsync();
+        ServiceResult<BulkUpsertUnitComponentsResult> result = await handler.Handle(
+            new BulkUpsertUnitComponentsRequest(new BulkUpsertUnitComponentsDto { Components = [body] }), CancellationToken.None);
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Has.Some.Contains("NoSuchSet"));
+            Assert.That(await verifyContext.UnitComponents.AnyAsync(), Is.False, "A rejected catalogue writes nothing.");
+        }
+    }
+
+    /// <summary>
+    /// Inserts a memberless food set. What a set holds is the supply-set endpoints' concern; all a requirement needs is the code to resolve.
+    /// </summary>
+    private async Task SeedSupplySetAsync(string code)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        context.SupplySets.Add(new SupplySet { Code = code, DisplayName = code, SupplyType = SupplyType.Food });
+
+        await context.SaveChangesAsync();
+    }
+
+    #endregion
 }

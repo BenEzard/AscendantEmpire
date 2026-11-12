@@ -4,6 +4,29 @@ Units have ongoing **support** needs. There are four types: **fuel**, **ammuniti
 **medical supplies**. Within an empire's own territory (or an ally's, under a Support Agreement)
 supply is implicit; beyond it, a **supply chain** is required.
 
+## Supply sets
+
+A need is stated against a **supply set**, not against one Asset. A set names the Assets that satisfy
+it, so a requirement reads "human food" and is met by whatever the tile actually grows — game, berries,
+chilli peppers.
+
+- A set carries a **supply type** — `Food`, `Fuel` or `Repair` — which decides what a quantity of it is
+  measured against: per troop, per movement point, or per point of damage.
+- Each Asset in a set carries an **amount per unit**: how much of that Asset one unit of the need costs.
+  Berries are thin rations and cost 1.67 where most foodstuffs cost 1.0.
+- A `Repair` set is **drawn from** rather than summed: when damage is taken, one member is picked at
+  random, weighted by each member's **selection weight**. A force of tanks taking a hit therefore needs
+  steel plate, or circuitry, or tank tracks — whichever the draw lands on.
+- A **unit component** states its needs as quantities of sets, and only a **body** may carry any. A
+  mounted body needs human food for its rider and a fodder set as its fuel, which is why fodder is a
+  `Fuel` set rather than a second food.
+- Ammunition is not a supply set. Its options carry damage profiles of their own, so they live on the
+  weapon rather than in a set drawn from blindly.
+- The starting sets are seeded: `human-food` (the edible Foodstuffs Assets, named one by one — Poisons
+  and Wild Herbs are left out), `mount-fodder` and `human-medical`. Each member states what it costs,
+  so the same Asset may be priced differently in two sets. They are edited in the Entity Setup Tool's
+  Supply Sets dialog.
+
 General notes:
 
 - Some specialists (e.g. a fuel tanker) can supply units for a single turn when out of supply.
@@ -36,7 +59,9 @@ friendly territory.
 
 ## Fuel
 
-- Fuel types: fodder (mounted units), steam (wood), coal, oil, diesel, marine diesel, petrol,
+- A body states its fuel need as a quantity of a `Fuel` supply set, per movement point. Any one of the
+  set's Assets will do, each at its own amount — diesel and petrol are interchangeable at different rates.
+- Fuel sets: fodder (mounted units), steam (wood), coal, oil, diesel, marine diesel, petrol,
   airplane fuel, nuclear.
 - How fuel limits movement is in unit-movement.md, for [the campaign map](unit-movement.md#fuel) and
   [battle](unit-movement.md#fuel-1).
@@ -51,8 +76,8 @@ friendly territory.
 
 ## Food
 
-- A unit base component requires **1** food type to remain healthy.
-- Food types: fodder (mounted units), food (men), ration packs (men).
+- A unit base component requires a **food supply set** to remain healthy, at a quantity per troop.
+  `human-food` is the set men eat; a mount's fodder is a `Fuel` set, not a food one.
 - A unit that goes short of food takes **casualties in proportion to its shortfall**. At total
   starvation it loses **34%** of its troops in one turn; going half short costs half of that. The
   total is rounded **down**, so a large unit carrying a small deficit loses nobody.
@@ -86,5 +111,7 @@ regeneration mechanics.
 
 ## Medical supplies
 
+- Medical supplies are a `Repair` supply set, so the materials a wounded unit needs are drawn from the
+  set rather than fixed — see **Supply sets** above.
 - When a unit contains wounded, medical supplies aid quicker restoration of health.
 - Without medical supplies, casualty rates from battles are higher and restoration is much slower.

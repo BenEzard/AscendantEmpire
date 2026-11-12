@@ -110,6 +110,14 @@ internal class GetComponentHandler(
                             },
                         },
                     TagCodes = c.Tags.Select(t => t.Tag.Code).ToList(),
+                    SupplyRequirements = c.SupplyRequirements
+                        .OrderBy(r => r.SupplySet.Code)
+                        .Select(r => new UnitComponentSupplyRequirementDto
+                        {
+                            SupplySetCode = r.SupplySet.Code,
+                            Quantity = r.Quantity,
+                        })
+                        .ToList(),
                 },
                 // This component is always the predecessor here, so surface only the successor side.
                 SupersededBy = c.SupersededBy

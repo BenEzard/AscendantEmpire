@@ -17,5 +17,7 @@ public class DTAssetSummary : IAssetSummary
 
     public required string MetaCategoryDisplayName { get; set; }
 
+    public required string IconPath { get; set; }
+
     public required bool IsNaturallyOccurring { get; set; }
 }

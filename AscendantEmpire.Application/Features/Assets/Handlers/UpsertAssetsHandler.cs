@@ -437,7 +437,11 @@ internal class UpsertAssetsHandler(
     /// Each word is title-cased and whitespace/punctuation is stripped.
     /// e.g. "Construction Goods" -> "ConstructionGoods", "stone &amp; wood" -> "StoneWood"
     /// </summary>
-    private static string ToProperCode(string name)
+    /// <remarks>
+    /// Internal rather than private so seed data naming an Asset by code can be checked against the codes this derivation actually produces, instead of
+    /// the check restating the rule and drifting from it.
+    /// </remarks>
+    internal static string ToProperCode(string name)
     {
         // Split on any non-alpha run, title-case each word, then concatenate.
         return string.Concat(

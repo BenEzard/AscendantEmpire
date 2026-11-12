@@ -70,4 +70,13 @@ public record UnitComponentDto
     /// <c>Tags</c> list or an existing tag in the database.
     /// </summary>
     public IReadOnlyCollection<string> TagCodes { get; init; } = [];
+
+    /// <summary>
+    /// What this component consumes, as quantities of supply sets. Only a Body may carry any.
+    /// </summary>
+    /// <remarks>
+    /// Sits here rather than on <see cref="UnitComponentBodyDto"/> because the row's foreign key is on the component itself, which is what keeps moving a
+    /// need onto another component type a validation change. Submitting this list reconciles the component's requirements to exactly its contents.
+    /// </remarks>
+    public IReadOnlyCollection<UnitComponentSupplyRequirementDto> SupplyRequirements { get; init; } = [];
 }

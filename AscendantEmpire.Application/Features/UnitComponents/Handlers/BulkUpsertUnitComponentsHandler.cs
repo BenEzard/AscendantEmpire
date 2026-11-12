@@ -4,6 +4,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.UnitComponents.Services;
 using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
+using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 
 using Microsoft.EntityFrameworkCore;
@@ -65,13 +66,21 @@ internal class BulkUpsertUnitComponentsHandler(
 
         Dictionary<string, Tag> tagsByCode = await UnitComponentReconciler.LoadTagsByCodeAsync(context, referencedTagCodes, cancelToken);
 
-        // Validate tag references against payload + DB now that we know what exists.
-        List<string> tagErrors = ValidateTagReferences(catalogue, tagsByCode);
+        // Supply sets are never defined by the payload — an import references sets the database already holds.
+        string[] referencedSupplySetCodes = [.. catalogue.Components
+            .SelectMany(c => c.SupplyRequirements.Select(requirement => requirement.SupplySetCode))
+            .Distinct()];
 
-        if (tagErrors.Count > 0)
+        Dictionary<string, SupplySet> supplySetsByCode = await UnitComponentReconciler.LoadSupplySetsByCodeAsync(context, referencedSupplySetCodes, cancelToken);
+
+        // Validate tag and supply references against payload + DB now that we know what exists.
+        List<string> referenceErrors = ValidateTagReferences(catalogue, tagsByCode);
+        referenceErrors.AddRange(ValidateSupplyRequirements(catalogue, supplySetsByCode));
+
+        if (referenceErrors.Count > 0)
         {
-            logger.LogWarning("Tag-reference validation failed for {Request}. Errors: {Errors}", nameof(BulkUpsertUnitComponentsRequest), string.Join("; ", tagErrors));
-            return ServiceResult<BulkUpsertUnitComponentsResult>.Fail(tagErrors);
+            logger.LogWarning("Reference validation failed for {Request}. Errors: {Errors}", nameof(BulkUpsertUnitComponentsRequest), string.Join("; ", referenceErrors));
+            return ServiceResult<BulkUpsertUnitComponentsResult>.Fail(referenceErrors);
         }
 
         // Create any tags defined in the payload that don't already exist; for those that do, let the payload re-classify them (TagType and the organisation fields are authoritative on re-import).
@@ -109,12 +118,12 @@ internal class BulkUpsertUnitComponentsHandler(
         {
             if (existingByCode.TryGetValue(componentDto.Code, out UnitComponent? existing))
             {
-                UnitComponentReconciler.Update(context, existing, componentDto, tagsByCode, removedSlots);
+                UnitComponentReconciler.Update(context, existing, componentDto, tagsByCode, supplySetsByCode, removedSlots);
                 updatedCodes.Add(componentDto.Code);
             }
             else
             {
-                UnitComponent built = UnitComponentReconciler.Build(componentDto, tagsByCode);
+                UnitComponent built = UnitComponentReconciler.Build(componentDto, tagsByCode, supplySetsByCode);
                 context.UnitComponents.Add(built);
                 componentsByCode[componentDto.Code] = built;
                 addedCodes.Add(componentDto.Code);
@@ -246,6 +255,25 @@ internal class BulkUpsertUnitComponentsHandler(
         foreach (UnitComponentDto component in catalogue.Components)
         {
             UnitComponentReconciler.ValidateTagReferences(component, knownTagCodes, errors);
+        }
+
+        return errors;
+    }
+
+    /// <summary>
+    /// Validates every component's supply requirements against the supply sets the database holds.
+    /// </summary>
+    /// <remarks>
+    /// Unlike tags, a catalogue payload cannot define a set, so a referenced code that is missing means the importing database has not seeded it yet.
+    /// </remarks>
+    private static List<string> ValidateSupplyRequirements(BulkUpsertUnitComponentsDto catalogue, IReadOnlyDictionary<string, SupplySet> supplySetsByCode)
+    {
+        List<string> errors = [];
+        HashSet<string> knownSupplySetCodes = [.. supplySetsByCode.Keys];
+
+        foreach (UnitComponentDto component in catalogue.Components)
+        {
+            UnitComponentReconciler.ValidateSupplyRequirements(component, knownSupplySetCodes, errors);
         }
 
         return errors;

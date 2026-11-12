@@ -15,9 +15,11 @@ This document describes the asset hierarchy — how it is structured in the data
 | `AssetGroup` | `Id` | Sub-grouping within a grouped category, e.g. "Logs" within "Wood". |
 | `Asset` | `Id` | The actual asset, e.g. "Oak", "Marble", "Coal". |
 | `StorageClass` | `Id` | How an Asset is kept, as against what it is — the storage yard, the armoury, the granary. `Code` and `DisplayName` are both uniquely indexed. |
+| `SupplySet` | `Id` | A group of Assets that satisfies one of a Unit's needs. Carries a `SupplyType` — `Food`, `Fuel` or `Repair`. `Code` is uniquely indexed. |
+| `SupplySetAsset` | (`SupplySetId`, `AssetId`) | One Asset in a set, with its `AmountPerUnit` and its `SelectionWeight`. |
 
 Every table above is **global**. None of them carries a `GameId` or a `PlayerId`, and `Code` is unique across the whole
-catalogue, so the same five tables serve every game.
+catalogue, so the same tables serve every game.
 
 `Asset.IsNaturallyOccurring` marks what the world produces by itself — timber, raw rock, bone, hides, and the gathered,
 quarried and hunted raw materials. It is authoring data rather than a balance lever: nothing in play reads it and the
@@ -53,6 +55,29 @@ rather than stored, and experience points and the Force rows are not kept anywhe
 
 The catalogue has no endpoint of its own. It is maintained by the database seed's Storage Classes target, which dispatches
 the same upsert any endpoint would.
+
+### Supply sets
+
+A `SupplySet` groups the Assets that satisfy one of a Unit's ongoing needs, so a unit component requires a quantity of a
+*set* rather than of one Asset and an army can march on whatever the map actually grows. The needs themselves are in
+[units/unit-support-and-supply.md](units/unit-support-and-supply.md#supply-sets).
+
+Like a storage class, a set cuts across the hierarchy rather than being a level of it: `human-food` is most of one
+meta-category but not all of it, while a repair set draws on metalwork and timber at once. Unlike a storage class it is
+many-to-many and a member carries data of its own, which is why it is a join table and not a column on `Asset`.
+
+| Column | On | What it is |
+|---|---|---|
+| `SupplyType` | `SupplySet` | The need the set satisfies, which decides what a quantity of it is measured against — per troop, per movement point, or per point of damage. |
+| `AmountPerUnit` | `SupplySetAsset` | How much of this Asset one unit of the need costs, as a raw Scale-1,000 `long`. Berries cost 1,670 where most foodstuffs cost 1,000. |
+| `SelectionWeight` | `SupplySetAsset` | How heavily this Asset is weighted when one member is drawn at random. Read only for a `Repair` set, and defaults to 1. |
+
+A `Food` or `Fuel` set is an either-or: any one member satisfies the need, at its own rate. A `Repair` set is drawn from
+instead — damage picks one member, weighted — so the materials a repair consumes vary from hit to hit.
+
+The requirement rows live in the `unitdesigns` schema (`UnitComponentSupplyRequirement`), since they belong to a component
+rather than to the Asset catalogue. The sets are authored in the Entity Setup Tool's Supply Sets dialog, over
+`/supply-sets`, and seeded by the database seed's Supply Sets target, which dispatches those same endpoints' handlers.
 
 ### Player-scoped tables
 
@@ -178,6 +203,12 @@ AssetGroup (1)
 
 StorageClass (1)
   └──< Asset (N)             [FK: Asset.StorageClassId]          — required, cuts across the hierarchy
+
+SupplySet (1)
+  └──< SupplySetAsset (N)    [FK: SupplySetAsset.SupplySetId]    — the Assets that satisfy the need
+
+Asset (1)
+  └──< SupplySetAsset (N)    [FK: SupplySetAsset.AssetId]        — an Asset may serve several sets
 ```
 
 ---

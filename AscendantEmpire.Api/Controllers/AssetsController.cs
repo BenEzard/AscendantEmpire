@@ -60,6 +60,7 @@ public class AssetsController : ControllerBase
                 Code = asset.Code,
                 DisplayName = asset.DisplayName,
                 MetaCategoryDisplayName = asset.MetaCategoryDisplayName,
+                IconPath = asset.IconPath,
                 IsNaturallyOccurring = asset.IsNaturallyOccurring
             })]
         });

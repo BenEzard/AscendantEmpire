@@ -27,10 +27,10 @@ export default function GeneralSection({ component, onChange, onComponentTypeCha
   };
 
   // One mutually-exclusive icon button per component type, each showing the type's icon with the type
-  // name as its tooltip.
+  // name as its tooltip. The same name goes on aria-label, which a tooltip cannot stand in for.
   const componentTypeItems: ToolbarExclusiveItem[] = COMPONENT_TYPES.map((type) => {
     const Icon = componentTypeIcons[type];
-    return { type: "button", key: type, icon: <Icon size={18} aria-hidden />, tooltip: type };
+    return { type: "button", key: type, icon: <Icon size={18} aria-hidden />, tooltip: type, ariaLabel: type };
   });
 
   return (

@@ -1,8 +1,10 @@
 using AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
+using AscendantEmpire.Application.Features.DatabaseSeeding.Steps;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.UnitComponents.Classes;
 using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 using AscendantEmpire.BackendContracts.UnitDesigns.CatalogueTransfer;
+using AscendantEmpire.Domain.Enums.System;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 
 namespace AscendantEmpire.Tests.Features.DatabaseSeeding;
@@ -25,6 +27,47 @@ internal class UnitDesignSeedDataTests
     private readonly BulkUpsertUnitComponentsDto _components = UnitComponentSeedData.Build();
     private readonly IReadOnlyCollection<TagDto> _tags = TagSeedData.Build();
     private readonly CatalogueTemplatesDocument _templates = StarterTemplateSeedData.Build();
+
+    #region Supply requirements
+
+    [Test, Description("The human body requires the human food set, so a seeded database can feed its own starting units.")]
+    public void ShouldGiveTheHumanBodyAFoodRequirement()
+    {
+        UnitComponentDto body = FindComponent("human")!;
+
+        UnitComponentSupplyRequirementDto? food = body.SupplyRequirements
+            .SingleOrDefault(requirement => requirement.SupplySetCode == SupplySetSeedData.HUMAN_FOOD);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(food, Is.Not.Null, "The body that every starter template is built on consumes nothing.");
+            Assert.That(food!.Quantity, Is.GreaterThan(0));
+        }
+    }
+
+    [Test, Description("Every supply set a seeded component names is one the supply set seed creates, so re-seeding cannot wipe a requirement by failing to resolve it.")]
+    public void ShouldNameOnlySeededSupplySets()
+    {
+        HashSet<string> seededSetCodes = [.. SupplySetSeedData.BuildSets().Select(set => set.Code)];
+
+        string[] unknownCodes = [.. _components.Components
+            .SelectMany(component => component.SupplyRequirements.Select(requirement => requirement.SupplySetCode))
+            .Where(code => !seededSetCodes.Contains(code))
+            .Distinct()
+            .Order()];
+
+        Assert.That(unknownCodes, Is.Empty, $"Supply set code(s) the supply seed does not create: {string.Join(", ", unknownCodes)}");
+    }
+
+    [Test, Description("The Unit Components target waits on Supply Sets, because a component naming a set the database lacks fails the whole import.")]
+    public void ShouldMakeUnitComponentsDependOnSupplySets()
+    {
+        ISeedStep step = new UnitComponentSeedStep();
+
+        Assert.That(step.DependsOn, Does.Contain(SeedTarget.SupplySets));
+    }
+
+    #endregion
 
     [Test, Description("Every code GameSetupService demands of a new game has a seeded template, matched the same case-insensitive way game setup matches it.")]
     public void ShouldSeedATemplateForEveryStarterCode()

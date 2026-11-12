@@ -79,5 +79,10 @@ public enum SeedTarget
     /// <summary>
     /// The <c>assets.StorageClass</c> catalogue — how an Asset is kept, which capacity binds against.
     /// </summary>
-    StorageClasses = 13
+    StorageClasses = 13,
+
+    /// <summary>
+    /// The <c>assets.SupplySet</c> catalogue — the Assets a force's food, fuel and repair needs may be met with.
+    /// </summary>
+    SupplySets = 14
 }

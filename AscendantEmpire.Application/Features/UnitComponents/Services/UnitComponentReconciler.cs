@@ -1,5 +1,6 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
+using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
@@ -35,7 +36,8 @@ internal static class UnitComponentReconciler
             .Include(component => component.Body!).ThenInclude(body => body.Slots).ThenInclude(slot => slot.Rules)
             .Include(component => component.Weapon!).ThenInclude(weapon => weapon.DomainModifiers)
             .Include(component => component.Armour)
-            .Include(component => component.Tags).ThenInclude(join => join.Tag);
+            .Include(component => component.Tags).ThenInclude(join => join.Tag)
+            .Include(component => component.SupplyRequirements).ThenInclude(requirement => requirement.SupplySet);
     }
 
     /// <summary>
@@ -70,6 +72,26 @@ internal static class UnitComponentReconciler
         return await context.Tags
             .Where(tag => distinctCodes.Contains(tag.Code))
             .ToDictionaryAsync(tag => tag.Code, cancelToken);
+    }
+
+    /// <summary>
+    /// Loads the supply sets for the given codes, keyed by code.
+    /// </summary>
+    public static async Task<Dictionary<string, SupplySet>> LoadSupplySetsByCodeAsync(
+        AscendantEmpireContext context,
+        IReadOnlyCollection<string> supplySetCodes,
+        CancellationToken cancelToken)
+    {
+        if (supplySetCodes.Count == 0)
+        {
+            return [];
+        }
+
+        string[] distinctCodes = [.. supplySetCodes.Distinct()];
+
+        return await context.SupplySets
+            .Where(set => distinctCodes.Contains(set.Code))
+            .ToDictionaryAsync(set => set.Code, cancelToken);
     }
 
     // --- Validation -----------------------------------------------------------------------------
@@ -252,6 +274,67 @@ internal static class UnitComponentReconciler
         }
     }
 
+    /// <summary>
+    /// Validates a component's supply requirements: where they may sit, that each set resolves, and that each quantity is real.
+    /// </summary>
+    /// <remarks>
+    /// Only a Body may carry a requirement. That is enforced here rather than by the schema, whose foreign key is on the component, so letting another
+    /// component type consume something later is a change to this method.
+    /// </remarks>
+    public static void ValidateSupplyRequirements(
+        UnitComponentDto component,
+        IReadOnlyCollection<string> knownSupplySetCodes,
+        List<string> errors)
+    {
+        if (component.SupplyRequirements.Count == 0)
+        {
+            return;
+        }
+
+        if (component.ComponentType != ComponentType.Body)
+        {
+            errors.Add($"Component '{component.Code}' is {component.ComponentType} but carries supply requirements, which only a Body may have.");
+
+            return;
+        }
+
+        foreach (UnitComponentSupplyRequirementDto requirement in component.SupplyRequirements)
+        {
+            if (string.IsNullOrWhiteSpace(requirement.SupplySetCode))
+            {
+                errors.Add($"Component '{component.Code}' has a supply requirement with no SupplySetCode.");
+
+                continue;
+            }
+
+            if (!knownSupplySetCodes.Contains(requirement.SupplySetCode))
+            {
+                errors.Add($"Component '{component.Code}' references unknown supply set code '{requirement.SupplySetCode}'.");
+            }
+
+            if (requirement.Quantity <= 0)
+            {
+                errors.Add($"Component '{component.Code}' needs a Quantity above 0 for supply set '{requirement.SupplySetCode}'.");
+            }
+        }
+
+        // Rows on one component are cumulative, so naming a set twice would double a Food or Fuel need rather than express anything.
+        string[] duplicateCodes =
+        [
+            .. component.SupplyRequirements
+                .Where(requirement => !string.IsNullOrWhiteSpace(requirement.SupplySetCode))
+                .GroupBy(requirement => requirement.SupplySetCode)
+                .Where(group => group.Count() > 1)
+                .Select(group => group.Key)
+                .Order()
+        ];
+
+        foreach (string duplicateCode in duplicateCodes)
+        {
+            errors.Add($"Component '{component.Code}' names supply set '{duplicateCode}' more than once.");
+        }
+    }
+
     // --- Insert ---------------------------------------------------------------------------------
 
     /// <summary>
@@ -259,7 +342,10 @@ internal static class UnitComponentReconciler
     /// tag joins) from a DTO, wiring everything via navigation properties so EF assigns the shared
     /// keys and foreign keys on save.
     /// </summary>
-    public static UnitComponent Build(UnitComponentDto dto, IReadOnlyDictionary<string, Tag> tagsByCode)
+    public static UnitComponent Build(
+        UnitComponentDto dto,
+        IReadOnlyDictionary<string, Tag> tagsByCode,
+        IReadOnlyDictionary<string, SupplySet> supplySetsByCode)
     {
         return new UnitComponent
         {
@@ -276,6 +362,7 @@ internal static class UnitComponentReconciler
             Weapon = dto.Weapon is { } weaponDto ? BuildWeapon(weaponDto) : null,
             Armour = dto.Armour is { } armourDto ? BuildArmour(armourDto) : null,
             Tags = BuildTagJoins(dto.TagCodes, tagsByCode),
+            SupplyRequirements = BuildSupplyRequirements(dto.SupplyRequirements, supplySetsByCode),
         };
     }
 
@@ -353,6 +440,23 @@ internal static class UnitComponentReconciler
         return [.. tagCodes.Select(code => new UnitComponentTag { Tag = tagsByCode[code] })];
     }
 
+    /// <summary>
+    /// Builds a component's supply-requirement rows, resolving each set code to its <see cref="SupplySet"/> entity via navigation.
+    /// </summary>
+    private static ICollection<UnitComponentSupplyRequirement> BuildSupplyRequirements(
+        IReadOnlyCollection<UnitComponentSupplyRequirementDto> requirements,
+        IReadOnlyDictionary<string, SupplySet> supplySetsByCode)
+    {
+        return
+        [
+            .. requirements.Select(requirement => new UnitComponentSupplyRequirement
+            {
+                SupplySet = supplySetsByCode[requirement.SupplySetCode],
+                Quantity = requirement.Quantity,
+            })
+        ];
+    }
+
     // --- Update ---------------------------------------------------------------------------------
 
     /// <summary>
@@ -369,6 +473,7 @@ internal static class UnitComponentReconciler
         UnitComponent existing,
         UnitComponentDto dto,
         IReadOnlyDictionary<string, Tag> tagsByCode,
+        IReadOnlyDictionary<string, SupplySet> supplySetsByCode,
         List<UnitComponentSlot> removedSlots)
     {
         existing.DisplayName = dto.DisplayName;
@@ -401,6 +506,7 @@ internal static class UnitComponentReconciler
         }
 
         MergeTagJoins(context, existing, dto.TagCodes, tagsByCode);
+        MergeSupplyRequirements(context, existing, dto.SupplyRequirements, supplySetsByCode);
     }
 
     /// <summary>
@@ -545,6 +651,51 @@ internal static class UnitComponentReconciler
             if (!currentCodes.Contains(code))
             {
                 existing.Tags.Add(new UnitComponentTag { Tag = tagsByCode[code] });
+            }
+        }
+    }
+
+    /// <summary>
+    /// Reconciles a component's supply requirements to exactly those requested, keyed by supply set, so a need whose quantity merely changed keeps its row.
+    /// </summary>
+    private static void MergeSupplyRequirements(
+        AscendantEmpireContext context,
+        UnitComponent existing,
+        IReadOnlyCollection<UnitComponentSupplyRequirementDto> desiredRequirements,
+        IReadOnlyDictionary<string, SupplySet> supplySetsByCode)
+    {
+        Dictionary<int, UnitComponentSupplyRequirementDto> desiredBySetId = desiredRequirements
+            .ToDictionary(requirement => supplySetsByCode[requirement.SupplySetCode].Id);
+
+        Dictionary<int, UnitComponentSupplyRequirement> currentBySetId = existing.SupplyRequirements
+            .ToDictionary(requirement => requirement.SupplySetId);
+
+        // NoAction FK => a dropped need has to be deleted explicitly.
+        List<UnitComponentSupplyRequirement> removedRequirements =
+            [.. existing.SupplyRequirements.Where(requirement => !desiredBySetId.ContainsKey(requirement.SupplySetId))];
+
+        context.UnitComponentSupplyRequirements.RemoveRange(removedRequirements);
+
+        foreach (UnitComponentSupplyRequirement removedRequirement in removedRequirements)
+        {
+            existing.SupplyRequirements.Remove(removedRequirement);
+        }
+
+        foreach (UnitComponentSupplyRequirementDto desired in desiredRequirements)
+        {
+            SupplySet supplySet = supplySetsByCode[desired.SupplySetCode];
+
+            if (currentBySetId.TryGetValue(supplySet.Id, out UnitComponentSupplyRequirement? current))
+            {
+                current.Quantity = desired.Quantity;
+            }
+            else
+            {
+                existing.SupplyRequirements.Add(new UnitComponentSupplyRequirement
+                {
+                    SupplySet = supplySet,
+                    Quantity = desired.Quantity,
+                });
             }
         }
     }
