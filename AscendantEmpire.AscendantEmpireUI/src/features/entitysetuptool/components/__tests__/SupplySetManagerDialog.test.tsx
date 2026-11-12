@@ -10,7 +10,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import SupplySetManagerDialog from "../SupplySetManagerDialog";
-import type { AssetOption, SupplySetView } from "../../api/supplySetApi";
+import type { AssetOption } from "../../api/assetApi";
+import type { SupplySetView } from "../../api/supplySetApi";
 
 const getSupplySets = vi.hoisted(() => vi.fn());
 const createSupplySet = vi.hoisted(() => vi.fn());
@@ -21,6 +22,9 @@ vi.mock("../../api/supplySetApi", () => ({
   getSupplySets,
   createSupplySet,
   updateSupplySet,
+}));
+
+vi.mock("../../api/assetApi", () => ({
   getAssetOptions,
 }));
 

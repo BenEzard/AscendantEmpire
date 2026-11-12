@@ -9,13 +9,18 @@
 import { createEmptyWeapon, type UnitComponent } from "@/features/unitdesign/types/UnitComponent";
 
 import WeaponProperties from "./properties/WeaponProperties";
+import type { AssetOption } from "../../api/assetApi";
 
 interface AttackSectionProps {
   component: UnitComponent;
   onChange: (next: UnitComponent) => void;
+  /** The Asset catalogue the inherent attack's ammunition editor offers. */
+  assets: AssetOption[];
+  assetsLoading?: boolean;
+  assetsError?: string | null;
 }
 
-export default function AttackSection({ component, onChange }: AttackSectionProps) {
+export default function AttackSection({ component, onChange, assets, assetsLoading, assetsError }: AttackSectionProps) {
   // The tab is disabled for non-Body types; guard so its (unreachable) content stays inert.
   if (component.componentType !== "Body") {
     return null;
@@ -28,7 +33,13 @@ export default function AttackSection({ component, onChange }: AttackSectionProp
   return (
     <div className="w-full max-w-xl">
       <p className="mb-3 text-xs text-slate-400">Optional attack the body deals itself. Leave the attack empty for no inherent attack.</p>
-      <WeaponProperties weapon={weapon} onChange={(next) => onChange({ ...component, weapon: next })} />
+      <WeaponProperties
+        weapon={weapon}
+        onChange={(next) => onChange({ ...component, weapon: next })}
+        assets={assets}
+        assetsLoading={assetsLoading}
+        assetsError={assetsError}
+      />
     </div>
   );
 }

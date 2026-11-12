@@ -29,13 +29,19 @@ import { RangeSlider } from "@/components/ui";
 
 import PillKeyValueEditor from "../../PillKeyValueEditor";
 import { DAMAGE_TYPE_LABELS, DOMAIN_TYPE_LABELS } from "../../componentSetupLabels";
+import WeaponAmmunitionEditor from "./WeaponAmmunitionEditor";
+import type { AssetOption } from "../../../api/assetApi";
 
 interface WeaponPropertiesProps {
   weapon: UnitComponentWeapon;
   onChange: (next: UnitComponentWeapon) => void;
+  /** The Asset catalogue the ammunition editor offers. */
+  assets: AssetOption[];
+  assetsLoading?: boolean;
+  assetsError?: string | null;
 }
 
-export default function WeaponProperties({ weapon, onChange }: WeaponPropertiesProps) {
+export default function WeaponProperties({ weapon, onChange, assets, assetsLoading = false, assetsError = null }: WeaponPropertiesProps) {
   // Working rows for the sparse editors, seeded once from the incoming weapon.
   const [attackRows, setAttackRows] = useState<KeyValueRow<DamageType>[]>(() => damageProfileToRows(weapon.attack));
   const [domainRows, setDomainRows] = useState<KeyValueRow<DomainType>[]>(() => domainModifiersToRows(weapon.domainModifiers));
@@ -71,6 +77,10 @@ export default function WeaponProperties({ weapon, onChange }: WeaponPropertiesP
 
   const handleDualWieldChange = (next: boolean) => {
     emit({ base: { ...weapon, dualWield: next } });
+  };
+
+  const handleAmmunitionChange = (next: UnitComponentWeapon["ammunition"]) => {
+    emit({ base: { ...weapon, ammunition: next } });
   };
 
   return (
@@ -119,6 +129,14 @@ export default function WeaponProperties({ weapon, onChange }: WeaponPropertiesP
           Dual Wield
         </label>
       </div>
+
+      <WeaponAmmunitionEditor
+        options={weapon.ammunition}
+        onChange={handleAmmunitionChange}
+        assets={assets}
+        loading={assetsLoading}
+        error={assetsError}
+      />
     </div>
   );
 }

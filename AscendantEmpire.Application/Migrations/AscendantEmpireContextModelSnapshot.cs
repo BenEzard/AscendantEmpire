@@ -4187,6 +4187,31 @@ namespace AscendantEmpire.Application.Migrations
                     b.ToTable("UnitComponentWeapon", "unitdesigns");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentWeaponAmmunition", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AssetId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UnitComponentWeaponId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssetId");
+
+                    b.HasIndex("UnitComponentWeaponId", "AssetId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_UnitComponentWeaponAmmunition_Weapon_Asset");
+
+                    b.ToTable("UnitComponentWeaponAmmunition", "unitdesigns");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentWeaponDomainModifier", b =>
                 {
                     b.Property<int>("Id")
@@ -6537,6 +6562,27 @@ namespace AscendantEmpire.Application.Migrations
                     b.Navigation("UnitComponent");
                 });
 
+            modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentWeaponAmmunition", b =>
+                {
+                    b.HasOne("AscendantEmpire.Domain.Entities.Assets.Asset", "Asset")
+                        .WithMany()
+                        .HasForeignKey("AssetId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_UnitComponentWeaponAmmunition_Asset_AssetId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentWeapon", "Weapon")
+                        .WithMany("Ammunition")
+                        .HasForeignKey("UnitComponentWeaponId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired()
+                        .HasConstraintName("FK_UnitComponentWeaponAmmunition_UnitComponentWeapon_UnitComponentWeaponId");
+
+                    b.Navigation("Asset");
+
+                    b.Navigation("Weapon");
+                });
+
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentWeaponDomainModifier", b =>
                 {
                     b.HasOne("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentWeapon", "Weapon")
@@ -6949,6 +6995,8 @@ namespace AscendantEmpire.Application.Migrations
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.UnitDesigns.UnitComponentWeapon", b =>
                 {
+                    b.Navigation("Ammunition");
+
                     b.Navigation("DomainModifiers");
                 });
 

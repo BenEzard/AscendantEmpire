@@ -417,6 +417,11 @@ public class AscendantEmpireContext : DbContext
     public DbSet<UnitComponentWeaponDomainModifier> UnitComponentWeaponDomainModifiers { get; set; }
 
     /// <summary>
+    /// The kinds of ammunition a weapon accepts, each with what one attack consumes of it.
+    /// </summary>
+    public DbSet<UnitComponentWeaponAmmunition> UnitComponentWeaponAmmunitions { get; set; }
+
+    /// <summary>
     /// Armour-only properties, one-to-one with armour-type <see cref="UnitComponent"/> rows.
     /// </summary>
     public DbSet<UnitComponentArmour> UnitComponentArmours { get; set; }
@@ -3425,6 +3430,32 @@ public class AscendantEmpireContext : DbContext
             entity.HasIndex(e => new { e.UnitComponentWeaponId, e.Domain })
                 .IsUnique()
                 .HasDatabaseName("UX_UnitComponentWeaponDomainModifier_Weapon_Domain");
+        });
+
+        // --- UnitComponentWeaponAmmunition -----------------------------------------
+        modelBuilder.Entity<UnitComponentWeaponAmmunition>(entity =>
+        {
+            entity.ToTable("UnitComponentWeaponAmmunition", schema);
+
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne(e => e.Weapon)
+                .WithMany(e => e.Ammunition)
+                .HasForeignKey(e => e.UnitComponentWeaponId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitComponentWeaponAmmunition_UnitComponentWeapon_UnitComponentWeaponId");
+
+            // Reaches across to the assets schema, as a supply requirement reaches a SupplySet.
+            entity.HasOne(e => e.Asset)
+                .WithMany()
+                .HasForeignKey(e => e.AssetId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_UnitComponentWeaponAmmunition_Asset_AssetId");
+
+            // A weapon lists each Asset at most once, and the merge keys on the Asset.
+            entity.HasIndex(e => new { e.UnitComponentWeaponId, e.AssetId })
+                .IsUnique()
+                .HasDatabaseName("UX_UnitComponentWeaponAmmunition_Weapon_Asset");
         });
 
         // --- UnitComponentArmour (1:1 with UnitComponent) --------------------------

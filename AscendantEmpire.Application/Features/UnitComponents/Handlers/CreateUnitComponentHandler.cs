@@ -61,6 +61,10 @@ internal class CreateUnitComponentHandler(
         Dictionary<string, SupplySet> supplySetsByCode = await UnitComponentReconciler.LoadSupplySetsByCodeAsync(context, supplySetCodes, cancelToken);
         UnitComponentReconciler.ValidateSupplyRequirements(dto, supplySetsByCode.Keys, errors);
 
+        string[] ammunitionAssetCodes = [.. (dto.Weapon?.Ammunition ?? []).Select(option => option.AssetCode)];
+        Dictionary<string, Asset> assetsByCode = await UnitComponentReconciler.LoadAssetsByCodeAsync(context, ammunitionAssetCodes, cancelToken);
+        UnitComponentReconciler.ValidateWeaponAmmunition(dto, assetsByCode.Keys, errors);
+
         // A brand-new component owns no slots, so any slot id the payload carries is stale or misdirected.
         UnitComponentReconciler.ValidateSlots(dto, existing: null, errors);
 
@@ -77,7 +81,7 @@ internal class CreateUnitComponentHandler(
             return ServiceResult<UnitComponentView>.Fail(errors);
         }
 
-        UnitComponent component = UnitComponentReconciler.Build(dto, tagsByCode, supplySetsByCode);
+        UnitComponent component = UnitComponentReconciler.Build(dto, tagsByCode, supplySetsByCode, assetsByCode);
         context.UnitComponents.Add(component);
         componentsByCode[dto.Code] = component;
 

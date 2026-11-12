@@ -45,6 +45,7 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
     private const string ARMOUR_CODE = "test_armour";
     private const string TAG_CODE = "amphibious";
     private const string _HUMAN_FOOD = "human-food";
+    private const string _ARROWS = "Weapons.Ammunition.Arrows";
 
     [Test, Description("Inserting a full component graph persists the parent, its 1:1 extension, child rows and tag joins.")]
     public async Task FullGraphInsertPersistsEntireGraphAsync()
@@ -854,6 +855,103 @@ internal class BulkUpsertComponentGraphTests : SqlServerTestBase
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
         context.SupplySets.Add(new SupplySet { Code = code, DisplayName = code, SupplyType = SupplyType.Food });
+
+        await context.SaveChangesAsync();
+    }
+
+    #endregion
+
+    #region Weapon ammunition
+
+    [Test, Description("A weapon's ammunition options survive an export and re-import, which is the only way a catalogue moves between databases.")]
+    public async Task WeaponAmmunitionRoundTripsThroughCatalogueAsync()
+    {
+        await SeedAmmunitionAssetAsync(_ARROWS);
+
+        UnitComponentDto weapon = BuildWeapon(WEAPON_CODE);
+        weapon = weapon with
+        {
+            Weapon = weapon.Weapon! with
+            {
+                Ammunition = [new UnitComponentWeaponAmmunitionDto { AssetCode = _ARROWS }]
+            }
+        };
+
+        BulkUpsertUnitComponentsHandler handler = await DbFactory.CreateBulkUpsertHandlerAsync();
+        ServiceResult<BulkUpsertUnitComponentsResult> imported = await handler.Handle(
+            new BulkUpsertUnitComponentsRequest(new BulkUpsertUnitComponentsDto { Components = [weapon] }), CancellationToken.None);
+
+        Assert.That(imported.HasSucceeded, Is.True, () => string.Join("; ", imported.Errors));
+
+        UnitComponentDto exported;
+
+        await using (AscendantEmpireContext exportContext = await DbFactory.CreateDbContextAsync())
+        {
+            UnitComponent persisted = await UnitComponentReconciler
+                .WithFullGraph(exportContext.UnitComponents.Where(c => c.Code == WEAPON_CODE))
+                .SingleAsync();
+
+            exported = CatalogueExportProjections.ToUnitComponentDto(persisted);
+        }
+
+        BulkUpsertUnitComponentsHandler reimportHandler = await DbFactory.CreateBulkUpsertHandlerAsync();
+        ServiceResult<BulkUpsertUnitComponentsResult> reimported = await reimportHandler.Handle(
+            new BulkUpsertUnitComponentsRequest(new BulkUpsertUnitComponentsDto { Components = [exported] }), CancellationToken.None);
+
+        Assert.That(reimported.HasSucceeded, Is.True, () => string.Join("; ", reimported.Errors));
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+
+        List<UnitComponentWeaponAmmunition> roundTripped = await verifyContext.UnitComponentWeaponAmmunitions
+            .Include(option => option.Asset)
+            .ToListAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(exported.Weapon!.Ammunition.Single().AssetCode, Is.EqualTo(_ARROWS), "The export projection carries the Asset's code.");
+            Assert.That(roundTripped, Has.Count.EqualTo(1), "The re-import neither drops nor doubles the row.");
+            Assert.That(roundTripped.Single().Asset.Code, Is.EqualTo(_ARROWS));
+        }
+    }
+
+    /// <summary>
+    /// Inserts one ammunition Asset, with the meta-category and storage class an Asset row cannot do without.
+    /// </summary>
+    private async Task SeedAmmunitionAssetAsync(string code)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        var metaCategory = new AssetMetaCategory { Code = "Weapons", DisplayName = "Weapons", SortOrder = 1, IconPath = "/resources/none.svg" };
+        var storageClass = new StorageClass { Code = "TestArmoury", DisplayName = "Test Armoury" };
+
+        context.AssetMetaCategories.Add(metaCategory);
+        context.StorageClasses.Add(storageClass);
+        await context.SaveChangesAsync();
+
+        // An Asset hangs off exactly one of a category or a group, which CK_Asset_GroupOrCategoryXor enforces.
+        var category = new AssetCategory
+        {
+            Code = "Weapons.Ammunition",
+            DisplayName = "Ammunition",
+            CategoryType = AssetCategoryType.StandaloneAssets,
+            SortOrder = 1,
+            AssetMetaCategoryId = metaCategory.Id,
+        };
+
+        context.AssetCategories.Add(category);
+        await context.SaveChangesAsync();
+
+        context.Assets.Add(new Asset
+        {
+            Code = code,
+            DisplayName = code.Split('.').Last(),
+            IconPath = "/resources/none.svg",
+            IsGradedAsset = false,
+            SortOrder = 0,
+            AssetMetaCategoryId = metaCategory.Id,
+            AssetCategoryId = category.Id,
+            StorageClassId = storageClass.Id,
+        });
 
         await context.SaveChangesAsync();
     }

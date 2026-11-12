@@ -56,6 +56,7 @@ internal static class UnitComponentSeedData
                 BuildBasicRecon(),
                 BuildPrimitiveSpear(),
                 BuildClub(),
+                BuildSling(),
             ],
         };
     }
@@ -257,6 +258,27 @@ internal static class UnitComponentSeedData
                 Attack = new DamageProfileDto { Pierce = 1_000 },
                 MinimumRange = 0,
                 MaximumRange = 0,
+            },
+        };
+    }
+
+    /// <summary>
+    /// A primitive ranged weapon, and the one seeded weapon that needs ammunition.
+    /// </summary>
+    private static UnitComponentDto BuildSling()
+    {
+        return new UnitComponentDto
+        {
+            Code = "sling",
+            DisplayName = "Sling",
+            ComponentType = ComponentType.Weapon,
+            Weight = 0,
+            Weapon = new UnitComponentWeaponDto
+            {
+                Attack = new DamageProfileDto { Crush = 1_000 },
+                MinimumRange = 1,
+                MaximumRange = 3,
+                Ammunition = [new UnitComponentWeaponAmmunitionDto { AssetCode = AssetSeedData.SLING_SHOT }]
             },
         };
     }

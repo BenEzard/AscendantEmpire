@@ -73,9 +73,17 @@ internal class BulkUpsertUnitComponentsHandler(
 
         Dictionary<string, SupplySet> supplySetsByCode = await UnitComponentReconciler.LoadSupplySetsByCodeAsync(context, referencedSupplySetCodes, cancelToken);
 
-        // Validate tag and supply references against payload + DB now that we know what exists.
+        // Ammunition Assets are never defined by the payload either, for the same reason.
+        string[] referencedAssetCodes = [.. catalogue.Components
+            .SelectMany(c => (c.Weapon?.Ammunition ?? []).Select(option => option.AssetCode))
+            .Distinct()];
+
+        Dictionary<string, Asset> assetsByCode = await UnitComponentReconciler.LoadAssetsByCodeAsync(context, referencedAssetCodes, cancelToken);
+
+        // Validate tag, supply and ammunition references against payload + DB now that we know what exists.
         List<string> referenceErrors = ValidateTagReferences(catalogue, tagsByCode);
         referenceErrors.AddRange(ValidateSupplyRequirements(catalogue, supplySetsByCode));
+        referenceErrors.AddRange(ValidateWeaponAmmunition(catalogue, assetsByCode));
 
         if (referenceErrors.Count > 0)
         {
@@ -118,12 +126,12 @@ internal class BulkUpsertUnitComponentsHandler(
         {
             if (existingByCode.TryGetValue(componentDto.Code, out UnitComponent? existing))
             {
-                UnitComponentReconciler.Update(context, existing, componentDto, tagsByCode, supplySetsByCode, removedSlots);
+                UnitComponentReconciler.Update(context, existing, componentDto, tagsByCode, supplySetsByCode, assetsByCode, removedSlots);
                 updatedCodes.Add(componentDto.Code);
             }
             else
             {
-                UnitComponent built = UnitComponentReconciler.Build(componentDto, tagsByCode, supplySetsByCode);
+                UnitComponent built = UnitComponentReconciler.Build(componentDto, tagsByCode, supplySetsByCode, assetsByCode);
                 context.UnitComponents.Add(built);
                 componentsByCode[componentDto.Code] = built;
                 addedCodes.Add(componentDto.Code);
@@ -274,6 +282,22 @@ internal class BulkUpsertUnitComponentsHandler(
         foreach (UnitComponentDto component in catalogue.Components)
         {
             UnitComponentReconciler.ValidateSupplyRequirements(component, knownSupplySetCodes, errors);
+        }
+
+        return errors;
+    }
+
+    /// <summary>
+    /// Validates every weapon's ammunition options against the Assets the database holds.
+    /// </summary>
+    private static List<string> ValidateWeaponAmmunition(BulkUpsertUnitComponentsDto catalogue, IReadOnlyDictionary<string, Asset> assetsByCode)
+    {
+        List<string> errors = [];
+        HashSet<string> knownAssetCodes = [.. assetsByCode.Keys];
+
+        foreach (UnitComponentDto component in catalogue.Components)
+        {
+            UnitComponentReconciler.ValidateWeaponAmmunition(component, knownAssetCodes, errors);
         }
 
         return errors;

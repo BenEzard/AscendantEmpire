@@ -38,6 +38,7 @@ import SupersessionSection from "./sections/SupersessionSection";
 import SupplySection from "./sections/SupplySection";
 import TagsSection from "./sections/TagsSection";
 
+import { getAssetOptions, type AssetOption } from "../api/assetApi";
 import { getSupplySets, type SupplySetView } from "../api/supplySetApi";
 
 interface ComponentSetupDialogProps {
@@ -78,6 +79,11 @@ export default function ComponentSetupDialog({ open, onCancel, initialComponent,
   const [availableSupplySets, setAvailableSupplySets] = useState<SupplySetView[]>([]);
   const [supplySetsLoading, setSupplySetsLoading] = useState(false);
   const [supplySetsError, setSupplySetsError] = useState<string | null>(null);
+
+  // The Asset catalogue a weapon's ammunition editor offers, on the same terms.
+  const [availableAssets, setAvailableAssets] = useState<AssetOption[]>([]);
+  const [assetsLoading, setAssetsLoading] = useState(false);
+  const [assetsError, setAssetsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -145,6 +151,38 @@ export default function ComponentSetupDialog({ open, onCancel, initialComponent,
       .finally(() => {
         if (!cancelled) {
           setSupplySetsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  // Load the Asset catalogue whenever the dialog opens. A failure surfaces in the ammunition editor's picker (non-fatal).
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    let cancelled = false;
+    setAssetsLoading(true);
+    setAssetsError(null);
+    getAssetOptions()
+      .then((assets) => {
+        if (!cancelled) {
+          setAvailableAssets(assets);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setAssetsError("Failed to load Assets.");
+          console.error("Failed to load Assets.", err);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setAssetsLoading(false);
         }
       });
 
@@ -236,7 +274,16 @@ export default function ComponentSetupDialog({ open, onCancel, initialComponent,
         {
           key: "properties",
           label: "Properties",
-          content: <PropertiesSection key={openInstance} component={component} onChange={setComponent} />,
+          content: (
+            <PropertiesSection
+              key={openInstance}
+              component={component}
+              onChange={setComponent}
+              assets={availableAssets}
+              assetsLoading={assetsLoading}
+              assetsError={assetsError}
+            />
+          ),
         },
         {
           // Only bodies expose slots, so this page is disabled (greyed) for every other component type.
@@ -312,7 +359,16 @@ export default function ComponentSetupDialog({ open, onCancel, initialComponent,
           key: "attack",
           label: "Attack (Body)",
           disabled: component.componentType !== "Body",
-          content: <AttackSection key={openInstance} component={component} onChange={setComponent} />,
+          content: (
+            <AttackSection
+              key={openInstance}
+              component={component}
+              onChange={setComponent}
+              assets={availableAssets}
+              assetsLoading={assetsLoading}
+              assetsError={assetsError}
+            />
+          ),
         },
         {
           // A body's optional inherent defence; disabled (greyed) for every other component type.

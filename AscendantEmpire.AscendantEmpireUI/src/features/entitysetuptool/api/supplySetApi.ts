@@ -43,19 +43,6 @@ export interface UpsertSupplySet {
   assets: UpsertSupplySetAsset[];
 }
 
-/**
- * An Asset as the member picker needs it.
- */
-/* Trimmed from the /assets read rather than reusing the map gallery's AssetSummary, which carries the
-   naturally-occurring and meta-category fields a supply set has no use for. */
-export interface AssetOption {
-  id: number;
-  code: string;
-  displayName: string;
-  /** Root-relative URL of the catalogue image, or "" where the Asset has none. The picker draws a generic glyph for those. */
-  iconPath: string;
-}
-
 /** GET /supply-sets — every set in the catalogue, ordered by code. */
 export async function getSupplySets(signal?: AbortSignal): Promise<SupplySetView[]> {
   const { data } = await http.get<{ supplySets: SupplySetView[] }>("/supply-sets", { signal });
@@ -72,10 +59,4 @@ export async function createSupplySet(set: UpsertSupplySet): Promise<SupplySetVi
 export async function updateSupplySet(id: number, set: UpsertSupplySet): Promise<SupplySetView> {
   const { data } = await http.put<SupplySetView>(`/supply-sets/${id}`, set);
   return data;
-}
-
-/** GET /assets — the Assets a set can draw on, for the member picker. */
-export async function getAssetOptions(signal?: AbortSignal): Promise<AssetOption[]> {
-  const { data } = await http.get<{ assets: AssetOption[] }>("/assets", { signal });
-  return data.assets;
 }

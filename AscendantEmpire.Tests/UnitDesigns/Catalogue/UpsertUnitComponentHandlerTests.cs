@@ -456,6 +456,199 @@ internal class UpsertUnitComponentHandlerTests : SqlServerTestBase
 
     #endregion
 
+    #region Weapon ammunition
+
+    [Test, Description("Creating a Weapon with ammunition options persists one row per option, resolved from the asset codes.")]
+    public async Task CreatePersistsWeaponAmmunitionAsync()
+    {
+        await SeedAmmunitionAssetsAsync();
+
+        await CreateAsync(WeaponWithAmmunition(Ammunition(_ARROWS), Ammunition(_BULLETS)));
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+
+        List<UnitComponentWeaponAmmunition> persisted = await verifyContext.UnitComponentWeaponAmmunitions
+            .Include(option => option.Asset)
+            .OrderBy(option => option.Asset.Code)
+            .ToListAsync();
+
+        Assert.That(persisted.Select(option => option.Asset.Code), Is.EqualTo(new[] { _ARROWS, _BULLETS }));
+    }
+
+    [Test, Description("An update keeps the ammunition option the payload still names and deletes the one it dropped.")]
+    public async Task UpdateReconcilesWeaponAmmunitionAsync()
+    {
+        await SeedAmmunitionAssetsAsync();
+
+        await CreateAsync(WeaponWithAmmunition(Ammunition(_ARROWS), Ammunition(_BULLETS)));
+
+        int originalArrowRowId = await AmmunitionRowIdAsync(_ARROWS);
+
+        UpdateUnitComponentHandler handler = await UpdateHandlerAsync();
+        ServiceResult<UnitComponentView> result = await handler.Handle(
+            new UpdateUnitComponentRequest(WEAPON_CODE, Payload(WeaponWithAmmunition(Ammunition(_ARROWS)))),
+            CancellationToken.None);
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+
+        List<UnitComponentWeaponAmmunition> persisted = await verifyContext.UnitComponentWeaponAmmunitions
+            .Include(option => option.Asset)
+            .ToListAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+            Assert.That(persisted, Has.Count.EqualTo(1), "The bullets option is gone.");
+            Assert.That(persisted.Single().Asset.Code, Is.EqualTo(_ARROWS));
+            Assert.That(persisted.Single().Id, Is.EqualTo(originalArrowRowId), "It is the same row, not a delete and re-insert.");
+        }
+    }
+
+    [Test, Description("An ammunition option naming an Asset that doesn't exist is rejected and the component is not created.")]
+    public async Task CreateUnknownAmmunitionAssetFailsAsync()
+    {
+        CreateUnitComponentHandler handler = await CreateHandlerAsync();
+        ServiceResult<UnitComponentView> result = await handler.Handle(
+            new CreateUnitComponentRequest(Payload(WeaponWithAmmunition(Ammunition("Weapons.Ammunition.NoSuchThing")))),
+            CancellationToken.None);
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(result.Errors, Has.Some.Contains("unknown ammunition Asset code"));
+            Assert.That(await verifyContext.UnitComponents.AnyAsync(), Is.False);
+        }
+    }
+
+    [Test, Description("Dropping a Body's inherent attack takes its ammunition options with it, rather than orphaning them against the dead weapon row.")]
+    public async Task UpdateDroppingBodyWeaponRemovesItsAmmunitionAsync()
+    {
+        await SeedAmmunitionAssetsAsync();
+
+        UnitComponentDto bodyWithAttack = BuildBodyWithSlots() with
+        {
+            Weapon = new UnitComponentWeaponDto
+            {
+                Attack = new DamageProfileDto { Crush = 1_000 },
+                MinimumRange = 0,
+                MaximumRange = 1,
+                Ammunition = [Ammunition(_ARROWS)]
+            }
+        };
+
+        await CreateAsync(bodyWithAttack);
+
+        UpdateUnitComponentHandler handler = await UpdateHandlerAsync();
+        ServiceResult<UnitComponentView> result = await handler.Handle(
+            new UpdateUnitComponentRequest(BODY_CODE, Payload(BuildBodyWithSlots())),
+            CancellationToken.None);
+
+        await using AscendantEmpireContext verifyContext = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+            Assert.That(await verifyContext.UnitComponentWeapons.AnyAsync(), Is.False, "The inherent weapon is gone.");
+            Assert.That(await verifyContext.UnitComponentWeaponAmmunitions.AnyAsync(), Is.False, "And so are its ammunition options.");
+        }
+    }
+
+    [Test, Description("The editable read returns a weapon's ammunition options, which is where the authoring tool loads them from.")]
+    public async Task GetComponentReturnsWeaponAmmunitionAsync()
+    {
+        await SeedAmmunitionAssetsAsync();
+
+        await CreateAsync(WeaponWithAmmunition(Ammunition(_ARROWS)));
+
+        var handler = new GetComponentHandler(DbFactory);
+        ServiceResult<EditableComponentResult> result = await handler.Handle(new GetComponentRequest(WEAPON_CODE), CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+            Assert.That(result.SuccessValue!.Component.Weapon!.Ammunition.Single().AssetCode, Is.EqualTo(_ARROWS));
+        }
+    }
+
+    #endregion
+
+    #region Ammunition helpers
+
+    private const string _ARROWS = "Weapons.Ammunition.Arrows";
+    private const string _BULLETS = "Weapons.Ammunition.Bullets";
+
+    /// <summary>
+    /// Inserts the two ammunition Assets these tests reference, with the meta-category and storage class an Asset row cannot do without.
+    /// </summary>
+    private async Task SeedAmmunitionAssetsAsync()
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        var metaCategory = new AssetMetaCategory { Code = "Weapons", DisplayName = "Weapons", SortOrder = 1, IconPath = "/resources/none.svg" };
+        var storageClass = new StorageClass { Code = "TestArmoury", DisplayName = "Test Armoury" };
+
+        context.AssetMetaCategories.Add(metaCategory);
+        context.StorageClasses.Add(storageClass);
+        await context.SaveChangesAsync();
+
+        var category = new AssetCategory
+        {
+            Code = "Weapons.Ammunition",
+            DisplayName = "Ammunition",
+            CategoryType = AssetCategoryType.StandaloneAssets,
+            SortOrder = 1,
+            AssetMetaCategoryId = metaCategory.Id,
+        };
+
+        context.AssetCategories.Add(category);
+        await context.SaveChangesAsync();
+
+        int sortOrder = 0;
+
+        foreach (string code in new[] { _ARROWS, _BULLETS })
+        {
+            context.Assets.Add(new Asset
+            {
+                Code = code,
+                DisplayName = code.Split('.').Last(),
+                IconPath = "/resources/none.svg",
+                IsGradedAsset = false,
+                SortOrder = sortOrder++,
+                AssetMetaCategoryId = metaCategory.Id,
+                AssetCategoryId = category.Id,
+                StorageClassId = storageClass.Id,
+            });
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    private async Task<int> AmmunitionRowIdAsync(string assetCode)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        return await context.UnitComponentWeaponAmmunitions
+            .Where(option => option.Asset.Code == assetCode)
+            .Select(option => option.Id)
+            .SingleAsync();
+    }
+
+    private static UnitComponentDto WeaponWithAmmunition(params UnitComponentWeaponAmmunitionDto[] ammunition)
+    {
+        UnitComponentDto weapon = BuildWeapon(WEAPON_CODE);
+
+        return weapon with { Weapon = weapon.Weapon! with { Ammunition = ammunition } };
+    }
+
+    private static UnitComponentWeaponAmmunitionDto Ammunition(string assetCode)
+    {
+        return new UnitComponentWeaponAmmunitionDto { AssetCode = assetCode };
+    }
+
+    #endregion
+
     #region Supply helpers
 
     private const string _HUMAN_FOOD = "human-food";

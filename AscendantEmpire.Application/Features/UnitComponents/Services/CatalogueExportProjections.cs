@@ -97,6 +97,12 @@ internal static class CatalogueExportProjections
                     Domain = m.Domain,
                     DamageMultiplier = m.DamageMultiplier,
                 })],
+            Ammunition = [.. weapon.Ammunition
+                .OrderBy(a => a.Asset.Code)
+                .Select(a => new UnitComponentWeaponAmmunitionDto
+                {
+                    AssetCode = a.Asset.Code,
+                })],
         };
     }
 

@@ -35,6 +35,7 @@ internal static class UnitComponentReconciler
         return components
             .Include(component => component.Body!).ThenInclude(body => body.Slots).ThenInclude(slot => slot.Rules)
             .Include(component => component.Weapon!).ThenInclude(weapon => weapon.DomainModifiers)
+            .Include(component => component.Weapon!).ThenInclude(weapon => weapon.Ammunition).ThenInclude(option => option.Asset)
             .Include(component => component.Armour)
             .Include(component => component.Tags).ThenInclude(join => join.Tag)
             .Include(component => component.SupplyRequirements).ThenInclude(requirement => requirement.SupplySet);
@@ -92,6 +93,26 @@ internal static class UnitComponentReconciler
         return await context.SupplySets
             .Where(set => distinctCodes.Contains(set.Code))
             .ToDictionaryAsync(set => set.Code, cancelToken);
+    }
+
+    /// <summary>
+    /// Loads the Assets for the given codes, keyed by code.
+    /// </summary>
+    public static async Task<Dictionary<string, Asset>> LoadAssetsByCodeAsync(
+        AscendantEmpireContext context,
+        IReadOnlyCollection<string> assetCodes,
+        CancellationToken cancelToken)
+    {
+        if (assetCodes.Count == 0)
+        {
+            return [];
+        }
+
+        string[] distinctCodes = [.. assetCodes.Distinct()];
+
+        return await context.Assets
+            .Where(asset => distinctCodes.Contains(asset.Code))
+            .ToDictionaryAsync(asset => asset.Code, cancelToken);
     }
 
     // --- Validation -----------------------------------------------------------------------------
@@ -335,6 +356,62 @@ internal static class UnitComponentReconciler
         }
     }
 
+    /// <summary>
+    /// Validates a weapon's ammunition options: how many there may be, and that each Asset resolves.
+    /// </summary>
+    /// <remarks>
+    /// Options hang off the weapon, so a Body's inherent attack is validated on the same terms as a Weapon component and there is no placement rule to
+    /// apply. A component with no weapon data has nothing to check.
+    /// </remarks>
+    public static void ValidateWeaponAmmunition(
+        UnitComponentDto component,
+        IReadOnlyCollection<string> knownAssetCodes,
+        List<string> errors)
+    {
+        if (component.Weapon is not { } weapon || weapon.Ammunition.Count == 0)
+        {
+            return;
+        }
+
+        if (weapon.Ammunition.Count > UnitComponentWeaponAmmunition.MAXIMUM_OPTIONS_PER_WEAPON)
+        {
+            errors.Add(
+                $"Component '{component.Code}' names {weapon.Ammunition.Count} kinds of ammunition, but a weapon accepts at most "
+                + $"{UnitComponentWeaponAmmunition.MAXIMUM_OPTIONS_PER_WEAPON}.");
+        }
+
+        foreach (UnitComponentWeaponAmmunitionDto option in weapon.Ammunition)
+        {
+            if (string.IsNullOrWhiteSpace(option.AssetCode))
+            {
+                errors.Add($"Component '{component.Code}' has an ammunition option with no AssetCode.");
+
+                continue;
+            }
+
+            if (!knownAssetCodes.Contains(option.AssetCode))
+            {
+                errors.Add($"Component '{component.Code}' references unknown ammunition Asset code '{option.AssetCode}'.");
+            }
+        }
+
+        // The merge keys on the Asset, so a second row for one Asset would be a silent overwrite before the unique index ever saw it.
+        string[] duplicateCodes =
+        [
+            .. weapon.Ammunition
+                .Where(option => !string.IsNullOrWhiteSpace(option.AssetCode))
+                .GroupBy(option => option.AssetCode)
+                .Where(group => group.Count() > 1)
+                .Select(group => group.Key)
+                .Order()
+        ];
+
+        foreach (string duplicateCode in duplicateCodes)
+        {
+            errors.Add($"Component '{component.Code}' names ammunition Asset '{duplicateCode}' more than once.");
+        }
+    }
+
     // --- Insert ---------------------------------------------------------------------------------
 
     /// <summary>
@@ -345,7 +422,8 @@ internal static class UnitComponentReconciler
     public static UnitComponent Build(
         UnitComponentDto dto,
         IReadOnlyDictionary<string, Tag> tagsByCode,
-        IReadOnlyDictionary<string, SupplySet> supplySetsByCode)
+        IReadOnlyDictionary<string, SupplySet> supplySetsByCode,
+        IReadOnlyDictionary<string, Asset> assetsByCode)
     {
         return new UnitComponent
         {
@@ -359,7 +437,7 @@ internal static class UnitComponentReconciler
             Detection = dto.Detection,
             Visibility = dto.Visibility,
             Body = dto.Body is { } bodyDto ? BuildBody(bodyDto) : null,
-            Weapon = dto.Weapon is { } weaponDto ? BuildWeapon(weaponDto) : null,
+            Weapon = dto.Weapon is { } weaponDto ? BuildWeapon(weaponDto, assetsByCode) : null,
             Armour = dto.Armour is { } armourDto ? BuildArmour(armourDto) : null,
             Tags = BuildTagJoins(dto.TagCodes, tagsByCode),
             SupplyRequirements = BuildSupplyRequirements(dto.SupplyRequirements, supplySetsByCode),
@@ -402,7 +480,7 @@ internal static class UnitComponentReconciler
         };
     }
 
-    private static UnitComponentWeapon BuildWeapon(UnitComponentWeaponDto dto)
+    private static UnitComponentWeapon BuildWeapon(UnitComponentWeaponDto dto, IReadOnlyDictionary<string, Asset> assetsByCode)
     {
         return new UnitComponentWeapon
         {
@@ -411,7 +489,24 @@ internal static class UnitComponentReconciler
             MaximumRange = dto.MaximumRange,
             DualWield = dto.DualWield,
             DomainModifiers = [.. dto.DomainModifiers.Select(BuildDomainModifier)],
+            Ammunition = BuildAmmunition(dto.Ammunition, assetsByCode),
         };
+    }
+
+    /// <summary>
+    /// Builds a weapon's ammunition rows, resolving each asset code to its <see cref="Asset"/> entity via navigation.
+    /// </summary>
+    private static ICollection<UnitComponentWeaponAmmunition> BuildAmmunition(
+        IReadOnlyCollection<UnitComponentWeaponAmmunitionDto> ammunition,
+        IReadOnlyDictionary<string, Asset> assetsByCode)
+    {
+        return
+        [
+            .. ammunition.Select(option => new UnitComponentWeaponAmmunition
+            {
+                Asset = assetsByCode[option.AssetCode],
+            })
+        ];
     }
 
     private static UnitComponentWeaponDomainModifier BuildDomainModifier(UnitComponentWeaponDomainModifierDto dto)
@@ -474,6 +569,7 @@ internal static class UnitComponentReconciler
         UnitComponentDto dto,
         IReadOnlyDictionary<string, Tag> tagsByCode,
         IReadOnlyDictionary<string, SupplySet> supplySetsByCode,
+        IReadOnlyDictionary<string, Asset> assetsByCode,
         List<UnitComponentSlot> removedSlots)
     {
         existing.DisplayName = dto.DisplayName;
@@ -492,12 +588,12 @@ internal static class UnitComponentReconciler
                 UpdateSlots(context, existing.Body!, dto.Body!.Slots, removedSlots);
                 // A body may additionally carry an inherent weapon and/or armour; reconcile each since the
                 // payload can add, update or clear them between upserts.
-                ReconcileOptionalWeapon(context, existing, dto.Weapon);
+                ReconcileOptionalWeapon(context, existing, dto.Weapon, assetsByCode);
                 ReconcileOptionalArmour(context, existing, dto.Armour);
                 break;
 
             case ComponentType.Weapon:
-                UpdateWeapon(context, existing.Weapon!, dto.Weapon!);
+                UpdateWeapon(context, existing.Weapon!, dto.Weapon!, assetsByCode);
                 break;
 
             case ComponentType.Armour:
@@ -717,14 +813,19 @@ internal static class UnitComponentReconciler
     /// present, updates it in place when it stays, and deletes it (with its domain modifiers) when the
     /// payload drops it. Used for a body's inherent attack, which may be added or removed between upserts.
     /// </summary>
-    private static void ReconcileOptionalWeapon(AscendantEmpireContext context, UnitComponent existing, UnitComponentWeaponDto? dto)
+    private static void ReconcileOptionalWeapon(
+        AscendantEmpireContext context,
+        UnitComponent existing,
+        UnitComponentWeaponDto? dto,
+        IReadOnlyDictionary<string, Asset> assetsByCode)
     {
         if (dto is null)
         {
             if (existing.Weapon is { } weapon)
             {
-                // NoAction FKs => delete the modifiers first, then the weapon row, explicitly.
+                // NoAction FKs => delete the modifiers and ammunition first, then the weapon row, explicitly.
                 context.RemoveRange(weapon.DomainModifiers);
+                context.RemoveRange(weapon.Ammunition);
                 context.Remove(weapon);
                 existing.Weapon = null;
             }
@@ -734,11 +835,11 @@ internal static class UnitComponentReconciler
 
         if (existing.Weapon is { } existingWeapon)
         {
-            UpdateWeapon(context, existingWeapon, dto);
+            UpdateWeapon(context, existingWeapon, dto, assetsByCode);
         }
         else
         {
-            existing.Weapon = BuildWeapon(dto);
+            existing.Weapon = BuildWeapon(dto, assetsByCode);
         }
     }
 
@@ -770,9 +871,13 @@ internal static class UnitComponentReconciler
     }
 
     /// <summary>
-    /// Overwrites a weapon extension's scalars and fully replaces its domain modifiers.
+    /// Overwrites a weapon extension's scalars and reconciles its domain modifiers and ammunition.
     /// </summary>
-    private static void UpdateWeapon(AscendantEmpireContext context, UnitComponentWeapon weapon, UnitComponentWeaponDto dto)
+    private static void UpdateWeapon(
+        AscendantEmpireContext context,
+        UnitComponentWeapon weapon,
+        UnitComponentWeaponDto dto,
+        IReadOnlyDictionary<string, Asset> assetsByCode)
     {
         weapon.Attack = ToDamageProfile(dto.Attack);
         weapon.MinimumRange = dto.MinimumRange;
@@ -780,6 +885,43 @@ internal static class UnitComponentReconciler
         weapon.DualWield = dto.DualWield;
 
         MergeDomainModifiers(context, weapon, dto.DomainModifiers);
+        MergeAmmunition(context, weapon, dto.Ammunition, assetsByCode);
+    }
+
+    /// <summary>
+    /// Reconciles a weapon's ammunition to exactly the options requested: new Assets are added and surplus ones deleted.
+    /// </summary>
+    /// <remarks>
+    /// An option carries nothing but its Asset, so a row that is still wanted is left alone rather than rewritten. Keying on the Asset — the natural key
+    /// behind the unique index — also avoids deleting and re-inserting the same (weapon, Asset) row in one transaction, which would trip that index.
+    /// </remarks>
+    private static void MergeAmmunition(
+        AscendantEmpireContext context,
+        UnitComponentWeapon weapon,
+        IReadOnlyCollection<UnitComponentWeaponAmmunitionDto> desiredAmmunition,
+        IReadOnlyDictionary<string, Asset> assetsByCode)
+    {
+        HashSet<int> desiredAssetIds = [.. desiredAmmunition.Select(option => assetsByCode[option.AssetCode].Id)];
+        HashSet<int> currentAssetIds = [.. weapon.Ammunition.Select(option => option.AssetId)];
+
+        // Delete options whose Asset is no longer requested (NoAction FK => delete explicitly).
+        List<UnitComponentWeaponAmmunition> removedOptions = [.. weapon.Ammunition.Where(option => !desiredAssetIds.Contains(option.AssetId))];
+        context.UnitComponentWeaponAmmunitions.RemoveRange(removedOptions);
+
+        foreach (UnitComponentWeaponAmmunition removedOption in removedOptions)
+        {
+            weapon.Ammunition.Remove(removedOption);
+        }
+
+        foreach (UnitComponentWeaponAmmunitionDto desired in desiredAmmunition)
+        {
+            Asset asset = assetsByCode[desired.AssetCode];
+
+            if (!currentAssetIds.Contains(asset.Id))
+            {
+                weapon.Ammunition.Add(new UnitComponentWeaponAmmunition { Asset = asset });
+            }
+        }
     }
 
     /// <summary>

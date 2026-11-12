@@ -95,6 +95,13 @@ internal class GetComponentHandler(
                                     DamageMultiplier = m.DamageMultiplier,
                                 })
                                 .ToList(),
+                            Ammunition = c.Weapon.Ammunition
+                                .OrderBy(a => a.Asset.Code)
+                                .Select(a => new UnitComponentWeaponAmmunitionDto
+                                {
+                                    AssetCode = a.Asset.Code,
+                                })
+                                .ToList(),
                         },
                     Armour = c.Armour == null
                         ? null

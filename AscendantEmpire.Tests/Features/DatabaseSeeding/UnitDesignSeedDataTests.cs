@@ -69,6 +69,46 @@ internal class UnitDesignSeedDataTests
 
     #endregion
 
+    #region Weapon ammunition
+
+    [Test, Description("The seeded Sling accepts sling shot, so the ammunition table and its editor have a live example out of the box.")]
+    public void ShouldGiveTheSlingItsAmmunition()
+    {
+        UnitComponentDto sling = FindComponent("sling")!;
+
+        UnitComponentWeaponAmmunitionDto? slingShot = sling.Weapon!.Ammunition
+            .SingleOrDefault(option => option.AssetCode == AssetSeedData.SLING_SHOT);
+
+        Assert.That(slingShot, Is.Not.Null, "The one seeded weapon that needs ammunition accepts none.");
+    }
+
+    [Test, Description("Every ammunition Asset a seeded weapon names is one the Asset seed creates, so re-seeding cannot fail the whole component import.")]
+    public void ShouldNameOnlySeededAmmunitionAssets()
+    {
+        HashSet<string> seededAssetCodes = [.. AssetSeedData.Build()
+            .SelectMany(metaCategory => metaCategory.Categories)
+            .SelectMany(category => category.Assets)
+            .Select(asset => asset.Code!)];
+
+        string[] unknownCodes = [.. _components.Components
+            .SelectMany(component => (component.Weapon?.Ammunition ?? []).Select(option => option.AssetCode))
+            .Where(code => !seededAssetCodes.Contains(code))
+            .Distinct()
+            .Order()];
+
+        Assert.That(unknownCodes, Is.Empty, $"Ammunition Asset code(s) the Asset seed does not create: {string.Join(", ", unknownCodes)}");
+    }
+
+    [Test, Description("The Unit Components target waits on Assets, because a weapon naming an Asset the database lacks fails the whole import.")]
+    public void ShouldMakeUnitComponentsDependOnAssets()
+    {
+        ISeedStep step = new UnitComponentSeedStep();
+
+        Assert.That(step.DependsOn, Does.Contain(SeedTarget.Assets));
+    }
+
+    #endregion
+
     [Test, Description("Every code GameSetupService demands of a new game has a seeded template, matched the same case-insensitive way game setup matches it.")]
     public void ShouldSeedATemplateForEveryStarterCode()
     {

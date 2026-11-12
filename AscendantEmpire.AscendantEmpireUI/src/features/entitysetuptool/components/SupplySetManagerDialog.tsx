@@ -12,12 +12,11 @@ import { Button, CodeField, ConfirmDialog, FieldRow, Modal, inputClass } from "@
 import SupplySetAssetWells, { type SupplySetMember } from "./SupplySetAssetWells";
 import { supplyTypeIcons } from "./supplyTypeIcons";
 
+import { getAssetOptions, type AssetOption } from "../api/assetApi";
 import {
   createSupplySet,
-  getAssetOptions,
   getSupplySets,
   updateSupplySet,
-  type AssetOption,
   type SupplySetView,
   type SupplyType,
   type UpsertSupplySet,

@@ -15,7 +15,7 @@ import { inputClass } from "@/components/ui/FieldRow";
 import { rawToScaled, scaledToRaw } from "@/features/unitdesign/types/UnitComponent";
 
 import ScaledNumberField from "./ScaledNumberField";
-import type { AssetOption } from "../api/supplySetApi";
+import type { AssetOption } from "../api/assetApi";
 
 /** One Asset in the set being edited. Amounts are held raw (Scale 1,000) and shown as decimals. */
 export interface SupplySetMember {

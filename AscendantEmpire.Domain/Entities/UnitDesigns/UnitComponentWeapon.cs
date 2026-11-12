@@ -49,4 +49,10 @@ public class UnitComponentWeapon
     /// A Domain with no row here cannot be attacked by this weapon.
     /// </summary>
     public ICollection<UnitComponentWeaponDomainModifier> DomainModifiers { get; set; } = [];
+
+    /// <summary>
+    /// The kinds of ammunition this weapon accepts, up to
+    /// <see cref="UnitComponentWeaponAmmunition.MAXIMUM_OPTIONS_PER_WEAPON"/>. An empty collection is a weapon that needs none.
+    /// </summary>
+    public ICollection<UnitComponentWeaponAmmunition> Ammunition { get; set; } = [];
 }

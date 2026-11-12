@@ -20,8 +20,8 @@ chilli peppers.
 - A **unit component** states its needs as quantities of sets, and only a **body** may carry any. A
   mounted body needs human food for its rider and a fodder set as its fuel, which is why fodder is a
   `Fuel` set rather than a second food.
-- Ammunition is not a supply set. Its options carry damage profiles of their own, so they live on the
-  weapon rather than in a set drawn from blindly.
+- Ammunition is not a supply set. Its options are meant to carry damage profiles of their own, so they
+  live on the weapon rather than in a set drawn from blindly — see **Ammunition** below.
 - The starting sets are seeded: `human-food` (the edible Foodstuffs Assets, named one by one — Poisons
   and Wild Herbs are left out), `mount-fodder` and `human-medical`. Each member states what it costs,
   so the same Asset may be priced differently in two sets. They are edited in the Entity Setup Tool's
@@ -68,11 +68,28 @@ friendly territory.
 
 ## Ammunition
 
-- A weapon component requires **0 or 1** ammunition type to attack and defend.
-- Ammunition types: sling shot, arrows, bullets (generic), artillery rounds, high-energy rounds,
-  piercing rounds, rockets, etc.
+- A weapon component declares the kinds of ammunition it accepts — **between 0 and 3** of them — by
+  naming an Asset for each. An empty list is a weapon that needs none, which is every melee weapon.
+- An attack or a defence spends **one unit** of whichever kind is loaded, so an option carries no rate
+  of its own. How dear a round is belongs to the Asset, and a weapon that empties a magazine where a
+  bow looses one arrow is expressed by what its Asset counts — a box of bullets rather than a single
+  round.
+- Declaring several is not carrying several: a weapon accepts up to three kinds and **fires one of
+  them**, so what it needs to attack and defend is 0 or 1 ammunition type.
+- The options are authored on the weapon itself, in the Entity Setup Tool's component dialog: on the
+  Properties page for a Weapon component, and on Attack (Body) for a body's inherent attack. The picker
+  offers the Assets under `Weapons.Ammunition` and nothing else, so a weapon cannot be loaded with
+  timber or ore.
+- Ammunition is not a supply set, because an option is meant to carry a **damage profile** of its own —
+  an anti-personnel and an anti-tank shell change what the weapon does, rather than being drawn from
+  interchangeably. That profile is not built yet, so for now the options differ only in what they cost.
+- Seeded ammunition Assets: sling shot, arrows, bullets (generic) and artillery rounds, under
+  `Weapons.Ammunition`. They are ungraded, unlike the weapons themselves. Further types — high-energy
+  rounds, piercing rounds, rockets — are authored in the Asset Manager as they are needed.
 - A unit **out of ammunition** attacks and defends at **30%** of its normal values.
 - A unit may carry multiple weapons and uses the most effective weapon for which it has ammunition.
+- Nothing consumes ammunition yet: a Force carries no ammunition stock, so the 30% penalty and the
+  best-supplied-weapon choice are design rather than behaviour.
 
 ## Food
 

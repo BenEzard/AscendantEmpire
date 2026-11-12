@@ -11,20 +11,33 @@ import type { UnitComponent } from "@/features/unitdesign/types/UnitComponent";
 import ArmourProperties from "./properties/ArmourProperties";
 import BodyProperties from "./properties/BodyProperties";
 import WeaponProperties from "./properties/WeaponProperties";
+import type { AssetOption } from "../../api/assetApi";
 
 interface PropertiesSectionProps {
   component: UnitComponent;
   onChange: (next: UnitComponent) => void;
+  /** The Asset catalogue a weapon's ammunition editor offers. */
+  assets: AssetOption[];
+  assetsLoading?: boolean;
+  assetsError?: string | null;
 }
 
-export default function PropertiesSection({ component, onChange }: PropertiesSectionProps) {
+export default function PropertiesSection({ component, onChange, assets, assetsLoading, assetsError }: PropertiesSectionProps) {
   if (component.componentType === "Body" && component.body) {
     // The body's movement/strength fields. Its optional inherent attack/defence live on "More Properties".
     return <BodyProperties body={component.body} onChange={(body) => onChange({ ...component, body })} />;
   }
 
   if (component.componentType === "Weapon" && component.weapon) {
-    return <WeaponProperties weapon={component.weapon} onChange={(weapon) => onChange({ ...component, weapon })} />;
+    return (
+      <WeaponProperties
+        weapon={component.weapon}
+        onChange={(weapon) => onChange({ ...component, weapon })}
+        assets={assets}
+        assetsLoading={assetsLoading}
+        assetsError={assetsError}
+      />
+    );
   }
 
   if (component.componentType === "Armour" && component.armour) {

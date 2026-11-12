@@ -165,6 +165,7 @@ internal sealed class CatalogueExportExecutor(
             .AsNoTracking()
             .Include(c => c.Body!).ThenInclude(b => b.Slots).ThenInclude(s => s.Rules)
             .Include(c => c.Weapon!).ThenInclude(w => w.DomainModifiers)
+            .Include(c => c.Weapon!).ThenInclude(w => w.Ammunition).ThenInclude(a => a.Asset)
             .Include(c => c.Armour)
             .Include(c => c.Tags).ThenInclude(t => t.Tag)
             .Include(c => c.SupplyRequirements).ThenInclude(r => r.SupplySet);

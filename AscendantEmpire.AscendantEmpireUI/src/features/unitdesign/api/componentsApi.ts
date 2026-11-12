@@ -14,6 +14,7 @@ import type {
   UnitComponentSlot,
   UnitComponentSlotRule,
   UnitComponentWeapon,
+  WeaponAmmunitionOption,
   WeaponDomainModifiers,
 } from "../types/UnitComponent";
 
@@ -66,6 +67,8 @@ function mapWeapon(weapon: UnitComponentWeapon) {
     domainModifiers: (Object.entries(weapon.domainModifiers) as [DomainType, number][]).map(
       ([domain, damageMultiplier]) => ({ domain, damageMultiplier }),
     ),
+    // Already the DTO's shape, so it rides out as it is rather than being flattened like the domain modifiers.
+    ammunition: weapon.ammunition,
   };
 }
 
@@ -219,6 +222,8 @@ interface WeaponWire {
   maximumRange: number;
   dualWield: boolean;
   domainModifiers: { domain: DomainType; damageMultiplier: number }[];
+  // Optional: a read that predates the field sends none, and a weapon that needs no ammunition sends an empty list.
+  ammunition?: WeaponAmmunitionOption[];
 }
 
 interface ArmourWire {
@@ -296,6 +301,7 @@ function mapWeaponFromWire(weapon: WeaponWire): UnitComponentWeapon {
     maximumRange: weapon.maximumRange,
     dualWield: weapon.dualWield,
     domainModifiers,
+    ammunition: weapon.ammunition ?? [],
   };
 }
 

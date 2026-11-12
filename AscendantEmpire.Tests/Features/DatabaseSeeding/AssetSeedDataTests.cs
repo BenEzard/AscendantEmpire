@@ -43,6 +43,22 @@ internal class AssetSeedDataTests
         }
     }
 
+    [Test, Description("The ammunition Assets spell their codes out and stay ungraded, since a weapon names one by code and has no quality model to pick a grade with.")]
+    public void ShouldSeedAmmunitionUngradedWithExplicitCodes()
+    {
+        UpsertAssetDto[] ammunition = [.. AllCategories()
+            .Where(category => category.Code == "Weapons.Ammunition")
+            .SelectMany(category => category.Assets)];
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ammunition, Is.Not.Empty, "Nothing is seeded to fire.");
+            Assert.That(ammunition.Select(asset => asset.Code), Has.All.Not.Null.And.All.StartsWith("Weapons.Ammunition."));
+            Assert.That(ammunition.Select(asset => asset.IsGradedAsset), Has.All.False);
+            Assert.That(ammunition.Select(asset => asset.Code), Does.Contain(AssetSeedData.SLING_SHOT));
+        }
+    }
+
     [Test, Description("No two rows at the same level share a code, because the upsert matches on code and would otherwise update whichever it happened to keep.")]
     public void ShouldGiveEveryRowAUniqueCodeWithinItsLevel()
     {

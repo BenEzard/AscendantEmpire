@@ -106,6 +106,18 @@ export interface UnitComponentBody {
 /** Per-Domain damage multiplier for a weapon. Presence of an entry gates which Domains it can attack. */
 export type WeaponDomainModifiers = Partial<Record<DomainType, number>>;
 
+/** How many kinds of ammunition one weapon may accept. Mirrors the backend's UnitComponentWeaponAmmunition.MAXIMUM_OPTIONS_PER_WEAPON. */
+export const MAX_AMMUNITION_OPTIONS = 3;
+
+/**
+ * One kind of ammunition a weapon accepts. An attack or a defence spends one unit of whichever kind is loaded, so an option carries no rate.
+ */
+/* An object rather than a bare code because the damage profile an option is meant to carry lands here. */
+export interface WeaponAmmunitionOption {
+  /** Code of the Asset fired; must resolve to an Asset in the catalogue. */
+  assetCode: string;
+}
+
 /** Weapon-only properties; present only when ComponentType is "Weapon". */
 export interface UnitComponentWeapon {
   /** Damage dealt, per type (raw Scale-1,000). */
@@ -116,6 +128,8 @@ export interface UnitComponentWeapon {
   dualWield: boolean;
   /** Target Domains this weapon can engage, each with a raw Scale-1,000 damage multiplier (1,000 = 100%). */
   domainModifiers: WeaponDomainModifiers;
+  /** The kinds of ammunition this weapon accepts, up to MAX_AMMUNITION_OPTIONS. Empty is a weapon that needs none. */
+  ammunition: WeaponAmmunitionOption[];
 }
 
 /** Armour-only properties; present only when ComponentType is "Armour". */
@@ -256,6 +270,7 @@ export function createEmptyWeapon(): UnitComponentWeapon {
     maximumRange: 0,
     dualWield: false,
     domainModifiers: {},
+    ammunition: [],
   };
 }
 

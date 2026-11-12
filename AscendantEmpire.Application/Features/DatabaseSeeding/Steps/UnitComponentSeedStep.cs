@@ -11,7 +11,7 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.Steps;
 /// <remarks>
 /// <para>
 /// Depends on the tags: each component names the tags it carries by code, and the bulk-upsert rejects a component whose tag code resolves to nothing in the
-/// payload or the database.
+/// payload or the database. It depends on the Assets for the same reason, since a weapon names the ammunition it accepts by Asset code.
 /// </para>
 /// <para>
 /// Not inert. The bulk-upsert recompiles every saved template built on the components it touches, so running this step alone still refreshes the snapshots
@@ -26,9 +26,9 @@ internal sealed class UnitComponentSeedStep : ISeedStep
 
     public string DisplayName => "Unit Components";
 
-    public string Description => "The human body and its slots, the camping materials and recon training, and the primitive spear and club.";
+    public string Description => "The human body and its slots, the camping materials and recon training.";
 
-    public IReadOnlyCollection<SeedTarget> DependsOn => [SeedTarget.Tags, SeedTarget.SupplySets];
+    public IReadOnlyCollection<SeedTarget> DependsOn => [SeedTarget.Tags, SeedTarget.SupplySets, SeedTarget.Assets];
 
     public int SortOrder => 30;
 

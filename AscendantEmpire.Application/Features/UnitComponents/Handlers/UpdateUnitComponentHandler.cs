@@ -70,8 +70,12 @@ internal class UpdateUnitComponentHandler(
         string[] supplySetCodes = [.. dto.SupplyRequirements.Select(requirement => requirement.SupplySetCode)];
         Dictionary<string, SupplySet> supplySetsByCode = await UnitComponentReconciler.LoadSupplySetsByCodeAsync(context, supplySetCodes, cancelToken);
 
+        string[] ammunitionAssetCodes = [.. (dto.Weapon?.Ammunition ?? []).Select(option => option.AssetCode)];
+        Dictionary<string, Asset> assetsByCode = await UnitComponentReconciler.LoadAssetsByCodeAsync(context, ammunitionAssetCodes, cancelToken);
+
         UnitComponentReconciler.ValidateTagReferences(dto, tagsByCode.Keys, errors);
         UnitComponentReconciler.ValidateSupplyRequirements(dto, supplySetsByCode.Keys, errors);
+        UnitComponentReconciler.ValidateWeaponAmmunition(dto, assetsByCode.Keys, errors);
         UnitComponentReconciler.ValidateTypeUnchanged(dto, existing, errors);
         UnitComponentReconciler.ValidateSlots(dto, existing, errors);
 
@@ -91,7 +95,7 @@ internal class UpdateUnitComponentHandler(
         List<int> affectedTemplateIds = await AffectedTemplateRecompiler.FindAffectedTemplateIdsAsync(context, [existing.Id], cancelToken);
 
         List<UnitComponentSlot> removedSlots = [];
-        UnitComponentReconciler.Update(context, existing, dto, tagsByCode, supplySetsByCode, removedSlots);
+        UnitComponentReconciler.Update(context, existing, dto, tagsByCode, supplySetsByCode, assetsByCode, removedSlots);
 
         List<string> unfittedTemplateNames = await UnitComponentReconciler.RemoveSlotsAndDependentsAsync(context, removedSlots, cancelToken);
 

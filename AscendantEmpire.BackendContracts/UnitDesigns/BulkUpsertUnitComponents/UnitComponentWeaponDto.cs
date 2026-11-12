@@ -29,4 +29,9 @@ public record UnitComponentWeaponDto
     /// The target Domains this weapon can engage, each with a per-Domain damage multiplier.
     /// </summary>
     public IReadOnlyCollection<UnitComponentWeaponDomainModifierDto> DomainModifiers { get; init; } = [];
+
+    /// <summary>
+    /// The kinds of ammunition this weapon accepts. Empty is a weapon that needs none.
+    /// </summary>
+    public IReadOnlyCollection<UnitComponentWeaponAmmunitionDto> Ammunition { get; init; } = [];
 }

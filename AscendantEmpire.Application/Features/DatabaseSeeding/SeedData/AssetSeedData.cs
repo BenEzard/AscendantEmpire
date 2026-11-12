@@ -46,6 +46,18 @@ internal static class AssetSeedData
     private const string _PRISONER_OF_WAR_ICON = "/resources/other/prisoner-of-war.svg";
 
     /// <summary>
+    /// The ammunition Assets a weapon component names as the kinds it accepts.
+    /// </summary>
+    /// <remarks>
+    /// Spelled out rather than derived, unlike the Assets around them: <c>UnitComponentSeedData</c> names these by code, so letting a DisplayName tidy-up
+    /// re-key one would break the weapon that fires it.
+    /// </remarks>
+    public const string SLING_SHOT = "Weapons.Ammunition.SlingShot";
+    public const string ARROWS = "Weapons.Ammunition.Arrows";
+    public const string BULLETS = "Weapons.Ammunition.Bullets";
+    public const string ARTILLERY_ROUNDS = "Weapons.Ammunition.ArtilleryRounds";
+
+    /// <summary>
     /// The artwork for the three armed services. One per service, and used once each, unlike the population icons above.
     /// </summary>
     private const string _ARMY_ICON = "/resources/other/army.svg";
@@ -342,8 +354,48 @@ internal static class AssetSeedData
                             iconPath: "/resources/unit-design/weapons/melee/medieval-sword_40px.png",
                             description: "A straight-bladed cutting and thrusting weapon of sophisticated design. Requires skilled smiths and quality materials, marking it a step above primitive arms.")
                     ]
+                },
+                new UpsertAssetCategoryDto
+                {
+                    Code = "Weapons.Ammunition",
+                    DisplayName = "Ammunition",
+                    CategoryType = AssetCategoryType.StandaloneAssets,
+                    Assets =
+                    [
+                        Ammunition(
+                            code: SLING_SHOT,
+                            displayName: "Sling Shot",
+                            description: "Smooth stones or cast lead shaped to fly true from a sling. Cheap enough to gather from a riverbed, and lethal in a trained hand."),
+                        Ammunition(
+                            code: ARROWS,
+                            displayName: "Arrows",
+                            description: "Fletched shafts tipped with stone, bone or iron. Made in quantity by hand, and the staple of every archer until firearms displaced the bow."),
+                        Ammunition(
+                            code: BULLETS,
+                            displayName: "Bullets",
+                            description: "Cased rounds for a rifled barrel, propellant and projectile in one. Needs metalworking and chemistry a primitive economy cannot manage."),
+                        Ammunition(
+                            code: ARTILLERY_ROUNDS,
+                            displayName: "Artillery Rounds",
+                            description: "Heavy shells fired well beyond the gunner's sight. Bulky to move and expensive to make, which is what makes an artillery train worth raiding.")
+                    ]
                 }
             ]
+        };
+    }
+
+    /// <summary>
+    /// One ungraded ammunition Asset. No icon: there is no ammunition artwork yet, and the UI draws its own glyph for an Asset without one.
+    /// </summary>
+    private static UpsertAssetDto Ammunition(string code, string displayName, string description)
+    {
+        return new UpsertAssetDto
+        {
+            Code = code,
+            DisplayName = displayName,
+            StorageClassCode = StorageClassSeedData.ARMOURY,
+            Description = description,
+            IsGradedAsset = false
         };
     }
 

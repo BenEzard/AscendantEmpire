@@ -79,6 +79,19 @@ The requirement rows live in the `unitdesigns` schema (`UnitComponentSupplyRequi
 rather than to the Asset catalogue. The sets are authored in the Entity Setup Tool's Supply Sets dialog, over
 `/supply-sets`, and seeded by the database seed's Supply Sets target, which dispatches those same endpoints' handlers.
 
+### Ammunition
+
+Ammunition is the one Unit need that names Assets directly rather than through a set. A weapon declares the kinds it
+accepts — up to three — and an attack spends one unit of whichever is loaded, so a row is the Asset and nothing
+else. The rows live in the
+`unitdesigns` schema (`UnitComponentWeaponAmmunition`), hanging off `UnitComponentWeapon`, and are authored on the weapon
+in the component dialog rather than anywhere in the Asset Manager. Why they are not a set is in
+[units/unit-support-and-supply.md](units/unit-support-and-supply.md#ammunition).
+
+The Assets themselves sit in the `Weapons.Ammunition` category — sling shot, arrows, bullets and artillery rounds —
+stored in the armoury like the weapons beside them. They are **ungraded**, unlike every other `Weapons` Asset, because a
+weapon names the Asset it fires outright and has no quality model to pick a grade with.
+
 ### Player-scoped tables
 
 | Table | Primary Key | Description |
@@ -209,6 +222,10 @@ SupplySet (1)
 
 Asset (1)
   └──< SupplySetAsset (N)    [FK: SupplySetAsset.AssetId]        — an Asset may serve several sets
+
+Asset (1)
+  └──< UnitComponentWeaponAmmunition (N)                         — the weapons that fire it
+                             [FK: UnitComponentWeaponAmmunition.AssetId]
 ```
 
 ---
