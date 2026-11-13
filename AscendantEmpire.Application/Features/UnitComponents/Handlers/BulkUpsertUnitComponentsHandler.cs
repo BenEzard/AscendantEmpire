@@ -277,11 +277,10 @@ internal class BulkUpsertUnitComponentsHandler(
     private static List<string> ValidateSupplyRequirements(BulkUpsertUnitComponentsDto catalogue, IReadOnlyDictionary<string, SupplySet> supplySetsByCode)
     {
         List<string> errors = [];
-        HashSet<string> knownSupplySetCodes = [.. supplySetsByCode.Keys];
 
         foreach (UnitComponentDto component in catalogue.Components)
         {
-            UnitComponentReconciler.ValidateSupplyRequirements(component, knownSupplySetCodes, errors);
+            UnitComponentReconciler.ValidateSupplyRequirements(component, supplySetsByCode, errors);
         }
 
         return errors;

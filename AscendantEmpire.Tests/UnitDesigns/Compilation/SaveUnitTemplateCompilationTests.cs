@@ -9,9 +9,11 @@ using AscendantEmpire.BackendContracts.UnitDesigns.SaveGlobalUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 using AscendantEmpire.BackendContracts.UnitDesigns.SaveUnitTemplate;
 using AscendantEmpire.BackendContracts.UnitDesigns.UpsertUnitComponent;
+using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
+using AscendantEmpire.Domain.Enums.Assets;
 using AscendantEmpire.Domain.Enums.Games;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Turns;
@@ -624,5 +626,90 @@ internal class SaveUnitTemplateCompilationTests : SqlServerTestBase
             Assert.That(templateCount, Is.Zero, "The rejected template was not persisted.");
             Assert.That(snapshotCount, Is.Zero, "No orphaned snapshot either.");
         }
+    }
+
+    [Test, Description("A body's food requirement is compiled onto the snapshot, so the end-of-Turn feed never walks the catalogue to learn what a Force eats.")]
+    public async Task ShouldCompileFoodRequirementWhenBodyCarriesOneAsync()
+    {
+        await SeedCatalogueAsync();
+        int supplySetId = await SeedFoodRequirementOnBodyAsync(quantity: 1_500);
+
+        ServiceResult<GlobalUnitTemplateView> result = await SendAsync(new CreateGlobalUnitTemplateRequest(new SaveGlobalUnitTemplateDto
+        {
+            Code = "tmpl_fed",
+            DisplayName = "Fed Template",
+            MapImagePath = "fed.png",
+            BaseCode = "test_body",
+            SlotComponentCodes = new Dictionary<string, string>(),
+        }));
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        CompiledUnitTemplate snapshot = await LoadSnapshotAsync(result.SuccessValue!.Id);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(snapshot.FoodSupplySetId, Is.EqualTo(supplySetId), "The set the body's requirement names.");
+            Assert.That(snapshot.FoodQuantity, Is.EqualTo(1_500), "Raw scaled: 1.5 of the set per individual per Turn.");
+        }
+    }
+
+    [Test, Description("A type the body needs nothing of compiles as null rather than zero, which would read as a free ration.")]
+    public async Task ShouldCompileNullRequirementWhenBodyCarriesNoneAsync()
+    {
+        await SeedCatalogueAsync();
+
+        ServiceResult<GlobalUnitTemplateView> result = await SendAsync(new CreateGlobalUnitTemplateRequest(new SaveGlobalUnitTemplateDto
+        {
+            Code = "tmpl_unfed",
+            DisplayName = "Unfed Template",
+            MapImagePath = "unfed.png",
+            BaseCode = "test_body",
+            SlotComponentCodes = new Dictionary<string, string>(),
+        }));
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+
+        CompiledUnitTemplate snapshot = await LoadSnapshotAsync(result.SuccessValue!.Id);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(snapshot.FoodSupplySetId, Is.Null);
+            Assert.That(snapshot.FoodQuantity, Is.Null);
+            Assert.That(snapshot.FuelSupplySetId, Is.Null);
+            Assert.That(snapshot.RepairSupplySetId, Is.Null);
+        }
+    }
+
+    /// <summary>
+    /// Gives the catalogue a Food supply set and makes the test body need it, returning the set's id.
+    /// </summary>
+    /// <remarks>
+    /// The set carries no members: the compile reads the requirement's set and quantity alone, and what actually satisfies the need is the feed's concern.
+    /// </remarks>
+    private async Task<int> SeedFoodRequirementOnBodyAsync(long quantity)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        var supplySet = new SupplySet
+        {
+            Code = "test-food",
+            DisplayName = "Test Food",
+            SupplyType = SupplyType.Food,
+        };
+        context.Add(supplySet);
+        await context.SaveChangesAsync();
+
+        int bodyId = await context.UnitComponents.Where(component => component.Code == "test_body").Select(component => component.Id).SingleAsync();
+
+        context.Add(new UnitComponentSupplyRequirement
+        {
+            UnitComponentId = bodyId,
+            SupplySetId = supplySet.Id,
+            Quantity = quantity,
+        });
+        await context.SaveChangesAsync();
+
+        return supplySet.Id;
     }
 }

@@ -2,6 +2,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.BackendContracts.UnitDesigns.BulkUpsertUnitComponents;
 using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
+using AscendantEmpire.Domain.Enums.Assets;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 
@@ -296,15 +297,30 @@ internal static class UnitComponentReconciler
     }
 
     /// <summary>
-    /// Validates a component's supply requirements: where they may sit, that each set resolves, and that each quantity is real.
+    /// Validates a component's supply requirements:
+    /// <list type="bullet">
+    /// <item>where they may sit</item>
+    /// <item>that each set resolves</item>
+    /// <item>that each quantity is real</item>
+    /// <item>and that no supply type is named more than once</item>
+    /// </list>
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Only a Body may carry a requirement. That is enforced here rather than by the schema, whose foreign key is on the component, so letting another
     /// component type consume something later is a change to this method.
+    /// </para>
+    /// <para>
+    /// A Component carries at most one requirement per <see cref="SupplyType"/>.
+    /// </para>
+    /// <para>
+    /// The sets are passed whole rather than as codes because the type rule needs each one's <see cref="SupplySet.SupplyType"/>; every caller already
+    /// loads them, so this costs no extra query.
+    /// </para>
     /// </remarks>
     public static void ValidateSupplyRequirements(
         UnitComponentDto component,
-        IReadOnlyCollection<string> knownSupplySetCodes,
+        IReadOnlyDictionary<string, SupplySet> supplySetsByCode,
         List<string> errors)
     {
         if (component.SupplyRequirements.Count == 0)
@@ -328,7 +344,7 @@ internal static class UnitComponentReconciler
                 continue;
             }
 
-            if (!knownSupplySetCodes.Contains(requirement.SupplySetCode))
+            if (!supplySetsByCode.ContainsKey(requirement.SupplySetCode))
             {
                 errors.Add($"Component '{component.Code}' references unknown supply set code '{requirement.SupplySetCode}'.");
             }
@@ -339,20 +355,19 @@ internal static class UnitComponentReconciler
             }
         }
 
-        // Rows on one component are cumulative, so naming a set twice would double a Food or Fuel need rather than express anything.
-        string[] duplicateCodes =
-        [
-            .. component.SupplyRequirements
-                .Where(requirement => !string.IsNullOrWhiteSpace(requirement.SupplySetCode))
-                .GroupBy(requirement => requirement.SupplySetCode)
-                .Where(group => group.Count() > 1)
-                .Select(group => group.Key)
-                .Order()
-        ];
+        // Rows on one component are cumulative, so a second set of a type would double the need rather than offer a choice between them. Only a code that
+        // resolved has a type to group by; one that did not is already an error of its own.
+        IOrderedEnumerable<IGrouping<SupplyType, UnitComponentSupplyRequirementDto>> repeatedTypes = component.SupplyRequirements
+            .Where(requirement => !string.IsNullOrWhiteSpace(requirement.SupplySetCode) && supplySetsByCode.ContainsKey(requirement.SupplySetCode))
+            .GroupBy(requirement => supplySetsByCode[requirement.SupplySetCode].SupplyType)
+            .Where(group => group.Count() > 1)
+            .OrderBy(group => group.Key);
 
-        foreach (string duplicateCode in duplicateCodes)
+        foreach (IGrouping<SupplyType, UnitComponentSupplyRequirementDto> repeatedType in repeatedTypes)
         {
-            errors.Add($"Component '{component.Code}' names supply set '{duplicateCode}' more than once.");
+            string codes = string.Join("', '", repeatedType.Select(requirement => requirement.SupplySetCode).Order());
+
+            errors.Add($"Component '{component.Code}' carries {repeatedType.Count()} {repeatedType.Key} supply requirements ('{codes}'), and may carry at most one of each supply type.");
         }
     }
 

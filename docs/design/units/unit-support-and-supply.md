@@ -11,7 +11,7 @@ it, so a requirement reads "human food" and is met by whatever the tile actually
 chilli peppers.
 
 - A set carries a **supply type** — `Food`, `Fuel` or `Repair` — which decides what a quantity of it is
-  measured against: per troop, per movement point, or per point of damage.
+  measured against: per individual, per movement point, or per point of damage.
 - Each Asset in a set carries an **amount per unit**: how much of that Asset one unit of the need costs.
   Berries are thin rations and cost 1.67 where most foodstuffs cost 1.0.
 - A `Repair` set is **drawn from** rather than summed: when damage is taken, one member is picked at
@@ -20,6 +20,14 @@ chilli peppers.
 - A **unit component** states its needs as quantities of sets, and only a **body** may carry any. A
   mounted body needs human food for its rider and a fodder set as its fuel, which is why fodder is a
   `Fuel` set rather than a second food.
+- A component carries **at most one requirement per supply type**. The rule is stated per type rather
+  than as a list of the types that exist, so one added later is covered; it is also why naming the same
+  set twice is refused, that being two requirements of one type. A body owes one ration, not a choice
+  between two.
+- A body's requirements are **compiled onto its templates**, as a set and a quantity per supply type on
+  `CompiledUnitTemplate`. The end-of-turn feed asks this of every Force on the map, and a snapshot is
+  read without the per-player unlock filter, so the support forecast can weigh an enemy design's
+  appetite the same way it weighs its own. A type the body needs nothing of compiles as null.
 - Ammunition is not a supply set. Its options are meant to carry damage profiles of their own, so they
   live on the weapon rather than in a set drawn from blindly — see **Ammunition** below.
 - The starting sets are seeded: `human-food` (the edible Foodstuffs Assets, named one by one — Poisons
@@ -93,10 +101,11 @@ friendly territory.
 
 ## Food
 
-- A unit base component requires a **food supply set** to remain healthy, at a quantity per troop.
+- A unit base component requires a **food supply set** to remain healthy, at a quantity per individual.
   `human-food` is the set men eat; a mount's fodder is a `Fuel` set, not a food one.
+- Healthy and injured individuals each eat a **full ration**: a wound is no cheaper to feed.
 - A unit that goes short of food takes **casualties in proportion to its shortfall**. At total
-  starvation it loses **34%** of its troops in one turn; going half short costs half of that. The
+  starvation it loses **34%** of its individuals in one turn; going half short costs half of that. The
   total is rounded **down**, so a large unit carrying a small deficit loses nobody.
 - A single roll splits that total between **dead** and **wounded**: between 10% and 30% of the
   casualties die and the rest are wounded, rounded in the wounded's favour. How many suffer is
@@ -105,7 +114,7 @@ friendly territory.
   are gone. Wounds are taken from the healthy — and a wound with no healthy man left to take it
   **kills instead**. A unit left hungry therefore accumulates wounded and then begins losing men.
 - Each Force takes its own casualties; a shortfall shared by several units on one tile is split
-  between them in proportion to their troops before any of this is applied.
+  between them in proportion to their individuals before any of this is applied.
 - If a tile holds **≤ 15 individuals** in total, the units on it take wounds but never deaths. The
   gate is per tile rather than per unit, so splitting an army into small bands does not buy it.
 - With the **Mobile Scavenging** technology, a unit takes a percentage of a tile's food as it moves

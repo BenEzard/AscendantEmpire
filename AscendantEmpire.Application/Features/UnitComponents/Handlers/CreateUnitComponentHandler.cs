@@ -59,7 +59,7 @@ internal class CreateUnitComponentHandler(
 
         string[] supplySetCodes = [.. dto.SupplyRequirements.Select(requirement => requirement.SupplySetCode)];
         Dictionary<string, SupplySet> supplySetsByCode = await UnitComponentReconciler.LoadSupplySetsByCodeAsync(context, supplySetCodes, cancelToken);
-        UnitComponentReconciler.ValidateSupplyRequirements(dto, supplySetsByCode.Keys, errors);
+        UnitComponentReconciler.ValidateSupplyRequirements(dto, supplySetsByCode, errors);
 
         string[] ammunitionAssetCodes = [.. (dto.Weapon?.Ammunition ?? []).Select(option => option.AssetCode)];
         Dictionary<string, Asset> assetsByCode = await UnitComponentReconciler.LoadAssetsByCodeAsync(context, ammunitionAssetCodes, cancelToken);

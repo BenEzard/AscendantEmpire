@@ -68,6 +68,35 @@ public class CompiledUnitTemplate
     /// <summary>The turn the snapshot was compiled on.</summary>
     public int CompiledOnTurn { get; set; }
 
+    /// <summary>The <c>SupplySet</c> the body eats from, and how much of it one individual needs per Turn (raw fixed-point, Scale 1,000).</summary>
+    /// <remarks>
+    /// <para>
+    /// Null when the body carries no Food requirement — a design that needs no feeding, not one fed for nothing, which a zero would read as.
+    /// </para>
+    /// <para>
+    /// Compiled rather than walked because the end-of-Turn feed asks this of every Force on the map, and because a snapshot is read without the
+    /// per-Player unlock filter: the support forecast can weigh an enemy design's appetite the same way it weighs its own.
+    /// </para>
+    /// </remarks>
+    public int? FoodSupplySetId { get; set; }
+
+    /// <inheritdoc cref="FoodSupplySetId"/>
+    public long? FoodQuantity { get; set; }
+
+    /// <summary>The <c>SupplySet</c> the body burns, and how much of it one Movement Point costs (raw fixed-point, Scale 1,000).</summary>
+    /// <remarks>Compiled alongside Food though nothing spends fuel yet, so adding the mechanism is not another migration.</remarks>
+    public int? FuelSupplySetId { get; set; }
+
+    /// <inheritdoc cref="FuelSupplySetId"/>
+    public long? FuelQuantity { get; set; }
+
+    /// <summary>The <c>SupplySet</c> the body is repaired from, and how much of it one point of damage costs (raw fixed-point, Scale 1,000).</summary>
+    /// <remarks>Compiled alongside Food though nothing draws repair materials yet, for the same reason.</remarks>
+    public int? RepairSupplySetId { get; set; }
+
+    /// <inheritdoc cref="RepairSupplySetId"/>
+    public long? RepairQuantity { get; set; }
+
     public UnitTemplate UnitTemplate { get; set; } = null!;
 
     /// <summary>The resolved organisation tag (see <see cref="OrganisationTagId"/>).</summary>

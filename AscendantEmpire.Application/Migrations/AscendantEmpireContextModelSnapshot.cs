@@ -3559,6 +3559,18 @@ namespace AscendantEmpire.Application.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<long?>("FoodQuantity")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("FoodSupplySetId")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("FuelQuantity")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("FuelSupplySetId")
+                        .HasColumnType("int");
+
                     b.Property<long>("Hitpoints")
                         .HasColumnType("bigint");
 
@@ -3575,6 +3587,12 @@ namespace AscendantEmpire.Application.Migrations
 
                     b.Property<long>("Power")
                         .HasColumnType("bigint");
+
+                    b.Property<long?>("RepairQuantity")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("RepairSupplySetId")
+                        .HasColumnType("int");
 
                     b.Property<long>("TotalDetection")
                         .HasColumnType("bigint");

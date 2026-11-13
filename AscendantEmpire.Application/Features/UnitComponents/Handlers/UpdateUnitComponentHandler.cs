@@ -74,7 +74,7 @@ internal class UpdateUnitComponentHandler(
         Dictionary<string, Asset> assetsByCode = await UnitComponentReconciler.LoadAssetsByCodeAsync(context, ammunitionAssetCodes, cancelToken);
 
         UnitComponentReconciler.ValidateTagReferences(dto, tagsByCode.Keys, errors);
-        UnitComponentReconciler.ValidateSupplyRequirements(dto, supplySetsByCode.Keys, errors);
+        UnitComponentReconciler.ValidateSupplyRequirements(dto, supplySetsByCode, errors);
         UnitComponentReconciler.ValidateWeaponAmmunition(dto, assetsByCode.Keys, errors);
         UnitComponentReconciler.ValidateTypeUnchanged(dto, existing, errors);
         UnitComponentReconciler.ValidateSlots(dto, existing, errors);

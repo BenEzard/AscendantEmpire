@@ -2,6 +2,7 @@ using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.UnitComponents.Services;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
+using AscendantEmpire.Domain.Enums.Assets;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 
 using Microsoft.EntityFrameworkCore;
@@ -40,6 +41,8 @@ internal class CompileUnitTemplateHandler(
             .Include(t => t.BodyComponent).ThenInclude(b => b.Weapon)
             .Include(t => t.BodyComponent).ThenInclude(b => b.Armour)
             .Include(t => t.BodyComponent).ThenInclude(b => b.Tags).ThenInclude(ct => ct.Tag)
+            // Only a Body may carry supply requirements, and the snapshot holds one per supply type so the feed never comes back for them.
+            .Include(t => t.BodyComponent).ThenInclude(b => b.SupplyRequirements).ThenInclude(r => r.SupplySet)
             .Include(t => t.Components).ThenInclude(tc => tc.UnitComponent).ThenInclude(c => c.Weapon)
             .Include(t => t.Components).ThenInclude(tc => tc.UnitComponent).ThenInclude(c => c.Armour)
             .Include(t => t.Components).ThenInclude(tc => tc.UnitComponent).ThenInclude(c => c.Tags).ThenInclude(ct => ct.Tag)
@@ -237,6 +240,12 @@ internal class CompileUnitTemplateHandler(
             .Include(c => c.Capabilities)
             .FirstOrDefaultAsync(c => c.UnitTemplateId == template.Id, cancelToken);
 
+        // A Component carries at most one requirement per supply type, which UnitComponentReconciler enforces on the way in, so each of these is one row
+        // or none. A body with none leaves the pairs null, which is a design that needs no feeding rather than one fed for nothing.
+        UnitComponentSupplyRequirement? foodRequirement = FindSupplyRequirement(template.BodyComponent, SupplyType.Food);
+        UnitComponentSupplyRequirement? fuelRequirement = FindSupplyRequirement(template.BodyComponent, SupplyType.Fuel);
+        UnitComponentSupplyRequirement? repairRequirement = FindSupplyRequirement(template.BodyComponent, SupplyType.Repair);
+
         if (existing is null)
         {
             context.CompiledUnitTemplates.Add(new CompiledUnitTemplate
@@ -260,6 +269,12 @@ internal class CompileUnitTemplateHandler(
                 Attack = attack,
                 Resistance = resistance,
                 CompiledOnTurn = compiledOnTurn,
+                FoodSupplySetId = foodRequirement?.SupplySetId,
+                FoodQuantity = foodRequirement?.Quantity,
+                FuelSupplySetId = fuelRequirement?.SupplySetId,
+                FuelQuantity = fuelRequirement?.Quantity,
+                RepairSupplySetId = repairRequirement?.SupplySetId,
+                RepairQuantity = repairRequirement?.Quantity,
                 Components = components,
                 Capabilities = capabilities,
             });
@@ -284,6 +299,12 @@ internal class CompileUnitTemplateHandler(
             existing.Attack = attack;
             existing.Resistance = resistance;
             existing.CompiledOnTurn = compiledOnTurn;
+            existing.FoodSupplySetId = foodRequirement?.SupplySetId;
+            existing.FoodQuantity = foodRequirement?.Quantity;
+            existing.FuelSupplySetId = fuelRequirement?.SupplySetId;
+            existing.FuelQuantity = fuelRequirement?.Quantity;
+            existing.RepairSupplySetId = repairRequirement?.SupplySetId;
+            existing.RepairQuantity = repairRequirement?.Quantity;
 
             // Replace children wholesale; NoAction FKs => delete the old rows explicitly.
             context.CompiledUnitTemplateComponents.RemoveRange(existing.Components);
@@ -293,6 +314,14 @@ internal class CompileUnitTemplateHandler(
         }
 
         await context.SaveChangesAsync(cancelToken);
+    }
+
+    /// <summary>
+    /// The body's requirement of one supply type, or <see langword="null"/> when it carries none.
+    /// </summary>
+    private static UnitComponentSupplyRequirement? FindSupplyRequirement(UnitComponent bodyComponent, SupplyType supplyType)
+    {
+        return bodyComponent.SupplyRequirements.FirstOrDefault(requirement => requirement.SupplySet.SupplyType == supplyType);
     }
 
     private static void AddProfile(DamageProfile target, DamageProfile source)
