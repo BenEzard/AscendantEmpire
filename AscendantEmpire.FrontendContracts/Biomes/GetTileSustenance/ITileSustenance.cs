@@ -31,6 +31,25 @@ public interface ITileSustenance
     decimal? Fodder { get; }
 
     /// <summary>
+    /// How many individuals everything on the tile feeds for one Turn, or <see langword="null"/> when there is no diet to price it against.
+    /// </summary>
+    /// <remarks>
+    /// Priced against the food supply set the Player's Forces eat from, so a berry patch feeds fewer than the same amount of game would. A Player with no
+    /// Force left that eats gets no figure, there being nothing to measure the tile's food in.
+    /// </remarks>
+    decimal? IndividualsFed { get; }
+
+    /// <summary>
+    /// Whether <see cref="IndividualsFed"/> is fuzzed, which it is as soon as any MapResource patch is part of it. The client marks such a figure with a tilde.
+    /// </summary>
+    bool IsTotalEstimated { get; }
+
+    /// <summary>
+    /// What the total is made of, in the same unit, biome resources first and then the patches standing on the tile.
+    /// </summary>
+    IReadOnlyList<ITileFoodContribution> FoodSources { get; }
+
+    /// <summary>
     /// Whether the tile can feed the Player's Forces standing on it, serialised as the member's name. <c>Exhausted</c> for a stripped tile even with no Forces on it;
     /// otherwise <see langword="null"/> when no Forces are on it, or when the tile is not observed. Turns are forecast with end-of-Round regrowth, for the Forces as they stand.
     /// </summary>

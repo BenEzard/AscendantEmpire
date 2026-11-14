@@ -15,5 +15,11 @@ public class DTTileSustenance : ITileSustenance
 
     public decimal? Fodder { get; set; }
 
+    public decimal? IndividualsFed { get; set; }
+
+    public bool IsTotalEstimated { get; set; }
+
+    public IReadOnlyList<ITileFoodContribution> FoodSources { get; set; } = [];
+
     public TileSupportLevel? SupportLevel { get; set; }
 }

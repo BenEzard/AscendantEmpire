@@ -45,14 +45,14 @@ describe("Tile MapResources", () => {
   it("names the resources under the caller's title", () => {
     const { container } = renderTile([berries()], "(3, 4); Grassland, Flat");
 
-    expect(container.querySelector(".tile")).toHaveAttribute("title", "(3, 4); Grassland, Flat\nMapResources: Berries (1.2k)");
+    expect(container.querySelector(".tile")).toHaveAttribute("title", "(3, 4); Grassland, Flat\nMapResources: Berries (~1.2k)");
   });
 
   /** A no-icon resource is still the player's knowledge, so the title is where it is named. */
   it("names a resource with no icon in the title", () => {
     const { container } = renderTile([berries({ name: "Wood", iconPath: null })], "(3, 4); Forest, Flat");
 
-    expect(container.querySelector(".tile")).toHaveAttribute("title", "(3, 4); Forest, Flat\nMapResources: Wood (1.2k)");
+    expect(container.querySelector(".tile")).toHaveAttribute("title", "(3, 4); Forest, Flat\nMapResources: Wood (~1.2k)");
   });
 
   /** No estimate means no number — a patch the player cannot see the size of is not one that has been stripped bare. */

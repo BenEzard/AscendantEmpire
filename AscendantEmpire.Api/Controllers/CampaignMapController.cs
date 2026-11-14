@@ -139,6 +139,14 @@ public class CampaignMapController : ControllerBase
             Hunt = contract.Hunt,
             Fish = contract.Fish,
             Fodder = contract.Fodder,
+            IndividualsFed = contract.IndividualsFed,
+            IsTotalEstimated = contract.IsTotalEstimated,
+            FoodSources = [.. contract.FoodSources.Select(source => new DTTileFoodContribution
+            {
+                Label = source.Label,
+                IndividualsFed = source.IndividualsFed,
+                IsEstimated = source.IsEstimated
+            })],
             SupportLevel = contract.SupportLevel
         });
     }

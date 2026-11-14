@@ -38,6 +38,26 @@ export function formatCompactAmount(value: number): string {
   return `${Number.isInteger(thousands) ? thousands.toFixed(0) : thousands.toFixed(1)}k`;
 }
 
+/**
+ * The same compact amount, marked as an estimate: "~1.2k".
+ *
+ * Every fuzzed figure the map UI draws goes through here rather than prefixing a tilde at the call site, so the mark cannot
+ * drift between a MapResource's icon, the tile's hover title and the toolbar's food total.
+ */
+export function formatEstimatedAmount(value: number): string {
+  return `~${formatCompactAmount(value)}`;
+}
+
+/**
+ * The same estimate for a screen reader: "about 1.2k".
+ *
+ * A tilde is punctuation a reader either skips or spells out, so what the glyph says to the eye is said in words wherever the
+ * figure is read aloud.
+ */
+export function describeEstimatedAmount(value: number): string {
+  return `about ${formatCompactAmount(value)}`;
+}
+
 export function formatResourceAmount(amount: number): string {
   if (!Number.isFinite(amount)) return "0";
 

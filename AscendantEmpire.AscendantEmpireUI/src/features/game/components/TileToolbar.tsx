@@ -5,7 +5,7 @@ import MapResourceIcon from "@/components/map/MapResourceIcon";
 import type { TileSustenance } from "@/features/map/api/tileSustenanceApi";
 import type { TileMapResourceMarker } from "@/features/map/components/TileTypes";
 import { describeMapResource } from "@/features/map/util/mapResourceMarkers";
-import { formatCompactAmount } from "@/util/number";
+import { describeEstimatedAmount, formatCompactAmount, formatEstimatedAmount } from "@/util/number";
 import { SUPPORT_LEVEL_LABELS, tileSupportLevelClass } from "./tileSupportLevelClass";
 
 export interface TileToolbarTile {
@@ -33,29 +33,20 @@ export interface TileToolbarTile {
   mapResources?: readonly TileMapResourceMarker[];
 }
 
+/** A figure the player reads, tilded when it is fuzzed. */
+function formatAmount(value: number, isEstimated: boolean): string {
+  return isEstimated ? formatEstimatedAmount(value) : formatCompactAmount(value);
+}
+
+/** The same figure said aloud, the tilde being a glyph a screen reader either skips or spells out. */
+function describeAmount(value: number, isEstimated: boolean): string {
+  return isEstimated ? describeEstimatedAmount(value) : formatCompactAmount(value);
+}
+
 export interface TileToolbarProps {
   /** The tile the player last clicked, or null when there is nothing to describe (renders nothing). */
   tile: TileToolbarTile | null;
 }
-
-/** One of the resources that feeds the sustenance total, as the apple's tooltip breaks it back down. */
-interface SustenanceResourceDisplay {
-  key: "forage" | "hunt" | "fish";
-  label: string;
-}
-
-/**
- * Everything the player themselves can eat, in the order the apple's tooltip always lists them, so a resource never shifts position between tiles.
- *
- * The bar shows only the sum of these, under a single apple; this list is what the apple's tooltip breaks that sum back down into. MapResources are not
- * among them: a patch holds a stock the player extracts from, not a rate they feed at, so adding one to the apple's total would add unlike things. They
- * get their own items further along the bar instead.
- */
-const SUSTENANCE_RESOURCES: SustenanceResourceDisplay[] = [
-  { key: "forage", label: "Forage" },
-  { key: "hunt", label: "Hunt" },
-  { key: "fish", label: "Fish" },
-];
 
 /**
  * Describes the tile the player last clicked: its coordinates, its terrain and, when it is in sight, the food it offers them.
@@ -65,14 +56,19 @@ const SUSTENANCE_RESOURCES: SustenanceResourceDisplay[] = [
  * Laid out as lines, most useful first: the terrain ("Grassland, Hills"), then the sustenance, then the MapResources found here, then the coordinates. A
  * line with nothing to show is simply absent, so the bar shrinks rather than leaving a gap.
  *
- * The sustenance line carries at most two figures: the apple, which is everything the player can eat on this tile added together, and fodder, which is kept
- * apart from it because it feeds their animals rather than them. Hovering the apple names the resources behind its total in a plain tooltip, the same kind
- * fodder carries: "Forage (400) + Hunt (12)".
+ * The sustenance line carries at most two figures: the apple, which is how many individuals everything on this tile feeds for a turn, and fodder, which is
+ * kept apart from it because it feeds their animals rather than them. The apple is in individuals rather than amounts because the assets behind it are
+ * priced apart — a thousand berries feed fewer than a thousand of game — so a sum of amounts would add unlike things. Hovering it names the sources behind
+ * the total in the same unit, so the parts add up to the figure: "Forage (400) + Hunt (12) + Berries (~359)".
+ *
+ * A figure drawn from a MapResource estimate is marked with a tilde, the apple's total included as soon as a patch is any part of it. The tilde is for the
+ * eye; a screen reader is told "about" in words instead.
  *
  * The MapResource line carries one item per resource discovered here, in slot order: its icon with this player's estimate beneath it, and its name in place
  * of the icon for a type the biome already says. The estimate is absent whenever the server gave none — the tile is out of sight, or the resource holds its
  * quantity in layers to survey — rather than shown as a 0. Unlike the sustenance above, the line is drawn whether or not the tile is watched: a discovered
- * patch stays on the player's map.
+ * patch stays on the player's map. A patch appears twice over, here and inside the apple's tooltip, saying two different things: how much of it is there,
+ * and how long it would feed the forces standing on it.
  *
  * The background says whether the tile can feed the player's forces standing on it: green for two turns or more, yellow for one, red when it can't feed them
  * all, and dark red when nothing is left — dark red shows even with no forces on the tile. No level, no colour.
@@ -86,17 +82,17 @@ export default function TileToolbar({ tile }: TileToolbarProps) {
 
   const sustenance = tile.sustenance?.isObserved ? tile.sustenance : null;
 
-  // A resource the biome does not have is left out of the breakdown altogether rather than shown as a dash, keeping the tooltip as short as the tile allows.
-  // A 0 is still listed: the resource is there, the tile has just been stripped of it.
-  const presentResources = sustenance == null ? [] : SUSTENANCE_RESOURCES.filter((resource) => sustenance[resource.key] != null);
+  // The server names and orders the sources, and prices each against the same food set, so the parts add up to the total it sends with them.
+  const foodSources = sustenance?.foodSources ?? [];
+  const hasFoodTotal = foodSources.length > 0 && sustenance?.individualsFed != null;
 
-  // Summed raw and formatted once, rather than by adding up the already-formatted parts: three lots of 0.9 are 2 of food between them, not 0.
-  const sustenanceTotal = presentResources.reduce((runningTotal, resource) => runningTotal + sustenance![resource.key]!, 0);
-  const sustenanceAmount = formatCompactAmount(sustenanceTotal);
+  // The server's own sum, not one added up from the parts: a figure rounded three times is not the figure it sends.
+  const sustenanceAmount = hasFoodTotal ? formatAmount(sustenance!.individualsFed!, sustenance!.isTotalEstimated) : "";
+  const sustenanceSpokenAmount = hasFoodTotal ? describeAmount(sustenance!.individualsFed!, sustenance!.isTotalEstimated) : "";
 
-  // What the total is made of, named and added up the way the player would say it: "Forage (400) + Hunt (12)". Serves as the apple's tooltip, and is folded
-  // into the item's label below for screen readers, which cannot hover it.
-  const sustenanceBreakdownLabel = presentResources.map(({ key, label }) => `${label} (${formatCompactAmount(sustenance![key]!)})`).join(" + ");
+  // What the total is made of, named and added up the way the player would say it: "Forage (400) + Berries (~359)". Serves as the apple's tooltip, and is
+  // folded into the item's label below for screen readers, which cannot hover it.
+  const sustenanceBreakdownLabel = foodSources.map((source) => `${source.label} (${formatAmount(source.individualsFed, source.isEstimated)})`).join(" + ");
 
   // Fodder is not food for the player — it feeds their animals — so it keeps its own icon beside the apple rather than folding into the total.
   const fodderAmount = sustenance?.fodder == null ? null : formatCompactAmount(sustenance.fodder);
@@ -114,12 +110,12 @@ export default function TileToolbar({ tile }: TileToolbarProps) {
     <div className={className} aria-label="Tile toolbar" aria-description={supportLevel == null ? undefined : SUPPORT_LEVEL_LABELS[supportLevel]}>
       <span className="tile-toolbar__terrain">{tile.terrainLabel}</span>
       {/* One line for every figure the tile offers, so the resources sit beside the food rather than under it. Absent when the tile offers none. */}
-      {(presentResources.length > 0 || fodderAmount != null || mapResources.length > 0) && (
+      {(hasFoodTotal || fodderAmount != null || mapResources.length > 0) && (
         <span className="tile-toolbar__amounts">
-          {(presentResources.length > 0 || fodderAmount != null) && (
+          {(hasFoodTotal || fodderAmount != null) && (
             <span className="tile-toolbar__sustenance" aria-label="Sustenance available">
-              {presentResources.length > 0 && (
-                <span className="tile-toolbar__sustenance-item" aria-label={`Sustenance ${sustenanceAmount}: ${sustenanceBreakdownLabel}`}>
+              {hasFoodTotal && (
+                <span className="tile-toolbar__sustenance-item" aria-label={`Sustenance ${sustenanceSpokenAmount}: ${sustenanceBreakdownLabel}`}>
                   {/* One tooltip over the icon and its total together, exactly as fodder has: hovering either names the resources the total came from. */}
                   <Tooltip content={sustenanceBreakdownLabel} className="tile-toolbar__sustenance-stack">
                     {/* A bitmap rather than a react-icons glyph, so unlike its neighbour it keeps its own colours instead of taking the bar's text colour. */}
@@ -156,7 +152,7 @@ export default function TileToolbar({ tile }: TileToolbarProps) {
                       )}
                       {/* Absent, never a 0 or a dash: a patch whose size the player cannot make out is not a patch that has been stripped bare. */}
                       {marker.estimatedQuantity != null && (
-                        <span className="tile-toolbar__sustenance-amount">{formatCompactAmount(marker.estimatedQuantity)}</span>
+                        <span className="tile-toolbar__sustenance-amount">{formatEstimatedAmount(marker.estimatedQuantity)}</span>
                       )}
                     </Tooltip>
                   </span>

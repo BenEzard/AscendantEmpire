@@ -60,7 +60,7 @@ not feed. Before they arrive a rival can still feed there; the forecast is refet
 The level is shown in two places:
 
 - **Tile toolbar.** The selected tile's background. The need is the Player's own Forces standing on
-  the tile. It is returned with the tile's sustenance.
+  the tile. It is returned with the tile's sustenance, alongside the figure described below.
 - **Hover marker.** While Forces are selected, a circle at the centre of the hovered tile, holding the
   number of turns: `0` to `5`, or `5+` beyond the forecast. The need is the selected Forces plus the
   Player's own Forces already on the hovered tile, each counted once. No marker is drawn on the
@@ -70,3 +70,27 @@ The level is shown in two places:
 
 Both only disclose tiles in the Player's live sight, like the sustenance values: a level reveals what
 is left on a tile, which changes as anyone feeds on it.
+
+## What the toolbar's figure means
+
+The apple on the tile toolbar is **how many individuals the tile feeds for one Turn** — the same
+rations the level is forecast in, rather than a sum of amounts, because the Assets a tile offers are
+priced apart and adding them would add unlike things. Hovering it breaks the figure into its sources
+in the same unit, so the parts add up: "Forage (400) + Hunt (12) + Berries (~359)".
+
+- It is priced against the food set the Forces **standing on the tile** eat from, and where none
+  stand there, the set the Player's Forces elsewhere eat from. With one Food set seeded these are the
+  same set. A Player with no Force left that eats is shown no figure at all: the tile's food is real,
+  but there is nothing to measure it in.
+- A **MapResource patch counts towards it**, but only one the Player has **discovered**, and then at
+  their own estimate of its size. The feed itself ignores discovery — a Force camped on berries eats
+  them whether or not anyone surveyed them — but a figure that counted an undiscovered patch would
+  tell the Player food is there before they find it.
+- Any number drawn from an estimate carries a **tilde**: the figure under a patch's icon, the patch's
+  part of the breakdown, and the total itself as soon as a patch is any part of it. The Player's own
+  biome values are not estimates and carry none. The tilde is for the eye; a screen reader is told
+  "about" in words.
+
+The level above is worked out from the **true** quantities, so a tile whose patch the Player
+overestimates can be coloured worse than its total reads. That is the estimate showing, which is the
+point of fuzzing it, and not a disagreement to fix.

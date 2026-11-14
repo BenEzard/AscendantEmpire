@@ -90,7 +90,9 @@ nothing. Eating a patch lowers its own `Quantity`, floored at 0; it never touche
 which measures the biome's rate rather than a stock.
 
 A patch is **not** gated on discovery. It is physical food, and a Force camped on it eats whether or
-not the Player has surveyed it.
+not the Player has surveyed it. What the Player is *told* a tile feeds is gated on discovery, and on
+their estimate rather than the true quantity, so the toolbar can read lower than the tile really
+feeds — see [support-indicator.md](support-indicator.md#what-the-toolbars-figure-means).
 
 Nothing grows a patch back. [Growth](#growth), [Spread](#spread) and
 [Exhaustion and survival](#exhaustion-and-survival) are designed but have no end-of-round process, so
@@ -368,6 +370,11 @@ two states depending on whether the Player can see its tile right now:
 
 A Player who finds a berry patch and moves on therefore keeps the patch on their map with no number
 against it, until something of theirs can see the tile again.
+
+Every quantity shown for a MapResource is an estimate, so it is drawn with a **tilde** — `~1.2k`
+under its icon, `Berries (~1.2k)` in a tooltip or the tile's hover title. The tilde is for the eye;
+a screen reader is told "about" in words. The tile toolbar's food total carries one too as soon as a
+patch is part of it — see [support-indicator.md](support-indicator.md#what-the-toolbars-figure-means).
 
 Observation is derived live from the Player's Observers and never stored; discovery is stored, in
 `game.PlayerKnownMapResource`.

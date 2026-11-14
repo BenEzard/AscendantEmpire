@@ -41,10 +41,11 @@ describe("groupMapResourcesByTile", () => {
 });
 
 describe("describeMapResources", () => {
+  /** Each figure is tilded: a quantity shown for a patch is always the player's fuzzed estimate of it, never the true amount. */
   it("names each resource with its estimate", () => {
     const markers = groupMapResourcesByTile([resource(), resource({ slot: 2, displayName: "Copper", estimatedQuantity: 340 })]).get("3,4")!;
 
-    expect(describeMapResources(markers)).toBe("Berries (1.2k), Copper (340)");
+    expect(describeMapResources(markers)).toBe("Berries (~1.2k), Copper (~340)");
   });
 
   /** A patch the player cannot see the size of is not a patch that has been stripped bare, so it is named without a number rather than with a 0. */

@@ -92,6 +92,7 @@ public static class ApplicationStartup
         services.AddScoped<ISustenanceAssetReader, SustenanceAssetReader>();
         services.AddScoped<ISupplySetMembershipReader, SupplySetMembershipReader>();
         services.AddScoped<ITileFoodStockReader, TileFoodStockReader>();
+        services.AddScoped<ITileFoodDisclosureReader, TileFoodDisclosureReader>();
         services.AddScoped<IFoodConsumptionService, FoodConsumptionService>();
 
         services.AddScoped<ICoalitionResolver, SoloCoalitionResolver>();

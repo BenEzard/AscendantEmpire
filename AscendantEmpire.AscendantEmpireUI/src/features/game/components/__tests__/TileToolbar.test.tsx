@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import TileToolbar from "../TileToolbar";
+import type { TileFoodContribution, TileSustenance } from "@/features/map/api/tileSustenanceApi";
 import type { TileMapResourceMarker } from "@/features/map/components/TileTypes";
 
 const berries = (overrides: Partial<TileMapResourceMarker> = {}): TileMapResourceMarker => ({
@@ -9,6 +10,30 @@ const berries = (overrides: Partial<TileMapResourceMarker> = {}): TileMapResourc
   estimatedQuantity: 1250,
   ...overrides,
 });
+
+/** A biome resource, which the player's own values put an exact figure on. */
+const biome = (label: string, individualsFed: number): TileFoodContribution => ({ label, individualsFed, isEstimated: false });
+
+/** A patch, whose figure is always this player's fuzzed estimate of it. */
+const patch = (label: string, individualsFed: number): TileFoodContribution => ({ label, individualsFed, isEstimated: true });
+
+/** An observed tile offering the given sources, with the total the server would have summed from them. */
+const sustenance = (overrides: Partial<TileSustenance> = {}): TileSustenance => {
+  const foodSources = overrides.foodSources ?? [];
+
+  return {
+    isObserved: true,
+    forage: null,
+    hunt: null,
+    fish: null,
+    fodder: null,
+    individualsFed: foodSources.length === 0 ? null : foodSources.reduce((total, source) => total + source.individualsFed, 0),
+    isTotalEstimated: foodSources.some((source) => source.isEstimated),
+    supportLevel: null,
+    ...overrides,
+    foodSources,
+  };
+};
 
 describe("TileToolbar", () => {
   it("renders nothing without a tile", () => {
@@ -27,11 +52,11 @@ describe("TileToolbar", () => {
     expect(toolbar.querySelector(".tile-toolbar__terrain")?.textContent).toBe("Grassland, Hills");
   });
 
-  /** The bar shows two figures, never one per asset: everything the player can eat added up under the apple, and fodder — which feeds animals — beside it. */
-  it("adds the player's own food into one total and keeps fodder beside it", () => {
+  /** The apple is in individuals, not amounts: the assets behind it are priced apart, so a sum of amounts would add unlike things. */
+  it("shows the individuals the tile feeds, rather than a sum of unlike resources", () => {
     render(
       <TileToolbar
-        tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: true, forage: 334.5, hunt: 0, fish: null, fodder: 1250, supportLevel: null } }}
+        tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: sustenance({ foodSources: [biome("Forage", 334.5), biome("Hunt", 0)], fodder: 1250 }) }}
       />,
     );
 
@@ -41,40 +66,97 @@ describe("TileToolbar", () => {
     expect(screen.getByLabelText("Tile toolbar").querySelectorAll(".tile-toolbar__sustenance-amount")).toHaveLength(2);
   });
 
-  /** Fish is food for the player like forage and hunt, so a water tile's total is the apple too rather than an icon of its own. */
-  it("counts fish into the sustenance total", () => {
-    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Ocean, Flat", sustenance: { isObserved: true, forage: null, hunt: null, fish: 120, fodder: null, supportLevel: null } }} />);
-
-    expect(screen.getByLabelText("Sustenance 120: Fish (120)")).toBeInTheDocument();
-  });
-
-  /** Summed before it is formatted, so a tile with several fractional assets isn't reported as having less food than it holds. */
-  it("sums the raw amounts rather than the rounded ones", () => {
-    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: true, forage: 0.9, hunt: 0.9, fish: 0.9, fodder: null, supportLevel: null } }} />);
+  /** The server's own sum, not one added up from the formatted parts: three lots of 0.9 are 2 individuals between them, not 0. */
+  it("shows the total the server sent rather than adding up the rounded parts", () => {
+    render(
+      <TileToolbar
+        tile={{
+          x: 3,
+          y: 4,
+          terrainLabel: "Grassland, Flat",
+          sustenance: sustenance({ foodSources: [biome("Forage", 0.9), biome("Hunt", 0.9), biome("Fish", 0.9)] }),
+        }}
+      />,
+    );
 
     expect(screen.getByLabelText("Sustenance 2: Forage (0) + Hunt (0) + Fish (0)")).toBeInTheDocument();
   });
 
+  /** A patch feeds forces like anything else on the tile, so it belongs in the apple's total and not only in its own item further along the bar. */
+  it("counts a map resource patch into the total and names it in the breakdown", () => {
+    render(
+      <TileToolbar
+        tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: sustenance({ foodSources: [biome("Forage", 400), patch("Berries", 359)] }) }}
+      />,
+    );
+
+    expect(screen.getByLabelText("Sustenance about 759: Forage (400) + Berries (~359)")).toBeInTheDocument();
+  });
+
+  /** The tilde says "this figure is fuzzed". A tile fed only by the player's own values is not, so it must not carry one. */
+  it("tildes the total only when a map resource estimate feeds it", () => {
+    const { rerender } = render(
+      <TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: sustenance({ foodSources: [biome("Forage", 400)] }) }} />,
+    );
+
+    expect(screen.getByLabelText("Tile toolbar").querySelector(".tile-toolbar__sustenance-amount")?.textContent).toBe("400");
+
+    rerender(
+      <TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: sustenance({ foodSources: [biome("Forage", 400), patch("Berries", 359)] }) }} />,
+    );
+
+    expect(screen.getByLabelText("Tile toolbar").querySelector(".tile-toolbar__sustenance-amount")?.textContent).toBe("~759");
+  });
+
+  /** A tilde is punctuation a reader skips or spells out, so what the glyph says to the eye is said in words where the figure is read aloud. */
+  it("names the total in words for a screen reader rather than with a tilde", () => {
+    render(
+      <TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: sustenance({ foodSources: [patch("Berries", 359)] }) }} />,
+    );
+
+    expect(screen.getByLabelText(/^Sustenance about 359/)).toBeInTheDocument();
+  });
+
+  /** A quantity shown for a patch has always been this player's estimate of it, so the figure under its icon is marked like any other estimate. */
+  it("tildes the figure under a map resource icon, which has always been an estimate", () => {
+    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Hills", mapResources: [berries()] }} />);
+
+    expect(screen.getByLabelText("Berries (~1.2k)").querySelector(".tile-toolbar__sustenance-amount")?.textContent).toBe("~1.2k");
+  });
+
   /** Nothing the player can eat means no apple at all, rather than an apple showing 0 — the tile has none of those assets, it isn't stripped of them. */
   it("shows no apple on a tile with only fodder", () => {
-    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Desert, Flat", sustenance: { isObserved: true, forage: null, hunt: null, fish: null, fodder: 40, supportLevel: null } }} />);
+    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Desert, Flat", sustenance: sustenance({ fodder: 40 }) }} />);
 
     expect(screen.getByLabelText("Fodder 40")).toBeInTheDocument();
     expect(screen.queryByLabelText(/^Sustenance \d/)).not.toBeInTheDocument();
   });
 
+  /** With no force of theirs left to feed there is no diet to price the tile against, so the server gives no total and the bar shows no apple. */
+  it("shows no apple when the server gave no total", () => {
+    render(
+      <TileToolbar
+        tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: sustenance({ foodSources: [biome("Forage", 400)], individualsFed: null }) }}
+      />,
+    );
+
+    expect(screen.queryByLabelText(/^Sustenance /)).not.toBeInTheDocument();
+  });
+
   /** Terrain first, then what the player can feed on, then the coordinates — the order a player reasons about a tile in. */
   it("lays the lines out as terrain, sustenance, then coordinates", () => {
-    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: true, forage: 400, hunt: null, fish: null, fodder: null, supportLevel: null } }} />);
+    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: sustenance({ foodSources: [biome("Forage", 400)] }) }} />);
 
     const lineClasses = Array.from(screen.getByLabelText("Tile toolbar").children).map((line) => line.className);
 
     expect(lineClasses).toEqual(["tile-toolbar__terrain", "tile-toolbar__amounts", "tile-toolbar__coordinates"]);
   });
 
-  /** Hovering the apple is the only place the individual amounts are shown, so this pins the sum the tooltip spells out and the order it lists them in. */
-  it("names each asset behind the total in the apple's tooltip when it is hovered", async () => {
-    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: true, forage: 400, hunt: 12, fish: null, fodder: null, supportLevel: null } }} />);
+  /** Hovering the apple is the only place the parts are shown, so this pins the sum the tooltip spells out and the order it lists them in. */
+  it("names each source behind the total in the apple's tooltip when it is hovered", async () => {
+    render(
+      <TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: sustenance({ foodSources: [biome("Forage", 400), biome("Hunt", 12)] }) }} />,
+    );
 
     fireEvent.mouseEnter(screen.getByLabelText("Sustenance 412: Forage (400) + Hunt (12)").querySelector(".tile-toolbar__sustenance-stack")!);
 
@@ -83,7 +165,7 @@ describe("TileToolbar", () => {
 
   /** Fodder has nothing to break down, so it keeps the plain name-and-amount tooltip every asset used to have. */
   it("names fodder and its amount in a tooltip when it is hovered", async () => {
-    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: true, forage: null, hunt: null, fish: null, fodder: 40, supportLevel: null } }} />);
+    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: sustenance({ fodder: 40 }) }} />);
 
     fireEvent.mouseEnter(screen.getByLabelText("Fodder 40").querySelector(".tile-toolbar__sustenance-stack")!);
 
@@ -93,7 +175,7 @@ describe("TileToolbar", () => {
   /** An unwatched tile discloses nothing, so no sustenance group is drawn even if a value somehow arrives with it. */
   it("shows no sustenance for a tile out of sight", () => {
     render(
-      <TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: false, forage: 400, hunt: null, fish: null, fodder: null, supportLevel: null } }} />,
+      <TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: sustenance({ isObserved: false, foodSources: [biome("Forage", 400)] }) }} />,
     );
 
     expect(screen.queryByLabelText("Sustenance available")).not.toBeInTheDocument();
@@ -106,25 +188,21 @@ describe("TileToolbar", () => {
     ["Insufficient", "tile-toolbar--support-insufficient"],
     ["Exhausted", "tile-toolbar--support-exhausted"],
   ] as const)("colours the bar for a %s support level", (supportLevel, expectedClass) => {
-    render(
-      <TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: true, forage: 0, hunt: 0, fish: null, fodder: null, supportLevel } }} />,
-    );
+    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: sustenance({ foodSources: [biome("Forage", 0)], supportLevel }) }} />);
 
     expect(screen.getByLabelText("Tile toolbar")).toHaveClass("tile-toolbar", expectedClass);
   });
 
   /** No forces on a tile with food means no level, and no colour. */
   it("leaves the bar uncoloured with no support level", () => {
-    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: true, forage: 400, hunt: null, fish: null, fodder: null, supportLevel: null } }} />);
+    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: sustenance({ foodSources: [biome("Forage", 400)] }) }} />);
 
     expect(screen.getByLabelText("Tile toolbar").className).toBe("tile-toolbar");
   });
 
   /** An unwatched tile discloses nothing, so a level that somehow arrives with it is not drawn either. */
   it("leaves the bar uncoloured for a tile out of sight", () => {
-    render(
-      <TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: { isObserved: false, forage: null, hunt: null, fish: null, fodder: null, supportLevel: "Exhausted" } }} />,
-    );
+    render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Flat", sustenance: sustenance({ isObserved: false, supportLevel: "Exhausted" }) }} />);
 
     expect(screen.getByLabelText("Tile toolbar").className).toBe("tile-toolbar");
   });
@@ -145,7 +223,7 @@ describe("TileToolbar", () => {
 
     const line = screen.getByLabelText("MapResources found here");
 
-    expect(Array.from(line.children).map((item) => item.getAttribute("aria-label"))).toEqual(["Berries (1.2k)", "Copper (340)"]);
+    expect(Array.from(line.children).map((item) => item.getAttribute("aria-label"))).toEqual(["Berries (~1.2k)", "Copper (~340)"]);
   });
 
   /** An unwatched tile gives no quantity, and the resource is still drawn: the player found it, and it has not stopped existing. */
@@ -174,7 +252,7 @@ describe("TileToolbar", () => {
           x: 3,
           y: 4,
           terrainLabel: "Grassland, Hills",
-          sustenance: { isObserved: false, forage: null, hunt: null, fish: null, fodder: null, supportLevel: null },
+          sustenance: sustenance({ isObserved: false }),
           mapResources: [berries({ estimatedQuantity: null })],
         }}
       />,
@@ -198,7 +276,7 @@ describe("TileToolbar", () => {
           x: 3,
           y: 4,
           terrainLabel: "Grassland, Flat",
-          sustenance: { isObserved: true, forage: 400, hunt: null, fish: null, fodder: null, supportLevel: null },
+          sustenance: sustenance({ foodSources: [biome("Forage", 400)] }),
           mapResources: [berries()],
         }}
       />,
@@ -222,8 +300,8 @@ describe("TileToolbar", () => {
   it("names a MapResource and its estimate in a tooltip when it is hovered", async () => {
     render(<TileToolbar tile={{ x: 3, y: 4, terrainLabel: "Grassland, Hills", mapResources: [berries()] }} />);
 
-    fireEvent.mouseEnter(screen.getByLabelText("Berries (1.2k)").querySelector(".tile-toolbar__sustenance-stack")!);
+    fireEvent.mouseEnter(screen.getByLabelText("Berries (~1.2k)").querySelector(".tile-toolbar__sustenance-stack")!);
 
-    expect(await screen.findByRole("tooltip")).toHaveTextContent("Berries (1.2k)");
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Berries (~1.2k)");
   });
 });

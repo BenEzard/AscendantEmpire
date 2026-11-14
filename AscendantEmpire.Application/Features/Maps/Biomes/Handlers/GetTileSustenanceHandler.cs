@@ -73,6 +73,11 @@ internal class GetTileSustenanceRequestValidator : Validator<GetTileSustenanceRe
 /// The tile's <see cref="TileSustenance.SupportLevel"/> comes from <see cref="ITileSupportEvaluator"/> with no requested Forces, so the need is only the Player's own Forces
 /// already standing on the tile. The hover marker asks the same evaluator about every observed tile at once, through <c>GetTileSupportLevelsHandler</c>.
 /// </para>
+/// <para>
+/// <see cref="TileSustenance.IndividualsFed"/> and its breakdown come from <see cref="ITileFoodDisclosureReader"/>, which prices the same food sources the feed draws on but
+/// counts a MapResource patch only where the Player has discovered it, and then at their estimate rather than its true quantity. The level above is worked out from the
+/// truth, so a flattering estimate can leave the total reading better than the colour says.
+/// </para>
 /// </remarks>
 internal class GetTileSustenanceHandler(
     ILogger<GetTileSustenanceHandler> logger,
@@ -81,7 +86,8 @@ internal class GetTileSustenanceHandler(
     IFieldOfViewService fieldOfViewService,
     IPlayerSustenanceValueReader sustenanceValueReader,
     ITileSupportEvaluator tileSupportEvaluator,
-    ICampaignRiverReader campaignRiverReader
+    ICampaignRiverReader campaignRiverReader,
+    ITileFoodDisclosureReader tileFoodDisclosureReader
 ) : IRequestHandler<GetTileSustenanceRequest, ServiceResult<TileSustenance>>
 {
     public async Task<ServiceResult<TileSustenance>> Handle(GetTileSustenanceRequest request, CancellationToken cancelToken)
@@ -172,9 +178,15 @@ internal class GetTileSustenanceHandler(
             return ServiceResult<TileSustenance>.Fail(supportResult.Errors.Prepend(error));
         }
 
+        // What the tile's food comes to in individuals fed, at the Player's own estimate of any patch on it.
+        TileFoodDisclosure disclosure = await tileFoodDisclosureReader.GetAsync(context, request.GameId, request.PlayerId, seenTile, values, depletion, rivers, cancelToken);
+
         return ServiceResult<TileSustenance>.Succeed(new TileSustenance
         {
             IsObserved = true,
+            IndividualsFed = disclosure.IndividualsFed,
+            IsTotalEstimated = disclosure.IsTotalEstimated,
+            FoodSources = disclosure.Contributions,
             Forage = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Forage, depletion, rivers, isWater),
             Hunt = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Hunt, depletion, rivers, isWater),
             Fish = GetAvailableValue(values, seenTile.BiomeType, SustenanceResource.Fish, depletion, rivers, isWater),
@@ -188,8 +200,8 @@ internal class GetTileSustenanceHandler(
     /// One resource's available amount, presented as a decimal, or <see langword="null"/> when the resource does not exist in the biome.
     /// </summary>
     /// <remarks>
-    /// The tile's rivers are added to the Player's effective value before anything taken is removed, the same order <see cref="TileFoodPool"/> uses, so the toolbar can never
-    /// report an amount the Forces standing there would not find.
+    /// The tile's rivers are added to the Player's effective value before anything taken is removed, the same order <see cref="TileFoodSources"/> uses, so the toolbar can
+    /// never report an amount the Forces standing there would not find.
     /// </remarks>
     private static decimal? GetAvailableValue(
         PlayerSustenanceValues values,

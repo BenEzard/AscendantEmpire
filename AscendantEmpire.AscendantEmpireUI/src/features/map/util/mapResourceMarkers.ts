@@ -1,6 +1,6 @@
 import type { PlayerMapResource } from "@/features/map/api/playerMapResourceApi";
 import type { TileMapResourceMarker } from "@/features/map/components/TileTypes";
-import { formatCompactAmount } from "@/util/number";
+import { formatEstimatedAmount } from "@/util/number";
 
 /**
  * Groups the player's discovered MapResources by the tile they sit on, in slot order.
@@ -44,7 +44,7 @@ export function groupMapResourcesByTile(resources: readonly PlayerMapResource[])
 }
 
 /**
- * Names a tile's MapResources the way the hover title and the toolbar's tooltips both say it: "Berries (1.2k), Copper".
+ * Names a tile's MapResources the way the hover title and the toolbar's tooltips both say it: "Berries (~1.2k), Copper".
  *
  * A resource with no estimate is named alone rather than with a 0 or a dash. There is a real difference between a patch the player cannot see the size of
  * and one that has been stripped bare, and only the second is a number.
@@ -53,7 +53,11 @@ export function describeMapResources(markers: readonly TileMapResourceMarker[]):
   return markers.map((marker) => describeMapResource(marker)).join(", ");
 }
 
-/** One resource named with its estimate, for a tooltip of its own. */
+/**
+ * One resource named with its estimate, for a tooltip of its own.
+ *
+ * Tilded, because a quantity the player is shown for a patch is always their own fuzzed estimate of it and never the true amount.
+ */
 export function describeMapResource(marker: TileMapResourceMarker): string {
-  return marker.estimatedQuantity == null ? marker.name : `${marker.name} (${formatCompactAmount(marker.estimatedQuantity)})`;
+  return marker.estimatedQuantity == null ? marker.name : `${marker.name} (${formatEstimatedAmount(marker.estimatedQuantity)})`;
 }

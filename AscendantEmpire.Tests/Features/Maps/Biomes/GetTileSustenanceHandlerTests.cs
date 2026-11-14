@@ -10,8 +10,10 @@ using AscendantEmpire.BackendContracts.Biomes;
 using AscendantEmpire.BackendContracts.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
+using AscendantEmpire.Domain.Entities.Maps.MapResources;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums;
+using AscendantEmpire.Domain.Enums.MapResources;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Modifiers;
 using AscendantEmpire.Tests.Features.Maps.Shared;
@@ -55,9 +57,9 @@ internal class GetTileSustenanceHandlerTests : InMemoryTestBase
     private GetTileSustenanceHandler _handler = null!;
 
     /// <summary>
-    /// The design every Force here is built on: one ration per individual, so a Force's need is its individuals.
+    /// The catalogue every Force here eats from: one ration per individual, so a Force's need is its individuals.
     /// </summary>
-    private int _unitTemplateId;
+    private FoodDesignSeed.FoodDesign _design = null!;
 
     [SetUp]
     public async Task SetUpHandlerAsync()
@@ -79,7 +81,7 @@ internal class GetTileSustenanceHandlerTests : InMemoryTestBase
 
             await context.SaveChangesAsync();
 
-            _unitTemplateId = (await FoodDesignSeed.SeedAsync(context)).UnitTemplateId;
+            _design = await FoodDesignSeed.SeedAsync(context);
         }
 
         _sightDataReader = Substitute.For<ISightDataReader>();
@@ -103,7 +105,8 @@ internal class GetTileSustenanceHandlerTests : InMemoryTestBase
                 new SupplySetMembershipReader(),
                 new TileFoodStockReader(),
                 new CampaignRiverReader()),
-            new CampaignRiverReader());
+            new CampaignRiverReader(),
+            new TileFoodDisclosureReader(new SustenanceAssetReader(), new SupplySetMembershipReader()));
     }
 
     [Test, Description("A tile in live sight reports the Player's values for its biome, which with no modifiers and nothing taken are the biome's base values.")]
@@ -265,6 +268,124 @@ internal class GetTileSustenanceHandlerTests : InMemoryTestBase
         Assert.That(result.SuccessValue!.SupportLevel, Is.Null);
     }
 
+    #region Food total
+
+    [Test, Description("The total is what the tile feeds for a Turn, so a figure the Player reads answers how long they may stay.")]
+    public async Task ShouldReturnTotalInNeedUnitsAsync()
+    {
+        await AddForceAsync(troops: 10);
+
+        ServiceResult<TileSustenance> result = await HandleAsync(_SEEN_X, _SEEN_Y);
+
+        // 400 Forage and 100 Hunt, each costing one ration apiece.
+        Assert.That(result.SuccessValue!.IndividualsFed, Is.EqualTo(500m));
+    }
+
+    [Test, Description("The breakdown names each source in the same rations as the total, so the parts the Player hovers add up to the figure they see.")]
+    public async Task ShouldBreakTheTotalDownBySourceAsync()
+    {
+        await AddForceAsync(troops: 10);
+
+        ServiceResult<TileSustenance> result = await HandleAsync(_SEEN_X, _SEEN_Y);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.SuccessValue!.FoodSources.Select(source => source.Label), Is.EqualTo(new[] { "Forage", "Hunt" }));
+            Assert.That(result.SuccessValue.FoodSources.Sum(source => source.IndividualsFed), Is.EqualTo(500m));
+        }
+    }
+
+    [Test, Description("A tile fed only by its biome reports an exact total, the Player's own values being no estimate.")]
+    public async Task ShouldNotMarkTotalEstimatedWhenOnlyBiomeFoodAsync()
+    {
+        await AddForceAsync(troops: 10);
+
+        ServiceResult<TileSustenance> result = await HandleAsync(_SEEN_X, _SEEN_Y);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.SuccessValue!.IsTotalEstimated, Is.False);
+            Assert.That(result.SuccessValue.FoodSources.Any(source => source.IsEstimated), Is.False);
+        }
+    }
+
+    [Test, Description("A patch with a known estimate makes the total an estimate, since part of it is fuzzed.")]
+    public async Task ShouldMarkTotalEstimatedWhenAMapResourceContributesAsync()
+    {
+        await AddForceAsync(troops: 10);
+        await AddDiscoveredPatchAsync(quantity: 600, fuzzyFactor: 0m);
+
+        ServiceResult<TileSustenance> result = await HandleAsync(_SEEN_X, _SEEN_Y);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.SuccessValue!.IsTotalEstimated, Is.True);
+
+            // A factor of 0 fuzzes nothing, so the 600 berries are the 600 the patch really holds.
+            Assert.That(result.SuccessValue.IndividualsFed, Is.EqualTo(1_100m));
+            Assert.That(result.SuccessValue.FoodSources.Last().Label, Is.EqualTo("Berries"));
+            Assert.That(result.SuccessValue.FoodSources.Last().IsEstimated, Is.True);
+        }
+    }
+
+    [Test, Description("A patch whose size the Player cannot make out is left out of the total, not counted as nothing.")]
+    public async Task ShouldExcludeMapResourceWithNoEstimateAsync()
+    {
+        await AddForceAsync(troops: 10);
+        await AddDiscoveredPatchAsync(quantity: 600, fuzzyFactor: null);
+
+        ServiceResult<TileSustenance> result = await HandleAsync(_SEEN_X, _SEEN_Y);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.SuccessValue!.IndividualsFed, Is.EqualTo(500m));
+            Assert.That(result.SuccessValue.IsTotalEstimated, Is.False);
+        }
+    }
+
+    [Test, Description("A patch the Player has not discovered is no part of the total, which would otherwise tell them food is there before they find it.")]
+    public async Task ShouldExcludeAnUndiscoveredMapResourceAsync()
+    {
+        await AddForceAsync(troops: 10);
+        await AddDiscoveredPatchAsync(quantity: 600, fuzzyFactor: 0m, isDiscovered: false);
+
+        ServiceResult<TileSustenance> result = await HandleAsync(_SEEN_X, _SEEN_Y);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.SuccessValue!.IndividualsFed, Is.EqualTo(500m));
+            Assert.That(result.SuccessValue.IsTotalEstimated, Is.False);
+        }
+    }
+
+    [Test, Description("With no Force of the Player's left to feed there is no diet to price the tile against, so no total is given rather than a made-up one.")]
+    public async Task ShouldReturnNoTotalWhenThePlayerHasNothingThatEatsAsync()
+    {
+        ServiceResult<TileSustenance> result = await HandleAsync(_SEEN_X, _SEEN_Y);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.SuccessValue!.IndividualsFed, Is.Null);
+            Assert.That(result.SuccessValue.FoodSources, Is.Empty);
+        }
+    }
+
+    [Test, Description("A tile outside live sight gives no total either, since a figure would disclose what is left on it.")]
+    public async Task ShouldReturnNoTotalWhenTheTileIsNotObservedAsync()
+    {
+        await AddForceAsync(troops: 10);
+
+        ServiceResult<TileSustenance> result = await HandleAsync(_SEEN_X + 1, _SEEN_Y);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.SuccessValue!.IndividualsFed, Is.Null);
+            Assert.That(result.SuccessValue.FoodSources, Is.Empty);
+        }
+    }
+
+    #endregion
+
     [Test, Description("A coordinate past the edge of the map names no tile and is a 404, rather than being wrapped onto a tile that is on the map.")]
     public async Task ShouldReturnNotFoundWhenTheTileIsOffTheMapAsync()
     {
@@ -323,13 +444,77 @@ internal class GetTileSustenanceHandlerTests : InMemoryTestBase
             GameId = _GAME_ID,
             PlayerId = _PLAYER_ID,
             CampaignMapTileId = SeenTileId,
-            UnitTemplateId = _unitTemplateId,
+            UnitTemplateId = _design.UnitTemplateId,
             InitialStrength = troops,
             HealthyCount = troops,
             InjuredCount = 0
         });
 
         await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Puts a patch of berries on the seen tile, yielding one Berries Asset per unit of its quantity.
+    /// </summary>
+    /// <param name="fuzzyFactor">How wide the Player's estimate of it may be. A factor of 0 is an estimate that happens to be exact; null is no estimate at all.</param>
+    /// <param name="isDiscovered">Whether the Player has found it. An undiscovered patch is on the tile but not on their map.</param>
+    private async Task AddDiscoveredPatchAsync(long quantity, decimal? fuzzyFactor, bool isDiscovered = true)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        var category = new MapResourceCategory { Code = "food", DisplayName = "Food" };
+        context.MapResourceCategories.Add(category);
+
+        await context.SaveChangesAsync();
+
+        var type = new MapResourceType
+        {
+            Code = "berries",
+            DisplayName = "Berries",
+            MapResourceCategoryId = category.Id,
+            ExtractionMethod = ExtractionMethod.Gather,
+            DiscoveryLikelihood = 1.0m
+        };
+
+        context.MapResourceTypes.Add(type);
+
+        await context.SaveChangesAsync();
+
+        context.MapResourceTypeYields.Add(new MapResourceTypeYield
+        {
+            MapResourceTypeId = type.Id,
+            AssetId = _design.AssetIdsByCode[FoodDesignSeed.BERRIES_ASSET_CODE],
+            AmountPerUnit = ScaledAmount.FromWhole(1).RawValue,
+            IsEnabledByDefault = true
+        });
+
+        var instance = new MapResourceInstance
+        {
+            GameId = _GAME_ID,
+            CampaignMapId = SeenTileId,
+            MapResourceTypeId = type.Id,
+            Slot = MapResourceInstance.MIN_SLOT,
+            Quantity = ScaledAmount.FromWhole(quantity).RawValue,
+            EstimationFuzzyFactor = fuzzyFactor,
+            CreatedOnRound = 1
+        };
+
+        context.MapResourceInstances.Add(instance);
+
+        await context.SaveChangesAsync();
+
+        if (isDiscovered)
+        {
+            context.PlayerKnownMapResources.Add(new PlayerKnownMapResource
+            {
+                GameId = _GAME_ID,
+                PlayerId = _PLAYER_ID,
+                MapResourceInstanceId = instance.Id,
+                DiscoveredOnRound = 1
+            });
+
+            await context.SaveChangesAsync();
+        }
     }
 
     /// <summary>

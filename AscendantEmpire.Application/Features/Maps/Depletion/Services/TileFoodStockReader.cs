@@ -1,7 +1,6 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Maps.Depletion.Classes;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
-using AscendantEmpire.Domain.Enums.MapResources;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -50,7 +49,7 @@ internal sealed class TileFoodStockReader : ITileFoodStockReader
             return new Dictionary<int, IReadOnlyCollection<TileMapResourceStock>>();
         }
 
-        IReadOnlyDictionary<(int TypeId, int AssetId), bool> switchesByYield = await ReadYieldSwitchesAsync(context, gameId, playerId, cancelToken);
+        IReadOnlyDictionary<(int TypeId, int AssetId), bool> switchesByYield = await MapResourceYieldSwitches.ReadAsync(context, gameId, playerId, cancelToken);
 
         return rows
             .GroupBy(row => row.CampaignMapId)
@@ -80,27 +79,5 @@ internal sealed class TileFoodStockReader : ITileFoodStockReader
         }
 
         return ScaledAmount.FromRaw((long)((Int128)quantity.Value * amountPerUnit / ScaledAmount.Scale));
-    }
-
-    /// <summary>
-    /// What the Player's switches say about each yield they hold a row for, an off beating an on as <c>PlayerMapResourceSwitch</c> resolves them.
-    /// </summary>
-    private static async Task<IReadOnlyDictionary<(int TypeId, int AssetId), bool>> ReadYieldSwitchesAsync(
-        AscendantEmpireContext context,
-        int gameId,
-        int playerId,
-        CancellationToken cancelToken)
-    {
-        var switches = await context.PlayerMapResourceSwitches
-            .Where(playerSwitch => playerSwitch.GameId == gameId)
-            .Where(playerSwitch => playerSwitch.PlayerId == playerId)
-            .Where(playerSwitch => playerSwitch.Kind == MapResourceSwitchKind.YieldAsset)
-            .Where(playerSwitch => playerSwitch.AssetId != null)
-            .Select(playerSwitch => new { playerSwitch.MapResourceTypeId, playerSwitch.AssetId, playerSwitch.IsEnabled })
-            .ToListAsync(cancelToken);
-
-        return switches
-            .GroupBy(playerSwitch => (playerSwitch.MapResourceTypeId, AssetId: playerSwitch.AssetId!.Value))
-            .ToDictionary(group => group.Key, group => group.All(playerSwitch => playerSwitch.IsEnabled));
     }
 }
