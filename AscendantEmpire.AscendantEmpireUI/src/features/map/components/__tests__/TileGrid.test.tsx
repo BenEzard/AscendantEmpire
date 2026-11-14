@@ -113,6 +113,22 @@ describe("TileGrid re-rendering", () => {
     expect(latestClick).toHaveBeenCalledWith(TILES_2D[0][1]);
   });
 
+  /** The double-click handler is built on the same selection-dependent state the click handler is, so replacing it must not reach the tiles either. */
+  it("re-renders no tiles when the double-click handler is replaced, and a double click still reaches the newest handler", () => {
+    const firstDoubleClick = vi.fn();
+    const { container, update } = renderGrid({ onTileDoubleClick: firstDoubleClick });
+
+    const latestDoubleClick = vi.fn();
+    update({ onTileDoubleClick: latestDoubleClick });
+
+    expect(renderedTiles()).toEqual([]);
+
+    fireEvent.doubleClick(container.querySelectorAll(".tile")[1]);
+
+    expect(firstDoubleClick).not.toHaveBeenCalled();
+    expect(latestDoubleClick).toHaveBeenCalledWith(TILES_2D[0][1]);
+  });
+
   /** Clicking an empty tile resets the selection to a new empty array, and so a new set, even though nothing about the selection changed. */
   it("re-renders no tiles when the selection set is replaced with one holding the same forces", () => {
     const { update } = renderGrid({ selectedForceIds: new Set([10]) });

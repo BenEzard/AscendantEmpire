@@ -15,6 +15,8 @@ import MilitaryAdvisorDialog from "@/features/game/advisors/military/MilitaryAdv
 import ScienceAdvisorDialog from "@/features/game/advisors/science/ScienceAdvisorDialog";
 import BattleDialog from "./BattleDialog";
 import CreateSettlementDialog from "./CreateSettlementDialog";
+import SettlementManagerDialog from "./SettlementManagerDialog";
+import { ownedSettlementOnTile } from "./ownedSettlementOnTile";
 import SplitForceDialog from "./splitForce/SplitForceDialog";
 import { describeFounding } from "@/features/game/hooks/useSettleForce";
 import { describeSplit } from "@/features/game/hooks/useSplitForce";
@@ -84,6 +86,10 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
   // coordinates rather than the clicked cell, so the bar reads the live cell off the grid and stays correct when the tile
   // is explored (and its terrain revealed) while the bar is up.
   const [inspectedTileCoords, setInspectedTileCoords] = useState<{ x: number; y: number } | null>(null);
+
+  // The settlement the manager dialog is open on, held as its name because that is what identifies one — names are unique in the
+  // world. Null closes the dialog.
+  const [managedSettlementName, setManagedSettlementName] = useState<string | null>(null);
 
   const toolbarRef = useRef<HTMLDivElement | null>(null);
   const tileGridContainerRef = useRef<HTMLDivElement | null>(null);
@@ -476,6 +482,26 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     [visionActiveTool, setSelectedTile, sendVisionRequest, selectForceFromTile],
   );
 
+  // --- Tile double click: open the player's own settlement standing there ---
+  // Gated on live sight for the same reason the tile only draws a structure while it is watched: the tiles cache keeps whatever
+  // was last seen, so without this a remembered settlement on fogged ground would open a dialog over nothing the player can see.
+  // Anything else — bare ground, a rival's city — does nothing at all, and the double click is simply the two clicks it is made of.
+  const onTileDoubleClick = useCallback(
+    (t: TileCell) => {
+      if (!isTileObserved(t)) {
+        return;
+      }
+
+      const settlement = ownedSettlementOnTile(t, playerId);
+      if (settlement != null) {
+        setManagedSettlementName(settlement.settlementName);
+      }
+    },
+    [isTileObserved, playerId],
+  );
+
+  const closeSettlementManager = useCallback(() => setManagedSettlementName(null), []);
+
   // --- Toolbar wiring ---
   const openOpenGame = useCallback(() => setActiveDialog("openGame"), [setActiveDialog]);
   const toggleUnitDesign = useCallback(() => setActivePanel((p) => (p === "unit-design" ? null : "unit-design")), []);
@@ -496,6 +522,8 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
       setEndTurnArmed(false);
       // Coordinates from one game mean nothing in the next, whose map may not even be the same size.
       setInspectedTileCoords(null);
+      // Nor does a settlement from the game just closed.
+      setManagedSettlementName(null);
     }
   }, [gameSelection]);
 
@@ -687,6 +715,10 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
           onFounded={(result) => openToast(describeFounding(result), "success")}
         />
 
+        {/* Opened by double-clicking a tile one of the player's own settlements stands on. A shell: its pages are placeholders
+            until there is a settlement endpoint to fill them from. */}
+        <SettlementManagerDialog show={managedSettlementName != null} settlementName={managedSettlementName} onClose={closeSettlementManager} />
+
         {/* Opened from the Split Force button on the context action toolbar. Only ever offered for a single-force selection,
             so the force's map image comes from selectedForces[0] — one dialog carves one force into groups. */}
         <SplitForceDialog
@@ -771,6 +803,7 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
                       currentRoundNumber={currentRoundNumber}
                       structureCodeByStructureId={structureCodeByStructureId}
                       onTileClick={onTileClick}
+                      onTileDoubleClick={onTileDoubleClick}
                       onTileHold={onTileHold}
                       onTileHover={onTileHover}
                       getTileBackground={getTileBackground}

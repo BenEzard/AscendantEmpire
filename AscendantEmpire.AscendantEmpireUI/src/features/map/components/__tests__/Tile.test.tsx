@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 import type { Geography } from "@/types/map/Geography";
 import Tile from "../Tile";
 import type { TileCell, TileMapResourceMarker } from "../TileTypes";
@@ -74,5 +74,29 @@ describe("Tile MapResources", () => {
     const { container } = renderTile(undefined, "(3, 4); Grassland, Flat");
 
     expect(container.querySelector(".tile")).toHaveAttribute("title", "(3, 4); Grassland, Flat");
+  });
+});
+
+describe("Tile double click", () => {
+  it("reports the tile that was double clicked", () => {
+    const onDoubleClick = vi.fn();
+    const { container } = render(<Tile tile={TILE} sizePx={50} geography={GEOGRAPHY} onDoubleClick={onDoubleClick} />);
+
+    fireEvent.doubleClick(container.querySelector(".tile")!);
+
+    expect(onDoubleClick).toHaveBeenCalledWith(TILE);
+  });
+
+  /** A browser sends both clicks of a double click as well, and the first of them must still do its ordinary work — selecting the force standing there. */
+  it("still reports the single clicks a double click is made of", () => {
+    const onClick = vi.fn();
+    const { container } = render(<Tile tile={TILE} sizePx={50} geography={GEOGRAPHY} onClick={onClick} onDoubleClick={vi.fn()} />);
+
+    const element = container.querySelector(".tile")!;
+    fireEvent.click(element);
+    fireEvent.click(element);
+    fireEvent.doubleClick(element);
+
+    expect(onClick).toHaveBeenCalledTimes(2);
   });
 });

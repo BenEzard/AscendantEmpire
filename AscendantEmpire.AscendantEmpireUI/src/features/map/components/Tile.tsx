@@ -56,6 +56,11 @@ export interface TileProps {
    */
   mapResources?: readonly TileMapResourceMarker[];
   onClick?: (tile: TileCell) => void;
+  /**
+   * Called when the tile is double clicked. Both clicks still reach `onClick` first, as they do in a browser, so this is for
+   * what the tile opens rather than what it selects.
+   */
+  onDoubleClick?: (tile: TileCell) => void;
   onHold?: (tile: TileCell) => void;
   /** Called with the tile when the pointer enters it. Should keep one identity, like `onClick`, or every tile re-renders when it changes. */
   onHover?: (tile: TileCell) => void;
@@ -94,6 +99,7 @@ const Tile = React.memo(function Tile({
   structureCodeByStructureId,
   mapResources,
   onClick,
+  onDoubleClick,
   onHold,
   onHover,
   className,
@@ -217,6 +223,9 @@ const Tile = React.memo(function Tile({
         }
 
         onClick?.(tile);
+      }}
+      onDoubleClick={() => {
+        onDoubleClick?.(tile);
       }}
       style={style}>
       {Icon ? <Icon className="tile-icon-fill" aria-hidden style={{ color: iconColor }} /> : null}

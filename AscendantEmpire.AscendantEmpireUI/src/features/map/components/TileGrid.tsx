@@ -59,6 +59,11 @@ export interface TileGridProps {
   structureCodeByStructureId?: ReadonlyMap<number, string>;
   /** Called with the clicked tile. Its identity may change freely: the grid hands every tile one stable handler that forwards to the latest one. */
   onTileClick?: (tile: TileCell) => void;
+  /**
+   * Called with the double-clicked tile. The same stability guarantee as `onTileClick` applies, and both clicks still reach
+   * `onTileClick` first — a double click opens what the tile holds rather than replacing what a click does.
+   */
+  onTileDoubleClick?: (tile: TileCell) => void;
   /** Called when a tile is held. The same stability guarantee as `onTileClick` applies. */
   onTileHold?: (tile: TileCell) => void;
   /**
@@ -104,6 +109,7 @@ const TileGrid = React.memo(function TileGrid({
   currentRoundNumber,
   structureCodeByStructureId,
   onTileClick,
+  onTileDoubleClick,
   onTileHold,
   onTileHover,
   children,
@@ -117,10 +123,14 @@ const TileGrid = React.memo(function TileGrid({
   const onTileClickRef = React.useRef(onTileClick);
   onTileClickRef.current = onTileClick;
 
+  const onTileDoubleClickRef = React.useRef(onTileDoubleClick);
+  onTileDoubleClickRef.current = onTileDoubleClick;
+
   const onTileHoldRef = React.useRef(onTileHold);
   onTileHoldRef.current = onTileHold;
 
   const handleTileClick = React.useCallback((tile: TileCell) => onTileClickRef.current?.(tile), []);
+  const handleTileDoubleClick = React.useCallback((tile: TileCell) => onTileDoubleClickRef.current?.(tile), []);
   const handleTileHold = React.useCallback((tile: TileCell) => onTileHoldRef.current?.(tile), []);
 
   const onTileHoverRef = React.useRef(onTileHover);
@@ -132,6 +142,7 @@ const TileGrid = React.memo(function TileGrid({
   // Whether a handler is supplied at all still reaches the tiles, since it changes how they behave: a tile with no click handler isn't drawn as a button,
   // and one with no hold handler never starts the hold timer. That only changes when a handler appears or disappears, not when it is replaced.
   const tileClickHandler = onTileClick ? handleTileClick : undefined;
+  const tileDoubleClickHandler = onTileDoubleClick ? handleTileDoubleClick : undefined;
   const tileHoldHandler = onTileHold ? handleTileHold : undefined;
   const tileHoverHandler = onTileHover ? handleTileHover : undefined;
 
@@ -198,6 +209,7 @@ const TileGrid = React.memo(function TileGrid({
                 currentRoundNumber={currentRoundNumber}
                 structureCodeByStructureId={structureCodeByStructureId}
                 onClick={tileClickHandler}
+                onDoubleClick={tileDoubleClickHandler}
                 onHold={tileHoldHandler}
                 onHover={tileHoverHandler}
                 title={getTileTitle?.(t)}
