@@ -10,6 +10,7 @@ using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums.Maps;
+using AscendantEmpire.Tests.Features.Maps.Shared;
 
 using static AscendantEmpire.Application.Common.ServiceResultBase;
 
@@ -38,6 +39,11 @@ internal class TileSupportEvaluatorTests : InMemoryTestBase
     private const int _OTHER_GRASSLAND_TILE_ID = 102;
     private const int _OCEAN_TILE_ID = 103;
     private const int _WOODLAND_TILE_ID = 104;
+
+    /// <summary>
+    /// The design every Force here is built on: one ration per individual, so a Force's need is its individuals.
+    /// </summary>
+    private int _unitTemplateId;
 
     /// <summary>
     /// A one-row map whose world ids are the tile ids: <c>X + 100</c>, matching the <c>tileId % 10</c> the seen tiles are built with.
@@ -94,9 +100,17 @@ internal class TileSupportEvaluatorTests : InMemoryTestBase
                 });
 
             await context.SaveChangesAsync();
+
+            _unitTemplateId = (await FoodDesignSeed.SeedAsync(context)).UnitTemplateId;
         }
 
-        _evaluator = new TileSupportEvaluator(new PlayerSustenanceValueReader(), new BiomeRegenerationValueReader(), new CampaignRiverReader());
+        _evaluator = new TileSupportEvaluator(
+            new PlayerSustenanceValueReader(),
+            new BiomeRegenerationValueReader(),
+            new SustenanceAssetReader(),
+            new SupplySetMembershipReader(),
+            new TileFoodStockReader(),
+            new CampaignRiverReader());
     }
 
     [Test, Description("The Player's own Forces on a tile are summed into one need: 250 + 100 troops against 600 food is one Turn, where either alone would be two.")]
@@ -326,7 +340,7 @@ internal class TileSupportEvaluatorTests : InMemoryTestBase
             PlayerId = playerId,
             CampaignMapTileId = tileId,
             BattleMapTileId = battleMapTileId,
-            UnitTemplateId = 1,
+            UnitTemplateId = _unitTemplateId,
             InitialStrength = Math.Max(troops + injured, 1),
             HealthyCount = troops,
             InjuredCount = injured

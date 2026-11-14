@@ -70,9 +70,32 @@ behave. Its kinds are set by flags:
 
 > Extraction itself is out of scope here, apart from the rules above and the Distribution rules
 > below. In a Player's controlled area it is done by improvements
-> (or from a nearby camp or Settlement, e.g. berries, without an improvement on the tile). In
-> unowned or enemy land, a Force feeds from a food MapResource such as a berry patch: it is the
-> `[Additional Assets]` term in the total-asset formula in [tiles.md](tiles.md).
+> (or from a nearby camp or Settlement, e.g. berries, without an improvement on the tile).
+
+## Feeding from a patch
+
+In unowned or enemy land a Force feeds from a food MapResource standing on the tile it ends its turn
+on — it is the `[Additional Assets]` term in the total-asset formula in [tiles.md](tiles.md). This is
+the one thing that consumes a MapResource today.
+
+A patch is food when its Asset is a member of the food **supply set** the Force's body requires, and
+it is drawn on alongside the tile's own Forage, Hunt and Fish. What it is worth is its Asset amount
+(its quantity times the yield's amount per unit) divided by what that set prices the Asset at, so a
+patch of berries at 1.67 feeds fewer individuals than the same amount of game would. See
+[depletion.md](depletion.md) for the feed and [food-yield.md](food-yield.md) for the pricing.
+
+An instance holding its amount in child rows — a Distribution or a stratified type — is skipped
+rather than read as a patch stripped bare, and a yield the Player has not switched on contributes
+nothing. Eating a patch lowers its own `Quantity`, floored at 0; it never touches the tile's `Taken`,
+which measures the biome's rate rather than a stock.
+
+A patch is **not** gated on discovery. It is physical food, and a Force camped on it eats whether or
+not the Player has surveyed it.
+
+Nothing grows a patch back. [Growth](#growth), [Spread](#spread) and
+[Exhaustion and survival](#exhaustion-and-survival) are designed but have no end-of-round process, so
+a patch eaten from today is a stock that only ever falls — which is how the
+[support indicator](support-indicator.md) forecasts it.
 
 ## Placement on tiles
 
@@ -387,6 +410,9 @@ this order:
 
 As with modifiers, losing a source just deletes its rows.
 
+The yield switches are read by [feeding](#feeding-from-a-patch): a Player whose switches leave a
+patch's Asset off gets nothing from it, so it is not food for their Forces.
+
 ## Randomness
 
 Every roll — spread, spread direction, survival, capture, discovery, initial quantity, `SpreadLimit`,
@@ -653,4 +679,4 @@ has nothing to improve. No research item is generated for a type found on sight.
 | A Distribution instance's total is not stored. `MapResourceInstance.Quantity` is null and the total is summed from `MapResourceInstanceAmount` wherever it is needed, including growth. | [Instances](#instances) |
 | Importing a map creates its tiles but none of the placements their Biomes imply, so an imported Forest map starts with no Timber until a tile is repainted. Generation and the editor's Biome brush both pre-assign it; import has no equivalent pass, and the export document carries no placements to restore either. | `MapImportExecutor` |
 | A habitat naming no Geography can still land on a tile of the wrong water-ness. A tile is water when either its Biome or its Geography is, so a land type whose habitat names a land Biome and Any Geography covers a water Geography painted inside that Biome. The catalogue rule cannot close it: the habitat names nothing wrong. It belongs where an instance is placed, which is also where the Biome-implied placement rules already read the tile. | `BiomeImpliedResourceRules` |
-| Only Timber is seeded. The seed's **Map Resources** target writes every resource registered in `MapResourceTypeSeedData`, and Timber — its habitats and its 45 generated scenarios — is the only one so far; Berry, Deer, Coal Seam and the rest are still authored by hand in the MapResource Type Manager. Adding one is a seed-data file plus a line of that registry. | `MapResourceTypeSeedData` |
+| Only Timber and Berries are seeded. The seed's **Map Resources** target writes every resource registered in `MapResourceTypeSeedData`; Deer, Coal Seam and the rest are still authored by hand in the MapResource Type Manager. Adding one is a seed-data file plus a line of that registry. | `MapResourceTypeSeedData` |

@@ -52,6 +52,10 @@ public class TurnPipelineExecutionOrderTests
         new Gathering(
             Substitute.For<IDbContextFactory<AscendantEmpireContext>>(),
             Substitute.For<IPlayerSustenanceValueReader>(),
+            Substitute.For<ISustenanceAssetReader>(),
+            Substitute.For<ISupplySetMembershipReader>(),
+            Substitute.For<ITileFoodStockReader>(),
+            Substitute.For<IFoodConsumptionService>(),
             Substitute.For<IUnderfedForceResolver>(),
             Substitute.For<ISightDataReader>(),
             Substitute.For<ICampaignRiverReader>(),

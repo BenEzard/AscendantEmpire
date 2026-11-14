@@ -13,6 +13,7 @@ using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums;
 using AscendantEmpire.Domain.Enums.Maps;
+using AscendantEmpire.Tests.Features.Maps.Shared;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -51,6 +52,11 @@ internal class GetTileSupportLevelsHandlerTests : InMemoryTestBase
     private IFieldOfViewService _fieldOfViewService = null!;
     private GetTileSupportLevelsHandler _handler = null!;
 
+    /// <summary>
+    /// The design every Force here is built on: one ration per individual, so a Force's need is its individuals.
+    /// </summary>
+    private static int _unitTemplateId;
+
     [SetUp]
     public async Task SetUpHandlerAsync()
     {
@@ -68,6 +74,10 @@ internal class GetTileSupportLevelsHandlerTests : InMemoryTestBase
                 BaseFishValue = null,
                 BaseFodderValue = null
             });
+
+            await context.SaveChangesAsync();
+
+            _unitTemplateId = (await FoodDesignSeed.SeedAsync(context)).UnitTemplateId;
 
             context.UnitInstances.AddRange(
                 BuildForce(_FORCE_ID, _PLAYER_ID, TileId(_FORCE_X, _Y), troops: 300),
@@ -93,7 +103,13 @@ internal class GetTileSupportLevelsHandlerTests : InMemoryTestBase
             DbFactory,
             _sightDataReader,
             _fieldOfViewService,
-            new TileSupportEvaluator(new PlayerSustenanceValueReader(), new BiomeRegenerationValueReader(), new CampaignRiverReader()));
+            new TileSupportEvaluator(
+                new PlayerSustenanceValueReader(),
+                new BiomeRegenerationValueReader(),
+                new SustenanceAssetReader(),
+                new SupplySetMembershipReader(),
+                new TileFoodStockReader(),
+                new CampaignRiverReader()));
     }
 
     [Test, Description("Every observed tile gets one entry for the selected Force: 300 troops against 500 food is one Turn, and a stripped tile is exhausted.")]
@@ -229,7 +245,7 @@ internal class GetTileSupportLevelsHandlerTests : InMemoryTestBase
             GameId = _GAME_ID,
             PlayerId = playerId,
             CampaignMapTileId = tileId,
-            UnitTemplateId = 1,
+            UnitTemplateId = _unitTemplateId,
             InitialStrength = troops,
             HealthyCount = troops,
             InjuredCount = 0

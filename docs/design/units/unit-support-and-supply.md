@@ -122,6 +122,11 @@ friendly territory.
 - A unit consumes food from the tile in which it **ends** its turn. If that tile doesn't produce
   enough on its own, the excess must come via a supply chain. Tile food replenishes at a set rate;
   if a unit consumes more than remains, it must move or starve.
+- What a tile offers is its biome's own Forage, Hunt and Fish — each of which is an Asset — together
+  with any MapResource patch standing on it. Whichever of them the required set holds is food, each at
+  the set's own price, so a berry patch feeds fewer individuals than the same amount of game would.
+  See [campaign-map/food-yield.md](../campaign-map/food-yield.md) and
+  [campaign-map/depletion.md](../campaign-map/depletion.md).
 
 **Food algorithm (per turn):**
 

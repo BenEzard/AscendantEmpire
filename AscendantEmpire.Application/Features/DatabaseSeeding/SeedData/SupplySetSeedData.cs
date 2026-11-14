@@ -37,9 +37,9 @@ internal static class SupplySetSeedData
     public const long DEFAULT_AMOUNT_PER_UNIT = 1_000;
 
     /// <summary>
-    /// What one troop's food costs in Berries. They are thin rations, which is the rate <c>docs/design/campaign-map/food-yield.md</c> fixes.
+    /// What one individual's food costs in Berries. They are thin rations, which is the rate <c>docs/design/campaign-map/food-yield.md</c> fixes.
     /// </summary>
-    private const long _BERRIES_PER_TROOP = 1_670;
+    private const long _BERRIES_PER_INDIVIDUAL = 1_670;
 
     private const string _FODDER = "RawMaterials.RawMaterials.Fodder";
     private const string _WILD_HERBS = "Foodstuffs.SpecialFoods.WildHerbs";
@@ -64,8 +64,9 @@ internal static class SupplySetSeedData
                     Member("Foodstuffs.Meat.Shellfish"),
                     Member("Foodstuffs.Meat.Insects"),
 
+                    Member("Foodstuffs.PlantFoods.Forage"),
                     Member("Foodstuffs.PlantFoods.Fruit"),
-                    Member("Foodstuffs.PlantFoods.Berries", _BERRIES_PER_TROOP),
+                    Member("Foodstuffs.PlantFoods.Berries", _BERRIES_PER_INDIVIDUAL),
                     Member("Foodstuffs.PlantFoods.Roots"),
                     Member("Foodstuffs.PlantFoods.Tubers"),
                     Member("Foodstuffs.PlantFoods.Greens"),

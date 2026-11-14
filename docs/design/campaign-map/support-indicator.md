@@ -3,16 +3,24 @@
 Part of the [Campaign Map](README.md) design.
 
 A tile's **support** says how many turns it can feed a set of Forces from the food available to the
-Player: the pool of Forage and Hunt on land (Fish as well on a riverbank), or Fish on water, less
-what has been taken — the same pool `Gathering` feeds from (`TileFoodPool`). The need is 1 food per
-troop, healthy and injured, counting only Forces that feed (troops left, not in a Battle).
+Player: Forage and Hunt on land (Fish as well on a riverbank) or Fish on water, less what has been
+taken, together with any MapResource patch standing on it — the same sources `Gathering` feeds from
+(`TileFoodSources`). The need is each Force's individuals, healthy and injured alike, times the
+quantity its design's body states, counting only Forces that feed (individuals left, not in a Battle,
+and a design that states a food need).
 
-The turns are **forecast** one turn at a time (`TileSupportForecaster`), on a copy of the tile's
-depletion, with the same rules the turn pipeline uses:
+Everything is measured in **rations** rather than amounts, because the Assets a tile offers are priced
+apart: a berry patch holding a thousand feeds fewer than a thousand of game would. Where the Forces on
+a tile eat from different food sets — which no seeded design does, there being one — the tile is
+forecast against the set the largest part of the need belongs to.
 
-1. The Forces feed: the need is split across the pool as `Gathering` splits it. A turn only counts
-   when the pool covers the whole need.
-2. The round ends: the tile regrows as in [Replenishment](replenishment.md), as fed on.
+The turns are **forecast** one turn at a time (`TileSupportForecaster`), on copies of the tile's
+depletion row and its patches, with the same rules the turn pipeline uses:
+
+1. The Forces feed: the need is split across the sources as `Gathering` splits it. A turn only counts
+   when they cover the whole need.
+2. The round ends: the biome regrows as in [Replenishment](replenishment.md), as fed on. A patch does
+   not — MapResource growth is not modelled, so a patch eaten is a patch gone.
 
 A Player's feed always comes before the round's regrowth, so this order holds whatever the turn
 order. The forecast stops after **5 turns**; a tile that still feeds the Forces after that lasts
@@ -21,14 +29,15 @@ Regeneration Percent does not regrow, so its turns are plain available ÷ need.
 
 | Level | Rule | Colour |
 | --- | --- | --- |
-| Exhausted | Nothing available at all now. Shown even with no Forces on the tile. | Dark red |
+| Exhausted | Nothing available at all now, from the biome or from a patch. Shown even with no Forces on the tile. | Dark red |
 | *(none)* | Food available but no need. | No colour |
 | Plenty | Feeds the Forces for 2 turns or more. | Green |
 | OneTurn | Feeds them for 1 turn. | Yellow |
 | Insufficient | Some food, but not enough for a whole turn. | Red |
 
 The rules are checked in that order. A stripped tile is Exhausted even though it will regrow: the
-Forces on it go hungry this turn.
+Forces on it go hungry this turn. A tile whose biome is stripped but which still carries a full patch
+is not Exhausted — the Forces on it eat perfectly well.
 
 The forecast answers **how long these Forces can stay**. It holds their size, the Player's modifiers
 and the biome fixed, and assumes nobody else feeds on the tile. That holds while the Forces stand on

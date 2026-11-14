@@ -19,6 +19,47 @@ So there are three separate questions, and this document covers the first:
 2. **How much is left** — base and modifiers, less what anyone has taken ([depletion.md](depletion.md)).
 3. **How fast it returns** — Regeneration Percent, once per round ([replenishment.md](replenishment.md)).
 
+## What the four resources are
+
+Each of the four is an **Asset**, so what a Force eats off the land is the same kind of thing as what
+it would carry, trade or bank:
+
+| Resource | Asset |
+| --- | --- |
+| Forage | `Foodstuffs.PlantFoods.Forage` |
+| Hunt | `Foodstuffs.Meat.Game` |
+| Fish | `Foodstuffs.Meat.Fish` |
+| Fodder | `RawMaterials.RawMaterials.Fodder` |
+
+The mapping is the same on every tile in every game — a biome's Hunt is game meat wherever it is
+hunted — so it is held in code rather than on the biome. What differs by tile is how much there is,
+which is what the biome's values and the depletion row already say.
+
+Forage is its own Asset because it cannot borrow one. Every other plant food is, or will be, a
+MapResource placed on particular tiles: a tile does not grow berries unless a patch of them stands on
+it, while Forage is the generic "what can be gathered here" that every biome offers. For that reason
+**Forage must never become a MapResourceType** — a patch of it would be counted twice over.
+
+Fodder is mapped for completeness and nothing eats it: `mount-fodder` is a `Fuel` supply set spent per
+movement point, not a food.
+
+Naming the resources as Assets is what lets a Force eat a berry patch standing on the tile in the same
+breath as the tile's own Forage, and what will let a Force strip surplus food into its asset bank. What
+decides whether any of it is edible is membership of the food **supply set** the Force's body requires
+— see [units/unit-support-and-supply.md](../units/unit-support-and-supply.md).
+
+### Rations, not amounts
+
+A supply set prices each of its Assets: how much of it one individual costs for a Turn. Berries are
+thin rations at 1.67 where most foodstuffs cost 1.0. So a thousand berries and a thousand of game are
+not the same amount of food, and the two figures worth telling apart are:
+
+- **What is there**, an amount of an Asset — what the tile loses when it is eaten.
+- **What it feeds**, in **rations** (individuals fed for one Turn) — amount ÷ price.
+
+A need is always split across a tile's sources by what each one *feeds*, never by how much of it there
+is, or a thin ration would be drawn on as heavily as a rich one.
+
 ## Regeneration and farming bonuses
 
 Regeneration speed depends on climate: the biome's Regeneration Percent, the same for all renewable food sources on the tile. Only an owner's Settlement-scoped modifiers raise it (see [Replenishment](replenishment.md)). Terrain improvements and equipment add yield:
@@ -105,8 +146,9 @@ Remaining Energy (of population after collecting food) = People after growth × 
 # 2. Technical detail
 
 Of the yield mechanics above, the parts with code today are the **biome's base values**, its
-**Regeneration Percent**, the **per-Player modifiers** that turn a base into an effective value, and
-the **river bonus** that a tile's own edges add on top. Terrain improvements, equipment chains,
+**Regeneration Percent**, the **per-Player modifiers** that turn a base into an effective value, the
+**river bonus** that a tile's own edges add on top, and the **Assets** the four resources are, which
+turn a yield into something a particular design can eat. Terrain improvements, equipment chains,
 productivity rates, tile bonuses and the population formula have no schema, code or seed data yet —
 see [Not yet implemented](#not-yet-implemented).
 
@@ -128,7 +170,7 @@ Regeneration Percent is the exception: a plain `decimal(18,3)` fraction, so `0.2
 | --- | --- | --- |
 | `BiomeTypeId` | `int`, PK (`BiomeType` enum) | The biome. |
 | `Name` | `nvarchar(50)` | Display name. |
-| `IsWater` | `bit` | Decides which resources are in a tile's food pool: Fish on water, Forage and Hunt on land — and Fish too, on a land tile with a river. |
+| `IsWater` | `bit` | Decides which resources a tile offers: Fish on water, Forage and Hunt on land — and Fish too, on a land tile with a river. |
 | `BaseForageValue` | `bigint`, nullable | Base Forage yield. Null means the biome does not have the resource at all, which no modifier can change. |
 | `BaseHuntValue` | `bigint`, nullable | Base Hunt yield. Null as above. |
 | `BaseFishValue` | `bigint`, nullable | Base Fish yield. Null as above. |
@@ -178,6 +220,10 @@ widened to `bigint` and rescaled to thousandths by `20260613204637_ScaleBiomeBas
 | [RiverSustenanceBonus.cs](../../../AscendantEmpire.Application/Features/Maps/Biomes/Services/RiverSustenanceBonus.cs) | What a land tile's river edges add on top: +20% Forage, Hunt and Fodder per edge, and +15 or +30 flat Fish by width. Holds the three amounts as constants, and is the one place a null Fish becomes a number. Pure. |
 | [ICampaignRiverReader.cs](../../../AscendantEmpire.Application/Features/Maps/CampaignMaps/Services/ICampaignRiverReader.cs) | Reads a tile's four river edges off the world map, in one query however many tiles are asked about. Shared with the map read. |
 | [BiomeRegenerationValueReader.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/BiomeRegenerationValueReader.cs) | Reads each biome's bases and Regeneration Percent, for the end-of-round regrowth and the support forecast. |
+| [SustenanceResourceAssets.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/SustenanceResourceAssets.cs) | The four Asset codes above, and why Forage must never become a MapResourceType. |
+| [SustenanceAssetReader.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/SustenanceAssetReader.cs) | Resolves those codes to Asset ids. |
+| [SupplySetMembershipReader.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/SupplySetMembershipReader.cs) | What one unit of a supply set's need costs in each of its Assets — the prices a tile's food is valued at. |
+| [FoodSource.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Classes/FoodSource.cs) · [FoodSourceKey.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Classes/FoodSourceKey.cs) | One thing on a tile that can be eaten: what it is, how much of its Asset is there, and what that Asset costs a ration. |
 | [ScaledAmount.cs](../../../AscendantEmpire.Application/Helpers/ScaledNumerics/ScaledAmount.cs) · [ScaledPercent.cs](../../../AscendantEmpire.Application/Helpers/ScaledNumerics/ScaledPercent.cs) · [ScaledResourceValue.cs](../../../AscendantEmpire.Application/Helpers/ScaledNumerics/ScaledResourceValue.cs) | Integer arithmetic in thousandths, and the conversion between a whole number as a user types it and the scaled value stored. |
 
 ### Domain

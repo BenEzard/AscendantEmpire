@@ -19,14 +19,21 @@ using Microsoft.Extensions.Logging;
 namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndTurn;
 
 /// <summary>
-/// Feeds each of the Player's Forces from the campaign map tile it ends the Turn on, adding what they eat to the tile's Player-neutral <c>Taken</c> amounts.
+/// Feeds each of the Player's Forces from the campaign map tile it ends the Turn on, spending what they eat off the tile's biome and off any patch standing
+/// on it.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 1 troop needs 1 food. What is available of each resource to this Player is <c>MAX(0, effective − Taken)</c>, with the effective values read live through
-/// <see cref="IPlayerSustenanceValueReader"/>.
-/// The need is split across the pool by <see cref="FoodExtractionCalculator"/>, and any shortfall is spread across the tile's Forces by <see cref="ShortfallAllocator"/>
-/// and handed to <see cref="IUnderfedForceResolver"/>. See "What a tile stores: the amount taken" in <c>docs/design/campaign-map/depletion.md</c>.
+/// What a Force needs comes from its design: the body's food <c>SupplySet</c> and the quantity of it one individual costs, compiled onto the template. What
+/// the tile offers is everything whose Asset that set holds - its biome's own Forage, Hunt and Fish, and the MapResource patches on it - with each Asset
+/// priced by the set, so a tile of berries feeds fewer individuals than a tile of game. The sources are built by <see cref="TileFoodSources"/>, split by
+/// <see cref="FoodExtractionCalculator"/> and spent by <see cref="IFoodConsumptionService"/>; any shortfall is spread across the tile's Forces by
+/// <see cref="ShortfallAllocator"/> and handed to <see cref="IUnderfedForceResolver"/>. See "What a tile stores: the amount taken" in
+/// <c>docs/design/campaign-map/depletion.md</c>.
+/// </para>
+/// <para>
+/// Forces on one tile are fed by food set, cheapest set id first. They share a tile rather than a ration, so a group feeding after another sees what the
+/// first one took. Today only one Food set is seeded, so the grouping only ever has one group in it.
 /// </para>
 /// <para>
 /// A tile fed on is marked with <see cref="CampaignMapDepletion.FedOnRound"/> whether or not there was anything left to take: the marker records presence, not food.
@@ -42,6 +49,10 @@ namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campa
 internal class Gathering(
     IDbContextFactory<AscendantEmpireContext> dbFactory,
     IPlayerSustenanceValueReader sustenanceValueReader,
+    ISustenanceAssetReader sustenanceAssetReader,
+    ISupplySetMembershipReader supplySetMembershipReader,
+    ITileFoodStockReader tileFoodStockReader,
+    IFoodConsumptionService foodConsumptionService,
     IUnderfedForceResolver underfedForceResolver,
     ISightDataReader sightDataReader,
     ICampaignRiverReader campaignRiverReader,
@@ -56,7 +67,7 @@ internal class Gathering(
         // TODO: Passing through a tile should draw 20% of a Force's need from it, and mark it fed on (FedOnRound) as well. The tiles passed through in the Turn
         //       are in units.MovementHistory; the draw needs its own ordering rules against the end-of-Turn feed.
         // TODO: UNIT_HARVEST_CAP - a maximum a Force can harvest from a tile regardless of availability (and pillaging to exceed it). See docs/design/campaign-map/depletion.md.
-        // TODO: Food needs should come from each Force's unit design rather than 1 troop = 1 food, and mounted units should need Fodder as well.
+        // TODO: A mounted body burns a Fuel set (fodder) per movement point, which nothing spends yet. Its food need is already compiled and fed here.
         // TODO: Force gathering bonuses (a forager attached to a Command) should reduce what a Force draws from the tile.
         // TODO: A hostile Force on a Settlement's tile takes the tile's food and the Settlement gets none. Waits on Settlements being modelled.
         // TODO: A hidden Force feeding here raises the tile's shared Taken, which lowers what every watching Player sees (toolbar values, support level, Turns forecast) and so
@@ -80,7 +91,8 @@ internal class Gathering(
 
         await using AscendantEmpireContext db = await dbFactory.CreateDbContextAsync();
 
-        // Scalars only: nothing here needs the Force entity, and materialising it would drag the compiled template along for no reason.
+        // Scalars only: nothing here needs the Force entity, and materialising it would drag the compiled template along for no reason. The appetite comes
+        // off that template, which is projected through rather than loaded.
         //
         // Wiped-out Forces have no one to feed. Forces on a Battle Map are fighting rather than foraging, and are the only way two sides can share a tile.
         var forces = await db.UnitInstances
@@ -88,24 +100,37 @@ internal class Gathering(
             .Where(u => u.PlayerId == playerId)
             .Where(u => u.HealthyCount + u.InjuredCount > 0)
             .Where(u => u.BattleMapTileId == null)
-            .Select(u => new { u.Id, u.CampaignMapTileId, Troops = u.HealthyCount + u.InjuredCount })
+            .Select(u => new
+            {
+                u.Id,
+                u.CampaignMapTileId,
+                Individuals = (long)(u.HealthyCount + u.InjuredCount),
+                FoodSupplySetId = u.UnitTemplate.Compiled!.FoodSupplySetId,
+                FoodQuantity = u.UnitTemplate.Compiled!.FoodQuantity
+            })
             .ToListAsync();
 
-        if (forces.Count == 0)
+        // A design that states no food need eats nothing, which is not the same as eating nothing because the tile is bare.
+        var feedingForces = forces
+            .Where(f => f.FoodSupplySetId is not null && f.FoodQuantity is > 0)
+            .Select(f => new FeedingForce(f.Id, f.CampaignMapTileId, f.FoodSupplySetId!.Value, ScaledAmount.FromRaw(f.Individuals * f.FoodQuantity!.Value)))
+            .ToList();
+
+        if (feedingForces.Count == 0)
         {
             return string.Empty;
         }
 
-        int[] tileIds = [.. forces.Select(f => f.CampaignMapTileId).Distinct()];
+        int[] tileIds = [.. feedingForces.Select(f => f.CampaignMapTileId).Distinct()];
 
-        // What the pool on each tile is made of depends on whether it is water, which the biome and geography decide between them. The coordinates come back too, because
+        // What the tile offers depends on whether it is water, which the biome and geography decide between them. The coordinates come back too, because
         // the rivers that enrich a tile are keyed by them rather than by the tile's id.
         var tiles = await db.CampaignMaps
             .Where(t => tileIds.Contains(t.CampaignMapId))
             .Select(t => new { t.CampaignMapId, t.XCoord, t.YCoord, t.BiomeTypeId, BiomeIsWater = t.Biome.IsWater, GeographyIsWater = t.Geography.IsWater })
             .ToDictionaryAsync(t => t.CampaignMapId);
 
-        // The rivers on the tiles being fed from, in one call. A river raises a bank's Hunt and puts Fish on it, so it is part of the pool the Forces eat from.
+        // The rivers on the tiles being fed from, in one call. A river raises a bank's Hunt and puts Fish on it, so it is part of what the Forces eat from.
         IReadOnlyDictionary<Coord, TileRivers> riversByCoord = await ReadRiversAsync(db, context.GameId, tiles.Values.Select(t => new Coord(t.XCoord, t.YCoord)).ToList());
 
         // Tracked, because these rows are about to be written. A tile never fed on has no row yet, and is given one below.
@@ -116,11 +141,25 @@ internal class Gathering(
         // Read through this context, so the values are the Player's as of this pipeline run.
         PlayerSustenanceValues values = await sustenanceValueReader.GetValuesAsync(db, playerId);
 
+        // The three lookups the sources are built from, each read once for the whole feed.
+        IReadOnlyDictionary<SustenanceResource, int> sustenanceAssetIds = await sustenanceAssetReader.GetAssetIdsAsync(db);
+
+        IReadOnlyDictionary<int, IReadOnlyDictionary<int, long>> membershipsBySetId = await supplySetMembershipReader.GetAmountsPerUnitAsync(
+            db,
+            [.. feedingForces.Select(f => f.FoodSupplySetId).Distinct()]);
+
+        IReadOnlyDictionary<int, IReadOnlyCollection<TileMapResourceStock>> stocksByTileId = await tileFoodStockReader.GetStocksAsync(
+            db,
+            context.GameId,
+            playerId,
+            tileIds);
+
         var results = new List<ForceFeedingResult>();
+        var consumptions = new List<TileFoodConsumption>();
         ScaledAmount totalFed = ScaledAmount.Zero;
         ScaledAmount totalShortfall = ScaledAmount.Zero;
 
-        foreach (var forcesOnTile in forces.GroupBy(f => f.CampaignMapTileId).OrderBy(g => g.Key))
+        foreach (var forcesOnTile in feedingForces.GroupBy(f => f.CampaignMapTileId).OrderBy(g => g.Key))
         {
             int tileId = forcesOnTile.Key;
 
@@ -143,45 +182,58 @@ internal class Gathering(
                 depletionByTileId.Add(tileId, depletion);
             }
 
-            // 1 troop needs 1 food.
-            Dictionary<int, long> troopsByForceId = forcesOnTile.ToDictionary(f => f.Id, f => (long)f.Troops);
-            ScaledAmount need = ScaledAmount.FromWhole(troopsByForceId.Values.Sum());
+            // What the tile's patches hold, drawn down as each food set's group eats from them.
+            IReadOnlyCollection<TileMapResourceStock> stocks = stocksByTileId.GetValueOrDefault(tileId, []);
+            var takenOnTile = new Dictionary<FoodSourceKey, ScaledAmount>();
 
-            // The pool: what is available of each resource this tile offers, to this Player. Built by TileFoodPool, which the support indicator shares, so the colour a
-            // tile is shown in always comes from the same pool the Forces eat from here.
-            Dictionary<SustenanceResource, ScaledAmount> available = TileFoodPool.GetAvailable(
-                CampaignTileTerrain.IsWater(tile.BiomeIsWater, tile.GeographyIsWater),
-                values,
-                tile.BiomeTypeId,
-                depletion,
-                riversByCoord.GetValueOrDefault(new Coord(tile.XCoord, tile.YCoord)));
-
-            FoodExtraction extraction = FoodExtractionCalculator.Extract(need, available);
-
-            foreach ((SustenanceResource resource, ScaledAmount taken) in extraction.Taken)
+            foreach (var group in forcesOnTile.GroupBy(f => f.FoodSupplySetId).OrderBy(g => g.Key))
             {
-                DepletionTaken.AddTaken(depletion, resource, taken);
+                IReadOnlyDictionary<int, long> amountPerUnitByAssetId = membershipsBySetId.GetValueOrDefault(group.Key, new Dictionary<int, long>());
+
+                IReadOnlyCollection<FoodSource> sources = TileFoodSources.GetAvailable(
+                    CampaignTileTerrain.IsWater(tile.BiomeIsWater, tile.GeographyIsWater),
+                    values,
+                    tile.BiomeTypeId,
+                    depletion,
+                    sustenanceAssetIds,
+                    amountPerUnitByAssetId,
+                    RemainingStocks(stocks, takenOnTile),
+                    riversByCoord.GetValueOrDefault(new Coord(tile.XCoord, tile.YCoord)));
+
+                Dictionary<int, long> needByForceId = group.ToDictionary(f => f.UnitInstanceId, f => f.Need.RawValue);
+                ScaledAmount need = group.Aggregate(ScaledAmount.Zero, (sum, force) => sum + force.Need);
+
+                FoodExtraction extraction = FoodExtractionCalculator.Extract(need, sources);
+
+                foreach ((FoodSourceKey key, ScaledAmount taken) in extraction.Taken)
+                {
+                    takenOnTile[key] = takenOnTile.GetValueOrDefault(key) + taken;
+                }
+
+                // A tile's shortfall falls on its Forces in proportion to what each of them needed, which is their individuals where their designs agree.
+                Dictionary<int, ScaledAmount> shortfallByForceId = ShortfallAllocator.Allocate(extraction.Shortfall, needByForceId);
+
+                foreach (FeedingForce force in group.OrderBy(f => f.UnitInstanceId))
+                {
+                    ScaledAmount forceShortfall = shortfallByForceId[force.UnitInstanceId];
+
+                    results.Add(new ForceFeedingResult(force.UnitInstanceId, tileId, force.Need, force.Need - forceShortfall, forceShortfall));
+                }
+
+                totalFed += extraction.NeedMet;
+                totalShortfall += extraction.Shortfall;
             }
 
             // Set whether or not anything was taken: the marker records that Forces were here.
             depletion.FedOnRound = context.CurrentRoundNumber;
 
-            Dictionary<int, ScaledAmount> shortfallByForceId = ShortfallAllocator.Allocate(extraction.Shortfall, troopsByForceId);
-
-            foreach ((int forceId, long troops) in troopsByForceId.OrderBy(entry => entry.Key))
-            {
-                ScaledAmount forceNeed = ScaledAmount.FromWhole(troops);
-                ScaledAmount forceShortfall = shortfallByForceId[forceId];
-
-                results.Add(new ForceFeedingResult(forceId, tileId, forceNeed, forceNeed - forceShortfall, forceShortfall));
-            }
-
-            totalFed += extraction.TotalTaken;
-            totalShortfall += extraction.Shortfall;
+            consumptions.Add(new TileFoodConsumption(depletion, takenOnTile));
         }
 
-        // Before saving, so whatever the consequences of going hungry write lands in the same save as the depletion. The Round is part of how each Force's
-        // casualty roll is derived, and the Turn is what a destroyed Force's history row is stamped with.
+        // Spent before saving, so the tile's loss and the consequences of going hungry land in the same save.
+        await foodConsumptionService.ConsumeAsync(db, context.GameId, consumptions);
+
+        // The Round is part of how each Force's casualty roll is derived, and the Turn is what a destroyed Force's history row is stamped with.
         await underfedForceResolver.ResolveAsync(
             db,
             gameId: context.GameId,
@@ -193,7 +245,7 @@ internal class Gathering(
         await db.SaveChangesAsync();
 
         logger.LogInformation(
-            "Fed {ForceCount} Force(s) belonging to Player Id {PlayerId} in Game Id {GameId}, Round {RoundNumber}, across {TileCount} tile(s): {TotalFed} food taken, {TotalShortfall} short.",
+            "Fed {ForceCount} Force(s) belonging to Player Id {PlayerId} in Game Id {GameId}, Round {RoundNumber}, across {TileCount} tile(s): {TotalFed} ration(s) eaten, {TotalShortfall} short.",
             results.Count,
             playerId,
             context.GameId,
@@ -203,6 +255,35 @@ internal class Gathering(
             totalShortfall.ToDecimal());
 
         return string.Empty;
+    }
+
+    /// <summary>
+    /// What each patch on the tile has left after the groups that have already eaten.
+    /// </summary>
+    private static IReadOnlyCollection<TileMapResourceStock> RemainingStocks(
+        IReadOnlyCollection<TileMapResourceStock> stocks,
+        IReadOnlyDictionary<FoodSourceKey, ScaledAmount> takenOnTile)
+    {
+        if (takenOnTile.Count == 0)
+        {
+            return stocks;
+        }
+
+        return
+        [
+            .. stocks.Select(stock =>
+            {
+                if (stock.Available is null)
+                {
+                    return stock;
+                }
+
+                var key = new FoodSourceKey(FoodSourceType.MapResource, Resource: null, stock.MapResourceInstanceId, stock.AssetId);
+                ScaledAmount taken = takenOnTile.GetValueOrDefault(key);
+
+                return stock with { Available = stock.Available.Value > taken ? stock.Available.Value - taken : ScaledAmount.Zero };
+            })
+        ];
     }
 
     /// <summary>
@@ -225,4 +306,9 @@ internal class Gathering(
 
         return await campaignRiverReader.GetTileRiversAsync(db, gameId, coords, geometry);
     }
+
+    /// <summary>
+    /// One Force about to eat: where it stands, what set it eats from, and how many rations it needs this Turn.
+    /// </summary>
+    private sealed record FeedingForce(int UnitInstanceId, int CampaignMapTileId, int FoodSupplySetId, ScaledAmount Need);
 }

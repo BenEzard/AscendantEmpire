@@ -26,6 +26,11 @@ namespace AscendantEmpire.Tests.Features.DatabaseSeeding;
 internal class MapResourceTypeSeedDataTests
 {
     /// <summary>
+    /// The Asset standing for whatever a Biome itself offers to a forager, which no placed resource may yield.
+    /// </summary>
+    private const string _FORAGE = "Foodstuffs.PlantFoods.Forage";
+
+    /// <summary>
     /// Stand-in Asset ids, one per code the seed names between all of its resources.
     /// </summary>
     private readonly Dictionary<string, int> _assetIdsByCode = MapResourceTypeSeedData.AssetCodes
@@ -181,6 +186,12 @@ internal class MapResourceTypeSeedDataTests
                 Assert.That(seededAssetCodes.Contains(code, StringComparer.OrdinalIgnoreCase), Is.True, $"The Asset seed creates no Asset with code '{code}'.");
             }
         });
+    }
+
+    [Test, Description("No seeded resource names Forage, which is the Biome's own food and would be eaten twice over by a patch of it sitting on the tile.")]
+    public void ShouldNeverNameTheForageAsset()
+    {
+        Assert.That(MapResourceTypeSeedData.AssetCodes, Has.None.EqualTo(_FORAGE).IgnoreCase);
     }
 
     /// <summary>

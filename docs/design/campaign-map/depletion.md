@@ -76,13 +76,14 @@ onto an untouched grassland tile. The tile's `Taken` is `0` for every resource, 
 | --- | --- | --- | --- | --- |
 | Available to Empire A | 400 | 200 | 0 | 1000 |
 
-At end of turn, the unit needs 100 food (100 men). On land the pool is Forage and Hunt — and Fish too
-where a river runs along one of the tile's edges, see [food-yield.md](food-yield.md#rivers); on water
-it is Fish alone. Fodder is for animals and is not eaten by men. The pool available is `400 + 200 = 600`,
-and the need is split in proportion to what each resource has, so `2/3 × 100 = 66.667` is taken from
-Forage and `1/3 × 100 = 33.333` from Hunt. The split is in thousandths, with any thousandth left over
-by rounding going to the resource whose share lost the most, so the amounts taken always sum exactly
-to the need:
+At end of turn, the unit needs 100 rations — 100 individuals, one ration each, as its design's body
+states. On land the tile's own sources are Forage and Hunt — and Fish too where a river runs along one
+of the tile's edges, see [food-yield.md](food-yield.md#rivers); on water it is Fish alone. Fodder is
+for animals and is not eaten by men. Both Assets cost 1.0 a ration in this unit's food set, so the
+tile feeds `400 + 200 = 600`, and the need is split in proportion to what each source feeds: `2/3 × 100
+= 66.667` is taken from Forage and `1/3 × 100 = 33.333` from Hunt. The split is in thousandths, with
+any thousandth left over by rounding going to the source whose share lost the most, so the amounts
+taken always sum exactly to the need:
 
 | | Forage | Hunt | Fish | Fodder |
 | --- | --- | --- | --- | --- |
@@ -90,7 +91,12 @@ to the need:
 | Available to Empire A | 333.333 | 166.667 | 0 | 1000 |
 | Available to a Player on base values (Hunt 100) | 333.333 | 66.667 | 0 | 1000 |
 
-Had the pool held less than 100, the unit would take everything available and go short by the rest.
+Had the tile fed fewer than 100, the unit would take everything and go short by the rest.
+
+Had a berry patch been standing on the tile, it would have been a source alongside the biome's two,
+because Berries is in the same food set. It would have been priced as that set prices it — 1.67 a
+ration, berries being thin — so a patch holding 334 berries would feed 200 and bear a quarter of the
+need, and the quarter it bore would come off its own quantity rather than off the tile's `Taken`.
 
 ## Depletion rules
 
@@ -125,11 +131,30 @@ with a forager worth 10 needs only 90 food from the tile.
 - Add each Force's extraction to the tile's `Taken`, and mark the tile as fed on this round.
 
 Today this is the end-of-turn `Gathering` process. It feeds the Player's Forces that are not in a
-Battle (so only one side ever feeds from a tile), at 1 troop = 1 food, from the tile each ends its
-turn on. The Forces on a tile feed from one pool, and a shortfall is spread across them in proportion
-to their troops. Each Force's need, food and shortfall is handed to `IUnderfedForceResolver`, the seam
-for the consequences of going hungry, which kills and wounds troops in proportion to the shortfall
-— see [Food](../units/unit-support-and-supply.md#food).
+Battle (so only one side ever feeds from a tile) from the tile each ends its turn on. A Force's need
+is its individuals — healthy and injured alike — times the quantity its design's body states, compiled
+onto its template; a design that states none eats nothing. The Forces on a tile are fed by food set,
+and a shortfall is spread across them in proportion to what each needed. Each Force's need, food and
+shortfall is handed to `IUnderfedForceResolver`, the seam for the consequences of going hungry, which
+kills and wounds individuals in proportion to the shortfall — see
+[Food](../units/unit-support-and-supply.md#food).
+
+## What a deduction writes
+
+A tile holds its food in two quite different ways, and what is eaten is charged to whichever one it
+came out of:
+
+| Source | What it is | What eating it writes |
+| --- | --- | --- |
+| The biome | A rate that regrows each round | Adds to the matching `*Taken` column on `CampaignMapDepletion` |
+| A MapResource patch | A stock that does not grow back | Lowers `MapResourceInstance.Quantity`, floored at 0 |
+
+`FoodConsumptionService` is the one place either write happens. It does not save: the turn pipeline is
+not transactional, so a save of its own would let a tile be charged for a feed whose casualties then
+failed to write.
+
+An amount eaten off a patch is an amount of an **Asset**, while a patch's quantity is in its own
+units, so the amount is divided back by the type's yield rate before the quantity comes down.
 
 At the end of the **round** (after every Player's turn), the `RegenerateTileSustenance` process
 replenishes each depleted tile as described in [Replenishment](replenishment.md).
@@ -155,11 +180,14 @@ step. Percentages use `ScaledPercent.Scale` (1,000 = 100%).
 | Schema | Table | Purpose |
 | --- | --- | --- |
 | `game` | `CampaignMapDepletion` | The feature's own state: what has been taken from a tile, by anyone, and the last round it was fed on. |
-| `game` | `CampaignMap` | The Player-neutral tile. Read for its biome and geography, which decide what is in the tile's food pool. |
+| `game` | `CampaignMap` | The Player-neutral tile. Read for its biome and geography, which decide which resources it offers. |
 | `game` | `PlayerCampaignMap` | The Player's view of the tile. What a Player is told about a tile joins through here. |
 | `game` | `PlayerSustenanceModifier` | The modifiers that make one Player's effective value differ from another's on the same biome. |
 | `map` | `CampaignBiomes` | The biome catalogue: each biome's base sustenance values and its Regeneration Percent. |
-| `units` | `UnitInstances` | The Forces. Read for who is on which tile and how many troops need feeding; written when starvation costs troops. |
+| `units` | `UnitInstances` | The Forces. Read for who is on which tile and how many individuals need feeding; written when starvation costs them. |
+| `unitdesigns` | `CompiledUnitTemplate` | Read for each Force's food supply set and the quantity of it one individual needs — see [unit-support-and-supply.md](../units/unit-support-and-supply.md). |
+| `assets` | `SupplySetAsset` | Read for what one ration costs in each Asset of a food set, which is what decides whether a thing on a tile is edible and how far it goes. |
+| `game` | `MapResourceInstance` | The patches standing on a tile. Read for what they hold; written when Forces eat one. |
 
 ### `game.CampaignMapDepletion`
 
@@ -189,10 +217,10 @@ are read and written by tile id, never walked as an entity graph.
 
 | Table | Columns used | Read for |
 | --- | --- | --- |
-| `game.CampaignMap` | `CampaignMapId`, `GameId`, `XCoord`, `YCoord`, `BiomeTypeId`, `CampaignMapGeographyTypeId` | The tile's biome (which base values apply) and whether it is water (which resources are in its pool). |
+| `game.CampaignMap` | `CampaignMapId`, `GameId`, `XCoord`, `YCoord`, `BiomeTypeId`, `CampaignMapGeographyTypeId` | The tile's biome (which base values apply) and whether it is water (which resources it offers). |
 | `map.CampaignBiomes` | `BiomeTypeId`, `IsWater`, `BaseForageValue`, `BaseHuntValue`, `BaseFishValue`, `BaseFodderValue`, `RegenerationPercent` | The base values a Player's modifiers are applied to, and the share that regrows each round. A null base means the resource does not exist in the biome. |
 | `game.PlayerSustenanceModifier` | `PlayerId`, `Resource`, `BiomeTypeId` (null = every biome), `FlatValue`, `PercentValue` | Summing a Player's modifiers into their effective value. |
-| `units.UnitInstances` | `Id`, `GameId`, `PlayerId`, `CampaignMapTileId`, `BattleMapTileId`, `HealthyCount`, `InjuredCount` | Which Forces feed, where, and how much they need. The troop counts are written back by starvation. |
+| `units.UnitInstances` | `Id`, `GameId`, `PlayerId`, `CampaignMapTileId`, `BattleMapTileId`, `UnitTemplateId`, `HealthyCount`, `InjuredCount` | Which Forces feed, where, on what design, and how many individuals need feeding. The counts are written back by starvation. |
 
 ## Key code files
 
@@ -212,9 +240,11 @@ Pure and database-free apart from the two readers, so the rules are tested on th
 | File | Role |
 | --- | --- |
 | [DepletionTaken.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/DepletionTaken.cs) | The one place a `SustenanceResource` is mapped to its `*Taken` column, so writers and readers cannot disagree. |
-| [TileFoodPool.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/TileFoodPool.cs) | Builds the tile's pool: Forage and Hunt on land (Fish as well on a riverbank), Fish on water, each at `MAX(0, effective − Taken)` with the tile's river bonus added to the effective value. |
-| [FoodExtractionCalculator.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/FoodExtractionCalculator.cs) | Splits a food need across the pool, or strips it bare and reports the shortfall. |
-| [ShortfallAllocator.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/ShortfallAllocator.cs) | Spreads a tile's pooled shortfall across its Forces in proportion to troops. |
+| [TileFoodSources.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/TileFoodSources.cs) | Builds the tile's sources: Forage and Hunt on land (Fish as well on a riverbank) and Fish on water, each at `MAX(0, effective − Taken)` with the tile's river bonus added to the effective value, plus every MapResource patch on it whose Asset the required food set holds. |
+| [FoodExtractionCalculator.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/FoodExtractionCalculator.cs) | Splits a food need across the sources by what each one feeds, or strips them bare and reports the shortfall. |
+| [ShortfallAllocator.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/ShortfallAllocator.cs) | Spreads a tile's shortfall across its Forces in proportion to what each needed. |
+| [FoodConsumptionService.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/FoodConsumptionService.cs) | Spends what was eaten: `*Taken` for the biome, an instance's quantity for a patch. Never saves. |
+| [TileFoodStockReader.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/TileFoodStockReader.cs) | What the patches on a set of tiles hold for a Player, their yield switches resolved. |
 | [ProportionalSplitter.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/ProportionalSplitter.cs) | Largest-remainder split in thousandths, used for both splits above, so the parts sum exactly to the total. |
 | [TileRegenerationCalculator.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/TileRegenerationCalculator.cs) | The two end-of-round regrowth rules — see [replenishment.md](replenishment.md). |
 | [SustenanceValueCalculator.cs](../../../AscendantEmpire.Application/Features/Maps/Biomes/Services/SustenanceValueCalculator.cs) | `Effective = Base + Base × ΣPercent + ΣFlat`, and `Available = MAX(0, Effective − Taken)`. |
@@ -274,9 +304,9 @@ read-only reference table.
 ### Tests
 
 `AscendantEmpire.Tests/Features/Maps/Depletion/` covers the arithmetic (`DepletionTakenTests`,
-`TileFoodPoolTests`, `FoodExtractionCalculatorTests`, `ShortfallAllocatorTests`,
+`TileFoodSourcesTests`, `FoodExtractionCalculatorTests`, `ShortfallAllocatorTests`,
 `TileRegenerationCalculatorTests`, `TileSupportEvaluatorTests`, `TileSupportForecasterTests`,
-`GetTileSupportLevelsHandlerTests`) and the check constraint
+`GetTileSupportLevelsHandlerTests`), the spending (`FoodConsumptionServiceTests`) and the check constraint
 (`CampaignMapDepletionConstraintTests`). The pipeline processes are covered by
 `Features/Turns/Services/TurnPipeline/GatheringTests` and `RegenerateTileSustenanceTests`, and the
 toolbar read by `Features/Maps/Biomes/GetTileSustenanceHandlerTests`.
@@ -287,29 +317,37 @@ toolbar read by `Features/Maps/Biomes/GetTileSustenanceHandlerTests`.
 
 1. The turn pipeline runs `Gathering` first among the end-of-turn processes. A context with no Player
    id is refused: feeding every Player's Forces in the Game would be far worse than doing nothing.
-2. Read the Player's Forces in the Game that still have troops (healthy + injured > 0) and are not on
-   a Battle Map. Forces in a Battle are fighting rather than foraging, which is also what delivers
-   "only one side feeds from a tile".
-3. Read the distinct tiles those Forces stand on, for biome and geography, and load the tracked
+2. Read the Player's Forces in the Game that still have individuals (healthy + injured > 0) and are
+   not on a Battle Map, with the food set and quantity compiled onto each one's template. Forces in a
+   Battle are fighting rather than foraging, which is also what delivers "only one side feeds from a
+   tile"; a design that states no food need is dropped here, since it eats nothing.
+3. Each remaining Force's need is `individuals × quantity`, in rations.
+4. Read the distinct tiles those Forces stand on, for biome and geography, and load the tracked
    `CampaignMapDepletion` rows for them. A tile never fed on has no row, and is given one.
-4. Read the Player's effective sustenance values once, through `IPlayerSustenanceValueReader`.
-5. Per tile, in tile-id order:
-   1. The need is the troops of every Force on the tile, at 1 troop = 1 food.
-   2. `TileFoodPool` builds the pool — Forage and Hunt on land, Fish on water, and Fish on land too
-      where the tile has a river — each entry at `MAX(0, effective − Taken)`, with the tile's river
-      bonus added to the effective value first. A resource the tile does not have is left out
-      entirely, which is not the same as one present but stripped, which is in the pool at 0.
-   3. `FoodExtractionCalculator` splits the need across the pool in proportion to what each resource
-      has; or, when the pool cannot cover it, takes everything and reports the rest as the shortfall.
-   4. Each amount taken is added to the row through `DepletionTaken.AddTaken`.
-   5. `FedOnRound` is set to the current round whether or not anything was taken: the marker records
+5. Read, once for the whole feed: the Player's effective sustenance values
+   (`IPlayerSustenanceValueReader`), the Asset each biome resource is (`ISustenanceAssetReader`), what
+   each named food set prices its Assets at (`ISupplySetMembershipReader`), and what the patches on
+   those tiles hold (`ITileFoodStockReader`).
+6. Per tile, in tile-id order, and within it per food set, in set-id order — the Forces share a tile
+   rather than a ration, so a later group sees what an earlier one took:
+   1. `TileFoodSources` builds the sources — Forage and Hunt on land, Fish on water, and Fish on land
+      too where the tile has a river, each at `MAX(0, effective − Taken)` with the tile's river bonus
+      added to the effective value first, plus every patch whose Asset this set holds. A resource the
+      tile does not have is left out entirely, which is not the same as one present but stripped,
+      which is offered at 0. An Asset the set does not hold is not food.
+   2. `FoodExtractionCalculator` splits the need across the sources in proportion to how many
+      individuals each can feed; or, when they cannot cover it, takes everything and reports the rest
+      as the shortfall.
+   3. `ShortfallAllocator` splits that shortfall across the group's Forces by what each needed, so
+      every Force in it goes equally short.
+   4. `FedOnRound` is set to the current round whether or not anything was taken: the marker records
       presence.
-   6. `ShortfallAllocator` splits the tile's shortfall across its Forces by troops, so every Force on
-      the tile goes equally short.
-6. The per-Force need, food and shortfall go to `IUnderfedForceResolver` **before** the save, so the
+7. `IFoodConsumptionService` spends the tile's whole take — `*Taken` for the biome, instance
+   quantities for the patches.
+8. The per-Force need, food and shortfall go to `IUnderfedForceResolver` **before** the save, so the
    casualties commit in the same batch as the depletion that caused them — a turn can never take the
    food without the losses, or the losses without the food.
-7. `SaveChangesAsync`, then one log line with the totals fed and short.
+9. `SaveChangesAsync`, then one log line with the totals fed and short.
 
 ### Regrowth, at the end of the round (`RegenerateTileSustenance`)
 
@@ -341,8 +379,11 @@ The rules above that have no code yet, each carried as a TODO on the process tha
   the end-of-turn feed.
 - **`UNIT_HARVEST_CAP`**, and pillaging to exceed it.
 - **Scorched earth**, including what it sets `Taken` to.
-- **Food needs from unit design** rather than 1 troop = 1 food, and **Fodder** for mounted units.
+- **Fodder** for mounted units: a body's fuel set is compiled onto its template alongside its food,
+  but nothing spends fuel yet.
 - **Force gathering bonuses** reducing what a Force draws from a tile.
+- **Patch growth**: a MapResource eaten does not grow back, so a renewable patch is a stock that only
+  ever falls. The support forecast counts it the same way.
 - **Settlements**: a hostile Force denying a Settlement its tile, settlement-zone tiles being found
   for replenishment, owned tiles regrowing against the owner's values, and Settlement-scoped
   modifiers. Who holds a tile, and what an occupier may take from it, is in

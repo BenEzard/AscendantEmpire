@@ -14,6 +14,7 @@ using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Modifiers;
+using AscendantEmpire.Tests.Features.Maps.Shared;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -53,6 +54,11 @@ internal class GetTileSustenanceHandlerTests : InMemoryTestBase
     private IFieldOfViewService _fieldOfViewService = null!;
     private GetTileSustenanceHandler _handler = null!;
 
+    /// <summary>
+    /// The design every Force here is built on: one ration per individual, so a Force's need is its individuals.
+    /// </summary>
+    private int _unitTemplateId;
+
     [SetUp]
     public async Task SetUpHandlerAsync()
     {
@@ -72,6 +78,8 @@ internal class GetTileSustenanceHandlerTests : InMemoryTestBase
             });
 
             await context.SaveChangesAsync();
+
+            _unitTemplateId = (await FoodDesignSeed.SeedAsync(context)).UnitTemplateId;
         }
 
         _sightDataReader = Substitute.For<ISightDataReader>();
@@ -88,7 +96,13 @@ internal class GetTileSustenanceHandlerTests : InMemoryTestBase
             _sightDataReader,
             _fieldOfViewService,
             new PlayerSustenanceValueReader(),
-            new TileSupportEvaluator(new PlayerSustenanceValueReader(), new BiomeRegenerationValueReader(), new CampaignRiverReader()),
+            new TileSupportEvaluator(
+                new PlayerSustenanceValueReader(),
+                new BiomeRegenerationValueReader(),
+                new SustenanceAssetReader(),
+                new SupplySetMembershipReader(),
+                new TileFoodStockReader(),
+                new CampaignRiverReader()),
             new CampaignRiverReader());
     }
 
@@ -309,7 +323,7 @@ internal class GetTileSustenanceHandlerTests : InMemoryTestBase
             GameId = _GAME_ID,
             PlayerId = _PLAYER_ID,
             CampaignMapTileId = SeenTileId,
-            UnitTemplateId = 1,
+            UnitTemplateId = _unitTemplateId,
             InitialStrength = troops,
             HealthyCount = troops,
             InjuredCount = 0

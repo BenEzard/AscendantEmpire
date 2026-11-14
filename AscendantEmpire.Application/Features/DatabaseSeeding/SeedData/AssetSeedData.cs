@@ -589,6 +589,13 @@ internal static class AssetSeedData
                     [
                         new UpsertAssetDto
                         {
+                            DisplayName = "Forage",
+                            StorageClassCode = StorageClassSeedData.LARDER,
+                            Description = "Whatever a Biome itself puts within reach of a forager - generic forage.",
+                            IsNaturallyOccurring = true
+                        },
+                        new UpsertAssetDto
+                        {
                             DisplayName = "Fruit",
                             IconPath = "/resources/food/apple_40px.png",
                             StorageClassCode = StorageClassSeedData.LARDER,

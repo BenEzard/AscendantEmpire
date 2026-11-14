@@ -35,6 +35,29 @@ internal class TileSupportForecasterTests
         [(BiomeType.Ocean, SustenanceResource.Fodder)] = null
     });
 
+    private const int _FORAGE_ASSET = 10;
+    private const int _GAME_ASSET = 11;
+    private const int _FISH_ASSET = 12;
+    private const int _BERRIES_ASSET = 20;
+
+    private static readonly Dictionary<SustenanceResource, int> _SUSTENANCE_ASSET_IDS = new()
+    {
+        [SustenanceResource.Forage] = _FORAGE_ASSET,
+        [SustenanceResource.Hunt] = _GAME_ASSET,
+        [SustenanceResource.Fish] = _FISH_ASSET
+    };
+
+    /// <summary>
+    /// Every Asset the Forces can eat, each at 1.0 so the Turns below can still be read off by hand.
+    /// </summary>
+    private static readonly Dictionary<int, long> _AMOUNT_PER_UNIT = new()
+    {
+        [_FORAGE_ASSET] = 1_000,
+        [_GAME_ASSET] = 1_000,
+        [_FISH_ASSET] = 1_000,
+        [_BERRIES_ASSET] = 1_000
+    };
+
     [TestCase(200, 3, TileSupportLevel.Plenty, Description = "600 food feeds 200 for three whole Turns.")]
     [TestCase(300, 2, TileSupportLevel.Plenty, Description = "Exactly two Turns of food is plenty: the boundary is inclusive.")]
     [TestCase(300.001, 1, TileSupportLevel.OneTurn, Description = "A thousandth over half the pool is only one Turn.")]
@@ -66,7 +89,7 @@ internal class TileSupportForecasterTests
     [Test, Description("With no regeneration values found at all, the tile does not regrow and the forecast is plain division rather than a failure.")]
     public void ShouldNotRegrowWithoutRegenerationValues()
     {
-        TileSupport? support = TileSupportForecaster.Forecast(ScaledAmount.FromWhole(250), isWater: false, _VALUES, BiomeType.Grassland, depletion: null, regeneration: null);
+        TileSupport? support = Forecast(ScaledAmount.FromWhole(250), isWater: false, BiomeType.Grassland, depletion: null, regeneration: null);
 
         Assert.That(support, Is.EqualTo(new TileSupport(TileSupportLevel.Plenty, 2)));
     }
@@ -106,13 +129,7 @@ internal class TileSupportForecasterTests
         // A stronger Player ate 500 Forage, 100 past this Player's 400. Regrowing 100 a Round only brings it back to 400: still nothing this Player can reach.
         var depletion = new CampaignMapDepletion { ForageTaken = ScaledAmount.FromWhole(500).RawValue };
 
-        TileSupport? support = TileSupportForecaster.Forecast(
-            ScaledAmount.FromWhole(150),
-            isWater: false,
-            _VALUES,
-            BiomeType.Grassland,
-            depletion,
-            GrasslandRegeneration(0.25m));
+        TileSupport? support = Forecast(ScaledAmount.FromWhole(150), isWater: false, BiomeType.Grassland, depletion, GrasslandRegeneration(0.25m));
 
         Assert.That(support, Is.EqualTo(new TileSupport(TileSupportLevel.OneTurn, 1)));
     }
@@ -127,7 +144,7 @@ internal class TileSupportForecasterTests
             BaseFishValue = ScaledAmount.FromWhole(300).RawValue
         };
 
-        TileSupport? support = TileSupportForecaster.Forecast(ScaledAmount.FromWhole(120), isWater: true, _VALUES, BiomeType.Ocean, depletion: null, oceanRegeneration);
+        TileSupport? support = Forecast(ScaledAmount.FromWhole(120), isWater: true, BiomeType.Ocean, depletion: null, oceanRegeneration);
 
         Assert.That(support, Is.EqualTo(new TileSupport(TileSupportLevel.Plenty, 3)));
     }
@@ -138,9 +155,50 @@ internal class TileSupportForecasterTests
     {
         var depletion = new CampaignMapDepletion { ForageTaken = ScaledAmount.FromWhole(400).RawValue, HuntTaken = ScaledAmount.FromWhole(200).RawValue };
 
-        TileSupport? support = TileSupportForecaster.Forecast(ScaledAmount.FromWhole(need), isWater: false, _VALUES, BiomeType.Grassland, depletion, GrasslandRegeneration(0.25m));
+        TileSupport? support = Forecast(ScaledAmount.FromWhole(need), isWater: false, BiomeType.Grassland, depletion, GrasslandRegeneration(0.25m));
 
         Assert.That(support, Is.EqualTo(new TileSupport(TileSupportLevel.Exhausted, 0)));
+    }
+
+    [Test, Description("A berry patch adds Turns and then runs out, a patch being a stock that nothing grows back.")]
+    public void ShouldCountMapResourceStockInTheForecast()
+    {
+        // 600 off the biome and 400 in the patch, eaten 250 a Turn with nothing regrowing: four Turns, where the biome alone gives two.
+        TileSupport? support = Forecast(
+            ScaledAmount.FromWhole(250),
+            isWater: false,
+            BiomeType.Grassland,
+            depletion: null,
+            regeneration: null,
+            stocks: [Patch(instanceId: 5, available: 400)]);
+
+        Assert.That(support, Is.EqualTo(new TileSupport(TileSupportLevel.Plenty, 4)));
+    }
+
+    [Test, Description("A stripped biome with a full patch on it is not Exhausted, the Forces standing on it eating perfectly well.")]
+    public void ShouldNotReportExhaustedWhenOnlyAMapResourceRemains()
+    {
+        var depletion = new CampaignMapDepletion { ForageTaken = ScaledAmount.FromWhole(400).RawValue, HuntTaken = ScaledAmount.FromWhole(200).RawValue };
+
+        TileSupport? support = Forecast(
+            ScaledAmount.FromWhole(100),
+            isWater: false,
+            BiomeType.Grassland,
+            depletion,
+            regeneration: null,
+            stocks: [Patch(instanceId: 5, available: 400)]);
+
+        Assert.That(support, Is.EqualTo(new TileSupport(TileSupportLevel.Plenty, 4)));
+    }
+
+    [Test, Description("The forecast eats copies of the patches, so the caller's stock is left exactly as it was.")]
+    public void ShouldNotChangeTheCallersMapResourceStock()
+    {
+        TileMapResourceStock patch = Patch(instanceId: 5, available: 400);
+
+        Forecast(ScaledAmount.FromWhole(250), isWater: false, BiomeType.Grassland, depletion: null, regeneration: null, stocks: [patch]);
+
+        Assert.That(patch.Available, Is.EqualTo(ScaledAmount.FromWhole(400)));
     }
 
     [Test, Description("A tile with food but nobody to feed has no support, so nothing is coloured.")]
@@ -156,7 +214,7 @@ internal class TileSupportForecasterTests
     {
         var depletion = new CampaignMapDepletion { CampaignMapId = 7, GameId = 1, ForageTaken = 1_000, HuntTaken = 2_000, FedOnRound = 3 };
 
-        TileSupportForecaster.Forecast(ScaledAmount.FromWhole(250), isWater: false, _VALUES, BiomeType.Grassland, depletion, GrasslandRegeneration(0.25m));
+        Forecast(ScaledAmount.FromWhole(250), isWater: false, BiomeType.Grassland, depletion, GrasslandRegeneration(0.25m));
 
         using (Assert.EnterMultipleScope())
         {
@@ -177,7 +235,38 @@ internal class TileSupportForecasterTests
     /// <summary>Forecasts an untouched Grassland tile at the given Regeneration Percent.</summary>
     private static TileSupport? ForecastGrassland(ScaledAmount need, decimal? regenerationPercent, TileRivers? rivers = null)
     {
-        return TileSupportForecaster.Forecast(need, isWater: false, _VALUES, BiomeType.Grassland, depletion: null, GrasslandRegeneration(regenerationPercent), rivers);
+        return Forecast(need, isWater: false, BiomeType.Grassland, depletion: null, GrasslandRegeneration(regenerationPercent), rivers: rivers);
+    }
+
+    /// <summary>
+    /// Forecasts against the fixture's Assets and prices, which cost 1.0 each so a ration and an amount of food are the same number.
+    /// </summary>
+    private static TileSupport? Forecast(
+        ScaledAmount need,
+        bool isWater,
+        BiomeType biome,
+        CampaignMapDepletion? depletion,
+        BiomeRegenerationValues? regeneration,
+        IReadOnlyCollection<TileMapResourceStock>? stocks = null,
+        TileRivers? rivers = null)
+    {
+        return TileSupportForecaster.Forecast(
+            need,
+            isWater,
+            _VALUES,
+            biome,
+            depletion,
+            regeneration,
+            _SUSTENANCE_ASSET_IDS,
+            _AMOUNT_PER_UNIT,
+            stocks ?? [],
+            rivers);
+    }
+
+    /// <summary>A berry patch on the tile, holding the given amount of its Asset.</summary>
+    private static TileMapResourceStock Patch(int instanceId, long available)
+    {
+        return new TileMapResourceStock(instanceId, _BERRIES_ASSET, ScaledAmount.FromWhole(available), IsYieldEnabled: true);
     }
 
     /// <summary>Grassland's regeneration values: the same bases as the Player's values, at the given Percent.</summary>

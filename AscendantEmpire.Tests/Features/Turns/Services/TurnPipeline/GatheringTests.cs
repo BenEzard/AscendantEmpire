@@ -9,10 +9,14 @@ using AscendantEmpire.Application.Features.Units.Services;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
+using AscendantEmpire.Domain.Entities.Maps.MapResources;
 using AscendantEmpire.Domain.Entities.Units;
+using AscendantEmpire.Domain.Enums.MapResources;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Modifiers;
+using AscendantEmpire.Application.Features.Maps.Depletion.Services;
 using AscendantEmpire.Domain.Enums.Turns;
+using AscendantEmpire.Tests.Features.Maps.Shared;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -57,6 +61,16 @@ internal class GatheringTests : InMemoryTestBase
 
     private IUnderfedForceResolver _underfedForceResolver = null!;
     private Gathering _process = null!;
+
+    /// <summary>
+    /// The catalogue the Forces here eat from, and the design they are built on: one ration per individual, so a Force's need is its individuals.
+    /// </summary>
+    private FoodDesignSeed.FoodDesign _design = null!;
+
+    /// <summary>
+    /// An Asset no food set holds, for the patch that is not food.
+    /// </summary>
+    private const int _UNEATABLE_ASSET_ID = 9_999;
 
     [SetUp]
     public async Task SetUpProcessAsync()
@@ -121,6 +135,8 @@ internal class GatheringTests : InMemoryTestBase
                 BuildTile(_OCEAN_TILE_ID, x: 2, ocean, deepWater));
 
             await context.SaveChangesAsync();
+
+            _design = await FoodDesignSeed.SeedAsync(context);
         }
 
         _underfedForceResolver = Substitute.For<IUnderfedForceResolver>();
@@ -132,7 +148,17 @@ internal class GatheringTests : InMemoryTestBase
             .GetGeometryAsync(Arg.Any<AscendantEmpireContext>(), _GAME_ID, Arg.Any<CancellationToken>())
             .Returns(_GEOMETRY);
 
-        _process = new Gathering(DbFactory, new PlayerSustenanceValueReader(), _underfedForceResolver, sightDataReader, new CampaignRiverReader(), NullLogger<Gathering>.Instance);
+        _process = new Gathering(
+            DbFactory,
+            new PlayerSustenanceValueReader(),
+            new SustenanceAssetReader(),
+            new SupplySetMembershipReader(),
+            new TileFoodStockReader(),
+            new FoodConsumptionService(NullLogger<FoodConsumptionService>.Instance),
+            _underfedForceResolver,
+            sightDataReader,
+            new CampaignRiverReader(),
+            NullLogger<Gathering>.Instance);
     }
 
     [Test, Description("The first feed on a tile creates its depletion row, splitting the need across Forage and Hunt in proportion to what each has.")]
@@ -294,6 +320,95 @@ internal class GatheringTests : InMemoryTestBase
         }
     }
 
+    // ── appetite ──────────────────────────────────────────────────────────────
+
+    [Test, Description("A Force's need comes from its compiled food requirement, so a design that eats more takes more off the tile.")]
+    public async Task ShouldTakeNeedFromCompiledRequirementAsync()
+    {
+        int hungryDesignId = await AddDesignAsync(foodQuantity: 2_000);
+
+        await AddForceAsync(unitInstanceId: 1, _GRASSLAND_TILE_ID, troops: 100, unitTemplateId: hungryDesignId);
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        CampaignMapDepletion depletion = await ReloadDepletionAsync(_GRASSLAND_TILE_ID);
+
+        Assert.That(
+            depletion.ForageTaken + depletion.HuntTaken,
+            Is.EqualTo(ScaledAmount.FromWhole(200).RawValue),
+            "Two rations an individual is twice the need, and the Assets cost 1.0 apiece.");
+    }
+
+    [Test, Description("A design that states no food need eats nothing, which is not the same as a tile having nothing to give.")]
+    public async Task ShouldNotFeedADesignThatNeedsNoFoodAsync()
+    {
+        int fastingDesignId = await AddDesignAsync(foodQuantity: null);
+
+        await AddForceAsync(unitInstanceId: 1, _GRASSLAND_TILE_ID, troops: 100, unitTemplateId: fastingDesignId);
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        Assert.That(await context.CampaignMapDepletions.AnyAsync(), Is.False, "Nothing fed, so not even the fed-on marker was written.");
+    }
+
+    [Test, Description("Healthy and injured individuals each eat a full ration, a wound being no cheaper to feed.")]
+    public async Task ShouldFeedInjuredIndividualsAtTheFullRateAsync()
+    {
+        await AddForceAsync(unitInstanceId: 1, _GRASSLAND_TILE_ID, troops: 60, injured: 40);
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        CampaignMapDepletion depletion = await ReloadDepletionAsync(_GRASSLAND_TILE_ID);
+
+        Assert.That(
+            depletion.ForageTaken + depletion.HuntTaken,
+            Is.EqualTo(ScaledAmount.FromWhole(100).RawValue),
+            "A hundred individuals eat a hundred rations however many of them are wounded.");
+    }
+
+    // ── MapResources ──────────────────────────────────────────────────────────
+
+    [Test, Description("A berry patch on the tile is eaten alongside the biome, and the patch's own quantity is what pays for it.")]
+    public async Task ShouldEatFromAMapResourcePatchOnTheTileAsync()
+    {
+        int instanceId = await AddBerryPatchAsync(_GRASSLAND_TILE_ID, quantity: 600);
+
+        await AddForceAsync(unitInstanceId: 1, _GRASSLAND_TILE_ID, troops: 120);
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        CampaignMapDepletion depletion = await ReloadDepletionAsync(_GRASSLAND_TILE_ID);
+        long? quantityLeft = await PatchQuantityAsync(instanceId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            // Forage 400, Hunt 200 and 600 berries feed 1,200 between them, so a need of 120 is a tenth of each.
+            Assert.That(quantityLeft, Is.EqualTo(ScaledAmount.FromWhole(540).RawValue), "The patch bore its share of the need and lost that much quantity.");
+            Assert.That(depletion.ForageTaken, Is.EqualTo(ScaledAmount.FromWhole(40).RawValue));
+            Assert.That(depletion.HuntTaken, Is.EqualTo(ScaledAmount.FromWhole(20).RawValue));
+        }
+    }
+
+    [Test, Description("A patch whose Asset the Force's food set does not hold is not food, so timber on the tile is left where it stands.")]
+    public async Task ShouldNotEatAPatchOutsideTheFoodSetAsync()
+    {
+        int instanceId = await AddBerryPatchAsync(_GRASSLAND_TILE_ID, quantity: 600, assetId: _UNEATABLE_ASSET_ID);
+
+        await AddForceAsync(unitInstanceId: 1, _GRASSLAND_TILE_ID, troops: 120);
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        CampaignMapDepletion depletion = await ReloadDepletionAsync(_GRASSLAND_TILE_ID);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(await PatchQuantityAsync(instanceId), Is.EqualTo(ScaledAmount.FromWhole(600).RawValue));
+            Assert.That(depletion.ForageTaken + depletion.HuntTaken, Is.EqualTo(ScaledAmount.FromWhole(120).RawValue), "The whole need came off the biome instead.");
+        }
+    }
+
     // ── arrangement ───────────────────────────────────────────────────────────
 
     [Test, Description("Forces on a riverbank eat its Fish too: a Large river puts 30 Fish on dry Grassland, and the feed draws on it alongside Forage and Hunt.")]
@@ -367,7 +482,14 @@ internal class GatheringTests : InMemoryTestBase
     }
 
     /// <summary>Adds a Force, defaulting to the acting Player's own, all healthy, on the campaign map.</summary>
-    private async Task AddForceAsync(int unitInstanceId, int tileId, int troops, int playerId = _PLAYER_ID, int? battleMapTileId = null)
+    private async Task AddForceAsync(
+        int unitInstanceId,
+        int tileId,
+        int troops,
+        int playerId = _PLAYER_ID,
+        int? battleMapTileId = null,
+        int injured = 0,
+        int? unitTemplateId = null)
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
@@ -378,13 +500,78 @@ internal class GatheringTests : InMemoryTestBase
             PlayerId = playerId,
             CampaignMapTileId = tileId,
             BattleMapTileId = battleMapTileId,
-            UnitTemplateId = 1,
-            InitialStrength = Math.Max(troops, 1),
+            UnitTemplateId = unitTemplateId ?? _design.UnitTemplateId,
+            InitialStrength = Math.Max(troops + injured, 1),
             HealthyCount = troops,
-            InjuredCount = 0
+            InjuredCount = injured
         });
 
         await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Puts a patch on a tile holding the given whole quantity, yielding one of <paramref name="assetId"/> per unit of it.
+    /// </summary>
+    private async Task<int> AddBerryPatchAsync(int tileId, long quantity, int? assetId = null)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        var category = new MapResourceCategory { Code = "food", DisplayName = "Food" };
+        context.MapResourceCategories.Add(category);
+
+        await context.SaveChangesAsync();
+
+        var type = new MapResourceType
+        {
+            Code = "berries",
+            DisplayName = "Berries",
+            MapResourceCategoryId = category.Id,
+            ExtractionMethod = ExtractionMethod.Gather,
+            DiscoveryLikelihood = 1.0m
+        };
+
+        context.MapResourceTypes.Add(type);
+
+        await context.SaveChangesAsync();
+
+        context.MapResourceTypeYields.Add(new MapResourceTypeYield
+        {
+            MapResourceTypeId = type.Id,
+            AssetId = assetId ?? _design.AssetIdsByCode[FoodDesignSeed.BERRIES_ASSET_CODE],
+            AmountPerUnit = ScaledAmount.FromWhole(1).RawValue,
+            IsEnabledByDefault = true
+        });
+
+        var instance = new MapResourceInstance
+        {
+            GameId = _GAME_ID,
+            CampaignMapId = tileId,
+            MapResourceTypeId = type.Id,
+            Slot = MapResourceInstance.MIN_SLOT,
+            Quantity = ScaledAmount.FromWhole(quantity).RawValue,
+            CreatedOnRound = 1
+        };
+
+        context.MapResourceInstances.Add(instance);
+
+        await context.SaveChangesAsync();
+
+        return instance.Id;
+    }
+
+    private async Task<long?> PatchQuantityAsync(int instanceId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        return await context.MapResourceInstances.Where(instance => instance.Id == instanceId).Select(instance => instance.Quantity).SingleAsync();
+    }
+
+    /// <summary>Adds another design on the shared body and food set, eating the given rations per individual.</summary>
+    private async Task<int> AddDesignAsync(long? foodQuantity)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        return await FoodDesignSeed.AddDesignAsync(context, _design.SupplySetId, _design.BodyComponentId, foodQuantity);
     }
 
     private async Task AddDepletionAsync(int tileId, long forageTaken, long huntTaken, int fedOnRound)

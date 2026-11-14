@@ -89,6 +89,10 @@ public static class ApplicationStartup
         services.AddScoped<IUnderfedForceResolver, StarvationUnderfedForceResolver>();
         services.AddScoped<ITileSupportEvaluator, TileSupportEvaluator>();
         services.AddScoped<IBiomeRegenerationValueReader, BiomeRegenerationValueReader>();
+        services.AddScoped<ISustenanceAssetReader, SustenanceAssetReader>();
+        services.AddScoped<ISupplySetMembershipReader, SupplySetMembershipReader>();
+        services.AddScoped<ITileFoodStockReader, TileFoodStockReader>();
+        services.AddScoped<IFoodConsumptionService, FoodConsumptionService>();
 
         services.AddScoped<ICoalitionResolver, SoloCoalitionResolver>();
 
