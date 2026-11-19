@@ -112,6 +112,8 @@ public static class ApplicationStartup
         // Takes the context factory rather than a context: it is called from game setup, which owns its own context and bulk-copies on its own connection.
         services.AddScoped<IMapResourceInstantiationService, MapResourceInstantiationService>();
         services.AddScoped<IPlayerMapResourceDiscoveryService, PlayerMapResourceDiscoveryService>();
+        services.AddScoped<IMapResourceRegenerationReader, MapResourceRegenerationReader>();
+        services.AddScoped<IMapResourceRegenerationWriter, MapResourceRegenerationWriter>();
 
         // Asset banks.
         services.AddScoped<IAssetBankReader, AssetBankReader>();
@@ -165,6 +167,7 @@ public static class ApplicationStartup
         // End of a Campaign Round — runs once, after the last Player's turn in the Round.
         services.AddScoped<IEndCampaignRoundProcess, HealTroops>();
         services.AddScoped<IEndCampaignRoundProcess, RegenerateTileSustenance>();
+        services.AddScoped<IEndCampaignRoundProcess, RegenerateMapResources>();
         services.AddScoped<IEndCampaignRoundProcess, ResolveTileTerritory>();
         services.AddScoped<IEndCampaignRoundProcess, EvaluateVictoryConditions>();
 

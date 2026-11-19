@@ -36,4 +36,13 @@ public enum RandomPurpose
 
     /// <summary>How far one Player's view of a MapResource instance's quantity is off, within the instance's fuzzy factor.</summary>
     MapResourceEstimationError = 2005,
+
+    /// <summary>Whether a renewable MapResource instance at its ceiling spreads this Round.</summary>
+    MapResourceSpread = 2006,
+
+    /// <summary>Which of the adjacent tiles a spreading MapResource instance spreads towards.</summary>
+    MapResourceSpreadDirection = 2007,
+
+    /// <summary>Whether a dormant renewable MapResource instance comes back this Round.</summary>
+    MapResourceReseed = 2008,
 }

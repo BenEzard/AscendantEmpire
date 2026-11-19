@@ -5,6 +5,7 @@ using AscendantEmpire.Application.Features.Intelligence.Services;
 using AscendantEmpire.Application.Features.Maps.Biomes.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
 using AscendantEmpire.Application.Features.Maps.Depletion.Services;
+using AscendantEmpire.Application.Features.Maps.MapResources.Services;
 using AscendantEmpire.Application.Features.Structures.Services;
 using AscendantEmpire.Application.Features.Technologies.Services;
 using AscendantEmpire.Application.Features.Turns.Services.EndCampaignTurnPossibleActions;
@@ -93,6 +94,12 @@ public class TurnPipelineExecutionOrderTests
                 Substitute.For<ISightDataReader>(),
                 Substitute.For<ICampaignRiverReader>(),
                 NullLogger<RegenerateTileSustenance>.Instance),
+            new RegenerateMapResources(
+                _dbFactory,
+                Substitute.For<IMapResourceRegenerationReader>(),
+                Substitute.For<IMapResourceRegenerationWriter>(),
+                Substitute.For<ISightDataReader>(),
+                NullLogger<RegenerateMapResources>.Instance),
             new ResolveTileTerritory(Substitute.For<ITileTerritoryService>(), NullLogger<ResolveTileTerritory>.Instance),
             new EvaluateVictoryConditions()
         ];
@@ -143,7 +150,7 @@ public class TurnPipelineExecutionOrderTests
     [Test, Description("The wounded recover, tiles regrow and borders settle before victory is judged, because victory is judged on the state the Round leaves behind.")]
     public void ShouldRunEndCampaignRoundProcessesInDeclaredOrder()
     {
-        string[] expected = ["Heal Troops", "Regenerate Tile Sustenance", "Resolve Tile Territory", "Evaluate Victory Conditions"];
+        string[] expected = ["Heal Troops", "Regenerate Tile Sustenance", "Regenerate Map Resources", "Resolve Tile Territory", "Evaluate Victory Conditions"];
 
         Assert.That(RunOrderOf(EndCampaignRoundProcesses()), Is.EqualTo(expected));
     }

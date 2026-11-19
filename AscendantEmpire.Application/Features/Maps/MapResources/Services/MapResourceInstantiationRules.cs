@@ -109,7 +109,7 @@ internal static class MapResourceInstantiationRules
                     placement.MapResourceTypeId,
                     Quantity: null,
                     SpreadLimit: null,
-                    RollEstimationFuzzyFactor(gameSeed, placement, type),
+                    RollEstimationFuzzyFactor(gameSeed, placement.XCoord, placement.YCoord, placement.Slot, type.EstimationFuzzyFactorMin, type.EstimationFuzzyFactorMax),
                     scenario.ScenarioId,
                     scenario.Amounts,
                     Layers: []));
@@ -131,7 +131,7 @@ internal static class MapResourceInstantiationRules
                 placement.MapResourceTypeId,
                 quantity,
                 RollSpreadLimit(gameSeed, placement, habitat),
-                RollEstimationFuzzyFactor(gameSeed, placement, type),
+                RollEstimationFuzzyFactor(gameSeed, placement.XCoord, placement.YCoord, placement.Slot, type.EstimationFuzzyFactorMin, type.EstimationFuzzyFactorMax),
                 MapResourceDistributionScenarioId: null,
                 Amounts: [],
                 Layers: []));
@@ -269,18 +269,23 @@ internal static class MapResourceInstantiationRules
     /// How far off the quantity shown to Players can be, or <see langword="null"/> for a type that carries no range.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Null rather than zero for a type with no range: zero would claim the quantity is shown exactly, which is a different statement.
+    /// </para>
+    /// <para>
+    /// Shared with an instance that spread creates, which is a creation roll too, so an instance rolls the same factor on the same tile and slot however it came to be.
+    /// </para>
     /// </remarks>
-    private static decimal? RollEstimationFuzzyFactor(long gameSeed, PlacementToInstantiate placement, MapResourceTypeValues type)
+    internal static decimal? RollEstimationFuzzyFactor(long gameSeed, int xCoord, int yCoord, byte slot, decimal? minimum, decimal? maximum)
     {
-        if (type.EstimationFuzzyFactorMin == null || type.EstimationFuzzyFactorMax == null)
+        if (minimum == null || maximum == null)
         {
             return null;
         }
 
-        Random random = Stream(gameSeed, RandomPurpose.MapResourceEstimationFuzzyFactor, placement);
+        Random random = GameRandom.Create(gameSeed, RandomPurpose.MapResourceEstimationFuzzyFactor, xCoord, yCoord, slot);
 
-        return RollFraction(random, type.EstimationFuzzyFactorMin.Value, type.EstimationFuzzyFactorMax.Value);
+        return RollFraction(random, minimum.Value, maximum.Value);
     }
 
     /// <summary>

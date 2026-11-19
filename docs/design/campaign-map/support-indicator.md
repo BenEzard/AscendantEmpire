@@ -20,7 +20,7 @@ depletion row and its patches, with the same rules the turn pipeline uses:
 1. The Forces feed: the need is split across the sources as `Gathering` splits it. A turn only counts
    when they cover the whole need.
 2. The round ends: the biome regrows as in [Replenishment](replenishment.md), as fed on. A patch does
-   not — MapResource growth is not modelled, so a patch eaten is a patch gone.
+   not — the forecast does not model MapResource regeneration, so a patch eaten is a patch gone, though the end of the round does grow it back (see [map-resources.md](map-resources.md#end-of-round-order)).
 
 A Player's feed always comes before the round's regrowth, so this order holds whatever the turn
 order. The forecast stops after **5 turns**; a tile that still feeds the Forces after that lasts

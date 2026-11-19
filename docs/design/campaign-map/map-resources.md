@@ -94,10 +94,7 @@ not the Player has surveyed it. What the Player is *told* a tile feeds is gated 
 their estimate rather than the true quantity, so the toolbar can read lower than the tile really
 feeds — see [support-indicator.md](support-indicator.md#what-the-toolbars-figure-means).
 
-Nothing grows a patch back. [Growth](#growth), [Spread](#spread) and
-[Exhaustion and survival](#exhaustion-and-survival) are designed but have no end-of-round process, so
-a patch eaten from today is a stock that only ever falls — which is how the
-[support indicator](support-indicator.md) forecasts it.
+The end of each round grows an eaten patch back, as [End of round order](#end-of-round-order) describes. The [support indicator](support-indicator.md)'s forecast does not model that regrowth, so it forecasts a patch as a stock that only ever falls.
 
 ## Placement on tiles
 
@@ -187,7 +184,7 @@ Amounts are in thousandths, as elsewhere on the campaign map.
 
 ### Growth
 
-At the end of every round, each renewable instance with a `Quantity` above `0` grows:
+At the end of every round, each renewable instance with a `Quantity` above `0` and below its `MaximumQuantity` grows:
 
 ```
 Quantity = MIN(MaximumQuantity, Quantity + MAX(MINIMUM_GROWTH, Quantity × GrowthPercentage))
@@ -201,18 +198,18 @@ Quantity = MIN(MaximumQuantity, Quantity + MAX(MINIMUM_GROWTH, Quantity × Growt
 
 ### Spread
 
-An instance at its `MaximumQuantity` with a `SpreadLimit` above `0` rolls its `SpreadLikelihood`
-each round (e.g. Berry 10%). If it spreads, one of the **8 adjacent tiles** is picked at random.
-Depending on that tile:
+An instance at or above its `MaximumQuantity` with a `SpreadLimit` above `0` rolls its `SpreadLikelihood` each round (e.g. Berry 10%). If it spreads, one of the **8 adjacent tiles** is picked at random. Depending on that tile:
 
 | Target tile | Result | Uses up a spread |
 | --- | --- | --- |
 | Non-compatible (no row for its Biome/Geography, void, or off an unwrapped map edge) | No spread | No |
-| Has a MapResource of another type | No spread | No |
-| Has the same MapResource, at its ceiling | No spread | No |
+| Has the same MapResource, at or above its ceiling | No spread | No |
 | Has the same MapResource, below its ceiling | Grows by its own `GrowthPercentage` again (it may grow more than once a round: once for itself, and again for each neighbour that spreads into it) | Yes |
 | Has the same MapResource, exhausted (dormant) | Revived, as for a new instance | Yes |
-| Has no MapResource | A new instance is created | Yes |
+| Has no MapResource of the same type, and a free slot | A new instance is created in the first free slot | Yes |
+| Has no MapResource of the same type, and both slots taken | No spread | No |
+
+A MapResource of another type blocks a spread only by taking a slot: a tile holding one other MapResource still has a slot free to be spread into.
 
 A **new or revived** instance starts at `GrowthPercentage × Quantity` of the spreading instance
 (capped at the target tile's `MaximumQuantity`).
@@ -240,23 +237,37 @@ An exhausted renewable instance (`Quantity` of `0`) is not removed straight away
 | `SurvivalRounds` (int) | How many rounds a dormant instance survives, e.g. 5. `0` is deleted on exhaustion, never dormant. |
 | `ReseedLikelihood` (decimal) | The chance each dormant round that it comes back. |
 
+- The round an instance is found at `0` only marks it dormant (`DormantSinceRound`). It first rolls the following round.
 - If a roll succeeds, the instance comes back at `GrowthPercentage × MaximumQuantity` and grows as
   normal.
-- If it fails for `SurvivalRounds` rounds, the instance is **deleted permanently**.
+- If it fails for `SurvivalRounds` rounds, the instance is **deleted permanently**, with every Player's discovery of it.
+- A Distribution never reseeds: every one of its Assets is at `0`, so there is nothing for a reseed to be shared between. It is dormant until it is deleted.
 - At `SurvivalRounds` of `0` the instance is deleted the moment it is exhausted. It has no dormant
   round, so it is never rolled and `ReseedLikelihood` never applies — though a renewable
   MapResourceType still carries one, since the two are set together whatever the round count.
-- A dormant instance still takes one of the tile's 2 places and blocks other MapResources spreading
-  in. A neighbour of the same type spreading into it revives it (see [Spread](#spread)).
+- A dormant instance still takes one of the tile's 2 places, so it counts against the free slot another MapResource needs to spread in. A neighbour of the same type spreading into it revives it (see [Spread](#spread)).
 
 ### End of round order
 
-1. **Growth** for every renewable instance with a `Quantity` above `0`.
-2. **Survival** rolls for every dormant instance.
-3. **Spread**: which instances spread, and in which direction, is decided from the state after
-   growth. The spreads are then applied one by one in a fixed order, so two spreads into the same
-   empty tile become one new instance and one top-up. The result does not depend on the order tiles
-   happen to be read in.
+Every renewable instance is classified once, from the state as read, into exactly one step. A Distribution is classified by the total of its Assets, since it holds no `Quantity` of its own.
+
+| Step | Precondition, as read |
+| --- | --- |
+| Spread | `Quantity` at or above its `MaximumQuantity` |
+| Growth | `Quantity` above `0` and below its `MaximumQuantity` |
+| Regrowth | `Quantity` of `0` |
+
+The steps then run in this order:
+
+1. **Spread** for every instance classed Spread. Which instances spread, and in which direction, is decided from the state as read. The spreads are then applied one by one in a fixed order, so two spreads into the same empty tile become one new instance and one top-up. The result does not depend on the order tiles happen to be read in.
+2. **Growth** for every instance classed Growth, including any that spread topped up this round.
+3. **Regrowth** for every instance classed Regrowth that is still at `0`: it goes dormant, rolls to reseed, or is deleted, as [Exhaustion and survival](#exhaustion-and-survival) describes.
+
+An instance classed Spread that cannot spread (a Distribution, a `SpreadLimit` of `0`, or no `SpreadLikelihood`) does nothing that round, and does not grow either. One above its ceiling, such as a Distribution created above it or an owned tile whose owner's modifier has gone, is classed Spread too: it stops growing, but nothing cuts it back.
+
+Instances that spread creates or revives are not part of the classification, so they neither grow nor roll to reseed until the following round. A dormant instance that a neighbour spreads into is revived in step 1 while still classed Regrowth; step 3 checks it is still at `0`, so it is neither rolled nor deleted for having outlived its `SurvivalRounds`.
+
+Spreading first means a patch that reaches its ceiling by growing spreads from the following round, not the round it got there.
 
 ## Distribution
 
@@ -283,10 +294,9 @@ MapResourceType. For example, Timber (Assets: oak, generic, cedar, ash, ebony, b
 the **total** of all the Distribution's Assets. It is not the scenario's total: scenario 1 above
 totals 10,230, but its `MaximumQuantity` might be 20,000.
 
-Each round the total grows by `MAX(MINIMUM_GROWTH, Total × GrowthPercentage)`, capped at
-`MaximumQuantity`, and the growth is shared between the Assets **in proportion to their current
-amounts**. So each Asset expands in ratio until the total hits the ceiling. Scenario 1 at 20,000
-would hold roughly oak 391, generic 19,550, cedar 59.
+Each round a total above `0` and below `MaximumQuantity` grows by `MAX(MINIMUM_GROWTH, Total × GrowthPercentage)`, capped at `MaximumQuantity`, and the growth is shared between the Assets **in proportion to their current amounts**. So each Asset expands in ratio until the total hits the ceiling. Scenario 1 at 20,000 would hold roughly oak 391, generic 19,550, cedar 59.
+
+The shares are split by the largest remainder method, as gathering splits a food need: each Asset's share is floored, and what the floors drop goes one unit each to the shares that lost the most (the lowest `AssetId` on a tie). The total therefore grows by exactly the growth, and lands on `MaximumQuantity` rather than creeping towards it.
 
 An Asset at `0` gets no share, so once a wood type is gone from a tile it does not come back.
 
@@ -675,8 +685,9 @@ has nothing to improve. No research item is generated for a type found on sight.
 
 | Open question | Where it bites |
 | --- | --- |
-| Nothing validates a scenario's total against the habitat ceiling. A scenario whose amounts total more than the `MaximumQuantity` of a Biome it is weighted in creates an instance born above its ceiling, and growth only ever adds. The seeded Timber scenarios cannot break it — their generator withholds a Biome weight wherever the total would not fit — but a scenario authored in the MapResource Type Manager can. | `MapResourceTypeValidator` |
-| The rounding direction of each Asset's share of growth is unspecified, and the shares rarely sum to exactly the total growth, so the total either creeps towards `MaximumQuantity` without reaching it or overshoots. | [Distribution › Growth](#growth-1) |
+| Nothing validates a scenario's total against the habitat ceiling. A scenario whose amounts total more than the `MaximumQuantity` of a Biome it is weighted in creates an instance born above its ceiling. It classes as at its ceiling, so it never grows, but nothing brings it down to it. The seeded Timber scenarios cannot break it — their generator withholds a Biome weight wherever the total would not fit — but a scenario authored in the MapResource Type Manager can. | `MapResourceTypeValidator` |
+| An owned tile's renewables regenerate against the habitat's values, not the owner's [Player modifiers](#player-modifiers). The end-of-round process reads no `PlayerMapResourceModifier` yet. | `RegenerateMapResources` |
+| The support indicator's forecast treats a patch as a stock that only falls, though the end of the round grows it back. | `TileSupportForecaster` |
 | Tech-gating a Distribution's Assets. `PlayerMapResourceSwitch` already carries an `AssetId`, so this needs a switch kind and an extraction rule rather than a schema change — but a per-Asset default has nowhere to live, since a Distribution type's Asset set exists only as the union of its scenarios' amounts. A type-level list of the Assets a Distribution can hold, each with its own default, would give the default a home and let the validator check that every scenario amount names a declared Asset. | [Switches](#switches) |
 | The tile icon for a Distribution whose majority Asset, ignoring generic, is one particular wood. It can be derived per view from the instance's amounts and drawn from `assets.Asset.IconPath`, with no new column: `EstimationFuzzyFactor` is per instance and `Error` is per seed, Player and instance, so every Asset is scaled by the same multiplier and the majority a Player sees is the true one. What share counts as a majority is undecided. | [Distribution](#distribution) |
 | Whether a Distribution implied by its Biome should take a tile slot at all, or whether the ceiling of 2 should rise. | [Placement on tiles](#placement-on-tiles) |
