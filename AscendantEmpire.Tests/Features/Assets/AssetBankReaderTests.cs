@@ -20,6 +20,8 @@ internal class AssetBankReaderTests : AssetBankTestBase
     private const int _CONNECTED_SETTLEMENT_ID = 42;
     private const int _FAR_SETTLEMENT_ID = 77;
 
+    private const int _UNIT_INSTANCE_ID = 9;
+
     private AssetBankReader _reader = null!;
 
     [SetUp]
@@ -230,6 +232,34 @@ internal class AssetBankReaderTests : AssetBankTestBase
 
         Assert.That(bank.Holdings.Single().AssetGroupId, Is.EqualTo(logsGroupId));
     }
+
+    #region Cargo exclusion
+
+    [Test, Description("The all-banks read leaves out a Unit's cargo, since the ticker it feeds reports what the Empire holds in store rather than what its Forces are carrying.")]
+    public async Task ShouldLeaveCargoOutOfThePlayerReadAsync()
+    {
+        int settlementBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        await CreateUnitBankAsync(_playerId, _UNIT_INSTANCE_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 50 });
+
+        IReadOnlyCollection<AssetBankHoldings> banks = await ReadForPlayerAsync(_playerId);
+
+        Assert.That(banks.Select(bank => bank.AssetBankId), Is.EqualTo(new[] { settlementBankId }));
+    }
+
+    [Test, Description("A cargo bank carrying the site's own NetworkKey is still left out of the settlement read, so a shared key can never make cargo spendable at a Settlement.")]
+    public async Task ShouldLeaveCargoOutOfTheSettlementReadEvenOnTheSameNetworkKeyAsync()
+    {
+        Guid networkKey = Guid.NewGuid();
+
+        int settlementBankId = await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 }, networkKey);
+        await CreateUnitBankAsync(_playerId, _UNIT_INSTANCE_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 50 }, networkKey);
+
+        AssetNetworkHoldings network = await ReadNetworkAsync(_SETTLEMENT_ID);
+
+        Assert.That(network.Banks.Select(bank => bank.AssetBankId), Is.EqualTo(new[] { settlementBankId }));
+    }
+
+    #endregion
 
     /// <summary>
     /// Overwrites one balance with a raw scaled figure, for the cases a whole number cannot express.

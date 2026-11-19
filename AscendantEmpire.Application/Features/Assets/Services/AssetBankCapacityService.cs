@@ -52,10 +52,12 @@ internal sealed class AssetBankCapacityService(ILogger<AssetBankCapacityService>
             return ServiceResult<IReadOnlyDictionary<int, SettlementStorageCapacity>>.NotFound(error);
         }
 
+        // Naming the Settlement already confines this to settlement banks, since a Unit's cargo leaves the column null: a Force standing inside a Settlement
+        // carrying grain is not filling that Settlement's storehouse.
         List<Stock> stock = await context.AssetBankBalances
             .AsNoTracking()
-            .Where(balance => distinctSettlementIds.Contains(balance.Bank.SettlementId))
-            .GroupBy(balance => new { balance.Bank.SettlementId, balance.Asset.StorageClassId })
+            .Where(balance => balance.Bank.SettlementId != null && distinctSettlementIds.Contains(balance.Bank.SettlementId.Value))
+            .GroupBy(balance => new { SettlementId = balance.Bank.SettlementId!.Value, balance.Asset.StorageClassId })
             .Select(group => new Stock(group.Key.SettlementId, group.Key.StorageClassId, group.Sum(balance => balance.Quantity)))
             .ToListAsync(cancelToken);
 

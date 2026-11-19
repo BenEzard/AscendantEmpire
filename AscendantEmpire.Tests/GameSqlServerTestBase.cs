@@ -1,5 +1,6 @@
 ﻿using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Assets.Services;
 using AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Maps.MapGallery.Services;
@@ -98,7 +99,10 @@ public class GameSqlServerTestBase : SqlServerTestBase
         // substituted so that fixtures building on this base, which do open Turns, get the genuine allocator.
         var forceLifecycleWriter = new ForceLifecycleWriter(
             NullLogger<ForceLifecycleWriter>.Instance,
-            new PlayerTurnService(NullLogger<PlayerTurnService>.Instance, DbFactory));
+            new PlayerTurnService(NullLogger<PlayerTurnService>.Instance, DbFactory),
+            new AssetBankProvisioningService(
+                NullLogger<AssetBankProvisioningService>.Instance,
+                new AssetNetworkConnectivityService(NullLogger<AssetNetworkConnectivityService>.Instance)));
 
         // The real generators and reconcile, for the same reason the force writer is real: fixtures building on this base assert on the technology rows setup writes.
         ITechnologyRequirementGenerator[] requirementGenerators =

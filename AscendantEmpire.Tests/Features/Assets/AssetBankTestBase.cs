@@ -7,6 +7,7 @@ using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Settlements;
 using AscendantEmpire.Domain.Entities.Technologies;
+using AscendantEmpire.Domain.Enums.Assets;
 using AscendantEmpire.Domain.Enums.Games;
 using AscendantEmpire.Domain.Enums.Settlements;
 
@@ -111,10 +112,55 @@ internal abstract class AssetBankTestBase : InMemoryTestBase
         var bank = new AssetBank
         {
             PlayerId = playerId,
+            Kind = AssetBankKind.Settlement,
             SettlementId = settlementId,
             NetworkKey = networkKey ?? Guid.NewGuid()
         };
 
+        return await SaveBankAsync(context, bank, balances, reserves);
+    }
+
+    /// <summary>
+    /// Creates a cargo bank for a Player, keys it on the named Unit, and credits the given balances.
+    /// </summary>
+    /// <remarks>
+    /// The counterpart to <see cref="CreateBankAsync"/>, and the arrangement behind every "a Unit's cargo is excluded from this" test. No <c>UnitInstance</c>
+    /// row is written: the foreign key is not enforced in memory, and nothing the exclusion rule touches reads the Unit itself - what says a bank is cargo is
+    /// its own <c>Kind</c>.
+    /// </remarks>
+    /// <param name="balances">Asset code to whole quantity, as whole units, the same as <see cref="CreateBankAsync"/>.</param>
+    /// <param name="networkKey">
+    /// The network to put the cargo bank in. Left null it gets one of its own, which is what a real one is born with; pass a settlement bank's key to pin that
+    /// even a shared key does not let a settlement expense reach cargo.
+    /// </param>
+    protected async Task<int> CreateUnitBankAsync(
+        int playerId,
+        int unitInstanceId,
+        IReadOnlyDictionary<string, long> balances,
+        Guid? networkKey = null)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        var bank = new AssetBank
+        {
+            PlayerId = playerId,
+            Kind = AssetBankKind.Unit,
+            UnitInstanceId = unitInstanceId,
+            NetworkKey = networkKey ?? Guid.NewGuid()
+        };
+
+        return await SaveBankAsync(context, bank, balances, reserves: null);
+    }
+
+    /// <summary>
+    /// Writes a bank and its balances, whichever kind it is.
+    /// </summary>
+    private static async Task<int> SaveBankAsync(
+        AscendantEmpireContext context,
+        AssetBank bank,
+        IReadOnlyDictionary<string, long> balances,
+        IReadOnlyDictionary<string, long>? reserves)
+    {
         context.AssetBanks.Add(bank);
         await context.SaveChangesAsync();
 

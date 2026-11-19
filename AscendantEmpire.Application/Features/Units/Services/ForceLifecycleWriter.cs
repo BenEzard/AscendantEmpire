@@ -1,5 +1,6 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Assets.Services;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums.Forces;
@@ -16,7 +17,8 @@ namespace AscendantEmpire.Application.Features.Units.Services;
 /// <inheritdoc cref="IForceLifecycleWriter" />
 internal class ForceLifecycleWriter(
     ILogger<ForceLifecycleWriter> logger,
-    IPlayerTurnService playerTurnService) : IForceLifecycleWriter
+    IPlayerTurnService playerTurnService,
+    IAssetBankProvisioningService assetBankProvisioningService) : IForceLifecycleWriter
 {
     /// <inheritdoc />
     public async Task<ServiceResultBase> MoveAsync(AscendantEmpireContext context, UnitInstance force, int destinationTileId, int playerTurnId, CancellationToken cancelToken = default)
@@ -182,6 +184,18 @@ internal class ForceLifecycleWriter(
                 tileId: entry.Property(f => f.CampaignMapTileId).CurrentValue,
                 playerTurnId: playerTurnId,
                 turnSequence: sequenceResult.SuccessValue.First));
+
+            // Whatever the Force was carrying is destroyed with its carriers: there is no store on a campaign tile to leave it in. The bank's foreign key to
+            // the Unit would refuse the delete below in any case, so this is not an option a caller gets to skip.
+            ServiceResultBase cargoResult = await assetBankProvisioningService.RemoveForUnitAsync(context, force.Id, cancelToken);
+
+            if (cargoResult.HasSucceeded == false)
+            {
+                string cargoError = $"Unit Instance Id {force.Id}'s cargo could not be disposed of, so it has not been destroyed.";
+                logger.LogError("{Error} Errors: {Errors}", cargoError, string.Join("; ", cargoResult.Errors));
+
+                return ServiceResultBase.Fail(cargoResult.Errors.Prepend(cargoError));
+            }
 
             context.UnitInstances.Remove(force);
 

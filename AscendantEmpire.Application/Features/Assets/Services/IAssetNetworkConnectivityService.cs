@@ -25,6 +25,11 @@ namespace AscendantEmpire.Application.Features.Assets.Services;
 /// <b>Balances never move.</b> Connecting and disconnecting Settlements are re-keys, so no balance row is touched and no bank is created or deleted. The one
 /// sanctioned exception anywhere in the model is a camp delivery, which is not a re-key at all and lives in <c>IAssetBankDeliveryService</c>.
 /// </para>
+/// <para>
+/// <b>The recompute assesses settlement banks only.</b> A Unit's cargo bank is keyed once, at <see cref="AssignKeyToNewBank"/>, and left alone: the design
+/// pools a Command's Units' banks under one key, but nothing in the codebase forms a Command yet, so there is no membership to walk. The operation that forms
+/// one is what will group them, through this interface like every other writer of the column.
+/// </para>
 /// </remarks>
 internal interface IAssetNetworkConnectivityService
 {

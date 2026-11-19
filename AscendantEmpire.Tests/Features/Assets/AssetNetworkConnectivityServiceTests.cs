@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Assets.Classes;
 using AscendantEmpire.Application.Features.Assets.Services;
 using AscendantEmpire.Domain.Entities.Assets;
+using AscendantEmpire.Domain.Enums.Assets;
 using AscendantEmpire.Domain.Enums.Settlements;
 
 using Microsoft.EntityFrameworkCore;
@@ -31,6 +32,8 @@ internal class AssetNetworkConnectivityServiceTests : AssetBankTestBase
     private const int _CAMP_SETTLEMENT_ID = 11;
     private const int _PARENT_SETTLEMENT_ID = 12;
 
+    private const int _UNIT_INSTANCE_ID = 9;
+
     private AssetNetworkConnectivityService _service = null!;
 
     [SetUp]
@@ -42,7 +45,7 @@ internal class AssetNetworkConnectivityServiceTests : AssetBankTestBase
     [Test, Description("A newly staged bank is given a key by this service, because nothing else is allowed to write NetworkKey and an unkeyed bank is unreachable by its own settlement.")]
     public void ShouldAssignAFreshKeyToANewBank()
     {
-        var bank = new AssetBank { PlayerId = _playerId, SettlementId = _SETTLEMENT_ID };
+        var bank = new AssetBank { PlayerId = _playerId, Kind = AssetBankKind.Settlement, SettlementId = _SETTLEMENT_ID };
 
         _service.AssignKeyToNewBank(bank);
 
@@ -52,7 +55,7 @@ internal class AssetNetworkConnectivityServiceTests : AssetBankTestBase
     [Test, Description("A captured bank is given a fresh key rather than keeping its old one, so it cannot stay in a network with the banks its former owner still holds.")]
     public void ShouldAssignAFreshKeyToACapturedBank()
     {
-        var bank = new AssetBank { PlayerId = _playerId, SettlementId = _SETTLEMENT_ID, NetworkKey = Guid.NewGuid() };
+        var bank = new AssetBank { PlayerId = _playerId, Kind = AssetBankKind.Settlement, SettlementId = _SETTLEMENT_ID, NetworkKey = Guid.NewGuid() };
 
         Guid keyBeforeCapture = bank.NetworkKey;
 
@@ -285,6 +288,37 @@ internal class AssetNetworkConnectivityServiceTests : AssetBankTestBase
             (parentBankId, AssetNetworkFaultKind.Unjoined)
         }), "The camp holds the key the network should carry, so it is the parent that is out of place.");
     }
+
+    #region Cargo banks
+
+    [Test, Description("A recompute leaves a cargo bank's key exactly as it was, because connectivity here is a walk over Settlements and a Unit has none to walk from.")]
+    public async Task ShouldLeaveACargoBanksKeyAloneWhenRecomputingAsync()
+    {
+        Guid cargoKey = Guid.NewGuid();
+
+        int cargoBankId = await CreateUnitBankAsync(_playerId, _UNIT_INSTANCE_ID, new Dictionary<string, long>(), cargoKey);
+        await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long>());
+
+        await RecomputeAsync(_playerId);
+
+        Assert.That(await ReadKeyAsync(cargoBankId), Is.EqualTo(cargoKey));
+    }
+
+    [Test, Description("A cargo bank is never reported as a fault, so the check does not condemn every one of them for carrying a key no settlement walk assigned.")]
+    public async Task ShouldNotReportACargoBankAsAFaultAsync()
+    {
+        await CreateUnitBankAsync(_playerId, _UNIT_INSTANCE_ID, new Dictionary<string, long>(), Guid.Empty);
+        await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long>());
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        ServiceResult<IReadOnlyCollection<AssetNetworkFault>> result = await _service.FindFaultsForPlayerAsync(context, _playerId, CancellationToken.None);
+
+        Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+        Assert.That(result.SuccessValue, Is.Empty, "An unkeyed settlement bank would be a fault; an unkeyed cargo bank is simply not this walk's business.");
+    }
+
+    #endregion
 
     /// <summary>Recomputes on its own context and saves, which is what the caller of a re-key does.</summary>
     private async Task RecomputeAsync(int playerId)

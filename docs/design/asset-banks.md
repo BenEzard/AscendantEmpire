@@ -2,8 +2,8 @@
 
 The purpose of this document is to describe the game concept of Asset Banks.
 
-An Asset Bank is one settlement's store of assets. A settlement can also draw on every other bank in its
-**network**, which is the set of banks sharing a `NetworkKey`.
+An Asset Bank is a store of assets: either one settlement's stockpile or one unit's **cargo**. A settlement
+can also draw on every other bank in its **network**, which is the set of banks sharing a `NetworkKey`.
 
 See also `assets-data-model.md` which describes the asset model.
 
@@ -13,13 +13,19 @@ Two tables in the `assets` schema, keyed on the player:
 
 | Table | Key | What it holds |
 |---|---|---|
-| `AssetBank` | `Id` | One settlement's store, owned by a `Player`. Carries `SettlementId` (unique) and the `NetworkKey` that says what it can reach. |
+| `AssetBank` | `Id` | One settlement's store or one unit's cargo, owned by a `Player`. Carries `Kind`, exactly one of `SettlementId` / `UnitInstanceId`, and the `NetworkKey` that says what it can reach. |
 | `AssetBankBalance` | `(AssetBankId, AssetId)` | How much of one asset that store holds. |
+
+**`AssetBank.Kind` says which of the two a bank is**, and exactly one of `SettlementId` and `UnitInstanceId`
+is set to match it — a check constraint, `CK_AssetBank_KindTargetXor`, rather than a convention. The kind is
+stored rather than inferred from which reference is set, because it is what every Empire-wide read and every
+Empire-wide expense filters on. See [Force cargo](#force-cargo).
 
 **One bank, one settlement, for the settlement's whole life.** `AssetBank.SettlementId` never changes, and
 the unique index on it is what makes "a settlement has exactly one Asset Bank at any time" a schema rule —
-a second bank for the same settlement cannot be inserted. A conquest moves `AssetBank.PlayerId` instead, so
-a settlement's stock travels with the settlement.
+a second bank for the same settlement cannot be inserted. It is filtered on the column being non-null, since
+every cargo bank leaves it empty. A conquest moves `AssetBank.PlayerId` instead, so a settlement's stock
+travels with the settlement.
 
 Per-settlement capacity is what forces this shape: a cap needs a per-settlement row to bind to, and a
 deposit needs per-settlement rows to spread across. Keeping a settlement's stock with the settlement is
@@ -39,9 +45,9 @@ one sitting in a network of its own when it should be sharing one.
 
 **Balances never move between banks.** The one sanctioned exception anywhere in the model is a camp delivery.
 
-**Every bank is a settlement bank.** There is no player-level bank variant. Such a bank would have no
-settlement to point at and would have to be excluded from every settlement query — a bank in name only.
-What it was reaching for belongs on the asset instead, below.
+**There is still no player-level bank.** Such a bank would have no settlement and no unit to point at, and
+nowhere on the map to be seized from — a bank in name only. What it was reaching for belongs on the asset
+instead, below.
 
 `Quantity` is a `long` scaled by `ScaledAmount.Scale` (1,000), like every other amount in the game, so a
 fractional per-turn yield accumulates without being rounded away at the balance.
@@ -70,12 +76,18 @@ three services from the force rosters, and Slaves / Interned / P.o.W. from the h
 This is what lets a drawdown route a debit without hardcoding which assets are not spendable from a bank,
 and it keeps the catalogue row a pure label.
 
+**Three different mechanisms keep a quantity out of "what I have", and they are not interchangeable.** The
+strategic reserve is a different *column* (`AssetBankBalance.ReservedQuantity`), force cargo is a different
+*bank kind* (`AssetBank.Kind`), and a player-held or derived figure is a different *source* entirely
+(`Asset.StorageScope`).
+
 ## Asset Bank Rules
 
 **Built:**
 
 * Every settlement is born with an Asset Bank, whatever its `SettlementTier` — a 'camp' (1) included. A camp is the tier the first settlement of a game is, and the first building produces in one, so it banks for itself rather than drawing on a village it may not have.
-* A settlement has exactly one Asset Bank, for its whole life. Every Asset Bank has exactly one settlement, which may be of any tier.
+* A settlement has exactly one Asset Bank, for its whole life. Every settlement bank has exactly one settlement, which may be of any tier.
+* A **unit** is *not* born with a bank. Most units never carry anything, so cargo is provisioned on first use and a unit with no bank is simply carrying nothing — see [Force cargo](#force-cargo).
 * A bank is born into a network of its own, and the connectivity service is the only thing that writes `NetworkKey`.
 * A `SettlementTier` of 'camp' attaches to a parent settlement when it is founded, which both puts it in that settlement's network and makes it deliver its production there each turn — see [Camp deliveries](#camp-deliveries).
 * A settlement's `SettlementTier` grants it a generic storage pool, and a credit is cut back to what will fit in it — see [Capacity](#capacity).
@@ -135,6 +147,45 @@ The `People` and `Intangible` storage classes need no exemption: no asset in eit
 bank, so none ever reaches a balance row.
 
 What a credit does with the capacity it is bounded by is [Crediting an asset](#crediting-an-asset).
+
+## Force cargo
+
+Forces carry assets, so that troops can capture things and carry them away. What a unit carries is an Asset
+Bank of its own — `Kind` of `Unit` — rather than a cargo table of its own, which would duplicate the
+balances, the drawdown, the group ordering and this exclusion rule.
+
+**The bank attaches to a `UnitInstance`, not to a Force.** Force is a *category* rather than a type: a Force
+is either a unit or a Command, with no shared base and no shared table, so there is nothing for a single
+foreign key to hang on. `ForceOrderParticipant` already resolves the same dichotomy down to a unit.
+`UX_AssetBank_UnitInstance`, filtered on the column being non-null, makes "one load per unit" a schema rule.
+
+**Cargo is excluded from everything Empire-wide.** `GET /player/assets`, the ticker behind it, and every
+Empire-wide expense sum over settlement banks only. A technology funded out of a raiding party's loot would
+be funded out of goods still sitting on somebody else's territory. The filter lives in `AssetBankReader` —
+the one place a bank's balances are read — in both arms of the drawdown, and in the credit, delivery and
+capacity services, so a credit never routes into a load and a force standing inside a settlement does not
+fill its storehouse. A **shared `NetworkKey` does not change any of this**: the kind is filtered alongside
+the key.
+
+**Ownership moves the same way a settlement's does**, through `AssetBank.PlayerId`, so capturing a loaded
+force hands over what it was carrying without a balance row moving.
+
+**A destroyed unit's cargo is destroyed with it.** There is no store on a campaign tile to leave a load in,
+and the bank's foreign key to the unit would refuse the delete, so `IForceLifecycleWriter.DestroyAsync`
+clears the bank and its balances in the same unit of work.
+
+**Carrying is unlimited today.** A force's capacity is meant to be its healthy soldiers times the per-soldier
+carry weight of the template they were built from, and neither figure exists yet: `Asset.Weight` and
+`CompiledUnitTemplate`'s carry weight are **RS-41**, which is not built. Until it is, nothing checks what a
+load weighs and nothing refuses one — so a unit bank has no capacity concept at all, as against a settlement
+bank, whose tier pool binds on the credit path. A unit bank is also a **network of one**: the design pools a
+Command's units' banks under a shared key, but nothing in the codebase forms a Command — no code writes
+`UnitInstance.CommandId` — so the connectivity recompute leaves cargo banks on the key they were born with,
+and the operation that forms a Command is what will group them.
+
+**Nothing puts anything into a cargo bank yet.** Capture, discard and deposit are **RS-43**;
+`IAssetBankProvisioningService.ProvisionForUnitAsync` is the get-or-create those paths call, and it is the
+only way a unit bank comes into existence.
 
 ## Crediting an asset
 
@@ -295,9 +346,9 @@ An expense makes two choices, and both change what is spent.
 ### At one settlement
 
 A build order or an upkeep charge happens somewhere, so the expense carries that settlement. It drains
-**that settlement's own bank first**, then takes the remainder from the rest of its network — the banks of
-the same player sharing its `NetworkKey`. An unkeyed bank reaches nothing but itself, so a settlement the
-connectivity service has not keyed pays out of its own stock alone.
+**that settlement's own bank first**, then takes the remainder from the rest of its network — the settlement
+banks of the same player sharing its `NetworkKey`. An unkeyed bank reaches nothing but itself, so a
+settlement the connectivity service has not keyed pays out of its own stock alone.
 
 What is available is the **sum across that network**, and the expense is refused only where the banks
 between them do not hold enough. A settlement with no bank of its own cannot be spent at however much its
@@ -322,9 +373,10 @@ the network's Oak.
 ### Empire-wide
 
 A technology cost or an export belongs to no settlement, so the expense names none and is met from
-everything the player holds anywhere. What is available is the **sum across every bank**: two banks that
-cannot reach each other are added together here, because nothing is travelling to a building site. An
-Empire-wide expense carries **no transport cost**, ever.
+everything the player holds in store anywhere. What is available is the **sum across every settlement
+bank**: two banks that cannot reach each other are added together here, because nothing is travelling to a
+building site. An Empire-wide expense carries **no transport cost**, ever. What a force is carrying is no
+part of the sum — see [Force cargo](#force-cargo).
 
 **The debit is spread by levelling.** The fullest banks are cut down to a common water-line and the rest
 are left alone, rather than every bank paying a proportion of the cost. With banks holding 50, 30 and 4

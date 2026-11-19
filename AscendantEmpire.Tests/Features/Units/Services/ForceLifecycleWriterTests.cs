@@ -1,8 +1,11 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Assets.Services;
 using AscendantEmpire.Application.Features.Turns.Services;
 using AscendantEmpire.Application.Features.Units.Services;
+using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.Units;
+using AscendantEmpire.Domain.Enums.Assets;
 using AscendantEmpire.Domain.Enums.Forces;
 
 using Microsoft.EntityFrameworkCore;
@@ -41,6 +44,9 @@ internal class ForceLifecycleWriterTests : InMemoryTestBase
     /// <summary>Deliberately not 1, so a row stamped with a default would not pass by coincidence.</summary>
     private const int _TURN_SEQUENCE = 9;
 
+    /// <summary>The catalogue is not seeded here, and nothing asserted reads the Asset, so a bare id stands in on a cargo balance.</summary>
+    private const int _ANY_ASSET_ID = 1;
+
     private IPlayerTurnService _playerTurnService = null!;
     private ForceLifecycleWriter _writer = null!;
 
@@ -53,7 +59,12 @@ internal class ForceLifecycleWriterTests : InMemoryTestBase
         _playerTurnService.AllocateSequenceAsync(Arg.Any<AscendantEmpireContext>(), _PLAYER_TURN_ID, 1, Arg.Any<CancellationToken>())
             .Returns(ServiceResult<TurnSequenceBlock>.Succeed(new TurnSequenceBlock(_TURN_SEQUENCE, _TURN_SEQUENCE)));
 
-        _writer = new ForceLifecycleWriter(NullLogger<ForceLifecycleWriter>.Instance, _playerTurnService);
+        _writer = new ForceLifecycleWriter(
+            NullLogger<ForceLifecycleWriter>.Instance,
+            _playerTurnService,
+            new AssetBankProvisioningService(
+                NullLogger<AssetBankProvisioningService>.Instance,
+                new AssetNetworkConnectivityService(NullLogger<AssetNetworkConnectivityService>.Instance)));
     }
 
     [Test, Description("A move stages the new tile and its Moved row without saving, so the caller's one save commits both or neither.")]
@@ -250,7 +261,28 @@ internal class ForceLifecycleWriterTests : InMemoryTestBase
         }
     }
 
-    // ---------------------------------------------------------------------
+    [Test, Description("A destroyed Force takes its cargo with it, because there is no store on a campaign tile to leave a load in and the bank's key to the Unit would refuse the delete.")]
+    public async Task ShouldDestroyAForcesCargoWithItAsync()
+    {
+        await SeedForceAsync();
+        await SeedCargoAsync();
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+        UnitInstance force = await context.UnitInstances.SingleAsync(f => f.Id == _FORCE_ID);
+
+        ServiceResultBase result = await _writer.DestroyAsync(context, force, _PLAYER_TURN_ID);
+
+        await context.SaveChangesAsync();
+
+        await using AscendantEmpireContext verify = await DbFactory.CreateDbContextAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.True, () => string.Join("; ", result.Errors));
+            Assert.That(await verify.AssetBanks.AnyAsync(), Is.False);
+            Assert.That(await verify.AssetBankBalances.AnyAsync(), Is.False);
+        }
+    }
 
     /// <summary>Makes the Turn refuse to allocate, as a Turn that has already been closed would.</summary>
     private void GivenTheTurnCannotAllocate()
@@ -283,6 +315,33 @@ internal class ForceLifecycleWriterTests : InMemoryTestBase
         force.Id = _FORCE_ID;
 
         context.UnitInstances.Add(force);
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>Gives the test Force a cargo bank holding something, for the destruction that has to take both with it.</summary>
+    /// <remarks>Written directly rather than through the provisioning service, which has its own fixture; what is pinned here is that the destroy path clears it.</remarks>
+    private async Task SeedCargoAsync()
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        var bank = new AssetBank
+        {
+            PlayerId = _PLAYER_ID,
+            Kind = AssetBankKind.Unit,
+            UnitInstanceId = _FORCE_ID,
+            NetworkKey = Guid.NewGuid()
+        };
+
+        context.AssetBanks.Add(bank);
+        await context.SaveChangesAsync();
+
+        context.AssetBankBalances.Add(new AssetBankBalance
+        {
+            AssetBankId = bank.Id,
+            AssetId = _ANY_ASSET_ID,
+            Quantity = 1_000
+        });
+
         await context.SaveChangesAsync();
     }
 

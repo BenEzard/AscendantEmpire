@@ -3,6 +3,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Assets.Classes;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.Domain.Entities.Assets;
+using AscendantEmpire.Domain.Enums.Assets;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -158,10 +159,12 @@ internal sealed class AssetBankConquestService(
 
         // What the conqueror already holds in reserve elsewhere, which the target is measured against. The captured bank is excluded because it is theirs
         // only as of a moment ago: counting it would have the reserve crowd out its own headroom.
+        // Settlement banks only: a reserve is a building's budget, and a Unit's cargo has no building to hold one.
         Dictionary<int, long> alreadyReservedByAssetId = await context.AssetBankBalances
             .AsNoTracking()
             .Where(balance =>
                 balance.Bank.PlayerId == newOwnerPlayerId
+                && balance.Bank.Kind == AssetBankKind.Settlement
                 && balance.AssetBankId != capturedBank.Id
                 && assetIds.Contains(balance.AssetId))
             .GroupBy(balance => balance.AssetId)
@@ -191,9 +194,10 @@ internal sealed class AssetBankConquestService(
 
             balance.ReservedQuantity = keptRaw;
 
+            // The bank was found by its Settlement, so the column is set.
             releases.Add(AssetCredit.AtSettlement(
                 newOwnerPlayerId,
-                capturedBank.SettlementId,
+                capturedBank.SettlementId!.Value,
                 balance.AssetId,
                 ScaledAmount.FromRaw(releasedRaw)));
         }

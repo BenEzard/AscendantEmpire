@@ -207,12 +207,16 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
             return NotFound($"Settlement {settlementId} has no asset bank belonging to Player {expense.PlayerId}, so nothing can be spent there.");
         }
 
-        // PlayerId as well as the key, because the index is (PlayerId, NetworkKey) and a key alone would let a conquest caught mid-recompute reach a rival's stock.
+        // PlayerId as well as the key, because the index is (PlayerId, Kind, NetworkKey) and a key alone would let a conquest caught mid-recompute reach a
+        // rival's stock. The Kind keeps a Unit's cargo out: a settlement expense is met from stores, never from what a Force happens to be carrying past.
         int[] peerBankIds = site.NetworkKey == Guid.Empty
             ? []
             : [.. await context.AssetBanks
                 .AsNoTracking()
-                .Where(bank => bank.PlayerId == expense.PlayerId && bank.NetworkKey == site.NetworkKey && bank.Id != site.AssetBankId)
+                .Where(bank => bank.PlayerId == expense.PlayerId
+                    && bank.Kind == AssetBankKind.Settlement
+                    && bank.NetworkKey == site.NetworkKey
+                    && bank.Id != site.AssetBankId)
                 .Select(bank => bank.Id)
                 .ToListAsync(cancelToken)];
 
@@ -257,9 +261,13 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
     /// </summary>
     /// <remarks>
     /// <para>
-    /// A technology or an export belongs to no Settlement, so it is met out of everything the Player holds anywhere. Availability is the sum across every
-    /// bank, and two banks that cannot reach each other are deliberately added together here - an Empire-wide expense is not goods travelling to a building
-    /// site, so it carries no transport cost and no connectivity question.
+    /// A technology or an export belongs to no Settlement, so it is met out of everything the Player holds in store anywhere. Availability is the sum across
+    /// every settlement bank, and two banks that cannot reach each other are deliberately added together here - an Empire-wide expense is not goods travelling
+    /// to a building site, so it carries no transport cost and no connectivity question.
+    /// </para>
+    /// <para>
+    /// <b>A Unit's cargo is not part of it.</b> Loot in a saddlebag is not stock an Empire can spend, so the sum is over settlement banks only - the same
+    /// exclusion the quantity reader applies, so what the ticker shows as available is what this can actually spend.
     /// </para>
     /// <para>
     /// <b>The spread is levelling rather than proportional</b> - see <see cref="LevelDown"/>. The point of it is that a small bank keeps the stock its own
@@ -272,8 +280,13 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
 
         // Filtered through the Bank navigation, so this is an INNER JOIN on a required foreign key and no other Player's balance is reachable. Tracked,
         // unlike every other read here: these are the rows being written, and the caller's SaveChangesAsync is what commits them.
+        //
+        // The Kind filter is the exclusion rule, and this is the arm that needs it most: without it a technology would be funded out of a raiding party's
+        // loot, since every bank the Player owns is otherwise fair game here.
         List<AssetBankBalance> balances = await context.AssetBankBalances
-            .Where(balance => balance.Bank.PlayerId == expense.PlayerId && candidateAssetIds.Contains(balance.AssetId))
+            .Where(balance => balance.Bank.PlayerId == expense.PlayerId
+                && balance.Bank.Kind == AssetBankKind.Settlement
+                && candidateAssetIds.Contains(balance.AssetId))
             .ToListAsync(cancelToken);
 
         ScaledAmount available = ScaledAmount.FromRaw(balances.Sum(balance => balance.Quantity));

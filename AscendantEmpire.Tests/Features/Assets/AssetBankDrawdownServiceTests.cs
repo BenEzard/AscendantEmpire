@@ -27,6 +27,8 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
     private const int _THIRD_SETTLEMENT_ID = 43;
     private const int _FAR_SETTLEMENT_ID = 77;
 
+    private const int _UNIT_INSTANCE_ID = 9;
+
     // Building an expense never reads the catalogue, so a bare id stands in wherever a case only cares about what the factories refuse to build.
     private const int _ANY_ASSET_ID = 1;
 
@@ -41,9 +43,7 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
         _service = new AssetBankDrawdownService(NullLogger<AssetBankDrawdownService>.Instance);
     }
 
-    // ---------------------------------------------------------------------------------------------------------------------------------------------------
-    // At one Settlement - the site's own bank first, then the rest of its network.
-    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+    #region At one Settlement - the site's own bank first, then the rest of its network
 
     [Test, Description("A settlement expense is met from the bank carrying that SettlementId, so a spend lands on the Settlement's own store.")]
     public async Task ShouldDebitTheBankKeyedOnTheSettlement()
@@ -468,9 +468,9 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
         }
     }
 
-    // ---------------------------------------------------------------------------------------------------------------------------------------------------
-    // Empire-wide - every bank the Player owns, spread by levelling.
-    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+    #endregion
+
+    #region Empire-wide - every settlement bank the Player owns, spread by levelling
 
     [Test, Description("An Empire-wide expense cuts the fullest banks down to a common level rather than draining one or charging each a proportion.")]
     public async Task ShouldLevelAnEmpireWideExpenseDownToACommonWaterLine()
@@ -639,9 +639,49 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
         }
     }
 
-    // ---------------------------------------------------------------------------------------------------------------------------------------------------
-    // Assets held somewhere other than a bank.
-    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+    #endregion
+
+    #region Cargo exclusion
+
+    [Test, Description("An Empire-wide expense is short of what a Unit is carrying, because loot in a saddlebag is not stock an Empire can spend.")]
+    public async Task ShouldNotSpendCargoEmpireWideAsync()
+    {
+        await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        int cargoBankId = await CreateUnitBankAsync(_playerId, _UNIT_INSTANCE_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 50 });
+
+        ServiceResultBase result = await DebitAssetEmpireWideAsync(_OAK_LOG_CODE, whole: 10);
+
+        Dictionary<string, long> cargo = await ReadBalancesAsync(cargoBankId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False, "4 in store against an expense of 10 is a shortfall, whatever the Force is carrying.");
+            Assert.That(cargo[_OAK_LOG_CODE], Is.EqualTo(50), "A refused expense takes nothing, and cargo is unreachable in any case.");
+        }
+    }
+
+    [Test, Description("A settlement expense cannot reach a cargo bank carrying the site's own NetworkKey, so pooling cargo into a network never makes it spendable at a Settlement.")]
+    public async Task ShouldNotSpendCargoAtASettlementOnTheSameNetworkKeyAsync()
+    {
+        Guid networkKey = Guid.NewGuid();
+
+        await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 }, networkKey);
+        int cargoBankId = await CreateUnitBankAsync(_playerId, _UNIT_INSTANCE_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 50 }, networkKey);
+
+        ServiceResultBase result = await DebitAssetAtSettlementAsync(_OAK_LOG_CODE, whole: 10);
+
+        Dictionary<string, long> cargo = await ReadBalancesAsync(cargoBankId);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.HasSucceeded, Is.False);
+            Assert.That(cargo[_OAK_LOG_CODE], Is.EqualTo(50));
+        }
+    }
+
+    #endregion
+
+    #region Assets held somewhere other than a bank
 
     [Test, Description("Debiting a Derived Asset is a programming error rather than a shortfall: population is counted off what already records it and is not something a Player ran out of.")]
     public async Task ShouldRefuseADerivedAssetAsAProgrammingError()
@@ -763,9 +803,9 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
         Assert.That(result.StatusCode, Is.EqualTo(ServiceResultStatus.NotFound));
     }
 
-    // ---------------------------------------------------------------------------------------------------------------------------------------------------
-    // What an expense has to be, and what the caller owns.
-    // ---------------------------------------------------------------------------------------------------------------------------------------------------
+    #endregion
+
+    #region What an expense has to be, and what the caller owns
 
     [TestCase(0, Description = "A zero expense is a caller that did not mean to call, and cannot be built at all rather than being refused once it is spent.")]
     [TestCase(-5, Description = "A negative expense is a credit by another name, which production owns, so neither factory will build one.")]
@@ -837,6 +877,10 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
         Assert.That(balances[_OAK_LOG_CODE], Is.EqualTo(10));
     }
 
+    #endregion
+
+    #region Helpers
+
     private async Task<ServiceResultBase> DebitAssetAtSettlementAsync(string assetCode, int whole)
     {
         return await DebitAsync(AssetExpense.AtSettlement(
@@ -888,4 +932,6 @@ internal class AssetBankDrawdownServiceTests : AssetBankTestBase
 
         return result;
     }
+
+    #endregion
 }

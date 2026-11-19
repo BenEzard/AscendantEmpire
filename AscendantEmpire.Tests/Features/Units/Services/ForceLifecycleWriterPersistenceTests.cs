@@ -1,6 +1,7 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Assets.Services;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Game.Services;
 using AscendantEmpire.Application.Features.Players.Handlers;
@@ -132,7 +133,12 @@ internal class ForceLifecycleWriterPersistenceTests : GameSqlServerTestBase
         lyingAllocator.AllocateSequenceAsync(Arg.Any<AscendantEmpireContext>(), _MISSING_PLAYER_TURN_ID, 1, Arg.Any<CancellationToken>())
             .Returns(ServiceResult<TurnSequenceBlock>.Succeed(new TurnSequenceBlock(1, 1)));
 
-        var writer = new ForceLifecycleWriter(NullLogger<ForceLifecycleWriter>.Instance, lyingAllocator);
+        var writer = new ForceLifecycleWriter(
+            NullLogger<ForceLifecycleWriter>.Instance,
+            lyingAllocator,
+            new AssetBankProvisioningService(
+                NullLogger<AssetBankProvisioningService>.Instance,
+                new AssetNetworkConnectivityService(NullLogger<AssetNetworkConnectivityService>.Instance)));
 
         ServiceResultBase result;
 
@@ -269,12 +275,17 @@ internal class ForceLifecycleWriterPersistenceTests : GameSqlServerTestBase
         }
     }
 
-    // ---------------------------------------------------------------------
+    #region Helpers
 
     /// <summary>The writer over the real allocator, on the per-test database.</summary>
     private ForceLifecycleWriter RealWriter()
     {
-        return new ForceLifecycleWriter(NullLogger<ForceLifecycleWriter>.Instance, new PlayerTurnService(NullLogger<PlayerTurnService>.Instance, DbFactory));
+        return new ForceLifecycleWriter(
+            NullLogger<ForceLifecycleWriter>.Instance,
+            new PlayerTurnService(NullLogger<PlayerTurnService>.Instance, DbFactory),
+            new AssetBankProvisioningService(
+                NullLogger<AssetBankProvisioningService>.Instance,
+                new AssetNetworkConnectivityService(NullLogger<AssetNetworkConnectivityService>.Instance)));
     }
 
     /// <summary>
@@ -282,13 +293,16 @@ internal class ForceLifecycleWriterPersistenceTests : GameSqlServerTestBase
     /// </summary>
     private IMediator BuildMediator()
     {
-        // GetGameContextHandler delegates its query to IGameContextService, which AddMediator does not register, so that goes in by hand.
+        // GetGameContextHandler delegates its query to IGameContextService, which AddMediator does not register, so that goes in by hand. So do the two the
+        // Force writer needs to dispose of a destroyed Force's cargo.
         ServiceProvider provider = new ServiceCollection()
             .AddSingleton(DbFactory)
             .AddScoped(_ => DbFactory.CreateDbContext())
             .AddScoped<IGameContextService, GameContextService>()
             .AddSingleton<ICampaignTurnService>(new CampaignTurnService(NullLogger<CampaignTurnService>.Instance, DbFactory))
             .AddScoped<IPlayerTurnService, PlayerTurnService>()
+            .AddScoped<IAssetNetworkConnectivityService, AssetNetworkConnectivityService>()
+            .AddScoped<IAssetBankProvisioningService, AssetBankProvisioningService>()
             .AddScoped<IForceLifecycleWriter, ForceLifecycleWriter>()
             .AddMediator(typeof(GetPlayersHandler).Assembly)
             .AddLogging()
@@ -359,4 +373,6 @@ internal class ForceLifecycleWriterPersistenceTests : GameSqlServerTestBase
 
         return await context.MovementHistory.Where(h => h.GameId == _gameId).OrderBy(h => h.Id).ToListAsync();
     }
+
+    #endregion
 }

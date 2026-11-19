@@ -740,13 +740,20 @@ public class AscendantEmpireContext : DbContext
         });
 
         // --- Asset banks -------------------------------------------------------------
-        // One store per settlement, networked by a shared NetworkKey. These sit in the assets schema with the catalogue they hold quantities of, rather than
-        // in the settlements schema, because what they hold is a quantity of an Asset and ownership is per Player.
+        // One store per settlement and one per unit carrying cargo, networked by a shared NetworkKey. These sit in the assets schema with the catalogue they
+        // hold quantities of, rather than in the settlements schema, because what they hold is a quantity of an Asset and ownership is per Player.
         modelBuilder.Entity<AssetBank>(entity =>
         {
-            entity.ToTable("AssetBank", schema);
+            // Exactly one of the two references is set, and it is the one the Kind names. A bank pointing at both or at neither would be reachable by one set
+            // of queries and invisible to the other, which is the failure the discriminator exists to prevent.
+            entity.ToTable("AssetBank", schema, table => table.HasCheckConstraint(
+                "CK_AssetBank_KindTargetXor",
+                $"([Kind] = {(int)AssetBankKind.Settlement} AND [SettlementId] IS NOT NULL AND [UnitInstanceId] IS NULL) "
+                + $"OR ([Kind] = {(int)AssetBankKind.Unit} AND [UnitInstanceId] IS NOT NULL AND [SettlementId] IS NULL)"));
 
             entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Kind).IsRequired();
 
             // A real foreign key rather than a bare PlayerId index: a bank with no owning Player is meaningless, and nothing else would stop one existing.
             // NoAction, like every other Player reference, so a cascade cannot ripple out from deleting a Player.
@@ -756,21 +763,40 @@ public class AscendantEmpireContext : DbContext
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_AssetBank_Player_PlayerId");
 
-            // No navigation back from Settlement: the assets schema reaches into settlements, not the other way about.
+            // No navigation back from Settlement: the assets schema reaches into settlements, not the other way about. Optional now, because a unit bank has
+            // no settlement - the check constraint above is what keeps it set on the banks that must have one.
             entity.HasOne(x => x.Settlement)
                 .WithOne()
                 .HasForeignKey<AssetBank>(x => x.SettlementId)
+                .IsRequired(false)
                 .OnDelete(DeleteBehavior.NoAction)
                 .HasConstraintName("FK_AssetBank_Settlements_SettlementId");
 
+            // The same shape, reaching into the units schema, and with no navigation back for the same reason.
+            entity.HasOne(x => x.UnitInstance)
+                .WithOne()
+                .HasForeignKey<AssetBank>(x => x.UnitInstanceId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.NoAction)
+                .HasConstraintName("FK_AssetBank_UnitInstances_UnitInstanceId");
+
             // Unique, which is what makes "a settlement has exactly one asset bank at any time" a schema rule rather than one a service has to check.
+            // Filtered, because every unit bank leaves the column null and SQL Server counts nulls as equal in a unique index.
             entity.HasIndex(x => x.SettlementId)
                 .IsUnique()
+                .HasFilter("[SettlementId] IS NOT NULL")
                 .HasDatabaseName("UX_AssetBank_Settlement");
 
-            // PlayerId is this index's left-most column, so it needs no index of its own. Every network read filters on both.
-            entity.HasIndex(x => new { x.PlayerId, x.NetworkKey })
-                .HasDatabaseName("IX_AssetBank_Player_NetworkKey");
+            // The same rule for a unit, filtered for the same reason.
+            entity.HasIndex(x => x.UnitInstanceId)
+                .IsUnique()
+                .HasFilter("[UnitInstanceId] IS NOT NULL")
+                .HasDatabaseName("UX_AssetBank_UnitInstance");
+
+            // PlayerId is this index's left-most column, so it needs no index of its own. Kind sits in the middle because every network read now filters all
+            // three, while the Empire-wide reads filter the first two and seek on the prefix.
+            entity.HasIndex(x => new { x.PlayerId, x.Kind, x.NetworkKey })
+                .HasDatabaseName("IX_AssetBank_Player_Kind_NetworkKey");
         });
 
         modelBuilder.Entity<AssetBankBalance>(entity =>

@@ -2,6 +2,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Assets.Classes;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
 using AscendantEmpire.Domain.Entities.Assets;
+using AscendantEmpire.Domain.Enums.Assets;
 using AscendantEmpire.Domain.Enums.Settlements;
 
 using Microsoft.EntityFrameworkCore;
@@ -36,12 +37,13 @@ internal sealed class AssetBankDeliveryService(
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        // Ordered by Settlement id so the log and the rows written are the same for the same Empire, run after run.
+        // Ordered by Settlement id so the log and the rows written are the same for the same Empire, run after run. Settlement banks only: a camp delivers
+        // what its own buildings produced, and a Unit's cargo has no tier and no parent to deliver to.
         List<DeliveryBankRow> bankRows = await context.AssetBanks
             .AsNoTracking()
-            .Where(bank => bank.PlayerId == playerId && bank.Settlement.GameId == gameId)
+            .Where(bank => bank.Kind == AssetBankKind.Settlement && bank.PlayerId == playerId && bank.Settlement!.GameId == gameId)
             .OrderBy(bank => bank.SettlementId)
-            .Select(bank => new DeliveryBankRow(bank.Id, bank.SettlementId, bank.Settlement.Tier, bank.NetworkKey, bank.Settlement.ParentSettlementId))
+            .Select(bank => new DeliveryBankRow(bank.Id, bank.SettlementId!.Value, bank.Settlement!.Tier, bank.NetworkKey, bank.Settlement.ParentSettlementId))
             .ToListAsync(cancelToken);
 
         List<CampDelivery> deliveries = FindEligibleDeliveries(bankRows);

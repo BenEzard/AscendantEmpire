@@ -64,6 +64,10 @@ internal sealed class PlayerAssetQuantityReader(IAssetBankReader bankReader) : I
     /// read: what a settlement's panel shows and what this ticker adds up are then the same rows assembled the same way. The cost is that it also hands back
     /// memberships this caller discards, and balances for Assets nobody asked about.
     /// </para>
+    /// <para>
+    /// <b>A Unit's cargo is excluded, and the reader is what excludes it.</b> It hands back settlement banks only, so loot a Force is carrying never reaches
+    /// this total - which is what it has to do, since the Empire-wide drawdown spends exactly what this reports as available. See <c>AssetBankKind</c>.
+    /// </para>
     /// </remarks>
     private async Task AddBankedAmountsAsync(
         AscendantEmpireContext context,

@@ -19,7 +19,7 @@ namespace AscendantEmpire.Application.Features.Assets.Services;
 /// </para>
 /// <para>
 /// <b>And then on the expense's own arm.</b> A banked Asset is spent out of the network the expense's Settlement draws on, or, where the expense names no
-/// Settlement, across every bank the Player owns - see <see cref="AssetExpense.IsEmpireWide"/>:
+/// Settlement, across every settlement bank the Player owns - see <see cref="AssetExpense.IsEmpireWide"/>:
 /// </para>
 /// <list type="bullet">
 /// <item>
@@ -31,11 +31,15 @@ namespace AscendantEmpire.Application.Features.Assets.Services;
 /// </item>
 /// <item>
 /// <description>
-/// <b>Empire-wide</b> - a technology cost or an export, which belongs to no Settlement. Availability is the sum across every bank, and the debit is spread
-/// by levelling so that the fullest pools pay and a small one keeps the stock its own construction will need. It carries no transport cost.
+/// <b>Empire-wide</b> - a technology cost or an export, which belongs to no Settlement. Availability is the sum across every settlement bank, and the debit
+/// is spread by levelling so that the fullest pools pay and a small one keeps the stock its own construction will need. It carries no transport cost.
 /// </description>
 /// </item>
 /// </list>
+/// <para>
+/// <b>Neither arm can spend a Unit's cargo.</b> Both filter to settlement banks, so what a Force is carrying funds nothing until it is deposited - otherwise
+/// a technology could be paid for out of loot that is still on somebody else's territory. See <c>AssetBankKind</c>.
+/// </para>
 /// <para>
 /// An Asset held per Player can only be spent Empire-wide. Naming a Settlement for one is a caller that has the two arms confused, and is refused as such
 /// rather than quietly ignored.
@@ -56,7 +60,7 @@ internal interface IAssetBankDrawdownService
     /// <para>
     /// <b>Every expense succeeds whole or changes nothing.</b> Sufficiency is settled across the entire expense before a single balance is touched, so a
     /// group expense that zeroes Oak and then finds Cedar short never happens - on refusal the context is exactly as it was handed over and the caller is
-    /// free to carry on with it. That settling is across every bank the expense can reach at once - the Settlement's network, or every bank the Player owns -
+    /// free to carry on with it. That settling is across every bank the expense can reach at once - the Settlement's network, or every settlement bank the Player owns -
     /// rather than bank by bank.
     /// </para>
     /// <para>The failure statuses are distinct on purpose, because they mean different things to a caller:</para>

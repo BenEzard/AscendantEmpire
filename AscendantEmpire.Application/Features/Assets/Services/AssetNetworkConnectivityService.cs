@@ -2,6 +2,7 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Assets.Classes;
 using AscendantEmpire.Domain.Entities.Assets;
+using AscendantEmpire.Domain.Enums.Assets;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -40,14 +41,17 @@ internal sealed class AssetNetworkConnectivityService(ILogger<AssetNetworkConnec
 
         // Tracked, because these are the rows being written and the caller's SaveChangesAsync is what commits them.
         // Ordered by id so that the bank keeping a shared key is always the same one, and a second run has nothing left to change.
+        //
+        // Settlement banks only. Connectivity here is a walk over Settlements, and a unit bank has no Settlement to walk from: it keeps the network of one it
+        // was born with until the operation that forms a Command groups its members' banks - see AssetBankKind.
         List<AssetBank> banks = await context.AssetBanks
-            .Where(bank => bank.PlayerId == playerId)
+            .Where(bank => bank.PlayerId == playerId && bank.Kind == AssetBankKind.Settlement)
             .OrderBy(bank => bank.Id)
             .ToListAsync(cancelToken);
 
         List<BankRow> rows = await AddParentDesignationsAsync(
             context,
-            [.. banks.Select(bank => new BankRow(bank.Id, bank.SettlementId, bank.NetworkKey, null))],
+            [.. banks.Select(bank => new BankRow(bank.Id, bank.SettlementId!.Value, bank.NetworkKey, null))],
             cancelToken);
 
         int reKeyedCount = 0;
@@ -81,11 +85,13 @@ internal sealed class AssetNetworkConnectivityService(ILogger<AssetNetworkConnec
     {
         ArgumentNullException.ThrowIfNull(context);
 
+        // Settlement banks only, matching what the recompute above assesses: a check reporting unit banks as faulty would report every one of them, since
+        // nothing keys them.
         List<BankRow> bankRows = await context.AssetBanks
             .AsNoTracking()
-            .Where(bank => bank.PlayerId == playerId)
+            .Where(bank => bank.PlayerId == playerId && bank.Kind == AssetBankKind.Settlement)
             .OrderBy(bank => bank.Id)
-            .Select(bank => new BankRow(bank.Id, bank.SettlementId, bank.NetworkKey, null))
+            .Select(bank => new BankRow(bank.Id, bank.SettlementId!.Value, bank.NetworkKey, null))
             .ToListAsync(cancelToken);
 
         List<BankRow> rows = await AddParentDesignationsAsync(context, bankRows, cancelToken);

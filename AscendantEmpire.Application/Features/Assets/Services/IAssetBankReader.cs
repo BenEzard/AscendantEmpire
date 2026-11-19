@@ -18,6 +18,11 @@ namespace AscendantEmpire.Application.Features.Assets.Services;
 /// key, so a quantity without both is a figure a caller can misuse - see <see cref="AssetBankHoldings"/>.
 /// </para>
 /// <para>
+/// <b>Settlement banks only, both reads.</b> A Unit's cargo is a bank of its own kind and never appears here: it is excluded from Empire totals and from
+/// Empire-wide spending until it is deposited, and filtering it out at the one place balances are read is what stops a ticker advertising a raiding party's
+/// loot as stock the Empire can spend. A read of what a Force is carrying is its own question, asked of the Force rather than of the Empire.
+/// </para>
+/// <para>
 /// Reads on the caller's context, untracked. A drawdown about to spend from the same bank must not work off these rows: it needs tracked entities, which is
 /// why <see cref="IAssetBankDrawdownService"/> loads its own.
 /// </para>

@@ -871,16 +871,18 @@ internal class SettleForceHandlerTests : GameSqlServerTestBase
     {
         var playerTurnService = new PlayerTurnService(NullLogger<PlayerTurnService>.Instance, DbFactory);
 
+        var provisioningService = new AssetBankProvisioningService(
+            NullLogger<AssetBankProvisioningService>.Instance,
+            new AssetNetworkConnectivityService(NullLogger<AssetNetworkConnectivityService>.Instance));
+
         var handler = new SettleForceHandler(
             NullLogger<SettleForceHandler>.Instance,
             DbFactory,
             _campaignTurnService,
             _contextActionService,
-            new ForceLifecycleWriter(NullLogger<ForceLifecycleWriter>.Instance, playerTurnService),
+            new ForceLifecycleWriter(NullLogger<ForceLifecycleWriter>.Instance, playerTurnService, provisioningService),
             new StructureLifecycleWriter(NullLogger<StructureLifecycleWriter>.Instance, playerTurnService),
-            new AssetBankProvisioningService(
-                NullLogger<AssetBankProvisioningService>.Instance,
-                new AssetNetworkConnectivityService(NullLogger<AssetNetworkConnectivityService>.Instance)),
+            provisioningService,
             new CampParentResolver(NullLogger<CampParentResolver>.Instance),
             new AssetNetworkConnectivityService(NullLogger<AssetNetworkConnectivityService>.Instance));
 

@@ -144,12 +144,14 @@ internal sealed class AssetBankCreditService(
     {
         int[] playerIds = [.. credits.Select(credit => credit.PlayerId).Distinct()];
 
-        // Every bank of every Player named, in one read: a Player holds settlements in one Game, and the set is bounded by how many they hold.
+        // Every settlement bank of every Player named, in one read: a Player holds settlements in one Game, and the set is bounded by how many they hold.
+        // A Unit's cargo is not a destination for production - what a Force carries is put there by a capture or a transfer, never by a yield - so it is left
+        // out here rather than excluded per credit.
         List<CreditBankRow> bankRows = await context.AssetBanks
             .AsNoTracking()
-            .Where(bank => playerIds.Contains(bank.PlayerId))
+            .Where(bank => playerIds.Contains(bank.PlayerId) && bank.Kind == AssetBankKind.Settlement)
             .OrderBy(bank => bank.Id)
-            .Select(bank => new CreditBankRow(bank.Id, bank.PlayerId, bank.SettlementId, bank.NetworkKey))
+            .Select(bank => new CreditBankRow(bank.Id, bank.PlayerId, bank.SettlementId!.Value, bank.NetworkKey))
             .ToListAsync(cancelToken);
 
         Dictionary<SiteKey, CreditBankRow> siteByKey = bankRows.ToDictionary(row => new SiteKey(row.PlayerId, row.SettlementId));

@@ -34,6 +34,8 @@ internal class AssetBankCreditServiceTests : AssetBankTestBase
     /// <summary>A Settlement no fixture gives a bank, for the refusal that says a credit has to arrive somewhere.</summary>
     private const int _BANKLESS_SETTLEMENT_ID = 45;
 
+    private const int _UNIT_INSTANCE_ID = 9;
+
     /// <summary>A village's whole generic pool, in the whole units the fixtures arrange stock in.</summary>
     /// <remarks>Read from the rules rather than restated, so repricing a tier moves these cases with it instead of failing them.</remarks>
     private static readonly long _VILLAGE_POOL_WHOLE_UNITS = PoolInWholeUnits(SettlementTier.Village);
@@ -404,6 +406,29 @@ internal class AssetBankCreditServiceTests : AssetBankTestBase
             () => AssetCredit.AtSettlement(_playerId, _FIRST_SETTLEMENT_ID, assetId: 1, ScaledAmount.FromWhole(wholeAmount)),
             Throws.InstanceOf<ArgumentOutOfRangeException>());
     }
+
+    #region Cargo exclusion
+
+    [Test, Description("A credit never routes into a cargo bank sharing the destination's NetworkKey, because production arrives at a store and nothing yields into a Force's load.")]
+    public async Task ShouldNotRouteACreditIntoACargoBankAsync()
+    {
+        Guid networkKey = Guid.NewGuid();
+
+        await CreateSettlementAsync(_FIRST_SETTLEMENT_ID);
+
+        int settlementBankId = await CreateBankAsync(_playerId, _FIRST_SETTLEMENT_ID, new Dictionary<string, long>(), networkKey);
+        int cargoBankId = await CreateUnitBankAsync(_playerId, _UNIT_INSTANCE_ID, new Dictionary<string, long>(), networkKey);
+
+        await CreditAsync(await BuildCreditAsync(_FIRST_SETTLEMENT_ID, _OAK_LOG_CODE, wholeAmount: 10));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That((await ReadBalancesAsync(settlementBankId))[_OAK_LOG_CODE], Is.EqualTo(10));
+            Assert.That(await ReadBalancesAsync(cargoBankId), Is.Empty, "An emptiest-first spread would have reached it first of all, had it been a destination.");
+        }
+    }
+
+    #endregion
 
     /// <summary>Builds a credit of whole units arriving at one Settlement, looking the Asset's id up by its code.</summary>
     private async Task<AssetCredit> BuildCreditAsync(int settlementId, string assetCode, long wholeAmount)

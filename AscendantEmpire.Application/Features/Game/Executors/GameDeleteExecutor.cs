@@ -72,6 +72,7 @@ internal sealed class GameDeleteExecutor(
         "[units].[ForceOrders]",
         "[units].[UnitInstances]",
         "[units].[Commands]",
+        "[assets].[AssetBank]",
         "[game].[PlayerReport]",
         "[game].[PlayerKnownForce]",
         "[game].[PlayerKnownStructure]",
@@ -250,6 +251,16 @@ internal sealed class GameDeleteExecutor(
             // of them. It carries its own GameId, so needs no scoping through the campaign map the way the battle maps themselves do.
             ("player battle map views", () => purge.PlayerBattleMaps
                 .Where(v => v.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            // Asset banks name a Settlement or a Unit, so they go before both - and their balances go before them. Neither table carries a GameId, so they
+            // are scoped through the owning Player, which is the column a conquest moves and so the one that is always this Game's.
+            ("asset bank balances", () => purge.AssetBankBalances
+                .Where(b => purge.AssetBanks.Any(a => a.Id == b.AssetBankId && playerIds.Contains(a.PlayerId)))
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            ("asset banks", () => purge.AssetBanks
+                .Where(a => playerIds.Contains(a.PlayerId))
                 .ExecuteDeleteAsync(cancellationToken)),
 
             // Units carry a CommandId, so they go before the commands.
@@ -474,6 +485,11 @@ internal sealed class GameDeleteExecutor(
 
             ("player research state", () => purge.PlayerResearchStates
                 .Where(r => r.GameId == gameId)
+                .ExecuteDeleteAsync(cancellationToken)),
+
+            // Keyed on the Player and the Asset, with no GameId of its own, so it is scoped through the Players and goes before them.
+            ("player strategic reserve policies", () => purge.PlayerStrategicReservePolicies
+                .Where(p => playerIds.Contains(p.PlayerId))
                 .ExecuteDeleteAsync(cancellationToken)),
 
             ("players", () => purge.Players

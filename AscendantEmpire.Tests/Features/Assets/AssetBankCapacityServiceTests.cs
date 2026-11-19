@@ -27,6 +27,8 @@ internal class AssetBankCapacityServiceTests : AssetBankTestBase
     private const int _SETTLEMENT_ID = 31;
     private const int _CAMP_SETTLEMENT_ID = 32;
 
+    private const int _UNIT_INSTANCE_ID = 9;
+
     private AssetBankCapacityService _service = null!;
 
     [SetUp]
@@ -122,6 +124,22 @@ internal class AssetBankCapacityServiceTests : AssetBankTestBase
     {
         return ScaledAmount.FromWhole(wholeUnits).RawValue;
     }
+
+    #region Cargo exclusion
+
+    [Test, Description("A Unit's cargo does not count against the Settlement's storehouse, so a Force standing inside one with a load of logs does not fill it.")]
+    public async Task ShouldNotCountAUnitsCargoAgainstTheSettlementAsync()
+    {
+        await CreateSettlementAsync(_SETTLEMENT_ID);
+        await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        await CreateUnitBankAsync(_playerId, _UNIT_INSTANCE_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 50 });
+
+        SettlementStorageCapacity capacity = await GetCapacityAsync(_SETTLEMENT_ID);
+
+        Assert.That(capacity.SpaceAvailable(await GetStorageClassIdAsync(_OAK_LOG_CODE)), Is.EqualTo(PoolOf(SettlementTier.Village) - Raw(4)));
+    }
+
+    #endregion
 
     private async Task<SettlementStorageCapacity> GetCapacityAsync(int settlementId)
     {

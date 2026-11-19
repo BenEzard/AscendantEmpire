@@ -6,6 +6,7 @@ using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Settlements;
 using AscendantEmpire.Domain.Entities.Structures;
+using AscendantEmpire.Domain.Enums.Assets;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Settlements;
 using AscendantEmpire.Domain.Enums.Structures;
@@ -440,6 +441,7 @@ internal class AssetBankConquestServicePersistenceTests : GameSqlServerTestBase
         var bank = new AssetBank
         {
             PlayerId = playerId,
+            Kind = AssetBankKind.Settlement,
             SettlementId = settlement.Id,
             NetworkKey = Guid.NewGuid()
         };

@@ -1,6 +1,7 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Assets.Services;
 using AscendantEmpire.Application.Features.Battles.Services;
 using AscendantEmpire.Application.Features.Game.Handlers;
 using AscendantEmpire.Application.Features.Maps.BattleMaps.Services;
@@ -452,7 +453,12 @@ internal class BattleEngagementServicePersistenceTests : GameSqlServerTestBase
     /// <summary>The Force writer over the real allocator, on the per-test database.</summary>
     private ForceLifecycleWriter RealForceWriter()
     {
-        return new ForceLifecycleWriter(NullLogger<ForceLifecycleWriter>.Instance, new PlayerTurnService(NullLogger<PlayerTurnService>.Instance, DbFactory));
+        return new ForceLifecycleWriter(
+            NullLogger<ForceLifecycleWriter>.Instance,
+            new PlayerTurnService(NullLogger<PlayerTurnService>.Instance, DbFactory),
+            new AssetBankProvisioningService(
+                NullLogger<AssetBankProvisioningService>.Instance,
+                new AssetNetworkConnectivityService(NullLogger<AssetNetworkConnectivityService>.Instance)));
     }
 
     /// <summary>A new, unsaved settler with a full turn and a bit of movement.</summary>

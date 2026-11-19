@@ -19,7 +19,7 @@ internal sealed class AssetBankReader : IAssetBankReader
         CancellationToken cancelToken = default)
     {
         // Both columns in the predicate, so naming another Player's Settlement cannot reach their bank. That is what makes "not yours" and "no bank" one
-        // answer rather than two.
+        // answer rather than two. Naming the Settlement already confines this to a settlement bank, since a unit bank leaves the column null.
         SiteRow? site = await context.AssetBanks
             .AsNoTracking()
             .Where(bank => bank.SettlementId == settlementId && bank.PlayerId == playerId)
@@ -37,7 +37,7 @@ internal sealed class AssetBankReader : IAssetBankReader
             ? [site.AssetBankId]
             : [.. await context.AssetBanks
                 .AsNoTracking()
-                .Where(bank => bank.PlayerId == playerId && bank.NetworkKey == site.NetworkKey)
+                .Where(bank => bank.PlayerId == playerId && bank.Kind == AssetBankKind.Settlement && bank.NetworkKey == site.NetworkKey)
                 .Select(bank => bank.Id)
                 .ToListAsync(cancelToken)];
 
@@ -79,8 +79,12 @@ internal sealed class AssetBankReader : IAssetBankReader
     /// uses for the asset tree. A Player holds a handful of banks and each holds at most a few hundred balances, so the assembly is cheap.
     /// </para>
     /// <para>The Player filter is applied to the banks themselves, so narrowing by id cannot reach another Player's bank even when the id is theirs.</para>
+    /// <para>
+    /// <b>Settlement banks only.</b> A Unit's cargo is excluded here rather than at each caller, because this is the one place a bank's balances are read and
+    /// the ticker that adds them up must not advertise a raiding party's loot as stock the Empire can spend.
+    /// </para>
     /// </remarks>
-    /// <param name="assetBankIds">The banks to read, or <see langword="null"/> for every bank the Player owns.</param>
+    /// <param name="assetBankIds">The banks to read, or <see langword="null"/> for every settlement bank the Player owns.</param>
     private static async Task<IReadOnlyCollection<AssetBankHoldings>> ReadBanksAsync(
         AscendantEmpireContext context,
         int playerId,
@@ -89,15 +93,16 @@ internal sealed class AssetBankReader : IAssetBankReader
     {
         IQueryable<AssetBank> banks = context.AssetBanks
             .AsNoTracking()
-            .Where(bank => bank.PlayerId == playerId);
+            .Where(bank => bank.PlayerId == playerId && bank.Kind == AssetBankKind.Settlement);
 
         if (assetBankIds is not null)
         {
             banks = banks.Where(bank => assetBankIds.Contains(bank.Id));
         }
 
+        // SettlementId is non-null on every row the Kind filter above leaves, which the check constraint on the table guarantees.
         List<BankRow> bankRows = await banks
-            .Select(bank => new BankRow(bank.Id, bank.PlayerId, bank.SettlementId, bank.NetworkKey))
+            .Select(bank => new BankRow(bank.Id, bank.PlayerId, bank.SettlementId!.Value, bank.NetworkKey))
             .ToListAsync(cancelToken);
 
         if (bankRows.Count == 0)

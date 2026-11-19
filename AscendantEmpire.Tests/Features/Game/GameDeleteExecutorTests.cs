@@ -2,6 +2,7 @@
 using AscendantEmpire.Application.Features.Authentication.Services;
 using AscendantEmpire.Application.Features.Game.Executors;
 using AscendantEmpire.Application.Features.Game.Handlers;
+using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.BackgroundProcessing;
 using AscendantEmpire.Domain.Entities.Battles;
 using AscendantEmpire.Domain.Entities.Games;
@@ -12,6 +13,7 @@ using AscendantEmpire.Domain.Entities.Turns;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
 using AscendantEmpire.Domain.Enums;
+using AscendantEmpire.Domain.Enums.Assets;
 using AscendantEmpire.Domain.Enums.Authentication;
 using AscendantEmpire.Domain.Enums.Battle;
 using AscendantEmpire.Domain.Enums.Forces;
@@ -217,6 +219,34 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
             Assert.That(job.Status, Is.EqualTo(ProcessingStatus.Complete), job.ErrorMessage);
             Assert.That(await context.PlayerSustenanceModifiers.AnyAsync(m => m.GameId == gameId), Is.False);
             Assert.That(await context.CampaignBiomes.CountAsync(), Is.EqualTo(biomesBefore), "Biomes are catalogue data, not the game's.");
+        }
+    }
+
+    [Test, Description("Asset banks, their balances and the players' reserve policies go with their game, and before the Units and Players they name, while the Asset catalogue survives.")]
+    public async Task ShouldRemoveTheGamesAssetBanksWhenItIsDeletedAsync()
+    {
+        int doomedGameId = await SetupGameAsync("Doomed");
+        int survivorGameId = await SetupGameAsync("Survivor");
+
+        await SeedAssetBanksAsync(doomedGameId);
+        await SeedAssetBanksAsync(survivorGameId);
+
+        int assetsBefore = await CountAsync(c => c.Assets.CountAsync());
+
+        Processing job = await ExecuteDeleteAsync(doomedGameId);
+
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        int[] doomedPlayerIds = [.. await context.Players.Where(p => p.GameId == doomedGameId).Select(p => p.Id).ToListAsync()];
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(job.Status, Is.EqualTo(ProcessingStatus.Complete), job.ErrorMessage);
+            Assert.That(doomedPlayerIds, Is.Empty, "The Players went too, which they could not have while a bank still named them.");
+            Assert.That(await context.AssetBanks.CountAsync(), Is.EqualTo(1), "One bank left, and it is the survivor's.");
+            Assert.That(await context.AssetBankBalances.CountAsync(), Is.EqualTo(1));
+            Assert.That(await context.PlayerStrategicReservePolicies.CountAsync(), Is.EqualTo(1));
+            Assert.That(await context.Assets.CountAsync(), Is.EqualTo(assetsBefore), "Assets are catalogue data, not the game's.");
         }
     }
 
@@ -1043,6 +1073,51 @@ public class GameDeleteExecutorTests : GameSqlServerTestBase
                 FlatValue = 0,
                 PercentValue = 250
             });
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Gives the game's first player a cargo bank on one of its starting Units, with something in it, and a strategic reserve policy.
+    /// </summary>
+    /// <remarks>
+    /// A cargo bank rather than a settlement one, because setup founds no Settlement while it does field starting Units - and a Unit is the harder ordering
+    /// anyway, since the Units step follows the banks step immediately. Written straight to the tables for the same reason as
+    /// <see cref="SeedPlayerSustenanceModifiersAsync"/>: nothing captures cargo in play yet.
+    /// </remarks>
+    private async Task SeedAssetBanksAsync(int gameId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        int playerId = await context.Players.Where(p => p.GameId == gameId).OrderBy(p => p.Id).Select(p => p.Id).FirstAsync();
+        int unitInstanceId = await context.UnitInstances.Where(u => u.GameId == gameId).OrderBy(u => u.Id).Select(u => u.Id).FirstAsync();
+        int assetId = await context.Assets.OrderBy(a => a.Id).Select(a => a.Id).FirstAsync();
+
+        var bank = new AssetBank
+        {
+            PlayerId = playerId,
+            Kind = AssetBankKind.Unit,
+            UnitInstanceId = unitInstanceId,
+            NetworkKey = Guid.NewGuid()
+        };
+
+        context.AssetBanks.Add(bank);
+        context.PlayerStrategicReservePolicies.Add(new PlayerStrategicReservePolicy
+        {
+            PlayerId = playerId,
+            AssetId = assetId,
+            TargetQuantity = 1_000,
+            DiversionPercent = 10
+        });
+
+        await context.SaveChangesAsync();
+
+        context.AssetBankBalances.Add(new AssetBankBalance
+        {
+            AssetBankId = bank.Id,
+            AssetId = assetId,
+            Quantity = 1_000
+        });
 
         await context.SaveChangesAsync();
     }

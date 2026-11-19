@@ -582,7 +582,7 @@ internal class GetPlayerAssetsHandlerTests : PlayerAssetUnlockTestBase
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        var bank = new AssetBank { PlayerId = _playerId };
+        var bank = new AssetBank { PlayerId = _playerId, Kind = AssetBankKind.Settlement, SettlementId = _playerId };
         context.AssetBanks.Add(bank);
         await context.SaveChangesAsync();
 

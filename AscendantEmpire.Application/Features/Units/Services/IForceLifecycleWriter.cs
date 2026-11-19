@@ -74,6 +74,11 @@ public interface IForceLifecycleWriter
     /// Nothing destroys a Force yet - attrition and combat are both still to be built - so this has no callers. The caller will have to clear the Force's orders first: <c>ForceOrders</c> does hold
     /// a foreign key to the Force, and the database will refuse the delete while any remain.
     /// </para>
+    /// <para>
+    /// <b>Whatever the Force was carrying goes with it.</b> Its cargo bank and every balance in it are staged for deletion here, because there is no store on
+    /// a campaign tile to leave a load in - and because the bank's foreign key to the Unit would refuse the delete otherwise. A Force carrying nothing has no
+    /// bank, which is the ordinary case.
+    /// </para>
     /// </remarks>
     /// <param name="playerTurnId">The open Turn the destruction happens during, which its row is stamped with.</param>
     Task<ServiceResultBase> DestroyAsync(AscendantEmpireContext context, UnitInstance force, int playerTurnId, CancellationToken cancelToken = default);

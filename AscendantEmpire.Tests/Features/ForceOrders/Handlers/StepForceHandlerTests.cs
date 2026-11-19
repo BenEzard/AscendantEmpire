@@ -1,6 +1,7 @@
 using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Common.Messaging;
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Assets.Services;
 using AscendantEmpire.Application.Features.Battles.Services;
 using AscendantEmpire.Application.Features.ForceOrders.Handlers;
 using AscendantEmpire.Application.Features.ForceOrders.Movement.Strategies;
@@ -119,7 +120,12 @@ internal class StepForceHandlerTests : InMemoryTestBase
             _mediator,
             _campaignTurnService,
             AllMovementDomainStrategies(),
-            new ForceLifecycleWriter(NullLogger<ForceLifecycleWriter>.Instance, _playerTurnService),
+            new ForceLifecycleWriter(
+                NullLogger<ForceLifecycleWriter>.Instance,
+                _playerTurnService,
+                new AssetBankProvisioningService(
+                    NullLogger<AssetBankProvisioningService>.Instance,
+                    new AssetNetworkConnectivityService(NullLogger<AssetNetworkConnectivityService>.Instance))),
             _battleEngagementService);
 
         await SeedMapAndTemplateAsync();

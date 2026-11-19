@@ -111,25 +111,40 @@ namespace AscendantEmpire.Application.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("Kind")
+                        .HasColumnType("int");
+
                     b.Property<Guid>("NetworkKey")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("PlayerId")
                         .HasColumnType("int");
 
-                    b.Property<int>("SettlementId")
+                    b.Property<int?>("SettlementId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("UnitInstanceId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
                     b.HasIndex("SettlementId")
                         .IsUnique()
-                        .HasDatabaseName("UX_AssetBank_Settlement");
+                        .HasDatabaseName("UX_AssetBank_Settlement")
+                        .HasFilter("[SettlementId] IS NOT NULL");
 
-                    b.HasIndex("PlayerId", "NetworkKey")
-                        .HasDatabaseName("IX_AssetBank_Player_NetworkKey");
+                    b.HasIndex("UnitInstanceId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AssetBank_UnitInstance")
+                        .HasFilter("[UnitInstanceId] IS NOT NULL");
 
-                    b.ToTable("AssetBank", "assets");
+                    b.HasIndex("PlayerId", "Kind", "NetworkKey")
+                        .HasDatabaseName("IX_AssetBank_Player_Kind_NetworkKey");
+
+                    b.ToTable("AssetBank", "assets", t =>
+                        {
+                            t.HasCheckConstraint("CK_AssetBank_KindTargetXor", "([Kind] = 1 AND [SettlementId] IS NOT NULL AND [UnitInstanceId] IS NULL) OR ([Kind] = 2 AND [UnitInstanceId] IS NOT NULL AND [SettlementId] IS NULL)");
+                        });
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.AssetBankBalance", b =>
@@ -4775,12 +4790,19 @@ namespace AscendantEmpire.Application.Migrations
                         .WithOne()
                         .HasForeignKey("AscendantEmpire.Domain.Entities.Assets.AssetBank", "SettlementId")
                         .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired()
                         .HasConstraintName("FK_AssetBank_Settlements_SettlementId");
+
+                    b.HasOne("AscendantEmpire.Domain.Entities.Units.UnitInstance", "UnitInstance")
+                        .WithOne()
+                        .HasForeignKey("AscendantEmpire.Domain.Entities.Assets.AssetBank", "UnitInstanceId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .HasConstraintName("FK_AssetBank_UnitInstances_UnitInstanceId");
 
                     b.Navigation("Player");
 
                     b.Navigation("Settlement");
+
+                    b.Navigation("UnitInstance");
                 });
 
             modelBuilder.Entity("AscendantEmpire.Domain.Entities.Assets.AssetBankBalance", b =>

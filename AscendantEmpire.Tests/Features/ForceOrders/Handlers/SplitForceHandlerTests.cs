@@ -1,4 +1,5 @@
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Assets.Services;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.Application.Features.ForceOrders.Handlers;
 using AscendantEmpire.Application.Features.Game.Handlers;
@@ -134,7 +135,12 @@ internal class SplitForceHandlerTests : GameSqlServerTestBase
             DbFactory,
             _campaignTurnService,
             _contextActionService,
-            new ForceLifecycleWriter(NullLogger<ForceLifecycleWriter>.Instance, playerTurnService));
+            new ForceLifecycleWriter(
+                NullLogger<ForceLifecycleWriter>.Instance,
+                playerTurnService,
+                new AssetBankProvisioningService(
+                    NullLogger<AssetBankProvisioningService>.Instance,
+                    new AssetNetworkConnectivityService(NullLogger<AssetNetworkConnectivityService>.Instance))));
 
         return await handler.Handle(new SplitForceRequest(_gameId, _playerId, unitInstanceId, groupSizes), CancellationToken.None);
     }

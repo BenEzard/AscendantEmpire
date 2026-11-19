@@ -2,6 +2,7 @@ using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.Assets.Classes;
 using AscendantEmpire.Application.Features.Assets.Services;
 using AscendantEmpire.Domain.Entities.Assets;
+using AscendantEmpire.Domain.Enums.Assets;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -24,6 +25,8 @@ internal class PlayerAssetQuantityReaderTests : AssetBankTestBase
 {
     private const int _SETTLEMENT_ID = 41;
     private const int _FAR_SETTLEMENT_ID = 77;
+
+    private const int _UNIT_INSTANCE_ID = 9;
 
     private PlayerAssetQuantityReader _reader = null!;
 
@@ -214,6 +217,31 @@ internal class PlayerAssetQuantityReaderTests : AssetBankTestBase
         }
     }
 
+    #region Cargo exclusion
+
+    [Test, Description("A Unit's cargo is no part of the figure, so a technology can never be funded out of loot a raiding party is still carrying.")]
+    public async Task ShouldNotCountAUnitsCargoInTheAmountAsync()
+    {
+        await CreateBankAsync(_playerId, _SETTLEMENT_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 4 });
+        await CreateUnitBankAsync(_playerId, _UNIT_INSTANCE_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 50 });
+
+        IReadOnlyDictionary<int, int> amounts = await ResolveAsync(_OAK_LOG_CODE);
+
+        Assert.That(amounts[await GetAssetIdAsync(_OAK_LOG_CODE)], Is.EqualTo(4));
+    }
+
+    [Test, Description("A Player holding nothing but cargo reports no amount at all, which is what keeps the ticker and the Empire-wide drawdown answering the same figure.")]
+    public async Task ShouldReportNothingForAPlayerHoldingOnlyCargoAsync()
+    {
+        await CreateUnitBankAsync(_playerId, _UNIT_INSTANCE_ID, new Dictionary<string, long> { [_OAK_LOG_CODE] = 50 });
+
+        IReadOnlyDictionary<int, int> amounts = await ResolveAsync(_OAK_LOG_CODE);
+
+        Assert.That(amounts, Is.Empty);
+    }
+
+    #endregion
+
     /// <summary>
     /// Resolves the amounts for the named Assets, as the read path does for the Player whose tree it is building.
     /// </summary>
@@ -257,7 +285,7 @@ internal class PlayerAssetQuantityReaderTests : AssetBankTestBase
     {
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
-        var bank = new AssetBank { PlayerId = playerId };
+        var bank = new AssetBank { PlayerId = playerId, Kind = AssetBankKind.Settlement, SettlementId = playerId };
         context.AssetBanks.Add(bank);
         await context.SaveChangesAsync();
 
