@@ -9,11 +9,13 @@ using AscendantEmpire.BackendContracts.ForceOrders.MoveForces;
 using AscendantEmpire.BackendContracts.ForceOrders.SettleForce;
 using AscendantEmpire.BackendContracts.ForceOrders.SplitForce;
 using AscendantEmpire.BackendContracts.ForceOrders.StepForce;
+using AscendantEmpire.BackendContracts.ForceOrders.TakeResources;
 using AscendantEmpire.FrontendContracts;
 using AscendantEmpire.FrontendContracts.ForceOrders.GetForceContextActions;
 using AscendantEmpire.FrontendContracts.ForceOrders.SettleForce;
 using AscendantEmpire.FrontendContracts.ForceOrders.SplitForce;
 using AscendantEmpire.FrontendContracts.ForceOrders.StepForce;
+using AscendantEmpire.FrontendContracts.ForceOrders.TakeResources;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -345,5 +347,138 @@ public class ForceOrdersController : ControllerBase
                 IsOriginalForce = group.IsOriginalForce
             })]
         });
+    }
+
+    // --- Taking resources -----------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Get the MapResources the selected Forces could take from where they stand, and what each would give them.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A per-action detail endpoint, like the split options. A tile holds up to two MapResources, so taking needs the player to say which — and hanging that off the
+    /// list endpoint would make every action's contract the union of every action's needs. See <c>docs/design/units/force-context-action-toolbar.md</c>.
+    /// </para>
+    /// <para>
+    /// Judged for the whole selection: the figures are what these Forces together would come away with. The true quantity on the tile is never disclosed — a player sees
+    /// only their own fuzzed estimate of it — so each resource reports what the order would produce instead.
+    /// </para>
+    /// </remarks>
+    /// <param name="mediator">The mediator that dispatches the request.</param>
+    /// <param name="id">
+    /// One or more Force ids, repeated — <c>?id=1&amp;id=2</c>. Named simply <c>id</c> for the same reason <c>GET actions</c> names it that: a Force is a category rather
+    /// than a type, so these are <c>UnitInstance</c> ids today and will be Command ids too without a rename.
+    /// </param>
+    /// <param name="cancelToken">Cancels the request.</param>
+    /// <response code="200">What is takeable on the tile, in slot order. An empty list where nothing is</response>
+    /// <response code="400">Validation error, or the selected Forces are not all on one tile</response>
+    /// <response code="403">The caller has not entered a game</response>
+    /// <response code="404">One or more of the selected Forces is not in this game, or does not belong to this player</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpGet("actions/take-resources/options")]
+    [ProducesResponseType(typeof(ITakeResourcesOptions), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 403)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> GetTakeResourcesOptionsAsync(
+        [FromServices] IMediator mediator,
+        [FromQuery(Name = "id")] int[] id,
+        CancellationToken cancelToken)
+    {
+        // Game and player come from the token, so a caller cannot read what someone else's Forces are standing on.
+        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
+        {
+            return contextError!;
+        }
+
+        ServiceResultBase.ServiceResult<TakeResourcesOptions> response = await mediator.Send(
+            new GetTakeResourcesOptionsRequest(gameId, playerId, id ?? []),
+            cancelToken);
+
+        return response.ToActionResult(contract => new DTTakeResourcesOptions
+        {
+            Resources = [.. contract.Resources.Select(ITakeResourcesOption (resource) => new DTTakeResourcesOption
+            {
+                MapResourceInstanceId = resource.MapResourceInstanceId,
+                Slot = resource.Slot,
+                DisplayName = resource.DisplayName,
+                IconPath = resource.IconPath,
+                UnitsWouldTake = resource.UnitsWouldTake,
+                WouldGain = [.. resource.WouldGain.Select(ToAssetLine)]
+            })]
+        });
+    }
+
+    /// <summary>
+    /// Take one of the MapResources on a tile into the cargo of the Forces standing there.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The payoff behind the Take Resources toolbar action. Each Force loads up in turn, in ascending Force id, against the resource's dwindling quantity — so a large
+    /// selection on a small patch leaves the later ones empty-handed. Taking costs a Force its whole turn; a Force that comes away with nothing pays nothing.
+    /// </para>
+    /// <para>
+    /// A selection, not one Force, unlike settling and splitting: there is one resource and one rate, so nothing about the order is per Force.
+    /// </para>
+    /// <para>
+    /// The tile is never sent: the resource is taken where the Forces are standing. The same rules the toolbar rendered the button from are re-run here against freshly
+    /// loaded state, so a refusal's message is the strategy's own wording and is written to be shown to the player as it stands.
+    /// </para>
+    /// </remarks>
+    /// <response code="200">The resource was taken. Returns what came off the tile and what each Force is now carrying</response>
+    /// <response code="400">Validation error, or the order was refused — the resource is gone, the forces are not on one tile, or they cannot take right now</response>
+    /// <response code="403">The caller has not entered a game, does not own one of the Forces, or it is not their turn</response>
+    /// <response code="404">One or more of the Forces is not in this game</response>
+    /// <response code="500">Returns an error response with an array of errors in the event of an exception or other server error</response>
+    [HttpPost("take-resources")]
+    [ProducesResponseType(typeof(ITakeResourcesResult), 200)]
+    [ProducesResponseType(typeof(IApiErrorResult), 400)]
+    [ProducesResponseType(typeof(IApiErrorResult), 403)]
+    [ProducesResponseType(typeof(IApiErrorResult), 404)]
+    [ProducesResponseType(typeof(IApiErrorResult), 500)]
+    public async Task<IActionResult> TakeResourcesAsync(
+        [FromServices] IMediator mediator,
+        [FromBody] TakeResourcesDto request,
+        CancellationToken cancelToken)
+    {
+        // Game and player come from the token, so the caller can't load someone else's Forces. The body carries only which Forces, and which resource.
+        if (!this.TryGetGameContext(out int gameId, out int playerId, out IActionResult? contextError))
+        {
+            return contextError!;
+        }
+
+        ServiceResultBase.ServiceResult<TakeResourcesResult> response = await mediator.Send(
+            new TakeResourcesRequest(gameId, playerId, request.ForceIds, request.MapResourceInstanceId),
+            cancelToken);
+
+        return response.ToActionResult(contract => new DTTakeResourcesResult
+        {
+            DisplayName = contract.DisplayName,
+            XCoord = contract.XCoord,
+            YCoord = contract.YCoord,
+            UnitsTaken = contract.UnitsTaken,
+            IsExhausted = contract.IsExhausted,
+            Gained = [.. contract.Gained.Select(ToAssetLine)],
+            Forces = [.. contract.Forces.Select(ITakeResourcesForceOutcome (outcome) => new DTTakeResourcesForceOutcome
+            {
+                UnitInstanceId = outcome.UnitInstanceId,
+                DisplayName = outcome.DisplayName,
+                UnitsTaken = outcome.UnitsTaken
+            })]
+        });
+    }
+
+    /// <summary>
+    /// Presents one Asset line, shared by the options read and the order's result so the promise and the outcome are shaped identically.
+    /// </summary>
+    private static ITakeResourcesAssetLine ToAssetLine(TakeResourcesAssetLine line)
+    {
+        return new DTTakeResourcesAssetLine
+        {
+            AssetId = line.AssetId,
+            AssetDisplayName = line.AssetDisplayName,
+            Amount = line.Amount
+        };
     }
 }

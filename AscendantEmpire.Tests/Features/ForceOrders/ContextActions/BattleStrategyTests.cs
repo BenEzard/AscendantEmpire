@@ -42,7 +42,7 @@ internal class BattleStrategyTests
 
     private static ForceActionContext Context(ForceActionForce force)
     {
-        return new ForceActionContext { SelectedForce = force, OtherForcesOnTile = [] };
+        return new ForceActionContext { SelectedForce = force, OtherForcesOnTile = [], TakeableMapResourcesOnTile = [] };
     }
 
     [Test, Description("The action type doubles as display order, so a wrong one would move the button as well as mislabel it.")]

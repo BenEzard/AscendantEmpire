@@ -72,11 +72,16 @@ behave. Its kinds are set by flags:
 > below. In a Player's controlled area it is done by improvements
 > (or from a nearby camp or Settlement, e.g. berries, without an improvement on the tile).
 
+## What consumes a MapResource
+
+Two things do. A Force **feeds** from a food patch it is standing on at the end of its turn, which
+happens to it; and a Player can order a Force to **take** a patch into its cargo, which they choose.
+Both lower the instance's own `Quantity`, floored at 0, and neither touches the tile's `Taken`.
+
 ## Feeding from a patch
 
 In unowned or enemy land a Force feeds from a food MapResource standing on the tile it ends its turn
-on — it is the `[Additional Assets]` term in the total-asset formula in [tiles.md](tiles.md). This is
-the one thing that consumes a MapResource today.
+on — it is the `[Additional Assets]` term in the total-asset formula in [tiles.md](tiles.md).
 
 A patch is food when its Asset is a member of the food **supply set** the Force's body requires, and
 it is drawn on alongside the tile's own Forage, Hunt and Fish. What it is worth is its Asset amount
@@ -95,6 +100,28 @@ their estimate rather than the true quantity, so the toolbar can read lower than
 feeds — see [support-indicator.md](support-indicator.md#what-the-toolbars-figure-means).
 
 The end of each round grows an eaten patch back, as [End of round order](#end-of-round-order) describes. The [support indicator](support-indicator.md)'s forecast does not model that regrowth, so it forecasts a patch as a stock that only ever falls.
+
+## Taking a patch into cargo
+
+A Player can order the Forces standing on a tile to load one of its MapResources into their cargo, as a
+context action on the toolbar — see
+[the Take Resources strategy](../units/force-context-action-toolbar.md#the-take-resources-strategy-f-34)
+for the arithmetic, the gates and when the player is asked which. The quantity comes off the instance and the yield's Assets
+go into each Force's own Asset Bank, where they are excluded from every Empire-wide total until deposited
+([asset-banks.md](../asset-banks.md#force-cargo)).
+
+Taking differs from feeding in the three ways the Player's involvement implies:
+
+- it is **gated on discovery**, and on `RequiresResearchToExtract`, because a Player cannot order a Force
+  to work a patch they do not know is there or do not yet know how to work. Feeding is physical and
+  needs neither;
+- a yield switched off is **dropped**, and an instance whose every yield is off is not takeable at all,
+  since loading it would strip the tile and hand the Force nothing;
+- it covers **any** MapResource, not only food — anything whose Asset a bank can hold.
+
+Like feeding, it reads an instance's own `Quantity`, so a Distribution or a stratified type is not
+takeable: both keep their amounts in child rows, and the paths that work them are their own
+([Extraction](#extraction) for a Distribution).
 
 ## Placement on tiles
 
@@ -427,8 +454,10 @@ this order:
 
 As with modifiers, losing a source just deletes its rows.
 
-The yield switches are read by [feeding](#feeding-from-a-patch): a Player whose switches leave a
-patch's Asset off gets nothing from it, so it is not food for their Forces.
+The yield switches are read by both paths that consume a patch. A Player whose switches leave a patch's
+Asset off gets nothing from it, so it is not food for their Forces
+([feeding](#feeding-from-a-patch)) and there is nothing in it for them to carry
+([taking](#taking-a-patch-into-cargo)).
 
 ## Randomness
 

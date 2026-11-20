@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { FaCircleQuestion } from "react-icons/fa6";
 import { GiCampingTent, GiCrossedSwords, GiSplitArrows, GiVillage } from "react-icons/gi";
+import { RiInboxUnarchiveFill } from "react-icons/ri";
 import type { ForceActionType } from "../api/forceContextActionsApi";
 
 /**
@@ -32,6 +33,10 @@ const FORCE_ACTION_PRESENTATION: Partial<Record<ForceActionType, ForceActionPres
 
   // Offered only to a force that is fighting in a battle, and opens that battle's dialog.
   Battle: { icon: <GiCrossedSwords />, label: "Battle" },
+
+  // Offered only where the tile holds a map resource this player could take from. One takes outright; two open a dialog to
+  // choose between them. Which are takeable, and what each is worth, is the backend's answer.
+  TakeResources: { icon: <RiInboxUnarchiveFill />, label: "Take Resources" },
 
   // TODO: Hunt used to live in the toolbar, gated on legacy unit design id 2, which no longer exists now that
   // forces reference unit templates (whose ids are database-dependent, so a magic number can't stand in). It now

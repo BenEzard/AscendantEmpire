@@ -42,7 +42,8 @@ internal class ForceActionAggregatorTests
                 TileGeographyName = "Flat",
                 IsInBattle = false
             },
-            OtherForcesOnTile = []
+            OtherForcesOnTile = [],
+            TakeableMapResourcesOnTile = []
         };
 
         return (context, availability);

@@ -1,4 +1,6 @@
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Maps.MapResources.Classes;
+using AscendantEmpire.Application.Features.Maps.MapResources.Services;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -6,7 +8,8 @@ namespace AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 
 /// <inheritdoc cref="IForceActionContextBuilder"/>
 internal sealed class ForceActionContextBuilder(
-    IDbContextFactory<AscendantEmpireContext> dbFactory) : IForceActionContextBuilder
+    IDbContextFactory<AscendantEmpireContext> dbFactory,
+    ITakeableMapResourceReader takeableMapResourceReader) : IForceActionContextBuilder
 {
     public async Task<IReadOnlyCollection<ForceActionContext>?> BuildAsync(
         int gameId,
@@ -51,7 +54,12 @@ internal sealed class ForceActionContextBuilder(
             .Where(force => force.PlayerId == playerId)
             .ToListAsync(cancelToken);
 
-        // Two queries, whatever the size of the selection. That fixed cost is the promise the pure-strategy design rests on: the toolbar's price is
+        // What each occupied tile holds that this player could take from, judged by the one reader the options endpoint and the write path also go
+        // through — so a resource the button offers is a resource the order can actually take.
+        IReadOnlyDictionary<int, IReadOnlyCollection<TakeableMapResource>> takeableByTileId =
+            await takeableMapResourceReader.GetForTilesAsync(context, gameId, playerId, occupiedTileIds, cancelToken);
+
+        // Three queries, whatever the size of the selection. That fixed cost is the promise the pure-strategy design rests on: the toolbar's price is
         // set by the pipeline, not by how many Forces the player selected or how many action types exist.
         Dictionary<int, List<ForceActionForce>> forcesByTileId = forcesOnOccupiedTiles
             .GroupBy(force => force.CampaignMapTileId)
@@ -68,6 +76,9 @@ internal sealed class ForceActionContextBuilder(
                     SelectedForce = force,
                     OtherForcesOnTile = forcesByTileId.TryGetValue(force.CampaignMapTileId, out List<ForceActionForce>? tileMates)
                         ? [.. tileMates.Where(other => other.UnitInstanceId != force.UnitInstanceId)]
+                        : [],
+                    TakeableMapResourcesOnTile = takeableByTileId.TryGetValue(force.CampaignMapTileId, out IReadOnlyCollection<TakeableMapResource>? takeable)
+                        ? takeable
                         : []
                 })
         ];

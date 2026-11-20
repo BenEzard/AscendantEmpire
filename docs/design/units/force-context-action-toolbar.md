@@ -4,8 +4,8 @@ When a Force is selected on the campaign map, the toolbar shows the actions appr
 **in its current context**. The backend decides what is possible and why; the frontend decides how it
 looks and what interaction follows.
 
-This is the design for the toolbar as a whole. It offers four actions — **Split Force**, **Create
-Village**, **Establish Camp** and **Battle** — and is built to take more.
+This is the design for the toolbar as a whole. It offers **Split Force**, **Create Village**,
+**Establish Camp**, **Battle** and **Take Resources**, and is built to take more.
 
 ## Status
 
@@ -18,6 +18,7 @@ Village**, **Establish Camp** and **Battle** — and is built to take more.
 | Split Force — availability | Built — see [The Split Force strategy](#the-split-force-strategy) |
 | Create Village and Establish Camp — availability, gated on capability tags | Built — see [The settlement strategies](#the-settlement-strategies--create-village-and-establish-camp-ud-56) |
 | Battle — availability, and a placeholder dialog | Built — see [The Battle strategy](#the-battle-strategy-comm-1) |
+| Take Resources — availability, options endpoint, write handler and dialog | Built — **F-34**, see [The Take Resources strategy](#the-take-resources-strategy-f-34) |
 | Executing a split — split handler, options endpoint and parameter dialog | Built — **TM-4**, see [Executing a split](#executing-a-split-tm-4) |
 | Executing a settlement founding — the settle endpoint, the name dialog and construction | Built — **CD-1**, see [settlements.md](../settlements.md#founding-one) |
 
@@ -62,7 +63,7 @@ Every end-turn check opens its own `DbContext`. That is fine when the pipeline r
 is wrong here, where it runs on every Force click. Instead a `ForceActionContext` is built **once**
 per request and handed to every strategy, so the strategies are pure synchronous functions.
 
-Two queries total, regardless of how many action types exist. It also puts the entire rule layer in
+Three queries total, regardless of how many action types exist. It also puts the entire rule layer in
 testing tier 1 (no database) under [testing.md](../../testing.md), leaving only the context builder
 exposed to EF.
 
@@ -80,7 +81,7 @@ The frontend never decides legality. It renders a decision and echoes back an in
 ```
 GET  /force-orders/actions?id=1&id=2 ─┐                                  ┌─► IForceActionStrategy.Evaluate()
                                        ├─► ForceActionContextBuilder ────┤     (pure, per Force)
-POST /force-orders/split ──────────────┘   (2 queries, one ctx per Force)└─► ForceActionAggregator.Aggregate()
+POST /force-orders/split ──────────────┘   (3 queries, one ctx per Force)└─► ForceActionAggregator.Aggregate()
                                                                                (folds them into one verdict)
 ```
 
@@ -131,7 +132,10 @@ An immutable snapshot carrying everything any strategy needs:
 - the **capability tag codes** the compiled template grants, unioned across its components, so an action
   tied to a piece of equipment can ask whether the Force is carrying it (added in UD-56);
 - the **tile's terrain** — its biome's water flag and its geography type — so an action can judge where
-  the Force is standing without a second query (added in UD-56).
+  the Force is standing without a second query (added in UD-56);
+- the **takeable MapResources on the tile** — what this Player could load up from, each with the Assets it
+  yields them and at what rate (added in F-34). On the context rather than on the Force, because the Force
+  record is built inside an EF projection and this is composed in memory.
 
 Turn state is deliberately absent; see [open question 1](#1-should-the-toolbar-respect-whose-turn-it-is).
 So is anything about enemy Forces — see [open question 2](#2-enemy-forces-on-the-tile-are-excluded-pending-vision-rules).
@@ -194,8 +198,9 @@ If the two folded differently, an action could render enabled and then be refuse
 or another player's — which the service reports as a 404. Quietly dropping the bad id would render a
 toolbar that judged fewer Forces than the player has selected, which is worse than an error.
 
-It still costs **two queries** whatever the size of the selection: one for the selected Forces, one for
-every own Force standing on the distinct tiles they occupy, then grouped in memory. The fixed cost the
+It still costs **three queries** whatever the size of the selection: one for the selected Forces, one for
+every own Force standing on the distinct tiles they occupy, and one for the takeable MapResources on those
+same tiles, then all grouped in memory. The fixed cost the
 pure-strategy design rests on is unchanged. The builder does *not* require the selection to share a
 tile, even though the bar can only produce same-tile selections today — grouping by tile costs nothing
 and leaves cross-tile selection free to arrive later.
@@ -394,6 +399,84 @@ A Force only has a battle map tile once a campaign step has started a battle —
 [unit-movement.md](unit-movement.md#battles-on-entry). A Force in battle stays on the campaign map
 (`GetPlayerCampaignMapHandler` includes battle-map Forces), which is what lets it be clicked at all.
 
+## The Take Resources strategy (F-34)
+
+Offers a **Take Resources** button to a Force standing on a tile holding a MapResource it could load up
+from. `TakeResources = 1400`, so it sits after Battle. It is the first thing in the codebase that puts
+anything into a Force's cargo bank — see [asset-banks.md](../asset-banks.md#force-cargo).
+
+| Rule | Read from | Outcome when it fails |
+|---|---|---|
+| The Force is not in battle | `ForceActionForce.IsInBattle` | **Hidden** (`null`) |
+| The tile holds something takeable | `ForceActionContext.TakeableMapResourcesOnTile` | **Hidden** (`null`) |
+| It has a healthy individual to carry | `ForceActionForce.HealthyCount` | Disabled: *"… has no healthy individuals to carry anything."* |
+| It holds a full turn | `ForceActionForce.HasFullMovement` | Disabled: *"… has already moved this turn. Taking resources costs a full turn."* |
+
+Hidden rather than disabled on the first two, by the usual rule: most tiles hold nothing takeable, and
+nothing the Force does this turn can put a resource under its feet.
+
+### What makes a MapResource takeable
+
+`ITakeableMapResourceReader` is the single answer, read by the context builder for the button, by the
+options endpoint for what the dialog promises, and by the write handler before it charges anything. A
+MapResource reaches a Force only if all of these hold:
+
+- it has a `Quantity` of its own, above zero — a Distribution or a stratified seam keeps its amount in
+  child rows, so neither is takeable yet. Timber holds a slot on every forest tile, so forests mostly
+  will not offer the button;
+- this Player has **discovered** it (`PlayerKnownMapResource`);
+- its type does not require research to extract, or this Player has researched it
+  (`PlayerMapResourceTypeKnowledge.ResearchedOnRound`);
+- at least one of its yields survives that Player's `PlayerMapResourceSwitch` rows, is rated above zero,
+  and names an Asset a bank can hold. An instance left with no live yield is withheld: taking it would
+  strip the tile for nothing.
+
+The true `Quantity` never leaves the backend. The dialog is told what the selection would **gain**, which
+is bounded by the quantity without disclosing it — the estimate the player sees on the tile stays
+`MapResourceEstimationRules`' business.
+
+### How much, and what it costs
+
+`TakeResourcesRules` holds the arithmetic, so the button, the promise and the write cannot disagree:
+
+- **100 whole units per healthy individual.** The wounded carry nothing. A flat rate stands in for the
+  real figure — healthy individuals times the template's per-individual carry weight — because neither
+  `Asset.Weight` nor a compiled carry weight exists yet (RS-41). There is no capacity check.
+- **The whole selection takes together**, in ascending Force id against a dwindling quantity. First come,
+  first served rather than levelled: levelling spreads one quantity fairly across stores the same Player
+  owns, and this is several Forces racing for a patch. A Force that arrives at an emptied patch takes
+  nothing, keeps its movement and is still named in the result.
+- **It costs the whole turn.** `CampaignMovementRemaining` is zeroed, exactly as a split does.
+- Each unit becomes `MapResourceTypeYield.AmountPerUnit` of the yield's Asset, per surviving yield.
+
+### Which resource, when there is a choice
+
+A tile holds up to two MapResources and one order takes from one.
+`GET /force-orders/actions/take-resources/options?id=1&id=2` says which are takeable, each with its icon,
+its slot and the Asset lines a take would give. The same reasoning as
+[splitting](#splitting-needs-parameters) — a per-action payload on the list endpoint would make every
+action's contract the union of every action's needs.
+
+**How many there are decides whether the player is asked anything.** The options are read as soon as the
+button is pressed; with one resource the order goes straight out, and only two open the dialog. So unlike
+splitting, the button does not always lead to the same place — a dialog whose single row the player has
+to click before confirming is a step that decides nothing. Which also means the dialog's rows say what
+each resource gives but **not how much**: the amount is the same arithmetic whichever is picked, so it
+says nothing about the choice, and a figure shown before the order is one a dwindling patch may not
+honour.
+
+A take started from the toolbar reports itself in a toast, since there is no dialog to show a refusal in
+— the same split `Establish Camp` has, which founds outright while `Create Village` asks for a name.
+
+`POST /force-orders/take-resources` then performs it, in one transaction over three changes: the quantity
+off the MapResource, the Assets into each Force's cargo, and the movement off each Force that took. It
+re-reads through the same reader rather than trusting what the dialog was shown, so a patch emptied since
+it opened is refused with *"There is nothing of that resource left to take here."*
+
+Deliberately **not** a `ForceOrder`: a context action resolves now, and nothing reads a `Gather` order
+today. It is also the only action here gated on whose turn it is at the write path alone — see
+[open question 1](#1-should-the-toolbar-respect-whose-turn-it-is).
+
 ## Frontend design
 
 ### Contract
@@ -485,11 +568,11 @@ to and the casualty preview are all local, and nothing is sent until there is a 
 | `BattleStrategy` | 1 — no database | 3 — its type and label, hidden out of battle, enabled in battle whatever its movement |
 | `ForceActionAggregator` | 1 — no database | 9 — the folding rules; hide/enable/disable, reason collection, dedupe, a selection of one |
 | `ForceContextActionService` | 1 — no database | 12 — fake strategies; ordering, omission, fault isolation, re-validation, every Force judged |
-| `ForceActionContextBuilder` | 2 — in-memory | 20 — including capability codes, an empty capability set, the tile's terrain, and whether the Force is in battle |
+| `ForceActionContextBuilder` | 2 — in-memory | 23 — including capability codes, an empty capability set, the tile's terrain, whether the Force is in battle, and each Force's own tile's takeable MapResources |
 | `ContextActionToolbar` | Vitest | 6 — disabled rendering, reason text, ordering, icon-only rendering |
 | `forceActionRegistry` | Vitest | 4 — every known type gets its own distinct icon and this build's label; unknown types fall back |
 | `ForceSelectionToolbar` | Vitest | 17 — ordering, troop count, fade, clickability when spent, ctrl/⌘+click, multiple pressed entries |
-| `useForceSelection` | Vitest | 13 — own-forces-only filtering, default selection, the gesture trace, pinning, id-set identity, both settlement tiers opening the dialog, a multi-force selection turned away |
+| `useForceSelection` | Vitest | 18 — own-forces-only filtering, default selection, the gesture trace, pinning, id-set identity, both settlement tiers opening the dialog, a multi-force selection turned away, and a take going outright or opening the dialog by how many resources there are |
 
 Executing a founding (CD-1) adds its own:
 
@@ -505,7 +588,24 @@ Executing a founding (CD-1) adds its own:
 | `structureImages` | Vitest | 4 — every seeded kind has its own distinct sprite, and an unknown or absent code has none |
 | `settleForceApi` | Vitest | 4 — the body carries only force, tier and name; the tier goes as its name; failures pass through |
 
-`SettleForceHandler` is the only fixture here on the containerised tier, and all three of `testing.md`'s
+Taking resources (F-34) adds its own:
+
+| Component | Tier | Count |
+|---|---|---|
+| `TakeResourcesRules` | 1 — no database | 13 — the per-individual rate, the overflow guards, ascending-id shares, the zero share still reported |
+| `TakeResourcesStrategy` | 1 — no database | 7 — hidden in battle and on a bare tile, each disabled reason, enabled at full movement |
+| `TakeableMapResourceReader` | 2 — in-memory | 16 — the quantity gate, Distribution and stratified skipped, discovery per Player, research honoured both ways, switches both ways, an Asset no bank can hold |
+| `AssetBankCargoService` | 2 — in-memory | 9 — a new balance, a top-up, pooling, a bank staged in the same unit of work, a settlement bank refused, and that it saves nothing itself |
+| `GetTakeResourcesOptionsHandler` | 2 — in-memory | 11 — the promised gain and its rate, capped at the quantity, the selection pooled, two resources in slot order, every refusal |
+| `TakeResourcesHandler` | **3 — containerised** | 16 — the patch charged, the hold created and reused, each yield credited, the shares in id order, a Force that gets nothing left alone, and every refusal |
+| `takeResourcesApi` | Vitest | 5 — the repeated `id=` form, the body, and the figures off the wire |
+| `TakeResourcesDialog` | Vitest | 10 — the list and what each gives, no amounts, the pick sent, nothing decided for the player, the refusal shown |
+
+`TakeResourcesHandler` is on the containerised tier because the take runs in an explicit transaction and
+the two rules that keep a Force from ending up with two holds — `CK_AssetBank_KindTargetXor` and
+`UX_AssetBank_UnitInstance` — are constraints only a real database enforces.
+
+`SettleForceHandler` is the other fixture here on the containerised tier, and all three of `testing.md`'s
 triggers apply at once: the founding runs in an explicit transaction, the lifecycle writers allocate their
 sequences with raw SQL, and the name's uniqueness index is only a rule when a database is enforcing it.
 `BuildingStructure` stays on the in-memory tier by substituting the writer, which is where the raw SQL is.

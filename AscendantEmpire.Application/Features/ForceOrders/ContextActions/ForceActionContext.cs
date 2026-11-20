@@ -1,3 +1,4 @@
+using AscendantEmpire.Application.Features.Maps.MapResources.Classes;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
 
@@ -23,6 +24,23 @@ internal sealed record ForceActionContext
     /// </summary>
     /// <remarks>Empty when the Force stands alone. Carried for the actions which combine or transfer between Forces.</remarks>
     public required IReadOnlyCollection<ForceActionForce> OtherForcesOnTile { get; init; }
+
+    /// <summary>
+    /// The MapResources on the selected Force's tile that this Player could take from, in slot order.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// On the context rather than on <see cref="ForceActionForce"/>, unlike the tile's terrain. A Force is projected straight out of EF, and a collection of
+    /// records per row is not a shape that projection can take; the context is composed in memory, where joining a second read by tile costs nothing. It
+    /// also keeps the builder's own query to scalars, which is what holds its tests on the in-memory tier - see <c>docs/testing.md</c>.
+    /// </para>
+    /// <para>
+    /// Everything that decides takeability is already applied - a quantity of its own, discovered, past any research requirement, and at least one yield the
+    /// Player's switches leave on - so a strategy reading this asks only how many there are, never whether they count.
+    /// </para>
+    /// <para>Empty on a tile holding nothing takeable, which is most of them.</para>
+    /// </remarks>
+    public required IReadOnlyCollection<TakeableMapResource> TakeableMapResourcesOnTile { get; init; }
 }
 
 /// <summary>

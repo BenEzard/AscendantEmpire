@@ -1,11 +1,18 @@
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
+using AscendantEmpire.Application.Features.Maps.MapResources.Services;
+using AscendantEmpire.Application.Helpers.ScaledNumerics;
+using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
+using AscendantEmpire.Domain.Entities.Maps.MapResources;
 using AscendantEmpire.Domain.Entities.UnitDesigns;
 using AscendantEmpire.Domain.Entities.Units;
+using AscendantEmpire.Domain.Enums.MapResources;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.UnitDesigns;
+
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AscendantEmpire.Tests.Features.ForceOrders.ContextActions;
 
@@ -41,7 +48,9 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
     [SetUp]
     public async Task SetUp()
     {
-        _builder = new ForceActionContextBuilder(DbFactory);
+        // The real reader rather than a substitute: it is ordinary EF, so the in-memory provider serves it, and the alternative would leave nothing
+        // asserting that the builder actually puts a tile's takeable resources on the context.
+        _builder = new ForceActionContextBuilder(DbFactory, new TakeableMapResourceReader(NullLogger<TakeableMapResourceReader>.Instance));
 
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
@@ -556,4 +565,141 @@ internal class ForceActionContextBuilderTests : InMemoryTestBase
 
         Assert.That(result, Is.Null);
     }
+
+    #region Takeable map resources
+
+    [Test, Description("The tile's takeable MapResources reach the context, which is the only way a strategy — forbidden its own queries — can know there is anything to take.")]
+    public async Task ShouldPutTheTilesTakeableResourcesOnTheContextAsync()
+    {
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            await AddBerryPatchAsync(context, _TILE_ID);
+            await AddForceAsync(context, unitInstanceId: 5);
+        }
+
+        ForceActionContext? result = await BuildSingleAsync(5);
+
+        Assert.That(result, Is.Not.Null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result!.TakeableMapResourcesOnTile, Has.Exactly(1).Items);
+            Assert.That(result.TakeableMapResourcesOnTile.Single().DisplayName, Is.EqualTo("Berry Patch"));
+            Assert.That(result.TakeableMapResourcesOnTile.Single().Yields, Has.Exactly(1).Items);
+        }
+    }
+
+    [Test, Description("A bare tile arrives as an empty collection, so a strategy can count it without null-checking first.")]
+    public async Task ShouldReportNoTakeableResourcesOnABareTileAsync()
+    {
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            await AddForceAsync(context, unitInstanceId: 5);
+        }
+
+        ForceActionContext? result = await BuildSingleAsync(5);
+
+        Assert.That(result!.TakeableMapResourcesOnTile, Is.Empty);
+    }
+
+    [Test, Description("Each Force gets its own tile's resources, since one read covers the whole selection and a mix-up would offer a Force a patch it is not standing on.")]
+    public async Task ShouldGiveEachForceItsOwnTilesResourcesAsync()
+    {
+        await using (AscendantEmpireContext context = await DbFactory.CreateDbContextAsync())
+        {
+            await AddBerryPatchAsync(context, _TILE_ID);
+            await AddForceAsync(context, unitInstanceId: 5);
+            await AddForceAsync(context, unitInstanceId: 7, campaignMapTileId: _OTHER_TILE_ID);
+        }
+
+        List<ForceActionContext> result = [.. (await _builder.BuildAsync(_GAME_ID, _PLAYER_ID, [5, 7], CancellationToken.None))!];
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result[0].TakeableMapResourcesOnTile, Has.Exactly(1).Items);
+            Assert.That(result[1].TakeableMapResourcesOnTile, Is.Empty, "The Force on the bare tile is offered nothing.");
+        }
+    }
+
+    /// <summary>
+    /// Puts a discovered berry patch on a tile, with the catalogue rows behind it.
+    /// </summary>
+    /// <remarks>
+    /// The least a patch needs to come back takeable. What makes one takeable or not is <c>TakeableMapResourceReaderTests</c>'s subject; all that is
+    /// pinned here is that the builder asks and carries the answer through.
+    /// </remarks>
+    private static async Task AddBerryPatchAsync(AscendantEmpireContext context, int tileId)
+    {
+        var storageClass = new StorageClass { Code = "larder", DisplayName = "Larder" };
+        context.StorageClasses.Add(storageClass);
+
+        var metaCategory = new AssetMetaCategory { Code = "Foodstuffs", DisplayName = "Foodstuffs", SortOrder = 1, IconPath = "/icon.png" };
+        context.AssetMetaCategories.Add(metaCategory);
+
+        var category = new MapResourceCategory { Code = "plant-foods", DisplayName = "Plant Foods", SortOrder = 1 };
+        context.MapResourceCategories.Add(category);
+
+        await context.SaveChangesAsync();
+
+        var asset = new Asset
+        {
+            Code = "Foodstuffs.PlantFoods.Berries",
+            DisplayName = "Berries",
+            IconPath = "/icon.png",
+            IsGradedAsset = false,
+            SortOrder = 1,
+            AssetMetaCategoryId = metaCategory.Id,
+            StorageClassId = storageClass.Id
+        };
+
+        context.Assets.Add(asset);
+
+        var type = new MapResourceType
+        {
+            Code = "berries",
+            DisplayName = "Berry Patch",
+            MapResourceCategoryId = category.Id,
+            SortOrder = 1,
+            ExtractionMethod = ExtractionMethod.Gather,
+            DiscoveryLikelihood = 1m
+        };
+
+        context.MapResourceTypes.Add(type);
+
+        await context.SaveChangesAsync();
+
+        context.MapResourceTypeYields.Add(new MapResourceTypeYield
+        {
+            MapResourceTypeId = type.Id,
+            AssetId = asset.Id,
+            AmountPerUnit = 1_000,
+            IsEnabledByDefault = true
+        });
+
+        var instance = new MapResourceInstance
+        {
+            GameId = _GAME_ID,
+            CampaignMapId = tileId,
+            MapResourceTypeId = type.Id,
+            Slot = MapResourceInstance.MIN_SLOT,
+            Quantity = ScaledAmount.FromWhole(500).RawValue,
+            CreatedOnRound = 1
+        };
+
+        context.MapResourceInstances.Add(instance);
+
+        await context.SaveChangesAsync();
+
+        context.PlayerKnownMapResources.Add(new PlayerKnownMapResource
+        {
+            GameId = _GAME_ID,
+            PlayerId = _PLAYER_ID,
+            MapResourceInstanceId = instance.Id,
+            DiscoveredOnRound = 1
+        });
+
+        await context.SaveChangesAsync();
+    }
+
+    #endregion
 }

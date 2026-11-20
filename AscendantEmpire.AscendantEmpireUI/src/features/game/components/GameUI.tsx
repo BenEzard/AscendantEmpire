@@ -18,8 +18,10 @@ import CreateSettlementDialog from "./CreateSettlementDialog";
 import SettlementManagerDialog from "./SettlementManagerDialog";
 import { ownedSettlementOnTile } from "./ownedSettlementOnTile";
 import SplitForceDialog from "./splitForce/SplitForceDialog";
+import TakeResourcesDialog from "./TakeResourcesDialog";
 import { describeFounding } from "@/features/game/hooks/useSettleForce";
 import { describeSplit } from "@/features/game/hooks/useSplitForce";
+import { describeTake } from "@/features/game/hooks/useTakeResources";
 import OpenGameDialog from "./OpenGameDialog";
 import VisionSettingsOffcanvas from "./VisionSettingsOffcanvas";
 import { enterGame } from "@/features/auth/api/authApi";
@@ -137,6 +139,8 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
     closeSettlementDialog,
     splitDialogForceId,
     closeSplitDialog,
+    takeResourcesDialogOpen,
+    closeTakeResourcesDialog,
   } = useForceSelection({ gameId, playerId, openToast });
 
   // --- Movement (numpad, and hold-to-move on the map) ---
@@ -729,6 +733,17 @@ function GameUI({ topOffset = 0 }: { topOffset?: number }) {
           unitImageSrc={selectedForces[0] != null ? unitImageSrcByUnitTemplateId?.get(selectedForces[0].unitTemplateId) : undefined}
           onClose={closeSplitDialog}
           onSplit={(result) => openToast(describeSplit(result), "success")}
+        />
+
+        {/* Opened from the Take Resources button on the context action toolbar. The whole selection takes together, so it is
+            given the selected ids rather than one force — the only choice left is which of the tile's resources. */}
+        <TakeResourcesDialog
+          show={takeResourcesDialogOpen}
+          gameId={gameId ?? undefined}
+          playerId={playerId ?? undefined}
+          forceIds={selectedForceIdList}
+          onClose={closeTakeResourcesDialog}
+          onTaken={(result) => openToast(describeTake(result), "success")}
         />
 
         {/* The bars stack in one fixed column, so the bottom row sits under the action toolbar without either needing

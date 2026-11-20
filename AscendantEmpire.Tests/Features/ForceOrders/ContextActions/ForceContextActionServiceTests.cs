@@ -66,7 +66,8 @@ internal class ForceContextActionServiceTests
                 TileGeographyName = "Flat",
                 IsInBattle = false
             },
-            OtherForcesOnTile = []
+            OtherForcesOnTile = [],
+            TakeableMapResourcesOnTile = []
         };
     }
 

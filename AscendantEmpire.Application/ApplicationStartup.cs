@@ -114,6 +114,7 @@ public static class ApplicationStartup
         services.AddScoped<IPlayerMapResourceDiscoveryService, PlayerMapResourceDiscoveryService>();
         services.AddScoped<IMapResourceRegenerationReader, MapResourceRegenerationReader>();
         services.AddScoped<IMapResourceRegenerationWriter, MapResourceRegenerationWriter>();
+        services.AddScoped<ITakeableMapResourceReader, TakeableMapResourceReader>();
 
         // Asset banks.
         services.AddScoped<IAssetBankReader, AssetBankReader>();
@@ -124,6 +125,7 @@ public static class ApplicationStartup
         services.AddScoped<IAssetBankCapacityService, AssetBankCapacityService>();
         services.AddScoped<IAssetBankCreditService, AssetBankCreditService>();
         services.AddScoped<IAssetBankDeliveryService, AssetBankDeliveryService>();
+        services.AddScoped<IAssetBankCargoService, AssetBankCargoService>();
         services.AddScoped<IPlayerAssetQuantityReader, PlayerAssetQuantityReader>();
 
         services.AddScoped<ICampParentResolver, CampParentResolver>();
@@ -135,6 +137,7 @@ public static class ApplicationStartup
         services.AddScoped<IForceActionStrategy, CreateVillageStrategy>();
         services.AddScoped<IForceActionStrategy, EstablishCampStrategy>();
         services.AddScoped<IForceActionStrategy, BattleStrategy>();
+        services.AddScoped<IForceActionStrategy, TakeResourcesStrategy>();
 
         // Movement domain rules. Every DomainType needs an entry here - a domain with no strategy has no rule to be judged against, and its every move is refused.
         services.AddScoped<IMovementDomainStrategy, LandMovementStrategy>();

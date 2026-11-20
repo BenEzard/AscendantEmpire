@@ -183,9 +183,20 @@ Command's units' banks under a shared key, but nothing in the codebase forms a C
 `UnitInstance.CommandId` — so the connectivity recompute leaves cargo banks on the key they were born with,
 and the operation that forms a Command is what will group them.
 
-**Nothing puts anything into a cargo bank yet.** Capture, discard and deposit are **RS-43**;
-`IAssetBankProvisioningService.ProvisionForUnitAsync` is the get-or-create those paths call, and it is the
-only way a unit bank comes into existence.
+**A load is credited through `IAssetBankCargoService`, never `IAssetBankCreditService`.** The credit service
+is settlement-only by design — it filters on `Kind` and routes through networks, capacity and levelling, none
+of which apply to a load — so cargo has a small sibling instead: `CreditAsync(context, bank, credits)`, which
+upserts `AssetBankBalance` rows on `(AssetBankId, AssetId)` and does nothing else. It stages and never saves,
+so the caller's transaction is what commits a load. It refuses a bank that is not a `Unit` bank.
+
+**Taking a MapResource off a tile is the one thing that fills a load today** — **F-34**, the capture arm of
+**RS-43**. A Force standing on a tile with a discovered MapResource on it can take 100 units per healthy
+individual, at the cost of its whole turn; the quantity comes off the instance and the yield's Assets go into
+the Force's bank. See
+[the Take Resources strategy](units/force-context-action-toolbar.md#the-take-resources-strategy-f-34).
+Discard and deposit are still **RS-43**, and both will call the same cargo service.
+`IAssetBankProvisioningService.ProvisionForUnitAsync` is the get-or-create every such path goes through, and
+it is the only way a unit bank comes into existence.
 
 ## Crediting an asset
 

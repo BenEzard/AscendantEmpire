@@ -82,5 +82,21 @@ public enum ForceActionType
     /// What the button opens is still to be designed; today it is a placeholder dialog. See COMM-1.
     /// </para>
     /// </remarks>
-    Battle = 1300
+    Battle = 1300,
+
+    /// <summary>
+    /// Take a MapResource off the tile the selected Force stands on, into the Force's cargo.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Offered to a Force standing on a tile that holds at least one MapResource it could take from: one with a quantity of its own, discovered by this
+    /// Player, not held back by a research requirement, and giving at least one Asset their switches leave on. A Distribution or a stratified instance holds
+    /// its amount in child rows rather than a quantity, and neither is takeable yet.
+    /// </para>
+    /// <para>
+    /// A tile may hold two MapResources, so the button opens a dialog to choose between them - the backend owns which are takeable and what each would
+    /// give, and the dialog only picks one. The order then covers the whole selection, each Force taking its own share.
+    /// </para>
+    /// </remarks>
+    TakeResources = 1400
 }

@@ -2,6 +2,7 @@ using AscendantEmpire.Application.Common;
 using AscendantEmpire.Application.Data;
 using AscendantEmpire.Application.Features.ForceOrders.ContextActions;
 using AscendantEmpire.Application.Features.ForceOrders.Handlers;
+using AscendantEmpire.Application.Features.Maps.MapResources.Services;
 using AscendantEmpire.BackendContracts.ForceOrders.SplitForce;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
@@ -49,7 +50,7 @@ internal class GetSplitForceOptionsHandlerTests : InMemoryTestBase
     {
         _handler = new GetSplitForceOptionsHandler(
             NullLogger<GetSplitForceOptionsHandler>.Instance,
-            new ForceActionContextBuilder(DbFactory));
+            new ForceActionContextBuilder(DbFactory, new TakeableMapResourceReader(NullLogger<TakeableMapResourceReader>.Instance)));
 
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
 
