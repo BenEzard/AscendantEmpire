@@ -514,6 +514,14 @@ internal static class AssetSeedData
                             DisplayName = "Tallow",
                             StorageClassCode = StorageClassSeedData.FUEL_DUMP,
                             Description = "Animal fat rendered from slaughtered livestock. Tallow is used in candle-making, soap production, and as a lubricant for machinery and weapons."
+                        },
+                        new UpsertAssetDto
+                        {
+                            DisplayName = "Incense",
+                            IconPath = "/resources/luxuries/incense_40px.png",
+                            StorageClassCode = StorageClassSeedData.SUNDRIES,
+                            Description = "Aromatic resin obtained from trees and plants. Incense is used in religious ceremonies and as a fragrant additive to various goods.",
+                            IsNaturallyOccurring = true
                         }
                     ]
                 }
