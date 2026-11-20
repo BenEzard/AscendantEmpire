@@ -13,11 +13,18 @@ this document only describes how to talk to it.
 
 | | |
 |---|---|
-| **Base URL (preferred)** | `https://localhost:7207` |
+| **Base URL** | `https://localhost:7207` — routes are flat, exactly as written throughout this document |
+| **Base URL (alternate)** | `http://localhost:5273/api` — the same routes under an `/api` prefix |
 | **Base URL (plain HTTP)** | `http://localhost:5150` — issues a **307 redirect** to the HTTPS URL |
 | **Auth** | None. The API is unauthenticated and local-only. |
 | **Content type** | `application/json` |
 | **API reference (dev only)** | `https://localhost:7207/scalar/v1` (OpenAPI doc at `/openapi/v1.json`) |
+
+Both bases reach **one database**, so either is safe to write through, and which ones are
+listening depends on how Planner was launched. **Use `https://localhost:7207` and don't test it
+first** — the value of a probe is one HTTP call's worth of certainty about something that is
+almost always true. If a call fails to connect, *then* try `http://localhost:5273/api`, and if
+that fails too, say the API isn't reachable.
 
 The dev certificate is self-signed, so certificate validation has to be skipped:
 
@@ -25,15 +32,9 @@ The dev certificate is self-signed, so certificate validation has to be skipped:
 - **PowerShell:** call `curl.exe` explicitly (bare `curl` is an alias for
   `Invoke-WebRequest`, and Windows PowerShell 5.1 has no `-SkipCertificateCheck`)
 
-### Is it running?
-
-```bash
-curl -s -k -o /dev/null -w "%{http_code}\n" https://localhost:7207/projects
-```
-
-`200` means the API is up. If it isn't, it can be started from `P:\Development\Planner`
-with `dotnet run --project Planner.Api --launch-profile https`. **Do not start it without
-being asked** — assume the user has it running, and say so if it isn't reachable.
+Planner can be started from `P:\Development\Planner` with
+`dotnet run --project Planner.Api --launch-profile https`. **Do not start it without being
+asked** — assume it is running, and say so if it isn't.
 
 ---
 
@@ -100,28 +101,35 @@ e.g. `BM-3`.
 
 ## 3. Ascendant Empire components
 
-Project id **4**. These ids were correct at the time of writing — re-check with
-`GET /projects/4/components` if anything looks off, since ids are database identities, not
-constants.
+Project id **4**. The ids below are the live ones, last confirmed against
+`GET /projects/4/components` on **2026-11-21**. Components are added rarely and never renumbered,
+so **treat this table as authoritative and post straight to it** rather than listing the
+components first. A `404` from a component route is the signal that it has gone stale; re-list
+then.
 
-| Component id | Name | Abbreviation |
-|---|---|---|
-| 5 | Battle Map | `BM` |
-| 6 | Combat Mechanics | `COMM` |
-| 7 | City Development | `CD` |
-| 8 | Campaign Map | `CM` |
-| 9 | Diplomacy | `D` |
-| 10 | Entity Setup | `ES` |
-| 22 | Forces | `F` |
-| 11 | General | `G` |
-| 12 | Game Mechanism | `GM` |
-| 13 | Game Setup | `GS` |
-| 14 | Map Editor | `ME` |
-| 23 | MatchMaker | `MM` |
-| 15 | Resource System | `RS` |
-| 24 | System | `S` |
-| 16 | Technology | `T` |
-| 17 | Unit Design | `UD` |
+| Component id | Name | Abbreviation | Task groups (`taskGroupId`: title) |
+|---|---|---|---|
+| 5 | Battle Map | `BM` | none |
+| 6 | Combat Mechanics | `COMM` | none |
+| 7 | City Development | `CD` | none |
+| 8 | Campaign Map | `CM` | 3: Unit Support and Regeneration · 4: Map Resources · 6: Implement Rivers · 8: Tile Ownership |
+| 9 | Diplomacy | `D` | none |
+| 10 | Entity Setup | `ES` | none |
+| 22 | Forces | `F` | 1: Intelligence and Sightings · 2: End of Dev Tidy-Up · 12: Force carrying MapResources |
+| 11 | General | `G` | 10: Accessibility (WCAG 2.2 AA) |
+| 12 | Game Mechanism | `GM` | none |
+| 13 | Game Setup | `GS` | none |
+| 14 | Map Editor | `ME` | 5: Map Resources |
+| 23 | MatchMaker | `MM` | none |
+| 15 | Resource System | `RS` | 9: Code Cleanup · 11: Asset Bank refactor |
+| 24 | System | `S` | none |
+| 16 | Technology | `T` | none |
+| 17 | Unit Design | `UD` | none |
+
+Group ids are global, not per-component, which is why they are addressed flat at
+`/task-groups/{id}`. Groups are the one part of this table that moves, so a task destined for a
+group is the one case worth a `GET /components/{componentId}/task-groups` first; a task going in
+loose needs no lookup at all.
 
 Use **General (11)** when a task doesn't clearly belong to a specific component
 (cross-cutting refactors, tidy-ups, infrastructure).
@@ -402,6 +410,11 @@ of these fields:
 | `taskGroupId` | Omit to leave group membership alone, or pass **`null` to ungroup**. The destination group must exist, be live, and **belong to the same component as the task** — that last one is a `400` rather than a `404`, since both rows exist and just don't belong together. |
 | `taskGroupOrderNumber` | Zero-based position **among the other tasks** in the destination. Only read when `taskGroupId` is present. Must be `>= 0` (a negative is a `400`), and is otherwise **clamped**, so a large number simply means "put it last". |
 
+**`title` and `description` are not patchable.** A body naming only those is a `400`,
+`A patch must change at least one field.`, because neither is in the list above. Editing either
+means `PUT /tasks/{id}` — read the task first and carry every mutable field back over, or the
+omitted ones reset to their defaults.
+
 An empty body (`{}`) is a `400` rather than a quiet no-op. A patch naming several fields
 applies them one at a time and stops at the first failure, so it is **not atomic across
 fields** — one field at a time always is.
@@ -477,14 +490,11 @@ timestamp is stamped and the row stays. They're excluded from reads by default; 
 
 ## 8. Adding a task: the workflow to follow
 
-1. **Check the API is reachable** (`GET /projects`). If it isn't, say so — don't try to
-   start it unless asked.
-2. **Pick the component.** Match the work to a component from the table in §3; use
-   **General (11)** if nothing fits. If you're unsure which component is right, **ask** —
-   a task in the wrong component gets the wrong code, and codes are never reissued.
-3. **Confirm the component id** with `GET /projects/4/components` if the ids in this document
-   look stale.
-4. **Write the task.** A short `title` (≤ 200 chars) and a `description` carrying the real
+1. **Pick the component** from the table in §3 — no lookup call; that table is the
+   authoritative list. Use **General (11)** if nothing fits. If you're unsure which component is
+   right, **ask** — a task in the wrong component gets the wrong code, and codes are never
+   reissued.
+2. **Write the task.** A short `title` (≤ 200 chars) and a `description` carrying the real
    content. Existing tasks use Markdown-ish headed sections, and matching that is worth
    doing:
 
@@ -499,16 +509,16 @@ timestamp is stamped and the row stays. They're excluded from reads by default; 
 
    Some older tasks instead use `Current Functionality` / `Proposed Functionality`
    headings for changes to existing behaviour — either is fine.
-5. **Set `priority` deliberately** if you have an opinion; otherwise omit it and let it
+3. **Set `priority` deliberately** if you have an opinion; otherwise omit it and let it
    default to Medium.
-6. **Check for a matching task group** before posting — `GET /components/{componentId}/task-groups`.
-   If the component has a group that plainly covers the work (a group named after the feature
-   you're adding tasks for, say), the single create can drop the task straight into it with
-   `taskGroupId`. Don't create a new group without asking.
-7. **`POST /components/{componentId}/tasks`** for one, **`POST /tasks`** with a JSON array for
+4. **Only if the task belongs in a group**, check §3's table for one that plainly covers the
+   work and confirm it with `GET /components/{componentId}/task-groups`; the single create then
+   drops the task straight into it with `taskGroupId`. A loose task needs neither. Don't create
+   a new group without asking.
+5. **`POST /components/{componentId}/tasks`** for one, **`POST /tasks`** with a JSON array for
    several. After a batch, one `PATCH /tasks/{id}` per task to group them, because the batch
    ignores `taskGroupId`.
-8. **Report the returned `taskCode`** (e.g. `G-133`) back to the user — that's the handle
+6. **Report the returned `taskCode`** (e.g. `G-133`) back to the user — that's the handle
    they'll use to refer to the task.
 
 ### Things not to do

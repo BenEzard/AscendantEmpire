@@ -26,6 +26,8 @@ export { default as Tooltip } from "./Tooltip";
 export { default as Badge } from "./Badge";
 export { default as DeltaIndicator } from "./DeltaIndicator";
 export { default as ProgressBar } from "./ProgressBar";
+export { default as CapacityBar } from "./CapacityBar";
+export type { CapacityBarProps, CapacityBarSegment } from "./CapacityBar";
 export { default as RangeSlider } from "./RangeSlider";
 export type { RangeSliderProps } from "./RangeSlider";
 export { default as WholeNumberSlider } from "./WholeNumberSlider";
