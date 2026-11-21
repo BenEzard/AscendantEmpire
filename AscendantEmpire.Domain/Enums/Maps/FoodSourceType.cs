@@ -9,7 +9,8 @@ namespace AscendantEmpire.Domain.Enums.Maps;
 /// places - a <c>*Taken</c> column against a rate, and an instance's own quantity against a stock - while the feed that works them out treats them alike.
 /// </para>
 /// <para>
-/// A <c>Bank</c> member is expected, for the Force asset bank a supply chain will draw on. It is not here yet because nothing banks food.
+/// Only what the tile offers. What a Force eats out of its own load is not keyed here: that take is identified by the bank and the Asset it came out of
+/// rather than by anything on the map, and it is spent by <c>ICarriedFoodConsumptionService</c> after the tile has given everything it has.
 /// </para>
 /// </remarks>
 public enum FoodSourceType

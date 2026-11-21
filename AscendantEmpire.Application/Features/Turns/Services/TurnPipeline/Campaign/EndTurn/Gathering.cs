@@ -3,6 +3,8 @@ using AscendantEmpire.Application.Features.Maps.Biomes.Classes;
 using AscendantEmpire.Application.Features.Maps.Biomes.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
+using AscendantEmpire.Application.Features.Assets.Classes;
+using AscendantEmpire.Application.Features.Assets.Services;
 using AscendantEmpire.Application.Features.Maps.Depletion.Classes;
 using AscendantEmpire.Application.Features.Maps.Depletion.Services;
 using AscendantEmpire.Application.Features.Units.Classes;
@@ -19,8 +21,8 @@ using Microsoft.Extensions.Logging;
 namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.EndTurn;
 
 /// <summary>
-/// Feeds each of the Player's Forces from the campaign map tile it ends the Turn on, spending what they eat off the tile's biome and off any patch standing
-/// on it.
+/// Feeds each of the Player's Forces from the campaign map tile it ends the Turn on and then from what it is carrying, spending what they eat off the tile's
+/// biome, off any patch standing on it, and out of their own loads.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -30,6 +32,11 @@ namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campa
 /// <see cref="FoodExtractionCalculator"/> and spent by <see cref="IFoodConsumptionService"/>; any shortfall is spread across the tile's Forces by
 /// <see cref="ShortfallAllocator"/> and handed to <see cref="IUnderfedForceResolver"/>. See "What a tile stores: the amount taken" in
 /// <c>docs/design/campaign-map/depletion.md</c>.
+/// </para>
+/// <para>
+/// <b>The tile is stripped before a load is touched.</b> Only a Force still wanting rations once the tile has given everything it has eats what it is
+/// carrying, through <see cref="ICarriedFoodConsumptionService"/>, and only what is left after that is a shortfall anyone starves for. The order is the point
+/// of it: a Force marches on the country it stands in and keeps its own stores for the country that has nothing.
 /// </para>
 /// <para>
 /// Forces on one tile are fed by food set, cheapest set id first. They share a tile rather than a ration, so a group feeding after another sees what the
@@ -53,6 +60,7 @@ internal class Gathering(
     ISupplySetMembershipReader supplySetMembershipReader,
     ITileFoodStockReader tileFoodStockReader,
     IFoodConsumptionService foodConsumptionService,
+    ICarriedFoodConsumptionService carriedFoodConsumptionService,
     IUnderfedForceResolver underfedForceResolver,
     ISightDataReader sightDataReader,
     ICampaignRiverReader campaignRiverReader,
@@ -233,6 +241,30 @@ internal class Gathering(
         // Spent before saving, so the tile's loss and the consequences of going hungry land in the same save.
         await foodConsumptionService.ConsumeAsync(db, context.GameId, consumptions);
 
+        // Only once the tile is stripped does a Force eat its own load, which is its last meal before it starts to starve.
+        Dictionary<int, int> foodSetIdByForceId = feedingForces.ToDictionary(force => force.UnitInstanceId, force => force.FoodSupplySetId);
+
+        IReadOnlyDictionary<int, ScaledAmount> fedFromCargo = await carriedFoodConsumptionService.ConsumeAsync(
+            db,
+            playerId,
+            [
+                .. results
+                    .Where(result => result.IsUnderfed)
+                    .Select(result => new CarriedFoodDraw(result.UnitInstanceId, foodSetIdByForceId[result.UnitInstanceId], result.Shortfall))
+            ],
+            membershipsBySetId);
+
+        ScaledAmount totalFromCargo = ScaledAmount.Zero;
+
+        if (fedFromCargo.Count > 0)
+        {
+            results = [.. results.Select(result => WithCargo(result, fedFromCargo))];
+
+            totalFromCargo = fedFromCargo.Values.Aggregate(ScaledAmount.Zero, (sum, fed) => sum + fed);
+            totalFed += totalFromCargo;
+            totalShortfall -= totalFromCargo;
+        }
+
         // The Round is part of how each Force's casualty roll is derived, and the Turn is what a destroyed Force's history row is stamped with.
         await underfedForceResolver.ResolveAsync(
             db,
@@ -245,13 +277,15 @@ internal class Gathering(
         await db.SaveChangesAsync();
 
         logger.LogInformation(
-            "Fed {ForceCount} Force(s) belonging to Player Id {PlayerId} in Game Id {GameId}, Round {RoundNumber}, across {TileCount} tile(s): {TotalFed} ration(s) eaten, {TotalShortfall} short.",
+            "Fed {ForceCount} Force(s) belonging to Player Id {PlayerId} in Game Id {GameId}, Round {RoundNumber}, across {TileCount} tile(s): {TotalFed} ration(s) eaten, "
+                + "{TotalFromCargo} of them out of their own loads, {TotalShortfall} short.",
             results.Count,
             playerId,
             context.GameId,
             context.CurrentRoundNumber,
             tileIds.Length,
             totalFed.ToDecimal(),
+            totalFromCargo.ToDecimal(),
             totalShortfall.ToDecimal());
 
         return string.Empty;
@@ -305,6 +339,22 @@ internal class Gathering(
         }
 
         return await campaignRiverReader.GetTileRiversAsync(db, gameId, coords, geometry);
+    }
+
+    /// <summary>
+    /// The result a Force ends the feed with, once what it ate out of its own load is counted against its shortfall.
+    /// </summary>
+    /// <remarks>
+    /// A Force whose load covered the whole of what the tile could not is no longer underfed, and so takes no casualties at all.
+    /// </remarks>
+    private static ForceFeedingResult WithCargo(ForceFeedingResult result, IReadOnlyDictionary<int, ScaledAmount> fedFromCargo)
+    {
+        if (fedFromCargo.TryGetValue(result.UnitInstanceId, out ScaledAmount fromCargo) == false)
+        {
+            return result;
+        }
+
+        return result with { Fed = result.Fed + fromCargo, Shortfall = result.Shortfall - fromCargo };
     }
 
     /// <summary>

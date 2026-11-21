@@ -242,6 +242,9 @@ Pure and database-free apart from the two readers, so the rules are tested on th
 | [FoodExtractionCalculator.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/FoodExtractionCalculator.cs) | Splits a food need across the sources by what each one feeds, or strips them bare and reports the shortfall. |
 | [ShortfallAllocator.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/ShortfallAllocator.cs) | Spreads a tile's shortfall across its Forces in proportion to what each needed. |
 | [FoodConsumptionService.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/FoodConsumptionService.cs) | Spends what was eaten: `*Taken` for the biome, an instance's quantity for a patch. Never saves. |
+| [CarriedFoodConsumptionService.cs](../../../AscendantEmpire.Application/Features/Assets/Services/CarriedFoodConsumptionService.cs) | Feeds a Force still short out of its own load once the tile is stripped, own cargo bank before a Unit sharing its network. Never saves. |
+| [RationLeveller.cs](../../../AscendantEmpire.Application/Features/Assets/Services/RationLeveller.cs) | How much of each carried Asset is eaten: they are levelled against each other in rations, not in quantities. |
+| [WaterLineAllocator.cs](../../../AscendantEmpire.Application/Features/Assets/Services/WaterLineAllocator.cs) | The water-line arithmetic both axes of levelling use — carried Assets against each other, and one Asset across the banks holding it. |
 | [TileFoodStockReader.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/TileFoodStockReader.cs) | What the patches on a set of tiles hold for a Player, their yield switches resolved. |
 | [TileFoodDisclosureReader.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/TileFoodDisclosureReader.cs) | The same sources priced for the tile toolbar instead of the feed: discovered patches only, at the Player's estimate — see [support-indicator.md](support-indicator.md#what-the-toolbars-figure-means). |
 | [ProportionalSplitter.cs](../../../AscendantEmpire.Application/Features/Maps/Depletion/Services/ProportionalSplitter.cs) | Largest-remainder split in thousandths, used for both splits above, so the parts sum exactly to the total. |
@@ -256,7 +259,7 @@ Pure and database-free apart from the two readers, so the rules are tested on th
 
 | File | Role |
 | --- | --- |
-| [Gathering.cs](../../../AscendantEmpire.Application/Features/Turns/Services/TurnPipeline/Campaign/EndTurn/Gathering.cs) | End of turn: feeds the Player's Forces from the tile each ends on and adds what they eat to `Taken`. Runs at `EndCampaignTurnProcessOrder.Gathering` (10000), first of the end-of-turn processes. |
+| [Gathering.cs](../../../AscendantEmpire.Application/Features/Turns/Services/TurnPipeline/Campaign/EndTurn/Gathering.cs) | End of turn: feeds the Player's Forces from the tile each ends on, adds what they eat to `Taken`, and then feeds whoever is still short out of their own loads. Runs at `EndCampaignTurnProcessOrder.Gathering` (10000), first of the end-of-turn processes. |
 | [RegenerateTileSustenance.cs](../../../AscendantEmpire.Application/Features/Turns/Services/TurnPipeline/Campaign/EndRound/RegenerateTileSustenance.cs) | End of round: regrows every depleted tile in the Game. Runs at `EndCampaignRoundProcessOrder.RegenerateTileSustenance` (15000). |
 | [StarvationUnderfedForceResolver.cs](../../../AscendantEmpire.Application/Features/Units/Services/StarvationUnderfedForceResolver.cs) | The `IUnderfedForceResolver` in use: kills and wounds troops that went short, and destroys an emptied Force. Stages writes, never saves. |
 | [StarvationCasualtyCalculator.cs](../../../AscendantEmpire.Application/Features/Units/Services/StarvationCasualtyCalculator.cs) | What a Force loses to a turn without enough food, and which of its troops the loss comes out of. |
@@ -302,13 +305,7 @@ read-only reference table.
 
 ### Tests
 
-`AscendantEmpire.Tests/Features/Maps/Depletion/` covers the arithmetic (`DepletionTakenTests`,
-`TileFoodSourcesTests`, `FoodExtractionCalculatorTests`, `ShortfallAllocatorTests`,
-`TileRegenerationCalculatorTests`, `TileSupportEvaluatorTests`, `TileSupportForecasterTests`,
-`GetTileSupportLevelsHandlerTests`), the spending (`FoodConsumptionServiceTests`) and the check constraint
-(`CampaignMapDepletionConstraintTests`). The pipeline processes are covered by
-`Features/Turns/Services/TurnPipeline/GatheringTests` and `RegenerateTileSustenanceTests`, and the
-toolbar read by `Features/Maps/Biomes/GetTileSustenanceHandlerTests`.
+`AscendantEmpire.Tests/Features/Maps/Depletion/` covers the arithmetic (`DepletionTakenTests`, `TileFoodSourcesTests`, `FoodExtractionCalculatorTests`, `ShortfallAllocatorTests`, `TileRegenerationCalculatorTests`, `TileSupportEvaluatorTests`, `TileSupportForecasterTests`, `GetTileSupportLevelsHandlerTests`), the spending (`FoodConsumptionServiceTests`) and the check constraint (`CampaignMapDepletionConstraintTests`). Carried food is covered in `Features/Assets/` (`WaterLineAllocatorTests`, `RationLevellerTests`, `CarriedFoodConsumptionServiceTests`). The pipeline processes are covered by `Features/Turns/Services/TurnPipeline/GatheringTests` and `RegenerateTileSustenanceTests`, and the toolbar read by `Features/Maps/Biomes/GetTileSustenanceHandlerTests`.
 
 ## Process flow
 
@@ -341,12 +338,10 @@ toolbar read by `Features/Maps/Biomes/GetTileSustenanceHandlerTests`.
       every Force in it goes equally short.
    4. `FedOnRound` is set to the current round whether or not anything was taken: the marker records
       presence.
-7. `IFoodConsumptionService` spends the tile's whole take — `*Taken` for the biome, instance
-   quantities for the patches.
-8. The per-Force need, food and shortfall go to `IUnderfedForceResolver` **before** the save, so the
-   casualties commit in the same batch as the depletion that caused them — a turn can never take the
-   food without the losses, or the losses without the food.
-9. `SaveChangesAsync`, then one log line with the totals fed and short.
+7. `IFoodConsumptionService` spends the tile's whole take — `*Taken` for the biome, instance quantities for the patches.
+8. Every Force still short now eats its own load, through `ICarriedFoodConsumptionService` — the tile is always stripped first, so carried food is a Force's last meal before it starves. A Force eats its own cargo bank before a Unit sharing its `NetworkKey` is asked for anything, and within each of those its edible Assets are levelled against each other **in rations** rather than in quantities, so it runs out of everything at once instead of running out of its staple while a delicacy rides along. What a load covers comes off that Force's shortfall, so a Force whose cargo filled the gap takes no casualties at all.
+9. The per-Force need, food and shortfall go to `IUnderfedForceResolver` **before** the save, so the casualties commit in the same batch as the depletion that caused them — a turn can never take the food without the losses, or the losses without the food.
+10. `SaveChangesAsync`, then one log line with the totals fed, eaten out of loads, and short.
 
 ### Regrowth, at the end of the round (`RegenerateTileSustenance`)
 

@@ -1,4 +1,5 @@
 using AscendantEmpire.Application.Data;
+using AscendantEmpire.Application.Features.Assets.Services;
 using AscendantEmpire.Application.Features.Maps.Biomes.Services;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Classes;
 using AscendantEmpire.Application.Features.Maps.CampaignMaps.Services;
@@ -7,10 +8,12 @@ using AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campaign.
 using AscendantEmpire.Application.Features.Units.Classes;
 using AscendantEmpire.Application.Features.Units.Services;
 using AscendantEmpire.Application.Helpers.ScaledNumerics;
+using AscendantEmpire.Domain.Entities.Assets;
 using AscendantEmpire.Domain.Entities.Games;
 using AscendantEmpire.Domain.Entities.Maps.CampaignMaps;
 using AscendantEmpire.Domain.Entities.Maps.MapResources;
 using AscendantEmpire.Domain.Entities.Units;
+using AscendantEmpire.Domain.Enums.Assets;
 using AscendantEmpire.Domain.Enums.MapResources;
 using AscendantEmpire.Domain.Enums.Maps;
 using AscendantEmpire.Domain.Enums.Modifiers;
@@ -155,11 +158,14 @@ internal class GatheringTests : InMemoryTestBase
             new SupplySetMembershipReader(),
             new TileFoodStockReader(),
             new FoodConsumptionService(NullLogger<FoodConsumptionService>.Instance),
+            new CarriedFoodConsumptionService(NullLogger<CarriedFoodConsumptionService>.Instance),
             _underfedForceResolver,
             sightDataReader,
             new CampaignRiverReader(),
             NullLogger<Gathering>.Instance);
     }
+
+    #region The feed
 
     [Test, Description("The first feed on a tile creates its depletion row, splitting the need across Forage and Hunt in proportion to what each has.")]
     public async Task ShouldCreateTheDepletionRowAndAddToTakenOnTheFirstFeedAsync()
@@ -320,7 +326,9 @@ internal class GatheringTests : InMemoryTestBase
         }
     }
 
-    // ── appetite ──────────────────────────────────────────────────────────────
+    #endregion
+
+    #region Appetite
 
     [Test, Description("A Force's need comes from its compiled food requirement, so a design that eats more takes more off the tile.")]
     public async Task ShouldTakeNeedFromCompiledRequirementAsync()
@@ -368,7 +376,9 @@ internal class GatheringTests : InMemoryTestBase
             "A hundred individuals eat a hundred rations however many of them are wounded.");
     }
 
-    // ── MapResources ──────────────────────────────────────────────────────────
+    #endregion
+
+    #region MapResources
 
     [Test, Description("A berry patch on the tile is eaten alongside the biome, and the patch's own quantity is what pays for it.")]
     public async Task ShouldEatFromAMapResourcePatchOnTheTileAsync()
@@ -409,7 +419,9 @@ internal class GatheringTests : InMemoryTestBase
         }
     }
 
-    // ── arrangement ───────────────────────────────────────────────────────────
+    #endregion
+
+    #region Rivers
 
     [Test, Description("Forces on a riverbank eat its Fish too: a Large river puts 30 Fish on dry Grassland, and the feed draws on it alongside Forage and Hunt.")]
     public async Task ShouldFeedFromTheFishARiverPutsOnALandTileAsync()
@@ -442,6 +454,72 @@ internal class GatheringTests : InMemoryTestBase
 
         Assert.That(depletion.FishTaken, Is.Zero);
     }
+
+    #endregion
+
+    #region Carried food
+
+    [Test, Description("A Force the tile cannot fill eats its own load for the rest, so it reaches the resolver fed in full and starves for nothing.")]
+    public async Task ShouldEatItsOwnLoadForWhatTheTileCouldNotCoverAsync()
+    {
+        int berriesAssetId = _design.AssetIdsByCode[FoodDesignSeed.BERRIES_ASSET_CODE];
+
+        await AddForceAsync(unitInstanceId: 1, _GRASSLAND_TILE_ID, troops: 1_000);
+        await AddUnitBankAsync(unitInstanceId: 1, new Dictionary<int, long> { [berriesAssetId] = 500 });
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        ForceFeedingResult result = SingleResolvedResult();
+
+        using (Assert.EnterMultipleScope())
+        {
+            // Grassland offers 600 against a need of 1,000, so 400 rations of berries go with it.
+            Assert.That(result.Shortfall, Is.EqualTo(ScaledAmount.Zero), "The load covered what the tile could not.");
+            Assert.That(result.Fed, Is.EqualTo(ScaledAmount.FromWhole(1_000)));
+            Assert.That(await CarriedQuantityAsync(unitInstanceId: 1, berriesAssetId), Is.EqualTo(ScaledAmount.FromWhole(100).RawValue));
+        }
+    }
+
+    [Test, Description("The tile is stripped before a load is touched, so the patch standing on it goes first and the load pays only the remainder.")]
+    public async Task ShouldStripTheTileBeforeEatingTheLoadAsync()
+    {
+        int berriesAssetId = _design.AssetIdsByCode[FoodDesignSeed.BERRIES_ASSET_CODE];
+        int instanceId = await AddBerryPatchAsync(_GRASSLAND_TILE_ID, quantity: 100);
+
+        await AddForceAsync(unitInstanceId: 1, _GRASSLAND_TILE_ID, troops: 1_000);
+        await AddUnitBankAsync(unitInstanceId: 1, new Dictionary<int, long> { [berriesAssetId] = 500 });
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        CampaignMapDepletion depletion = await ReloadDepletionAsync(_GRASSLAND_TILE_ID);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(depletion.ForageTaken, Is.EqualTo(ScaledAmount.FromWhole(400).RawValue), "Forage was taken to the last ration before the load was opened.");
+            Assert.That(depletion.HuntTaken, Is.EqualTo(ScaledAmount.FromWhole(200).RawValue));
+            Assert.That(await PatchQuantityAsync(instanceId), Is.Zero, "The patch went the same way, and for the same reason.");
+            Assert.That(await CarriedQuantityAsync(unitInstanceId: 1, berriesAssetId), Is.EqualTo(ScaledAmount.FromWhole(200).RawValue), "Only the 300 the tile was short cost the load.");
+        }
+    }
+
+    [Test, Description("A load holding nothing the Force's food set prices is not food, so the Force goes as short as if it carried nothing at all.")]
+    public async Task ShouldNotEatALoadOutsideTheFoodSetAsync()
+    {
+        await AddForceAsync(unitInstanceId: 1, _GRASSLAND_TILE_ID, troops: 1_000);
+        await AddUnitBankAsync(unitInstanceId: 1, new Dictionary<int, long> { [_UNEATABLE_ASSET_ID] = 500 });
+
+        await _process.ProcessAsync(EndTurnContext());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(SingleResolvedResult().Shortfall, Is.EqualTo(ScaledAmount.FromWhole(400)));
+            Assert.That(await CarriedQuantityAsync(unitInstanceId: 1, _UNEATABLE_ASSET_ID), Is.EqualTo(ScaledAmount.FromWhole(500).RawValue));
+        }
+    }
+
+    #endregion
+
+    #region Helpers
 
     /// <summary>
     /// Puts a river of the given width on the tile's own East edge, which is the one edge of it the tile's own row owns outright.
@@ -629,4 +707,45 @@ internal class GatheringTests : InMemoryTestBase
     {
         return ResolvedResults().Single();
     }
+
+    /// <summary>Gives a Force a load of the given whole quantities, by Asset id, in a network of its own.</summary>
+    private async Task AddUnitBankAsync(int unitInstanceId, IReadOnlyDictionary<int, long> balances, int playerId = _PLAYER_ID)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        var bank = new AssetBank
+        {
+            PlayerId = playerId,
+            Kind = AssetBankKind.Unit,
+            UnitInstanceId = unitInstanceId,
+            NetworkKey = Guid.NewGuid()
+        };
+
+        context.AssetBanks.Add(bank);
+
+        await context.SaveChangesAsync();
+
+        context.AssetBankBalances.AddRange(balances.Select(entry => new AssetBankBalance
+        {
+            AssetBankId = bank.Id,
+            AssetId = entry.Key,
+            Quantity = ScaledAmount.FromWhole(entry.Value).RawValue
+        }));
+
+        await context.SaveChangesAsync();
+    }
+
+    /// <summary>What a Force is still carrying of one Asset, raw, or null where the row has gone.</summary>
+    private async Task<long?> CarriedQuantityAsync(int unitInstanceId, int assetId)
+    {
+        await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+        return await context.AssetBankBalances
+            .Where(balance => balance.Bank.UnitInstanceId == unitInstanceId)
+            .Where(balance => balance.AssetId == assetId)
+            .Select(balance => (long?)balance.Quantity)
+            .SingleOrDefaultAsync();
+    }
+
+    #endregion
 }

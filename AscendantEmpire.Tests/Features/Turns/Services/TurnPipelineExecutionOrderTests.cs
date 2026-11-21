@@ -46,7 +46,7 @@ public class TurnPipelineExecutionOrderTests
         _dbFactory = Substitute.For<IDbContextFactory<AscendantEmpireContext>>();
     }
 
-    // ── the pipelines under test ──────────────────────────────────────────────
+    #region The pipelines under test
 
     private static IPipelineProcess[] EndCampaignTurnProcesses() =>
     [
@@ -57,6 +57,7 @@ public class TurnPipelineExecutionOrderTests
             Substitute.For<ISupplySetMembershipReader>(),
             Substitute.For<ITileFoodStockReader>(),
             Substitute.For<IFoodConsumptionService>(),
+            Substitute.For<ICarriedFoodConsumptionService>(),
             Substitute.For<IUnderfedForceResolver>(),
             Substitute.For<ISightDataReader>(),
             Substitute.For<ICampaignRiverReader>(),
@@ -118,7 +119,9 @@ public class TurnPipelineExecutionOrderTests
     /// <summary>Sorts a pipeline the way <c>TurnServicePipeline</c> does, and returns the names in the order they would run.</summary>
     private static string[] RunOrderOf(IPipelineProcess[] processes) => [.. processes.OrderBy(p => p.ExecutionOrder).Select(p => p.ItemName)];
 
-    // ── declared run order ────────────────────────────────────────────────────
+    #endregion
+
+    #region Declared run order
 
     [Test, Description("Ending a turn gathers, builds, sweeps each camp into the settlement it feeds and fortifies before attrition is judged, closes the research books, and writes down what others watched last of all.")]
     public void ShouldRunEndCampaignTurnProcessesInDeclaredOrder()
@@ -185,7 +188,9 @@ public class TurnPipelineExecutionOrderTests
         Assert.That(actual, Is.EqualTo(expected));
     }
 
-    // ── no ties ───────────────────────────────────────────────────────────────
+    #endregion
+
+    #region No ties
 
     [Test, Description("No two members of a pipeline share an execution order, which would silently hand the sequence back to registration order.")]
     public void ShouldGiveEveryMemberOfAPipelineADistinctExecutionOrder()
@@ -205,4 +210,6 @@ public class TurnPipelineExecutionOrderTests
 
         Assert.That(orders.Distinct().Count(), Is.EqualTo(orders.Length), $"The {pipelineName} pipeline has two members claiming the same execution order.");
     }
+
+    #endregion
 }

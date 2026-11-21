@@ -126,6 +126,7 @@ public static class ApplicationStartup
         services.AddScoped<IAssetBankCreditService, AssetBankCreditService>();
         services.AddScoped<IAssetBankDeliveryService, AssetBankDeliveryService>();
         services.AddScoped<IAssetBankCargoService, AssetBankCargoService>();
+        services.AddScoped<ICarriedFoodConsumptionService, CarriedFoodConsumptionService>();
         services.AddScoped<IPlayerAssetQuantityReader, PlayerAssetQuantityReader>();
 
         services.AddScoped<ICampParentResolver, CampParentResolver>();

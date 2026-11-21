@@ -165,7 +165,7 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
     /// </para>
     /// <para>
     /// <b>Local-first: the site's own bank is drained before any other is touched</b>, because goods already standing where the building is going up do not
-    /// travel. The remainder comes out of the banks sharing the site's <c>NetworkKey</c>, levelled - see <see cref="LevelDown"/> - so it is taken from the
+    /// travel. The remainder comes out of the banks sharing the site's <c>NetworkKey</c>, levelled - see <see cref="BalanceLeveller"/> - so it is taken from the
     /// richest and a poor Settlement keeps the stock its own construction will need.
     /// </para>
     /// <para>
@@ -270,7 +270,7 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
     /// exclusion the quantity reader applies, so what the ticker shows as available is what this can actually spend.
     /// </para>
     /// <para>
-    /// <b>The spread is levelling rather than proportional</b> - see <see cref="LevelDown"/>. The point of it is that a small bank keeps the stock its own
+    /// <b>The spread is levelling rather than proportional</b> - see <see cref="BalanceLeveller"/>. The point of it is that a small bank keeps the stock its own
     /// construction will need, which is the stranding problem the Empire-wide arm would otherwise create every time it spent.
     /// </para>
     /// </remarks>
@@ -379,17 +379,7 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
             return ScaledAmount.Zero;
         }
 
-        if (taken == total)
-        {
-            foreach (AssetBankBalance balance in held)
-            {
-                balance.Quantity = 0;
-            }
-        }
-        else
-        {
-            LevelDown(held, taken.RawValue);
-        }
+        BalanceLeveller.Take(held, taken.RawValue);
 
         // An emptied balance is deleted rather than left as a zero. A missing row and a zero row mean the same thing to every reader, and deleting keeps a
         // bank from accumulating a row per Asset it has ever briefly held.
@@ -404,106 +394,6 @@ internal sealed class AssetBankDrawdownService(ILogger<AssetBankDrawdownService>
         }
 
         return taken;
-    }
-
-    /// <summary>
-    /// Spreads a partial take across the balances by levelling: the fullest are cut down to a common water-line and the rest are left alone.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Chosen over a proportional spread, where a bank holding a tenth of the stock would pay a tenth of the cost. Levelling takes from the richest first,
-    /// so a bank with little keeps what it has and stays able to fund its own construction.
-    /// </para>
-    /// <para>
-    /// With banks holding 50, 30 and 4 and a take of 40, the water-line falls at 20: the first two are cut to 20 each and the third is untouched. A take of
-    /// 84 out of the same banks is the whole of it and does not reach here at all.
-    /// </para>
-    /// <para>
-    /// <b>The leftover units go richest-first, then to the lower bank id.</b> A quantity is a scaled integer, so a water-line that divides exactly is the
-    /// exception and a few raw units are normally left over. The order is fixed rather than incidental, so that the same expense against the same banks
-    /// always spends the same rows.
-    /// </para>
-    /// </remarks>
-    /// <param name="takeRaw">How much to take, in raw scaled units, and strictly less than the balances hold between them.</param>
-    private static void LevelDown(IReadOnlyList<AssetBankBalance> held, long takeRaw)
-    {
-        long waterLine = FindWaterLine(held, takeRaw);
-
-        List<AssetBankBalance> inSpendOrder =
-        [
-            .. held
-                .OrderByDescending(balance => balance.Quantity)
-                .ThenBy(balance => balance.AssetBankId)
-        ];
-
-        // Everything strictly above the line comes off first. The line is the highest one that still yields enough, so what is left outstanding after this
-        // pass is fewer units than there are balances standing on the line - never more.
-        long[] deductions = new long[inSpendOrder.Count];
-        long outstanding = takeRaw;
-
-        for (int index = 0; index < inSpendOrder.Count; index++)
-        {
-            long aboveLine = Math.Max(0, inSpendOrder[index].Quantity - (waterLine + 1));
-
-            deductions[index] = aboveLine;
-            outstanding -= aboveLine;
-        }
-
-        // The remainder is one raw unit each off the balances standing on the line, richest first.
-        for (int index = 0; index < inSpendOrder.Count && outstanding > 0; index++)
-        {
-            if (inSpendOrder[index].Quantity - deductions[index] <= waterLine)
-            {
-                continue;
-            }
-
-            deductions[index]++;
-            outstanding--;
-        }
-
-        for (int index = 0; index < inSpendOrder.Count; index++)
-        {
-            inSpendOrder[index].Quantity -= deductions[index];
-        }
-    }
-
-    /// <summary>
-    /// The highest level at which cutting every balance down to it would still yield at least what is being taken.
-    /// </summary>
-    /// <remarks>
-    /// Binary searched rather than walked, because a quantity is a scaled integer and the line can sit anywhere in a range of billions. What sits above a
-    /// level only falls as the level rises, which is what makes the search sound: at zero it is everything the balances hold, which is more than is being
-    /// taken, and at the fullest balance it is nothing, so the line lies between the two and the search cannot run off either end.
-    /// </remarks>
-    private static long FindWaterLine(IReadOnlyList<AssetBankBalance> held, long takeRaw)
-    {
-        long low = 0;
-        long high = held.Max(balance => balance.Quantity);
-
-        while (low < high)
-        {
-            // Rounded up, so a two-wide range tries the upper candidate and the loop cannot sit still on the lower one.
-            long candidate = low + ((high - low + 1) / 2);
-
-            if (SumAboveLevel(held, candidate) >= takeRaw)
-            {
-                low = candidate;
-            }
-            else
-            {
-                high = candidate - 1;
-            }
-        }
-
-        return low;
-    }
-
-    /// <summary>
-    /// How much the balances hold above the given level, which is what cutting every one of them down to it would yield.
-    /// </summary>
-    private static long SumAboveLevel(IReadOnlyList<AssetBankBalance> held, long level)
-    {
-        return held.Sum(balance => Math.Max(0, balance.Quantity - level));
     }
 
     /// <summary>
