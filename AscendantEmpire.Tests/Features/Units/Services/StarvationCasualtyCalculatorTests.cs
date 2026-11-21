@@ -13,13 +13,16 @@ namespace AscendantEmpire.Tests.Features.Units.Services;
 /// nothing here depends on which values a real stream happens to produce.
 /// </para>
 /// <para>
-/// Severity is 34% at total starvation and the dead share is drawn between 10% and 30% of the casualties. Both are private, so the figures are worked back
-/// from the outputs rather than read off the constants - a test that imported them would pass whatever they were changed to.
+/// Severity is 34% at total starvation, the dead share is drawn between 10% and 30% of the casualties, and a shortfall worth a casualty at all starts at 1%
+/// of the need. All of them are private, so the figures are worked back from the outputs rather than read off the constants - a test that imported them would
+/// pass whatever they were changed to.
 /// </para>
 /// </remarks>
 [TestFixture]
 internal class StarvationCasualtyCalculatorTests
 {
+    #region How many are lost
+
     [Test, Description("A Force that got no food at all loses 34% of its troops, so the severity constant is what decides the scale of a total shortfall.")]
     public void ShouldLoseTheFullSeverityWhenNothingWasFed()
     {
@@ -36,12 +39,47 @@ internal class StarvationCasualtyCalculatorTests
         Assert.That(casualties.Total, Is.EqualTo(170));
     }
 
-    [Test, Description("A large Force a little short of food loses nobody, because the total is floored - small shortfalls are meant to be survivable.")]
-    public void ShouldLoseNobodyWhenTheShortfallFloorsToZero()
+    [Test, Description("A shortfall too slight to be worth a casualty costs nobody, so the fractions a tile's split leaves on a Force are survivable.")]
+    public void ShouldLoseNobodyWhenTheShortfallIsBeneathTheThreshold()
+    {
+        StarvationCasualties casualties = Calculate(troops: 1_000, needWhole: 1_000, shortfallWhole: 2);
+
+        Assert.That(casualties, Is.EqualTo(StarvationCasualties.None));
+    }
+
+    [Test, Description("A real shortfall the proportional total rounds down to nobody still costs one, which is what lets a Force starve to death at all.")]
+    public void ShouldCostOneWhenTheProportionalTotalRoundsAwayToNobody()
     {
         StarvationCasualties casualties = Calculate(troops: 100, needWhole: 100, shortfallWhole: 2);
 
-        Assert.That(casualties, Is.EqualTo(StarvationCasualties.None));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(casualties.Total, Is.EqualTo(1));
+            Assert.That(casualties.Killed, Is.Zero, "The minimum buys a casualty, not a death: a Force with healthy men to wound loses its strength first.");
+            Assert.That(casualties.Wounded, Is.EqualTo(1));
+        }
+    }
+
+    [TestCase(200, 1, Description = "A shortfall of exactly the threshold share of the need is worth a casualty.")]
+    [TestCase(201, 0, Description = "A shortfall a hair under the threshold share of the need is worth none.")]
+    public void ShouldTakeTheMinimumFromTheShareOfTheNeed(int needWhole, int expectedTotal)
+    {
+        StarvationCasualties casualties = Calculate(troops: needWhole, needWhole: needWhole, shortfallWhole: 2);
+
+        Assert.That(casualties.Total, Is.EqualTo(expectedTotal));
+    }
+
+    [Test, Description("The same number of rations missing costs the same number of men whatever the Force's size, because the need cancels the troops out.")]
+    public void ShouldLoseTheSameToTheSameAbsoluteShortfallAtAnySize()
+    {
+        StarvationCasualties army = Calculate(troops: 1_000, needWhole: 1_000, shortfallWhole: 100);
+        StarvationCasualties band = Calculate(troops: 100, needWhole: 100, shortfallWhole: 100);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(army.Total, Is.EqualTo(34), "A tenth short.");
+            Assert.That(band.Total, Is.EqualTo(34), "Wholly unfed, and yet the same loss.");
+        }
     }
 
     [Test, Description("The roll decides only how the total splits, so the dead share applies to the casualties and the rest are wounded.")]
@@ -106,7 +144,9 @@ internal class StarvationCasualtyCalculatorTests
         Assert.That(casualties.Total, Is.EqualTo(340));
     }
 
-    // ── which troops pay ──────────────────────────────────────────────────────
+    #endregion
+
+    #region Which troops pay
 
     [Test, Description("Deaths are taken from the already-wounded before the healthy, because they are the men least able to survive another Turn.")]
     public void ShouldKillTheWoundedBeforeTheHealthy()
@@ -168,7 +208,9 @@ internal class StarvationCasualtyCalculatorTests
         }
     }
 
-    // ── arrangement ───────────────────────────────────────────────────────────
+    #endregion
+
+    #region Arrangement
 
     private static StarvationCasualties Calculate(int troops, long needWhole, long shortfallWhole, int deadSharePerThousand = 200)
     {
@@ -189,4 +231,6 @@ internal class StarvationCasualtyCalculatorTests
             return value;
         }
     }
+
+    #endregion
 }

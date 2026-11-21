@@ -95,9 +95,8 @@ friendly territory.
 - A unit base component requires a **food supply set** to remain healthy, at a quantity per individual.
   `human-food` is the set men eat; a mount's fodder is a `Fuel` set, not a food one.
 - Healthy and injured individuals each eat a **full ration**: a wound is no cheaper to feed.
-- A unit that goes short of food takes **casualties in proportion to its shortfall**. At total
-  starvation it loses **34%** of its individuals in one turn; going half short costs half of that. The
-  total is rounded **down**, so a large unit carrying a small deficit loses nobody.
+- A unit that goes short of food takes **casualties in proportion to its shortfall**. At total starvation it loses **34%** of its individuals in one turn; going half short costs half of that. The total is rounded **down**, and because the need is itself the individuals times one ration, the unit's size cancels out of that sum — what is left is 34% of the **absolute** shortfall, so a deficit of under about three rations rounds away to nobody whether it is a scouting band or an army going without.
+- A shortfall of at least **1% of what the unit needed** costs it **at least one** casualty, even where the proportional total rounds down to nobody. Without that floor nothing could starve to death: a unit shrinks only until its need comes within those three rations of what the tile yields and then holds there, and on a tile yielding nothing at all a couple of individuals would live indefinitely. The threshold is a share of the need rather than a count of rations, so that it scales with appetite and so that the fractions left behind when a tile's shortfall is split between its units cost nobody. It buys one casualty and not one death, so a unit with healthy men left to wound still wastes away into the injured before it begins losing anybody.
 - A single roll splits that total between **dead** and **wounded**: between 10% and 30% of the
   casualties die and the rest are wounded, rounded in the wounded's favour. How many suffer is
   fixed by the shortfall; only who dies is left to chance.
@@ -106,8 +105,6 @@ friendly territory.
   **kills instead**. A unit left hungry therefore accumulates wounded and then begins losing men.
 - Each Force takes its own casualties; a shortfall shared by several units on one tile is split
   between them in proportion to their individuals before any of this is applied.
-- If a tile holds **≤ 15 individuals** in total, the units on it take wounds but never deaths. The
-  gate is per tile rather than per unit, so splitting an army into small bands does not buy it.
 - With the **Mobile Scavenging** technology, a unit takes a percentage of a tile's food as it moves
   *through* it (i.e. it neither starts nor ends its turn there).
 - A unit consumes food from the tile in which it **ends** its turn. If that tile doesn't produce

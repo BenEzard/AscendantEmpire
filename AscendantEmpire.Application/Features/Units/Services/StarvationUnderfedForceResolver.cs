@@ -42,9 +42,6 @@ internal class StarvationUnderfedForceResolver(
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(results);
 
-        // TODO CM-51: a tile holding 15 or fewer troops in total takes injuries but never deaths. The gate is per tile rather than per Force, so that
-        //  splitting an army into tiny bands cannot buy the exemption; every result here carries its CampaignMapTileId to group by.
-
         // Ordered by Force id purely so a log read back later follows a stable order. No Force's outcome depends on it: each draws from its own stream.
         List<ForceFeedingResult> underfed = [.. results.Where(result => result.IsUnderfed).OrderBy(result => result.UnitInstanceId)];
 

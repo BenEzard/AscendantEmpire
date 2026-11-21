@@ -37,6 +37,15 @@ internal static class StarvationCasualtyCalculator
     /// <summary>The most of a Turn's casualties that die rather than being wounded, per thousand.</summary>
     private const int _MAX_DEAD_SHARE_PER_THOUSAND = 300;
 
+    /// <summary>
+    /// The least a Force may go short by, as a share of what it needed, before the shortfall is worth a casualty at all.
+    /// </summary>
+    /// <remarks>
+    /// A share of the need rather than a count of rations. It scales with appetite, where an absolute floor would be one more figure a large Force could sit
+    /// permanently beneath; and <c>ShortfallAllocator</c> can leave a Force sharing a tile short by a thousandth of a ration, which must not cost a man a Turn.
+    /// </remarks>
+    private const long _MINIMUM_SHORTFALL_SHARE_PER_THOUSAND = 10;
+
     /// <summary>Parts per thousand, the unit both shares above are expressed in.</summary>
     private const long _PER_THOUSAND = 1_000;
 
@@ -45,9 +54,16 @@ internal static class StarvationCasualtyCalculator
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The total is <c>troops x (shortfall / need) x severity</c>, <b>floored</b>, so a large Force running a small deficit loses nobody: roughly,
-    /// <c>troops x shortfallFraction</c> has to reach 3 before it costs a single man. Small shortfalls being survivable is the intent; the trade is that a
-    /// big Force can carry a permanent slight deficit for free.
+    /// The total is <c>troops x (shortfall / need) x severity</c>, <b>floored</b>. Because <c>need</c> is itself the troops times the ration one individual eats, the troops divide straight back
+    /// out: what is left is the severity applied to the <b>absolute</b> shortfall, and the size of the Force decides nothing at all. A deficit of under about three rations therefore floors to
+    /// nobody whether it is a scouting band or an army going without.
+    /// </para>
+    /// <para>
+    /// Left at that, the floor makes starvation survivable for ever. A Force shrinks only until its need comes within those three rations of what the tile yields and then holds there, and on a
+    /// tile yielding nothing at all a couple of individuals live indefinitely - so <c>HealthyCount + InjuredCount = 0</c> was unreachable, and the destruction path downstream could never fire.
+    /// A shortfall of at least <see cref="_MINIMUM_SHORTFALL_SHARE_PER_THOUSAND"/> of the need therefore costs <b>at least one</b> casualty, which is what lets a Force starve to death. Small
+    /// shortfalls are still meant to be survivable, and they are: the minimum is one casualty rather than one death, so a Force with healthy men to wound wastes away into the injured for a long
+    /// while before it starts losing anybody.
     /// </para>
     /// <para>
     /// The split between the two is the one thing chance decides, on a single draw from <paramref name="random"/>. It is floored as well, and the wounded
@@ -79,6 +95,11 @@ internal static class StarvationCasualtyCalculator
         // Integer division truncates towards zero, and neither side is ever negative here, so this is the floor.
         int casualties = (int)(lostExactly / divisor);
 
+        if (casualties == 0 && IsWorthACasualty(shortfallRaw, need))
+        {
+            casualties = 1;
+        }
+
         casualties = Math.Min(casualties, troops);
 
         if (casualties == 0)
@@ -92,6 +113,19 @@ internal static class StarvationCasualtyCalculator
         int killed = (int)((long)casualties * deadSharePerThousand / _PER_THOUSAND);
 
         return new StarvationCasualties(killed, casualties - killed);
+    }
+
+    /// <summary>
+    /// Whether a shortfall the proportional total rounded down to nobody is nonetheless big enough to cost a casualty.
+    /// </summary>
+    /// <remarks>
+    /// Cross-multiplied rather than divided into a share first, because a share taken by integer division would read anything under a thousandth of the need
+    /// as nothing and let the threshold be undercut. Int128 for the same reason the total above needs it: a need in thousandths against the scale overflows a
+    /// <see langword="long"/> at troop counts the game allows.
+    /// </remarks>
+    private static bool IsWorthACasualty(long shortfallRaw, ScaledAmount need)
+    {
+        return (Int128)shortfallRaw * _PER_THOUSAND >= (Int128)need.RawValue * _MINIMUM_SHORTFALL_SHARE_PER_THOUSAND;
     }
 
     /// <summary>

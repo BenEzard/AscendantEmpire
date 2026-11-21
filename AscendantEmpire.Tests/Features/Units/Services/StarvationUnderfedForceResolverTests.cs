@@ -81,6 +81,8 @@ internal class StarvationUnderfedForceResolverTests : InMemoryTestBase
         _resolver = new StarvationUnderfedForceResolver(_forceLifecycleWriter, NullLogger<StarvationUnderfedForceResolver>.Instance);
     }
 
+    #region Casualties
+
     [Test, Description("A wholly unfed Force loses 34% of its troops, leaving the rest of its healthy men untouched whichever way the dead/wounded roll falls.")]
     public async Task ShouldTakeCasualtiesInProportionToTheShortfallAsync()
     {
@@ -189,6 +191,28 @@ internal class StarvationUnderfedForceResolverTests : InMemoryTestBase
         await _forceLifecycleWriter.DidNotReceiveWithAnyArgs().DestroyAsync(default!, default!, default, default);
     }
 
+    [Test, Description("A wholly wounded Force with one man left is emptied by its shortfall and handed to the lifecycle writer, which is the path to a Force dying.")]
+    public async Task ShouldDestroyAForceItsShortfallEmptiesAsync()
+    {
+        await AddForceAsync(unitInstanceId: 1, healthyCount: 0, injuredCount: 1);
+
+        UnitInstance force = await ResolveAndReloadAsync(unitInstanceId: 1, WhollyUnfed(unitInstanceId: 1, troops: 1));
+
+        Assert.That(force.HealthyCount + force.InjuredCount, Is.Zero, "The last wound had nobody healthy to take it, so it killed instead.");
+
+        await _forceLifecycleWriter.Received(1).DestroyAsync(Arg.Any<AscendantEmpireContext>(), Arg.Any<UnitInstance>(), _PLAYER_TURN_ID, Arg.Any<CancellationToken>());
+    }
+
+    [Test, Description("A Force fed nothing Turn after Turn starves the whole way to nobody, rather than holding at a couple of individuals indefinitely.")]
+    public async Task ShouldStarveAllTheWayToNobodyOnABareTileAsync()
+    {
+        await AddForceAsync(unitInstanceId: 1, healthyCount: 0, injuredCount: 30);
+
+        int roundsTaken = await StarveUntilEmptyAsync(unitInstanceId: 1, roundCap: 50);
+
+        Assert.That(roundsTaken, Is.LessThan(50), "The Force reached no troops at all within the cap rather than settling at a survivable size.");
+    }
+
     [Test, Description("With no Game row there is no seed to roll against, so no Force is damaged rather than being damaged against an invented one.")]
     public async Task ShouldTakeNoCasualtiesWhenTheGameIsMissingAsync()
     {
@@ -212,7 +236,46 @@ internal class StarvationUnderfedForceResolverTests : InMemoryTestBase
         Assert.That(force.HealthyCount, Is.EqualTo(1_000));
     }
 
-    // ── arrangement ───────────────────────────────────────────────────────────
+    #endregion
+
+    #region Arrangement
+
+    /// <summary>
+    /// Feeds the Force nothing Round after Round until it has nobody left, and says how many Rounds that took.
+    /// </summary>
+    /// <remarks>
+    /// Each Round resolves on a context of its own and saves, the way gathering does, because the next Round's need is whatever the last one left standing.
+    /// The Round number moves with it so every pass draws its own roll rather than repeating one.
+    /// </remarks>
+    /// <returns>The Rounds it took, or <paramref name="roundCap"/> where the Force was still standing when the cap was reached.</returns>
+    private async Task<int> StarveUntilEmptyAsync(int unitInstanceId, int roundCap)
+    {
+        for (int round = 0; round < roundCap; round++)
+        {
+            await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();
+
+            UnitInstance force = await context.UnitInstances.SingleAsync(unit => unit.Id == unitInstanceId);
+
+            int troops = force.HealthyCount + force.InjuredCount;
+
+            if (troops == 0)
+            {
+                return round;
+            }
+
+            await _resolver.ResolveAsync(
+                context,
+                gameId: _gameId,
+                playerId: _PLAYER_ID,
+                roundNumber: _ROUND_NUMBER + round,
+                playerTurnId: _PLAYER_TURN_ID,
+                results: [WhollyUnfed(unitInstanceId, troops)]);
+
+            await context.SaveChangesAsync();
+        }
+
+        return roundCap;
+    }
 
     /// <summary>A Force that fed on the tile and got none of what it needed, at 1 troop to 1 food.</summary>
     private static ForceFeedingResult WhollyUnfed(int unitInstanceId, int troops)
@@ -278,4 +341,6 @@ internal class StarvationUnderfedForceResolverTests : InMemoryTestBase
 
         await context.SaveChangesAsync();
     }
+
+    #endregion
 }
