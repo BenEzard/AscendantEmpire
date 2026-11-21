@@ -85,9 +85,8 @@ on — it is the `[Additional Assets]` term in the total-asset formula in [tiles
 
 A patch is food when its Asset is a member of the food **supply set** the Force's body requires, and
 it is drawn on alongside the tile's own Forage, Hunt and Fish. What it is worth is its Asset amount
-(its quantity times the yield's amount per unit) divided by what that set prices the Asset at, so a
-patch of berries at 1.67 feeds fewer individuals than the same amount of game would. See
-[depletion.md](depletion.md) for the feed and [food-yield.md](food-yield.md) for the pricing.
+(its quantity times the yield's amount per unit) divided by what that set prices the Asset at. See [depletion.md](depletion.md) for the feed and
+[food-yield.md](food-yield.md) for the pricing.
 
 An instance holding its amount in child rows — a Distribution or a stratified type — is skipped
 rather than read as a patch stripped bare, and a yield the Player has not switched on contributes

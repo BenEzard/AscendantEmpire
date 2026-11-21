@@ -26,7 +26,7 @@ internal static class SustenanceResourceAssets
     public static readonly IReadOnlyDictionary<SustenanceResource, string> CodesByResource = new Dictionary<SustenanceResource, string>
     {
         [SustenanceResource.Forage] = "Foodstuffs.PlantFoods.Forage",
-        [SustenanceResource.Hunt] = "Foodstuffs.Meat.Game",
+        [SustenanceResource.Hunt] = "Foodstuffs.Meat.Hunt",
         [SustenanceResource.Fish] = "Foodstuffs.Meat.Fish",
         [SustenanceResource.Fodder] = "RawMaterials.RawMaterials.Fodder"
     };

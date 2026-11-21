@@ -886,7 +886,7 @@ public class AscendantEmpireContext : DbContext
 
             // No store default: EF's sentinel for an int is 0, so a column default would make an author's explicit "never draw this" indistinguishable
             // from an unset value on insert and write 1 instead. The entity's own initialiser carries the default.
-            entity.Property(x => x.SelectionWeight).IsRequired();
+            entity.Property(x => x.RandomWeighting).IsRequired();
 
             entity.HasOne(x => x.SupplySet)
                 .WithMany(x => x.Assets)

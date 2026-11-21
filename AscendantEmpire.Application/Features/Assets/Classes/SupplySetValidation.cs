@@ -53,9 +53,9 @@ internal static class SupplySetValidation
         errors.AddRange(ValidateMembers(set.Assets));
 
         // Only a Repair set is drawn from, so only it needs a member the draw can land on.
-        if (set.SupplyType == SupplyType.Repair && set.Assets.All(asset => asset.SelectionWeight <= 0))
+        if (set.SupplyType == SupplyType.Repair && set.Assets.All(asset => asset.RandomWeighting <= 0))
         {
-            errors.Add("A Repair supply set is drawn from, so at least one of its Assets must carry a SelectionWeight above 0.");
+            errors.Add("A Repair supply set is drawn from, so at least one of its Assets must carry a RandomWeighting above 0.");
         }
 
         return errors;
@@ -84,9 +84,9 @@ internal static class SupplySetValidation
             }
 
             // Zero is legitimate - it excludes a member from the draw without removing it from the set.
-            if (member.SelectionWeight < 0)
+            if (member.RandomWeighting < 0)
             {
-                errors.Add($"Supply set member '{member.AssetCode}' cannot have a negative SelectionWeight.");
+                errors.Add($"Supply set member '{member.AssetCode}' cannot have a negative RandomWeighting.");
             }
         }
 

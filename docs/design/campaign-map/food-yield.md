@@ -27,13 +27,11 @@ it would carry, trade or bank:
 | Resource | Asset |
 | --- | --- |
 | Forage | `Foodstuffs.PlantFoods.Forage` |
-| Hunt | `Foodstuffs.Meat.Game` |
+| Hunt | `Foodstuffs.Meat.Hunt` |
 | Fish | `Foodstuffs.Meat.Fish` |
 | Fodder | `RawMaterials.RawMaterials.Fodder` |
 
-The mapping is the same on every tile in every game — a biome's Hunt is game meat wherever it is
-hunted — so it is held in code rather than on the biome. What differs by tile is how much there is,
-which is what the biome's values and the depletion row already say.
+The mapping is the same on every tile in every game — a biome's Hunt is hunted meat wherever it is hunted — so it is held in code rather than on the biome. What differs by tile is how much there is, which is what the biome's values and the depletion row already say.
 
 Forage is its own Asset because it cannot borrow one. Every other plant food is, or will be, a
 MapResource placed on particular tiles: a tile does not grow berries unless a patch of them stands on
@@ -50,15 +48,12 @@ decides whether any of it is edible is membership of the food **supply set** the
 
 ### Rations, not amounts
 
-A supply set prices each of its Assets: how much of it one individual costs for a Turn. Berries are
-thin rations at 1.67 where most foodstuffs cost 1.0. So a thousand berries and a thousand of game are
-not the same amount of food, and the two figures worth telling apart are:
+A supply set prices each of its Assets: how much of it one individual costs for a Turn. Although technically an Asset can be consumed at a variable rate per Asset, in practice we are keeping it simple at 1 unit = 1 ration. The two figures therefore coincide for food, but they are still worth telling apart, since a fuel or repair set does price its members apart:
 
 - **What is there**, an amount of an Asset — what the tile loses when it is eaten.
 - **What it feeds**, in **rations** (individuals fed for one Turn) — amount ÷ price.
 
-A need is always split across a tile's sources by what each one *feeds*, never by how much of it there
-is, or a thin ration would be drawn on as heavily as a rich one.
+A need is always split across a tile's sources by what each one *feeds*, never by how much of it there is, or a thin ration would be drawn on as heavily as a rich one.
 
 ## Regeneration and farming bonuses
 
@@ -182,11 +177,6 @@ Regeneration Percent is the exception: a plain `decimal(18,3)` fraction, so `0.2
 sustenance base value; and must be null when it has none, since there is nothing to regrow. Both
 rules are enforced by `CampaignMapBiomeValidator`. A biome that is not paintable on the campaign map
 must have no Regeneration Percent at all.
-
-Renamed from `RegenerationRate` by migration
-`20260918113502_CM-43_RenameRegenerationRateToRegenerationPercent`; the base value columns were
-widened to `bigint` and rescaled to thousandths by `20260613204637_ScaleBiomeBaseValuesToBigint` and
-`20260613210205_RescaleBiomeBaseValuesTo1000`.
 
 ### `game.PlayerSustenanceModifier` — the columns this feature uses
 

@@ -51,20 +51,20 @@ internal sealed class SupplySetValidationTests
 
     #endregion
 
-    #region Selection weight
+    #region Random weighting
 
-    [Test, Description("A negative SelectionWeight is refused; zero is allowed so a member can be excluded from the draw.")]
-    public void Validate_RejectsNegativeSelectionWeight()
+    [Test, Description("A negative RandomWeighting is refused; zero is allowed so a member can be excluded from the draw.")]
+    public void Validate_RejectsNegativeRandomWeighting()
     {
         UpsertSupplySetDto dto = BuildSet(SupplyType.Repair,
         [
-            BuildMember("RawMaterials.RawMaterials.Bone", selectionWeight: -1),
-            BuildMember("Foodstuffs.SpecialFoods.WildHerbs", selectionWeight: 1)
+            BuildMember("RawMaterials.RawMaterials.Bone", randomWeighting: -1),
+            BuildMember("Foodstuffs.SpecialFoods.WildHerbs", randomWeighting: 1)
         ]);
 
         List<string> errors = SupplySetValidation.Validate(dto);
 
-        Assert.That(errors, Has.Some.Contains("SelectionWeight"));
+        Assert.That(errors, Has.Some.Contains("RandomWeighting"));
     }
 
     [Test, Description("A Repair set whose every member is weighted zero is refused, because the draw would have nothing to pick.")]
@@ -72,8 +72,8 @@ internal sealed class SupplySetValidationTests
     {
         UpsertSupplySetDto dto = BuildSet(SupplyType.Repair,
         [
-            BuildMember("RawMaterials.RawMaterials.Bone", selectionWeight: 0),
-            BuildMember("Foodstuffs.SpecialFoods.WildHerbs", selectionWeight: 0)
+            BuildMember("RawMaterials.RawMaterials.Bone", randomWeighting: 0),
+            BuildMember("Foodstuffs.SpecialFoods.WildHerbs", randomWeighting: 0)
         ]);
 
         List<string> errors = SupplySetValidation.Validate(dto);
@@ -84,7 +84,7 @@ internal sealed class SupplySetValidationTests
     [Test, Description("A Food set weighted entirely zero is accepted, since nothing draws from it.")]
     public void Validate_AcceptsFoodSetWithNoPositiveWeight()
     {
-        UpsertSupplySetDto dto = BuildSet(SupplyType.Food, [BuildMember("Foodstuffs.PlantFoods.Berries", selectionWeight: 0)]);
+        UpsertSupplySetDto dto = BuildSet(SupplyType.Food, [BuildMember("Foodstuffs.PlantFoods.Berries", randomWeighting: 0)]);
 
         List<string> errors = SupplySetValidation.Validate(dto);
 
@@ -100,8 +100,8 @@ internal sealed class SupplySetValidationTests
     {
         UpsertSupplySetDto dto = BuildSet(SupplyType.Repair,
         [
-            BuildMember("RawMaterials.RawMaterials.Bone", amountPerUnit: 2_000, selectionWeight: 3),
-            BuildMember("Foodstuffs.SpecialFoods.WildHerbs", amountPerUnit: 5_000, selectionWeight: 1)
+            BuildMember("RawMaterials.RawMaterials.Bone", amountPerUnit: 2_000, randomWeighting: 3),
+            BuildMember("Foodstuffs.SpecialFoods.WildHerbs", amountPerUnit: 5_000, randomWeighting: 1)
         ]);
 
         List<string> errors = SupplySetValidation.Validate(dto);
@@ -124,13 +124,13 @@ internal sealed class SupplySetValidationTests
         };
     }
 
-    private static UpsertSupplySetAssetDto BuildMember(string assetCode, long amountPerUnit = 1_000, int selectionWeight = 1)
+    private static UpsertSupplySetAssetDto BuildMember(string assetCode, long amountPerUnit = 1_000, int randomWeighting = 1)
     {
         return new UpsertSupplySetAssetDto
         {
             AssetCode = assetCode,
             AmountPerUnit = amountPerUnit,
-            SelectionWeight = selectionWeight
+            RandomWeighting = randomWeighting
         };
     }
 

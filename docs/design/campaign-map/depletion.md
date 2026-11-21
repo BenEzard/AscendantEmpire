@@ -94,9 +94,7 @@ taken always sum exactly to the need:
 Had the tile fed fewer than 100, the unit would take everything and go short by the rest.
 
 Had a berry patch been standing on the tile, it would have been a source alongside the biome's two,
-because Berries is in the same food set. It would have been priced as that set prices it — 1.67 a
-ration, berries being thin — so a patch holding 334 berries would feed 200 and bear a quarter of the
-need, and the quarter it bore would come off its own quantity rather than off the tile's `Taken`.
+because its Berries is in the same food set. Although technically an Asset can be consumed at a variable rate per Asset, in practice we are keeping it simple at 1 unit = 1 ration. So a patch holding 200 would feed 200 and bear a quarter of the need, and the quarter it bore would come off its own quantity rather than off the tile's `Taken`.
 
 ## Depletion rules
 

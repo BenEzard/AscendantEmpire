@@ -86,17 +86,17 @@ internal sealed class SupplySetModelTests
         });
     }
 
-    [Test, Description("SelectionWeight carries no store default, since one would make an explicit zero indistinguishable from an unset value on insert.")]
-    public void Model_LeavesSelectionWeightWithoutAStoreDefault()
+    [Test, Description("RandomWeighting carries no store default, since one would make an explicit zero indistinguishable from an unset value on insert.")]
+    public void Model_LeavesRandomWeightingWithoutAStoreDefault()
     {
-        IProperty selectionWeight = GetEntityType<SupplySetAsset>().GetProperty(nameof(SupplySetAsset.SelectionWeight));
+        IProperty randomWeighting = GetEntityType<SupplySetAsset>().GetProperty(nameof(SupplySetAsset.RandomWeighting));
 
         Assert.Multiple(() =>
         {
             // TryGetDefaultValue rather than GetDefaultValue, which boxes the CLR default and so reads 0 whether or not a default was configured. This is the
             // same call the migration pipeline makes to decide whether to emit a defaultValue.
-            Assert.That(selectionWeight.TryGetDefaultValue(out _), Is.False);
-            Assert.That(selectionWeight.ValueGenerated, Is.EqualTo(ValueGenerated.Never));
+            Assert.That(randomWeighting.TryGetDefaultValue(out _), Is.False);
+            Assert.That(randomWeighting.ValueGenerated, Is.EqualTo(ValueGenerated.Never));
         });
     }
 

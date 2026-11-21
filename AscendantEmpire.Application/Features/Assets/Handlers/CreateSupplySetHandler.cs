@@ -66,7 +66,7 @@ internal class CreateSupplySetHandler(
                 {
                     AssetId = assetIdsByCode[member.AssetCode],
                     AmountPerUnit = member.AmountPerUnit,
-                    SelectionWeight = member.SelectionWeight
+                    RandomWeighting = member.RandomWeighting
                 })
             ]
         };

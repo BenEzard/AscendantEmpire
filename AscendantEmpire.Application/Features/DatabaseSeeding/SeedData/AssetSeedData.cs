@@ -550,17 +550,10 @@ internal static class AssetSeedData
                     [
                         new UpsertAssetDto
                         {
-                            DisplayName = "Game",
+                            DisplayName = "Hunt",
                             IconPath = "/resources/food/meat-02_40px.png",
                             StorageClassCode = StorageClassSeedData.LARDER,
                             Description = "The flesh of hunted land animals.",
-                            IsNaturallyOccurring = true
-                        },
-                        new UpsertAssetDto
-                        {
-                            DisplayName = "Birds",
-                            StorageClassCode = StorageClassSeedData.LARDER,
-                            Description = "Wildfowl taken with net, snare or sling.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
@@ -579,13 +572,6 @@ internal static class AssetSeedData
                             Description = "Mussels, clams, oysters and crabs prised off the tideline.",
                             IsNaturallyOccurring = true
                         },
-                        new UpsertAssetDto
-                        {
-                            DisplayName = "Insects",
-                            StorageClassCode = StorageClassSeedData.LARDER,
-                            Description = "Grubs, locusts, termites and ant brood collected in quantity.",
-                            IsNaturallyOccurring = true
-                        }
                     ]
                 },
                 new UpsertAssetCategoryDto
@@ -604,39 +590,10 @@ internal static class AssetSeedData
                         },
                         new UpsertAssetDto
                         {
-                            DisplayName = "Fruit",
-                            IconPath = "/resources/food/apple_40px.png",
-                            StorageClassCode = StorageClassSeedData.LARDER,
-                            Description = "Tree and vine fruit picked ripe - apples, figs, plums and dates.",
-                            IsNaturallyOccurring = true
-                        },
-                        new UpsertAssetDto
-                        {
                             DisplayName = "Berries",
                             IconPath = "/resources/food/berries_40px.png",
                             StorageClassCode = StorageClassSeedData.LARDER,
                             Description = "Hedgerow and scrubland berries stripped from the bush.",
-                            IsNaturallyOccurring = true
-                        },
-                        new UpsertAssetDto
-                        {
-                            DisplayName = "Roots",
-                            StorageClassCode = StorageClassSeedData.LARDER,
-                            Description = "Edible taproots dug out of open ground.",
-                            IsNaturallyOccurring = true
-                        },
-                        new UpsertAssetDto
-                        {
-                            DisplayName = "Tubers",
-                            StorageClassCode = StorageClassSeedData.LARDER,
-                            Description = "Starchy underground swellings - yams, water chestnuts and their like.",
-                            IsNaturallyOccurring = true
-                        },
-                        new UpsertAssetDto
-                        {
-                            DisplayName = "Greens",
-                            StorageClassCode = StorageClassSeedData.LARDER,
-                            Description = "Wild leaves, shoots and stalks cut young.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
@@ -646,13 +603,6 @@ internal static class AssetSeedData
                             Description = "Fungi gathered from damp woodland and pasture.",
                             IsNaturallyOccurring = true
                         },
-                        new UpsertAssetDto
-                        {
-                            DisplayName = "Bulbs",
-                            StorageClassCode = StorageClassSeedData.LARDER,
-                            Description = "Wild onions, garlic and lily bulbs lifted whole.",
-                            IsNaturallyOccurring = true
-                        }
                     ]
                 },
                 new UpsertAssetCategoryDto
@@ -667,20 +617,6 @@ internal static class AssetSeedData
                             DisplayName = "Wild Grains",
                             StorageClassCode = StorageClassSeedData.GRANARY,
                             Description = "Seed heads beaten from wild stands of emmer, barley and rice.",
-                            IsNaturallyOccurring = true
-                        },
-                        new UpsertAssetDto
-                        {
-                            DisplayName = "Seeds",
-                            StorageClassCode = StorageClassSeedData.GRANARY,
-                            Description = "Oil-rich seeds winnowed from grasses and flowering plants.",
-                            IsNaturallyOccurring = true
-                        },
-                        new UpsertAssetDto
-                        {
-                            DisplayName = "Legumes",
-                            StorageClassCode = StorageClassSeedData.GRANARY,
-                            Description = "Wild peas, beans and vetch shelled from the pod.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto
@@ -704,13 +640,6 @@ internal static class AssetSeedData
                             DisplayName = "Honey",
                             StorageClassCode = StorageClassSeedData.SUNDRIES,
                             Description = "Comb raided from wild hives in hollow trees and cliff faces.",
-                            IsNaturallyOccurring = true
-                        },
-                        new UpsertAssetDto
-                        {
-                            DisplayName = "Seaweed",
-                            StorageClassCode = StorageClassSeedData.SUNDRIES,
-                            Description = "Kelp and laver cut off the rocks at low tide and dried on frames.",
                             IsNaturallyOccurring = true
                         },
                         new UpsertAssetDto

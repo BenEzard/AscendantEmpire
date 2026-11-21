@@ -6,17 +6,11 @@ supply is implicit; beyond it, a **supply chain** is required.
 
 ## Supply sets
 
-A need is stated against a **supply set**, not against one Asset. A set names the Assets that satisfy
-it, so a requirement reads "human food" and is met by whatever the tile actually grows — game, berries,
-chilli peppers.
+A need is stated against a **supply set**, not against one Asset. A set names the Assets that satisfy it, so a requirement reads "human food" and is met by whatever the tile actually offers.
 
-- A set carries a **supply type** — `Food`, `Fuel` or `Repair` — which decides what a quantity of it is
-  measured against: per individual, per movement point, or per point of damage.
-- Each Asset in a set carries an **amount per unit**: how much of that Asset one unit of the need costs.
-  Berries are thin rations and cost 1.67 where most foodstuffs cost 1.0.
-- A `Repair` set is **drawn from** rather than summed: when damage is taken, one member is picked at
-  random, weighted by each member's **selection weight**. A force of tanks taking a hit therefore needs
-  steel plate, or circuitry, or tank tracks — whichever the draw lands on.
+- A set carries a **supply type** — `Food`, `Fuel` or `Repair` — which decides what a quantity of it is measured against: per individual, per movement point, or per point of damage.
+- Each Asset in a set carries an **amount per unit**: how much of that Asset one unit of the need costs. Although technically an Asset can be consumed at a variable rate per Asset, in practice food is kept simple at 1 unit = 1 ration — one unit of any food feeds one individual for one turn. The kind of food a body needs is expressed by which set it requires, not by what each food is worth. Fuel and repair sets do price their members apart.
+- A `Repair` set is **drawn from** rather than summed: when damage is taken, one member is picked at random, weighted by each member's **random weighting**. A force of tanks taking a hit therefore needs steel plate, or circuitry, or tank tracks — whichever the draw lands on.
 - A **unit component** states its needs as quantities of sets, and only a **body** may carry any. A
   mounted body needs human food for its rider and a fodder set as its fuel, which is why fodder is a
   `Fuel` set rather than a second food.
@@ -30,10 +24,7 @@ chilli peppers.
   appetite the same way it weighs its own. A type the body needs nothing of compiles as null.
 - Ammunition is not a supply set. Its options are meant to carry damage profiles of their own, so they
   live on the weapon rather than in a set drawn from blindly — see **Ammunition** below.
-- The starting sets are seeded: `human-food` (the edible Foodstuffs Assets, named one by one — Poisons
-  and Wild Herbs are left out), `mount-fodder` and `human-medical`. Each member states what it costs,
-  so the same Asset may be priced differently in two sets. They are edited in the Entity Setup Tool's
-  Supply Sets dialog.
+- The starting sets are seeded: `human-food` (the foodstuffs a force may be fed on, named one by one rather than swept up by meta-category), `mount-fodder` and `human-medical`. Each member states what it costs, so the same Asset may be priced differently in two sets. They are edited in the Entity Setup Tool's Supply Sets dialog.
 
 General notes:
 
@@ -122,11 +113,7 @@ friendly territory.
 - A unit consumes food from the tile in which it **ends** its turn. If that tile doesn't produce
   enough on its own, the excess must come via a supply chain. Tile food replenishes at a set rate;
   if a unit consumes more than remains, it must move or starve.
-- What a tile offers is its biome's own Forage, Hunt and Fish — each of which is an Asset — together
-  with any MapResource patch standing on it. Whichever of them the required set holds is food, each at
-  the set's own price, so a berry patch feeds fewer individuals than the same amount of game would.
-  See [campaign-map/food-yield.md](../campaign-map/food-yield.md) and
-  [campaign-map/depletion.md](../campaign-map/depletion.md).
+- What a tile offers is its biome's own Forage, Hunt and Fish — each of which is an Asset — together with any MapResource patch standing on it. Whichever of them the required set holds is food, each at the set's own price. See [campaign-map/food-yield.md](../campaign-map/food-yield.md) and [campaign-map/depletion.md](../campaign-map/depletion.md).
 
 **Food algorithm (per turn):**
 

@@ -33,14 +33,14 @@ const FODDER: AssetOption = { id: 2, code: "RawMaterials.RawMaterials.Fodder", d
 // No icon of its own, so its tile falls back to the generic glyph rather than rendering a broken image.
 const STEEL_PLATE: AssetOption = { id: 3, code: "ConstructionMaterials.Metal.SteelPlate", displayName: "Steel Plate", iconPath: "" };
 
-/** A saved Food set holding Berries, as the seed leaves it. */
+/** A saved Food set holding Berries. Priced at 1.67 rather than the seed's flat 1 so the scaling the field does is visible in what it renders. */
 function humanFood(): SupplySetView {
   return {
     id: 7,
     code: "human-food",
     displayName: "Human Food",
     supplyType: "Food",
-    assets: [{ assetId: 1, assetCode: BERRIES.code, assetDisplayName: "Berries", amountPerUnit: 1670, selectionWeight: 1 }],
+    assets: [{ assetId: 1, assetCode: BERRIES.code, assetDisplayName: "Berries", amountPerUnit: 1670, randomWeighting: 1 }],
   };
 }
 
@@ -51,7 +51,7 @@ function humanMedical(): SupplySetView {
     code: "human-medical",
     displayName: "Human Medical Supplies",
     supplyType: "Repair",
-    assets: [{ assetId: 3, assetCode: STEEL_PLATE.code, assetDisplayName: "Steel Plate", amountPerUnit: 1000, selectionWeight: 3 }],
+    assets: [{ assetId: 3, assetCode: STEEL_PLATE.code, assetDisplayName: "Steel Plate", amountPerUnit: 1000, randomWeighting: 3 }],
   };
 }
 

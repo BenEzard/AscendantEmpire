@@ -63,7 +63,7 @@ function toDraft(set: SupplySetView): SupplySetDraft {
       assetCode: asset.assetCode,
       assetDisplayName: asset.assetDisplayName,
       amountPerUnitRaw: asset.amountPerUnit,
-      selectionWeight: asset.selectionWeight,
+      randomWeighting: asset.randomWeighting,
     })),
   };
 }
@@ -72,7 +72,7 @@ function toPayload(draft: SupplySetDraft): UpsertSupplySet {
   const assets: UpsertSupplySetAsset[] = draft.members.map((member) => ({
     assetCode: member.assetCode,
     amountPerUnit: member.amountPerUnitRaw,
-    selectionWeight: member.selectionWeight,
+    randomWeighting: member.randomWeighting,
   }));
 
   return { code: draft.code.trim(), displayName: draft.displayName.trim(), supplyType: draft.supplyType, assets };
@@ -99,7 +99,7 @@ function validate(draft: SupplySetDraft): string | null {
   }
 
   // Only a repair draw reads the weights, and a set drawn from needs something it can land on.
-  if (draft.supplyType === "Repair" && draft.members.every((member) => member.selectionWeight <= 0)) {
+  if (draft.supplyType === "Repair" && draft.members.every((member) => member.randomWeighting <= 0)) {
     return "A Repair set is drawn from, so at least one Asset must carry a weight above 0.";
   }
 

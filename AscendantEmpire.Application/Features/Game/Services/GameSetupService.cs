@@ -109,12 +109,7 @@ internal class GameSetupService(
         "RawMaterials.RawMaterials.Hides",
         "RawMaterials.RawMaterials.Tallow",
 
-        // The foods a people gathers by hand with no tool, technique or season behind it. Hunting, fishing, digging and threshing are all held back, which
-        // is why Game, Fish, Roots and the Wild Grains are absent from a start that can still feed itself on insects, fruit, greens and berries.
-        "Foodstuffs.Meat.Insects",
-        "Foodstuffs.PlantFoods.Fruit",
         "Foodstuffs.PlantFoods.Berries",
-        "Foodstuffs.PlantFoods.Greens",
 
         // Population stats; excluding Airforce and Navy which need to be unlocked.
         // The foreign Assets are unlocked from the first Round even though nobody has met anybody yet.

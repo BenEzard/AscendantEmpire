@@ -24,8 +24,9 @@ public class SupplySetAsset
     /// </summary>
     /// <remarks>
     /// <para>
-    /// A cost rather than an efficiency, so the figure reads the same way whatever the set's type: Berries at 1,670 are 1.67 per troop, diesel at 800 goes
-    /// further than petrol at 1,000, and steel plate at 2,000 is 2 per point of damage.
+    /// A cost rather than an efficiency, so the figure reads the same way whatever the set's type: diesel at 800 goes further than petrol at 1,000, and
+    /// steel plate at 2,000 is 2 per point of damage. Every member of a Food set is priced at 1,000 by design decision rather than by any rule here - one
+    /// unit of any food feeds one individual for one Turn - so a food rate other than 1,000 is supported but deliberately unused.
     /// </para>
     /// <para>
     /// Named to match <c>MapResourceTypeYield.AmountPerUnit</c>, the other per-unit amount in the catalogue. Must be above zero: it is the divisor wherever
@@ -42,5 +43,5 @@ public class SupplySetAsset
     /// ignore it. Zero excludes a member from the draw without removing it from the set, so a Repair set must carry at least one member above zero.
     /// Defaults to 1, which makes an evenly weighted set data rather than a schema decision.
     /// </remarks>
-    public int SelectionWeight { get; set; } = 1;
+    public int RandomWeighting { get; set; } = 1;
 }

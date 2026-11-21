@@ -430,7 +430,7 @@ namespace AscendantEmpire.Application.Migrations
                     b.Property<long>("AmountPerUnit")
                         .HasColumnType("bigint");
 
-                    b.Property<int>("SelectionWeight")
+                    b.Property<int>("RandomWeighting")
                         .HasColumnType("int");
 
                     b.HasKey("SupplySetId", "AssetId");

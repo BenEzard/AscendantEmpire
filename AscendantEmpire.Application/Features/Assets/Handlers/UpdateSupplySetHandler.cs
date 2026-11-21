@@ -131,14 +131,14 @@ internal class UpdateSupplySetHandler(
                 {
                     AssetId = assetId,
                     AmountPerUnit = wanted.AmountPerUnit,
-                    SelectionWeight = wanted.SelectionWeight
+                    RandomWeighting = wanted.RandomWeighting
                 });
 
                 continue;
             }
 
             existing.AmountPerUnit = wanted.AmountPerUnit;
-            existing.SelectionWeight = wanted.SelectionWeight;
+            existing.RandomWeighting = wanted.RandomWeighting;
         }
     }
 }

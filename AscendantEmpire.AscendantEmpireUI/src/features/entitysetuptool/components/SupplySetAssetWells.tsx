@@ -22,7 +22,7 @@ export interface SupplySetMember {
   assetCode: string;
   assetDisplayName: string;
   amountPerUnitRaw: number;
-  selectionWeight: number;
+  randomWeighting: number;
 }
 
 /** What a newly added member costs, until the author says otherwise: one of the Asset per unit of the need. */
@@ -37,7 +37,7 @@ interface SupplySetAssetWellsProps {
   /** The whole Asset catalogue. Those already in the set are drawn from the right-hand well instead. */
   assets: AssetOption[];
   members: SupplySetMember[];
-  /** Whether a member's selection weight is editable — only a Repair set is drawn from, so only it reads one. */
+  /** Whether a member's random weighting is editable — only a Repair set is drawn from, so only it reads one. */
   showWeights: boolean;
   onChange: (next: SupplySetMember[]) => void;
 }
@@ -76,7 +76,7 @@ export default function SupplySetAssetWells({ assets, members, showWeights, onCh
         assetCode: asset.code,
         assetDisplayName: asset.displayName,
         amountPerUnitRaw: pendingAmountRaw,
-        selectionWeight: pendingWeight,
+        randomWeighting: pendingWeight,
       },
     ]);
   };
@@ -112,7 +112,7 @@ export default function SupplySetAssetWells({ assets, members, showWeights, onCh
       return;
     }
 
-    patchSelected({ selectionWeight: nextWeight });
+    patchSelected({ randomWeighting: nextWeight });
   };
 
   // The dragged Asset's code is all either well needs: the destination decides what happens to it, so the drag carries no notion of where it came from.
@@ -200,7 +200,7 @@ export default function SupplySetAssetWells({ assets, members, showWeights, onCh
               type="number"
               step="1"
               className={`${inputClass} w-24`}
-              value={selected?.selectionWeight ?? pendingWeight}
+              value={selected?.randomWeighting ?? pendingWeight}
               onChange={(event) => handleWeightChange(event.target.value.trim() === "" ? 0 : Number(event.target.value))}
             />
           </div>
@@ -233,7 +233,7 @@ export default function SupplySetAssetWells({ assets, members, showWeights, onCh
                     <AssetIconImage iconPath={asset?.iconPath ?? ""} size={TILE_ICON_SIZE} />
                     <span className="text-xs tabular-nums text-slate-600">
                       {rawToScaled(member.amountPerUnitRaw)}
-                      {showWeights ? ` ×${member.selectionWeight}` : ""}
+                      {showWeights ? ` ×${member.randomWeighting}` : ""}
                     </span>
                   </button>
                 </Tooltip>

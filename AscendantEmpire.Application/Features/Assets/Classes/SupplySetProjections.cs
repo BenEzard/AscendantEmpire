@@ -37,7 +37,7 @@ internal static class SupplySetProjections
                         AssetCode = member.Asset.Code,
                         AssetDisplayName = member.Asset.DisplayName,
                         AmountPerUnit = member.AmountPerUnit,
-                        SelectionWeight = member.SelectionWeight
+                        RandomWeighting = member.RandomWeighting
                     })
             ]
         };

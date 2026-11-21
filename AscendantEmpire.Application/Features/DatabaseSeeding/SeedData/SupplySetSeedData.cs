@@ -12,18 +12,6 @@ namespace AscendantEmpire.Application.Features.DatabaseSeeding.SeedData;
 /// dialog saves. A rate belongs to the member that states it rather than to the Asset, so the same Asset may cost one thing in one set and something else
 /// in another; a member that states no rate costs <see cref="DEFAULT_AMOUNT_PER_UNIT"/>.
 /// </para>
-/// <para>
-/// Human food is the edible part of the Foodstuffs meta-category. Poisons sit there by catalogue placement rather than by use, and Wild Herbs are the
-/// medical set's member, so neither is a ration. A foodstuff added to the catalogue later joins the set by being named here.
-/// </para>
-/// <para>
-/// Fodder is deliberately <see cref="SupplyType.Fuel"/>. A horse burns it the way an engine burns diesel, while the rider still eats human food, so a
-/// mounted body carries a requirement against both sets rather than one blended ration.
-/// </para>
-/// <para>
-/// There are no medical Assets in the catalogue beyond Wild Herbs, so the repair set holds it alone. It is a real set rather than a placeholder: a repair
-/// draw with one member always draws that member, and adding the rest later only widens the draw.
-/// </para>
 /// </remarks>
 internal static class SupplySetSeedData
 {
@@ -35,11 +23,6 @@ internal static class SupplySetSeedData
     /// What one unit of a need costs in a member that states no rate of its own — 1.0, scaled.
     /// </summary>
     public const long DEFAULT_AMOUNT_PER_UNIT = 1_000;
-
-    /// <summary>
-    /// What one individual's food costs in Berries. They are thin rations, which is the rate <c>docs/design/campaign-map/food-yield.md</c> fixes.
-    /// </summary>
-    private const long _BERRIES_PER_INDIVIDUAL = 1_670;
 
     private const string _FODDER = "RawMaterials.RawMaterials.Fodder";
     private const string _WILD_HERBS = "Foodstuffs.SpecialFoods.WildHerbs";
@@ -58,29 +41,19 @@ internal static class SupplySetSeedData
                 SupplyType = SupplyType.Food,
                 Assets =
                 [
-                    Member("Foodstuffs.Meat.Game"),
-                    Member("Foodstuffs.Meat.Birds"),
-                    Member("Foodstuffs.Meat.Fish"),
-                    Member("Foodstuffs.Meat.Shellfish"),
-                    Member("Foodstuffs.Meat.Insects"),
+                    Member(assetCode: "Foodstuffs.Meat.Hunt"),
+                    Member(assetCode: "Foodstuffs.Meat.Fish"),
+                    Member(assetCode: "Foodstuffs.Meat.Shellfish"),
 
-                    Member("Foodstuffs.PlantFoods.Forage"),
-                    Member("Foodstuffs.PlantFoods.Fruit"),
-                    Member("Foodstuffs.PlantFoods.Berries", _BERRIES_PER_INDIVIDUAL),
-                    Member("Foodstuffs.PlantFoods.Roots"),
-                    Member("Foodstuffs.PlantFoods.Tubers"),
-                    Member("Foodstuffs.PlantFoods.Greens"),
-                    Member("Foodstuffs.PlantFoods.Mushrooms"),
-                    Member("Foodstuffs.PlantFoods.Bulbs"),
+                    Member(assetCode: "Foodstuffs.PlantFoods.Forage"),
+                    Member(assetCode: "Foodstuffs.PlantFoods.Berries"),
+                    Member(assetCode: "Foodstuffs.PlantFoods.Mushrooms"),
 
-                    Member("Foodstuffs.Staples.WildGrains"),
-                    Member("Foodstuffs.Staples.Seeds"),
-                    Member("Foodstuffs.Staples.Legumes"),
-                    Member("Foodstuffs.Staples.Nuts"),
+                    Member(assetCode: "Foodstuffs.Staples.WildGrains"),
+                    Member(assetCode: "Foodstuffs.Staples.Nuts"),
 
-                    Member("Foodstuffs.SpecialFoods.Honey"),
-                    Member("Foodstuffs.SpecialFoods.Seaweed"),
-                    Member("Foodstuffs.SpecialFoods.ChilliPeppers")
+                    Member(assetCode: "Foodstuffs.SpecialFoods.Honey"),
+                    Member(assetCode: "Foodstuffs.SpecialFoods.ChilliPeppers")
                 ]
             },
             new UpsertSupplySetDto
@@ -103,13 +76,14 @@ internal static class SupplySetSeedData
     /// <summary>
     /// One member of one set. Weight is read only for a repair draw, where equal weights mean equal odds.
     /// </summary>
-    private static UpsertSupplySetAssetDto Member(string assetCode, long amountPerUnit = DEFAULT_AMOUNT_PER_UNIT, int selectionWeight = 1)
+    /// <param name="randomWeighting">How heavily this Asset is weighted when one member is drawn at random. Read only for a Repair set.</param>
+    private static UpsertSupplySetAssetDto Member(string assetCode, long amountPerUnit = DEFAULT_AMOUNT_PER_UNIT, int randomWeighting = 1)
     {
         return new UpsertSupplySetAssetDto
         {
             AssetCode = assetCode,
             AmountPerUnit = amountPerUnit,
-            SelectionWeight = selectionWeight
+            RandomWeighting = randomWeighting
         };
     }
 }

@@ -257,13 +257,13 @@ internal class SupplySetHandlerTests : InMemoryTestBase
         };
     }
 
-    private static UpsertSupplySetAssetDto Member(string assetCode, long amountPerUnit = 1_000, int selectionWeight = 1)
+    private static UpsertSupplySetAssetDto Member(string assetCode, long amountPerUnit = 1_000, int randomWeighting = 1)
     {
         return new UpsertSupplySetAssetDto
         {
             AssetCode = assetCode,
             AmountPerUnit = amountPerUnit,
-            SelectionWeight = selectionWeight
+            RandomWeighting = randomWeighting
         };
     }
 

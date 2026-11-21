@@ -28,7 +28,7 @@ internal class SupplySetPersistenceTests : SqlServerTestBase
     private const string _CIRCUITRY = "ConstructionMaterials.Metal.Circuitry";
 
     [Test, Description("A member weighted zero stays zero, which is how an Asset sits in a Repair set without ever being drawn.")]
-    public async Task CreateSupplySet_PersistsAZeroSelectionWeight()
+    public async Task CreateSupplySet_PersistsAZeroRandomWeighting()
     {
         await SeedAssetsAsync(_STEEL_PLATE, _CIRCUITRY);
 
@@ -43,8 +43,8 @@ internal class SupplySetPersistenceTests : SqlServerTestBase
                 SupplyType = SupplyType.Repair,
                 Assets =
                 [
-                    new UpsertSupplySetAssetDto { AssetCode = _STEEL_PLATE, AmountPerUnit = 1_000, SelectionWeight = 3 },
-                    new UpsertSupplySetAssetDto { AssetCode = _CIRCUITRY, AmountPerUnit = 1_000, SelectionWeight = 0 },
+                    new UpsertSupplySetAssetDto { AssetCode = _STEEL_PLATE, AmountPerUnit = 1_000, RandomWeighting = 3 },
+                    new UpsertSupplySetAssetDto { AssetCode = _CIRCUITRY, AmountPerUnit = 1_000, RandomWeighting = 0 },
                 ]
             }),
             CancellationToken.None);
@@ -53,7 +53,7 @@ internal class SupplySetPersistenceTests : SqlServerTestBase
 
         Dictionary<string, int> weightsByAssetCode = await verifyContext.SupplySetAssets
             .Include(member => member.Asset)
-            .ToDictionaryAsync(member => member.Asset.Code, member => member.SelectionWeight);
+            .ToDictionaryAsync(member => member.Asset.Code, member => member.RandomWeighting);
 
         using (Assert.EnterMultipleScope())
         {

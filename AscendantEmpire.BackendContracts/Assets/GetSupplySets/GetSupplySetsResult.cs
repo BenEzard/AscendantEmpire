@@ -42,5 +42,8 @@ public record SupplySetAssetView
     /// </summary>
     public required long AmountPerUnit { get; init; }
 
-    public required int SelectionWeight { get; init; }
+    /// <summary>
+    /// How heavily this Asset is weighted when one member is drawn at random. Read only for a Repair set.
+    /// </summary>
+    public required int RandomWeighting { get; init; }
 }

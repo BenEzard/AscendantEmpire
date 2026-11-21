@@ -16,7 +16,7 @@ This document describes the asset hierarchy — how it is structured in the data
 | `Asset` | `Id` | The actual asset, e.g. "Oak", "Marble", "Coal". |
 | `StorageClass` | `Id` | How an Asset is kept, as against what it is — the storage yard, the armoury, the granary. `Code` and `DisplayName` are both uniquely indexed. |
 | `SupplySet` | `Id` | A group of Assets that satisfies one of a Unit's needs. Carries a `SupplyType` — `Food`, `Fuel` or `Repair`. `Code` is uniquely indexed. |
-| `SupplySetAsset` | (`SupplySetId`, `AssetId`) | One Asset in a set, with its `AmountPerUnit` and its `SelectionWeight`. |
+| `SupplySetAsset` | (`SupplySetId`, `AssetId`) | One Asset in a set, with its `AmountPerUnit` and its `RandomWeighting`. |
 
 Every table above is **global**. None of them carries a `GameId` or a `PlayerId`, and `Code` is unique across the whole
 catalogue, so the same tables serve every game.
@@ -68,9 +68,9 @@ many-to-many and a member carries data of its own, which is why it is a join tab
 
 | Column | On | What it is |
 |---|---|---|
-| `SupplyType` | `SupplySet` | The need the set satisfies, which decides what a quantity of it is measured against — per troop, per movement point, or per point of damage. |
-| `AmountPerUnit` | `SupplySetAsset` | How much of this Asset one unit of the need costs, as a raw Scale-1,000 `long`. Berries cost 1,670 where most foodstuffs cost 1,000. |
-| `SelectionWeight` | `SupplySetAsset` | How heavily this Asset is weighted when one member is drawn at random. Read only for a `Repair` set, and defaults to 1. |
+| `SupplyType` | `SupplySet` | The need the set satisfies, which decides what a quantity of it is measured against — per individual, per movement point, or per point of damage. |
+| `AmountPerUnit` | `SupplySetAsset` | How much of this Asset one unit of the need costs, as a raw Scale-1,000 `long`. Any value above zero is allowed; every food member is priced at 1,000 by design decision, so one unit of any food feeds one individual for one turn. |
+| `RandomWeighting` | `SupplySetAsset` | How heavily this Asset is weighted when one member is drawn at random. Read only for a `Repair` set, and defaults to 1. |
 
 A `Food` or `Fuel` set is an either-or: any one member satisfies the need, at its own rate. A `Repair` set is drawn from
 instead — damage picks one member, weighted — so the materials a repair consumes vary from hit to hit.

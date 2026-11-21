@@ -15,52 +15,10 @@ namespace AscendantEmpire.Tests.Features.DatabaseSeeding;
 [TestFixture]
 internal class SupplySetSeedDataTests
 {
-    private const string _BERRIES = "Foodstuffs.PlantFoods.Berries";
-    private const string _ROOTS = "Foodstuffs.PlantFoods.Roots";
     private const string _POISONS = "Foodstuffs.SpecialFoods.Poisons";
     private const string _WILD_HERBS = "Foodstuffs.SpecialFoods.WildHerbs";
 
     private static readonly StringComparer _codeComparer = StringComparer.OrdinalIgnoreCase;
-
-    #region Rates
-
-    [Test, Description("Berries cost 1.67 food per troop, as the design doc fixes.")]
-    public void HumanFood_PricesBerriesAtTheDesignValue()
-    {
-        Assert.That(Member(HumanFood(), _BERRIES).AmountPerUnit, Is.EqualTo(1_670L));
-    }
-
-    [Test, Description("A member authored without a rate of its own costs one unit per troop, which is what makes a stated rate an exception rather than a full price list.")]
-    public void HumanFood_DefaultsAMemberWithNoStatedRate()
-    {
-        Assert.That(Member(HumanFood(), _ROOTS).AmountPerUnit, Is.EqualTo(SupplySetSeedData.DEFAULT_AMOUNT_PER_UNIT));
-    }
-
-    [Test, Description("A rate belongs to one set's member, so the same Asset can cost differently in two sets without either having to agree with the other.")]
-    public void Sets_PriceEachMemberIndependentlyOfTheSameAssetElsewhere()
-    {
-        Dictionary<string, List<long>> ratesByAssetCode = [];
-
-        foreach (UpsertSupplySetDto set in SupplySetSeedData.BuildSets())
-        {
-            foreach (UpsertSupplySetAssetDto member in set.Assets)
-            {
-                if (!ratesByAssetCode.TryGetValue(member.AssetCode, out List<long>? rates))
-                {
-                    rates = [];
-                    ratesByAssetCode[member.AssetCode] = rates;
-                }
-
-                rates.Add(member.AmountPerUnit);
-            }
-        }
-
-        // Nothing is read from a table keyed by Asset code, so a member's rate is whatever its own set states. Pinning the shape rather than a clash keeps
-        // the test honest while no Asset happens to sit in two sets.
-        Assert.That(ratesByAssetCode[_BERRIES], Is.EqualTo(new[] { 1_670L }));
-    }
-
-    #endregion
 
     #region Membership
 

@@ -46,5 +46,5 @@ public record UpsertSupplySetAssetDto
     /// <summary>
     /// How heavily this Asset is weighted when one member is drawn at random. Read only for a Repair set.
     /// </summary>
-    public int SelectionWeight { get; init; } = 1;
+    public int RandomWeighting { get; init; } = 1;
 }

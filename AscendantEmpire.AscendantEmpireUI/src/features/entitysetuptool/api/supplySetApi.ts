@@ -16,7 +16,7 @@ export interface SupplySetAssetView {
   /** Raw Scale-1,000 — 1,000 is one unit of the Asset per unit of the need. */
   amountPerUnit: number;
   /** How heavily this Asset is weighted when one member is drawn. Read only for a Repair set. */
-  selectionWeight: number;
+  randomWeighting: number;
 }
 
 /** One supply set and its members. */
@@ -32,7 +32,7 @@ export interface SupplySetView {
 export interface UpsertSupplySetAsset {
   assetCode: string;
   amountPerUnit: number;
-  selectionWeight: number;
+  randomWeighting: number;
 }
 
 /** A set on the way out. Submitting it reconciles its members to exactly this list. */
