@@ -42,6 +42,7 @@ public partial class GameSetupServiceTests
             Substitute.For<IForceLifecycleWriter>(),
             [new IdenticalTechnologyRequirementGenerator()],
             Substitute.For<IPlayerTechnologyAvailabilityService>(),
+            Substitute.For<IPlayerTechnologySustenanceModifierService>(),
             TestGameSettings.Create(),
             Substitute.For<IMapResourceInstantiationService>(),
             Substitute.For<IPlayerMapResourceDiscoveryService>()

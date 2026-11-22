@@ -226,6 +226,7 @@ public static class ApplicationStartup
             _ => new UnimplementedTechnologyRequirementGenerator(TechnologyCustomisation.FullyRandomised));
 
         services.AddScoped<IPlayerTechnologyAvailabilityService, PlayerTechnologyAvailabilityService>();
+        services.AddScoped<IPlayerTechnologySustenanceModifierService, PlayerTechnologySustenanceModifierService>();
 
         return services;
     }

@@ -48,6 +48,7 @@ internal class ApplyResearchTests : InMemoryTestBase
         _process = new ApplyResearch(
             DbFactory,
             new PlayerTechnologyAvailabilityService(NullLogger<PlayerTechnologyAvailabilityService>.Instance),
+            new PlayerTechnologySustenanceModifierService(NullLogger<PlayerTechnologySustenanceModifierService>.Instance),
             NullLogger<ApplyResearch>.Instance);
 
         await using AscendantEmpireContext context = await DbFactory.CreateDbContextAsync();

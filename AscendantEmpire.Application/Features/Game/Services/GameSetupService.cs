@@ -41,6 +41,7 @@ internal class GameSetupService(
     IForceLifecycleWriter forceLifecycleWriter,
     IEnumerable<ITechnologyRequirementGenerator> technologyRequirementGenerators,
     IPlayerTechnologyAvailabilityService technologyAvailabilityService,
+    IPlayerTechnologySustenanceModifierService sustenanceModifierService,
     IOptions<GameSettings> gameSettings,
     IMapResourceInstantiationService mapResourceInstantiationService,
     IPlayerMapResourceDiscoveryService playerMapResourceDiscoveryService
@@ -603,17 +604,23 @@ internal class GameSetupService(
         // place it can be got wrong.
         int reconciled = await technologyAvailabilityService.ReconcileGameAsync(context, game.Id, cancellationToken);
 
+        // A starting Technology is Discovered from setup onwards, so its sustenance modifiers have to exist before the first Turn is taken rather than
+        // waiting for a discovery that already happened.
+        int modifiers = await sustenanceModifierService.ReconcileGameAsync(context, game.Id, cancellationToken);
+
         await context.SaveChangesAsync(cancellationToken);
 
         logger.LogInformation(
             "Seeded {RowCount} player technology row(s) for {PlayerCount} player(s) in game {GameId} using {Customisation} customisation, "
-            + "granting {StarterCount} starting technolog(ies) each; {ReconciledCount} row(s) became available.",
+            + "granting {StarterCount} starting technolog(ies) each; {ReconciledCount} row(s) became available and {ModifierCount} sustenance "
+            + "modifier(s) were granted.",
             rows.Count,
             addedPlayers.Count,
             game.Id,
             configuration.TechnologyCustomisation,
             starterIds.Count,
-            reconciled);
+            reconciled,
+            modifiers);
 
         return ServiceResultBase.Succeed();
     }

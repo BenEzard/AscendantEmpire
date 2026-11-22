@@ -29,6 +29,7 @@ namespace AscendantEmpire.Application.Features.Turns.Services.TurnPipeline.Campa
 internal class ApplyResearch(
     IDbContextFactory<AscendantEmpireContext> dbFactory,
     IPlayerTechnologyAvailabilityService technologyAvailabilityService,
+    IPlayerTechnologySustenanceModifierService sustenanceModifierService,
     ILogger<ApplyResearch> logger) : IEndCampaignTurnProcess
 {
     public string ItemName => "Apply Research";
@@ -47,7 +48,7 @@ internal class ApplyResearch(
         //       finished" notification, which does not exist; until then the Player is prompted by ResearchSelectionCheck instead.
         //
         // TODO: TechnologyGrant rows are not applied on discovery, so discovering a Technology unlocks nothing it grants. Most grant targets do not exist in
-        //       their catalogues yet.
+        //       their catalogues yet. Sustenance modifier grants are applied, by IPlayerTechnologySustenanceModifierService.
 
         if (context.PlayerId is null)
         {
@@ -207,14 +208,19 @@ internal class ApplyResearch(
         // a second time in this file. It joins this unit of work and leaves the save to the caller.
         int reconciledCount = await technologyAvailabilityService.ReconcileAsync(db, context.GameId, playerId, CancellationToken.None);
 
+        // Likewise the one owner of which sustenance modifiers the Player holds for what they have discovered. Convergent, so what it writes here is the
+        // same whether this is the Player's first discovery or their fiftieth.
+        int modifierCount = await sustenanceModifierService.ReconcileAsync(db, context.GameId, playerId, CancellationToken.None);
+
         logger.LogInformation(
             "Player Id {PlayerId} in Game Id {GameId} discovered Technology Id {TechnologyId} by directed research in Round {RoundNumber}; "
-            + "{ReconciledCount} row(s) changed status.",
+            + "{ReconciledCount} row(s) changed status and {ModifierCount} sustenance modifier(s) were reconciled.",
             playerId,
             context.GameId,
             currentTechnologyId,
             context.CurrentRoundNumber,
-            reconciledCount);
+            reconciledCount,
+            modifierCount);
 
         return spentPoints;
     }
